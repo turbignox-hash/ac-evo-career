@@ -1,0 +1,7089 @@
+{
+ "version": 1,
+ "_modello": [
+  "Carriera per Assetto Corsa EVO, derivata dal modello dati di Zero to Apex (AMS2):",
+  "  career_ladder.psv  -> discipline | level 1..7 | tier rookie/semipro/pro/elite | nodi per classe",
+  "  econ.json          -> phase, disc, comprar/alquiler/entry/premio, model pocket|sponsor|factory|heritage, champion",
+  "  points.json        -> tabelle punti reali per epoca/serie, con fl_point, fl_top_n, pole_point",
+  "  FIELDSET.md        -> gate { nodeId, top }, sentinel rule, calendario con format/ora/meteo",
+  "  class_difficulty   -> difficolta' a strati: base + trim + offClass + offTrack, clamp unico 70..120",
+  "  series_access.psv  -> access: open | closed (parco chiuso, solo per contratto)",
+  "",
+  "Gli ID di auto e piste sono le cartelle dentro content\\cars e content\\tracks di Assetto Corsa EVO.",
+  "Quelli usati qui sono stati letti dalla installazione reale (log, seasondefinition, drivermanager).",
+  "Verifica con:  node ac-evo-career.mjs content --validate",
+  "I nomi visualizzati (contentNames) sono quelli che vedi nel menu del gioco."
+ ],
+ "tiers": [
+  {
+   "tier": "rookie",
+   "fromLevel": 1,
+   "toLevel": 2,
+   "name": "Rookie"
+  },
+  {
+   "tier": "semipro",
+   "fromLevel": 3,
+   "toLevel": 4,
+   "name": "Semi-pro"
+  },
+  {
+   "tier": "pro",
+   "fromLevel": 5,
+   "toLevel": 6,
+   "name": "Pro"
+  },
+  {
+   "tier": "elite",
+   "fromLevel": 7,
+   "toLevel": 7,
+   "name": "Elite"
+  }
+ ],
+ "disciplines": [
+  {
+   "id": "entry",
+   "name": "Entry Level",
+   "description": "Vetture compatte e coppe monomarca: si impara a stare in pista prima di pretendere di vincere."
+  },
+  {
+   "id": "touring",
+   "name": "Turismo",
+   "description": "Berline e derivate di serie: contatti, trazione e gare corte."
+  },
+  {
+   "id": "single",
+   "name": "Monoposto",
+   "description": "Le due formula di EVO: F2004 e SF-25. Deportanza, frenate impossibili, nessun margine."
+  },
+  {
+   "id": "gt",
+   "name": "Gran Turismo",
+   "description": "GT4, GT3 e GT2, piu' le leggende stradali. Squadre vere, gare vere."
+  },
+  {
+   "id": "endurance",
+   "name": "Endurance",
+   "description": "Gare lunghe, luce che cambia, gomme che finiscono, pit obbligatorio."
+  },
+  {
+   "id": "strada",
+   "name": "Strada e Rally",
+   "description": "Vetture da rally e stradali leggendarie, portate sui circuiti: si vince di coraggio."
+  }
+ ],
+ "archetypes": {
+  "AP": {
+   "name": "Attaccante",
+   "description": "Stacca tardi e va forte sul giro secco, ma paga in costanza.",
+   "skill": 1,
+   "aggression": 0.85,
+   "consistency": 0.62
+  },
+  "MT": {
+   "name": "Metodico",
+   "description": "Pulito e regolare, costruisce il risultato giro dopo giro.",
+   "skill": 0.97,
+   "aggression": 0.55,
+   "consistency": 0.88
+  },
+  "CH": {
+   "name": "Incontenibile",
+   "description": "Imprevedibile: giocate geniali ed errori che costano caro.",
+   "skill": 0.99,
+   "aggression": 0.95,
+   "consistency": 0.5
+  },
+  "AM": {
+   "name": "Regolarista",
+   "description": "Porta sempre la macchina a casa. Raramente brillante, quasi mai fuori.",
+   "skill": 0.94,
+   "aggression": 0.45,
+   "consistency": 0.95
+  }
+ },
+ "pointsSystems": {
+  "club": {
+   "table": [
+    25,
+    18,
+    15,
+    12,
+    10,
+    8,
+    6,
+    4,
+    2,
+    1
+   ],
+   "flPoint": 0,
+   "flTopN": 0,
+   "polePoint": 0,
+   "note": "Club, monomarca, feature generico"
+  },
+  "one_make": {
+   "table": [
+    20,
+    17,
+    15,
+    13,
+    11,
+    9,
+    7,
+    5,
+    4,
+    3,
+    2,
+    1
+   ],
+   "flPoint": 0,
+   "flTopN": 0,
+   "polePoint": 0,
+   "note": "Coppa monomarca"
+  },
+  "f1_2003": {
+   "table": [
+    10,
+    8,
+    6,
+    5,
+    4,
+    3,
+    2,
+    1
+   ],
+   "flPoint": 0,
+   "flTopN": 0,
+   "polePoint": 0,
+   "note": "F1 2003-2009"
+  },
+  "f1_modern": {
+   "table": [
+    25,
+    18,
+    15,
+    12,
+    10,
+    8,
+    6,
+    4,
+    2,
+    1
+   ],
+   "flPoint": 1,
+   "flTopN": 10,
+   "polePoint": 0,
+   "note": "F1 2010+ (giro veloce valido solo in top 10)"
+  },
+  "sro_gtwc": {
+   "table": [
+    25,
+    18,
+    15,
+    12,
+    10,
+    8,
+    6,
+    4,
+    2,
+    1
+   ],
+   "flPoint": 0,
+   "flTopN": 0,
+   "polePoint": 0,
+   "note": "SRO/GTWC: GT3, GT4, GT2, coppe GT"
+  },
+  "wec": {
+   "table": [
+    25,
+    18,
+    15,
+    12,
+    10,
+    8,
+    6,
+    4,
+    2,
+    1
+   ],
+   "flPoint": 0,
+   "flTopN": 0,
+   "polePoint": 0,
+   "note": "Endurance moderno (bonus ronda iconica)"
+  },
+  "historic_endurance": {
+   "table": [
+    20,
+    15,
+    12,
+    10,
+    8,
+    6,
+    4,
+    3,
+    2,
+    1
+   ],
+   "flPoint": 0,
+   "flTopN": 0,
+   "polePoint": 0,
+   "note": "Endurance storico"
+  }
+ },
+ "profiles": {
+  "club_short": {
+   "start": "grid",
+   "wx": "dynamic",
+   "aggr": 88,
+   "mist": 0,
+   "pitreq": 0,
+   "pitkmh": 60,
+   "practiceMin": 15,
+   "qualifyMin": 10,
+   "timeScale": 1
+  },
+  "club_medium": {
+   "start": "grid",
+   "wx": "dynamic",
+   "aggr": 90,
+   "mist": 0,
+   "pitreq": 0,
+   "pitkmh": 60,
+   "practiceMin": 20,
+   "qualifyMin": 10,
+   "timeScale": 1
+  },
+  "sprint": {
+   "start": "grid",
+   "wx": "dynamic",
+   "aggr": 92,
+   "mist": 0,
+   "pitreq": 0,
+   "pitkmh": 60,
+   "practiceMin": 20,
+   "qualifyMin": 10,
+   "timeScale": 1
+  },
+  "feature": {
+   "start": "grid",
+   "wx": "dynamic",
+   "aggr": 93,
+   "mist": 1,
+   "pitreq": 1,
+   "pitkmh": 60,
+   "practiceMin": 25,
+   "qualifyMin": 15,
+   "timeScale": 1
+  },
+  "historic": {
+   "start": "grid",
+   "wx": "dynamic",
+   "aggr": 85,
+   "mist": 3,
+   "pitreq": 0,
+   "pitkmh": 55,
+   "practiceMin": 20,
+   "qualifyMin": 10,
+   "timeScale": 1
+  },
+  "endurance": {
+   "start": "rolling",
+   "wx": "dynamic",
+   "aggr": 92,
+   "mist": 1,
+   "pitreq": 1,
+   "pitkmh": 60,
+   "practiceMin": 30,
+   "qualifyMin": 20,
+   "timeScale": 1
+  },
+  "rally": {
+   "start": "grid",
+   "wx": "dynamic",
+   "aggr": 86,
+   "mist": 2,
+   "pitreq": 0,
+   "pitkmh": 50,
+   "practiceMin": 15,
+   "qualifyMin": 10,
+   "timeScale": 1
+  }
+ },
+ "aiSlider": {
+  "anchors": [
+   [
+    70,
+    0
+   ],
+   [
+    80,
+    45
+   ],
+   [
+    90,
+    88
+   ],
+   [
+    95,
+    99
+   ],
+   [
+    100,
+    100
+   ]
+  ],
+  "cap": 100,
+  "note": "Conversione difficolta' interna (70..120, stile Zero to Apex) -> slider AI di EVO (0..100), a tratti lineari fra punti di ancoraggio; sopra il 100 interno si resta al massimo 100%. Calibrata sul riscontro reale: 90-100% in Coppa GT86 ancora troppo facile, quindi 95 interno ~ 99% di gioco. Muovi i punti qui se l'AI del gioco cambia con le patch."
+ },
+ "weatherNames": {
+  "0": "Clear",
+  "1": "Scattered clouds",
+  "2": "Overcast",
+  "3": "Light rain",
+  "4": "Rain",
+  "5": "Heavy rain"
+ },
+ "_nota_layout": "Su ogni pista scegli il layout GP (nel gioco il nome del layout compare sotto alla pista).",
+ "contentNames": {
+  "tracks": {
+   "imola": "Imola",
+   "monza": "Monza",
+   "fuji": "Fuji Speedway",
+   "suzuka": "Suzuka",
+   "sebring": "Sebring",
+   "mount_panorama": "Mount Panorama",
+   "redbull_ring": "Red Bull Ring",
+   "nurburgring": "Nürburgring GP",
+   "spa": "Circuit de Spa Francorchamps",
+   "brands_hatch": "Brands Hatch",
+   "laguna_seca": "Laguna Seca",
+   "circuit_of_the_americas": "Circuit Of The Americas",
+   "donington_park": "Donington Park",
+   "kyalami": "Kyalami",
+   "paul_ricard": "Paul Ricard",
+   "oulton_park": "Oulton Park",
+   "road_atlanta": "Road Atlanta",
+   "watkins_glen": "Watkins Glen International"
+  },
+  "cars": {
+   "ks_abarth_695_biposto": "Abarth 695 Biposto",
+   "ks_volkswagen_golf_gti_mk8": "Volkswagen Golf GTI Mk8",
+   "ks_alfa_romeo_junior": "Alfa Romeo Junior",
+   "ks_mazda_mx5_na": "Mazda MX-5 NA",
+   "ks_mazda_mx5_nd_cup": "Mazda MX-5 ND Cup",
+   "ks_toyota_gr86": "Toyota GR86",
+   "ks_toyota_ae86_sprinter_trueno": "Toyota Sprinter Trueno 1600GT-Apex (AE86)",
+   "ks_honda_s2000_ap1": "Honda S2000 AP1",
+   "ks_alpine_a110_s": "Alpine A110 S",
+   "ks_lotus_emira": "Lotus Emira",
+   "ks_audi_rs_3_sportback": "Audi RS 3 Sportback",
+   "ks_hyundai_i30_n_hb": "Hyundai i30 N",
+   "ks_renault_5_gt_turbo": "Renault 5 GT Turbo",
+   "ks_alfa_romeo_75_turbo_evo": "Alfa Romeo 75 Turbo Evoluzione",
+   "ks_ford_escort_rs_cosworth": "Ford Escort RS Cosworth",
+   "ks_bmw_m3_e30_evo_iii": "BMW M3 E30 Evo III",
+   "ks_mercedes_190e_evo_ii": "Mercedes 190E Evo II",
+   "ks_bmw_m4_csl": "BMW M4 CSL",
+   "ks_bmw_m3_e46_csl": "BMW M3 E46 CSL",
+   "ks_alfa_romeo_giulia_gtam": "Alfa Romeo Giulia GTAm",
+   "ks_chevrolet_camaro_zl1": "Chevrolet Camaro ZL1",
+   "ks_bmw_m8_competition": "BMW M8 Competition",
+   "ks_toyota_supra_mkiv": "Toyota Supra MKIV",
+   "ks_porsche_718_cayman_gt4_rs": "Porsche 718 Cayman GT4 RS",
+   "ks_audi_r8_lms_gt4_evo": "Audi R8 LMS GT4 Evo",
+   "ks_bmw_m4_gt3": "BMW M4 GT3",
+   "ks_ford_mustang_gt3": "Ford Mustang GT3",
+   "ks_ferrari_296_gt3": "Ferrari 296 GT3",
+   "ks_porsche_992_gt3_r_rennsport": "Porsche 911 GT3 R Rennsport",
+   "ks_mercedes_amg_gt2": "Mercedes-AMG GT2",
+   "ks_lamborghini_huracan_sto": "Lamborghini Huracán STO",
+   "ks_porsche_992_gt3_rs": "Porsche 911 GT3 RS (992)",
+   "ks_ferrari_488_challenge_evo": "Ferrari 488 Challenge Evo",
+   "ks_ferrari_296_gtb": "Ferrari 296 GTB",
+   "ks_porsche_992_gt3_cup": "Porsche 911 GT3 Cup (992)",
+   "ks_ferrari_f2004": "Ferrari F2004",
+   "ks_ferrari_sf_25": "Ferrari SF-25",
+   "ks_datsun_240z_fairlady": "Datsun 240Z",
+   "ks_mazda_rx7_fd": "Mazda RX-7 FD",
+   "ks_porsche_964_turbo_3_6": "Porsche 964 Turbo 3.6",
+   "ks_lancia_delta_hf_integrale_evo_ii": "Lancia Delta HF Integrale Evo II",
+   "ks_mini_jcs_1990": "Mini JCS 1990",
+   "ks_peugeot_205_t16": "Peugeot 205 T16",
+   "ks_ferrari_288_gto": "Ferrari 288 GTO",
+   "ks_ferrari_f40_lm": "Ferrari F40 LM",
+   "ks_lamborghini_countach": "Lamborghini Countach"
+  }
+ },
+ "driverPool": {
+  "firstNames": [
+   "Curtis",
+   "Marco",
+   "Luca",
+   "Andrea",
+   "Matteo",
+   "Alessio",
+   "Davide",
+   "Simone",
+   "Thomas",
+   "Kai",
+   "Jonas",
+   "Julien",
+   "Olivier",
+   "Pierre",
+   "James",
+   "Callum",
+   "Oliver",
+   "Sergio",
+   "Pablo",
+   "Miguel",
+   "Niels",
+   "Ruben",
+   "Mika",
+   "Anton",
+   "Rafael",
+   "Bruno",
+   "Daniel",
+   "Piotr",
+   "Hiroshi",
+   "Kenji",
+   "Diego",
+   "Ethan",
+   "Liam",
+   "Connor",
+   "Lars",
+   "Fabian",
+   "Nikolai",
+   "Stefan",
+   "Viktor",
+   "Tomas",
+   "Kévin",
+   "René",
+   "João",
+   "André",
+   "Nico",
+   "Sebastian",
+   "Fernando",
+   "Giancarlo"
+  ],
+  "lastNames": [
+   "Spinner",
+   "Bertolini",
+   "Ferraro",
+   "Costanzo",
+   "Ricci",
+   "Moretti",
+   "Gallo",
+   "De Luca",
+   "Weber",
+   "Reinders",
+   "Hoffmann",
+   "Moreau",
+   "Baptiste",
+   "Lefevre",
+   "Whitfield",
+   "Reid",
+   "Palmer",
+   "Vidal",
+   "Arrieta",
+   "Delgado",
+   "Bakker",
+   "Visser",
+   "Rautio",
+   "Lindqvist",
+   "Nunes",
+   "Salgado",
+   "Kowalski",
+   "Nowak",
+   "Tanabe",
+   "Sato",
+   "Brooks",
+   "Hayes",
+   "O'Connor",
+   "Byrne",
+   "Nilsson",
+   "Berg",
+   "Jansen",
+   "Keller",
+   "Novak",
+   "Cerny",
+   "Estre",
+   "Rast",
+   "Mendonça",
+   "Barbosa",
+   "Hulkenberg",
+   "Vettel",
+   "Alonso",
+   "Fisichella"
+  ],
+  "nations": [
+   {
+    "code": "ITA",
+    "nationality": "Italy"
+   },
+   {
+    "code": "DEU",
+    "nationality": "Germany"
+   },
+   {
+    "code": "FRA",
+    "nationality": "France"
+   },
+   {
+    "code": "GBR",
+    "nationality": "Great Britain"
+   },
+   {
+    "code": "ESP",
+    "nationality": "Spain"
+   },
+   {
+    "code": "NLD",
+    "nationality": "Netherlands"
+   },
+   {
+    "code": "FIN",
+    "nationality": "Finland"
+   },
+   {
+    "code": "SWE",
+    "nationality": "Sweden"
+   },
+   {
+    "code": "PRT",
+    "nationality": "Portugal"
+   },
+   {
+    "code": "BRA",
+    "nationality": "Brazil"
+   },
+   {
+    "code": "POL",
+    "nationality": "Poland"
+   },
+   {
+    "code": "JPN",
+    "nationality": "Japan"
+   },
+   {
+    "code": "USA",
+    "nationality": "United States"
+   },
+   {
+    "code": "IRL",
+    "nationality": "Ireland"
+   },
+   {
+    "code": "AUT",
+    "nationality": "Austria"
+   },
+   {
+    "code": "CHE",
+    "nationality": "Switzerland"
+   },
+   {
+    "code": "BEL",
+    "nationality": "Belgium"
+   },
+   {
+    "code": "AUS",
+    "nationality": "Australia"
+   }
+  ]
+ },
+ "nodes": [
+  {
+   "nodeId": "coppa_citta",
+   "display": "Coppa Città",
+   "discipline": "entry",
+   "level": 1,
+   "access": "rep",
+   "requires": null,
+   "points": "club",
+   "profile": "club_short",
+   "gridSize": 12,
+   "ai": [
+    78,
+    88
+   ],
+   "econ": {
+    "phase": 1,
+    "disc": "entry",
+    "buy": 32000,
+    "rent": 900,
+    "entry": 400,
+    "prize": 3200,
+    "champion": 0,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_abarth_695_biposto",
+    "ks_volkswagen_golf_gti_mk8",
+    "ks_alfa_romeo_junior"
+   ],
+   "calendar": [
+    {
+     "track": "imola",
+     "name": "Imola - Round 1",
+     "laps": 6,
+     "hour": 11,
+     "weather": 2
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 2",
+     "laps": 6,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Finale",
+     "laps": 7,
+     "hour": 15,
+     "weather": 4
+    }
+   ],
+   "repRequired": 20
+  },
+  {
+   "nodeId": "trofeo_mx5",
+   "display": "Trofeo MX-5",
+   "discipline": "entry",
+   "level": 2,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    81,
+    91
+   ],
+   "econ": {
+    "phase": 2,
+    "disc": "entry",
+    "buy": 45000,
+    "rent": 1500,
+    "entry": 600,
+    "prize": 4500,
+    "champion": 0,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_mazda_mx5_na",
+    "ks_mazda_mx5_nd_cup"
+   ],
+   "calendar": [
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 1",
+     "laps": 10,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 2",
+     "laps": 10,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 3",
+     "laps": 8,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 4",
+     "laps": 8,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 5",
+     "laps": 10,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 6",
+     "laps": 9,
+     "hour": 16,
+     "weather": 5
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 7",
+     "laps": 10,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 8",
+     "laps": 9,
+     "hour": 14,
+     "weather": 5
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Finale",
+     "laps": 7,
+     "hour": 12,
+     "weather": 1
+    }
+   ],
+   "repRequired": 40
+  },
+  {
+   "nodeId": "gt86_cup",
+   "display": "Coppa GT86",
+   "discipline": "entry",
+   "level": 2,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_medium",
+   "gridSize": 14,
+   "ai": [
+    82,
+    92
+   ],
+   "econ": {
+    "phase": 2,
+    "disc": "entry",
+    "buy": 46000,
+    "rent": 1600,
+    "entry": 650,
+    "prize": 4800,
+    "champion": 0,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_toyota_gr86",
+    "ks_toyota_ae86_sprinter_trueno"
+   ],
+   "calendar": [
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 1",
+     "laps": 7,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 2",
+     "laps": 6,
+     "hour": 13,
+     "weather": 4
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 3",
+     "laps": 9,
+     "hour": 13,
+     "weather": 5
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 4",
+     "laps": 6,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 5",
+     "laps": 9,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 6",
+     "laps": 7,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Finale",
+     "laps": 8,
+     "hour": 15,
+     "weather": 2
+    }
+   ],
+   "repRequired": 40
+  },
+  {
+   "nodeId": "roadster_classic",
+   "display": "Roadster Challenge",
+   "discipline": "entry",
+   "level": 3,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    84,
+    95
+   ],
+   "econ": {
+    "phase": 3,
+    "disc": "entry",
+    "buy": 92000,
+    "rent": 3800,
+    "entry": 1200,
+    "prize": 9000,
+    "champion": 30000,
+    "model": "sponsor",
+    "icon": ""
+   },
+   "cars": [
+    "ks_honda_s2000_ap1",
+    "ks_alpine_a110_s",
+    "ks_lotus_emira"
+   ],
+   "calendar": [
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 1",
+     "laps": 6,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 2",
+     "laps": 9,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 3",
+     "laps": 9,
+     "hour": 13,
+     "weather": 3
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 4",
+     "laps": 10,
+     "hour": 12,
+     "weather": 4
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 5",
+     "laps": 6,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 6",
+     "laps": 9,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Finale",
+     "laps": 7,
+     "hour": 16,
+     "weather": 0
+    }
+   ],
+   "repRequired": 70
+  },
+  {
+   "nodeId": "trofeo_hatch",
+   "display": "Trofeo Hatch",
+   "discipline": "touring",
+   "level": 1,
+   "access": "rep",
+   "requires": null,
+   "points": "club",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    79,
+    89
+   ],
+   "econ": {
+    "phase": 1,
+    "disc": "touring",
+    "buy": 35000,
+    "rent": 1000,
+    "entry": 450,
+    "prize": 3400,
+    "champion": 0,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_audi_rs_3_sportback",
+    "ks_hyundai_i30_n_hb",
+    "ks_volkswagen_golf_gti_mk8"
+   ],
+   "calendar": [
+    {
+     "track": "imola",
+     "name": "Imola - Round 1",
+     "laps": 6,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 2",
+     "laps": 8,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 3",
+     "laps": 7,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 4",
+     "laps": 8,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 5",
+     "laps": 10,
+     "hour": 14,
+     "weather": 1
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 6",
+     "laps": 10,
+     "hour": 16,
+     "weather": 2
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 7",
+     "laps": 9,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Finale",
+     "laps": 8,
+     "hour": 14,
+     "weather": 1
+    }
+   ],
+   "repRequired": 20
+  },
+  {
+   "nodeId": "coppa_turbo_80",
+   "display": "Coppa Turbo",
+   "discipline": "touring",
+   "level": 2,
+   "access": "rep",
+   "requires": null,
+   "points": "club",
+   "profile": "club_medium",
+   "gridSize": 14,
+   "ai": [
+    81,
+    91
+   ],
+   "econ": {
+    "phase": 2,
+    "disc": "touring",
+    "buy": 52000,
+    "rent": 2000,
+    "entry": 700,
+    "prize": 5200,
+    "champion": 0,
+    "model": "heritage",
+    "icon": ""
+   },
+   "cars": [
+    "ks_renault_5_gt_turbo",
+    "ks_alfa_romeo_75_turbo_evo",
+    "ks_ford_escort_rs_cosworth"
+   ],
+   "calendar": [
+    {
+     "track": "monza",
+     "name": "Monza - Round 1",
+     "laps": 7,
+     "hour": 13,
+     "weather": 3
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 2",
+     "laps": 8,
+     "hour": 14,
+     "weather": 1
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Finale",
+     "laps": 7,
+     "hour": 14,
+     "weather": 4
+    }
+   ],
+   "repRequired": 40
+  },
+  {
+   "nodeId": "dtm_legends",
+   "display": "Turismo Legends",
+   "discipline": "touring",
+   "level": 3,
+   "access": "rep",
+   "requires": null,
+   "points": "club",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    85,
+    96
+   ],
+   "econ": {
+    "phase": 3,
+    "disc": "touring",
+    "buy": 98000,
+    "rent": 4200,
+    "entry": 1400,
+    "prize": 11000,
+    "champion": 35000,
+    "model": "heritage",
+    "icon": ""
+   },
+   "cars": [
+    "ks_bmw_m3_e30_evo_iii",
+    "ks_mercedes_190e_evo_ii",
+    "ks_alfa_romeo_75_turbo_evo"
+   ],
+   "calendar": [
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 1",
+     "laps": 8,
+     "hour": 12,
+     "weather": 3
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 2",
+     "laps": 6,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 3",
+     "laps": 9,
+     "hour": 13,
+     "weather": 4
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 4",
+     "laps": 7,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 5",
+     "laps": 7,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 6",
+     "laps": 9,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 7",
+     "laps": 9,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 8",
+     "laps": 9,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Finale",
+     "laps": 9,
+     "hour": 15,
+     "weather": 0
+    }
+   ],
+   "repRequired": 70
+  },
+  {
+   "nodeId": "berline_moderne",
+   "display": "Berline Moderne",
+   "discipline": "touring",
+   "level": 4,
+   "access": "rep",
+   "requires": null,
+   "points": "sro_gtwc",
+   "profile": "feature",
+   "gridSize": 16,
+   "ai": [
+    87,
+    98
+   ],
+   "econ": {
+    "phase": 4,
+    "disc": "touring",
+    "buy": 165000,
+    "rent": 9000,
+    "entry": 2500,
+    "prize": 22000,
+    "champion": 60000,
+    "model": "sponsor",
+    "icon": ""
+   },
+   "cars": [
+    "ks_bmw_m4_csl",
+    "ks_bmw_m3_e46_csl",
+    "ks_alfa_romeo_giulia_gtam"
+   ],
+   "calendar": [
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 1",
+     "laps": 7,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 2",
+     "laps": 10,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 3",
+     "laps": 10,
+     "hour": 12,
+     "weather": 4
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 4",
+     "laps": 10,
+     "hour": 13,
+     "weather": 4
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 5",
+     "laps": 9,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 6",
+     "laps": 9,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Finale",
+     "laps": 9,
+     "hour": 15,
+     "weather": 0
+    }
+   ],
+   "repRequired": 110
+  },
+  {
+   "nodeId": "muscle_challenge",
+   "display": "Muscle Challenge",
+   "discipline": "touring",
+   "level": 4,
+   "access": "rep",
+   "requires": null,
+   "points": "club",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    87,
+    98
+   ],
+   "econ": {
+    "phase": 4,
+    "disc": "touring",
+    "buy": 170000,
+    "rent": 10000,
+    "entry": 2500,
+    "prize": 21000,
+    "champion": 60000,
+    "model": "sponsor",
+    "icon": ""
+   },
+   "cars": [
+    "ks_chevrolet_camaro_zl1",
+    "ks_bmw_m8_competition",
+    "ks_toyota_supra_mkiv"
+   ],
+   "calendar": [
+    {
+     "track": "monza",
+     "name": "Monza - Round 1",
+     "laps": 9,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 2",
+     "laps": 10,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 3",
+     "laps": 8,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 4",
+     "laps": 6,
+     "hour": 12,
+     "weather": 3
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 5",
+     "laps": 9,
+     "hour": 14,
+     "weather": 1
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 6",
+     "laps": 7,
+     "hour": 12,
+     "weather": 4
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 7",
+     "laps": 8,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Finale",
+     "laps": 10,
+     "hour": 16,
+     "weather": 2
+    }
+   ],
+   "repRequired": 110
+  },
+  {
+   "nodeId": "touring_pro",
+   "display": "Touring Pro",
+   "discipline": "touring",
+   "level": 5,
+   "access": "rep",
+   "requires": null,
+   "points": "sro_gtwc",
+   "profile": "feature",
+   "gridSize": 18,
+   "ai": [
+    89,
+    100
+   ],
+   "econ": {
+    "phase": 5,
+    "disc": "touring",
+    "buy": 265000,
+    "rent": 20000,
+    "entry": 5000,
+    "prize": 46000,
+    "champion": 140000,
+    "model": "sponsor",
+    "icon": ""
+   },
+   "cars": [
+    "ks_bmw_m4_csl",
+    "ks_alfa_romeo_giulia_gtam",
+    "ks_chevrolet_camaro_zl1"
+   ],
+   "calendar": [
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 1",
+     "laps": 7,
+     "hour": 14,
+     "weather": 4
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 2",
+     "laps": 6,
+     "hour": 15,
+     "weather": 4
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 3",
+     "laps": 7,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 4",
+     "laps": 6,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 5",
+     "laps": 9,
+     "hour": 15,
+     "weather": 5
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 6",
+     "laps": 6,
+     "hour": 13,
+     "weather": 4
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Finale",
+     "laps": 9,
+     "hour": 13,
+     "weather": 1
+    }
+   ],
+   "repRequired": 160
+  },
+  {
+   "nodeId": "formula_2004_prova",
+   "display": "Formula 2004 - Prova",
+   "discipline": "single",
+   "level": 4,
+   "access": "rep",
+   "requires": null,
+   "points": "f1_2003",
+   "profile": "historic",
+   "gridSize": 16,
+   "ai": [
+    88,
+    99
+   ],
+   "econ": {
+    "phase": 4,
+    "disc": "single",
+    "buy": 190000,
+    "rent": 11000,
+    "entry": 3000,
+    "prize": 24000,
+    "champion": 0,
+    "model": "heritage",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_f2004"
+   ],
+   "calendar": [
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 1",
+     "laps": 8,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 2",
+     "laps": 6,
+     "hour": 12,
+     "weather": 1
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 3",
+     "laps": 10,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 4",
+     "laps": 10,
+     "hour": 15,
+     "weather": 5
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 5",
+     "laps": 7,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 6",
+     "laps": 6,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 7",
+     "laps": 9,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Finale",
+     "laps": 7,
+     "hour": 13,
+     "weather": 2
+    }
+   ],
+   "repRequired": 400
+  },
+  {
+   "nodeId": "formula_2004_champ",
+   "display": "Formula 2004",
+   "discipline": "single",
+   "level": 5,
+   "access": "rep",
+   "requires": null,
+   "points": "f1_2003",
+   "profile": "feature",
+   "gridSize": 18,
+   "ai": [
+    90,
+    101
+   ],
+   "econ": {
+    "phase": 5,
+    "disc": "single",
+    "buy": 300000,
+    "rent": 26000,
+    "entry": 6000,
+    "prize": 52000,
+    "champion": 160000,
+    "model": "heritage",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_f2004"
+   ],
+   "calendar": [
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 1",
+     "laps": 6,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 2",
+     "laps": 6,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 3",
+     "laps": 8,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 4",
+     "laps": 7,
+     "hour": 16,
+     "weather": 5
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 5",
+     "laps": 8,
+     "hour": 14,
+     "weather": 5
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 6",
+     "laps": 10,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 7",
+     "laps": 10,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Finale",
+     "laps": 6,
+     "hour": 15,
+     "weather": 1
+    }
+   ],
+   "repRequired": 400
+  },
+  {
+   "nodeId": "formula_apex",
+   "display": "Formula Apex",
+   "discipline": "single",
+   "level": 7,
+   "access": "closed",
+   "requires": null,
+   "repRequired": 400,
+   "points": "f1_modern",
+   "profile": "feature",
+   "gridSize": 20,
+   "ai": [
+    94,
+    106
+   ],
+   "econ": {
+    "phase": 7,
+    "disc": "single",
+    "buy": 0,
+    "rent": 90000,
+    "entry": 15000,
+    "prize": 125000,
+    "champion": 420000,
+    "model": "factory",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_sf_25"
+   ],
+   "calendar": [
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 1",
+     "laps": 8,
+     "hour": 14,
+     "weather": 4
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 2",
+     "laps": 10,
+     "hour": 12,
+     "weather": 5
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 3",
+     "laps": 6,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 4",
+     "laps": 7,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 5",
+     "laps": 6,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 6",
+     "laps": 9,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 7",
+     "laps": 10,
+     "hour": 12,
+     "weather": 5
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 8",
+     "laps": 9,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Finale",
+     "laps": 7,
+     "hour": 13,
+     "weather": 5
+    }
+   ]
+  },
+  {
+   "nodeId": "gt4_open",
+   "display": "GT4 Open",
+   "discipline": "gt",
+   "level": 2,
+   "access": "rep",
+   "requires": null,
+   "points": "sro_gtwc",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    83,
+    94
+   ],
+   "econ": {
+    "phase": 2,
+    "disc": "gt",
+    "buy": 140000,
+    "rent": 7000,
+    "entry": 1800,
+    "prize": 12000,
+    "champion": 40000,
+    "model": "sponsor",
+    "icon": ""
+   },
+   "cars": [
+    "ks_porsche_718_cayman_gt4_rs",
+    "ks_audi_r8_lms_gt4_evo"
+   ],
+   "calendar": [
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 1",
+     "laps": 10,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 2",
+     "laps": 6,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 3",
+     "laps": 10,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 4",
+     "laps": 9,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 5",
+     "laps": 9,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 6",
+     "laps": 7,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 7",
+     "laps": 9,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 8",
+     "laps": 6,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Finale",
+     "laps": 6,
+     "hour": 14,
+     "weather": 3
+    }
+   ],
+   "repRequired": 40
+  },
+  {
+   "nodeId": "gt4_serie_b",
+   "display": "GT4 Serie B",
+   "discipline": "gt",
+   "level": 3,
+   "access": "rep",
+   "requires": null,
+   "points": "sro_gtwc",
+   "profile": "sprint",
+   "gridSize": 18,
+   "ai": [
+    85,
+    96
+   ],
+   "econ": {
+    "phase": 3,
+    "disc": "gt",
+    "buy": 150000,
+    "rent": 8000,
+    "entry": 2200,
+    "prize": 16000,
+    "champion": 55000,
+    "model": "sponsor",
+    "icon": ""
+   },
+   "cars": [
+    "ks_porsche_718_cayman_gt4_rs",
+    "ks_audi_r8_lms_gt4_evo"
+   ],
+   "calendar": [
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 1",
+     "laps": 10,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 2",
+     "laps": 7,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 3",
+     "laps": 6,
+     "hour": 12,
+     "weather": 3
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 4",
+     "laps": 7,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 5",
+     "laps": 7,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 6",
+     "laps": 8,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Finale",
+     "laps": 7,
+     "hour": 13,
+     "weather": 0
+    }
+   ],
+   "repRequired": 70
+  },
+  {
+   "nodeId": "gt3_coppa",
+   "display": "GT3 Coppa",
+   "discipline": "gt",
+   "level": 4,
+   "access": "rep",
+   "requires": null,
+   "points": "sro_gtwc",
+   "profile": "sprint",
+   "gridSize": 18,
+   "ai": [
+    88,
+    99
+   ],
+   "econ": {
+    "phase": 4,
+    "disc": "gt",
+    "buy": 380000,
+    "rent": 30000,
+    "entry": 4000,
+    "prize": 30000,
+    "champion": 90000,
+    "model": "sponsor",
+    "icon": ""
+   },
+   "cars": [
+    "ks_bmw_m4_gt3",
+    "ks_ford_mustang_gt3",
+    "ks_ferrari_296_gt3"
+   ],
+   "calendar": [
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 1",
+     "laps": 8,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 2",
+     "laps": 6,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 3",
+     "laps": 10,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 4",
+     "laps": 10,
+     "hour": 13,
+     "weather": 3
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 5",
+     "laps": 6,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 6",
+     "laps": 9,
+     "hour": 16,
+     "weather": 2
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 7",
+     "laps": 10,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 8",
+     "laps": 7,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Finale",
+     "laps": 8,
+     "hour": 14,
+     "weather": 1
+    }
+   ],
+   "repRequired": 110
+  },
+  {
+   "nodeId": "gt3_serie_a",
+   "display": "GT3 Serie A",
+   "discipline": "gt",
+   "level": 5,
+   "access": "rep",
+   "requires": null,
+   "points": "sro_gtwc",
+   "profile": "feature",
+   "gridSize": 20,
+   "ai": [
+    90,
+    101
+   ],
+   "econ": {
+    "phase": 5,
+    "disc": "gt",
+    "buy": 550000,
+    "rent": 55000,
+    "entry": 8000,
+    "prize": 65000,
+    "champion": 190000,
+    "model": "sponsor",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_296_gt3",
+    "ks_bmw_m4_gt3",
+    "ks_porsche_992_gt3_r_rennsport",
+    "ks_ford_mustang_gt3"
+   ],
+   "calendar": [
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 1",
+     "laps": 10,
+     "hour": 13,
+     "weather": 3
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 2",
+     "laps": 8,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 3",
+     "laps": 10,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 4",
+     "laps": 6,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 5",
+     "laps": 6,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 6",
+     "laps": 7,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Finale",
+     "laps": 7,
+     "hour": 13,
+     "weather": 0
+    }
+   ],
+   "repRequired": 160
+  },
+  {
+   "nodeId": "gt2_trofeo",
+   "display": "GT2 Trofeo",
+   "discipline": "gt",
+   "level": 6,
+   "access": "rep",
+   "requires": null,
+   "points": "sro_gtwc",
+   "profile": "sprint",
+   "gridSize": 18,
+   "ai": [
+    92,
+    103
+   ],
+   "econ": {
+    "phase": 6,
+    "disc": "gt",
+    "buy": 700000,
+    "rent": 70000,
+    "entry": 10000,
+    "prize": 78000,
+    "champion": 240000,
+    "model": "sponsor",
+    "icon": ""
+   },
+   "cars": [
+    "ks_mercedes_amg_gt2",
+    "ks_lamborghini_huracan_sto",
+    "ks_porsche_992_gt3_r_rennsport"
+   ],
+   "calendar": [
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 1",
+     "laps": 10,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 2",
+     "laps": 8,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 3",
+     "laps": 8,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 4",
+     "laps": 7,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 5",
+     "laps": 10,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 6",
+     "laps": 6,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 7",
+     "laps": 8,
+     "hour": 15,
+     "weather": 4
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Finale",
+     "laps": 10,
+     "hour": 14,
+     "weather": 3
+    }
+   ],
+   "repRequired": 220
+  },
+  {
+   "nodeId": "gt_apex",
+   "display": "GT Apex",
+   "discipline": "gt",
+   "level": 7,
+   "access": "closed",
+   "requires": null,
+   "repRequired": 300,
+   "points": "sro_gtwc",
+   "profile": "feature",
+   "gridSize": 20,
+   "ai": [
+    94,
+    106
+   ],
+   "econ": {
+    "phase": 7,
+    "disc": "gt",
+    "buy": 0,
+    "rent": 85000,
+    "entry": 14000,
+    "prize": 120000,
+    "champion": 400000,
+    "model": "factory",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_296_gt3",
+    "ks_porsche_992_gt3_r_rennsport",
+    "ks_mercedes_amg_gt2"
+   ],
+   "calendar": [
+    {
+     "track": "monza",
+     "name": "Monza - Round 1",
+     "laps": 9,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 2",
+     "laps": 10,
+     "hour": 12,
+     "weather": 4
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 3",
+     "laps": 9,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 4",
+     "laps": 6,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 5",
+     "laps": 10,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 6",
+     "laps": 8,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 7",
+     "laps": 10,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 8",
+     "laps": 7,
+     "hour": 15,
+     "weather": 4
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Finale",
+     "laps": 7,
+     "hour": 14,
+     "weather": 0
+    }
+   ]
+  },
+  {
+   "nodeId": "leggende_strada",
+   "display": "Leggende Stradali",
+   "discipline": "gt",
+   "level": 6,
+   "access": "rep",
+   "requires": null,
+   "points": "historic_endurance",
+   "profile": "historic",
+   "gridSize": 16,
+   "ai": [
+    90,
+    101
+   ],
+   "econ": {
+    "phase": 6,
+    "disc": "gt",
+    "buy": 900000,
+    "rent": 65000,
+    "entry": 8000,
+    "prize": 70000,
+    "champion": 220000,
+    "model": "heritage",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_f40_lm",
+    "ks_ferrari_288_gto",
+    "ks_lamborghini_countach"
+   ],
+   "calendar": [
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 1",
+     "laps": 8,
+     "hour": 13,
+     "weather": 3
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 2",
+     "laps": 6,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 3",
+     "laps": 8,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 4",
+     "laps": 6,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 5",
+     "laps": 9,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 6",
+     "laps": 7,
+     "hour": 12,
+     "weather": 4
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Finale",
+     "laps": 8,
+     "hour": 12,
+     "weather": 0
+    }
+   ],
+   "repRequired": 220
+  },
+  {
+   "nodeId": "endurance_gt4",
+   "display": "Endurance GT4",
+   "discipline": "endurance",
+   "level": 4,
+   "access": "rep",
+   "requires": null,
+   "points": "historic_endurance",
+   "profile": "endurance",
+   "gridSize": 18,
+   "ai": [
+    87,
+    98
+   ],
+   "econ": {
+    "phase": 4,
+    "disc": "endurance",
+    "buy": 160000,
+    "rent": 12000,
+    "entry": 3500,
+    "prize": 30000,
+    "champion": 95000,
+    "model": "sponsor",
+    "icon": ""
+   },
+   "cars": [
+    "ks_porsche_718_cayman_gt4_rs",
+    "ks_audi_r8_lms_gt4_evo"
+   ],
+   "calendar": [
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 1",
+     "laps": 6,
+     "hour": 12,
+     "weather": 2,
+     "durationMin": 30
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 2",
+     "laps": 6,
+     "hour": 12,
+     "weather": 2,
+     "durationMin": 30
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 3",
+     "laps": 8,
+     "hour": 13,
+     "weather": 2,
+     "durationMin": 40
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 4",
+     "laps": 7,
+     "hour": 13,
+     "weather": 4,
+     "durationMin": 35
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 5",
+     "laps": 7,
+     "hour": 15,
+     "weather": 0,
+     "durationMin": 35
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 6",
+     "laps": 6,
+     "hour": 13,
+     "weather": 0,
+     "durationMin": 30
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 7",
+     "laps": 8,
+     "hour": 15,
+     "weather": 4,
+     "durationMin": 40
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Finale",
+     "laps": 9,
+     "hour": 12,
+     "weather": 2,
+     "durationMin": 45
+    }
+   ],
+   "repRequired": 110
+  },
+  {
+   "nodeId": "gt3_endurance",
+   "display": "GT3 Endurance",
+   "discipline": "endurance",
+   "level": 5,
+   "access": "rep",
+   "requires": null,
+   "points": "wec",
+   "profile": "endurance",
+   "gridSize": 20,
+   "ai": [
+    90,
+    101
+   ],
+   "econ": {
+    "phase": 5,
+    "disc": "endurance",
+    "buy": 560000,
+    "rent": 60000,
+    "entry": 9000,
+    "prize": 85000,
+    "champion": 250000,
+    "model": "sponsor",
+    "icon": "sebring"
+   },
+   "cars": [
+    "ks_ferrari_296_gt3",
+    "ks_bmw_m4_gt3",
+    "ks_porsche_992_gt3_r_rennsport",
+    "ks_ford_mustang_gt3"
+   ],
+   "calendar": [
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 1",
+     "laps": 7,
+     "hour": 15,
+     "weather": 0,
+     "durationMin": 55
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 2",
+     "laps": 8,
+     "hour": 16,
+     "weather": 4,
+     "durationMin": 60
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 3",
+     "laps": 9,
+     "hour": 16,
+     "weather": 1,
+     "durationMin": 70
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 4",
+     "laps": 9,
+     "hour": 14,
+     "weather": 0,
+     "durationMin": 70
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 5",
+     "laps": 8,
+     "hour": 14,
+     "weather": 2,
+     "durationMin": 60
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 6",
+     "laps": 10,
+     "hour": 13,
+     "weather": 0,
+     "durationMin": 75
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Finale",
+     "laps": 9,
+     "hour": 13,
+     "weather": 5,
+     "durationMin": 70
+    }
+   ],
+   "repRequired": 160
+  },
+  {
+   "nodeId": "endurance_apex",
+   "display": "Endurance Apex",
+   "discipline": "endurance",
+   "level": 7,
+   "access": "closed",
+   "requires": null,
+   "repRequired": 300,
+   "points": "wec",
+   "profile": "endurance",
+   "gridSize": 20,
+   "ai": [
+    94,
+    105
+   ],
+   "econ": {
+    "phase": 7,
+    "disc": "endurance",
+    "buy": 0,
+    "rent": 95000,
+    "entry": 16000,
+    "prize": 140000,
+    "champion": 480000,
+    "model": "factory",
+    "icon": "bathurst"
+   },
+   "cars": [
+    "ks_ferrari_296_gt3",
+    "ks_porsche_992_gt3_r_rennsport",
+    "ks_mercedes_amg_gt2"
+   ],
+   "calendar": [
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 1",
+     "laps": 7,
+     "hour": 15,
+     "weather": 4,
+     "durationMin": 80
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 2",
+     "laps": 8,
+     "hour": 16,
+     "weather": 0,
+     "durationMin": 90
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 3",
+     "laps": 8,
+     "hour": 12,
+     "weather": 0,
+     "durationMin": 90
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 4",
+     "laps": 9,
+     "hour": 12,
+     "weather": 2,
+     "durationMin": 100
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 5",
+     "laps": 9,
+     "hour": 15,
+     "weather": 5,
+     "durationMin": 100
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 6",
+     "laps": 7,
+     "hour": 12,
+     "weather": 0,
+     "durationMin": 80
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 7",
+     "laps": 10,
+     "hour": 12,
+     "weather": 2,
+     "durationMin": 115
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Finale",
+     "laps": 8,
+     "hour": 12,
+     "weather": 4,
+     "durationMin": 90
+    }
+   ]
+  },
+  {
+   "nodeId": "coppa_strada_80",
+   "display": "Coppa Strada",
+   "discipline": "strada",
+   "level": 1,
+   "access": "rep",
+   "requires": null,
+   "points": "club",
+   "profile": "rally",
+   "gridSize": 12,
+   "ai": [
+    78,
+    88
+   ],
+   "econ": {
+    "phase": 1,
+    "disc": "strada",
+    "buy": 28000,
+    "rent": 800,
+    "entry": 350,
+    "prize": 3000,
+    "champion": 0,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_renault_5_gt_turbo",
+    "ks_ford_escort_rs_cosworth"
+   ],
+   "calendar": [
+    {
+     "track": "imola",
+     "name": "Imola - Round 1",
+     "laps": 6,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 2",
+     "laps": 6,
+     "hour": 14,
+     "weather": 1
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Finale",
+     "laps": 6,
+     "hour": 15,
+     "weather": 2
+    }
+   ],
+   "repRequired": 20
+  },
+  {
+   "nodeId": "gruppo_b",
+   "display": "Coppa Gruppo B",
+   "discipline": "strada",
+   "level": 3,
+   "access": "rep",
+   "requires": null,
+   "points": "historic_endurance",
+   "profile": "rally",
+   "gridSize": 14,
+   "ai": [
+    85,
+    96
+   ],
+   "econ": {
+    "phase": 3,
+    "disc": "strada",
+    "buy": 190000,
+    "rent": 8000,
+    "entry": 2000,
+    "prize": 15000,
+    "champion": 50000,
+    "model": "heritage",
+    "icon": ""
+   },
+   "cars": [
+    "ks_peugeot_205_t16",
+    "ks_ford_escort_rs_cosworth",
+    "ks_lancia_delta_hf_integrale_evo_ii"
+   ],
+   "calendar": [
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 1",
+     "laps": 7,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 2",
+     "laps": 9,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 3",
+     "laps": 6,
+     "hour": 14,
+     "weather": 1
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 4",
+     "laps": 10,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 5",
+     "laps": 6,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 6",
+     "laps": 6,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Finale",
+     "laps": 8,
+     "hour": 12,
+     "weather": 2
+    }
+   ],
+   "repRequired": 70
+  },
+  {
+   "nodeId": "rally_anni_90",
+   "display": "Rally Anni 90",
+   "discipline": "strada",
+   "level": 4,
+   "access": "rep",
+   "requires": null,
+   "points": "historic_endurance",
+   "profile": "rally",
+   "gridSize": 14,
+   "ai": [
+    87,
+    98
+   ],
+   "econ": {
+    "phase": 4,
+    "disc": "strada",
+    "buy": 240000,
+    "rent": 13000,
+    "entry": 3000,
+    "prize": 24000,
+    "champion": 70000,
+    "model": "heritage",
+    "icon": ""
+   },
+   "cars": [
+    "ks_lancia_delta_hf_integrale_evo_ii",
+    "ks_mini_jcs_1990",
+    "ks_ford_escort_rs_cosworth"
+   ],
+   "calendar": [
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 1",
+     "laps": 6,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 2",
+     "laps": 8,
+     "hour": 14,
+     "weather": 1
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 3",
+     "laps": 6,
+     "hour": 15,
+     "weather": 1
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 4",
+     "laps": 10,
+     "hour": 12,
+     "weather": 3
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 5",
+     "laps": 9,
+     "hour": 12,
+     "weather": 4
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 6",
+     "laps": 7,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Finale",
+     "laps": 6,
+     "hour": 15,
+     "weather": 2
+    }
+   ],
+   "repRequired": 110
+  },
+  {
+   "nodeId": "strada_leggenda",
+   "display": "Strade Leggendarie",
+   "discipline": "strada",
+   "level": 5,
+   "access": "rep",
+   "requires": null,
+   "points": "sro_gtwc",
+   "profile": "historic",
+   "gridSize": 16,
+   "ai": [
+    89,
+    100
+   ],
+   "econ": {
+    "phase": 5,
+    "disc": "strada",
+    "buy": 340000,
+    "rent": 22000,
+    "entry": 4000,
+    "prize": 38000,
+    "champion": 110000,
+    "model": "heritage",
+    "icon": ""
+   },
+   "cars": [
+    "ks_datsun_240z_fairlady",
+    "ks_mazda_rx7_fd",
+    "ks_porsche_964_turbo_3_6",
+    "ks_toyota_supra_mkiv"
+   ],
+   "calendar": [
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 1",
+     "laps": 9,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 2",
+     "laps": 8,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 3",
+     "laps": 8,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 4",
+     "laps": 7,
+     "hour": 13,
+     "weather": 3
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 5",
+     "laps": 6,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 6",
+     "laps": 10,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 7",
+     "laps": 6,
+     "hour": 12,
+     "weather": 3
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Finale",
+     "laps": 6,
+     "hour": 12,
+     "weather": 0
+    }
+   ],
+   "repRequired": 160
+  },
+  {
+   "nodeId": "hyper_road",
+   "display": "Hyper Road",
+   "discipline": "strada",
+   "level": 6,
+   "access": "rep",
+   "requires": null,
+   "points": "sro_gtwc",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    91,
+    102
+   ],
+   "econ": {
+    "phase": 6,
+    "disc": "strada",
+    "buy": 620000,
+    "rent": 55000,
+    "entry": 7000,
+    "prize": 62000,
+    "champion": 200000,
+    "model": "sponsor",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_296_gtb",
+    "ks_lamborghini_huracan_sto",
+    "ks_porsche_992_gt3_rs"
+   ],
+   "calendar": [
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 1",
+     "laps": 10,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 2",
+     "laps": 7,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 3",
+     "laps": 8,
+     "hour": 12,
+     "weather": 4
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 4",
+     "laps": 6,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 5",
+     "laps": 7,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 6",
+     "laps": 9,
+     "hour": 14,
+     "weather": 4
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Finale",
+     "laps": 8,
+     "hour": 15,
+     "weather": 2
+    }
+   ],
+   "repRequired": 220
+  },
+  {
+   "nodeId": "strada_apex",
+   "display": "Strada Apex",
+   "discipline": "strada",
+   "level": 7,
+   "access": "closed",
+   "requires": null,
+   "repRequired": 300,
+   "points": "sro_gtwc",
+   "profile": "feature",
+   "gridSize": 18,
+   "ai": [
+    93,
+    104
+   ],
+   "econ": {
+    "phase": 7,
+    "disc": "strada",
+    "buy": 0,
+    "rent": 75000,
+    "entry": 12000,
+    "prize": 105000,
+    "champion": 350000,
+    "model": "factory",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_296_gtb",
+    "ks_ferrari_488_challenge_evo",
+    "ks_porsche_992_gt3_rs"
+   ],
+   "calendar": [
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 1",
+     "laps": 10,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 2",
+     "laps": 6,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 3",
+     "laps": 9,
+     "hour": 13,
+     "weather": 4
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 4",
+     "laps": 10,
+     "hour": 12,
+     "weather": 1
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 5",
+     "laps": 7,
+     "hour": 13,
+     "weather": 3
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 6",
+     "laps": 7,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Finale",
+     "laps": 8,
+     "hour": 12,
+     "weather": 5
+    }
+   ]
+  },
+  {
+   "nodeId": "coppa_abarth-695-biposto",
+   "display": "Coppa Abarth 695 Biposto",
+   "discipline": "entry",
+   "level": 1,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    78,
+    88
+   ],
+   "econ": {
+    "phase": 1,
+    "disc": "entry",
+    "buy": 30000,
+    "rent": 900,
+    "entry": 400,
+    "prize": 3200,
+    "champion": 5120,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_abarth_695_biposto"
+   ],
+   "calendar": [
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 1",
+     "laps": 8,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 2",
+     "laps": 6,
+     "hour": 15,
+     "weather": 4
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 3",
+     "laps": 10,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 4",
+     "laps": 7,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 5",
+     "laps": 8,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 6",
+     "laps": 10,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Finale",
+     "laps": 8,
+     "hour": 16,
+     "weather": 0
+    }
+   ],
+   "repRequired": 20
+  },
+  {
+   "nodeId": "coppa_volkswagen-golf-gti-mk8",
+   "display": "Coppa Volkswagen Golf GTI Mk8",
+   "discipline": "touring",
+   "level": 3,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 14,
+   "ai": [
+    82,
+    92
+   ],
+   "econ": {
+    "phase": 3,
+    "disc": "touring",
+    "buy": 70000,
+    "rent": 3000,
+    "entry": 900,
+    "prize": 7000,
+    "champion": 11200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_volkswagen_golf_gti_mk8"
+   ],
+   "calendar": [
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 1",
+     "laps": 6,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 2",
+     "laps": 9,
+     "hour": 15,
+     "weather": 4
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 3",
+     "laps": 9,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 4",
+     "laps": 6,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 5",
+     "laps": 7,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 6",
+     "laps": 9,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Finale",
+     "laps": 7,
+     "hour": 12,
+     "weather": 1
+    }
+   ],
+   "repRequired": 70
+  },
+  {
+   "nodeId": "coppa_alfa-romeo-junior",
+   "display": "Coppa Alfa Romeo Junior",
+   "discipline": "entry",
+   "level": 1,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    78,
+    88
+   ],
+   "econ": {
+    "phase": 1,
+    "disc": "entry",
+    "buy": 30000,
+    "rent": 900,
+    "entry": 400,
+    "prize": 3200,
+    "champion": 5120,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_alfa_romeo_junior"
+   ],
+   "calendar": [
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 1",
+     "laps": 8,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 2",
+     "laps": 6,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 3",
+     "laps": 9,
+     "hour": 14,
+     "weather": 5
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 4",
+     "laps": 10,
+     "hour": 12,
+     "weather": 4
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 5",
+     "laps": 9,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 6",
+     "laps": 8,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 7",
+     "laps": 7,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 8",
+     "laps": 10,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Finale",
+     "laps": 6,
+     "hour": 16,
+     "weather": 5
+    }
+   ],
+   "repRequired": 20
+  },
+  {
+   "nodeId": "coppa_mazda-mx5-na",
+   "display": "Coppa Mazda MX-5 NA",
+   "discipline": "entry",
+   "level": 1,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    78,
+    88
+   ],
+   "econ": {
+    "phase": 1,
+    "disc": "entry",
+    "buy": 30000,
+    "rent": 900,
+    "entry": 400,
+    "prize": 3200,
+    "champion": 5120,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_mazda_mx5_na"
+   ],
+   "calendar": [
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 1",
+     "laps": 8,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 2",
+     "laps": 9,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 3",
+     "laps": 9,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 4",
+     "laps": 10,
+     "hour": 16,
+     "weather": 2
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 5",
+     "laps": 6,
+     "hour": 15,
+     "weather": 4
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 6",
+     "laps": 8,
+     "hour": 13,
+     "weather": 3
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Finale",
+     "laps": 10,
+     "hour": 12,
+     "weather": 0
+    }
+   ],
+   "repRequired": 20
+  },
+  {
+   "nodeId": "coppa_mazda-mx5-nd-cup",
+   "display": "Coppa Mazda MX-5 ND Cup",
+   "discipline": "touring",
+   "level": 2,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    80,
+    90
+   ],
+   "econ": {
+    "phase": 2,
+    "disc": "touring",
+    "buy": 45000,
+    "rent": 1500,
+    "entry": 600,
+    "prize": 4500,
+    "champion": 7200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_mazda_mx5_nd_cup"
+   ],
+   "calendar": [
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 1",
+     "laps": 10,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 2",
+     "laps": 6,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 3",
+     "laps": 8,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 4",
+     "laps": 7,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 5",
+     "laps": 6,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 6",
+     "laps": 6,
+     "hour": 12,
+     "weather": 5
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Finale",
+     "laps": 6,
+     "hour": 15,
+     "weather": 3
+    }
+   ],
+   "repRequired": 40
+  },
+  {
+   "nodeId": "coppa_toyota-gr86",
+   "display": "Coppa Toyota GR86",
+   "discipline": "entry",
+   "level": 1,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    78,
+    88
+   ],
+   "econ": {
+    "phase": 1,
+    "disc": "entry",
+    "buy": 30000,
+    "rent": 900,
+    "entry": 400,
+    "prize": 3200,
+    "champion": 5120,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_toyota_gr86"
+   ],
+   "calendar": [
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 1",
+     "laps": 7,
+     "hour": 14,
+     "weather": 5
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 2",
+     "laps": 9,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 3",
+     "laps": 6,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 4",
+     "laps": 7,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 5",
+     "laps": 10,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 6",
+     "laps": 10,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 7",
+     "laps": 6,
+     "hour": 14,
+     "weather": 1
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Finale",
+     "laps": 7,
+     "hour": 14,
+     "weather": 4
+    }
+   ],
+   "repRequired": 20
+  },
+  {
+   "nodeId": "coppa_toyota-ae86-sprinter-trueno",
+   "display": "Coppa Toyota Sprinter Trueno 1600GT-Apex (AE86)",
+   "discipline": "touring",
+   "level": 2,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    80,
+    90
+   ],
+   "econ": {
+    "phase": 2,
+    "disc": "touring",
+    "buy": 45000,
+    "rent": 1500,
+    "entry": 600,
+    "prize": 4500,
+    "champion": 7200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_toyota_ae86_sprinter_trueno"
+   ],
+   "calendar": [
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 1",
+     "laps": 6,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 2",
+     "laps": 7,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 3",
+     "laps": 6,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 4",
+     "laps": 6,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 5",
+     "laps": 6,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 6",
+     "laps": 7,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 7",
+     "laps": 9,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 8",
+     "laps": 9,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Finale",
+     "laps": 10,
+     "hour": 14,
+     "weather": 1
+    }
+   ],
+   "repRequired": 40
+  },
+  {
+   "nodeId": "coppa_honda-s2000-ap1",
+   "display": "Coppa Honda S2000 AP1",
+   "discipline": "entry",
+   "level": 1,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    78,
+    88
+   ],
+   "econ": {
+    "phase": 1,
+    "disc": "entry",
+    "buy": 30000,
+    "rent": 900,
+    "entry": 400,
+    "prize": 3200,
+    "champion": 5120,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_honda_s2000_ap1"
+   ],
+   "calendar": [
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 1",
+     "laps": 9,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 2",
+     "laps": 10,
+     "hour": 14,
+     "weather": 1
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 3",
+     "laps": 6,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 4",
+     "laps": 9,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 5",
+     "laps": 9,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 6",
+     "laps": 8,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 7",
+     "laps": 9,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 8",
+     "laps": 7,
+     "hour": 12,
+     "weather": 1
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Finale",
+     "laps": 9,
+     "hour": 12,
+     "weather": 1
+    }
+   ],
+   "repRequired": 20
+  },
+  {
+   "nodeId": "coppa_alpine-a110-s",
+   "display": "Coppa Alpine A110 S",
+   "discipline": "entry",
+   "level": 1,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    78,
+    88
+   ],
+   "econ": {
+    "phase": 1,
+    "disc": "entry",
+    "buy": 30000,
+    "rent": 900,
+    "entry": 400,
+    "prize": 3200,
+    "champion": 5120,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_alpine_a110_s"
+   ],
+   "calendar": [
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 1",
+     "laps": 6,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 2",
+     "laps": 10,
+     "hour": 14,
+     "weather": 4
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 3",
+     "laps": 7,
+     "hour": 16,
+     "weather": 2
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 4",
+     "laps": 8,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 5",
+     "laps": 9,
+     "hour": 15,
+     "weather": 1
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 6",
+     "laps": 6,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Finale",
+     "laps": 10,
+     "hour": 16,
+     "weather": 0
+    }
+   ],
+   "repRequired": 20
+  },
+  {
+   "nodeId": "coppa_lotus-emira",
+   "display": "Coppa Lotus Emira",
+   "discipline": "entry",
+   "level": 2,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    80,
+    90
+   ],
+   "econ": {
+    "phase": 2,
+    "disc": "entry",
+    "buy": 45000,
+    "rent": 1500,
+    "entry": 600,
+    "prize": 4500,
+    "champion": 7200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_lotus_emira"
+   ],
+   "calendar": [
+    {
+     "track": "imola",
+     "name": "Imola - Round 1",
+     "laps": 9,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 2",
+     "laps": 8,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 3",
+     "laps": 10,
+     "hour": 16,
+     "weather": 2
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 4",
+     "laps": 7,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 5",
+     "laps": 6,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 6",
+     "laps": 6,
+     "hour": 13,
+     "weather": 3
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 7",
+     "laps": 9,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 8",
+     "laps": 10,
+     "hour": 14,
+     "weather": 4
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Finale",
+     "laps": 8,
+     "hour": 16,
+     "weather": 0
+    }
+   ],
+   "repRequired": 40
+  },
+  {
+   "nodeId": "coppa_audi-rs-3-sportback",
+   "display": "Coppa Audi RS 3 Sportback",
+   "discipline": "entry",
+   "level": 1,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    78,
+    88
+   ],
+   "econ": {
+    "phase": 1,
+    "disc": "entry",
+    "buy": 30000,
+    "rent": 900,
+    "entry": 400,
+    "prize": 3200,
+    "champion": 5120,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_audi_rs_3_sportback"
+   ],
+   "calendar": [
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 1",
+     "laps": 8,
+     "hour": 12,
+     "weather": 3
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 2",
+     "laps": 7,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 3",
+     "laps": 9,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 4",
+     "laps": 7,
+     "hour": 15,
+     "weather": 4
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 5",
+     "laps": 6,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 6",
+     "laps": 9,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 7",
+     "laps": 6,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 8",
+     "laps": 8,
+     "hour": 14,
+     "weather": 4
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Finale",
+     "laps": 7,
+     "hour": 16,
+     "weather": 1
+    }
+   ],
+   "repRequired": 20
+  },
+  {
+   "nodeId": "coppa_hyundai-i30-n-hb",
+   "display": "Coppa Hyundai i30 N",
+   "discipline": "entry",
+   "level": 1,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    78,
+    88
+   ],
+   "econ": {
+    "phase": 1,
+    "disc": "entry",
+    "buy": 30000,
+    "rent": 900,
+    "entry": 400,
+    "prize": 3200,
+    "champion": 5120,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_hyundai_i30_n_hb"
+   ],
+   "calendar": [
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 1",
+     "laps": 8,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 2",
+     "laps": 10,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 3",
+     "laps": 9,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 4",
+     "laps": 8,
+     "hour": 12,
+     "weather": 4
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 5",
+     "laps": 9,
+     "hour": 15,
+     "weather": 1
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 6",
+     "laps": 6,
+     "hour": 14,
+     "weather": 5
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Finale",
+     "laps": 7,
+     "hour": 14,
+     "weather": 1
+    }
+   ],
+   "repRequired": 20
+  },
+  {
+   "nodeId": "coppa_renault-5-gt-turbo",
+   "display": "Coppa Renault 5 GT Turbo",
+   "discipline": "touring",
+   "level": 2,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    80,
+    90
+   ],
+   "econ": {
+    "phase": 2,
+    "disc": "touring",
+    "buy": 45000,
+    "rent": 1500,
+    "entry": 600,
+    "prize": 4500,
+    "champion": 7200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_renault_5_gt_turbo"
+   ],
+   "calendar": [
+    {
+     "track": "imola",
+     "name": "Imola - Round 1",
+     "laps": 7,
+     "hour": 14,
+     "weather": 5
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 2",
+     "laps": 8,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 3",
+     "laps": 6,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 4",
+     "laps": 8,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 5",
+     "laps": 8,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 6",
+     "laps": 8,
+     "hour": 14,
+     "weather": 4
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 7",
+     "laps": 8,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Finale",
+     "laps": 8,
+     "hour": 15,
+     "weather": 3
+    }
+   ],
+   "repRequired": 40
+  },
+  {
+   "nodeId": "coppa_alfa-romeo-75-turbo-evo",
+   "display": "Coppa Alfa Romeo 75 Turbo Evoluzione",
+   "discipline": "touring",
+   "level": 3,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 14,
+   "ai": [
+    82,
+    92
+   ],
+   "econ": {
+    "phase": 3,
+    "disc": "touring",
+    "buy": 70000,
+    "rent": 3000,
+    "entry": 900,
+    "prize": 7000,
+    "champion": 11200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_alfa_romeo_75_turbo_evo"
+   ],
+   "calendar": [
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 1",
+     "laps": 8,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 2",
+     "laps": 7,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 3",
+     "laps": 6,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 4",
+     "laps": 8,
+     "hour": 14,
+     "weather": 1
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 5",
+     "laps": 6,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 6",
+     "laps": 8,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Finale",
+     "laps": 8,
+     "hour": 16,
+     "weather": 3
+    }
+   ],
+   "repRequired": 70
+  },
+  {
+   "nodeId": "coppa_ford-escort-rs-cosworth",
+   "display": "Coppa Ford Escort RS Cosworth",
+   "discipline": "touring",
+   "level": 3,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 14,
+   "ai": [
+    82,
+    92
+   ],
+   "econ": {
+    "phase": 3,
+    "disc": "touring",
+    "buy": 70000,
+    "rent": 3000,
+    "entry": 900,
+    "prize": 7000,
+    "champion": 11200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ford_escort_rs_cosworth"
+   ],
+   "calendar": [
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 1",
+     "laps": 10,
+     "hour": 16,
+     "weather": 2
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 2",
+     "laps": 6,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 3",
+     "laps": 8,
+     "hour": 16,
+     "weather": 2
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 4",
+     "laps": 6,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 5",
+     "laps": 9,
+     "hour": 12,
+     "weather": 5
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 6",
+     "laps": 6,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Finale",
+     "laps": 6,
+     "hour": 14,
+     "weather": 1
+    }
+   ],
+   "repRequired": 70
+  },
+  {
+   "nodeId": "coppa_bmw-m3-e30-evo-iii",
+   "display": "Coppa BMW M3 E30 Evo III",
+   "discipline": "touring",
+   "level": 4,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    85,
+    95
+   ],
+   "econ": {
+    "phase": 4,
+    "disc": "touring",
+    "buy": 150000,
+    "rent": 6000,
+    "entry": 1500,
+    "prize": 12000,
+    "champion": 19200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_bmw_m3_e30_evo_iii"
+   ],
+   "calendar": [
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 1",
+     "laps": 10,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 2",
+     "laps": 6,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 3",
+     "laps": 6,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 4",
+     "laps": 7,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 5",
+     "laps": 7,
+     "hour": 15,
+     "weather": 4
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 6",
+     "laps": 10,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 7",
+     "laps": 6,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Finale",
+     "laps": 6,
+     "hour": 16,
+     "weather": 2
+    }
+   ],
+   "repRequired": 110
+  },
+  {
+   "nodeId": "coppa_mercedes-190e-evo-ii",
+   "display": "Coppa Mercedes 190E Evo II",
+   "discipline": "touring",
+   "level": 4,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    85,
+    95
+   ],
+   "econ": {
+    "phase": 4,
+    "disc": "touring",
+    "buy": 150000,
+    "rent": 6000,
+    "entry": 1500,
+    "prize": 12000,
+    "champion": 19200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_mercedes_190e_evo_ii"
+   ],
+   "calendar": [
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 1",
+     "laps": 7,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 2",
+     "laps": 9,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 3",
+     "laps": 10,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 4",
+     "laps": 8,
+     "hour": 12,
+     "weather": 3
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 5",
+     "laps": 8,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 6",
+     "laps": 9,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 7",
+     "laps": 7,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 8",
+     "laps": 8,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Finale",
+     "laps": 7,
+     "hour": 13,
+     "weather": 0
+    }
+   ],
+   "repRequired": 110
+  },
+  {
+   "nodeId": "coppa_bmw-m4-csl",
+   "display": "Coppa BMW M4 CSL",
+   "discipline": "strada",
+   "level": 4,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    85,
+    95
+   ],
+   "econ": {
+    "phase": 4,
+    "disc": "strada",
+    "buy": 150000,
+    "rent": 6000,
+    "entry": 1500,
+    "prize": 12000,
+    "champion": 19200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_bmw_m4_csl"
+   ],
+   "calendar": [
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 1",
+     "laps": 7,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 2",
+     "laps": 6,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 3",
+     "laps": 9,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 4",
+     "laps": 10,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 5",
+     "laps": 7,
+     "hour": 12,
+     "weather": 3
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 6",
+     "laps": 7,
+     "hour": 14,
+     "weather": 4
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 7",
+     "laps": 10,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Finale",
+     "laps": 6,
+     "hour": 14,
+     "weather": 1
+    }
+   ],
+   "repRequired": 110
+  },
+  {
+   "nodeId": "coppa_bmw-m3-e46-csl",
+   "display": "Coppa BMW M3 E46 CSL",
+   "discipline": "touring",
+   "level": 4,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    85,
+    95
+   ],
+   "econ": {
+    "phase": 4,
+    "disc": "touring",
+    "buy": 150000,
+    "rent": 6000,
+    "entry": 1500,
+    "prize": 12000,
+    "champion": 19200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_bmw_m3_e46_csl"
+   ],
+   "calendar": [
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 1",
+     "laps": 6,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 2",
+     "laps": 7,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 3",
+     "laps": 10,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 4",
+     "laps": 7,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 5",
+     "laps": 7,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 6",
+     "laps": 9,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 7",
+     "laps": 7,
+     "hour": 13,
+     "weather": 4
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Finale",
+     "laps": 10,
+     "hour": 16,
+     "weather": 3
+    }
+   ],
+   "repRequired": 110
+  },
+  {
+   "nodeId": "coppa_alfa-romeo-giulia-gtam",
+   "display": "Coppa Alfa Romeo Giulia GTAm",
+   "discipline": "entry",
+   "level": 2,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    80,
+    90
+   ],
+   "econ": {
+    "phase": 2,
+    "disc": "entry",
+    "buy": 45000,
+    "rent": 1500,
+    "entry": 600,
+    "prize": 4500,
+    "champion": 7200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_alfa_romeo_giulia_gtam"
+   ],
+   "calendar": [
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 1",
+     "laps": 10,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 2",
+     "laps": 7,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 3",
+     "laps": 9,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 4",
+     "laps": 8,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 5",
+     "laps": 9,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 6",
+     "laps": 7,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Finale",
+     "laps": 7,
+     "hour": 12,
+     "weather": 0
+    }
+   ],
+   "repRequired": 40
+  },
+  {
+   "nodeId": "coppa_chevrolet-camaro-zl1",
+   "display": "Coppa Chevrolet Camaro ZL1",
+   "discipline": "entry",
+   "level": 2,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    80,
+    90
+   ],
+   "econ": {
+    "phase": 2,
+    "disc": "entry",
+    "buy": 45000,
+    "rent": 1500,
+    "entry": 600,
+    "prize": 4500,
+    "champion": 7200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_chevrolet_camaro_zl1"
+   ],
+   "calendar": [
+    {
+     "track": "imola",
+     "name": "Imola - Round 1",
+     "laps": 9,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 2",
+     "laps": 8,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 3",
+     "laps": 10,
+     "hour": 14,
+     "weather": 1
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 4",
+     "laps": 8,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 5",
+     "laps": 10,
+     "hour": 12,
+     "weather": 4
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 6",
+     "laps": 9,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Finale",
+     "laps": 7,
+     "hour": 16,
+     "weather": 3
+    }
+   ],
+   "repRequired": 40
+  },
+  {
+   "nodeId": "coppa_bmw-m8-competition",
+   "display": "Coppa BMW M8 Competition",
+   "discipline": "entry",
+   "level": 1,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    78,
+    88
+   ],
+   "econ": {
+    "phase": 1,
+    "disc": "entry",
+    "buy": 30000,
+    "rent": 900,
+    "entry": 400,
+    "prize": 3200,
+    "champion": 5120,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_bmw_m8_competition"
+   ],
+   "calendar": [
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 1",
+     "laps": 10,
+     "hour": 12,
+     "weather": 4
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 2",
+     "laps": 7,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 3",
+     "laps": 9,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 4",
+     "laps": 8,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 5",
+     "laps": 10,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 6",
+     "laps": 9,
+     "hour": 12,
+     "weather": 1
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Finale",
+     "laps": 10,
+     "hour": 13,
+     "weather": 0
+    }
+   ],
+   "repRequired": 20
+  },
+  {
+   "nodeId": "coppa_toyota-supra-mkiv",
+   "display": "Coppa Toyota Supra MKIV",
+   "discipline": "entry",
+   "level": 2,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    80,
+    90
+   ],
+   "econ": {
+    "phase": 2,
+    "disc": "entry",
+    "buy": 45000,
+    "rent": 1500,
+    "entry": 600,
+    "prize": 4500,
+    "champion": 7200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_toyota_supra_mkiv"
+   ],
+   "calendar": [
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 1",
+     "laps": 8,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 2",
+     "laps": 9,
+     "hour": 14,
+     "weather": 1
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 3",
+     "laps": 8,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 4",
+     "laps": 7,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 5",
+     "laps": 7,
+     "hour": 12,
+     "weather": 1
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 6",
+     "laps": 6,
+     "hour": 13,
+     "weather": 3
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 7",
+     "laps": 8,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 8",
+     "laps": 6,
+     "hour": 16,
+     "weather": 2
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Finale",
+     "laps": 10,
+     "hour": 12,
+     "weather": 3
+    }
+   ],
+   "repRequired": 40
+  },
+  {
+   "nodeId": "coppa_porsche-718-cayman-gt4-rs",
+   "display": "Coppa Porsche 718 Cayman GT4 RS",
+   "discipline": "entry",
+   "level": 2,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    80,
+    90
+   ],
+   "econ": {
+    "phase": 2,
+    "disc": "entry",
+    "buy": 45000,
+    "rent": 1500,
+    "entry": 600,
+    "prize": 4500,
+    "champion": 7200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_porsche_718_cayman_gt4_rs"
+   ],
+   "calendar": [
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 1",
+     "laps": 6,
+     "hour": 12,
+     "weather": 3
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 2",
+     "laps": 7,
+     "hour": 14,
+     "weather": 1
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 3",
+     "laps": 8,
+     "hour": 12,
+     "weather": 1
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 4",
+     "laps": 9,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 5",
+     "laps": 8,
+     "hour": 12,
+     "weather": 1
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 6",
+     "laps": 9,
+     "hour": 14,
+     "weather": 4
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Finale",
+     "laps": 10,
+     "hour": 15,
+     "weather": 0
+    }
+   ],
+   "repRequired": 40
+  },
+  {
+   "nodeId": "coppa_audi-r8-lms-gt4-evo",
+   "display": "Coppa Audi R8 LMS GT4 Evo",
+   "discipline": "gt",
+   "level": 4,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    85,
+    95
+   ],
+   "econ": {
+    "phase": 4,
+    "disc": "gt",
+    "buy": 150000,
+    "rent": 6000,
+    "entry": 1500,
+    "prize": 12000,
+    "champion": 19200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_audi_r8_lms_gt4_evo"
+   ],
+   "calendar": [
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 1",
+     "laps": 10,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 2",
+     "laps": 10,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 3",
+     "laps": 10,
+     "hour": 16,
+     "weather": 5
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 4",
+     "laps": 9,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 5",
+     "laps": 10,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 6",
+     "laps": 7,
+     "hour": 14,
+     "weather": 1
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 7",
+     "laps": 8,
+     "hour": 13,
+     "weather": 5
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Finale",
+     "laps": 7,
+     "hour": 15,
+     "weather": 0
+    }
+   ],
+   "repRequired": 110
+  },
+  {
+   "nodeId": "coppa_bmw-m4-gt3",
+   "display": "Coppa BMW M4 GT3",
+   "discipline": "gt",
+   "level": 5,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    88,
+    98
+   ],
+   "econ": {
+    "phase": 5,
+    "disc": "gt",
+    "buy": 260000,
+    "rent": 12000,
+    "entry": 2500,
+    "prize": 22000,
+    "champion": 35200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_bmw_m4_gt3"
+   ],
+   "calendar": [
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 1",
+     "laps": 7,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 2",
+     "laps": 9,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 3",
+     "laps": 8,
+     "hour": 14,
+     "weather": 4
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 4",
+     "laps": 6,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 5",
+     "laps": 7,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 6",
+     "laps": 10,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Finale",
+     "laps": 7,
+     "hour": 15,
+     "weather": 5
+    }
+   ],
+   "repRequired": 160
+  },
+  {
+   "nodeId": "coppa_ford-mustang-gt3",
+   "display": "Coppa Ford Mustang GT3",
+   "discipline": "gt",
+   "level": 5,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    88,
+    98
+   ],
+   "econ": {
+    "phase": 5,
+    "disc": "gt",
+    "buy": 260000,
+    "rent": 12000,
+    "entry": 2500,
+    "prize": 22000,
+    "champion": 35200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ford_mustang_gt3"
+   ],
+   "calendar": [
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 1",
+     "laps": 10,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 2",
+     "laps": 6,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 3",
+     "laps": 8,
+     "hour": 12,
+     "weather": 1
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 4",
+     "laps": 6,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 5",
+     "laps": 9,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 6",
+     "laps": 6,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 7",
+     "laps": 7,
+     "hour": 15,
+     "weather": 5
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 8",
+     "laps": 7,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Finale",
+     "laps": 10,
+     "hour": 13,
+     "weather": 4
+    }
+   ],
+   "repRequired": 160
+  },
+  {
+   "nodeId": "coppa_ferrari-296-gt3",
+   "display": "Coppa Ferrari 296 GT3",
+   "discipline": "gt",
+   "level": 5,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    88,
+    98
+   ],
+   "econ": {
+    "phase": 5,
+    "disc": "gt",
+    "buy": 260000,
+    "rent": 12000,
+    "entry": 2500,
+    "prize": 22000,
+    "champion": 35200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_296_gt3"
+   ],
+   "calendar": [
+    {
+     "track": "imola",
+     "name": "Imola - Round 1",
+     "laps": 10,
+     "hour": 15,
+     "weather": 1
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 2",
+     "laps": 10,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 3",
+     "laps": 9,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 4",
+     "laps": 10,
+     "hour": 13,
+     "weather": 3
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 5",
+     "laps": 10,
+     "hour": 15,
+     "weather": 4
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 6",
+     "laps": 7,
+     "hour": 14,
+     "weather": 1
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Finale",
+     "laps": 8,
+     "hour": 15,
+     "weather": 1
+    }
+   ],
+   "repRequired": 160
+  },
+  {
+   "nodeId": "coppa_porsche-992-gt3-r-rennsport",
+   "display": "Coppa Porsche 911 GT3 R Rennsport",
+   "discipline": "gt",
+   "level": 5,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    88,
+    98
+   ],
+   "econ": {
+    "phase": 5,
+    "disc": "gt",
+    "buy": 260000,
+    "rent": 12000,
+    "entry": 2500,
+    "prize": 22000,
+    "champion": 35200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_porsche_992_gt3_r_rennsport"
+   ],
+   "calendar": [
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 1",
+     "laps": 8,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 2",
+     "laps": 6,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 3",
+     "laps": 7,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 4",
+     "laps": 6,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 5",
+     "laps": 10,
+     "hour": 12,
+     "weather": 3
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 6",
+     "laps": 10,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 7",
+     "laps": 8,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Finale",
+     "laps": 9,
+     "hour": 16,
+     "weather": 3
+    }
+   ],
+   "repRequired": 160
+  },
+  {
+   "nodeId": "coppa_mercedes-amg-gt2",
+   "display": "Coppa Mercedes-AMG GT2",
+   "discipline": "endurance",
+   "level": 6,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    90,
+    100
+   ],
+   "econ": {
+    "phase": 6,
+    "disc": "endurance",
+    "buy": 400000,
+    "rent": 20000,
+    "entry": 4000,
+    "prize": 38000,
+    "champion": 60800,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_mercedes_amg_gt2"
+   ],
+   "calendar": [
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 1",
+     "laps": 6,
+     "hour": 16,
+     "weather": 0,
+     "durationMin": 45
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 2",
+     "laps": 8,
+     "hour": 16,
+     "weather": 0,
+     "durationMin": 60
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 3",
+     "laps": 8,
+     "hour": 12,
+     "weather": 4,
+     "durationMin": 60
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 4",
+     "laps": 7,
+     "hour": 16,
+     "weather": 4,
+     "durationMin": 55
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 5",
+     "laps": 9,
+     "hour": 14,
+     "weather": 2,
+     "durationMin": 70
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 6",
+     "laps": 6,
+     "hour": 14,
+     "weather": 0,
+     "durationMin": 45
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Finale",
+     "laps": 7,
+     "hour": 15,
+     "weather": 3,
+     "durationMin": 55
+    }
+   ],
+   "repRequired": 220
+  },
+  {
+   "nodeId": "coppa_lamborghini-huracan-sto",
+   "display": "Coppa Lamborghini Huracán STO",
+   "discipline": "strada",
+   "level": 4,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    85,
+    95
+   ],
+   "econ": {
+    "phase": 4,
+    "disc": "strada",
+    "buy": 150000,
+    "rent": 6000,
+    "entry": 1500,
+    "prize": 12000,
+    "champion": 19200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_lamborghini_huracan_sto"
+   ],
+   "calendar": [
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 1",
+     "laps": 7,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 2",
+     "laps": 9,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 3",
+     "laps": 9,
+     "hour": 12,
+     "weather": 1
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 4",
+     "laps": 9,
+     "hour": 12,
+     "weather": 4
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 5",
+     "laps": 8,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 6",
+     "laps": 7,
+     "hour": 14,
+     "weather": 5
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 7",
+     "laps": 7,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Finale",
+     "laps": 10,
+     "hour": 15,
+     "weather": 1
+    }
+   ],
+   "repRequired": 110
+  },
+  {
+   "nodeId": "coppa_porsche-992-gt3-rs",
+   "display": "Coppa Porsche 911 GT3 RS (992)",
+   "discipline": "strada",
+   "level": 6,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    90,
+    100
+   ],
+   "econ": {
+    "phase": 6,
+    "disc": "strada",
+    "buy": 400000,
+    "rent": 20000,
+    "entry": 4000,
+    "prize": 38000,
+    "champion": 60800,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_porsche_992_gt3_rs"
+   ],
+   "calendar": [
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 1",
+     "laps": 8,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 2",
+     "laps": 9,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 3",
+     "laps": 7,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 4",
+     "laps": 9,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 5",
+     "laps": 6,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 6",
+     "laps": 7,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 7",
+     "laps": 9,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 8",
+     "laps": 10,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Finale",
+     "laps": 6,
+     "hour": 14,
+     "weather": 2
+    }
+   ],
+   "repRequired": 220
+  },
+  {
+   "nodeId": "coppa_ferrari-488-challenge-evo",
+   "display": "Coppa Ferrari 488 Challenge Evo",
+   "discipline": "gt",
+   "level": 5,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    88,
+    98
+   ],
+   "econ": {
+    "phase": 5,
+    "disc": "gt",
+    "buy": 260000,
+    "rent": 12000,
+    "entry": 2500,
+    "prize": 22000,
+    "champion": 35200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_488_challenge_evo"
+   ],
+   "calendar": [
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 1",
+     "laps": 10,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 2",
+     "laps": 8,
+     "hour": 12,
+     "weather": 1
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 3",
+     "laps": 7,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 4",
+     "laps": 7,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 5",
+     "laps": 6,
+     "hour": 14,
+     "weather": 5
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 6",
+     "laps": 9,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Finale",
+     "laps": 6,
+     "hour": 13,
+     "weather": 3
+    }
+   ],
+   "repRequired": 160
+  },
+  {
+   "nodeId": "coppa_ferrari-296-gtb",
+   "display": "Coppa Ferrari 296 GTB",
+   "discipline": "strada",
+   "level": 4,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    85,
+    95
+   ],
+   "econ": {
+    "phase": 4,
+    "disc": "strada",
+    "buy": 150000,
+    "rent": 6000,
+    "entry": 1500,
+    "prize": 12000,
+    "champion": 19200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_296_gtb"
+   ],
+   "calendar": [
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 1",
+     "laps": 10,
+     "hour": 16,
+     "weather": 2
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 2",
+     "laps": 6,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 3",
+     "laps": 8,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 4",
+     "laps": 10,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 5",
+     "laps": 6,
+     "hour": 16,
+     "weather": 5
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 6",
+     "laps": 6,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 7",
+     "laps": 8,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Finale",
+     "laps": 9,
+     "hour": 15,
+     "weather": 2
+    }
+   ],
+   "repRequired": 110
+  },
+  {
+   "nodeId": "coppa_porsche-992-gt3-cup",
+   "display": "Coppa Porsche 911 GT3 Cup (992)",
+   "discipline": "gt",
+   "level": 5,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    88,
+    98
+   ],
+   "econ": {
+    "phase": 5,
+    "disc": "gt",
+    "buy": 260000,
+    "rent": 12000,
+    "entry": 2500,
+    "prize": 22000,
+    "champion": 35200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_porsche_992_gt3_cup"
+   ],
+   "calendar": [
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 1",
+     "laps": 6,
+     "hour": 12,
+     "weather": 1
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 2",
+     "laps": 7,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 3",
+     "laps": 9,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 4",
+     "laps": 10,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 5",
+     "laps": 7,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 6",
+     "laps": 6,
+     "hour": 13,
+     "weather": 3
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Finale",
+     "laps": 9,
+     "hour": 13,
+     "weather": 0
+    }
+   ],
+   "repRequired": 160
+  },
+  {
+   "nodeId": "coppa_ferrari-f2004",
+   "display": "Coppa Ferrari F2004",
+   "discipline": "single",
+   "level": 6,
+   "access": "closed",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    90,
+    100
+   ],
+   "econ": {
+    "phase": 6,
+    "disc": "single",
+    "buy": 400000,
+    "rent": 20000,
+    "entry": 4000,
+    "prize": 38000,
+    "champion": 60800,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_f2004"
+   ],
+   "calendar": [
+    {
+     "track": "imola",
+     "name": "Imola - Round 1",
+     "laps": 9,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 2",
+     "laps": 6,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 3",
+     "laps": 8,
+     "hour": 14,
+     "weather": 5
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 4",
+     "laps": 9,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 5",
+     "laps": 8,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 6",
+     "laps": 7,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 7",
+     "laps": 6,
+     "hour": 12,
+     "weather": 3
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 8",
+     "laps": 8,
+     "hour": 15,
+     "weather": 4
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Finale",
+     "laps": 9,
+     "hour": 14,
+     "weather": 4
+    }
+   ],
+   "repRequired": 400
+  },
+  {
+   "nodeId": "coppa_ferrari-sf-25",
+   "display": "Coppa Ferrari SF-25",
+   "discipline": "single",
+   "level": 6,
+   "access": "closed",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    90,
+    100
+   ],
+   "econ": {
+    "phase": 6,
+    "disc": "single",
+    "buy": 400000,
+    "rent": 20000,
+    "entry": 4000,
+    "prize": 38000,
+    "champion": 60800,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_sf_25"
+   ],
+   "calendar": [
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 1",
+     "laps": 9,
+     "hour": 14,
+     "weather": 4
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 2",
+     "laps": 10,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 3",
+     "laps": 10,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 4",
+     "laps": 8,
+     "hour": 12,
+     "weather": 1
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 5",
+     "laps": 7,
+     "hour": 12,
+     "weather": 4
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 6",
+     "laps": 6,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 7",
+     "laps": 6,
+     "hour": 12,
+     "weather": 3
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 8",
+     "laps": 10,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Finale",
+     "laps": 6,
+     "hour": 14,
+     "weather": 2
+    }
+   ],
+   "repRequired": 400
+  },
+  {
+   "nodeId": "coppa_datsun-240z-fairlady",
+   "display": "Coppa Datsun 240Z",
+   "discipline": "touring",
+   "level": 2,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    80,
+    90
+   ],
+   "econ": {
+    "phase": 2,
+    "disc": "touring",
+    "buy": 45000,
+    "rent": 1500,
+    "entry": 600,
+    "prize": 4500,
+    "champion": 7200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_datsun_240z_fairlady"
+   ],
+   "calendar": [
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 1",
+     "laps": 8,
+     "hour": 13,
+     "weather": 5
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 2",
+     "laps": 9,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 3",
+     "laps": 7,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 4",
+     "laps": 10,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 5",
+     "laps": 9,
+     "hour": 15,
+     "weather": 4
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 6",
+     "laps": 8,
+     "hour": 12,
+     "weather": 1
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 7",
+     "laps": 9,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Finale",
+     "laps": 9,
+     "hour": 14,
+     "weather": 2
+    }
+   ],
+   "repRequired": 40
+  },
+  {
+   "nodeId": "coppa_mazda-rx7-fd",
+   "display": "Coppa Mazda RX-7 FD",
+   "discipline": "touring",
+   "level": 3,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 14,
+   "ai": [
+    82,
+    92
+   ],
+   "econ": {
+    "phase": 3,
+    "disc": "touring",
+    "buy": 70000,
+    "rent": 3000,
+    "entry": 900,
+    "prize": 7000,
+    "champion": 11200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_mazda_rx7_fd"
+   ],
+   "calendar": [
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 1",
+     "laps": 9,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 2",
+     "laps": 10,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 3",
+     "laps": 7,
+     "hour": 15,
+     "weather": 0
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 4",
+     "laps": 8,
+     "hour": 12,
+     "weather": 4
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 5",
+     "laps": 6,
+     "hour": 13,
+     "weather": 5
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 6",
+     "laps": 7,
+     "hour": 15,
+     "weather": 4
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 7",
+     "laps": 8,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Finale",
+     "laps": 9,
+     "hour": 13,
+     "weather": 2
+    }
+   ],
+   "repRequired": 70
+  },
+  {
+   "nodeId": "coppa_porsche-964-turbo-3-6",
+   "display": "Coppa Porsche 964 Turbo 3.6",
+   "discipline": "strada",
+   "level": 4,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    85,
+    95
+   ],
+   "econ": {
+    "phase": 4,
+    "disc": "strada",
+    "buy": 150000,
+    "rent": 6000,
+    "entry": 1500,
+    "prize": 12000,
+    "champion": 19200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_porsche_964_turbo_3_6"
+   ],
+   "calendar": [
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 1",
+     "laps": 8,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 2",
+     "laps": 9,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 3",
+     "laps": 8,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 4",
+     "laps": 8,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 5",
+     "laps": 7,
+     "hour": 15,
+     "weather": 2
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 6",
+     "laps": 9,
+     "hour": 16,
+     "weather": 2
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Finale",
+     "laps": 10,
+     "hour": 12,
+     "weather": 0
+    }
+   ],
+   "repRequired": 110
+  },
+  {
+   "nodeId": "coppa_lancia-delta-hf-integrale-evo-ii",
+   "display": "Coppa Lancia Delta HF Integrale Evo II",
+   "discipline": "touring",
+   "level": 3,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 14,
+   "ai": [
+    82,
+    92
+   ],
+   "econ": {
+    "phase": 3,
+    "disc": "touring",
+    "buy": 70000,
+    "rent": 3000,
+    "entry": 900,
+    "prize": 7000,
+    "champion": 11200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_lancia_delta_hf_integrale_evo_ii"
+   ],
+   "calendar": [
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 1",
+     "laps": 6,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 2",
+     "laps": 7,
+     "hour": 14,
+     "weather": 5
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 3",
+     "laps": 8,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 4",
+     "laps": 8,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 5",
+     "laps": 6,
+     "hour": 14,
+     "weather": 2
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 6",
+     "laps": 8,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Finale",
+     "laps": 10,
+     "hour": 13,
+     "weather": 4
+    }
+   ],
+   "repRequired": 70
+  },
+  {
+   "nodeId": "coppa_mini-jcs-1990",
+   "display": "Coppa Mini JCS 1990",
+   "discipline": "touring",
+   "level": 2,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    80,
+    90
+   ],
+   "econ": {
+    "phase": 2,
+    "disc": "touring",
+    "buy": 45000,
+    "rent": 1500,
+    "entry": 600,
+    "prize": 4500,
+    "champion": 7200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_mini_jcs_1990"
+   ],
+   "calendar": [
+    {
+     "track": "monza",
+     "name": "Monza - Round 1",
+     "laps": 9,
+     "hour": 12,
+     "weather": 3
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 2",
+     "laps": 8,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 3",
+     "laps": 7,
+     "hour": 13,
+     "weather": 4
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 4",
+     "laps": 8,
+     "hour": 13,
+     "weather": 4
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 5",
+     "laps": 10,
+     "hour": 13,
+     "weather": 1
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 6",
+     "laps": 10,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 7",
+     "laps": 9,
+     "hour": 13,
+     "weather": 0
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 8",
+     "laps": 7,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Finale",
+     "laps": 9,
+     "hour": 14,
+     "weather": 4
+    }
+   ],
+   "repRequired": 40
+  },
+  {
+   "nodeId": "coppa_peugeot-205-t16",
+   "display": "Coppa Peugeot 205 T16",
+   "discipline": "touring",
+   "level": 3,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 14,
+   "ai": [
+    82,
+    92
+   ],
+   "econ": {
+    "phase": 3,
+    "disc": "touring",
+    "buy": 70000,
+    "rent": 3000,
+    "entry": 900,
+    "prize": 7000,
+    "champion": 11200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_peugeot_205_t16"
+   ],
+   "calendar": [
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 1",
+     "laps": 9,
+     "hour": 13,
+     "weather": 5
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 2",
+     "laps": 9,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 3",
+     "laps": 6,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 4",
+     "laps": 9,
+     "hour": 12,
+     "weather": 0
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 5",
+     "laps": 9,
+     "hour": 16,
+     "weather": 1
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 6",
+     "laps": 6,
+     "hour": 16,
+     "weather": 4
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Finale",
+     "laps": 6,
+     "hour": 12,
+     "weather": 4
+    }
+   ],
+   "repRequired": 70
+  },
+  {
+   "nodeId": "coppa_ferrari-288-gto",
+   "display": "Coppa Ferrari 288 GTO",
+   "discipline": "entry",
+   "level": 1,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "club_short",
+   "gridSize": 14,
+   "ai": [
+    78,
+    88
+   ],
+   "econ": {
+    "phase": 1,
+    "disc": "entry",
+    "buy": 30000,
+    "rent": 900,
+    "entry": 400,
+    "prize": 3200,
+    "champion": 5120,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_288_gto"
+   ],
+   "calendar": [
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 1",
+     "laps": 10,
+     "hour": 16,
+     "weather": 2
+    },
+    {
+     "track": "fuji",
+     "name": "Fuji Speedway - Round 2",
+     "laps": 10,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 3",
+     "laps": 9,
+     "hour": 14,
+     "weather": 3
+    },
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 4",
+     "laps": 7,
+     "hour": 15,
+     "weather": 1
+    },
+    {
+     "track": "monza",
+     "name": "Monza - Round 5",
+     "laps": 9,
+     "hour": 12,
+     "weather": 2
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Round 6",
+     "laps": 8,
+     "hour": 16,
+     "weather": 0
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 7",
+     "laps": 9,
+     "hour": 14,
+     "weather": 4
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 8",
+     "laps": 6,
+     "hour": 13,
+     "weather": 2
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Finale",
+     "laps": 6,
+     "hour": 14,
+     "weather": 5
+    }
+   ],
+   "repRequired": 20
+  },
+  {
+   "nodeId": "coppa_ferrari-f40-lm",
+   "display": "Coppa Ferrari F40 LM",
+   "discipline": "endurance",
+   "level": 6,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    90,
+    100
+   ],
+   "econ": {
+    "phase": 6,
+    "disc": "endurance",
+    "buy": 400000,
+    "rent": 20000,
+    "entry": 4000,
+    "prize": 38000,
+    "champion": 60800,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_ferrari_f40_lm"
+   ],
+   "calendar": [
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Round 1",
+     "laps": 7,
+     "hour": 13,
+     "weather": 3,
+     "durationMin": 65
+    },
+    {
+     "track": "spa",
+     "name": "Circuit de Spa Francorchamps - Round 2",
+     "laps": 9,
+     "hour": 13,
+     "weather": 2,
+     "durationMin": 85
+    },
+    {
+     "track": "brands_hatch",
+     "name": "Brands Hatch - Round 3",
+     "laps": 7,
+     "hour": 16,
+     "weather": 0,
+     "durationMin": 65
+    },
+    {
+     "track": "redbull_ring",
+     "name": "Red Bull Ring - Round 4",
+     "laps": 10,
+     "hour": 12,
+     "weather": 2,
+     "durationMin": 95
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 5",
+     "laps": 7,
+     "hour": 16,
+     "weather": 0,
+     "durationMin": 65
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 6",
+     "laps": 10,
+     "hour": 15,
+     "weather": 1,
+     "durationMin": 95
+    },
+    {
+     "track": "nurburgring",
+     "name": "Nürburgring GP - Round 7",
+     "laps": 8,
+     "hour": 16,
+     "weather": 4,
+     "durationMin": 75
+    },
+    {
+     "track": "kyalami",
+     "name": "Kyalami - Round 8",
+     "laps": 10,
+     "hour": 13,
+     "weather": 4,
+     "durationMin": 95
+    },
+    {
+     "track": "imola",
+     "name": "Imola - Finale",
+     "laps": 7,
+     "hour": 12,
+     "weather": 0,
+     "durationMin": 65
+    }
+   ],
+   "repRequired": 220
+  },
+  {
+   "nodeId": "coppa_lamborghini-countach",
+   "display": "Coppa Lamborghini Countach",
+   "discipline": "strada",
+   "level": 5,
+   "access": "rep",
+   "requires": null,
+   "points": "one_make",
+   "profile": "sprint",
+   "gridSize": 16,
+   "ai": [
+    88,
+    98
+   ],
+   "econ": {
+    "phase": 5,
+    "disc": "strada",
+    "buy": 260000,
+    "rent": 12000,
+    "entry": 2500,
+    "prize": 22000,
+    "champion": 35200,
+    "model": "pocket",
+    "icon": ""
+   },
+   "cars": [
+    "ks_lamborghini_countach"
+   ],
+   "calendar": [
+    {
+     "track": "sebring",
+     "name": "Sebring - Round 1",
+     "laps": 9,
+     "hour": 14,
+     "weather": 0
+    },
+    {
+     "track": "donington_park",
+     "name": "Donington Park - Round 2",
+     "laps": 6,
+     "hour": 13,
+     "weather": 3
+    },
+    {
+     "track": "laguna_seca",
+     "name": "Laguna Seca - Round 3",
+     "laps": 7,
+     "hour": 15,
+     "weather": 3
+    },
+    {
+     "track": "suzuka",
+     "name": "Suzuka - Round 4",
+     "laps": 7,
+     "hour": 14,
+     "weather": 4
+    },
+    {
+     "track": "circuit_of_the_americas",
+     "name": "Circuit Of The Americas - Round 5",
+     "laps": 9,
+     "hour": 12,
+     "weather": 3
+    },
+    {
+     "track": "paul_ricard",
+     "name": "Paul Ricard - Round 6",
+     "laps": 8,
+     "hour": 16,
+     "weather": 3
+    },
+    {
+     "track": "mount_panorama",
+     "name": "Mount Panorama - Finale",
+     "laps": 8,
+     "hour": 15,
+     "weather": 3
+    }
+   ],
+   "repRequired": 160
+  }
+ ],
+ "_nota_espansione": "Coppa monomarca per ogni auto: access='open' senza requires/rep (access=0), id piste abbreviati ok per il matcher; generati da tools/expand-ladder.py",
+ "_nota_gates": "Accesso con soldi + reputazione (repRequired per livello; F1 400). Catene 'top N' rimosse: si firma dove il budget e la rep lo permettono. Generato da tools/ladder-gates.py"
+}

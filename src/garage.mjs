@@ -1,0 +1,222 @@
+// garage.mjs — il garage personale: le auto che hai comprato o vinto.
+//
+//  - le auto VINTE arrivano da sole: la vetrina degli eventi speciali
+//    (state.events.showCase, scritta da finishEvent in events.mjs) viene
+//    importata qui una volta sola, senza duplicati;
+//  - le auto COMPRATE le aggiungi tu dalla scheda, scegliendo dal catalogo
+//    ufficiale del server dedicato (quello con l'indice di prestazione);
+//  - per ogni auto il garage accumula le statistiche delle gare registrate in
+//    carriera (risultati, podi, vittorie, miglior giro) leggendo state.results.
+//
+// Tutto vive in state.garage = { cars: [{ carId, carName, how, since, note }],
+// importedFromShowcase: [carId...] } e viene salvato col save normale.
+
+import { loadCatalog } from './catalog.mjs';
+import { carImageOf, carPriceOf } from './cars.mjs';
+import { pushMessage } from './state.mjs';
+import { recordFlows } from './flows.mjs';
+import { TRACK_INFO } from './tracks.mjs';
+
+/**
+ * VALUTAZIONE per chilometraggio: il prezzo di partenza è quello reale
+ * (data/car-prices.json via carPriceOf), svalutato dai km percorsi con noi:
+ *   - fino a 500 km:      85% del prezzo (usata ma tenuta bene)
+ *   - 500–2.000 km:       70%
+ *   - 2.000–5.000 km:     55%
+ *   - oltre 5.000 km:     40%, minimo 4.000 € (un'auto resta comunque un'auto)
+ * Con prezzo reale ignoto si parte da 30.000 € (valore medio di un'auto EVO).
+ * La vendita porta il 70% della valutazione: rivendere non fa diventare ricchi.
+ */
+export function carValueKm(price, km) {
+  const base = Number.isFinite(Number(price)) && Number(price) > 0 ? Number(price) : 30000;
+  const k = Math.max(0, Number(km) || 0);
+  let factor = 0.40;
+  if (k < 500) factor = 0.85;
+  else if (k < 2000) factor = 0.70;
+  else if (k < 5000) factor = 0.55;
+  const value = Math.round(base * factor);
+  return { value: Math.max(value, 4000), factor };
+}
+
+/** Ricavo della vendita: 70% della valutazione. */
+export function salePrice(value) {
+  return Math.max(2000, Math.round(Number(value) * 0.70));
+}
+
+/* ------------------------------------------------------------------ */
+/* stato                                                               */
+/* ------------------------------------------------------------------ */
+
+export function ensureGarage(state) {
+  state.garage ??= { cars: [], importedFromShowcase: [] };
+  state.garage.cars ??= [];
+  state.garage.importedFromShowcase ??= [];
+  return state.garage;
+}
+
+/** Porta in garage le auto vinte negli eventi speciali e non ancora importate. */
+export function importShowcase(state) {
+  const g = ensureGarage(state);
+  const showcase = state.events?.showCase ?? [];
+  const added = [];
+  for (const s of showcase) {
+    if (!s?.carId || g.importedFromShowcase.includes(s.carId)) continue;
+    if (g.cars.some((c) => c.carId === s.carId)) {
+      // già in garage per altra via: segna solo l'import come fatto
+      g.importedFromShowcase.push(s.carId);
+      continue;
+    }
+    g.cars.push({
+      carId: s.carId,
+      carName: s.carName ?? s.carId,
+      how: 'won',
+      since: s.at ?? new Date().toISOString(),
+      note: s.theme ? `vinta in ${s.theme} (stagione ${s.season ?? '?'})` : null,
+    });
+    g.importedFromShowcase.push(s.carId);
+    added.push(s.carName ?? s.carId);
+  }
+  return added;
+}
+
+/** Aggiunge (o riusa) un'auto dal catalogo. how: 'bought' | 'won'. */
+export function addCar(state, { carId, carName, how = 'bought', note = null }) {
+  const g = ensureGarage(state);
+  const id = String(carId ?? '').trim();
+  if (!id) throw new Error('Serve il codice auto (carId).');
+  const existing = g.cars.find((c) => c.carId === id);
+  if (existing) return { car: existing, reused: true };
+  const car = {
+    carId: id,
+    carName: String(carName ?? id),
+    how: how === 'won' ? 'won' : 'bought',
+    since: new Date().toISOString(),
+    note: note ?? null,
+  };
+  g.cars.push(car);
+  return { car, reused: false };
+}
+
+export function removeCar(state, carId) {
+  const g = ensureGarage(state);
+  const before = g.cars.length;
+  g.cars = g.cars.filter((c) => c.carId !== String(carId ?? ''));
+  return before - g.cars.length;
+}
+
+export function setNote(state, carId, note) {
+  const g = ensureGarage(state);
+  const car = g.cars.find((c) => c.carId === String(carId ?? ''));
+  if (!car) throw new Error('Auto non in garage: ' + carId);
+  car.note = note ? String(note) : null;
+  return car;
+}
+
+/* ------------------------------------------------------------------ */
+/* statistiche per auto (dai risultati di carriera)                    */
+/* ------------------------------------------------------------------ */
+
+function statsFor(state, carName, { ownedSince = null } = {}) {
+  const want = String(carName ?? '').toLowerCase().trim();
+  let races = 0, wins = 0, podiums = 0, bestLap = null, km = 0;
+  const since = ownedSince ? Date.parse(ownedSince) : null;
+  for (const rows of Object.values(state.results ?? {})) {
+    for (const r of rows ?? []) {
+      const car = String(r.car ?? '').toLowerCase().trim();
+      // il risultato cita marca+modello ("Mazda MX-5 ND Cup"): match per inclusione,
+      // perché il garage può avere il nome corto o variante diversa
+      if (!want || !(car === want || car.includes(want) || want.includes(car))) continue;
+      races += 1;
+      if (r.position === 1) wins += 1;
+      if (r.position != null && r.position <= 3) podiums += 1;
+      if (r.bestLap && (!bestLap || lapMs(r.bestLap) < lapMs(bestLap))) bestLap = r.bestLap;
+      // odometro del tool: SOLO le gare fatte MENTRE l'auto era nel garage (dal campo
+      // `since` del possesso): le gare precedenti contano per statistiche e record,
+      // ma non per l'usura della tua auto. Giri completi × lunghezza pista.
+      const len = TRACK_INFO[r.track]?.lengthKm ?? null;
+      const lapsRun = Math.max(Number(r.winnerLaps ?? r.laps ?? 0), 0);
+      const when = r.at ? Date.parse(r.at) : null;
+      if (len && lapsRun && (since == null || (when != null && when >= since))) km += lapsRun * len;
+    }
+  }
+  return { races, wins, podiums, bestLap, km: Math.round(km) };
+}
+
+function lapMs(t) {
+  const m = String(t ?? '').match(/^(?:(\d+):)?(\d+):(\d+\.\d+)$/);
+  if (!m) return Number.MAX_SAFE_INTEGER;
+  return (Number(m[1] ?? 0) * 60 + Number(m[2])) * 60000 + Math.round(Number(m[3]) * 1000);
+}
+
+/* ------------------------------------------------------------------ */
+/* vista per la GUI                                                    */
+/* ------------------------------------------------------------------ */
+
+export function garageOverview(ladder, state, { paths = null, env = process.env } = {}) {
+  const g = ensureGarage(state);
+  // ogni nuova vittoria in vetrina entra da sola
+  const added = importShowcase(state);
+
+  // catalogo server dedicato: PI e varianti (se il server è installato)
+  let catalog = null;
+  try { catalog = loadCatalog(paths, env); } catch { catalog = null; }
+  const byNorm = new Map((catalog?.cars ?? []).map((c) => [String(c.name).toLowerCase().replace(/[^a-z0-9]/g, ''), c]));
+
+  const cars = g.cars.map((c) => {
+    const norm = String(c.carName).toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cat = byNorm.get(norm) ?? [...byNorm.entries()].find(([k]) => k.startsWith(norm.slice(0, 8)))?.[1] ?? null;
+    const stats = statsFor(state, c.carName, { ownedSince: c.since });
+    const realPrice = carPriceOf(c.carName) ?? carPriceOf(c.carId);
+    const val = carValueKm(realPrice, stats.km);
+    return {
+      ...c,
+      image: carImageOf(c.carName) ?? carImageOf(c.carId),
+      pi: cat?.pi ?? null,
+      variants: cat?.variants ?? null,
+      realPrice,
+      stats,
+      value: val.value,
+      valueFactor: val.factor,
+      sale: salePrice(val.value),
+    };
+  }).sort((a, b) => (a.how === b.how ? a.carName.localeCompare(b.carName) : a.how === 'won' ? -1 : 1));
+
+  return {
+    cars,
+    total: cars.length,
+    won: cars.filter((c) => c.how === 'won').length,
+    bought: cars.filter((c) => c.how === 'bought').length,
+    totalWins: cars.reduce((a, c) => a + c.stats.wins, 0),
+    totalKm: cars.reduce((a, c) => a + c.stats.km, 0),
+    patrimony: cars.reduce((a, c) => a + c.value, 0),
+    justImported: added,
+  };
+}
+
+/** Vende un'auto del garage: ricava il 70% della valutazione chilometrica,
+ *  accredita i soldi e scrive il flusso. Ritorna il dettaglio per la GUI. */
+export function sellCar(ladder, state, carId) {
+  const g = ensureGarage(state);
+  const car = g.cars.find((c) => c.carId === String(carId ?? ''));
+  if (!car) throw new Error('Auto non in garage: ' + carId);
+  const stats = statsFor(state, car.carName, { ownedSince: car.since });
+  const realPrice = carPriceOf(car.carName) ?? carPriceOf(car.carId);
+  const val = carValueKm(realPrice, stats.km);
+  const gain = salePrice(val.value);
+  // esce dal garage (e dalla vetrina eventi: l'auto venduta non è più in mostra)
+  g.cars = g.cars.filter((c) => c.carId !== car.carId);
+  if (state.events?.showCase) {
+    state.events.showCase = state.events.showCase.filter((s) => s.carId !== car.carId);
+  }
+  state.money += gain;
+  recordFlows(state, [{ kind: 'income', money: gain, reason: `vendita ${car.carName} (${stats.km} km, valutata ${val.value} €)` }]);
+  pushMessage(state, `Venduta ${car.carName}: +${gain.toLocaleString('it-IT')} € (${stats.km} km, valutata ${val.value.toLocaleString('it-IT')} €).`, 'money');
+  return { carId: car.carId, carName: car.carName, km: stats.km, value: val.value, gain };
+}
+
+/** Catalogo ridotto per il menu "aggiungi auto": nome, id e PI. */
+export function catalogPicker(ladder, { env = process.env, paths = null } = {}) {
+  let catalog = null;
+  try { catalog = loadCatalog(paths, env); } catch { catalog = null; }
+  return (catalog?.cars ?? []).map((c) => ({ id: c.id, name: c.name, pi: c.pi })).sort((a, b) => a.name.localeCompare(b.name));
+}

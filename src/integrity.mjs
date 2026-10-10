@@ -1,0 +1,96 @@
+// integrity.mjs — il revisore dei conti della carriera.
+// Ricalcola dal basso ciò che dovrebbe esserci e lo confronta col salvataggio:
+//  - statistiche (gare, vittorie, podi, giri veloci, pole) dalle gare registrate;
+//  - cassa e reputazione dal REGISTRO FLUSSI (data/flows.jsonl): ogni premio,
+//    sponsor, contratto, iscrizione e bonus è scritto lì con il suo motivo;
+//  - annuncio in bacheca per gara.
+// Se qualcosa non torna — per esempio una gara "fantasma" entrata per un doppio
+// import — lo dice, e con un click sistemare è questione di un secondo.
+
+import { SAVE_FILE } from './import.mjs';
+import { saveState } from './state.mjs';
+import { expectedTotals, seedFlowsFrom, invalidateFlowsCache } from './flows.mjs';
+
+const lapMs = (t) => { const m = String(t ?? '').match(/^(\d+):(\d+)\.(\d+)$/); return m ? +m[1] * 60000 + +m[2] * 1000 + +m[3] : Infinity; };
+
+const allRaces = (state) => Object.entries(state.results ?? {})
+  .flatMap(([nodeId, list]) => (list ?? []).map((r) => ({ ...r, nodeId })))
+  .sort((a, b) => String(a.at ?? '').localeCompare(String(b.at ?? '')));
+
+const msgText = (m) => String(m?.text ?? m?.body ?? '');
+
+/** Cassa e reputazione attese, ricostruite dal registro flussi. */
+function moneyRepFromFlows(state) {
+  return expectedTotals();
+}
+
+/** Verifica d'integrità: lista di anomalie (vuota = tutto a posto). */
+export function checkIntegrity(ladder, state) {
+  const issues = [];
+  const races = allRaces(state);
+  if (!races.length) return issues;
+
+  // statistiche: totali di carriera vs gare registrate
+  const s = state.stats ?? {};
+  const want = {
+    races: races.length,
+    wins: races.filter((r) => !r.dnf && r.position === 1).length,
+    podiums: races.filter((r) => !r.dnf && r.position <= 3).length,
+    fastestLaps: races.filter((r) => r.fl).length,
+    poles: races.filter((r) => r.pole === true).length,
+  };
+  for (const [k, v] of Object.entries(want)) {
+    if ((s[k] ?? 0) !== v) issues.push({ severity: 'high', text: `Statistiche "${k}": il salvataggio dice ${s[k] ?? 0}, dalle gare registrate risulta ${v}.` });
+  }
+  const laps = races.reduce((a, r) => a + (r.laps ?? 0), 0);
+  if ((s.laps ?? 0) !== laps) issues.push({ severity: 'medium', text: `Giri percorsi: il salvataggio dice ${s.laps ?? 0}, dalle gare risulta ${laps}.` });
+
+  // cassa e reputazione dal registro flussi
+  const { money, rep } = moneyRepFromFlows(state);
+  if (state.money !== money) issues.push({ severity: 'high', text: `Cassa: il salvataggio dice ${state.money}, dai flussi registrati risulta ${money} (diff ${state.money - money}).` });
+  if (state.rep !== rep) issues.push({ severity: 'high', text: `Reputazione: il salvataggio dice ${state.rep}, dai flussi registrati risulta ${rep} (diff ${state.rep - rep}).` });
+
+  // coerenza interna delle gare
+  for (const r of races) {
+    const node = ladder.nodes.find((x) => x.nodeId === r.nodeId);
+    const label = `${node?.display ?? r.nodeId} · ${node?.calendar?.[r.round]?.name ?? 'R' + (r.round + 1)}`;
+    if (r.dnf && r.position === 1) issues.push({ severity: 'medium', text: `${label}: ritiro ma posizione 1 — dati contraddittori.` });
+    if (r.bestLap && !lapMs(r.bestLap)) issues.push({ severity: 'low', text: `${label}: miglior giro "${r.bestLap}" in formato strano.` });
+    const roundName = node?.calendar?.[r.round]?.name ?? `Round ${r.round + 1}`;
+    const has = (state.messages ?? []).some((m) => msgText(m).includes(String(roundName)) && (r.dnf ? msgText(m).includes('ritiro') : msgText(m).includes('P' + r.position)));
+    if (!has) issues.push({ severity: 'low', text: `Manca l'annuncio in bacheca per ${label}.` });
+  }
+  return issues;
+}
+
+/** Applica le correzioni che si possono fare senza chiedere nulla all'utente. */
+export function fixIntegrity(ladder, state, { dryRun = false } = {}) {
+  const issues = checkIntegrity(ladder, state);
+  if (!issues.length) return { ok: true, fixed: [], issues };
+
+  const races = allRaces(state);
+  const fixed = [];
+  const set = (k, v) => {
+    if ((state.stats?.[k] ?? 0) !== v) { if (!dryRun) state.stats[k] = v; fixed.push(`stats.${k} = ${v}`); }
+  };
+  state.stats ??= {};
+  set('races', races.length);
+  set('wins', races.filter((r) => !r.dnf && r.position === 1).length);
+  set('podiums', races.filter((r) => !r.dnf && r.position <= 3).length);
+  set('fastestLaps', races.filter((r) => r.fl).length);
+  set('poles', races.filter((r) => r.pole === true).length);
+  set('laps', races.reduce((a, r) => a + (r.laps ?? 0), 0));
+
+  // cassa/rep: riallineate al registro flussi (che viene ripartito dal valore corretto)
+  const { money, rep } = moneyRepFromFlows(state);
+  if (state.money !== money) { if (!dryRun) state.money = money; fixed.push(`money = ${money}`); }
+  if (state.rep !== rep) { if (!dryRun) state.rep = rep; fixed.push(`rep = ${rep}`); }
+  if (!dryRun && fixed.some((f) => f.startsWith('money') || f.startsWith('rep'))) {
+    seedFlowsFrom(state);
+  }
+  if (!dryRun && fixed.length) {
+    saveState(SAVE_FILE, state);
+    invalidateFlowsCache();
+  }
+  return { ok: fixed.length > 0, fixed, issues };
+}

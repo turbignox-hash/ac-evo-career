@@ -1,0 +1,17 @@
+{
+  "name": "ac-evo-career",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Carriera persistente automatizzata per Assetto Corsa EVO, in stile Zero to Apex (AMS2).",
+  "bin": {
+    "ac-evo-career": "./ac-evo-career.mjs"
+  },
+  "scripts": {
+    "start": "node ./ac-evo-career.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
