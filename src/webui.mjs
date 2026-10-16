@@ -16,7 +16,7 @@ import {
   standingsFor, playerStanding, difficultyFor, seasonEnd,
   acceptOffer, pushMessage, sponsorTier, enterNode, renameDriver, careerStats,
 } from './state.mjs';
-import { paddock, ourToSkill } from './world.mjs';
+import { paddock, ourToSkill, OUR_MIN, OUR_MAX } from './world.mjs';
 import { loadCatalog, resultDetail } from './catalog.mjs';
 import { liveReader, fmtMs } from './shmem.mjs';
 import { raceCard, markPending, chargeEntry, launch } from './race.mjs';
@@ -689,10 +689,17 @@ async function api(context0, req, res, action, body) {
           form: d.hot ? 'in forma' : d.retired ? 'in declino' : '',
         }))
         .sort((a, b) => b.skill - a.skill);
-      // la mia posizione: il tuo skill stimato dal livello della serie attuale + rep
+      // skill DEL GIOCATORE dinamica: base dalla serie corrente, ma cresce coi
+      // RISULTATI reali (vittorie e podi spingono sopra la banda della serie):
+      // P1 in una serie bassa può valere più di un P8 in una alta.
       const cur = nodeById(ladder, state.node);
       const [hi, lo] = cur.ai ?? [80, 70];
-      const mySkill = ourToSkill(((Number(hi) || 80) + (Number(lo) || 70)) / 2);
+      const base = ((Number(hi) || 80) + (Number(lo) || 70)) / 2;
+      const mineAll = Object.values(state.results ?? {}).flat().filter((r) => r.season === state.season);
+      const races = mineAll.length || 1;
+      const avgShare = mineAll.reduce((acc, r) => acc + (r.dnf ? 0 : 1 - ((Number(r.position) || 10) / (Number(r.gridSize) || 12))), 0) / races;
+      const bonuses = mineAll.filter((r) => !r.dnf && r.position === 1).length * 3 + mineAll.filter((r) => !r.dnf && r.position <= 3).length * 1.2;
+      const mySkill = ourToSkill(Math.max(OUR_MIN, Math.min(OUR_MAX, base + (avgShare - 0.5) * 12 + bonuses)));
       const me = { key: 'player', name: state.driver.name, country: state.driver.nation, skill: mySkill, age: null, archetype: 'TU', form: '' };
       const all = [...rows, me].sort((a, b) => b.skill - a.skill);
       const myPos = all.findIndex((r) => r.key === 'player') + 1;

@@ -56,9 +56,10 @@ export function tierOf(ladder, level) {
 /* ------------------------------------------------------------------ */
 
 export function createCareer(ladder, { name, first, last, nation = 'ITA', discipline = null, seed = null }) {
+  // la porta d'ingresso è la SERIE STARTER (la 500): la più povera e lenta della scala
   const startNode = discipline
     ? ladder.nodes.filter((n) => n.discipline === discipline && n.level === 1).sort((a, b) => a.nodeId.localeCompare(b.nodeId))[0]
-    : ladder.nodes.find((n) => n.nodeId === 'coppa_citta');
+    : (ladder.nodes.find((n) => n.nodeId === 'coppa_500') ?? ladder.nodes.find((n) => n.nodeId === 'coppa_citta'));
   if (!startNode) throw new Error(`Nessuna serie di livello 1 per la disciplina "${discipline}".`);
   const fullName = name ?? `${first} ${last}`;
   const parts = fullName.trim().split(/\s+/);

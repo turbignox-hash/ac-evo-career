@@ -7082,6 +7082,239 @@
         }
       ],
       "repRequired": 800
+    },
+    {
+      "nodeId": "coppa_500",
+      "display": "Coppa 500",
+      "discipline": "entry",
+      "level": 1,
+      "access": "rep",
+      "requires": null,
+      "points": "club",
+      "profile": "club_short",
+      "gridSize": 12,
+      "ai": [
+        70,
+        76
+      ],
+      "econ": {
+        "phase": 1,
+        "disc": "entry",
+        "buy": 0,
+        "rent": 350,
+        "entry": 200,
+        "prize": 1800,
+        "champion": 2700,
+        "model": "pocket",
+        "icon": ""
+      },
+      "cars": [
+        "ks_abarth_695_biposto"
+      ],
+      "repRequired": 0,
+      "calendar": [
+        {
+          "track": "imola",
+          "name": "Imola - Round 1",
+          "laps": 4,
+          "hour": 11,
+          "weather": 0
+        },
+        {
+          "track": "monza",
+          "name": "Monza - Round 2",
+          "laps": 5,
+          "hour": 14,
+          "weather": 2
+        },
+        {
+          "track": "mugello",
+          "name": "Mugello - Round 3",
+          "laps": 6,
+          "hour": 15,
+          "weather": 3
+        },
+        {
+          "track": "vallelunga",
+          "name": "Vallelunga - Round 4",
+          "laps": 7,
+          "hour": 12,
+          "weather": 0
+        },
+        {
+          "track": "pescara",
+          "name": "Pescara - Round 5",
+          "laps": 8,
+          "hour": 13,
+          "weather": 1
+        }
+      ]
+    },
+    {
+      "nodeId": "coppa_r5-turbo",
+      "display": "Coppa R5 Turbo",
+      "discipline": "strada",
+      "level": 1,
+      "access": "rep",
+      "requires": null,
+      "points": "club",
+      "profile": "club_short",
+      "gridSize": 12,
+      "ai": [
+        76,
+        82
+      ],
+      "econ": {
+        "phase": 1,
+        "disc": "strada",
+        "buy": 0,
+        "rent": 400,
+        "entry": 250,
+        "prize": 2000,
+        "champion": 3000,
+        "model": "pocket",
+        "icon": ""
+      },
+      "cars": [
+        "ks_renault_5_gt_turbo"
+      ],
+      "repRequired": 0,
+      "calendar": [
+        {
+          "track": "brands_hatch",
+          "name": "Brands hatch - Round 1",
+          "laps": 4,
+          "hour": 11,
+          "weather": 0
+        },
+        {
+          "track": "monza",
+          "name": "Monza - Round 2",
+          "laps": 5,
+          "hour": 14,
+          "weather": 2
+        },
+        {
+          "track": "donington_park",
+          "name": "Donington park - Round 3",
+          "laps": 6,
+          "hour": 15,
+          "weather": 3
+        }
+      ]
+    },
+    {
+      "nodeId": "coppa_vintage-mini",
+      "display": "Coppa Mini Vintage",
+      "discipline": "touring",
+      "level": 1,
+      "access": "rep",
+      "requires": null,
+      "points": "club",
+      "profile": "club_short",
+      "gridSize": 12,
+      "ai": [
+        74,
+        80
+      ],
+      "econ": {
+        "phase": 1,
+        "disc": "touring",
+        "buy": 0,
+        "rent": 400,
+        "entry": 250,
+        "prize": 2000,
+        "champion": 3000,
+        "model": "pocket",
+        "icon": ""
+      },
+      "cars": [
+        "ks_mini_jcs_1990"
+      ],
+      "repRequired": 0,
+      "calendar": [
+        {
+          "track": "brands_hatch",
+          "name": "Brands hatch - Round 1",
+          "laps": 4,
+          "hour": 11,
+          "weather": 0
+        },
+        {
+          "track": "redbull_ring",
+          "name": "Redbull ring - Round 2",
+          "laps": 5,
+          "hour": 14,
+          "weather": 2
+        },
+        {
+          "track": "kyalami",
+          "name": "Kyalami - Round 3",
+          "laps": 6,
+          "hour": 15,
+          "weather": 3
+        }
+      ]
+    },
+    {
+      "nodeId": "coppa_datsun-240z",
+      "display": "Coppa Datsun 240Z",
+      "discipline": "touring",
+      "level": 2,
+      "access": "rep",
+      "requires": null,
+      "points": "club",
+      "profile": "club_short",
+      "gridSize": 12,
+      "ai": [
+        80,
+        88
+      ],
+      "econ": {
+        "phase": 2,
+        "disc": "touring",
+        "buy": 0,
+        "rent": 700,
+        "entry": 350,
+        "prize": 2600,
+        "champion": 3900,
+        "model": "pocket",
+        "icon": ""
+      },
+      "cars": [
+        "ks_datsun_240z_fairlady"
+      ],
+      "repRequired": 20,
+      "calendar": [
+        {
+          "track": "brands_hatch",
+          "name": "Brands hatch - Round 1",
+          "laps": 4,
+          "hour": 11,
+          "weather": 0
+        },
+        {
+          "track": "monza",
+          "name": "Monza - Round 2",
+          "laps": 5,
+          "hour": 14,
+          "weather": 2
+        },
+        {
+          "track": "donington_park",
+          "name": "Donington park - Round 3",
+          "laps": 6,
+          "hour": 15,
+          "weather": 3
+        },
+        {
+          "track": "laguna_seca",
+          "name": "Laguna seca - Round 4",
+          "laps": 7,
+          "hour": 12,
+          "weather": 0
+        }
+      ]
     }
   ],
   "_nota_espansione": "Coppa monomarca per ogni auto: access='open' senza requires/rep (access=0), id piste abbreviati ok per il matcher; generati da tools/expand-ladder.py",

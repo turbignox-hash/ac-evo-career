@@ -137,10 +137,13 @@ export function maybeSpawnEvent(ladder, state, { seasonJustEnded = false } = {})
   const ev = ensureEvents(state);
   if (ev.active) return null;
   const racesRun = (state.results[state.node] ?? []).filter((r) => r.season === state.season).length;
-  // dopo ogni gara: probabilità crescente (25%, 35%, 45%, 55%, 65%) dal 2° giro di stagione
+  // dopo ogni gara: probabilità crescente (25%→65%) dal 2° giro di stagione, MA nelle
+  // prime stagioni di carriera gli inviti sono rari (visione "dalla 500": prima i
+  // campionati, poi le star events). La chance è scalata al numero di stagione.
   let invite = null;
-  if (racesRun >= 2 && !seasonJustEnded) {
-    const chance = Math.min(0.65, 0.25 + 0.10 * (racesRun - 2));
+  const seasonFactor = [0, 0.4, 0.7, 0.85, 1][Math.min(state.season ?? 1, 4)] ?? 1;
+  if (racesRun >= 2 && !seasonJustEnded && Math.random() < seasonFactor) {
+    const chance = Math.min(0.65, 0.25 + 0.10 * (racesRun - 2)) * seasonFactor;
     if (Math.random() < chance) {
       const theme = pickTheme(ladder, { seed: Math.floor(Math.random() * 997) + racesRun });
       invite = buildInvite(ladder, state, theme, 'stagione', racesRun);
