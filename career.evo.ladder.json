@@ -7128,22 +7128,22 @@
           "weather": 2
         },
         {
-          "track": "mugello",
-          "name": "Mugello - Round 3",
+          "track": "brands_hatch",
+          "name": "Brands Hatch - Round 3",
           "laps": 6,
           "hour": 15,
           "weather": 3
         },
         {
-          "track": "vallelunga",
-          "name": "Vallelunga - Round 4",
+          "track": "redbull_ring",
+          "name": "Red Bull Ring - Round 4",
           "laps": 7,
           "hour": 12,
           "weather": 0
         },
         {
-          "track": "pescara",
-          "name": "Pescara - Round 5",
+          "track": "fuji",
+          "name": "Fuji Speedway - Round 5",
           "laps": 8,
           "hour": 13,
           "weather": 1
