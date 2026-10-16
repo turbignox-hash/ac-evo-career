@@ -176,7 +176,9 @@ function duplicateResult(ladder, state, targetNode, before, { reason, source, ro
  * Usa la stessa logica per GUI, CLI e watcher: chi chiama non tocca lo stato
  * se non tramite qui. `persist` è intercettabile nei test.
  */
-export function runImport(ladder, paths, state, { manual = null, allowAny = false, force = false, since = null, persist = saveState } = {}) {
+// persist ha la firma (state): per default salva con saveState(SAVE_FILE, state) —
+// NON passa lo state come fosse un percorso.
+export function runImport(ladder, paths, state, { manual = null, allowAny = false, force = false, since = null, persist = (s) => saveState(SAVE_FILE, s) } = {}) {
   const node = nodeById(ladder, state.node);
   let payload = null;
   let sourceInfo = null;
