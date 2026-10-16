@@ -1541,9 +1541,13 @@ async function api(context0, req, res, action, body) {
   }
 }
 
-// porta robusta: "--port N" > env ACE_UI_PORT > 8642 (senza --port argv[idx+1] sarebbe undefined/NaN)
+// porta robusta e PER SLOT: slot 1 → 8642, slot 2 → 8643, slot 3 → 8644.
+// Così si possono tenere aperti più piloti insieme, ognuno con la sua carriera
+// e il suo watcher, senza che un'istanza agganci la porta di un'altra.
+// "--port N" resta l'override manuale (senza --port argv[idx+1] sarebbe undefined/NaN).
 const _portIdx = process.argv.indexOf('--port');
-let PORT = Number(_portIdx > 0 ? process.argv[_portIdx + 1] : NaN) || Number(process.env.ACE_UI_PORT) || 8642;
+const PORT_SLOT = 8641 + SLOT; // 8642/8643/8644
+let PORT = Number(_portIdx > 0 ? process.argv[_portIdx + 1] : NaN) || Number(process.env.ACE_UI_PORT) || PORT_SLOT;
 const OPEN = process.argv.includes('--open');
 
 /* ------------------------------------------------------------------ */
@@ -1764,7 +1768,8 @@ server.on('error', async (e) => {
       }
     } catch { /* nessun altro server su questa porta: procediamo normali */ }
     // porta occupata da altro software: prova la successiva
-    if (PORT < 8642 + 10) { PORT += 1; server.listen(PORT, '127.0.0.1'); return; }
+    if (PORT < 8642) { PORT += 1; server.listen(PORT, '127.0.0.1'); return; }
+    if (PORT < 8655) { PORT += 1; server.listen(PORT, '127.0.0.1'); return; }
   }
   console.error(`\n  Impossibile avviare l'interfaccia: ${e.message}`);
   console.error(`  Se un'altra finestra del tool è già aperta, usa quella.`);
@@ -1773,7 +1778,7 @@ server.on('error', async (e) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   const addr = `http://127.0.0.1:${PORT}`;
-  console.log(`\n  Carriera EVO — interfaccia grafica`);
+  console.log(`\n  Carriera EVO — interfaccia grafica   [slot ${SLOT} di 3]`);
   console.log(`  ${addr}  (tieni questa finestra aperta; Ctrl+C per chiudere)`);
   console.log(`  Watcher import automatico: attivo (deposita il risultato quando la gara finisce)\n`);
   if (OPEN) {

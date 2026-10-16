@@ -2110,7 +2110,7 @@ function drawSettings(m){
   m.innerHTML = `
   <div class="panel"><h2>Slot carriera <span class="h-act">fino a 3 piloti sullo stesso PC</span></h2>
     <table><thead><tr><th></th><th>Carriera</th><th class="right">Come si usa</th></tr></thead><tbody>${slotsHtml}</tbody></table>
-    <div class="faint" style="margin-top:8px">Lo slot si sceglie all'avvio: chiudi il tool e riaprillo con la variabile <b>ACE_SLOT=2</b> (o 3) — ad esempio da un collegamento con <code>set ACE_SLOT=2 && avvia.cmd</code>. Ogni slot ha il SUO salvataggio e i SUOI backup: mai mischiati. Lo slot 1 contiene le carriere fatte fino ad oggi. Il watcher segue lo slot del server che lo ha aperto.</div>
+    <div class="faint" style="margin-top:8px" id="slot-instructions">Lo slot si sceglie all'avvio: chiudi il tool e fai doppio click su <b>pilota-1.cmd</b>, <b>pilota-2.cmd</b> o <b>pilota-3.cmd</b> nella cartella del programma — un lanciatore per pilota, si aprono anche insieme (ognuno con la sua carriera: slot 1 → porta 8642, slot 2 → 8643, slot 3 → 8644). Ogni slot ha il SUO salvataggio e i SUOI backup: mai mischiati. Lo slot 1 contiene le carriere fatte fino ad oggi. Il watcher segue lo slot del lanciatore che l'ha aperto.</div>
   </div>
   <div class="grid2">
     <div class="panel"><h2>Installazione</h2>
