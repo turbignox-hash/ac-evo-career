@@ -27,6 +27,24 @@ import { recordWarning } from './warnings.mjs';
 const RIVALS_FILE = join(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'rivals.json');
 
 export const SAVE_VERSION = 1;
+
+/** Gli SLOT di carriera (1..3): ognuno vive in un file suo e separato, per usare
+ *  il tool con più piloti/utenti sullo stesso PC. Lo slot attivo è stabilito
+ *  dalla variabile d'ambiente ACE_SLOT o dal flag --slot della CLI; il default
+ *  è sempre lo slot 1 (i salvataggi vecchi restano invariati: slot 1 compatibile
+ *  con le carriere esistenti).
+ *    slot 1 → data/evo-career.save.json    (le carriere fatte fino ad oggi)
+ *    slot 2 → data/evo-career.save-2.json
+ *    slot 3 → data/evo-career.save-3.json */
+export function savePath(slot) {
+  const s = Math.max(1, Math.min(3, Math.floor(Number(slot) || 1)));
+  return s === 1 ? "evo-career.save.json" : `evo-career.save-${s}.json`;
+}
+
+/** Il numero di slot attivo da env/flag; mai oltre 3. */
+export function activeSlot(env = process.env) {
+  return Math.max(1, Math.min(3, Math.floor(Number(env.ACE_SLOT) || 1)));
+}
 // partenza POVERA (visione "dalla 500"): la scalata si compra con i premie,
 // non col pacchetto di benvenuto. I vecchi salvataggi non cambiano: è il valore
 // usato solo da createCareer.

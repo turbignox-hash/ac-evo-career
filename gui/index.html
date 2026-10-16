@@ -31,12 +31,13 @@ main{flex:1; width:100%; max-width:1120px; margin:0 auto; padding:20px 24px 90px
 }
 
 /* ============ sidebar ============ */
+/* il menu è lungo (17 voci): deve scorrere, non tagliare l'ultima voce sotto la finestrina */
 .brand{display:flex; align-items:center; gap:10px; padding:16px 18px 14px; border-bottom:1px solid var(--line)}
 .stripes{width:26px; height:18px; flex:none}
 .brand .t{line-height:1.15}
 .brand .t b{display:block; font-size:14px; letter-spacing:.6px}
 .brand .t span{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:1.6px}
-nav#nav{display:flex; flex-direction:column; gap:1px; padding:10px 8px; flex:1}
+nav#nav{display:flex; flex-direction:column; gap:1px; padding:10px 8px; flex:1; overflow-y:auto; min-height:0}
 nav#nav button{display:flex; align-items:center; gap:10px; background:none; border:0; border-left:2px solid transparent; color:var(--dim); font:inherit; font-size:13.5px; padding:9px 12px; cursor:pointer; text-align:left; border-radius:0 8px 8px 0}
 nav#nav button svg{width:16px; height:16px; flex:none; opacity:.75}
 nav#nav button .nico{display:inline-flex}
@@ -2100,7 +2101,17 @@ function signOffer(index, name){
 /* -------- impostazioni -------- */
 function drawSettings(m){
   const s = boot.setup, h = boot.header;
+  const slotsHtml = (s.slots ?? []).map((sl) => `
+    <tr class="${sl.active?'cur':''}">
+      <td><b>Slot ${sl.slot}</b>${sl.active?' <span class="tag gold">attivo</span>':''}</td>
+      <td>${sl.exists ? `<span>${esc(sl.pilota ?? '(carriera senza nome?)')}</span> <span class="faint">· ${sl.gare} gare · ${esc(sl.file)}</span>` : '<span class="faint">vuoto — nuova carriera quando lo scegli</span>'}</td>
+      <td class="right">${sl.active ? '<span class="faint">questa sessione</span>' : `<span class="faint">riavvia con ACE_SLOT=${sl.slot}</span>`}</td>
+    </tr>`).join('');
   m.innerHTML = `
+  <div class="panel"><h2>Slot carriera <span class="h-act">fino a 3 piloti sullo stesso PC</span></h2>
+    <table><thead><tr><th></th><th>Carriera</th><th class="right">Come si usa</th></tr></thead><tbody>${slotsHtml}</tbody></table>
+    <div class="faint" style="margin-top:8px">Lo slot si sceglie all'avvio: chiudi il tool e riaprillo con la variabile <b>ACE_SLOT=2</b> (o 3) — ad esempio da un collegamento con <code>set ACE_SLOT=2 && avvia.cmd</code>. Ogni slot ha il SUO salvataggio e i SUOI backup: mai mischiati. Lo slot 1 contiene le carriere fatte fino ad oggi. Il watcher segue lo slot del server che lo ha aperto.</div>
+  </div>
   <div class="grid2">
     <div class="panel"><h2>Installazione</h2>
       <div class="muted">Cartelle dati</div><div style="font-size:13px;word-break:break-all">${s.dataDirs.map(esc).join('<br>') || '—'}</div>

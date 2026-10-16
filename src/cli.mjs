@@ -10,6 +10,7 @@ import {
   createCareer, loadState, saveState, nodeById, disciplineName, tierOf, gateStatus,
   standingsFor, playerStanding, difficultyFor, seasonEnd,
   acceptOffer, pushMessage, sponsorTier, enterNode, renameDriver,
+  savePath, activeSlot,
 } from './state.mjs';
 import { paddock } from './world.mjs';
 import { raceCard, nextRound, markPending, chargeEntry, launch } from './race.mjs';
@@ -30,7 +31,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 export const PROJECT = dirname(HERE);
 const LADDER_FILE = join(PROJECT, 'career.evo.ladder.json');
 const DATA_DIR = join(PROJECT, 'data');
-const SAVE_FILE = join(DATA_DIR, 'evo-career.save.json');
+// SLOT di carriera (1..3): ACE_SLOT=2 sceglie il secondo salvataggio (o --slot via env).
+// Lo slot risolve QUI (una volta, all'avvio del processo) e vale per tutto il giro.
+const SLOT = activeSlot();
+const SAVE_FILE = join(DATA_DIR, savePath(SLOT));
 const CONFIG_FILE = join(DATA_DIR, 'evo.config.json');
 const ARCHIVE_DIR = join(DATA_DIR, 'results-archive');
 

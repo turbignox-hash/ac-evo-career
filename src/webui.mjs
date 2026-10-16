@@ -15,6 +15,7 @@ import {
   createCareer, loadState, saveState, nodeById, disciplineName, tierOf, gateStatus,
   standingsFor, playerStanding, difficultyFor, seasonEnd,
   acceptOffer, pushMessage, sponsorTier, enterNode, renameDriver, careerStats,
+  savePath, activeSlot,
 } from './state.mjs';
 import { paddock, ourToSkill, OUR_MIN, OUR_MAX } from './world.mjs';
 import { loadCatalog, resultDetail } from './catalog.mjs';
@@ -54,7 +55,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 export const PROJECT = dirname(HERE);
 const LADDER_FILE = join(PROJECT, 'career.evo.ladder.json');
 const DATA_DIR = join(PROJECT, 'data');
-const SAVE_FILE = join(DATA_DIR, 'evo-career.save.json');
+// SLOT di carriera (1..3): lo slot si cambia SOLO riavviando il server con ACE_SLOT=n
+// (così watcher e import non mischiano due carriere nella stessa sessione).
+const SLOT = activeSlot();
+const SAVE_FILE = join(DATA_DIR, savePath(SLOT));
 const CONFIG_FILE = join(DATA_DIR, 'evo.config.json');
 const GUI_DIR = join(PROJECT, 'gui');
 const BACKUP_DIR = join(DATA_DIR, 'backups');
@@ -496,11 +500,23 @@ function viewSetup(ladder) {
   const { ladder: _l, paths } = context();
   const content = scanContent(paths);
   const issues = validateLadder(ladder, content);
+  // gli slot carriera (1..3): quale esiste, chi lo usa, quello attivo di questa sessione
+  const slots = [1, 2, 3].map((s) => {
+    const file = join(DATA_DIR, savePath(s));
+    let pilota = null, gare = 0;
+    try {
+      const raw = JSON.parse(readFileSync(file, 'utf8'));
+      pilota = raw?.driver?.name ?? null;
+      gare = Object.values(raw?.results ?? {}).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+    } catch { /* slot vuoto o corrotto: non è un errore qui */ }
+    return { slot: s, file: savePath(s), exists: existsSync(file), pilota, gare, active: s === SLOT };
+  });
   return {
     dataDirs: paths.dataDirs,
     resultsDirs: paths.resultsDirs,
     logsDirs: paths.logsDirs,
     gameExe: paths.gameExe,
+    slots,
     saved: existsSync(CONFIG_FILE) ? JSON.parse(readFileSync(CONFIG_FILE, 'utf8')) : {},
     content: { cars: content.cars.size, tracks: content.tracks.size },
     ladder: { nodes: ladder.nodes.length, disciplines: ladder.disciplines.length },
