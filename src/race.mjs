@@ -150,9 +150,6 @@ export function raceCard(ladder, state, { car = null } = {}) {
       ['Formato gara', round.durationMin
         ? `a TEMPO: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minuti (distanza piena ${round.durationMin}′) — in EVO scegli "Durata" invece dei giri`
         : `a GIRI: ${laps} giri${distPct !== 100 ? ` (${distPct}% di ${baseLaps})` : ''}`],
-      ['Formato gara', round.durationMin
-        ? `a TEMPO: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minuti (distanza piena ${round.durationMin}′) — in EVO scegli "Durata" invece dei giri`
-        : `a GIRI: ${laps} giri${distPct !== 100 ? ` (${distPct}% di ${baseLaps})` : ''}`],
       ['Moltiplicatore tempo', `${profile.timeScale ?? 1}x — lascialo a 1x: le raccomandazioni d'ora assumono il tempo reale`],
       ['Ora del giorno', `${String(round.hour).padStart(2, '0')}:00 — il sole parte da qui e scende fino alla bandiera a scacchi (col moltiplicatore tempo accelera pure lui)`],
       ['Meteo', card_weatherHint(round.weather)],

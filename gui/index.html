@@ -259,6 +259,44 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 
 /* ============ cornice foto auto (pagina Auto) ============ */
 .car-frame{outline:1px solid #ffffff26; outline-offset:-1px}
+
+/* ============ posta del pilota (email) ============ */
+.mail{border:1px solid #ffffff18;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.mail .mh2{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.mail .mi{font-size:16px}
+.mail .oggetto{font-size:14px}
+.mail .mfrom{font-size:12px;margin:2px 0 6px}
+.mail .mcorpo{white-space:pre-wrap;font-family:inherit;font-size:13px;margin:0;color:var(--dim)}
+.mail-racing{border-color:rgba(255,107,107,.45);background:rgba(255,107,107,.05)}
+.mail-sponsor{border-color:rgba(255,209,102,.35);background:rgba(255,209,102,.04)}
+.mail-contratti{border-color:rgba(123,216,143,.35);background:rgba(123,216,143,.04)}
+.mail-carriera{border-color:rgba(93,169,255,.35);background:rgba(93,169,255,.05)}
+.mail .tag{flex:0 0 auto}
+
+/* ============ agenda (stile Zero to Apex) ============ */
+.ag-day.hasmine{border-color:rgba(255,209,102,.65);background:rgba(255,209,102,.08)}
+.badge.urgent{background:#c98a1b;color:#fff;margin-left:2px}
+.sig-prev{border:1px solid #ffffff14;border-radius:8px;padding:8px 10px;margin-top:8px;max-height:260px;overflow-y:auto}
+.sig-prev .tag{flex:0 0 auto}
+/* l'avviso ⚠️ nel modal deve restare DENTRO la scheda: niente overflow orizzontale */
+.modal .mb{max-width:680px}
+.modal .mb .tag{white-space:normal;word-break:break-word;max-width:100%;display:inline-block}
+.modal .mb pre,.modal .mb table{max-width:100%}
+
+.badge{position:relative}
+.ag-day.today{border-color:var(--acc);background:rgba(255,122,69,.10)}
+.ag-day:hover{border-color:#ffffff42}
+.ag-day-date{font-size:11px;color:var(--faint)}
+.ag-day-num{font-size:15px;font-weight:700}
+.ag-card{border:1px solid #ffffff18;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.ag-iscritto{border-color:rgba(255,209,102,.75);background:rgba(255,209,102,.09);box-shadow:0 0 0 1px rgba(255,209,102,.25)}
+.ag-fattibile{border-color:rgba(93,169,255,.45);background:rgba(93,169,255,.05)}
+.ag-bloccata{border-color:#ffffff10;background:repeating-linear-gradient(45deg,#ffffff02 0 10px,#ffffff08 10px 20px);opacity:.75}
+.ag-c-head{display:flex;align-items:baseline;gap:8px}
+.ag-c-head b{flex:0 1 auto}
+.ag-c-body{color:var(--dim);font-size:13px}
+.ag-c-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ag-c-foot .mini{margin-left:auto}
 </style>
 </head>
 <body>
@@ -342,8 +380,11 @@ let boot = null;
 /* ============================== navigazione ============================== */
 const ICONS = {
   dashboard:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12a6 6 0 0 1 12 0"/><path d="M8 12 11 7" stroke-linecap="round"/></svg>',
+  agenda:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5 1.5v3M11 1.5v3"/><path d="m6.2 10 1.3 1.3 2.5-2.6"/></svg>',
+  championships:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2v3a5 5 0 0 0 10 0V2z"/><path d="M3 4.5H1.5a2.5 2.5 0 0 0 2.6 3.2M13 4.5h1.5a2.5 2.5 0 0 1-2.6 3.2"/><path d="M8 10v3M5.5 14h5" stroke-linecap="round"/></svg>',
   calendar:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5 1.5v3M11 1.5v3"/></svg>',
-  standings:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 14V9M8 14V4M13 14V7"/></svg>',
+  standings:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5v7M5.8 6.2h4.4M5.8 9.8h4.4" stroke-linecap="round"/></svg>',
+  grid:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="2.5" width="5" height="5"/><rect x="8.5" y="2.5" width="5" height="5"/><rect x="2.5" y="8.5" width="5" height="5"/><rect x="8.5" y="8.5" width="5" height="5"/></svg>',
   series:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5 14 5v6l-6 3.5L2 11V5z"/><path d="M8 8 14 5M8 8 2 5M8 8v6.5"/></svg>',
   paddock:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="2.5"/><path d="M2.5 14a5.5 5.5 0 0 1 11 0"/></svg>',
   stats:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.5V8l2.6 2" stroke-linecap="round"/></svg>',
@@ -387,15 +428,18 @@ const flagOf = (c) => COUNTRY_FLAG[c] ?? '🏁';
 /* bandiera a scacchi inline per i titoli di gara */
 const CFLAG = '<svg viewBox="0 0 16 16" style="width:14px;height:14px;vertical-align:-2px" fill="none" aria-hidden="true"><path d="M2.5 1.5h11v13h-11z"/><path d="M2.5 1.5h3.67v3.6H2.5zM9.83 5.1h3.67v3.6H9.83zM6.17 8.7h3.66v3.6H6.17z" fill="currentColor" stroke="none"/></svg>';
 const TABS = [
-  ['dashboard','Cruscotto'], ['calendar','Calendario'], ['standings','Classifica'],
-  ['rivals','Rivali'], ['series','Serie'], ['tracks','Piste'], ['cars','Auto'], ['garage','Garage'], ['paddock','Paddock'], ['import','Risultati'],
+  ['dashboard','Cruscotto'], ['agenda','Agenda'], ['messages','Messaggi'], ['championships','Campionati'], ['standings','Mondiale'],
+  ['rivals','Rivali'], ['tracks','Piste'], ['cars','Auto'], ['garage','Garage'], ['paddock','Paddock'], ['import','Risultati'],
   ['setup','Setup'],
   ['archive','Archivio'], ['stats','Statistiche'],
-  ['gazzetta','Gazzetta'], ['difficulty','Difficoltà'], ['messages','Messaggi'], ['settings','Impostazioni'],
+  ['gazzetta','Gazzetta'], ['difficulty','Difficoltà'], ['settings','Impostazioni'],
 ];
+// "Serie" nascosta su richiesta: i contratti si firmano solo dall'Agenda, il giorno
+// delle gare. Riappare col flag in Impostazioni (torna utile in un secondo tempo).
+const TABS_NASCOSTI = ['series'];
 /* un colore per ogni sezione: le icone della nav restano riconoscibili a colpo d'occhio */
 const TAB_COLORS = {
-  dashboard:'#5da9ff', calendar:'#b48cff', standings:'#ffd166', rivals:'#ff6b6b',
+  dashboard:'#5da9ff', agenda:'#ff7a45', calendar:'#b48cff', standings:'#ffd166', rivals:'#ff6b6b',
   series:'#2ed3a5', tracks:'#e8c46b', cars:'#74c0fc', garage:'#ffd43b', paddock:'#f4a261', import:'#63e6e2',
   setup:'#f78fb3', catalog:'#82ccdd', archive:'#c9a0ff', stats:'#69db7c',
   gazzetta:'#dfe4ea', difficulty:'#5f7cff', messages:'#ffa94d', settings:'#adb5bd',
@@ -403,8 +447,9 @@ const TAB_COLORS = {
 let tab = 'dashboard';
 function drawNav(){
   const offers = boot?.header?.offers?.length || 0;
-  $('#nav').innerHTML = TABS.map(([id,label]) =>
-    `<button data-tab="${id}" class="${tab===id?'on':''}">${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}</button>`).join('');
+  const urgent = boot?.mailUrgent || 0;
+  $('#nav').innerHTML = TABS.filter(([id]) => !TABS_NASCOSTI.includes(id)).map(([id,label]) =>
+    `<button data-tab="${id}" class="${tab===id?'on':''}">${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${urgent} email urgenti: gare da disputare o conflitti">⚠️${urgent}</span>`:''}</button>`).join('');
   $$('#nav button').forEach(b => b.onclick = () => { tab = b.dataset.tab; drawNav(); render(); });
 }
 
@@ -417,9 +462,11 @@ async function render(){
   m.innerHTML = '<div class="panel"><span class="spin"></span></div>';
   try {
     if (tab==='dashboard')  return await drawDashboard(m);
+    if (tab==='agenda')     return await drawAgenda(m);
     if (tab==='rivals')     return await drawRivals(m);
+    if (tab==='championships') return await drawChampionships(m);
     if (tab==='calendar')   return await drawCalendar(m);
-    if (tab==='standings')  return await drawStandings(m);
+    if (tab==='standings')  return await drawWorldRanking(m);
     if (tab==='series')     return await drawSeries(m);
     if (tab==='tracks')     return await drawTracks(m);
     if (tab==='cars')       return await drawCars(m);
@@ -988,12 +1035,197 @@ async function drawCalendar(m){
   </table></div>`;
 }
 
-/* -------- classifica -------- */
-async function drawStandings(m){
-  const s = await api('standings');
-  m.innerHTML = `<div class="panel"><h2>Classifica <span class="h-act">${esc(s.node)} · stagione ${s.season}</span></h2>
-  <table><thead><tr><th></th><th>Pilota</th><th class="right">Punti</th><th>Etichette</th></tr></thead>
-  <tbody>${s.rows.map(r=>`<tr class="${r.isPlayer?'me':''}"><td class="muted">P${r.position}</td><td>${esc(r.name)} <span class="faint">${esc(r.country)}</span></td><td class="right">${r.points}</td><td>${r.isPlayer?'<span class="tag gold">tu</span>':''}${r.iconic?' <span class="tag blue">icona</span>':''}${r.hot?' <span class="tag green">in forma</span>':''}</td></tr>`).join('')}</tbody>
+/* -------- agenda continua (stile Zero to Apex) -------- */
+let agendaView = { day: null, filter: 'tutte', disc: null };
+
+async function drawAgenda(m){
+  const a = await api('agenda', {
+    day: agendaView.day, filter: agendaView.filter, discipline: agendaView.disc,
+  });
+  agendaView.day = a.day;   // torna il giorno reale (dopo avere avanzato il tempo)
+
+  const card = (g) => {
+    const cls = g.stato === 'iscritto' ? 'ag-iscritto' : g.fattibile ? 'ag-fattibile' : 'ag-bloccata';
+    const stato = g.stato === 'iscritto' ? '<span class="tag gold">★ iscritto</span>'
+      : g.fattibile ? '<span class="tag blue">fattibile</span>'
+      : `<span title="${esc((g.gateReasons??[]).join(' · '))}">🔒</span>`;
+    const cta = g.isCurrent
+      ? '<span class="tag gold">serie attuale: usa Cruscotto</span>'
+      : g.fattibile
+        ? `<button class="mini acc" data-corri="${esc(g.nodeId)}" data-name="${esc(g.display)}">scegli per oggi</button>`
+        : '';
+    return `<div class="ag-card ${cls}" style="cursor:pointer" data-detail="${esc(g.nodeId)}" title="clicca per la scheda completa della serie">
+      <div class="ag-c-head"><span class="faint">R${g.roundIndex+1}/${g.totalRounds}</span> <b>${esc(g.display)}</b> ${stato}</div>
+      <div class="ag-c-body">${esc(g.track)} · ${g.laps?g.laps+' giri':'—'} · ${String(g.hour).padStart(2,'0')}:00</div>
+      <div class="ag-c-foot">
+        <span class="muted">${money(g.prize??0)} € · ${g.gridSize??'—'} auto</span>
+        ${g.late ? '<span class="tag gold">in ritardo</span>' : ''}
+        ${cta}
+      </div>
+    </div>`;
+  };
+
+  const discChips = [{id:null,name:'tutte le discipline'}].concat(a.disciplines).map(d =>
+    `<button class="mini ${agendaView.disc===d.id?'acc':''}" data-disc="${d.id??''}">${esc(d.name)}</button>`).join('');
+  const filterChips = [
+    ['tutte','tutte'], ['fattibili','disponibili'], ['iscritte','iscritte'], ['bloccate','bloccate'],
+  ].map(([id,label]) =>
+    `<button class="mini ${agendaView.filter===id?'acc':''}" data-af="${id}">${label}</button>`).join('');
+  const strip = (a.strips??[]).map(s => {
+    const side = s.mine ? '·'+s.mine : '';
+    return `<button class="ag-day ${s.today?'today':''} ${s.mine?'hasmine':''}" data-goday="${s.day}" title="${esc(s.date)}: ${s.total} gare (${s.available} fattibili)${s.mine?', '+s.mine+' di campionato GOLD':''}">
+      <span class="ag-day-date">${esc(s.date)}</span>
+      <span class="ag-day-num">${s.total}${side}</span>
+    </button>`;
+  }).join('');
+
+  const impegniHtml = (a.impegni?.lista ?? []).length ? `
+    <span class="faint">I tuoi impegni — <b>${a.impegni.iscritte}</b> iscritte</span>
+    ${a.impegni.conflitti.length ? `<span class="tag gold" style="margin-left:6px">⚠️ ${a.impegni.conflitti.length} conflitt${a.impegni.conflitti.length===1?'o':'i'}</span>` : ''}` : '';
+  const conflittiHtml = (a.impegni?.conflitti ?? []).map((c) => `
+    <div class="panel" style="border-color:rgba(255,209,102,.5);padding:8px 12px;margin-bottom:8px">
+      <b>${esc(c.date)}</b> — ${c.gare.length} gare iscritte lo stesso giorno:
+      ${c.gare.map((g)=>`<span style="display:inline-flex;align-items:center;gap:6px;margin:2px 8px 2px 0">
+        <b>${esc(g.display)}</b> <span class="faint">R${g.roundIndex+1} · ${esc(g.track)}</span>
+        <button class="mini" data-shift="${esc(g.nodeId)}" title="Sposta la serie in avanti di una cadenza (le prossime gare si spostano con lei)">sposta ⏭</button>
+      </span>`).join('')}
+    </div>`).join('');
+
+  m.innerHTML = `
+  <div class="panel">
+    <h2>Agenda <span class="h-act">OGGI ${esc(a.todayLabel)} · giorno ${a.day} ${impegniHtml}</span></h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="mini acc" id="ag-advance">⏭ Avanza il tempo</button>
+      <button class="mini" id="ag-next">🚩 Alla prossima gara di campionato${a.nextRaceDay?` (giorno ${a.nextRaceDay})`:''}</button>
+    </div>
+    ${conflittiHtml}
+    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px">${strip}</div>
+  </div>
+  <div class="panel">
+    <h2>Gare del giorno <span class="h-act">${a.gare.length} a programma · max ${a.maxScelte} per giornata</span></h2>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${filterChips}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${discChips}</div>
+    ${a.gare.length
+      ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">${a.gare.map(card).join('')}</div>`
+      : '<div class="muted">Nessuna gara corrisponde ai filtri in questo giorno. Prova un altro giorno dalla striscia calendario.</div>'}
+  </div>`;
+  $('#ag-advance').onclick = async () => { await api('agenda-advance', { method:'POST' }); agendaView.day = null; render(); paintHeader(boot.header); };
+  const nb = $('#ag-next'); if (nb) nb.onclick = async () => { await api('agenda-skip-to-next', { method:'POST' }); agendaView.day = null; render(); };
+  $$('button[data-af]').forEach(b => b.onclick = () => { agendaView.filter = b.dataset.af; drawAgenda(m); });
+  $$('button[data-disc]').forEach(b => b.onclick = () => { agendaView.disc = b.dataset.disc || null; drawAgenda(m); });
+  $$('button[data-goday]').forEach(b => b.onclick = () => { agendaView.day = Number(b.dataset.goday); drawAgenda(m); });
+  $$('button[data-corri]').forEach(b => b.onclick = async () => {
+    await api('agenda-choose', { method:'POST', body:{ nodeId: b.dataset.corri } });
+    tab = 'calendar'; drawNav(); render();
+  });
+  $$('button[data-shift]').forEach(b => b.onclick = async () => {
+    await api('agenda-shift', { method:'POST', body:{ nodeId: b.dataset.shift } });
+    render();
+  });
+  // card cliccabili: la scheda completa della serie (auto, calendario, classifica in corso)
+  $$('.ag-card[data-detail]').forEach(el => el.onclick = (e) => {
+    if (e.target.closest('button')) return;          // i bottoni restano se loro
+    raceCardModal(el.dataset.detail, a.viewDay);
+  });
+}
+
+/* -------- scheda-gara cliccabile in Agenda -------- */
+async function raceCardModal(nodeId, day){
+  let d;
+  try { d = await api('agenda-detail', { nodeId, day }); }
+  catch(e){ toast(e.message, 'err'); return; }
+  const auto = (d.cars ?? []).join(', ') || '—';
+  const cal = (d.calendar ?? []).map((r) => {
+    const mark = r.played ? '✓' : r.current ? '►' : '';
+    return `<div style="display:flex;gap:8px;align-items:baseline;padding:1px 0">
+      <span style="width:16px;color:${r.played?'var(--ok,#7bd88f)':'inherit'}">${mark}</span>
+      <span class="faint" style="min-width:38px">R${r.index+1}/${d.calendar.length}</span>
+      <span ${r.current?'style="font-weight:700"':''}>${esc(r.track)}</span>
+      <span class="faint">· ${r.laps??'—'} giri · ${String(r.hour).padStart(2,'0')}:00</span>
+    </div>`;
+  }).join('');
+  const standings = d.started && d.standings
+    ? `<div class="muted" style="margin:8px 0 4px">Classifica in corso (stagione ${d.season}):</div>
+      <table><tbody>${d.standings.map(r=>`<tr class="${r.isPlayer?'me':''}"><td class="faint">P${r.position}</td><td>${esc(r.name)}</td><td class="right">${r.points} pt</td></tr>`).join('')}</tbody></table>`
+    : '<div class="muted" style="margin-top:8px">La stagione non è ancora cominciata: nessun punto in palio finora.</div>';
+  const mie = (d.mine ?? []).length
+    ? `<div class="muted" style="margin:8px 0 2px">I tuoi risultati in questa stagione:</div>
+      ${d.mine.map(r=>`<span class="muted" style="margin-right:12px">R${r.round+1}: <b>${r.position}</b>${r.fl?' · giro veloce':''} · ${r.points} pt · ${esc(r.track)}</span>`).join('')}`
+    : '';
+  const statoTxt = d.stato === 'iscritto'
+    ? '<span class="tag gold">★ tuo campionato</span>'
+    : d.fattibile ? '<span class="tag blue">fattibile: puoi firmare dall\'agenda</span>'
+    : `<span class="tag gold" title="${esc((d.gateReasons??[]).join(' · '))}">🔒 ${(d.gateReasons??[])[0] ?? 'bloccata'}</span>`;
+  modal(`${esc(d.display)}${d.roundName ? ' — ' + esc(d.roundName) : ''}`, `
+    <div class="row" style="gap:6px;flex-wrap:wrap">${statoTxt}
+      <span class="faint">L${d.level} · ${esc(d.discipline)} · stagione ${d.season}</span></div>
+    <div style="margin:8px 0 2px"><b>${esc(d.roundName ?? '')}</b> — ${esc(d.track)} · ${d.laps??'—'} giri · ore ${String(d.hour).padStart(2,'0')}:00${d.weather?' · '+esc(d.weather):''}</div>
+    <div class="muted">Griglia: ${d.gridSize??'—'} auto · premio ${money(d.prize??0)} € · iscrizione ${money(d.entryFee??0)} €${d.repRequired?' · reputazione richiesta '+d.repRequired:''}</div>
+    <div class="muted" style="margin-top:6px"><b>Auto della serie:</b> ${esc(auto)}</div>
+    ${d.joinNote ? `<div class="tag gold" style="margin-top:6px;display:inline-block">⚠️ ${esc(d.joinNote)}</div>` : ''}
+    <div class="sig-prev" style="margin-top:8px"><div class="muted" style="margin-bottom:4px">Calendario della stagione:</div>${cal}</div>
+    ${mie}
+    ${standings}`,
+    [[d.stato === 'iscritto' && d.isCurrent ? 'Vai in pista (Cruscotto)' : 'Chiudi', 'act', () => {
+      if (d.stato === 'iscritto' && d.isCurrent) { tab='dashboard'; drawNav(); render(); }
+    }]]);
+}
+
+/* -------- campionati: le serie iscritte coi loro calendari e classifiche -------- */
+async function drawChampionships(m){
+  const v = await api('championships');
+  if (!(v.championships ?? []).length) {
+    m.innerHTML = '<div class="panel"><h2>Campionati</h2><div class="empty">Nessun campionato iscritto: firma un sedile dall\'Agenda quando la giornata ti offre una serie adatta.</div></div>';
+    return;
+  }
+  m.innerHTML = v.championships.map((c) => {
+    const rounds = c.calendar.map((r) => {
+      const mark = r.played ? '✓' : r.current ? '►' : '';
+      return `<div style="display:flex;gap:8px;align-items:baseline;padding:1px 0">
+        <span style="width:16px;color:${r.played?'var(--ok,#7bd88f)':'inherit'}">${mark}</span>
+        <span class="faint" style="min-width:38px">R${r.index+1}/${c.calendar.length}</span>
+        <span>${esc(r.track)}</span>
+        <span class="faint">· ${r.laps??'—'} giri · ${String(r.hour).padStart(2,'0')}:00</span>
+      </div>`;
+    }).join('');
+    const mine = (c.mine ?? []).length
+      ? `<div class="muted" style="margin:6px 0 2px">I tuoi risultati (${c.mine.length} gare):</div>
+        ${c.mine.map(r=>`<span class="muted" style="margin-right:12px">R${r.round+1}: <b>${r.position}</b>${r.fl?' · giro veloce':''} · ${r.points} pt · ${esc(r.track)}</span>`).join('')}`
+      : '<div class="muted" style="margin:6px 0">Ancora nessuna gara corsa in questa stagione.</div>';
+    const table = c.standings
+      ? `<table><thead><tr><th></th><th>Pilota</th><th class="right">Punti</th></tr></thead>
+        <tbody>${c.standings.map(r=>`<tr class="${r.isPlayer?'me':''}"><td class="faint">P${r.position}</td><td>${esc(r.name)}${r.isPlayer?' <span class="tag gold">tu</span>':''}</td><td class="right">${r.points}</td></tr>`).join('')}</tbody></table>`
+      : '<div class="empty">Classifica non disponibile.</div>';
+    const dayNum = c.seatDay ? Math.ceil(1 + (c.calendar.length - 1) * 0) : null; // niente calcolo qui
+    return `<div class="panel">
+      <h2>${esc(c.display)} <span class="h-act">stagione ${c.season}${c.isCurrent?' · <span class="tag gold">serie attuale</span>':''}</span></h2>
+      <div class="muted" style="margin:-4px 0 8px">L${c.level} · ${esc(c.discipline)} · una gara a settimana</div>
+      <div class="grid2">
+        <div>
+          <div class="muted" style="margin-bottom:4px">Calendario della stagione:</div>
+          <div class="sig-prev">${rounds}</div>
+          ${mine}
+        </div>
+        <div>
+          <div class="muted" style="margin-bottom:4px">Classifica:</div>
+          ${table}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* -------- classifica MONDIALE per prestigio -------- */
+async function drawWorldRanking(m){
+  const w = await api('world-ranking');
+  m.innerHTML = `<div class="panel">
+  <h2>Classifica Mondiale — prestigio <span class="h-act">${w.total} piloti · tu sei P${w.myPosition}</span></h2>
+  <div class="muted" style="margin:-6px 0 10px">I più forti del mondo (le monoposto il vertice): skill innata di ogni pilota. La tua stima cresce passando a serie di livello più alto.</div>
+  <table><thead><tr><th></th><th>Pilota</th><th></th><th class="right">Skill</th><th class="right">Età</th><th>Forma</th></tr></thead>
+  <tbody>${w.rows.map(r=>`<tr class="${r.isPlayer?'me':''}">
+    <td class="muted">P${r.position}</td><td>${esc(r.name)}${r.isPlayer?' <span class="tag gold">tu</span>':''}</td>
+    <td class="faint">${esc(r.country)}</td><td class="right">${r.skill}</td><td class="right">${r.age??'—'}</td>
+    <td>${r.form?'<span class="tag blue">'+esc(r.form)+'</span>':''}</td></tr>`).join('')}</tbody>
   </table></div>`;
 }
 
@@ -1059,7 +1291,7 @@ function serieDetail(n){
     ${blocked}`, [['Chiudi','ghost',()=>{}]]);
 }
 
-function enterFlow(nodeId, name, econ){
+async function enterFlow(nodeId, name, econ){
   const closed = econ?.access === 'closed';
   const rent = closed ? 0 : (econ?.rent ?? 0);
   const cost = closed
@@ -1067,10 +1299,30 @@ function enterFlow(nodeId, name, econ){
     : rent > 0
     ? `L'affitto del sedile costa <b>${money(rent)} €</b>, addebitato subito alla firma.`
     : 'Sedile a contratto ufficiale: nessun costo di ingresso.';
-  modal('Firma del sedile', `
+  // ANTEPRIMA CONFLITTI: come cadrebbe il calendario della serie e dove collide
+  // con i campionati già iscritti. Si vede PRIMA di spendere soldi/reputazione.
+  let preview = null;
+  try { preview = await api('agenda-sign-preview', { nodeId }); } catch {}
+  const confs = preview?.conflictsTotal ?? 0;
+  const prevHtml = !preview ? '' : `
+    <div class="sig-prev">
+      <div class="muted" style="margin-bottom:4px">Calendario previsto della serie (una gara ogni settimana da ${esc(preview.startLabel)}):</div>
+      ${preview.future.map(f=>`<div style="display:flex;gap:8px;align-items:baseline;padding:2px 0">
+        <span class="faint" style="min-width:120px">${esc(f.dateLabel)}</span>
+        <span>R${f.index+1} · ${esc(f.track)}${f.laps?' · '+f.laps+' giri':''}</span>
+        ${f.conflicts.length
+          ? `<span class="tag gold" title="${esc(f.conflicts.map(c=>c.display+' R'+(c.roundIndex+1)+' ('+c.dateLabel+')').join(', '))}">⚠️ conflitto: ${esc(f.conflicts.map(c=>c.display).join(', '))}</span>`
+          : '<span class="faint">✓</span>'}
+      </div>`).join('')}
+      ${confs
+        ? `<div class="tag gold" style="margin-top:6px;display:inline-block">⚠️ ${confs} conflitt${confs===1?'o':'i'} con i campionati già iscritti: al giorno di gara dovrai scegliere, e la gara saltata vale 0 punti.</div>`
+        : '<div class="muted" style="margin-top:6px">✓ Nessun conflitto con i campionati già iscritti.</div>'}
+    </div>`;
+  modal(`Firma del sedile — ${esc(name)}`, `
     <p>Stai per lasciare la serie attuale e trasferirti in <b>${esc(name)}</b>.</p>
-    <p class="muted" style="margin-top:8px">${cost} L'iscrizione si paga gara per gara; il calendario riparte dal round 1 della nuova serie.</p>`,
-    [['Annulla','ghost',()=>{}], ['Firma il contratto','act', async () => {
+    <p class="muted" style="margin-top:8px">${cost} L'iscrizione si paga gara per gara; il calendario riparte dal round 1 della nuova serie.</p>
+    ${prevHtml}`,
+    [['Annulla','ghost',()=>{}], [confs?'Firma comunque':'Firma il contratto','act', async () => {
       try { const r = await api('enter', {nodeId}); toast('Contratto firmato: ' + r.header.node.display, 'ok'); await refreshBoot(); render(); }
       catch(e){ toast(e.message,'err'); return false; }
     }]]);
@@ -1787,19 +2039,48 @@ async function drawDifficulty(m){
 }
 
 /* -------- messaggi / offerte -------- */
+let mailFilter = 'tutte';
 async function drawMessages(m){
   const v = await api('messages');
+  const mb = v.mailbox ?? { mails: [] };
+  const KIND_META = {
+    'Racing':   ['btn-racing',   '🏁', 'Direttore di corsa e gara di oggi: la mail che decide la giornata'],
+    'Sponsor':  ['btn-sponsor',  '💼', 'Sponsor: quote, missioni e proposte'],
+    'Contratti':['btn-contratti','✍️', 'Il tuo manager: contratti, impegni e conflitti di calendario'],
+    'Carriera': ['btn-carriera', '🧭', 'Carriera: reputazione, trim, guida alla scala'],
+  };
+  const kinds = ['tutte', ...Object.keys(KIND_META)];
+  const chips = kinds.map((k)=>`<button class="mini ${mailFilter===k?'acc':''}" data-mf="${k}">${k==='tutte'?'tutte':(KIND_META[k]?KIND_META[k][1]+' '+k:k)}</button>`).join('');
+  const mails = mb.mails.filter((x) => mailFilter==='tutte' || x.kind===mailFilter);
+  const mailCard = (mm) => {
+    const [cls, ico, desc] = KIND_META[mm.kind] ?? ['', '✉️', ''];
+    return `<div class="mail ${cls}">
+      <div class="mh2"><span class="mi">${ico}</span>
+        <b class="oggetto">${esc(mm.oggetto)}</b>
+        ${mm.priorita==='urgente' ? '<span class="tag gold" style="margin-left:8px">⚠️ urgente</span>' : ''}
+      </div>
+      <div class="mfrom muted">${esc(mm.from)} · ${esc(mm.date)}</div>
+      <pre class="mcorpo">${esc(mm.corpo)}</pre>
+    </div>`;
+  };
   m.innerHTML = `
+  <div class="panel">
+    <h2>Posta del pilota <span class="h-act">${mb.mails.length} email · ${esc(mb.oggi ?? '')}</span></h2>
+    <div class="row" style="margin-bottom:10px">${chips}</div>
+    ${mails.filter(x=>x.priorita==='urgente').length ? `<div class="muted" style="margin-bottom:8px">⚠️ ${mails.filter(x=>x.priorita==='urgente').length} email urgenti (gare da disputare, conflitti da risolvere)</div>` : ''}
+    ${mails.length ? mails.map(mailCard).join('') : '<div class="empty">Niente in questa casella: torna più tardi o cambia filtro.</div>'}
+  </div>
   <div class="grid2">
-    <div class="panel"><h2>Messaggi</h2>${v.messages.length ? v.messages.map(msgRow).join('') : '<div class="empty">Nessun messaggio.</div>'}</div>
+    <div class="panel"><h2>Diario di bordo</h2>${v.messages.length ? v.messages.map(msgRow).join('') : '<div class="empty">Nessun messaggio nel diario.</div>'}</div>
     <div class="panel"><h2>Offerte sul tavolo</h2>
       ${v.offers.length ? v.offers.map(o=>`<div class="offer"><span class="n">${esc(o.display)}</span>
         <span class="muted">L${o.level} · ${esc(o.discipline)} · ${esc(o.note)} · affitto ${money(o.rent)} €</span>
         <span class="m"><button class="mini" data-detail="${o.index}" data-name="${esc(o.display)}" ${o.detail?'':'disabled'}>dettagli</button>
         <button class="mini" data-acc="${o.index}" data-name="${esc(o.display)}">firma</button></span></div>`).join('')
-      : '<div class="empty">Nessuna offerta al momento: arrivano a fine stagione.</div>'}
+      : '<div class="empty">Nessuna offerta al momento: arrivano a fine stagione. ATTENZIONE: firma solo quando hai gare libere nella giornata (mail del manager).</div>'}
     </div>
   </div>`;
+  $$('button[data-mf]').forEach(b => b.onclick = () => { mailFilter = b.dataset.mf; drawMessages(m); });
   $$('button[data-acc]').forEach(b => b.onclick = () => signOffer(Number(b.dataset.acc), b.dataset.name));
   $$('button[data-detail]').forEach(b => b.onclick = () => {
     const o = v.offers.find(x => x.index === Number(b.dataset.detail));

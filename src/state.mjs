@@ -29,7 +29,9 @@ const RIVALS_FILE = join(dirname(fileURLToPath(import.meta.url)), '..', 'data', 
 export const SAVE_VERSION = 1;
 export const START_MONEY = 18000;
 
-const REP_GAIN = { 1: 10, 2: 14, 3: 20, 4: 28, 5: 40, 6: 55, 7: 80 };
+// guadagno di reputazione PER LIVELLO (a P1 si incassa ×1,5, poi sempre meno):
+// scalata lenta — 30 gare circa di serie basse prima di toccare le GT3, come ZTA
+const REP_GAIN = { 1: 5, 2: 7, 3: 10, 4: 13, 5: 17, 6: 22, 7: 28 };
 const EXPECTED_POSITION_SHARE = 0.5;
 
 export function nodeById(ladder, id) {
@@ -75,6 +77,9 @@ export function createCareer(ladder, { name, first, last, nation = 'ITA', discip
     results: {},
     bestFinish: {},
     championships: {},
+    // agenda a giorni (stile Zero to Apex): il primo sedile parte il giorno 1
+    agenda: { day: 1 },
+    seats: { [startNode.nodeId]: { day: 1, season: 1 } },
     world: createWorld(ladder, seed ?? fullName.trim().toLowerCase()),
     difficulty: { mode: 'adaptive', base: {}, trim: {}, offClass: {}, offTrack: {}, locked: [], pending: null },
     paidEntries: {},
@@ -123,6 +128,25 @@ export function loadState(file) {
   const savedVersion = Number.isFinite(Number(parsed.version)) ? Number(parsed.version) : 0;
   if (savedVersion > SAVE_VERSION) {
     throw new Error(`Salvataggio di versione ${parsed.version}, scritto da un tool più nuovo di questo (${SAVE_VERSION}): il file non viene toccato. Aggiorna il tool, o riparti dal backup più recente in data/backups/.`);
+  }
+  // agenda a giorni e sedili delle serie iscritte: retrocompatibilità con i salvataggi vecchi
+  if (!parsed.agenda || typeof parsed.agenda !== "object") parsed.agenda = { day: 1 };
+  const dayNum = Number(parsed.agenda.day);
+  parsed.agenda.day = Number.isFinite(dayNum) && dayNum >= 1 ? Math.floor(dayNum) : 1;
+  if (!parsed.seats || typeof parsed.seats !== "object") parsed.seats = {};
+  // migrazione carriere pre-agenda: la serie in corso diventa la prima iscrizione,
+  // cosi' il calendario a giorni comincia subito con quel campionato (niente signup admin)
+  if (parsed.node && !Object.keys(parsed.seats).length) {
+    const oldLadder = (() => { try { return JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'career.evo.ladder.json'), 'utf8')); } catch { return null; } })();
+    const oldNode = oldLadder?.nodes?.find((n) => n.nodeId === parsed.node);
+    let seatSeason = Number(parsed.season) || 1;
+    if (oldNode) {
+      const oldResults = (parsed.results?.[parsed.node] ?? []);
+      let last = 0;
+      for (const r of oldResults) if (Number(r.season) > last) last = Number(r.season);
+      if (last && oldResults.filter((r) => Number(r.season) === last).length < oldNode.calendar.length) seatSeason = last;
+    }
+    parsed.seats[parsed.node] = { day: parsed.agenda.day, season: seatSeason };
   }
   if (savedVersion < SAVE_VERSION) {
     parsed.version = SAVE_VERSION;
@@ -200,7 +224,17 @@ export function standingsFor(ladder, state, node, season = state.season) {
   const mine = (state.results[node.nodeId] ?? []).filter((r) => r.season === season);
   const roundsPlayed = new Set(mine.map((r) => r.round));
 
-  for (let r = 0; r < node.calendar.length; r++) {
+  // la classifica conta solo le rondé GIÀ CORSE nel calendario a giorni:
+  // una ronda a settimana dall'ancoraggio del sedile. Le rondé SALTATE (settimane
+  // passate senza risultato tuo) restano contate per i rivali — tu prendi 0.
+  // Niente più stagioni simulate al punto di 158 pt dopo una gara sola.
+  const totalRounds = node.calendar.length;
+  const seatDay = Number(state.seats?.[node.nodeId]?.day) || null;
+  const today = Math.max(1, Math.floor(Number(state.agenda?.day) || 1));
+  const elapsed = seatDay ? Math.floor((today - seatDay) / 7) + 1 : (mine.length ? Math.max(...mine.map((r) => r.round)) + 1 : 0);
+  const upTo = Math.min(totalRounds, Math.max(0, elapsed));
+
+  for (let r = 0; r < upTo; r++) {
     const mineRound = mine.find((x) => x.round === r);
     const player = mineRound
       ? { ...playerAsDriver(state, node), position: mineRound.position, dnf: mineRound.dnf }
@@ -208,7 +242,12 @@ export function standingsFor(ladder, state, node, season = state.season) {
     const history = mine.filter((x) => x.round < r).sort((a, b) => a.round - b.round);
     const order = finishOrder(grid, node, season, r, player, ladder, history);
     for (const entry of order) {
-      const pts = entry.isPlayer && mineRound ? mineRound.points : pointsFor(ladder, node, entry.position, entry.dnf);
+      // gara NON disputata dal giocatore (ronda saltata): 0 punti — la classifica
+      // di ZTA si fa severa: i rivali corrono, tu prendi zero. Niente
+      // punti simulati per il sedile vuoto.
+      const pts = entry.isPlayer
+        ? (mineRound ? mineRound.points : 0)
+        : pointsFor(ladder, node, entry.position, entry.dnf);
       add(entry.driverId, pts);
     }
     // punti COMPLETI stile Zero to Apex: giro veloce e pole valgono per tutti,
@@ -346,7 +385,17 @@ export function enterNode(ladder, state, node, { buy = false, force = false } = 
     }
   }
   state.node = node.nodeId;
-  const played = (state.results[node.nodeId] ?? []).filter((r) => r.season === state.season);
+  // agenda: il sedile (nuovo o rinnovato) fissa la cadenza delle gare DA OGGI
+  const list = state.results[node.nodeId] ?? [];
+  let lastSeason = 0;
+  for (const r of list) if (Number(r.season) > lastSeason) lastSeason = Number(r.season);
+  const seatSeason = (lastSeason && list.filter((r) => Number(r.season) === lastSeason).length < node.calendar.length)
+    ? lastSeason   // riprendi la campagna in corso (cambiare sedile non azzera la serie)
+    : state.season;
+  state.seats ??= {};
+  state.agenda ??= { day: 1 };
+  state.seats[node.nodeId] = { day: Math.max(1, Math.floor(Number(state.agenda.day) || 1)), season: seatSeason };
+  const played = list.filter((r) => r.season === seatSeason);
   state.round = played.length ? Math.max(...played.map((r) => r.round)) + 1 : 0;
   if (state.round >= node.calendar.length) state.round = 0;
   // contratto di stagione: tre clausole con premio finale (uno per stagione+serie)
@@ -560,6 +609,10 @@ export function applyRaceResult(ladder, state, node, payload) {
   }
   if (state.pending && state.pending.node === node.nodeId && state.pending.round === round) state.pending = null;
   if (state.round <= round) state.round = round + 1;
+
+  // agenda a giorni: finita la gara, il giorno del calendario avanza di 1
+  state.agenda ??= { day: 1 };
+  state.agenda.day = Math.max(1, Math.floor(Number(state.agenda.day) || 1)) + 1;
 
   const gapText = !dnf && Number.isFinite(gapMs) && gapMs != null && gapMs > 0
     ? (gapMs >= 60000 ? `+${Math.floor(gapMs / 60000)}'${String(Math.round((gapMs % 60000) / 1000)).padStart(2, '0')}"` : `+${(gapMs / 1000).toFixed(1)}"`)

@@ -42,6 +42,8 @@ echo   9   Calendario della stagione
 echo  10   Serie disponibili (scala carriera)
 echo  11   Mercato di fine stagione
 echo  12   Aiuto completo (tutti i comandi)
+echo  13   Guardia automatica delle gare (watcher)
+echo  14   Firma un'offerta di sedile
 echo   0   Esci
 echo.
 set "CHOICE="
@@ -65,7 +67,9 @@ if "%CHOICE%"=="8" goto classifica
 if "%CHOICE%"=="9" goto calendario
 if "%CHOICE%"=="10" goto serie
 if "%CHOICE%"=="11" goto mercato
-if "%CHOICE%"=="12" goto firma
+if "%CHOICE%"=="12" goto aiuto
+if "%CHOICE%"=="13" goto guardia
+if "%CHOICE%"=="14" goto firma
 
 if "%CHOICE%"=="0" goto :eof
 echo.
@@ -139,6 +143,14 @@ goto dopo
 
 :aiuto
 call :run help
+goto dopo
+
+:guardia
+echo.
+echo   La guardia si apre in una finestra a parte: restera' a vigilo'
+echo   finche' quella finestra resta aperta.
+echo.
+start "Carriera EVO — guardia" "%~dp0guarda.cmd"
 goto dopo
 
 :aprigui

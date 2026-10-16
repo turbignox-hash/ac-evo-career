@@ -16,7 +16,7 @@ import {
   standingsFor, playerStanding, difficultyFor, seasonEnd,
   acceptOffer, pushMessage, sponsorTier, enterNode, renameDriver, careerStats,
 } from './state.mjs';
-import { paddock } from './world.mjs';
+import { paddock, ourToSkill } from './world.mjs';
 import { loadCatalog, resultDetail } from './catalog.mjs';
 import { liveReader, fmtMs } from './shmem.mjs';
 import { raceCard, markPending, chargeEntry, launch } from './race.mjs';
@@ -38,6 +38,13 @@ import { trackBook, nextTrackOf } from './tracks.mjs';
 import { carsBook, carImageOf } from './cars.mjs';
 import { garageOverview, catalogPicker, addCar, removeCar, setNote, importShowcase, sellCar } from './garage.mjs';
 import { ensureFlowsSeeded, recentFlows, resetFlows } from './flows.mjs';
+import { mailbox } from './mailbox.mjs';
+import {
+  agendaDay, gareDelGiorno, prossimoGiornoConGara, avanzaGiorno, elencoCompleto,
+  racesOnDay, calendarStrip, dateLabel, MAX_SCELTE_PER_GIORNO, CADENZA_GIORNI,
+  choicesForDay, canChoose, recordChoice, impegni, shiftSeat,
+  scheduledDay, nextUnplayedRound, hasSeat,
+} from './agenda.mjs';
 import { heritageOverview, claimMemory, memoryRoundHint } from './memories.mjs';
 import { resetNews } from './gazzetta.mjs';
 import { midSeasonPulse } from './world.mjs';
@@ -301,6 +308,7 @@ function viewPaddock(ladder, state, all = false) {
 
 function viewMessages(ladder, state) {
   return {
+    mailbox: mailbox(ladder, state),
     messages: (state.messages ?? []).slice(-20).reverse(),
     offers: (state.offers ?? []).map((o) => {
       // ogni offerta porta con se la scheda completa della serie: si apre dal Messaggi
@@ -542,7 +550,7 @@ async function readBody(req) {
 async function api(context0, req, res, action, body) {
   const { ladder, paths } = context0;
   const hasCareer = () => existsSync(SAVE_FILE);
-  const state = hasCareer() ? requireState() : null;    const needsCareer = ['status', 'series', 'calendar', 'standings', 'paddock', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'import-inspect', 'tracks', 'backup'];
+  const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'paddock', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'import-inspect', 'tracks', 'backup'];
   if (needsCareer.includes(action) && !state) {
     return sendJson(res, 400, { error: 'Non c\'è ancora una carriera: creane una dalla schermata iniziale.' });
   }
@@ -570,6 +578,53 @@ async function api(context0, req, res, action, body) {
         header: state ? viewHeader(ladder, state) : null,
         setup: viewSetup(ladder),
         gameRunning: await isGameRunning(),
+        // badge urgente sul menu Messaggi: email priorità alta della posta del pilota
+        mailUrgent: state ? mailbox(ladder, state).mails.filter((m) => m.priorita === 'urgente').length : 0,
+      });
+    }
+    case 'agenda-sign-preview': {
+      // ANTICIPO CONFLITTI alla firma: come cadrebbe il calendario della nuova serie
+      // e le collisioni con le serie già iscritte (prima di spendere soldi/reputazione)
+      const id = String(body.nodeId ?? '');
+      const node = ladder.nodes.find((n) => n.nodeId === id);
+      if (!node) return sendJson(res, 404, { error: 'Serie sconosciuta.' });
+      const today = agendaDay(state);
+      // simula il sedile di oggi: ronda k → giorno anchor + k·7
+      const fakeState = { ...state, seats: { ...state.seats, [id]: { day: today, season: state.season } } };
+      const future = [];
+      for (let i = 0; i < node.calendar.length; i++) {
+        const day = Math.max(1, today + i * CADENZA_GIORNI);
+        const collide = [];
+        for (const otherId of Object.keys(state.seats ?? {})) {
+          const on = nodeById(ladder, otherId);
+          const sd = scheduledDay(ladder, fakeState, on);
+          // collisione se la stessa settimana (±1 giorno di flessibilità)
+          if (sd != null && Math.abs(sd - day) <= 1) {
+            const r = nextUnplayedRound(ladder, state, on);
+            collide.push({
+              nodeId: otherId, display: on.display, day: sd,
+              dateLabel: dateLabel(sd), roundIndex: r?.index ?? null, track: r?.track ?? null,
+            });
+          }
+        }
+        const names = ladder.contentNames?.tracks ?? {};
+        const round = node.calendar[i];
+        future.push({
+          index: i, day, dateLabel: dateLabel(day),
+          name: round.name ?? `Round ${i + 1}`,
+          track: names[round.track] ?? round.track,
+          laps: round.laps, hour: round.hour,
+          conflicts: collide,
+        });
+      }
+      const conflittiTotali = future.filter((f) => f.conflicts.length).length;
+      return sendJson(res, 200, {
+        nodeId: id, display: node.display, level: node.level ?? 0,
+        calendarLen: node.calendar.length,
+        cadenza: CADENZA_GIORNI,
+        bollette: node.econ ?? null,
+        startLabel: dateLabel(today),
+        future, conflictsTotal: conflittiTotali,
       });
     }
     case 'status': return sendJson(res, 200, viewStatus(ladder, state));
@@ -622,6 +677,152 @@ async function api(context0, req, res, action, body) {
     case 'rivals': return sendJson(res, 200, rivalsOverview(ladder, state, { q: typeof body.q === 'string' ? body.q : null }));
     case 'imports': return sendJson(res, 200, { ledger: importedFiles().slice(0, 30), log: importLog(20) });
     case 'rival-detail': return sendJson(res, 200, rivalDetail(String(body.key ?? '')) ?? { error: 'Rivale non trovato.' });
+    case 'world-ranking': {
+      // classifica MONDIALE per prestige: tutti i piloti del mondo ordinati per
+      // skill innata (i più forti sono i "F1"), con la tua posizione in elenco
+      const world = state.world;
+      const rows = (world?.drivers ?? [])
+        .filter((d) => d.active !== false)
+        .map((d) => ({
+          key: d.id ?? `${d.first}-${d.last}`, name: `${d.first} ${d.last}`, country: d.country,
+          skill: Number(d.skill) || 0, age: d.age, archetype: d.archetype,
+          form: d.hot ? 'in forma' : d.retired ? 'in declino' : '',
+        }))
+        .sort((a, b) => b.skill - a.skill);
+      // la mia posizione: il tuo skill stimato dal livello della serie attuale + rep
+      const cur = nodeById(ladder, state.node);
+      const [hi, lo] = cur.ai ?? [80, 70];
+      const mySkill = ourToSkill(((Number(hi) || 80) + (Number(lo) || 70)) / 2);
+      const me = { key: 'player', name: state.driver.name, country: state.driver.nation, skill: mySkill, age: null, archetype: 'TU', form: '' };
+      const all = [...rows, me].sort((a, b) => b.skill - a.skill);
+      const myPos = all.findIndex((r) => r.key === 'player') + 1;
+      const top = all.slice(0, 40);
+      // la tua riga è SEMPRE nell'elenco anche se il posto è oltre il 40°:
+      // comparirà in fondo marcata "tu", per vedere il tuo blocco
+      if (myPos > top.length) {
+        const idx = all.findIndex((r) => r.key === 'player');
+        top.push(all[idx]);
+      }
+      return sendJson(res, 200, {
+        total: all.length,
+        myPosition: myPos,
+        me,
+        rows: top.map((r) => ({
+          position: all.indexOf(r) + 1, name: r.name, country: r.country, skill: Math.round(r.skill * 100),
+          age: r.age, archetype: r.archetype, isPlayer: r.key === 'player', form: r.form,
+        })),
+      });
+    }
+    case 'championships': {
+      // una sezione per ogni campionato ISCRITTO: calendario della stagione in
+      // corso + classifica reale (solo rondé trascorse) + i tuoi risultati
+      const out = [];
+      for (const nodeId of Object.keys(state.seats ?? {})) {
+        let node;
+        try { node = nodeById(ladder, nodeId); } catch { continue; }
+        const results = (state.results?.[nodeId] ?? []).filter((r) => Number(r.season) === state.season);
+        const names = ladder.contentNames?.tracks ?? {};
+        let table = null;
+        try {
+          table = standingsFor(ladder, state, node, state.season).map((r) => ({
+            position: r.position, name: r.name, points: r.points, isPlayer: !!r.isPlayer,
+          }));
+        } catch { table = null; }
+        out.push({
+          nodeId, display: node.display, level: node.level ?? 0,
+          discipline: disciplineName(ladder, node.discipline),
+          season: state.season,
+          seatDay: state.seats[nodeId].day ?? null,
+          calendar: node.calendar.map((round, i) => ({
+            index: i,
+            name: round.name ?? `Round ${i + 1}`,
+            track: names[round.track] ?? round.track,
+            laps: round.laps,
+            hour: round.hour,
+            played: results.some((r) => r.round === i),
+          })),
+          mine: results.map((r) => ({
+            round: r.round, position: r.dnf ? 'DNF' : r.position, points: r.points,
+            track: names[node.calendar[r.round]?.track] ?? node.calendar[r.round]?.track, fl: !!r.fl,
+          })),
+          standings: table,
+          isCurrent: nodeId === state.node,
+        });
+      }
+      return sendJson(res, 200, { championships: out });
+    }
+    case 'agenda-detail': {
+      // scheda completa della gara cliccata in Agenda: serie, auto, calendario,
+      // classifica in corso (se la stagione è iniziata), gate e meteo
+      const id = String(body.nodeId ?? '');
+      const day = Number.isFinite(Number(body.day)) ? Number(body.day) : agendaDay(state);
+      const g = racesOnDay(ladder, state, day).find((x) => x.node.nodeId === id);
+      if (!g) return sendJson(res, 404, { error: 'Nessuna gara di questa serie nel giorno richiesto.' });
+      const node = g.node;
+      const carNames = (ids) => (ids ?? []).map((c) => ladder.contentNames?.cars?.[c] ?? c);
+      const results = (state.results?.[node.nodeId] ?? []).filter((r) => Number(r.season) === Number(g.season));
+      const started = results.length > 0;
+      let standings = null;
+      if (started) {
+        try {
+          standings = standingsFor(ladder, state, node, g.season).slice(0, 10).map((r) => ({
+            position: r.position, name: r.name, points: r.points, isPlayer: !!r.isPlayer,
+          }));
+        } catch { standings = null; }
+      }
+      // il mio risultato in questa stagione (se c'è)
+      const mieGare = results.map((r) => ({ round: r.round, position: r.dnf ? 'DNF' : r.position, points: r.points, track: ladder.contentNames?.tracks?.[node.calendar[r.round]?.track] ?? node.calendar[r.round]?.track, fl: !!r.fl }));
+      // gate: cosa manca per firmare (solo se non iscritto)
+      const gate = state.seats?.[node.nodeId] ? { ok: true, reasons: [] } : gateStatus(ladder, state, node);
+      return sendJson(res, 200, {
+        nodeId: node.nodeId,
+        display: node.display,
+        discipline: disciplineName(ladder, node.discipline),
+        level: node.level ?? 0,
+        stato: g.stato,
+        fattibile: g.fattibile,
+        gateReasons: gate.reasons ?? [],
+        isCurrent: !!g.isCurrent,
+        roundIndex: g.index,
+        roundName: g.name,
+        track: g.track,
+        trackId: g.trackId,
+        laps: g.laps,
+        hour: g.hour,
+        weather: g.weather ?? null,
+        scheduledDay: g.scheduledDay,
+        dateLabel: dateLabel(g.scheduledDay),
+        season: g.season,
+        gridSize: node.gridSize ?? null,
+        prize: node.econ?.prize ?? null,
+        entryFee: node.econ?.rent ?? node.econ?.buy ?? 0,
+        repRequired: node.repRequired ?? 0,
+        cars: carNames(node.cars),
+        calendar: node.calendar.map((round, i) => ({
+          index: i,
+          name: round.name ?? `Round ${i + 1}`,
+          track: ladder.contentNames?.tracks?.[round.track] ?? round.track,
+          laps: round.laps,
+          hour: round.hour,
+          played: results.some((r) => r.round === i),
+          current: i === g.index,
+        })),
+        // "started" per le serie NON iscritte va derivato dal ROUND del ciclo:
+        // i rivali hanno già corso le rondé prima dell'indice del giorno. I risultati
+        // del giocatore non esistono (non è iscritto) e non possono decidere questo.
+        started: hasSeat(state, node.nodeId) ? started : g.index > 0,
+        standings,
+        // entri a stagione avviata? La R1 (o le rondé prima della corrente) sono
+        // già scappate: se firmi ora quei punti valgono 0. Meglio le fasi R1.
+        joinLate: hasSeat(state, node.nodeId) ? false : g.index > 0,
+        joinNote: hasSeat(state, node.nodeId)
+          ? (started ? `La tua stagione è in corso: hai ${results.length} gare all'attivo.` : null)
+          : g.index > 0
+            ? `La stagione è già partita: ${g.index} rond${g.index === 1 ? 'e' : 'i'} scappate. Se firmi ora entri da questo round e quelle rondé valgono 0 punti per te. Meglio un campionato ALLA PARTENZA: guarda le fasi R1.`
+            : 'R1: e questo campionato parte alla pari il giorno scelto — puoi firmare e correre la prima gara insieme a tutti.',
+        mine: mieGare,
+      });
+    }
     case 'integrity': return sendJson(res, 200, { issues: checkIntegrity(ladder, state), seasons: reviewableSeasons(state) });
     case 'integrity-fix': {
       const out = fixIntegrity(ladder, state);
@@ -740,6 +941,100 @@ async function api(context0, req, res, action, body) {
       return sendJson(res, 200, readWarnings());
     case 'system-health':
       return sendJson(res, 200, systemHealth(paths));
+    case 'agenda': {
+      // calendario CONTINUO stile Zero to Apex: vista giornata + strip calendario + griglia filtri
+      const day = agendaDay(state);
+      const viewDay = Number.isFinite(Number(body.day)) && Number(body.day) >= 1 ? Math.floor(Number(body.day)) : day;
+      const filter = typeof body.filter === 'string' ? body.filter : 'tutte';    // tutte|fattibili|iscritte|bloccate
+      const disc = typeof body.discipline === 'string' ? body.discipline : null; // id disciplina o null
+      const today = gareDelGiorno(ladder, state);
+      const griglia = racesOnDay(ladder, state, viewDay).filter((g) => {
+        if (filter === 'fattibili') return g.fattibile;
+        if (filter === 'iscritte') return g.stato === 'iscritto';
+        if (filter === 'bloccate') return !g.fattibile;
+        return true;
+      }).filter((g) => !disc || g.node.discipline === disc);
+      return sendJson(res, 200, {
+        day,
+        viewDay,
+        todayLabel: dateLabel(day),
+        viewLabel: dateLabel(viewDay),
+        nextRaceDay: prossimoGiornoConGara(ladder, state),
+        maxScelte: MAX_SCELTE_PER_GIORNO,
+        scelteOggi: choicesForDay(state, day),
+        impegni: impegni(ladder, state),
+        disciplines: ladder.disciplines.map((d) => ({ id: d.id, name: d.name })),
+        strips: calendarStrip(ladder, state, { from: day - 3 < 1 ? 1 : day - 3, days: 21 }),
+        gare: griglia.map((g) => ({
+          nodeId: g.node.nodeId, display: g.node.display, level: g.node.level ?? 0,
+          discipline: g.node.discipline, roundIndex: g.index, totalRounds: g.node.calendar.length,
+          season: g.season, name: g.name, track: g.track, laps: g.laps, hour: g.hour,
+          weather: g.weather ?? null, scheduledDay: g.scheduledDay,
+          onSchedule: !!g.onSchedule, late: !!g.late, stato: g.stato,
+          fattibile: g.fattibile, gateReasons: g.gateReasons ?? [], isCurrent: !!g.isCurrent,
+          prize: g.node.econ?.prize ?? null, gridSize: g.node.gridSize ?? null,
+          carName: (ladder.contentNames?.cars?.[g.node.cars?.[0]] ?? g.node.cars?.[0] ?? null),
+        })),
+      });
+    }
+    case 'agenda-advance': {
+      const before = agendaDay(state);
+      const to = Number.isFinite(Number(body.to)) ? Number(body.to) : null;
+      const after = avanzaGiorno(state, to);
+      persist(state);
+      return sendJson(res, 200, { before, after });
+    }
+    case 'agenda-skip-to-next': {
+      const target = prossimoGiornoConGara(ladder, state);
+      if (target == null) return sendJson(res, 200, { error: 'Nessuna gara futura nei campionati iscritti.' });
+      const after = avanzaGiorno(state, target);
+      persist(state);
+      return sendJson(res, 200, { after });
+    }
+    case 'agenda-shift': {
+      // risolve un conflitto spostando la serie: il suo sedile slitta di +1 cadenza
+      // (tutte le sue prossime ronde si spostano con lui), con nota nel diario
+      const id = String(body.nodeId ?? '');
+      const inf = impegni(ladder, state);
+      const m = inf.lista.find((x) => x.nodeId === id);
+      if (!m) return sendJson(res, 400, { error: 'Non hai un impegno con questa serie.' });
+      const now = shiftSeat(state, id, CADENZA_GIORNI);
+      pushMessage(state, `${m.display} spostata in avanti: prossima gara ${dateLabel(now)} (conflitto di calendario risolto).`, 'info');
+      persist(state);
+      return sendJson(res, 200, { ok: true, nodeId: id, nextDay: now });
+    }
+    case 'agenda-choose': {
+      // sceglie la gara di OGGI: solo gare fattibili, e al massimo 3 per giornata
+      // (come le 2-3 scelte quotidiane di Zero to Apex). Riscgliere la stessa serie è ok.
+      const id = String(body.nodeId ?? '');
+      const day0 = agendaDay(state);
+      const griglia = racesOnDay(ladder, state, day0);
+      const g = griglia.find((x) => x.node.nodeId === id);
+      if (!g) return sendJson(res, 400, { error: 'Questa serie non ha gare in programma oggi.' });
+      if (!g.fattibile) return sendJson(res, 403, { error: `Serie bloccata: ${g.gateReasons.join('; ')}` });
+      const already = state.node === id;
+      if (!already && !canChoose(state, day0, id)) {
+        return sendJson(res, 409, { error: `Hai già scelto ${MAX_SCELTE_PER_GIORNO} gare per oggi: ne resta una sola da disputare (salta il tempo per cambiare giornata).` });
+      }
+      if (state.node !== id) {
+        state.node = id;
+        state.round = g.index;
+        // sedile nuovo o rinnovato: la cadenza della serie parte da oggi
+        state.seats ??= {};
+        if (!state.seats[id]) {
+          const results = state.results?.[id] ?? [];
+          let last = 0;
+          for (const r of results) if (Number(r.season) > last) last = Number(r.season);
+          const seatSeason = (last && results.filter((r) => Number(r.season) === last).length < g.node.calendar.length) ? last : state.season;
+          state.seats[id] = { day: day0, season: seatSeason };
+          pushMessage(state, `Iscritto a ${g.node.display}: le sue gare partono sulla griglia del calendario da oggi.`, 'info');
+        }
+        pushMessage(state, `Scelta la gara del giorno: ${g.node.display} R${g.index + 1} (${g.track}).`, 'info');
+      }
+      recordChoice(state, day0, id);
+      persist(state);
+      return sendJson(res, 200, { ok: true, nodeId: id, roundIndex: g.index, choices: choicesForDay(state, day0).length });
+    }
     case 'series': return sendJson(res, 200, viewSeries(ladder, state));
     case 'calendar': return sendJson(res, 200, viewCalendar(ladder, state));
     case 'standings': return sendJson(res, 200, viewStandings(ladder, state));

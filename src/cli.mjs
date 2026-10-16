@@ -4,6 +4,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolvePaths, isGameRunning } from './paths.mjs';
+import { watchOnce, WATCH_INTERVAL_MS, heartbeat, watcherStatus } from './watch.mjs';
 import { scanContent, validateLadder, searchContent } from './content.mjs';
 import {
   createCareer, loadState, saveState, nodeById, disciplineName, tierOf, gateStatus,
@@ -19,7 +20,10 @@ import { checkIntegrity, fixIntegrity } from './integrity.mjs';
 import { contractStatus, challengeFor, acceptChallenge, ensureLife, careerPlanner } from './life.mjs';
 import { newsFeed } from './gazzetta.mjs';
 import { ensureFlowsSeeded, recentFlows, resetFlows } from './flows.mjs';
-import { resetNews } from './gazzetta.mjs';
+import { resetNews } from './gazzetta.mjs';import {
+  agendaDay, gareDelGiorno, prossimoGiornoConGara, avanzaGiorno,
+  elencoCompleto, racesOnDay, calendarStrip, dateLabel, dateShort, CADENZA_GIORNI,
+} from './agenda.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -104,12 +108,14 @@ function cmdHelp() {
     ['series [--discipline gt] [--all]', 'la scala completa con gate e serie bloccate'],
     ['enter <nodeId> [--buy] [--force]', 'cambia serie, comprando o affittando il sedile'],
     ['calendar', 'calendario della stagione con ora e meteo di ogni round'],
+    ['agenda [--fattibili] [--salta|--prossima] [--corri <nodeId>]', ' calendario a GIORNI: gare di ogni campionato iscritto, le fattibili per livello, salto di giornata'],
     ['standings', 'classifica della serie'],
     ['paddock [--all]', 'piloti rivali: archetipo, eta\', banda di difficolta\''],
     ['messages', 'messaggi e notizie dal paddock'],
     ['next [--car <id>]', 'la prossima gara in dettaglio: cosa impostare nel gioco'],
     ['race [--car <id>] [--dry-run] [--no-launch]', 'paga l\'iscrizione, segna la gara attesa e apre il gioco'],
     ['import [--position N --cars M] [--dnf] [--fl] [--inspect] [--force]', 'legge il risultato e aggiorna la carriera'],
+    ['watch [--every N]', 'guardia automatica: incassa da solo ogni gara nuova scritta da EVO (ogni 15s)'],
     ['difficulty [--mode adaptive|fixed|custom] [--value N] [--trim <serie|all> <valore>] [--lock/--unlock <node>] [--accept|--reject]', 'difficolta\' AI di tutte le serie (trim manuale -20..+20)'],
     ['season-end', 'chiude l\'anno, paga il titolo e apre il mercato'],
     ['review [--season N] [--export]', 'la rassegna della stagione: gare, rivali, duelli'],
@@ -263,6 +269,9 @@ function cmdStatus() {
   const diff = difficultyFor(ladder, state, node, node.calendar[Math.min(state.round, node.calendar.length - 1)]?.track);
 
   console.log(header(state, ladder));
+  const guard = watcherStatus();
+  if (guard.alive) console.log(`  ${C.green('👁 guardia attiva')} — incassa da sola le gare nuove (ultimo controllo ${Math.round(guard.ageMs / 1000)}s fa)`);
+  else console.log(`  ${C.dim('👁 guardia ferma — avvia guarda.cmd per incassare le gare in automatico')}`);
   console.log(`\n  Sedile: ${node.display} — ${disciplineName(ladder, node.discipline)}, livello ${node.level} (${tierOf(ladder, node.level)}), accesso ${node.access}`);
   console.log(`  Modello economico: ${node.econ.model}   Iscrizione ${money(node.econ.entry)}   Premio ${money(node.econ.prize)}${node.econ.champion ? '   Titolo ' + money(node.econ.champion) : ''}`);
   console.log(`  Difficoltà AI: slider ${diff.slider}% (interna ${diff.total.toFixed(0)}, trim ${signed(diff.trim)})`);
@@ -292,6 +301,100 @@ function cmdStatus() {
     console.log(C.dim('\n  Nessuna gara disputata in questa serie.'));
   }
   console.log(`\n${C.dim('Prossima gara:  node ac-evo-career.mjs next')}\n`);
+  return 0;
+}
+
+/** agenda — il calendario a GIORNI (stile Zero to Apex).
+ *  agenda                      gare di OGGI di tutti i campionati iscritti + fattibili
+ *  agenda --fattibili          solo le serie a cui puoi iscriverti ORA (per livello/gate)
+ *  agenda --salta              salta al giorno dopo
+ *  agenda --prossima           salta direttamente alla prossima gara di campionato
+ *  agenda --corri <nodeId>     segna la scelta di oggi: punta il sedile su quella serie
+ */
+function cmdAgenda(args) {
+  const { ladder } = context();
+  const state = requireState();
+
+  // azioni che mutano il giorno
+  if (args.flags.salta) {
+    const before = agendaDay(state);
+    const after = avanzaGiorno(state);
+    saveState(SAVE_FILE, state);
+    console.log(C.dim(`\n  Giorno ${before} saltato: siamo al giorno ${after}.`));
+  } else if (args.flags.prossima) {
+    const target = prossimoGiornoConGara(ladder, state);
+    if (target == null) {
+      console.log(C.yellow('\n  Nessuna gara futura nei campionati iscritti (stagioni complete: usa season-end).'));
+      return 0;
+    }
+    const before = agendaDay(state);
+    avanzaGiorno(state, target);
+    saveState(SAVE_FILE, state);
+    console.log(C.dim(`\n  Dal giorno ${before} (${dateLabel(before)}) al giorno ${target} (${dateLabel(target)}): si va alla prossima gara di campionato.`));
+  }
+
+  // scelta della gara di oggi: il sedile in corsa è già quello, altrimenti si firma e si punta
+  const targetId = typeof args.flags.corri === 'string' ? args.flags.corri : null;
+  if (targetId) {
+    const target = gareDelGiorno(ladder, state).gare.find((g) => g.node.nodeId === targetId);
+    if (!target) {
+      const list = gareDelGiorno(ladder, state).gare.map((g) => g.node.nodeId).join(', ') || '(nessuna)';
+      throw new Error(`La serie "${targetId}" non ha gare due in agenda.\nGare di oggi: ${list}\nUsa "agenda" per vedere la giornata.`);
+    }
+    if (state.node !== targetId) {
+      state.node = targetId;                       // puntiamo su quella serie
+      state.round = target.index;                  // alla sua ronda attesa
+      // il sedile è già del pilota: nessun costo extra per la scelta di oggi
+    }
+    saveState(SAVE_FILE, state);
+    console.log(C.green(`\n  Scelta per oggi: ${target.node.display} R${target.index + 1} (${target.track}).\n  Paga e corri con "race" (o controlla con "next"), poi l'import avanza il giorno.`));
+    return 0;
+  }
+
+  const today = gareDelGiorno(ladder, state);
+  console.log(C.bold(`\nAgenda — GIORNO ${today.day} · ${dateLabel(today.day)}\n`));
+
+  // le gare di oggi dei campionati iscritti (una per serie)
+  if (!Object.keys(state.seats ?? {}).length) {
+    console.log(C.yellow('  Nessun campionato in corso: firma un sedile con "enter <nodeId>" o "accept <n>".'));
+  } else if (!today.gare.length) {
+    const fut = prossimoGiornoConGara(ladder, state);
+    console.log(C.green('  Oggi non ci sono gare.'));
+    if (fut != null) console.log(C.dim(`  Prossima gara di campionato: giorno ${fut} (agenda --prossima per saltare).`));
+    console.log(C.dim('  Salta la giornata: agenda --salta'));
+  } else {
+    for (const g of today.gare) {
+      const when = g.onSchedule ? C.green('in calendario oggi') : C.yellow(`in ritardo (era il giorno ${g.scheduledDay}, salta il tempo e corri quando vuoi)`);
+      console.log(`  ${g.onSchedule ? C.bold('►') : ' '} ${pad(g.node.display, 26)} R${g.index + 1}/${g.node.calendar.length} — ${g.track}${g.laps ? `, ${g.laps} giri` : ''}`);
+      console.log(`    ${pad('', 24)} ${when}`);
+    }
+    console.log(C.dim(`\n  Scegli con "agenda --corri <nodeId>" (poi "race" come al solito): la gara finita avanza il giorno di 1.`));
+  }
+
+  // sotto: la griglia COMPLETA di oggi — tutte le gare in programma (come le "serie reali")
+  const griglia = racesOnDay(ladder, state, today.day);
+  if (griglia.length) {
+    console.log(C.bold(`\nGare in programma oggi (${griglia.length})\n`));
+    for (const g of griglia) {
+      const tag = g.stato === 'iscritto' ? C.green('iscritto')
+        : g.fattibile ? C.cyan('fattibile') : C.red('bloccata');
+      console.log(`  ${pad(g.node.display, 28)} R${g.index + 1}/${g.node.calendar.length}  ${pad(g.track, 26)} ${String(g.laps ?? '—').padStart(2)} giri  ${tag}`);
+      if (!g.fattibile && g.gateReasons.length) console.log(`       ${C.dim(g.gateReasons.join('; '))}`);
+    }
+    console.log(C.dim('\n  Solo le gare fattibili (o dei campionati iscritti) si possono scegliere: agenda --corri <nodeId>.'));
+  }
+
+  // l'elenco delle serie della scala, filtrabile su fattibili
+  const fattibili = !!args.flags.fattibili;
+  const rows = elencoCompleto(ladder, state, { fattibili });
+  console.log(C.bold(`\nSerie della scala${fattibili ? ' — solo fattibili con il tuo livello' : ' (tutte)'}\n`));
+  for (const s of rows) {
+    const tag = s.iscritto ? C.green(pad('iscritto', 12)) : s.fattibile ? C.cyan(pad('fattibile', 12)) : s.stato === 'completata' ? C.dim(pad('completata', 12)) : C.red(pad('bloccata', 12));
+    const nx = s.next ? `prossima: ${s.next.track}, R${s.next.roundIndex + 1}, ${dateShort(s.next.scheduledDay)}` : 'stagione chiusa';
+    console.log(`  L${String(s.level).padEnd(2)} ${pad(s.display, 26)} ${tag} ${C.dim(nx)}`);
+    if (fattibili && !s.fattibile) console.log(`       ${C.red(s.gateReasons.join('; '))}`);
+  }
+  if (!fattibili) console.log(C.dim('\n  agenda --fattibili: solo le serie a cui puoi partecipare con il livello di maestria attuale.'));
   return 0;
 }
 
@@ -368,10 +471,46 @@ function cmdPaddock(args) {
   return 0;
 }
 
-function cmdMessages() {
+function cmdMessages(args) {
   const { ladder } = context();
   const state = requireState();
-  console.log(C.bold('\nMessaggi\n'));
+  const unread = state.messages.filter((m) => !m.read);
+
+  // inbox pulita: segna tutto letto (nessun testo perso, solo la spunta)
+  if (args.flags['read-all']) {
+    for (const m of state.messages) m.read = true;
+    saveState(SAVE_FILE, state);
+    console.log(C.bold('\nMessaggi') + C.dim(` — ${unread.length} segnati come letti\n`));
+    return 0;
+  }
+
+  // digest: i non letti raggruppati per giorno, i più recenti prima
+  if (args.flags.digest) {
+    console.log(C.bold(`\nMessaggi — digest: ${unread.length} non letti\n`));
+    if (!unread.length) { console.log(C.green('  Inbox pulita: nessun messaggio da leggere.\n')); return 0; }
+    const byDay = {};
+    for (const m of unread) {
+      const day = m.at.slice(0, 10);
+      (byDay[day] ??= []).push(m);
+    }
+    const days = Object.keys(byDay).sort().reverse();
+    const MAX_DAYS = 14;
+    for (const day of days.slice(0, MAX_DAYS)) {
+      const group = byDay[day];
+      console.log(`  ${C.bold(day)}  ×${group.length}`);
+      for (const m of group.slice(-3)) {
+        const color = m.kind === 'good' || m.kind === 'title' ? C.green : m.kind === 'bad' ? C.red : m.kind === 'money' ? C.yellow : C.dim;
+        console.log(`    ${C.dim(m.at.slice(11, 16))}  ${color(m.text)}`);
+      }
+      if (group.length > 3) console.log(C.dim(`    …e altre ${group.length - 3}`));
+    }
+    if (days.length > MAX_DAYS) console.log(C.dim(`\n  …e altri ${days.length - MAX_DAYS} giorni`));
+    console.log(C.dim('\n  per segnare tutto letto:  messages --read-all\n'));
+    return 0;
+  }
+
+  console.log(C.bold(`\nMessaggi${unread.length ? C.dim(` — ${unread.length} non letti`) : ''}\n`));
+  console.log(C.dim(`  digest: messages --digest · segna letti: messages --read-all\n`));
   for (const m of state.messages.slice(-15)) {
     const day = m.at.slice(0, 10);
     const color = m.kind === 'good' || m.kind === 'title' ? C.green : m.kind === 'bad' ? C.red : m.kind === 'money' ? C.yellow : C.dim;
@@ -571,6 +710,44 @@ function cmdImport(args) {
     console.log(`\n  ${C.green('Stagione completata!')} ${C.dim('node ac-evo-career.mjs season-end')}`);
   }
   console.log(`\n${C.dim('Prossima gara:  node ac-evo-career.mjs next')}\n`);
+  return 0;
+}
+
+async function cmdWatch(args) {
+  const { ladder, paths } = context();
+  const secs = Math.max(3, Number(args.flags.every) || Math.round(WATCH_INTERVAL_MS / 1000));
+  const baseline = Date.now(); // niente gare precedenti al via del watcher
+
+  console.log(C.bold(`\n👁 watcher attivo — controllo ogni ${secs}s · Ctrl+C per uscire\n`));
+  console.log(C.dim('  Incassa da solo ogni gara che EVO scrive da adesso in poi (registro anti-doppioni e backup inclusi).\n'));
+  console.log(C.dim('  File risultati: ' + (paths.resultsDirs.join(', ') || '(nessuna cartella Results)') + '\n'));
+
+  let stop = false;
+  const onSigint = () => { stop = true; };
+  process.on('SIGINT', onSigint);
+  try {
+    while (!stop) {
+      const t0 = Date.now();
+      heartbeat(secs); // il cruscotto capisce da qui che la guardia è viva
+      const out = watchOnce(ladder, paths, { baselineMs: baseline });
+      if (out.imported) {
+        const e = out.imported.entry;
+        console.log(C.green(`\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dnf ? 'ritiro' : 'P' + e.position}/${e.gridSize}${e.fl ? ' · giro veloce' : ''} · +${e.points} pt · +${e.prize} €`));
+        console.log(`  ${C.dim('Banca: ' + out.imported.money + ' · rep ' + out.imported.rep)}`);
+        if (out.imported.proposal) console.log(`  ${C.yellow('Suggerimento difficoltà')}: trim ${signed(out.imported.proposal.from)} / ${signed(out.imported.proposal.to)} — decidilo con difficulty --accept / --reject\n`);
+        else console.log();
+      } else if (out.error) {
+        console.log(`  ${C.red('watcher:')} ${out.error.message}\n`);
+      }
+      // niente rumore quando una scansione non trova niente di nuovo
+      const elapsed = Date.now() - t0;
+      if (stop) break;
+      await new Promise((r) => setTimeout(r, Math.max(250, secs * 1000 - elapsed)));
+    }
+  } finally {
+    process.removeListener('SIGINT', onSigint);
+  }
+  console.log('\n  watcher chiuso.\n');
   return 0;
 }
 
@@ -839,6 +1016,7 @@ export async function main(argv) {
       case 'next': return cmdNext(args);
       case 'race': return await cmdRace(args);
       case 'import': return cmdImport(args);
+      case 'watch': return await cmdWatch(args);
       case 'difficulty': return cmdDifficulty(args);
       case 'season-end': return cmdSeasonEnd(args);
       case 'review': return cmdReview(args);
@@ -848,6 +1026,7 @@ export async function main(argv) {
       case 'dottore': return cmdDottore(args);
       case 'accept': return cmdAccept(args);
       case 'enter': return cmdEnter(args);
+      case 'agenda': return cmdAgenda(args);
       default:
         console.log(C.yellow(`\nComando "${command}" non riconosciuto.`));
         cmdHelp();
