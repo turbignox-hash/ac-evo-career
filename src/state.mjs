@@ -27,7 +27,10 @@ import { recordWarning } from './warnings.mjs';
 const RIVALS_FILE = join(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'rivals.json');
 
 export const SAVE_VERSION = 1;
-export const START_MONEY = 18000;
+// partenza POVERA (visione "dalla 500"): la scalata si compra con i premie,
+// non col pacchetto di benvenuto. I vecchi salvataggi non cambiano: è il valore
+// usato solo da createCareer.
+export const START_MONEY = 6000;
 
 // guadagno di reputazione PER LIVELLO (a P1 si incassa ×1,5, poi sempre meno):
 // scalata lenta — 30 gare circa di serie basse prima di toccare le GT3, come ZTA
