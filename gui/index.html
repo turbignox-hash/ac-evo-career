@@ -2163,15 +2163,17 @@ function signOffer(index, name){
 function drawSettings(m){
   const s = boot.setup, h = boot.header;
   const slotsHtml = (s.slots ?? []).map((sl) => `
-    <tr class="${sl.active?'cur':''}">
+    <tr class="${sl.active?'cur':''}" style="cursor:pointer" title="clicca: avvia questo slot (o apri il suo browser se è già attivo)">
       <td><b>Slot ${sl.slot}</b>${sl.active?' <span class="tag gold">attivo</span>':''}</td>
       <td>${sl.exists ? `<span>${esc(sl.pilota ?? '(carriera senza nome?)')}</span> <span class="faint">· ${sl.gare} gare · ${esc(sl.file)}</span>` : '<span class="faint">vuoto — nuova carriera quando lo scegli</span>'}</td>
-      <td class="right">${sl.active ? '<span class="faint">questa sessione</span>' : `<span class="faint">riavvia con ACE_SLOT=${sl.slot}</span>`}</td>
+      <td class="right">${sl.active
+        ? `<button class="mini" data-slot-open="${sl.slot}">apri questa finestra</button>`
+        : `<button class="mini acc" data-slot-go="${sl.slot}">apri slot ${sl.slot}</button>`}</td>
     </tr>`).join('');
   m.innerHTML = `
   <div class="panel"><h2>Slot carriera <span class="h-act">fino a 3 piloti sullo stesso PC</span></h2>
     <table><thead><tr><th></th><th>Carriera</th><th class="right">Come si usa</th></tr></thead><tbody>${slotsHtml}</tbody></table>
-    <div class="faint" style="margin-top:8px" id="slot-instructions">Lo slot si sceglie all'avvio: chiudi il tool e fai doppio click su <b>pilota-1.cmd</b>, <b>pilota-2.cmd</b> o <b>pilota-3.cmd</b> nella cartella del programma — un lanciatore per pilota, si aprono anche insieme (ognuno con la sua carriera: slot 1 → porta 8642, slot 2 → 8643, slot 3 → 8644). Ogni slot ha il SUO salvataggio e i SUOI backup: mai mischiati. Lo slot 1 contiene le carriere fatte fino ad oggi. Il watcher segue lo slot del lanciatore che l'ha aperto.</div>
+    <div class="faint" style="margin-top:8px" id="slot-instructions">Clicca una riga (o il bottone a destra) per avviare quello slot: parte <b>pilota-N.cmd</b> da solo, senza variabili da scrivere. I lanciatori sono anche avviabili a mano dalla cartella del programma, e gli slot si aprono anche insieme (slot 1 → porta 8642, slot 2 → 8643, slot 3 → 8644). Ogni slot ha il SUO salvataggio e i SUOI backup: mai mischiati. Lo slot 1 contiene le carriere fatte fino ad oggi. Il watcher segue lo slot del lanciatore che l'ha aperto. Lo slot attivo di questa sessione NON cambia a caldo: qui si apre la sua finestra, per cambiarlo davvero chiudi questa e apri l'altro.</div>
   </div>
   <div class="grid2">
     <div class="panel"><h2>Installazione</h2>
@@ -2207,6 +2209,15 @@ function drawSettings(m){
       <div id="integrity-out" style="margin-top:8px;font-size:13px"></div>
     </div>
   </div>`;
+  // slot cliccabili: il bottone nella riga lancia pilota-N.cmd via slot-launch
+  $$('button[data-slot-go], button[data-slot-open]').forEach(b => b.onclick = () => {
+    const n = b.dataset.slotGo ?? b.dataset.slotOpen;
+    if (!n) return;
+    b.disabled = true;
+    api('slot-launch', { method:'POST', body:{ slot: Number(n) } })
+      .then(r => { toast(r.note ?? 'Lanciatore avviato.', 'ok'); b.disabled = false; })
+      .catch(err => { toast(err.message, 'err'); b.disabled = false; });
+  });
   $('#f-paths').onsubmit = async (e) => {
     e.preventDefault();
     try { await api('setup-save', {dataDir:$('#i-data').value, gameExe:$('#i-game').value}); await refreshBoot(); toast('Percorsi salvati.','ok'); render(); }

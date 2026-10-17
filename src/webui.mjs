@@ -1546,6 +1546,29 @@ async function api(context0, req, res, action, body) {
       const fresh = resolvePaths({ ...process.env, ACE_DATA: cfg.dataDir, ACE_ROOT: cfg.gameExe ? dirname(cfg.gameExe) : undefined });
       return sendJson(res, 200, { ok: true, setup: { dataDirs: fresh.dataDirs, resultsDirs: fresh.resultsDirs, gameExe: fresh.gameExe } });
     }
+    case 'slot-launch': {
+      // click su uno slot in Impostazioni: lancia il lanciatore del pilota
+      // (pilota-N.cmd nella cartella del progetto). Paranoia sui parametri:
+      // solo 1..3 letterali (niente troncamenti: 9 rifiutata, non "3") e
+      // verifica che il file esista, per non far eseguire nulla a scelta.
+      const n = Math.floor(Number(body.slot));
+      if (![1, 2, 3].includes(n)) return sendJson(res, 400, { error: 'Slot non valido: i lanciatori sono 1, 2, 3.' });
+      const launcher = join(PROJECT, `pilota-${n}.cmd`);
+      if (!existsSync(launcher)) return sendJson(res, 400, { error: `Lanciatore non trovato: pilota-${n}.cmd (è nella cartella del programma?)` });
+      // se lo slot è quello di QUESTA sessione, non riavviamo niente: solo il suo browser
+      if (n === SLOT) {
+        const addr = `http://127.0.0.1:${PORT}`;
+        import('node:child_process').then(({ spawn }) => {
+          if (process.platform === 'win32') spawn('cmd', ['/c', 'start', '', addr], { detached: true, stdio: 'ignore' }).unref();
+          else spawn('xdg-open', [addr], { detached: true, stdio: 'ignore' }).unref();
+        });
+        return sendJson(res, 200, { ok: true, note: 'Slot già attivo: apro solo il browser.' });
+      }
+      import('node:child_process').then(({ spawn }) => {
+        spawn('cmd', ['/c', 'start', '', 'Carriera EVO Slot ' + n, launcher], { detached: true, stdio: 'ignore', cwd: PROJECT }).unref();
+      });
+      return sendJson(res, 200, { ok: true, note: `Lanciato pilota-${n}.cmd: si apre la sua carriera sulla sua porta (${8641 + n}). Questa finestra resta quello che è (slot ${SLOT}).` });
+    }
     default:
       return sendJson(res, 404, { error: `Azione "${action}" non prevista.` });
   }
