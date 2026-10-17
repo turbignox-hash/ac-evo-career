@@ -275,7 +275,10 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .mail .tag{flex:0 0 auto}
 
 /* ============ agenda (stile Zero to Apex) ============ */
-.ag-day.hasmine{border-color:rgba(255,209,102,.65);background:rgba(255,209,102,.08)}
+/* oro = ci sono le GARE DEL TUO campionato in quel giorno; il giorno corrente
+   resta arancione: due colore, due significati (niente più confusione oggi/gara) */
+.ag-day.hasmine{border-color:rgba(255,209,102,.65);background:linear-gradient(to top, rgba(255,209,102,.14), rgba(255,209,102,.14)),radial-gradient(circle at 20% 15%, rgba(255,209,102,.18), transparent 70%),rgba(255,209,102,.05)}
+.ag-day.hasmine::after{content:'★ mio';font-size:9px;letter-spacing:.5px;color:rgba(255,209,102,.85);text-transform:uppercase}
 .badge.urgent{background:#c98a1b;color:#fff;margin-left:2px}
 .sig-prev{border:1px solid #ffffff14;border-radius:8px;padding:8px 10px;margin-top:8px;max-height:260px;overflow-y:auto}
 .sig-prev .tag{flex:0 0 auto}
@@ -284,8 +287,7 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .modal .mb .tag{white-space:normal;word-break:break-word;max-width:100%;display:inline-block}
 .modal .mb pre,.modal .mb table{max-width:100%}
 
-.badge{position:relative}
-.ag-day.today{border-color:var(--acc);background:rgba(255,122,69,.10)}
+.badge{position:relative}.ag-day.today{border-color:var(--acc);background:rgba(255,122,69,.10)}
 .ag-day:hover{border-color:#ffffff42}
 .ag-day-date{font-size:11px;color:var(--faint)}
 .ag-day-num{font-size:15px;font-weight:700}
@@ -1090,7 +1092,7 @@ async function drawAgenda(m){
   const hideStarted = `<button class="mini ${agendaView.hideStarted?'acc':''}" data-hidestarted="1" title="nasconde le gare che sono già in programma da prima (in corso o in ritardo): restano solo quelle che partono esattamente nel giorno in vista">${agendaView.hideStarted?'☑':'☐'} nascondi gare già iniziate</button>`;
   const strip = (a.strips??[]).map(s => {
     const side = s.mine ? '·'+s.mine : '';
-    return `<button class="ag-day ${s.today?'today':''} ${s.mine?'hasmine':''}" data-goday="${s.day}" title="${esc(s.date)}: ${s.total} gare (${s.available} fattibili)${s.mine?', '+s.mine+' di campionato GOLD':''}">
+    return `<button class="ag-day ${s.today?'today':''} ${s.mine?'hasmine':''}" data-goday="${s.day}" title="${esc(s.date)}: ${s.total} gare (${s.available} fattibili)${s.mine?`, ${s.mine} del tuo campionato (oro)`:''}">
       <span class="ag-day-date">${esc(s.date)}</span>
       <span class="ag-day-num">${s.total}${side}</span>
     </button>`;
