@@ -134,7 +134,7 @@ async function render(){
     if (tab==='difficulty') return await drawDifficulty(m);
     if (tab==='messages')   return await drawMessages(m);
     if (tab==='settings')   return drawSettings(m);
-  } catch(e){ m.innerHTML = `<div class="panel"><div class="banner bad">${esc(e.message)}</div></div>`; }
+  } catch(e){ window.__renderErr = e.stack ?? String(e); m.innerHTML = `<div class="panel"><div class="banner bad">${esc(e.message)}</div></div>`; }
 }
 
 function paintHeader(h){

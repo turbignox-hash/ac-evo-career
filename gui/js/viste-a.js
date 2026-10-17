@@ -90,7 +90,7 @@ async function drawDashboard(m){
         <h2>${LI.gauge} Strumenti rapidi</h2>
         <div class="grid2">
           <button class="qtile" id="b-review">${LI.book}<span><b>Rassegna di fine stagione</b><small>il bilancio completo dell'anno</small></span></button>
-        <!-- Pianificatore di carriera nascosto per scelta di Mauro (riattivabile togliendo questo commento): -->
+          <button class="qtile" id="b-gazzetta">${LI.news}<span><b>Gazzetta del paddock</b><small>la stampa racconta le tue gare</small></span></button>
           <button class="qtile" id="b-integrity-quick">${LI.shield}<span><b>Verifica integrità</b><small>controllo di coerenza della carriera</small></span></button>
         </div>
       </div>

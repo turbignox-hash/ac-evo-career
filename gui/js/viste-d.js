@@ -383,6 +383,7 @@ function drawMotecStrip(h){
 }
 
 refreshBoot().then(render).catch(e => {
+  window.__bootErr = e.stack ?? String(e);  // lo stack per la diagnosi nel terminale di assistenza
   $('#main').innerHTML = `<div class="panel"><div class="banner bad">Il server non risponde: ${esc(e.message)}<br><span class="muted">Rilancia apri-gui.cmd</span></div></div>`;
 });
 setInterval(async () => {
