@@ -1040,10 +1040,28 @@ async function api(context0, req, res, action, body) {
       const id = String(body.nodeId ?? '');
       // se la carta è di un giorno FUTURO in vista, si punta lì; mai nel passato
       const chooseDay = Math.max(agendaDay(state), Math.floor(Number(body.day) || 0) >= agendaDay(state) ? Math.floor(Number(body.day)) : agendaDay(state));
-      const day0 = chooseDay >= agendaDay(state) ? chooseDay : agendaDay(state);
-      const griglia = racesOnDay(ladder, state, day0);
-      const g = griglia.find((x) => x.node.nodeId === id);
-      if (!g) return sendJson(res, 400, { error: `Questa serie non ha gare in programma ${day0 === agendaDay(state) ? 'oggi' : 'il ' + dateLabel(day0)}: vedi la striscia calendario.` });
+      let day0 = chooseDay >= agendaDay(state) ? chooseDay : agendaDay(state);
+      let griglia = racesOnDay(ladder, state, day0);
+      let g = griglia.find((x) => x.node.nodeId === id);
+      // ROBUSTEZZA: se nel giorno richiesto la serie non è a programma, cerco la sua
+      // prossima gara nei giorni a venire (max 7): se la trovo, iscrivo con anchor
+      // sul VERO giorno di gara — niente più "non ha gare oggi" ambiguo.
+      if (!g) {
+        for (let dd = day0 + 1; dd <= day0 + 7 && !g; dd++) {
+          const cand = racesOnDay(ladder, state, dd).find((x) => x.node.nodeId === id);
+          if (cand && cand.fattibile) { g = cand; day0 = dd; }
+        }
+        if (!g) {
+          // als ultima risorsa dico QUANDO cade: la sua prossima disputa entro 30 giorni
+          let quando = null;
+          for (let dd = day0; dd <= day0 + 30 && !quando; dd++) {
+            if (racesOnDay(ladder, state, dd).some((x) => x.node.nodeId === id)) quando = dateLabel(dd);
+          }
+          return sendJson(res, 400, { error: quando
+            ? `La prossima gara di questa serie va il ${quando}: apri quel giorno nella striscia calendario e premi "scegli per oggi".`
+            : 'Nessuna gara programmata di questa serie nei prossimi 30 giorni.' });
+        }
+      }
       if (!g.fattibile) return sendJson(res, 403, { error: `Serie bloccata: ${g.gateReasons.join('; ')}` });
       const already = state.node === id;
       if (!already && !canChoose(state, day0, id)) {
