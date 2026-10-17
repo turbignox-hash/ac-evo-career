@@ -434,6 +434,7 @@ const TABS = [
   ['rivals','Rivali'], ['tracks','Piste'], ['cars','Auto'], ['garage','Garage'], ['paddock','Paddock'], ['import','Risultati'],
   ['setup','Setup'],
   ['archive','Archivio'], ['stats','Statistiche'],
+  ['banca','Banca'],
   ['gazzetta','Gazzetta'], ['difficulty','Difficoltà'], ['settings','Impostazioni'],
 ];
 // "Serie" nascosta su richiesta: i contratti si firmano solo dall'Agenda, il giorno
@@ -444,7 +445,7 @@ const TAB_COLORS = {
   dashboard:'#5da9ff', agenda:'#ff7a45', calendar:'#b48cff', standings:'#ffd166', rivals:'#ff6b6b',
   series:'#2ed3a5', tracks:'#e8c46b', cars:'#74c0fc', garage:'#ffd43b', paddock:'#f4a261', import:'#63e6e2',
   setup:'#f78fb3', catalog:'#82ccdd', archive:'#c9a0ff', stats:'#69db7c',
-  gazzetta:'#dfe4ea', difficulty:'#5f7cff', messages:'#ffa94d', settings:'#adb5bd',
+  gazzetta:'#dfe4ea', difficulty:'#5f7cff', messages:'#ffa94d', settings:'#adb5bd', banca:'#ffd43b',
 };
 let tab = 'dashboard';
 function drawNav(){
@@ -477,6 +478,7 @@ async function render(){
     if (tab==='catalog')    return await drawArchive(m);
     if (tab==='archive')    return await drawArchive(m);
     if (tab==='stats')      return await drawStats(m);
+    if (tab==='banca')      return await drawBanca(m);
     if (tab==='gazzetta')   return await drawGazzetta(m);
     if (tab==='import')     return await drawImport(m);
     if (tab==='setup')      return await drawSetup(m);
@@ -494,8 +496,15 @@ function paintHeader(h){
   $('#t-sub').textContent = `${h.nation ?? ''} · ${h.sponsor ?? 'pilota privato'} · ${h.node.display}`;
   $('#t-money').textContent = money(h.money) + ' €';
   $('#t-rep').textContent = String(h.rep);
-  $('#t-date').textContent = h.todayLabel ?? ('giorno ' + (h.day ?? 1));
+  $('#t-date').textContent = h.todayLabel ? `OGGI ${h.todayLabel}` : ('giorno ' + (h.day ?? 1));
   $('#t-season').textContent = `S${h.season} · R${h.round}/${h.rounds}`;
+  // le tre statistiche chiave diventano scorciatoie: Data → Agenda, Rep → Statistiche, Banca → Banca
+  $('#t-date').style.cursor = 'pointer';
+  $('#t-date').onclick = () => { tab = 'agenda'; drawNav(); render(); };
+  $('#t-rep').style.cursor = 'pointer';
+  $('#t-rep').onclick = () => { tab = 'stats'; drawNav(); render(); };
+  $('#t-money').style.cursor = 'pointer';
+  $('#t-money').onclick = () => { tab = 'banca'; drawNav(); render(); };
   if (h.heritage) {
     $('#hstat-heritage').style.display = '';
     $('#t-heritage').textContent = `📜 ${h.heritage.completed ?? 0}${h.heritage.activeDone ? ' · eredità pronta!' : ''}`;
@@ -1076,6 +1085,8 @@ async function drawAgenda(m){
     ['tutte','tutte'], ['fattibili','disponibili'], ['iscritte','iscritte'], ['bloccate','bloccate'],
   ].map(([id,label]) =>
     `<button class="mini ${agendaView.filter===id?'acc':''}" data-af="${id}">${label}</button>`).join('');
+  // "nascondi le già iniziate": spegne le gare in corso/ritardo della giornata vista
+  const hideStarted = `<button class="mini ${agendaView.hideStarted?'acc':''}" data-hidestarted="1" title="nasconde le gare che sono già in programma da prima (in corso o in ritardo): restano solo quelle che partono esattamente nel giorno in vista">${agendaView.hideStarted?'☑':'☐'} nascondi gare già iniziate</button>`;
   const strip = (a.strips??[]).map(s => {
     const side = s.mine ? '·'+s.mine : '';
     return `<button class="ag-day ${s.today?'today':''} ${s.mine?'hasmine':''}" data-goday="${s.day}" title="${esc(s.date)}: ${s.total} gare (${s.available} fattibili)${s.mine?', '+s.mine+' di campionato GOLD':''}">
@@ -1107,16 +1118,22 @@ async function drawAgenda(m){
     <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px">${strip}</div>
   </div>
   <div class="panel">
-    <h2>Gare del giorno <span class="h-act">${a.gare.length} a programma · max ${a.maxScelte} per giornata</span></h2>
+    <h2>Gare del giorno <span class="h-act" id="gare-count">…</span></h2>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${filterChips}</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${discChips}</div>
-    ${a.gare.length
-      ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">${a.gare.map(card).join('')}</div>`
-      : '<div class="muted">Nessuna gara corrisponde ai filtri in questo giorno. Prova un altro giorno dalla striscia calendario.</div>'}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${hideStarted}${discChips}</div>
+    ${(()=>{ // "nascondi gare già iniziate": via le gare in programma da PRIMA del giorno visto
+      const lista = agendaView.hideStarted ? a.gare.filter(g => !(Number(g.scheduledDay) < Number(a.viewDay))) : a.gare;
+      const nascoste = a.gare.length - lista.length;
+      const cntEl = $('#gare-count');
+      if (cntEl) cntEl.innerHTML = `${lista.length} a programma${nascoste>0?` · ${nascoste} nascoste dal filtro`:''} · max ${a.maxScelte} per giornata`;
+      if (!lista.length) return '<div class="muted">Nessuna gara corrisponde ai filtri in questo giorno. Prova un altro giorno dalla striscia calendario.</div>';
+      return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">${lista.map(card).join('')}</div>`;
+    })()}
   </div>`;
   $('#ag-advance').onclick = async () => { await api('agenda-advance', { method:'POST' }); agendaView.day = null; render(); paintHeader(boot.header); };
   const nb = $('#ag-next'); if (nb) nb.onclick = async () => { await api('agenda-skip-to-next', { method:'POST' }); agendaView.day = null; render(); };
   $$('button[data-af]').forEach(b => b.onclick = () => { agendaView.filter = b.dataset.af; drawAgenda(m); });
+  $$('button[data-hidestarted]').forEach(b => b.onclick = () => { agendaView.hideStarted = !agendaView.hideStarted; drawAgenda(m); });
   $$('button[data-disc]').forEach(b => b.onclick = () => { agendaView.disc = b.dataset.disc || null; drawAgenda(m); });
   $$('button[data-goday]').forEach(b => b.onclick = () => { agendaView.day = Number(b.dataset.goday); drawAgenda(m); });
   $$('button[data-corri]').forEach(b => b.onclick = async () => {
@@ -1502,6 +1519,38 @@ async function drawGazzetta(m){
     </div>`).join('') : '<div class="empty">La stampa si mobilita dopo la prima gara importata.</div>'}
   </div>`;
 }
+
+/* -------- Banca: entrate e uscite dalla cassa (registro flussi) -------- */
+async function drawBanca(m){
+  const f = await api('flows');
+  const rows = f.flows ?? [];
+  const KIND = {
+    prize:{icon:'🏆',label:'premio gara',side:'in'}, sponsor:{icon:'🤝',label:'sponsor',side:'in'},
+    bonus:{icon:'⭐',label:'bonus',side:'in'}, contract:{icon:'📜',label:'contratto',side:'in'},
+    income:{icon:'💰',label:'vendita',side:'in'}, seed:{icon:'🌱',label:'ripartenza',side:'in'},
+    entry:{icon:'🎟️',label:'iscrizione',side:'out'}, rent:{icon:'🏠',label:'affitto',side:'out'},
+    buy:{icon:'🛒',label:'acquisto',side:'out'}, penalty:{icon:'⚠️',label:'penalità',side:'out'},
+    rep:{icon:'📊',label:'reputazione',side:null},
+  };
+  const tot = rows.reduce((a,r)=>{ const v=Number(r.money??0); if(!r.money) return a; (v>0?a.in:a.out)[0]+=0; if(v>0)a.in[0]+=v; else a.out[0]-=v; return a; }, {in:[0],out:[0]});
+  const filtri=[['tutte',null],['entrate','in'],['uscite','out']];
+  const rowsHtml = rows
+    .filter(r=>bancaView.filter==='in' ? Number(r.money??0)>0 : bancaView.filter==='out' ? Number(r.money??0)<0 : true)
+    .map((r)=>{ const k=KIND[r.kind]||{icon:'•',label:r.kind,side:null}; const m=Number(r.money??0);
+      return `<tr><td class="faint" style="white-space:nowrap">${esc(String(r.at||'').slice(5,16).replace('T',' '))}</td><td>${k.icon} <span class="muted">${esc(k.label)}</span></td><td>${esc(r.reason??'')}</td><td class="right" style="white-space:nowrap">${m?`<span style="color:${m>0?'var(--good)':'var(--bad)'};font-weight:600">${m>0?'+':''}${money(m)} €</span>`:(r.rep?`<span class="faint">rep ${r.rep>0?'+':''}${r.rep}</span>`:'')}</td></tr>`;
+    }).join('');
+  m.innerHTML = `
+  <div class="panel">
+    <h2>💰 Banca <span class="h-act">saldo attuale ${money(boot.header.money)} € · registro: ${tot.in[0]>0?'+'+money(tot.in[0]):'0'} € entrate · ${money(tot.out[0])} € uscite (ultimi ${rows.length} movimenti)</span></h2>
+    <div style="display:flex;gap:6px;margin:8px 0 10px">${filtri.map(([id,lab])=>`<button class="mini ${bancaView.filter===id?'acc':''}" data-bf="${id}">${lab??id}</button>`).join('')}</div>
+    ${rowsHtml
+      ? `<table><thead><tr><th>Quando</th><th>Tipo</th><th>Motivo</th><th class="right">Importo</th></tr></thead><tbody>${rowsHtml}</tbody></table>`
+      : '<div class="empty">Nessun movimento del tipo scelto.</div>'}
+    <div class="muted" style="margin-top:10px;font-size:12px">Il registro parte dalla nascita del registro flussi: i tempi passati della carriera risultano come un unico movimento "ripartenza", calcolato a posteriori.</div>
+  </div>`;
+  $$('button[data-bf]').forEach(b=>b.onclick=()=>{ bancaView.filter=b.dataset.bf; drawBanca(m); });
+}
+let bancaView = { filter:'tutte' };
 
 /* -------- risultati / import -------- */
 async function drawImport(m){
