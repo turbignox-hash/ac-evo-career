@@ -1,3 +1,7 @@
 # Generati: non vanno versionati
 data/
 demo/
+
+# le immagini auto/piste (78 MB) restano su disco: solo asset locali, fuori dal repo
+gui/carmaps/
+gui/trackmaps/
