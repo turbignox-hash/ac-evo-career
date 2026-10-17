@@ -42,7 +42,7 @@ import { ensureFlowsSeeded, recentFlows, resetFlows } from './flows.mjs';
 import { mailbox } from './mailbox.mjs';
 import {
   agendaDay, gareDelGiorno, prossimoGiornoConGara, avanzaGiorno, elencoCompleto,
-  racesOnDay, calendarStrip, dateLabel, MAX_SCELTE_PER_GIORNO, CADENZA_GIORNI,
+  racesOnDay, calendarStrip, dateLabel, dateShort, MAX_SCELTE_PER_GIORNO, CADENZA_GIORNI,
   choicesForDay, canChoose, recordChoice, impegni, shiftSeat,
   scheduledDay, nextUnplayedRound, hasSeat,
 } from './agenda.mjs';
@@ -202,6 +202,7 @@ function viewHeader(ladder, state) {
     round: Math.min(state.round, node.calendar.length),
     rounds: node.calendar.length,
     season: state.season,
+    day: agendaDay(state),
     titles: state.titles ?? [],
     pending: state.pending ?? null,
     difficultyMode: state.difficulty?.mode ?? 'adaptive',
@@ -324,7 +325,12 @@ function viewMessages(ladder, state) {
 
 function viewCard(ladder, state, car = null) {
   const card = raceCard(ladder, state, { car });
+  // la data della gara sul calendario continuo: il giorno in cui la prossima ronda
+  // della serie cade (o è già matura). Il cruscotto la mostra accanto a "R x di y".
+  const schedDay = (() => { try { return scheduledDay(ladder, state, card.node); } catch { return null; } })();
   return {
+    agendaDay: schedDay,
+    agendaDayLabel: schedDay != null ? dateLabel(schedDay) : null,
     nodeDisplay: card.node.display,
     roundIndex: card.roundIndex,
     totalRounds: card.totalRounds,
@@ -1027,13 +1033,16 @@ async function api(context0, req, res, action, body) {
       return sendJson(res, 200, { ok: true, nodeId: id, nextDay: now });
     }
     case 'agenda-choose': {
-      // sceglie la gara di OGGI: solo gare fattibili, e al massimo 3 per giornata
-      // (come le 2-3 scelte quotidiane di Zero to Apex). Riscgliere la stessa serie è ok.
+      // sceglie la gara di OGGI (o del giorno che si sta guardando, se consentito):
+      // solo gare fattibili, al massimo 3 per giornata — come le scelte di Zero to Apex.
+      // Rerscegliere la stessa serie è ok.
       const id = String(body.nodeId ?? '');
-      const day0 = agendaDay(state);
+      // se la carta è di un giorno FUTURO in vista, si punta lì; mai nel passato
+      const chooseDay = Math.max(agendaDay(state), Math.floor(Number(body.day) || 0) >= agendaDay(state) ? Math.floor(Number(body.day)) : agendaDay(state));
+      const day0 = chooseDay >= agendaDay(state) ? chooseDay : agendaDay(state);
       const griglia = racesOnDay(ladder, state, day0);
       const g = griglia.find((x) => x.node.nodeId === id);
-      if (!g) return sendJson(res, 400, { error: 'Questa serie non ha gare in programma oggi.' });
+      if (!g) return sendJson(res, 400, { error: `Questa serie non ha gare in programma ${day0 === agendaDay(state) ? 'oggi' : 'il ' + dateLabel(day0)}: vedi la striscia calendario.` });
       if (!g.fattibile) return sendJson(res, 403, { error: `Serie bloccata: ${g.gateReasons.join('; ')}` });
       const already = state.node === id;
       if (!already && !canChoose(state, day0, id)) {

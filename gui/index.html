@@ -816,9 +816,10 @@ function drawCardInto(el, card){
   let checked = [];
   try { checked = JSON.parse(localStorage.getItem(key) || '[]'); } catch {}
   const isDone = (i) => checked.includes(i);
-  const doneCount = card.settings.filter((_,i)=>isDone(i)).length;    el.innerHTML = `<h2>${LI.flag} Prossima gara <span class="h-act">R${card.roundIndex+1} di ${card.totalRounds}</span></h2>
+  const doneCount = card.settings.filter((_,i)=>isDone(i)).length;    el.innerHTML = `<h2>${LI.flag} Prossima gara <span class="h-act">R${card.roundIndex+1} di ${card.totalRounds}${card.agendaDayLabel ? ` · ${esc(card.agendaDayLabel)}` : ''}</span></h2>
+
     <div class="title">${CFLAG} ${esc(card.roundName)}</div>
-    <div class="sub">${esc(card.nodeDisplay)} · iscrizione ${money(card.entryFee)} € · si paga una volta per round</div>
+    <div class="sub">${esc(card.nodeDisplay)} · iscrizione ${money(card.entryFee)} € · si paga una volta per round${card.agendaDay ? (card.agendaDay <= (boot.header?.day ?? 0) ? '' : ' · in calendario per il ' + esc(card.agendaDayLabel ?? ('giorno ' + card.agendaDay))) : ''}</div>
     ${card.carImage ? `<div style="display:flex;align-items:center;gap:12px;margin:8px 0 4px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2,#121822)">
       <img src="${card.carImage}" alt="${esc(card.carName ?? '')}" style="width:150px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#0d1118">
       <div style="font-size:12.5px"><b>Auto del weekend</b><br>${esc(card.carName ?? '')} <span class="muted">${card.carChoices?.length>1?'· puoi cambiarla dal selettore':''}</span></div>
@@ -1043,7 +1044,7 @@ async function drawAgenda(m){
   const a = await api('agenda', {
     day: agendaView.day, filter: agendaView.filter, discipline: agendaView.disc,
   });
-  agendaView.day = a.day;   // torna il giorno reale (dopo avere avanzato il tempo)
+  agendaView.day = a.viewDay ?? a.day;   // resta sul giorno che stai GUARDANDO (dopo un avanzamento torna il reale)
 
   const card = (g) => {
     const cls = g.stato === 'iscritto' ? 'ag-iscritto' : g.fattibile ? 'ag-fattibile' : 'ag-bloccata';
@@ -1057,7 +1058,7 @@ async function drawAgenda(m){
         : '';
     return `<div class="ag-card ${cls}" style="cursor:pointer" data-detail="${esc(g.nodeId)}" title="clicca per la scheda completa della serie">
       <div class="ag-c-head"><span class="faint">R${g.roundIndex+1}/${g.totalRounds}</span> <b>${esc(g.display)}</b> ${stato}</div>
-      <div class="ag-c-body">${esc(g.track)} · ${g.laps?g.laps+' giri':'—'} · ${String(g.hour).padStart(2,'0')}:00</div>
+      <div class="ag-c-body">${esc(g.track)} · ${g.laps?g.laps+' giri':'—'} · ${String(g.hour).padStart(2,'0')}:00${g.scheduledDay && a.viewDay ? (g.scheduledDay === a.viewDay ? '' : ` · <span class="tag gold">in agenda il ${esc(a.viewLabel ?? '')}</span>`) : ''}</div>
       <div class="ag-c-foot">
         <span class="muted">${money(g.prize??0)} € · ${g.gridSize??'—'} auto</span>
         ${g.late ? '<span class="tag gold">in ritardo</span>' : ''}
@@ -1116,8 +1117,12 @@ async function drawAgenda(m){
   $$('button[data-disc]').forEach(b => b.onclick = () => { agendaView.disc = b.dataset.disc || null; drawAgenda(m); });
   $$('button[data-goday]').forEach(b => b.onclick = () => { agendaView.day = Number(b.dataset.goday); drawAgenda(m); });
   $$('button[data-corri]').forEach(b => b.onclick = async () => {
-    await api('agenda-choose', { method:'POST', body:{ nodeId: b.dataset.corri } });
-    tab = 'calendar'; drawNav(); render();
+    b.disabled = true;
+    try {
+      const r = await api('agenda-choose', { method:'POST', body:{ nodeId: b.dataset.corri, day: agendaView.day ?? undefined } });
+      toast('Gara scelta per oggi ✔ (serie attiva nel cruscotto)', 'ok');
+      tab = 'calendar'; drawNav(); render();
+    } catch(e){ toast(e.message, 'err'); b.disabled = false; }
   });
   $$('button[data-shift]').forEach(b => b.onclick = async () => {
     await api('agenda-shift', { method:'POST', body:{ nodeId: b.dataset.shift } });
