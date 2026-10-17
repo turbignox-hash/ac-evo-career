@@ -84,6 +84,28 @@ export function scanContent(paths) {
   return { cars, tracks, carNames, sources };
 }
 
+/*
+ * CACHE del catalogo per il server GUI.
+ * scanContent cammina RICORSIVAMENTE l'intera cartella dati di EVO leggendo e
+ * analizzando con regex ogni file <40MB: costoso, e /api/boot lo chiamava ad
+ * OGNI caricamento di pagina. Per la GUI basta una copia fresca: qui una cache
+ * TTL breve (default 30s, regolabile con ACE_CONTENT_TTL), chiave = cartelle
+ * dati scandite. La CLI NON lo usa (comandi di consapevolezza: vogliono il
+ * ritorno fresco) e continua su scanContent diretto.
+ */
+const _contentCache = new Map(); // key (dirs) → { at, val }
+export function scanContentCached(paths, { ttlMs = Number(process.env.ACE_CONTENT_TTL) * 1000 || 30_000 } = {}) {
+  const key = (paths.dataDirs ?? []).join('|');
+  const hit = _contentCache.get(key);
+  if (hit && Date.now() - hit.at < ttlMs) return hit.val;
+  const val = scanContent(paths);
+  _contentCache.set(key, { at: Date.now(), val });
+  return val;
+}
+
+/** Svuota la cache del catalogo (per i test). */
+export function contentCacheClear() { _contentCache.clear(); }
+
 /** Distanza di Levenshtein, per suggerire l'ID giusto quando uno non esiste. */
 export function levenshtein(a, b) {
   a = String(a); b = String(b);

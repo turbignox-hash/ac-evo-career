@@ -27,7 +27,7 @@ import { tyreClassOf } from './setup.mjs';
 import { carImageOf } from './cars.mjs';
 import { listMotecSessions, collectSessions, racePressureAdvice } from './motec.mjs';
 import { resolvePaths, STEAM_APP_ID } from './paths.mjs';
-import { scanContent, validateLadder } from './content.mjs';
+import { scanContentCached, validateLadder } from './content.mjs';
 import { appEnv, context, DATA_DIR, SLOT, CONFIG_FILE } from './webui-env.mjs';
 
 const money = (n) => Number(n ?? 0).toLocaleString('it-IT');
@@ -326,7 +326,9 @@ function viewCard(ladder, state, car = null) {
 
 function viewSetup(ladder) {
   const { ladder: _l, paths } = context();
-  const content = scanContent(paths);
+  // cache TTL 30s: scanContent cammina l'intera installazione EVO — /api/boot
+  // veniva riscritto riga per riga ad ogni caricamento pagina (cache in content.mjs)
+  const content = scanContentCached(paths);
   const issues = validateLadder(ladder, content);
   // gli slot carriera (1..3): quale esiste, chi lo usa, quello attivo di questa sessione
   const slots = [1, 2, 3].map((s) => {
