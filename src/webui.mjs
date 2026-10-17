@@ -1000,7 +1000,7 @@ async function api(context0, req, res, action, body) {
           discipline: g.node.discipline, roundIndex: g.index, totalRounds: g.node.calendar.length,
           season: g.season, name: g.name, track: g.track, laps: g.laps, hour: g.hour,
           weather: g.weather ?? null, scheduledDay: g.scheduledDay,
-          onSchedule: !!g.onSchedule, late: !!g.late, stato: g.stato,
+          onSchedule: !!g.onSchedule, late: !!g.late, champStarted: !!g.champStarted, stato: g.stato,
           fattibile: g.fattibile, gateReasons: g.gateReasons ?? [], isCurrent: !!g.isCurrent,
           prize: g.node.econ?.prize ?? null, gridSize: g.node.gridSize ?? null,
           carName: (ladder.contentNames?.cars?.[g.node.cars?.[0]] ?? g.node.cars?.[0] ?? null),

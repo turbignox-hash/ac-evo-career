@@ -1123,7 +1123,9 @@ async function drawAgenda(m){
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${filterChips}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${hideStarted}${discChips}</div>
     ${(()=>{ // "nascondi gare già iniziate": via le gare in programma da PRIMA del giorno visto
-      const lista = agendaView.hideStarted ? a.gare.filter(g => !(Number(g.scheduledDay) < Number(a.viewDay))) : a.gare;
+      // "già iniziata" = campionato entrato a metà: la sua R1 è caduta prima del
+      // giorno visto (iscritte in ritardo) o la vista mostra R2+ di un ciclo procedurale
+      const lista = agendaView.hideStarted ? a.gare.filter(g => g.late || g.champStarted) : a.gare;
       const nascoste = a.gare.length - lista.length;
       const cntEl = $('#gare-count');
       if (cntEl) cntEl.innerHTML = `${lista.length} a programma${nascoste>0?` · ${nascoste} nascoste dal filtro`:''} · max ${a.maxScelte} per giornata`;

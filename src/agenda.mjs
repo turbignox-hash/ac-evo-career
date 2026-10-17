@@ -175,6 +175,7 @@ export function racesOnDay(ladder, state, d) {
           node, index: r.index, season: r.season, name: r.name, trackId: r.trackId,
           track: r.track, laps: r.laps, hour: r.hour, weather: r.weather,
           scheduledDay: r.scheduledDay, late: r.scheduledDay < d, onSchedule: r.scheduledDay === d,
+          champStarted: r.scheduledDay < d,  // il suo campionato riparte indietro: è già "iniziata"
           stato: 'iscritto', fattibile: true, gateReasons: [],
           isCurrent: node.nodeId === state.node,
         });
@@ -208,6 +209,9 @@ export function racesOnDay(ladder, state, d) {
       laps: round.laps ?? null, hour: round.hour ?? null,
       weather: ladder.weatherNames?.[String(round.weather)] ?? null,
       scheduledDay: d, onSchedule: true, late: false, procedural: true,
+      // il campionato è GIÀ PARTITO se questo giorno mostra la R2+: la sua R1
+      // è caduta giorni fa — serve a "nascondi gare già iniziate"
+      champStarted: index > 0,
       stato: gate.ok ? 'fattibile' : 'bloccata',
       fattibile: gate.ok, gateReasons: gate.reasons,
       isCurrent: false,
