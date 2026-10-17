@@ -28,6 +28,18 @@ export function sameTrack(a, b) {
   return x.startsWith(y) || y.startsWith(x);
 }
 
+/* --- auto ---------------------------------------------------------------- */
+/* Ste stesso problema delle piste, lato auto: il nome nella ladder ("Mazda RX-7 FD")
+ * e la cartella MoTeC che EVO scrive ("Mazda RX-7 FD Spirit R") NON sono uguaglianza
+ * esatta — il gioco aggiunge la versione/allestimento. Stessa regola delle piste:
+ * uguaglianza O prefisso, in entrambe le direzioni. */
+
+/** Come sameTrack ma per i nomi di AUTO (stesso normalize: accenti + solo alfanumerici). */
+export function normCar(s) { return normTrack(s); }
+
+/** Due nomi di auto denotano la stessa macchina? Uguaglianza o prefisso (in entrambe le direzioni). */
+export function sameCar(a, b) { return sameTrack(a, b); }
+
 /** Come sameTrack, ma contro una LISTA di nomi attesi (id ladder, display, nomi cartella...). */
 export function matchesAnyTrack(actual, expectedNames) {
   const a = normTrack(actual);

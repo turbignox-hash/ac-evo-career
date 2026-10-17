@@ -18,7 +18,7 @@ import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fourPsi } from './setup.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
-import { sameTrack } from './tracknames.mjs';
+import { sameTrack, sameCar } from './tracknames.mjs';
 
 const WHEELS = ['LF', 'RF', 'LR', 'RR'];
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -264,7 +264,10 @@ export function listMotecSessions(motecRoot, { car = null, track = null } = {}) 
   let carDirs = [];
   try { carDirs = readdirSync(motecRoot, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name); } catch { return out; }
   for (const cd of carDirs) {
-    if (car && cd.toLowerCase() !== String(car).toLowerCase()) continue;
+    // sameCar: il nome nella ladder ("Mazda RX-7 FD") e la cartella che EVO scrive
+    // ("Mazda RX-7 FD Spirit R") non sono uguaglianza esatta — match per prefisso
+    // allo stesso modo delle piste (vedi tracknames.mjs)
+    if (car && !sameCar(cd, car)) continue;
     let trackDirs = [];
     try { trackDirs = readdirSync(join(motecRoot, cd), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name); } catch { continue; }
     for (const td of trackDirs) {
