@@ -1,4 +1,4 @@
-// Fumo dei comandi CLI (processi veri, dati veri in sola lettura) e del watcher.
+// Fumo dei comandi CLI (processi veri, su cartella dati temporanea) e del watcher.
 //
 // Motivo: il bug persist del 2026-10-14 era già nel commit iniziale ma nessun
 // test lo vedeva, perché la strada CLI veniva esercitata solo a gara finita.
@@ -15,11 +15,18 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CLI = join(ROOT, 'ac-evo-career.mjs');
-const LADDER = readFileSync(join(ROOT, 'career.evo.ladder.json'), 'utf8');
+const LADDER = readFileSync(join(ROOT, 'config', 'career.evo.ladder.json'), 'utf8');
 
-test('comandi CLI di sola lettura girano senza crash (fumo)', () => {
+test('comandi CLI di sola lettura girano senza crash (fumo)', async () => {
+  // Cartella dati finta + carriera nuova: nessuna dipendenza da EVO né dal tuo salvataggio vero.
+  const DATA = mkdtempSync(join(tmpdir(), 'evo-smoke-'));
+  mkdirSync(join(DATA, 'Results'), { recursive: true });
+  const { createCareer } = await import('../src/state.mjs?v=smoke');
+  const career = createCareer(JSON.parse(LADDER), { name: 'Test Driver', nation: 'ITA' });
+  writeFileSync(join(DATA, 'evo-career.save.json'), JSON.stringify(career, null, 2) + '\n', 'utf8');
+  const env = { ...process.env, EVO_DATA_DIR: DATA, ACE_DATA: DATA };
   for (const cmd of [['status'], ['next'], ['calendar'], ['messages', '--digest'], ['help']]) {
-    const r = spawnSync(process.execPath, [CLI, ...cmd], { encoding: 'utf8', timeout: 30000, cwd: ROOT });
+    const r = spawnSync(process.execPath, [CLI, ...cmd], { encoding: 'utf8', timeout: 30000, cwd: ROOT, env });
     assert.equal(r.status, 0, `comando ${cmd.join(' ')} exit ${r.status}: ${(r.stderr || r.stdout || '').slice(-400)}`);
     assert.ok((r.stdout || '').length > 10, `${cmd.join(' ')} non stampa nulla`);
   }
@@ -28,6 +35,7 @@ test('comandi CLI di sola lettura girano senza crash (fumo)', () => {
 test('watchOnce ignora i file pre-esistenti (baseline): non incassa il passato', async () => {
   const DATA = mkdtempSync(join(tmpdir(), 'evo-watch-'));
   process.env.EVO_DATA_DIR = DATA;
+  process.env.ACE_DATA = DATA; // isolato: non dipende dall'installazione di EVO sul PC
   const Results = join(DATA, 'Results');
   mkdirSync(Results, { recursive: true });
   const old = join(Results, '261010-1000_SP_Race.sessionresults.json');
@@ -52,6 +60,7 @@ test('watchOnce ignora i file pre-esistenti (baseline): non incassa il passato',
 test('watchOnce su cartella senza file: scansiona zero e non tocca lo stato', async () => {
   const DATA = mkdtempSync(join(tmpdir(), 'evo-watch-2-'));
   process.env.EVO_DATA_DIR = DATA;
+  process.env.ACE_DATA = DATA; // isolato: non dipende dall'installazione di EVO sul PC
   mkdirSync(join(DATA, 'Results'), { recursive: true });
   const { watchOnce } = await import('../src/watch.mjs');
   const { resolvePaths } = await import('../src/paths.mjs');

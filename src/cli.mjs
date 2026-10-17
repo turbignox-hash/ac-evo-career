@@ -29,7 +29,7 @@ import { writeJsonAtomic } from './atomic.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const PROJECT = dirname(HERE);
-const LADDER_FILE = join(PROJECT, 'career.evo.ladder.json');
+const LADDER_FILE = join(PROJECT, 'config', 'career.evo.ladder.json');
 const DATA_DIR = join(PROJECT, 'data');
 // SLOT di carriera (1..3): ACE_SLOT=2 sceglie il secondo salvataggio (o --slot via env).
 // Lo slot risolve QUI (una volta, all'avvio del processo) e vale per tutto il giro.

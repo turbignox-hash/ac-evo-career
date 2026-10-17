@@ -19,7 +19,7 @@ const { runImport, SAVE_FILE } = await import('../src/import.mjs');
 const { createCareer } = await import('../src/state.mjs');
 const { readFileSync: rf } = await import('node:fs');
 
-const ladder = JSON.parse(rf(join(ROOT, 'career.evo.ladder.json'), 'utf8'));
+const ladder = JSON.parse(rf(join(ROOT, 'config', 'career.evo.ladder.json'), 'utf8'));
 
 test("runImport senza persist esplicita salva davvero la carriera (regressione: state passato come percorso)", () => {
   assert.equal(existsSync(SAVE_FILE), false, 'setup: nessuna carriera iniziale');

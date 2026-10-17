@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = dirname(HERE);
-const LADDER = JSON.parse(readFileSync(join(ROOT, 'career.evo.ladder.json'), 'utf8'));
+const LADDER = JSON.parse(readFileSync(join(ROOT, 'config', 'career.evo.ladder.json'), 'utf8'));
 
 const { createCareer, loadState, saveState, nodeById, gateStatus, applyRaceResult } = await import('../src/state.mjs');
 const {

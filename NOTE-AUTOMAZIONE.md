@@ -7,7 +7,7 @@ Obiettivo: preparare la gara personalizzata di EVO da file, come Zero to Apex fa
 ### Il file del weekend si sa scrivere (ma non è letto dove speravamo)
 - `Saved Games\ACE\GameModes\GameModeType_RACE_WEEKEND.gamemodesave` è protobuf, struttura completamente mappata:
   - `.3[i]` = sessioni (1 nome, 2 durata/giri, 4 data-ora, 5 pista: nazione/pista/layout/regione/lunghezza, 7 tipo partenza?, 11 griglia piloti con forza individuale, 30/31 difficoltà/aggressività AI nella prima sessione)
-- Strumenti: `tools/evo-session.mjs` (decodifica/confronto), `tools/evo-write.mjs` (modifica con backup e verifica round-trip byte-identico), `tools/evo-prova-giri.mjs` (esperimento), `prova-giri.cmd` e `annulla-prova.cmd`.
+- Strumenti: `archive/ricerca-automazione/evo-session.mjs` (decodifica/confronto), `archive/ricerca-automazione/evo-write.mjs` (modifica con backup e verifica round-trip byte-identico), `tools/evo-prova-giri.mjs` (esperimento), `prova-giri.cmd` e `annulla-prova.cmd`.
 - Esperimento: giri 10→12, campo A 88→61, campo B 100→48 scritti con successo.
 - **Risultato**: la schermata di configurazione mostra i valori vecchi. Il gioco NON riscrive il file (mtime e contenuto restano nostri; ultimo salvataggio del gioco: 3 giugno). Quindi il file non viene letto all'avvio né usato come sorgente della UI di configurazione: viene letto in un momento non identificato (probabilmente alla conferma della gara o al caricamento di un percorso specifico).
 

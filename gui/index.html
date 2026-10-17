@@ -394,7 +394,6 @@ const ICONS = {
   standings:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5v7M5.8 6.2h4.4M5.8 9.8h4.4" stroke-linecap="round"/></svg>',
   grid:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="2.5" width="5" height="5"/><rect x="8.5" y="2.5" width="5" height="5"/><rect x="2.5" y="8.5" width="5" height="5"/><rect x="8.5" y="8.5" width="5" height="5"/></svg>',
   series:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5 14 5v6l-6 3.5L2 11V5z"/><path d="M8 8 14 5M8 8 2 5M8 8v6.5"/></svg>',
-  paddock:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="2.5"/><path d="M2.5 14a5.5 5.5 0 0 1 11 0"/></svg>',
   stats:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.5V8l2.6 2" stroke-linecap="round"/></svg>',
   banca:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6.5 8 3l6 3.5"/><path d="M3.5 6.5V12M6.5 6.5V12M9.5 6.5V12M12.5 6.5V12"/><path d="M2 13.5h12"/></svg>',
   import:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3" stroke-linecap="round"/><path d="M2 12v1.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V12"/></svg>',
@@ -438,19 +437,16 @@ const flagOf = (c) => COUNTRY_FLAG[c] ?? '🏁';
 const CFLAG = '<svg viewBox="0 0 16 16" style="width:14px;height:14px;vertical-align:-2px" fill="none" aria-hidden="true"><path d="M2.5 1.5h11v13h-11z"/><path d="M2.5 1.5h3.67v3.6H2.5zM9.83 5.1h3.67v3.6H9.83zM6.17 8.7h3.66v3.6H6.17z" fill="currentColor" stroke="none"/></svg>';
 const TABS = [
   ['dashboard','Cruscotto'], ['agenda','Agenda'], ['messages','Messaggi'], ['championships','Campionati'], ['standings','Mondiale'],
-  ['rivals','Rivali'], ['tracks','Piste'], ['cars','Auto'], ['garage','Garage'], ['paddock','Paddock'], ['import','Risultati'],
+  ['rivals','Rivali'], ['tracks','Piste'], ['cars','Auto'], ['garage','Garage'], ['import','Risultati'],
   ['setup','Setup'],
   ['archive','Archivio'], ['stats','Statistiche'],
   ['banca','Banca'],
   ['gazzetta','Gazzetta'], ['difficulty','Difficoltà'], ['settings','Impostazioni'],
 ];
-// "Serie" nascosta su richiesta: i contratti si firmano solo dall'Agenda, il giorno
-// delle gare. Riappare col flag in Impostazioni (torna utile in un secondo tempo).
-const TABS_NASCOSTI = ['series', 'paddock']; // Paddock nascosto su richiesta di Mauro: riapparisce togliendolo da qui (nessun codice rimosso)
 /* un colore per ogni sezione: le icone della nav restano riconoscibili a colpo d'occhio */
 const TAB_COLORS = {
   dashboard:'#5da9ff', agenda:'#ff7a45', calendar:'#b48cff', standings:'#ffd166', rivals:'#ff6b6b',
-  series:'#2ed3a5', tracks:'#e8c46b', cars:'#74c0fc', garage:'#ffd43b', paddock:'#f4a261', import:'#63e6e2',
+  tracks:'#e8c46b', cars:'#74c0fc', garage:'#ffd43b', import:'#63e6e2',
   setup:'#f78fb3', catalog:'#82ccdd', archive:'#c9a0ff', stats:'#69db7c',
   gazzetta:'#dfe4ea', difficulty:'#5f7cff', messages:'#ffa94d', settings:'#adb5bd', banca:'#ffd43b',
 };
@@ -458,7 +454,7 @@ let tab = 'dashboard';
 function drawNav(){
   const offers = boot?.header?.offers?.length || 0;
   const urgent = boot?.mailUrgent || 0;
-  $('#nav').innerHTML = TABS.filter(([id]) => !TABS_NASCOSTI.includes(id)).map(([id,label]) =>
+  $('#nav').innerHTML = TABS.map(([id,label]) =>
     `<button data-tab="${id}" class="${tab===id?'on':''}">${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${urgent} email urgenti: gare da disputare o conflitti">⚠️${urgent}</span>`:''}</button>`).join('');
   $$('#nav button').forEach(b => b.onclick = () => { tab = b.dataset.tab; drawNav(); render(); });
 }
@@ -477,11 +473,9 @@ async function render(){
     if (tab==='championships') return await drawChampionships(m);
     if (tab==='calendar')   return await drawCalendar(m);
     if (tab==='standings')  return await drawWorldRanking(m);
-    if (tab==='series')     return await drawSeries(m);
     if (tab==='tracks')     return await drawTracks(m);
     if (tab==='cars')       return await drawCars(m);
     if (tab==='garage')     return await drawGarage(m);
-    if (tab==='paddock')    return await drawPaddock(m);
     if (tab==='catalog')    return await drawArchive(m);
     if (tab==='archive')    return await drawArchive(m);
     if (tab==='stats')      return await drawStats(m);
@@ -619,7 +613,6 @@ async function drawDashboard(m){
         <h2>${LI.gauge} Strumenti rapidi</h2>
         <div class="grid2">
           <button class="qtile" id="b-review">${LI.book}<span><b>Rassegna di fine stagione</b><small>il bilancio completo dell'anno</small></span></button>
-          <button class="qtile" id="b-gazzetta">${LI.news}<span><b>Gazzetta del paddock</b><small>la stampa racconta le tue gare</small></span></button>
         <!-- Pianificatore di carriera nascosto per scelta di Mauro (riattivabile togliendo questo commento): -->
           <button class="qtile" id="b-integrity-quick">${LI.shield}<span><b>Verifica integrità</b><small>controllo di coerenza della carriera</small></span></button>
         </div>
@@ -633,8 +626,6 @@ async function drawDashboard(m){
   drawEventsPanel();
   $('#b-review').onclick = () => showReview();
   $('#b-gazzetta').onclick = () => showGazzetta();
-  // Pianificatore nascosto: riattiva anche la riga del bottone (b-piano) qui sopra
-  // $('#b-piano').onclick = () => showPlanner();
   $('#b-integrity-quick').onclick = async () => {
     try {
       const r = await api('integrity');
@@ -795,30 +786,6 @@ async function showGazzetta(){
       [['Chiudi','ghost',()=>{}]]);
   } catch(e){ toast(e.message, 'err'); }
 }
-
-async function showPlanner(){
-  try {
-    const p = await api('planner');
-    const rowHtml = (r) => `<tr class="${r.current?'cur':''}">
-      <td>${esc(r.display)}${r.current?' <span class="tag gold">attuale</span>':''}</td>
-      <td class="faint">L${r.level}</td>
-      <td class="right">${money(r.rent)} €</td>
-      <td class="right">${money(r.prize)} €</td>
-      <td>${r.open ? (r.moneyOk?'<span class="tag green">firma</span>':'<span class="tag bad">servono soldi</span>') : `<span class="muted" style="font-size:12px">${esc(r.blockers.join('; '))}</span>`}</td>
-      <td>${(!r.current && r.open && r.moneyOk) ? `<button class="mini" data-pl="${esc(r.nodeId)}" data-name="${esc(r.display)}">firma</button>` : ''}</td></tr>`;
-    modal('🎯 Pianificatore di carriera', `
-      <div class="muted" style="margin-bottom:10px">Banca ${money(p.money)} € · rep ${p.rep} · le serie aperte o quasi per la stagione ${p.season + 1}</div>
-      <div style="max-height:52vh;overflow:auto"><table><thead><tr><th>Serie</th><th>Liv.</th><th class="right">Affitto</th><th class="right">Premio</th><th>Stato</th><th></th></tr></thead>
-      <tbody>${p.rows.filter(r=>r.open||r.blockers.length).map(rowHtml).join('')}</tbody></table></div>`,
-      [['Chiudi','ghost',()=>{}]]);
-    $$('button[data-pl]').forEach(b => b.onclick = () => {
-      $('#modal-root').innerHTML='';
-      const row = p.rows.find(x => x.nodeId === b.dataset.pl);
-      enterFlow(b.dataset.pl, b.dataset.name, { rent: row?.rent ?? 0, buy: row?.buy ?? 0, access: row?.access });
-    });
-  } catch(e){ toast(e.message, 'err'); }
-}
-
 function msgRow(m){
   return `<div class="msg ${esc(m.kind||'')}"><span class="d">${esc((m.at||'').slice(0,10))}</span><span class="t">${esc(m.text)}</span></div>`;
 }
@@ -1265,38 +1232,6 @@ async function drawWorldRanking(m){
   </table></div>`;
 }
 
-/* -------- serie -------- */
-async function drawSeries(m){
-  const s = await api('series');
-  m.innerHTML = s.disciplines.map(d=>`
-    <div class="panel"><h2>${esc(d.name)}</h2>
-    <div class="muted" style="margin:-6px 0 10px">${esc(d.description)}</div>
-    <table><thead><tr><th>Liv.</th><th>Serie</th><th>Stato</th><th class="right">Griglia</th><th class="right">Premio</th><th>Rep richiesta</th><th></th></tr></thead>
-    <tbody>${d.nodes.map(n=>{
-      const champ=(n.champSeasons??[]).length;
-      const stato = n.current ? '<span class="tag gold">🏠 attuale</span>'
-        : champ ? `<span class="tag gold" title="Campione: stagioni ${n.champSeasons.join(', ')}">🏆 ×${champ}</span>`
-        : n.done ? `<span class="tag green" title="Miglior risultato: P${n.bestFinish}">🏁 P${n.bestFinish}</span>`
-        : n.open ? '' : `<span title="${esc((n.reasons??[]).join(' · '))}">🔒</span>`;
-      const repOk = n.rep>=(n.repRequired??0);
-      return `<tr class="${n.current?'cur':''}" data-serie="${esc(n.id)}" style="cursor:pointer" title="clicca per i dettagli">
-      <td class="faint">L${n.level}</td><td>${esc(n.display)}</td>
-      <td>${stato}</td>
-      <td class="right">${n.gridSize}</td><td class="right">${money(n.econ.prize)} €</td>
-      <td class="muted">${n.repRequired?`<span style="color:${repOk?'var(--ok,#7bd88f)':'var(--bad,#e05d5d)'}">${n.repRequired}</span> <span class="faint" style="font-size:10px">(hai ${n.rep})</span>`:'—'}</td>
-      <td>${(!n.current && (n.open||n.rep>=n.repRequired)) ? `<button class="mini" data-enter="${esc(n.id)}" data-name="${esc(n.display)}">firma</button>` : ''}</td></tr>`;}).join('')}</tbody>
-    </table></div>`).join('');
-  $$('button[data-enter]').forEach(b => b.onclick = (e) => { e.stopPropagation();
-    const node = s.disciplines.flatMap(x => x.nodes).find(n => n.id === b.dataset.enter);
-    enterFlow(b.dataset.enter, b.dataset.name, { ...node?.econ, access: node?.access });
-  });
-  $$('tr[data-serie]').forEach(tr => tr.onclick = (e) => {
-    if (e.target.closest('button')) return;
-    const n = s.disciplines.flatMap(x => x.nodes).find(x => x.id === tr.dataset.serie);
-    if (n) serieDetail(n);
-  });
-}
-
 function serieDetail(n){
   const wxName = (w) => ({'Clear':'sereno','Scattered clouds':'nuvole sparse','Overcast':'coperto','Light rain':'pioggia leggera','Rain':'pioggia','Heavy rain':'pioggia forte'}[w] ?? w ?? '—');
   const repOk = n.rep>=(n.repRequired??0);
@@ -1362,24 +1297,6 @@ async function enterFlow(nodeId, name, econ){
       try { const r = await api('enter', {nodeId}); toast('Contratto firmato: ' + r.header.node.display, 'ok'); await refreshBoot(); render(); }
       catch(e){ toast(e.message,'err'); return false; }
     }]]);
-}
-
-/* -------- paddock -------- */
-async function drawPaddock(m){
-  const p = await api('paddock');
-  // ordine di forza (i più forti in cima, come ovunque): gridFor dà il sedile 0 al più forte
-  const rows = [...p.rows].sort((a,b)=>b.band-a.band || b.slider-a.slider);
-  const rowHtml = (r)=>`<tr class="${r.me?'me':''}"><td>${esc(r.name)}${r.iconic?' <span class="tag blue">icona</span>':''}${r.hot?' <span class="tag green">in forma</span>':''}</td><td class="faint">${esc(r.country)}</td><td class="right">${r.age}</td><td>${esc(r.archetype)}</td><td class="right">${r.band}</td><td class="right">${r.slider}%</td></tr>`;
-  m.innerHTML = `<div class="panel"><h2>Paddock — la griglia di ${esc(p.node)} 
-    <span class="h-act">${rows.length} rivali su ${p.total} piloti del mondo</span></h2>
-    <div class="muted" style="margin:-6px 0 10px">Chi corre QUESTA serie questa stagione: i sedili vanno dal più forte (banda ${rows[0]?.band ?? '—'}, in cima) al più lento (banda ${rows[rows.length-1]?.band ?? '—'}). La classifica di tutto il mondo è in Mondiale; qui vedi solo chi ti sfida ogni gara.</div>
-  <table><thead><tr><th>Rivale</th><th></th><th class="right">Età</th><th>Archetipo</th><th class="right">Banda</th><th class="right">Slider</th></tr></thead>
-  <tbody id="p-body">${rows.map(rowHtml).join('')}</tbody></table>
-  <div class="row spread" style="margin-top:12px">
-    <span class="muted">Parco piloti totale: ${p.total} (${p.active} attivi) · archetipi: ${esc(p.archetypes.join(', '))}</span>
-    <button class="ghost" id="b-all">Mostra tutta la finestra</button>
-  </div></div>`;
-  $('#b-all').onclick = async () => { const full = await api('paddock', {all:true}); const fr=[...full.rows].sort((a,b)=>b.band-a.band||b.slider-a.slider); $('#p-body').innerHTML = fr.map(rowHtml).join(''); $('#b-all').remove(); };
 }
 
 /* -------- archivio risultati -------- */

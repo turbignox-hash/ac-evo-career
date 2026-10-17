@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PROJECT = dirname(dirname(fileURLToPath(import.meta.url)));
-const LADDER = join(PROJECT, 'career.evo.ladder.json');
+const LADDER = join(PROJECT, 'config', 'career.evo.ladder.json');
 const DEMO = join(PROJECT, 'demo', 'ace');
 
 const ladder = JSON.parse((await import('node:fs')).readFileSync(LADDER, 'utf8'));

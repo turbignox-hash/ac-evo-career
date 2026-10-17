@@ -107,7 +107,7 @@ node ac-evo-career.mjs status
 Si può cominciare anche direttamente dall'interfaccia grafica: apre sul modulo di
 iscrizione dove scrivi il nome pilota (uguale a quello usato in EVO) e la nazione.
 
-Si entra da una serie di livello 1 con 18.000 in tasca. La disciplina d'ingresso si sceglie con
+Si entra da una serie di livello 1 con 6.000 in tasca. La disciplina d'ingresso si sceglie con
 `--discipline entry|touring|single|gt|endurance|strada`, altrimenti si comincia da Coppa Città.
 
 ```bash
@@ -125,7 +125,7 @@ davanti al nome). Il nome che EVO usa per te si legge in `Logs\log-*.txt` alla r
 
 ## La carriera: come è fatta
 
-**29 serie, 6 discipline, 7 livelli, 4 tier** — non una linea retta, ma un albero che si attraversa
+**79 serie, 6 discipline, 7 livelli, 4 tier** — non una linea retta, ma un albero che si attraversa
 con le offerte di sedile.
 
 | Tier | Livelli | Cosa si guida |
@@ -239,8 +239,8 @@ sostituire è `src/race.mjs`.
 
 ## Personalizzare la scala
 
-Tutto è in `career.evo.ladder.json`: discipline, livelli, gate, economia, sistemi punti, profili di
-sessione, pool dei nomi e le 29 serie. Auto e piste si indicano con l'ID della cartella dentro
+Tutto è in `config/career.evo.ladder.json`: discipline, livelli, gate, economia, sistemi punti, profili di
+sessione, pool dei nomi e le 79 serie. Auto e piste si indicano con l'ID della cartella dentro
 `content\cars` e `content\tracks` (per capirci: `ks_ferrari_296_gt3`, `imola`), e i nomi che vedi
 nel menu stanno in `contentNames`.
 
@@ -304,7 +304,7 @@ stesse viste della CLI, stesso file di salvataggio `data/evo-career.save.json`. 
 
 ```
 ac-evo-career.mjs                      entry point
-career.evo.ladder.json                 la scala: discipline, livelli, gate, economia, punti, serie
+config/career.evo.ladder.json         la scala: discipline, livelli, gate, economia, punti, serie
 src/paths.mjs                          rilevamento cartelle dati, eseguibile e lancio del gioco
 src/content.mjs                        catalogo contenuto, verifica ID, suggerimenti
 src/world.mjs                          piloti rivali, banda di serie, simulazione, evoluzione

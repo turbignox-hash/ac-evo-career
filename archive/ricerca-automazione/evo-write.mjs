@@ -5,14 +5,14 @@
 // preservando la struttura e tutto ciò che non viene toccato. Ogni scrittura crea prima
 // un backup accanto al file originale.
 //
-//   node tools/evo-write.mjs targets
-//   node tools/evo-write.mjs dump "<file>" [--path .3[4]]
-//   node tools/evo-write.mjs verify "<file>"
-//   node tools/evo-write.mjs set "<file>" --path .3[4].2 --int 12
-//   node tools/evo-write.mjs set "<file>" --path .3[1].5.2 --string Imola
-//   node tools/evo-write.mjs set "<file>" --path .3[4].11[0].4 --float 0.93
-//   node tools/evo-write.mjs backups "<file>"
-//   node tools/evo-write.mjs restore "<file>" [--from "<backup>"]
+//   node archive/ricerca-automazione/evo-write.mjs targets
+//   node archive/ricerca-automazione/evo-write.mjs dump "<file>" [--path .3[4]]
+//   node archive/ricerca-automazione/evo-write.mjs verify "<file>"
+//   node archive/ricerca-automazione/evo-write.mjs set "<file>" --path .3[4].2 --int 12
+//   node archive/ricerca-automazione/evo-write.mjs set "<file>" --path .3[1].5.2 --string Imola
+//   node archive/ricerca-automazione/evo-write.mjs set "<file>" --path .3[4].11[0].4 --float 0.93
+//   node archive/ricerca-automazione/evo-write.mjs backups "<file>"
+//   node archive/ricerca-automazione/evo-write.mjs restore "<file>" [--from "<backup>"]
 
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, basename } from 'node:path';
@@ -144,12 +144,12 @@ try {
   else if (command === 'restore') restore(file, arg('from'));
   else {
     console.log('Uso:');
-    console.log('  node tools/evo-write.mjs targets');
-    console.log('  node tools/evo-write.mjs dump "<file>" [--path .3[4]]');
-    console.log('  node tools/evo-write.mjs verify "<file>"');
-    console.log('  node tools/evo-write.mjs set "<file>" --path .3[4].2 --int 12');
-    console.log('  node tools/evo-write.mjs backups "<file>"');
-    console.log('  node tools/evo-write.mjs restore "<file>"');
+    console.log('  node archive/ricerca-automazione/evo-write.mjs targets');
+    console.log('  node archive/ricerca-automazione/evo-write.mjs dump "<file>" [--path .3[4]]');
+    console.log('  node archive/ricerca-automazione/evo-write.mjs verify "<file>"');
+    console.log('  node archive/ricerca-automazione/evo-write.mjs set "<file>" --path .3[4].2 --int 12');
+    console.log('  node archive/ricerca-automazione/evo-write.mjs backups "<file>"');
+    console.log('  node archive/ricerca-automazione/evo-write.mjs restore "<file>"');
   }
 } catch (e) {
   console.error(`Errore: ${e.message}`);

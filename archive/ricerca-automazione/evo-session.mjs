@@ -4,11 +4,11 @@
 // Serve a imparare il formato con cui il gioco salva una gara, confrontando lo stato
 // "prima" e "dopo" una configurazione fatta a mano nell'interfaccia:
 //
-//   node tools/evo-session.mjs snapshot --label prima
+//   node archive/ricerca-automazione/evo-session.mjs snapshot --label prima
 //   ... configuri la gara in EVO ...
-//   node tools/evo-session.mjs snapshot --label dopo
-//   node tools/evo-session.mjs diff prima dopo
-//   node tools/evo-session.mjs dump <file>        (per vedere l'albero di un file)
+//   node archive/ricerca-automazione/evo-session.mjs snapshot --label dopo
+//   node archive/ricerca-automazione/evo-session.mjs diff prima dopo
+//   node archive/ricerca-automazione/evo-session.mjs dump <file>        (per vedere l'albero di un file)
 //
 // I file sono protobuf binari (le stesse strutture che il gioco scrive accanto ai .json):
 // qui vengono decodificati in un albero di campi, così le differenze si leggono.
@@ -393,10 +393,10 @@ try {
     dump(rest[0]);
   } else {
     console.log('Uso:');
-    console.log('  node tools/evo-session.mjs snapshot --label prima');
-    console.log('  node tools/evo-session.mjs snapshot --label dopo');
-    console.log('  node tools/evo-session.mjs diff prima dopo');
-    console.log('  node tools/evo-session.mjs dump <file>');
+    console.log('  node archive/ricerca-automazione/evo-session.mjs snapshot --label prima');
+    console.log('  node archive/ricerca-automazione/evo-session.mjs snapshot --label dopo');
+    console.log('  node archive/ricerca-automazione/evo-session.mjs diff prima dopo');
+    console.log('  node archive/ricerca-automazione/evo-session.mjs dump <file>');
   }
 } catch (e) {
   console.error(`Errore: ${e.message}`);

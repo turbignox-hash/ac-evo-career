@@ -159,7 +159,7 @@ export function loadState(file) {
   // migrazione carriere pre-agenda: la serie in corso diventa la prima iscrizione,
   // cosi' il calendario a giorni comincia subito con quel campionato (niente signup admin)
   if (parsed.node && !Object.keys(parsed.seats).length) {
-    const oldLadder = (() => { try { return JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'career.evo.ladder.json'), 'utf8')); } catch { return null; } })();
+    const oldLadder = (() => { try { return JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'config', 'career.evo.ladder.json'), 'utf8')); } catch { return null; } })();
     const oldNode = oldLadder?.nodes?.find((n) => n.nodeId === parsed.node);
     let seatSeason = Number(parsed.season) || 1;
     if (oldNode) {
