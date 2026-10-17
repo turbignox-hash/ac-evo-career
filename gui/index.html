@@ -326,6 +326,7 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
         </div>
       </div>
       <div class="hstats hidden" id="hstats">
+        <div class="hstat"><span class="l">Data</span><span class="v" id="t-date" title="la data di gioco della carriera (calendario continuo: avanza a ogni gara)">–</span></div>
         <div class="hstat"><span class="l">Banca</span><span class="v money" id="t-money">–</span></div>
         <div class="hstat"><span class="l">Reputazione</span><span class="v rep" id="t-rep">–</span></div>
         <div class="hstat" id="hstat-heritage" style="display:none"><span class="l">Eredità</span><span class="v" id="t-heritage" title="capitoli di famiglia completati">–</span></div>
@@ -493,6 +494,7 @@ function paintHeader(h){
   $('#t-sub').textContent = `${h.nation ?? ''} · ${h.sponsor ?? 'pilota privato'} · ${h.node.display}`;
   $('#t-money').textContent = money(h.money) + ' €';
   $('#t-rep').textContent = String(h.rep);
+  $('#t-date').textContent = h.todayLabel ?? ('giorno ' + (h.day ?? 1));
   $('#t-season').textContent = `S${h.season} · R${h.round}/${h.rounds}`;
   if (h.heritage) {
     $('#hstat-heritage').style.display = '';

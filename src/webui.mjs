@@ -203,6 +203,7 @@ function viewHeader(ladder, state) {
     rounds: node.calendar.length,
     season: state.season,
     day: agendaDay(state),
+    todayLabel: dateLabel(agendaDay(state)),
     titles: state.titles ?? [],
     pending: state.pending ?? null,
     difficultyMode: state.difficulty?.mode ?? 'adaptive',
@@ -744,7 +745,7 @@ async function api(context0, req, res, action, body) {
     }
     case 'championships': {
       // una sezione per ogni campionato ISCRITTO: calendario della stagione in
-      // corso + classifica reale (solo rondé trascorse) + i tuoi risultati
+      // corso + classifica reale (solo ronde trascorse) + i tuoi risultati
       const out = [];
       for (const nodeId of Object.keys(state.seats ?? {})) {
         let node;
@@ -837,17 +838,17 @@ async function api(context0, req, res, action, body) {
           current: i === g.index,
         })),
         // "started" per le serie NON iscritte va derivato dal ROUND del ciclo:
-        // i rivali hanno già corso le rondé prima dell'indice del giorno. I risultati
+        // i rivali hanno già corso le ronde prima dell'indice del giorno. I risultati
         // del giocatore non esistono (non è iscritto) e non possono decidere questo.
         started: hasSeat(state, node.nodeId) ? started : g.index > 0,
         standings,
-        // entri a stagione avviata? La R1 (o le rondé prima della corrente) sono
+        // entri a stagione avviata? La R1 (o le ronde prima della corrente) sono
         // già scappate: se firmi ora quei punti valgono 0. Meglio le fasi R1.
         joinLate: hasSeat(state, node.nodeId) ? false : g.index > 0,
         joinNote: hasSeat(state, node.nodeId)
           ? (started ? `La tua stagione è in corso: hai ${results.length} gare all'attivo.` : null)
           : g.index > 0
-            ? `La stagione è già partita: ${g.index} rond${g.index === 1 ? 'e' : 'i'} scappate. Se firmi ora entri da questo round e quelle rondé valgono 0 punti per te. Meglio un campionato ALLA PARTENZA: guarda le fasi R1.`
+            ? `La stagione è già partita: ${g.index} ronda${g.index === 1 ? '' : 'e'} scappata${g.index === 1 ? '' : 'e'}. Se firmi ora entri da questo round e quelle ronde valgono 0 punti per te. Meglio un campionato ALLA PARTENZA: guarda le fasi R1.`
             : 'R1: e questo campionato parte alla pari il giorno scelto — puoi firmare e correre la prima gara insieme a tutti.',
         mine: mieGare,
       });

@@ -187,7 +187,7 @@ export function racesOnDay(ladder, state, d) {
     // PROCEDURA A CICLO: la R1 della serie ricorre ogni len·cadenza giorni,
     // con sfasamento deterministico fra le serie: con decine di serie in scala,
     // ogni giorno c'è almeno 1-2 campionati ALLA PARTENZA (R1) a cui entrare alla pari;
-    // le rondé successive (R2, R3…) coprono il resto della giornata.
+    // le ronde successive (R2, R3…) coprono il resto della giornata.
     const cycle = len * cadenza;
     const seriesCounter = ladder.nodes.findIndex((n) => n.nodeId === node.nodeId) + 1;
     const r1Day = ((seriesCounter * 713) % cycle) + 1;      // giorno del PROSSIMO/ATTUALE R1

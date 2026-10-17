@@ -246,8 +246,8 @@ export function standingsFor(ladder, state, node, season = state.season) {
   const mine = (state.results[node.nodeId] ?? []).filter((r) => r.season === season);
   const roundsPlayed = new Set(mine.map((r) => r.round));
 
-  // la classifica conta solo le rondé GIÀ CORSE nel calendario a giorni:
-  // una ronda a settimana dall'ancoraggio del sedile. Le rondé SALTATE (settimane
+  // la classifica conta solo le ronde GIÀ CORSE nel calendario a giorni:
+  // una ronda a settimana dall'ancoraggio del sedile. Le ronde SALTATE (settimane
   // passate senza risultato tuo) restano contate per i rivali — tu prendi 0.
   // Niente più stagioni simulate al punto di 158 pt dopo una gara sola.
   const totalRounds = node.calendar.length;
