@@ -1357,15 +1357,19 @@ async function enterFlow(nodeId, name, econ){
 /* -------- paddock -------- */
 async function drawPaddock(m){
   const p = await api('paddock');
-  const rowHtml = (r)=>`<tr><td>${esc(r.name)}${r.iconic?' <span class="tag blue">icona</span>':''}${r.hot?' <span class="tag green">in forma</span>':''}</td><td class="faint">${esc(r.country)}</td><td class="right">${r.age}</td><td>${esc(r.archetype)}</td><td class="right">${r.band}</td><td class="right">${r.slider}%</td></tr>`;
-  m.innerHTML = `<div class="panel"><h2>Paddock <span class="h-act">${esc(p.node)} · ${p.rows.length} di ${p.total} piloti</span></h2>
-  <table><thead><tr><th>Pilota</th><th></th><th class="right">Età</th><th>Archetipo</th><th class="right">Banda</th><th class="right">Slider</th></tr></thead>
-  <tbody id="p-body">${p.rows.map(rowHtml).join('')}</tbody></table>
+  // ordine di forza (i più forti in cima, come ovunque): gridFor dà il sedile 0 al più forte
+  const rows = [...p.rows].sort((a,b)=>b.band-a.band || b.slider-a.slider);
+  const rowHtml = (r)=>`<tr class="${r.me?'me':''}"><td>${esc(r.name)}${r.iconic?' <span class="tag blue">icona</span>':''}${r.hot?' <span class="tag green">in forma</span>':''}</td><td class="faint">${esc(r.country)}</td><td class="right">${r.age}</td><td>${esc(r.archetype)}</td><td class="right">${r.band}</td><td class="right">${r.slider}%</td></tr>`;
+  m.innerHTML = `<div class="panel"><h2>Paddock — la griglia di ${esc(p.node)} 
+    <span class="h-act">${rows.length} rivali su ${p.total} piloti del mondo</span></h2>
+    <div class="muted" style="margin:-6px 0 10px">Chi corre QUESTA serie questa stagione: i sedili vanno dal più forte (banda ${rows[0]?.band ?? '—'}, in cima) al più lento (banda ${rows[rows.length-1]?.band ?? '—'}). La classifica di tutto il mondo è in Mondiale; qui vedi solo chi ti sfida ogni gara.</div>
+  <table><thead><tr><th>Rivale</th><th></th><th class="right">Età</th><th>Archetipo</th><th class="right">Banda</th><th class="right">Slider</th></tr></thead>
+  <tbody id="p-body">${rows.map(rowHtml).join('')}</tbody></table>
   <div class="row spread" style="margin-top:12px">
-    <span class="muted">Parco piloti: ${p.total} (${p.active} attivi) · archetipi: ${esc(p.archetypes.join(', '))}</span>
-    <button class="ghost" id="b-all">Mostra tutti</button>
+    <span class="muted">Parco piloti totale: ${p.total} (${p.active} attivi) · archetipi: ${esc(p.archetypes.join(', '))}</span>
+    <button class="ghost" id="b-all">Mostra tutta la finestra</button>
   </div></div>`;
-  $('#b-all').onclick = async () => { const full = await api('paddock', {all:true}); $('#p-body').innerHTML = full.rows.map(rowHtml).join(''); $('#b-all').remove(); };
+  $('#b-all').onclick = async () => { const full = await api('paddock', {all:true}); const fr=[...full.rows].sort((a,b)=>b.band-a.band||b.slider-a.slider); $('#p-body').innerHTML = fr.map(rowHtml).join(''); $('#b-all').remove(); };
 }
 
 /* -------- archivio risultati -------- */
