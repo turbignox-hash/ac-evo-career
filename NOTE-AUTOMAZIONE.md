@@ -44,3 +44,31 @@ L'automazione della configurazione gara su EVO 0.9 **non è possibile** su nessu
 3. server dedicato: configurabile via file, ma senza AI → griglia vuota, inutile per la carriera.
 
 Quand'anche Kunos esponesse l'AI nel server (o file di sessione offline), l'infrastruttura di scrittura è già pronta in `tools/` e la carriera può adottarla in poche ore.
+
+## GARE PERSONALIZZATE: la griglia SI comanda da file (18 ottobre 2026, CONFERMATO)
+
+### Il file della griglia personalizzata
+- `Saved Games\ACE\GameModes\last_grid.customgrid` = protobuf, mappato e VERIFICATO:
+  - campo 1 (ripetuto) = celle auto (3 id, 4 nome, 6 anno, 9 marca, 10 preset meccanico, 11 visual, 14 livree)
+  - campo 2 (ripetuto) = piloti AI: 1 nome, 2 cognome, 3 bandiera, 4 abilità (float 0–1), 5 nazione, 6 sesso, 8 età
+  - campo 3 = setup: 1 n.celle, 5 filtri veicolo (byte pack), 20 atteggiamento, 21/22 abilità min/max %, **23/24 = FINESTRA PI (float LE)**
+  - campo 4 = meteo
+- Strumento: `tools/evo-grid.mjs` (dump / --verify round-trip byte-identico / --pi lo hi con backup)
+  + `tools/watch-grid.mjs` (watchdog mtime/size/hash → data/grid-watch.log).
+
+### Comportamento verificato in gioco (test dal vivo con Mauro)
+1. Menu griglia aperto: il gioco NON rilegge il file a runtime (PI 15–17 in UI mentre il file diceva 16.5–17.5).
+2. "GENERA GRIGLIA" RISCRIVE il file (watch: hash + size cambiati) col range in memoria della UI.
+3. RIPRESA del menu (gioco riavviato): la UI si RIPOPPOA DAL FILE — i 15 piloti "Buffy Gridtest1..15"
+   scritti fuori dal gioco compaiono nel menu. **ALLOCHE IL FILE È COMANDATO a gioco CHIUSO.**
+4. Round-trip byte-identico anche sul file riscritto dal gioco: encoder conforme.
+
+### Conseguenza: automazione multi-marca VIABILE
+Le gare personalizzate dell'agenda carriera possono essere preparate fuori dal gioco:
+- prendo la finestra PI della serie dal ladder;
+- scelgo le auto varianti reali che cadono nel range (da cars.json del server dedicato: 9 varianti / 6 modelli nel 16.0–17.0);
+- genero celle + piloti (roster carriera: abilità float, età, nazione) e scrivo il file
+  **con EVO CHIUSO**;
+- Mauro avvia EVO, apre la gara personalizzata: trova griglia, auto e piloti già pronti.
+Caveat: dopo ogni "GENERA" dal menu il file torna scritto dal gioco — la scrittura nostra
+deve avvenire SEMPRE a gioco chiuso e va ri-applicata se il menu rigenera.
