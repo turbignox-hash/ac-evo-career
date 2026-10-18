@@ -180,7 +180,21 @@ async function drawChampionships(m){
     m.innerHTML = '<div class="panel"><h2>Campionati</h2><div class="empty">Nessun campionato iscritto: firma un sedile dall\'Agenda quando la giornata ti offre una serie adatta.</div></div>';
     return;
   }
-  m.innerHTML = v.championships.map((c) => {
+  // BADGE cliccabili in alto: ogni campionato in corso con auto, pista e prossimo
+  // round. Un click porta direttamente alla scheda del campionato, senza sfogliare
+  // tutta la pagina quando i campionati sono tanti.
+  const badges = v.championships.map((c) => {
+    const nxt = c.nextRound ? `R${c.nextRound.index + 1} · ${c.nextRound.track}` : 'calendario finito';
+    const played = c.calendar.filter(r=>r.played).length;
+    return `<button class="champ-badge ${c.isCurrent ? 'cur' : ''}" data-node="${esc(c.nodeId)}" title="${esc(c.display)} · L${c.level} ${esc(c.discipline)} — clicca per aprire la scheda completa">
+      <b>${esc(c.display)}</b>
+      <span class="muted" style="font-size:11px">${nxt} · ${played}/${c.calendar.length} gare</span>
+      <span class="muted" style="font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${(c.cars ?? []).map(esc).join(' · ')}</span>
+      ${c.isCurrent ? '<span class="tag gold" style="font-size:9px;padding:0 5px">attiva</span>' : ''}
+    </button>`;
+  }).join('');
+  m.innerHTML = `<div class="panel" style="padding:10px 14px"><div style="display:flex;gap:8px;flex-wrap:wrap">${badges}</div></div>`
+    + v.championships.map((c) => {
     const rounds = c.calendar.map((r) => {
       const mark = r.played ? '✓' : r.current ? '►' : '';
       return `<div style="display:flex;gap:8px;align-items:baseline;padding:1px 0">
@@ -199,7 +213,7 @@ async function drawChampionships(m){
         <tbody>${c.standings.map(r=>`<tr class="${r.isPlayer?'me':''}"><td class="faint">P${r.position}</td><td>${esc(r.name)}${r.isPlayer?' <span class="tag gold">tu</span>':''}</td><td class="right">${r.points}</td></tr>`).join('')}</tbody></table>`
       : '<div class="empty">Classifica non disponibile.</div>';
     const dayNum = c.seatDay ? Math.ceil(1 + (c.calendar.length - 1) * 0) : null; // niente calcolo qui
-    return `<div class="panel">
+    return `<div class="panel" id="champ-${esc(c.nodeId)}">
       <h2>${esc(c.display)} <span class="h-act">stagione ${c.season}${c.isCurrent?' · <span class="tag gold">serie attuale</span>':''}</span></h2>
       <div class="muted" style="margin:-4px 0 8px">L${c.level} · ${esc(c.discipline)} · una gara a settimana</div>
       <div class="grid2">
@@ -215,6 +229,11 @@ async function drawChampionships(m){
       </div>
     </div>`;
   }).join('');
+  // un click su un badge = scroll fluido alla sezione del campionato
+  $$('.champ-badge').forEach(b => b.onclick = () => {
+    const sec = $(`#champ-${CSS.escape(b.dataset.node)}`);
+    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 
 /* -------- classifica MONDIALE per prestigio -------- */
@@ -222,13 +241,32 @@ async function drawWorldRanking(m){
   const w = await api('world-ranking');
   m.innerHTML = `<div class="panel">
   <h2>Classifica Mondiale — prestigio <span class="h-act">${w.total} piloti · tu sei P${w.myPosition}</span></h2>
-  <div class="muted" style="margin:-6px 0 10px">I più forti del mondo (le monoposto il vertice): skill innata di ogni pilota. La tua stima cresce passando a serie di livello più alto.</div>
-  <table><thead><tr><th></th><th>Pilota</th><th></th><th class="right">Skill</th><th class="right">Età</th><th>Forma</th></tr></thead>
-  <tbody>${w.rows.map(r=>`<tr class="${r.isPlayer?'me':''}">
-    <td class="muted">P${r.position}</td><td>${esc(r.name)}${r.isPlayer?' <span class="tag gold">tu</span>':''}</td>
+  <div class="muted" style="margin:-6px 0 10px">I più forti del mondo (le monoposto il vertice): skill innata di ogni pilota. La tua stima cresce passando a serie di livello più alto. <b>Clicca un pilota per la scheda completa.</b></div>
+  <table><thead><tr><th></th><th>Pilota</th><th></th><th class="right">Skill</th><th class="right">Età</th><th>Profilo</th><th></th></tr></thead>
+  <tbody>${w.rows.map(r=>`<tr class="${r.isPlayer?'me':''} wr-row" data-k="${esc(String(r.name))}" style="${r.isPlayer?'':'cursor:pointer'}">
+    <td class="muted">P${r.position}</td><td>${esc(r.name)}${r.isPlayer?' <span class="tag gold">tu</span>':''}${r.iconic?' <span title="fice tra i più forti in circolazione">⭐</span>':''}${r.hot?' 🔥':''}</td>
     <td class="faint">${esc(r.country)}</td><td class="right">${r.skill}</td><td class="right">${r.age??'—'}</td>
-    <td>${r.form?'<span class="tag blue">'+esc(r.form)+'</span>':''}</td></tr>`).join('')}</tbody>
+    <td>${r.traits?.length?r.traits.map(t=>`<span class="chip blue" style="font-size:10px;padding:1px 6px">${esc(t)}</span>`).join(' '):''}</td>
+    <td class="muted" style="font-size:11px">${esc(r.archName ?? '')}</td></tr>`).join('')}</tbody>
   </table></div>`;
+  $$('.wr-row').forEach(tr => tr.onclick = () => showWorldPilot(tr.dataset.k, w.rows));
+}
+
+function showWorldPilot(name, rows){
+  const r = rows.find(x => String(x.name) === name);
+  if (!r) return;
+  modal(`Scheda pilota — ${r.name}`, `
+    <div class="grid4" style="margin-bottom:12px">
+      <div class="kpi"><div class="l">Skill</div><div class="v acc">${r.skill}</div></div>
+      <div class="kpi"><div class="l">Età</div><div class="v">${r.age ?? '—'}</div></div>
+      <div class="kpi"><div class="l">Costanza</div><div class="v">${r.cons != null ? r.cons : '—'}</div></div>
+      <div class="kpi"><div class="l">Aggressività</div><div class="v">${r.aggr != null ? r.aggr : '—'}</div></div>
+    </div>
+    <div style="margin-bottom:10px">${(r.traits ?? []).map(t=>`<span class="chip blue" style="font-size:11px;padding:2px 8px">${esc(t)}</span>`).join(' ')}</div>
+    <div class="muted" style="margin-bottom:8px"><b>${esc(r.archName ?? 'n/d')}</b> — ${esc(r.archDesc ?? '')}</div>
+    <div class="muted" style="font-size:12.5px">${r.isPlayer ? 'Questo sei tu: la skill cresce coi risultati reali (vittorie e podi spingono sopra la banda della serie).' : r.hot ? '🔥 È in forma: in griglia alza il ritmo, attenzione.' : 'Statista in forma normale: dati in tempo reale aggiornati a ogni import di gara.'}</div>
+    ${r.iconic ? '<div class="banner info" style="margin-top:8px">⭐ Pilota <b>fice</b> del World: il suo livello è tra il vertice in assoluto di questa carriera.</div>' : ''}`,
+    [['Chiudi','ghost',()=>{}]]);
 }
 
 function serieDetail(n){
@@ -439,15 +477,44 @@ async function drawStats(m){
 /* -------- gazzetta (pagina) -------- */
 async function drawGazzetta(m){
   const r = await api('gazzetta');
+  // La Gazzetta diventa pagina da LEGGERE davvero: titolo in evidenza da prima
+  // pagina (l'ultima notizia grande), filtri per stagione, e le citazioni dei
+  // rivali in stile gazzetta — non solo l'elenco cronologico piatto.
+  const seasons = [...new Set(r.items.map(n=>n.season).filter(Boolean))].sort((a,b)=>b-a);
+  const col = gazzView.season;
+  const items = r.items.filter(n=>!col || n.season===col);
+  const latest = gazzView.latest && items.length ? items[0] : null;
+  const rest = items.slice(1);
   m.innerHTML = `
   <div class="panel">
     <h2>📰 Gazzetta del paddock <span class="h-act">${r.items.length} notizie archiviate</span></h2>
-    ${r.items.length ? r.items.map(n=>`<div style="padding:12px 0;border-bottom:1px solid var(--line)">
-      <div style="font-weight:700;font-size:15px">${esc(n.title)}</div>
-      <div class="muted" style="white-space:pre-wrap;margin-top:3px">${esc(n.body)}</div>
-      <div class="faint" style="font-size:11px;margin-top:4px">${esc(String(n.at||'').slice(0,16).replace('T',' '))}${n.season?` · stagione ${n.season}`:''}${n.outcome?` · ${esc(n.outcome)}`:''}</div>
-    </div>`).join('') : '<div class="empty">La stampa si mobilita dopo la prima gara importata.</div>'}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+      <button class="mini ${!col?'acc':''}" data-gs="">tutte</button>
+      ${seasons.map(s=>`<button class="mini ${col===s?'acc':''}" data-gs="${s}">stagione ${s}</button>`).join('')}
+    </div>
+    ${latest ? `
+    <div class="gazz-head" style="padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--panel2,#141a24);margin-bottom:14px">
+      <div class="faint" style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase">in edicola · ${esc(String(latest.at||'').slice(0,16).replace('T',' '))}</div>
+      <div style="font-size:22px;font-weight:800;line-height:1.2;margin-top:6px">${esc(latest.title)}</div>
+      <div style="white-space:pre-wrap;margin-top:8px;line-height:1.55">${esc(latest.body)}</div>
+      <div class="faint" style="font-size:11px;margin-top:8px">${latest.season?`stagione ${latest.season} · `:''}${esc(latest.outcome ?? '')}</div>
+    </div>` : ''}
+    ${rest.length ? `<div class="muted" style="margin-bottom:6px">Tutte le notizie:</div>${rest.map(n=>`<div class="gazz-row" style="padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer" onclick="showGazzettaNews(${JSON.stringify(JSON.stringify(n))})">
+      <div style="font-weight:700">${esc(n.title)}</div>
+      <div class="muted" style="white-space:pre-wrap;margin-top:2px;font-size:13px">${esc(n.body.length > 160 ? n.body.slice(0,160)+'…' : n.body)}</div>
+      <div class="faint" style="font-size:11px;margin-top:3px">${esc(String(n.at||'').slice(0,16).replace('T',' '))}${n.season?` · stagione ${n.season}`:''}${n.outcome?` · ${esc(n.outcome)}`:''}</div>
+    </div>`).join('')}` : (!latest ? '<div class="empty">La stampa si mobilita dopo la prima gara importata.</div>' : '')}
   </div>`;
+  $$('button[data-gs]').forEach(b => b.onclick = () => { gazzView.season = b.dataset.gs ? Number(b.dataset.gs) : null; drawGazzetta(m); });
+}
+let gazzView = { season: null };
+function showGazzettaNews(json){
+  let n; try { n = JSON.parse(json); } catch {}
+  if (!n) return;
+  modal('📰 ' + (n.title ?? ''), `
+    <div style="white-space:pre-wrap;line-height:1.6">${esc(n.body ?? '')}</div>
+    <div class="faint" style="font-size:11px;margin-top:10px">${esc(String(n.at||'').slice(0,16).replace('T',' '))}${n.season?` · stagione ${n.season}`:''}${n.outcome?` · ${esc(n.outcome)}`:''}</div>`,
+    [['Chiudi','ghost',()=>{}]]);
 }
 
 /* -------- Banca: entrate e uscite dalla cassa (registro flussi) -------- */

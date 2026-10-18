@@ -160,6 +160,28 @@ function paintHeader(h){
   $('#t-rep').onclick = () => { tab = 'stats'; drawNav(); render(); };
   $('#t-money').style.cursor = 'pointer';
   $('#t-money').onclick = () => { tab = 'banca'; drawNav(); render(); };
+  // CONTEGGIO ALLA PROSSIMA GARA (badge header): rosso se in ritardo, giallo se ≤2 giorni.
+  // Clic → Agenda. Serve a NON perdere gare "che non sapevi" (RX-7 R2 Sebring).
+  const nr = h.nextRace;
+  const nrEl = $('#hstat-nextrace');
+  if (nr && (nr.in > 0 || nr.late)) {
+    nrEl.style.display = '';
+    const el = $('#t-nextrace');
+    if (nr.late) {
+      el.textContent = `⚠️ IN RITARDO · ${nr.node} R${nr.round}`;
+      el.style.color = 'var(--bad,#e05d5d)';
+      nrEl.title = `La gara ${nr.node} R${nr.round} a ${nr.track} era in programma il ${nr.dateLabel} e NON è stata corsa: i rivali incassano punti ogni giorno che passa. Vai in Agenda (o Cruscotto) e corri la R${nr.round} a ${nr.track}!`;
+    } else if (nr.in <= 2) {
+      el.textContent = `tra ${nr.in} ${nr.in === 1 ? 'giorno' : 'giorni'} · ${nr.node} R${nr.round}`;
+      el.style.color = 'var(--warn,#ffb454)';
+      nrEl.title = `${nr.node} R${nr.round} a ${nr.track} — ${nr.dateLabel}. STAI ATTO: la gara diventa "in ritardo" se non la corri entro quel giorno.`;
+    } else {
+      el.textContent = `tra ${nr.in} giorni · ${nr.node} R${nr.round}`;
+      el.style.color = '';
+      nrEl.title = `${nr.node} R${nr.round} a ${nr.track} — ${nr.dateLabel}`;
+    }
+    nrEl.onclick = () => { tab = 'agenda'; drawNav(); render(); };
+  } else { nrEl.style.display = 'none'; }
   if (h.heritage) {
     $('#hstat-heritage').style.display = '';
     $('#t-heritage').textContent = `📜 ${h.heritage.completed ?? 0}${h.heritage.activeDone ? ' · eredità pronta!' : ''}`;

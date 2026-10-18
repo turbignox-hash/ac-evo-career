@@ -19,7 +19,7 @@ import {
   nodeById, disciplineName, tierOf, gateStatus,
   standingsFor, playerStanding, difficultyFor, savePath, sponsorTier,
 } from './state.mjs';
-import { agendaDay, dateLabel, scheduledDay } from './agenda.mjs';
+import { agendaDay, dateLabel, scheduledDay, racesOnDay, prossimoGiornoConGara } from './agenda.mjs';
 import { raceCard } from './race.mjs';
 import { mailbox } from './mailbox.mjs';
 import { memoryRoundHint } from './memories.mjs';
@@ -34,6 +34,20 @@ const money = (n) => Number(n ?? 0).toLocaleString('it-IT');
 const trackName = (ladder, id) => ladder.contentNames?.tracks?.[id] ?? id;
 const carName = (ladder, id) => ladder.contentNames?.cars?.[id] ?? id;
 
+// CONTEGGIO ALLA PROSSIMA GARA: guarda i giorni PROSSIMI (da oggi+1) e prendi
+// la prima gara di campionato iscritto; se è già in ritardo la prende tra quelle
+// appare oggi. Serve all'header per il badge che avvisa PRIMA che la gara
+// diventi "in ritardo" (non dopo, come la mail del direttore di corsa).
+function nextRaceCountdown(ladder, state){
+  const today = agendaDay(state);
+  for (let d = today; d <= today + 30; d++) {
+    const mine = racesOnDay(ladder, state, d).filter((g) => g.stato === 'iscritto');
+    if (!mine.length) continue;
+    const g = mine[0];
+    return { day: d, in: d - today, late: d === today && (g.late ?? false), node: g.node?.display ?? g.display ?? '', track: g.track ?? '', round: (g.index ?? g.roundIndex ?? 0) + 1, dateLabel: dateLabel(d) };
+  }
+  return null;
+}
 export function viewHeader(ladder, state) {
   const node = nodeById(ladder, state.node);
   const standing = playerStanding(ladder, state, node);
@@ -56,6 +70,9 @@ export function viewHeader(ladder, state) {
     season: state.season,
     day: agendaDay(state),
     todayLabel: dateLabel(agendaDay(state)),
+    // CONTEGGIO ALLA PROSSIMA GARA DI CAMPIONATO sempre nell'header: la mail
+    // "in ritardo" arriva solo quando è TARDI — il badge invece avvisa PRIMA
+    nextRace: nextRaceCountdown(ladder, state),
     titles: state.titles ?? [],
     pending: state.pending ?? null,
     difficultyMode: state.difficulty?.mode ?? 'adaptive',

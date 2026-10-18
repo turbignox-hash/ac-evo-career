@@ -257,19 +257,12 @@ async function drawGarage(m){
           <input class="g-note" type="text" placeholder="nota (es. livrea, assetto…)..." value="${esc(c.note ?? '')}" style="flex:1;min-width:120px;font-size:11px">
           <button class="mini g-savenote">salva</button>
           <button class="mini g-sell" title="vendi al 70% della valutazione">vendi</button>
-          <button class="mini g-del" style="border-color:var(--bad)" title="togli dal garage senza soldi">✕</button>
         </div>
       </div>
     </div>`).join('') || '<div class="empty">Garage vuoto: vinci un evento speciale o aggiungi un\'auto dal catalogo.</div>';
     $$('#g-grid .g-savenote').forEach(b => b.onclick = async () => {
       const card = b.closest('[data-car]');
       try { const out = await api('garage-note', { carId: card.dataset.car, note: $('.g-note', card).value }); draw(out.garage); toast('Nota salvata.', 'ok'); }
-      catch(e){ toast(e.message, 'err'); }
-    });
-    $$('#g-grid .g-del').forEach(b => b.onclick = async () => {
-      const card = b.closest('[data-car]');
-      if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'sicuro?'; setTimeout(()=>{ b.dataset.armed=''; b.textContent='✕'; }, 2500); return; }
-      try { const out = await api('garage-remove', { carId: card.dataset.car }); draw(out.garage); toast('Auto tolta dal garage.', 'ok'); }
       catch(e){ toast(e.message, 'err'); }
     });
     $$('#g-grid .g-sell').forEach(b => b.onclick = async () => {
@@ -305,12 +298,12 @@ async function drawTracks(m){
     <td class="right"><b>${r.personal?esc(r.personal.time):'—'}</b>${r.personal?`<br><span class="faint" style="font-size:11px">${esc(r.personal.car??'')}</span>`:''}</td>
     <td class="right">${r.session?`<b>${esc(r.session.time)}</b> <span class="faint">${esc(r.session.driver)}${r.session.mine?' (tu)':''}</span>`:'—'}</td>
     <td class="right">${(() => { const a=lapMs(r.personal?.time), b=lapMs(r.session?.time); return (a&&b)?(b<a?`<span class="tag gold" style="font-size:10px;padding:1px 6px">−${((a-b)/1000).toFixed(3)}</span>`:`<span class="tag green" style="font-size:10px;padding:1px 6px">+${((b-a)/1000).toFixed(3)}</span>`):'—'; })()}</td>
-    <td>${r.layoutRows?.length>1?`<button class="mini" data-lay="${esc(r.id)}">layout</button> `:''}${r.info?`<button class="mini" data-hist="${esc(r.id)}">storia</button>`:''}</td>
+    <td>${r.info?`<button class="mini b-hist" data-hist="${esc(r.id)}">📚 storia & risultati</button>`:''}</td>
   </tr>`).join('');
   m.innerHTML = `
   <div class="panel">
     <h2>Libro delle piste <span class="h-act">record personali e di sessione, per tracciato e per layout, con la storia di ogni pista</span></h2>
-    <div class="muted" style="margin-bottom:10px">Il <b>record personale</b> è il tuo miglior giro (carriera + prove). Il <b>record di sessione</b> è il migliore mai visto nei risultati sulla stessa auto (tuo o di un rivale: è il tempo da battere). Per le piste con più configurazioni il pulsante <b>layout</b> apre i tempi di ognuna.</div>
+    <div class="muted" style="margin-bottom:10px">Il <b>record personale</b> è il tuo miglior giro (carriera + prove). Il <b>record di sessione</b> è il migliore mai visto nei risultati sulla stessa auto (tuo o di un rivale: è il tempo da battere). La <b>📚 storia</b> apre la scheda completa: immagini, la storia del tracciato e i record di ogni configurazione.</div>
     <table><thead><tr><th>Pista</th><th>Soprannome</th><th class="right">Tuo record</th><th class="right">Record di sessione</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table>
   </div>
@@ -320,25 +313,12 @@ async function drawTracks(m){
     const i = r?.info;
     $('#track-hist').innerHTML = !i ? '' : `<div class="panel" style="margin-top:14px"><h2>${flag(i.country)} ${esc(i.fullName)} <span class="h-act">${esc(i.country)} · ${i.lengthKm} km · ${i.corners} curve · inaugurato nel ${i.opened}</span></h2>
       ${i.photo ? `<img src="${i.photo}" alt="vista aerea di ${esc(r.track)}" style="width:100%;max-width:520px;aspect-ratio:16/9;object-fit:cover;background:#000;border-radius:10px;margin-bottom:10px">` : (i.map ? `<img src="${i.map}" alt="tracciato ${esc(r.track)}" style="width:100%;max-width:420px;object-fit:contain;background:#000;border-radius:10px;padding:12px;margin-bottom:10px${i.map.endsWith('.svg')?';filter:invert(1);opacity:.92':''}">` : '')}
-      ${r.layoutRows?.length ? `<table style="margin-bottom:10px"><thead><tr><th>Layout</th><th class="right">Lunghezza</th><th class="right">Box</th><th class="right">Tuo miglior</th><th class="right">Record di sessione</th></tr></thead><tbody>${r.layoutRows.map(l=>`<tr><td><b>${esc(l.layout)}</b></td><td class="right">${l.lengthKm??'—'} km</td><td class="right">${l.pits??'—'}</td><td class="right">${l.mine?`<b>${esc(l.mine.time)}</b>${l.mineFallback?'<span class="faint"> *</span>':''}`:'—'}</td><td class="right">${l.session?`${esc(l.session.time)} <span class="faint">${esc(l.session.driver)}</span>`:'—'}</td></tr>`).join('')}</tbody></table>${r.layoutRows.some(l=>l.mineFallback)?'<div class="faint" style="margin:-6px 0 10px;font-size:11px">* dal record personale in carriera/prove (una sola configurazione corsa: il save non distingue i layout)</div>':''}` : ''}
+      ${r.layoutRows?.length>1 ? `<h3 style="margin:0 0 6px;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim)">Record per configurazione (${r.layoutRows.length} layout)</h3>
+      <table style="margin-bottom:10px"><thead><tr><th>Layout</th><th class="right">Lunghezza</th><th class="right">Box</th><th class="right">Tuo miglior</th><th class="right">Record di sessione</th></tr></thead><tbody>${r.layoutRows.map(l=>`<tr><td><b>${esc(l.layout)}</b></td><td class="right">${l.lengthKm??'—'} km</td><td class="right">${l.pits??'—'}</td><td class="right">${l.mine?`<b>${esc(l.mine.time)}</b>${l.mineFallback?'<span class="faint"> *</span>':''}`:'—'}</td><td class="right">${l.session?`${esc(l.session.time)} <span class="faint">${esc(l.session.driver)}</span>`:'—'}</td></tr>`).join('')}</tbody></table><div class="faint" style="margin:-6px 0 10px;font-size:11px">* dal record personale in carriera/prove (una sola configurazione corsa: il save non distingue i layout)</div>` : ''}
       <div style="line-height:1.6">${esc(i.history)}</div></div>`;
     $('#track-hist').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
-  $$('button[data-lay]').forEach((b) => {
-    const r = t.rows.find((x) => x.id === b.dataset.lay);
-    if (!r) return;
-    const rows = (r.layoutRows ?? []).map((l) => `<tr>
-      <td><b>${esc(l.layout)}</b></td>
-      <td class="right muted">${l.lengthKm!=null?l.lengthKm+' km':'—'}</td>
-      <td class="right muted">${l.pits??'—'}</td>
-      <td class="right">${l.mine?`<b>${esc(l.mine.time)}</b>${l.mineFallback?'<span class="faint"> *</span>':''}<br><span class="faint" style="font-size:11px">${esc(l.mine.car??'')}</span>`:'—'}</td>
-      <td class="right">${l.session?`<b>${esc(l.session.time)}</b> <span class="faint">${esc(l.session.driver)}${l.session.mine?' (tu)':''}</span><br><span class="faint" style="font-size:11px">${esc(l.session.car??'')}</span>`:'—'}</td>
-    </tr>`).join('');
-    $('#track-hist').innerHTML = `<div class="panel" style="margin-top:14px"><h2>${flag(r.info?.country)} ${esc(r.track)} <span class="h-act">layout e record per configurazione</span></h2>
-      <table><thead><tr><th>Layout</th><th class="right">Lunghezza</th><th class="right">Box</th><th class="right">Tuo miglior giro</th><th class="right">Record di sessione</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="muted" style="margin-top:6px">Il tuo miglior giro per layout dai file risultato (prova, qualifica e gara); * = dal record personale in carriera/prove (una sola configurazione mai corsa: il save non distingue i layout).</div></div>`;
-    $('#track-hist').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
+;
 }
 
 /* -------- setup / pressioni -------- */
@@ -367,7 +347,9 @@ async function drawSetup(m){
     const logRows = (tel.log ?? []).map((e) => `<tr><td class="muted">${esc(String(e.at).replace('T',' ').slice(0,16))}</td><td>${esc(e.car)}</td><td>${esc(e.track)}</td><td class="right"><b>${e.suggestedStartPsi} PSI</b></td><td>${esc(e.basisKindLabel ?? '—')}</td></tr>`).join('');
     const telLaps = tel.telemetryLaps ?? 10;
     return `<div class="panel" style="margin-top:14px"><h2>Telemetria MoTeC — ${esc(tel.car ?? s.car ?? '')} <span class="muted" style="font-size:12px">target ${tel.target} PSI · ${list.length} sessioni recenti · scritta da EVO in Saved Games\\ACE\\MoTec</span></h2>
-    <div class="muted" style="margin-bottom:6px;font-size:12px">📌 In EVO, opzione <b>telemetria</b> nel setup della gara: imposta <b>${telLaps} giri</b> per questa auto${telLaps >= 15 ? ' (è veloce: può registrare a lungo)' : telLaps <= 8 ? ' (è lenta: ogni giro genera molti dati, non serve di più)' : ''}. Ricorda: va riattivata a ogni gara, e vale solo se attivi prima di avviare la sessione.</div>
+    <div class="banner warn" style="margin-bottom:8px;padding:10px 12px">
+      <b>📌 DA FARE IN EVO A OGNI GARA</b> — Setup → Elettronica → <b style="color:var(--warn,#ffb454)">Telemetria</b>: imposta <b style="color:var(--warn,#ffb454)">${telLaps} giri</b> per questa auto${telLaps >= 15 ? ' (è veloce: può registrare a lungo)' : telLaps <= 8 ? ' (è lenta: ogni giro genera molti dati, non serve di più)' : ''}. ⚠️ Da riattivare a ogni gara, e mentre sei GIÀ nel setup, prima di avviare la sessione.
+    </div>
     ${advHtml}
     <table style="margin-top:8px"><thead><tr><th>Quando</th><th>Sessione</th><th class="right">Fredda LF/RF</th><th class="right">Calda LF/RF</th><th class="right">Best lap</th><th class="right">L/giro</th><th class="right">Bumpstop RF</th><th class="right">Δ int/ext RF</th><th>Preset</th><th>Meteo</th></tr></thead>
     <tbody>${list.map((r) => `<tr><td class="muted">${esc(r.when ?? '')}</td><td>${esc(r.kindLabel ?? 'n/d')}</td><td class="right"><b>${psi(r.cold?.LF)}</b> / ${psi(r.cold?.RF)}</td><td class="right">${psi(r.hot?.LF)} / ${psi(r.hot?.RF)}</td><td class="right">${fmtLapS(r.bestLapSec)}</td><td class="right">${r.fuelPerLap!=null?r.fuelPerLap+' L':'—'}</td><td class="right">${r.bump?.RF?.contactPct!=null?r.bump.RF.contactPct+'%':'—'}</td><td class="right">${r.camberProxy?.RF!=null?(r.camberProxy.RF>0?'+':'')+r.camberProxy.RF+'°':'—'}</td><td class="muted">${esc(r.preset ?? '—')}</td><td class="muted">${esc(r.weather ? r.weather.replace(/^.*_/,'') : '—')}</td></tr>`).join('')}</tbody></table>

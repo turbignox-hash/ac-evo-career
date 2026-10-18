@@ -8,6 +8,7 @@
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import { dirname, join, extname, basename, relative, isAbsolute } from 'node:path';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { resolvePaths, isGameRunning, STEAM_APP_ID, GAME_EXE } from './paths.mjs';
 import { scanContent, validateLadder } from './content.mjs';
@@ -314,12 +315,35 @@ async function api(context0, req, res, action, body) {
       // classifica MONDIALE per prestige: tutti i piloti del mondo ordinati per
       // skill innata (i più forti sono i "F1"), con la tua posizione in elenco
       const world = state.world;
+      const archInfo = ladder.archetypes ?? {};
+      const ADJ = [
+        // aggettivi/citazione di forma: derivano da skill, archetipo, forma e età
+        (s, a, hot, age) => {
+          const out = [];
+          if (hot) out.push('in forma 🔥');
+          if (s >= 0.95) out.push('fuoriclasse');
+          else if (s >= 0.90) out.push('velocissimo');
+          else if (s >= 0.84) out.push('competitive');
+          else out.push('in crescita');
+          if (a === 'AP') out.push('attaccante nato');
+          else if (a === 'CH') out.push('imprevedibile');
+          else if (a === 'MT') out.push('metodico');
+          else if (a === 'AM') out.push('regolarista');
+          if (age != null && age <= 20) out.push('prodigio in ascensa');
+          else if (age != null && age >= 38) out.push('veterano affilato');
+          return out.slice(0, 3);
+        },
+      ][0];
       const rows = (world?.drivers ?? [])
         .filter((d) => d.active !== false)
         .map((d) => ({
           key: d.id ?? `${d.first}-${d.last}`, name: `${d.first} ${d.last}`, country: d.country,
           skill: Number(d.skill) || 0, age: d.age, archetype: d.archetype,
+          cons: d.cons, aggr: d.aggr, hot: !!d.hot, iconic: !!d.iconic, seasons: d.seasons ?? 0,
           form: d.hot ? 'in forma' : d.retired ? 'in declino' : '',
+          traits: ADJ(Number(d.skill) || 0, d.archetype, !!d.hot, d.age),
+          archName: archInfo[d.archetype]?.name ?? d.archetype,
+          archDesc: archInfo[d.archetype]?.description ?? '',
         }))
         .sort((a, b) => b.skill - a.skill);
       // skill DEL GIOCATORE dinamica: base dalla serie corrente, ma cresce coi
@@ -350,6 +374,9 @@ async function api(context0, req, res, action, body) {
         rows: top.map((r) => ({
           position: all.indexOf(r) + 1, name: r.name, country: r.country, skill: Math.round(r.skill * 100),
           age: r.age, archetype: r.archetype, isPlayer: r.key === 'player', form: r.form,
+          traits: r.traits ?? [], archName: r.archName, archDesc: r.archDesc,
+          cons: r.cons != null ? Math.round(r.cons * 100) : null, aggr: r.aggr != null ? Math.round(r.aggr * 100) : null,
+          hot: r.hot, iconic: r.iconic, seasons: r.seasons ?? 0,
         })),
       });
     }
@@ -360,6 +387,9 @@ async function api(context0, req, res, action, body) {
       for (const nodeId of Object.keys(state.seats ?? {})) {
         let node;
         try { node = nodeById(ladder, nodeId); } catch { continue; }
+        // dettagli per i badge in cima alla pagina: auto della serie + prossimo round
+        const names2 = ladder.contentNames?.cars ?? {};
+        const nextR = nextUnplayedRound(ladder, state, node);
         const results = (state.results?.[nodeId] ?? []).filter((r) => Number(r.season) === state.season);
         const names = ladder.contentNames?.tracks ?? {};
         let table = null;
@@ -373,6 +403,9 @@ async function api(context0, req, res, action, body) {
           discipline: disciplineName(ladder, node.discipline),
           season: state.season,
           seatDay: state.seats[nodeId].day ?? null,
+          // dettagli per i badge in cima alla pagina: auto della serie + prossimo round
+          cars: (node.cars ?? []).slice(0, 3).map((c) => names2[c] ?? c),
+          nextRound: nextR ? { index: nextR.index, track: names[nextR.track] ?? nextR.track, day: nextR.scheduledDay ?? null } : null,
           calendar: node.calendar.map((round, i) => ({
             index: i,
             name: round.name ?? `Round ${i + 1}`,
@@ -1146,6 +1179,46 @@ async function api(context0, req, res, action, body) {
         memoryAssigned: memNow ? { title: memNow.title, ancestor: memNow.ancestor, relation: memNow.relation, era: memNow.era, series: memNow.series, objective: memNow.objective?.text ?? '', inherit: memNow.inherit, carName: memNow.carName ?? null } : null,
         header: viewHeader(ladder, state),
       });
+    }
+    case 'browse': {
+      // CERCATORE SU DISCO per i percorsi da configurare (cartella ACE, exe di gioco):
+      // un dialog del sistema dal browser non restituisce il percorso scelto, quindi
+      // lo costruiamo noi: l'endpoint elenca unità e sottocartelle di un percorso.
+      // Paranoia standard: risponde SOLO a letture read-only, niente scrittura.
+      const q = String(body.path ?? '').trim();
+      let target = null, driveList = [];
+      if (!q || q === 'root:') {
+        // radice: lista unità Windows (A-Z che esistono) + home
+        driveList = [];
+        for (let c = 65; c <= 90; c++) {
+          const d = String.fromCharCode(c) + ':\\';
+          try { if (statSync(d).isDirectory()) driveList.push(d); } catch { /* unità assente */ }
+        }
+        const home = homedir();
+        return sendJson(res, 200, { kind: 'root', drives: driveList, home, entries: [{ name: '🏠 Cartella utente (home)', path: home, up: false }] });
+      }
+      target = q;
+      if (target.startsWith('drive:')) target = target.slice(6);
+      // gating anti-fuga: solo percorsi assoluti windows/unix, niente UNC di rete
+      if (!/^[a-zA-Z]:[\\/]/.test(target) && !target.startsWith('/')) return sendJson(res, 400, { error: 'Percorso non valido.' });
+      if (target.startsWith('//') || (target[0] === '\\' && target[1] === '\\')) return sendJson(res, 400, { error: 'Percorso di rete non consentito.' });
+      let st; try { st = statSync(target); } catch { return sendJson(res, 404, { error: `Percorso non trovato: ${target}` }); }
+      if (!st.isDirectory()) return sendJson(res, 400, { error: 'Serve una cartella, non un file. Se cercavi l\'exe di gioco: entra prima nella cartella e poi selezionalo.' });
+      const entries = [];
+      try {
+        for (const name of readdirSync(target)) {
+          // sappiamo nascondere le cartelle di sistema che non servono a nessuno qui
+          if (['$Recycle.Bin', 'System Volume Information', 'Windows', 'Program Files', 'Program Files (x86)', 'ProgramData'].includes(name)) continue;
+          const full = join(target, name);
+          let s2; try { s2 = statSync(full); } catch { continue; }
+          if (s2.isDirectory()) entries.push({ name, path: full, up: false, dir: true });
+        }
+      } catch { return sendJson(res, 403, { error: 'Cartella non leggibile (permessi).' }); }
+      entries.sort((a, b) => a.name.localeCompare(b.name));
+      // "salta su" di uno: prendo la cartella superiore
+      const parent = dirname(target);
+      const canUp = parent !== target;
+      return sendJson(res, 200, { kind: 'dir', path: target, parent: canUp ? parent : null, entries });
     }
     case 'setup-save': {
       const patch = {};

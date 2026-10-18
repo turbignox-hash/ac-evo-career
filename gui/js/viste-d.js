@@ -73,6 +73,18 @@ async function drawMessages(m){
   const mails = mb.mails.filter((x) => mailFilter==='tutte' || x.kind===mailFilter);
   const mailCard = (mm) => {
     const [cls, ico, desc] = KIND_META[mm.kind] ?? ['', '✉️', ''];
+    // AZIONI DIRETTE in posta: la scheda diventà VIVA, non solo lettura.
+    // Ogni email urgente/azione porta i bottoni operativi in fondo alla card.
+    let actions = '';
+    if (mm.kind === 'Racing' && mm.priorita === 'urgente' && /IN RITARDO|OGGI/i.test(mm.oggetto)) {
+      actions = `<button class="mini acc" data-maction="vai-gara">🏁 vai alla gara</button>`;
+    }
+    if (mm.kind === 'Contratti' && /Conflitto/i.test(mm.oggetto)) {
+      actions = `<button class="mini acc" data-maction="vai-agenda">apri l'Agenda</button>`;
+    }
+    if (mm.kind === 'Carriera' && /trim/i.test(mm.corpo)) {
+      actions = `<button class="mini acc" data-maction="trim-check">⚖️ vedi il trim (Difficoltà)</button>`;
+    }
     return `<div class="mail ${cls}">
       <div class="mh2"><span class="mi">${ico}</span>
         <b class="oggetto">${esc(mm.oggetto)}</b>
@@ -80,6 +92,7 @@ async function drawMessages(m){
       </div>
       <div class="mfrom muted">${esc(mm.from)} · ${esc(mm.date)}</div>
       <pre class="mcorpo">${esc(mm.corpo)}</pre>
+      ${actions ? `<div class="row" style="gap:6px;margin-top:8px">${actions}</div>` : ''}
     </div>`;
   };
   m.innerHTML = `
@@ -98,8 +111,29 @@ async function drawMessages(m){
         <button class="mini" data-acc="${o.index}" data-name="${esc(o.display)}">firma</button></span></div>`).join('')
       : '<div class="empty">Nessuna offerta al momento: arrivano a fine stagione. ATTENZIONE: firma solo quando hai gare libere nella giornata (mail del manager).</div>'}
     </div>
+  </div>
+  <div class="panel" style="margin-top:14px"><h2>⚡ Azioni rapide</h2>
+    <div class="row" style="flex-wrap:wrap;gap:8px">
+      <button class="mini acc" data-quick="sponsor-check" title="firma o rifiuta la proposta di sponsor nel cruscotto">🤝 Sponsor: apri le decisioni</button>
+      <button class="mini acc" data-quick="challenge-check" title="sfida della ronda: accetta o lascia">🎯 Sfida della ronda</button>
+      <button class="mini" data-quick="mail-all">📨 tutte le email</button>
+    </div>
+    <div class="muted" style="margin-top:6px;font-size:12px">Le decisioni più importanti (sponsor, sfida) si firmano nel Cruscotto: il bottone ti porta lì con il pannello pronto.</div>
   </div>`;
   $$('button[data-mf]').forEach(b => b.onclick = () => { mailFilter = b.dataset.mf; drawMessages(m); });
+  // azioni dalle email: la posta diventa OPERATIVA (gare, agenda, trim)
+  $$('button[data-maction]').forEach(b => b.onclick = () => {
+    const a = b.dataset.maction;
+    if (a === 'vai-gara') { tab = 'dashboard'; drawNav(); render(); }
+    else if (a === 'vai-agenda') { tab = 'agenda'; drawNav(); render(); }
+    else if (a === 'trim-check') { tab = 'difficulty'; drawNav(); render(); }
+  });
+  // azioni rapide: sessioni decisionali veloci senza cercare i pannelli
+  $$('button[data-quick]').forEach(b => b.onclick = () => {
+    const a = b.dataset.quick;
+    if (a === 'sponsor-check' || a === 'challenge-check') { tab = 'dashboard'; drawNav(); render(); toast('Pannello "Vita fuori pista" nel Cruscotto: firma o rifiuta da lì.', 'info'); }
+    else if (a === 'mail-all') { mailFilter = 'tutte'; drawMessages(m); }
+  });
   $$('button[data-acc]').forEach(b => b.onclick = () => signOffer(Number(b.dataset.acc), b.dataset.name));
   $$('button[data-detail]').forEach(b => b.onclick = () => {
     const o = v.offers.find(x => x.index === Number(b.dataset.detail));
@@ -114,6 +148,58 @@ function signOffer(index, name){
       try { const r = await api('accept', {index}); toast('Contratto firmato: ' + r.signed, 'ok'); await refreshBoot(); render(); }
       catch(e){ toast(e.message,'err'); return false; }
     }]]);
+}
+
+/* -------- cercatore su disco: finestra per scegliere cartella o file --------
+   Un dialog del browser non restituisce il percorso scelto (è una scelta di
+   privacy), quindi lo costruiamo noi: sfoglia le unità e le cartelle del PC.
+   pick: 'dir' (cartella ACE) | 'file:AssettoCorsaEVO.exe' (eseguibile di gioco) */
+async function pathPicker(pick, onOk){
+  const wantFile = String(pick).startsWith('file:');
+  const fileWanted = wantFile ? pick.slice(5).toLowerCase() : null;
+  let cur = 'root:';
+  modal(wantFile ? `🔍 Cerca su disco — ${fileWanted}` : '🔍 Cerca su disco — scegli la cartella', `
+    <div id="pk-crumbs" class="muted" style="font-size:12px;word-break:break-all;margin-bottom:8px"></div>
+    <div id="pk-list" style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px"></div>
+    ${wantFile ? '<div class="muted" style="margin-top:8px;font-size:12px">Entra nella cartella di installazione di EVO (es. E:\\SteamLibrary\\steamapps\\common\\Assetto Corsa EVO) e seleziona il file in fondo.</div>' : ''}
+  `,
+  [
+    ['Annulla', 'ghost', () => {}],
+    ['Scelgo questa cartella', 'act', () => { if (!wantFile) onOk(cur.replace('drive:', '')); }],
+  ]);
+  const list = $('#pk-list');
+  const crumbs = $('#pk-crumbs');
+  const load = async (p) => {
+    list.innerHTML = '<div class="muted" style="padding:10px">…</div>';
+    let d;
+    try { d = await api('browse', { path: p }); }
+    catch(e){ list.innerHTML = `<div class="banner bad" style="margin:6px">${esc(e.message)}</div>`; return; }
+    cur = d.kind === 'root' ? 'root:' : d.path;
+    crumbs.innerHTML = d.kind === 'root' ? '💻 Il tuo PC — scegli l\'unità' : esc(d.path);
+    if (!wantFile) $('.mf button.act').textContent = 'Scelgo «' + (d.kind === 'root' ? 'home' : d.path) + '»';
+    let html = '';
+    if (d.parent) html += `<button class="pk-row" data-go="${esc(d.parent)}" style="width:100%;text-align:left;padding:5px 10px;background:none;border:none;border-bottom:1px solid var(--line);cursor:pointer;color:var(--dim)">⬆️ .. (su di uno)</button>`;
+    for (const e of (d.drives ?? [])) html += `<button class="pk-row" data-go="drive:${esc(e)}" style="width:100%;text-align:left;padding:5px 10px;background:none;border:none;border-bottom:1px solid var(--line);cursor:pointer">💽 <b>${esc(e)}</b></button>`;
+    for (const e of (d.entries ?? [])) html += `<button class="pk-row" data-go="${esc(e.path)}" style="width:100%;text-align:left;padding:5px 10px;background:none;border:none;border-bottom:1px solid var(--line);cursor:pointer">📁 ${esc(e.name)}</button>`;
+    if (d.kind === 'root' && wantFile) html += '<div class="muted" style="padding:8px">Scegli il disco dove hai installato il gioco, poi entra in steamapps → common → Assetto Corsa EVO.</div>';
+    if (wantFile) {
+      // dentro a una cartella: se l'exe cercato è qui, offri la selezione del file
+      if (d.kind === 'dir' && !d.path.endsWith('\\')) {
+        const guess = d.path + '\\' + fileWanted;
+        // il server valuta l'esistenza in setup-save: proviamo il check con una fetch leggera su browse? No: tentiamo directamente il submit
+        html += `<button class="act" id="pk-file" style="margin:8px;width:calc(100% - 16px)">📄 Usa ${esc(basename(fileWanted))} da questa cartella</button>`;
+      }
+      if (!html) html = '<div class="muted" style="padding:10px">Cartella vuota.</div>';
+    }
+    list.innerHTML = html;
+    $$('.pk-row', list).forEach(b => b.onclick = () => load(b.dataset.go));
+    $('#pk-file')?.addEventListener('click', async () => {
+      const exe = d.path + '\\' + fileWanted;
+      try { await api('setup-save', { gameExe: exe }); $('#modal-root').innerHTML = ''; toast('Eseguibile salvato: ' + exe, 'ok'); onOk(exe); }
+      catch(e){ toast(e.message, 'err'); }
+    });
+  };
+  load('root:');
 }
 
 /* -------- impostazioni -------- */
@@ -138,8 +224,15 @@ function drawSettings(m){
       <div class="muted" style="margin-top:8px">Risultati</div><div style="font-size:13px;word-break:break-all">${s.resultsDirs.map(esc).join('<br>') || '—'}</div>
       <div class="muted" style="margin-top:8px">Eseguibile</div><div style="font-size:13px;word-break:break-all">${esc(s.gameExe ?? 'non trovato (verrà usato Steam)')}</div>
       <form id="f-paths" style="margin-top:14px">
-        <div class="field"><label>Cartella ACE (override)</label><input type="text" id="i-data" placeholder="C:\\Users\\...\\Saved Games\\ACE" value="${esc(s.saved.dataDir ?? '')}"></div>
-        <div class="field"><label>Eseguibile (override)</label><input type="text" id="i-game" placeholder="...\\AssettoCorsaEVO.exe" value="${esc(s.saved.gameExe ?? '')}"></div>
+        <div class="field"><label>Cartella ACE (override)</label>
+          <div class="row"><input type="text" id="i-data" placeholder="C:\\Users\\...\\Saved Games\\ACE" value="${esc(s.saved.dataDir ?? '')}" style="flex:1"><button type="button" class="mini" id="b-pick-data" title="sfoglia il disco">🔍 cerca…</button></div>
+        </div>
+        <div class="field"><label>Eseguibile (override)</label>
+          <div class="row"><input type="text" id="i-game" placeholder="...\\AssettoCorsaEVO.exe" value="${esc(s.saved.gameExe ?? '')}" style="flex:1"><button type="button" class="mini" id="b-pick-game" title="sfoglia il disco">🔍 cerca…</button></div>
+        </div>
+        <div class="field"><label> cartella Risultati di EVO (override, opzionale)</label>
+          <div class="row"><input type="text" id="i-results" placeholder="...\\Saved Games\\ACE\\Results" value="${esc(s.saved.resultsDir ?? '')}" style="flex:1"><button type="button" class="mini" id="b-pick-res">🔍 cerca…</button></div>
+        </div>
         <button class="ghost" type="submit">Salva percorsi</button>
       </form>
     </div>
@@ -177,9 +270,12 @@ function drawSettings(m){
   });
   $('#f-paths').onsubmit = async (e) => {
     e.preventDefault();
-    try { await api('setup-save', {dataDir:$('#i-data').value, gameExe:$('#i-game').value}); await refreshBoot(); toast('Percorsi salvati.','ok'); render(); }
+    try { await api('setup-save', {dataDir:$('#i-data').value, gameExe:$('#i-game').value, resultsDir:$('#i-results')?.value ?? ''}); await refreshBoot(); toast('Percorsi salvati.','ok'); render(); }
     catch(err){ toast(err.message,'err'); }
   };
+  $('#b-pick-data').onclick = () => pathPicker('dir', (p) => { $('#i-data').value = p; });
+  $('#b-pick-game').onclick = () => pathPicker('file:' + (s.gameExe ? s.gameExe.split('\\').pop().toLowerCase() : 'assettocorsaevo.exe'), () => { render(); });
+  $('#b-pick-res').addEventListener('click', () => pathPicker('dir', (p) => { $('#i-results').value = p; }));
   $('#f-rename').onsubmit = async (e) => {
     e.preventDefault();
     try { await api('rename', {name:$('#i-rename').value}); await refreshBoot(); toast('Nome aggiornato.','ok'); render(); }
@@ -251,6 +347,16 @@ async function seasonEndFlow(force){
 }
 
 /* -------- rivali -------- */
+/* identikit SVG determinista: dal nome nasce colore + iniziali. Niente foto
+   vere (i nomi sono generati dal gioco), ma l'avatar in stile racing dà viso
+   a ogni rivale — stesso colore sempre, a ogni sessione. */
+function rivalAvatar(name, size = 34){
+  let h = 0;
+  for (const ch of String(name)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const hue = h % 360;
+  const initials = String(name ?? '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  return `<span class="rava" style="width:${size}px;height:${size}px;background:hsl(${hue} 55% 42%)">${esc(initials)}</span>`;
+}
 function h2hBadge(b, l){
   const net = l - b; // positivo = dominato da te
   const cls = net > 0 ? 'good' : net < 0 ? 'bad' : '';
@@ -265,17 +371,17 @@ async function drawRivals(m){
     ${!rows.length ? '<div class="empty">Nessun rivale ancora: i nomi arrivano dai file risultato a ogni import di gara.</div>' : `
     <div class="grid2">
       <div><div class="muted" style="margin-bottom:6px">😨 Nemesi — ti battono più spesso di quanto li batti</div>
-        ${d.nemesi.length ? d.nemesi.slice(0,4).map(r=>`<div class="rivalrow"><b>${esc(r.name)}</b>${r.nemesis?'<span class="tag red">nemesi</span>':''}<span class="muted">${esc(r.team ?? '')}</span>${h2hBadge(r.h2h.beats, r.h2h.losses)}</div>`).join('') : '<div class="muted">Nessuno ancora: continua così.</div>'}
+        ${d.nemesi.length ? d.nemesi.slice(0,4).map(r=>`<div class="rivalrow">${rivalAvatar(r.name)}<b>${esc(r.name)}</b>${r.nemesis?'<span class="tag red">nemesi</span>':''}<span class="muted">${esc(r.team ?? '')}</span>${h2hBadge(r.h2h.beats, r.h2h.losses)}</div>`).join('') : '<div class="muted">Nessuno ancora: continua così.</div>'}
       </div>
       <div><div class="muted" style="margin-bottom:6px">😎 Vittime preferite — non ti battono mai</div>
-        ${d.vittime.length ? d.vittime.slice(0,4).map(r=>`<div class="rivalrow"><b>${esc(r.name)}</b><span class="muted">${esc(r.team ?? '')}</span>${h2hBadge(r.h2h.beats, r.h2h.losses)}</div>`).join('') : '<div class="muted">Le costruirai strada facendo.</div>'}
+        ${d.vittime.length ? d.vittime.slice(0,4).map(r=>`<div class="rivalrow">${rivalAvatar(r.name)}<b>${esc(r.name)}</b><span class="muted">${esc(r.team ?? '')}</span>${h2hBadge(r.h2h.beats, r.h2h.losses)}</div>`).join('') : '<div class="muted">Le costruirai strada facendo.</div>'}
       </div>
     </div>`}
   </div>
   ${rows.length ? `<div class="panel"><h2>Tutti i rivali <span class="h-act">clicca una riga per la scheda completa</span></h2>
     <table><thead><tr><th>Rivale</th><th>Squadra</th><th class="right">Gare insieme</th><th class="right">Tu–Lui</th><th>Momentum</th><th>Forma (ultime 5)</th><th class="right">Vittorie</th><th class="right">Podi</th></tr></thead>
     <tbody>${rows.map(r=>`<tr class="rival-link" data-key="${esc(r.key)}" style="cursor:pointer">
-      <td><b>${esc(r.name)}</b>${r.nemesis?' <span class="tag red">nemesi</span>':''}${r.lastSeen?`<div class="faint" style="font-size:11px">visto: ${esc(r.lastSeen.node)} R${r.lastSeen.round}</div>`:''}</td>
+      <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.nemesis?' <span class="tag red">nemesi</span>':''}${r.lastSeen?`<div class="faint" style="font-size:11px">visto: ${esc(r.lastSeen.node)} R${r.lastSeen.round}</div>`:''}</span></span></td>
       <td class="muted">${esc(r.team ?? '—')}</td>
       <td class="right">${r.sharedRaces}</td>
       <td class="right">${h2hBadge(r.h2h.beats, r.h2h.losses)}</td>
@@ -294,6 +400,10 @@ async function showRival(key){
     if (d.error) return toast(d.error, 'err');
     const net = d.h2h.losses - d.h2h.beats;
     modal(`Scheda rivale — ${d.name}`, `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        ${rivalAvatar(d.name, 48)}
+        <div><b style="font-size:16px">${esc(d.name)}</b><div class="muted" style="font-size:12px">${esc(d.team ?? 'senza squadra')}${d.nation?' · '+esc(d.nation):''}${d.car?' · '+esc(d.car):''}</div></div>
+      </div>
       <div class="grid4" style="margin-bottom:14px">
         <div class="kpi"><div class="l">Scontri</div><div class="v">${d.totals.races}</div></div>
         <div class="kpi"><div class="l">Tu-Lui</div><div class="v ${net>0?'good':net<0?'bad':''}">${d.h2h.losses}–${d.h2h.beats}</div></div>

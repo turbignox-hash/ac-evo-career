@@ -22,6 +22,24 @@ export function mailbox(ladder, state) {
     mails.push({ id: `m${++n}`, kind, from, oggetto, corpo, date: oggiLabel, priorita });
   };
 
+  /* PREVENZIONE gara persa: promemoria urgente 2 giorni PRIMA (non solo dopo).
+     Il caso RX-7 R2 Sebring: l'email "in ritardo" arrivava solo quando era già tarda
+     e quella "prossimo appuntamento" era normale, si perdeva di vista. Con priorità
+     urgente a 2 giorni, il badge rosso dei Messaggi (e il contatore in header) la fanno
+     vedere per forza. */
+  for (let d = oggi; d <= oggi + 2; d++) {
+    for (const g of racesOnDay(ladder, state, d).filter((x) => x.stato === 'iscritto' && d > oggi)) {
+      const dist = d - oggi;
+      if (dist === 1 || dist === 2) {
+        add('Racing', 'Direttore di corsa',
+          dist === 1 ? `⚠️ DOMANI: gara di campionato — ${g.node.display} R${g.index + 1}` : `⚠️ TRA 2 GIORNI: ${g.node.display} R${g.index + 1} — non farla sfuggire`,
+          `${g.node.display} R${g.index + 1} a ${g.track} (${g.laps ?? '—'} giri, ore ${String(g.hour).padStart(2, '0')}:00) — ${dist === 1 ? 'DOMANI' : 'fra 2 giorni'} (${dateLabel(d)}).
+
+Se la salta, i rivali del campionato incassano punti ogni giorno e la tua ronda vale 0. Il pulsante rosso "Prossima gara" nell'header ti porta direttamente al Cruscotto: scheda gara, checklist e iscrizione.`,
+          'urgente');
+      }
+    }
+  }
   /* Gara di campionato in RITARDO: mail urgente (gare mai perdute, ma i punti scappano) */
   const tavoletta = racesOnDay(ladder, state, oggi);
   const ritardatarie = tavoletta.filter((g) => g.stato === 'iscritto' && g.late);
