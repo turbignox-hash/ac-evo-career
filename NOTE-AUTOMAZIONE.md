@@ -90,3 +90,14 @@ Griglia multi-marca completa renderizzata in UI dopo riavvio del gioco:
 Maserati GT2 SRO blu 16.7 ×2, AMG GT2 17.0, GT3 RS 16.6, 935 Gulf 16.9,
 Cup 992 16.3, Daytona SP3 16.1… — il ciclo file→gioco→file funziona in
 entrambe le direzioni. Resta solo la corsa in pista come prova ultima.
+
+### GARA VERIFICATA IN PISTA (18/10, 15:2x) — OBBIETTIVO RAGGIUNTO
+La griglia multi-marca scritta fuori dal gioco ha corso: Mauro ha lanciato la
+gara personalizzata e ha girato un giro completo, griglia in pista composta
+(Maserati GT2 SRO, AMG GT2, 935 Gulf, Cup 992, GT3 RS, Daytona SP3...),
+nessun crash. La catena completa file→menu→griglia→PISTA è chiusa.
+L'automazione delle gare personalizzate di EVO è OPERATIVA.
+
+Prossimo passo naturale: comando carriera che prepara il customgrid della
+serie del giorno (finestra PI della serie → auto reali del catalogo → celle
+verifiche → file a gioco chiuso).
