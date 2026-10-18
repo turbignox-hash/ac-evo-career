@@ -101,3 +101,10 @@ L'automazione delle gare personalizzate di EVO è OPERATIVA.
 Prossimo passo naturale: comando carriera che prepara il customgrid della
 serie del giorno (finestra PI della serie → auto reali del catalogo → celle
 verifiche → file a gioco chiuso).
+
+### PROVA PURISSIMA SUPERATA (18/10, 15:3x) — CERTIFICAZIONE COMPLETA
+Riprova con griglia scritta interamente da noi (senza GENERA del gioco):
+APPLICA → gara lanciata → giro completo senza crash, griglia in pista
+multi-marca. Il file dopo la gara resulta INTATTO (watch: nessun cambio
+hash dopo la nostra scrittura 5a64f9b494). La catena
+file(nostro)→menu→APPLICA→gara→pista è chiusa e certificata.
