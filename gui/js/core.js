@@ -5,8 +5,14 @@ const $ = (s, el=document) => el.querySelector(s);
 const $$ = (s, el=document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = (n) => Number(n ?? 0).toLocaleString('it-IT');
-const api = (action, body={}) => fetch(`/api/${action}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})
-  .then(async r => { const d = await r.json(); if (!r.ok) throw Object.assign(new Error(d.error || 'errore'), {data:d}); return d; });
+const api = (action, call={}) => {
+  // compat con lo stile del monolite: {method:'POST', body:{...}} — dopo lo split
+  // alcune viste mandano ancora l'incartatura; il server in realtà vuole il SOLO body
+  // (l'azione sta già nell'URL). Lo smaltiamo qui, una volta per tutte le chiamate.
+  const body = (call && call.body && call.method) ? call.body : call;
+  return fetch(`/api/${action}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body ?? {})})
+    .then(async r => { const d = await r.json(); if (!r.ok) throw Object.assign(new Error(d.error || 'errore'), {data:d}); return d; });
+};
 
 function toast(text, kind='') {
   const t = document.createElement('div');

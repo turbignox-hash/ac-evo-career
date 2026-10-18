@@ -280,11 +280,12 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .modal .mb .tag{white-space:normal;word-break:break-word;max-width:100%;display:inline-block}
 .modal .mb pre,.modal .mb table{max-width:100%}
 
-.badge{position:relative}/* il giorno corrente: niente cornice né riempimento (l'oro resta solo per le
-   iscrizioni): la data diventa verde e resta l'etichetta OGGI, anch'essa verde */
-.ag-day.today .ag-day-date{color:var(--good)}
-.ag-day.today .ag-day-num{color:var(--good)}
-.ag-day.today::after{content:'OGGI';font-size:9px;letter-spacing:.5px;color:var(--good);text-transform:uppercase}
+.badge{position:relative}/* il giorno corrente: niente cornice (confondeva con le iscrizioni in oro);
+   casella PIENA verde con testo nero, ben distinta dall'oro dei campionati iscritti */
+.ag-day.today{border-color:var(--good);background:var(--good)}
+.ag-day.today .ag-day-date,
+.ag-day.today .ag-day-num{color:#0d1410}
+.ag-day.today::after{content:'OGGI';font-size:9px;letter-spacing:.5px;color:#0d1410;text-transform:uppercase;font-weight:700}
 .ag-day.hasmine.today::after{content:'OGGI · MIO';color:var(--good)}
 .ag-day:hover{border-color:#ffffff42}
 .ag-day-date{font-size:11px;color:var(--faint)}
