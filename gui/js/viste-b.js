@@ -91,8 +91,10 @@ async function drawAgenda(m){
       return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">${lista.map(card).join('')}</div>`;
     })()}
   </div>`;
-  $('#ag-advance').onclick = async () => { await api('agenda-advance', { method:'POST' }); agendaView.day = null; render(); paintHeader(boot.header); };
-  const nb = $('#ag-next'); if (nb) nb.onclick = async () => { await api('agenda-skip-to-next', { method:'POST' }); agendaView.day = null; render(); };
+  // dopo un avanzamento il boot andava ridato: paintHeader(boot.header) qui repingeva
+  // la data VECCHIA (boot già risolto prima dell'avanzamento) → la data sembrava ferma
+  $('#ag-advance').onclick = async () => { await api('agenda-advance', { method:'POST' }); agendaView.day = null; await refreshBoot(); render(); };
+  const nb = $('#ag-next'); if (nb) nb.onclick = async () => { await api('agenda-skip-to-next', { method:'POST' }); agendaView.day = null; await refreshBoot(); render(); };
   $$('button[data-af]').forEach(b => b.onclick = () => { agendaView.filter = b.dataset.af; drawAgenda(m); });
   $$('button[data-hidestarted]').forEach(b => b.onclick = () => { agendaView.hideStarted = !agendaView.hideStarted; drawAgenda(m); });
   $$('button[data-disc]').forEach(b => b.onclick = () => { agendaView.disc = b.dataset.disc || null; drawAgenda(m); });

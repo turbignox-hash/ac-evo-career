@@ -268,8 +268,8 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .mail .tag{flex:0 0 auto}
 
 /* ============ agenda (stile Zero to Apex) ============ */
-/* oro = ci sono le GARE DEL TUO campionato in quel giorno; il giorno corrente
-   resta arancione: due colore, due significati (niente più confusione oggi/gara) */
+/* oro = ci sono le GARE DEL TUO campionato in quel giorno. Il giorno corrente
+   NON ha cornice (confondeva con le iscrizioni in oro): la sua DATA diventa verde */
 .ag-day.hasmine{border-color:rgba(255,209,102,.65);background:linear-gradient(to top, rgba(255,209,102,.14), rgba(255,209,102,.14)),radial-gradient(circle at 20% 15%, rgba(255,209,102,.18), transparent 70%),rgba(255,209,102,.05)}
 .ag-day.hasmine::after{content:'★ mio';font-size:9px;letter-spacing:.5px;color:rgba(255,209,102,.85);text-transform:uppercase}
 .badge.urgent{background:#c98a1b;color:#fff;margin-left:2px}
@@ -280,11 +280,12 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .modal .mb .tag{white-space:normal;word-break:break-word;max-width:100%;display:inline-block}
 .modal .mb pre,.modal .mb table{max-width:100%}
 
-.badge{position:relative}/* il giorno corrente: riempimento arancione deciso + etichetta OGGI — non deve
-   potersi confondere con l'oro dei giorni con le gare del tuo campionato */
-.ag-day.today{border-color:var(--acc);background:rgba(255,122,69,.18);box-shadow:inset 0 0 0 1px rgba(255,122,69,.35)}
-.ag-day.today::after{content:'OGGI';font-size:9px;letter-spacing:.5px;color:var(--acc);text-transform:uppercase}
-.ag-day.hasmine.today::after{content:'OGGI · MIO';color:var(--acc)}
+.badge{position:relative}/* il giorno corrente: niente cornice né riempimento (l'oro resta solo per le
+   iscrizioni): la data diventa verde e resta l'etichetta OGGI, anch'essa verde */
+.ag-day.today .ag-day-date{color:var(--good)}
+.ag-day.today .ag-day-num{color:var(--good)}
+.ag-day.today::after{content:'OGGI';font-size:9px;letter-spacing:.5px;color:var(--good);text-transform:uppercase}
+.ag-day.hasmine.today::after{content:'OGGI · MIO';color:var(--good)}
 .ag-day:hover{border-color:#ffffff42}
 .ag-day-date{font-size:11px;color:var(--faint)}
 .ag-day-num{font-size:15px;font-weight:700}
