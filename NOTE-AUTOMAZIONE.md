@@ -108,3 +108,10 @@ APPLICA → gara lanciata → giro completo senza crash, griglia in pista
 multi-marca. Il file dopo la gara resulta INTATTO (watch: nessun cambio
 hash dopo la nostra scrittura 5a64f9b494). La catena
 file(nostro)→menu→APPLICA→gara→pista è chiusa e certificata.
+
+## 7ª PROVA (19 ottobre 2026) — JACKPOT: il menu ricarica il file a ogni entrata
+Scrittura di 15 Ferrari Daytona SP3 **con EVO APERTO alla schermata principale** (fuori dal menu griglia):
+al rientro nel menu Personalizzazione Griglia le celle mostrano le auto NUOVE (screenshot verificato).
+**Conseguenza operativa**: griglie diverse a 2–3 gare di fila **senza mai chiudere EVO**.
+Flusso serata: gara → esci in menu → toolRiscrivi → rientra nel menu → APPLICA → gara successiva.
+Unica regola ferma: **mai standings dentro il menu griglia** con GENERA, e scrittura solo fuori dal menu.
