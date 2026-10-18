@@ -20,6 +20,18 @@
 //
 import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { execSync } from 'node:child_process';
+
+/* guardia: la scrittura è pericolosa con il gioco aperto (il menu calpesta
+   il file o lo riscrive in memoria). Rifiuta di default; --force per forzare. */
+export function gameRunning() {
+  try { return /AssettoCorsaEVO\.exe/i.test(execSync('tasklist', { encoding: 'utf8' })); } catch { return false; }
+}
+function guardWrite(argv) {
+  if (gameRunning() && !argv.includes('--force')) {
+    throw new Error('EVO è APERTO: chiudi il gioco prima di scrivere (o usa --force sapendolo).');
+  }
+}
 
 /* ---------- protobuf senza schema: campi generici ---------- */
 function readVarint(buf, i) {
@@ -176,7 +188,8 @@ if (flag === '--dump') console.log(JSON.stringify(decodeMsg(readFileSync(argv[1]
 else if (flag === '--verify') { const r = verifyRoundTrip(argv[1] ?? DEFAULT); console.log(r.ok ? `ROUND-TRIP OK (${r.size}/${r.sizeOut} byte)` : `ROUND-TRIP DIVERSO (norm-preserving, non byte) ${JSON.stringify(r)}`); }
 else if (flag === '--pi') {
   const [lo, hi, file] = [Number(argv[1]), Number(argv[2]), argv[3] ?? DEFAULT];
-  if (!Number.isFinite(lo) || !Number.isFinite(hi)) throw new Error('uso: --pi <min> <max> [file]');
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) throw new Error('uso: --pi <min> <max> [file] [--force]');
+  guardWrite(argv);
   const buf = readFileSync(file);
   const backup = `${file}.bak-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   copyFileSync(file, backup);
