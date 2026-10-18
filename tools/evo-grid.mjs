@@ -55,7 +55,7 @@ export function decodeMsg(buf) {
   return fields;
 }
 
-const encVarintArr = (v) => Uint8Array.from(encodeVarint(v));
+export const encVarintArr = (v) => Uint8Array.from(encodeVarint(v));
 const encVarintByKey = (n) => encVarintArr(Number(n));
 export function encodeMsg(fields) {
   const chunks = [];
