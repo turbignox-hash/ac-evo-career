@@ -72,3 +72,21 @@ Le gare personalizzate dell'agenda carriera possono essere preparate fuori dal g
 - Mauro avvia EVO, apre la gara personalizzata: trova griglia, auto e piloti già pronti.
 Caveat: dopo ogni "GENERA" dal menu il file torna scritto dal gioco — la scrittura nostra
 deve avvenire SEMPRE a gioco chiuso e va ri-applicata se il menu rigenera.
+
+### Le tre regole d'oro della griglia multi-marca (18/10, pomeriggio di test)
+1. **Il preset visuale (f11) è obbligatorio e PER VARIANTE**: `preset_mcgt2_visual_1`
+   non esiste (solo visual_2) → cella non istanziata in UI e CRASH se portata in gara.
+   Ogni modello ha i SUOI indici visual (GT3 RS: visual_2 = Weissach).
+2. **Mai id non verificato in UI**: `ks_maserati_mc20_gt2` era il candidato giusto
+   (confermato poi dal GENERA del gioco), ma portare in gara una cella con id/preset
+   non ancora visto istanziarsi in menu = crash del gioco.
+3. **GENERA + cattura è il metodo di apprendimento**: per conoscere i campi veri di
+   un modello (id, mech preset, visual preset, livree, campi f19/f26/f27/f28/f30/f33
+   che EVO scrive e noi no) far generare UNA cella dal gioco, catturarla con il
+   watch, e fotocopiarla nelle griglie nostre. Funziona al primo colpo.
+
+### Stato finale del test (15:16)
+Griglia multi-marca completa renderizzata in UI dopo riavvio del gioco:
+Maserati GT2 SRO blu 16.7 ×2, AMG GT2 17.0, GT3 RS 16.6, 935 Gulf 16.9,
+Cup 992 16.3, Daytona SP3 16.1… — il ciclo file→gioco→file funziona in
+entrambe le direzioni. Resta solo la corsa in pista come prova ultima.
