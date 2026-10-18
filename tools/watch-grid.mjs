@@ -1,8 +1,8 @@
 // watch-grid.mjs — watchdog sul file customgrid di EVO: logga cada mtime/hash
 // nel file data/grid-watch.log a ogni cambiamento, per il test dell'11/10.
 // Uso: node tools/watch-grid.mjs [timeout-secondi]  (default: 1 ora)
-import { watchFile, statSync, createHash } from 'node:fs';
-import { appendFileSync } from 'node:fs';
+import { watchFile, statSync, readFileSync, appendFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,7 +20,6 @@ const snap = () => {
     return { mtime: st.mtimeMs, size: st.size, hash: h };
   } catch { return null; }
 };
-import { readFileSync } from 'node:fs';
 const readBuf = (f) => readFileSync(f);
 
 let last = snap();
