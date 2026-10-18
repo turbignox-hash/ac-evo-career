@@ -335,6 +335,15 @@ async function drawLiveStrip(){
   try {
     const [r, w, h] = await Promise.all([api('live'), api('watcher'), api('system-health').catch(() => null)]);
     drawMotecStrip(h);
+    // EVO scrive il file .ld SOLO alla chiusura della sessione: se compare (o cambia)
+    // un file NUOVO mentre sei sul cruscotto, i dati d'ingegnere sono cambiati —
+    // ridisegna la pagina senza che tu la ricarichi a mano.
+    const key = h?.telem?.lastLd ? `${h.telem.lastLd.file}@${h.telem.lastLd.mtimeMs}` : '';
+    if (key && key !== window.__motecKey){
+      const had = window.__motecKey != null;   // al primo poll non ridisegnare
+      window.__motecKey = key;
+      if (had && tab === 'dashboard') render();
+    }
     if (w?.lastMsg?.msg){ host.title = w.lastMsg.msg; }
     if (!r.game){ host.innerHTML = '<span class="dot"></span> EVO chiuso'; host.className = 'chip'; return; }
     const p = r.player;
