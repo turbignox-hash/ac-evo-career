@@ -16,6 +16,19 @@ async function drawAgenda(m){
   });
   agendaView.day = a.viewDay ?? a.day;   // resta sul giorno che stai GUARDANDO (dopo un avanzamento torna il reale)
 
+  /* il bottone "Alla prossima gara" dice la DATA REALE + la distanza, non
+     "giorno 12" (sembrava "tra 12 giorni"): GIO 24 APR 2025 · TRA 2 GIORNI.
+     La data la ricava dalla striscia calendario (già lì, il server non serve
+     modificarlo); il fallback resta l'etichetta "giorno N" se lo strip manca. */
+  const nextRaceBtn = (a) => {
+    if (!a.nextRaceDay) return '🚩 Alla prossima gara di campionato';
+    const d = a.nextRaceDay - (a.day ?? 0);
+    const strip = (a.strips ?? []).find(s => s.day === a.nextRaceDay);
+    const when = strip?.date ?? `giorno ${a.nextRaceDay}`;
+    const far = d > 0 ? ` · tra ${d} ${d===1?'giorno':'giorni'}` : '';
+    return `🚩 Alla prossima gara di campionato (${esc(when)}${far})`;
+  };
+
   const card = (g) => {
     const cls = g.stato === 'iscritto' ? 'ag-iscritto' : g.fattibile ? 'ag-fattibile' : 'ag-bloccata';
     const stato = g.stato === 'iscritto' ? '<span class="tag gold">★ iscritto</span>'
@@ -69,8 +82,8 @@ async function drawAgenda(m){
   <div class="panel">
     <h2>Agenda <span class="h-act">OGGI ${esc(a.todayLabel)} · giorno ${a.day} ${impegniHtml}</span></h2>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-      <button class="mini acc" id="ag-advance">⏭ Avanza il tempo</button>
-      <button class="mini" id="ag-next">🚩 Alla prossima gara di campionato${a.nextRaceDay?` (giorno ${a.nextRaceDay})`:''}</button>
+      <button class="mini acc" id="ag-advance">⏭ Avanza al domani</button>
+      <button class="mini" id="ag-next">${nextRaceBtn(a)}</button>
     </div>
     ${conflittiHtml}
     <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px">${strip}</div>
