@@ -111,8 +111,9 @@ export function gridFileOf(buf) {
       for (const g of inner) {
         if (g.field === 1) meta.count = Number(g.varint);
         else if (g.field === 5) meta.tyres = Buffer.from(g.bytes).toString('hex');
-        else if (g.field === 20) meta.aiMin = Number(g.varint);   // slider AI basso
-        else if (g.field === 21) meta.aiMax = Number(g.varint);   // slider AI alto
+        else if (g.field === 20) meta.aggressivita = Number(g.varint); // att. avversario (0 = prudente)
+        else if (g.field === 21) meta.aiMin = Number(g.varint);       // abilità avversari: min %
+        else if (g.field === 22) meta.aiMax = Number(g.varint);       // abilità avversari: max %
         else if (g.field === 23) meta.piMin = f32(g.bytes);       // finestra PI
         else if (g.field === 24) meta.piMax = f32(g.bytes);
       }
