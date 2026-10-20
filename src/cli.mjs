@@ -34,6 +34,8 @@ import { applyBalance, applyAi } from './grid-apply.mjs';
 import { calibSummary, calibFile, resetCalib, appuntaConvalida } from './grid-calib.mjs';
 import { gameRunning } from '../tools/evo-grid.mjs';
 import { testModeBanner, testModeOn, testModeOff } from './test-mode.mjs';
+import { PIANI, applyPianoToCalendar } from './orario.mjs';
+import { setRaceTime, currentRaceTime } from '../tools/set-racetime.mjs';
 import { renameSync, copyFileSync as copySyncGrid, statSync } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -149,7 +151,7 @@ function cmdHelp() {
     ['sfida [--accept]', 'la mini-sfida facoltativa della prossima gara'],
     ['dottore', 'verifica l\'integrità della carriera (e --fix corregge)'],
     ['accept <n>', 'accetta un\'offerta di sedile'],
-    ['griglia [--serie <nodeId>] [--round N] [--dry] [--force]', 'scrive il customgrid della GARA DEL GIORNO: auto del pool + bilanciamento (EVO chiuso!)'],
+    ['griglia [--serie <nodeId>] [--round N] [--dry] [--force]', 'scrive il customgrid della GARA DEL GIORNO: auto del pool + bilanciamento (funziona anche a EVO aperto, dal menu principale; mai dal menu griglia, mai con GENERA)'],
     ['griglia-calib [--convalida "pista"] [--dry] [--reset]', 'calibrazione dai risultati reali: confidenza per classe+traccia, proposte, appunta la convalida con --convalida'],
     ['test-mode [--giri N] | --on | --off', 'modalità test: TUTTE le gare a N giri (default 3). Con --off tornano i giri originali dei calendari'],
   ];
@@ -1144,8 +1146,13 @@ function cmdEnter(args) {
 async function cmdGriglia(args) {
   const isGameOn = await isGameRunning();
   if (isGameOn && !args.flags.force) {
-    console.log(C.red('\nEVO è APERTO: chiudi il gioco prima di scrivere la griglia.') + C.dim(' (la scrittura va fatta a gioco chiuso, altrimenti il menu la calpesta)'));
-    return 1;
+    // la 7ª prova (19/10) l'ha certificata: a EVO APERTO la scrittura funziona —
+    // il menu ricarica il file a ogni entrata (verificato: 15 Daytona SP3 visti
+    // in UI dopo la scrittura a gioco aperto). Le due regole ferme restano:
+    // scrivere solo dalla schermata PRINCIPALE (mai dal menu griglia, il menu
+    // griglia non rilegge a runtime) e mai col GENERA aperto (riscrive il file
+    // col range in memoria della UI). In quelle condizioni: promemoria, e via.
+    console.log(C.yellow('\nEVO è aperto: ok scrivere lo stesso (menu ricarica il file a ogni entrata).') + C.dim('\nMa solo da (o verso) la schermata PRINCIPALE: non stare nel menu griglia, e non usare GENERA dopo la scrittura (riscriverebbe il file).\n'));
   }
   const ladder = loadLadder();
   const state = loadState(SAVE_FILE);
@@ -1193,6 +1200,51 @@ function stampaCalib(calib) {
 }
 
 const fmtSec = (v) => (v == null ? '—' : (v > 0 ? '+' : '') + v.toFixed(2) + 's');
+
+/** OROLOGIO DELLE GARE (orario.mjs): piani notte/crepuscolo/alba/tramontoalba/
+ *  variabile per round di una serie, + patch diretta del gamemodesave per la
+ *  gara corrente. Richiesta Mauro 21/10/2026. */
+async function cmdOrario(args) {
+  const { ladder } = context();
+  const pianok = args._[1] ?? null;   // args._[0] è il comando "orario"
+  // senza argomenti: mostra i piani e lo stato del round corrente
+  if (!pianok) {
+    console.log(C.bold('\nOrario piani (orario.mjs):'));
+    for (const [id, p] of Object.entries(PIANI)) {
+      console.log(`  ${C.yellow(id.padEnd(14))} ${p.desc}`);
+    }
+    const cur = currentRaceTime();
+    if (cur) console.log(C.dim(`\n  Gamemodesave: gara ora ${cur.hour}:${String(cur.minute ?? 0).padStart(2, '0')} · scala tempo ${cur.scale}x (sessioni: ${cur.blocchi.join(', ')})`));
+    console.log(C.dim(`\n  Uso: orario <piano> --serie <nodeId> [--da 0 --a 6] [--dry]`));
+    console.log(C.dim(`       orario --ora 21 --scala 48        (gara corrente: tramonto->alba)`));
+    return 0;
+  }
+  const serie = args.flags.serie ?? null;
+  const dry = !!args.flags.dry;
+  if (serie) {
+    const da = args.flags.da != null ? Number(args.flags.da) : 0;
+    const a = args.flags.a != null ? Number(args.flags.a) : null;
+    const rep = applyPianoToCalendar(ladder, serie, pianok, { da, a, dry });
+    console.log(`\n  Piano ${C.bold(rep.piano)} su ${C.bold(serie)}${dry ? ' [dry]' : ' drafts ladder: hours e timeScale scritti nel calendario'}\n`);
+    for (const r of rep.righe) {
+      console.log(`    R${r.round + 1} ${r.name}: ${r.prima.hour ?? '—'}h/${String(r.prima.timeScale ?? '—')}x → ${C.bold(`${r.dopo.hour}h/${r.dopo.timeScale}x`)}`);
+    }
+    return 0;
+  }
+  // senza --serie: comanda ORA/scala del gamemodesave per la gara corrente
+  const hour = args.flags.ora != null ? Number(args.flags.ora) : null;
+  const scale = args.flags.scala != null ? Number(args.flags.scala) : null;
+  const minute = args.flags.min != null ? Number(args.flags.min) : null;
+  if (hour == null && scale == null && minute == null) {
+    const cur = currentRaceTime();
+    if (!cur) { console.log(C.red('\n  gamemodesave non leggibile.\n')); return 1; }
+    console.log(`\n  Gara ora ${cur.hour}:${String(cur.minute ?? 0).padStart(2, '0')} · scala ${cur.scale}x\n`);
+    return 0;
+  }
+  const r = setRaceTime({ hour, minute, scale, dry });
+  console.log(`\n  ${dry ? '[dry] ' : ''}Ora=${r.spec.hour ?? '—'} scala=${r.spec.scale ?? '—'}x → ${r.changed}/${r.blocchi} blocchi${r.written ? ` · backup ${r.backup}` : ''}\n`);
+  return 0;
+}
 
 function cmdTestMode(args) {
   if (args.flags.on || args.flags.giri) {
@@ -1297,6 +1349,7 @@ export async function main(argv) {
       case 'griglia': case 'grid': return await cmdGriglia(args);
       case 'griglia-calib': case 'grid-calib': return await cmdGrigliaCalib(args);
       case 'test-mode': case 'testmode': return cmdTestMode(args);
+      case 'orario': case 'orari': return cmdOrario(args);
       case 'enter': return cmdEnter(args);
       case 'agenda': return cmdAgenda(args);
       default:

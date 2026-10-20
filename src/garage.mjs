@@ -16,6 +16,7 @@ import { carImageOf, carPriceOf } from './cars.mjs';
 import { pushMessage } from './state.mjs';
 import { recordFlows } from './flows.mjs';
 import { TRACK_INFO } from './tracks.mjs';
+import { normTrack } from './tracknames.mjs';
 
 /**
  * VALUTAZIONE per chilometraggio: il prezzo di partenza è quello reale
@@ -133,7 +134,17 @@ function statsFor(state, carName, { ownedSince = null } = {}) {
       // odometro del tool: SOLO le gare fatte MENTRE l'auto era nel garage (dal campo
       // `since` del possesso): le gare precedenti contano per statistiche e record,
       // ma non per l'usura della tua auto. Giri completi × lunghezza pista.
-      const len = TRACK_INFO[r.track]?.lengthKm ?? null;
+      // BUG 21/10: r.track porta il DISPLAY name ("Suzuka", "Circuit Of The Americas")
+      // mentre le chiavi di TRACK_INFO sono gli id snake ("suzuka",
+      // "circuit_of_the_americas") — il lookup per帕 nome esatto falliva e i km
+      // restavano 0 anche con gare e giri in registro. Match col normalizzatore
+      // standard di tracknames (come fa il resto dell'app).
+      let len = TRACK_INFO[r.track]?.lengthKm ?? null;
+      if (len == null) {
+        const nt = normTrack(r.track);
+        const hit = Object.entries(TRACK_INFO).find(([k]) => normTrack(k) === nt || normTrack(TRACK_INFO[k].name ?? '') === nt);
+        len = hit?.[1]?.lengthKm ?? null;
+      }
       const lapsRun = Math.max(Number(r.winnerLaps ?? r.laps ?? 0), 0);
       const when = r.at ? Date.parse(r.at) : null;
       if (len && lapsRun && (since == null || (when != null && when >= since))) km += lapsRun * len;

@@ -1,17 +1,22 @@
 // mailbox.mjs — la POSTA del pilota: email generate al momento dallo stato
-// della carriera (niente da salvare, niente da migrare). Consigli concreti come
-// "non firmare altri contratti ora"/"oggi c'è la gara di campionato, se salti
-// vali 0 punti", posta degli sponsor, proposte e la gazzetta del giorno.
+// della carriera (niente da salvare, niente da migrare).
 //
-// Ogni email: { id, kind, from, oggetto, corpo, date, priorità }.
-// kind: Racing | Sponsor | Contratti | Carriera | Gazzetta
+// Regola del restyling (scelta Mauro 21/10/2026, dopo la posta a 14 urgenti):
+// UNA EMAIL = UNA DECISIONE da prendere OGGI. Non "una gara = una mail":
+// le gare dello stesso orizzonte viaggiano RAGGRUPPATE in una sola email,
+// il direttore di corsa parla una volta sola per finestra temporale, e la
+// priorità urgente spetta solo a ciò che esige un'azione entro oggi/domani.
+// Obiettivo: la casella si legge in 20 secondi, non si ignora all'istante.
 
 import { nodeById, gateStatus } from './state.mjs';
 import { sponsorFor, sponsorOffers } from './life.mjs';
 import {
-  agendaDay, dateLabel, impegni, choicesForDay,
+  agendaDay, dateLabel, impegni, choicesForDay, nextUnplayedRound,
   MAX_SCELTE_PER_GIORNO, prossimoGiornoConGara, racesOnDay,
 } from './agenda.mjs';
+
+/** Orizzonte (in giorni) dell'email settimanale raggruppata del direttore di corsa. */
+const ORIZZONTE_GIORNI = 7;
 
 export function mailbox(ladder, state) {
   const mails = [];
@@ -22,41 +27,71 @@ export function mailbox(ladder, state) {
     mails.push({ id: `m${++n}`, kind, from, oggetto, corpo, date: oggiLabel, priorita });
   };
 
-  /* PREVENZIONE gara persa: promemoria urgente 2 giorni PRIMA (non solo dopo).
-     Il caso RX-7 R2 Sebring: l'email "in ritardo" arrivava solo quando era già tarda
-     e quella "prossimo appuntamento" era normale, si perdeva di vista. Con priorità
-     urgente a 2 giorni, il badge rosso dei Messaggi (e il contatore in header) la fanno
-     vedere per forza. */
-  for (let d = oggi; d <= oggi + 2; d++) {
-    for (const g of racesOnDay(ladder, state, d).filter((x) => x.stato === 'iscritto' && d > oggi)) {
-      const dist = d - oggi;
-      if (dist === 1 || dist === 2) {
-        add('Racing', 'Direttore di corsa',
-          dist === 1 ? `⚠️ DOMANI: gara di campionato — ${g.node.display} R${g.index + 1}` : `⚠️ TRA 2 GIORNI: ${g.node.display} R${g.index + 1} — non farla sfuggire`,
-          `${g.node.display} R${g.index + 1} a ${g.track} (${g.laps ?? '—'} giri, ore ${String(g.hour).padStart(2, '0')}:00) — ${dist === 1 ? 'DOMANI' : 'fra 2 giorni'} (${dateLabel(d)}).
+  /* ==== RACING: il direttore di corsa parla UNA volta per finestra ====
+     Vecchia posta: 5 gare × (DOMANI + TRA 2 GIORNI) + 3 IN RITARDO = 13 email
+     gemelle. Ora: UNA email "in ritardo" che elenca tutte le gare scadute
+     (solo se ce ne sono) + UNA email "settimana in arrivo" raggruppata. */
 
-Se la salta, i rivali del campionato incassano punti ogni giorno e la tua ronda vale 0. Il pulsante rosso "Prossima gara" nell'header ti porta direttamente al Cruscotto: scheda gara, checklist e iscrizione.`,
-          'urgente');
-      }
-    }
+  // Le gare TUOE (sedili attivi): prossima ronda non corsa per ogni serie iscritta.
+  const mie = [];
+  for (const nodeId of Object.keys(state.seats ?? {})) {
+    let node;
+    try { node = nodeById(ladder, nodeId); } catch { continue; }
+    const r = nextUnplayedRoundSafe(ladder, state, node);
+    if (r) mie.push(r);
   }
-  /* Gara di campionato in RITARDO: mail urgente (gare mai perdute, ma i punti scappano) */
-  const tavoletta = racesOnDay(ladder, state, oggi);
-  const ritardatarie = tavoletta.filter((g) => g.stato === 'iscritto' && g.late);
-  for (const g of ritardatarie) {
+
+  /* Gare IN RITARDO: UNA email sola che le elenca tutte. Nessuna gara si perde
+     (restano corribili), ma ogni giorno in più è 0 punti: questa è la vera
+     urgenza della casella, e merita un solo bullone compatto. */
+  const ritardo = mie.filter((r) => r.day <= oggi);
+  if (ritardo.length) {
+    const righe = ritardo
+      .sort((a, b) => a.day - b.day)
+      .map((r) =>
+        `• ${r.display} R${r.index + 1} — ${r.track}${r.laps ? `, ${r.laps} giri` : ''} — doveva corrersi il ${dateLabel(r.day)} (${oggi - r.day} giorni di ritardo)`);
     add('Racing', 'Direttore di corsa',
-      `IN RITARDO: ${g.node.display} R${g.index + 1} doveva corrersi il ${dateLabel(g.scheduledDay)}`,
-      `La gara del campionato ${g.node.display} è in ritardo di ${oggi - g.scheduledDay} giorni. Nessuna gara si perde: puoi ancora correre la R${g.index + 1} a ${g.track}. In classifica però i rivali continuano a incassare: ogni round lasciato lì è 0 punti tuoi.`,
+      ritardo.length === 1
+        ? `IN RITARDO: ${ritardo[0].display} R${ritardo[0].index + 1} (${oggi - ritardo[0].day} giorni)`
+        : `IN RITARDO: ${ritardo.length} gare di campionato`,
+      (ritardo.length === 1
+        ? `La gara di ${ritardo[0].display} doveva corrersi il ${dateLabel(ritardo[0].day)}: sono ${oggi - ritardo[0].day} giorni di ritardo.`
+        : `Gare di campionato in ritardo:\n${righe.join('\n')}`) +
+      `\n\nNessuna gara si perde: si corre quando vuoi. In classifica però i rivali continuano a incassare: ogni round lasciato lì è 0 punti tuoi.
+Il pulsante rosso "Prossima gara" nell'header porta al Cruscotto: scheda gara, checklist e iscrizione.`,
       'urgente');
   }
-  /* Gara di campionato del giorno: la mail che decide la stagione */
-  const campOggi = tavoletta.filter((g) => g.stato === 'iscritto' && !g.late);
-  if (campOggi.length) {
+
+  /* Il SETTIMANALE del direttore di corsa: tutte le gare TUOLE dei prossimi
+     ORIZZONTE_GIORNI giorni in UNA mail sola, ordinate per data. Urgente solo
+     se una cade DOMANI: prima, è informazione, non allarme. */
+  const sette = mie
+    .filter((r) => r.day > oggi && r.day <= oggi + ORIZZONTE_GIORNI)
+    .sort((a, b) => a.day - b.day);
+  if (sette.length) {
+    const righe = sette.map((r) =>
+      `${dateLabel(r.day)} — ${r.display} R${r.index + 1} @ ${r.track}` +
+      (r.laps ? `, ${r.laps} giri` : '') +
+      (r.hour != null ? `, ore ${String(r.hour).padStart(2, '0')}:00` : ''));
+    const domani = sette.some((r) => r.day === oggi + 1);
     add('Racing', 'Direttore di corsa',
-      `OGGI: gara di campionato — ${campOggi.map((g) => `${g.node.display} R${g.index + 1}`).join(' + ')}`,
-      campOggi
+      `Questa settimana: ${sette.length} gara${sette.length === 1 ? '' : 'e'}${domani ? ' — DOMANI la prima' : ''}`,
+      righe.join('\n') +
+      `\n\nDa qui, ${ORIZZONTE_GIORNI} giorni di orizzonte. Il pulsante rosso "Prossima gara" nell'header porta al Cruscotto: scheda gara, checklist e iscrizione.`,
+      domani ? 'urgente' : 'normale');
+  }
+
+  /* Gara di campionato OGGI: la mail che decide la stagione (raggruppata,
+     una sola anche se più campionati cadono lo stesso giorno). */
+  const tavoletta = racesOnDay(ladder, state, oggi)
+    .filter((g) => g.stato === 'iscritto' && state.seats?.[g.node.nodeId] && g.onSchedule);
+  if (tavoletta.length) {
+    add('Racing', 'Direttore di corsa',
+      `OGGI: gara di campionato — ${tavoletta.map((g) => `${g.node.display} R${g.index + 1}`).join(' + ')}`,
+      tavoletta
         .map((g) => `${g.node.display}: R${g.index + 1} a ${g.track} (${g.laps ?? '—'} giri, ore ${String(g.hour).padStart(2, '0')}:00). Il campionato si disputa anche senza di te: se non prendi parte, la ronda va a tutti gli altri e tu prendi 0 punti.`)
-        .join('\n\n') + '\n\nImposta la gara nella finestra del gioco e inquadra col telefono? No: a fine gara registrare il risultato col watcher (o Risultati → importa).',
+        .join('\n\n') +
+      `\n\nImposta la gara nella finestra del gioco e a fine gara registra il risultato col watcher (o Risultati → importa).`,
       'urgente');
   }
 
@@ -73,26 +108,31 @@ Se la salta, i rivali del campionato incassano punti ogni giorno e la tua ronda 
       'Niente campionati in corso. Guarda la strip calendario dell\u2019Agenda e firma quando scatta la giornata adatta: i contratti si sottoscrivono SOLO lì, il giorno delle gare. Le serie con lo strappo di reputazione adatto sono già pronte per la firma.',
       'normale');
   }
-  /* Conflitti tra impegni: alert proattivo */
+  /* Conflitti tra impegni: UNA email sola che elenca tutte le giornate in
+     conflitto (non una mail per serie coinvolta). */
   const impegniInfo = impegni(ladder, state);
-  for (const c of impegniInfo.conflitti) {
-    for (const g of c.gare) {
-      add('Contratti', 'Il tuo manager',
-        `Conflitto di calendario il ${c.date}: ${c.gare.length} campionati la stessa giornata`,
-        `${g.display} R${g.roundIndex + 1} cade il ${c.date} insieme a: ${c.gare.filter((x) => x.nodeId !== g.nodeId).map((x) => x.display).join(', ')}. Risolvi dall\u2019Agenda col bottone sposta: la serie scelta si sposta di una settimana e la cadenza futura si ricalibra. Non iscriverti a troppi campionati insieme se non vuoi saltare round (0 punti).`,
+  if (impegniInfo.conflitti.length) {
+    const righe = impegniInfo.conflitti.map((c) =>
+      `${c.date} — ${c.gare.map((g) => `${g.display} R${g.roundIndex + 1}`).join(' + ')}`);
+    add('Contratti', 'Il tuo manager',
+      `Conflitti di calendario: ${impegniInfo.conflitti.length} giornat${impegniInfo.conflitti.length === 1 ? 'a in conflitto' : 'e in conflitto'}`,
+      righe.join('\n\n') +
+      `\n\nRisolvi dall\u2019Agenda col bottone sposta: la serie scelta si sposta di una settimana e la cadenza futura si ricalibra. Non iscriverti a troppi campionati insieme se non vuoi saltare round (0 punti).`,
       'urgente');
-    }
   }
-  /* Prossima gara di campionato a calendario */
+
+  /* Prossima gara di campionato a calendario, FUORI dall'orizzonte settimanale
+     (dentro l'orizzonte c'è già il settimanale: non duplichiamo). */
   const prox = prossimoGiornoConGara(ladder, state);
-  if (prox != null && prox > oggi) {
-    const solo = racesOnDay(ladder, state, prox).filter((g) => g.stato === 'iscritto');
+  if (prox != null && prox > oggi + ORIZZONTE_GIORNI) {
+    const solo = racesOnDay(ladder, state, prox)
+      .filter((g) => g.stato === 'iscritto' && state.seats?.[g.node.nodeId] && !g.late);
     if (solo.length) {
       add('Racing', 'Direttore di corsa',
         `Prossimo appuntamento: ${dateLabel(prox)}`,
         solo.map((g) => `${g.node.display} R${g.index + 1} — ${g.track} (${g.laps ?? '—'} giri)`).join('\n') +
-        `\n\nDa qui ci sono ${prox - oggi} giorni. Tempo per abbigliare la formula con prova, setup e una sessione di qualificà pulita.`,
-      'normale');
+        `\n\nDa qui ci sono ${prox - oggi} giorni. Tempo per un test in quaderno prove, un setup e una qualifica pulita.`,
+        'normale');
     }
   }
 
@@ -110,7 +150,7 @@ Se la salta, i rivali del campionato incassano punti ogni giorno e la tua ronda 
   } else if (state.money < 8000) {
     add('Sponsor', 'Ufficio sponsorizzazioni',
       'La cassa è stretta: serve uno sponsor',
-      `Hai ${state.money} € in banca e nessuno sponsor in campo. Le iscrizioni e gli afforti dei sedili ogni round pesano: cerca un podio o due per attirare l\u2019attenzione, oppure difendi la cassa con la distanza gara ridotta (25%).`,
+      `Hai ${state.money} € in banca e nessuno sponsor in campo. Le iscrizioni e gli affitti dei sedili ogni round pesano: cerca un podio o due per attirare l\u2019attenzione, oppure difendi la cassa con la distanza gara ridotta (25%).`,
       'urgente');
   }
   /* Proposte di sponsor in arrivo (offerte attuali del paddock) */
@@ -127,7 +167,7 @@ Se la salta, i rivali del campionato incassano punti ogni giorno e la tua ronda 
   /* Carriera: lo sblocco più vicino di reputazione */
   let bestGate = null, bestDist = Infinity;
   for (const node of ladder.nodes) {
-    if ((state.seats ?? {})[node.nodeId]) continue;
+    if (state.seats?.[node.nodeId]) continue;
     const dist = (node.repRequired ?? 0) - (state.rep ?? 0);
     if (dist > 0 && dist < bestDist) { bestDist = dist; bestGate = node; }
   }
@@ -137,7 +177,7 @@ Se la salta, i rivali del campionato incassano punti ogni giorno e la tua ronda 
       `Ora hai ${state.rep} reputazione, ${bestGate.display} vuole ${bestGate.repRequired ?? 0}. Continua a fare podi nelle serie già aperte: ogni round nelle serie basse vale ancora reputazione (finché il trim resta in pista). E ricorda: le gare "iconiche" pagano reputazione ×1,25.`,
       'normale');
   }
-  /* propone di trim in attesa (difficoltà) */
+  /* trim di difficoltà in attesa di firma */
   const pend = state.difficulty?.pending;
   if (pend) {
     add('Carriera', 'Il tecnico di pista',
@@ -145,6 +185,23 @@ Se la salta, i rivali del campionato incassano punti ogni giorno e la tua ronda 
       `La proposta del tool (trim ${pend.trim ?? '?'} su ${pend.node ?? 'la serie'}) non è ancora accettata né rifiutata. Vai su Difficoltà e decidi: il trim opportuno ti tiene in fase e i rivali continuano a essere onesti.`,
       'normale');
   }
-  /* riepilogo del campionato attuale vicino al numero di round decisi */
   return { mails, oggi: oggiLabel, day: oggi };
+}
+
+/** Prossima ronda non corsa di una serie iscritta, blindata: se la serie non
+ *  ha rondine futura (stagione completa) o il calendario risponde male, ritorna
+ *  null invece di far inciampare tutta la posta. */
+function nextUnplayedRoundSafe(ladder, state, node) {
+  try {
+    const r = nextUnplayedRound(ladder, state, node);
+    if (!r || r.scheduledDay == null) return null;
+    return {
+      display: node.display,
+      index: r.index,
+      track: r.track,
+      laps: r.laps ?? null,
+      hour: r.hour ?? null,
+      day: r.scheduledDay,
+    };
+  } catch { return null; }
 }

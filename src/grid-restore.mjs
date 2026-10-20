@@ -64,9 +64,14 @@ export function zeroBalanceProposal(file, { track = null, minCells = 3 } = {}) {
   const best = classMatch(cells);
   if (!best) return null;
 
+  // due mappe: per preset meccanico (GR86 ecc.) e per NOME auto (le regole senza
+  // preset, p.e. Escort RS Cosworth nella gr86-r5-escort — classe con regole
+  // miste, lezione del 20/10: le celle Escort perse erano invisibili alla vigia)
   const ruleByPreset = new Map((best.cls.regole ?? []).filter((r) => r.preset).map((r) => [r.preset, r]));
+  const ruleByName = new Map((best.cls.regole ?? []).filter((r) => !r.preset && r.auto).map((r) => [r.auto, r]));
+  const ruleOf = (c) => (c.mech ? ruleByPreset.get(c.mech) : null) ?? (ruleByName.get(c.name) ?? null);
   const perse = cells.filter((c) => {
-    const r = ruleByPreset.get(c.mech);
+    const r = ruleOf(c);
     return r && ((r.ballastKg ?? 0) > 0 || (r.restrictorPct ?? 0) > 0) && c.kg === 0 && c.pct === 0;
   });
   if (perse.length < Math.min(minCells, cells.length)) return null;

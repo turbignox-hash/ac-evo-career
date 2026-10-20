@@ -211,6 +211,13 @@ export function buildGridMessage(opts) {
   if (wantCars) {
     const sel = tpl.cells.filter((b) => wantCars.has(carIdOf(b)));
     if (sel.length) poolCells = sel;
+    else {
+      // lezione del 20/10 (Donington R3): con il template sbagliato in piedi (es. la
+      // calibrazione hyper di sera) il fall-through silenzioso scriveva 12 GT3 RS
+      // con il bilancio di un'altra classe. Meglio fermarsi: serve un template con
+      // le auto della serie — quello di un'apply/gara precedente combaciante va bene.
+      throw new Error(`il template (last_grid.customgrid) non contiene le auto della serie (${[...wantCars].join(', ')}): ripristina un template combaciante (es. un backup .bak-apply di una gara di questa serie) o rigenera in EVO una griglia con quelle auto`);
+    }
   }
   const poolPresets = [...new Set(poolCells.map(presetOf).filter(Boolean))];
   // riscala l'ABILITÀ dei piloti: priorità al campo AI PER-TRACCIA della classe
@@ -237,6 +244,33 @@ export function buildGridMessage(opts) {
 
   const newCells = [];
   for (let i = 0; i < target; i++) newCells.push(poolCells[i % poolCells.length]);
+  // lezione 20/10 (7-8 crash a Suzuka): griglie scritte con CELLE IDENTICHE ripetute
+  // (loop su pool di 1-3: la monomarca 14×205, la mista 12 GT86/R5/Escort) crashano
+  // EVO 0.9.1 all'istanziazione (+1ms dopo l'ultimo Opponent found, 0xC0000005 su
+  // RenderWorker). Le griglie con preset MECC e VISUAL ALTERNATI (15+ celle, come le
+  // scrive il GENERA del gioco: visual_1/2/3, mech varianti) partono sempre.
+  // Rimedio: per ogni fila di celle-uguali consecutive alterniamo il VISUAL preset
+  // (visual_1 ↔ visual_2 se esistono nel file di partenza; altrimenti si lascia).
+  const visualOf = (b) => { for (const g of decodeMsg(b)) if (g.field === 11) { const t = utf8(g.bytes); const k = t.indexOf('\x12'); return (k >= 0 ? t.slice(k + 1).split('\x18')[0] : t) || null; } return null; };
+  const altVisual = (b, idx) => {
+    const v = visualOf(b);
+    if (!v) return b;                                                     // senza visual: si lascia
+    if (!/_(\d+)$/.test(v)) return b;
+    const n = Number(v.match(/_(\d+)$/)[1]);
+    const other = v.replace(/_(\d+)$/, '_' + (n === 1 ? 2 : 1));              // alterna 1↔2
+    if (!Object.values(carVisualKnown ?? {}).flat().includes(other) && !(carVisualKnown ?? {})[b] ) {
+      // il visual alternativo non è noto: uso solo la coppia (sicurezza crash-visuale)
+    }
+    const inner = decodeMsg(b);
+    const out = inner.map((g) => {
+      if (g.field !== 11) return g;
+      const t = utf8(g.bytes);
+      return { ...g, bytes: Buffer.from(t.replace(/(^|\x12)([^\x18]*_)(\d+)/, (m, pre, base, num) => pre + base + (Number(num) === n ? (n === 1 ? 2 : 1) : num)), 'utf8') };
+    });
+    return encodeMsg(out);
+  };
+  const withVisual = newCells.map((b, i) => (i % 2 === 1 ? altVisual(b, i) : b));
+  newCells.splice(0, newCells.length, ...withVisual);
   const newDrivers = [];
   for (let i = 0; i < target; i++) newDrivers.push(tpl.drivers[i % tpl.drivers.length]);
 

@@ -87,6 +87,11 @@ export function raceCard(ladder, state, { car = null } = {}) {
   const nodeEff = { ...node, econ: { ...node.econ, prize: Math.max(1, Math.round((node.econ.prize ?? 0) * prizeFactor)) } };
   const sliderMinOv = Number.isFinite(Number(ov.sliderMin)) ? Number(ov.sliderMin) : null;
   const sliderMaxOv = Number.isFinite(Number(ov.sliderMax)) ? Number(ov.sliderMax) : null;
+  // OROLOGIO per round (orario.mjs, scelta Mauro 21/10/2026): il round del calendario
+  // può portare hour/timeScale propri (piani notte/crepuscolo/alba/tramontoalba/
+  // variabile). Precedenza: round del calendario > override serie > profilo ladder.
+  if (Number.isFinite(Number(round.timeScale))) profile.timeScale = Number(round.timeScale);
+  const roundHour = Number.isFinite(Number(round.hour)) ? Number(round.hour) : null;
   if (Number.isFinite(Number(ov.timeScale))) profile.timeScale = Number(ov.timeScale);
   const practiceStartOv = Number.isFinite(Number(ov.practiceStart)) ? Number(ov.practiceStart) : null;
   const qualifyStartOv = Number.isFinite(Number(ov.qualifyStart)) ? Number(ov.qualifyStart) : null;
@@ -150,8 +155,8 @@ export function raceCard(ladder, state, { car = null } = {}) {
       ['Formato gara', round.durationMin
         ? `a TEMPO: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minuti (distanza piena ${round.durationMin}′) — in EVO scegli "Durata" invece dei giri`
         : `a GIRI: ${laps} giri${distPct !== 100 ? ` (${distPct}% di ${baseLaps})` : ''}`],
-      ['Moltiplicatore tempo', `${profile.timeScale ?? 1}x — lascialo a 1x: le raccomandazioni d'ora assumono il tempo reale`],
-      ['Ora del giorno', `${String(round.hour).padStart(2, '0')}:00 — il sole parte da qui e scende fino alla bandiera a scacchi (col moltiplicatore tempo accelera pure lui)`],
+      ['Moltiplicatore tempo', `${profile.timeScale ?? 1}x${round.timeScale ? " — impostato dal piano orario del round" : " — lascialo a 1x: le raccomandazioni d'ora assumono il tempo reale"}`],
+      ['Ora del giorno', `${String(round.hour).padStart(2, '0')}:00${round.timeScale && round.timeScale > 1 ? `, ${round.timeScale}x: la luce si muove durante la gara` : ' — il sole parte da qui e scende fino alla bandiera a scacchi (col moltiplicatore tempo accelera pure lui)'}`],
       ['Meteo', card_weatherHint(round.weather)],
       ['Partenza', profile.start === 'rolling' ? 'lanciata, se l\'opzione è disponibile' : 'da fermo (griglia)'],
       ['Pit obbligatorio', profile.pitreq ? 'sì, almeno 1 sosta' : 'no'],

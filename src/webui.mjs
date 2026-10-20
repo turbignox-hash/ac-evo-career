@@ -22,6 +22,7 @@ import { paddock, ourToSkill, OUR_MIN, OUR_MAX } from './world.mjs';
 import { loadCatalog, resultDetail } from './catalog.mjs';
 import { liveReader, fmtMs } from './shmem.mjs';
 import { raceCard, markPending, chargeEntry, launch } from './race.mjs';
+import { PIANI, applyPianoToCalendar, pianoFor } from './orario.mjs';
 import {
   listResultFiles, readSessionResult, isRaceSession, describeResult, findPlayerDriver, classify,
 } from './results.mjs';
@@ -56,7 +57,8 @@ import { heritageOverview, claimMemory, memoryRoundHint } from './memories.mjs';
 import { resetNews } from './gazzetta.mjs';
 // griglia: tab bilanciamento (celle, classi, perTraccia) + azioni di scrittura
 import { loadClasses } from './gridbuilder.mjs';
-import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass } from './grid-apply.mjs';
+import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, GRID_FILE } from './grid-apply.mjs';
+import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
 import { calibSummary, calibFile } from './grid-calib.mjs';
 import { midSeasonPulse } from './world.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
@@ -802,6 +804,18 @@ async function api(context0, req, res, action, body) {
       if (body.qualifyStart != null) S.qualifyStart = num(body.qualifyStart, 0, 23);
       if (body.timeScale != null) S.timeScale = Math.max(1, Math.min(60, Number(body.timeScale) || 1));
       if (body.distPct != null) S.distPct = [25, 50, 75, 100].includes(Number(body.distPct)) ? Number(body.distPct) : null;
+      // PIANO ORARIO della serie (orario.mjs, richiesta Mauro 21/10/2026): scrive
+      // hour/timeScale nei round del calendario della serie. body.piano='' = rimuovi.
+      if (body.piano != null) {
+        try {
+          if (body.piano === '') {
+            for (const r of node.calendar ?? []) { delete r.hourPiano; delete r.timeScalePiano; }
+          } else {
+            applyPianoToCalendar(ladder, node.nodeId, String(body.piano), {});
+            S.piano = String(body.piano);
+          }
+        } catch { /* piano sconosciuto: non bloccare il salvataggio regole */ }
+      }
       // gli override restano legati alla serie finché non premi "Torna ai consigli":
       // così le fasce impostate dalla pagina Difficoltà per le altre serie non si perdono
       persist(state);
@@ -913,10 +927,13 @@ async function api(context0, req, res, action, body) {
       persist(state);
       // PREPARAZIONE DEL WEEKEND prima del lancio: pista della ronda nel
       // gamemodesave + auto della ronda selezionata nel garage (rilegge all'avvio
-      // di EVO, confermato in test). Falli silenti: se la pista non è nota o
-      // l'auto manca nel dizionario si parte com'era, niente blocco del flusso.
-      let prep = { track: null, trackWritten: false, car: null, carWritten: false };
-      if (!body.noLaunch && !running) {
+      // di EVO, confermato in test). SEMPRE, anche a EVO APERTO: pista e auto si
+      // scrivono a gioco aperto dal menu principale (verificato 20/10, lezione
+      // della Donington R3: a EVO già aperto il bottone non preparava nulla).
+      // Falli silenti: se la pista non è nota o l'auto manca nel dizionario si
+      // parte com'era, niente blocco del flusso.
+      let prep = { track: null, trackWritten: false, car: null, carWritten: false, grid: null };
+      if (!body.noLaunch) {
         try {
           if (card.trackName) {
             const t = changeWeekendTrack(card.trackName);
@@ -929,6 +946,27 @@ async function api(context0, req, res, action, body) {
             prep.car = card.carName; prep.carWritten = c.written;
           } else prep.car = garageCurrent().name;
         } catch (e) { prep.carError = e.message; }
+        // VIGIA DELLA GRIGLIA (come la CLI 'prepara'): se il customgrid ha la
+        // classe combaciante ma il bilancio o il campo AI sono persi, li
+        // riscrive. NON ricostruisce la griglia: le celle (auto) restano quelle
+        // già applicate — il rebuild dal template sbagliato ha scritto la
+        // flotta sbagliata la notte del 20/10 (Donington). A EVO aperto si
+        // scrive solo dal menu principale: regole della 7ª prova.
+        try {
+          if (existsSync(GRID_FILE)) {
+            prep.grid = {};
+            const zp = zeroBalanceProposal(GRID_FILE, { track: card.trackName ?? null });
+            if (zp) {
+              const out = applyBalance({ track: card.trackName ?? null, force: true });
+              prep.grid.bilancio = `riscritto "${out.classe}"`; prep.grid.written = true;
+            } else prep.grid.bilancio = 'ok';
+            const ap = aiRangeProposal(GRID_FILE);
+            if (ap?.trovato && (ap.trovato[0] !== ap.atteso[0] || ap.trovato[1] !== ap.atteso[1])) {
+              const out = applyAi(ap.atteso, { force: true });
+              prep.grid.ai = `riscritto ${out.ai[0]}-${out.ai[1]} (trovato ${ap.trovato[0]}-${ap.trovato[1]})`; prep.grid.written = true;
+            } else prep.grid.ai = ap?.atteso ? `ok (${ap.atteso[0]}-${ap.atteso[1]})` : null;
+          } else prep.grid = { nota: 'nessun customgrid: usa tab Griglia o CLI griglia' };
+        } catch (e) { prep.gridError = e.message; }
       }
       // meteo della ronda: FUORI dal cancello !running — la scrittura del selettore
       // in gamemode.lastgamemode è accettata anche a EVO aperto (verificato 20/10/2026:

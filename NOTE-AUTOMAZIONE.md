@@ -249,3 +249,103 @@ non tocca nulla.
 
 Prossimi passi naturali: collaudo del preset 7 custom in sessione; pannello
 meteo nella GUI (i 7 preset + slider custom) che richiama weather.mjs.
+
+## CRASH AL SESSION START: AI 99-100 CON GRIGLIA MISTA ZAVORRATA (20/10/2026, sera)
+6 crash identici e deterministici (0xC0000005 su un Render Worker, stack in
+cohtml/Gameface) SEMPRE nello stesso punto: ~1 ms dopo "Opponent [12] found"
+al "Request session start" — prima della creazione del tracciato. Non era:
+- il click veloce su INIZIA GARA (crash anche con la schermata completa);
+- il meteo: bisecato con il campo meteo DEL CUSTOMGRID (campo 4, vince sul
+  selettore a sessione start — scoperto a sua volta stanotte) a 0/Clear:
+  crasha uguale;
+- le zavorre: Monza 19/10 le ha corse (100kg, AI 99/100, sereno).
+- la pista/la sede: Donington corrispondeva campo per campo al file scritto
+  da EVO per la Donington vera del 18/10.
+COLPEVOLE (CORRETTO IN SEGUENTI PROVE): NON era l'AI — la griglia 14×205 con
+AI 88/93 ha crashato UGUALE e la STESSA AI 88/93 su 15 celle ha PARTE. La vera
+differenza: la TAGLIA/Pattern della griglia scritta dal builder.
+- crashano: 12 e 14 celle quando il builder RIPETE LA STESSA CELLA in loop
+  (pool di 1-3 varianti: monomarca, pool ristretto) — celle cloni identiche;
+- partono sempre: 15/16/17 celle con preset meccanici e VISUAL ALTERNATI
+  (come le scrive il GENERA del gioco: visual_1/visual_2, mech varianti).
+Conferma in pista (23:5x): il 5/5/5 (griglia 15, alternanza naturale) su
+Suzuka è PARTITO al primo colpo — la pista scritta da noi (Suzuka con tag GP
+e lunghezza ereditati dal cambio sede) era innocente.
+Rimedì:
+- gridbuilder.mjs ora ALTERNA il visual preset (1↔2) sulle celle pari quando
+  costruisce la griglia (le cloni identiche non passano più);
+- gr86-r5-escort resta con aiStandard 88-93 (provata in pista,non un rischio
+  ma la conferma che l'AI non era la variabile);
+- le griglie < 15 celle per serie ristrette: la vigia/builder con alternanza
+  visuale valgono il post.
+Lezioni di sidecar:
+- il campo meteo (campo 4) dentro il customgrid VINCE sul selettore di
+  gamemode.lastgamemode alla partenza; patcharlo con gli stessi tool del
+  campo 4 del gamemodesave (decode → varint → encode, backup prima);
+- quando una teoria di bisecata non regge alla prova seguente: tornare ai
+  confronti byte-a-byte (qui è stato quello a smascherare l'AI innocente e
+  il pattern-cella colpevole).
+
+## NÜRBURGRING: LO SCREVINATO DEL TRACK ESTERNO (21/10/2026, nottata)
+R1.5 della RX-7 (Nürburgring GP): crash C++ (0xE06D7363, GameThread) al load
+della Practice, ripetuto identico ×3. Firma nel log:
+- menu: `Failed loading resource: .../tracks/n%C3%BCrburgring_gp-gp.texture`
+- sessione: `Exception thrown: Trying to load a message with an empty path`
+  + `tracks/-.texture` → eccezione.
+Rimedi TENTATI e non sufficienti: layout "Gp Strecke Time Attack" (lo stesso
+che EVO scrive nelle sessioni vere di settembre) e nome senza "ü"
+("Nurburgring", idem, dai Results). Il crash dimentica con il file ESTERNO:
+un CAMPO NASCOSTO (id asset pista?) resta agganciato alla pista precedente
+(Suzuka/Red Bull) sedilmente riscrivendo nome/tag/layout: EVO costruisce il
+percorso risorsa da quel campo → combinazione inesistente → path vuoto.
+SCAVINATO (da fare nel menu di EVO): al cambio-pista serve che EVO riscriva
+il file dal SUO menu — le selezioni da menu producono sempre sessioni vere
+(serata 18→20, fatta davvero a cata), mentre l'editor esterno NO.
+RISOLTO (21/10, notte): il campo fantasma NON esisteva. Il diff col file
+sano scritto dal menu EVO mostra che i campi bruti erano i nostri stessl —
+TAG e LAYOUT sbagliati (ereditati da unendo piste diverse):
+- Nürburgring GP: name "Nurburgring" (ASCII), tag "Gp Strecke",
+  layout "Gp Strecke Race" (il layout di gara, non il "Time Attack" letto
+  dai Results di settembre — le sessioni vere di settembre erano Time Attack).
+La pista "tutta rossa" nel menu era la texture mancante per quel triplete;
+ricliccando la pista dal menu EVO il file sano è tornato e la R1.5 è PARTITA.
+set-track.mjs ora porta TRACK_SPECIALS (chiave/mail Nome) con i campi
+f5.2/f5.3/f5.6 giusti per le piste che hanno asset dedicati: al prossimo
+"set-track Nürburgring GP" la pista arriva già session-ready. Le sessioni
+vere restano la fonte: quando EVO riscrive un weekend per altra pista
+Session-ready", si aggiunge l'entry la TRACK_SPECIALS.
+Prossimo passo: catturare il gamemodesave scritto da EVO a selezione fatta e
+fare il diff col nostro: il campo mancante salta fuori e set-track si
+completato (rimane UNA pista fantasma in più, non una sola).
+
+## GARA-LETTE del PASSATO incassata a catena (21/10, notte) — vedo e sistemo
+Su un import a post-gara il flusso ha incassato DUE file nello stesso gesto:
+1. il vero (Tale) 21/10 00:46 Nürburgring RX-7 R5, P1 → corretto;
+2. un VECCHIO risultato del 7/10 (Laguna Seca, R6 combaciante) MAI incassato
+   fino a quel momento: la carriera gli ha dato 20 pt + 7000 € come se fosse
+   lived lle. Il vela import accadda un file per giro: appena il primo entra,
+   il ledger si ri-sbriglia e il secondo corrente passa nel medesimo comando.
+Rimedio IMMEDIATO (fatto, verificato): restore dal backup automatico
+(bak-22-47-56, preso 54" prima dell'incasso fantasma) + rimozione della
+entry dal ledger: round 5, banca 300.802, 5 gare RX-7 — lo stato giusto.
+REGOLA per il flusso: quando incassi a post-gara, GUARDA il log/ledger:
+se il secondo file incassato è più vecchio del round appena assodato,
+è fantasma. Il rimedio a doppio-boot: nel watch/import-later ir'cre CZÊ
+impostata 'dall'ultimo round incassato' anche a stampa — da capire meglio
+con Mauro; l'import a catena manchi verità (la default oggi è trattasi 1
+per tick, va riesamina quando succede in fermo).
+
+## SCHERMATA PISTE VUOTA (22/10, notte) — Laguna Seca col kit del Nürburgring
+Causa: al cambio pista verso Laguna Seca (R6, lanciato dal browser) specFor
+ha ereditato tag/layout/continente dal FILE PRECEDENTE (che era Nürburgring):
+"Laguna Seca" dichiarata con tag "Gp Strecke", layout "Gp Strecke Race" e
+continente "Europe" → la schermata selezione piste si svuota (stesso sintomo
+del fantasma Nürburgring del 21/10).
+Fix alla radice in tools/set-track.mjs: specFor ora scrive VALORI ASSOLUTI
+per ogni pista del libro — tag "GP", layout "GP Race" (il catalogo del server
+dedicato conferma: tutte le piste mono-layout si chiamano così) e continente
+dalla mappa CONTINENTI[paese]. TRACK_SPECIALS resta solo per le piste con
+layout propri (Nürburgring). Riparo applicato al vivo: 4 blocchi riscritti,
+backup bak-track-2026-10-20T23-20.
+REGOLA: dopo ogni cambio pista, controllare i 4 campi (nation/name/tag/
+layout/continent/len) su TUTTI i blocchi — non solo il nome.

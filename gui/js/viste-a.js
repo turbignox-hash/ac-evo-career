@@ -317,7 +317,13 @@ function drawCardInto(el, card){
         <div class="field"><label>Inizio prove libere (ora del gioco)</label><input type="number" id="rs-pstart" min="0" max="23" value="${card.practiceStart}"></div>
         <div class="field"><label>Inizio qualifiche (ora del gioco)</label><input type="number" id="rs-qstart" min="0" max="23" value="${card.qualifyStart}"></div>
         <div class="field"><label>Moltiplicatore tempo</label>
-          <select id="rs-time">${[1,2,3,4,5,6,8,10,12,24].map(t=>`<option value="${t}" ${t===(card.timeMultiplier??1)?'selected':''}>${t}x</option>`).join('')}</select>
+          <select id="rs-time">${[1,2,3,4,5,6,8,10,12,24,48].map(t=>`<option value="${t}" ${t===(card.timeMultiplier??1)?'selected':''}>${t}x</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>Piano orario della serie <span class="faint">(notte, tramonto→alba, orari variabili)</span></label>
+          <select id="rs-piano">
+            <option value="">— nessun piano (orari del calendario) —</option>
+            ${Object.entries(card.piani||{}).map(([id,p])=>`<option value="${id}" ${card.pianoCurrent===id?'selected':''}>${esc(p.label)}</option>`).join('')}
+          </select>
         </div>
         <div class="field"><label>Distanza gara <span class="faint">(piena: ${card.baseLaps ?? card.round.laps} giri · premio ${money(card.prizeFull ?? card.round.econ?.prize)} €)</span></label>
           <select id="rs-dist">${[100,75,50,25].map(p=>`<option value="${p}" ${p===(card.distPct??100)?'selected':''}>${p}% — ${Math.max(2,Math.round((card.baseLaps ?? card.round.laps)*p/100))} giri · premio fino a ${money(Math.round((card.prizeFull ?? 0)*p/100))} €</option>`).join('')}</select>
@@ -343,7 +349,7 @@ function drawCardInto(el, card){
       <select id="sel-car" style="flex:1;min-width:200px">${card.carChoices.map(c=>`<option value="${esc(c.id)}"${c.id===card.car?' selected':''}>${esc(c.display)}</option>`).join('')}</select>
       <button class="ghost" id="b-copy">Copia scheda</button>
     </div>
-    <button class="act" id="b-race" style="width:100%;margin-top:10px">Iscriviti e apri EVO</button>
+    <button class="act" id="b-race" style="width:100%;margin-top:10px">🏁 Prepara tutto e divertiti</button>
     <div class="muted" style="margin-top:10px">Imposta i campi nella gara personalizzata di EVO spuntando la lista qui sopra; a scheda completa, premi Invio.</div>`;
   const save = () => {
     checked = $$('.ckl input', el).filter(c=>c.checked).map(c=>Number(c.dataset.i));
@@ -395,6 +401,7 @@ function drawCardInto(el, card){
         qualifyStart: Number($('#rs-qstart', el).value),
         timeScale: Number($('#rs-time', el).value),
         distPct: Number($('#rs-dist', el).value),
+        piano: $('#rs-piano', el)?.value || null,
       });
       toast('Regole salvate: valle a impostare in EVO.', 'ok');
       drawCardInto(el, await api('card', { car: $('#sel-car', el)?.value ?? null }));
@@ -498,7 +505,7 @@ function drawCardInto(el, card){
       toast(`Gara segnata${r.fee?` · iscrizione ${money(r.fee)} €`:''}. ${note}`, 'ok');
       drawCardInto(el, r.card);
       await refreshBoot();
-    } catch(e){ toast(e.message, 'err'); btn.disabled=false; btn.textContent='Iscriviti e apri EVO'; }
+    } catch(e){ toast(e.message, 'err'); btn.disabled=false; btn.textContent='🏁 Prepara tutto e divertiti'; }
   };
 }
 

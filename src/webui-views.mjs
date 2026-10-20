@@ -21,6 +21,7 @@ import {
 } from './state.mjs';
 import { agendaDay, dateLabel, scheduledDay, racesOnDay, prossimoGiornoConGara } from './agenda.mjs';
 import { raceCard } from './race.mjs';
+import { PIANI } from './orario.mjs';
 import { mailbox } from './mailbox.mjs';
 import { memoryRoundHint } from './memories.mjs';
 import { tyreClassOf } from './setup.mjs';
@@ -190,6 +191,9 @@ function viewCard(ladder, state, car = null) {
     aggression: card.profile.aggr,
     aggressionLocked: true,
     timeMultiplier: card.timeMultiplier ?? 1,
+    // piani orari per la select "Piano orario della serie" (orario.mjs)
+    piani: Object.fromEntries(Object.entries(PIANI).map(([id, p]) => [id, { label: p.label }])),
+    pianoCurrent: state.raceSettings?.[card.node.nodeId]?.piano ?? null,
     distPct: card.distPct ?? 100,
     baseLaps: card.baseLaps ?? null,
     laps: card.laps ?? null,

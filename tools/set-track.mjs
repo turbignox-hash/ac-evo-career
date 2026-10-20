@@ -30,9 +30,51 @@ export const ISO = {
   Svezia: 'SWE', Finlandia: 'FIN', Polonia: 'POL',
 };
 
+/**
+ * Piste con nome asset ≠ nome display e/o tag/layout dedicati (lezione del
+ * 21/10, Nürburgring: i campi f5.2/f5.3/f5.6 sbagliati spiano la texture e
+ * crashano il load con "empty path"). Chiave = nome libero riconosciuto da
+ * sameTrack. I valori sono quelli che EVO SCRIVE DA SOLO al pick dal menu
+ * (gamemodesave healthy diff 21/10, il campo fantasma non c'era).
+ *
+ * LEZIONE 22/10 notte (schermata piste VUOTA a Laguna Seca): i campi NON
+ * special NON DEVONO ereditare tag/layout/continente dal file precedente —
+ * dopo il Nürburgring Laguna Seca si è ritrovata col kit completo del ring
+ * ("Gp Strecke"/"Gp Strecke Race"/"Europe") e la lista piste si svuota.
+ * Da qui specFor scrive GASOLIO valori assoluti (GP / GP Race / continente
+ * dal paese) per ogni pista del libro: SPECIALS solo per le piste con layout
+ * propri.
+ */
+export const TRACK_SPECIALS = {
+  nurburgring: { name: 'Nurburgring', tag: 'Gp Strecke', layout: 'Gp Strecke Race', continent: 'Europe' },
+};
+
+// continente (campo 3.5.8) per paese: usato per NON ereditare il continente
+// del file precedente (lezione 22/10 notte, Laguna Seca col continente
+// "Europe" del Nürburgring). I paesi già coperti da ISO qui sotto.
+export const CONTINENTI = {
+  Italia: 'Europe', Germania: 'Europe', Austria: 'Europe', Francia: 'Europe',
+  'Regno Unito': 'Europe', Scozia: 'Europe', Galles: 'Europe', Spagna: 'Europe',
+  Portogallo: 'Europe', Olanda: 'Europe', 'Paesi Bassi': 'Europe', Belgio: 'Europe',
+  Ungheria: 'Europe', Svizzera: 'Europe', Svezia: 'Europe', Finlandia: 'Europe',
+  Polonia: 'Europe', Irlanda: 'Europe',
+  Giappone: 'Asia', Cina: 'Asia',
+  'Stati Uniti': 'North America', Canada: 'North America', Messico: 'North America',
+  Brasile: 'South America',
+  Australia: 'Oceania',
+  Dubai: 'Asia', 'Emirati Arabi': 'Asia',
+};
+
 /** Ricerca pista nel libro: match esatto/normale sul nome o fullName. */
 export function findTrackInfo(name) {
   for (const t of Object.values(TRACK_INFO)) if (sameTrack(t.name, name) || sameTrack(t.fullName ?? '', name)) return t;
+  return null;
+}
+
+function specialKeyFor(trackName, info) {
+  for (const k of Object.keys(TRACK_SPECIALS)) {
+    if (sameTrack(k, trackName) || sameTrack(info.name, k) || String(info.fullName ?? '').toLowerCase().includes(k)) return k;
+  }
   return null;
 }
 
@@ -49,8 +91,24 @@ export function specFor(trackName, over = {}) {
     nation: over.nation ?? ISO[info.country],
     name: info.name,
     lengthM: over.lengthM ?? (info.lengthKm != null ? Math.round(info.lengthKm * 1000) : undefined),
+    // VALORI ASSOLUTI, non ereditati dal file (lezione 22/10 notte: Laguna Seca
+    // ereditata col kit COMPLETO del Nürburgring — tag "Gp Strecke", layout
+    // "Gp Strecke Race", continente Europe — e la schermata piste si svuota):
+    // - tag/layout: il catalogo del server dedicato dice che TUTTE le piste
+    //   mono-layout si chiamano "GP"/"GP Race" (Monza/Sebring/RBR/Suzuka/
+    //   Donington visti sani nei backup: sempre GP + "GP Race"); le piste con
+    //   layout propri (Nürburgring) restano nel TRACK_SPECIALS qui sotto.
+    // - continente: dal paese del libro, mai dal file.
+    tag: over.tag ?? 'GP',
+    layout: over.layout ?? 'GP Race',
+    continent: over.continent ?? CONTINENTI[info.country] ?? null,
   };
   if (spec.nation == null) delete spec.nation;   // senza ISO noto: lascia quello del file
+  if (spec.continent == null) delete spec.continent;
+  // piste con nome asset/tag/layout propri: i valori SPECIALS sostituiscono
+  // i default qui sopra
+  const key = specialKeyFor(trackName, info);
+  if (key) Object.assign(spec, TRACK_SPECIALS[key]);
   return spec;
 }
 
