@@ -181,3 +181,71 @@ pilota!): GR86 Edition PI 8.889 → 10%, GR86 Standard 8.858 → 5%, Renault bas
 5. combinazione confermata → si fissa in grid-classes.json come definitiva.
   Il tool non pensa AL POSTO di Mauro sulla sensazione: pensa i NUMERI al posto
   suo, la conferma resta umana.
+
+## IL METEO SI COMANDA DA FILE (20/10/2026) — VERIFICATO IN PISTA
+
+### Il meccanismo (reverse engineering con watcher + log di gioco)
+La scelta del preset nel menu meteo NON scrive nessun file (17 snapshot di
+`GameModeType_RACE_WEEKEND.gamemodesave` e 7 di `gamemode.lastgamemode`
+byte-identici durante i click; la UI è stateless: "Registered CurrentWeatherData"
+e "GameModeSelectionWeatherBehaviour_DYNAMIC" nel log). Il meteo che la sessione
+applica parte dal PRESET SELEZIONATO scritto in:
+
+- `Saved Games\ACE\GameModes\gamemode.lastgamode`, **top field 2** (varint 0-based):
+  0 sereno · 1 nuvole sparse · 2 nuvoloso · 3 coperto · 4(pioggia leggera) · 5 pioggia · 6 pioggia intensa · 7 custom.
+  Campo ASSENTE = preset 0 (default proto3): il gioco lo omette su "sereno" (visto
+  reale dopo un cambio manuale a menu).
+- La stessa lista log conferma a inizio sessione:
+  `Game Started! ... GameModeSelectionWeatherType_HEAVY_RAIN` +
+  `Initial weather type: heavy rain (6)`.
+- Lo stesso file porta la TIMELINA PREVISIONI (9 sub field 3 con i float:
+  f4=temp aria, f8=pioggia 0-1, f11=copertura, f12=nebbia, f2=step attivo).
+  Scrittabile in-place (patch a stessa lunghezza) — ma il preset vince sui
+  float: con preset 6 la gara parte HEAVY_RAIN anche con timeline a 0.35.
+  I float contano davvero solo col preset 7 (custom, NON ancora collaudato).
+
+### Le prove in pista (20/10, sera)
+1. preset 6 scritto da fuori → gara partita HEAVY_RAIN (conferma meccanismo).
+2. float timeline a 0.35 con preset ancora 6 → gara ANCORA HEAVY_RAIN:
+   la selezione domina sui float. Non è un fallimento: è la mappa del campo.
+3. preset 4 scritto da fuori con patch in-place → selettore UI mostra
+   "Pioggia leggera" e la gara PARTE in `GameModeSelectionWeatherType_DRIZZLE`
+   (log 18:30:15, stessi circuito/auto del test HEAVY_RAIN delle 18:21).
+   **La filiera file→selettore→sessione è chiusa.**
+4. Lettura/sovrascrittura a EVO APERTO: funziona (dopo riapertura modelli UI,
+   "Registered CurrentWeatherData"); a sessione AVVIATA il valore in uso non
+   cambia. La finestra giusta: scrivere PRIMA di entrare in sessione.
+
+### Indici DIVERSI dalla ladder
+`config/career.evo.ladder.json` dichiara i round con `weatherNames`:
+0 Clear · 1 Scattered clouds · 2 Overcast · 3 **Light rain** · 4 Rain · 5 Heavy rain.
+La numerazione NON coincide coi preset EVO (ladder 3="Light rain" ma il preset
+pioggia leggera è il 4; ladder 4="Rain" è il preset 5). Tradurre SEMPRE per
+etichetta con `presetForLabel()` — mai per numero.
+
+### Il modulo (usato dal lancio gara)
+`src/weather.mjs`:
+- `currentWeatherPreset()` → 0-7 (campo assente letto come 0=sereno);
+- `setWeatherPreset(idx)` → cambia il selettore, inserisce il campo 2 se
+  assente (re-encode proto conforme, verify-test `tools/test-f2-insert.mjs`);
+- `setWeatherCustom({rain,cloud,fog})` → preset 7 + patch float timeline in-place;
+- `presetForLabel("Light rain")` → 4 (traduzione ladder→EVO);
+- CLI: `node src/weather.mjs` (legge) · `<preset>` (imposta) · `--custom r c n`.
+Backup `.bak-wx-*` automatico a ogni scrittura.
+Nel `case race` di webui: il meteo della ronda (round.weather → label → preset)
+viene scritto a ogni lancio gara, FUORI dal cancello EVO-chiuso (test del
+20/10: scritta accettata a gioco aperto). Se il round non dichiara meteo,
+non tocca nulla.
+
+### Procedura di test per una ronda (come l'abbiamo fatta oggi)
+1. `node src/weather.mjs` → preset attuale;
+2. `node src/weather.mjs <preset>` → scrivi quello voluto (o lascialo se gia
+   uguale: il prep della GUI fa da se);
+3. NON toccare il menu meteo di EVO prima di partire (riscrive il file con
+   la sua selezione);
+4. avvia la sessione → in pista asfalto come da preset;
+5. verifica post-hoc: log di gioco (`WeatherType_*`) + `node src/weather.mjs`
+   (il file deve mantenere il preset scritto).
+
+Prossimi passi naturali: collaudo del preset 7 custom in sessione; pannello
+meteo nella GUI (i 7 preset + slider custom) che richiama weather.mjs.
