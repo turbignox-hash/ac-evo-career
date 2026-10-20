@@ -47,6 +47,7 @@ const ICONS = {
   calendar:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5 1.5v3M11 1.5v3"/></svg>',
   standings:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5v7M5.8 6.2h4.4M5.8 9.8h4.4" stroke-linecap="round"/></svg>',
   grid:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="2.5" width="5" height="5"/><rect x="8.5" y="2.5" width="5" height="5"/><rect x="2.5" y="8.5" width="5" height="5"/><rect x="8.5" y="8.5" width="5" height="5"/></svg>',
+  griglia:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="4" width="13" height="9" rx="1.2"/><path d="M5.5 4v9M10.5 4v9M1.5 8.5h13"/></svg>',
   series:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5 14 5v6l-6 3.5L2 11V5z"/><path d="M8 8 14 5M8 8 2 5M8 8v6.5"/></svg>',
   stats:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.5V8l2.6 2" stroke-linecap="round"/></svg>',
   banca:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6.5 8 3l6 3.5"/><path d="M3.5 6.5V12M6.5 6.5V12M9.5 6.5V12M12.5 6.5V12"/><path d="M2 13.5h12"/></svg>',
@@ -57,7 +58,6 @@ const ICONS = {
   catalog:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 3.5h4.2v4.2H2.5zM9.3 3.5h4.2v4.2H9.3zM2.5 8.8h4.2V13H2.5zM9.3 8.8h4.2V13H9.3z"/></svg>',
   archive:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="4" rx="1"/><path d="M3.5 6.5V13h9V6.5M6 9.5h4"/></svg>',
   rivals:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.2" cy="5" r="2.2"/><circle cx="10.8" cy="5" r="2.2"/><path d="M1.8 13c.4-2.4 1.7-3.6 3.4-3.6S8.2 10.6 8.6 13M7.4 13c.4-2.4 1.7-3.6 3.4-3.6s3 1.2 3.4 3.6"/></svg>',
-  gazzetta:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 3h9.5a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 12.5z"/><path d="M5.5 6.5h5M5.5 9h5M5.5 11.5h3"/></svg>',
   testday:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h3l2-4 2 8 2-5 1.5 2H14" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   setup:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.8 4.2a3.6 3.6 0 0 1-4.8 4.4L5 12.6a1.4 1.4 0 0 1-2-2l4-4a3.6 3.6 0 0 1 4.4-4.8L9.6 3.6l2.8 2.8z" stroke-linejoin="round"/></svg>',
   tracks:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4.5 1.5 3.6 14.5M11.5 1.5l.9 13" stroke-linecap="round"/><path d="M8 3.5v1.6M8 7.2v1.6M8 10.9v1.6" stroke-linecap="round"/></svg>',
@@ -90,19 +90,17 @@ const flagOf = (c) => COUNTRY_FLAG[c] ?? '🏁';
 /* bandiera a scacchi inline per i titoli di gara */
 const CFLAG = '<svg viewBox="0 0 16 16" style="width:14px;height:14px;vertical-align:-2px" fill="none" aria-hidden="true"><path d="M2.5 1.5h11v13h-11z"/><path d="M2.5 1.5h3.67v3.6H2.5zM9.83 5.1h3.67v3.6H9.83zM6.17 8.7h3.66v3.6H6.17z" fill="currentColor" stroke="none"/></svg>';
 const TABS = [
-  ['dashboard','Cruscotto'], ['agenda','Agenda'], ['messages','Messaggi'], ['championships','Campionati'], ['standings','Mondiale'],
+  ['dashboard','Cruscotto'], ['agenda','Agenda'], ['setup','Setup'], ['messages','Messaggi'], ['championships','Campionati'], ['griglia','Griglia'], ['standings','Mondiale'],
   ['rivals','Rivali'], ['tracks','Piste'], ['cars','Auto'], ['garage','Garage'], ['import','Risultati'],
-  ['setup','Setup'],
   ['archive','Archivio'], ['stats','Statistiche'],
-  ['banca','Banca'],
-  ['gazzetta','Gazzetta'], ['difficulty','Difficoltà'], ['settings','Impostazioni'],
+  ['banca','Banca'], ['difficulty','Difficoltà'], ['settings','Impostazioni'],
 ];
 /* un colore per ogni sezione: le icone della nav restano riconoscibili a colpo d'occhio */
 const TAB_COLORS = {
-  dashboard:'#5da9ff', agenda:'#ff7a45', calendar:'#b48cff', standings:'#ffd166', rivals:'#ff6b6b',
-  tracks:'#e8c46b', cars:'#74c0fc', garage:'#ffd43b', import:'#63e6e2',
+  dashboard:'#5da9ff', agenda:'#ff7a45', calendar:'#b48cff', standings:'#ffd166',  rivals:'#ff6b6b',
+  tracks:'#e8c46b', cars:'#74c0fc', garage:'#ffd43b', import:'#63e6e2', griglia:'#82ccdd',
   setup:'#f78fb3', catalog:'#82ccdd', archive:'#c9a0ff', stats:'#69db7c',
-  gazzetta:'#dfe4ea', difficulty:'#5f7cff', messages:'#ffa94d', settings:'#adb5bd', banca:'#ffd43b',
+  difficulty:'#5f7cff', messages:'#ffa94d', settings:'#adb5bd', banca:'#ffd43b',
 };
 let tab = 'dashboard';
 function drawNav(){
@@ -134,8 +132,8 @@ async function render(){
     if (tab==='archive')    return await drawArchive(m);
     if (tab==='stats')      return await drawStats(m);
     if (tab==='banca')      return await drawBanca(m);
-    if (tab==='gazzetta')   return await drawGazzetta(m);
     if (tab==='import')     return await drawImport(m);
+    if (tab==='griglia')    return await drawGridTab(m);
     if (tab==='setup')      return await drawSetup(m);
     if (tab==='difficulty') return await drawDifficulty(m);
     if (tab==='messages')   return await drawMessages(m);

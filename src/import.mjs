@@ -30,6 +30,8 @@ import { publishRaceNews } from './gazzetta.mjs';
 import { recordFlows } from './flows.mjs';
 import { recordWarning } from './warnings.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
+import { recordRaceFromResult } from './grid-calib.mjs';
+import { avanzaDopoGara } from './agenda.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);
@@ -404,6 +406,24 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
     prize: entry.prize, money: state.money, backup: backupFile,
   });
 
+  // calibrazione dai risultati reali (grid-calib.mjs): per-auto vs base e campo
+  // AI contro di te → proposte appese a data/grid-calibrazione.json. Gare manuali
+  // e inserite a mano non hanno il file grezzo: si lasciano perdere (mai bloccare l'import).
+  let calibrazione = null;
+  if (isNew && ctx.rawResult) {
+    try {
+      calibrazione = recordRaceFromResult({
+        result: ctx.rawResult, playerDriver: ctx.playerDriver,
+        track: payload.track ?? null, sourceFile: ctx.candidateFile ?? null,
+      });
+    } catch { /* la calibrazione non ferma mai la carriera */ }
+  }
+
+  // giornata auto-avanzata dopo la registrazione (richiesta Mauro 19/10): se i
+  // sedili iscritti non hanno gare oggi, il calendario salta al prossimo giorno con gare
+  let agendaJump = null;
+  try { agendaJump = avanzaDopoGara(ladder, state); } catch { /* mai bloccare l'import */ }
+
   // gazzetta: la stampa del paddock commenta la gara (solo gare nuove)
   let newsItem = null;
   if (isNew && !manual) {
@@ -452,6 +472,8 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
     proposal: proposal ? { reason: proposal.reason, from: proposal.from, to: proposal.to } : null,
     crowd: (raceCrowdFor(payload.track) || crowdBonus > 0) ? { spectators: raceCrowdFor(payload.track), bonus: crowdBonus } : null,
     nudgeSuggested,
+    calibrazione,
+    agenda: agendaJump,
     seasonDone: state.round >= targetNode.calendar.length,
     backup: backupFile,
     news: newsItem ? { title: newsItem.title, body: newsItem.body } : null,

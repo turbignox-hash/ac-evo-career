@@ -25,6 +25,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 export const PRESSURE_LOG_FILE = join(HERE, '..', 'data', 'motec-pressure-log.json');
 
 const r1 = (v) => Math.round(v * 10) / 10;
+const r2 = (v) => Math.round(v * 100) / 100;
+const r3 = (v) => Math.round(v * 1000) / 1000;
 export const KIND_IT = { race: 'gara', qualifying: 'qualifica', practice: 'prove libere' };
 export const kindIt = (k) => KIND_IT[String(k ?? '').toLowerCase()] ?? 'sessione libera';
 // normTrack/sameTrack arrivano da tracknames.mjs: UNA sola implementazione del
@@ -208,6 +210,99 @@ function analyzeLdUncached(ldFile) {
   };
 }
 
+/* ------------------------------------------------------------------ */
+/* grafico del giro: profilo velocità di un giro (con gas e freno)      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Traccia del giro da un file .ld: SPEED/THROTTLE/BRAKE campionati a `points`
+ * punti equispaziati nel tempo. Ils CONFRONTO (compare: 'best' | numero giro | null)
+ * allinea i due giri sulla FRAZIONE DI DISTANZA (integrazione della velocità):
+ * così la differenza punto per punto dice DOVE il giro perde o guadagna
+ * (frenata lunga, staccata, rettifilo) anche se le durate divergono.
+ * Ritorna { ok, lap, durationSec, distanceKm, points, compare } o null.
+ */
+export function lapTrace(ldFile, { lap = 'best', compare = 'best', points = 240 } = {}) {
+  let ld;
+  try { ld = parseLd(readFileSync(ldFile)); } catch { return null; }
+  if (!ld) return null;
+  const meta = analyzeLd(ldFile);
+  if (!meta) return null;
+  const valid = (meta.laps ?? []).filter((l) => l.durationSec > 15);
+  if (!valid.length) return null;
+  const best = valid.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), valid[0]);
+  const chosen = lap === 'best' || lap == null ? best : (valid.find((v) => v.lap === Number(lap)) ?? best);
+  const cmpLap = compare == null || compare === 'none'
+    ? null
+    : (compare === 'best' ? (best.lap === chosen.lap && valid.length > 1 ? valid.filter((v) => v.lap !== chosen.lap).sort((a, b) => a.durationSec - b.durationSec)[0] : best)
+    : (valid.find((v) => v.lap === Number(compare)) ?? null));
+  const sv = ld.channels.get('SPEED');
+  if (!sv) return null;
+  const ch = (name) => ld.channels.get(name) ?? null;
+  const th = ch('THROTTLE'), br = ch('BRAKE');
+  const norm01 = (v) => (v <= 0 ? 0 : v > 1.5 ? v / 100 : v); // 0–1 o già in %
+  const sample = (L) => {
+    const n = Math.max(2, Math.min(900, Number(points) || 240));
+    const span = L.endSec - L.startSec;
+    const eps = 0.6 / (sv.rate || 60); // mezzo passo di campionaggio: l'endPoint NON deve cadere sul giro dopo
+    const out = { n, span, xs: [], vs: [], pts: [] };
+    let dist = 0;
+    for (let k = 0; k < n; k++) {
+      const t = L.startSec + ((span - eps) * k) / (n - 1);
+      const v = Math.max(0, ld.dv.getFloat32(sv.off + idxAt(sv, t) * 4, true)) * (sv.unit && /m|s/i.test(sv.unit) && !/km/i.test(sv.unit) ? 3.6 : 1);   // unità iscritta nell'header: i file veri di EVO scrivono "m/s" → km/h
+      if (k) dist += ((v + out.vs[k - 1]) / 2) * (span / (n - 1));   // km/h · s
+      out.vs.push(v);
+      out.pts.push({
+        x: 0, // riempita sotto, dopo il totale
+        v: r1(v),
+        th: th ? r2(norm01(ld.dv.getFloat32(th.off + idxAt(th, t) * 4, true))) : null,
+        br: br ? r2(norm01(ld.dv.getFloat32(br.off + idxAt(br, t) * 4, true))) : null,
+      });
+    }
+    if (dist <= 0) return null;
+    let acc = 0;
+    for (let k = 0; k < n; k++) {
+      if (k) acc += ((out.vs[k] + out.vs[k - 1]) / 2) * (span / (n - 1));
+      out.xs.push(acc / dist);           // frazione di distanza 0..1
+      out.pts[k].x = r3(acc / dist);
+    }
+    out.distKm = (dist / 3600);
+    return out;
+  };
+  const A = sample(chosen);
+  if (!A) return null;
+  let compareOut = null, dv = null;
+  if (cmpLap) {
+    const B = sample(cmpLap);
+    if (B) {
+      dv = [];
+      // velocità del confronto alla FRAZIONE DI DISTANZA del giro scelto (interp lineare)
+      let j = 1; // B.xs è monotono non decrescente
+      for (let k = 0; k < A.n; k++) {
+        const x = A.xs[k];
+        while (j < B.n - 1 && B.xs[j] < x) j++;
+        const x0 = B.xs[j - 1], x1 = B.xs[j];
+        const f = x1 > x0 ? (x - x0) / (x1 - x0) : 0;
+        const vB = B.vs[j - 1] + f * (B.vs[j] - B.vs[j - 1]);
+        dv.push(r1(A.vs[k] - vB));
+      }
+      const sum = dv.reduce((s, v) => s + v, 0);
+      compareOut = {
+        lap: cmpLap.lap, durationSec: cmpLap.durationSec,
+        timeDelta: r2(chosen.durationSec - cmpLap.durationSec),
+        dv, dvAvg: r2(sum / dv.length),
+        dvMax: r2(Math.max(...dv)), dvMin: r2(Math.min(...dv)),
+        distKm: B.distKm,
+      };
+    }
+  }
+  return {
+    ok: true, lap: chosen.lap, startSec: chosen.startSec, endSec: chosen.endSec,
+    durationSec: chosen.durationSec, distanceKm: Math.round(A.distKm * 1000) / 1000,
+    bestLap: best.lap, points: A.pts, compare: compareOut,
+  };
+}
+
 /** Statistiche (min/max/media) di un canale sull'intera sessione. */
 function statsOf(ld, name) {
   const c = ld.channels.get(name); if (!c) return null;
@@ -366,7 +461,8 @@ export function collectSessions(motecRoot, resultsDir, { car = null, track = nul
  * Diagnostica telemetria: per ogni auto, gli ultimi file .ld con dimensione,
  * validità (canali con dati > 0) e numero di beacon reali nel .ldx.
  * Legge solo l'header dei file: veloce anche con file da 10+ MB.
- * Serve a vedere al volo il bug EVO che scrive file .ld vuoti (solo intestazione).
+ * Serve a vedere al volo i file .ld vuoti (solo intestazione): significa che
+ * la telemetria non era attiva in EVO durante la sessione (non è un bug del gioco).
  */
 export function telemDiagnostics(motecRoot, { perCar = 6 } = {}) {
   const out = [];

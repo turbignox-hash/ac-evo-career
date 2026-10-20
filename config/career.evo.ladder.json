@@ -625,21 +625,21 @@
         {
           "track": "imola",
           "name": "Imola - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 11,
           "weather": 2
         },
         {
           "track": "monza",
           "name": "Monza - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         }
@@ -679,63 +679,63 @@
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 2",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 5",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 5
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 7",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 8",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 5
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         }
@@ -775,49 +775,49 @@
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 4
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 5
         },
         {
           "track": "imola",
           "name": "Imola - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         }
@@ -858,49 +858,49 @@
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 2",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 3
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         },
         {
           "track": "monza",
           "name": "Monza - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         }
@@ -941,56 +941,56 @@
         {
           "track": "imola",
           "name": "Imola - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 5",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 6",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 7",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         }
@@ -1031,21 +1031,21 @@
         {
           "track": "monza",
           "name": "Monza - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 3
         },
         {
           "track": "imola",
           "name": "Imola - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         }
@@ -1086,63 +1086,63 @@
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "monza",
           "name": "Monza - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 4
         },
         {
           "track": "imola",
           "name": "Imola - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 7",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 8",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Finale",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         }
@@ -1183,49 +1183,49 @@
         {
           "track": "suzuka",
           "name": "Suzuka - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 2",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "monza",
           "name": "Monza - Round 3",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 4
         },
         {
           "track": "imola",
           "name": "Imola - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Finale",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         }
@@ -1266,56 +1266,56 @@
         {
           "track": "monza",
           "name": "Monza - Round 1",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 2",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 7",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Finale",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         }
@@ -1356,49 +1356,49 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "imola",
           "name": "Imola - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "monza",
           "name": "Monza - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 5
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 4
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Finale",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         }
@@ -1437,56 +1437,56 @@
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 3",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 5
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 7",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "monza",
           "name": "Monza - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         }
@@ -1525,56 +1525,56 @@
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 5
         },
         {
           "track": "imola",
           "name": "Imola - Round 5",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 5
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 6",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 7",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 1
         }
@@ -1614,63 +1614,63 @@
         {
           "track": "suzuka",
           "name": "Suzuka - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 2",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 5
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "imola",
           "name": "Imola - Round 7",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 5
         },
         {
           "track": "monza",
           "name": "Monza - Round 8",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 5
         }
@@ -1709,63 +1709,63 @@
         {
           "track": "suzuka",
           "name": "Suzuka - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 3",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 4",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 7",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 8",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "imola",
           "name": "Imola - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         }
@@ -1805,49 +1805,49 @@
         {
           "track": "donington_park",
           "name": "Donington Park - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "monza",
           "name": "Monza - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 6",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         }
@@ -1888,63 +1888,63 @@
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 3",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 3
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         },
         {
           "track": "monza",
           "name": "Monza - Round 7",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 8",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         }
@@ -1986,49 +1986,49 @@
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 3
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 3",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "imola",
           "name": "Imola - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         }
@@ -2069,56 +2069,56 @@
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "monza",
           "name": "Monza - Round 5",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 7",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "imola",
           "name": "Imola - Finale",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         }
@@ -2160,63 +2160,63 @@
         {
           "track": "monza",
           "name": "Monza - Round 1",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 2",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "imola",
           "name": "Imola - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 5",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 6",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 7",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 8",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         }
@@ -2256,49 +2256,49 @@
         {
           "track": "donington_park",
           "name": "Donington Park - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 3
         },
         {
           "track": "imola",
           "name": "Imola - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "monza",
           "name": "Monza - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         }
@@ -2338,7 +2338,7 @@
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 2,
           "durationMin": 30
@@ -2346,7 +2346,7 @@
         {
           "track": "monza",
           "name": "Monza - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 2,
           "durationMin": 30
@@ -2354,7 +2354,7 @@
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 2,
           "durationMin": 40
@@ -2362,7 +2362,7 @@
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 4,
           "durationMin": 35
@@ -2370,7 +2370,7 @@
         {
           "track": "sebring",
           "name": "Sebring - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 0,
           "durationMin": 35
@@ -2378,7 +2378,7 @@
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 0,
           "durationMin": 30
@@ -2386,7 +2386,7 @@
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 7",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 4,
           "durationMin": 40
@@ -2394,7 +2394,7 @@
         {
           "track": "imola",
           "name": "Imola - Finale",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 2,
           "durationMin": 45
@@ -2437,7 +2437,7 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 0,
           "durationMin": 55
@@ -2445,7 +2445,7 @@
         {
           "track": "suzuka",
           "name": "Suzuka - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 4,
           "durationMin": 60
@@ -2453,7 +2453,7 @@
         {
           "track": "sebring",
           "name": "Sebring - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 1,
           "durationMin": 70
@@ -2461,7 +2461,7 @@
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 4",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 0,
           "durationMin": 70
@@ -2469,7 +2469,7 @@
         {
           "track": "monza",
           "name": "Monza - Round 5",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 2,
           "durationMin": 60
@@ -2477,7 +2477,7 @@
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 6",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 0,
           "durationMin": 75
@@ -2485,7 +2485,7 @@
         {
           "track": "imola",
           "name": "Imola - Finale",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 5,
           "durationMin": 70
@@ -2528,7 +2528,7 @@
         {
           "track": "kyalami",
           "name": "Kyalami - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 4,
           "durationMin": 80
@@ -2536,7 +2536,7 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 0,
           "durationMin": 90
@@ -2544,7 +2544,7 @@
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 0,
           "durationMin": 90
@@ -2552,7 +2552,7 @@
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 4",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 2,
           "durationMin": 100
@@ -2560,7 +2560,7 @@
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 5,
           "durationMin": 100
@@ -2568,7 +2568,7 @@
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0,
           "durationMin": 80
@@ -2576,7 +2576,7 @@
         {
           "track": "monza",
           "name": "Monza - Round 7",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 2,
           "durationMin": 115
@@ -2584,7 +2584,7 @@
         {
           "track": "sebring",
           "name": "Sebring - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 4,
           "durationMin": 90
@@ -2624,21 +2624,21 @@
         {
           "track": "imola",
           "name": "Imola - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "monza",
           "name": "Monza - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         }
@@ -2679,49 +2679,49 @@
         {
           "track": "suzuka",
           "name": "Suzuka - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 2",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "imola",
           "name": "Imola - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "monza",
           "name": "Monza - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         }
@@ -2762,49 +2762,49 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "monza",
           "name": "Monza - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 1
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         }
@@ -2846,56 +2846,56 @@
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 1",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 3
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 6",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "imola",
           "name": "Imola - Round 7",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         }
@@ -2936,49 +2936,49 @@
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "monza",
           "name": "Monza - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         }
@@ -3020,49 +3020,49 @@
         {
           "track": "suzuka",
           "name": "Suzuka - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "monza",
           "name": "Monza - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 3
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 5
         }
@@ -3100,49 +3100,49 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 3",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 5",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 6",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         }
@@ -3181,49 +3181,49 @@
         {
           "track": "donington_park",
           "name": "Donington Park - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 2",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "monza",
           "name": "Monza - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         }
@@ -3262,63 +3262,63 @@
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 5
         },
         {
           "track": "imola",
           "name": "Imola - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 6",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 7",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 8",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 5
         }
@@ -3357,49 +3357,49 @@
         {
           "track": "donington_park",
           "name": "Donington Park - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 2",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 6",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 3
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Finale",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         }
@@ -3438,49 +3438,49 @@
         {
           "track": "kyalami",
           "name": "Kyalami - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "imola",
           "name": "Imola - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 5
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         }
@@ -3519,56 +3519,56 @@
         {
           "track": "kyalami",
           "name": "Kyalami - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 5
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 2",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 5",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "monza",
           "name": "Monza - Round 6",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 7",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         }
@@ -3607,63 +3607,63 @@
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 7",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 8",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Finale",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         }
@@ -3702,63 +3702,63 @@
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 1",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 2",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "imola",
           "name": "Imola - Round 4",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 6",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 7",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 8",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Finale",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         }
@@ -3797,49 +3797,49 @@
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 2",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "monza",
           "name": "Monza - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 1
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Finale",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         }
@@ -3878,63 +3878,63 @@
         {
           "track": "imola",
           "name": "Imola - Round 1",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 3",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 3
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 7",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 8",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         }
@@ -3973,63 +3973,63 @@
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 7",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 8",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "sebring",
           "name": "Sebring - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         }
@@ -4068,49 +4068,49 @@
         {
           "track": "kyalami",
           "name": "Kyalami - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 2",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 1
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 5
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         }
@@ -4149,56 +4149,56 @@
         {
           "track": "imola",
           "name": "Imola - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 5
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 5",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 6",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 7",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         }
@@ -4237,49 +4237,49 @@
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 6",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         }
@@ -4318,49 +4318,49 @@
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 5
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         }
@@ -4399,56 +4399,56 @@
         {
           "track": "suzuka",
           "name": "Suzuka - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 6",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 7",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         }
@@ -4487,63 +4487,63 @@
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 2",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 3",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         },
         {
           "track": "imola",
           "name": "Imola - Round 5",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 7",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 8",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         }
@@ -4582,56 +4582,56 @@
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 7",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         }
@@ -4670,56 +4670,56 @@
         {
           "track": "kyalami",
           "name": "Kyalami - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 3",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 7",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 4
         },
         {
           "track": "monza",
           "name": "Monza - Finale",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         }
@@ -4758,49 +4758,49 @@
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         }
@@ -4839,49 +4839,49 @@
         {
           "track": "imola",
           "name": "Imola - Round 1",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 3",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 5",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         }
@@ -4920,49 +4920,49 @@
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 5",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Finale",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         }
@@ -5001,63 +5001,63 @@
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 2",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 3
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 7",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "imola",
           "name": "Imola - Round 8",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Finale",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         }
@@ -5096,49 +5096,49 @@
         {
           "track": "kyalami",
           "name": "Kyalami - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "monza",
           "name": "Monza - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 4",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 5",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Finale",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         }
@@ -5177,56 +5177,56 @@
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 2",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 3",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 5
         },
         {
           "track": "imola",
           "name": "Imola - Round 4",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 5",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 7",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 5
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         }
@@ -5265,49 +5265,49 @@
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 2",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "monza",
           "name": "Monza - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 6",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 5
         }
@@ -5346,63 +5346,63 @@
         {
           "track": "donington_park",
           "name": "Donington Park - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 7",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 5
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 8",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "sebring",
           "name": "Sebring - Finale",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 4
         }
@@ -5441,49 +5441,49 @@
         {
           "track": "imola",
           "name": "Imola - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 1
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 2",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 3
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "sebring",
           "name": "Sebring - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 1
         }
@@ -5522,56 +5522,56 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "monza",
           "name": "Monza - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 5",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 6",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 7",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Finale",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         }
@@ -5610,7 +5610,7 @@
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 0,
           "durationMin": 45
@@ -5618,7 +5618,7 @@
         {
           "track": "suzuka",
           "name": "Suzuka - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 0,
           "durationMin": 60
@@ -5626,7 +5626,7 @@
         {
           "track": "donington_park",
           "name": "Donington Park - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 4,
           "durationMin": 60
@@ -5634,7 +5634,7 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 4,
           "durationMin": 55
@@ -5642,7 +5642,7 @@
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 2,
           "durationMin": 70
@@ -5650,7 +5650,7 @@
         {
           "track": "monza",
           "name": "Monza - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0,
           "durationMin": 45
@@ -5658,7 +5658,7 @@
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 3,
           "durationMin": 55
@@ -5698,56 +5698,56 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 2",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 4",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 5",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 5
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 7",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Finale",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 1
         }
@@ -5786,63 +5786,63 @@
         {
           "track": "kyalami",
           "name": "Kyalami - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 2",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 4",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 7",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 8",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         }
@@ -5881,49 +5881,49 @@
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "monza",
           "name": "Monza - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 5
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 3
         }
@@ -5962,56 +5962,56 @@
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "imola",
           "name": "Imola - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 5
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 7",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Finale",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         }
@@ -6050,49 +6050,49 @@
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "monza",
           "name": "Monza - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 3
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Finale",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         }
@@ -6131,63 +6131,63 @@
         {
           "track": "imola",
           "name": "Imola - Round 1",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 5
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 4",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 5",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 7",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 8",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Finale",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         }
@@ -6226,63 +6226,63 @@
         {
           "track": "sebring",
           "name": "Sebring - Round 1",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 2",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 3",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 7",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 8",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         }
@@ -6321,56 +6321,56 @@
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 5
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 2",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "imola",
           "name": "Imola - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 6",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 7",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Finale",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         }
@@ -6409,56 +6409,56 @@
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 1",
-          "laps": 9,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 2",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 5
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 7",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Finale",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         }
@@ -6497,49 +6497,49 @@
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 2",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "monza",
           "name": "Monza - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 6",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Finale",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         }
@@ -6578,49 +6578,49 @@
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 5
         },
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 6",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Finale",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 4
         }
@@ -6659,63 +6659,63 @@
         {
           "track": "monza",
           "name": "Monza - Round 1",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 4
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 4
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 5",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 6",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 7",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 8",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Finale",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         }
@@ -6754,49 +6754,49 @@
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 1",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 5
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 2",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 4",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 16,
           "weather": 1
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 4
         }
@@ -6835,63 +6835,63 @@
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 1",
-          "laps": 10,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 2",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 3",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 3
         },
         {
           "track": "sebring",
           "name": "Sebring - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 1
         },
         {
           "track": "monza",
           "name": "Monza - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 7",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 8",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Finale",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 5
         }
@@ -6930,7 +6930,7 @@
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 3,
           "durationMin": 65
@@ -6938,7 +6938,7 @@
         {
           "track": "spa",
           "name": "Circuit de Spa Francorchamps - Round 2",
-          "laps": 9,
+          "laps": 3,
           "hour": 13,
           "weather": 2,
           "durationMin": 85
@@ -6946,7 +6946,7 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0,
           "durationMin": 65
@@ -6954,7 +6954,7 @@
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 4",
-          "laps": 10,
+          "laps": 3,
           "hour": 12,
           "weather": 2,
           "durationMin": 95
@@ -6962,7 +6962,7 @@
         {
           "track": "donington_park",
           "name": "Donington Park - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0,
           "durationMin": 65
@@ -6970,7 +6970,7 @@
         {
           "track": "suzuka",
           "name": "Suzuka - Round 6",
-          "laps": 10,
+          "laps": 3,
           "hour": 15,
           "weather": 1,
           "durationMin": 95
@@ -6978,7 +6978,7 @@
         {
           "track": "nurburgring",
           "name": "Nürburgring GP - Round 7",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 4,
           "durationMin": 75
@@ -6986,7 +6986,7 @@
         {
           "track": "kyalami",
           "name": "Kyalami - Round 8",
-          "laps": 10,
+          "laps": 3,
           "hour": 13,
           "weather": 4,
           "durationMin": 95
@@ -6994,7 +6994,7 @@
         {
           "track": "imola",
           "name": "Imola - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0,
           "durationMin": 65
@@ -7034,49 +7034,49 @@
         {
           "track": "sebring",
           "name": "Sebring - Round 1",
-          "laps": 9,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 3
         },
         {
           "track": "laguna_seca",
           "name": "Laguna Seca - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "suzuka",
           "name": "Suzuka - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "circuit_of_the_americas",
           "name": "Circuit Of The Americas - Round 5",
-          "laps": 9,
+          "laps": 3,
           "hour": 12,
           "weather": 3
         },
         {
           "track": "paul_ricard",
           "name": "Paul Ricard - Round 6",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 3
         },
         {
           "track": "mount_panorama",
           "name": "Mount Panorama - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         }
@@ -7116,35 +7116,35 @@
         {
           "track": "imola",
           "name": "Imola - Round 1",
-          "laps": 4,
+          "laps": 3,
           "hour": 11,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 2",
-          "laps": 5,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "fuji",
           "name": "Fuji Speedway - Round 5",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         }
@@ -7183,21 +7183,21 @@
         {
           "track": "brands_hatch",
           "name": "Brands hatch - Round 1",
-          "laps": 4,
+          "laps": 3,
           "hour": 11,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 2",
-          "laps": 5,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "donington_park",
           "name": "Donington park - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         }
@@ -7236,21 +7236,21 @@
         {
           "track": "brands_hatch",
           "name": "Brands hatch - Round 1",
-          "laps": 4,
+          "laps": 3,
           "hour": 11,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Redbull ring - Round 2",
-          "laps": 5,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         }
@@ -7289,28 +7289,28 @@
         {
           "track": "brands_hatch",
           "name": "Brands hatch - Round 1",
-          "laps": 4,
+          "laps": 3,
           "hour": 11,
           "weather": 0
         },
         {
           "track": "monza",
           "name": "Monza - Round 2",
-          "laps": 5,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "donington_park",
           "name": "Donington park - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 3
         },
         {
           "track": "laguna_seca",
           "name": "Laguna seca - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         }

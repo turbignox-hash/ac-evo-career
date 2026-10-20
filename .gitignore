@@ -5,3 +5,11 @@ demo/
 # le immagini auto/piste (78 MB) restano su disco: solo asset locali, fuori dal repo
 gui/carmaps/
 gui/trackmaps/
+
+# log runtime e backup locali
+*.log
+*.bak-lap*
+garage-sampler.log
+webui-live.log
+track-monitor.log
+*.bak-laps*

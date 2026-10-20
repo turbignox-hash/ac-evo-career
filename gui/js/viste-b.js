@@ -474,49 +474,6 @@ async function drawStats(m){
   </div>`;
 }
 
-/* -------- gazzetta (pagina) -------- */
-async function drawGazzetta(m){
-  const r = await api('gazzetta');
-  // La Gazzetta diventa pagina da LEGGERE davvero: titolo in evidenza da prima
-  // pagina (l'ultima notizia grande), filtri per stagione, e le citazioni dei
-  // rivali in stile gazzetta — non solo l'elenco cronologico piatto.
-  const seasons = [...new Set(r.items.map(n=>n.season).filter(Boolean))].sort((a,b)=>b-a);
-  const col = gazzView.season;
-  const items = r.items.filter(n=>!col || n.season===col);
-  const latest = gazzView.latest && items.length ? items[0] : null;
-  const rest = items.slice(1);
-  m.innerHTML = `
-  <div class="panel">
-    <h2>📰 Gazzetta del paddock <span class="h-act">${r.items.length} notizie archiviate</span></h2>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
-      <button class="mini ${!col?'acc':''}" data-gs="">tutte</button>
-      ${seasons.map(s=>`<button class="mini ${col===s?'acc':''}" data-gs="${s}">stagione ${s}</button>`).join('')}
-    </div>
-    ${latest ? `
-    <div class="gazz-head" style="padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--panel2,#141a24);margin-bottom:14px">
-      <div class="faint" style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase">in edicola · ${esc(String(latest.at||'').slice(0,16).replace('T',' '))}</div>
-      <div style="font-size:22px;font-weight:800;line-height:1.2;margin-top:6px">${esc(latest.title)}</div>
-      <div style="white-space:pre-wrap;margin-top:8px;line-height:1.55">${esc(latest.body)}</div>
-      <div class="faint" style="font-size:11px;margin-top:8px">${latest.season?`stagione ${latest.season} · `:''}${esc(latest.outcome ?? '')}</div>
-    </div>` : ''}
-    ${rest.length ? `<div class="muted" style="margin-bottom:6px">Tutte le notizie:</div>${rest.map(n=>`<div class="gazz-row" style="padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer" onclick="showGazzettaNews(${JSON.stringify(JSON.stringify(n))})">
-      <div style="font-weight:700">${esc(n.title)}</div>
-      <div class="muted" style="white-space:pre-wrap;margin-top:2px;font-size:13px">${esc(n.body.length > 160 ? n.body.slice(0,160)+'…' : n.body)}</div>
-      <div class="faint" style="font-size:11px;margin-top:3px">${esc(String(n.at||'').slice(0,16).replace('T',' '))}${n.season?` · stagione ${n.season}`:''}${n.outcome?` · ${esc(n.outcome)}`:''}</div>
-    </div>`).join('')}` : (!latest ? '<div class="empty">La stampa si mobilita dopo la prima gara importata.</div>' : '')}
-  </div>`;
-  $$('button[data-gs]').forEach(b => b.onclick = () => { gazzView.season = b.dataset.gs ? Number(b.dataset.gs) : null; drawGazzetta(m); });
-}
-let gazzView = { season: null };
-function showGazzettaNews(json){
-  let n; try { n = JSON.parse(json); } catch {}
-  if (!n) return;
-  modal('📰 ' + (n.title ?? ''), `
-    <div style="white-space:pre-wrap;line-height:1.6">${esc(n.body ?? '')}</div>
-    <div class="faint" style="font-size:11px;margin-top:10px">${esc(String(n.at||'').slice(0,16).replace('T',' '))}${n.season?` · stagione ${n.season}`:''}${n.outcome?` · ${esc(n.outcome)}`:''}</div>`,
-    [['Chiudi','ghost',()=>{}]]);
-}
-
 /* -------- Banca: entrate e uscite dalla cassa (registro flussi) -------- */
 async function drawBanca(m){
   const f = await api('flows');

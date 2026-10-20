@@ -90,7 +90,6 @@ async function drawDashboard(m){
         <h2>${LI.gauge} Strumenti rapidi</h2>
         <div class="grid2">
           <button class="qtile" id="b-review">${LI.book}<span><b>Rassegna di fine stagione</b><small>il bilancio completo dell'anno</small></span></button>
-          <button class="qtile" id="b-gazzetta">${LI.news}<span><b>Gazzetta del paddock</b><small>la stampa racconta le tue gare</small></span></button>
           <button class="qtile" id="b-integrity-quick">${LI.shield}<span><b>Verifica integrità</b><small>controllo di coerenza della carriera</small></span></button>
         </div>
       </div>
@@ -102,7 +101,6 @@ async function drawDashboard(m){
   drawHeritagePanel();
   drawEventsPanel();
   $('#b-review').onclick = () => showReview();
-  $('#b-gazzetta').onclick = () => showGazzetta();
   $('#b-integrity-quick').onclick = async () => {
     try {
       const r = await api('integrity');
@@ -251,18 +249,6 @@ async function drawEventsPanel(){
   } catch { el.innerHTML = '<h2>Eventi speciali</h2><div class="empty">Non disponibile.</div>'; }
 }
 
-async function showGazzetta(){
-  try {
-    const r = await api('gazzetta');
-    modal('📰 Gazzetta del paddock', `
-      ${r.items.length ? r.items.map(n=>`<div style="padding:9px 0;border-bottom:1px solid var(--line)">
-        <div style="font-weight:700">${esc(n.title)}</div>
-        <div class="muted" style="white-space:pre-wrap;margin-top:2px">${esc(n.body)}</div>
-        <div class="faint" style="font-size:11px;margin-top:3px">${esc(String(n.at||'').slice(0,16).replace('T',' '))}${n.season?` · stagione ${n.season}`:''}</div>
-      </div>`).join('') : '<div class="empty">Ancora nessuna notizia: la stampa si mobilita dopo la prima gara importata.</div>'}`,
-      [['Chiudi','ghost',()=>{}]]);
-  } catch(e){ toast(e.message, 'err'); }
-}
 function msgRow(m){
   return `<div class="msg ${esc(m.kind||'')}"><span class="d">${esc((m.at||'').slice(0,10))}</span><span class="t">${esc(m.text)}</span></div>`;
 }
@@ -291,6 +277,7 @@ function drawCardInto(el, card){
     <div class="cklmeta"><span class="muted">checklist di configurazione: ${doneCount}/${card.settings.length}</span><button class="link" id="b-ckl-reset">azzera</button></div>
     ${card.boxRadio?.tips?.length ? `<details style="margin-top:8px" open><summary style="cursor:pointer;font-size:12px"><b>📻 Consigli dal BOX</b> <span class="muted" style="font-size:11px">— la scheda dell'ingegnere di gara</span></summary>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${card.boxRadio.tips.map(t=>`<div style="display:flex;gap:10px;align-items:flex-start;background:var(--panel2,#121822);border:1px solid var(--line);border-radius:8px;padding:7px 10px"><span style="flex:none;font-size:15px">${t.icon}</span><div style="font-size:12px;line-height:1.45"><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></div></div>`).join('')}</div></details>` : ''}
+    <div id="ingegnere-live" style="margin-top:10px"></div>
     ${card.outlook ? `<div style="margin-top:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2,#151a24)">
       <div style="font-size:12px;margin-bottom:4px"><b>Obiettivo giro</b> · ${card.outlook.lapTarget ? `il tuo best qui: <b style="color:var(--acc)">${esc(card.outlook.lapTarget.time)}</b> <span class="muted">(${esc(card.outlook.lapTarget.car ?? '')}, ${esc((card.outlook.lapTarget.at||'').slice(0,10))})</span>` : '<span class="muted">prima volta su questo tracciato: tutto da scrivere</span>'}${card.outlook.mastery ? ` · <span class="tag ${card.outlook.mastery.level>=3?'gold':'blue'}" style="font-size:10px;padding:1px 6px">maestria: ${esc(card.outlook.mastery.name)}</span>` : ''}</div>
       <div style="font-size:12px;margin-bottom:4px"><b>Stagione</b> · ${card.outlook.standingPosition?`P${card.outlook.standingPosition} in classifica · `:''}${card.outlook.racesRun}/${card.outlook.totalRounds} gare corse · ${card.outlook.seasonPoints} punti${card.outlook.duel?` · ⚔️ duello con <b>${esc(card.outlook.duel.name)}</b> a ${card.outlook.duel.gap} pt`:''}${card.outlook.crowd?` · <span title="stima spettatori dalla pista (stile audience di Zero to Apex)">🧑‍🤝‍🧑 ${(card.outlook.crowd/1000).toFixed(0)}k attesi</span>`:''}</div>
@@ -368,6 +355,30 @@ function drawCardInto(el, card){
   };
   $$('.ckl input', el).forEach(c => c.onchange = save);
   $('#b-ckl-reset', el).onclick = (e) => { e.preventDefault(); localStorage.removeItem(key); drawCardInto(el, card); };
+  // RADIO LIVE DELL'INGEGNERE: benzina residua, usura gomme, gap — dati veri
+  // della shared memory mentre il gioco gira. Se non c'è gara in corso il
+  // pannello resta buio (nessun rumore, il cruscotto non si sporca).
+  window.__ingLiveStop?.();
+  const ingOut = $('#ingegnere-live', el);
+  const ingDraw = async () => {
+    if (!document.body.contains(ingOut)) { window.__ingLiveStop?.(); return; }
+    try {
+      const m = await api('ingegnere', {});
+      if (!document.body.contains(ingOut)) return;
+      if (!m?.live) { ingOut.innerHTML = ''; return; }
+      const wearRow = (m.gauges?.wear || []).length === 4 ? `<span class="muted" style="font-size:11px">gomme LF ${m.gauges.wear[0]}% · RF ${m.gauges.wear[1]}% · LR ${m.gauges.wear[2]}% · RR ${m.gauges.wear[3]}%${m.gauges.temp&&m.gauges.temp.every(v=>v>0)?' · core '+m.gauges.temp.map(v=>v+'°C').join('/'):''}</span>` : '';
+      ingOut.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:#0d1118">
+        <div style="font-size:12px;margin-bottom:5px"><b>🎧 Ingegnere LIVE</b> <span class="muted" style="font-size:11px">· P${m.gauges.position??'—'}/${m.gauges.drivers??'—'}${m.gauges.lapsTotal!=null?` · giro ${m.gauges.lapsDone+1}/${m.gauges.lapsTotal}`:''}${m.gauges.timeLeft?` · resta ${esc(m.gauges.timeLeft)}`:''}${m.gauges.fuel!=null?` · benzina ${m.gauges.fuel} L`:''}${m.telemTrack?` · consumo da ${esc(m.telemTrack)}`:''}</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px">${(m.tips||[]).map(t=>`<div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.4"><span style="flex:none">${t.icon}</span><span><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></span></div>`).join('')}</div>
+        ${wearRow ? `<div style="margin-top:6px">${wearRow}</div>` : ''}
+      </div>`;
+    } catch { /* il live non deve mai rompere la vista */ }
+  };
+  if (ingOut) {
+    ingDraw();
+    const t = setInterval(ingDraw, 4000);
+    window.__ingLiveStop = () => { clearInterval(t); window.__ingLiveStop = null; };
+  }
   // pannello "regole del weekend": intervallo slider AI (min-max come in EVO), orari, moltiplicatore
   const rsWire = (id, vid, suffix='') => {
     const inp = $(id, el); if (!inp) return;

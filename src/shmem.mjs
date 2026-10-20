@@ -279,6 +279,7 @@ export function parseGraphics(buf) {
     deltaMs: i32(GFX.deltaTimeMs),
     isValidLap: dv.getUint8(GFX.isValidLap) !== 0,
     fuelLiters: f32(GFX.fuelLiters),
+    lapsPossibleFuel: f32(GFX.lapsPossibleFuel),   // giri stimati col fuel residuo (HUD del gioco)
     totalLaps: i32(GFX.totalLapCount),
     totalLapsSession: i32(GFX.sessionState + SESSION_STATE.totalLap),
     currentLapNo: i32(GFX.sessionState + SESSION_STATE.currentLap),
@@ -472,7 +473,13 @@ export class LiveReader {
         location: LOCATION[g.carLocation] ?? null,
         flag: FLAG[g.flag] ?? null,
         fuel: p?.fuel ?? g.fuelLiters ?? null,
+        lapsPossible: Number.isFinite(g.lapsPossibleFuel) && g.lapsPossibleFuel > 0 ? Math.round(g.lapsPossibleFuel * 10) / 10 : null,
         timeOfDay: g.timeOfDay,
+        // per l'ingegnere di gara: usura/temperatura gomme per ruota (physics)
+        // e secondo timer della sessione ("" quando è a giro)
+        tyreWear: (p?.tyreWear ?? []).map((v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null)) ?? null,
+        tyreCoreTemp: (p?.tyreCoreTemp ?? []).map((v) => (Number.isFinite(v) ? Math.round(v) : null)) ?? null,
+        timeLeft: !!st.timedRace && g.timeLeftStr?.trim() ? g.timeLeftStr.trim() : null,
       } : null,
     };
   }

@@ -383,6 +383,24 @@ export function repGain(node, position, gridSize) {
 /* ingresso in una serie                                               */
 /* ------------------------------------------------------------------ */
 
+function garageCarForSeat(state, node) {
+  // l'auto del garage che copre il pool della serie: la prima combaciante.
+  // Match normalizzato (senza prefisso ks e senza segni), inclusione bidirezionale
+  // come le statistiche del garage — così "ks_peugeot_205_t16" della serie
+  // combacia con "peugeot_205_t16" del garage e col nome completo.
+  const pool = (node.cars ?? []).map((c) => String(c).toLowerCase().replace(/[^a-z0-9]/g, '').replace(/^ks/, ''));
+  if (!pool.length) return null;
+  for (const g of state.garage?.cars ?? []) {
+    const id = String(g.carId ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/^ks/, '');
+    const name = String(g.carName ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    for (const p of pool) {
+      if (!p) continue;
+      if (p === id || p === name || p.startsWith(id) || id.startsWith(p) || name.startsWith(p) || p.startsWith(name)) return g;
+    }
+  }
+  return null;
+}
+
 export function enterNode(ladder, state, node, { buy = false, force = false } = {}) {
   const gate = gateStatus(ladder, state, node);
   if (!gate.ok && !force) {
@@ -400,7 +418,12 @@ export function enterNode(ladder, state, node, { buy = false, force = false } = 
     pushMessage(state, `Hai comprato il sedile in ${node.display} (-${buyPrice}).`, 'money');
   } else {
     const rent = closed ? 0 : (econ.rent ?? 0);
-    if (rent > 0) {
+    const owned = rent > 0 ? garageCarForSeat(state, node) : null;
+    if (owned) {
+      // precedenza del garage: se il pool della serie ha un'auto che hai in garage,
+      // la usi tu e il noleggio non esiste (l'usura la paga l'odometro del garage)
+      pushMessage(state, `Il sedile in ${node.display} vai a sedere con la tua ${owned.carName} del garage: niente affitto (risparmiati ${rent}).`, 'money');
+    } else if (rent > 0) {
       if (state.money < rent) throw new Error(`Servono ${rent} per l'affitto del sedile in ${node.display}, ne hai ${state.money}.`);
       state.money -= rent;
       pushMessage(state, `Hai affittato il sedile in ${node.display} (-${rent}).`, 'money');

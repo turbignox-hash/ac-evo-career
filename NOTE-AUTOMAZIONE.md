@@ -110,8 +110,74 @@ hash dopo la nostra scrittura 5a64f9b494). La catena
 file(nostro)→menu→APPLICA→gara→pista è chiusa e certificata.
 
 ## 7ª PROVA (19 ottobre 2026) — JACKPOT: il menu ricarica il file a ogni entrata
-Scrittura di 15 Ferrari Daytona SP3 **con EVO APERTO alla schermata principale** (fuori dal menu griglia):
-al rientro nel menu Personalizzazione Griglia le celle mostrano le auto NUOVE (screenshot verificato).
+Scrittura di 15 Ferrari Daytona SP3 **con EVO APERTO alla schermata principale** (fuori dal menu griglia): al rientro nel menu Personalizzazione Griglia le celle mostrano le auto NUOVE (screenshot verificato).
 **Conseguenza operativa**: griglie diverse a 2–3 gare di fila **senza mai chiudere EVO**.
 Flusso serata: gara → esci in menu → toolRiscrivi → rientra nel menu → APPLICA → gara successiva.
 Unica regola ferma: **mai standings dentro il menu griglia** con GENERA, e scrittura solo fuori dal menu.
+
+## BALLAST + RESTRICTOR nel customgrid (19/10/2026) — IL BILANCIAMENTO SI MANDA DA FILE
+
+### La scoperta
+Dentro ogni CELLA (campo 1) del customgrid:
+- **campo 24 (varint) = BALLAST in kg** (100 = 100 kg, come lo slider UI);
+- **campo 25 (float32 LE) = RESTRICTOR, frazione 0–1** (0.10 = penalità 10%).
+Le celle senza penalità NON hanno i due campi (default 0). Verificato sulla griglia
+di Mauro (PI 8–9: GR86 / R5 GT Turbo / Escort RS Cosworth, 15 celle):
+il set a mano "100 kg + 10% a tutti meno la Renault" era lampeggiato nel file esatto.
+
+### Il tool
+`tools/grid-balance.mjs`:
+- `node tools/grid-balance.mjs` → dump ballast/restrictor di ogni cella;
+- `--serie <id> --dry|--apply` → piano dalla convenzione in `data/grid-classes.json`;
+- `--rule "Nome auto=kg,penalità%"` (ripetibile) → regole a mano;
+- backup automatico a ogni scrittura, guardia EVO chiuso come gli altri tool.
+`data/grid-classes.json` = convenzione classi: per ogni classe di serie (finestra PI,
+auto base = l'auto di riferimento) le regole zavorra/penalità per auto.
+
+### La convenzione 70/30 concreta di Mauro (classe 8–9, 19/10)
+Prove empiriche di Mauro in pista, in ordine:
+1. zavorra 100 kg a tutti meno la Renault → cambia poco;
+2. zavorra + penalità 5% a tutti meno la Renault → va già meglio;
+3. **zavorra 100 kg + penalità 10% a tutti meno la Renault → gara COMBATTUTA alla pari (regola adottata)**;
+4. opzione in attesa di prova: Sierra (Escort) da 10% → **8%** per ancora più competizione.
+Memorizzata in `data/grid-classes.json` come classe `gr86-r5-escort` (auto base: Renault 5 GT Turbo).
+
+### Il salto di qualità: penalità a DECIMALI
+Il selettore UI accetta solo interi (+1/−1); ma noi scrivendo il campo 25 possiamo
+mettere QUALSIASI frazione: 8%, 6.5%, 0.7%… La finestra PI a ±0.7 che la UI non
+dà diventa irrilevante: si bilancia con ballast/restrictor, non con la finestra.
+
+### Prossimi passi naturali (quando Mauro vuole)
+- prova in pista della variante Sierra al 8% (una riga di JSON + --apply);
+- all'iscrizione a una serie multi-marca: la scheda gara propone la convenzione
+di classe e il comando scrive griglia + bilanciamento in un colpo (EVO chiuso).
+
+## CALIBRAZIONE AUTOMATICA (19/10/2026, serata) — grid-tune.mjs
+
+### I due ancora di calibrazione (classe 8–9, gara confermata "alla pari")
+Dai risultati reali (i JSON di Results contengono BALLAST e RESTRICTOR di ogni
+pilota!): GR86 Edition PI 8.889 → 10%, GR86 Standard 8.858 → 5%, Renault base
+8.492 → 0. Pendenza derivata: **≈ 25 punti di penalità % per punto di ΔPI**
+(origine sul PI della base della classe). Zavorra fissa 100kg sulle non-base.
+
+### Nuovo tool: tools/grid-tune.mjs
+- `--propose <piMin> <piMax>`: per una classe NUOVA elenca i preset di cars.json
+  nella finestra PI, elegge base il PI più basso e propone 100kg + ΔPI×25%. È
+  il PUNTO DI PARTENZA: si convalida in pista e si fissa in grid-classes.json.
+- `--report [nGare]`: legge le ultime gare in Results, scarta quelle di calibrazione
+  (bilanciamento uniforme: non misurano nulla), raggruppa per modello e mostra
+  posMedia, best-lap mediana, e la quota di presenze nel top-metà-campo contro
+  quella ATTESA (~50% per auto in sesto). Suggerisce -3% o +2% sugli squilibri.
+  Caveat: la base della classe non può scendere sotto 0% (il -3% va a mano nelle
+  penalità delle altre); e le posizioni mescolano abilità AI diverse — il
+  giudizio finale resta la sensazione in pista di Mauro.
+
+### Il ciclo di lavoro per ogni classe Nuova
+1. `--propose` → proposta da PI;
+2. la si applica con `grid-balance --rule` (e si fissa in grid-classes.json
+  come "in prova");
+3. si corre: LA PISTA DICE LA VERITÀ;
+4. `--report` → suggerimenti di affinamento, si ritocca col --rule;
+5. combinazione confermata → si fissa in grid-classes.json come definitiva.
+  Il tool non pensa AL POSTO di Mauro sulla sensazione: pensa i NUMERI al posto
+  suo, la conferma resta umana.

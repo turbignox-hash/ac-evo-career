@@ -21,11 +21,20 @@ import { checkIntegrity, fixIntegrity } from './integrity.mjs';
 import { contractStatus, challengeFor, acceptChallenge, ensureLife, careerPlanner } from './life.mjs';
 import { newsFeed } from './gazzetta.mjs';
 import { ensureFlowsSeeded, recentFlows, resetFlows } from './flows.mjs';
-import { resetNews } from './gazzetta.mjs';import {
+import { resetNews } from './gazzetta.mjs';
+import {
   agendaDay, gareDelGiorno, prossimoGiornoConGara, avanzaGiorno,
   elencoCompleto, racesOnDay, calendarStrip, dateLabel, dateShort, CADENZA_GIORNI,
 } from './agenda.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
+import { buildGridMessage } from './gridbuilder.mjs';
+import { gridGuardProposal } from './grid-guard.mjs';
+import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
+import { applyBalance, applyAi } from './grid-apply.mjs';
+import { calibSummary, calibFile, resetCalib, appuntaConvalida } from './grid-calib.mjs';
+import { gameRunning } from '../tools/evo-grid.mjs';
+import { testModeBanner, testModeOn, testModeOff } from './test-mode.mjs';
+import { renameSync, copyFileSync as copySyncGrid, statSync } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const PROJECT = dirname(HERE);
@@ -37,6 +46,8 @@ const SLOT = activeSlot();
 const SAVE_FILE = join(DATA_DIR, savePath(SLOT));
 const CONFIG_FILE = join(DATA_DIR, 'evo.config.json');
 const ARCHIVE_DIR = join(DATA_DIR, 'results-archive');
+// il customgrid “vista dal tool”: lo stesso file che il menu legge/applizza
+const CUSTOMGRID_FILE = join(process.env.USERPROFILE ?? 'C:/Users/Mauro', 'Saved Games', 'ACE', 'GameModes', 'last_grid.customgrid');
 
 const C = {
   red: (s) => `\x1b[31m${s}\x1b[0m`,
@@ -51,6 +62,15 @@ const money = (n) => `${n.toLocaleString('it-IT')}`;
 const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
 const pad = (text, width) => String(text).padEnd(width);
 const colored = (text, width, colorFn) => colorFn(pad(text, width));
+
+/* traccia del giro atteso: serve a grid-balance --track per i supplementi */
+function trackOfCurrentRound(ladder) {
+  try {
+    const state = loadState(SAVE_FILE);
+    const node = ladder.nodes.find((n) => n.nodeId === state.node);
+    return node?.calendar?.[state.round ?? 0]?.track ?? node?.calendar?.[0]?.track ?? null;
+  } catch { return null; }
+}
 
 /* ------------------------------------------------------------------ */
 /* argomenti                                                           */
@@ -118,6 +138,7 @@ function cmdHelp() {
     ['messages', 'messaggi e notizie dal paddock'],
     ['next [--car <id>]', 'la prossima gara in dettaglio: cosa impostare nel gioco'],
     ['race [--car <id>] [--dry-run] [--no-launch]', 'paga l\'iscrizione, segna la gara attesa e apre il gioco'],
+    ['prepara [--car <id>] [--dry] [--serie <nodeId>] [--round N]', 'iscrizione ronda + griglia zavorrata + vigia + card in un gesto: poi scegli il round in EVO (flusso no-restart)'],
     ['import [--position N --cars M] [--dnf] [--fl] [--inspect] [--force]', 'legge il risultato e aggiorna la carriera'],
     ['watch [--every N]', 'guardia automatica: incassa da solo ogni gara nuova scritta da EVO (ogni 15s)'],
     ['difficulty [--mode adaptive|fixed|custom] [--value N] [--trim <serie|all> <valore>] [--lock/--unlock <node>] [--accept|--reject]', 'difficolta\' AI di tutte le serie (trim manuale -20..+20)'],
@@ -128,6 +149,9 @@ function cmdHelp() {
     ['sfida [--accept]', 'la mini-sfida facoltativa della prossima gara'],
     ['dottore', 'verifica l\'integrità della carriera (e --fix corregge)'],
     ['accept <n>', 'accetta un\'offerta di sedile'],
+    ['griglia [--serie <nodeId>] [--round N] [--dry] [--force]', 'scrive il customgrid della GARA DEL GIORNO: auto del pool + bilanciamento (EVO chiuso!)'],
+    ['griglia-calib [--convalida "pista"] [--dry] [--reset]', 'calibrazione dai risultati reali: confidenza per classe+traccia, proposte, appunta la convalida con --convalida'],
+    ['test-mode [--giri N] | --on | --off', 'modalità test: TUTTE le gare a N giri (default 3). Con --off tornano i giri originali dei calendari'],
   ];
   console.log(C.bold('\nac-evo-career — carriera per Assetto Corsa EVO\n'));
   console.log('Uso: node ac-evo-career.mjs <comando> [opzioni]\n');
@@ -268,6 +292,8 @@ function header(state, ladder) {
 function cmdStatus() {
   const { ladder } = context();
   const state = requireState();
+  const bannerTest = testModeBanner();
+  if (bannerTest) console.log(C.yellow(bannerTest));
   const node = nodeById(ladder, state.node);
   const standing = playerStanding(ladder, state, node);
   const diff = difficultyFor(ladder, state, node, node.calendar[Math.min(state.round, node.calendar.length - 1)]?.track);
@@ -318,6 +344,8 @@ function cmdStatus() {
 function cmdAgenda(args) {
   const { ladder } = context();
   const state = requireState();
+  const bannerTest = testModeBanner();
+  if (bannerTest) console.log(C.yellow(bannerTest));
 
   // azioni che mutano il giorno
   if (args.flags.salta) {
@@ -559,6 +587,8 @@ function printCard(ladder, state, card) {
 function cmdNext(args) {
   const { ladder } = context();
   const state = requireState();
+  const bannerTest = testModeBanner();
+  if (bannerTest) console.log(C.yellow(bannerTest));
   ensureFlowsSeeded(state);
   const car = typeof args.flags.car === 'string' ? args.flags.car : null;
   const card = raceCard(ladder, state, { car });
@@ -614,6 +644,55 @@ async function cmdRace(args) {
     console.log(`  ${C.dim('Aprilo tu e imposta la gara qui sopra.')}`);
   }
   console.log(`\n${C.dim('A fine gara:  node ac-evo-career.mjs import')}\n`);
+  return 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* prepara: iscrizione della ronda + griglia + vigia + card, un gesto   */
+/* ------------------------------------------------------------------ */
+
+async function cmdPrepara(args) {
+  const { ladder } = context();
+  const state = requireState();
+  ensureFlowsSeeded(state);
+  const dry = !!args.flags.dry;
+  const gameOn = await isGameRunning();
+
+  console.log(C.bold('\nPrepara-ronda'));
+  console.log(C.dim('  iscrizione della ronda · griglia zavorrata · vigia · card — niente riavvio del gioco.'));
+  if (gameOn) console.log(C.dim("  protocollo no-restart: resta sul menù di EVO e NON aprire l'editor griglia."));
+
+  // 1) griglia della ronda (scrittura ok anche a gioco aperto: EVO rilegge
+  //    il customgrid al lancio del weekend; backup automatico incluso)
+  try {
+    await cmdGriglia({ _: [], flags: { force: true, dry, serie: typeof args.flags.serie === 'string' ? args.flags.serie : undefined, round: args.flags.round, 'servo-prepara': true, car: args.flags.car } });
+  } catch (e) {
+    console.log(C.yellow(`\n  Griglia non preparata: ${e.message}`));
+    console.log(C.dim('  (serve il customgrid generato dal GENERA a gioco chiuso; la carriera prosegue con la card qui sotto)'));
+  }
+
+  // 2) vigia del bilancio: dopo la scrittura il bilancio deve stare in piedi
+  try {
+    const zp = zeroBalanceProposal(CUSTOMGRID_FILE, { track: trackOfCurrentRound(ladder) });
+    if (zp) {
+      const out = applyBalance({ serie: zp.classe, track: zp.track ?? trackOfCurrentRound(ladder), force: gameOn });
+      console.log(C.green(`\n  ✓ vigia: bilancio di "${out.classe}" riscritto sul customgrid${out.trkMsg ? out.trkMsg : ''}`));
+      if (gameOn) console.log(C.dim("  (EVO aperto: resta sul menù e NON aprire l'editor griglia, o un risalvataggio cancella di nuovo il bilancio)"));
+    }
+  } catch (e) { console.log(C.yellow(`  vigia: ${e.message}`)); }
+
+  // 3) iscrizione della ronda + card (il lancio resta a te: il gioco rilegge
+  //    il customgrid al lancio del weekend — niente riavvii)
+  if (dry) {
+    console.log();
+    printCard(ladder, state, raceCard(ladder, state, { car: typeof args.flags.car === 'string' ? args.flags.car : null }));
+    console.log(C.dim('\n(dry-run: nessun addebito e nessuna griglia scritta)'));
+    console.log(C.dim('Rilancia senza --dry per pagare l\'iscrizione e preparare davvero.\n'));
+    return 0;
+  }
+  console.log();
+  await cmdRace({ _: [], flags: { 'no-launch': true, car: args.flags.car } });
+  console.log(`\n${C.bold('Tutto pronto')}: ${C.dim('nel menù di EVO scegli il round e parti — EVO rilegge il customgrid al lancio. La vigia custodisce la griglia. A fine gara:  node ac-evo-career.mjs import')}\n`);
   return 0;
 }
 
@@ -710,6 +789,19 @@ function cmdImport(args) {
     console.log(`\n  ${C.yellow('Suggerimento difficoltà')}: ${out.proposal.reason} -> trim ${signed(out.proposal.from)} / ${signed(out.proposal.to)}`);
     console.log(`  ${C.dim('difficulty --accept   oppure   difficulty --reject')}`);
   }
+  if (out.file) {
+    const gg = gridGuardProposal(out.file);
+    if (gg) console.log(`\n${C.yellow(gg.msg)}`);
+  }
+  // vigia del bilancio perso: dopo la gara il customgrid può essere stato
+  // risalvato dal menu con i valori a 0/0 — lo ricontrollo qui e in watch
+  const zp = zeroBalanceProposal(CUSTOMGRID_FILE, { track: trackOfCurrentRound(ladder) });
+  if (zp) console.log(`\n${C.yellow(zp.msg)}\n`);
+  // vigia del campo AI: il menu può perdere/modificare l'intervallo 21/22
+  const ap = aiRangeProposal(CUSTOMGRID_FILE);
+  if (ap) console.log(`\n${C.yellow(ap.msg)}\n`);
+  stampaCalib(out.calibrazione);
+  if (out.agenda?.jump) console.log(`\n  ${C.green('Calendario portato avanti')}: salto al giorno ${out.agenda.day} — i tuoi sedili non avevano gare dopo questa.`);
   if (out.seasonDone) {
     console.log(`\n  ${C.green('Stagione completata!')} ${C.dim('node ac-evo-career.mjs season-end')}`);
   }
@@ -729,6 +821,20 @@ async function cmdWatch(args) {
   let stop = false;
   const onSigint = () => { stop = true; };
   process.on('SIGINT', onSigint);
+
+  // vigia del bilancio perso (grid-restore.mjs): preflight all'avvio, poi
+  // ri-controllo SOLO quando il customgrid cambia (mtime): il menu di EVO
+  // può risalvarlo in qualunque momento e cannare zavorre/penalità.
+  let gridMtime = 0, gridWarned = false;
+  const checkGridFile = (force = false) => {
+    let m = 0;
+    try { m = statSync(CUSTOMGRID_FILE).mtimeMs; } catch { return undefined; }
+    if (!force && m === gridMtime) return undefined;   // file immutato: niente annuncio
+    gridMtime = m;
+    return zeroBalanceProposal(CUSTOMGRID_FILE, { track: trackOfCurrentRound(ladder) });
+  };
+  const preflight = checkGridFile(true);
+  if (preflight) console.log(`\n  ${C.yellow('alla partenza:')} customgrid senza bilancio — viene proposto qui sotto al primo giro\n`);
   try {
     while (!stop) {
       const t0 = Date.now();
@@ -740,8 +846,42 @@ async function cmdWatch(args) {
         console.log(`  ${C.dim('Banca: ' + out.imported.money + ' · rep ' + out.imported.rep)}`);
         if (out.imported.proposal) console.log(`  ${C.yellow('Suggerimento difficoltà')}: trim ${signed(out.imported.proposal.from)} / ${signed(out.imported.proposal.to)} — decidilo con difficulty --accept / --reject\n`);
         else console.log();
+        if (out.imported.file) {
+          const gg = gridGuardProposal(out.imported.file);
+          if (gg) console.log(`${C.yellow(gg.msg)}\n`);
+        }
+        stampaCalib(out.imported.calibrazione);
+        if (out.imported.agenda?.jump) console.log(`  ${C.green('✓ calendario auto-avanzato')} al giorno ${out.imported.agenda.day} (nessuna gara dei sedili dopo questa gara)\n`);
       } else if (out.error) {
         console.log(`  ${C.red('watcher:')} ${out.error.message}\n`);
+      }
+      // vigia del bilancio perso: se il menu di EVO ha risalvato il customgrid
+      // e ha cannato zavorre/penalità, RIPRISTINA da solo. Anche a gioco aperto
+      // (scelta Mauro 20/10/2026: sul menù principale la scrittura regge — il
+      // gioco rilegge il file al lancio del weekend). Casi pericoloso solo per
+      // l'editor griglia di EVO: un suo risalvataggio cancellerebbe di nuovo
+      // tutto, quindi in quel caso la nota d'uso va col messaggio.
+      const zp = checkGridFile();
+      if (zp) {
+        const trackVigia = zp.track ?? trackOfCurrentRound(ladder);
+        try {
+          const out = applyBalance({ serie: zp.classe, track: trackVigia, force: gameRunning() });
+          gridWarned = true;
+          const notaGame = gameRunning()
+            ? '\n  (EVO aperto: resta sul menù e NON aprire l\'editor griglia, o un suo risalvataggio cancella di nuovo il bilancio)'
+            : '';
+          console.log(C.green(`\n  ✓ ripristino automatico: bilancio di "${out.classe}" riscritto sul customgrid${out.trkMsg ? out.trkMsg : ''}${notaGame}\n`));
+        } catch (e) { console.log(`\n${C.yellow(zp.msg)}\n`); if (e.code !== 'GAME_RUNNING') throw e; }
+      }
+      else if (zp === null && gridWarned) { gridWarned = false; console.log(C.green('\n  ✓ bilancio ripristinato sul customgrid\n')); }
+      // vigia del campo AI: se l'intervallo 21/22 combacia col pin di classe non dice nulla;
+      // se diverge, applica (a gioco chiuso ripristina da solo, come il bilancio)
+      const ap = aiRangeProposal(CUSTOMGRID_FILE);
+      if (ap) {
+        try {
+          const airOut = applyAi(ap.atteso, { force: gameRunning() });
+          console.log(C.green(`\n  ✓ ripristino automatico: campo AI ${airOut.ai[0]}-${airOut.ai[1]} riscritto sul customgrid (trovato: ${ap.trovato[0]}-${ap.trovato[1]})\n`));
+        } catch (e) { console.log(`\n${C.yellow(ap.msg)}\n`); if (e.code !== 'GAME_RUNNING') throw e; }
       }
       // niente rumore quando una scansione non trova niente di nuovo
       const elapsed = Date.now() - t0;
@@ -998,6 +1138,130 @@ function cmdEnter(args) {
 }
 
 /* ------------------------------------------------------------------ */
+/* griglia: prepara il customgrid della gara del giorno                 */
+/* ------------------------------------------------------------------ */
+
+async function cmdGriglia(args) {
+  const isGameOn = await isGameRunning();
+  if (isGameOn && !args.flags.force) {
+    console.log(C.red('\nEVO è APERTO: chiudi il gioco prima di scrivere la griglia.') + C.dim(' (la scrittura va fatta a gioco chiuso, altrimenti il menu la calpesta)'));
+    return 1;
+  }
+  const ladder = loadLadder();
+  const state = loadState(SAVE_FILE);
+  const nodeId = typeof args.flags.serie === 'string' ? args.flags.serie : state.node;
+  if (!nodeId) throw new Error('nessuna serie corrente: usa --serie <nodeId>');
+  // round: quello segnato in attesa dallo stato (round corrente della serie)
+  const roundIndex = typeof args.flags.round === 'string' ? Number(args.flags.round) : (state.round ?? 0);
+  const file = join(process.env.USERPROFILE ?? 'C:/Users/Mauro', 'Saved Games', 'ACE', 'GameModes', 'last_grid.customgrid');
+
+  const { buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file });
+  const C_ = C;
+  console.log(C_.bold(`\nGriglia della gara del giorno\n`));
+  console.log(`  serie   ${report.serie}`);
+  console.log(`  celle   ${report.gridSize} da ${report.source.split('/').pop()}`);
+  console.log(`  bilanc. ${report.origine}`);
+  if (report.ai) console.log(`  abilità ${report.ai} → i piloti vengono riscalati a quel campo`);
+  const byCar = {};
+  for (const c of report.celle) byCar[c.split(' →')[0]] = byCar[c.split(' →')[0]] ?? c;
+  for (const [car, line] of Object.entries(byCar)) console.log(`    ${car.padEnd(34)} ${line.split('→ ')[1] ?? ''}`);
+  if (args.flags.dry) { console.log(C_.dim('\nDRY: niente scritto. Lancia senza --dry per scrivere.\n')); return 0; }
+
+  const bak = `${file}.bak-griglia-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+  copySyncGrid(file, bak);
+  writeFileSync(`${file}.tmp`, buffer);
+  renameSync(`${file}.tmp`, file);
+  console.log(C_.green(`\nScritto ${file}`));
+  if (args.flags['servo-prepara']) return 0;
+  console.log(C_.dim(`  backup: ${bak}\n  prossimi passi: apri EVO → menu griglia (SENZA GENERA) → controlla → APPLICA → gara.\n`));
+  return 0;
+}
+
+function stampaCalib(calib) {
+  if (!calib) return;
+  if (!calib.proposte?.length) {
+    console.log(`  ${C.dim(`calibrazione: ${calib.segnale} · confidenza "${calib.confidenza}" su ${calib.obs} gare (${calib.traccia}) — registro: data/grid-calibrazione.json`)}`);
+    return;
+  }
+  console.log(`\n  ${C.bold('Calibrazione dai risultati')} — ${calib.classe} · ${calib.traccia} (${C.yellow(calib.segnale)})`);
+  for (const p of calib.proposte) {
+    console.log(`    ${C.yellow('•')} ${p.perche}`);
+    console.log(`      ${C.dim(p.leva === 'campo-ai' ? `campo AI ${p.da} → ${C.bold(p.a)}` : `${p.auto}: ${p.da} → ${C.bold(p.a)}`)}`);
+    if (p.comando) console.log(`      ${C.dim('→ ' + p.comando)}`);
+  }
+  console.log(`  ${C.dim('riepilogo e storico: node ac-evo-career.mjs griglia-calib')}`);
+}
+
+const fmtSec = (v) => (v == null ? '—' : (v > 0 ? '+' : '') + v.toFixed(2) + 's');
+
+function cmdTestMode(args) {
+  if (args.flags.on || args.flags.giri) {
+    const out = testModeOn({ giri: args.flags.giri ? Number(args.flags.giri) : 3 });
+    if (out.already) {
+      console.log(C.yellow(`\nModalità test già attiva a ${out.giri} giri.\n`));
+      return 0;
+    }
+    console.log(C.yellow(`\n⚠  MODALITÀ TEST ATTIVATA: tutte le gare della scala a ${out.giri} giri (${out.rond} rond toccate).`));
+    console.log(C.dim('  Banner in status/next/agenda finché non spegni. Riattiva le distanze vere con: test-mode --off\n'));
+    try {
+      const { ladder } = context();
+      const state = requireState();
+      pushMessage(state, `Modalità test attiva: tutte le gare a ${out.giri} giri (richiesta Mauro 19/10). Riattiva con: node ac-evo-career.mjs test-mode --off`, 'info');
+      saveState(SAVE_FILE, state);
+    } catch { /* senza carriera il banner CLI basta */ }
+    return 0;
+  }
+  if (args.flags.off) {
+    const out = testModeOff();
+    if (out.already) { console.log(C.dim('\nModalità test non attiva (nulla da ripristinare).\n')); return 0; }
+    console.log(C.green(`\n✓ Distanze originali ripristinate su ${out.ripristinate} rond${out.mancanti ? ` (${out.mancanti} senza riferimento originale: lasciate come sono)` : ''}.\n`));
+    return 0;
+  }
+  const banner = testModeBanner();
+  console.log(banner ? C.yellow('\n' + banner + '\n') : C.dim('\nModalità test spenta: le gare seguono i giri originali dei calendari.\n')); 
+  return 0;
+}
+
+async function cmdGrigliaCalib(args) {
+  if (args.flags.reset) { resetCalib(); console.log(`\n  Registro calibrazione azzerato (data/grid-calibrazione.json).\n`); return 0; }
+  if (args.flags.convalida !== undefined) {
+    const track = typeof args.flags.convalida === 'string' ? args.flags.convalida : null;
+    const out = appuntaConvalida({ trkKey: track, dry: !!args.flags.dry });
+    if (!out.messaggio.length) {
+      console.log(C.yellow('\n  Nessuna classe+traccia con confidenza ALTA da appuntare.'));
+      console.log(C.dim('  (la confidenza alta arriva dopo ≥2 gare con i supplementi in pace con la base)\n'));
+      return 0;
+    }
+    console.log('\n' + out.messaggio.map((m) => '  ' + m).join('\n') + '\n');
+    if (args.flags.dry) console.log(C.dim('  (dry run: niente scritto. Lancia senza --dry per applicare)\n'));
+    return 0;
+  }
+  const sum = calibSummary();
+  console.log(C.bold(`\nCalibrazione dai risultati — ${sum.eventi} gare in registro (${calibFile()})\n`));
+  if (!sum.gruppi.length) {
+    console.log(C.dim('  Vuoto: il registro si riempe da solo ad ogni import di gara con auto di una classe conosciuta.\n'));
+    return 0;
+  }
+  for (const g of sum.gruppi) {
+    const conf = { alta: C.green, media: C.yellow, bassa: C.red, nessuna: C.dim }[g.confidenza] ?? C.dim;
+    console.log(`  ${C.bold(g.classe)} · ${C.cyan(g.trkKey)} — ${g.obs} gare (${g.ok} in tolleranza) · confidenza ${conf(g.confidenza)}${g.convalidatoAdesso ? C.green(' · convalidata') : ''}`);
+    for (const a of g.perAuto.slice(0, 8)) {
+      const mark = a.medSec <= -0.8 ? C.red : a.medSec < 0.8 ? C.green : C.dim;
+      console.log(`      ${a.auto.padEnd(34)} ${mark(fmtSec(a.medSec))} dalla base`);
+    }
+    if (g.ultimaProposta.length) {
+      for (const p of g.ultimaProposta) {
+        console.log(`      ${C.yellow('proposta')} ${p.leva === 'campo-ai' ? `campo AI ${p.da} → ${C.bold(p.a)}` : `${p.auto}: ${p.da} → ${C.bold(p.a)}`}  ${C.dim(p.perche)}`);
+        if (p.comando) console.log(`        ${C.dim('→ ' + p.comando)}`);
+      }
+    }
+    if (g.suggerisciConvalida) console.log(`      ${C.green('convalidabile ora:')} ${C.bold(`griglia-calib --convalida "${g.trkKey}"`)}  ${C.dim('(o solo in lettura: --convalida --dry)')}`);
+  }
+  console.log();
+  return 0;
+}
+
+/* ------------------------------------------------------------------ */
 /* dispatch                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -1019,6 +1283,7 @@ export async function main(argv) {
       case 'messages': return cmdMessages(args);
       case 'next': return cmdNext(args);
       case 'race': return await cmdRace(args);
+      case 'prepara': case 'prep': return await cmdPrepara(args);
       case 'import': return cmdImport(args);
       case 'watch': return await cmdWatch(args);
       case 'difficulty': return cmdDifficulty(args);
@@ -1029,6 +1294,9 @@ export async function main(argv) {
       case 'sfida': case 'challenge': return cmdSfida(args);
       case 'dottore': return cmdDottore(args);
       case 'accept': return cmdAccept(args);
+      case 'griglia': case 'grid': return await cmdGriglia(args);
+      case 'griglia-calib': case 'grid-calib': return await cmdGrigliaCalib(args);
+      case 'test-mode': case 'testmode': return cmdTestMode(args);
       case 'enter': return cmdEnter(args);
       case 'agenda': return cmdAgenda(args);
       default:

@@ -467,7 +467,7 @@ setInterval(drawLiveStrip, 2000);
 
 /* icona MoTeC nell'header: dice se EVO sta scrivendo telemetria adesso.
    ⏺ rosso lampeggiante = registrazione in corso (file .ld aggiornato da <10s);
-   verde = l'ultimo file ha dati; rosso fisso = file vuoto (bug EVO);
+   verde = l'ultimo file ha dati; rosso fisso = file vuoto (telemetria disattiva in EVO);
    nascosto = nessun file .ld ancora scritto. */
 function drawMotecStrip(h){
   const host = document.querySelector('#motec-strip');
@@ -493,11 +493,11 @@ function drawMotecStrip(h){
   } else if (age < 10000){
     host.className = 'chip red';
     host.innerHTML = '<span class="dot rec"></span> scrive vuoto!';
-    host.title = 'EVO sta scrivendo telemetria ADESSO ma il file non ha dati (bug del gioco, non del tool): ' + ld.car + (ld.track ? ' · ' + ld.track : '') + '. I consigli del BOX useranno la stima. Ricorda: in EVO la registrazione va attivata in Setup → Elettronica e i giri impostati PRIMA di avviare la sessione.';
+    host.title = 'EVO sta scrivendo il file ma è vuoto: la telemetria non era attiva in EVO (' + ld.car + (ld.track ? ' · ' + ld.track : '') + '). Attivala in Setup → Elettronica (con i giri impostati) PRIMA di avviare la sessione; finché non ci sono dati veri, i consigli del BOX useranno la stima.';
   } else {
     host.className = 'chip red';
     host.innerHTML = '<span class="dot"></span> file vuoto';
-    host.title = 'L\'ultimo file .ld di EVO non ha dati (bug del gioco, non del tool): ' + ld.when + '. I consigli del BOX usano la stima. Ricorda: in EVO la registrazione va attivata in Setup → Elettronica e i giri impostati PRIMA di avviare la sessione.';
+    host.title = 'L\'ultimo file .ld di EVO non ha dati (' + ld.when + '): la telemetria non era attiva in EVO. Si attiva in Setup → Elettronica, PRIMA di avviare la sessione; finché non ci sono dati veri, i consigli del BOX usano la stima.';
   }
 }
 

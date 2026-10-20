@@ -1,0 +1,107 @@
+// test-mode.mjs — la MODALITÀ TEST: tutte le gare della scala a N giri (default 3)
+// finché non la spegni. Nata dalla richiesta di Mauro (19/10/2026): mentre si testa
+// la carriera (griglia, calibrazione, import) le gare lunghe bruciano serate;
+// 3 giri bastano a generare TUTTI i dati (risultati, calibrazione, rivali).
+//
+// Come funziona:
+//   • ON: salva OGNI giro originale per ogni ronda di ogni serie in
+//     data/mode-test-3giri.json (con backup del ladder in data/backups) e
+//     riscrive i calendari della scala a `giri`.
+//   • OFF: ripristina ESATTAMENTE i giri originali dal registro e toglie il
+//     banner. Se il ladder è cambiato nel frattempo (nuove serie), le rond
+//     fuori dal registro restano come sono (mai inventare dati).
+//   • il registro resta sul disco finché non si spegne: il banner in
+//     status/next/agenda lo riporta a ogni avvio dei comandi.
+//
+// Il ladder è condiviso fra gli slot di carriera: la modalità è di macchina,
+// non di singola carriera (giusto: sono i calendari di serie, non lo stato).
+
+import { readFileSync, existsSync, copyFileSync, mkdirSync, unlinkSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { writeJsonAtomic } from './atomic.mjs';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const PROJECT = dirname(HERE);
+export const TEST_FILE = () => join(PROJECT, 'data', 'mode-test-3giri.json');
+const LADDER_FILE = join(PROJECT, 'config', 'career.evo.ladder.json');
+const BACKUP_DIR = join(PROJECT, 'data', 'backups');
+
+/** Stato della modalità: { attivo, dal, giri, salva: {nodeId: {roundIdx: laps}}} o null. */
+export function testMode() {
+  try {
+    const j = JSON.parse(readFileSync(TEST_FILE(), 'utf8'));
+    if (j && j.attivo) return j;
+  } catch { /* assente: modalità spenta */ }
+  return null;
+}
+
+let _ladderCache = null;
+function caricaLadder() {
+  if (!_ladderCache) _ladderCache = JSON.parse(readFileSync(LADDER_FILE, 'utf8'));
+  return _ladderCache;
+}
+
+/** Attiva la modalità: riscrive i calendari a N giri, salva gli originali. */
+export function testModeOn({ giri = 3 } = {}) {
+  const attuale = testMode();
+  if (attuale) return { already: true, giri: attuale.giri };
+  const n = Math.max(1, Math.min(50, Math.floor(Number(giri) || 3)));
+  const ladder = caricaLadder();
+  const salva = {};
+  let rond = 0;
+  for (const node of ladder.nodes ?? []) {
+    if (!Array.isArray(node.calendar)) continue;
+    for (const [i, r] of node.calendar.entries()) {
+      if (r?.laps == null) continue;
+      if (Number(r.laps) === n) continue;          // già a N: nulla da ricordare/ripristinare
+      (salva[node.nodeId] ??= {})[i] = Number(r.laps);
+      r.laps = n;
+      rond++;
+    }
+  }
+  if (rond) {
+    try { mkdirSync(BACKUP_DIR, { recursive: true }); copyFileSync(LADDER_FILE, join(BACKUP_DIR, `career.evo.ladder.bak-testmode-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}.json`)); } catch { /* il backup non deve bloccare */ }
+    writeJsonAtomic(LADDER_FILE, ladder);
+  }
+  writeJsonAtomic(TEST_FILE(), {
+    attivo: true, dal: new Date().toISOString(), giri: n,
+    rond, salva,
+    _readme: 'Modalità test: gare a N giri. Riattiva le distanze vere con: node ac-evo-career.mjs test-mode --off',
+  });
+  _ladderCache = ladder;
+  return { attivato: true, giri: n, rond };
+}
+
+/** Disattiva: ripristina i giri originali dal registro di attivazione. */
+export function testModeOff() {
+  const m = testMode();
+  if (!m) return { already: true };
+  const ladder = caricaLadder();
+  let ripristinate = 0, mancanti = 0;
+  for (const node of ladder.nodes ?? []) {
+    const orig = m.salva?.[node.nodeId];
+    if (!orig || !Array.isArray(node.calendar)) continue;
+    for (const [i, laps] of Object.entries(orig)) {
+      const r = node.calendar[Number(i)];
+      if (!r) { mancanti++; continue; }
+      r.laps = Number(laps);
+      ripristinate++;
+    }
+  }
+  if (ripristinate) writeJsonAtomic(LADDER_FILE, ladder);
+  try { unlinkSync(TEST_FILE()); } catch { /* già assente */ }
+  _ladderCache = ladder;
+  return { spento: true, ripristinate, mancanti };
+}
+
+/** Il messaggio da mostrare in CLI finché la modalità è attiva (o null). */
+export function testModeBanner() {
+  const m = testMode();
+  if (!m) return null;
+  const dal = String(m.dal ?? '').slice(0, 16).replace('T', ' ');
+  return [
+    `⚠  MODALITÀ TEST ATTIVA: tutte le gare della scala a ${m.giri} giri (da ${dal}, ${m.rond} rond toccate).`,
+    `   Per riattivare le distanze vere: node ac-evo-career.mjs test-mode --off`,
+  ].join('\n');
+}

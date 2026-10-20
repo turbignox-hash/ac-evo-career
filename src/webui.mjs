@@ -34,9 +34,14 @@ import { contractStatus, sponsorOffers, acceptSponsor, declineSponsor, challenge
 import { newsFeed } from './gazzetta.mjs';
 import { recordTestDay, testDayLog, calibrationSummary } from './testday.mjs';
 import { recordWarning, readWarnings } from './warnings.mjs';
-import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, TYRE_CLASSES } from './setup.mjs';
-import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, kindIt, telemDiagnostics } from './motec.mjs';
-import { trackBook, nextTrackOf } from './tracks.mjs';
+import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, TYRE_CLASSES, setupAdvice } from './setup.mjs';
+import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, kindIt, telemDiagnostics, lapTrace } from './motec.mjs';
+import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
+import { engineerLive } from './engineer.mjs';
+import { changeWeekendTrack, currentWeekendTrack, WEEKEND_FILE } from '../tools/set-track.mjs';
+import { currentWeatherPreset, setWeatherPreset, PRESETS, setWeatherCustom, presetForLabel } from './weather.mjs';
+import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
+import { sameTrack as trkSame } from './tracknames.mjs';
 import { carsBook, carImageOf } from './cars.mjs';
 import { garageOverview, catalogPicker, addCar, removeCar, setNote, importShowcase, sellCar } from './garage.mjs';
 import { ensureFlowsSeeded, recentFlows, resetFlows } from './flows.mjs';
@@ -49,6 +54,10 @@ import {
 } from './agenda.mjs';
 import { heritageOverview, claimMemory, memoryRoundHint } from './memories.mjs';
 import { resetNews } from './gazzetta.mjs';
+// griglia: tab bilanciamento (celle, classi, perTraccia) + azioni di scrittura
+import { loadClasses } from './gridbuilder.mjs';
+import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass } from './grid-apply.mjs';
+import { calibSummary, calibFile } from './grid-calib.mjs';
 import { midSeasonPulse } from './world.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 
@@ -184,7 +193,7 @@ async function readBody(req) {
 async function api(context0, req, res, action, body) {
   const { ladder, paths } = context0;
   const hasCareer = () => existsSync(SAVE_FILE);
-  const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'paddock', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'import-inspect', 'tracks', 'backup'];
+  const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'paddock', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'import-inspect', 'tracks', 'backup', 'grid-apply', 'grid-drop', 'grid-ai'];
   if (needsCareer.includes(action) && !state) {
     return sendJson(res, 400, { error: 'Non c\'è ancora una carriera: creane una dalla schermata iniziale.' });
   }
@@ -306,6 +315,29 @@ async function api(context0, req, res, action, body) {
         }
       }
       return sendJson(res, 200, { ...snap, check });
+    }
+    case 'ingegnere': {
+      // l'ingegnere di gara LIVE: benzina residua, usura gomme per ruota, gap
+      // avanti/dietro — dalla shared memory (giro dopo giro) + consumo per giro
+      // e giri della ronda dalla telemetria recente / ladder
+      const r = liveReader();
+      r.start();
+      const snap = r.snapshot();
+      let raceLaps = null, fuelPerLap = null, telemTrack = null;
+      try {
+        const card = raceCard(ladder, state, { car: typeof body.car === 'string' ? body.car : null });
+        raceLaps = card.round?.laps ?? card.baseLaps ?? null;
+      } catch { /* senza scheda gara i consigli restano solo-live */ }
+      if (snap.player?.car) {
+        try {
+          const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
+          const resultsDir = paths.resultsDirs?.[0] ?? join(root, '..', 'Results');
+          const sess = collectSessions(root, resultsDir, { car: snap.player.car, limit: 1 })[0] ?? null;
+          if (sess && Number.isFinite(sess.fuelPerLap) && sess.fuelPerLap > 0) { fuelPerLap = sess.fuelPerLap; telemTrack = sess.track ?? null; }
+        } catch { /* senza telemetria si stima dal HUD del gioco */ }
+      }
+      const live = engineerLive(snap, { fuelPerLap, raceLaps });
+      return sendJson(res, 200, { ...live, telemTrack, fuelPerLap: live.gauges?.fuelPerLap ?? null });
     }
     case 'stats': return sendJson(res, 200, careerStats(ladder, state));
     case 'rivals': return sendJson(res, 200, rivalsOverview(ladder, state, { q: typeof body.q === 'string' ? body.q : null }));
@@ -775,6 +807,61 @@ async function api(context0, req, res, action, body) {
       persist(state);
       return sendJson(res, 200, viewCard(ladder, state, typeof body.car === 'string' ? body.car : null));
     }
+    case 'grid': {
+      // tab Griglia: stato del customgrid + classi (regole/perTraccia/convalida)
+      const out = gridStatus({ track: typeof body.track === 'string' && body.track ? body.track : null });
+      const classes = loadClasses();
+      const classi = Object.entries(classes.classi ?? {}).map(([id, c]) => ({
+        id,
+        autoBase: c.autoBase ?? null,
+        aiStandard: c.aiStandard ?? null,
+        convalidatoSu: c.convalidatoSu ?? [],
+        match: (c.regole ?? []).filter((r) => r.preset && out.exists && r.preset === out.cells.find((ce) => ce.preset === r.preset)?.preset).length,
+        regole: (c.regole ?? []).map((r) => ({ auto: r.auto, preset: r.preset ?? null, kg: r.ballastKg ?? 0, pct: r.restrictorPct ?? 0, escluso: r.escluso === true })),
+        perTraccia: Object.entries(c.perTraccia ?? {}).filter(([k]) => !k.startsWith('_')).map(([trk, ov]) => ({
+          traccia: trk, convalidato: ov?.convalidato === true,
+          restrictorPct: ov?.restrictorPct ?? null, aiStandard: ov?.aiStandard ?? null,
+          escludiAuto: ov?.escludiAuto ?? [], nota: ov?.nota ?? null,
+        })),
+      }));
+      let calib = null;
+      try { calib = calibSummary(); } catch { /* il registro calibrazione non esiste ancora: va bene */ }
+      return sendJson(res, 200, { ...out, classi, matched: out.exists ? matchCurrentClass() : null, calib: (out.exists ? calib : null) });
+    }
+    case 'grid-apply': {
+      try {
+        const out = applyBalance({ track: body.track ?? null, force: !!body.force });
+        return sendJson(res, 200, { ...out, cells: gridStatus({ track: body.track ?? null, file: undefined }).cells });
+      } catch (e) { return sendJson(res, e.code ? 409 : 500, { error: e.message, code: e.code }); }
+    }
+    case 'grid-drop': {
+      try {
+        const out = dropCellsApply(body.matchers ?? body.presets ?? [], { force: !!body.force });
+        return sendJson(res, 200, { ...out, cells: gridStatus({}).cells });
+      } catch (e) { return sendJson(res, e.code ? 409 : 500, { error: e.message, code: e.code }); }
+    }
+    case 'weekend-track': {
+      // la sede del weekend: pista ATTUALE nel gamemodesave + pista ATTESA della
+      // ronda corrente — e con track dato, la RISCRIVE (a gioco aperto: è il
+      // unico gesto griglia provato con il menu EVO che adotta il file toccato)
+      try {
+        const cur = currentWeekendTrack();
+        const node = nodeById(ladder, state.node);
+        const roundTrackId = node?.calendar?.[Math.min(state.round ?? 0, (node?.calendar?.length ?? 1) - 1)]?.track ?? null;
+        const expectedName = roundTrackId ? (ladder.contentNames?.tracks?.[roundTrackId] ?? roundTrackId) : null;
+        if (!body.track) {
+          return sendJson(res, 200, { file: WEEKEND_FILE, current: cur, expected: expectedName, same: cur && expectedName ? cur === expectedName : null });
+        }
+        const out = changeWeekendTrack(String(body.track), { dry: !!body.dry });
+        return sendJson(res, 200, { ...out, current: currentWeekendTrack(), expected: expectedName });
+      } catch (e) { return sendJson(res, e.code ? 409 : 500, { error: e.message, code: e.code }); }
+    }
+    case 'grid-ai': {
+      try {
+        const out = applyAi([Number(body.min), Number(body.max)], { force: !!body.force });
+        return sendJson(res, 200, { ...out, cells: gridStatus({}).cells });
+      } catch (e) { return sendJson(res, e.code ? 409 : 500, { error: e.message, code: e.code }); }
+    }
     case 'difficulty': return sendJson(res, 200, viewDifficulty(ladder, state));
     case 'setup': return sendJson(res, 200, viewSetup(ladder));
     case 'telem-diagnostics': {
@@ -824,6 +911,43 @@ async function api(context0, req, res, action, body) {
       const fee = chargeEntry(ladder, state, node);
       markPending(ladder, state, card);
       persist(state);
+      // PREPARAZIONE DEL WEEKEND prima del lancio: pista della ronda nel
+      // gamemodesave + auto della ronda selezionata nel garage (rilegge all'avvio
+      // di EVO, confermato in test). Falli silenti: se la pista non è nota o
+      // l'auto manca nel dizionario si parte com'era, niente blocco del flusso.
+      let prep = { track: null, trackWritten: false, car: null, carWritten: false };
+      if (!body.noLaunch && !running) {
+        try {
+          if (card.trackName) {
+            const t = changeWeekendTrack(card.trackName);
+            prep.track = card.trackName; prep.trackWritten = t.written;
+          } else prep.track = currentWeekendTrack();
+        } catch (e) { prep.trackError = e.message; }
+        try {
+          if (card.carName) {
+            const c = setDriverCar(card.carName);
+            prep.car = card.carName; prep.carWritten = c.written;
+          } else prep.car = garageCurrent().name;
+        } catch (e) { prep.carError = e.message; }
+      }
+      // meteo della ronda: FUORI dal cancello !running — la scrittura del selettore
+      // in gamemode.lastgamemode è accettata anche a EVO aperto (verificato 20/10/2026:
+      // scritta a menu aperto, la sessione avviata dopo la applica). Vale finché la
+      // sessione NON è partita: se si scrive a sessione avviata questa parte col
+      // meteo già in uso. Silente: se il round non dichiara meteo non tocca nulla.
+      try {
+        prep.weather = null;
+        const round = node?.calendar?.[Math.min(state.round ?? 0, (node?.calendar?.length ?? 1) - 1)];
+        const wxLabel = round?.weather != null ? (ladder.weatherNames?.[String(round.weather)] ?? round.weather) : null;
+        if (wxLabel != null) {
+          const wantIdx = presetForLabel(String(wxLabel));
+          const cur = currentWeatherPreset();
+          if (wantIdx != null && cur !== wantIdx) {
+            const w = setWeatherPreset(wantIdx);
+            prep.weather = `${w.preset.label} (era: ${PRESETS[cur]?.label ?? cur ?? '?'} — round vuole: ${wxLabel})`; prep.weatherWritten = w.written;
+          } else prep.weather = PRESETS[cur ?? wantIdx]?.label ?? null;
+        }
+      } catch (e) { prep.weatherError = e.message; }
       let launched = null;
       if (!body.noLaunch) {
         try {
@@ -833,7 +957,7 @@ async function api(context0, req, res, action, body) {
           launched = { error: e.message };
         }
       }
-      return sendJson(res, 200, { ok: true, fee, gameRunning: running, launched, card: viewCard(ladder, state, typeof body.car === 'string' ? body.car : null), header: viewHeader(ladder, state) });
+      return sendJson(res, 200, { ok: true, fee, prep, gameRunning: running, launched, card: viewCard(ladder, state, typeof body.car === 'string' ? body.car : null), header: viewHeader(ladder, state) });
     }
     case 'import': {
       try {
@@ -1032,16 +1156,62 @@ async function api(context0, req, res, action, body) {
             // se pista del round e pista della telemetria divergono, la GUI lo dice
             trackDisplay: board.trackDisplay ?? null, basisTrack: sessions[0]?.track ?? null,
             target: tyre ? tyre.target : (body.target ?? null), classLabel: tyre?.label ?? null,
-            telemetryLaps: telemetryLapsFor(usedCar ?? carName ?? ''),
-            sessions: sessions.map((s) => ({
-              when: s.whenLocal, kindLabel: s.kindLabel, weather: s.weather, preset: s.preset,
-              validLaps: s.validLaps, durationSec: s.durationSec, bestLapSec: s.bestLapSec, fuelPerLap: s.fuelPerLap,
-              cold: s.coldPressures, hot: s.hotPressures, sus: s.sus, bump: s.bump, camberProxy: s.camberProxy,
+            telemetryLaps: telemetryLapsFor(usedCar ?? carName ?? ''),            sessions: sessions.map((s) => ({
+              file: s.file, track: s.track, when: s.whenLocal, kindLabel: s.kindLabel, weather: s.weather, preset: s.preset, validLaps: s.validLaps, durationSec: s.durationSec, bestLapSec: s.bestLapSec, fuelPerLap: s.fuelPerLap, cold: s.coldPressures, hot: s.hotPressures, sus: s.sus, bump: s.bump, camberProxy: s.camberProxy,
               airTemp: s.airTemp, roadTemp: s.roadTemp, laps: s.laps,
             })),
             advice,
             raceAdvice,
             raceLaps,
+          });
+        }
+        if (body.action === 'meccanico') {
+          // il meccanico: consigli di setup per pista — base dal carattere della
+          // pista + correzione dai dati veri dell'ultima sessione telemetrica
+          const board = setupBoard(ladder, state);
+          const carName = body.car ?? (board.rows[0]?.carName ?? null);
+          const trackDisplay = body.track ?? board.trackDisplay ?? null;
+          const TRACK = TRACK_INFO[trackDisplay] ?? Object.values(TRACK_INFO).find((t) => trkSame(t.name, trackDisplay)) ?? null;
+          const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
+          let telem = null, sessFile = null;
+          try {
+            // senza filtro pista: la correzione telemetrica usa l'ultima sessione dell'auto
+            // (come il grafico del giro) — con base pista dichiarata nel pannello
+            const sess = collectSessions(root, paths.resultsDirs?.[0] ?? '', { car: carName, limit: 1 })[0] ?? null;
+            if (sess) { telem = sess; sessFile = sess.file; }
+          } catch { /* senza telemetria la base resta pista-solo */ }
+          const adv = setupAdvice(TRACK && { ...TRACK, car: carName }, telem && {
+            bump: telem.bump, camberProxy: telem.camberProxy, lastPressures: telem.hotPressures,
+          }, { laps: telem?.laps ?? null });
+          return sendJson(res, 200, { ok: true, car: carName, track: trackDisplay, sessFile, tipo: adv.tipo, densita: adv.densita, consigli: adv.consigli, hasTelem: !!telem });
+        }
+        if (body.action === 'laptrace') {
+          // grafico del giro: profilo SPEED/THROTTLE/BRAKE di un giro (e la
+          // differenza allineata a distanza col giro di confronto) — stesso
+          // slot telemetria della vista Setup, una sessione alla volta
+          const board = setupBoard(ladder, state);
+          const carName = body.car ?? (board.rows[0]?.carName ?? null);
+          const trackKey = body.track ?? null; // senza pista esplicita: l'auto, TUTTE le sue piste
+          const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
+          let pick = null;
+          if (body.file) pick = listMotecSessions(root, { car: carName ?? undefined, track: undefined }).find((s) => s.name === body.file) ?? null;
+          if (!pick) pick = listMotecSessions(root, { car: carName, track: trackKey })[0] ?? null;
+          if (!pick) return sendJson(res, 200, { ok: false, hint: 'Nessuna telemetria MoTeC per questa auto: fai una sessione e EVO la salverà in Saved Games\\ACE\\MoTec.' });
+          const trace = lapTrace(pick.file, { lap: body.lap, compare: body.compare, points: body.points });
+          const a = trace ? analyzeLd(pick.file) : null;
+          if (!trace) return sendJson(res, 200, { ok: false, hint: 'File MoTeC senza giri validi o senza canale SPEED: ' + pick.name });
+          // elenco sessioni dell'auto per il SELETTORE (la più recente prima):
+          // quando/data/pista + numero giri validi — il client ricade su/lui quando gira il select
+          const allSessions = listMotecSessions(root, { car: carName }).slice(0, 30).map((s) => {
+            let lapsN = 0;
+            try { lapsN = (analyzeLd(s.file)?.validLaps) ?? 0; } catch { lapsN = 0; }
+            return { file: s.name, track: s.track, when: new Date(s.mtime).toLocaleString('it-IT'), validLaps: lapsN };
+          });
+          return sendJson(res, 200, {
+            file: pick.name, car: pick.car, track: pick.track,
+            sessions: allSessions,
+            laps: (a?.laps ?? []).filter((l) => l.durationSec > 15).map((l) => ({ lap: l.lap, durationSec: l.durationSec })),
+            ...trace,
           });
         }
         if (body.action === 'motec') {

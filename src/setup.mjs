@@ -97,6 +97,91 @@ export function fourPsi({ cold, hot, target }) {
   return { ok: true, rise, newCold, target: t, hot: h, cold: c, advice: lines.join(' ') };
 }
 
+/* ------------------------------------------------------------------ */
+/* IL MECCANICO: consigli di setup per pista, dal carattere + telemetria */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Classifica il TRACCIATO da TRACK_INFO (e dai dati telemetrici se arrivano):
+ * power (rettilinei dominanti, alettoni giù), tecnica (curve strette, alettoni
+ * su + cambio corta), bilanciata. Dà la BASE del setup per pista;
+ * i dati reali (bumpstop, camber-proxy, freni) la correggono come seconda voce.
+ */
+export function trackProfile(info, telem = null) {
+  const corners = Number(info?.corners ?? 0), len = Number(info?.lengthKm ?? 0);
+  if (!corners || !len) return { tipo: 'sconosciuta', aero: null, note: [] };
+  const densita = corners / len;                 // curve per km
+  let tipo, aero;   // aero: -1 scarica · +1 carica
+  if (densita < 2.2) { tipo = 'power'; aero = -1; }
+  else if (densita > 3.6) { tipo = 'tecnica'; aero = +1; }
+  else { tipo = 'bilanciata'; aero = 0; }
+  return { tipo, aero, densita: Math.round(densita * 10) / 10 };
+}
+
+/**
+ * Il cuore del meccanico: input = info pista (TRACK_INFO) + analisi MoTeC dell'ultima
+ * sessione (analyzeLd: sus/bump/camberProxy/pressures/temp freni) + ponte della
+ * sessione (giri k). Output: consigli PRIORITIZZATI, ognuno con il DATO che lo
+ * detta. Dove il gioco non espone i valori correnti (alettoni, barre, molle), il
+ * consiglio è direzione + quantità, mai un numero assoluto da digitare.
+ */
+export function setupAdvice(info, telem, { laps = null } = {}) {
+  const out = [];
+  const add = (vedi, prio, text) => out.push({ vedi, prio, text });
+  const prof = trackProfile(info, telem);
+  const label = info?.name ?? 'pista';
+
+  /* -- base dal carattere della pista -- */
+  if (prof.tipo === 'power') {
+    add('aero', 1, `**${label}** (${info?.lengthKm} km, ${info?.corners} curve · tracciato POWER): scarica GLI ALETTONI al minimo drag — il tempo si guadagna sui rettilinei. Se il fondo è stabile in curva, un gradino d'ala in meno vale più di una mano di camber.`);
+    add('trasmissione', 2, `Cambio LUNGO (ultimo rapporto che arrivi a strappare sul rettifilo più lungo): a ${label} la velocità di punta paga i quarti del giro.`);
+  } else if (prof.tipo === 'tecnica') {
+    add('aero', 1, `**${label}** (${info?.corners} curve in ${info?.lengthKm} km · tracciato TECNICO): carica GLI ALETTONI (2-3 gradini sopra il minimo) — il tempo è in frenata e in uscita dalle curve strette.`);
+    add('trasmissione', 2, `Cambio CORTO: le potenze medie contano più della punta (${label} non ha rettilinei per giustificare un'ultima marcia lunga).`);
+  } else if (prof.tipo === 'bilanciata') {
+    add('aero', 1, `**${label}** (${info?.corners} curve in ${info?.lengthKm} km · tracciato BILANCIATO): ala a metà carica — il compromesso giusto fra i tratti veloci e le curve medi-lente.`);
+  }
+
+  /* -- correzioni dai dati VERI (se la telemetria c'è) -- */
+  const BUMP_SOGLIA = 0.7;       // % di tempo a fine corsa: sopra qui, il muro batte
+  const CAMB_SANE = 0.5;         // |Δ int/est| sane per una gomma ben camberata (° esteso)
+  if (telem) {
+    const bumpMax = Math.max(...WHEEL_KEYS.map((w) => telem.bump?.[w]?.contactPct ?? 0));
+    const wheelMax = WHEEL_KEYS.find((w) => (telem.bump?.[w]?.contactPct ?? 0) === bumpMax);
+    if (bumpMax >= BUMP_SOGLIA) {
+      add('assetto', 1, `Bumpstop ${wheelMax} al ${bumpMax}% del giro: il fondo batte — ALZA l'altezza (2 clic) o irigidisci i bumpstop su quel lato; su ${label} la superficie cresce col carico.`);
+    } else if (bumpMax > 0) {
+      add('assetto', 3, `Bumpstop max ${wheelMax} al ${bumpMax}%: marginale — soprattutto non toccare l'altezza per questo.`);
+    }
+    // camber dal proxy termico: l'interno scotta → troppo negativo
+    for (const w of ['LF', 'RF']) {
+      const d = telem.camberProxy?.[w];
+      if (d == null) continue;
+      if (d >= CAMB_SANE * 2) add('camber', 2, `Camber anteriore: Δ int/est ${w} +${d}° — l'interno scotta: TOGLI camber negativo (~0.3°) o la gomma lavora poco sul fianco esterno.`);
+      else if (d <= -CAMB_SANE) add('camber', 2, `Camber anteriore: Δ int/est ${w} ${d}° — l'esterno scotta: AGGIUNGI camber negativo (~0.3°): in curva il muso non affonda.`);
+      else add('camber', 4, `Camber ${w} in finestra (Δ ${d > 0 ? '+' : ''}${d}°): non toccare.`);
+    }
+    // freni: il termico svedisce più il moto che la mescola
+    const brakeMax = Math.max(...WHEEL_KEYS.map((w) => telem.brakes?.[w] ?? 0));
+    const bWheel = WHEEL_KEYS.find((w) => (telem.brakes?.[w] ?? 0) === brakeMax);
+    if (brakeMax > 600) add('freni', 2, `Freni ${bWheel} picco ${Math.round(brakeMax)}°C: il termico è al limite — se svaniscono in fondo al giro, passa a una pastiglia più dura o sposta 1 tacca di bias del freno.`);
+    // pressioni lontane dal target → promemoria (le regola coi 4 PSI già presente)
+    const targ = tyreClassOf(info?.car ?? '').target ?? null;
+    if (targ && telem.lastPressures) {
+      const hot = (telem.lastPressures.LF + telem.lastPressures.RR) / 2;
+      if (Math.abs(hot - targ) > 1.2) {
+        add('pressioni', 1, `A caldo ${hot.toFixed(1)} PSI vs target ${targ}: fuori finestra — ricalibra la partenza con la regola dei 4 PSI (pannello su).`);
+      }
+    }
+  } else {
+    add('telemetria', 3, `Nessuna analisi MoTeC per questa sessione: i consigli sono SOLO pista. Fai una sessione con la telemetria attiva e il meccanico dà il secondo strato di correzione.`);
+  }
+  return { tipo: prof.tipo, densita: prof.densita, consigli: out.sort((a, b) => a.prio - b.prio) };
+}
+
+/** Ruote del decoder (riutilizzata: non duplicare la lista). */
+const WHEEL_KEYS = ['LF', 'RF', 'LR', 'RR'];
+
 /** Tabella setup per le auto della serie corrente: classe, target, nota salvata. */
 export function setupBoard(ladder, state, { car = null, track = null } = {}) {
   const node = ladder.nodes.find((n) => n.nodeId === state.node);

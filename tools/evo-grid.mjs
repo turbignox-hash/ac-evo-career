@@ -68,7 +68,7 @@ export function decodeMsg(buf) {
 }
 
 export const encVarintArr = (v) => Uint8Array.from(encodeVarint(v));
-const encVarintByKey = (n) => encVarintArr(Number(n));
+const encVarintByKey = (n) => encVarintArr(typeof n === 'bigint' ? n : BigInt(Math.round(Number(n))));   // BigInt puro: i BigInt>2^53 (hash a 64 bit del garage) NON devono passare per Number
 export function encodeMsg(fields) {
   const chunks = [];
   for (const f of fields) {
@@ -181,22 +181,26 @@ function stamp(file) {
   console.log(`  piloti (primi): ${names.join(', ')}${g.drivers.length > 6 ? ' …' : ''}`);
 }
 
-const argv = process.argv.slice(2);
-const flag = argv[0];
-const DEFAULT = 'C:/Users/Mauro/Saved Games/ACE/GameModes/last_grid.customgrid';
-if (flag === '--dump') console.log(JSON.stringify(decodeMsg(readFileSync(argv[1] ?? DEFAULT)), (k, v) => v.type === 'Buffer' ? Buffer.from(v.data).toString('hex').slice(0, 64) + '…' : v, 1).slice(0, 4000));
-else if (flag === '--verify') { const r = verifyRoundTrip(argv[1] ?? DEFAULT); console.log(r.ok ? `ROUND-TRIP OK (${r.size}/${r.sizeOut} byte)` : `ROUND-TRIP DIVERSO (norm-preserving, non byte) ${JSON.stringify(r)}`); }
-else if (flag === '--pi') {
-  const [lo, hi, file] = [Number(argv[1]), Number(argv[2]), argv[3] ?? DEFAULT];
-  if (!Number.isFinite(lo) || !Number.isFinite(hi)) throw new Error('uso: --pi <min> <max> [file] [--force]');
-  guardWrite(argv);
-  const buf = readFileSync(file);
-  const backup = `${file}.bak-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
-  copyFileSync(file, backup);
-  const out = rewritePiRange(buf, lo, hi);
-  writeFileSync(`${file}.tmp`, out);
-  renameSync(`${file}.tmp`, file);
-  console.log(`finestra PI → ${lo}–${hi}. Backup: ${backup}`);
-  const back = verifyRoundTrip(file); // non è identico (apposta la modifica): verifica solo di coerenza struttura
-  console.log(`rilettura: ${JSON.stringify(gridFileOf(readFileSync(file)).config)}`);
-} else stamp(argv[0] ?? DEFAULT);
+// la CLI gira SOLO quando il modulo è eseguito direttamente (non importato da altri tool)
+const isMain = process.argv[1] && import.meta.url === new URL(`file:///${process.argv[1].replace(/\\/g, '/')}`).href;
+if (isMain) {
+  const argv = process.argv.slice(2);
+  const flag = argv[0];
+  const DEFAULT = 'C:/Users/Mauro/Saved Games/ACE/GameModes/last_grid.customgrid';
+  const jsonSafe = (k, v) => typeof v === 'bigint' ? Number(v) : (v?.type === 'Buffer' ? Buffer.from(v.data).toString('hex').slice(0, 64) + '…' : v);
+  if (flag === '--dump') console.log(JSON.stringify(decodeMsg(readFileSync(argv[1] ?? DEFAULT)), jsonSafe, 1).slice(0, 4000));
+  else if (flag === '--verify') { const r = verifyRoundTrip(argv[1] ?? DEFAULT); console.log(r.ok ? `ROUND-TRIP OK (${r.size}/${r.sizeOut} byte)` : `ROUND-TRIP DIVERSO (norm-preserving, non byte) ${JSON.stringify(r)}`); }
+  else if (flag === '--pi') {
+    const [lo, hi, file] = [Number(argv[1]), Number(argv[2]), argv[3] ?? DEFAULT];
+    if (!Number.isFinite(lo) || !Number.isFinite(hi)) throw new Error('uso: --pi <min> <max> [file] [--force]');
+    guardWrite(argv);
+    const buf = readFileSync(file);
+    const backup = `${file}.bak-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+    copyFileSync(file, backup);
+    const out = rewritePiRange(buf, lo, hi);
+    writeFileSync(`${file}.tmp`, out);
+    renameSync(`${file}.tmp`, file);
+    console.log(`finestra PI → ${lo}–${hi}. Backup: ${backup}`);
+    console.log(`rilettura: ${JSON.stringify(gridFileOf(readFileSync(file)).config)}`);
+  } else stamp(argv[0] ?? DEFAULT);
+}

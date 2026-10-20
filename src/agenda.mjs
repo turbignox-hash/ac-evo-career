@@ -273,6 +273,34 @@ export function avanzaGiorno(state, to = null) {
   return agendaDay(state);
 }
 
+/**
+ * Giornata AUTO-avanzata dopo la registrazione di una gara (richiesta Mauro
+ * 19/10/2026): applyRaceResult già porta il giorno a +1, ma spesso il giorno
+ * dopo i tuoi sedili NON hanno gare in programma e il calendario sembra fermo.
+ * Criterio (testato 19/10): contano SOLO le gare IN PROGRAMMA oggi (onSchedule);
+ * quelle passate restano comunque elencate come "in ritardo" (buon corso,
+ * Ulisse) ma non devono più fermare il calendario: se oggi non c'è niente
+ * in programma, salta direttamente al prossimo giorno che ne ospita una.
+ * Nessuna gara in programma entro 28 giorni (tutti i sedili in ritardo): +1
+ * semplice, tanto le gare dovute ti seguono dove vai.
+ */
+export function avanzaDopoGara(ladder, state) {
+  ensureAgenda(state);
+  const d = agendaDay(state);
+  // solo i SEDILI iscritti contano: le serie “altrove” riempiono ogni giorno e
+  // vanificherebbero il criterio (19/10: i 23 in-programma del giorno 19 erano
+  // quasi tutte serie fattibili/bloccate, non gare TUOLE)
+  const mie = (gare) => gare.filter((g) => state.seats?.[g.node?.nodeId] && g.onSchedule);
+  const oggi = mie(racesOnDay(ladder, state, d));
+  if (oggi.length) return { jump: false, day: d, gare: oggi.length };
+  for (let v = d + 1, limite = d + 28; v <= limite; v++) {
+    const gare = mie(racesOnDay(ladder, state, v));
+    if (gare.length) { avanzaGiorno(state, v); return { jump: true, day: v, gare: gare.length }; }
+  }
+  avanzaGiorno(state, d + 1);
+  return { jump: true, day: d + 1, gare: 0, nota: 'nessuna gara in programma entro 28 giorni: +1 semplice' };
+}
+
 export function avanzaDopoRisultato(state) {
   ensureAgenda(state);
   state.agenda.day += 1;
