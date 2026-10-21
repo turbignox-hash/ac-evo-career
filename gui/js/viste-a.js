@@ -286,7 +286,7 @@ function drawCardInto(el, card){
     </div>` : ''}
     <div class="cklbar"><i style="width:${doneCount/card.settings.length*100}%"></i></div>
     <div class="cklmeta"><span class="muted">checklist di configurazione: ${doneCount}/${card.settings.length}</span><button class="link" id="b-ckl-reset">azzera</button></div>
-    ${card.boxRadio?.tips?.length ? `<details style="margin-top:8px" open><summary style="cursor:pointer;font-size:12px"><b>📻 Consigli dal BOX</b> <span class="muted" style="font-size:11px">— la scheda dell'ingegnere di gara</span></summary>
+    ${card.boxRadio?.tips?.length ? `<details style="margin-top:8px" open><summary style="cursor:pointer;font-size:12px"><b>${window.mechIcon ? window.mechIcon(13) : '📻'} Consigli dal BOX</b> <span class="muted" style="font-size:11px">— la scheda dell'ingegnere di gara, personale del meccanico</span></summary>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${card.boxRadio.tips.map(t=>`<div style="display:flex;gap:10px;align-items:flex-start;background:var(--panel2,#121822);border:1px solid var(--line);border-radius:8px;padding:7px 10px"><span style="flex:none;font-size:15px">${t.icon}</span><div style="font-size:12px;line-height:1.45"><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></div></div>`).join('')}</div></details>` : ''}
     <div id="ingegnere-live" style="margin-top:10px"></div>
     ${card.outlook ? `<div style="margin-top:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2,#151a24)">

@@ -13,3 +13,11 @@ garage-sampler.log
 webui-live.log
 track-monitor.log
 *.bak-laps*
+
+# script e backup di sessione (usa/riesegui ma non versionare)
+*.tmp.ps1
+*.tmp.mjs
+.webui-log.txt
+.backup-*/
+.setup-backup/
+sessione-*/

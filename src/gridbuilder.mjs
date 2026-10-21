@@ -206,9 +206,30 @@ export function buildGridMessage(opts) {
   // preset del POOL (non del template intero!): una monomarca non deve ereditare
   // la classe di una serie mista.
   const carIdOf = (b) => { for (const g of decodeMsg(b)) if (g.field === 3) return utf8(g.bytes); return null; };
+  // poolMulti: una serie con UNA sola auto nel ladder PUÒ dichiarare in
+  // grid-classes.json un pool MULTI-MARCA (richiesta Mauro 21/10 per la Coppa
+  // RX-7 FD: la monomarca forzata dal builder era anti-storica). Le celle
+  // restano FILTRATE dal template (lezione 20/10: zero-crash, il template è la
+  // sorgente delle celle) ma al pool dichiarato, non all'unica auto: con meno
+  // di 3 modelli diversi nel template si esce con errore pulito (serve
+  // rigenerare in EVO griglia col pool, o ripristinare un .bak-apply che ce li
+  // abbia — come il titolo d'epoca del 21/10 ore 12:34).
+  let poolMultiInfo = null;
+  const declared = classes.classi?.[nodeId];
+  const poolMulti = Array.isArray(declared?.poolAuto) && declared.poolAuto.length >= 2 ? new Set(declared.poolAuto) : null;
   const wantCars = Array.isArray(node.cars) && node.cars.length ? new Set(node.cars) : null;
   let poolCells = tpl.cells;
-  if (wantCars) {
+  if (poolMulti) {
+    const sel = tpl.cells.filter((b) => poolMulti.has(carIdOf(b)));
+    const distinte = [...new Set(sel.map(carIdOf).filter(Boolean))];
+    if (sel.length >= 3 && distinte.length >= 3) {
+      poolCells = sel;
+      poolMultiInfo = { auto: distinte.length, celle: sel.length };
+    } else {
+      throw new Error(`il template non contiene la griglia MULTI-MARCA della serie (${distinte.length} auto del pool presenti, servono ≥3 modelli): ripristina un template d'epoca col pool dichiarato in grid-classes.json (es. un .bak-apply che ce le abbia) o rigenera in EVO una griglia personalizzata con le auto del pool`
+      );
+    }
+  } else if (wantCars) {
     const sel = tpl.cells.filter((b) => wantCars.has(carIdOf(b)));
     if (sel.length) poolCells = sel;
     else {
@@ -336,6 +357,7 @@ export function buildGridMessage(opts) {
     serie: `${node.display} · ${round.name ?? round.track} (round ${roundIndex + 1}/${node.calendar.length})`,
     gridSize: target,
     source: file,
+    poolMulti: poolMultiInfo ? `multi-marca: ${poolMultiInfo.auto} auto diverse (${poolMultiInfo.celle} celle nel template)` : null,
     origine,
     ai: aiEff?.length === 2 ? `${aiEff[0]}-${aiEff[1]} (${aiFrom})` : null,
     escluse: poolEscluse,

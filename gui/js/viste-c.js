@@ -365,10 +365,27 @@ function lapChartSvg(t){
 
 /* -------- setup / pressioni -------- */
 async function drawSetup(m){
-  const [b, card] = await Promise.all([api('garage', {}), api('card').catch(() => null)]);
-  const carSel = card?.carName ? { carName: card.carName } : null;
+  const [b, card, live, h] = await Promise.all([api('garage', {}), api('card').catch(() => null), api('live').catch(() => null), api('system-health').catch(() => null)]);
+  // l'auto SEGUE IL GIOCO: se EVO è aperto con un'auto attiva, quella è la voce
+  // giusta (giri con la F2004 mentre la serie è la RX-7); se chiuso, resta
+  // l'auto della serie corrente.
+  const liveCar = live?.game && live?.player?.car ? String(live.player.car).trim() : null;
+  /* SEGUE LA MACCHINA IN PISTA (Mauro 21/10: con la SF-25 a Monza il pannello
+     restava sulla RX-7 della serie). Ordine di scelta dell'auto:
+     1. EVO aperto con un'auto attiva → quella, come prima;
+     2. EVO chiuso → l'auto della telemetria PIÙ RECENTE su qualunque pista
+        (il server 'sessions' senza auto uscita già filtra a un'unica AUTOp vorbe);
+     3. niente telemetria → l'auto della serie corrente (come prima). */
+  let carSel = liveCar ? { carName: liveCar } : null;
+  let any = null;
+  if (!carSel) {
+    any = await api('garage', { action: 'sessions', track: 'all' }).catch(() => null);
+    const latestCar = any?.sessions?.[0]?.car ?? null;
+    if (latestCar) carSel = { carName: latestCar };
+  }
+  if (!carSel && card?.carName) carSel = { carName: card.carName };
   function fmtLapS(s){ if(s==null||!Number.isFinite(s)) return '—'; const m=Math.floor(s/60); const r=s-m*60; return m+':'+r.toFixed(1).padStart(4,'0'); }
-  const tel = await api('garage', { action: 'sessions', car: carSel?.carName ?? null }).catch(() => ({ found: false, sessions: [], advice: {} }));
+  const tel = (any && carSel && any.sessions?.length) ? any : await api('garage', { action: 'sessions', car: carSel?.carName ?? null, track: null }).catch(() => ({ found: false, sessions: [], advice: {} }));
   const list = tel.sessions ?? [];
   const cur = list[0];
   const psi = (v) => (v == null ? '—' : Number(v).toFixed(1));
@@ -379,40 +396,87 @@ async function drawSetup(m){
     // il consiglio gara è onesto solo se la telemetria è della pista del round corrente
     const normTrk = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
     const offTrack = race.ok && tel.basisTrack && tel.trackDisplay && normTrk(tel.basisTrack) !== normTrk(tel.trackDisplay) && !normTrk(tel.trackDisplay).startsWith(normTrk(tel.basisTrack)) && !normTrk(tel.basisTrack).startsWith(normTrk(tel.trackDisplay));
+    // I DUE consigli (gara vs base) spesso dicono la STESSA partenza: se combacia,
+    // si mostra solo quello di gara con una nota “base telemetria conferma”.
+    const doppio = race.ok && race.raceStartPsi != null && adv.ok && adv.suggestedStartPsi != null
+      && Math.abs(race.raceStartPsi - adv.suggestedStartPsi) < 0.25;
     const advHtml = race.ok && race.raceStartPsi != null
       ? `<div class="banner good" style="margin-top:8px"><b>🏁 PER LA GARA (${tel.raceLaps ?? '?'} giri): parti da <b>${race.raceStartPsi} PSI</b></b> — finestra ${race.raceRange?.[0]}–${race.raceRange?.[1]} PSI<br>
-         <span class="muted">Qualifica / giri secchi: ${race.qualiStartPsi} PSI · Target a caldo ${tel.target} PSI<br>${esc(race.raceAdvice ?? '')}${offTrack ? `<br>⚠️ Consiglio basato sull'ultima uscita su <b>${esc(tel.basisTrack)}</b>, non su ${esc(tel.trackDisplay)}: fai qualche giro lì per metterlo a punto su questa pista` : ''}</span></div>
-         <div class="banner info" style="margin-top:6px"><b>💡 Base telemetria</b> (uscite brevi): parti da <b>${adv.suggestedStartPsi} PSI</b> (finestra ${adv.range?.[0]}–${adv.range?.[1]})<br><span class="muted">${esc(adv.advice)}</span></div>`
+         <span class="muted">Qualifica / giri secchi: ${race.qualiStartPsi} PSI · Target a caldo ${tel.target} PSI${doppio ? ` · <b>base telemetria: conferma la stessa partenza</b> (${adv.suggestedStartPsi} PSI)` : ''}<br>${esc(race.raceAdvice ?? '')}${offTrack ? `<br>⚠️ Consiglio basato sull'ultima uscita su <b>${esc(tel.basisTrack)}</b>, non su ${esc(tel.trackDisplay)}: fai qualche giro lì per metterlo a punto su questa pista` : ''}</span></div>`
+        + (doppio ? '' : `<div class="banner info" style="margin-top:6px"><b>💡 Base telemetria</b> (uscite brevi): parti da <b>${adv.suggestedStartPsi} PSI</b> (finestra ${adv.range?.[0]}–${adv.range?.[1]})<br><span class="muted">${esc(adv.advice)}</span></div>`)
       : (adv.ok
         ? `<div class="banner good" style="margin-top:8px"><b>💡 Pressione consigliata (${esc(tel.classLabel ?? '')}): parti da <b>${adv.suggestedStartPsi} PSI</b></b> (finestra ${adv.range?.[0]}–${adv.range?.[1]} PSI, target a caldo ${tel.target} PSI)<br><span class="muted">${esc(adv.advice)}</span></div>`
         : (adv.advice ? `<div class="banner info" style="margin-top:8px">${esc(adv.advice)}</div>` : ''));
     const logRows = (tel.log ?? []).map((e) => `<tr><td class="muted">${esc(String(e.at).replace('T',' ').slice(0,16))}</td><td>${esc(e.car)}</td><td>${esc(e.track)}</td><td class="right"><b>${e.suggestedStartPsi} PSI</b></td><td>${esc(e.basisKindLabel ?? '—')}</td></tr>`).join('');
     const telLaps = tel.telemetryLaps ?? 10;
-    return `<div class="panel" style="margin-top:14px"><h2>Telemetria MoTeC — ${esc(tel.car ?? s.car ?? '')} <span class="muted" style="font-size:12px">target ${tel.target} PSI · ${list.length} sessioni recenti · scritta da EVO in Saved Games\\ACE\\MoTec</span></h2>
-    <div class="muted" style="margin:-6px 0 8px;font-size:11.5px">🔗 Salta a: <a href="#lap-chart">📈 grafico del giro</a> · <a href="#psi-panel">🧰 regola dei 4 PSI</a> · <a href="#telem-diag">🔍 diagnostica</a></div>
-    <div class="banner warn" style="margin-bottom:8px;padding:10px 12px">
+    /* LA LISTA COLORATA DEL BOX: lo stato dell'assetto area per area, capibile
+       al volo appena esci dal gioco (richiesta 21/10). Quando tutto è verde il
+       meccanico «canta vittoria invece di ripetere lo stesso consiglio». */
+    const cl = tel.checklist ?? null;
+    /* l'IDENTITÀ del meccanico: la figura del box, col suo umore e i monitor
+       di punta (richiesta Mauro 21/10: «il meccanico è una figura fondamentale») */
+    const mechStato = {
+      bad: (cl?.items ?? []).filter((i) => i.level === 'bad').length,
+      warn: (cl?.items ?? []).filter((i) => i.level === 'warn').length,
+      areas: cl?.items?.length ?? 0,
+      stale: !!tel.stale?.changed,
+      live: live?.game ? (live?.live ? 'in pista' : 'aperto') : null,
+      telem: h?.telem?.lastLd ? new Date(h.telem.lastLd.mtimeMs).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : null,
+    };
+    /* SETUP PIÙ NUOVO DELL'ULTIMA SESSIONE: il meccanico giudica i dati vecchi —
+       mostrato GRANDE sopra la checklist, non solo come chip (Mauro 21/10). */
+    const staleHtml = tel.stale?.changed
+      ? `<div class="banner warn" style="margin:10px 0 0;padding:10px 12px">⚠️ <b>Setup montato più recente dell'ultima uscita</b> — la base dati del meccanico (giri, bump, camber, freni) parla della sessione di <b>${esc(tel.stale.lastSession ?? '?')}</b>, ma il file di setup attivo è <b>«${esc(tel.stale.file)}»</b> salvato alle ${esc(tel.stale.setupWhen ?? '')}.<br><span class="muted" style="font-size:11.5px">Fai 2 giri con il nuovo assetto (telemetria attiva): appena il .ld esce, tutta l'analisi si rigenera sui dati freschi. Il consiglio pressioni resta valido: si proietta sui TARGET, non sui valori del vecchio setup.</span></div>`
+      : '';
+    const DOT = { ok: '🟢', warn: '🟠', bad: '🔴', info: '🔸' };
+    const clHtml = cl ? (
+      cl.allGood
+        ? `<div class="banner good" style="margin:10px 0;padding:10px 12px">🟢 <b>Auto a punto — il meccanico non ha più niente da consigliare.</b> <span class="muted" style="font-size:11.5px">Nessuna voce sotto soglia: puoi girare col setup attuale — la lista riparte colorata se qualcosa esce fuori al prossimo giro.</span></div>`
+        : `<ul style="margin:10px 0 4px;padding:0;list-style:none;font-size:13px;line-height:1.75">
+      ${cl.items.map((i) => `<li style="margin:0">${DOT[i.level] ?? '🔸'} <b>${esc(i.area)}</b> — ${esc(i.text)}</li>`).join('\n      ')}
+    </ul>`
+    ) : '';
+    /* SETUP RISISTEMATO: il GRAFICO DELLA TELEMETRIA è la prima cosa si vede,
+       grande e a tutta larghezza; consigli, sessioni, diagnostica sotto. */
+    return `<div class="panel setup-hero">
+      <div class="setup-hero-head">
+        <span class="setup-hero-title">📈 GRAFICO DEL GIRO</span>
+        <span class="setup-hero-sub">${esc(tel.car ?? s.car ?? '')} · ${esc(s.track ?? tel.trackDisplay ?? '')} · velocità, gas e freno, confronto fra giri</span>
+      </div>
+    <div id="meccanico-out" style="margin:0 0 10px"></div>
+    <div class="lc-controls row" style="gap:10px;flex-wrap:wrap;align-items:center">
+      <label class="muted">Sessione<br><select id="lc-session" style="width:300px">${list.map((x) => `<option value="${esc(x.file)}" data-track="${esc(x.track ?? '')}" ${x.file === s.file ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.track ?? '')} · ${x.validLaps ?? '?'} giri</option>`).join('') || '<option value="">(nessuna)</option>'}</select></label>
+      <label class="muted">Giro<br><select id="lc-lap" style="width:170px">${(() => { const vl = (s.laps ?? []).filter(l => l.durationSec > 15); const best = vl.length ? vl.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), vl[0]) : null; return vl.map(l => `<option value="${l.lap}" ${best && l.lap === best.lap ? 'selected' : ''}>giro ${l.lap} — ${(l.durationSec).toFixed(1)}s</option>`).join(''); })()}</select></label>
+      <label class="muted">Confronto<br><select id="lc-cmp" style="width:190px"><option value="best">miglior altro giro</option>${(() => { const vl = (s.laps ?? []).filter(l => l.durationSec > 15); const best = vl.length ? vl.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), vl[0]) : null; return vl.filter(l => !best || l.lap !== best.lap).map(l => `<option value="${l.lap}">giro ${l.lap} — ${(l.durationSec).toFixed(1)}s</option>`).join(''); })()}</select></label>
+      <button class="act" id="lc-go" type="button">🔄 Ridisegna</button>
+    </div>
+    <div id="lc-out" style="margin-top:10px"></div>
+    <div class="muted" style="font-size:11px;margin-top:6px">Il confronto allinea i due giri sulla distanza percorsa: la banda in fondo dice DOVE vince o perde km/h (frenata, staccata, rettifilo…). Le bande sottili: freno (rosso) e gas (verde). Sessione, giro e confronto si ricaricano da soli.</div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+    <h2>💡 Consigli del box <span class="muted" style="font-size:12px">target ${tel.target} PSI · ${list.length} sessioni recenti</span></h2>
+    ${window.mechIdentity(mechStato)}
+    ${staleHtml}
+    ${clHtml}
+    <div class="row" style="margin-top:12px;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="act" id="b-apply-setup" type="button" style="font-size:15px;padding:10px 18px">⚡ Applica i consigli al setup</button>
+      <span class="muted" style="font-size:11px">scrive «(setup) — EVO-consigliato.carsetup» a fianco del tuo file · in EVO, A GIOCO APERTO: CARICA → il gioco rilegge il disco</span>
+    </div>
+    <div id="apply-out" style="margin-top:10px"></div>
+    <details ${cl && !cl.allGood ? 'open' : ''} style="margin-top:6px"><summary style="cursor:pointer;font-size:12px" class="muted">Da fare in EVO + consiglio pressioni completo (${telLaps} giri di telemetria)</summary>
+    <div class="banner warn" style="padding:10px 12px;margin-top:8px">
       <b>📌 DA FARE IN EVO A OGNI GARA</b> — Setup → Elettronica → <b style="color:var(--warn,#ffb454)">Telemetria</b>: imposta <b style="color:var(--warn,#ffb454)">${telLaps} giri</b> per questa auto${telLaps >= 15 ? ' (è veloce: può registrare a lungo)' : telLaps <= 8 ? ' (è lenta: ogni giro genera molti dati, non serve di più)' : ''}. ⚠️ Da riattivare a ogni gara, e mentre sei GIÀ nel setup, prima di avviare la sessione.
     </div>
     ${advHtml}
-    <table style="margin-top:8px"><thead><tr><th>Quando</th><th>Sessione</th><th class="right">Fredda LF/RF</th><th class="right">Calda LF/RF</th><th class="right">Best lap</th><th class="right">L/giro</th><th class="right">Bumpstop RF</th><th class="right">Δ int/ext RF</th><th>Preset</th><th>Meteo</th></tr></thead>
+    </details>
+    <table style="margin-top:10px"><thead><tr><th>Quando</th><th>Sessione</th><th class="right">Fredda LF/RF</th><th class="right">Calda LF/RF</th><th class="right">Best lap</th><th class="right">L/giro</th><th class="right">Bumpstop RF</th><th class="right">Δ int/ext RF</th><th>Preset</th><th>Meteo</th></tr></thead>
     <tbody>${list.map((r) => `<tr><td class="muted">${esc(r.when ?? '')}</td><td>${esc(r.kindLabel ?? 'n/d')}</td><td class="right"><b>${psi(r.cold?.LF)}</b> / ${psi(r.cold?.RF)}</td><td class="right">${psi(r.hot?.LF)} / ${psi(r.hot?.RF)}</td><td class="right">${fmtLapS(r.bestLapSec)}</td><td class="right">${r.fuelPerLap!=null?r.fuelPerLap+' L':'—'}</td><td class="right">${r.bump?.RF?.contactPct!=null?r.bump.RF.contactPct+'%':'—'}</td><td class="right">${r.camberProxy?.RF!=null?(r.camberProxy.RF>0?'+':'')+r.camberProxy.RF+'°':'—'}</td><td class="muted">${esc(r.preset ?? '—')}</td><td class="muted">${esc(r.weather ? r.weather.replace(/^.*_/,'') : '—')}</td></tr>`).join('')}</tbody></table>
     <details style="margin-top:10px"><summary class="muted">Ultima sessione — dettaglio per giro (pressioni e temperature)</summary>
     <table><thead><tr><th>Giro</th><th class="right">Durata</th><th class="right">Benzina usata</th><th class="right">PSI LF (fine)</th><th class="right">Temp gomma LF</th><th class="right">Max bordo RF</th></tr></thead>
     <tbody>${(s.laps ?? []).filter(l=>l.durationSec>15).map(l=>`<tr><td>${l.lap}</td><td class="right">${l.durationSec}s</td><td class="right">${l.fuelUsed!=null?l.fuelUsed+' L':'—'}</td><td class="right">${l.pressures?.LF!=null?Number(l.pressures.LF).toFixed(1):'—'}</td><td class="right">${l.tair?.LF!=null?Number(l.tair.LF).toFixed(0)+'°':'—'}</td><td class="right">${l.surf?.RF?l.surf.RF.map(v=>Number(v).toFixed(0)).join('/'):'—'}°</td></tr>`).join('')}</tbody></table>
     </details>
-    <div id="lap-chart" style="margin-top:12px"><h3 style="margin:0 0 8px;font-size:13px;color:var(--acc)">📈 Grafico del giro — velocità, gas e freno, confronto fra giri</h3>
-    <div id="meccanico-out" style="margin:0 0 10px"></div>
-    <div class="row" style="align-items:end;gap:10px;flex-wrap:wrap;align-items:center">
-      <label class="muted">Sessione<br><select id="lc-session" style="width:300px">${list.map((x) => `<option value="${esc(x.file)}" ${x.file === s.file ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.track ?? '')} · ${x.validLaps ?? '?'} giri</option>`).join('') || '<option value="">(nessuna)</option>'}</select></label>
-      <label class="muted">Giro<br><select id="lc-lap" style="width:170px">${(() => { const vl = (s.laps ?? []).filter(l => l.durationSec > 15); const best = vl.length ? vl.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), vl[0]) : null; return vl.map(l => `<option value="${l.lap}" ${best && l.lap === best.lap ? 'selected' : ''}>giro ${l.lap} — ${(l.durationSec).toFixed(1)}s</option>`).join(''); })()}</select></label>
-      <label class="muted">Confronto<br><select id="lc-cmp" style="width:190px"><option value="best">miglior altro giro</option>${(() => { const vl = (s.laps ?? []).filter(l => l.durationSec > 15); const best = vl.length ? vl.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), vl[0]) : null; return vl.filter(l => !best || l.lap !== best.lap).map(l => `<option value="${l.lap}">giro ${l.lap} — ${(l.durationSec).toFixed(1)}s</option>`).join(''); })()}</select></label>
-      <button class="act" id="lc-go" type="button">📈 Disegna</button>
-    </div>
-    <div id="lc-out" style="margin-top:8px"></div>
-    <div class="muted" style="font-size:11px;margin-top:4px">Il confronto allinea i due giri sulla frazione di distanza percorsa: la banda in fondo dice DOVE il giro scelto vince o perde km/h (frenata lunga, staccata, rettifilo…) anche fra giri di durata diversa. Le bande sottili mostrano freno (rosso) e gas (verde). Cambi sessione, giri e confronto si ricaricano da soli.</div>
-    </div>
-    <div class="muted" style="margin-top:6px">Bumpstop = % di tempo con la sospensione a fine corsa (alto → assetto troppo basso o molle troppo morbide) · Δ int/ext = differenza termica interno–esterno della gomma RF (effetto camber in pista) · condizioni ultima sessione: aria ${s.airTemp ?? '—'}° · pista ${s.roadTemp ?? '—'}°</div>
-    ${logRows ? `<h3 style="margin-top:12px">Consigli già dati</h3><table><thead><tr><th>Quando</th><th>Auto</th><th>Pista</th><th class="right">Partenza consigliata</th><th>Base</th></tr></thead><tbody>${logRows}</tbody></table>` : ''}
+    <div class="muted" style="margin-top:6px">Bumpstop = % di tempo con la sospensione a fine corsa (alto → assetto troppo basso o molle troppo morbide) · Δ int/ext = differenza termica interno–esterno della gomma RF (effetto camber in pista) · condizioni ultima sessione: aria ${s.airTemp ?? '—'}° · pista ${s.roadTemp ?? '—'}° · scritta da EVO in Saved Games\\ACE\\MoTec</div>
+    ${logRows ? `<details style="margin-top:10px"><summary class="muted">Consigli già dati</summary><table style="margin-top:6px"><thead><tr><th>Quando</th><th>Auto</th><th>Pista</th><th class="right">Partenza consigliata</th><th>Base</th></tr></thead><tbody>${logRows}</tbody></table></details>` : ''}
     </div>`;
   })() : `<div class="panel" style="margin-top:14px"><h2>Telemetria MoTeC</h2><div class="muted">${esc(tel.hint ?? 'Nessuna sessione trovata per questa auto. Fai un giro: EVO scrive la telemetria da sola in Saved Games\\ACE\\MoTec.')}</div></div>`;
   const html = `
@@ -436,7 +500,86 @@ async function drawSetup(m){
       <td>${r.note ? `<span class="muted">${esc(r.note)}</span> <button class="mini" data-carnote="${esc(r.car)}">modifica</button>` : `<button class="mini" data-carnote="${esc(r.car)}">+ nota</button>`}</td>
     </tr>`).join('')}</tbody></table>
   </div>`;
+  /* STORIA comparativa dei setup (richiesta 21/10): ogni salvataggio, coi segni +/−
+     per campo — cosa ha ALZATO e cosa ha ABBASSATO la persona (o il meccanico).
+     Mauro 22/10: NON più pannello autonomo a fine vista — la storia si innesta
+     SOTTO il pulsante ⚡ Applica, ravvicinata all'output dell'applicatore.
+     Il BUILDER è una funzione riusabile: la riusa il ricalcolo dopo la conferma
+     (la riga nuova compare DA SOLA, senza re-render) e i NOMI DEI FILE sono
+     cliccabili — il click apre la scheda completa del salvataggio in un modale. */
+  window.__setupHistHtml ??= (rows) => {
+    if (!rows.length) return '';
+    window.__setupHistRows = rows;   // i click sui file leggono da qui (data-hist = indice)
+    const d1 = (v) => (v == null ? '—' : (Number.isFinite(Number(v)) && Number(v) % 1 ? Number(v).toFixed(1) : String(Math.round(Number(v)))));
+    const dd = (d) => d == null ? '' : ` <b style="color:${d > 0 ? 'var(--ok,#7f7)' : '#f66'}">${d > 0 ? '+' : '−'}${d1(Math.abs(d))}</b>`;
+    const grp = (vals, dts, unit = '') => (vals ?? []).map((v, i) => (v == null ? '—' : d1(v) + unit + dd(dts?.[i]))).join(' · ');
+    const histRow = (r, i) => `<tr>
+        <td class="muted">${esc(String(r.when).slice(0, 17))}</td>
+        <td>${r.consigliato ? '🔧 ' : '📄 '}<a href="#" data-hist="${i}" style="color:var(--acc,#5da9ff);text-decoration:none;border-bottom:1px dotted var(--acc,#5da9ff)" title="scheda completa del salvataggio">${esc(String(r.name).slice(0, 34))}</a></td>
+        <td class="right">${grp(r.pressures, r.deltas?.pressures, ' PSI')}</td>
+        <td class="right">${grp(r.cambers, r.deltas?.cambers, '°')}</td>
+        <td class="right">${d1(r.heightFront)}${dd(r.deltas?.heightFront)} / ${d1(r.heightRear)}${dd(r.deltas?.heightRear)}</td>
+        <td class="right">${d1(r.wingFront)}${dd(r.deltas?.wingFront)} / ${d1(r.wingRear)}${dd(r.deltas?.wingRear)}</td>
+        <td class="right">${d1(r.bias)}${dd(r.deltas?.bias)}</td>
+        <td class="right">${d1(r.tc1)}${dd(r.deltas?.tc1)}</td>
+        <td class="right">${r.fuel != null ? d1(r.fuel) + ' L' + (r.deltas?.fuel != null ? dd(r.deltas.fuel) : '') : '—'}</td>
+      </tr>`;
+    return `<div id="setup-hist" style="margin-top:8px">
+      <div style="font-weight:700;font-size:14px">📜 Storia dei setup <span class="muted" style="font-weight:400;font-size:12px">ogni salvataggio · <b style="color:var(--ok,#7f7)">+</b> = alzato · <b style="color:#f66">−</b> = abbassato · <span style="color:var(--acc,#5da9ff);font-size:11px">i nomi dei file sono cliccabili</span></span></div>
+      <table style="margin-top:6px"><thead><tr><th>Quando</th><th>File</th><th class="right">Pressioni (sx/dx ant · sx/dx post)</th><th class="right">Camber</th><th class="right">Alt. ant / post</th><th class="right">Ala ant / post</th><th class="right">Bias freni</th><th class="right">TC</th><th class="right">Benzina</th></tr></thead>
+      <tbody>${rows.map(histRow).join('')}</tbody></table>
+      <div class="muted" style="font-size:11px;margin-top:6px">🔧 = file scritto dall'applicatore del meccanico · 📄 = salvataggio tuo da EVO · i segni confrontano ogni riga col salvataggio PRECEDENTE in ordine di tempo.</div>
+      </div>`;
+  };
+  let histHtml = '';
+  try {
+    const hist = await api('setup-history', { car: tel.car ?? carSel?.carName ?? null, track: tel.sessions?.[0]?.track ?? tel.trackDisplay ?? null }).catch(() => null);
+    histHtml = window.__setupHistHtml(hist?.rows ?? []);
+  } catch { /* la storia non blocca mai il pannello */ }
   m.innerHTML = telHtml + html;   // telemetria PRIMA degli attrezzi pressione: il grafico del giro è la prima cosa che si vede
+  // la storia compare SOTTO il pulsante ⚡ Applica (e sopra l'output che esce
+  // quando si genera il setup): la innesto qui, ravvicinata, non a fine vista.
+  if (histHtml) document.querySelector('#apply-out')?.insertAdjacentHTML('afterend', histHtml);
+
+  /* RICALCOLO della storia SENZA re-render (Mauro 22/10): dopo la conferma
+     dell'applicatore la riga nuova compare da sola, in fondo (gridordine di
+     tempo le righe si riordino da sole: fetch → builder → sostituzione nodo). */
+  window.__drawSetupHist ??= async () => {
+    const ctx = window.__applySetupCtx ?? {};
+    let html = '';
+    try {
+      const hist = await api('setup-history', { car: ctx.car ?? null, track: ctx.track ?? null }).catch(() => null);
+      html = window.__setupHistHtml(hist?.rows ?? []);
+    } catch { return; }
+    const out = document.querySelector('#setup-hist');
+    if (!out) { if (html) document.querySelector('#apply-out')?.insertAdjacentHTML('afterend', html); return; }
+    if (html) out.outerHTML = html; else out.remove();
+  };
+  /* NOMI CLICCABILI: il click apre la scheda completa di quel salvataggio
+     (delegazione al document: i nodi della storia vengono ricreati a ogni refresh). */
+  if (!window.__histDeleg) {
+    window.__histDeleg = true;
+    document.addEventListener('click', (ev) => {
+      const a = ev.target?.closest?.('a[data-hist]');
+      if (!a) return;
+      ev.preventDefault();
+      const r = (window.__setupHistRows ?? [])[Number(a.dataset.hist)];
+      if (!r) return;
+      const d1 = (v) => (v == null ? '—' : (Number.isFinite(Number(v)) && Number(v) % 1 ? Number(v).toFixed(1) : String(Math.round(Number(v)))));
+      const riga = (k, v) => `<tr><td class="muted" style="width:45%">${k}</td><td class="right"><b>${esc(String(v))}</b></td></tr>`;
+      const PS = ['ant sx', 'ant dx', 'post sx', 'post dx', 'extra 5', 'extra 6'];
+      modal(`📜 ${String(r.name).slice(0, 60)}`,
+        `<div class="muted" style="font-size:12px;margin-bottom:8px">${r.consigliato ? '🔧 file scritto dall\'applicatore del meccanico' : '📄 salvataggio tuo da EVO'} · ${esc(String(r.when).replace('T',' ').slice(0,19))}</div>
+        <table>${(r.pressures ?? []).map((v, i) => riga('Pressione ' + (PS[i] ?? ('gomma ' + (i + 1))), d1(v) + ' PSI')).join('')}
+        ${(r.cambers ?? []).map((v, i) => riga('Camber ' + (PS[i] ?? ('gomma ' + (i + 1))), d1(v) + '°')).join('')}
+        ${riga('Altezza ant / post', d1(r.heightFront) + ' / ' + d1(r.heightRear))}
+        ${riga('Ala ant / post', d1(r.wingFront) + ' / ' + d1(r.wingRear))}
+        ${riga('Bias freni', d1(r.bias))}
+        ${riga('TC (taglio 1)', d1(r.tc1))}
+        ${riga('Benzina', r.fuel != null ? d1(r.fuel) + ' L' : '—')}</table>`,
+        [['Chiudi', 'act', () => {}]]);
+    });
+  }
   $('#f-psi').onsubmit = (ev) => {
     ev.preventDefault();
     const r = window.__lastPsi = null;
@@ -456,6 +599,87 @@ async function drawSetup(m){
     await api('garage', { action: 'note', car, track: b.track, text });
     toast(text ? 'Nota salvata.' : 'Nota rimossa.', 'ok'); render();
   });
+
+  /* ⚡ APPLICA: chiude il CICLO — telemetria → consiglio → file di setup pronto
+     sul disco. In EVO A GIOCO APERTO: setup → CARICA → «… — EVO-consigliato»:
+     il gioco rilegge la carta a quel momento, niente da riavvio.
+     Delegazione al DOCUMENT: i pannelli diagnostici in fondo alla vista fanno
+     m.innerHTML += e RI-PARSEANO tutto — un listener attaccato ai nodi muore.
+     Il contesto (auto/pista/giri) si aggiorna a ogni render qui sotto. */
+  window.__applySetupCtx = { car: carSel?.carName ?? tel.car ?? cur?.car ?? null, track: cur?.track ?? tel.trackDisplay ?? null, raceLaps: tel.raceLaps ?? null };
+  if (!window.__applySetupDeleg) {
+    window.__applySetupDeleg = true;
+    const psiD = (v) => (v == null ? '—' : Number(v).toFixed(1));
+    /* etichette gomme nell'ordine del file .carsetup (ant sx → ant dx → post sx → post dx:
+       la lista RUOTE del decoder) — l'anteprima parlala per gomma. */    const RUOTE_LBL = ['ant sx', 'ant dx', 'post sx', 'post dx', 'extra 5', 'extra 6'];
+    const bannerOk = (r, out) => {
+      out.innerHTML = `<div class="banner good">
+          <b>✅ File pronto:</b> ${esc(r.fileShort)}<br>
+          <span class="muted" style="font-size:11.5px">${esc(r.file)}<br>base: ${esc(r.baseFile ?? '')}</span><br>
+          Pressioni di partenza: <span class="muted">${(r.before?.pressures ?? []).map(psiD).join(' / ')}</span> → <b>${(r.after?.pressures ?? []).map(psiD).join(' / ')} PSI</b>
+          ${(r.aero && (r.aero.before?.heightRear !== r.aero.after?.heightRear || r.aero.before?.wingRear !== r.aero.after?.wingRear)) ? `<br>Aero: altezza post ${r.aero.before?.heightRear}→${r.aero.after?.heightRear} mm · ala post ${r.aero.before?.wingRear}→${r.aero.after?.wingRear}` : ''}
+          ${(r.changes ?? []).length === 0 ? '<br><span class="muted">il file caricato era GIÀ sui valori consigliati: nessuna variazione scritta</span>' : ''}
+          <br><span class="muted">${esc(r.adviceText ?? '')}</span>
+          <div class="banner info" style="margin-top:8px"><b>🎮 Nell'EVO, a gioco aperto:</b> setup → <b>CARICA</b> → «${esc(r.fileShort)}» → i valori si caricano nel setup corrente SUBITO, senza riavvio. Se li confermi: SALVA e restano.</div>
+        </div>`;
+    };
+    document.addEventListener('click', async (ev) => {
+      const confirmBtn = ev.target?.closest?.('#b-confirm-apply');
+      if (confirmBtn) {
+        const out = document.querySelector('#apply-out');
+        if (!out) return;
+        confirmBtn.disabled = true; confirmBtn.innerHTML = '<span class="spin"></span>';
+        const ctx = window.__applySetupCtx ?? {};
+        try {
+          const r = await api('setup-apply', { car: ctx.car ?? null, track: ctx.track ?? null, raceLaps: ctx.raceLaps ?? null, file: confirmBtn.dataset.baseFile ?? null });
+          if (!r.ok) out.innerHTML = `<div class="banner warn">${esc(r.hint ?? 'Non riesco a scrivere il file.')}</div>`;
+          else { bannerOk(r, out); window.__drawSetupHist?.(); }   // la riga nuova entra nella storia da sola
+        } catch (e) { out.innerHTML = `<div class="banner bad">${esc(e.message)}</div>`; }
+        return;
+      }
+      const btn = ev.target?.closest?.('#b-apply-setup');
+      if (!btn) return;
+      const out = document.querySelector('#apply-out');
+      if (!out) return;
+      btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+      const ctx = window.__applySetupCtx ?? {};
+      try {
+        /* ANTEPRIMA prima della scrittura (richiesta Mauro 21/10): il file NON è
+           ancora creato — l'utente vede le migliorie e conferma o annulla. */
+        const p = await api('setup-apply', { car: ctx.car ?? null, track: ctx.track ?? null, raceLaps: ctx.raceLaps ?? null, preview: true });
+        if (!p.ok) { out.innerHTML = `<div class="banner warn">${esc(p.hint ?? 'Non riesco a calcolare il consiglio.')}</div>`; }
+        else {
+          const righe = (p.before?.pressures ?? []).map((v, i) => {
+            const dopo = (p.after?.pressures ?? [])[i] ?? v;
+            const delta = Math.round(((dopo ?? 0) - (v ?? 0)) * 10) / 10;
+            return `<tr><td class="muted">${esc(RUOTE_LBL[i] ?? ('gomma ' + (i + 1)))}</td><td class="right">${psiD(v)} PSI</td><td class="right"><b>${psiD(dopo)} PSI</b>${delta ? ` <span class="muted" style="font-size:10.5px">(${delta > 0 ? '+' : ''}${delta.toFixed(1)})</span>` : ''}</td></tr>`;
+          }).join('');
+          /* le voci OLTRE le gomme (altezza/ala): l'anteprima le elenca esattamente
+             come saranno scritte nel file — niente sorprese in EVO. */
+          const extra = p.extraChanges ?? [];
+          const extraHtml = extra.length
+            ? `<div style="margin-top:10px;font-size:12.5px"><b>Oltre le gomme:</b><div style="margin-top:4px">${extra.map((x) => `🔧 ${esc(x)}`).join('<br>')}</div></div>`
+            : '';
+          const cambia = extra.length > 0 || (p.before?.pressures ?? []).some((v, i) => Math.abs(((p.after?.pressures ?? [])[i] ?? v) - (v ?? 0)) >= 0.05);
+          out.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 10px;background:#0d1118">
+            <b>👀 Anteprima del setup consigliato</b> <span class="muted" style="font-size:11px">· base: ${esc(p.baseName ?? '')}${p.basis ? ` · base dati: ${esc(p.basis)}` : ''}${p.startPsi != null ? ` · partenza consigliata: <b>${p.startPsi} PSI</b>` : ''}</span>
+            <table style="margin-top:8px"><thead><tr><th>Gomma</th><th class="right">Adesso</th><th class="right">Consigliato</th></tr></thead><tbody>${righe}</tbody></table>
+            ${extraHtml}
+            ${cambia ? '' : '<div class="muted" style="font-size:12px;margin-top:6px">Il setup attuale è GIÀ sui valori consigliati: nessuna modifica necessaria.</div>'}
+            ${p.adviceText ? `<div class="muted" style="font-size:11.5px;margin-top:6px">${esc(p.adviceText)}</div>` : ''}
+            <div class="row" style="margin-top:10px;gap:10px;flex-wrap:wrap">
+              <button class="act" id="b-confirm-apply" type="button" data-base-file="${esc(p.baseFile ?? '')}">✅ CONFERMA: crea «${esc((p.baseName ?? '') + ' — EVO-consigliato.carsetup')}»</button>
+              <button class="act" id="b-cancel-apply" type="button" style="background:#3a2433">Annulla</button>
+            </div>
+          </div>`;
+          const cancel = document.querySelector('#b-cancel-apply');
+          if (cancel) cancel.addEventListener('click', () => { out.innerHTML = ''; });
+        }
+      } catch (e) { out.innerHTML = `<div class="banner bad">${esc(e.message)}</div>`; }
+      const live = document.querySelector('#b-apply-setup');
+      if (live) { live.disabled = false; live.textContent = '⚡ Applica i consigli al setup'; }
+    });
+  }
 
   /* grafico del giro: DELEGAZIONE eventi (i re-render ricreano i nodi) e
      AUTODISEGNO al primo render con selettori: il giro selezionato è già
@@ -493,7 +717,7 @@ async function drawSetup(m){
     window.__lcSessDeleg = true;
     document.addEventListener('change', (ev) => { if (ev.target?.id === 'lc-session') window.__lcDraw(); });
   }
-  window.__lcCar = card?.carName ?? tel.car ?? cur?.car ?? null;   // l'auto del render CORRENTE (la chiusura non basta: resterebbe la prima)
+  window.__lcCar = carSel?.carName ?? tel.car ?? cur?.car ?? null;   // l'auto del render CORRENTE (la chiusura non basta: resterebbe la prima)
   if (list.length) window.__lcDraw();   // il grafico nasce GIÀ disegnato: nessun click per vederlo
 
   /* IL MECCANICO: consigli di setup per pista sotto il titolo del grafico.
@@ -502,13 +726,41 @@ async function drawSetup(m){
     const out = document.querySelector('#meccanico-out');
     if (!out) return;
     try {
-      const m = await api('garage', { action: 'meccanico', car: window.__lcCar ?? null });
+      // pista del PANNELLO (dalla sessione scelta, non dalla serie): il meccanico
+      // valuta e registra l'allievo sulla pista che stai realmente guardando
+      const trackPanel = sessSel?.selectedOptions?.[0] ? (sessSel.selectedOptions[0].dataset.track ?? null) : (cur?.track ?? null);
+      const m = await api('garage', { action: 'meccanico', car: window.__lcCar ?? null, track: trackPanel ?? null });
       if (!m.ok) { out.innerHTML = ''; return; }
-      const tag = { aero: '🪶 aerodinamica', trasmissione: '⚙️ cambio', assetto: '🧱 assetto/altezza', camber: '📐 camber', freni: '🛑 freni', pressioni: '🛞 pressioni', telemetria: '📡 telemetria' };
+      const tag = { aero: '🪶 aerodinamica', trasmissione: '⚙️ cambio', assetto: '🧱 assetto/altezza', camber: '📐 camber', freni: '🛑 freni', pressioni: '🛞 pressioni', telemetria: '📡 telemetria', memoria: '🧠 memoria' };
       const rows = (m.consigli ?? []).map((c, i) => `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><span style="flex:0 0 130px;font-size:11.5px;color:var(--dim)">${tag[c.vedi] ?? c.vedi}</span><span style="font-size:12.5px;line-height:1.5">${c.text}</span></div>`).join('');
+      /* STORIA DELL'ALLIEVO: i round di consigli chiusi con l'esito (delta del
+         giro migliore) e il setup migliore — Mauro 21/10 voleva vederla subito. */
+      let storiaHtml = '';
+      const a = m.allievo ?? null;
+      if (a && (a.rounds?.length || a.best)) {
+        const fmtT = (iso) => iso ? esc(String(iso).replace('T', ' ').slice(0, 16).replace(/:\d\d$/, '')) : '—';
+        const fmtL = (v) => (v > 0 && v != null) ? `${Math.floor(v / 60)}:${(v % 60).toFixed(2).padStart(5, '0')}` : '—';
+        const chip = (d) => d == null
+          ? '<span class="tag" style="font-size:10px;padding:1px 8px;background:#26303d;color:#9fb3cc">in attesa di una sessione nuova</span>'
+          : (d < -0.05
+            ? `<span class="tag green" style="font-size:10px;padding:1px 8px">guadagnati ${(-d).toFixed(2)} s</span>`
+            : (d > 0.15
+              ? `<span class="tag" style="font-size:10px;padding:1px 8px;background:#3a1d1d;color:#ff9b9b">persi +${d.toFixed(2)} s</span>`
+              : `<span class="tag" style="font-size:10px;padding:1px 8px;background:#26303d;color:#cdd9e8">neutro (${d >= 0 ? '+' : ''}${d.toFixed(2)} s)</span>`));
+        const righe = (a.rounds ?? []).map((r) => `<tr>
+          <td class="muted" style="white-space:nowrap">${fmtT(r.at)}</td>
+          <td style="white-space:nowrap"><span class="muted" style="font-size:11.5px">${fmtL(r.bestBefore)} → ${fmtL(r.bestAfter)}</span></td>
+          <td>${chip(r.delta)}</td>
+          <td style="font-size:11.5px;color:var(--dim)">${(r.campi ?? []).map((c) => esc(tag[c] ?? c)).join(' · ') || '—'}</td>
+        </tr>`).join('');
+        storiaHtml = `<details style="margin-top:10px" ${a.rounds?.length ? '' : 'open'}><summary style="cursor:pointer;font-size:12.5px"><b>🧠 Storia dell'allievo</b> <span class="muted" style="font-size:11px">— ${(a.rounds ?? []).length} round di consigli${a.best ? ` · migliore registrato: <b>${fmtL(a.best.lap)}</b> (${fmtT(a.best.at)})` : ''}</span></summary>
+          ${(a.rounds ?? []).length ? `<table style="margin-top:8px"><thead><tr><th>Quando</th><th>Giro su questa pista</th><th>Esito del round</th><th>Leve promosse</th></tr></thead><tbody>${righe}</tbody></table>` : '<div class="muted" style="font-size:12px;margin-top:6px">Nessun round chiuso: corri una sessione nuova dopo aver generato consigli e l\'esito entra qui.</div>'}
+        </details>`;
+      }
       out.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 10px;background:#0d1118">
         <div style="font-size:12px;margin-bottom:6px"><b>🔧 Il meccanico</b> — setup consigliato per <b>${esc(m.track ?? '')}</b> <span class="muted" style="font-size:11px">· tracciato ${esc(m.tipo ?? '?')}${m.densita ? ` · ${m.densita} curve/km` : ''}${m.sessFile ? ' · correzione su telemetria veri' : ' · senza telemetria (solo pista)'}</span></div>
         ${rows || '<div class="muted" style="font-size:12px">Nessun consiglio per questa pista: anagrafica non disponibile.</div>'}
+        ${storiaHtml}
       </div>`;
     } catch { /* il meccanico non deve mai rompere la vista */ }
   };
@@ -575,4 +827,32 @@ async function drawSetup(m){
   }
   warnsHtml += '</div>';
   m.innerHTML += healthHtml + warnsHtml;
+
+  /* AUTO-REFRESH MENTRE GIRI (Mauro 21/10): ogni 15 s guarda se è cambiato il
+     dato che conta — l'ultimo .ld scritto da EVO, il suo numero di giri validi
+     o il file di setup montato (staleness). Se la firma è cambiata ridisegna la
+     vista mantenendo lo scrolling: al rientro dal box trovi i dati freschi
+     SENZA F5. Fuori dal tab setup il timer muore (render lo ripulisce). */
+  const sigFresh = (s, ldMs) => (s?.sessions?.[0]?.when ?? '') + '|' + (s?.sessions?.[0]?.validLaps ?? '') + '|' + (s?.stale?.file ?? '') + '|' + (ldMs ?? '');
+  const sigAt = sigFresh(tel, h?.telem?.lastLd?.mtimeMs);
+  if (window.__setupTimer) clearInterval(window.__setupTimer);
+  window.__setupTimer = setInterval(async () => {
+    if (tab !== 'setup') { clearInterval(window.__setupTimer); window.__setupTimer = null; return; }
+    if (window.__setupBusy) return;
+    window.__setupBusy = true;
+    try {
+      const [t2, h2] = await Promise.all([
+        api('garage', { action: 'sessions', car: carSel?.carName ?? null, track: 'all', limit: 4 }).catch(() => null),
+        api('system-health').catch(() => null),
+      ]);
+      const sig2 = sigFresh({ sessions: t2?.sessions, stale: t2?.stale }, h2?.telem?.lastLd?.mtimeMs);
+      if (sig2 === sigAt || tab !== 'setup') return;   // niente da dire
+      clearInterval(window.__setupTimer); window.__setupTimer = null;
+      const y = window.scrollY;        // ricalcolo completo con i dati nuovi (il nuovo drawSetup riaggancia il timer
+        // con la firma aggiornata: niente loop infinito di ridisegni)
+        await drawSetup(document.querySelector('#main'));
+      window.scrollTo(0, Math.max(0, y - 4));             // il rientro non perdere la posizione
+    } catch { /* l'auto-refresh non deve mai rompere la vista */ }
+    finally { window.__setupBusy = false; }
+  }, 15000);
 }

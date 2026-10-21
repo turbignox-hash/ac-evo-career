@@ -129,6 +129,22 @@ export function cadenzaOf(state, node, seriesCounter = null) {
   return cadenzaSerie(seriesCounter ?? 1);
 }
 
+/** Il giorno A CALENDARIO della ronda pendente: per le gare in RITARDO non è
+ *  più il giorno inizialmente programmato (le card si ripetevano ogni giorno,
+ *  o sparivano del tutto). Regola Mauro "1 gara a settimana, in ritardo mai
+ *  perdute": l'in ritardo torna visibile UNA volta, al prossimo slot
+ *  settimanale della serie a partire da oggi (stesso vaglio dei 7 giorni:
+ *  slot = programmato + ceil((oggi−programmato)/7)·7). Le NON in ritardo sono
+ *  se stesse. Usato da calendario, strip e impegni; GARE DUE resta sui
+ *  giorni veri (le in ritardo si vedono lì fino a quando non si corrono). */
+export function scheduledSlotDay(ladder, state, node) {
+  const sd = scheduledDay(ladder, state, node);
+  if (sd == null) return null;
+  const oggi = agendaDay(state);
+  if (sd >= oggi) return sd;
+  return sd + Math.ceil((oggi - sd) / CADENZA_GIORNI) * CADENZA_GIORNI;
+}
+
 /** Giorno della PROSSIMA ronda non corsa della serie (0-based offset x cadenza). */
 export function scheduledDay(ladder, state, node) {
   const { index, season } = nextUnplayedRoundIndex(ladder, state, node);
@@ -182,12 +198,18 @@ export function racesOnDay(ladder, state, d) {
   for (const node of ladder.nodes) {
     if (hasSeat(state, node.nodeId)) {
       const r = nextUnplayedRound(ladder, state, node);
-      if (r && r.scheduledDay != null && r.scheduledDay <= d) {
+      // SOLO il suo SLOT di calendario (21/10, regola "1 gara a settimana"):
+      // la ronda pendente NON segue più l'utente in ogni giorno futuro, e le
+      // in ritardo compaiono UNA volta al prossimo slot settimanale (mai
+      // perdute: in GARE DUE restano cliccabili ogni giorno fino alla corsa).
+      const slot = scheduledSlotDay(ladder, state, node);
+      if (r && slot != null && slot === d) {
         out.push({
           node, index: r.index, season: r.season, name: r.name, trackId: r.trackId,
           track: r.track, laps: r.laps, hour: r.hour, weather: r.weather,
-          scheduledDay: r.scheduledDay, late: r.scheduledDay < d, onSchedule: r.scheduledDay === d,
-          champStarted: r.scheduledDay < d,  // il suo campionato riparte indietro: è già "iniziata"
+          scheduledDay: slot, raceDay: r.scheduledDay,
+          late: r.scheduledDay < d, onSchedule: r.scheduledDay >= d,
+          champStarted: false,  // è al SUO slot: campionato non "già iniziato"
           stato: 'iscritto', fattibile: true, gateReasons: [],
           isCurrent: node.nodeId === state.node,
         });
@@ -202,8 +224,13 @@ export function racesOnDay(ladder, state, d) {
     // con sfasamento deterministico fra le serie. Con cadenze DIVERSE per serie,
     // le combinazioni si spalmano: ogni giorno il quadro è diverso e compaiono
     // buchi naturali (richiesta Mauro: modo più stimolante, muro sempre uguale no).
+    // LEZIONE 21/10 16:4x: il vecchio moltiplicatore fisso (713) allineava le serie
+    // con la STESSA cadenza — nel giorno 66 cadevano in 22 assieme (713 mod 4 = 1,
+    // così ogni serie con cadenza 4 e contatore ≡ 1 mod 4 aveva lo stesso residuo).
+    // Il moltiplicatore ORA dipende dalla cadenza della serie: gruppi diversi si
+    // sfasano fra loro e i buchi tornano veri (verificato sulle serie reali).
     const cycle = len * cadenza;
-    const r1Day = ((seriesCounter * 713) % cycle) + 1;      // giorno del PROSSIMO/ATTUALE R1
+    const r1Day = (seriesCounter * (509 + cadenza * 297)) % cycle + 1;      // diffuse per gruppo di cadenza
     const sinceR1 = ((d - r1Day) % cycle + cycle) % cycle;   // giorni passati dall'ultimo R1
     if (sinceR1 % cadenza !== 0) continue;
     const k = sinceR1 / cadenza;
@@ -271,9 +298,12 @@ export function prossimoGiornoConGara(ladder, state, fromDay = null) {
   for (const nodeId of Object.keys(state.seats ?? {})) {
     let node;
     try { node = nodeById(ladder, nodeId); } catch { continue; }
-    const sd = scheduledDay(ladder, state, node);
-    if (sd == null || sd <= base) continue;
-    if (best == null || sd < best) best = sd;
+    // slot di calendario: per le gare in ritardo è il PROSSIMO slot settimanale
+    // (il giorno inizialmente programmato è già passato: il bottone dice
+    // altrimenti una data andata, o niente).
+    const slot = scheduledSlotDay(ladder, state, node);
+    if (slot == null || slot <= base) continue;
+    if (best == null || slot < best) best = slot;
   }
   return best;
 }
@@ -377,10 +407,14 @@ export function impegni(ladder, state) {
     try { node = nodeById(ladder, nodeId); } catch { continue; }
     const r = nextUnplayedRound(ladder, state, node);
     if (!r || r.scheduledDay == null) continue;
+    // slot di calendario (vedi scheduledSlotDay): gli impegni mostrano la data
+    // REALE in cui la gara torna in calendario, non quella già passata.
+    const slot = scheduledSlotDay(ladder, state, node) ?? r.scheduledDay;
     mine.push({
       nodeId, display: node.display, level: node.level ?? 0, discipline: node.discipline,
       roundIndex: r.index, totalRounds: node.calendar.length, track: r.track,
-      day: r.scheduledDay, date: dateLabel(r.scheduledDay), isCurrent: nodeId === state.node,
+      day: slot, date: dateLabel(slot), isCurrent: nodeId === state.node,
+      inRitardo: r.scheduledDay < slot,
     });
   }
   // conflitti: stesso giorno con più di una serie iscritta

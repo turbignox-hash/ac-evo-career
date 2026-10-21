@@ -195,6 +195,37 @@ function analyzeLdUncached(ldFile) {
   const camberProxy = camberProxyOf(ld, valid);
   const bestLapSec = valid.length ? r1(Math.min(...valid.map((l) => l.durationSec))) : null;
 
+  // ASSISTENZE E SLITTA (21/10): nel .ld TC/ABS sono FLAG 0/1 di intervento del
+  // gioco — la quota di tempo in cui attengono è il segnale misurabile della
+  // «slitta in uscita» (TC = ruota libera, ABS = blocco ruota).
+  // I campi eventualmente patchabili nel .carsetup li valuta mechanicExtraEdits:
+  // lì la regola è chiaro e solo SE il file contiene il campo corrispondente.
+  const shareOf = (name, match) => {
+    const c = ld.channels.get(name); if (!c || !c.cnt) return null;
+    let n = 0, hit = 0;
+    for (let i = 0; i < c.cnt; i++) {
+      const v = ld.dv.getFloat32(c.off + i * 4, true);
+      if (!Number.isFinite(v)) continue;
+      n++; if (match(v)) hit++;
+    }
+    return n ? Math.round((1000 * hit) / n) / 10 : null;
+  };
+  const slipRearPct = (() => {
+    const th = ld.channels.get('THROTTLE'); if (!th) return null;
+    let n = 0, hit = 0;
+    for (const nm of ['WHEEL_SR_LR', 'WHEEL_SR_RR']) {
+      const c = ld.channels.get(nm); if (!c) continue;
+      for (let i = 0; i < c.cnt; i++) {
+        const s = ld.dv.getFloat32(c.off + i * 4, true);
+        if (!Number.isFinite(s)) continue;
+        const t = ld.dv.getFloat32(th.off + idxAt(th, i / c.rate) * 4, true);
+        n++; if (s > 0.15 && t >= 0.3) hit++; // slip di trazione: ruota che gira libera col gas
+      }
+    }
+    return n ? Math.round((1000 * hit) / n) / 10 : null;
+  })();
+  const assist = { tcPct: shareOf('TC', (v) => v > 0.5), absPct: shareOf('ABS', (v) => v > 0.5), slipRearPct };
+
   return {
     file: basename(ldFile),
     durationSec: Math.round(ld.duration),
@@ -206,7 +237,7 @@ function analyzeLdUncached(ldFile) {
     airTemp: air != null ? Math.round(air * 10) / 10 : null,
     roadTemp: road != null ? Math.round(road * 10) / 10 : null,
     beaconsFromLdx: beacons.length,
-    sus, bump, camberProxy, bestLapSec,
+    sus, bump, camberProxy, assist, bestLapSec,
   };
 }
 
@@ -449,7 +480,7 @@ export function collectSessions(motecRoot, resultsDir, { car = null, track = nul
       preset: meta.preset, durationSec: a.durationSec, validLaps: a.validLaps,
       fuelPerLap: a.fuelPerLap, bestLapSec: a.bestLapSec,
       coldPressures: a.coldPressures, hotPressures: a.lastPressures,
-      sus: a.sus, bump: a.bump, camberProxy: a.camberProxy,
+      sus: a.sus, bump: a.bump, camberProxy: a.camberProxy, assist: a.assist,
       airTemp: a.airTemp, roadTemp: a.roadTemp,
       laps: a.laps,
     });

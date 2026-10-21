@@ -79,7 +79,7 @@ async function drawMessages(m){
     if (mm.action?.kind === 'vai-gara') {
       actions = `<button class="mini acc" data-maction="vai-gara">🏁 vai alla gara</button>`;
     } else if (mm.action?.kind === 'vai-agenda') {
-      actions = `<button class="mini acc" data-maction="vai-agenda">apri l'Agenda</button>`;
+      actions = `<button class="mini acc" data-maction="vai-agenda">apri il Centro gare</button>`;
     } else if (mm.action?.kind === 'vai-classifica') {
       actions = `<button class="mini acc" data-maction="vai-classifica">🏅 apri la Classifica</button>`;
     } else if (mm.action?.kind === 'sponsor-sign') {
@@ -509,7 +509,25 @@ async function drawLiveStrip(){
       if (had && tab === 'dashboard') render();
     }
     if (w?.lastMsg?.msg){ host.title = w.lastMsg.msg; }
-    if (!r.game){ host.innerHTML = '<span class="dot"></span> EVO chiuso'; host.className = 'chip'; return; }
+    if (!r.game){
+      /* «EVO chiuso» da solo confondeva (Mauro 21/10): ora dice che COSA c'è —
+         ultima telemetria (con orario), chiusura con scrittura .ld o segnale perso.
+         Con liveMode 'off' (disattivato a mano) il chip diventa il COMANDO. */
+      if (r.liveMode === 'off'){
+        host.className = 'chip';
+        host.innerHTML = '<span class="dot"></span> Live spento · <b data-live-on style="cursor:pointer;text-decoration:underline">attiva</b>';
+        host.title = 'Telemetria live disattivata a mano: niente strip in pista, verifica di gara LIVE e import automatico dei risultati (importa a mano da Centro gare). «attiva» la rimette in AUTO: riparte da sola quando apri EVO. Sopra restano valide: il chip GIOCO segue il processo del gioco.';
+        return;
+      }
+      const age = Date.now() - (h?.telem?.lastLd?.mtimeMs ?? 0);
+      const ultima = h?.telem?.lastLd ? new Date(h.telem.lastLd.mtimeMs).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : null;
+      const label = r.stale ? 'EVO · segnale live perso'
+        : (h?.telem?.lastLd?.valid && age < 10000 ? 'EVO · sessione chiusa — scrittura telemetria'
+        : (ultima ? `EVO chiuso · telem. ore ${ultima}` : 'EVO chiuso'));
+      host.innerHTML = `<span class="dot"></span> ${label}`; host.className = 'chip';
+      host.title = r.stale ? 'I dati live non si aggiornano da oltre 20s: se EVO è aperto, il lettore si ricicla da solo entro 30s.' : (ultima ? `Ultima telemetria scritta da EVO alle ${ultima}: quando riapri il gioco la scritta torna a seguire la sessione in diretta.` : '');
+      return;
+    }
     const p = r.player;
     if (!p || !r.live){ host.className = 'chip'; host.innerHTML = `<span class="dot on"></span> EVO aperto · ${esc(r.session?.type ?? '')}`; return; }
     host.className = 'chip gold';
@@ -518,6 +536,22 @@ async function drawLiveStrip(){
   } catch { host.className = 'chip'; }
 }
 setInterval(drawLiveStrip, 2000);
+
+/* il chip «attiva» dello strip: riporta la telemetria live in AUTO una volta sola
+   (delegato sul document: il chip viene riscritto a ogni poll e i listener muoiono) */
+if (!window.__liveToggleDeleg){
+  window.__liveToggleDeleg = true;
+  document.addEventListener('click', async (ev) => {
+    const t = ev.target && ev.target.closest && ev.target.closest('[data-live-on]');
+    if (!t) return;
+    try {
+      await api('live-toggle', { mode: 'auto' });
+      toast('Live in AUTO: la telemetria riparte da sola quando apri EVO.', 'ok');
+    } catch (e) { toast('Non riesco ad attivare il live: ' + (e.message ?? e)); }
+    await refreshBoot();
+    render();
+  });
+}
 
 /* icona MoTeC nell'header: dice se EVO sta scrivendo telemetria adesso.
    ⏺ rosso lampeggiante = registrazione in corso (file .ld aggiornato da <10s);

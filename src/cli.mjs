@@ -1160,13 +1160,19 @@ async function cmdGriglia(args) {
   if (!nodeId) throw new Error('nessuna serie corrente: usa --serie <nodeId>');
   // round: quello segnato in attesa dallo stato (round corrente della serie)
   const roundIndex = typeof args.flags.round === 'string' ? Number(args.flags.round) : (state.round ?? 0);
+  // --template: costruisce da un file DIVERSO dall'attuale (es. il backup
+  // d'epoca multi-marca del 21/10 ore 12:34); la scrittura va SEMPRE su
+  // last_grid.customgrid, con il suo backup (lezione 21/10 16:5x: nel primo
+  // giro il flag sovrascriveva il template stesso — recuperato dal backup).
   const file = join(process.env.USERPROFILE ?? 'C:/Users/Mauro', 'Saved Games', 'ACE', 'GameModes', 'last_grid.customgrid');
+  const tplFile = typeof args.flags.template === 'string' ? args.flags.template : file;
 
-  const { buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file });
+  const { buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: tplFile });
   const C_ = C;
   console.log(C_.bold(`\nGriglia della gara del giorno\n`));
   console.log(`  serie   ${report.serie}`);
   console.log(`  celle   ${report.gridSize} da ${report.source.split('/').pop()}`);
+  if (report.poolMulti) console.log(`  pool    ${report.poolMulti}`);
   console.log(`  bilanc. ${report.origine}`);
   if (report.ai) console.log(`  abilità ${report.ai} → i piloti vengono riscalati a quel campo`);
   const byCar = {};

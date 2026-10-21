@@ -47,6 +47,18 @@ export const ISO = {
  */
 export const TRACK_SPECIALS = {
   nurburgring: { name: 'Nurburgring', tag: 'Gp Strecke', layout: 'Gp Strecke Race', continent: 'Europe' },
+  // Paul Ricard: 4 layout propri ( Nicola opzione 21/10 ore 15:53 — window
+  // ROUND 1 senza layout in ladder, partita con la pista VUOTA e crash
+  // "No starting position!"; layout scelto a mano → gara partita). Il catalogo
+  // ufficiale del server dedicato lista ESATTAMENTE questi nomi:
+  // "Layout 1A-V2" / "Layout 1C-V2" / "Layout 3A" / "Layout 3C".
+  // LEZIONE 21/10 pomeriggio (tessera SEMPRE scura anche col file riscritto da
+  // EVO): il tag f5.3 = "GP" chiede "paul_ricard-gp.texture", che NON esiste —
+  // Paul Ricard NON ha un layout GP. I valori VERI venuti da una sessione
+  // riuscita (Results 17/10 22:19 e 19/10 23:40: layout "Layout 1C-V2 Race";
+  // cartella MoTec "Paul RicardLayout 1C-V2", come "NurburgringGp Strecke"):
+  // tag = il nome del layout, layout lungo = il nome + " Race".
+  paul_ricard: { name: 'Paul Ricard', tag: 'Layout 1C-V2', layout: 'Layout 1C-V2 Race', continent: 'Europe' },
 };
 
 // continente (campo 3.5.8) per paese: usato per NON ereditare il continente

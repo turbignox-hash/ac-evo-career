@@ -7,8 +7,25 @@ async function drawCalendar(m){
   </table></div>`;
 }
 
-/* -------- agenda continua (stile Zero to Apex) -------- */
+/* -------- centro gare (ex Agenda, stile cockpit: calendario grande,
+   pulsanti del tempo in evidenza, schede-gara racing a colpo d'occhio) --- */
 let agendaView = { day: null, filter: 'tutte', disc: null };
+
+/* l'icona della DISCIPLINA sulla scheda: stessa famiglia di icone della nav,
+   così le viste si uniformano senza creare diversità */
+const DISC_ICONS = [
+  ['entry', ICONS.cars], ['turismo', ICONS.griglia], ['touring', ICONS.griglia],
+  ['monoposto', LI.bolt], ['formula', LI.bolt],
+  ['gran turismo', LI.trophy], ['gt', LI.trophy],
+  ['endurance', LI.stopwatch],
+  ['strada', ICONS.tracks], ['rally', ICONS.tracks], ['historic', ICONS.archive],
+  ['drift', ICONS.setup],
+];
+function discIcon(name){
+  const n = String(name ?? '').toLowerCase();
+  const hit = DISC_ICONS.find(([k]) => n.includes(k));
+  return hit ? hit[1] : ICONS.series;
+}
 
 async function drawAgenda(m){
   const a = await api('agenda', {
@@ -17,92 +34,97 @@ async function drawAgenda(m){
   agendaView.day = a.viewDay ?? a.day;   // resta sul giorno che stai GUARDANDO (dopo un avanzamento torna il reale)
 
   /* il bottone "Alla prossima gara" dice la DATA REALE + la distanza, non
-     "giorno 12" (sembrava "tra 12 giorni"): GIO 24 APR 2025 · TRA 2 GIORNI.
-     La data la ricava dalla striscia calendario (già lì, il server non serve
-     modificarlo); il fallback resta l'etichetta "giorno N" se lo strip manca. */
+     "giorno 12": GIO 24 APR 2025 · TRA 2 GIORNI */
   const nextRaceBtn = (a) => {
-    if (!a.nextRaceDay) return '🚩 Alla prossima gara di campionato';
+    if (!a.nextRaceDay) return '⯈ Alla prossima gara di campionato';
     const d = a.nextRaceDay - (a.day ?? 0);
     const strip = (a.strips ?? []).find(s => s.day === a.nextRaceDay);
     const when = strip?.date ?? `giorno ${a.nextRaceDay}`;
     const far = d > 0 ? ` · tra ${d} ${d===1?'giorno':'giorni'}` : '';
-    return `🚩 Alla prossima gara di campionato (${esc(when)}${far})`;
+    return `⯈ recall: prossimo weekend (${esc(when)}${far})`;
   };
 
-  const card = (g) => {
+  const dNames = new Map((a.disciplines ?? []).map(d => [d.id, d.name]));
+  const gareCard = (g) => {
     const cls = g.stato === 'iscritto' ? 'ag-iscritto' : g.fattibile ? 'ag-fattibile' : 'ag-bloccata';
-    const stato = g.stato === 'iscritto' ? '<span class="tag gold">★ iscritto</span>'
-      : g.fattibile ? '<span class="tag blue">fattibile</span>'
-      : `<span title="${esc((g.gateReasons??[]).join(' · '))}">🔒</span>`;
-    const cta = g.isCurrent
-      ? '<span class="tag gold">serie attuale: usa Cruscotto</span>'
+    const stato = g.stato === 'iscritto'
+      ? '<span class="tag gold">★ iscritto</span>'
       : g.fattibile
-        ? `<button class="mini acc" data-corri="${esc(g.nodeId)}" data-name="${esc(g.display)}">scegli per oggi</button>`
+        ? '<span class="tag blue">disponibile</span>'
+        : `<span title="${esc((g.gateReasons??[]).join(' · '))}">🔒 <span class="faint">bloccata</span></span>`;
+    const cta = g.isCurrent
+      ? '<span class="tag gold ag-cta">▶ serie attuale — Cruscotto</span>'
+      : g.fattibile
+        ? `<button class="btn-cta" data-corri="${esc(g.nodeId)}" data-name="${esc(g.display)}">SCEGLI PER OGGI</button>`
         : '';
-    return `<div class="ag-card ${cls}" style="cursor:pointer" data-detail="${esc(g.nodeId)}" title="clicca per la scheda completa della serie">
-      <div class="ag-c-head"><span class="faint">R${g.roundIndex+1}/${g.totalRounds}</span> <b>${esc(g.display)}</b> ${stato}</div>
-      <div class="ag-c-body">${esc(g.track)} · ${g.laps?g.laps+' giri':'—'} · ${String(g.hour).padStart(2,'0')}:00${g.scheduledDay && a.viewDay ? (g.scheduledDay === a.viewDay ? '' : ` · <span class="tag gold">in agenda il ${esc(a.viewLabel ?? '')}</span>`) : ''}</div>
-      <div class="ag-c-foot">
-        <span class="muted">${money(g.prize??0)} € · ${g.gridSize??'—'} auto</span>
-        ${g.late ? '<span class="tag gold">in ritardo</span>' : ''}
+    return `
+    <div class="ag-card ${cls}" data-detail="${esc(g.nodeId)}" title="clicca la scheda per il dettaglio della serie">
+      <div class="ag-top">
+        <span class="ag-round">R${g.roundIndex+1}<i>/${g.totalRounds}</i></span>
+        <span class="ag-disc" title="${esc(dNames.get(g.discipline) ?? g.discipline ?? '')}">${discIcon(dNames.get(g.discipline) ?? g.discipline)}</span>
+        <div class="ag-nome" style="flex:1;min-width:0">${esc(g.display)}</div>
+        <span class="ag-ora">${String(g.hour).padStart(2,'0')}:00</span>
+      </div>
+      <div class="ag-track">␦ ${esc(g.track)}${g.laps?` · ${g.laps} giri`:''}${g.scheduledDay && a.viewDay ? (g.scheduledDay === a.viewDay ? '' : ` · <span class="tag gold">in agenda il ${esc(a.viewLabel ?? '')}</span>`) : ''}</div>
+      <div class="ag-bot">
+        <span class="prz">${money(g.prize??0)}</span>
+        <span class="aut">${g.gridSize??'—'} AUTO</span>
+        ${g.griglia === 'monomarca' ? '<span class="tag blue" title="griglia con la sola auto della serie">monomarca</span>' : ''}
+        ${g.griglia && g.griglia.indexOf('multi-marca') === 0 ? `<span class="tag gold" title="griglia multi-marca: pool d'epoca dichiarato per la serie">${esc(g.griglia)}</span>` : ''}
+        ${g.late ? '<span class="tag gold">⚠ in ritardo</span>' : ''}
+        ${stato}
         ${cta}
       </div>
     </div>`;
   };
 
   const discChips = [{id:null,name:'tutte le discipline'}].concat(a.disciplines).map(d =>
-    `<button class="mini ${agendaView.disc===d.id?'acc':''}" data-disc="${d.id??''}">${esc(d.name)}</button>`).join('');
+    `<button class="chip-f ${agendaView.disc===d.id?'on':''}" data-disc="${d.id??''}"><span class="cf-ico">${discIcon(d.name)}</span>${esc(d.name)}</button>`).join('');
   const filterChips = [
-    ['tutte','tutte'], ['fattibili','disponibili'], ['iscritte','iscritte'], ['bloccate','bloccate'],
+    ['tutte','TUTTE'], ['fattibili','DISPONIBILI'], ['iscritte','ISCRITTE'], ['bloccate','BLOCCATE'],
   ].map(([id,label]) =>
-    `<button class="mini ${agendaView.filter===id?'acc':''}" data-af="${id}">${label}</button>`).join('');
+    `<button class="chip-f ${agendaView.filter===id?'on':''}" data-af="${id}">${label}</button>`).join('');
   // "nascondi le già iniziate": spegne le gare in corso/ritardo della giornata vista
-  const hideStarted = `<button class="mini ${agendaView.hideStarted?'acc':''}" data-hidestarted="1" title="nasconde le gare che sono già in programma da prima (in corso o in ritardo): restano solo quelle che partono esattamente nel giorno in vista">${agendaView.hideStarted?'☑':'☐'} nascondi gare già iniziate</button>`;
+  const hideStarted = `<button class="chip-f ${agendaView.hideStarted?'on':''}" data-hidestarted="1" title="nasconde le gare che sono già in programma da prima (in corso o in ritardo): restano solo quelle che partono esattamente nel giorno in vista">${agendaView.hideStarted?'☑':'☐'} nascondi gare già iniziate</button>`;
   const strip = (a.strips??[]).map(s => {
-    const side = s.mine ? '·'+s.mine : '';
+    const side = s.mine ? `<i class="mine">+${s.mine}</i>` : '';
     return `<button class="ag-day ${s.today?'today':''} ${s.mine?'hasmine':''}" data-goday="${s.day}" title="${esc(s.date)}: ${s.total} gare (${s.available} fattibili)${s.mine?`, ${s.mine} del tuo campionato (oro)`:''}">
       <span class="ag-day-date">${esc(s.date)}</span>
-      <span class="ag-day-num">${s.total}${side}</span>
+      <span class="ag-day-num">${s.total}</span>
+      ${side}
     </button>`;
   }).join('');
 
-  const impegniHtml = (a.impegni?.lista ?? []).length ? `
-    <span class="faint">I tuoi impegni — <b>${a.impegni.iscritte}</b> iscritte</span>
-    ${a.impegni.conflitti.length ? `<span class="tag gold" style="margin-left:6px">⚠️ ${a.impegni.conflitti.length} conflitt${a.impegni.conflitti.length===1?'o':'i'}</span>` : ''}` : '';
+  const impegniHtml = (a.impegni?.lista ?? []).length ? `<span class="impegni">(${a.impegni.iscritte} iscritte${a.impegni.conflitti.length?` · ⚠️ ${a.impegni.conflitti.length} conflitt${a.impegni.conflitti.length===1?'o':'i'}`:''})</span>` : '';
   const conflittiHtml = (a.impegni?.conflitti ?? []).map((c) => `
-    <div class="panel" style="border-color:rgba(255,209,102,.5);padding:8px 12px;margin-bottom:8px">
-      <b>${esc(c.date)}</b> — ${c.gare.length} gare iscritte lo stesso giorno:
-      ${c.gare.map((g)=>`<span style="display:inline-flex;align-items:center;gap:6px;margin:2px 8px 2px 0">
+    <div class="conflitto">
+      <div>${esc(c.date)} — ${c.gare.length} gare iscritte lo stesso giorno:</div>
+      ${c.gare.map((g)=>`<span class="conf-item">
         <b>${esc(g.display)}</b> <span class="faint">R${g.roundIndex+1} · ${esc(g.track)}</span>
-        <button class="mini" data-shift="${esc(g.nodeId)}" title="Sposta la serie in avanti di una cadenza (le prossime gare si spostano con lei)">sposta ⏭</button>
+        <button class="mini" data-shift="${esc(g.nodeId)}" title="Sposta la serie in avanti di una cadenza (le prossime gare si spostano con lei)">sposta ⯈</button>
       </span>`).join('')}
     </div>`).join('');
 
   m.innerHTML = `
-  <div class="panel">
-    <h2>Agenda <span class="h-act">OGGI ${esc(a.todayLabel)} · giorno ${a.day} ${impegniHtml}</span></h2>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-      <button class="mini acc" id="ag-advance">⏭ Avanza al domani</button>
-      <button class="mini" id="ag-next">${nextRaceBtn(a)}</button>
+  <div class="panel ag-hero">
+    <div class="ag-hero-top">
+      <div class="ag-titolo">CENTRO GARE</div>
+      <div class="ag-data">⯅ ${esc(a.todayLabel)} <i>· giorno ${a.day}</i> ${impegniHtml}</div>
+    </div>
+    <div class="ag-controls">
+      <button class="btn-time primary" id="ag-advance">⯈ AVANZA UN GIORNO</button>
+      <button class="btn-time" id="ag-next">${nextRaceBtn(a)}</button>
     </div>
     ${conflittiHtml}
-    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px">${strip}</div>
+    <div class="ag-strip">${strip}</div>
   </div>
   <div class="panel">
-    <h2>Gare del giorno <span class="h-act" id="gare-count">…</span></h2>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${filterChips}</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${hideStarted}${discChips}</div>
-    ${(()=>{ // "nascondi gare già iniziate": via le gare in programma da PRIMA del giorno visto
-      // "già iniziata" = campionato entrato a metà: la sua R1 è caduta prima del
-      // giorno visto (iscritte in ritardo) o la vista mostra R2+ di un ciclo procedurale
-      // NASCONDE le già iniziate: restano le gare NON late e NON champStarted
-      const lista = agendaView.hideStarted ? a.gare.filter(g => !(g.late || g.champStarted)) : a.gare;
-      const nascoste = a.gare.length - lista.length;
-      const cntEl = $('#gare-count');
-      if (cntEl) cntEl.innerHTML = `${lista.length} a programma${nascoste>0?` · ${nascoste} nascoste dal filtro`:''} · max ${a.maxScelte} per giornata`;
-      if (!lista.length) return '<div class="muted">Nessuna gara corrisponde ai filtri in questo giorno. Prova un altro giorno dalla striscia calendario.</div>';
-      return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">${lista.map(card).join('')}</div>`;
-    })()}
+    <div class="gare-head">
+      <div class="gare-title">GARE DEL GIORNO</div>
+      <div class="chipbar">${filterChips}</div>
+    </div>
+    <div class="chipbar" style="margin-bottom:10px">${hideStarted}${discChips}</div>
+    <div id="gare-wrap">…</div>
   </div>`;
   // dopo un avanzamento il boot andava ridato: paintHeader(boot.header) qui repingeva
   // la data VECCHIA (boot già risolto prima dell'avanzamento) → la data sembrava ferma
@@ -124,11 +146,30 @@ async function drawAgenda(m){
     await api('agenda-shift', { method:'POST', body:{ nodeId: b.dataset.shift } });
     render();
   });
-  // card cliccabili: la scheda completa della serie (auto, calendario, classifica in corso)
-  $$('.ag-card[data-detail]').forEach(el => el.onclick = (e) => {
-    if (e.target.closest('button')) return;          // i bottoni restano se loro
-    raceCardModal(el.dataset.detail, a.viewDay);
-  });
+  // "GARE DEL GIORNO" si riempie qui: conteggio + card racing in un colpo solo
+  const wrapEl = $('#gare-wrap');
+  {
+    // stesso filtro di prima: "nascondi gare già iniziate" toglie late e champStarted
+    const lista = agendaView.hideStarted ? a.gare.filter(g => !(g.late || g.champStarted)) : a.gare;
+    const nascoste = a.gare.length - lista.length;
+    const gt = $('.gare-title');
+    if (gt) gt.insertAdjacentHTML('beforeend', `<span class="tuttecount">${lista.length} a programma${nascoste>0?` · ${nascoste} nascoste`:''} · max ${a.maxScelte}/giornata</span>`);
+    if (!lista.length) wrapEl.innerHTML = '<div class="muted">Nessuna gara corrisponde ai filtri in questo giorno. Prova un altro giorno dalla striscia calendario.</div>';
+    else wrapEl.innerHTML = `<div class="ag-grid">${lista.map(gareCard).join('')}</div>`;
+    // ricola i click (le card sono appena create)
+    $$('.ag-card', wrapEl).forEach(el => el.onclick = (e) => {
+      if (e.target.closest('button')) return;
+      raceCardModal(el.dataset.detail, a.viewDay);
+    });
+    $$('button[data-corri]', wrapEl).forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      try {
+        await api('agenda-choose', { method:'POST', body:{ nodeId: b.dataset.corri, day: agendaView.day ?? undefined } });
+        toast('Gara scelta per oggi ✔ (serie attiva nel cruscotto)', 'ok');
+        tab = 'calendar'; drawNav(); render();
+      } catch(e){ toast(e.message, 'err'); b.disabled = false; }
+    });
+  }
 }
 
 /* -------- scheda-gara cliccabile in Agenda -------- */
@@ -162,7 +203,7 @@ async function raceCardModal(nodeId, day){
     <div class="row" style="gap:6px;flex-wrap:wrap">${statoTxt}
       <span class="faint">L${d.level} · ${esc(d.discipline)} · stagione ${d.season}</span></div>
     <div style="margin:8px 0 2px"><b>${esc(d.roundName ?? '')}</b> — ${esc(d.track)} · ${d.laps??'—'} giri · ore ${String(d.hour).padStart(2,'0')}:00${d.weather?' · '+esc(d.weather):''}</div>
-    <div class="muted">Griglia: ${d.gridSize??'—'} auto · premio ${money(d.prize??0)} € · iscrizione ${money(d.entryFee??0)} €${d.repRequired?' · reputazione richiesta '+d.repRequired:''}</div>
+    <div class="muted">Griglia: ${d.gridSize??'—'} auto${d.griglia ? ` · <b>${esc(d.griglia)}</b>`:''} · premio ${money(d.prize??0)} € · iscrizione ${money(d.entryFee??0)} €${d.repRequired?' · reputazione richiesta '+d.repRequired:''}</div>
     <div class="muted" style="margin-top:6px"><b>Auto della serie:</b> ${esc(auto)}</div>
     ${d.joinNote ? `<div class="tag gold" style="margin-top:6px;display:inline-block">⚠️ ${esc(d.joinNote)}</div>` : ''}
     <div class="sig-prev" style="margin-top:8px"><div class="muted" style="margin-bottom:4px">Calendario della stagione:</div>${cal}</div>
@@ -177,7 +218,7 @@ async function raceCardModal(nodeId, day){
 async function drawChampionships(m){
   const v = await api('championships');
   if (!(v.championships ?? []).length) {
-    m.innerHTML = '<div class="panel"><h2>Campionati</h2><div class="empty">Nessun campionato iscritto: firma un sedile dall\'Agenda quando la giornata ti offre una serie adatta.</div></div>';
+    m.innerHTML = '<div class="panel"><h2>Campionati</h2><div class="empty">Nessun campionato iscritto: firma un sedile dal Centro gare quando la giornata ti offre una serie adatta.</div></div>';
     return;
   }
   // BADGE cliccabili in alto: ogni campionato in corso con auto, pista e prossimo
@@ -237,15 +278,18 @@ async function drawChampionships(m){
 }
 
 /* -------- classifica MONDIALE per prestigio -------- */
+/* icone uniformi con la vista Rivali: avatar a iniziali determinista + bandiera,
+   chip tratti uguali, riga cliccabile identica — un solo viso per i piloti */
 async function drawWorldRanking(m){
   const w = await api('world-ranking');
   m.innerHTML = `<div class="panel">
-  <h2>Classifica Mondiale — prestigio <span class="h-act">${w.total} piloti · tu sei P${w.myPosition}</span></h2>
+  <h2>${ICONS.championships} Classifica Mondiale — prestigio <span class="h-act">${w.total} piloti · tu sei P${w.myPosition}</span></h2>
   <div class="muted" style="margin:-6px 0 10px">I più forti del mondo (le monoposto il vertice): skill innata di ogni pilota. La tua stima cresce passando a serie di livello più alto. <b>Clicca un pilota per la scheda completa.</b></div>
-  <table><thead><tr><th></th><th>Pilota</th><th></th><th class="right">Skill</th><th class="right">Età</th><th>Profilo</th><th></th></tr></thead>
+  <table><thead><tr><th class="right">#</th><th>Pilota</th><th></th><th class="right">Skill</th><th class="right">Età</th><th>Profilo</th><th></th></tr></thead>
   <tbody>${w.rows.map(r=>`<tr class="${r.isPlayer?'me':''} wr-row" data-k="${esc(String(r.name))}" style="${r.isPlayer?'':'cursor:pointer'}">
-    <td class="muted">P${r.position}</td><td>${esc(r.name)}${r.isPlayer?' <span class="tag gold">tu</span>':''}${r.iconic?' <span title="fice tra i più forti in circolazione">⭐</span>':''}${r.hot?' 🔥':''}</td>
-    <td class="faint">${esc(r.country)}</td><td class="right">${r.skill}</td><td class="right">${r.age??'—'}</td>
+    <td class="right pos"><b>P${r.position}</b></td>
+    <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.isPlayer?' <span class="tag gold">tu</span>':''}${r.hot?' <span title="in forma: in griglia alza il ritmo">🔥</span>':''}</span></span></td>
+    <td class="faint">${flagOf(r.country)} ${esc(r.country)}</td><td class="right"><b>${r.skill}</b>${r.iconic?' <span title="tra i più forti in circolazione">⭐</span>':''}</td><td class="right">${r.age??'—'}</td>
     <td>${r.traits?.length?r.traits.map(t=>`<span class="chip blue" style="font-size:10px;padding:1px 6px">${esc(t)}</span>`).join(' '):''}</td>
     <td class="muted" style="font-size:11px">${esc(r.archName ?? '')}</td></tr>`).join('')}</tbody>
   </table></div>`;
@@ -256,6 +300,9 @@ function showWorldPilot(name, rows){
   const r = rows.find(x => String(x.name) === name);
   if (!r) return;
   modal(`Scheda pilota — ${r.name}`, `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">${rivalAvatar(r.name, 46)}
+      <div><b style="font-size:16px">${esc(r.name)}</b><div class="muted" style="font-size:12px">${flagOf(r.country)} ${esc(r.country ?? '')} · P${r.position} del mondo${r.iconic?' · ⭐ tra i più forti':''}${r.hot?' · 🔥 in forma':''}</div></div>
+    </div>
     <div class="grid4" style="margin-bottom:12px">
       <div class="kpi"><div class="l">Skill</div><div class="v acc">${r.skill}</div></div>
       <div class="kpi"><div class="l">Età</div><div class="v">${r.age ?? '—'}</div></div>
@@ -396,7 +443,18 @@ async function openResult(file){
     [['Chiudi','ghost',()=>{}]]);
 }
 
-/* -------- statistiche -------- */
+/* -------- Statistiche — rifatte in stile racing: coppe in vetrina,
+   quadri con icone, tabelle pulite. Deve colpire a prima vista. -------- */
+const STI = {
+  cup: LI.trophy, medal: LI.medal, flag: LI.flag, bolt: LI.bolt, clock: LI.stopwatch,
+  euro: LI.euro, gauge: LI.gauge, shield: LI.shield, scroll: LI.scroll, book: LI.book,
+};
+function stPan(title, ico, body, { note = '', bodyClass = '' } = {}){
+  return `<div class="panel st-panel"><h2><span class="st-ico">${ico}</span> ${esc(title)} <span class="h-act">${esc(note)}</span></h2>${bodyClass ? `<div class="${bodyClass}">` : ''}${body}${bodyClass ? '</div>' : ''}</div>`;
+}
+function stKpis(items){
+  return `<div class="st-kpis">${items.map(([l, v, cls, t]) => `<div class="kpi st-kpi" ${t ? `title="${esc(t)}"` : ''}><div class="l">${esc(l)}</div><div class="v ${cls ?? ''}">${v}</div></div>`).join('')}</div>`;
+}
 function fmtGap(ms){
   if (!Number.isFinite(ms) || ms == null) return '—';
   if (ms >= 60000) return `+${Math.floor(ms/60000)}'${String(Math.round((ms%60000)/1000)).padStart(2,'0')}"`;
@@ -416,65 +474,62 @@ function svgLine(values, { height=90, color='var(--acc2)', lowerBetter=false }={
     ${vals.map((v,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.2" fill="${color}"><title>${v}</title></circle>`).join('')}
   </svg>`;
 }
-
 async function drawStats(m){
   const s = await api('stats');
   const t = s.totals;
-  m.innerHTML = `
-  ${s.trophies?.length ? `<div class="panel"><h2>Sala trofei</h2><div class="grid2">${s.trophies.map(t=>`<div class="rivalrow"><span style="font-size:22px">${t.icon}</span><div><b>${esc(t.label)}</b><div class="muted" style="font-size:12px">${esc(t.detail)}</div></div></div>`).join('')}</div></div>` : ''}
-  ${s.sigils?.length ? `<div class="panel"><h2>Sigilli del pilota <span class="h-act">${s.sigils.length} sbloccati</span></h2><div class="grid3">${s.sigils.map(x=>`<div class="kpi"><div class="l">${esc(x.label ?? x.id)}</div><div class="v" style="font-size:14px;font-weight:500">${esc(x.detail ?? '')}</div><div class="muted" style="font-size:11px">dal ${esc(String(x.at||'').slice(0,10))}</div></div>`).join('')}</div></div>` : ''}
-  ${s.history.length >= 2 ? `<div class="grid2">
-    <div class="panel"><h2>Punti gara per gara</h2>${svgLine(s.history.slice().reverse().map(r=>r.points))}<div class="muted" style="font-size:11px">dal più vecchio (sinistra) al più recente (destra)</div></div>
-    <div class="panel"><h2>Posizioni in gara</h2>${svgLine(s.history.slice().reverse().map(r=>r.dnf?(r.gridSize??10):r.position),{lowerBetter:true,color:'var(--acc)'})}<div class="muted" style="font-size:11px">P1 in alto · i ritiri valgono ultima posizione</div></div>
-  </div>` : ''}
-  <div class="panel">
-    <h2>Carriera in numeri</h2>
-    <div class="grid4">
-      <div class="kpi"><div class="l">Gare</div><div class="v">${t.races}</div></div>
-      <div class="kpi"><div class="l">Vittorie</div><div class="v acc">${t.wins}</div></div>
-      <div class="kpi"><div class="l">Podi</div><div class="v acc2">${t.podiums}</div></div>
-      <div class="kpi"><div class="l">Titoli</div><div class="v ${t.titles?'good':''}">${t.titles}</div></div>
-      <div class="kpi"><div class="l">Giri percorsi</div><div class="v">${t.laps}</div></div>
-      <div class="kpi"><div class="l">Giri veloci</div><div class="v">${t.fastestLaps}</div></div>
-      <div class="kpi"><div class="l">% vittorie</div><div class="v">${t.winRate}%</div></div>
-      <div class="kpi"><div class="l">% podi</div><div class="v">${t.podiumRate}%</div></div>
-      <div class="kpi"><div class="l">Pole</div><div class="v ${t.poles?'good':''}">${t.poles}</div></div>
-      <div class="kpi"><div class="l">Rimonte</div><div class="v">${t.comebacks}</div></div>
-      <div class="kpi"><div class="l">Gare in testa</div><div class="v">${t.ledAll}</div></div>
-      <div class="kpi"><div class="l">Pos. guadagnate/gara</div><div class="v">${t.avgGain==null?'—':(t.avgGain>0?'+':'')+t.avgGain}</div></div>
-    </div>
-  </div>
+  /* 1) la VETRINA: trofei + sigilli, la prima cosa che guardi */
+  const vetrina = (s.trophies?.length || s.sigils?.length) ? `
+  <div class="panel st-vetrina">
+    <h2><span class="st-ico">${STI.cup}</span> SALA TROFEI <span class="h-act">tutto quello che la carriera ha vinto</span></h2>
+    ${s.trophies?.length ? `<div class="st-trophies">${s.trophies.map(t=>`<div class="st-trophy">${rivalAvatarText(t.icon, 40)}<div><b>${esc(t.label)}</b><div class="muted" style="font-size:12px">${esc(t.detail)}</div></div></div>`).join('')}</div>` : ''}
+    ${s.sigils?.length ? `<details style="margin-top:10px" open><summary style="cursor:pointer;font-size:12.5px"><b>Sigilli del pilota</b> <span class="muted" style="font-size:11.5px">— ${s.sigils.length} sbloccati</span></summary>
+      <div class="st-kpis" style="margin-top:8px">${s.sigils.map(x=>`<div class="kpi st-kpi" title="dal ${esc(String(x.at||'').slice(0,10))}"><div class="l">${esc(x.label ?? x.id)}</div><div class="v" style="font-size:13.5px;font-weight:500">${esc(x.detail ?? '')}</div></div>`).join('')}</div></details>` : ''}
+  </div>` : '';
+  /* 2) grafici andamento */
+  const grafici = s.history.length >= 2 ? `
   <div class="grid2">
-    <div class="panel"><h2>Migliori giri personali <span class="h-act">dal file risultati di EVO</span></h2>
-      ${s.bestLaps.length ? `<table><thead><tr><th>Pista</th><th class="right">Giro</th><th>Auto</th><th>Quando</th></tr></thead>
-      <tbody>${s.bestLaps.map(b=>`<tr><td>${esc(b.display)}</td><td class="right" style="font-weight:700">${esc(b.time)}</td><td class="muted">${esc(b.car ?? '—')}</td><td class="muted">${esc((b.at||'').slice(0,10))}</td></tr>`).join('')}</tbody></table>`
-      : '<div class="empty">Importa la tua prima gara: il miglior giro viene registrato dal file risultati.</div>'}
-    </div>
-    <div class="panel"><h2>Piste corse</h2>
-      ${s.tracks.length ? `<table><thead><tr><th>Pista</th><th class="right">Gare</th><th class="right">Vittorie</th><th class="right">Best</th></tr></thead>
-      <tbody>${s.tracks.map(x=>`<tr><td>${esc(x.display)}</td><td class="right">${x.races}</td><td class="right">${x.wins}</td><td class="right" style="font-weight:600">${x.bestLap?esc(x.bestLap.time):'—'}</td></tr>`).join('')}</tbody></table>`
-      : '<div class="empty">Ancora nessuna pista.</div>'}
-    </div>
-  </div>
-  <div class="grid2">
-    <div class="panel"><h2>Stagioni</h2>
-      ${s.seasons.length ? `<table><thead><tr><th>Stagione</th><th>Serie</th><th class="right">Pos</th><th class="right">Punti</th><th>Contratto</th></tr></thead>
-      <tbody>${s.seasons.map(x=>`<tr><td>S${x.season}</td><td>${esc(x.display)}</td><td class="right">P${x.position}</td><td class="right">${x.points}</td><td>${x.champion?'<span class="tag gold">titolo</span> ':''}${x.contract==='kept'?'<span class="tag good">clausole ✓</span>':x.contract==='failed'?'<span class="tag bad">clausole ✗</span>':''}</td></tr>`).join('')}</tbody></table>`
-      : '<div class="empty">La prima stagione è in corso.</div>'}
-    </div>
-    <div class="panel"><h2>La saga <span class="h-act">ultime gare in ordine cronologico</span></h2>
-      ${s.saga?.length ? `<table><thead><tr><th>#</th><th>Gara</th><th class="right">Pos</th><th class="right">Punti</th></tr></thead>
-      <tbody>${s.saga.slice().reverse().map((x,i)=>`<tr${x.dnf?' style="color:var(--bad)"':''}><td class="faint">${s.saga.length-i}</td><td>${esc(x.track)} <span class="faint">S${x.season} · ${esc(x.series)}</span></td><td class="right">${x.dnf?'rit.':x.position?'P'+x.position:'—'}</td><td class="right">${x.points}</td></tr>`).join('')}</tbody></table>` : ''}
-    </div>
-    <div class="panel"><h2>Ultime gare <span class="h-act">telemetria dal file di EVO</span></h2>
-      ${s.history.length ? `<table><thead><tr><th>Gara</th><th class="right">Pos</th><th class="right">Giri</th><th class="right">Giro</th><th class="right">Gap</th><th class="right">Punti</th></tr></thead>
-      <tbody>${s.history.map(r=>`<tr${r.dnf?' style="color:var(--bad)"':''}><td>${esc(r.track)} <span class="faint">S${r.season} R${r.round}</span>${r.fl?' <span class="tag gold">gv</span>':''}</td><td class="right">${r.dnf?'rit.':r.position?'P'+r.position:'—'}</td><td class="right">${r.laps ?? '—'}</td><td class="right">${r.bestLap?esc(r.bestLap):'—'}</td><td class="right">${fmtGap(r.gapMs)}</td><td class="right">${r.points}</td></tr>`).join('')}</tbody></table>`
-      : '<div class="empty">Nessuna gara in archivio.</div>'}
-    </div>
-  </div>`;
+    ${stPan('Punti gara per gara', STI.bolt, `${svgLine(s.history.slice().reverse().map(r=>r.points))}<div class="muted" style="font-size:11px;margin-top:6px">dal più vecchio (sinistra) al più recente (destra)</div>`)}
+    ${stPan('Posizioni in gara', STI.gauge, `${svgLine(s.history.slice().reverse().map(r=>r.dnf?(r.gridSize??10):r.position),{lowerBetter:true,color:'var(--acc)'})}<div class="muted" style="font-size:11px;margin-top:6px">P1 in alto · i ritiri valgono ultima posizione</div>`)}
+  </div>` : '';
+  /* 3) carriera in numeri: i quadri grandi */
+  const numeri = stPan('Carriera in numeri', STI.flag, stKpis([
+    ['Gare', t.races, '', 'gare importate dai file risultato di EVO'],
+    ['Vittorie', t.wins, t.wins ? 'acc' : '', 'P1 nelle gare della carriera'],
+    ['Podi', t.podiums, t.podiums ? 'acc2' : '', 'arrivi nei primi 3'],
+    ['Titoli', t.titles, t.titles ? 'good' : '', 'campionati vinti'],
+    ['% vittorie', t.winRate + '%', '', 'vittorie / gare'],
+    ['% podi', t.podiumRate + '%', '', 'podi / gare'],
+    ['Pole', t.poles, t.poles ? 'good' : '', 'partenze davanti a tutti'],
+    ['Giri veloci', t.fastestLaps, '', 'miglior giro in gara'],
+    ['Giri percorsi', t.laps, '', 'giri completati in totale'],
+    ['Rimonte', t.comebacks, '', ' piazzamenti migliori della griglia di partenza'],
+    ['Gare in testa', t.ledAll, '', 'gare intere sempre al comando'],
+    ['Posiz. guadagnate/gara', t.avgGain==null ? '—' : (t.avgGain>0?'+':'') + t.avgGain, '', 'media posizioni guadagnate rispetto alla partenza'],
+  ]));
+  /* 4) tabelle: giri personali, piste, stagioni, saga e ultime gare */
+  const bestLaps = stPan('Migliori giri personali', STI.clock, s.bestLaps.length
+    ? `<table><thead><tr><th>Pista</th><th class="right">Giro</th><th>Auto</th><th>Quando</th></tr></thead><tbody>${s.bestLaps.map(b=>`<tr><td><b>${esc(b.display)}</b></td><td class="right"><b style="color:var(--acc2)">${esc(b.time)}</b></td><td class="muted">${esc(b.car ?? '—')}</td><td class="muted">${esc((b.at||'').slice(0,10))}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty">Importa la tua prima gara: il miglior giro viene registrato dal file risultati.</div>', { note: 'dai file risultato di EVO' });
+  const tracksTab = stPan('Piste corse', STI.book, s.tracks.length
+    ? `<table><thead><tr><th>Pista</th><th class="right">Gare</th><th class="right">Vittorie</th><th class="right">Best</th></tr></thead><tbody>${s.tracks.map(x=>`<tr><td><b>${esc(x.display)}</b></td><td class="right">${x.races}</td><td class="right">${x.wins?'<span style="color:var(--good);font-weight:700">'+x.wins+'</span>':'0'}</td><td class="right">${x.bestLap?`<b>${esc(x.bestLap.time)}</b>`:'—'}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty">Ancora nessuna pista.</div>');
+  const seasonsTab = stPan('Stagioni', STI.scroll, s.seasons.length
+    ? `<table><thead><tr><th>Stagione</th><th>Serie</th><th class="right">Pos</th><th class="right">Punti</th><th>Contratto</th></tr></thead><tbody>${s.seasons.map(x=>`<tr><td><b>S${x.season}</b></td><td>${esc(x.display)}</td><td class="right"><b>P${x.position}</b></td><td class="right">${x.points}</td><td>${x.champion?'<span class="tag gold">titolo</span> ':''}${x.contract==='kept'?'<span class="tag good">clausole ✓</span>':x.contract==='failed'?'<span class="tag bad">clausole ✗</span>':''}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty">La prima stagione è in corso.</div>');
+  const sagaTab = s.saga?.length ? stPan('La saga', STI.book, `<table><thead><tr><th>#</th><th>Gara</th><th class="right">Pos</th><th class="right">Punti</th></tr></thead><tbody>${s.saga.slice().reverse().map((x,i)=>`<tr${x.dnf?' style="color:var(--bad)"':''}><td class="faint">${s.saga.length-i}</td><td>${esc(x.track)} <span class="faint">S${x.season} · ${esc(x.series)}</span></td><td class="right"><b>${x.dnf?'rit.':x.position?'P'+x.position:'—'}</b></td><td class="right">${x.points}</td></tr>`).join('')}</tbody></table>`, { note: 'ultime gare in ordine cronologico' }) : '';
+  const ultimeTab = stPan('Ultime gare', STI.flag, s.history.length
+    ? `<table><thead><tr><th>Gara</th><th class="right">Pos</th><th class="right">Giri</th><th class="right">Giro</th><th class="right">Gap</th><th class="right">Punti</th></tr></thead><tbody>${s.history.map(r=>`<tr${r.dnf?' style="color:var(--bad)"':''}><td>${esc(r.track)} <span class="faint">S${r.season} R${r.round}</span>${r.fl?' <span class="tag gold">gv</span>':''}</td><td class="right"><b>${r.dnf?'rit.':r.position?'P'+r.position:'—'}</b></td><td class="right">${r.laps ?? '—'}</td><td class="right">${r.bestLap?esc(r.bestLap):'—'}</td><td class="right">${fmtGap(r.gapMs)}</td><td class="right"><b>${r.points}</b></td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty">Nessuna gara in archivio.</div>', { note: 'telemetria dal file di EVO' });
+  m.innerHTML = `<div id="stats-vetrina">${vetrina}</div>${grafici}${numeri}
+  <div class="grid2">${bestLaps}${tracksTab}</div>
+  <div class="grid2">${seasonsTab}${sagaTab || ''}${ultimeTab}</div>`;
+}
+/* avatar "testuale" per i trofei: serve un contenitore visibile con l'emoji */
+function rivalAvatarText(emoji, size = 38){
+  return `<span class="rava st-trophy-ava" style="width:${size}px;height:${size}px;font-size:${Math.round(size*0.5)}px">${emoji ?? '🏆'}</span>`;
 }
 
-/* -------- Banca: entrate e uscite dalla cassa (registro flussi) -------- */
+/* -------- Finanze: entrate e uscite dalla cassa (registro flussi) -------- */
 async function drawBanca(m){
   const f = await api('flows');
   const rows = f.flows ?? [];
@@ -495,7 +550,7 @@ async function drawBanca(m){
     }).join('');
   m.innerHTML = `
   <div class="panel">
-    <h2>💰 Banca <span class="h-act">saldo attuale ${money(boot.header.money)} € · registro: ${tot.in[0]>0?'+'+money(tot.in[0]):'0'} € entrate · ${money(tot.out[0])} € uscite (ultimi ${rows.length} movimenti)</span></h2>
+    <h2>${STI.euro} FINANZE <span class="h-act">saldo attuale ${money(boot.header.money)} € · ${tot.in[0]>0?'+'+money(tot.in[0]):'0'} € entrate · ${money(tot.out[0])} € uscite (ultimi ${rows.length} movimenti)</span></h2>
     <div style="display:flex;gap:6px;margin:8px 0 10px">${filtri.map(([id,lab])=>`<button class="mini ${bancaView.filter===id?'acc':''}" data-bf="${id}">${lab??id}</button>`).join('')}</div>
     ${rowsHtml
       ? `<table><thead><tr><th>Quando</th><th>Tipo</th><th>Motivo</th><th class="right">Importo</th></tr></thead><tbody>${rowsHtml}</tbody></table>`

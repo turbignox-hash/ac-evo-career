@@ -50,7 +50,7 @@ const ICONS = {
   griglia:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="4" width="13" height="9" rx="1.2"/><path d="M5.5 4v9M10.5 4v9M1.5 8.5h13"/></svg>',
   series:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5 14 5v6l-6 3.5L2 11V5z"/><path d="M8 8 14 5M8 8 2 5M8 8v6.5"/></svg>',
   stats:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.5V8l2.6 2" stroke-linecap="round"/></svg>',
-  banca:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6.5 8 3l6 3.5"/><path d="M3.5 6.5V12M6.5 6.5V12M9.5 6.5V12M12.5 6.5V12"/><path d="M2 13.5h12"/></svg>',
+  banca:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12.5 3.8A5.4 5.4 0 0 0 4.4 8a5.4 5.4 0 0 0 8.1 4.4M3 6.8h6M3 9.2h6" stroke-linecap="round"/></svg>',
   import:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3" stroke-linecap="round"/><path d="M2 12v1.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V12"/></svg>',
   difficulty:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h10M3 12h10"/><circle cx="6" cy="4" r="1.6" fill="var(--bg2)"/><circle cx="10.5" cy="8" r="1.6" fill="var(--bg2)"/><circle cx="5" cy="12" r="1.6" fill="var(--bg2)"/></svg>',
   messages:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="m2.5 4.5 5.5 4 5.5-4"/></svg>',
@@ -59,7 +59,9 @@ const ICONS = {
   archive:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="4" rx="1"/><path d="M3.5 6.5V13h9V6.5M6 9.5h4"/></svg>',
   rivals:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.2" cy="5" r="2.2"/><circle cx="10.8" cy="5" r="2.2"/><path d="M1.8 13c.4-2.4 1.7-3.6 3.4-3.6S8.2 10.6 8.6 13M7.4 13c.4-2.4 1.7-3.6 3.4-3.6s3 1.2 3.4 3.6"/></svg>',
   testday:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h3l2-4 2 8 2-5 1.5 2H14" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  setup:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.8 4.2a3.6 3.6 0 0 1-4.8 4.4L5 12.6a1.4 1.4 0 0 1-2-2l4-4a3.6 3.6 0 0 1 4.4-4.8L9.6 3.6l2.8 2.8z" stroke-linejoin="round"/></svg>',
+  /* la voce Setup porta la FIGURA del meccanico (cappellino + tuta + chiave):
+     è lui il protagonista di quella scheda, non una generica chiave inglese */
+  setup:'<svg viewBox="0 0 16 16" fill="currentColor" stroke="none"><circle cx="7" cy="4.8" r="2"/><path d="M4 3.8h6l-.5-1.5a2.7 2.7 0 0 0-5 0z" opacity=".9"/><path d="M2.9 14.6c0-3.1 1.85-5.3 4.1-5.3s4.1 2.2 4.1 5.3z" opacity=".8"/><g transform="rotate(38 12.3 10.6)"><circle cx="12.3" cy="8.9" r="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="11.7" y="10.6" width="1.2" height="3.8" rx="0.6"/></g></svg>',
   tracks:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4.5 1.5 3.6 14.5M11.5 1.5l.9 13" stroke-linecap="round"/><path d="M8 3.5v1.6M8 7.2v1.6M8 10.9v1.6" stroke-linecap="round"/></svg>',
   cars:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 9.5 4 5.8A1.8 1.8 0 0 1 5.7 4.5h4.6A1.8 1.8 0 0 1 12 5.8l1.5 3.7M2.5 9.5h11M2.5 9.5v2.6a.9.9 0 0 0 .9.9h1.2a.9.9 0 0 0 .9-.9v-.4h5.8v.4a.9.9 0 0 0 .9.9h1.2a.9.9 0 0 0 .9-.9V9.5"/></svg>',
   garage:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 7 8 2.5 14.5 7M3 6.3V13.5h10V6.3M5 13.5V10h6v3.5M5 11.5h6"/></svg>',
@@ -90,11 +92,14 @@ const flagOf = (c) => COUNTRY_FLAG[c] ?? '🏁';
 /* bandiera a scacchi inline per i titoli di gara */
 const CFLAG = '<svg viewBox="0 0 16 16" style="width:14px;height:14px;vertical-align:-2px" fill="none" aria-hidden="true"><path d="M2.5 1.5h11v13h-11z"/><path d="M2.5 1.5h3.67v3.6H2.5zM9.83 5.1h3.67v3.6H9.83zM6.17 8.7h3.66v3.6H6.17z" fill="currentColor" stroke="none"/></svg>';
 const TABS = [
-  ['dashboard','Cruscotto'], ['agenda','Agenda'], ['setup','Setup'], ['messages','Messaggi'], ['championships','Campionati'], ['griglia','Griglia'], ['standings','Mondiale'],
+  ['dashboard','Cruscotto'], ['agenda','Centro gare'], ['setup','Setup'], ['messages','Messaggi'], ['championships','Campionati'], ['griglia','Griglia'], ['standings','Mondiale'],
   ['rivals','Rivali'], ['tracks','Piste'], ['cars','Auto'], ['garage','Garage'], ['import','Risultati'],
   ['archive','Archivio'], ['stats','Statistiche'],
-  ['banca','Banca'], ['difficulty','Difficoltà'], ['settings','Impostazioni'],
-];
+  ['banca','Finanze'], ['difficulty','Difficoltà'], ['settings','Impostazioni'],
+]; /* la vista LIVE è stata RIMOSSA su richiesta Mauro (21/10 23:5x): «non la
+   guarderebbe nessuno». Backup completo in sessione-21-10/.backup-live-21-10/. Il motore
+   live sottostante (src/live.mjs, lettore PS, strip header «In pista»,
+   caricamento automatdomestiche import) resta: lo usano telemetria e setup.
 /* un colore per ogni sezione: le icone della nav restano riconoscibili a colpo d'occhio */
 const TAB_COLORS = {
   dashboard:'#5da9ff', agenda:'#ff7a45', calendar:'#b48cff', standings:'#ffd166',  rivals:'#ff6b6b',
@@ -115,12 +120,18 @@ function drawNav(){
 async function render(){
   const m = $('#main');
   if (!boot) return;
+  // il timer LIVE resta attivo SOLO mentre la vista LIVE è in primo piano:
+  // qui lo ammazziamo PRIMA di disegnare l'altro tab (altrimenti continihva
+  // a sovrascrivere il pannello del tab aperto)
+  if (window.__liveTimer) { clearInterval(window.__liveTimer); window.__liveTimer = null; }
+  // il timer auto-refresh del tab SETUP muore al cambio vista (come il LIVE):
+  if (window.__setupTimer) { clearInterval(window.__setupTimer); window.__setupTimer = null; }
   if (!boot.hasCareer) return drawOnboarding(m);
   paintHeader(boot.header);
   m.innerHTML = '<div class="panel"><span class="spin"></span></div>';
   try {
-    if (tab==='dashboard')  return await drawDashboard(m);
-    if (tab==='agenda')     return await drawAgenda(m);
+  if (tab==='dashboard')  return await drawDashboard(m);
+      if (tab==='agenda')     return await drawAgenda(m);
     if (tab==='rivals')     return await drawRivals(m);
     if (tab==='championships') return await drawChampionships(m);
     if (tab==='calendar')   return await drawCalendar(m);
@@ -151,7 +162,7 @@ function paintHeader(h){
   $('#t-rep').textContent = String(h.rep);
   $('#t-date').textContent = h.todayLabel ? `OGGI ${h.todayLabel}` : ('giorno ' + (h.day ?? 1));
   $('#t-season').textContent = `S${h.season} · R${h.round}/${h.rounds}`;
-  // le tre statistiche chiave diventano scorciatoie: Data → Agenda, Rep → Statistiche, Banca → Banca
+  // le tre statistiche chiave diventano scorciatoie: Data → Centro gare, Rep → Statistiche, Finanze → Finanze
   $('#t-date').style.cursor = 'pointer';
   $('#t-date').onclick = () => { tab = 'agenda'; drawNav(); render(); };
   $('#t-rep').style.cursor = 'pointer';
@@ -168,7 +179,7 @@ function paintHeader(h){
     if (nr.late) {
       el.textContent = `⚠️ IN RITARDO · ${nr.node} R${nr.round}`;
       el.style.color = 'var(--bad,#e05d5d)';
-      nrEl.title = `La gara ${nr.node} R${nr.round} a ${nr.track} era in programma il ${nr.dateLabel} e NON è stata corsa: i rivali incassano punti ogni giorno che passa. Vai in Agenda (o Cruscotto) e corri la R${nr.round} a ${nr.track}!`;
+      nrEl.title = `La gara ${nr.node} R${nr.round} a ${nr.track} era in programma il ${nr.dateLabel} e NON è stata corsa: i rivali incassano punti ogni giorno che passa. Vai nel Centro gare (o Cruscotto) e corri la R${nr.round} a ${nr.track}!`;
     } else if (nr.in <= 2) {
       el.textContent = `tra ${nr.in} ${nr.in === 1 ? 'giorno' : 'giorni'} · ${nr.node} R${nr.round}`;
       el.style.color = 'var(--warn,#ffb454)';
@@ -195,3 +206,61 @@ async function refreshBoot(){
   if (boot.hasCareer) paintHeader(boot.header);
 }
 
+
+/* ============================== faccine & icone dei pannelli ============================== */
+/* Mauro 21/10: «controlla tutte le pagine, se ritieni stiano bene aggiungi faccine e
+   icone». Invece di riscrivere i titoli in 17 file di viste, un DECORATORE centrale:
+   ogni h2 di pannello senza emoji/icona prende una piccola faccina coerente col senso
+   del pannello (mappa per PAROLA CHIAVE, con fallback per tab). Funziona anche per le
+   viste future: niente da ricordarsi quando si aggiunge un pannello. */
+const H2_ICONS = [
+  [/regola dei 4 psi/i, '🛞'],
+  [/auto della serie/i, '🚗'],
+  [/diagnostica telemetria/i, '🩺'],
+  [/salute sistema/i, '🫀'],
+  [/registro errori/i, '🧯'],
+  [/prossima gara/i, '🏁'],
+  [/eredità/i, '📜'],
+  [/regole .*(weekend|week-end)/i, '📋'],
+  [/strumenti rapidi/i, '⚒️'],
+  [/eventi speciali/i, '🎪'],
+  [/messaggi recenti/i, '📬'],
+  [/vita fuori pista/i, '🌆'],
+  [/consigli del box/i, '🔧'],
+  [/storia/i, '📜'],
+  [/statistiche/i, '📈'],
+  [/finanz/i, '💰'],
+  [/difficoltà/i, '🎚️'],
+  [/impostazion/i, '⚙️'],
+];
+const TAB_FALL_ICON = {
+  live:'📡', dashboard:'📊', agenda:'🗓️', setup:'🔧', messages:'📨',
+  championships:'🏆', griglia:'🏁', standings:'🌐', rivals:'🤝',
+  tracks:'🗺️', cars:'🚘', garage:'🏠', import:'📥',
+  archive:'🗃️', stats:'📈', banca:'💰', difficulty:'🎚️', settings:'⚙️',
+};
+const HAS_EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u;
+function decoratePanels(scope) {
+  if (!scope) return;
+  scope.querySelectorAll('.panel h2').forEach(h => {
+    if (h.dataset.enriched) return;
+    h.dataset.enriched = '1';
+    // se il titolo ha già un'emoji o un'icona SVG (es. LI.flag), non tocca
+    if (HAS_EMOJI.test(h.textContent) || h.querySelector('svg') || h.querySelector('.st-ico')) return;
+    const key = H2_ICONS.find(([re]) => re.test(h.textContent));
+    const emo = key ? key[1] : (TAB_FALL_ICON[tab] ?? '🏁');
+    const span = document.createElement('span');
+    span.className = 'h-emoji';
+    span.textContent = emo + ' ';
+    h.insertBefore(span, h.firstChild);
+  });
+}
+(function watchPanels() {
+  let deb = 0;
+  const run = () => { clearTimeout(deb); deb = setTimeout(() => decoratePanels(document.querySelector('#main')), 60); };
+  const m = document.querySelector('#main');
+  if (m) new MutationObserver(run).observe(m, { childList: true, subtree: true });
+  const root = document.querySelector('#modal-root');
+  if (root) new MutationObserver(() => decoratePanels(root)).observe(root, { childList: true, subtree: true });
+  run();
+})();

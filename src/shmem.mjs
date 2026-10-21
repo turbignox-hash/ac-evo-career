@@ -161,7 +161,7 @@ const INSTR = structLayout([
   ['displayIndex', 'i8'], ['pages', 'raw(16)'], ['headlightsVisible', 'bool'],
   ['placeholder', 'raw(101)'],
 ]);
-const ELECTRONICS = structLayout([
+export const ELECTRONICS = structLayout([
   ['tc', 'i8'], ['tcCut', 'i8'], ['abs', 'i8'], ['esc', 'i8'], ['ebb', 'i8'],
   ['brakeBias', 'f32'], ['engineMap', 'i8'], ['turbo', 'f32'], ['ersMap', 'i8'],
   ['ersRecharge', 'f32'], ['ersHeat', 'bool'], ['ersOvertake', 'bool'], ['drsOpen', 'bool'],
@@ -249,6 +249,25 @@ const GFX_LAYOUT = structLayout([
   ['gapAhead', 'f32'], ['gapBehind', 'f32'],
 ]);
 
+/* DATI di timing ONLINE-dash: dentro graphics c'è raw(256) del timingState
+   (SMEvoTimingState) con i tempi di giro come STRINGHE HH:MM:SS.mmm
+dell'HUD. Layout confermato dall'header: currentLap, deltaCurrent, lastLap,
+deltaLast, bestLap, idealLap, totalTime, invalid bool. */
+const TIMOFF = { currentLap: 0, deltaCurrent: 15, lastLap: 34, bestLap: 68, idealLap: 83, totalTime: 98, invalid: 113 };
+export function parseTimingState(buf, base) {
+  if (!buf || buf.length < base + 128) return null;
+  const at = (o, n = 15) => {
+    const s = buf.slice(base + o, base + o + n);
+    let end = 0; while (end < s.length && s[end] !== 0) end++;
+    return s.slice(0, end).toString('utf8').trim() || null;
+  };
+  return {
+    currentLap: at(TIMOFF.currentLap), delta: at(TIMOFF.deltaCurrent),
+    lastLap: at(TIMOFF.lastLap), bestLap: at(TIMOFF.bestLap),
+    idealLap: at(TIMOFF.idealLap), invalid: buf[base + TIMOFF.invalid] !== 0,
+  };
+}
+
 export const GFX = GFX_LAYOUT;
 
 export function parseGraphics(buf) {
@@ -291,6 +310,22 @@ export function parseGraphics(buf) {
     gapBehind: f32(GFX.gapBehind),
     isLastLap: dv.getUint8(GFX.isLastLap) !== 0,
     flag: i32(GFX.flag),
+    globalFlag: i32(GFX.globalFlag),
+    wrongWay: dv.getUint8(GFX.wrongWay) !== 0,
+    // timingState: tempi di giro come stringhe dell'HUD ("1:12.456") + delta live
+    timing: parseTimingState(buf, GFX.timingState),
+    // monitor stile/default RF2: coordinate (x,y,z) delle prime 20 auto (60 in totale):
+    // per ogni auto un BUBBLE in griglia con la sua distanza dal tuo e la posizione
+    carCoords: (() => {
+      const n = Math.min(20, 60);
+      const out = [];
+      const b = Buffer.from(buf.buffer, buf.byteOffset + GFX.carCoordinates, n * 12);
+      for (let i = 0; i < n; i++) {
+        const x = b.readFloatLE(i * 12), y = b.readFloatLE(i * 12 + 4), z = b.readFloatLE(i * 12 + 8);
+        out.push(Number.isFinite(x) ? [Math.round(x), Math.round(y), Math.round(z)] : null);
+      }
+      return out;
+    })(),
     carLocation: i32(GFX.carLocation),    // 1 pitlane, 4 track
     driverName: str(GFX.driverName),
     driverSurname: str(GFX.driverSurname),
@@ -390,6 +425,15 @@ export class LiveReader {
       recordWarning('shmem.reader', 'lettore live impallato: riciclato (nessun messaggio da >15s)');
       this.stop();
     }
+    // nogame PERSISTENTE con il gioco vivo: il lettore parte spesso PRIMA della
+    // sessione e le MMF di EVO una volta create non si ricreano — se OpenFileMapping
+    // è fallito al primo giro (gioco avviato dopo) rimarrebbe "nogame" per sempre.
+    // Riciclo a cuor più ogni 30s finché non vede il gioco.
+    if (this.child && !this.last.game && mutoDa > 30000) {
+      this.restarts += 1;
+      recordWarning('shmem.reader', 'lettore live in nogame persistente: riciclato');
+      this.stop();
+    }
     if (this.child || !existsSync(PS1)) return;
     const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', PS1, '-IntervalMs', String(this.intervalMs)], { windowsHide: true });
     this.child = child;
@@ -427,12 +471,26 @@ export class LiveReader {
     this.lastMsgAt = Date.now();
     if (msg.ev === 'nogame') { this.last.game = false; this.last.static = null; this.last.graphics = null; return; }
     if (msg.ev !== 'data') return;
-    this.last.game = true;
     this.last.at = Date.now();
     const dec = (b64) => (b64 ? Buffer.from(b64, 'base64') : null);
     this.last.static = parseStatic(dec(msg.static)) ?? this.last.static;
+    // BUG 21/10 (verificato IN GIOCO su Practice/Imola): il flag game non veniva
+    // MAI settato a true su 'data' — lo snapshot usciva subito su !game e la GUI
+    // diceva «EVO chiuso» anche con la sessione in pista (MMF vive, parser OK).
+    this.last.game = true;
     this.last.graphics = parseGraphics(dec(msg.graphics)) ?? this.last.graphics;
     this.last.physics = parsePhysics(dec(msg.physics)) ?? this.last.physics;
+    // MA essi del giro (per la mappa live): il punto dell'auto 0 (la tua) disegna
+    // il contorno pista, un punto ogni 60 m; oltre 1500 campioni si compatta.
+    const pt0 = this.last.graphics?.carCoords?.[0];
+    if (pt0) {
+      const tr = (this.trail ??= []);
+      const last = tr.length ? tr[tr.length - 1] : null;
+      if (!last || Math.hypot(pt0[0] - last[0], pt0[2] - last[2]) > 60) {
+        tr.push([pt0[0], pt0[2]]);
+        if (tr.length > 1500) this.trail = tr.filter((_, i) => i % 2 === 0);
+      }
+    }
   }
   stop() { try { this.child?.kill(); } catch {} this.child = null; }
   snapshot() {
@@ -457,6 +515,9 @@ export class LiveReader {
         online: !!st.online,
         timedRace: !!st.timedRace,
       },
+      timing: g?.timing ?? null,
+      // mappa live: contorno raccolto dai tuoi giri + coordinate delle auto in griglia
+      map: { trail: this.trail ?? [], cars: g?.carCoords ?? null },
       player: g ? {
         car: g.carModel?.trim() || p?.car || null,
         driver: `${g.driverName?.trim() || ''} ${g.driverSurname?.trim() || ''}`.trim() || null,
@@ -472,11 +533,23 @@ export class LiveReader {
         inPit: g.carLocation === 1,
         location: LOCATION[g.carLocation] ?? null,
         flag: FLAG[g.flag] ?? null,
+        globalFlag: FLAG[g.globalFlag] ?? null,
+        wrongWay: !!g.wrongWay,
+        lapInvalid: !!g.timing?.invalid,
+        currentLapText: g.timing?.currentLap ?? null,
+        deltaText: g.timing?.delta ?? null,
+        idealLapText: g.timing?.idealLap ?? null,
+        sessionPhase: g.sessionPhase ?? null,
+        timeLeftAll: g.timeLeftStr?.trim() || null,
+        speedKmh: g.speedKmh ?? null,
         fuel: p?.fuel ?? g.fuelLiters ?? null,
         lapsPossible: Number.isFinite(g.lapsPossibleFuel) && g.lapsPossibleFuel > 0 ? Math.round(g.lapsPossibleFuel * 10) / 10 : null,
         timeOfDay: g.timeOfDay,
-        // per l'ingegnere di gara: usura/temperatura gomme per ruota (physics)
-        // e secondo timer della sessione ("" quando è a giro)
+        gear: g.gear ?? (Number.isFinite(p?.gear) ? p.gear : null),
+        airTempC: Number.isFinite(p?.airTemp) ? Math.round(p.airTemp) : null,
+        roadTempC: Number.isFinite(p?.roadTemp) ? Math.round(p.roadTemp) : null,
+        // danni auto dal physics: [fronte, post, sx, dx, centro] come % (0=intatto)
+        damage: (p?.carDamage ?? []).map((v) => (Number.isFinite(v) ? Math.round(v * 100) : null)) ?? null,
         tyreWear: (p?.tyreWear ?? []).map((v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null)) ?? null,
         tyreCoreTemp: (p?.tyreCoreTemp ?? []).map((v) => (Number.isFinite(v) ? Math.round(v) : null)) ?? null,
         timeLeft: !!st.timedRace && g.timeLeftStr?.trim() ? g.timeLeftStr.trim() : null,

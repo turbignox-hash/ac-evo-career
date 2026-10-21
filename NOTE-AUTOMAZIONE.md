@@ -349,3 +349,57 @@ layout propri (Nürburgring). Riparo applicato al vivo: 4 blocchi riscritti,
 backup bak-track-2026-10-20T23-20.
 REGOLA: dopo ogni cambio pista, controllare i 4 campi (nation/name/tag/
 layout/continent/len) su TUTTI i blocchi — non solo il nome.
+
+## PAUL RICARD: LA TESSERA Scura ERA IL TAG ERREDITATO (21/10 pomeriggio)
+Il sintomo (ripetuto 3 volte in giornata): nel menu la tessera del weekend
+di Paul Ricard restava SENZA preview (solo dati sotto: 5842 m, BOX 34),
+anche col file riscritto dal gioco. Il log UI (Logs/log-*.txt, righe
+"gameface | Failed loading resource: coui://uiresources/images/tracks/…")
+rivelava il colpevole: il menu chiedeva `paul_ricard-gp.texture` — che non
+esiste, perché Paul Ricard NON ha un layout "GP" (ha i 4 Layout X).
+Causa: il tag f5.3 = "GP" ereditato dal file precedente (specFor generico).
+VALORI VERI (prova: Results 17/10 22:19 e 19/10 23:40 della sessione voluta;
+cartella MoTec "Paul RicardLayout 1C-V2", schema identico a
+"NurburgringGp Strecke"): tag f5.3 = nome del layout ("Layout 1C-V2"),
+layout f5.6 = nome + " Race" ("Layout 1C-V2 Race").
+Fix in tools/set-track.mjs TRACK_SPECIALS.paul_ricard + riscrittura 4 blocchi
+(backup bak-track-2026-10-21T15-06): DAL LOG dopo la riscrittura ZERO
+richieste fallite e la tessera mostra la preview (conferma Mauro 17:0x).
+REGOLA: le piste con layout propri vogliono tag = NOME DEL LAYOUT scelto,
+non "GP"; il path asset della card è tracks/{asset}-{tag snake}.texture.
+REGOLA 2: la card segue i campi del FILE, i layout del selettore interno
+di EVO (screenshot 15:54) sono già tutti corretti: il selettore e la card
+leggono la STESSA componente solo dopo la riscrittura del tag.
+
+
+## PROVA CONTROLLI SETUP — FATTA e mappata (21/10, 21:03–21:21)
+Spia attiva durante la prova: 297 righe in `data/setup-monitor.jsonl`
+(711 cambi con la schermata setup APERTA contro 31 fuori). LA MAPPA:
+
+**VISIBILI LIVE nella memoria condivisa (con uiSetup=true):**
+- geometria: `p.rideHeight` ×248, `p.suspensionTravel` ×135, `p.camberRAD` ×113
+  (fluttuano da sole: il simulatore assesta l'auto ferma — non è il pilota che muove)
+- clima/pneumatici: `p.airTemp` ×110, `p.roadTemp`, `p.wheelPressure` ×17, `p.tyreCoreTemp`
+- elettronica (i manopoli del MFD): `e.abs` (slider mosso da Mauro 7→4→8→10),
+  `e.tc`/`e.tcCut`, `e.diffPower`/`e.diffCoast`, `e.frontBump`/`e.frontRebound`,
+  `e.rearBump`/`e.rearRebound`, `e.brakeBias`, `e.ignition`, `e.pitLimiter`,
+  `p.autoShifterOn`
+- benzina: `g.fuelLiters` (98→120) e `g.lapsPossibleFuel` (la rampa del tab Carburante)
+
+**SOLO-FILE (mai passati dalla memoria condivisa durante il setup):**
+- AERODINAMICA (alettoni): ZERO campi aero in shmem — confermato il sospetto:
+  si legge SOLO dal .carsetup salvato (o .ld di MoTec)
+- `p.ballast` mai comparso (le 296 non avevano zavorra: da rifare su un'auto
+  caricata per confermare che la zavorra sia leggibile live)
+- file toccati da EVO in prova (lavorano da soli, fuori shmem):
+  `last_season.seasondefinition`, `CarCameras.carcamerausersettings`,
+  `AssistPresetListType_CUSTOM.racingsettingsassistpreset`,
+  `GameModeType_RACE_WEEKEND.gamemodesave`, `gamemode.lastgamemode`,
+  `last_grid.customgrid`
+
+Dubi/dettagli: `p.fuel` in log mila valori IDENTICI a `p.roadTemp` → offset
+sospetto nel filtro physics (da verificare prima di fidarsi); la spia
+rilegge i filtri solo ari di campo già censiti (usa `p.rideHeight`, `p.camberRAD`,
+`p.suspensionTravel`, `p.airTemp`, `p.roadTemp`, `p.wheelPressure`, `p.tyreCoreTemp`,
+`p.brake`, `p.ballast`, `p.fuel`). LA SPENSA POLA LA PROVA: rilanci con
+`node tools/watch-setup-changes.mjs`; mappe con `node tools/map-setup-spy.mjs`.

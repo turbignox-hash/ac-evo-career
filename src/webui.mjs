@@ -35,14 +35,15 @@ import { contractStatus, sponsorOffers, acceptSponsor, declineSponsor, challenge
 import { newsFeed } from './gazzetta.mjs';
 import { recordTestDay, testDayLog, calibrationSummary } from './testday.mjs';
 import { recordWarning, readWarnings } from './warnings.mjs';
-import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, TYRE_CLASSES, setupAdvice } from './setup.mjs';
+import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, TYRE_CLASSES, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
 import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, kindIt, telemDiagnostics, lapTrace } from './motec.mjs';
 import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
+import { parseSetup, applyEdits, listSetups, writeSetupCopy } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
 import { changeWeekendTrack, currentWeekendTrack, WEEKEND_FILE } from '../tools/set-track.mjs';
 import { currentWeatherPreset, setWeatherPreset, PRESETS, setWeatherCustom, presetForLabel } from './weather.mjs';
 import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
-import { sameTrack as trkSame } from './tracknames.mjs';
+import { sameTrack as trkSame, sameCar as carSame } from './tracknames.mjs';
 import { carsBook, carImageOf } from './cars.mjs';
 import { garageOverview, catalogPicker, addCar, removeCar, setNote, importShowcase, sellCar } from './garage.mjs';
 import { ensureFlowsSeeded, recentFlows, resetFlows } from './flows.mjs';
@@ -59,8 +60,25 @@ import { resetNews } from './gazzetta.mjs';
 import { loadClasses } from './gridbuilder.mjs';
 import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, GRID_FILE } from './grid-apply.mjs';
 import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
+
+/* TAG GRIGLIA all'iscrizione (richiesta Mauro 21/10: la coppa a un'unica auto
+ * non deve più nascondere dietro il nome "Coppa X" cosa troverai in pista):
+ *  - 2+ auto nel ladder            → 'multimarca' (misto naturale, NESSUN tag)
+ *  - 1 sola auto + classe CON pool → "multi-marca d'epoca" (poolAuto dichiarato
+ *    per la serie in grid-classes.json: la griglia mescola davvero)
+ *  - 1 sola auto senza pool        → 'monomarca'
+ */
+let _classesCache = null;
+function tipoGriglia(node) {
+  if (!Array.isArray(node?.cars) || node.cars.length !== 1) return 'multimarca';
+  _classesCache ??= loadClasses();
+  return _classesCache.classi?.[node.nodeId]?.poolAuto?.length ? "multi-marca d'epoca" : 'monomarca';
+}
 import { calibSummary, calibFile } from './grid-calib.mjs';
 import { midSeasonPulse } from './world.mjs';
+// allievo: la memoria del meccanico — i round di consigli incassano l'esito del
+// giro successivo e la generazione seguente annota la storia su ogni campo
+import { memoOf, registraRound, annotaAdvice, semaforoAdvice } from './allievo.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 
 // costanti di sessione, ladder e percorsi + appEnv/context stanno in webui-env.mjs;
@@ -94,10 +112,12 @@ function listBackups(limit = 8) {
  * ricicli, stderr) + telemetria (ultimo .ld scritto da EVO e se ha dati).
  * Se il gioco aggiorna i layout delle shared memory, è qui che lo si vede.
  */
-function systemHealth(paths) {
-  const rd = liveReader();
-  rd.start(); // idempotente: garantisce che il lettore sia vivo anche al primo accesso
-  const h = rd.health();
+/* scansione MoTec con memo 10s (21/10): il GUI la richiede ogni 2s ma l'albero
+ * MoTec ha decine di cartelle — riscansarla a ogni richiesta era il vero costo
+ * di fondo del LIVE, ben più del lettore PowerShell. */
+let _telemAt = 0, _telemScan = null;
+function telemScanLocale(paths) {
+  if (_telemScan && Date.now() - _telemAt < 10000) return _telemScan;
   // ultimo file .ld tra le cartelle MoTeC note (Saved Games\ACE, Documents\ACE)
   let lastLd = null;
   const dirsState = [];
@@ -140,13 +160,23 @@ function systemHealth(paths) {
     } catch { valid = false; }
     lastLdInfo = { car: lastLd.car, track: lastLd.track, file: lastLd.f, size: lastLd.size, mtimeMs: lastLd.mtime, when: new Date(lastLd.mtime).toLocaleString('it-IT'), valid, channels, withData };
   }
+  _telemAt = Date.now();
+  return (_telemScan = {
+    lastLd: lastLdInfo,
+    dirsChecked: (paths.dataDirs ?? []).map((d) => join(d, 'MoTec')),
+    dirsState,
+  });
+}
+
+function systemHealth(paths, mode = null) {
+  const rd = liveReader();
+  const m = mode ?? liveMode();
+  if (m !== 'off') { syncLiveReader().catch(() => {}); } // idempotente
+  const h = rd.health();
   return {
     ...h,
-    telem: {
-      lastLd: lastLdInfo,
-      dirsChecked: (paths.dataDirs ?? []).map((d) => join(d, 'MoTec')),
-      dirsState,
-    },
+    liveMode: m,
+    telem: telemScanLocale(paths),
   };
 }
 
@@ -190,6 +220,44 @@ async function readBody(req) {
   for await (const c of req) chunks.push(c);
   if (!chunks.length) return {};
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { return {}; }
+}
+
+/* memo del controllo "il gioco è vivo?": tasklist costa ~200ms, il polling
+   LIVE gira a ~1.2s — nella cache 10s il costo diventa trascurabile */
+let _grAt = 0, _grVal = false;
+async function gameRunningMemo() {
+  if (Date.now() - _grAt < 10000) return _grVal;
+  _grAt = Date.now();
+  return (_grVal = await isGameRunning());
+}
+
+/* ---------- LIVE: modalità del lettore shared memory (richiesta Mauro 21/10) ----------
+ * Tre modalità, persistite in data/evo.config.json (chiave liveMode):
+ *   'auto' (DEFAULT): il lettore PowerShell vive SOLO quando il processo del gioco
+ *     è vivo — niente processi di sottofondo mentre non giri; il watcher di gara
+ *     (import automatico dei risultati) riparte da solo appena apri EVO;
+ *   'off': mai. Niente strip live, niente verifica live, niente ingegnere LIVE e
+ *     niente watcher automatico: i risultati si importano a man da Centro gare;
+ *   'sempre': lettore sempre vivo (come fino al 21/10).
+ * Sbalzo onesto dei costi: da chiuso, il lettore fa 3 OpenFileMapping/s — quasi
+ * zero CPU; il costo VERO era altrove: il polling GUI di system-health
+ * ogni 2s che riscetsse TUTTO l'albero MoTec (memo 10s qui sotto). */
+const LIVE_MODES = ['auto', 'off', 'sempre'];
+function liveMode() {
+  const env = process.env.ACE_LIVE;
+  if (env === '0') return 'off';
+  if (env === '1' || env === 'sempre') return 'sempre';
+  let m = null;
+  try { m = JSON.parse(readFileSync(CONFIG_FILE, 'utf8')).liveMode; } catch { /* prima volta */ }
+  return LIVE_MODES.includes(m) ? m : 'auto';
+}
+async function syncLiveReader() {
+  const mode = liveMode();
+  const rd = liveReader();
+  if (mode === 'off') { rd.stop(); return mode; }
+  if (mode === 'sempre') { rd.start(); return mode; }
+  if (await gameRunningMemo()) rd.start(); else rd.stop();
+  return mode;
 }
 
 async function api(context0, req, res, action, body) {
@@ -278,9 +346,18 @@ async function api(context0, req, res, action, body) {
     case 'watcher':
       return sendJson(res, 200, { active: true, armed: watcher.armed, racedEnd: watcher.racedEnd, lastMsg: watcher.lastMsg, events: watcher.events, seq: watcher.importSeq ?? 0 });
     case 'live': {
+      const mode = await syncLiveReader();
+      if (mode === 'off') return sendJson(res, 200, { game:false, liveMode:'off' });
       const r = liveReader();
-      r.start();
-      const snap = r.snapshot();
+      let snap = r.snapshot();
+      // RECUPERO: il lettore PowerShell può restare "inciappato" in nogame (genere
+      // avviato mentre EVO era chiuso, MMF già passate): se il PROCESSO del gioco
+      // è vivo ma il lettore non lo vede, lo riciclo al volo e riprovo.
+      if (!snap.game && await gameRunningMemo()) {
+        r.stop();
+        r.start();
+        snap = r.snapshot();
+      }
       // verifica della configurazione: confronta la sessione live con la scheda gara attesa
       let check = null;
       if (snap.game && state) {
@@ -316,14 +393,23 @@ async function api(context0, req, res, action, body) {
           recordWarning('webui.livecheck', 'verifica live non riuscita (rispondo senza check): ' + (e?.message ?? ''));
         }
       }
-      return sendJson(res, 200, { ...snap, check });
+      return sendJson(res, 200, { ...snap, check, liveMode: mode });
+    }
+    case 'live-toggle': {
+      /* accende/spegne il lettore LIVE a comando (strip + Impostazioni):
+         persiste in data/evo.config.json così sopravvive al riavvio. */
+      const want = String(body.mode ?? '').toLowerCase();
+      if (!LIVE_MODES.includes(want)) return sendJson(res, 400, { error: "Modalità live non valida (" + LIVE_MODES.join('|') + ")." });
+      writeConfig({ liveMode: want });
+      await syncLiveReader();
+      return sendJson(res, 200, { ok: true, liveMode: liveMode() });
     }
     case 'ingegnere': {
       // l'ingegnere di gara LIVE: benzina residua, usura gomme per ruota, gap
       // avanti/dietro — dalla shared memory (giro dopo giro) + consumo per giro
       // e giri della ronda dalla telemetria recente / ladder
       const r = liveReader();
-      r.start();
+      await syncLiveReader();
       const snap = r.snapshot();
       let raceLaps = null, fuelPerLap = null, telemTrack = null;
       try {
@@ -505,6 +591,7 @@ async function api(context0, req, res, action, body) {
         entryFee: node.econ?.rent ?? node.econ?.buy ?? 0,
         repRequired: node.repRequired ?? 0,
         cars: carNames(node.cars),
+        griglia: tipoGriglia(node),
         calendar: node.calendar.map((round, i) => ({
           index: i,
           name: round.name ?? `Round ${i + 1}`,
@@ -646,8 +733,10 @@ async function api(context0, req, res, action, body) {
     }
     case 'warnings':
       return sendJson(res, 200, readWarnings());
-    case 'system-health':
-      return sendJson(res, 200, systemHealth(paths));
+    case 'system-health': {
+      const mode = await syncLiveReader();
+      return sendJson(res, 200, systemHealth(paths, mode));
+    }
     case 'agenda': {
       // calendario CONTINUO stile Zero to Apex: vista giornata + strip calendario + griglia filtri
       const day = agendaDay(state);
@@ -678,6 +767,7 @@ async function api(context0, req, res, action, body) {
           season: g.season, name: g.name, track: g.track, laps: g.laps, hour: g.hour,
           weather: g.weather ?? null, scheduledDay: g.scheduledDay,
           onSchedule: !!g.onSchedule, late: !!g.late, champStarted: !!g.champStarted, stato: g.stato,
+          griglia: tipoGriglia(g.node),
           fattibile: g.fattibile, gateReasons: g.gateReasons ?? [], isCurrent: !!g.isCurrent,
           prize: g.node.econ?.prize ?? null, gridSize: g.node.gridSize ?? null,
           carName: (ladder.contentNames?.cars?.[g.node.cars?.[0]] ?? g.node.cars?.[0] ?? null),
@@ -1158,7 +1248,10 @@ async function api(context0, req, res, action, body) {
           // (senza auto esplicita si usa l'auto più recente con telemetria, non la prima della lista)
           const board = setupBoard(ladder, state);
           const carName = body.car ?? null;
-          const trackKey = body.track ?? board.track ?? undefined;
+          // 'all' = esplicitamente SENZA filtro pista (il pannello segue la
+          // macchina in pista anche da gioco chiuso): niente fallback sulla pista
+          // della serie, che filtrerebbe le sessioni dell'ultima auto uscita.
+          const trackKey = body.track === 'all' ? undefined : (body.track ?? board.track ?? undefined);
           const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
           const resultsDir = paths.resultsDirs?.[0] ?? join(root, '..', 'Results');
           let sessions = collectSessions(root, resultsDir, { car: carName, track: trackKey, limit: body.limit ?? 10 });
@@ -1168,12 +1261,45 @@ async function api(context0, req, res, action, body) {
           if (!carName && sessions.length > 1) sessions = sessions.filter((s) => s.car === sessions[0].car);
           const usedCar = sessions[0]?.car ?? carName;
           const tyre = usedCar ? tyreClassOf(usedCar) : null;
+          // BASE DI FABRICA (data/setup-defaults.json): valori DEFAULT SETUP di EVO
+          // per l'auto — dato alle regole 'raddrizzo l'asimmetria' (21/10)
+          let setupDefaults = null;
+          try {
+            const dRaw = JSON.parse(readFileSync(join(DATA_DIR, 'setup-defaults.json'), 'utf8'));
+            setupDefaults = (usedCar && dRaw[usedCar]) ?? Object.entries(dRaw).find(([k]) => !k.startsWith('_') && carSame(k, usedCar ?? ''))?.[1] ?? null;
+          } catch { /* la base di fabbrica è facoltativa */ }
           const advice = pressureAdvice(sessions, { target: body.target ?? tyre?.target });
           // consiglio specifico GARA: usa i giri della ronda corrente (o 10 di default)
           // e privilegia uscite lunghe; le qualifiche da sole sottraggono ~0.2 PSI
           const nodeNow = nodeById(ladder, state.node);
           const raceLaps = nodeNow?.calendar?.[Math.min(state.round ?? 0, (nodeNow?.calendar?.length ?? 1) - 1)]?.laps ?? 10;
           const raceAdvice = racePressureAdvice(sessions, { target: body.target ?? tyre?.target, raceLaps });
+          /* STALENESS (Mauro 21/10, «il meccanico non sa quale setup era montato»):
+             l'analisi usa l'ultima sessione COME È, senza sapere con quale setup era
+             girata. Se il file .carsetup attivo è cambiato DOPO l'ultima telemetria,
+             la base dati (giri, bump, camber, freni) parla del vecchio assetto:
+             lo dichiariamo, così in GUI si sa di fidarsi a metà finché non girano 2 giri. */
+          let stale = null;
+          try {
+            const savedSetupDir = paths.dataDirs?.[0] ?? '';
+            if (savedSetupDir) {
+              const cand = listSetups(savedSetupDir, { car: usedCar, track: trackKey ?? sessions[0]?.track })
+                .filter((s) => !s.name.includes('EVO-consigliato'));
+              if (cand.length) {
+                cand.sort((a, b) => statSync(b.file).mtimeMs - statSync(a.file).mtimeMs);
+                const newestSetupMs = statSync(cand[0].file).mtimeMs;
+                const lastLdMs = sessions[0]?.mtimeMs ?? 0;
+                if (newestSetupMs > lastLdMs + 2000) {
+                  stale = {
+                    changed: true,
+                    file: cand[0].name,
+                    setupWhen: new Date(newestSetupMs).toLocaleString('it-IT'),
+                    lastSession: sessions[0]?.whenLocal ?? null,
+                  };
+                }
+              }
+            }
+          } catch { /* lo staleness non deve mai bloccare il pannello */ }
           // registro il consiglio (una sola volta per base dati: se la telemetria non è cambiata, non duplico)
           if (advice.ok && advice.suggestedStartPsi != null && sessions[0]) {
             const lastLog = readPressureLog(1)[0];
@@ -1194,13 +1320,18 @@ async function api(context0, req, res, action, body) {
             // se pista del round e pista della telemetria divergono, la GUI lo dice
             trackDisplay: board.trackDisplay ?? null, basisTrack: sessions[0]?.track ?? null,
             target: tyre ? tyre.target : (body.target ?? null), classLabel: tyre?.label ?? null,
-            telemetryLaps: telemetryLapsFor(usedCar ?? carName ?? ''),            sessions: sessions.map((s) => ({
-              file: s.file, track: s.track, when: s.whenLocal, kindLabel: s.kindLabel, weather: s.weather, preset: s.preset, validLaps: s.validLaps, durationSec: s.durationSec, bestLapSec: s.bestLapSec, fuelPerLap: s.fuelPerLap, cold: s.coldPressures, hot: s.hotPressures, sus: s.sus, bump: s.bump, camberProxy: s.camberProxy,
+            telemetryLaps: telemetryLapsFor(usedCar ?? carName ?? ''),
+            sessions: sessions.map((s) => ({
+              file: s.file, car: s.car, track: s.track, when: s.whenLocal, kindLabel: s.kindLabel, weather: s.weather, preset: s.preset, validLaps: s.validLaps, durationSec: s.durationSec, bestLapSec: s.bestLapSec, fuelPerLap: s.fuelPerLap, cold: s.coldPressures, hot: s.hotPressures, sus: s.sus, bump: s.bump, camberProxy: s.camberProxy,
               airTemp: s.airTemp, roadTemp: s.roadTemp, laps: s.laps,
             })),
+            stale,
+            raceLaps,
             advice,
             raceAdvice,
-            raceLaps,
+            // la lista colorata del box: stato per area dai dati veri,
+            // «auto a punto» quando tutto è verde (Mauro 21/10)
+            checklist: sessions.length ? boxChecklist(sessions, { target: tyre ? tyre.target : (body.target ?? null) }) : null,
           });
         }
         if (body.action === 'meccanico') {
@@ -1221,7 +1352,38 @@ async function api(context0, req, res, action, body) {
           const adv = setupAdvice(TRACK && { ...TRACK, car: carName }, telem && {
             bump: telem.bump, camberProxy: telem.camberProxy, lastPressures: telem.hotPressures,
           }, { laps: telem?.laps ?? null });
-          return sendJson(res, 200, { ok: true, car: carName, track: trackDisplay, sessFile, tipo: adv.tipo, densita: adv.densita, consigli: adv.consigli, hasTelem: !!telem });
+          /* -- IL CICLO D'APPRENDIMENTO (allievo.mjs, richiesta Mauro 21/10): --
+           * il meccanico ora incassa gli esiti: il round di consigli chiusi con
+           * una sessione più recente riceve il delta del giro migliore e la
+           * generazione di oggi porta la storia su ogni campo (confermato/
+           * perso/neutro), più il semaforo se sei peggio del best di sempre. */
+          const lapsValidi = (telem?.laps ?? []).filter((l) => l.durationSec > 15);
+          const bestLap = lapsValidi.length ? Math.min(...lapsValidi.map((l) => l.durationSec)) : null;
+          let consigli = adv.consigli, semaforo = null, storie = null;
+          // l'allievo lavora solo se la telemetria di riferimento è della STESSA
+          // pista del pannello: un giro su un'altra pista non giudica questo setup
+          const pistaOk = telem?.track && TRACK && (trkSame(TRACK.name, telem.track) || trkSame(TRACK.name, trackDisplay));
+          if (carName && trackDisplay && bestLap != null && pistaOk) {
+            registraRound({ carName, trackDisplay, advices: adv.consigli, sessFile, bestLap });
+          }
+          // il memo si legge SEMPRE (anche senza telemetria), il pannello
+          // mostra storia del round e il migliore
+          let mem = null;
+          if (carName && trackDisplay) mem = memoOf(carName, trackDisplay);
+          if (mem && bestLap != null && pistaOk) {
+            const ann = annotaAdvice(consigli, mem);
+            consigli = ann.consigli; storie = ann.storie;
+            semaforo = semaforoAdvice({ best: mem.best, bestLap });
+            if (semaforo) consigli.unshift(semaforo);
+          }
+          const allievo = mem ? {
+            best: mem.best,
+            rounds: mem.rounds.slice().reverse().map((r) => ({
+              at: r.at, sessFile: r.sessFile, bestBefore: r.bestBefore, bestAfter: r.bestAfter,
+              delta: r.delta, campi: [...new Set(r.advice.map((a) => a.campo))],
+            })),
+          } : null;
+          return sendJson(res, 200, { ok: true, car: carName, track: trackDisplay, sessFile, tipo: adv.tipo, densita: adv.densita, consigli, storie, allievo, bestLap: bestLap != null ? Math.round(bestLap * 1000) / 1000 : null, hasTelem: !!telem });
         }
         if (body.action === 'laptrace') {
           // grafico del giro: profilo SPEED/THROTTLE/BRAKE di un giro (e la
@@ -1298,6 +1460,189 @@ async function api(context0, req, res, action, body) {
       } catch (e) {
         return sendJson(res, e.code ? 409 : 500, { error: e.message, code: e.code, detail: e.detail });
       }
+    }
+    case 'setup-apply': {
+      // IL CICLO dei setup: giro → MoTeC → patcha le pressioni consigliate DAI
+      // DATI VERI su una COPIA del .carsetup in uso («… — EVO-consigliato»);
+      // a gioco APERTO si carica con CARICA/SALVA → il gioco re-legge il disco.
+      try {
+        const savedDir = paths.dataDirs?.[0] ?? '';
+        if (!savedDir) return sendJson(res, 409, { error: 'Cartella Saved Games/ACE non impostata (Impostazioni).' });
+        const carName = String(body.car ?? '').trim();
+        const trackName = String(body.track ?? '').trim();
+        // listSetups aggiunge già "Car Setups": gli va la radice di Saved Games
+        const setupsRootDir = savedDir.replace(/[\\/]$/, '');
+        let setups = carName ? listSetups(setupsRootDir, { car: carName, track: trackName }) : listSetups(setupsRootDir);
+        if (!setups.length && carName) setups = listSetups(setupsRootDir, { car: carName });
+        // il nome ladder ("Mazda RX-7 FD") e la cartella che EVO crea ("Mazda RX-7 FD
+        // Spirit R") NON coincidono: fallback fuzzy con sameCar (match per prefisso)
+        if (!setups.length && carName) {
+          const all = listSetups(setupsRootDir);
+          const fuzzy = all.filter((s) => carSame(s.car, carName) && (!trackName || trkSame(s.track, trackName)));
+          if (fuzzy.length) setups = fuzzy;
+        }
+        console.log('[setup-apply] savedDir=', savedDir, '| setups trovati=', setups.length, setups.map((s) => s.file).slice(0, 3));
+        if (!setups.length) return sendJson(res, 200, { ok: false, hint: `Nessun .carsetup per «${carName || 'questa auto'}»: DENTRO EVO, nel setup, salva una volta il setup con CARICA/SALVA (anche i valori default): poi l'applicazione funziona.` });
+        // la base del consiglio è SEMPRE il TUO setup: le copie «— EVO-consigliato»
+        // generate dai click precedenti si escludono (altrimenti: doppio suffisso e
+        // il consiglio parte dai valori già corretti, non dal tuo file)
+        setups = setups.filter((s) => !s.name.includes('EVO-consigliato'));
+        if (!setups.length) return sendJson(res, 200, { ok: false, hint: `C'è solo la copia «EVO-consigliato»: salva tu un setup col tuo nome in EVO (CARICA/SALVA) e riprova.` });
+        setups.sort((a, b) => statSync(b.file).mtimeMs - statSync(a.file).mtimeMs);
+        const src = body.file ? (setups.find((s) => s.file === body.file) ?? setups[0]) : setups[0];
+        const srcBuf = readFileSync(src.file);
+        const cur = parseSetup(srcBuf);
+        const carEff = src.car || carName;
+        // SUGGERIMENTO dalle telemetrie vere (stessi motori del pannello Telemetria);
+        // SENZA .ld: fallback LIVE — le pressioni a caldo DALLA SHARED MEMORY di EVO
+        // (stai girando adesso? il consiglio arriva da quel giro, serve il target di classe)
+        const motecRoot = join(savedDir, 'MoTec');
+        const resDir = paths.resultsDirs?.[0] ?? join(savedDir, 'Results');
+        let sessions = collectSessions(motecRoot, resDir, { car: carEff, track: trackName || undefined, limit: 8 });
+        if (!sessions.length) sessions = collectSessions(motecRoot, resDir, { car: carEff, limit: 8 });
+        const tyre = tyreClassOf(carEff);
+        const raceAdvice = sessions.length ? racePressureAdvice(sessions, { target: tyre?.target ?? null, raceLaps: Number(body.raceLaps) || 10 }) : null;
+        const advice = sessions.length ? pressureAdvice(sessions, { target: tyre?.target ?? null }) : null;
+        let startPsi = raceAdvice?.raceStartPsi ?? advice?.suggestedStartPsi ?? null;
+        let basis = raceAdvice?.basis?.kindLabel ?? advice?.basis?.kindLabel ?? (sessions.length ? 'telemetria' : null);
+        let livePsi = null, liveHot = null;
+        if (startPsi == null || !Number.isFinite(startPsi)) {
+          // fallback LIVE: gira ora + pressioni a caldo esposte dal gioco (physics)
+          livePsi = liveReader()?.last?.physics?.wheelPressure ?? null;
+          const pOk = Array.isArray(livePsi) && livePsi.filter((v) => Number.isFinite(v) && v > 15).length >= 3;
+          if (pOk && tyre?.target != null) {
+            liveHot = livePsi.filter((v) => Number.isFinite(v) && v > 15);
+            const hotAvg = liveHot.reduce((a, b) => a + b, 0) / liveHot.length;
+            // la regola dei 4 PSI: nuova partenza = vecchia + (target − hot)
+            const curPsi = Number(parseSetup(srcBuf).tires?.[0]?.pressure);
+            const coldNow = Number.isFinite(curPsi) && curPsi > 10 ? curPsi : hotAvg - 4;   // stima termica se il file non la dichiara
+            startPsi = Math.round((coldNow + (tyre.target - hotAvg)) * 10) / 10;
+            basis = 'live (stai girando ora)';
+          }
+        }
+        if (startPsi == null || !Number.isFinite(startPsi)) {
+          return sendJson(res, 200, { ok: false, hint: 'Serve una base per la pressione: O scarica una telemetria valida (sessione con registrazione attiva), O fai un giro adesso con questa auto (consiglio DAI DATI LIVE del gioco).' });
+        }
+        const nTire = Math.max(0, cur.tires?.length ?? 4);
+        const tires = [];
+        for (let i = 0; i < nTire; i++) {
+          const now = Number(cur.tires[i]?.pressure);
+          tires.push(Math.abs(now - startPsi) < 0.05 ? {} : { pressure: Math.round(startPsi * 10) / 10 });
+        }
+        /* OLTRE LE PRESSIONI (Mauro 21/10: «applica tutto assieme»): le regole
+          SIONO dentro mechanicExtraEdits (setup.mjs) — ognuna legata a un SEEGNALO
+           misurato e ogni patch solo SE il file contiene il campo. Le maniglie:
+           aero (bumpstop→alta post, profilo→ala post), camber (proxy termico),
+           bias freni (termico per asse), TC (quota d'intervento del flag .ld).
+           Diff: la 296 non espone i campi nel save — non selezionabile qui. */
+        const s0 = sessions[0] ?? null;
+        const lastLap = (s0?.laps ?? []).filter((l) => l.durationSec > 15).slice(-1)[0] ?? null;
+        const bumpOf = (ws) => Math.max(0, ...ws.map((w) => s0?.bump?.[w]?.contactPct ?? 0));
+        const latest = {
+          trackOk: !s0?.track || trkSame(s0.track, trackName || src.track || ''),
+          bumpMax: Math.max(0, ...['LF','RF','LR','RR'].map((w) => s0?.bump?.[w]?.contactPct ?? 0)),
+          // PER ASSE (meccanico 21/10 «tutti gli strumenti»): se tocca il fondo
+          // DAVANTI si alza il davanti, non solo il posteriore
+          bumpAxis: { front: bumpOf(['LF','RF']), rear: bumpOf(['LR','RR']) },
+          camberProxy: s0?.camberProxy ?? {},
+          brakes: lastLap?.brakes ?? {},
+          tcPct: s0?.assist?.tcPct ?? null,
+          // BENZINA di gara: consumo misurato × giri gara (+5% riserva)
+          fuelPerLap: s0?.fuelPerLap ?? lastLap?.fuelUsed ?? null,
+          raceLaps: raceAdvice?.raceLaps ?? (Number(body.raceLaps) >= 3 ? Number(body.raceLaps) : null),
+        };
+        const tKey = trackName || src.track || null;
+        const TRACK = tKey ? (TRACK_INFO[tKey] ?? Object.values(TRACK_INFO).find((t) => trkSame(t.name, tKey))) : null;
+        // base di fabbrica per la regola 'raddrizzo l'asimmetria' (21/10)
+        let setupDefaults = null;
+        try {
+          const dRaw = JSON.parse(readFileSync(join(DATA_DIR, 'setup-defaults.json'), 'utf8'));
+          setupDefaults = (carEff && dRaw[carEff]) ?? Object.entries(dRaw).find(([k]) => !k.startsWith('_') && carSame(k, carEff))?.[1] ?? null;
+        } catch { /* facoltativa */ }
+        const mech = mechanicExtraEdits({ cur, latest, trackInfo: TRACK, defaults: setupDefaults });
+        for (const te of mech.tiresExtra) {
+          if (Number.isFinite(te.camber)) (tires[te.i] ??= {}).camber = te.camber;
+          if (Number.isFinite(te.toe)) (tires[te.i] ??= {}).toe = te.toe;
+        }
+        const edits = { tires };
+        for (const k of ['aero', 'brakes', 'elec', 'fuel', 'springs', 'dampers']) if (mech.patches[k] && Object.keys(mech.patches[k]).length) edits[k] = mech.patches[k];
+        const extraChanges = mech.text;
+        // ANTEPRIMA SENZA SCRITTURA (richiesta Mauro 21/10: prima di «installare»
+        // il setup consigliato si vede CHIARA la lista delle migliorie).
+        if (body.preview) {
+          const dopo = cur.tires.map((t, i) => (tires[i]?.pressure ?? t.pressure));
+          return sendJson(res, 200, {
+            ok: true, preview: true, car: carEff, track: trackName || src.track,
+            baseFile: src.file, baseName: src.name,
+            startPsi, basis: basis ?? null,
+            before: { pressures: cur.tires.map((t) => t.pressure) },
+            after: { pressures: dopo },
+            extraChanges,
+            adviceText: raceAdvice?.raceAdvice ?? advice?.advice ?? (liveHot ? `Consiglio DAI DATI LIVE: a caldo ora ${liveHot.map((v) => v.toFixed(1)).join('/')} PSI (media ${(liveHot.reduce((a, b) => a + b, 0) / liveHot.length).toFixed(1)}), target ${tyre?.target ?? '?'} PSI a caldo.` : ''),
+          });
+        }
+        const dest = join(dirname(src.file), src.name + ' — EVO-consigliato.carsetup');
+        const out = writeSetupCopy(srcBuf, dest, edits);
+        const after = parseSetup(readFileSync(dest));
+        return sendJson(res, 200, {
+          ok: true, file: dest, fileShort: `${src.name} — EVO-consigliato.carsetup`,
+          car: carEff, track: trackName || src.track, baseFile: src.file,
+          startPsi, changes: out.changes,
+          extraChanges,
+          aero: { before: { heightRear: cur.aero?.heightRear ?? null, wingRear: cur.aero?.wingRear ?? null }, after: { heightRear: after.aero?.heightRear ?? null, wingRear: after.aero?.wingRear ?? null } },
+          before: { pressures: cur.tires.map((t) => t.pressure) },
+          after: { pressures: after.tires.map((t) => t.pressure) },
+          adviceText: raceAdvice?.raceAdvice ?? advice?.advice ?? (liveHot ? `Consiglio DAI DATI LIVE: a caldo ora ${liveHot.map((v) => v.toFixed(1)).join('/')} PSI (media ${(liveHot.reduce((a, b) => a + b, 0) / liveHot.length).toFixed(1)}), target ${tyre?.target ?? '?'} PSI a caldo.` : ''),
+          basis: basis ?? advice?.basis?.kindLabel ?? raceAdvice?.basis?.kindLabel ?? null,
+          liveHot: liveHot ?? null,
+        });
+      } catch (e) { return sendJson(res, 500, { error: e.message }); }
+    }
+    case 'setup-history': {
+      // la STORIA comparativa dei .carsetup dell'auto/pista (richiesta Mauro 21/10):
+      // ogni riga = un salvataggio; i delta vs il RIGA PRECEDENTE cronologicamente
+      // dicono con segno +/− se il meccanico (o tu) ha alzato o abbassato un campo.
+      try {
+        const savedDir = paths.dataDirs?.[0] ?? '';
+        if (!savedDir) return sendJson(res, 200, { ok: true, rows: [] });
+        const carReq = String(body.car ?? '').trim();
+        let files = listSetups(savedDir, { car: carReq });
+        if (body.track) {
+          const onTrack = files.filter((s) => trkSame(s.track, body.track));
+          if (onTrack.length) files = onTrack;
+        }
+        if (!files.length && carReq) files = listSetups(savedDir).filter((s) => carSame(s.car, carReq));
+        files.sort((a, b) => statSync(a.file).mtimeMs - statSync(b.file).mtimeMs); // cronologico
+        files = files.slice(-(Math.min(Number(body.limit) || 8, 12)));
+        const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+        const dOf = (a, b, eps = 0.05) => (num(a) != null && num(b) != null && Math.abs(num(a) - num(b)) >= eps) ? Math.round((num(a) - num(b)) * 10) / 10 : null;
+        const rows = [];
+        let prev = null;
+        for (const s of files) {
+          let st = null;
+          try { st = parseSetup(readFileSync(s.file)); } catch { continue; }
+          const row = {
+            name: s.name, when: new Date(statSync(s.file).mtimeMs).toLocaleString('it-IT'),
+            pressures: (st.tires ?? []).map((t) => t.pressure ?? null),
+            cambers: (st.tires ?? []).map((t) => t.camber ?? null),
+            heightFront: st.aero?.heightFront ?? null, heightRear: st.aero?.heightRear ?? null,
+            wingRear: st.aero?.wingRear ?? null, wingFront: st.aero?.wingFront ?? null,
+            bias: st.brakes?.bias ?? null, tc1: st.elec?.tc1 ?? null, fuel: st.fuel?.liters ?? null,
+            consigliato: s.name.includes('EVO-consigliato'),
+          };
+          if (prev) row.deltas = {
+            pressures: row.pressures.map((v, i) => dOf(v, prev?.pressures?.[i])),
+            cambers: row.cambers.map((v, i) => dOf(v, prev?.cambers?.[i])),
+            heightRear: dOf(row.heightRear, prev.heightRear), heightFront: dOf(row.heightFront, prev.heightFront),
+            wingRear: dOf(row.wingRear, prev.wingRear), wingFront: dOf(row.wingFront, prev.wingFront, 0.02), bias: dOf(row.bias, prev.bias),
+            tc1: dOf(row.tc1, prev.tc1, 0.2), fuel: dOf(row.fuel, prev.fuel, 0.4),
+          };
+          rows.push(row);
+          prev = row;
+        }
+        rows.reverse(); // la più recente prima (i delta restano vs la riga precedente cronologica)
+        return sendJson(res, 200, { ok: true, rows });
+      } catch (e) { return sendJson(res, 500, { error: e.message }); }
     }
     case 'tracks': {
       // il libro delle piste: record personali e di sessione PER LAYOUT (tempi dai
@@ -1519,7 +1864,7 @@ function watcherTick() {
   watcher.busy = true;
   (async () => {
     try {
-      liveReader().start(); // il watcher deve vivere anche senza browser aperto
+      await syncLiveReader(); // il watcher vive senza browser aperto — ma solo nella modalità scelta
       const { ladder, paths } = context();
       if (!existsSync(SAVE_FILE)) return;
       const state = requireState();
@@ -1651,6 +1996,39 @@ function requestFromLocalBrowser(req) {
   return true;
 }
 
+// cache statica invece della rilettura dal disco a ogni richiesta: i JS/CSS del
+// cruscotto non cambiano finché non li tocchi. L'ETag (mtime+size) rende il
+// revalidate quasi gratuito: browser manda If-None-Match, noi rispondiamo 304
+// SENZA leggere nemmeno il file. index.html resta no-store (punto d'ingresso).
+const STATIC_CACHE_MAX = 40;
+const staticCache = new Map(); // file → { mtimeMs, size, buf }
+function serveStatic(req, res, file, type = 'application/octet-stream') {
+  if (!existsSync(file)) return false;
+  const st = statSync(file);
+  if (!st.isFile()) return false;
+  const isHtml = file.toLowerCase().endsWith('.html');
+  const etag = `W/"${st.size.toString(16)}-${Math.floor(st.mtimeMs).toString(16)}"`;
+  const revalidate = !isHtml; // html sempre fresco: da lì parte tutta l'app
+  if (revalidate && req.headers['if-none-match'] === etag) {
+    res.writeHead(304, { 'Cache-Control': 'no-cache', ETag: etag });
+    res.end();
+    return true;
+  }
+  // NB: niente valori undefined negli header: writeHead rifiuta l'intero messaggio
+  const hit = revalidate ? staticCache.get(file) : null;
+  if (hit && hit.mtimeMs === Math.floor(st.mtimeMs) && hit.size === st.size) {
+    res.writeHead(200, revalidate ? { 'Content-Type': type, 'Cache-Control': 'no-cache', ETag: etag } : { 'Content-Type': type, 'Cache-Control': 'no-store' });
+    return res.end(hit.buf);
+  }
+  const buf = readFileSync(file);
+  if (revalidate) {
+    if (staticCache.size >= STATIC_CACHE_MAX) staticCache.clear();
+    staticCache.set(file, { mtimeMs: Math.floor(st.mtimeMs), size: st.size, buf });
+  }
+  res.writeHead(200, revalidate ? { 'Content-Type': type, 'Cache-Control': 'no-cache', ETag: etag } : { 'Content-Type': type, 'Cache-Control': 'no-store' });
+  return res.end(buf);
+}
+
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
@@ -1672,16 +2050,13 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/' || url.pathname === '/index.html') {
       const file = join(GUI_DIR, 'index.html');
       if (!existsSync(file)) { res.writeHead(500); return res.end('gui/index.html mancante'); }
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-      return res.end(readFileSync(file));
+      return serveStatic(req, res, file, 'text/html; charset=utf-8');
     }
     const safe = url.pathname.replace(/\.\./g, '').replace(/^\/+/, '');
     const file = join(GUI_DIR, safe);
     const rel = relative(GUI_DIR, file);
-    if (rel && !rel.startsWith('..') && !isAbsolute(rel) && existsSync(file) && statSync(file).isFile()) {
-      res.writeHead(200, { 'Content-Type': MIME[extname(file)] ?? 'application/octet-stream', 'Cache-Control': 'no-store' });
-      return res.end(readFileSync(file));
-    }
+    if (rel && !rel.startsWith('..') && !isAbsolute(rel) &&
+        serveStatic(req, res, file, MIME[extname(file)] ?? 'application/octet-stream')) return;
     res.writeHead(404); res.end('non trovato');
   } catch (e) {
     sendJson(res, 500, { error: e.message });
