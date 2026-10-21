@@ -73,16 +73,20 @@ async function drawMessages(m){
   const mails = mb.mails.filter((x) => mailFilter==='tutte' || x.kind===mailFilter);
   const mailCard = (mm) => {
     const [cls, ico, desc] = KIND_META[mm.kind] ?? ['', '✉️', ''];
-    // AZIONI DIRETTE in posta: la scheda diventà VIVA, non solo lettura.
-    // Ogni email urgente/azione porta i bottoni operativi in fondo alla card.
+    // AZIONI DIRETTE in posta: guidate dai metadati `action` della mailbox
+    // (una email = una decisione, e la decisione ha il suo bottone qui).
     let actions = '';
-    if (mm.kind === 'Racing' && mm.priorita === 'urgente' && /IN RITARDO|OGGI/i.test(mm.oggetto)) {
+    if (mm.action?.kind === 'vai-gara') {
       actions = `<button class="mini acc" data-maction="vai-gara">🏁 vai alla gara</button>`;
-    }
-    if (mm.kind === 'Contratti' && /Conflitto/i.test(mm.oggetto)) {
+    } else if (mm.action?.kind === 'vai-agenda') {
       actions = `<button class="mini acc" data-maction="vai-agenda">apri l'Agenda</button>`;
-    }
-    if (mm.kind === 'Carriera' && /trim/i.test(mm.corpo)) {
+    } else if (mm.action?.kind === 'vai-classifica') {
+      actions = `<button class="mini acc" data-maction="vai-classifica">🏅 apri la Classifica</button>`;
+    } else if (mm.action?.kind === 'sponsor-sign') {
+      actions = `<button class="mini acc" data-maction="sponsor-sign" data-tier="${mm.action.tier ?? ''}" data-name="${esc(mm.action.name ?? '')}">✍️ firma con ${esc(mm.action.name ?? 'sponsor')} (tier ${mm.action.tier ?? '?'})</button>`;
+    } else if (mm.action?.kind === 'vai-rivale') {
+      actions = `<button class="mini acc" data-maction="vai-rivale" data-rival="${esc(mm.action.rivalKey ?? '')}">🔙 apri la scheda di ${esc(mm.action.name ?? 'rivale')}</button>`;
+    } else if (mm.kind === 'Carriera' && /trim/i.test(mm.corpo)) {
       actions = `<button class="mini acc" data-maction="trim-check">⚖️ vedi il trim (Difficoltà)</button>`;
     }
     return `<div class="mail ${cls}">
@@ -93,6 +97,8 @@ async function drawMessages(m){
       <div class="mfrom muted">${esc(mm.from)} · ${esc(mm.date)}</div>
       <pre class="mcorpo">${esc(mm.corpo)}</pre>
       ${actions ? `<div class="row" style="gap:6px;margin-top:8px">${actions}</div>` : ''}
+      ${mm.action?.rivals?.length ? `<div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${mm.action.rivals.map(r=>`<span class="chip gold" data-rival="${esc(r.key??'')}" style="cursor:pointer" title="apri la scheda pilota">${esc(r.name)}</span>`).join('')}</div>` : ''}
+      ${mm.action?.rows?.length ? `<div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${mm.action.rows.map((rr,i)=>`<span class="chip" data-row-node="${esc(rr.nodeId??'')}" data-row-track="${esc(rr.trackKey??'')}" style="cursor:pointer" title="serie → scheda gara · pista → scheda pista">${esc(rr.label)}</span> <span class="chip gold" data-track-open="${esc(rr.trackKey??'')}" data-track-name="${esc(rr.track)}" style="cursor:pointer;font-size:10px;padding:1px 6px" title="apri la scheda pista">📍</span>`).join('')}</div>` : ''}
     </div>`;
   };
   m.innerHTML = `
@@ -122,11 +128,45 @@ async function drawMessages(m){
   </div>`;
   $$('button[data-mf]').forEach(b => b.onclick = () => { mailFilter = b.dataset.mf; drawMessages(m); });
   // azioni dalle email: la posta diventa OPERATIVA (gare, agenda, trim)
-  $$('button[data-maction]').forEach(b => b.onclick = () => {
+  $$('button[data-maction]').forEach(b => b.onclick = async () => {
     const a = b.dataset.maction;
     if (a === 'vai-gara') { tab = 'dashboard'; drawNav(); render(); }
     else if (a === 'vai-agenda') { tab = 'agenda'; drawNav(); render(); }
     else if (a === 'trim-check') { tab = 'difficulty'; drawNav(); render(); }
+    else if (a === 'vai-classifica') { tab = 'standings'; drawNav(); render(); }
+    else if (a === 'vai-rivale') {
+      const k = b.dataset.rival;
+      if (k && typeof showRival === 'function') showRival(k);
+      else toast('Scheda rivale non disponibile.', 'err');
+    }
+    else if (a === 'sponsor-sign') {
+      const tier = b.dataset.tier ? Number(b.dataset.tier) : null;
+      const name = b.dataset.name || 'sponsor';
+      modal('Firma dello sponsor', `
+        <p>Stai per firmare con <b>${esc(name)}</b>${tier ? ' (tier ' + tier + ')' : ''}.</p>
+        <p class="muted">Il contratto entra subito in campo: quota a gara + missione a tema.</p>`,
+        [['Annulla','ghost',()=>{}], ['Firma','act', async () => {
+          try { await api('sponsor-accept', { tier }); toast('Contratto sponsor firmato: ' + name, 'ok'); render(); }
+          catch(e){ toast(e.message,'err'); return false; }
+        }]]);
+    }
+  });
+  // CHIP RIVALI nel bollettino: scheda pilota a un clic
+  $$('.chip[data-rival]', m).forEach(c => c.onclick = () => {
+    const k = c.dataset.rival;
+    if (k && typeof showRival === 'function') showRival(k);
+    else toast('Rivale non in registro.', 'info');
+  });
+  // RIGHE SETTIMANALE/ATARDO: chip serie (card gara) + 📍 pista (scheda pista)
+  $$('.chip[data-row-node]', m).forEach(c => c.onclick = () => { tab = 'dashboard'; drawNav(); render(); toast('Scheda gara nel Cruscotto.', 'info'); });
+  $$('.chip[data-track-open]', m).forEach(c => c.onclick = () => {
+    const nome = c.dataset.trackName;
+    tab = 'tracks'; drawNav(); render().then?.(() => {});
+    setTimeout(() => {
+      const row = $('#main table tr')?.parentElement; // best-effort: la vista è pronta
+      $$('.b-hist').forEach(btn => { if (btn.dataset.hist && esc(nome).toLowerCase().includes(btn.dataset.hist.replace(/_/g,' ')) ) btn.click(); });
+      toast('Libro piste: storia della pista in fondo pagina (se presente).', 'info');
+    }, 350);
   });
   // azioni rapide: sessioni decisionali veloci senza cercare i pannelli
   $$('button[data-quick]').forEach(b => b.onclick = () => {
@@ -413,10 +453,24 @@ async function showRival(key){
       <div class="muted" style="margin-bottom:10px">${esc(d.team ?? 'senza squadra')}${d.nation?' · '+esc(d.nation):''}${d.car?' · auto: '+esc(d.car):''}${d.since?' · in registro dal '+esc(d.since):''}</div>
       ${d.winsDetail.length ? `<div style="margin-bottom:10px"><b>Ha vinto a:</b> ${d.winsDetail.map(w=>`${esc(w.track)} <span class="muted">S${w.season} R${w.round+1}</span>`).join(' · ')}</div>` : ''}
       ${d.beatsMeAt.length ? `<div class="banner warn" style="margin-bottom:10px">Ti ha battuto a: <b>${d.beatsMeAt.map(esc).join(', ')}</b></div>` : ''}
+      ${d.beatsMeAt.length ? `<button class="mini acc" id="r-telem" style="margin-bottom:10px">📈 confronta la tua telemetria</button>` : ''}
       <div style="max-height:260px;overflow:auto"><table><thead><tr><th>Gara</th><th class="right">Lui</th><th class="right">Tu</th><th>Suo giro</th><th>Esito</th></tr></thead><tbody>
         ${d.meetings.map(m=>`<tr><td>${esc(m.track)} <span class="faint">S${m.season} R${m.round+1}</span></td><td class="right">${m.dnf?'rit.':m.pos!=null?'P'+m.pos:'—'}</td><td class="right">${m.mePos!=null?'P'+m.mePos:'—'}</td><td class="muted">${esc(m.bestLap??'—')}</td><td>${m.beatMe?'<span class="tag bad">battuto</span>':'<span class="tag good">vinto</span>'}</td></tr>`).join('')}
       </tbody></table></div>`,
       [['Chiudi','ghost',()=>{}]]);
+    // TELEMETRIA RIVALE: il grafico del giro della TU'A auto (i suoi giri non
+    // esistono nei file MoTeC: lì registra solo la sessione tua). Il valore è
+    // guardare dove perdi tempo sulla pista DOVE ti ha battuto — la pista la
+    // rileviamo dalla prima beatMeAt e arrivi sul Setup con lo schermo pronto.
+    const btnT = document.querySelector('#r-telem');
+    if (btnT) btnT.onclick = async () => {
+      const track = d.beatsMeAt?.[0] ?? null;
+      window.__rivalTelemTrack = track;
+      document.querySelector('#modal-root').innerHTML = '';   // chiude la scheda
+      tab = 'setup'; drawNav();
+      try { await render(); } catch { /* la vista vale comunque */ }
+      toast(`Grafico del giro sul Setup${track ? ': cerca la sessione su ' + track + ' (la pista dove ti prende)' : ''}. Guarda le bande gas/freno: lì capisci dove perdi il tempo.`, 'info');
+    };
   } catch(e){ toast(e.message, 'err'); }
 }
 

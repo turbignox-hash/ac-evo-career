@@ -10,6 +10,8 @@
 
 import { nodeById, gateStatus } from './state.mjs';
 import { sponsorFor, sponsorOffers } from './life.mjs';
+import { nemesisReport, raceBulletin } from './rivals.mjs';
+
 import {
   agendaDay, dateLabel, impegni, choicesForDay, nextUnplayedRound,
   MAX_SCELTE_PER_GIORNO, prossimoGiornoConGara, racesOnDay,
@@ -18,13 +20,32 @@ import {
 /** Orizzonte (in giorni) dell'email settimanale raggruppata del direttore di corsa. */
 const ORIZZONTE_GIORNI = 7;
 
+/** Icona meteo dal nome (i nomi ladder sono INGLESI: Clear/Scattered
+ *  clouds/Overcast/Light rain/Rain/Heavy rain) — più le nostre italiane. */
+const METEO_ICON = {
+  'sereno': '☀️', 'nuvole sparse': '🌤️', 'nuvoloso': '☁️', 'coperto': '☁️',
+  'pioggia leggera': '🌦️', 'pioggia': '🌧️', 'pioggia intensa': '⛈️', 'custom': '🎲',
+  'clear': '☀️', 'scattered clouds': '🌤️', 'overcast': '☁️', 'cloudy': '☁️',
+  'light rain': '🌦️', 'drizzle': '🌦️', 'rain': '🌧️', 'heavy rain': '⛈️',
+};
+const meteoIcon = (nome) => METEO_ICON[String(nome ?? '').toLowerCase()] || (nome ? '🌫️' : '');
+/** Notte o giorno? Dall'ora di gara (piani orario scritti da orario.mjs): il
+ *  dato doveva stare NELLA MAIL, non solo nel calendario (richiesta Mauro). */
+const eNotte = (h) => h != null && (h <= 5 || h >= 21);
+
+const takOrario = (r) => {
+  const wx = r.weather ? `${meteoIcon(r.weather)} ${r.weather}` : '';
+  const no = eNotte(r.hour) ? ' · 🌙 notte' : (r.hour != null && (r.hour >= 19 || r.hour <= 8) ? ' · 🌅 luce bassa' : '');
+  return wx || no ? ` · ${wx}${no}` : '';
+};
+
 export function mailbox(ladder, state) {
   const mails = [];
   const oggi = agendaDay(state);
   const oggiLabel = dateLabel(oggi);
   let n = 0;
-  const add = (kind, from, oggetto, corpo, priorita = 'normale') => {
-    mails.push({ id: `m${++n}`, kind, from, oggetto, corpo, date: oggiLabel, priorita });
+  const add = (kind, from, oggetto, corpo, priorita = 'normale', action = null) => {
+    mails.push({ id: `m${++n}`, kind, from, oggetto, corpo, date: oggiLabel, priorita, action });
   };
 
   /* ==== RACING: il direttore di corsa parla UNA volta per finestra ====
@@ -38,7 +59,13 @@ export function mailbox(ladder, state) {
     let node;
     try { node = nodeById(ladder, nodeId); } catch { continue; }
     const r = nextUnplayedRoundSafe(ladder, state, node);
-    if (r) mie.push(r);
+    if (r) {
+      // CHIAVI DI CLICK (rule Mauro 21/10: i nomi cliccabili aprono le schede):
+      // nodeId = la serie (scheda gara), trackKey = la pista (libro piste)
+      // METEO NELLA MAIL (richiesta Mauro 21/10): "domani piove", "la prossima
+      // è di notte" — i dati stanno già nel round del calendario, qui li racconto
+      mie.push({ ...r, nodeId, trackKey: node.calendar?.[r.index]?.track ?? null });
+    }
   }
 
   /* Gare IN RITARDO: UNA email sola che le elenca tutte. Nessuna gara si perde
@@ -49,7 +76,7 @@ export function mailbox(ladder, state) {
     const righe = ritardo
       .sort((a, b) => a.day - b.day)
       .map((r) =>
-        `• ${r.display} R${r.index + 1} — ${r.track}${r.laps ? `, ${r.laps} giri` : ''} — doveva corrersi il ${dateLabel(r.day)} (${oggi - r.day} giorni di ritardo)`);
+        `• ${r.display} R${r.index + 1} — ${r.track}${takOrario(r)} — doveva corrersi il ${dateLabel(r.day)} (${oggi - r.day} giorni di ritardo)`);
     add('Racing', 'Direttore di corsa',
       ritardo.length === 1
         ? `IN RITARDO: ${ritardo[0].display} R${ritardo[0].index + 1} (${oggi - ritardo[0].day} giorni)`
@@ -57,9 +84,8 @@ export function mailbox(ladder, state) {
       (ritardo.length === 1
         ? `La gara di ${ritardo[0].display} doveva corrersi il ${dateLabel(ritardo[0].day)}: sono ${oggi - ritardo[0].day} giorni di ritardo.`
         : `Gare di campionato in ritardo:\n${righe.join('\n')}`) +
-      `\n\nNessuna gara si perde: si corre quando vuoi. In classifica però i rivali continuano a incassare: ogni round lasciato lì è 0 punti tuoi.
-Il pulsante rosso "Prossima gara" nell'header porta al Cruscotto: scheda gara, checklist e iscrizione.`,
-      'urgente');
+      `\n\nNessuna gara si perde: si corre quando vuoi. In classifica però i rivali continuano a incassare: ogni round lasciato lì è 0 punti tuoi.`,
+      'urgente', { kind: 'vai-gara', rows: ritardo.map((r) => ({ nodeId: r.nodeId, trackKey: r.trackKey, label: `${r.display} R${r.index + 1}`, track: r.track })) });
   }
 
   /* Il SETTIMANALE del direttore di corsa: tutte le gare TUOLE dei prossimi
@@ -69,16 +95,19 @@ Il pulsante rosso "Prossima gara" nell'header porta al Cruscotto: scheda gara, c
     .filter((r) => r.day > oggi && r.day <= oggi + ORIZZONTE_GIORNI)
     .sort((a, b) => a.day - b.day);
   if (sette.length) {
+    // RIGHE CLICCABILI: ogni riga porta le chiavi per aprire la scheda gara
+    // (guardo il nodeId della serie) e la scheda pista (guardo il nome pista)
     const righe = sette.map((r) =>
       `${dateLabel(r.day)} — ${r.display} R${r.index + 1} @ ${r.track}` +
       (r.laps ? `, ${r.laps} giri` : '') +
-      (r.hour != null ? `, ore ${String(r.hour).padStart(2, '0')}:00` : ''));
+      (r.hour != null ? `, ore ${String(r.hour).padStart(2, '0')}:00` : '') +
+      (takOrario(r) ? ` (${takOrario(r).replace(' · ', '').trim()} — previsto dal calendario)` : ''));
     const domani = sette.some((r) => r.day === oggi + 1);
     add('Racing', 'Direttore di corsa',
       `Questa settimana: ${sette.length} gara${sette.length === 1 ? '' : 'e'}${domani ? ' — DOMANI la prima' : ''}`,
       righe.join('\n') +
       `\n\nDa qui, ${ORIZZONTE_GIORNI} giorni di orizzonte. Il pulsante rosso "Prossima gara" nell'header porta al Cruscotto: scheda gara, checklist e iscrizione.`,
-      domani ? 'urgente' : 'normale');
+      domani ? 'urgente' : 'normale', { kind: 'vai-gara', rows: sette.map((r) => ({ nodeId: r.nodeId, trackKey: r.trackKey, label: `${r.display} R${r.index + 1}`, track: r.track })) });
   }
 
   /* Gara di campionato OGGI: la mail che decide la stagione (raggruppata,
@@ -92,7 +121,7 @@ Il pulsante rosso "Prossima gara" nell'header porta al Cruscotto: scheda gara, c
         .map((g) => `${g.node.display}: R${g.index + 1} a ${g.track} (${g.laps ?? '—'} giri, ore ${String(g.hour).padStart(2, '0')}:00). Il campionato si disputa anche senza di te: se non prendi parte, la ronda va a tutti gli altri e tu prendi 0 punti.`)
         .join('\n\n') +
       `\n\nImposta la gara nella finestra del gioco e a fine gara registra il risultato col watcher (o Risultati → importa).`,
-      'urgente');
+      'urgente', { kind: 'vai-gara' });
   }
 
   /* Consulenza: contratti e scaletta del calendario */
@@ -118,8 +147,40 @@ Il pulsante rosso "Prossima gara" nell'header porta al Cruscotto: scheda gara, c
       `Conflitti di calendario: ${impegniInfo.conflitti.length} giornat${impegniInfo.conflitti.length === 1 ? 'a in conflitto' : 'e in conflitto'}`,
       righe.join('\n\n') +
       `\n\nRisolvi dall\u2019Agenda col bottone sposta: la serie scelta si sposta di una settimana e la cadenza futura si ricalibra. Non iscriverti a troppi campionati insieme se non vuoi saltare round (0 punti).`,
-      'urgente');
+      'urgente', { kind: 'vai-agenda' });
   }
+
+  /* BOLLETTINO dell'ultima gara importata: il racconto del risultato, non un
+     promemoria. Chi ti ha battuto, chi hai superato — nomi con la chiave rivale
+     per la GUI (scheda pilota a un clic). Solo se la gara è recente (7 giorni). */
+  try {
+    const b = raceBulletin();
+    if (b) {
+      const diaPrima = b.davanti.length
+        ? `Davanti a te: ${b.davanti.map((d) => d.name).join(', ')}.`
+        : `Nessuno davanti: sei salito in cima.`;
+      const dietro = b.dietro.length ? ` Appena dietro: ${b.dietro[0].name}.` : '';
+      add('Racing', 'Direttore di corsa',
+        `Bollettino: ${b.node} — ${b.mePos != null ? 'P' + b.mePos : 'ritiro'} a ${b.track}`,
+        `${diaPrima}${dietro}\n\nLa classifica completa e i tuoi giri: Cruscotto e Risultati.`,
+        'normale', { kind: 'bollettino', rivals: [...b.davanti.map((d) => ({ key: d.key, name: d.name })), ...b.dietro.map((d) => ({ key: d.key, name: d.name }))] });
+    }
+  } catch { /* il registro rivali potrebbe essere assente: la posta non si blocca */ }
+
+  /* CONTO con la NEMESI: se c'è chi ti domina (streak ≥2 o 3 battute), la faida
+     parla da sola: le piste dove ti prende e quelle dove lo torni. Cliccabile.
+     Si mostra ogni 3 giorni (streak corto e atterratto: non spammo). */
+  try {
+    const nem = nemesisReport();
+    if (nem) {
+      const doveDolora = nem.beatsMeAt.length ? `Ti prende a: ${nem.beatsMeAt.slice(0, 4).join(', ')}.` : '';
+      const doveTorni = nem.losesAt.length ? ` Dove lo torni: ${nem.losesAt.slice(0, 3).join(', ')}.` : '';
+      add('Racing', 'La tua nemesi',
+        `${nem.name} ${nem.nemesis ? '— la nemesi' : ''}: ${nem.h2h.beats}\u2013${nem.h2h.losses}`,
+        `${nem.streak > 0 ? `${nem.streak} sconfitte consecutive inflitte. ` : ''}${doveDolora} ${doveTorni}\n\nIl conto lo chiudi in pista: la prossima volta che lo incontri ti conviene stare davanti.`,
+        'normale', { kind: 'vai-rivale', rivalKey: nem.key, name: nem.name });
+    }
+  } catch { /* il registro rivali potrebbe essere assente: la posta non si blocca */ }
 
   /* Prossima gara di campionato a calendario, FUORI dall'orizzonte settimanale
      (dentro l'orizzonte c'è già il settimanale: non duplichiamo). */
@@ -132,7 +193,7 @@ Il pulsante rosso "Prossima gara" nell'header porta al Cruscotto: scheda gara, c
         `Prossimo appuntamento: ${dateLabel(prox)}`,
         solo.map((g) => `${g.node.display} R${g.index + 1} — ${g.track} (${g.laps ?? '—'} giri)`).join('\n') +
         `\n\nDa qui ci sono ${prox - oggi} giorni. Tempo per un test in quaderno prove, un setup e una qualifica pulita.`,
-        'normale');
+        'normale', { kind: 'vai-gara' });
     }
   }
 
@@ -151,16 +212,17 @@ Il pulsante rosso "Prossima gara" nell'header porta al Cruscotto: scheda gara, c
     add('Sponsor', 'Ufficio sponsorizzazioni',
       'La cassa è stretta: serve uno sponsor',
       `Hai ${state.money} € in banca e nessuno sponsor in campo. Le iscrizioni e gli affitti dei sedili ogni round pesano: cerca un podio o due per attirare l\u2019attenzione, oppure difendi la cassa con la distanza gara ridotta (25%).`,
-      'urgente');
+      'urgente', { kind: 'sponsor-broke' });
   }
-  /* Proposte di sponsor in arrivo (offerte attuali del paddock) */
+  /* Proposte di sponsor in arrivo: l'email porta l'AZIONE con sé (tier),
+     così dalla posta si firma direttamente senza cercare il pannello. */
   try {
     const proposte = sponsorOffers(ladder, state);
     for (const p of (proposte ?? []).slice(0, 3)) {
       add('Sponsor', p.name ?? 'Ufficio sponsorizzazioni',
         `Proposta: ${p.name ?? 'sponsor'}`,
-        `${p.tier ? 'Tier ' + p.tier + '. ' : ''}${p.perRace ? p.perRace + ' € a gara. ' : ''}${p.bonus ? '+' + p.bonus + ' € con la missione ' + (p.missionText ?? 'a tema') + '.' : ''}\nFirma dalla sezione VITA FUORI PISTA del Cruscotto.`,
-        'normale');
+        `${p.tier ? 'Tier ' + p.tier + '. ' : ''}${p.perRace ? p.perRace + ' € a gara. ' : ''}${p.bonus ? '+' + p.bonus + ' € con la missione ' + (p.missionText ?? 'a tema') + '.' : ''}\nFirmi qui sotto, o dalla sezione VITA FUORI PISTA del Cruscotto.`,
+        'normale', { kind: 'sponsor-sign', tier: p.tier ?? null, name: p.name ?? 'sponsor' });
     }
   } catch { /* sponsorOffers potrebbe non esistere (build vecchie): mai bloccare la posta */ }
 
@@ -175,7 +237,7 @@ Il pulsante rosso "Prossima gara" nell'header porta al Cruscotto: scheda gara, c
     add('Carriera', 'Il tuo manager',
       `A soli ${bestDist} punti di reputazione da ${bestGate.display}`,
       `Ora hai ${state.rep} reputazione, ${bestGate.display} vuole ${bestGate.repRequired ?? 0}. Continua a fare podi nelle serie già aperte: ogni round nelle serie basse vale ancora reputazione (finché il trim resta in pista). E ricorda: le gare "iconiche" pagano reputazione ×1,25.`,
-      'normale');
+      'normale', { kind: 'vai-classifica' });
   }
   /* trim di difficoltà in attesa di firma */
   const pend = state.difficulty?.pending;
@@ -201,6 +263,7 @@ function nextUnplayedRoundSafe(ladder, state, node) {
       track: r.track,
       laps: r.laps ?? null,
       hour: r.hour ?? null,
+      weather: r.weather ?? null,
       day: r.scheduledDay,
     };
   } catch { return null; }

@@ -231,8 +231,7 @@ export function rivalDetail(key) {
 /* viste per la GUI                                                    */
 /* ------------------------------------------------------------------ */
 
-/** Panoramica rivali per la GUI: profili ordinati per scontri, testa a testa, classifica. */
-export function rivalsOverview(ladder, state, { q = null } = {}) {
+/** Panoramica rivali per la GUI: profili ordinati per scontri, testa a testa, classifica. */export function rivalsOverview(ladder, state, { q = null } = {}) {
   const store = loadStore();
   const meKey = rivalKey(state.driver.first, state.driver.last);
 
@@ -271,5 +270,73 @@ export function rivalsOverview(ladder, state, { q = null } = {}) {
     rivals: all.sort((a, b) => b.sharedRaces - a.sharedRaces || b.races - a.races),
     nemesi, vittime,
     meKey,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* CONTO della FAIDA e BOLLETTINO DI GARA (richiesta Mauro 21/10)       */
+/* ------------------------------------------------------------------ */
+
+/** Il CONTO con la NEMESI: il rivale che ti batte di più in questi giorni,
+ *  con la sua serie di sconfitte inflitte, le piste dove ti domina e quelle
+ *  dove invece lo uccidi. Dal registro già esistente: niente nuovo storage.
+ *  Ritorna null se non c'è nessuno con 2+ sconfitte consecutive inflitte a te
+ *  o una serie attiva. */
+export function nemesisReport() {
+  const store = loadStore();
+  // candidato nemesi: più sconfitte consecutive inflitte (streakBeatMe) o più
+  // battute in assoluto (h2h.beats) con almeno 3 scontri
+  const cand = Object.values(store.rivals)
+    .filter((rv) => (rv.streakBeatMe ?? 0) >= 2 || (rv.h2h?.beats ?? 0) >= 3)
+    .sort((a, b) =>
+      (b.streakBeatMe ?? 0) - (a.streakBeatMe ?? 0) ||
+      (b.h2h?.beats ?? 0) - (a.h2h?.beats ?? 0) ||
+      (b.h2h?.losses ?? 0) - (a.h2h?.losses ?? 0))[0];
+  if (!cand) return null;
+  const races = store.races.filter((r) => r.grid.some((g) => g.key === cand.key));
+  const meetings = races.map((race) => {
+    const g = race.grid.find((x) => x.key === cand.key);
+    const me = race.grid.find((x) => x.isPlayer);
+    return {
+      track: race.trackDisplay ?? race.track,
+      beatMe: me ? (!g.dnf && (me.dnf || g.position < me.position)) : false,
+      season: race.season, round: race.round,
+    };
+  });
+  const beatsMeAt = [...new Set(meetings.filter((m) => m.beatMe).map((m) => m.track))];
+  const losesAt = [...new Set(meetings.filter((m) => !m.beatMe).map((m) => m.track))];
+  return {
+    key: cand.key, name: cand.full, team: cand.team ?? null,
+    streak: cand.streakBeatMe ?? 0, nemesis: !!cand.nemesis,
+    h2h: { ...cand.h2h },
+    beatsMeAt, losesAt,
+    totalScontri: meetings.length,
+  };
+}
+
+/** Il BOLLETTINO dell'ultima gara importata: chi è salito davanti (o ha
+ *  difeso il posto) e chi hai superato in classifica — per l'email post-gara
+ *  cliccabile. Usa la raceRow più recente del registro. */
+export function raceBulletin() {
+  const store = loadStore();
+  const race = store.races[store.races.length - 1];
+  if (!race) return null;
+  const me = race.grid.find((x) => x.isPlayer);
+  if (!me) return null;
+  const davanti = race.grid
+    .filter((x) => !x.isPlayer && !x.dnf && x.position < me.position)
+    .sort((a, b) => a.position - b.position)
+    .slice(0, 3)
+    .map((g) => ({ key: g.key, name: g.full, team: g.team ?? null, pos: g.position }));
+  const dietro = race.grid
+    .filter((x) => !x.isPlayer && !x.dnf && x.position > me.position)
+    .sort((a, b) => a.position - b.position)
+    .slice(0, 1)
+    .map((g) => ({ key: g.key, name: g.full, pos: g.position }));
+  return {
+    at: race.at, node: race.nodeDisplay ?? race.nodeId, track: race.trackDisplay ?? race.track,
+    season: race.season, round: race.round,
+    mePos: me.dnf ? null : me.position, dnf: me.dnf,
+    davanti, dietro,
   };
 }

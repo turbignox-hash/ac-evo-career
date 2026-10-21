@@ -254,6 +254,17 @@ function msgRow(m){
 }
 
 function drawCardInto(el, card){
+  // CHIP RIVALI CLICCABILI: il nome nella scheda gara apre la scheda completa
+  // del rivale (showRival in viste-d.js, subito dopo nel load). Se la chiave
+  // non è in registro (rivale mai incassato), toast chiaro invece di errore.
+  requestAnimationFrame(() => {
+    $$('.chip[data-rival]', el).forEach(c => c.onclick = () => {
+      const k = c.dataset.rival;
+      if (!k) { toast('Rivale non ancora in registro: arriva all\u2019import della gara.', 'info'); return; }
+      if (typeof showRival === 'function') showRival(k);
+      else toast('Scheda rivali non disponibile in questa vista.', 'err');
+    });
+  });
   if (card.seasonDone){
     el.innerHTML = `<h2>${LI.medal} Stagione completata</h2>
       <div class="muted">Hai chiuso il calendario di ${esc(card.nodeDisplay)}: arriva il momento del bilancio e delle offerte.</div>
@@ -283,7 +294,7 @@ function drawCardInto(el, card){
       <div style="font-size:12px;margin-bottom:4px"><b>Stagione</b> · ${card.outlook.standingPosition?`P${card.outlook.standingPosition} in classifica · `:''}${card.outlook.racesRun}/${card.outlook.totalRounds} gare corse · ${card.outlook.seasonPoints} punti${card.outlook.duel?` · ⚔️ duello con <b>${esc(card.outlook.duel.name)}</b> a ${card.outlook.duel.gap} pt`:''}${card.outlook.crowd?` · <span title="stima spettatori dalla pista (stile audience di Zero to Apex)">🧑‍🤝‍🧑 ${(card.outlook.crowd/1000).toFixed(0)}k attesi</span>`:''}</div>
       ${card.outlook.contract?.length ? `<div style="font-size:12px;margin-bottom:4px"><b>Contratto</b> · ${card.outlook.contract.map(c=>`<span title="${esc(c.progress)}" style="white-space:nowrap">${c.decided===false?'<span style="color:var(--bad)">✗</span>':c.ok?'<span style="color:var(--good)">✓</span>':'•'} ${esc(c.text.split(' ').slice(0,4).join(' '))}…</span>`).join(' ')}</div>` : ''}
     ${(card.timeMultiplier ?? 1) !== 1 ? `<div style="font-size:12px;margin-bottom:4px"><b>Tempo</b> · moltiplicatore consigliato: <b>${card.timeMultiplier}x</b> <span class="muted">(col gioco che corre più in fretta il pomeriggio si comprime: le ore di sessione restano quelle del calendario)</span></div>` : ''}
-      ${card.outlook.rivals?.length ? `<div style="font-size:12px"><b>Rivali già visti</b> · ${card.outlook.rivals.map(r=>`<span class="chip ${r.h2h.beats>r.h2h.losses?'':'gold'}" style="font-size:10px;padding:1px 6px" title="tu-lui: ${r.h2h.losses}-${r.h2h.beats}">${esc(r.name.split(' ')[0])} ${r.h2h.losses}-${r.h2h.beats}</span>`).join(' ')}</div>` : ''}
+      ${card.outlook.rivals?.length ? `<div style="font-size:12px"><b>Rivali già visti</b> · ${card.outlook.rivals.map(r=>`<span class="chip ${r.h2h.beats>r.h2h.losses?'':'gold'}" data-rival="${esc(r.key??'')}" data-name="${esc(r.name)}" style="font-size:10px;padding:1px 6px;cursor:pointer" title="tu-lui: ${r.h2h.losses}-${r.h2h.beats} — clicca per la scheda completa">${esc(r.name.split(' ')[0])} ${r.h2h.losses}-${r.h2h.beats}</span>`).join(' ')}</div>` : ''}
     </div>` : ''}
     ${card.outlook?.trackInfo ? `<div style="margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2,#121822);display:flex;gap:16px;align-items:center;flex-wrap:wrap">
       ${card.outlook.trackInfo.map ? `<img src="${card.outlook.trackInfo.map}" alt="tracciato di ${esc(card.trackName)}" style="width:180px;height:118px;flex:none;object-fit:contain;background:#000;border-radius:8px;padding:8px${card.outlook.trackInfo.map.endsWith('.svg')?';filter:invert(1);opacity:.92':''}">` : (card.outlook.trackInfo.outline ? `<svg viewBox="0 0 100 64" style="width:170px;height:110px;flex:none;background:#0d1118;border-radius:8px;padding:6px" aria-label="tracciato di ${esc(card.trackName)}"><path d="${card.outlook.trackInfo.outline}" fill="none" stroke="var(--acc)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/></svg>` : '')}
