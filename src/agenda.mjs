@@ -17,7 +17,16 @@
 import { nodeById, gateStatus } from './state.mjs';
 
 export const CADENZA_GIORNI = 7;         // una ronda a SETTIMANA per le serie iscritte (scelta Mauro)
-export const CADENZA_LIVELLI = 3;        // le serie NON iscritte scorrono più fitte (gare "altrove")
+export const CADENZA_LIVELLI = 3;        // cadenza MINIMA delle serie non iscritte (gare "altrove")
+/** Le serie non iscritte NON corrono tutte ogni 3 giorni (richiesta Mauro 21/10:
+ *  l'agenda mostrava SEMPRE le stesse 25-30 gare, mai un buco). Ogni serie
+ *  ricorre con cadenza PROPRIA, deterministica dal contatore della serie:
+ *  3..10 giorni. Media ~6,5 → a ogni giornata solo una parte delle serie
+ *  arriva, e il muro cambia ogni volta (con giorni più magri: i buchi). */
+export function cadenzaSerie(seriesCounter) {
+  const h = ((seriesCounter * 2654435761) >>> 0);   // Knuth multiplicative hash, spalma bene
+  return CADENZA_LIVELLI + (h % 8);                  // 3..10
+}
 export const MAX_SCELTE_PER_GIORNO = 3;  // al massimo 3 gare in una giornata
 
 /* ================================================= cDate util ================================================ */
@@ -112,9 +121,12 @@ export function seatAnchor(ladder, state, node) {
   return ((seriesCounter * 977) % CADENZA_LIVELLI) + 1;   // partenza tra giorno 1 e 3
 }
 
-/** Cadenza della serie: a SETTIMANA se iscritta (scelta Mauro), più fitta se no. */
-export function cadenzaOf(state, node) {
-  return hasSeat(state, node.nodeId) ? CADENZA_GIORNI : CADENZA_LIVELLI;
+/** Cadenza della serie: a SETTIMANA se iscritta (scelta Mauro); se no la
+ *  cadenza PROPRIA (3..10) viene da cadenzaSerie(counter) — calcolata/dai
+ *  chiamanti col contatore della serie per non riscorrere la scala qui. */
+export function cadenzaOf(state, node, seriesCounter = null) {
+  if (hasSeat(state, node.nodeId)) return CADENZA_GIORNI;
+  return cadenzaSerie(seriesCounter ?? 1);
 }
 
 /** Giorno della PROSSIMA ronda non corsa della serie (0-based offset x cadenza). */
@@ -184,13 +196,13 @@ export function racesOnDay(ladder, state, d) {
     }
     const len = node.calendar.length;
     if (len === 0) continue;
-    const cadenza = cadenzaOf(state, node);
-    // PROCEDURA A CICLO: la R1 della serie ricorre ogni len·cadenza giorni,
-    // con sfasamento deterministico fra le serie: con decine di serie in scala,
-    // ogni giorno c'è almeno 1-2 campionati ALLA PARTENZA (R1) a cui entrare alla pari;
-    // le ronde successive (R2, R3…) coprono il resto della giornata.
-    const cycle = len * cadenza;
     const seriesCounter = ladder.nodes.findIndex((n) => n.nodeId === node.nodeId) + 1;
+    const cadenza = cadenzaSerie(seriesCounter);   // 3..10, deterministica per serie
+    // PROCEDURA A CICLO: la R1 della serie ricorre ogni len·cadenza giorni,
+    // con sfasamento deterministico fra le serie. Con cadenze DIVERSE per serie,
+    // le combinazioni si spalmano: ogni giorno il quadro è diverso e compaiono
+    // buchi naturali (richiesta Mauro: modo più stimolante, muro sempre uguale no).
+    const cycle = len * cadenza;
     const r1Day = ((seriesCounter * 713) % cycle) + 1;      // giorno del PROSSIMO/ATTUALE R1
     const sinceR1 = ((d - r1Day) % cycle + cycle) % cycle;   // giorni passati dall'ultimo R1
     if (sinceR1 % cadenza !== 0) continue;

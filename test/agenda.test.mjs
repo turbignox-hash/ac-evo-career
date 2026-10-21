@@ -42,10 +42,15 @@ test('carriera nuova: sedile registrato, R1 evidenziata oggi', () => {
   assert.ok(today.gare[0].onSchedule);
 });
 
-test('la griglia è affollata: le gare di TUTTE le serie cadono sui giorni della strip', () => {
+test('il calendario VARIA: giorni pieni e giorni magri, mai lo stesso quadro fisso (richiesta Mauro 21/10)', () => {
+  // Prima della leva: le serie non iscritte correvano TUTTE a cadenza 3 →
+  // ogni giorno 29-30 gare, sempre il stesso muro. Ora ogni serie ha cadenza
+  // propria (3..10 Deterministica): i giorni si differenziano, con buchi.
   const strip = calendarStrip(ladder, state, { days: 14 });
-  const affollati = strip.filter((s) => s.total >= 10).length;
-  assert.ok(affollati >= 2, `attese giornate con ≥10 gare di serie non iscritte, trovati ${affollati}`);
+  const totals = strip.map((s) => s.total);
+  const span = Math.max(...totals) - Math.min(...totals);
+  assert.ok(span >= 4, `attesa variazione fra i giorni (max-min ≥4), trovato span ${span}: ${totals.join(' ')}`);
+  assert.ok(Math.min(...totals) < 20, `atteso almeno un giorno magro (<20 gare), min ${Math.min(...totals)}`);
   // e la strip conta anche le FATTIBILI separatamente
   assert.ok(strip.every((s) => s.available <= s.total));
 });
