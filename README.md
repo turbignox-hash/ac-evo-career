@@ -85,11 +85,26 @@ un bottone **Aggiorna ora** che installa tutto (fetch + `git merge --ff-only` + 
 dopo un tuo clic. Il consenso è sempre chiesto: niente aggiornamenti silenziosi,
 e il save in `data/` resta fuori dal repo, quindi l'installazione tocca solo codice.
 
-La lingua si sceglie in Impostazioni (Italiano / English): la scelta resta nel
-browser e la pagina si ricarica da sola. Un testo senza traduzione disponibile
-mostra l'italiano, mai il vuoto. Menu, banda Aggiornamenti e chip header sono già
-bilingui; le viste si traducono al giro in cui si toccano, con la regola "pigra"
-di NOTE-AUTOMAZIONE.md; l'infrastruttura vive in `gui/js/lang.js`.
+## Lingua: italiano e inglese
+
+Tutto l'app (CLI, server e GUI) funziona in italiano e inglese.
+
+- **GUI**: la lingua si sceglie in Impostazioni (Italiano / English): la scelta resta nel
+  browser e la pagina si ricarica da sola. Un testo senza traduzione disponibile
+  mostra l'italiano, mai il vuoto. L'infrastruttura vive in `gui/js/lang.js`.
+- **CLI e server**: la lingua si sceglie con la variabile d'ambiente `EVO_LANG`
+  (`it` predefinito, `en` alternato), ovvero:
+
+```bash
+set EVO_LANG=en                                  # Windows CMD
+export EVO_LANG=en                               # Bash / Git Bash
+node ac-evo-career.mjs next                      # output in inglese
+```
+
+La scelta non tocca il salvataggio: i dati restano gli stessi in entrambe le lingue.
+I testi salvati nel save (clausole di contratto, messaggi ricevuti) sono bilingui e
+si visualizzano nella lingua corrente; le descrizioni delle discipline nei file dati
+restano in italiano. L'infrastruttura della CLI vive in `src/lang.mjs`.
 
 ### Live: verifica automatica della gara (memoria condivisa)
 
