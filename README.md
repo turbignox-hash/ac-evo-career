@@ -362,7 +362,8 @@ Il progetto è protetto da quattro copie indipendenti. Se una riparte ridotta a 
 |--------------------|-----------------------------------------------------------------------|--------------------------------------|
 | disco              | codice, dati e documenti di lavoro, storia git                        | cartella del progetto sul Desktop    |
 | OneDrive           | zip completo (codice, git, save personali, mappe) e pacchetto portatile | cartelle OneDrive                   |
-| magazzino su L:    | le stesse due zip, con impronte SHA-256 ricontrollate                 | disco L:, cartella CarrieraEVO       || off-site (configurata) | la sola storia git dei commit | repository privato su GitHub (`ac-evo-career`) |
+| magazzino su L:    | le stesse due zip, con impronte SHA-256 ricontrollate                 | disco L:, cartella CarrieraEVO       |
+| off-site (configurata) | la sola storia git dei commit | repository privato su GitHub (`ac-evo-career`) |
 
 Strumenti, in ordine di uso:
 
@@ -372,8 +373,13 @@ Strumenti, in ordine di uso:
 - controlla-magazzino.cmd sta nella cartella del progetto (oppure npm run magazzino).
   Dice se l'ultimo backup è vecchio oltre 21 giorni o se ci sono commit non ancora
   coperti dal backup. È un avviso: non tocca e non rompe nulla.
-- avvia.cmd lance in versione breve lo stesso controllo quando apre la interfaccia:
+- avvia.cmd lancia in versione breve lo stesso controllo quando apre la interfaccia:
   parla solo se c'è un problema, resta muto se il disco L: è staccato di proposito.
+- aggiornamenti.mjs (via avvia.cmd o il bottone nella GUI) è il controllo aggiornamenti:
+  al lancio guarda il repository GitHub privato e se è avanti del disco chiede
+  «Installare ora?» — sì = fetch + `git merge --ff-only` + `npm test`,
+  no/Invio/15 s = si parte com'è. Nessun aggiornamento silenzioso in nessun caso,
+  e il save in `data/` resta fuori dal repo: un aggiornamento tocca solo il codice.
 - sincronizza-git.cmd è la copia off-site, già attiva: il remote `offsite` punta al
   repository privato su GitHub. A ogni esecuzione spinge la storia aggiornata; le
   credenziali browser (Git Credential Manager) sono già salvate. Solo se il remote
