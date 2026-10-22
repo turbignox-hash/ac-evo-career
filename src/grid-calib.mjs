@@ -28,7 +28,6 @@
 import { readFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { tr } from './lang.mjs';
 import { lapToMs, positionBase } from './results.mjs';
 import { loadClasses, perTrackKey } from './gridbuilder.mjs';
 import { readCells, DEFAULT_FILE as GRID_FILE } from '../tools/grid-balance.mjs';
@@ -46,6 +45,36 @@ const TOL_SEC = 0.8;         // "raggiunto" se il penalizzato sta entro quest'de
 const TOL_SPREAD_SEC = 1.5;  // spread mediana del campo considerato compatto
 const PENDENZA_STD = 0.57;   // s/% di penalità, da 19/10 (Brands ~0.55, Sebring ~0.57) — sovrascrivibile per classe
 const OBS_ALTA = 2;          // osservazioni coerenti par convincere
+
+/* GUARDIE ANTI-DATI-CORROTTI (lezione 22/10/2026) — il writer di EVO scrive i
+ * best-lap delle AI STORTI: stesse gare, stesso impianto, best scritti ×1,15
+ * LENTI (i tre di coda di Paul Ricard 19:01) e ×0,87 VELOCI (19:35, con S1/S2
+ * combacianti i miei a ±0,1/1,1s ma S3 da 46,8s dove il mio era 67,0s: il file
+ * si contraddice da solo, best scritto −19s sul mio e arrivo P1 a +85s). Due
+ * livelli di guardia:
+ *   1) RIGA: best > (total_time/laps) + 8s → la riga esce dalla mediana;
+ *   2) EVENTO: massa di AI con S1/S2 come i miei e S3 più veloce del mio di >8s
+ *      → evento.sospetto, segnale 'dati-sospetti', ZERO proposte: i numeri non
+ *      sono una misurazione. Nel registro resta (append-only, per trasparenza)
+ *      e nelle statistiche NON conta né come osservazione né nelle mediane. */
+const MARGINE_MEDIA_SEC = 8;  // best sopra il ritmo medio di +8s non esiste
+const MARGINE_S3_SEC = 8;     // S3 scritto più veloce del mio di 8s mentre S1/S2 combaciano
+const TOL_S1S2_SEC = 3.0;     // S1/S2 "come i miei" entro questa tolleranza
+
+/** l'autoBase può portare l'annotazione «(base della calibrazione: kg 0 / 0%)",
+ *  scritta nel file il 22/10: la base NON deve combaciare per stringa esatta. */
+function baseLabelOf(cls) {
+  const raw = String(cls?.autoBase ?? '');
+  return raw.replace(/\s*\(base[^)]*\)\s*$/i, '').trim() || raw.trim() || null;
+}
+
+/** match regola↔etichetta tollerante ai suffissi che EVO scrive nei risultati. */
+function ruleAutoMatch(regolaAuto, label) {
+  if (!regolaAuto) return false;
+  const a = strip(regolaAuto), l = strip(label);
+  if (!a || !l) return false;
+  return l === a || l.startsWith(a) || a.startsWith(l);
+}
 
 /* ---------- nomi auto: match per classe con lo stesso filtro del gioco ---------- */
 
@@ -91,8 +120,7 @@ export function aiRangeOf(cls, trackRef) {
 
 /** Regola applicata a quell'auto (con override per-traccia del restrictor) */
 function ruleFor(cls, label, trackRef) {
-  const lab = strip(label);
-  const r = (cls?.regole ?? []).find((x) => x.auto && strip(x.auto) === lab);
+  const r = (cls?.regole ?? []).find((x) => ruleAutoMatch(x.auto, label));
   if (!r) return null;
   const trk = trackRef ? perTrackKey(cls, trackRef) : null;
   const ov = trk ? cls.perTraccia?.[trk]?.restrictorPct : null;
@@ -101,7 +129,7 @@ function ruleFor(cls, label, trackRef) {
   const capKg = caps.ballastMaxKg ?? 100, capPct = caps.restrictorMaxPct ?? 20;
   return {
     auto: r.auto, preset: r.preset ?? null, kg: r.ballastKg ?? 0, pct,
-    base: label === (cls?.autoBase ?? null),
+    base: ruleAutoMatch(baseLabelOf(cls), label),
     capRaggiunto: (r.ballastKg ?? 0) >= capKg && pct >= capPct,
     capKg, capPct,
   };
@@ -160,19 +188,32 @@ export function analyzeRace(result, { track = null, playerDriver = null, customg
   // il TURNO del pallino non basta: il tuo pilota spesso non lo porta ("senza contrassegno AI")
   const isAi = (d) => /^[•\u2022]/.test(String(d.driver_name ?? '').trim()) && d !== playerDriver;
   const aiRows = drivers.filter((d) => isAi(d));
+  // righe scartate dalla guardia di riga (best fisicamente impossibile)
+  let bestScartati = 0;
   const byLabel = new Map();
   for (const d of aiRows) {
     if (!d.best_lap) continue;
     const ms = lapToMs(d.best_lap);
     if (!Number.isFinite(ms)) continue;
+    // GUARDIA di RIGA: best > rhythmo medio + 8s non esiste in fisica: la riga
+    // esce dalla mediana (doppio corrotto visto su Paul Ricard 19:01, 22/10)
+    const lapsN = Number(d.laps ?? 0);
+    const total = toMs(d.total_time);
+    if (Number.isFinite(total) && lapsN >= 1 && ms > total / lapsN + MARGINE_MEDIA_SEC * 1000) {
+      bestScartati += 1;
+      continue;
+    }
     const label = carLabelOf(d) ?? '?';
     const e = byLabel.get(label) ?? { auto: label, giri: [], best: [] };
-    e.giri.push(Number(d.laps ?? 0) || 0);
+    e.giri.push(lapsN);
     e.best.push(ms);
     byLabel.set(label, e);
   }
-  // la base è l'autoBase della classe: se nessun AI l'ha girata non si può dire nulla sul delta
-  const baseMedian = byLabel.get(matched.cls?.autoBase ?? '') ? median(byLabel.get(matched.cls.autoBase).best) : null;
+  // la base è l'autoBase della classe (annotazione esclusa): se nessun AI l'ha
+  // girata non si può dire nulla sul delta
+  const baseLabel = baseLabelOf(matched.cls);
+  const baseEntry = [...byLabel.entries()].find(([label]) => ruleAutoMatch(baseLabel, label));
+  const baseMedian = baseEntry ? median(baseEntry[1].best) : null;
   const rows = [];
   for (const [label, e] of byLabel) {
     const rule = ruleFor(matched.cls, label, track) ?? { auto: label, preset: null, kg: 0, pct: 0, base: false, capRaggiunto: false };
@@ -186,6 +227,7 @@ export function analyzeRace(result, { track = null, playerDriver = null, customg
   }
   rows.sort((a, b) => (a.deltaVsBaseSec ?? 0) - (b.deltaVsBaseSec ?? 0));
   evento.perAuto = rows;
+  evento.bestScartati = bestScartati;
   evento.campoSpreadSec = rows.length > 1
     ? sec((rows[rows.length - 1].bestMedSec ?? 0) - (rows[0].bestMedSec ?? 0))
     : null;
@@ -212,7 +254,32 @@ export function analyzeRace(result, { track = null, playerDriver = null, customg
     if (myPos === 1 && starters[0] && starters[1]) evento.campo.margineP2Sec = sec(starters[1].time - starters[0].time);
   }
 
+  // GUARDIA di EVENTO (richiede playerDriver, come fa l'import): massa di AI
+  // con S1/S2 come i miei e S3 scritto più veloce del mio di >8s → il writer di
+  // EVO è uscito storto e l'evento NON è una misurazione (Paul Ricard 19:35,
+  // 22/10). Zero proposte: i dati non si fidano di, non si calibrazionano su.
+  if (playerDriver && !evento.sospetto) {
+    const myS = (playerDriver.splits ?? []).slice(0, 3).map(splitSec);
+    if (myS[0] != null && myS[1] != null && myS[2] != null) {
+      const imposs = aiRows.filter((d) => {
+        const s = (d.splits ?? []).slice(0, 3).map(splitSec);
+        if (s[0] == null || s[1] == null || s[2] == null) return false;
+        return s[2] < myS[2] - MARGINE_S3_SEC
+          && Math.abs(s[0] - myS[0]) <= TOL_S1S2_SEC
+          && Math.abs(s[1] - myS[1]) <= TOL_S1S2_SEC;
+      });
+      if (imposs.length >= 2) {
+        const s3All = Math.min(...imposs.map((d) => splitSec((d.splits ?? [])[2])));
+        evento.sospetto = `S3 scritto impossibile su ${imposs.length} AI: S1/S2 come i miei (±${TOL_S1S2_SEC}s) ma S3 scritto ${fmt(sec((myS[2] - s3All) * 1000))} più veloce del mio — writer di EVO storto (lezione 22/10)`;
+      }
+    }
+  }
+
   const proposte = buildProposte(evento, matched.cls, track ?? result?.track);
+  if (evento.sospetto) {
+    evento.segnale = { tipo: 'dati-sospetti', proposte: [] };
+    return { evento, proposte: [] };
+  }
   evento.segnale = {
     tipo: segnaleTipo(evento, proposte),
     proposte,
@@ -240,13 +307,13 @@ function buildProposte(evento, cls, track) {
     const propostaAi = `${lo}-${hi2}`;
     if (propostaAi !== ai.join('-')) prop.push({
       leva: 'campo-ai', direzione: 'giù', da: ai.join('-'), a: propostaAi,
-      perche: tr({ it: `campo troppo forte: mediana best AI ${fmt(f.campoVsMeSec)} sopra di te (P${f.miaPos}/${f.grid}, ${f.aiDavanti} AI davanti)`, en: `field too strong: median AI best ${fmt(f.campoVsMeSec)} above you (P${f.miaPos}/${f.grid}, ${f.aiDavanti} AI cars ahead)` }),
+      perche: `campo troppo forte: mediana best AI ${fmt(f.campoVsMeSec)} sopra di te (P${f.miaPos}/${f.grid}, ${f.aiDavanti} AI davanti)`,
       comando: cmdAi(lo, hi2),
     });
   } else if (f && !f.dnf && f.miaPos === 1 && (f.margineP2Sec ?? 0) > 10 && ai && ai[1] < 100) {
     prop.push({
       leva: 'campo-ai', direzione: 'su', da: ai.join('-'), a: `${ai[0]}-${Math.min(100, ai[1] + 1)}`,
-      perche: tr({ it: `vittoria con ${fmt(f.margineP2Sec)} sulla P2: campo troppo debole per la tua mano`, en: `win with a ${fmt(f.margineP2Sec)} gap on P2: field too weak for your hand` }),
+      perche: `vittoria con ${fmt(f.margineP2Sec)} sulla P2: campo troppo debole per la tua mano`,
       comando: cmdAi(ai[0], Math.min(100, ai[1] + 1)),
     });
   }
@@ -277,6 +344,13 @@ function buildProposte(evento, cls, track) {
   }
   return prop;
 }
+
+const splitSec = (t) => { // split EVO: '00:44.310' o '1:07.017' → secondi
+  const m = String(t ?? '').match(/^(\d+):(\d+(?:\.\d+)?)$/);
+  if (m) return (+m[1]) * 60 + (+m[2]);
+  const n = Number(String(t ?? ''));
+  return Number.isFinite(n) ? n : null;
+};
 
 function segnaleTipo(evento, proposte) {
   const campo = proposte.find((p) => p.leva === 'campo-ai');
@@ -345,9 +419,10 @@ function eventoOk(evento) {
   return penalizzate.every((r) => (r.deltaVsBaseSec == null || r.deltaVsBaseSec >= -TOL_SEC));
 }
 
-/** Punteggio di confidenza per classe+traccia: { obs, ok, fino, confidenza, suggerisciConvalida } */
+/** Punteggio di confidenza per classe+traccia: { obs, ok, fino, confidenza, suggerisciConvalida }
+ *  Gli eventi SOSPETT (dati corrotti, 22/10) NON contano né come osservazioni né come ok. */
 export function confidenzaOf(eventi, classe, trkKey) {
-  const ev = (eventi ?? []).filter((e) => e.classe === classe && trkKeyOf(e) === trkKey);
+  const ev = (eventi ?? []).filter((e) => e.classe === classe && trkKeyOf(e) === trkKey && !e.sospetto);
   const ok = ev.filter(eventoOk).length;
   const obs = ev.length;
   let confidenza = 'nessuna';
@@ -383,22 +458,26 @@ export function calibSummary(classes = loadClasses()) {
   for (const { classe, trkKey, eventi: ev } of gruppi.values()) {
     const cls = classes.classi?.[classe];
     const c = confidenzaOf(ev, classe, trkKey);
+    // gare sospette (dati corrotti): fuori da obs e mediane MA dichiarate nel riepilogo
+    const sospette = ev.filter((e) => e.sospetto);
+    const evValidi = ev.filter((e) => !e.sospetto);
     const perAuto = {};
-    for (const e of ev) for (const r of (e.perAuto ?? [])) {
+    for (const e of evValidi) for (const r of (e.perAuto ?? [])) {
       if (r.base || r.deltaVsBaseSec == null) continue;
       const k = r.auto;
       (perAuto[k] ??= { deltas: [] }).deltas.push(r.deltaVsBaseSec);
     }
     for (const k of Object.keys(perAuto)) perAuto[k].medSec = median(perAuto[k].deltas.map((v) => v));
-    const ult = ev[ev.length - 1] ?? null;
+    const ultValido = evValidi[evValidi.length - 1] ?? null;
     const perTraccia = cls?.perTraccia?.[trkKey];
     out.push({
       classe, trkKey, obs: c.obs, ok: c.ok, confidenza: c.confidenza,
+      scartate: sospette.length,
       convalidatoAdesso: perTraccia?.convalidato === true || (cls?.convalidatoSu ?? []).some((s) => trkKey.toLowerCase()?.includes?.(String(s).toLowerCase())) || false,
       suggerisciConvalida: c.suggerisciConvalida && perTraccia?.convalidato !== true,
       perAuto: Object.entries(perAuto).map(([auto, v]) => ({ auto, medSec: v.medSec })).sort((a, b) => a.medSec - b.medSec),
-      ultimaProposta: ult?.segnale?.proposte ?? [],
-      ultimoAt: ult?.at ?? null,
+      ultimaProposta: ultValido?.segnale?.proposte ?? [],
+      ultimoAt: (evValidi[evValidi.length - 1] ?? ev[ev.length - 1])?.at ?? null,
     });
   }
   return { file: CALIB_FILE(), eventi: eventi.length, gruppi: out.sort((a, b) => String(b.ultimoAt ?? '').localeCompare(String(a.ultimoAt ?? ''))) };

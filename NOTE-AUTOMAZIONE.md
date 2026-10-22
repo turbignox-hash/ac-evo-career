@@ -460,3 +460,40 @@ serve l'inglese. Tradurre tutto in una sessione sola avrebbe obbligato a estrarr
   src/webui.mjs) restano italiani fino alla fase 4 della checklist.
 - Totale da convertire nelle viste: ~770 testi (conteggio 22/10/2026,
   core + 7 file viste in gui/js).
+
+## MODULO STANTIO NEL LAUNCHER + BEST-LAP AI CORROTTI DAL WRITER EVO (22/10/2026, seoporanata)
+
+### 1) Codice stantio nel launcher (webui.mjs)
+- CHE COSA: due eventi Paul Ricard nel registro calibrazione nati "già rotti"
+  (base false, delta nulli) NON per colpa del motore: erano scritti dal processo
+  long-running del launcher con il VECCHIO grid-calib.mjs in memoria (import
+  statico: il codice che c'era quando il processo era partito).
+- LA LEVA: `src/hot.mjs` — hot-reload con cache-busting ESM sulla mtime:
+  `await hot('./import.mjs')` in webui.mjs ricrea l'INTERO grafo (import.mjs →
+  grid-calib.mjs) quando un file su disco cambia. Patch → il launcher si mette
+  al passo da solo. Le utility di sola lettura (ledger/log) restano statiche.
+- VERIFICATO: stessogmodulo se il file non cambia; nuovo modulo col nuovo
+  contenuto dopo la scrittura (scritto via scratch, rimosso). npm test 103/103.
+
+### 2) Il writer di EVO scrive best-lap/split delle AI che NON si fidano di (19:35)
+- IL CASO: gara 19:35 Paul Ricard col customgrid 11-NSX. I best lap scritti
+  delle top-AI mostrano S1/S2 combacianti i miei (±0,05–2,4s) e S3 da 46,8–58,2s
+  dove la MIA S3 nella STESSA sessione è 67,0s: NSX-R (100kg + 11%) a 2:19.59
+  mentre lo STESSO pilota chiude P1 a +84,77s da me. best scritto e totali di
+  gara si contraddicono: impossibile che entrambi siano veri.
+- RICOSTRUZIONE DEL RITMO: (totali − ~85s di trattenuta/partenza)/3 ≈ 161,3s,
+  IL MEDIO MISURATO della gara 19:01 (162,4s). NESSUN nuovo regime di forza del
+  campo: solo best-lap scritti gonfiati (~×0,87). La "NSX −4,73s" del 19:35 era
+  artefatto; la proposta 19,5% NON va eseguita.
+- CURA (grid-calib.mjs, testata): due guardie in analyzeRace —
+  1) RIGA: best > (total_time/laps) + 8s → la riga esce dalla mediana
+     (sui reali 0 scarti: con laps/totali veri non esistono). 
+  2) EVENTO: massa di AI con S3 scritto più veloce del tuo di >8s (S1/S2 al
+     bordo equivalenza) → evento.sospetto = settori-ai-impossibili, segnale
+     'dati-sospetti', ZERO proposte, e nelle statistiche NON conta né come
+     osservazione né nelle mediane ("1 scartate (dati impossibili)" in CLI; nel
+     registro resta per trasparenza, append-only intatto).
+- STATO CALIBRAZIONE dopo le guardie: Paul Ricard 1 misurazione reale (19:01,
+  NSX −3,52s a 5%), confidenza bassa. L'11% resta NON MISURATO su dati veri:
+  serve un round PR nuovo stesso impianto della 19:01, poi si valuta il timbro.
+- Anche il backup del registro: data/backups/grid-calibrazione.bak-prima-guardie.json.

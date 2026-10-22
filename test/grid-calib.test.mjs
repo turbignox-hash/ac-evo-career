@@ -197,6 +197,104 @@ test('stesso file = stessa gara: il registro non doppia-registra e non gonfia la
   assert.equal(g?.obs, 1, 'il gruppo deve contare UNA sola osservazione');
 });
 
+/* ------------ 5c. autoBase con annotazione tra parentesi e nomi auto con suffissi ------------
+// Entrambe le condizioni vere trovate 22/10 su Coppa RX-7 a Paul Ricard: l'autoBase
+// del file porte l'annotazione «(base della calibrazione: kg 0 / 0%)» e due modelli
+// nel pool hanno i suffissi che EVO scrive nei risultati — ma NON nella regola di classe.
+// Con match a stringa esatta la base non si trova e TUTTI i delta per-auto restano null. */
+test('autoBase mentita fra parentesi e nomi con suffissi: i delta per-auto esistono comunque', () => {
+  // total_time fisicamente coerenti col best (3 giri): la guardia di riga 22/10 scarterebbe
+  // una best impossibile (best > media) e qui le gare sono tutte VERE
+  const tot3 = (sec) => `${Math.floor((sec * 3 + 2) / 60)}:${String(Math.round((sec * 3 + 2) % 60)).padStart(2, '0')}.000`;
+  const aiVera = (n, b, c, s) => ({ ...carAI(n, b, c, s), total_time: tot3(s) });
+  const race = griglia(
+    aiVera('N1', 'Honda', 'NSX-R 92R', 161.0),
+    aiVera('N2', 'Honda', 'NSX-R 92R', 164.1),
+    aiVera('S1', 'Honda', 'S2000 AP1', 164.12),
+    aiVera('B1', 'Mercedes-Benz', '190E 2.5-16 Evo II', 164.54),   // base mia, annota nel file
+    aiVera('M1', 'BMW', 'M3 E30 Sport Evo (Evolution III)', 166.6),  // suffisso NON nella regola
+    aiVera('L1', 'Lancia', 'Delta HF integrale Evoluzione II', 170.8), // 'integrale' minuscolo, NON nella regola
+  );
+  race.track = 'Circuito Paul Ricard';
+  const { evento } = calib.analyzeRace(race, { track: race.track });
+  assert.equal(evento.classe, 'coppa_mazda-rx7-fd', 'le auto si matchano comunque');
+  const base = evento.perAuto.find((r) => r.base);
+  assert.ok(base && base.auto.includes('190E'), 'la base si riconosce oltre alle annotazioni');
+  const nsx = evento.perAuto.find((r) => r.auto.includes('NSX'));
+  assert.ok(nsx.deltaVsBaseSec != null && nsx.deltaVsBaseSec < -0.8,
+    `NSX sfugge col delta calcolato (non null): ${nsx.deltaVsBaseSec}s`);
+  const m3 = evento.perAuto.find((r) => r.auto.includes('M3'));
+  assert.ok(m3.deltaVsBaseSec != null, `anche l'M3 col suffisso (Evolution III) ha un delta: ${JSON.stringify(m3)}`);
+  const lancia = evento.perAuto.find((r) => r.auto.includes('Delta'));
+  assert.ok(lancia.deltaVsBaseSec != null, `anche la Delta con 'Evoluzione II' ha un delta: ${JSON.stringify(lancia)}`);
+});
+
+/* ------------ 5d. GUARDIE ANTI-DATI-CORROTTI (lezione 22/10, Paul Ricard 1901/1935) ------------
+ * il writer di EVO scrive i best-lap delle AI STORTI: stesso giorni, stesso impianto,
+ * lo stesso campo registra best written ×1,15 LENTI (i tre di coda della gara prima)
+ * e ×0,87 VELOC (il 19:35: S1/S2 delle AI combacianti le mie a ±0,5 ma S3 da 46,8s dove
+ * le mie 67,0, e i totali di gara parlano di un RITMO identico alla gara prima). */
+test('guardia di RIGA: best sopra la media dei giri non esistono — la riga esce dalla mediana', () => {
+  calib.resetCalib();
+  // riga REALE di Paul Ricard 19:01 (Franke, 205 T16): best scritto 2:51.876 con ritmo
+  // di gara 149,7 (total 7:28.994 / 3 giri): matematicamente impossibile.
+  const race = griglia(
+    { ...carAI('corrotto', ...AUTO.m3, 171.876), total_time: '7:28.994' },
+    { ...carAI('sano', ...AUTO.m3, 149.5), total_time: '8:00.000' },
+    carAI('b1', ...AUTO.abarth, 161.5),
+    carAI('b2', ...AUTO.abarth, 161.6),
+  );
+  const { evento } = calib.analyzeRace(race, { track: 'Pista Di Prova Senza Regole' });
+  assert.equal(evento.bestScartati, 1, `la riga impossibile è scartata: ${evento.bestScartati}`);
+  const m3 = evento.perAuto.find((r) => r.auto.includes('M3'));
+  assert.ok(Math.abs(m3.bestMedSec - 149.5) < 0.01, `la mediana M3 usa SOLO la riga sana: ${m3.bestMedSec}s`);
+});
+
+test('guardia di EVENTO: AI con S1/S2 miei e un best lap impossibile → evento scartato, niente proposte', () => {
+  calib.resetCalib();
+  const me = {
+    driver_name: 'Mauro Turbigno', driver_surname: 'Turbigno', position: 0, laps: 3,
+    car_name: 'RX-7 FD Spirit R', car_brand: 'Mazda', is_current_driver: true,
+    best_lap: bestStr(158.655), total_time: '8:03.761',
+    splits: ['00:44.310', '00:47.328', '01:07.017'],
+  };
+  // le AI COME LE SCRIVE EVO nella gara 19:35: S1/S2 uguali ai miei, best gpu-ina veloce
+  const aiFake = (n, sec) => ({
+    ...carAI(n, ...AUTO.golf, sec), laps: 3, total_time: '9:29.000',
+    splits: ['00:44.361', '00:48.465', '00:46.768'],
+  });
+  // servono ALMENO due MODELLI affinché la classe si matchi (come la gara vera:
+  // il campo non è mai un solo modello)
+  const race = griglia(
+    me,
+    aiFake('f1', 139.594),
+    aiFake('f2', 143.058),
+    aiFake('f3', 144.323),
+    carAI('b1', ...AUTO.abarth, 161.5),
+    carAI('b2', ...AUTO.abarth, 161.6),
+  );
+  race.track = 'Pista Di Prova Senza Regole';
+  const meRow = race.drivers.find((d) => d.driver_name === 'Mauro Turbigno');
+  const { evento, proposte } = calib.analyzeRace(race, { track: race.track, playerDriver: meRow });
+  assert.ok(evento.sospetto, `l'evento è marcato sospetto: ${JSON.stringify(evento.sospetto ?? null, null, 0)}`);
+  assert.equal(evento.segnale.tipo, 'dati-sospetti');
+  assert.equal(proposte.length, 0, 'nessuna proposta nasce da dati che non si fidano di');
+  // e NON contano per la confidenza né per le mediane del riepilogo. Osserva come
+  // fa l'import: playerDriver viene passato (senza di lui la guardia di evento non gira)
+  const meRow34 = race.drivers.find((d) => d.driver_name === 'Mauro Turbigno');
+  calib.recordRaceFromResult({ result: race, track: race.track, sourceFile: 'f35.json', playerDriver: meRow34 });
+  calib.recordRaceFromResult({ result: race, track: race.track, sourceFile: 'f35b.json', playerDriver: meRow34 });
+  // il gruppo SOLO DI GARE SOSPETTE resta visibile nel riepilogo ma vuoto:
+  // obs 0, mediane non calcolabili, confidenza nessuna, scartate dichiarate
+  const sum = calib.calibSummary();
+  const g = sum.gruppi.find((x) => x.classe === 'pi-10-11-moderna' && x.trkKey === 'Pista Di Prova Senza Regole');
+  assert.ok(g, 'il gruppo resta visibile nel riepilogo');
+  assert.equal(g.obs, 0, 'le gare sospette NON contano come osservazioni');
+  assert.equal(g.scartate, 2, 'le due gare sospette dichiariate come scartate');
+  assert.equal(g.confidenza, 'nessuna');
+  assert.equal(g.perAuto.length, 0, 'nessuna mediana per-auto da dati che non si fidano di');
+});
+
 /* ------------ 6. classe sconosciuta ------------ */
 test('classe sconosciuta: nessun evento, nessun rumore', () => {
   calib.resetCalib();

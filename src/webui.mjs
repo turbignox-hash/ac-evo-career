@@ -27,7 +27,13 @@ import {
   listResultFiles, readSessionResult, isRaceSession, describeResult, findPlayerDriver, classify,
 } from './results.mjs';
 import { rivalsOverview, rivalDetail } from './rivals.mjs';
-import { runImport, alreadyImportedHash, importedFiles, importLog, resetImportRegistry } from './import.mjs';
+// runImport sta FUORI dall'import statico: la catena import.mjs → grid-calib.mjs
+// va nel launcher a CALDO (src/hot.mjs — lezione 22/10/2026: gli eventi nati rotti
+// nel registro di calibrazione venivano dal codice stantio del processo long-running).
+// Le quattro utility qui sotto invece sono snapshot di puro disco (ledger/log),
+// incollate staticamente non c'è nulla di vivo da ricaricare.
+import { alreadyImportedHash, importedFiles, importLog, resetImportRegistry } from './import.mjs';
+import { hot } from './hot.mjs';
 import { checkIntegrity, fixIntegrity } from './integrity.mjs';
 import { maybeSpawnEvent, acceptEvent, declineEvent, finishEvent, eventCard, eventsOverview, expireEvents, ensureEvents } from './events.mjs';
 import { seasonReview, reviewableSeasons, exportReview } from './review.mjs';
@@ -86,7 +92,8 @@ function tipoGriglia(node) {
   _classesCache ??= loadClasses();
   return _classesCache.classi?.[node.nodeId]?.poolAuto?.length ? "multi-marca d'epoca" : 'monomarca';
 }
-import { calibSummary, calibFile } from './grid-calib.mjs';
+// griglia: la calibrazione (calibSummary) va A CALDO dal nuovo hot.mjs, sotto nel
+// pannello griglia — non c'è import statico di grid-calib.mjs qui in testa
 import { midSeasonPulse } from './world.mjs';
 // allievo: la memoria del meccanico — i round di consigli incassano l'esito del
 // giro successivo e la generazione seguente annota la storia su ogni campo
@@ -200,7 +207,11 @@ function systemHealth(paths, mode = null) {
 /* import: UNA sola logica per GUI, CLI e watcher (src/import.mjs)     */
 /* ------------------------------------------------------------------ */
 
-function doImport(ladder, paths, state, { manual = null, allowAny = false, force = false, since = null } = {}) {
+async function doImport(ladder, paths, state, { manual = null, allowAny = false, force = false, since = null } = {}) {
+  // hot('./import.mjs'): a ogni chiamata misura il mtime — se import.mjs o la sua
+  // dipendenza grid-calib.mjs sono cambiati su disco, il launcher si mette al
+  // passo SENZA riavvio (la stagione di gare non si spezza mai per una patch).
+  const { runImport } = await hot('./import.mjs');
   const out = runImport(ladder, paths, state, { manual, allowAny, force, since, persist });
   return { ...out, header: viewHeader(ladder, state) };
 }
@@ -1043,7 +1054,7 @@ async function api(context0, req, res, action, body) {
         })),
       }));
       let calib = null;
-      try { calib = calibSummary(); } catch { /* il registro calibrazione non esiste ancora: va bene */ }
+      try { calib = (await hot('./grid-calib.mjs')).calibSummary(); } catch { /* il registro calibrazione non esiste ancora: va bene */ }
       return sendJson(res, 200, { ...out, classi, matched: out.exists ? matchCurrentClass() : null, calib: (out.exists ? calib : null) });
     }
     case 'grid-apply': {
@@ -1228,7 +1239,7 @@ async function api(context0, req, res, action, body) {
     }
     case 'import': {
       try {
-        const out = doImport(ladder, paths, state, {
+        const out = await doImport(ladder, paths, state, {
           manual: body.position ? { position: body.position, gridSize: body.cars, dnf: !!body.dnf, fl: !!body.fl, laps: body.laps, bestLap: body.bestLap } : null,
           allowAny: !!body.allowAny, force: !!body.force,
         });
@@ -2087,7 +2098,7 @@ function watcherTick() {
         try {
           // in coda con le richieste API: nessuno sovrascrive lo state dell'altro
           const out = await serialize(async () => {
-            const out = doImport(ladder, paths, state, { allowAny: false, force: false, since: watcher.sinceImport ?? null });
+            const out = await doImport(ladder, paths, state, { allowAny: false, force: false, since: watcher.sinceImport ?? null });
             persist(state);
             return out;
           });

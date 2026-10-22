@@ -1311,7 +1311,7 @@ async function cmdGrigliaCalib(args) {
   }
   for (const g of sum.gruppi) {
     const conf = { alta: C.green, media: C.yellow, bassa: C.red, nessuna: C.dim }[g.confidenza] ?? C.dim;
-    console.log(`  ${C.bold(g.classe)} · ${C.cyan(g.trkKey)} — ${g.obs} ${tr({ it: 'gare', en: 'races' })} (${g.ok} ${tr({ it: 'in tolleranza', en: 'in tolerance' })}) · ${tr({ it: 'confidenza', en: 'confidence' })} ${conf(g.confidenza)}${g.convalidatoAdesso ? C.green(tr({ it: ' · convalidata', en: ' · validated' })) : ''}`);
+    console.log(`  ${C.bold(g.classe)} · ${C.cyan(g.trkKey)} — ${g.obs} ${tr({ it: 'gare', en: 'races' })} (${g.ok} ${tr({ it: 'in tolleranza', en: 'in tolerance' })}) · ${tr({ it: 'confidenza', en: 'confidence' })} ${conf(g.confidenza)}${g.convalidatoAdesso ? C.green(tr({ it: ' · convalidata', en: ' · validated' })) : ''}${g.scartate ? C.red(tr({ it: ` · ${g.scartate} scartate (dati impossibili)`, en: ` · ${g.scartate} discarded (impossible data)` })) : ''}`);
     for (const a of g.perAuto.slice(0, 8)) {
       const mark = a.medSec <= -0.8 ? C.red : a.medSec < 0.8 ? C.green : C.dim;
       console.log(`      ${a.auto.padEnd(34)} ${mark(fmtSec(a.medSec))} ${tr({ it: 'dalla base', en: 'from the base' })}`);
