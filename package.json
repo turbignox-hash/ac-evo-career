@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node ./ac-evo-career.mjs",
-    "test": "node --test \"test/*.test.mjs\""
+    "test": "node --test \"test/*.test.mjs\"",
+    "magazzino": "node tools/magazzino-check.mjs"
   },
   "engines": {
     "node": ">=18"

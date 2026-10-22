@@ -154,6 +154,8 @@ start "Carriera EVO — guardia" "%~dp0guarda.cmd"
 goto dopo
 
 :aprigui
+rem avviso discreto: parla solo se il backup e' stantio o incompleto
+node "%~dp0tools\magazzino-check.mjs" --breve 2>nul
 start "Carriera EVO" /MIN "%~dp0gui-run.cmd"
 exit /b 0
 
