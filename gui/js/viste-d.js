@@ -247,67 +247,67 @@ function drawSettings(m){
   const s = boot.setup;
   /* slot senza carriera (es. provato con ACE_SLOT libero): boot.header è null —
      senza questa guardia la scheda non si rendeva affatto */
-  const h = boot.header ?? { driver: { name: '(nessuna carriera in questo slot)' }, money: 0 };
+  const h = boot.header ?? { driver: { name: tr({ it: '(nessuna carriera in questo slot)', en: '(no career in this slot)' }) }, money: 0 };
   const slotsHtml = (s.slots ?? []).map((sl) => `
-    <tr class="${sl.active?'cur':''}" style="cursor:pointer" title="clicca: avvia questo slot (o apri il suo browser se è già attivo)">
-      <td><b>Slot ${sl.slot}</b>${sl.active?' <span class="tag gold">attivo</span>':''}</td>
-      <td>${sl.exists ? `<span>${esc(sl.pilota ?? '(carriera senza nome?)')}</span> <span class="faint">· ${sl.gare} gare · ${esc(sl.file)}</span>` : '<span class="faint">vuoto — nuova carriera quando lo scegli</span>'}</td>
+    <tr class="${sl.active?'cur':''}" style="cursor:pointer" title="${tr({ it: 'clicca: avvia questo slot (o apri il suo browser se è già attivo)', en: 'click: launch this slot (or open its browser if it is already active)' })}">
+      <td><b>Slot ${sl.slot}</b>${sl.active?` <span class="tag gold">${tr({ it: 'attivo', en: 'active' })}</span>`:''}</td>
+      <td>${sl.exists ? `<span>${esc(sl.pilota ?? tr({ it: '(carriera senza nome?)', en: '(unnamed career?)' }))}</span> <span class="faint">· ${sl.gare} ${tr({ it: 'gare', en: 'races' })} · ${esc(sl.file)}</span>` : `<span class="faint">${tr({ it: 'vuoto — nuova carriera quando lo scegli', en: 'empty — a new career starts when you pick it' })}</span>`}</td>
       <td class="right">${sl.active
-        ? `<button class="mini" data-slot-open="${sl.slot}">apri questa finestra</button>`
-        : `<button class="mini acc" data-slot-go="${sl.slot}">apri slot ${sl.slot}</button>`}</td>
+        ? `<button class="mini" data-slot-open="${sl.slot}">${tr({ it: 'apri questa finestra', en: 'open this window' })}</button>`
+        : `<button class="mini acc" data-slot-go="${sl.slot}">${tr({ it: 'apri slot', en: 'open slot' })} ${sl.slot}</button>`}</td>
     </tr>`).join('');
   m.innerHTML = `
-  <div class="panel"><h2>Slot carriera <span class="h-act">fino a 3 piloti sullo stesso PC</span></h2>
-    <table><thead><tr><th></th><th>Carriera</th><th class="right">Come si usa</th></tr></thead><tbody>${slotsHtml}</tbody></table>
-    <div class="faint" style="margin-top:8px" id="slot-instructions">Clicca una riga (o il bottone a destra) per avviare quello slot: parte <b>pilota-N.cmd</b> da solo, senza variabili da scrivere. I lanciatori sono anche avviabili a mano dalla cartella del programma, e gli slot si aprono anche insieme (slot 1 → porta 8642, slot 2 → 8643, slot 3 → 8644). Ogni slot ha il SUO salvataggio e i SUOI backup: mai mischiati. Lo slot 1 contiene le carriere fatte fino ad oggi. Il watcher segue lo slot del lanciatore che l'ha aperto. Lo slot attivo di questa sessione NON cambia a caldo: qui si apre la sua finestra, per cambiarlo davvero chiudi questa e apri l'altro.</div>
+  <div class="panel"><h2>${tr({ it: 'Slot carriera', en: 'Career slots' })} <span class="h-act">${tr({ it: 'fino a 3 piloti sullo stesso PC', en: 'up to 3 drivers on the same PC' })}</span></h2>
+    <table><thead><tr><th></th><th>${tr({ it: 'Carriera', en: 'Career' })}</th><th class="right">${tr({ it: 'Come si usa', en: 'How to use' })}</th></tr></thead><tbody>${slotsHtml}</tbody></table>
+    <div class="faint" style="margin-top:8px" id="slot-instructions">${tr({ it:`Clicca una riga (o il bottone a destra) per avviare quello slot: parte <b>pilota-N.cmd</b> da solo, senza variabili da scrivere. I lanciatori sono anche avviabili a mano dalla cartella del programma, e gli slot si aprono anche insieme (slot 1 → porta 8642, slot 2 → 8643, slot 3 → 8644). Ogni slot ha il SUO salvataggio e i SUOI backup: mai mischiati. Lo slot 1 contiene le carriere fatte fino ad oggi. Il watcher segue lo slot del lanciatore che l'ha aperto. Lo slot attivo di questa sessione NON cambia a caldo: qui si apre la sua finestra, per cambiarlo davvero chiudi questa e apri l'altro.`, en:`Click a row (or the button on the right) to launch that slot: <b>pilota-N.cmd</b> starts on its own, with no variables to type. The launchers can also be started manually from the program folder, and slots can open together (slot 1 → port 8642, slot 2 → 8643, slot 3 → 8644). Each slot has its OWN save file and its OWN backups: never mixed. Slot 1 holds the careers made up to now. The watcher follows the slot of the launcher that opened it. This session's active slot does NOT switch live: from here you open its window; to really change slot, close this one and open the other.` })}</div>
   </div>
-  <div class="panel"><h2>Lingua <span class="h-act">la pagina si ricarica al cambio</span></h2>
+  <div class="panel"><h2>${tr({ it: 'Lingua', en: 'Language' })} <span class="h-act">${tr({ it: 'la pagina si ricarica al cambio', en: 'the page reloads when you switch' })}</span></h2>
     <div class="row" style="align-items:center">
-      <label class="muted" for="i-lingua">Lingua interfaccia</label>
+      <label class="muted" for="i-lingua">${tr({ it: 'Lingua interfaccia', en: 'Interface language' })}</label>
       <select id="i-lingua" style="min-width:180px">
         <option value="it">Italiano</option>
         <option value="en">English</option>
       </select>
     </div>
-    <div class="muted" style="margin-top:8px;font-size:12px">La scelta vale per questo browser. Menu e banner aggiornamenti sono già bilingui; le viste si traducono al giro in cui si toccano (regola "pigra", vedi README).</div>
+    <div class="muted" style="margin-top:8px;font-size:12px">${tr({ it: 'La scelta vale per questo browser. Menu e banner aggiornamenti sono già bilingui; le viste si traducono al giro in cui si toccano (regola "pigra", vedi README).', en: 'The choice applies to this browser. Menu and updates banner are already bilingual; views get translated as they are touched (the "lazy" rule, see README).' })}</div>
   </div>
   <div class="grid2">
-    <div class="panel"><h2>Installazione <span class="h-act">stessa checklist del primo avvio — si modifica a caldo, senza riavvio</span></h2>
+    <div class="panel"><h2>${tr({ it: 'Installazione', en: 'Installation' })} <span class="h-act">${tr({ it: 'stessa checklist del primo avvio — si modifica a caldo, senza riavvio', en: 'same checklist as the first launch — edited live, no restart' })}</span></h2>
       <div id="wz-re" class="wiz" style="text-align:left;margin-bottom:10px"></div>
-      <div class="muted" style="font-size:12px">Cartelle Risultati viste dal watcher</div><div style="font-size:13px;word-break:break-all">${s.resultsDirs.map(esc).join('<br>') || '—'}</div>
+      <div class="muted" style="font-size:12px">${tr({ it: 'Cartelle Risultati viste dal watcher', en: 'Results folders watched by the watcher' })}</div><div style="font-size:13px;word-break:break-all">${s.resultsDirs.map(esc).join('<br>') || '—'}</div>
       <form id="f-paths" style="margin-top:14px">
-        <div class="field"><label>Cartella ACE (override)</label>
-          <div class="row"><input type="text" id="i-data" placeholder="C:\\Users\\...\\Saved Games\\ACE" value="${esc(s.saved.dataDir ?? '')}" style="flex:1"><button type="button" class="mini" id="b-pick-data" title="sfoglia il disco">🔍 cerca…</button></div>
+        <div class="field"><label>${tr({ it: 'Cartella ACE (override)', en: 'ACE folder (override)' })}</label>
+          <div class="row"><input type="text" id="i-data" placeholder="C:\\Users\\...\\Saved Games\\ACE" value="${esc(s.saved.dataDir ?? '')}" style="flex:1"><button type="button" class="mini" id="b-pick-data" title="${tr({ it: 'sfoglia il disco', en: 'browse the disk' })}">🔍 ${tr({ it: 'cerca…', en: 'browse…' })}</button></div>
         </div>
-        <div class="field"><label>Eseguibile (override)</label>
-          <div class="row"><input type="text" id="i-game" placeholder="...\\AssettoCorsaEVO.exe" value="${esc(s.saved.gameExe ?? '')}" style="flex:1"><button type="button" class="mini" id="b-pick-game" title="sfoglia il disco">🔍 cerca…</button></div>
+        <div class="field"><label>${tr({ it: 'Eseguibile (override)', en: 'Executable (override)' })}</label>
+          <div class="row"><input type="text" id="i-game" placeholder="...\\AssettoCorsaEVO.exe" value="${esc(s.saved.gameExe ?? '')}" style="flex:1"><button type="button" class="mini" id="b-pick-game" title="${tr({ it: 'sfoglia il disco', en: 'browse the disk' })}">🔍 ${tr({ it: 'cerca…', en: 'browse…' })}</button></div>
         </div>
-        <div class="field"><label> cartella Risultati di EVO (override, opzionale)</label>
-          <div class="row"><input type="text" id="i-results" placeholder="...\\Saved Games\\ACE\\Results" value="${esc(s.saved.resultsDir ?? '')}" style="flex:1"><button type="button" class="mini" id="b-pick-res">🔍 cerca…</button></div>
+        <div class="field"><label>${tr({ it: 'cartella Risultati di EVO (override, opzionale)', en: 'EVO Results folder (override, optional)' })}</label>
+          <div class="row"><input type="text" id="i-results" placeholder="...\\Saved Games\\ACE\\Results" value="${esc(s.saved.resultsDir ?? '')}" style="flex:1"><button type="button" class="mini" id="b-pick-res">🔍 ${tr({ it: 'cerca…', en: 'browse…' })}</button></div>
         </div>
-        <button class="ghost" type="submit">Salva percorsi</button>
+        <button class="ghost" type="submit">${tr({ it: 'Salva percorsi', en: 'Save paths' })}</button>
       </form>
     </div>
-    <div class="panel"><h2>Pilota</h2>
-      <div class="muted">Nome attuale in carriera</div><div style="font-size:18px;font-weight:600">${esc(h.driver.name)}</div>
-      <div class="muted" style="margin-top:4px">Deve essere uguale al nome con cui corri in EVO: serve a riconoscerti all'import dei risultati.</div>
+    <div class="panel"><h2>${tr({ it: 'Pilota', en: 'Driver' })}</h2>
+      <div class="muted">${tr({ it: 'Nome attuale in carriera', en: 'Current career name' })}</div><div style="font-size:18px;font-weight:600">${esc(h.driver.name)}</div>
+      <div class="muted" style="margin-top:4px">${tr({ it: "Deve essere uguale al nome con cui corri in EVO: serve a riconoscerti all'import dei risultati.", en: 'It must match the name you race with in EVO: it is how the result import recognizes you.' })}</div>
       <form id="f-rename" class="row" style="margin-top:12px">
-        <input type="text" id="i-rename" placeholder="Nuovo nome" style="flex:1;min-width:200px">
-        <button class="ghost" type="submit">Rinomina</button>
+        <input type="text" id="i-rename" placeholder="${tr({ it: 'Nuovo nome', en: 'New name' })}" style="flex:1;min-width:200px">
+        <button class="ghost" type="submit">${tr({ it: 'Rinomina', en: 'Rename' })}</button>
       </form>
-      <h2 style="margin-top:22px">Registro import</h2>
-      <div class="muted" style="font-size:12px">Ogni import fa un backup automatico del salvataggio, viene scritto in un log e ogni file risultato è ricordato per contenuto: lo stesso file non può essere incassato due volte.</div>
+      <h2 style="margin-top:22px">${tr({ it: 'Registro import', en: 'Import log' })}</h2>
+      <div class="muted" style="font-size:12px">${tr({ it: 'Ogni import fa un backup automatico del salvataggio, viene scritto in un log e ogni file risultato è ricordato per contenuto: lo stesso file non può essere incassato due volte.', en: 'Each import backs up the save automatically, is written to a log, and every result file is remembered by content: the same file cannot be banked twice.' })}</div>
       <div id="import-log" style="margin-top:8px;font-size:12px;max-height:220px;overflow:auto">…</div>
-      <h2 style="margin-top:22px">Carriera</h2>
+      <h2 style="margin-top:22px">${tr({ it: 'Carriera', en: 'Career' })}</h2>
       <div class="row">
-        <button class="ghost" id="b-backup">Backup carriera</button>
-        <button class="ghost danger" id="b-reset">Ricomincia da zero</button>
+        <button class="ghost" id="b-backup">${tr({ it: 'Backup carriera', en: 'Career backup' })}</button>
+        <button class="ghost danger" id="b-reset">${tr({ it: 'Ricomincia da zero', en: 'Start over' })}</button>
       </div>
-      <div class="muted" id="backup-list" style="margin-top:6px;font-size:12px">Crea una copia di sicurezza del salvataggio: soldi, risultati, rivali e statistiche restano intatti anche se qualcosa va storto.</div>
-      ${s.issues.length ? `<div class="banner warn" style="margin-top:16px">${s.issues.length} riferimenti della scala non trovati nell'installazione: ${esc(s.issues.slice(0,4).map(i=>i.id).join(', '))}${s.issues.length>4?'…':''}</div>` : '<div class="banner good" style="margin-top:16px">La scala carriera combacia con il contenuto installato.</div>'}
-      <h2 style="margin-top:22px">Verifica integrità</h2>
-      <div class="row"><button class="ghost" id="b-integrity">Controlla la carriera</button></div>
-      <div class="muted" style="margin-top:6px;font-size:12px">Ricalcola statistiche, cassa e reputazione dalle gare e dalla bacheca: se qualcosa non torna (per esempio una gara fantasma) te lo dice e può correggere.</div>
+      <div class="muted" id="backup-list" style="margin-top:6px;font-size:12px">${tr({ it: 'Crea una copia di sicurezza del salvataggio: soldi, risultati, rivali e statistiche restano intatti anche se qualcosa va storto.', en: 'Makes a safety copy of the save: money, results, rivals and stats stay intact even if something goes wrong.' })}</div>
+      ${s.issues.length ? `<div class="banner warn" style="margin-top:16px">${tr({ it: `${s.issues.length} riferimenti della scala non trovati nell'installazione`, en: `${s.issues.length} ladder references not found in the installation` })}: ${esc(s.issues.slice(0,4).map(i=>i.id).join(', '))}${s.issues.length>4?'…':''}</div>` : `<div class="banner good" style="margin-top:16px">${tr({ it: 'La scala carriera combacia con il contenuto installato.', en: 'The career ladder matches the installed content.' })}</div>`}
+      <h2 style="margin-top:22px">${tr({ it: 'Verifica integrità', en: 'Integrity check' })}</h2>
+      <div class="row"><button class="ghost" id="b-integrity">${tr({ it: 'Controlla la carriera', en: 'Check the career' })}</button></div>
+      <div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: 'Ricalcola statistiche, cassa e reputazione dalle gare e dalla bacheca: se qualcosa non torna (per esempio una gara fantasma) te lo dice e può correggere.', en: 'Recomputes stats, money and reputation from races and the board: if something is off (say a ghost race) it tells you and can fix it.' })}</div>
       <div id="integrity-out" style="margin-top:8px;font-size:13px"></div>
     </div>
   </div>`;
@@ -317,7 +317,7 @@ function drawSettings(m){
     if (!n) return;
     b.disabled = true;
     api('slot-launch', { method:'POST', body:{ slot: Number(n) } })
-      .then(r => { toast(r.note ?? 'Lanciatore avviato.', 'ok'); b.disabled = false; })
+      .then(r => { toast(r.note ?? tr({ it: 'Lanciatore avviato.', en: 'Launcher started.' }), 'ok'); b.disabled = false; })
       .catch(err => { toast(err.message, 'err'); b.disabled = false; });
   });
   // lingua: selettore collegato a gui/js/lang.js (tr + impostaLingua)
@@ -326,7 +326,7 @@ function drawSettings(m){
   wizardChecklist($('#wz-re'), { sketch: false, onChanged: refreshBoot });
   $('#f-paths').onsubmit = async (e) => {
     e.preventDefault();
-    try { await api('setup-save', {dataDir:$('#i-data').value, gameExe:$('#i-game').value, resultsDir:$('#i-results')?.value ?? ''}); await refreshBoot(); toast('Percorsi salvati.','ok'); render(); }
+    try { await api('setup-save', {dataDir:$('#i-data').value, gameExe:$('#i-game').value, resultsDir:$('#i-results')?.value ?? ''}); await refreshBoot(); toast(tr({ it: 'Percorsi salvati.', en: 'Paths saved.' }),'ok'); render(); }
     catch(err){ toast(err.message,'err'); }
   };
   $('#b-pick-data').onclick = () => pathPicker('dir', (p) => { $('#i-data').value = p; });
@@ -334,28 +334,28 @@ function drawSettings(m){
   $('#b-pick-res').addEventListener('click', () => pathPicker('dir', (p) => { $('#i-results').value = p; }));
   $('#f-rename').onsubmit = async (e) => {
     e.preventDefault();
-    try { await api('rename', {name:$('#i-rename').value}); await refreshBoot(); toast('Nome aggiornato.','ok'); render(); }
+    try { await api('rename', {name:$('#i-rename').value}); await refreshBoot(); toast(tr({ it: 'Nome aggiornato.', en: 'Name updated.' }),'ok'); render(); }
     catch(err){ toast(err.message,'err'); }
   };
   $('#b-backup').onclick = async () => {
     try {
       const r = await api('backup');
-      $('#backup-list').innerHTML = 'Ultimi backup: ' + r.backups.map(b=>esc(b.at)).join(' · ');
-      toast('Backup creato: ' + r.backups[0]?.at, 'ok');
+      $('#backup-list').innerHTML = tr({ it: 'Ultimi backup: ', en: 'Latest backups: ' }) + r.backups.map(b=>esc(b.at)).join(' · ');
+      toast(tr({ it: 'Backup creato: ', en: 'Backup created: ' }) + r.backups[0]?.at, 'ok');
     } catch(err){ toast(err.message,'err'); }
   };
   $('#b-integrity').onclick = async () => {
     const out = $('#integrity-out');
     try {
       const r = await api('integrity');
-      if (!r.issues.length) { out.innerHTML = '<div class="banner good">Tutto torna: gare, statistiche, cassa e bacheca sono coerenti.</div>'; return; }
-      out.innerHTML = `<div class="banner warn"><b>${r.issues.length} anomalie:</b><ul style="margin:6px 0 0 18px">${r.issues.map(i=>`<li>${esc(i.text)}</li>`).join('')}</ul></div>
-        <button class="ghost" id="b-integrity-fix" style="margin-top:8px">Correggi quello che si può correggere</button>`;
+      if (!r.issues.length) { out.innerHTML = `<div class="banner good">${tr({ it: 'Tutto torna: gare, statistiche, cassa e bacheca sono coerenti.', en: 'All checks out: races, stats, money and board are consistent.' })}</div>`; return; }
+      out.innerHTML = `<div class="banner warn"><b>${r.issues.length} ${tr({ it: 'anomalie:', en: 'issues:' })}</b><ul style="margin:6px 0 0 18px">${r.issues.map(i=>`<li>${esc(i.text)}</li>`).join('')}</ul></div>
+        <button class="ghost" id="b-integrity-fix" style="margin-top:8px">${tr({ it: 'Correggi quello che si può correggere', en: 'Fix what can be fixed' })}</button>`;
       $('#b-integrity-fix').onclick = async () => {
         try {
           const f = await api('integrity-fix');
           await refreshBoot(); render();
-          toast(f.fixed.length ? 'Corretto: ' + f.fixed.join(', ') : 'Le anomalie restanti vanno verificate a mano (vedi import --ledger).', f.fixed.length?'ok':'warn');
+          toast(f.fixed.length ? tr({ it: 'Corretto: ', en: 'Fixed: ' }) + f.fixed.join(', ') : tr({ it: 'Le anomalie restanti vanno verificate a mano (vedi import --ledger).', en: 'The remaining issues need a manual check (see import --ledger).' }), f.fixed.length?'ok':'warn');
         } catch(err){ toast(err.message,'err'); }
       };
     } catch(err){ toast(err.message,'err'); }
@@ -363,13 +363,13 @@ function drawSettings(m){
   api('imports').then((r)=>{
     const el = $('#import-log');
     if (!el) return;
-    if (!r.log.length) { el.innerHTML = '<span class="muted">Nessun import ancora registrato.</span>'; return; }
-    el.innerHTML = r.log.map((l)=>`<div style="padding:2px 0;border-bottom:1px solid var(--line,#222)">${esc(String(l.at??'').slice(0,16).replace('T',' '))} · <b>${l.outcome==='ignored'?'ignorato':l.outcome==='manual'?'a mano':'importato'}</b> · ${esc(l.file??'—')}${l.node?` · ${esc(l.node)} R${(l.round??0)+1}`:''}${typeof l.position==='number'?` · P${l.position}`:''}${l.outcome==='ignored'?` · <span class="muted">${esc(l.reason??'')}</span>`:''}</div>`).join('');
+    if (!r.log.length) { el.innerHTML = `<span class="muted">${tr({ it: 'Nessun import ancora registrato.', en: 'No imports registered yet.' })}</span>`; return; }
+    el.innerHTML = r.log.map((l)=>`<div style="padding:2px 0;border-bottom:1px solid var(--line,#222)">${esc(String(l.at??'').slice(0,16).replace('T',' '))} · <b>${l.outcome==='ignored'?tr({ it: 'ignorato', en: 'ignored' }):l.outcome==='manual'?tr({ it: 'a mano', en: 'manual' }):tr({ it: 'importato', en: 'imported' })}</b> · ${esc(l.file??'—')}${l.node?` · ${esc(l.node)} R${(l.round??0)+1}`:''}${typeof l.position==='number'?` · P${l.position}`:''}${l.outcome==='ignored'?` · <span class="muted">${esc(l.reason??'')}</span>`:''}</div>`).join('');
   }).catch(()=>{});
-  $('#b-reset').onclick = () => modal('Ricominciare da zero?', `
-      <p>La carriera attuale verrà <b>cancellata</b> al momento della creazione della nuova: soldi, punti, contratti e messaggi tornano a zero.</p>
-      <p class="muted" style="margin-top:8px">L'operazione si completa solo se poi confermi il modulo con «ricomincia da zero» spuntato.</p>`,
-    [['Annulla','ghost',()=>{}], ['Vai alla creazione','ghost danger', () => { tab='dashboard'; boot.hasCareer=false; drawNav(); render(); }]]);
+  $('#b-reset').onclick = () => modal(tr({ it: 'Ricominciare da zero?', en: 'Start from scratch?' }), `
+      <p>${tr({ it: 'La carriera attuale verrà <b>cancellata</b> al momento della creazione della nuova: soldi, punti, contratti e messaggi tornano a zero.', en: 'The current career will be <b>deleted</b> when the new one is created: money, points, contracts and messages go back to zero.' })}</p>
+      <p class="muted" style="margin-top:8px">${tr({ it: "L'operazione si completa solo se poi confermi il modulo con «ricomincia da zero» spuntato.", en: 'The operation only completes if you then confirm the form with the “start from scratch” box ticked.' })}</p>`,
+    [[tr({ it: 'Annulla', en: 'Cancel' }),'ghost',()=>{}], [tr({ it: 'Vai alla creazione', en: 'Go to creation' }),'ghost danger', () => { tab='dashboard'; boot.hasCareer=false; drawNav(); render(); }]]);
 }
 
 /* -------- fine stagione (da cruscotto) -------- */
@@ -613,6 +613,6 @@ setInterval(async () => {
   try {
     const b = await api('boot');
     $('#dot-evo').classList.toggle('on', !!b.gameRunning);
-    $('#t-evo').textContent = b.gameRunning ? 'EVO aperto' : 'chiuso';
+    $('#t-evo').textContent = b.gameRunning ? tr({ it: 'EVO aperto', en: 'EVO open' }) : tr({ it: 'chiuso', en: 'closed' });
   } catch {}
 }, 30000);
