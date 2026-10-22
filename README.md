@@ -38,6 +38,10 @@ backup carriera con un click.
 
 ## Installazione
 
+Per un'installazione su un altro PC da parte di un amico (clone dal repo, primo
+setup, aggiornamenti dal launcher, problemi tipici) c'è la guida dedicata:
+[GUIDA-AMICO.md](GUIDA-AMICO.md).
+
 Serve solo **Node.js 18 o superiore**. Nessuna dipendenza da installare. Assetto Corsa EVO
 installato e avviato almeno una volta (perché crei le sue cartelle dati).
 
