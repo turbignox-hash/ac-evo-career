@@ -265,7 +265,7 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
       sectors: secAnalysis,
       durationMin: rnd.round?.durationMin ?? null,
     };
-    sourceInfo = `${candidate.name} (pilota riconosciuto da: ${how}${info.dnf ? ', ritiro' : ''}${lap.playerHasIt ? ', giro veloce' : ''})`;
+    sourceInfo = `${candidate.name} (${tr({ it: 'pilota riconosciuto da', en: 'driver recognised via' })}: ${how}${info.dnf ? tr({ it: ', ritiro', en: ', retirement' }) : ''}${lap.playerHasIt ? tr({ it: ', giro veloce', en: ', fastest lap' }) : ''})`;
 
     // dati di contesto per il registro rivali e le statistiche complete:
     // qualifica abbinata (stesso weekend, stessa pista) → posizione di partenza, pole, rimonta

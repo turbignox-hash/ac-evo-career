@@ -55,7 +55,7 @@ function aggMemo() {
 import { currentWeatherPreset, setWeatherPreset, PRESETS, setWeatherCustom, presetForLabel } from './weather.mjs';
 import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
 import { sameTrack as trkSame, sameCar as carSame } from './tracknames.mjs';
-import { tr } from './lang.mjs';
+import { tr, lang, setLang, hasEnvOverride } from './lang.mjs';
 import { carsBook, carImageOf } from './cars.mjs';
 import { garageOverview, catalogPicker, addCar, removeCar, setNote, importShowcase, sellCar } from './garage.mjs';
 import { ensureFlowsSeeded, recentFlows, resetFlows } from './flows.mjs';
@@ -297,6 +297,16 @@ async function api(context0, req, res, action, body) {
   }
 
   switch (action) {
+    case 'lang': {
+      // UNA lingua per tutti: la scelta in Impostazioni vale anche per CLI e server.
+      // Si salva in evo.config.json e si applica subito al server vivo. EVO_LANG
+      // in ambiente resta arbitrato superiore (utile per forzare via terminale).
+      const v = String(body.lang ?? '').toLowerCase();
+      if (!['it', 'en'].includes(v)) return sendJson(res, 400, { error: tr({ it: 'Lingua non riconosciuta (it|en).', en: 'Unknown language (it|en).' }) });
+      if (!hasEnvOverride()) setLang(v);
+      writeConfig({ lang: v });
+      return sendJson(res, 200, { ok: true, lang: lang() });
+    }
     case 'wizard': {
       // WIZARD del primo avvio (Mauro 22/10 stile «spunta verde»): stato del
       // percorso dati e dell'exe, salvataggio manuale persistito in
@@ -538,17 +548,17 @@ async function api(context0, req, res, action, body) {
         // aggettivi/citazione di forma: derivano da skill, archetipo, forma e età
         (s, a, hot, age) => {
           const out = [];
-          if (hot) out.push('in forma 🔥');
-          if (s >= 0.95) out.push('fuoriclasse');
-          else if (s >= 0.90) out.push('velocissimo');
-          else if (s >= 0.84) out.push('competitive');
-          else out.push('in crescita');
-          if (a === 'AP') out.push('attaccante nato');
-          else if (a === 'CH') out.push('imprevedibile');
-          else if (a === 'MT') out.push('metodico');
-          else if (a === 'AM') out.push('regolarista');
-          if (age != null && age <= 20) out.push('prodigio in ascensa');
-          else if (age != null && age >= 38) out.push('veterano affilato');
+          if (hot) out.push(tr({ it: 'in forma 🔥', en: 'in form 🔥' }));
+          if (s >= 0.95) out.push(tr({ it: 'fuoriclasse', en: "world-class talent" }));
+          else if (s >= 0.90) out.push(tr({ it: 'velocissimo', en: 'blazing fast' }));
+          else if (s >= 0.84) out.push(tr({ it: 'competitive', en: 'competitive' }));
+          else out.push(tr({ it: 'in crescita', en: 'on the rise' }));
+          if (a === 'AP') out.push(tr({ it: 'attaccante nato', en: 'born attacker' }));
+          else if (a === 'CH') out.push(tr({ it: 'imprevedibile', en: 'unpredictable' }));
+          else if (a === 'MT') out.push(tr({ it: 'metodico', en: 'methodical' }));
+          else if (a === 'AM') out.push(tr({ it: 'regolarista', en: 'metronome' }));
+          if (age != null && age <= 20) out.push(tr({ it: 'prodigio in ascesa', en: 'rising prodigy' }));
+          else if (age != null && age >= 38) out.push(tr({ it: 'veterano affilato', en: 'sharp veteran' }));
           return out.slice(0, 3);
         },
       ][0];
@@ -558,7 +568,7 @@ async function api(context0, req, res, action, body) {
           key: d.id ?? `${d.first}-${d.last}`, name: `${d.first} ${d.last}`, country: d.country,
           skill: Number(d.skill) || 0, age: d.age, archetype: d.archetype,
           cons: d.cons, aggr: d.aggr, hot: !!d.hot, iconic: !!d.iconic, seasons: d.seasons ?? 0,
-          form: d.hot ? 'in forma' : d.retired ? 'in declino' : '',
+          form: d.hot ? tr({ it: 'in forma', en: 'in form' }) : d.retired ? tr({ it: 'in declino', en: 'in decline' }) : '',
           traits: ADJ(Number(d.skill) || 0, d.archetype, !!d.hot, d.age),
           archName: archInfo[d.archetype]?.name ?? d.archetype,
           archDesc: archInfo[d.archetype]?.description ?? '',
@@ -2196,6 +2206,7 @@ server.on('error', async (e) => {
   process.exit(1);
 });
 
+try { appEnv(); } catch { /* percorso sistemabile dal wizard */ } // lingua salvata: subito valida
 server.listen(PORT, '127.0.0.1', () => {
   const addr = `http://127.0.0.1:${PORT}`;
   console.log(`\n  Carriera EVO — interfaccia grafica   [slot ${SLOT} di 3]`);

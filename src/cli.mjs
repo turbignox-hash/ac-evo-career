@@ -1,6 +1,6 @@
 // cli.mjs — i comandi della carriera EVO. Lingua: EVO_LANG=it|en (src/lang.mjs).
 
-import { tr, LANG } from './lang.mjs';
+import { tr, lang, applyLangConfig, hasEnvOverride, localizeLadder } from './lang.mjs';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -94,7 +94,7 @@ function parseArgs(argv) {
 }
 
 function loadLadder() {
-  return JSON.parse(readFileSync(LADDER_FILE, 'utf8'));
+  return localizeLadder(JSON.parse(readFileSync(LADDER_FILE, 'utf8')));
 }
 
 function appEnv() {
@@ -103,13 +103,15 @@ function appEnv() {
     const cfg = JSON.parse(readFileSync(CONFIG_FILE, 'utf8'));
     if (cfg.dataDir) env.ACE_DATA = cfg.dataDir;
     if (cfg.gameExe) env.ACE_ROOT = dirname(cfg.gameExe);
+    if (!hasEnvOverride()) applyLangConfig(cfg.lang); // UNA lingua per CLI e server
   }
   return env;
 }
 
 function context() {
+  const env = appEnv(); // legge anche la lingua salvata: prima della scala
   const ladder = loadLadder();
-  const paths = resolvePaths(appEnv());
+  const paths = resolvePaths(env);
   return { ladder, paths };
 }
 
@@ -164,6 +166,7 @@ function cmdHelp() {
 }
 
 function cmdSetup(args) {
+  appEnv(); // la lingua del config vale anche qui
   const ladder = loadLadder();
   if (args.flags.data || args.flags.game) {
     const patch = {};
@@ -711,7 +714,7 @@ function cmdImport(args) {
     for (const f of files.slice(0, 5)) {
       let result;
       try { result = readSessionResult(f.file); } catch { continue; }
-      console.log(`  ${f.name}  ${C.dim(new Date(f.mtime).toLocaleString(LANG === 'en' ? 'en-GB' : 'it-IT'))}`);
+      console.log(`  ${f.name}  ${C.dim(new Date(f.mtime).toLocaleString(lang() === 'en' ? 'en-GB' : 'it-IT'))}`);
       console.log(`    ${tr({ it: 'sessione', en: 'session' })} ${result.session} · ${tr({ it: 'pista', en: 'track' })} ${result.track} · ${(result.drivers ?? []).length} ${tr({ it: 'piloti', en: 'drivers' })}`);
       if (args.flags.full) console.log(describeResult(result).split('\n').map((l) => '    ' + l).join('\n'));
     }
@@ -1159,6 +1162,7 @@ async function cmdGriglia(args) {
     // col range in memoria della UI). In quelle condizioni: promemoria, e via.
     console.log(C.yellow(tr({ it: '\nEVO è aperto: ok scrivere lo stesso (menu ricarica il file a ogni entrata).', en: '\nEVO is open: writing anyway is fine (the menu re-reads the file on every entry).' })) + C.dim(tr({ it: '\nMa solo da (o verso) la schermata PRINCIPALE: non stare nel menu griglia, e non usare GENERA dopo la scrittura (riscriverebbe il file).\n', en: '\nBut only from (or to) the MAIN screen: do not stay in the grid menu, and do not use GENERATE after writing (it would rewrite the file).\n' })));
   }
+  appEnv(); // la lingua del config vale anche qui
   const ladder = loadLadder();
   const state = loadState(SAVE_FILE);
   const nodeId = typeof args.flags.serie === 'string' ? args.flags.serie : state.node;

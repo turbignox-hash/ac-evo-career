@@ -20,5 +20,14 @@ window.tr = (p) => (p && (p[window.LINGUA] ?? p.it)) ?? '';
 
 window.impostaLingua = (lingua) => {
   localStorage.setItem('evo-lingua', lingua);
+  // UNA lingua per tutti: il server (vale anche per CLI) prende la stessa scelta.
+  // Fuori dal browser che lo salva, nella sua configurazione: niente nel save.
+  try {
+    fetch('/api/lang', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lang: lingua }),
+    }).catch(() => {});
+  } catch { /* niente server: resta la scelta locale */ }
   location.reload();
 };

@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { fourPsi } from './setup.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 import { sameTrack, sameCar } from './tracknames.mjs';
+import { tr } from './lang.mjs';
 
 const WHEELS = ['LF', 'RF', 'LR', 'RR'];
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -616,16 +617,25 @@ export function racePressureAdvice(sessions, { target, raceLaps = null } = {}) {
   if (rows.length) {
     const avgDrift = rows.reduce((a, r) => a + r.drift, 0) / rows.length;
     const longest = rows.slice().sort((a, b) => b.laps - a.laps)[0];
-    lines.push(`Drift termico medio misurato: ${avgDrift > 0 ? '+' : ''}${r1(avgDrift)} PSI tra l'inizio e la fine delle uscite (la più lunga: ${longest.laps} giri, ${longest.early}→${longest.late}).`);
+    lines.push(tr({
+      it: `Drift termico medio misurato: ${avgDrift > 0 ? '+' : ''}${r1(avgDrift)} PSI tra l'inizio e la fine delle uscite (la più lunga: ${longest.laps} giri, ${longest.early}→${longest.late}).`,
+      en: `Measured average thermal drift: ${avgDrift > 0 ? '+' : ''}${r1(avgDrift)} PSI between the start and the end of the runs (longest: ${longest.laps} laps, ${longest.early}→${longest.late}).`,
+    }));
     // in gara lo stint è più lungo delle uscite viste: se il drift era ancora in corso
     // (la pressione saliva alla fine) serve una piccola correzione extra in contropartita
     const stintLaps = raceLaps || longest.laps + 2;
     const driftPerLap = avgDrift / Math.max(1, longest.laps);
     const extra = Math.max(0, (stintLaps - longest.laps)) * driftPerLap;
     psiAdj = Math.round(Math.min(1.5, extra / 2) * 10) / 10;
-    if (psiAdj > 0) lines.push(`Stint gara stimato ${stintLaps} giri: aggiungo ${psiAdj} PSI alla partenza per compensare il drift che ancora deve venire.`);
+    if (psiAdj > 0) lines.push(tr({
+      it: `Stint gara stimato ${stintLaps} giri: aggiungo ${psiAdj} PSI alla partenza per compensare il drift che ancora deve venire.`,
+      en: `Estimated race stint ${stintLaps} laps: adding ${psiAdj} PSI to the start to compensate the drift still to come.`,
+    }));
   } else {
-    lines.push('Usate uscite brevi (qualifica/prove): in gara la gomma sale ancora di 0.5–1 PSI dopo il 5° giro — considera mezzo giro in più di bring-in.');
+    lines.push(tr({
+      it: 'Usate uscite brevi (qualifica/prove): in gara la gomma sale ancora di 0.5–1 PSI dopo il 5° giro — considera mezzo giro in più di bring-in.',
+      en: "Run short outings (quali/practice): in the race the tyre still rises another 0.5–1 PSI after lap 5 — consider half a lap more bring-in.",
+    }));
   }
   const start = base.suggestedStartPsi != null ? r1(base.suggestedStartPsi + psiAdj) : null;
   const short = base.suggestedStartPsi != null ? r1(base.suggestedStartPsi - 0.2) : null;

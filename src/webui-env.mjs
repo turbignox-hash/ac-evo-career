@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { resolvePaths } from './paths.mjs';
 import { loadState, saveState, savePath, activeSlot } from './state.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
+import { localizeLadder, setLang, hasEnvOverride } from './lang.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const PROJECT = dirname(HERE);
@@ -23,7 +24,7 @@ export const CONFIG_FILE = join(DATA_DIR, 'evo.config.json');
 export const GUI_DIR = join(PROJECT, 'gui');
 export const BACKUP_DIR = join(DATA_DIR, 'backups');
 
-export function loadLadder() { return JSON.parse(readFileSync(LADDER_FILE, 'utf8')); }
+export function loadLadder() { return localizeLadder(JSON.parse(readFileSync(LADDER_FILE, 'utf8'))); }
 
 export function appEnv() {
   const env = { ...process.env };
@@ -31,6 +32,7 @@ export function appEnv() {
     const cfg = JSON.parse(readFileSync(CONFIG_FILE, 'utf8'));
     if (cfg.dataDir) env.ACE_DATA = cfg.dataDir;
     if (cfg.gameExe) env.ACE_ROOT = dirname(cfg.gameExe);
+    if (!hasEnvOverride() && cfg.lang) setLang(cfg.lang); // UNA lingua per GUI, CLI e server
   }
   return env;
 }

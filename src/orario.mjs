@@ -133,13 +133,22 @@ export function applyPianoToCalendar(ladder, nodeId, pianoId, { da = 0, a = null
       else delete r.timeScale;
     }
     righe.push({ round: i, name: r.name ?? `R${i + 1}`, piano: piano ?? 'override', prima: before, dopo: { hour: spec.hour, timeScale: spec.timeScale ?? null } });
-  }
-  if (!dry) {
-    if (backup) {
-      try { mkdirSync(BACKUP_DIR, { recursive: true }); copyFileSync(file, join(BACKUP_DIR, `career.evo.ladder.bak-orario-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}.json`)); } catch { /* il backup non deve bloccare */ }
+  }    if (!dry) {
+      if (backup) {
+        try { mkdirSync(BACKUP_DIR, { recursive: true }); copyFileSync(file, join(BACKUP_DIR, `career.evo.ladder.bak-orario-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}.json`)); } catch { /* il backup non deve bloccare */ }
+      }
+      // Il ladder in ingresso può essere localizzato (EVO_LANG=en): rileggo la
+      // base dal disco e sopra scrivo SOLO il calendario toccato, cosi' i testi
+      // del file restanno sempre in lingua di origine.
+      let toWrite = ladder;
+      try {
+        const raw = JSON.parse(readFileSync(file, 'utf8'));
+        const rawNode = raw?.nodes?.find((n) => n.nodeId === nodeId);
+        if (rawNode && Array.isArray(rawNode.calendar)) rawNode.calendar = node.calendar;
+        toWrite = rawNode ? raw : toWrite;
+      } catch { /* niente base dal disco: scrive come prima */ }
+      writeJsonAtomic(file, toWrite);
     }
-    writeJsonAtomic(file, ladder);
-  }
   return { piano: piano ?? 'override', node: nodeId, dry, righe };
 }
 

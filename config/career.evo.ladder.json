@@ -44,38 +44,52 @@
     {
       "id": "entry",
       "name": "Entry Level",
-      "description": "Vetture compatte e coppe monomarca: si impara a stare in pista prima di pretendere di vincere."
+      "description": "Vetture compatte e coppe monomarca: si impara a stare in pista prima di pretendere di vincere.",
+      "nameEn": "Entry Level",
+      "descriptionEn": "Compact cars and one-make cups: you learn to stay on track before aiming to win."
     },
     {
       "id": "touring",
       "name": "Turismo",
-      "description": "Berline e derivate di serie: contatti, trazione e gare corte."
+      "description": "Berline e derivate di serie: contatti, trazione e gare corte.",
+      "nameEn": "Touring",
+      "descriptionEn": "Saloons and road derivatives: contact, traction and short races."
     },
     {
       "id": "single",
       "name": "Monoposto",
-      "description": "Le due formula di EVO: F2004 e SF-25. Deportanza, frenate impossibili, nessun margine."
+      "description": "Le due formula di EVO: F2004 e SF-25. Deportanza, frenate impossibili, nessun margine.",
+      "nameEn": "Formula",
+      "descriptionEn": "EVO's two formulas: F2004 and SF-25. Downforce, impossible braking, no margin for error."
     },
     {
       "id": "gt",
       "name": "Gran Turismo",
-      "description": "GT4, GT3 e GT2, piu' le leggende stradali. Squadre vere, gare vere."
+      "description": "GT4, GT3 e GT2, piu' le leggende stradali. Squadre vere, gare vere.",
+      "nameEn": "GT Racing",
+      "descriptionEn": "GT4, GT3 and GT2, plus the road legends. Real teams, real races."
     },
     {
       "id": "endurance",
       "name": "Endurance",
-      "description": "Gare lunghe, luce che cambia, gomme che finiscono, pit obbligatorio."
+      "description": "Gare lunghe, luce che cambia, gomme che finiscono, pit obbligatorio.",
+      "nameEn": "Endurance",
+      "descriptionEn": "Long races, changing light, tires that wear out, mandatory pit stop."
     },
     {
       "id": "strada",
       "name": "Strada e Rally",
-      "description": "Vetture da rally e stradali leggendarie, portate sui circuiti: si vince di coraggio."
+      "description": "Vetture da rally e stradali leggendarie, portate sui circuiti: si vince di coraggio.",
+      "nameEn": "Street & Rally",
+      "descriptionEn": "Rally cars and legendary road cars brought to circuits: you win by courage."
     }
   ],
   "archetypes": {
     "AP": {
       "name": "Attaccante",
       "description": "Stacca tardi e va forte sul giro secco, ma paga in costanza.",
+      "nameEn": "Attacker",
+      "descriptionEn": "Brakes late and attacks the hot lap, but pays for it in consistency.",
       "skill": 1,
       "aggression": 0.85,
       "consistency": 0.62
@@ -83,6 +97,8 @@
     "MT": {
       "name": "Metodico",
       "description": "Pulito e regolare, costruisce il risultato giro dopo giro.",
+      "nameEn": "Methodical",
+      "descriptionEn": "Clean and steady, builds the result lap after lap.",
       "skill": 0.97,
       "aggression": 0.55,
       "consistency": 0.88
@@ -90,6 +106,8 @@
     "CH": {
       "name": "Incontenibile",
       "description": "Imprevedibile: giocate geniali ed errori che costano caro.",
+      "nameEn": "Unstoppable",
+      "descriptionEn": "Unpredictable: flashes of genius and mistakes that cost dear.",
       "skill": 0.99,
       "aggression": 0.95,
       "consistency": 0.5
@@ -97,6 +115,8 @@
     "AM": {
       "name": "Regolarista",
       "description": "Porta sempre la macchina a casa. Raramente brillante, quasi mai fuori.",
+      "nameEn": "Mr Consistent",
+      "descriptionEn": "Always brings the car home. Rarely brilliant, almost never out.",
       "skill": 0.94,
       "aggression": 0.45,
       "consistency": 0.95

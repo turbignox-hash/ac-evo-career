@@ -63,13 +63,13 @@ async function drawMessages(m){
   const v = await api('messages');
   const mb = v.mailbox ?? { mails: [] };
   const KIND_META = {
-    'Racing':   ['btn-racing',   '🏁', 'Direttore di corsa e gara di oggi: la mail che decide la giornata'],
-    'Sponsor':  ['btn-sponsor',  '💼', 'Sponsor: quote, missioni e proposte'],
-    'Contratti':['btn-contratti','✍️', 'Il tuo manager: contratti, impegni e conflitti di calendario'],
-    'Carriera': ['btn-carriera', '🧭', 'Carriera: reputazione, trim, guida alla scala'],
+    'Racing':   ['btn-racing',   '🏁', tr({ it: 'Direttore di corsa e gara di oggi: la mail che decide la giornata', en: "Race director and today's race: the email that decides the day" })],
+    'Sponsor':  ['btn-sponsor',  '💼', tr({ it: 'Sponsor: quote, missioni e proposte', en: 'Sponsors: fees, missions and proposals' })],
+    'Contratti':['btn-contratti','✍️', tr({ it: 'Il tuo manager: contratti, impegni e conflitti di calendario', en: 'Your manager: contracts, commitments and calendar conflicts' })],
+    'Carriera': ['btn-carriera', '🧭', tr({ it: 'Carriera: reputazione, trim, guida alla scala', en: 'Career: reputation, trim, ladder guidance' })],
   };
   const kinds = ['tutte', ...Object.keys(KIND_META)];
-  const chips = kinds.map((k)=>`<button class="mini ${mailFilter===k?'acc':''}" data-mf="${k}">${k==='tutte'?'tutte':(KIND_META[k]?KIND_META[k][1]+' '+k:k)}</button>`).join('');
+  const chips = kinds.map((k)=>`<button class="mini ${mailFilter===k?'acc':''}" data-mf="${k}">${k==='tutte'?tr({ it: 'tutte', en: 'all' }):(KIND_META[k]?KIND_META[k][1]+' '+(window.LINGUA==='en'?{Racing:'Racing',Sponsor:'Sponsor',Contratti:'Contracts',Carriera:'Career'}[k]??k:k):k)}</button>`).join('');
   const mails = mb.mails.filter((x) => mailFilter==='tutte' || x.kind===mailFilter);
   const mailCard = (mm) => {
     const [cls, ico, desc] = KIND_META[mm.kind] ?? ['', '✉️', ''];
@@ -77,54 +77,54 @@ async function drawMessages(m){
     // (una email = una decisione, e la decisione ha il suo bottone qui).
     let actions = '';
     if (mm.action?.kind === 'vai-gara') {
-      actions = `<button class="mini acc" data-maction="vai-gara">🏁 vai alla gara</button>`;
+      actions = `<button class="mini acc" data-maction="vai-gara">🏁 ${tr({ it: 'vai alla gara', en: 'go to the race' })}</button>`;
     } else if (mm.action?.kind === 'vai-agenda') {
-      actions = `<button class="mini acc" data-maction="vai-agenda">apri il Centro gare</button>`;
+      actions = `<button class="mini acc" data-maction="vai-agenda">${tr({ it: 'apri il Centro gare', en: 'open the Race centre' })}</button>`;
     } else if (mm.action?.kind === 'vai-classifica') {
-      actions = `<button class="mini acc" data-maction="vai-classifica">🏅 apri la Classifica</button>`;
+      actions = `<button class="mini acc" data-maction="vai-classifica">🏅 ${tr({ it: 'apri la Classifica', en: 'open Standings' })}</button>`;
     } else if (mm.action?.kind === 'sponsor-sign') {
-      actions = `<button class="mini acc" data-maction="sponsor-sign" data-tier="${mm.action.tier ?? ''}" data-name="${esc(mm.action.name ?? '')}">✍️ firma con ${esc(mm.action.name ?? 'sponsor')} (tier ${mm.action.tier ?? '?'})</button>`;
+      actions = `<button class="mini acc" data-maction="sponsor-sign" data-tier="${mm.action.tier ?? ''}" data-name="${esc(mm.action.name ?? '')}">✍️ ${tr({ it: 'firma con', en: 'sign with' })} ${esc(mm.action.name ?? 'sponsor')} (${tr({ it: 'tier', en: 'tier' })} ${mm.action.tier ?? '?'})</button>`;
     } else if (mm.action?.kind === 'vai-rivale') {
-      actions = `<button class="mini acc" data-maction="vai-rivale" data-rival="${esc(mm.action.rivalKey ?? '')}">🔙 apri la scheda di ${esc(mm.action.name ?? 'rivale')}</button>`;
+      actions = `<button class="mini acc" data-maction="vai-rivale" data-rival="${esc(mm.action.rivalKey ?? '')}">🔙 ${tr({ it: 'apri la scheda di', en: 'open the card of' })} ${esc(mm.action.name ?? 'rivale')}</button>`;
     } else if (mm.kind === 'Carriera' && /trim/i.test(mm.corpo)) {
-      actions = `<button class="mini acc" data-maction="trim-check">⚖️ vedi il trim (Difficoltà)</button>`;
+      actions = `<button class="mini acc" data-maction="trim-check">⚖️ ${tr({ it: 'vedi il trim (Difficoltà)', en: 'see the trim (Difficulty)' })}</button>`;
     }
     return `<div class="mail ${cls}">
       <div class="mh2"><span class="mi">${ico}</span>
         <b class="oggetto">${esc(mm.oggetto)}</b>
-        ${mm.priorita==='urgente' ? '<span class="tag gold" style="margin-left:8px">⚠️ urgente</span>' : ''}
+        ${mm.priorita==='urgente' ? `<span class="tag gold" style="margin-left:8px">⚠️ ${tr({ it: 'urgente', en: 'urgent' })}</span>` : ''}
       </div>
       <div class="mfrom muted">${esc(mm.from)} · ${esc(mm.date)}</div>
       <pre class="mcorpo">${esc(mm.corpo)}</pre>
       ${actions ? `<div class="row" style="gap:6px;margin-top:8px">${actions}</div>` : ''}
-      ${mm.action?.rivals?.length ? `<div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${mm.action.rivals.map(r=>`<span class="chip gold" data-rival="${esc(r.key??'')}" style="cursor:pointer" title="apri la scheda pilota">${esc(r.name)}</span>`).join('')}</div>` : ''}
-      ${mm.action?.rows?.length ? `<div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${mm.action.rows.map((rr,i)=>`<span class="chip" data-row-node="${esc(rr.nodeId??'')}" data-row-track="${esc(rr.trackKey??'')}" style="cursor:pointer" title="serie → scheda gara · pista → scheda pista">${esc(rr.label)}</span> <span class="chip gold" data-track-open="${esc(rr.trackKey??'')}" data-track-name="${esc(rr.track)}" style="cursor:pointer;font-size:10px;padding:1px 6px" title="apri la scheda pista">📍</span>`).join('')}</div>` : ''}
+      ${mm.action?.rivals?.length ? `<div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${mm.action.rivals.map(r=>`<span class="chip gold" data-rival="${esc(r.key??'')}" style="cursor:pointer" title="${tr({ it: 'apri la scheda pilota', en: 'open the driver card' })}">${esc(r.name)}</span>`).join('')}</div>` : ''}
+      ${mm.action?.rows?.length ? `<div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${mm.action.rows.map((rr,i)=>`<span class="chip" data-row-node="${esc(rr.nodeId??'')}" data-row-track="${esc(rr.trackKey??'')}" style="cursor:pointer" title="${tr({ it: 'serie → scheda gara · pista → scheda pista', en: 'series → race card · track → track card' })}">${esc(rr.label)}</span> <span class="chip gold" data-track-open="${esc(rr.trackKey??'')}" data-track-name="${esc(rr.track)}" style="cursor:pointer;font-size:10px;padding:1px 6px" title="${tr({ it: 'apri la scheda pista', en: 'open the track card' })}">📍</span>`).join('')}</div>` : ''}
     </div>`;
   };
   m.innerHTML = `
   <div class="panel">
-    <h2>Posta del pilota <span class="h-act">${mb.mails.length} email · ${esc(mb.oggi ?? '')}</span></h2>
+    <h2>${tr({ it: 'Posta del pilota', en: 'Driver mailbox' })} <span class="h-act">${mb.mails.length} ${tr({ it: 'email', en: 'emails' })} · ${esc(mb.oggi ?? '')}</span></h2>
     <div class="row" style="margin-bottom:10px">${chips}</div>
-    ${mails.filter(x=>x.priorita==='urgente').length ? `<div class="muted" style="margin-bottom:8px">⚠️ ${mails.filter(x=>x.priorita==='urgente').length} email urgenti (gare da disputare, conflitti da risolvere)</div>` : ''}
-    ${mails.length ? mails.map(mailCard).join('') : '<div class="empty">Niente in questa casella: torna più tardi o cambia filtro.</div>'}
+    ${mails.filter(x=>x.priorita==='urgente').length ? `<div class="muted" style="margin-bottom:8px">⚠️ ${mails.filter(x=>x.priorita==='urgente').length} ${tr({ it: 'email urgenti (gare da disputare, conflitti da risolvere)', en: 'urgent emails (races to run, conflicts to resolve)' })}</div>` : ''}
+    ${mails.length ? mails.map(mailCard).join('') : `<div class="empty">${tr({ it: 'Niente in questa casella: torna più tardi o cambia filtro.', en: 'Nothing in this box: come back later or change the filter.' })}</div>`}
   </div>
   <div class="grid2">
-    <div class="panel"><h2>Diario di bordo</h2>${v.messages.length ? v.messages.map(msgRow).join('') : '<div class="empty">Nessun messaggio nel diario.</div>'}</div>
-    <div class="panel"><h2>Offerte sul tavolo</h2>
+    <div class="panel"><h2>${tr({ it: 'Diario di bordo', en: "Driver's logbook" })}</h2>${v.messages.length ? v.messages.map(msgRow).join('') : `<div class="empty">${tr({ it: 'Nessun messaggio nel diario.', en: 'No logbook messages.' })}</div>`}</div>
+    <div class="panel"><h2>${tr({ it: 'Offerte sul tavolo', en: 'Offers on the table' })}</h2>
       ${v.offers.length ? v.offers.map(o=>`<div class="offer"><span class="n">${esc(o.display)}</span>
-        <span class="muted">L${o.level} · ${esc(o.discipline)} · ${esc(o.note)} · affitto ${money(o.rent)} €</span>
-        <span class="m"><button class="mini" data-detail="${o.index}" data-name="${esc(o.display)}" ${o.detail?'':'disabled'}>dettagli</button>
-        <button class="mini" data-acc="${o.index}" data-name="${esc(o.display)}">firma</button></span></div>`).join('')
-      : '<div class="empty">Nessuna offerta al momento: arrivano a fine stagione. ATTENZIONE: firma solo quando hai gare libere nella giornata (mail del manager).</div>'}
+        <span class="muted">L${o.level} · ${esc(o.discipline)} · ${esc(o.note)} · ${tr({ it: 'affitto', en: 'rent' })} ${money(o.rent)} €</span>
+        <span class="m"><button class="mini" data-detail="${o.index}" data-name="${esc(o.display)}" ${o.detail?'':'disabled'}>${tr({ it: 'dettagli', en: 'details' })}</button>
+        <button class="mini" data-acc="${o.index}" data-name="${esc(o.display)}">${tr({ it: 'firma', en: 'sign' })}</button></span></div>`).join('')
+      : `<div class="empty">${tr({ it: 'Nessuna offerta al momento: arrivano a fine stagione. ATTENZIONE: firma solo quando hai gare libere nella giornata (mail del manager).', en: 'No offers right now: they arrive at season end. CAREFUL: sign only when you have free races in the day (the manager email).' })}</div>`}
     </div>
   </div>
-  <div class="panel" style="margin-top:14px"><h2>⚡ Azioni rapide</h2>
+  <div class="panel" style="margin-top:14px"><h2>⚡ ${tr({ it: 'Azioni rapide', en: 'Quick actions' })}</h2>
     <div class="row" style="flex-wrap:wrap;gap:8px">
-      <button class="mini acc" data-quick="sponsor-check" title="firma o rifiuta la proposta di sponsor nel cruscotto">🤝 Sponsor: apri le decisioni</button>
-      <button class="mini acc" data-quick="challenge-check" title="sfida della ronda: accetta o lascia">🎯 Sfida della ronda</button>
-      <button class="mini" data-quick="mail-all">📨 tutte le email</button>
+      <button class="mini acc" data-quick="sponsor-check" title="${tr({ it: 'firma o rifiuta la proposta di sponsor nel cruscotto', en: 'sign or decline the sponsor proposal on the dashboard' })}">🤝 ${tr({ it: 'Sponsor: apri le decisioni', en: 'Sponsor: open the decisions' })}</button>
+      <button class="mini acc" data-quick="challenge-check" title="${tr({ it: 'sfida della ronda: accetta o lascia', en: 'round challenge: accept or leave' })}">🎯 ${tr({ it: 'Sfida della ronda', en: 'Round challenge' })}</button>
+      <button class="mini" data-quick="mail-all">📨 ${tr({ it: 'tutte le email', en: 'all emails' })}</button>
     </div>
-    <div class="muted" style="margin-top:6px;font-size:12px">Le decisioni più importanti (sponsor, sfida) si firmano nel Cruscotto: il bottone ti porta lì con il pannello pronto.</div>
+    <div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: 'Le decisioni più importanti (sponsor, sfida) si firmano nel Cruscotto: il bottone ti porta lì con il pannello pronto.', en: 'The most important decisions (sponsor, challenge) are signed on the Dashboard: the button takes you there with the panel ready.' })}</div>
   </div>`;
   $$('button[data-mf]').forEach(b => b.onclick = () => { mailFilter = b.dataset.mf; drawMessages(m); });
   // azioni dalle email: la posta diventa OPERATIVA (gare, agenda, trim)
@@ -137,16 +137,16 @@ async function drawMessages(m){
     else if (a === 'vai-rivale') {
       const k = b.dataset.rival;
       if (k && typeof showRival === 'function') showRival(k);
-      else toast('Scheda rivale non disponibile.', 'err');
+      else toast(tr({ it: 'Scheda rivale non disponibile.', en: 'Rival card not available.' }), 'err');
     }
     else if (a === 'sponsor-sign') {
       const tier = b.dataset.tier ? Number(b.dataset.tier) : null;
       const name = b.dataset.name || 'sponsor';
-      modal('Firma dello sponsor', `
-        <p>Stai per firmare con <b>${esc(name)}</b>${tier ? ' (tier ' + tier + ')' : ''}.</p>
-        <p class="muted">Il contratto entra subito in campo: quota a gara + missione a tema.</p>`,
-        [['Annulla','ghost',()=>{}], ['Firma','act', async () => {
-          try { await api('sponsor-accept', { tier }); toast('Contratto sponsor firmato: ' + name, 'ok'); render(); }
+      modal(tr({ it: 'Firma dello sponsor', en: 'Sponsor signing' }), `
+        <p>${tr({ it: 'Stai per firmare con', en: 'You are about to sign with' })} <b>${esc(name)}</b>${tier ? ` (${tr({ it: 'tier', en: 'tier' })} ${tier})` : ''}.</p>
+        <p class="muted">${tr({ it: 'Il contratto entra subito in campo: quota a gara + missione a tema.', en: 'The contract enters the field right away: per-race fee + themed mission.' })}</p>`,
+        [[tr({ it: 'Annulla', en: 'Cancel' }), 'ghost', () => {}], [tr({ it: 'Firma', en: 'Sign' }), 'act', async () => {
+          try { await api('sponsor-accept', { tier }); toast(tr({ it: 'Contratto sponsor firmato: ', en: 'Sponsor contract signed: ' }) + name, 'ok'); render(); }
           catch(e){ toast(e.message,'err'); return false; }
         }]]);
     }
@@ -155,23 +155,23 @@ async function drawMessages(m){
   $$('.chip[data-rival]', m).forEach(c => c.onclick = () => {
     const k = c.dataset.rival;
     if (k && typeof showRival === 'function') showRival(k);
-    else toast('Rivale non in registro.', 'info');
+    else toast(tr({ it: 'Rivale non in registro.', en: 'Rival not in the registry.' }), 'info');
   });
   // RIGHE SETTIMANALE/ATARDO: chip serie (card gara) + 📍 pista (scheda pista)
-  $$('.chip[data-row-node]', m).forEach(c => c.onclick = () => { tab = 'dashboard'; drawNav(); render(); toast('Scheda gara nel Cruscotto.', 'info'); });
+  $$('.chip[data-row-node]', m).forEach(c => c.onclick = () => { tab = 'dashboard'; drawNav(); render(); toast(tr({ it: 'Scheda gara nel Cruscotto.', en: 'Race card on the Dashboard.' }), 'info'); });
   $$('.chip[data-track-open]', m).forEach(c => c.onclick = () => {
     const nome = c.dataset.trackName;
     tab = 'tracks'; drawNav(); render().then?.(() => {});
     setTimeout(() => {
       const row = $('#main table tr')?.parentElement; // best-effort: la vista è pronta
       $$('.b-hist').forEach(btn => { if (btn.dataset.hist && esc(nome).toLowerCase().includes(btn.dataset.hist.replace(/_/g,' ')) ) btn.click(); });
-      toast('Libro piste: storia della pista in fondo pagina (se presente).', 'info');
+      toast(tr({ it: 'Libro piste: storia della pista in fondo pagina (se presente).', en: 'Track book: track history at the bottom of the page (if present).' }), 'info');
     }, 350);
   });
   // azioni rapide: sessioni decisionali veloci senza cercare i pannelli
   $$('button[data-quick]').forEach(b => b.onclick = () => {
     const a = b.dataset.quick;
-    if (a === 'sponsor-check' || a === 'challenge-check') { tab = 'dashboard'; drawNav(); render(); toast('Pannello "Vita fuori pista" nel Cruscotto: firma o rifiuta da lì.', 'info'); }
+    if (a === 'sponsor-check' || a === 'challenge-check') { tab = 'dashboard'; drawNav(); render(); toast(tr({ it: 'Pannello "Vita fuori pista" nel Cruscotto: firma o rifiuta da lì.', en: 'The "Life off track" panel on the Dashboard: sign or decline from there.' }), 'info'); }
     else if (a === 'mail-all') { mailFilter = 'tutte'; drawMessages(m); }
   });
   $$('button[data-acc]').forEach(b => b.onclick = () => signOffer(Number(b.dataset.acc), b.dataset.name));
@@ -182,10 +182,10 @@ async function drawMessages(m){
 }
 
 function signOffer(index, name){
-  modal('Firma dell\'offerta', `
-    <p>Stai per firmare con <b>${esc(name)}</b>. Il contratto ha effetto immediato e sostituisce la serie attuale.</p>`,
-    [['Annulla','ghost',()=>{}], ['Firma','act', async () => {
-      try { const r = await api('accept', {index}); toast('Contratto firmato: ' + r.signed, 'ok'); await refreshBoot(); render(); }
+  modal(tr({ it: 'Firma dell\'offerta', en: 'Sign the offer' }), `
+    <p>${tr({ it: 'Stai per firmare con', en: 'You are about to sign with' })} <b>${esc(name)}</b>. ${tr({ it: 'Il contratto ha effetto immediato e sostituisce la serie attuale.', en: 'The contract takes effect immediately and replaces the current series.' })}</p>`,
+    [[tr({ it: 'Annulla', en: 'Cancel' }), 'ghost', () => {}], [tr({ it: 'Firma', en: 'Sign' }), 'act', async () => {
+      try { const r = await api('accept', {index}); toast(tr({ it: 'Contratto firmato: ', en: 'Contract signed: ' }) + r.signed, 'ok'); await refreshBoot(); render(); }
       catch(e){ toast(e.message,'err'); return false; }
     }]]);
 }

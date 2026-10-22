@@ -11,16 +11,17 @@ import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeJsonAtomic } from './atomic.mjs';
+import { tr } from './lang.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const NOTES_FILE = join(HERE, '..', 'data', 'setup-notes.json');
 
 export const TYRE_CLASSES = [
   { id: 'formula', label: 'Formula (SF-25)', target: 25.0 },
-  { id: 'slicks', label: 'Slicks (GT/corse)', target: 27.0 },
+  { id: 'slicks', label: `Slicks (${tr({ it: 'GT/corse', en: 'GT/racing' })})`, target: 27.0 },
   { id: 'hypercar', label: 'Hypercar', target: 29.0 },
   { id: 'supercar', label: 'Supercar', target: 30.0 },
-  { id: 'road', label: 'Stradali & ECO', target: 31.0 },
+  { id: 'road', label: tr({ it: 'Stradali & ECO', en: 'Road & ECO' }), target: 31.0 },
 ];
 
 const CLASS_RULES = [
@@ -83,17 +84,17 @@ export function setSetupNote(car, track, text) {
 export function fourPsi({ cold, hot, target }) {
   const c = Number(cold), h = Number(hot), t = Number(target);
   if (!Number.isFinite(c) || !Number.isFinite(h) || !Number.isFinite(t) || c <= 0 || h <= 0) {
-    return { ok: false, error: 'Servono pressione di partenza, pressione a caldo e target (numeri > 0).' };
+    return { ok: false, error: tr({ it: 'Servono pressione di partenza, pressione a caldo e target (numeri > 0).', en: 'Need starting pressure, hot pressure and target (numbers > 0).' }) };
   }
   const rise = Math.round((h - c) * 10) / 10;
   const newCold = Math.round((c + (t - h)) * 10) / 10;
   const lines = [];
   // salto termico: 3-5 PSI è la finestra sana
-  if (rise > 5) lines.push(`Salto ${rise} PSI: troppo alto → la partenza era troppo bassa, aggiungi ~${(Math.min(rise - 4, 1.5)).toFixed(1)} PSI oltre alla correzione.`);
-  else if (rise < 3) lines.push(`Salto ${rise} PSI: troppo basso → la partenza era troppo alta, togli ~${(Math.min(4 - rise, 1.5)).toFixed(1)} PSI oltre alla correzione.`);
-  else lines.push(`Salto ${rise} PSI: nella finestra sana (3–5), la partenza era giusta come approccio.`);
-  if (Math.abs(t - h) < 0.15) lines.push(`A caldo eri già sul target (${t} PSI): mantieni ${c} PSI da freddo.`);
-  else lines.push(`Nuova partenza consigliata: ${newCold} PSI da freddo (target a caldo ${t} PSI).`);
+  if (rise > 5) lines.push(tr({ it: `Salto ${rise} PSI: troppo alto → la partenza era troppo bassa, aggiungi ~${(Math.min(rise - 4, 1.5)).toFixed(1)} PSI oltre alla correzione.`, en: `Rise ${rise} PSI: too high → the start was too low, add ~${(Math.min(rise - 4, 1.5)).toFixed(1)} PSI on top of the correction.` }));
+  else if (rise < 3) lines.push(tr({ it: `Salto ${rise} PSI: troppo basso → la partenza era troppo alta, togli ~${(Math.min(4 - rise, 1.5)).toFixed(1)} PSI oltre alla correzione.`, en: `Rise ${rise} PSI: too low → the start was too high, remove ~${(Math.min(4 - rise, 1.5)).toFixed(1)} PSI on top of the correction.` }));
+  else lines.push(tr({ it: `Salto ${rise} PSI: nella finestra sana (3–5), la partenza era giusta come approccio.`, en: `Rise ${rise} PSI: inside the healthy window (3–5), the start was right as an approach.` }));
+  if (Math.abs(t - h) < 0.15) lines.push(tr({ it: `A caldo eri già sul target (${t} PSI): mantieni ${c} PSI da freddo.`, en: `Hot you were already on target (${t} PSI): keep ${c} PSI cold.` }));
+  else lines.push(tr({ it: `Nuova partenza consigliata: ${newCold} PSI da freddo (target a caldo ${t} PSI).`, en: `Suggested new start: ${newCold} PSI cold (hot target ${t} PSI).` }));
   return { ok: true, rise, newCold, target: t, hot: h, cold: c, advice: lines.join(' ') };
 }
 
@@ -133,13 +134,28 @@ export function setupAdvice(info, telem, { laps = null } = {}) {
 
   /* -- base dal carattere della pista -- */
   if (prof.tipo === 'power') {
-    add('aero', 1, `**${label}** (${info?.lengthKm} km, ${info?.corners} curve · tracciato POWER): scarica GLI ALETTONI al minimo drag — il tempo si guadagna sui rettilinei. Se il fondo è stabile in curva, un gradino d'ala in meno vale più di una mano di camber.`);
-    add('trasmissione', 2, `Cambio LUNGO (ultimo rapporto che arrivi a strappare sul rettifilo più lungo): a ${label} la velocità di punta paga i quarti del giro.`);
+    add('aero', 1, tr({
+      it: `**${label}** (${info?.lengthKm} km, ${info?.corners} curve · tracciato POWER): scarica GLI ALETTONI al minimo drag — il tempo si guadagna sui rettilinei. Se il fondo è stabile in curva, un gradino d'ala in meno vale più di una mano di camber.`,
+      en: `**${label}** (${info?.lengthKm} km, ${info?.corners} corners · POWER track): unload the WINGS to minimum drag — time is made on the straights. If the floor is stable in corners, one wing step down is worth more than a camber tweak.`,
+    }));
+    add('trasmissione', 2, tr({
+      it: `Cambio LUNGO (ultimo rapporto che arrivi a strappare sul rettifilo più lungo): a ${label} la velocità di punta paga i quarti del giro.`,
+      en: `LONG gearing (top gear you can almost pull on the longest straight): at ${label} top speed pays the quarters of the lap.`,
+    }));
   } else if (prof.tipo === 'tecnica') {
-    add('aero', 1, `**${label}** (${info?.corners} curve in ${info?.lengthKm} km · tracciato TECNICO): carica GLI ALETTONI (2-3 gradini sopra il minimo) — il tempo è in frenata e in uscita dalle curve strette.`);
-    add('trasmissione', 2, `Cambio CORTO: le potenze medie contano più della punta (${label} non ha rettilinei per giustificare un'ultima marcia lunga).`);
+    add('aero', 1, tr({
+      it: `**${label}** (${info?.corners} curve in ${info?.lengthKm} km · tracciato TECNICO): carica GLI ALETTONI (2-3 gradini sopra il minimo) — il tempo è in frenata e in uscita dalle curve strette.`,
+      en: `**${label}** (${info?.corners} corners in ${info?.lengthKm} km · TECHNICAL track): load the WINGS (2-3 steps above minimum) — time is in braking and corner exit.`,
+    }));
+    add('trasmissione', 2, tr({
+      it: `Cambio CORTO: le potenze medie contano più della punta (${label} non ha rettilinei per giustificare un'ultima marcia lunga).`,
+      en: `SHORT gearing: average power matters more than the peak (${label} has no straight long enough to justify a long top gear).`,
+    }));
   } else if (prof.tipo === 'bilanciata') {
-    add('aero', 1, `**${label}** (${info?.corners} curve in ${info?.lengthKm} km · tracciato BILANCIATO): ala a metà carica — il compromesso giusto fra i tratti veloci e le curve medi-lente.`);
+    add('aero', 1, tr({
+      it: `**${label}** (${info?.corners} curve in ${info?.lengthKm} km · tracciato BILANCIATO): ala a metà carica — il compromesso giusto fra i tratti veloci e le curve medi-lente.`,
+      en: `**${label}** (${info?.corners} corners in ${info?.lengthKm} km · BALANCED track): wing at half load — the right compromise between fast sections and medium-slow corners.`,
+    }));
   }
 
   /* -- correzioni dai dati VERI (se la telemetria c'è) -- */
@@ -149,32 +165,56 @@ export function setupAdvice(info, telem, { laps = null } = {}) {
     const bumpMax = Math.max(...WHEEL_KEYS.map((w) => telem.bump?.[w]?.contactPct ?? 0));
     const wheelMax = WHEEL_KEYS.find((w) => (telem.bump?.[w]?.contactPct ?? 0) === bumpMax);
     if (bumpMax >= BUMP_SOGLIA) {
-      add('assetto', 1, `Bumpstop ${wheelMax} al ${bumpMax}% del giro: il fondo batte — ALZA l'altezza (2 clic) o irigidisci i bumpstop su quel lato; su ${label} la superficie cresce col carico.`);
+      add('assetto', 1, tr({
+        it: `Bumpstop ${wheelMax} al ${bumpMax}% del giro: il fondo batte — ALZA l'altezza (2 clic) o irigidisci i bumpstop su quel lato; su ${label} la superficie cresce col carico.`,
+        en: `Bumpstop ${wheelMax} at ${bumpMax}% of the lap: the floor bottoms out — RAISE the height (2 clicks) or stiffen the bumpstops on that side; at ${label} surface grows with load.`,
+      }));
     } else if (bumpMax > 0) {
-      add('assetto', 3, `Bumpstop max ${wheelMax} al ${bumpMax}%: marginale — soprattutto non toccare l'altezza per questo.`);
+      add('assetto', 3, tr({
+        it: `Bumpstop max ${wheelMax} al ${bumpMax}%: marginale — soprattutto non toccare l'altezza per questo.`,
+        en: `Max bumpstop ${wheelMax} at ${bumpMax}%: marginal — above all do not touch the height for this.`,
+      }));
     }
     // camber dal proxy termico: l'interno scotta → troppo negativo
     for (const w of ['LF', 'RF']) {
       const d = telem.camberProxy?.[w];
       if (d == null) continue;
-      if (d >= CAMB_SANE * 2) add('camber', 2, `Camber anteriore: Δ int/est ${w} +${d}° — l'interno scotta: TOGLI camber negativo (~0.3°) o la gomma lavora poco sul fianco esterno.`);
-      else if (d <= -CAMB_SANE) add('camber', 2, `Camber anteriore: Δ int/est ${w} ${d}° — l'esterno scotta: AGGIUNGI camber negativo (~0.3°): in curva il muso non affonda.`);
-      else add('camber', 4, `Camber ${w} in finestra (Δ ${d > 0 ? '+' : ''}${d}°): non toccare.`);
+      if (d >= CAMB_SANE * 2) add('camber', 2, tr({
+        it: `Camber anteriore: Δ int/est ${w} +${d}° — l'interno scotta: TOGLI camber negativo (~0.3°) o la gomma lavora poco sul fianco esterno.`,
+        en: `Front camber: inner/outer Δ ${w} +${d}° — the inner edge overheats: REMOVE negative camber (~0.3°) or the tyre barely works on the outer shoulder.`,
+      }));
+      else if (d <= -CAMB_SANE) add('camber', 2, tr({
+        it: `Camber anteriore: Δ int/est ${w} ${d}° — l'esterno scotta: AGGIUNGI camber negativo (~0.3°): in curva il muso non affonda.`,
+        en: `Front camber: inner/outer Δ ${w} ${d}° — the outer edge overheats: ADD negative camber (~0.3°) so the nose does not wash out mid-corner.`,
+      }));
+      else add('camber', 4, tr({
+        it: `Camber ${w} in finestra (Δ ${d > 0 ? '+' : ''}${d}°): non toccare.`,
+        en: `Camber ${w} in window (Δ ${d > 0 ? '+' : ''}${d}°): leave it alone.`,
+      }));
     }
     // freni: il termico svedisce più il moto che la mescola
     const brakeMax = Math.max(...WHEEL_KEYS.map((w) => telem.brakes?.[w] ?? 0));
     const bWheel = WHEEL_KEYS.find((w) => (telem.brakes?.[w] ?? 0) === brakeMax);
-    if (brakeMax > 600) add('freni', 2, `Freni ${bWheel} picco ${Math.round(brakeMax)}°C: il termico è al limite — se svaniscono in fondo al giro, passa a una pastiglia più dura o sposta 1 tacca di bias del freno.`);
+    if (brakeMax > 600) add('freni', 2, tr({
+      it: `Freni ${bWheel} picco ${Math.round(brakeMax)}°C: il termico è al limite — se svaniscono in fondo al giro, passa a una pastiglia più dura o sposta 1 tacca di bias del freno.`,
+      en: `Brakes ${bWheel} peak ${Math.round(brakeMax)}°C: the thermal side is at its limit — if they fade late in the lap, go to a harder pad or move brake bias one notch.`,
+    }));
     // pressioni lontane dal target → promemoria (le regola coi 4 PSI già presente)
     const targ = tyreClassOf(info?.car ?? '').target ?? null;
     if (targ && telem.lastPressures) {
       const hot = (telem.lastPressures.LF + telem.lastPressures.RR) / 2;
       if (Math.abs(hot - targ) > 1.2) {
-        add('pressioni', 1, `A caldo ${hot.toFixed(1)} PSI vs target ${targ}: fuori finestra — ricalibra la partenza con la regola dei 4 PSI (pannello su).`);
+        add('pressioni', 1, tr({
+          it: `A caldo ${hot.toFixed(1)} PSI vs target ${targ}: fuori finestra — ricalibra la partenza con la regola dei 4 PSI (pannello su).`,
+          en: `Hot ${hot.toFixed(1)} PSI vs target ${targ}: out of window — recalibrate the start with the 4 PSI rule (panel above).`,
+        }));
       }
     }
   } else {
-    add('telemetria', 3, `Nessuna analisi MoTeC per questa sessione: i consigli sono SOLO pista. Fai una sessione con la telemetria attiva e il meccanico dà il secondo strato di correzione.`);
+    add('telemetria', 3, tr({
+      it: `Nessuna analisi MoTeC per questa sessione: i consigli sono SOLO pista. Fai una sessione con la telemetria attiva e il meccanico dà il secondo strato di correzione.`,
+      en: `No MoTeC analysis for this session: advice is TRACK-ONLY. Run a session with telemetry on and the mechanic adds the second correction layer.`,
+    }));
   }
   return { tipo: prof.tipo, densita: prof.densita, consigli: out.sort((a, b) => a.prio - b.prio) };
 }
@@ -201,7 +241,7 @@ export function boxChecklist(sessions, { target = null } = {}) {
   const prev = sessions?.[1] ?? null;
   if (!cur) {
     return { allGood: false, stato: null, items: [
-      { area: 'telemetria', level: 'info', text: 'Nessuna sessione ancora: fai un giro e la lista si popola da sola.' },
+      { area: 'telemetria', level: 'info', text: tr({ it: 'Nessuna sessione ancora: fai un giro e la lista si popola da sola.', en: 'No session yet: run a lap and the list fills in by itself.' }) },
     ] };
   }
   const items = [];
@@ -214,20 +254,35 @@ export function boxChecklist(sessions, { target = null } = {}) {
   const targ = Number(target) || null;
   if (hot != null && targ) {
     const diff = r1(targ - hot);
-    if (Math.abs(diff) <= 0.6) add('pressioni', 'ok', `a caldo ${r1(hot)} PSI vs target ${targ}: in finestra, la partenza ${cold != null ? r1(cold) : ''} PSI era giusta.`);
+    if (Math.abs(diff) <= 0.6) add('pressioni', 'ok', tr({
+      it: `a caldo ${r1(hot)} PSI vs target ${targ}: in finestra, la partenza ${cold != null ? r1(cold) : ''} PSI era giusta.`,
+      en: `hot ${r1(hot)} PSI vs target ${targ}: in window, the ${cold != null ? r1(cold) : ''} PSI start was right.`,
+    }));
     else {
       const novo = (cold != null) ? r1(cold + diff) : r1(hot + diff);
       const rise = (cold != null) ? r1(hot - cold) : null;
-      add('pressioni', 'bad', `a caldo ${r1(hot)} PSI vs target ${targ}: mancano ${Math.abs(diff)} PSI → parti da ~${novo} PSI da freddo${rise != null ? ` (salto termico ${rise} PSI: le uscite brevi salgono poco — se il prossimo stint è lungo, conferma ${novo})` : ''}`);
+      add('pressioni', 'bad', tr({
+        it: `a caldo ${r1(hot)} PSI vs target ${targ}: mancano ${Math.abs(diff)} PSI → parti da ~${novo} PSI da freddo${rise != null ? ` (salto termico ${rise} PSI: le uscite brevi salgono poco — se il prossimo stint è lungo, conferma ${novo})` : ''}`,
+        en: `hot ${r1(hot)} PSI vs target ${targ}: ${Math.abs(diff)} PSI short → start from ~${novo} PSI cold${rise != null ? ` (thermal rise ${rise} PSI: short runs climb little — if the next stint is long, confirm ${novo})` : ''}`,
+      }));
     }
-  } else add('pressioni', 'info', 'pressioni non leggibili in questa sessione.');
+  } else add('pressioni', 'info', tr({ it: 'pressioni non leggibili in questa sessione.', en: 'pressures not readable in this session.' }));
 
   /* 2. BUMPSTOP — se il fondo batte, e dove */
   const bumpPct = Math.max(...['LF','RF','LR','RR'].map((w) => cur.bump?.[w]?.contactPct ?? 0));
   const bumpWheel = ['LF','RF','LR','RR'].find((w) => (cur.bump?.[w]?.contactPct ?? 0) === bumpPct);
-  if (bumpPct >= 15) add('bumpstop', 'bad', `il fondo ${bumpWheel} batte il ${bumpPct}% del giro: ALZA l'altezza di ~2 mm su quel lato o irigidisci i bumpstop.`);
-  else if (bumpPct >= 5) add('bumpstop', 'warn', `il fondo ${bumpWheel} tocca il ${bumpPct}% del giro: marginale — alza l'altezza del lato più battuto solo se in gara senti colpi`);
-  else if (bumpPct > 0) add('bumpstop', 'ok', `bumpstop quasi mai a fine corsa (${bumpPct}%): altezza giusta.`);
+  if (bumpPct >= 15) add('bumpstop', 'bad', tr({
+    it: `il fondo ${bumpWheel} batte il ${bumpPct}% del giro: ALZA l'altezza di ~2 mm su quel lato o irigidisci i bumpstop.`,
+    en: `the floor ${bumpWheel} bottoms out ${bumpPct}% of the lap: RAISE the height ~2 mm on that side or stiffen the bumpstops.`,
+  }));
+  else if (bumpPct >= 5) add('bumpstop', 'warn', tr({
+    it: `il fondo ${bumpWheel} tocca il ${bumpPct}% del giro: marginale — alza l'altezza del lato più battuto solo se in gara senti colpi`,
+    en: `the floor ${bumpWheel} touches ${bumpPct}% of the lap: marginal — raise the harder side only if you feel strikes in the race`,
+  }));
+  else if (bumpPct > 0) add('bumpstop', 'ok', tr({
+    it: `bumpstop quasi mai a fine corsa (${bumpPct}%): altezza giusta.`,
+    en: `bumpstop almost never at full travel (${bumpPct}%): right height.`,
+  }));
 
   /* 3. CAMBER — il proxy termico int/ext della gomma */
   const C_SANE = 0.75; // |Δ| sano sul proxy termico (°)
@@ -236,37 +291,67 @@ export function boxChecklist(sessions, { target = null } = {}) {
     const d = cur.camberProxy?.[w];
     if (d != null && Math.abs(d) > Math.abs(camOut ?? 0)) camOut = { w, d };
   }
-  if (camOut && Math.abs(camOut.d) > C_SANE) add('camber', 'warn', `gomma ${camOut.w}: Δ int/est ${r1(camOut.d)}° — ${camOut.d > 0 ? 'l\'interno scotta: togli ~0.3° di camber negativo' : 'l\'esterno scotta: aggiungi ~0.3° di camber negativo'}`);
-  else add('camber', 'ok', `camber in finestra: le gomme lavorano uniformi (Δ max ${camOut ? r1(camOut.d) : 0}° su ${camOut ? camOut.w : 'n/d'}).`);
+  if (camOut && Math.abs(camOut.d) > C_SANE) add('camber', 'warn', tr({
+    it: `gomma ${camOut.w}: Δ int/est ${r1(camOut.d)}° — ${camOut.d > 0 ? 'l\'interno scotta: togli ~0.3° di camber negativo' : 'l\'esterno scotta: aggiungi ~0.3° di camber negativo'}`,
+    en: `tyre ${camOut.w}: inner/outer Δ ${r1(camOut.d)}° — ${camOut.d > 0 ? 'the inner edge overheats: remove ~0.3° of negative camber' : 'the outer edge overheats: add ~0.3° of negative camber'}`,
+  }));
+  else add('camber', 'ok', tr({
+    it: `camber in finestra: le gomme lavorano uniformi (Δ max ${camOut ? r1(camOut.d) : 0}° su ${camOut ? camOut.w : 'n/d'}).`,
+    en: `camber in window: tyres work evenly (max Δ ${camOut ? r1(camOut.d) : 0}° on ${camOut ? camOut.w : 'n/a'}).`,
+  }));
 
   /* 4. TEMPERATURA GOMME — frede o scotta? Dal core dell'ultima volta a fine giro */
   const lastLap = (cur.laps ?? []).filter((l) => l.durationSec > 15).slice(-1)[0] ?? null;
   if (lastLap) {
     const tairF = (lastLap.tair?.LF != null && lastLap.tair?.RF != null) ? (lastLap.tair.LF + lastLap.tair.RF) / 2 : (lastLap.tair?.LF ?? lastLap.tair?.RF ?? null);
     if (tairF != null) {
-      if (tairF < 70) add('gomme', 'info', `anteriori ${Math.round(tairF)}°C: ancora fredde (uscita breve) — in stint lungo arrivano.`);
-      else if (tairF > 95) add('gomme', 'warn', `anteriori ${Math.round(tairF)}°C: sopra la finestra — se scivolano in gara, tocca l'assetto (più camber, meno pressione)`);
-      else add('gomme', 'ok', `temperature in finestra (anteriori ${Math.round(tairF)}°C).`);
+      if (tairF < 70) add('gomme', 'info', tr({
+        it: `anteriori ${Math.round(tairF)}°C: ancora fredde (uscita breve) — in stint lungo arrivano.`,
+        en: `fronts ${Math.round(tairF)}°C: still cold (short run) — they arrive in a long stint.`,
+      }));
+      else if (tairF > 95) add('gomme', 'warn', tr({
+        it: `anteriori ${Math.round(tairF)}°C: sopra la finestra — se scivolano in gara, tocca l'assetto (più camber, meno pressione)`,
+        en: `fronts ${Math.round(tairF)}°C: above the window — if they slide in the race, touch the setup (more camber, less pressure)`,
+      }));
+      else add('gomme', 'ok', tr({
+        it: `temperature in finestra (anteriori ${Math.round(tairF)}°C).`,
+        en: `temperatures in window (fronts ${Math.round(tairF)}°C).`,
+      }));
     }
   }
 
   /* 5. FRENI — solo se picchiano alto */
   const brMax = lastLap ? Math.max(...['LF','RF','LR','RR'].map((w) => lastLap.brakes?.[w] ?? 0)) : 0;
-  if (brMax > 650) add('freni', 'warn', `termico freni al limite (picco ${Math.round(brMax)}°C): se svaniscono a fine stint, cambia pastiglia o sposta il bias`);
-  else if (brMax > 0) add('freni', 'ok', `freni sotto controllo (picco ${Math.round(brMax)}°C).`);
+  if (brMax > 650) add('freni', 'warn', tr({
+    it: `termico freni al limite (picco ${Math.round(brMax)}°C): se svaniscono a fine stint, cambia pastiglia o sposta il bias`,
+    en: `brake thermal at its limit (peak ${Math.round(brMax)}°C): if they fade late in the stint, change pads or move the bias`,
+  }));
+  else if (brMax > 0) add('freni', 'ok', tr({
+    it: `freni sotto controllo (picco ${Math.round(brMax)}°C).`,
+    en: `brakes under control (peak ${Math.round(brMax)}°C).`,
+  }));
 
   /* 6. BENZINA — quanto beve un giro, per pianificare i pit */
-  if (cur.fuelPerLap != null) add('benzina', 'info', `${cur.fuelPerLap} L/giro → stint di 5 giri ≈ ${Math.ceil(cur.fuelPerLap * 5)} L (+ benzina di rimessa).`);
+  if (cur.fuelPerLap != null) add('benzina', 'info', tr({
+    it: `${cur.fuelPerLap} L/giro → stint di 5 giri ≈ ${Math.ceil(cur.fuelPerLap * 5)} L (+ benzina di rimessa).`,
+    en: `${cur.fuelPerLap} L/lap → 5-lap stint ≈ ${Math.ceil(cur.fuelPerLap * 5)} L (+ top-up fuel).`,
+  }));
 
   /* 7. CONSISTENZA — la storia del meccanico: esita il tempo sta scendendo */
   const laps = (cur.laps ?? []).filter((l) => l.durationSec > 15 && l.fuelUsed != null && l.fuelUsed >= 0);
   const bestLap = laps.length ? Math.min(...laps.map((l) => l.durationSec)) : null;
   if (bestLap != null && laps.length >= 2) {
-    add('tempo', 'info', `best ${fmtLapShort(bestLap)}; giri ${laps.map((l) => fmtLapShort(l.durationSec)).join(' · ')}.`);
+    add('tempo', 'info', tr({
+      it: `best ${fmtLapShort(bestLap)}; giri ${laps.map((l) => fmtLapShort(l.durationSec)).join(' · ')}.`,
+      en: `best ${fmtLapShort(bestLap)}; laps ${laps.map((l) => fmtLapShort(l.durationSec)).join(' · ')}.`,
+    }));
   }
   /* 8. COSTANTE: si gira con lo stesso setup di última volta? */
   if (prev && cur.preset && prev.preset && cur.preset === prev.preset) {
-    add('storia', 'info', `stesso preset (${cur.preset}) della sessione prima: se hai cambiato valori in EVO durante l'uscita, al prossimo giro la lista se ne accorge`);
+    add('storia', 'info', tr({
+      it: `stesso preset (${cur.preset}) della sessione prima: se hai cambiato valori in EVO durante l'uscita, al prossimo giro la lista se ne accorge`,
+      en: `same preset (${cur.preset}) as the previous session: if you changed values in EVO during the run, the list notices at the next lap`,
+    }));
   }
 
   const allGood = !items.some((i) => i.level === 'warn' || i.level === 'bad');
@@ -325,7 +410,10 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
       if (want !== hRear) {
         patches.aero ??= {};
         patches.aero.heightRear = want;
-        text.push(`Altezza posteriore: ${hRear} → ${want} mm — bumpstop POST al ${r1(bumpRear)}% del giro`);
+        text.push(tr({
+          it: `Altezza posteriore: ${hRear} → ${want} mm — bumpstop POST al ${r1(bumpRear)}% del giro`,
+          en: `Rear height: ${hRear} → ${want} mm — REAR bumpstop at ${r1(bumpRear)}% of the lap`,
+        }));
       }
     }
     const hFront = Number(cur.aero?.heightFront);
@@ -334,17 +422,26 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
       if (want !== hFront) {
         patches.aero ??= {};
         patches.aero.heightFront = want;
-        text.push(`Altezza ANTERIORE: ${hFront} → ${want} mm — bumpstop ANT al ${r1(bumpFront)}% del giro (prima regolaremmo solo il posteriore)`);
+        text.push(tr({
+          it: `Altezza ANTERIORE: ${hFront} → ${want} mm — bumpstop ANT al ${r1(bumpFront)}% del giro (prima regolaremmo solo il posteriore)`,
+          en: `FRONT height: ${hFront} → ${want} mm — FRONT bumpstop at ${r1(bumpFront)}% of the lap (before we only adjusted the rear)`,
+        }));
       }
     }
     const wing = Number(cur.aero?.wingRear);
     const prof = trackInfo ? trackProfile({ ...trackInfo }, null) : null;
     if (Number.isFinite(wing) && prof?.aero === -1 && wing > 1) {
       patches.aero ??= {}; patches.aero.wingRear = wing - 1;
-      text.push(`Ala posteriore: ${wing} → ${wing - 1} — tracciato POWER (${trackInfo.name}): un gradino di drag in meno`);
+      text.push(tr({
+        it: `Ala posteriore: ${wing} → ${wing - 1} — tracciato POWER (${trackInfo.name}): un gradino di drag in meno`,
+        en: `Rear wing: ${wing} → ${wing - 1} — POWER track (${trackInfo.name}): one step less drag`,
+      }));
     } else if (Number.isFinite(wing) && prof?.aero === 1) {
       patches.aero ??= {}; patches.aero.wingRear = wing + 1;
-      text.push(`Ala posteriore: ${wing} → ${wing + 1} — tracciato TECNICO (${trackInfo.name}): un gradino di carico in più`);
+      text.push(tr({
+        it: `Ala posteriore: ${wing} → ${wing + 1} — tracciato TECNICO (${trackInfo.name}): un gradino di carico in più`,
+        en: `Rear wing: ${wing} → ${wing + 1} — TECHNICAL track (${trackInfo.name}): one step more load`,
+      }));
     }
   }
 
@@ -358,7 +455,10 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
     const want = d > 0 ? r1(now + 0.3) : r1(now - 0.3);
     if (want === now) return;
     tiresExtra.push({ i, camber: want });
-    text.push(`Camber ${w === 'LF' ? 'ant sx' : w === 'RF' ? 'ant dx' : w === 'LR' ? 'post sx' : 'post dx'}: ${r1(now)}° → ${r1(want)}° — Δ int/est ${r1(d)}° in proxy termico`);
+    text.push(tr({
+      it: `Camber ${w === 'LF' ? 'ant sx' : w === 'RF' ? 'ant dx' : w === 'LR' ? 'post sx' : 'post dx'}: ${r1(now)}° → ${r1(want)}° — Δ int/est ${r1(d)}° in proxy termico`,
+      en: `Camber ${w === 'LF' ? 'front L' : w === 'RF' ? 'front R' : w === 'LR' ? 'rear L' : 'rear R'}: ${r1(now)}° → ${r1(want)}° — inner/outer Δ ${r1(d)}° in thermal proxy`,
+    }));
   });
 
   /* 4. FRENI: l'asse più caldo scarica un po' di lavoro sull'altro (bias ±1) */
@@ -368,15 +468,27 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
   const bias = Number(cur.brakes?.bias);
   if (Number.isFinite(bias)) {
     if (fHot > 600 && rHot > 600) {
-      text.push(`Freni: ENTRAMBI gli assi picco ${Math.round(fHot)}/${Math.round(rHot)}°C — serve una pastiglia più dura (nel file non si scrive)`);
+      text.push(tr({
+        it: `Freni: ENTRAMBI gli assi picco ${Math.round(fHot)}/${Math.round(rHot)}°C — serve una pastiglia più dura (nel file non si scrive)`,
+        en: `Brakes: BOTH axles peak ${Math.round(fHot)}/${Math.round(rHot)}°C — a harder pad is needed (not writable in the file)`,
+      }));
     } else if (fHot > 600 && bias > 45) {
       patches.brakes ??= {}; patches.brakes.bias = r1(bias - 1);
-      text.push(`Bias freni: ${r1(bias)} → ${r1(bias - 1)}% — anteriore a ${Math.round(fHot)}°C, sposto il lavoro verso il posteriore`);
+      text.push(tr({
+        it: `Bias freni: ${r1(bias)} → ${r1(bias - 1)}% — anteriore a ${Math.round(fHot)}°C, sposto il lavoro verso il posteriore`,
+        en: `Brake bias: ${r1(bias)} → ${r1(bias - 1)}% — front at ${Math.round(fHot)}°C, shifting work to the rear`,
+      }));
     } else if (rHot > 600 && bias < 75) {
       patches.brakes ??= {}; patches.brakes.bias = r1(bias + 1);
-      text.push(`Bias freni: ${r1(bias)} → ${r1(bias + 1)}% — posteriore a ${Math.round(rHot)}°C, sposto il lavoro verso l'anteriore`);
+      text.push(tr({
+        it: `Bias freni: ${r1(bias)} → ${r1(bias + 1)}% — posteriore a ${Math.round(rHot)}°C, sposto il lavoro verso l'anteriore`,
+        en: `Brake bias: ${r1(bias)} → ${r1(bias + 1)}% — rear at ${Math.round(rHot)}°C, shifting work to the front`,
+      }));
     } else if (fHot > 0) {
-      text.push(`Freni in finestra (picco ${Math.round(Math.max(fHot, rHot))}°C): non tocco`);
+      text.push(tr({
+        it: `Freni in finestra (picco ${Math.round(Math.max(fHot, rHot))}°C): non tocco`,
+        en: `Brakes in window (peak ${Math.round(Math.max(fHot, rHot))}°C): leaving them alone`,
+      }));
     }
   }
 
@@ -385,7 +497,10 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
   if ((latest.tcPct ?? 0) > 2 && Number.isFinite(tc1) && !('elec' in patches)) {
     if (tc1 < 10) {
       patches.elec ??= {}; patches.elec.tc1 = tc1 + 1;
-      text.push(`Traction control: ${tc1} → ${tc1 + 1} — interviene il ${latest.tcPct}% del giro`);
+      text.push(tr({
+        it: `Traction control: ${tc1} → ${tc1 + 1} — interviene il ${latest.tcPct}% del giro`,
+        en: `Traction control: ${tc1} → ${tc1 + 1} — engages ${latest.tcPct}% of the lap`,
+      }));
     }
   }
 
@@ -398,7 +513,10 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
     const want = Math.min(120, Math.ceil(fpl * giri * 1.05));
     if (Number.isFinite(litri) && Math.abs(want - litri) >= 1) {
       patches.fuel ??= {}; patches.fuel.liters = want;
-      text.push(`Benzina: ${Math.round(litri)} → ${want} L — ${r1(fpl)} L/giro × ${giri} giri (+5% di riserva; controllare l'indicatore dopo CARICA: il cap serbatoio dipende dall'auto)`);
+      text.push(tr({
+        it: `Benzina: ${Math.round(litri)} → ${want} L — ${r1(fpl)} L/giro × ${giri} giri (+5% di riserva; controllare l'indicatore dopo CARICA: il cap serbatoio dipende dall'auto)`,
+        en: `Fuel: ${Math.round(litri)} → ${want} L — ${r1(fpl)} L/lap × ${giri} laps (+5% reserve; check the gauge after REFUEL: the tank cap depends on the car)`,
+      }));
     }
   }
 
@@ -408,7 +526,7 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
      «più morbido». NOTA: alcune basi di fabbrica sono Assimmetriche volute
      (molle ant della 296: 260k sx / 340k dx) — si rispettano come sono. */
   const base = (defaults && (Array.isArray(defaults.molle) || Array.isArray(defaults.bumpRig))) ? defaults : null;
-  const RUOTE_F = ['ant sx', 'ant dx', 'post sx', 'post dx'];
+  const RUOTE_F = tr({ it: ['ant sx', 'ant dx', 'post sx', 'post dx'], en: ['front L', 'front R', 'rear L', 'rear R'] });
   const trio = (a, b, eps) =>
     Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) > eps;
   if (base && Array.isArray(base.molle)) {
@@ -418,7 +536,10 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
       if (Math.abs(now - fab) <= Math.max(5000, Math.abs(fab) * 0.2)) continue;
       patches.springs ??= [null, null, null, null];
       patches.springs[i] = { ...(patches.springs[i] ?? {}), spring: fab };
-      text.push(`Molla ${RUOTE_F[i]}: ${new Intl.NumberFormat('it-IT').format(now)} → ${new Intl.NumberFormat('it-IT').format(fab)} N/m — valore di fabbrica della casa (scarto ${(Math.round((now - fab) / Math.abs(fab) * 100))}%)`);
+      text.push(tr({
+        it: `Molla ${RUOTE_F[i]}: ${new Intl.NumberFormat('it-IT').format(now)} → ${new Intl.NumberFormat('it-IT').format(fab)} N/m — valore di fabbrica della casa (scarto ${(Math.round((now - fab) / Math.abs(fab) * 100))}%)`,
+        en: `Spring ${RUOTE_F[i]}: ${now.toFixed(0)} → ${fab.toFixed(0)} N/m — factory value (deviation ${Math.round((now - fab) / Math.abs(fab) * 100)}%)`,
+      }));
     }
   }
   if (base && Array.isArray(base.bumpRig)) {
@@ -428,7 +549,10 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
       if (Math.abs(now - fab) <= Math.max(100, Math.abs(fab) * 0.25)) continue;
       patches.springs ??= [null, null, null, null];
       patches.springs[i] = { ...(patches.springs[i] ?? {}), bumpRig: fab };
-      text.push(`Bumpstop ${RUOTE_F[i]}: ${Math.round(now)} → ${Math.round(fab)} N — riparto dai valori di fabbrica (scarto ${Math.round((now - fab) / fab * 100)}%)`);
+      text.push(tr({
+        it: `Bumpstop ${RUOTE_F[i]}: ${Math.round(now)} → ${Math.round(fab)} N — riparto dai valori di fabbrica (scarto ${Math.round((now - fab) / fab * 100)}%)`,
+        en: `Bumpstop ${RUOTE_F[i]}: ${Math.round(now)} → ${Math.round(fab)} N — back to factory values (deviation ${Math.round((now - fab) / fab * 100)}%)`,
+      }));
     }
   }
 
@@ -445,20 +569,28 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
     Array.isArray(baseArr) && Math.abs((Number(v1) ?? 0) - (Number(baseArr[i1]) || 0)) <= Math.abs(Number(baseArr[i1]) || 1) * eps
       && Math.abs((Number(v2) ?? 0) - (Number(baseArr[i2]) || 0)) <= Math.abs(Number(baseArr[i2]) || 1) * eps;
   const factorySpringPair = (l, r) => base ? aFabbrica(base.molle, l, r, cur.springs?.[l]?.spring, cur.springs?.[r]?.spring) : false;
-  for (const [l, r, assName] of [[0, 1, 'anteriore'], [2, 3, 'posteriore']]) {
+  const ASSI = tr({ it: ['anteriore', 'posteriore'], en: ['front', 'rear'] });
+  for (const [l, r, assIdx] of [[0, 1, 0], [2, 3, 1]]) {
     const sl = Number(cur.springs?.[l]?.spring), sr = Number(cur.springs?.[r]?.spring);
     if (factorySpringPair(l, r)) continue;
     if (!trio(sl, sr, Math.max(5000, Math.abs(sl ?? 0) * 0.05))) continue;
     const want = Math.round((sl + sr) / 2);
     patches.springs ??= [null, null, null, null];
     patches.springs[l] = { ...(patches.springs[l] ?? {}), spring: want }; patches.springs[r] = { ...(patches.springs[r] ?? {}), spring: want };
-    text.push(`Asimmetria molle ${assName}: ${Math.round(sl / 1000)}k vs ${Math.round(sr / 1000)}k N/m — allineo entrambe a ${new Intl.NumberFormat('it-IT').format(want)} (media dell'asse)`);
+    text.push(tr({
+      it: `Asimmetria molle ${ASSI[assIdx]}: ${Math.round(sl / 1000)}k vs ${Math.round(sr / 1000)}k N/m — allineo entrambe a ${new Intl.NumberFormat('it-IT').format(want)} (media dell'asse)`,
+      en: `Spring asymmetry ${ASSI[assIdx]}: ${(sl / 1000).toFixed(0)}k vs ${(sr / 1000).toFixed(0)}k N/m — aligning both to ${(want / 1000).toFixed(1)}k (axle average)`,
+    }));
   }
 
   /* --- ammortizzatori: allineo alla MEDIA dell'asse (rispetta il bilanciamento
      complessivo scelto in pista, non «spegne» tutto al minimo) --- */
-  const DAMPNOMI = { slowBump: 'lento compr', fastBump: 'veloce compr', slowReb: 'lento estr', fastReb: 'veloce estr' };
-  for (const [l, r, assName] of [[0, 1, 'anteriore'], [2, 3, 'posteriore']]) {
+  const DAMPNOMI = tr({
+    it: { slowBump: 'lento compr', fastBump: 'veloce compr', slowReb: 'lento estr', fastReb: 'veloce estr' },
+    en: { slowBump: 'slow comp', fastBump: 'fast comp', slowReb: 'slow reb', fastReb: 'fast reb' },
+  });
+  const ASSI2 = tr({ it: ['anteriore', 'posteriore'], en: ['front', 'rear'] });
+  for (const [l, r, assIdx] of [[0, 1, 0], [2, 3, 1]]) {
     const dl = cur.dampers?.[l] ?? {}, dr = cur.dampers?.[r] ?? {};
     const damperPatchL = {}, damperPatchR = {};
     for (const campo of ['slowBump', 'fastBump', 'slowReb', 'fastReb']) {
@@ -466,7 +598,10 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
       if (!trio(vl, vr, 5)) continue;
       const want = Math.round((vl + vr) / 2);
       damperPatchL[campo] = want; damperPatchR[campo] = want;
-      text.push(`Asimmetria ammortiz. ${assName} · ${DAMPNOMI[campo]}: ${Math.round(vl)} vs ${Math.round(vr)} — allineo entrambi a ${Math.round(want)} (media)`);
+      text.push(tr({
+        it: `Asimmetria ammortiz. ${ASSI2[assIdx]} · ${DAMPNOMI[campo]}: ${Math.round(vl)} vs ${Math.round(vr)} — allineo entrambi a ${Math.round(want)} (media)`,
+        en: `Damper asymmetry ${ASSI2[assIdx]} · ${DAMPNOMI[campo]}: ${Math.round(vl)} vs ${Math.round(vr)} — aligning both to ${Math.round(want)} (average)`,
+      }));
     }
     if (Object.keys(damperPatchL).length) {
       patches.dampers ??= [null, null, null, null];
@@ -481,14 +616,18 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
     const p = Number(patches.springs?.[i]?.bumpRig);
     return Number.isFinite(p) ? p : Number(cur.springs?.[i]?.bumpRig);
   };
-  for (const [l, r, assName] of [[0, 1, 'anteriore'], [2, 3, 'posteriore']]) {
+  const ASSI3 = tr({ it: ['anteriore', 'posteriore'], en: ['front', 'rear'] });
+  for (const [l, r, assIdx] of [[0, 1, 0], [2, 3, 1]]) {
     const bl = effB(l), br = effB(r);
     if (!trio(bl, br, Math.max(50, Math.abs(bl ?? 0) * 0.2))) continue;
     const want = Math.round((bl + br) / 2);
     patches.springs ??= [null, null, null, null];
     patches.springs[l] = { ...(patches.springs[l] ?? {}), bumpRig: want };
     patches.springs[r] = { ...(patches.springs[r] ?? {}), bumpRig: want };
-    text.push(`Asimmetria bumpstop ${assName}: ${Math.round(bl)} N vs ${Math.round(br)} N — allineo entrambi a ${want} (media)`);
+    text.push(tr({
+      it: `Asimmetria bumpstop ${ASSI3[assIdx]}: ${Math.round(bl)} N vs ${Math.round(br)} N — allineo entrambi a ${want} (media)`,
+      en: `Bumpstop asymmetry ${ASSI3[assIdx]}: ${Math.round(bl)} N vs ${Math.round(br)} N — aligning both to ${want} (average)`,
+    }));
   }
 
   /* --- campanature: la coppia sx/dx di un asse va geometricamente allineata.
@@ -499,7 +638,8 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
     const v = e && Number.isFinite(Number(e.camber)) ? Number(e.camber) : Number(cur.tires?.[i]?.camber);
     return Number.isFinite(v) ? v : null;
   };
-  for (const [l, r, assName] of [[0, 1, 'anteriore'], [2, 3, 'posteriore']]) {
+  const ASSI4 = tr({ it: ['anteriore', 'posteriore'], en: ['front', 'rear'] });
+  for (const [l, r, assIdx] of [[0, 1, 0], [2, 3, 1]]) {
     const vl = eff(l), vr = eff(r);
     if (!trio(vl, vr, 0.15)) continue;
     const want = r1((vl + vr) / 2);
@@ -508,7 +648,10 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
       const entry = { i, camber: want };
       if (at >= 0) tiresExtra[at] = entry; else tiresExtra.push(entry);
     }
-    text.push(`Asimmetria campanature ${assName}: ${r1(vl)}° vs ${r1(vr)}° — allineo entrambe a ${r1(want)}° (media dell'asse)`);
+    text.push(tr({
+      it: `Asimmetria campanature ${ASSI4[assIdx]}: ${r1(vl)}° vs ${r1(vr)}° — allineo entrambe a ${r1(want)}° (media dell'asse)`,
+      en: `Camber asymmetry ${ASSI4[assIdx]}: ${r1(vl)}° vs ${r1(vr)}° — aligning both to ${r1(want)}° (axle average)`,
+    }));
   }
 
   return { patches, tiresExtra, text };

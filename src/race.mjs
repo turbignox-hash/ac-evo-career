@@ -16,7 +16,7 @@ import { loadCatalog } from './catalog.mjs';
 import { rivalsOutlook } from './rivals.mjs';
 import { recordFlows } from './flows.mjs';
 import { recordWarning } from './warnings.mjs';
-import { tr, LANG } from './lang.mjs';
+import { tr, lang } from './lang.mjs';
 
 /* Nomi delle opzioni meteo come compaiono ESATTAMENTE nel menu di EVO
  * (sereno, nuvole sparse, nuvoloso, coperto, pioggia leggera, pioggia, pioggia intensa).
@@ -253,7 +253,7 @@ function carAdviceFor(node, carName) {
 
 function card_weatherHint(level) {
   // nome ESATTO dell'opzione nel menu Meteo di EVO (EVO_WEATHER in cima al file)
-  const target = LANG === 'en' ? EVO_WEATHER_EN[Number(level)] ?? EVO_WEATHER[Number(level)] : EVO_WEATHER[Number(level)] ?? `meteo ${level}`;
+  const target = lang() === 'en' ? EVO_WEATHER_EN[Number(level)] ?? EVO_WEATHER[Number(level)] : EVO_WEATHER[Number(level)] ?? `meteo ${level}`;
   if (Number(level) >= 3) return tr({
     it: `${target} — gara TUTTA al bagnato: lascialo fisso per tutta la sessione (in EVO il meteo non evolve durante la gara)`,
     en: `${target} — the race is FULLY wet: keep it fixed for the whole session (in EVO weather does not evolve during the race)`,

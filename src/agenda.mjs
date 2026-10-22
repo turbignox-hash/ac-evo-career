@@ -15,6 +15,7 @@
 // riparte da zero (le ronde corse restano corse).
 
 import { nodeById, gateStatus } from './state.mjs';
+import { lang } from './lang.mjs';
 
 export const CADENZA_GIORNI = 7;         // una ronda a SETTIMANA per le serie iscritte (scelta Mauro)
 export const CADENZA_LIVELLI = 3;        // cadenza MINIMA delle serie non iscritte (gare "altrove")
@@ -35,7 +36,7 @@ const GIORNI = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 const MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 const EN_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const inEn = () => /^(en|eng)$/i.test(process.env.EVO_LANG ?? '');
+const inEn = () => lang() === 'en';
 
 /** La data di partenza della carriera (stabile): nel salvataggio, o la default (13 Apr 2025). */
 export function careerStartDate(state) {

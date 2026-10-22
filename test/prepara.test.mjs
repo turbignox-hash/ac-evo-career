@@ -26,7 +26,9 @@ test('prepara --dry: card stampata, save intatto, niente griglia scritta (fumo)'
 
   // USERPROFILE finto: il customgrid del test è inesistente — la griglia va in
   // catch di cmdPrepara ("Griglia non preparata") e il giro prosegue con la card.
-  const env = { ...process.env, EVO_DATA_DIR: DATA, ACE_DATA: DATA, USERPROFILE: DATA };
+  // EVO_LANG=it: il test aspetta i testi italiani; senza override la CLI seguirebbe
+  // la lingua salvata in evo.config.json (bilingue a scelta dell'utente).
+  const env = { ...process.env, EVO_DATA_DIR: DATA, ACE_DATA: DATA, USERPROFILE: DATA, EVO_LANG: 'it' };
   const r = spawnSync(process.execPath, [CLI, 'prepara', '--dry'], { encoding: 'utf8', timeout: 60000, cwd: ROOT, env });
   assert.equal(r.status, 0, `prepara --dry exit ${r.status}: ${(r.stderr || r.stdout || '').slice(-500)}`);
   assert.ok((r.stdout || '').includes('Prepara-ronda'), 'manca il titolo del comando');

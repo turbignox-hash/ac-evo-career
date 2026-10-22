@@ -16,6 +16,7 @@
 // gara per gara — le cattedrali del motorismo pagano molto, le piste di club poco.
 
 import { nodeById, pushMessage } from './state.mjs';
+import { tr } from './lang.mjs';
 import { recordFlows } from './flows.mjs';
 import { publishNotice } from './gazzetta.mjs';
 
@@ -221,7 +222,10 @@ export function assignNextMemory(ladder, state) {
   if (!tpl) return null;
   const mem = buildMemory(ladder, state, tpl, MEM_TEMPLATES.indexOf(tpl) + 1);
   H.active = { ...mem, progress: [], done: false, claimed: false };
-  pushMessage(state, `📜 Eredità di famiglia: ${mem.ancestor}, tuo ${mem.relation} (${mem.era}, ${mem.series}). Ti lascia ${mem.carName ?? 'la sua auto'} e un incasso di ${mem.inherit.toLocaleString('it-IT')} €: rifa la sua impresa (${mem.objective.text}) e il titolo ${mem.title} è tuo.`, 'title');
+  pushMessage(state, tr({
+    it: `📜 Eredità di famiglia: ${mem.ancestor}, tuo ${mem.relation} (${mem.era}, ${mem.series}). Ti lascia ${mem.carName ?? 'la sua auto'} e un incasso di ${mem.inherit.toLocaleString('it-IT')} €: rifa la sua impresa (${mem.objective.text}) e il titolo ${mem.title} è tuo.`,
+    en: `📜 Family heritage: ${mem.ancestor}, your ${mem.tr_EN_relation ?? mem.relation} (${mem.era}, ${mem.series}). He leaves you ${mem.carName ?? 'his car'} and a payment of €${mem.inherit.toLocaleString('it-IT')}: re-run his feat (${mem.objective.text}) and the title ${mem.title} is yours.`,
+  }), 'title');
   return H.active;
 }
 
@@ -264,14 +268,23 @@ export function checkMemoryProgress(ladder, state, entry) {
   }
   const prog = { round: entry.round, track: entry.track, when: new Date().toISOString(), ok, detail, durationMin: entry.durationMin ?? null };
   mem.progress.push(prog);
-  if (ok) pushMessage(state, `📜 ${mem.title}: round ${mem.progress.length} di ${mem.rounds.length} superato — ${detail}.`, 'good');
-  else pushMessage(state, `📜 ${mem.title}: round ${mem.progress.length} di ${mem.rounds.length} non centrato — ${detail}. Il capitolo continua alla prossima occasione.`, 'info');
+  if (ok) pushMessage(state, tr({
+    it: `📜 ${mem.title}: round ${mem.progress.length} di ${mem.rounds.length} superato — ${detail}.`,
+    en: `📜 ${mem.title}: round ${mem.progress.length} of ${mem.rounds.length} cleared — ${detail}.`,
+  }), 'good');
+  else pushMessage(state, tr({
+    it: `📜 ${mem.title}: round ${mem.progress.length} di ${mem.rounds.length} non centrato — ${detail}. Il capitolo continua alla prossima occasione.`,
+    en: `📜 ${mem.title}: round ${mem.progress.length} of ${mem.rounds.length} missed — ${detail}. The chapter continues at the next chance.`,
+  }), 'info');
 
   // capitolo completo: tutte le prove previste sono state affrontate e superate
   const allOk = mem.progress.length >= mem.rounds.length && mem.progress.every((p) => p.ok);
   if (allOk) {
     mem.done = true;
-    pushMessage(state, `📜 Impresa rifatta! ${mem.ancestor} sorride da qualche parte: l'eredità (${mem.inherit.toLocaleString('it-IT')} €) è pronta da incassare nel pannello Eredità.`, 'title');
+    pushMessage(state, tr({
+      it: `📜 Impresa rifatta! ${mem.ancestor} sorride da qualche parte: l'eredità (${mem.inherit.toLocaleString('it-IT')} €) è pronta da incassare nel pannello Eredità.`,
+      en: `📜 Feat re-run! ${mem.ancestor} smiles somewhere: the inheritance (€${mem.inherit.toLocaleString('it-IT')}) is ready to claim on the Heritage panel.`,
+    }), 'title');
     try {
       publishNotice(`L'impresa di famiglia: ${mem.title} rifatta`, `${state.driver?.name ?? 'Il pilota'} ha ripetuto l'impresa di ${mem.ancestor} (${mem.era}): ${mem.objective.text}. L'eredità di famiglia è pronta.`, { season: state.season, kind: 'notice' });
     } catch { /* la gazzetta non blocca mai */ }
@@ -289,7 +302,10 @@ export function claimMemory(ladder, state) {
   mem.claimed = true;
   state.money += mem.inherit;
   recordFlows(state, [{ kind: 'heritage', money: mem.inherit, reason: `eredità ${mem.title} — ${mem.ancestor} (${mem.era})` }]);
-  pushMessage(state, `📜 Eredità incassata: +${mem.inherit.toLocaleString('it-IT')} € — ${mem.title} entra nella storia di famiglia. ${mem.crest} è tuo.`, 'title');
+  pushMessage(state, tr({
+    it: `📜 Eredità incassata: +${mem.inherit.toLocaleString('it-IT')} € — ${mem.title} entra nella storia di famiglia. ${mem.crest} è tuo.`,
+    en: `📜 Inheritance claimed: +€${mem.inherit.toLocaleString('it-IT')} — ${mem.title} enters the family history. ${mem.crest} is yours.`,
+  }), 'title');
   const completed = { ...mem, claimedAt: new Date().toISOString(), claimedSeason: state.season };
   delete completed.progress;
   H.completed.push(completed);
