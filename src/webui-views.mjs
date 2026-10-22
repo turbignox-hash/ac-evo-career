@@ -37,7 +37,7 @@ const trackName = (ladder, id) => ladder.contentNames?.tracks?.[id] ?? id;
 const carName = (ladder, id) => ladder.contentNames?.cars?.[id] ?? id;
 
 /** Etichette EN dei piani orari (l'italiano sta in PIANI.label, orario.mjs). */
-const PIANI_EN = {
+export const PIANI_EN = {
   notte: 'Night race',
   crepuscolo: 'From dusk to night',
   alba: 'The gentle dawn',

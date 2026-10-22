@@ -62,6 +62,11 @@ export function ensureHeritage(state) {
   state.heritage.completed ??= [];
   state.heritage.active ??= null;
   state.heritage.offers ??= [];
+  // MIGRAZIONE UNA-TANTO-VIA: le memorie salvate prima del bilinguismo non
+  // portano i campi EN (il capitolo letto in inglese mostrerebbe l'italiano
+  // arrivato con il save). Riempiamo SOLO cio' che manca, dal capitolo-modello.
+  for (const c of state.heritage.completed) fillMemoryEn(c);
+  if (state.heritage.active) fillMemoryEn(state.heritage.active);
   return state.heritage;
 }
 
@@ -69,12 +74,12 @@ export function ensureHeritage(state) {
 /* attori e scenografia                                                */
 /* ------------------------------------------------------------------ */
 
-const RELATIONS = ['bisnonno', 'prozio', 'nonno', 'prozio', 'zio grande', 'nonno', 'padre'];
-const RELATIONS_EN = ['great-grandfather', 'great-uncle', 'grandfather', 'great-uncle', 'great uncle', 'grandfather', 'father'];
+export const RELATIONS = ['bisnonno', 'prozio', 'nonno', 'prozio', 'zio grande', 'nonno', 'padre'];
+export const RELATIONS_EN = ['great-grandfather', 'great-uncle', 'grandfather', 'great-uncle', 'great uncle', 'grandfather', 'father'];
 const ERAS = ['1968', '1974', '1983', '1989', '1995', '2004', '2013'];
 const SEATS = [41, 24, 7, 12, 33, 5, 18];
 
-const RANKS = [
+export const RANKS = [
   { min: 1, label: 'Debuttante', labelEn: 'Rookie' },
   { min: 3, label: 'Timoniere', labelEn: 'Wheelman' },
   { min: 6, label: 'Campionetto', labelEn: 'Club champion' },
@@ -85,6 +90,17 @@ const RANKS = [
 ];
 const rankOf = (n) => [...RANKS].reverse().find((r) => n >= r.min)?.label ?? RANKS[0].label;
 const rankPairOf = (n) => { const r = [...RANKS].reverse().find((x) => n >= x.min) ?? RANKS[0]; return { it: r.label, en: r.labelEn }; };
+
+function fillMemoryEn(mem) {
+  const tpl = MEM_TEMPLATES.find((t) => t.id === mem?.id);
+  if (!tpl) return mem;
+  mem.titleEn ??= tpl.titleEn;
+  mem.crestEn ??= tpl.crestEn;
+  mem.relationEn ??= RELATIONS_EN[tpl.rel % RELATIONS_EN.length];
+  mem.relicEn ??= `${ERAS[tpl.era % ERAS.length] >= '1989' ? 'Prototype' : 'Vintage car'} #${SEATS[tpl.era % SEATS.length]} (period livery)`;
+  if (mem.objective && !mem.objective.en) mem.objective.en = tpl.objective.en;
+  return mem;
+}
 
 /** Le "leggende" della griglia: il paddock d'epoca con cui ti confronti. */
 const LEGENDS = {
