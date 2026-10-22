@@ -22,6 +22,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodeMsg, encodeMsg, gridFileOf } from '../tools/evo-grid.mjs';
 import { sameTrack } from './tracknames.mjs';
+import { tr } from './lang.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);
@@ -226,8 +227,10 @@ export function buildGridMessage(opts) {
       poolCells = sel;
       poolMultiInfo = { auto: distinte.length, celle: sel.length };
     } else {
-      throw new Error(`il template non contiene la griglia MULTI-MARCA della serie (${distinte.length} auto del pool presenti, servono ≥3 modelli): ripristina un template d'epoca col pool dichiarato in grid-classes.json (es. un .bak-apply che ce le abbia) o rigenera in EVO una griglia personalizzata con le auto del pool`
-      );
+      throw new Error(tr({
+        it: `il template non contiene la griglia MULTI-MARCA della serie (${distinte.length} auto del pool presenti, servono ≥3 modelli): ripristina un template d'epoca col pool dichiarato in grid-classes.json (es. un .bak-apply che ce le abbia) o rigenera in EVO una griglia personalizzata con le auto del pool`,
+        en: `the template does not contain the series' MULTI-MAKE grid (${distinte.length} pool cars present, ≥3 models needed): restore a vintage template carrying the pool declared in grid-classes.json (e.g. a .bak-apply that has them) or regenerate a custom grid in EVO with the pool cars`,
+      }));
     }
   } else if (wantCars) {
     const sel = tpl.cells.filter((b) => wantCars.has(carIdOf(b)));

@@ -28,6 +28,7 @@
 import { readFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tr } from './lang.mjs';
 import { lapToMs, positionBase } from './results.mjs';
 import { loadClasses, perTrackKey } from './gridbuilder.mjs';
 import { readCells, DEFAULT_FILE as GRID_FILE } from '../tools/grid-balance.mjs';
@@ -239,13 +240,13 @@ function buildProposte(evento, cls, track) {
     const propostaAi = `${lo}-${hi2}`;
     if (propostaAi !== ai.join('-')) prop.push({
       leva: 'campo-ai', direzione: 'giù', da: ai.join('-'), a: propostaAi,
-      perche: `campo troppo forte: mediana best AI ${fmt(f.campoVsMeSec)} sopra di te (P${f.miaPos}/${f.grid}, ${f.aiDavanti} AI davanti)`,
+      perche: tr({ it: `campo troppo forte: mediana best AI ${fmt(f.campoVsMeSec)} sopra di te (P${f.miaPos}/${f.grid}, ${f.aiDavanti} AI davanti)`, en: `field too strong: median AI best ${fmt(f.campoVsMeSec)} above you (P${f.miaPos}/${f.grid}, ${f.aiDavanti} AI cars ahead)` }),
       comando: cmdAi(lo, hi2),
     });
   } else if (f && !f.dnf && f.miaPos === 1 && (f.margineP2Sec ?? 0) > 10 && ai && ai[1] < 100) {
     prop.push({
       leva: 'campo-ai', direzione: 'su', da: ai.join('-'), a: `${ai[0]}-${Math.min(100, ai[1] + 1)}`,
-      perche: `vittoria con ${fmt(f.margineP2Sec)} sulla P2: campo troppo debole per la tua mano`,
+      perche: tr({ it: `vittoria con ${fmt(f.margineP2Sec)} sulla P2: campo troppo debole per la tua mano`, en: `win with a ${fmt(f.margineP2Sec)} gap on P2: field too weak for your hand` }),
       comando: cmdAi(ai[0], Math.min(100, ai[1] + 1)),
     });
   }

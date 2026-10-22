@@ -18,6 +18,7 @@
 // Persistenza: via saveState (save.json), quindi backup e atomicità già garantiti.
 
 import { recordFlows } from './flows.mjs';
+import { tr } from './lang.mjs';
 import { pushMessage } from './state.mjs';
 import { publishNotice } from './gazzetta.mjs';
 import { recordWarning } from './warnings.mjs';
@@ -81,7 +82,7 @@ const THEMES = [
   {
     id: 'legend_finale',
     name: 'Il Gran Finale dei Campioni',
-    intro: 'Invito d\'onore a fine stagione: i migliori del paddock, una pista leggendaria, un\'auto da sogno in palio.',
+    intro: tr({ it: "Invito d'onore a fine stagione: i migliori del paddock, una pista leggendaria, un'auto da sogno in palio.", en: 'End-of-season honor invite: the best of the paddock, one legendary track, a dream car at stake.' }),
     prizeCar: { id: 'lamborghini_countach_lp5000_qv', name: 'Lamborghini Countach LP5000 QV' },
     guests: ['porsche_911_gt3_rs_992', 'audi_r8_lms_gt4_evo', 'mini_john_cooper_s'],
     guestNames: ['Hans Stuck', 'Ayrton Senna Jr.', 'Tom Kristensen'],
@@ -194,17 +195,17 @@ function buildInvite(ladder, state, theme, tier, racesRun) {
 
 export function acceptEvent(ladder, state, eventId) {
   const ev = ensureEvents(state);
-  if (!ev.active || ev.active.id !== eventId) throw new Error('Invito non trovato o già scaduto.');
+  if (!ev.active || ev.active.id !== eventId) throw new Error(tr({ it: 'Invito non trovato o già scaduto.', en: 'Invite not found or already expired.' }));
   ev.active.acceptedAt = new Date().toISOString();
-  pushMessage(state, `Accettato l'invito: ${ev.active.theme.name} su ${ev.active.trackDisplay}. La scheda gara è nel pannello Eventi.`, 'event');
+  pushMessage(state, tr({ it: `Accettato l'invito: ${ev.active.theme.name} su ${ev.active.trackDisplay}. La scheda gara è nel pannello Eventi.`, en: `Invite accepted: ${ev.active.theme.name} on ${ev.active.trackDisplay}. The race sheet is in the Events panel.` }), 'event');
   return ev.active;
 }
 
 export function declineEvent(ladder, state, eventId) {
   const ev = ensureEvents(state);
-  if (!ev.active || ev.active.id !== eventId) throw new Error('Invito non trovato o già scaduto.');
+  if (!ev.active || ev.active.id !== eventId) throw new Error(tr({ it: 'Invito non trovato o già scaduto.', en: 'Invite not found or already expired.' }));
   ev.history.push({ ...ev.active, declinedAt: new Date().toISOString(), outcome: 'declined' });
-  pushMessage(state, `Invito rifiutato: ${ev.active.theme.name}. Magari la prossima.`, 'info');
+  pushMessage(state, tr({ it: `Invito rifiutato: ${ev.active.theme.name}. Magari la prossima.`, en: `Invite declined: ${ev.active.theme.name}. Maybe next time.` }), 'info');
   ev.active = null;
   return true;
 }
@@ -216,7 +217,7 @@ export function expireEvents(ladder, state) {
   const racesRun = (state.results[state.node] ?? []).filter((r) => r.season === state.season).length;
   if (racesRun - ev.active.afterRound > ev.active.deadlineRounds) {
     ev.history.push({ ...ev.active, outcome: 'expired' });
-    pushMessage(state, `L'invito a ${ev.active.theme.name} è scaduto: dovevi correrlo entro ${ev.active.deadlineRounds} gare.`, 'info');
+    pushMessage(state, tr({ it: `L'invito a ${ev.active.theme.name} è scaduto: dovevi correrlo entro ${ev.active.deadlineRounds} gare.`, en: `The invitation to ${ev.active.theme.name} expired: you had to race it within ${ev.active.deadlineRounds} races.` }), 'info');
     ev.active = null;
     return true;
   }

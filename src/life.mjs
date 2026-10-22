@@ -357,7 +357,10 @@ export function trackMastery(ladder, state, trackDisplay) {
   const level = n === 0 ? 0 : n < 2 ? 1 : n < 4 ? 2 : 3;
   return {
     level,
-    name: ['sconosciuta', 'novizio', 'conoscente', 'maestro'][level],
+    name: tr({
+      it: ['sconosciuta', 'novizio', 'conoscente', 'maestro'][level],
+      en: ['unknown', 'novice', 'familiar', 'master'][level],
+    }),
     races: n,
     bestLap: best ? { ...best } : null,
   };

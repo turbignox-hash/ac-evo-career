@@ -55,6 +55,7 @@ function aggMemo() {
 import { currentWeatherPreset, setWeatherPreset, PRESETS, setWeatherCustom, presetForLabel } from './weather.mjs';
 import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
 import { sameTrack as trkSame, sameCar as carSame } from './tracknames.mjs';
+import { tr } from './lang.mjs';
 import { carsBook, carImageOf } from './cars.mjs';
 import { garageOverview, catalogPicker, addCar, removeCar, setNote, importShowcase, sellCar } from './garage.mjs';
 import { ensureFlowsSeeded, recentFlows, resetFlows } from './flows.mjs';
@@ -276,7 +277,7 @@ async function api(context0, req, res, action, body) {
   const hasCareer = () => existsSync(SAVE_FILE);
   const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'paddock', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'import-inspect', 'tracks', 'backup', 'grid-apply', 'grid-drop', 'grid-ai'];
   if (needsCareer.includes(action) && !state) {
-    return sendJson(res, 400, { error: 'Non c\'è ancora una carriera: creane una dalla schermata iniziale.' });
+    return sendJson(res, 400, { error: tr({ it: "Non c'è ancora una carriera: creane una dalla schermata iniziale.", en: 'There is no career yet: create one from the start screen.' }) });
   }
   if (state) {
     ensureFlowsSeeded(state); // carriere nate prima del registro flussi
@@ -313,10 +314,10 @@ async function api(context0, req, res, action, body) {
         // anche quando riesce, quindi non aspettiamo il suo exit code.
         let target = String(body.path ?? '').trim();
         if (!target) target = (() => { try { return resolvePaths(appEnv()).primary ?? ''; } catch { return ''; } })();
-        if (!target) return sendJson(res, 400, { error: 'Nessuna cartella dati conosciuta: registra prima il percorso nel wizard.' });
-        if (target.startsWith('//') || (target[0] === '\\' && target[1] === '\\')) return sendJson(res, 400, { error: 'Percorso di rete non consentito.' });
-        if (!isDir(target)) return sendJson(res, 400, { error: `Cartella inesistente: ${target}` });
-        if (process.platform !== 'win32') return sendJson(res, 400, { error: `Apri a mano: ${target}` });
+        if (!target) return sendJson(res, 400, { error: tr({ it: 'Nessuna cartella dati conosciuta: registra prima il percorso nel wizard.', en: 'No known data folder: register the path in the wizard first.' }) });
+        if (target.startsWith('//') || (target[0] === '\\' && target[1] === '\\')) return sendJson(res, 400, { error: tr({ it: 'Percorso di rete non consentito.', en: 'Network paths are not allowed.' }) });
+        if (!isDir(target)) return sendJson(res, 400, { error: tr({ it: `Cartella inesistente: ${target}`, en: `Folder does not exist: ${target}` }) });
+        if (process.platform !== 'win32') return sendJson(res, 400, { error: tr({ it: `Apri a mano: ${target}`, en: `Open it by hand: ${target}` }) });
         import('node:child_process').then(({ spawn }) => {
           spawn('explorer', [`/select,${target}`], { detached: true, stdio: 'ignore' }).unref();
         });
@@ -333,23 +334,23 @@ async function api(context0, req, res, action, body) {
           const via = await launchGame(paths, { exe: false });
           return sendJson(res, 200, { ok: true, ...via });
         } catch (e) {
-          return sendJson(res, 500, { error: `Avvio non riuscito: ${e.message}` });
+          return sendJson(res, 500, { error: tr({ it: `Avvio non riuscito: ${e.message}`, en: `Launch failed: ${e.message}` }) });
         }
       }
       if (wAct === 'set') {
         const dir = String(body.dataDir ?? '').trim();
         if (dir) {
-          if (!isDir(dir)) return sendJson(res, 400, { error: `Cartella inesistente: ${dir}` });
+          if (!isDir(dir)) return sendJson(res, 400, { error: tr({ it: `Cartella inesistente: ${dir}`, en: `Folder does not exist: ${dir}` }) });
           const somiglia = /(\\|\/)ACE$/i.test(dir) || ['Results', 'Logs', 'MoTec', 'SavedCars', 'mod', 'Content', 'compat'].some((n) => isDir(join(dir, n)));
           if (!somiglia) {
-            return sendJson(res, 400, { error: "Questa cartella non assomiglia alla cartella dati di EVO (ci mancano sottocartelle come Results/MoTec). La cartella giusta è di solito …\\Saved Games\\ACE." });
+            return sendJson(res, 400, { error: tr({ it: "Questa cartella non assomiglia alla cartella dati di EVO (ci mancano sottocartelle come Results/MoTec). La cartella giusta è di solito …\\Saved Games\\ACE.", en: 'This folder does not look like the EVO data folder (subfolders such as Results/MoTec are missing). The right folder is usually …\\Saved Games\\ACE.' }) });
           }
           writeConfig({ dataDir: dir });
         }
         const exe = String(body.gameExe ?? '').trim();
         if (exe) {
-          if (!isFile(exe)) return sendJson(res, 400, { error: `File non trovato: ${exe}` });
-          if (!/AssettoCorsaEVO\\.exe$/i.test(exe)) return sendJson(res, 400, { error: 'Serve proprio AssettoCorsaEVO.exe (dentro la cartella della Steam Library).' });
+          if (!isFile(exe)) return sendJson(res, 400, { error: tr({ it: `File non trovato: ${exe}`, en: `File not found: ${exe}` }) });
+          if (!/AssettoCorsaEVO\\.exe$/i.test(exe)) return sendJson(res, 400, { error: tr({ it: 'Serve proprio AssettoCorsaEVO.exe (dentro la cartella della Steam Library).', en: 'It must be exactly AssettoCorsaEVO.exe (inside the Steam Library folder).' }) });
           writeConfig({ gameExe: exe });
         }
       }
@@ -397,7 +398,7 @@ async function api(context0, req, res, action, body) {
       // e le collisioni con le serie già iscritte (prima di spendere soldi/reputazione)
       const id = String(body.nodeId ?? '');
       const node = ladder.nodes.find((n) => n.nodeId === id);
-      if (!node) return sendJson(res, 404, { error: 'Serie sconosciuta.' });
+      if (!node) return sendJson(res, 404, { error: tr({ it: 'Serie sconosciuta.', en: 'Unknown series.' }) });
       const today = agendaDay(state);
       // simula il sedile di oggi: ronda k → giorno anchor + k·7
       const fakeState = { ...state, seats: { ...state.seats, [id]: { day: today, season: state.season } } };
@@ -439,7 +440,7 @@ async function api(context0, req, res, action, body) {
     }
     case 'status': return sendJson(res, 200, viewStatus(ladder, state));
     case 'catalog': return sendJson(res, 200, loadCatalog(paths, process.env, { driver: state?.driver ?? null }));
-    case 'result-detail': return sendJson(res, 200, resultDetail(paths, String(body.file ?? '')) ?? { error: 'File non trovato.' });
+    case 'result-detail': return sendJson(res, 200, resultDetail(paths, String(body.file ?? '')) ?? { error: tr({ it: 'File non trovato.', en: 'File not found.' }) });
     case 'watcher':
       return sendJson(res, 200, { active: true, armed: watcher.armed, racedEnd: watcher.racedEnd, lastMsg: watcher.lastMsg, events: watcher.events, seq: watcher.importSeq ?? 0 });
     case 'live': {
@@ -496,7 +497,7 @@ async function api(context0, req, res, action, body) {
       /* accende/spegne il lettore LIVE a comando (strip + Impostazioni):
          persiste in data/evo.config.json così sopravvive al riavvio. */
       const want = String(body.mode ?? '').toLowerCase();
-      if (!LIVE_MODES.includes(want)) return sendJson(res, 400, { error: "Modalità live non valida (" + LIVE_MODES.join('|') + ")." });
+      if (!LIVE_MODES.includes(want)) return sendJson(res, 400, { error: tr({ it: "Modalità live non valida (", en: 'Invalid live mode (' }) + LIVE_MODES.join('|') + ').' });
       writeConfig({ liveMode: want });
       await syncLiveReader();
       return sendJson(res, 200, { ok: true, liveMode: liveMode() });
@@ -527,7 +528,7 @@ async function api(context0, req, res, action, body) {
     case 'stats': return sendJson(res, 200, careerStats(ladder, state));
     case 'rivals': return sendJson(res, 200, rivalsOverview(ladder, state, { q: typeof body.q === 'string' ? body.q : null }));
     case 'imports': return sendJson(res, 200, { ledger: importedFiles().slice(0, 30), log: importLog(20) });
-    case 'rival-detail': return sendJson(res, 200, rivalDetail(String(body.key ?? '')) ?? { error: 'Rivale non trovato.' });
+    case 'rival-detail': return sendJson(res, 200, rivalDetail(String(body.key ?? '')) ?? { error: tr({ it: 'Rivale non trovato.', en: 'Rival not found.' }) });
     case 'world-ranking': {
       // classifica MONDIALE per prestige: tutti i piloti del mondo ordinati per
       // skill innata (i più forti sono i "F1"), con la tua posizione in elenco
@@ -647,7 +648,7 @@ async function api(context0, req, res, action, body) {
       const id = String(body.nodeId ?? '');
       const day = Number.isFinite(Number(body.day)) ? Number(body.day) : agendaDay(state);
       const g = racesOnDay(ladder, state, day).find((x) => x.node.nodeId === id);
-      if (!g) return sendJson(res, 404, { error: 'Nessuna gara di questa serie nel giorno richiesto.' });
+      if (!g) return sendJson(res, 404, { error: tr({ it: 'Nessuna gara di questa serie nel giorno richiesto.', en: 'No race of this series on the requested day.' }) });
       const node = g.node;
       const carNames = (ids) => (ids ?? []).map((c) => ladder.contentNames?.cars?.[c] ?? c);
       const results = (state.results?.[node.nodeId] ?? []).filter((r) => Number(r.season) === Number(g.season));
@@ -722,7 +723,7 @@ async function api(context0, req, res, action, body) {
     case 'season-review': {
       const seasons = reviewableSeasons(state);
       const wanted = Number.isFinite(Number(body.season)) && Number(body.season) > 0 ? Number(body.season) : seasons[0] ?? state.season;
-      if (!seasons.includes(wanted)) return sendJson(res, 400, { error: `Nessuna gara registrata per la stagione ${wanted}.` });
+      if (!seasons.includes(wanted)) return sendJson(res, 400, { error: tr({ it: `Nessuna gara registrata per la stagione ${wanted}.`, en: `No race recorded for season ${wanted}.` }) });
       return sendJson(res, 200, seasonReview(ladder, state, { season: wanted }));
     }
     case 'backup': {
@@ -880,7 +881,7 @@ async function api(context0, req, res, action, body) {
     }
     case 'agenda-skip-to-next': {
       const target = prossimoGiornoConGara(ladder, state);
-      if (target == null) return sendJson(res, 200, { error: 'Nessuna gara futura nei campionati iscritti.' });
+      if (target == null) return sendJson(res, 200, { error: tr({ it: 'Nessuna gara futura nei campionati iscritti.', en: 'No future race in the entered championships.' }) });
       const after = avanzaGiorno(state, target);
       persist(state);
       return sendJson(res, 200, { after });
@@ -929,7 +930,7 @@ async function api(context0, req, res, action, body) {
       if (!g.fattibile) return sendJson(res, 403, { error: `Serie bloccata: ${g.gateReasons.join('; ')}` });
       const already = state.node === id;
       if (!already && !canChoose(state, day0, id)) {
-        return sendJson(res, 409, { error: `Hai già scelto ${MAX_SCELTE_PER_GIORNO} gare per oggi: ne resta una sola da disputare (salta il tempo per cambiare giornata).` });
+        return sendJson(res, 409, { error: tr({ it: `Hai già scelto ${MAX_SCELTE_PER_GIORNO} gare per oggi: ne resta una sola da disputare (salta il tempo per cambiare giornata).`, en: `You already picked ${MAX_SCELTE_PER_GIORNO} races for today: only one is left to run (skip the time to change day).` }) });
       }
       if (state.node !== id) {
         state.node = id;
@@ -1072,8 +1073,8 @@ async function api(context0, req, res, action, body) {
       return sendJson(res, 200, { root, cars: telemDiagnostics(root) });
     }
     case 'new-career': {
-      if (!body.name || !String(body.name).trim()) return sendJson(res, 400, { error: 'Serve il nome del pilota.' });
-      if (hasCareer() && !body.force) return sendJson(res, 400, { error: 'Esiste già una carriera. Attiva "ricomincia da zero" per sovrascriverla.' });
+      if (!body.name || !String(body.name).trim()) return sendJson(res, 400, { error: tr({ it: 'Serve il nome del pilota.', en: 'The driver name is required.' }) });
+      if (hasCareer() && !body.force) return sendJson(res, 400, { error: tr({ it: 'Esiste già una carriera. Attiva "ricomincia da zero" per sovrascriverla.', en: 'A career already exists. Turn on "start from scratch" to overwrite it.' }) });
       const st = createCareer(ladder, {
         name: String(body.name).trim(),
         nation: String(body.nation ?? 'ITA').toUpperCase(),
@@ -1220,7 +1221,7 @@ async function api(context0, req, res, action, body) {
     case 'difficulty-action': {
       const d = state.difficulty;
       if (body.op === 'mode') {
-        if (!['adaptive', 'fixed', 'custom'].includes(body.mode)) return sendJson(res, 400, { error: 'Modalità non valida.' });
+        if (!['adaptive', 'fixed', 'custom'].includes(body.mode)) return sendJson(res, 400, { error: tr({ it: 'Modalità non valida.', en: 'Invalid mode.' }) });
         d.mode = body.mode;
         d.base ??= {}; d.trim ??= {};
         if (body.mode === 'fixed') {
@@ -1273,7 +1274,7 @@ async function api(context0, req, res, action, body) {
         pushMessage(state, `Difficoltà regolata a mano: trim ${val >= 0 ? '+' : ''}${val} su ${body.nodeId === 'all' ? 'tutte le serie' : nodeById(ladder, String(body.nodeId ?? state.node)).display}.`, 'info');
       } else if (body.op === 'accept' || body.op === 'reject') {
         const p = d.pending;
-        if (!p) return sendJson(res, 400, { error: 'Nessun suggerimento in attesa.' });
+        if (!p) return sendJson(res, 400, { error: tr({ it: 'Nessun suggerimento in attesa.', en: 'No pending suggestion.' }) });
         if (body.op === 'accept') {
           const before = d.trim[p.nodeId] ?? 0;
           d.trim[p.nodeId] = p.to;
@@ -1289,7 +1290,7 @@ async function api(context0, req, res, action, body) {
         }
         d.pending = null;
       } else {
-        return sendJson(res, 400, { error: 'Operazione di difficoltà non valida.' });
+        return sendJson(res, 400, { error: tr({ it: 'Operazione di difficoltà non valida.', en: 'Invalid difficulty operation.' }) });
       }
       persist(state);
       return sendJson(res, 200, { ok: true, view: viewDifficulty(ladder, state) });
@@ -1493,7 +1494,7 @@ async function api(context0, req, res, action, body) {
           let pick = null;
           if (body.file) pick = listMotecSessions(root, { car: carName ?? undefined, track: undefined }).find((s) => s.name === body.file) ?? null;
           if (!pick) pick = listMotecSessions(root, { car: carName, track: trackKey })[0] ?? null;
-          if (!pick) return sendJson(res, 200, { ok: false, hint: 'Nessuna telemetria MoTeC per questa auto: fai una sessione e EVO la salverà in Saved Games\\ACE\\MoTec.' });
+          if (!pick) return sendJson(res, 200, { ok: false, hint: tr({ it: 'Nessuna telemetria MoTeC per questa auto: fai una sessione e EVO la salverà in Saved Games\\ACE\\MoTec.', en: 'No MoTeC telemetry for this car yet: run a session and EVO will save it to Saved Games\\ACE\\MoTec.' }) });
           const trace = lapTrace(pick.file, { lap: body.lap, compare: body.compare, points: body.points });
           const a = trace ? analyzeLd(pick.file) : null;
           if (!trace) return sendJson(res, 200, { ok: false, hint: 'File MoTeC senza giri validi o senza canale SPEED: ' + pick.name });
@@ -1518,7 +1519,7 @@ async function api(context0, req, res, action, body) {
           const sessions = listMotecSessions(paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec'), { car: carName, track: body.track ?? board.trackDisplay ?? undefined });
           const alt = sessions.length ? null : listMotecSessions(join(paths.dataDirs?.[0] ?? '', 'MoTec'), { car: carName });
           const pick = (sessions.length ? sessions : alt)?.[0] ?? null;
-          if (!pick) return sendJson(res, 200, { ok: true, found: false, hint: 'Nessuna telemetria MoTeC per questa auto: fai una sessione e EVO la salverà in Saved Games\\ACE\\MoTec.' });
+          if (!pick) return sendJson(res, 200, { ok: true, found: false, hint: tr({ it: 'Nessuna telemetria MoTeC per questa auto: fai una sessione e EVO la salverà in Saved Games\\ACE\\MoTec.', en: 'No MoTeC telemetry for this car yet: run a session and EVO will save it to Saved Games\\ACE\\MoTec.' }) });
           const a = analyzeLd(pick.file);
           if (!a) return sendJson(res, 200, { ok: true, found: false, hint: 'File MoTeC non leggibile: ' + pick.name });
           const tyre = tyreClassOf(carName);
@@ -1579,12 +1580,12 @@ async function api(context0, req, res, action, body) {
           if (fuzzy.length) setups = fuzzy;
         }
         console.log('[setup-apply] savedDir=', savedDir, '| setups trovati=', setups.length, setups.map((s) => s.file).slice(0, 3));
-        if (!setups.length) return sendJson(res, 200, { ok: false, hint: `Nessun .carsetup per «${carName || 'questa auto'}»: DENTRO EVO, nel setup, salva una volta il setup con CARICA/SALVA (anche i valori default): poi l'applicazione funziona.` });
+        if (!setups.length) return sendJson(res, 200, { ok: false, hint: tr({ it: `Nessun .carsetup per «${carName || 'questa auto'}»: DENTRO EVO, nel setup, salva una volta il setup con CARICA/SALVA (anche i valori default): poi l'applicazione funziona.`, en: `No .carsetup for «${carName || 'this car'}»: INSIDE EVO, in the setup screen, save the setup once with LOAD/SAVE (default values are fine): then the apply step works.` }) });
         // la base del consiglio è SEMPRE il TUO setup: le copie «— EVO-consigliato»
         // generate dai click precedenti si escludono (altrimenti: doppio suffisso e
         // il consiglio parte dai valori già corretti, non dal tuo file)
         setups = setups.filter((s) => !s.name.includes('EVO-consigliato'));
-        if (!setups.length) return sendJson(res, 200, { ok: false, hint: `C'è solo la copia «EVO-consigliato»: salva tu un setup col tuo nome in EVO (CARICA/SALVA) e riprova.` });
+        if (!setups.length) return sendJson(res, 200, { ok: false, hint: tr({ it: `C'è solo la copia «EVO-consigliato»: salva tu un setup col tuo nome in EVO (CARICA/SALVA) e riprova.`, en: 'There is only the «EVO-recommended» copy: save your own setup in EVO (LOAD/SAVE) and try again.' }) });
         setups.sort((a, b) => statSync(b.file).mtimeMs - statSync(a.file).mtimeMs);
         const src = body.file ? (setups.find((s) => s.file === body.file) ?? setups[0]) : setups[0];
         const srcBuf = readFileSync(src.file);
@@ -1618,7 +1619,7 @@ async function api(context0, req, res, action, body) {
           }
         }
         if (startPsi == null || !Number.isFinite(startPsi)) {
-          return sendJson(res, 200, { ok: false, hint: 'Serve una base per la pressione: O scarica una telemetria valida (sessione con registrazione attiva), O fai un giro adesso con questa auto (consiglio DAI DATI LIVE del gioco).' });
+          return sendJson(res, 200, { ok: false, hint: tr({ it: 'Serve una base per la pressione: O scarica una telemetria valida (sessione con registrazione attiva), O fai un giro adesso con questa auto (consiglio DAI DATI LIVE del gioco).', en: 'A base lap is needed for pressure: either download valid telemetry (a session with recording on), or do a lap now with this car (advised from the game LIVE DATA).' }) });
         }
         const nTire = Math.max(0, cur.tires?.length ?? 4);
         const tires = [];
@@ -1778,8 +1779,8 @@ async function api(context0, req, res, action, body) {
     }
     case 'challenge-accept': {
       const c = challengeFor(ladder, state);
-      if (!c) return sendJson(res, 400, { error: 'Nessuna sfida disponibile per questa ronda.' });
-      if (c.verdict) return sendJson(res, 400, { error: 'La sfida di questa ronda è già stata valutata.' });
+      if (!c) return sendJson(res, 400, { error: tr({ it: 'Nessuna sfida disponibile per questa ronda.', en: 'No challenge available for this round.' }) });
+      if (c.verdict) return sendJson(res, 400, { error: tr({ it: 'La sfida di questa ronda è già stata valutata.', en: 'This round\'s challenge has already been scored.' }) });
       acceptChallenge(state, c);
       persist(state);
       return sendJson(res, 200, { ok: true, challenge: c, header: viewHeader(ladder, state) });
@@ -1788,7 +1789,7 @@ async function api(context0, req, res, action, body) {
       const list = sponsorOffers(ladder, state);
       const wanted = Number(body.tier);
       const offer = list.find((o) => o.tier === wanted) ?? list[list.length - 1];
-      if (!offer) return sendJson(res, 400, { error: 'Nessuna offerta di sponsor disponibile.' });
+      if (!offer) return sendJson(res, 400, { error: tr({ it: 'Nessuna offerta di sponsor disponibile.', en: 'No sponsor offer available.' }) });
       acceptSponsor(state, offer);
       pushMessage(state, `Contratto sponsor firmato: ${offer.name}. ${offer.note}.`, 'money');
       persist(state);
@@ -1811,7 +1812,7 @@ async function api(context0, req, res, action, body) {
       const node = nodeById(ladder, state.node);
       const played = (state.results[node.nodeId] ?? []).filter((r) => r.season === state.season).length;
       if (played < node.calendar.length && !body.force) {
-        return sendJson(res, 409, { error: `Stagione incompleta: ${played}/${node.calendar.length} gare disputate. Conferma per chiudere comunque.`, code: 'SEASON_INCOMPLETE' });
+        return sendJson(res, 409, { error: tr({ it: `Stagione incompleta: ${played}/${node.calendar.length} gare disputate. Conferma per chiudere comunque.`, en: `Season incomplete: ${played}/${node.calendar.length} races run. Confirm to close anyway.` }), code: 'SEASON_INCOMPLETE' });
       }
       const result = seasonEnd(ladder, state);
       // chiuso il campionato: invito garantito al Gran Finale dei Campioni
@@ -1845,7 +1846,7 @@ async function api(context0, req, res, action, body) {
           try { if (statSync(d).isDirectory()) driveList.push(d); } catch { /* unità assente */ }
         }
         const home = homedir();
-        return sendJson(res, 200, { kind: 'root', drives: driveList, home, entries: [{ name: '🏠 Cartella utente (home)', path: home, up: false }] });
+        return sendJson(res, 200, { kind: 'root', drives: driveList, home, entries: [{ name: tr({ it: '🏠 Cartella utente (home)', en: '🏠 User folder (home)' }), path: home, up: false }] });
       }
       target = q;
       if (target.startsWith('drive:')) target = target.slice(6);
@@ -1853,7 +1854,7 @@ async function api(context0, req, res, action, body) {
       if (!/^[a-zA-Z]:[\\/]/.test(target) && !target.startsWith('/')) return sendJson(res, 400, { error: 'Percorso non valido.' });
       if (target.startsWith('//') || (target[0] === '\\' && target[1] === '\\')) return sendJson(res, 400, { error: 'Percorso di rete non consentito.' });
       let st; try { st = statSync(target); } catch { return sendJson(res, 404, { error: `Percorso non trovato: ${target}` }); }
-      if (!st.isDirectory()) return sendJson(res, 400, { error: 'Serve una cartella, non un file. Se cercavi l\'exe di gioco: entra prima nella cartella e poi selezionalo.' });
+      if (!st.isDirectory()) return sendJson(res, 400, { error: tr({ it: "Serve una cartella, non un file. Se cercavi l'exe di gioco: entra prima nella cartella e poi selezionalo.", en: 'A folder is needed, not a file. If you were looking for the game exe: enter the folder first, then pick it.' }) });
       const entries = [];
       try {
         for (const name of readdirSync(target)) {
@@ -1883,13 +1884,13 @@ async function api(context0, req, res, action, body) {
         // da qui si lancia il gioco (cmd /c start): solo l'exe ufficiale di EVO,
         // solo un file esistente, mai una cartella di rete — così nessuna pagina
         // web può farsi eseguire un binario a scelta
-        if (basename(exe).toLowerCase() !== GAME_EXE.toLowerCase()) return sendJson(res, 400, { error: `Serve il percorso completo di ${GAME_EXE}.` });
+        if (basename(exe).toLowerCase() !== GAME_EXE.toLowerCase()) return sendJson(res, 400, { error: tr({ it: `Serve il percorso completo di ${GAME_EXE}.`, en: `The full path to ${GAME_EXE} is required.` }) });
         if (exe.startsWith('//') || (exe[0] === '\\' && exe[1] === '\\')) return sendJson(res, 400, { error: 'Percorso di rete non consentito: il gioco deve stare su un disco locale.' });
         let isFile = false; try { isFile = statSync(exe).isFile(); } catch { /* non esiste */ }
         if (!isFile) return sendJson(res, 400, { error: `File non trovato: ${exe}` });
         patch.gameExe = exe;
       }
-      if (!Object.keys(patch).length) return sendJson(res, 400, { error: 'Nessun percorso da salvare.' });
+      if (!Object.keys(patch).length) return sendJson(res, 400, { error: tr({ it: 'Nessun percorso da salvare.', en: 'No path to save.' }) });
       const cfg = writeConfig(patch);
       const fresh = resolvePaths({ ...process.env, ACE_DATA: cfg.dataDir, ACE_ROOT: cfg.gameExe ? dirname(cfg.gameExe) : undefined });
       return sendJson(res, 200, { ok: true, setup: { dataDirs: fresh.dataDirs, resultsDirs: fresh.resultsDirs, gameExe: fresh.gameExe } });
@@ -1902,7 +1903,7 @@ async function api(context0, req, res, action, body) {
       const n = Math.floor(Number(body.slot));
       if (![1, 2, 3].includes(n)) return sendJson(res, 400, { error: 'Slot non valido: i lanciatori sono 1, 2, 3.' });
       const launcher = join(PROJECT, `pilota-${n}.cmd`);
-      if (!existsSync(launcher)) return sendJson(res, 400, { error: `Lanciatore non trovato: pilota-${n}.cmd (è nella cartella del programma?)` });
+      if (!existsSync(launcher)) return sendJson(res, 400, { error: tr({ it: `Lanciatore non trovato: pilota-${n}.cmd (è nella cartella del programma?)`, en: `Launcher not found: pilota-${n}.cmd (is it in the program folder?)` }) });
       // se lo slot è quello di QUESTA sessione, non riavviamo niente: solo il suo browser
       if (n === SLOT) {
         const addr = `http://127.0.0.1:${PORT}`;
@@ -1910,12 +1911,12 @@ async function api(context0, req, res, action, body) {
           if (process.platform === 'win32') spawn('cmd', ['/c', 'start', '', addr], { detached: true, stdio: 'ignore' }).unref();
           else spawn('xdg-open', [addr], { detached: true, stdio: 'ignore' }).unref();
         });
-        return sendJson(res, 200, { ok: true, note: 'Slot già attivo: apro solo il browser.' });
+        return sendJson(res, 200, { ok: true, note: tr({ it: 'Slot già attivo: apro solo il browser.', en: 'Slot already active: opening just the browser.' }) });
       }
       import('node:child_process').then(({ spawn }) => {
         spawn('cmd', ['/c', 'start', '', 'Carriera EVO Slot ' + n, launcher], { detached: true, stdio: 'ignore', cwd: PROJECT }).unref();
       });
-      return sendJson(res, 200, { ok: true, note: `Lanciato pilota-${n}.cmd: si apre la sua carriera sulla sua porta (${8641 + n}). Questa finestra resta quello che è (slot ${SLOT}).` });
+      return sendJson(res, 200, { ok: true, note: tr({ it: `Lanciato pilota-${n}.cmd: si apre la sua carriera sulla sua porta (${8641 + n}). Questa finestra resta quello che è (slot ${SLOT}).`, en: `Launched pilota-${n}.cmd: its career opens on its own port (${8641 + n}). This window stays as it is (slot ${SLOT}).` }) });
     }
     default:
       return sendJson(res, 404, { error: `Azione "${action}" non prevista.` });

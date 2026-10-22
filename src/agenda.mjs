@@ -33,6 +33,9 @@ export const MAX_SCELTE_PER_GIORNO = 3;  // al massimo 3 gare in una giornata
 
 const GIORNI = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
 const MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+const EN_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const inEn = () => /^(en|eng)$/i.test(process.env.EVO_LANG ?? '');
 
 /** La data di partenza della carriera (stabile): nel salvataggio, o la default (13 Apr 2025). */
 export function careerStartDate(state) {
@@ -49,12 +52,14 @@ export function realDate(day) {
 
 export function dateLabel(day) {
   const d = realDate(day);
+  if (inEn()) return `${EN_DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${EN_MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
   return `${GIORNI[d.getUTCDay()]} ${d.getUTCDate()} ${MESI[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
 export function dateShort(day) {
   const d = realDate(day);
-  return `${String(d.getUTCDate()).padStart(2, '0')} ${MESI[d.getUTCMonth()]}`;
+  const mesi = inEn() ? EN_MONTHS : MESI;
+  return `${String(d.getUTCDate()).padStart(2, '0')} ${mesi[d.getUTCMonth()]}`;
 }
 
 /* ------------------------------------------------------------------ */

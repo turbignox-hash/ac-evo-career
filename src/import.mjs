@@ -28,6 +28,7 @@ import { settleChallenge } from './life.mjs';
 import { raceCrowdFor } from './memories.mjs';
 import { publishRaceNews } from './gazzetta.mjs';
 import { recordFlows } from './flows.mjs';
+import { tr } from './lang.mjs';
 import { recordWarning } from './warnings.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 import { recordRaceFromResult } from './grid-calib.mjs';
@@ -454,7 +455,7 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
       if (p1 && p2 && t1 != null && t2 != null && t2 > t1) {
         const margin = t2 - t1;
         if (margin > 10000) {
-          nudgeSuggested = { delta: 1, marginMs: margin, reason: `vittoria con ${Math.round(margin / 1000)}s di margine sulla P2` };
+          nudgeSuggested = { delta: 1, marginMs: margin, reason: tr({ it: `vittoria con ${Math.round(margin / 1000)}s di margine sulla P2`, en: `win with a ${Math.round(margin / 1000)}s gap on P2` }) };
           // resta in sospeso sul cruscotto finché non lo applichi o lo scarti
           state.pendingNudge = { nodeId: targetNode.nodeId, nodeDisplay: targetNode.display, delta: 1, marginMs: margin, reason: nudgeSuggested.reason, at: new Date().toISOString() };
         }

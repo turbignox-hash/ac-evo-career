@@ -1082,7 +1082,7 @@ function cmdDifficulty(args) {
     for (const { node, d } of rows.sort((a, b) => a.node.level - b.node.level)) {
       const lock = d.locked ? C.yellow(tr({ it: ' [bloccata]', en: ' [locked]' })) : '';;
       const current = node.nodeId === state.node ? C.green('◄') : ' ';
-      console.log(`   ${current} ${node.display.padEnd(26)} base ${d.base.toFixed(0).padStart(3)}  trim ${(d.trim >= 0 ? '+' : '') + d.trim}  classe ${(d.offClass >= 0 ? '+' : '') + d.offClass}  pista ${(d.offTrack >= 0 ? '+' : '') + d.offTrack}  = ${d.total.toFixed(0).padStart(3)}  slider ${String(d.slider).padStart(3)}%${lock}`);
+      console.log(`   ${current} ${node.display.padEnd(26)} base ${d.base.toFixed(0).padStart(3)}  trim ${(d.trim >= 0 ? '+' : '') + d.trim}  ${tr({ it: 'classe', en: 'class' })} ${(d.offClass >= 0 ? '+' : '') + d.offClass}  ${tr({ it: 'pista', en: 'track' })} ${(d.offTrack >= 0 ? '+' : '') + d.offTrack}  = ${d.total.toFixed(0).padStart(3)}  slider ${String(d.slider).padStart(3)}%${lock}`);
     }
     console.log();
   }
