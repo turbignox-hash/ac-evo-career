@@ -155,7 +155,7 @@ function drawNav(){
   const offers = boot?.header?.offers?.length || 0;
   const urgent = boot?.mailUrgent || 0;
   $('#nav').innerHTML = TABS.map(([id,label]) =>
-    `<button data-tab="${id}" class="${tab===id?'on':''}">${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${urgent} email urgenti: gare da disputare o conflitti">⚠️${urgent}</span>`:''}</button>`).join('');
+    `<button data-tab="${id}" class="${tab===id?'on':''}">${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${tr({ it: `${urgent} email urgenti: gare da disputare o conflitti`, en: `${urgent} urgent emails: races to run or conflicts` })}">⚠️${urgent}</span>`:''}</button>`).join('');
   $$('#nav button').forEach(b => b.onclick = () => { tab = b.dataset.tab; drawNav(); render(); });
 }
 
@@ -201,10 +201,10 @@ function paintHeader(h){
   $('#hstats').classList.remove('hidden');
   $('#t-ava').textContent = (h.driver.name || '?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
   $('#t-name').textContent = h.driver.name;
-  $('#t-sub').textContent = `${h.nation ?? ''} · ${h.sponsor ?? 'pilota privato'} · ${h.node.display}`;
+  $('#t-sub').textContent = `${h.nation ?? ''} · ${h.sponsor ?? tr({ it: 'pilota privato', en: 'private driver' })} · ${h.node.display}`;
   $('#t-money').textContent = money(h.money) + ' €';
   $('#t-rep').textContent = String(h.rep);
-  $('#t-date').textContent = h.todayLabel ? `OGGI ${h.todayLabel}` : ('giorno ' + (h.day ?? 1));
+  $('#t-date').textContent = h.todayLabel ? `${tr({ it: 'OGGI', en: 'TODAY' })} ${h.todayLabel}` : `${tr({ it: 'giorno', en: 'day' })} ${h.day ?? 1}`;
   $('#t-season').textContent = `S${h.season} · R${h.round}/${h.rounds}`;
   // le tre statistiche chiave diventano scorciatoie: Data → Centro gare, Rep → Statistiche, Finanze → Finanze
   $('#t-date').style.cursor = 'pointer';
@@ -221,24 +221,24 @@ function paintHeader(h){
     nrEl.style.display = '';
     const el = $('#t-nextrace');
     if (nr.late) {
-      el.textContent = `⚠️ IN RITARDO · ${nr.node} R${nr.round}`;
+      el.textContent = `⚠️ ${tr({ it: 'IN RITARDO', en: 'OVERDUE' })} · ${nr.node} R${nr.round}`;
       el.style.color = 'var(--bad,#e05d5d)';
-      nrEl.title = `La gara ${nr.node} R${nr.round} a ${nr.track} era in programma il ${nr.dateLabel} e NON è stata corsa: i rivali incassano punti ogni giorno che passa. Vai nel Centro gare (o Cruscotto) e corri la R${nr.round} a ${nr.track}!`;
+      nrEl.title = tr({ it: 'La gara {N} R{R} a {T} era in programma il {D} e NON è stata corsa: i rivali incassano punti ogni giorno che passa. Vai nel Centro gare (o Cruscotto) e corri la R{R2} a {T2}!', en: 'The race {N} R{R} at {T} was scheduled for {D} and was NOT run: rivals collect points every day that passes. Go to the Race centre (or Dashboard) and run R{R2} at {T2}!' }).replace('{N}', nr.node).replace('{R}', nr.round).replace('{T}', nr.track).replace('{D}', nr.dateLabel).replace('{R2}', nr.round).replace('{T2}', nr.track);
     } else if (nr.in <= 2) {
-      el.textContent = `tra ${nr.in} ${nr.in === 1 ? 'giorno' : 'giorni'} · ${nr.node} R${nr.round}`;
+      el.textContent = `${tr({ it: 'tra', en: 'in' })} ${nr.in} ${nr.in === 1 ? tr({ it: 'giorno', en: 'day' }) : tr({ it: 'giorni', en: 'days' })} · ${nr.node} R${nr.round}`;
       el.style.color = 'var(--warn,#ffb454)';
-      nrEl.title = `${nr.node} R${nr.round} a ${nr.track} — ${nr.dateLabel}. STAI ATTO: la gara diventa "in ritardo" se non la corri entro quel giorno.`;
+      nrEl.title = tr({ it: '{N} R{R} a {T} — {D}. STAI ATTO: la gara diventa "in ritardo" se non la corri entro quel giorno.', en: '{N} R{R} at {T} — {D}. PAY ATTENTION: the race becomes "overdue" if you don\'t run it that day.' }).replace('{N}', nr.node).replace('{R}', nr.round).replace('{T}', nr.track).replace('{D}', nr.dateLabel);
     } else {
-      el.textContent = `tra ${nr.in} giorni · ${nr.node} R${nr.round}`;
+      el.textContent = `${tr({ it: 'tra', en: 'in' })} ${nr.in} ${tr({ it: 'giorni', en: 'days' })} · ${nr.node} R${nr.round}`;
       el.style.color = '';
-      nrEl.title = `${nr.node} R${nr.round} a ${nr.track} — ${nr.dateLabel}`;
+      nrEl.title = `${nr.node} R${nr.round} ${tr({ it: 'a', en: 'at' })} ${nr.track} — ${nr.dateLabel}`;
     }
     nrEl.onclick = () => { tab = 'agenda'; drawNav(); render(); };
   } else { nrEl.style.display = 'none'; }
   if (h.heritage) {
     $('#hstat-heritage').style.display = '';
-    $('#t-heritage').textContent = `📜 ${h.heritage.completed ?? 0}${h.heritage.activeDone ? ' · eredità pronta!' : ''}`;
-    $('#hstat-heritage').title = h.heritage.activeDone ? "Un'eredità di famiglia è pronta da incassare (pannello Eredità)" : 'Capitoli della saga di famiglia completati';
+    $('#t-heritage').textContent = `📜 ${h.heritage.completed ?? 0}${h.heritage.activeDone ? ` · ${tr({ it: 'eredità pronta!', en: 'inheritance ready!' })}` : ''}`;
+    $('#hstat-heritage').title = h.heritage.activeDone ? tr({ it: "Un'eredità di famiglia è pronta da incassare (pannello Eredità)", en: 'A family inheritance is ready to claim (Heritage panel)' }) : tr({ it: 'Capitoli della saga di famiglia completati', en: 'Chapters of the family saga completed' });
   }
 }
 
@@ -248,7 +248,21 @@ async function refreshBoot(){
   $('#t-evo').textContent = boot.gameRunning ? tr({ it: 'EVO aperto', en: 'EVO open' }) : tr({ it: 'chiuso', en: 'closed' });
   drawNav();
   if (boot.hasCareer) paintHeader(boot.header);
-}
+}/* l'etichetta STATICHE dell'header (index.html): tradotte una volta sola */
+(function paintStaticChrome() {
+  const HEADER_L = {
+    'Data': tr({ it: 'Data', en: 'Date' }),
+    'Finanze': tr({ it: 'Finanze', en: 'Finances' }),
+    'Reputazione': tr({ it: 'Reputazione', en: 'Reputation' }),
+    'Stagione': tr({ it: 'Stagione', en: 'Season' }),
+    'Eredità': tr({ it: 'Eredità', en: 'Heritage' }),
+    'Prossima gara': tr({ it: 'Prossima gara', en: 'Next race' }),
+    'Gioco': tr({ it: 'Gioco', en: 'Game' }),
+    'MoTeC': 'MoTeC',
+    'In pista': tr({ it: 'In pista', en: 'On track' }),
+  };
+  $$('#hstats .hstat .l').forEach((el) => { if (HEADER_L[el.textContent.trim()]) el.textContent = HEADER_L[el.textContent.trim()]; });
+})();
 
 
 /* ============================== faccine & icone dei pannelli ============================== */

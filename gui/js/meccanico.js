@@ -27,21 +27,25 @@
     const s = stato ?? {};
     const bad = Number(s.bad) || 0, warn = Number(s.warn) || 0;
     let badge, cls;
-    if (bad > 0) { badge = `❗ ${bad} voci rosse: lavoro da fare`; cls = 'bad'; }
-    else if (warn > 0) { badge = `🧰 ${warn} da leggere, nessun dramma`; cls = 'warn'; }
-    else { badge = '✔ soddisfatto — la macchina è a punto'; cls = 'ok'; }
+    if (bad > 0) { badge = `${tr({ it: '❗ ', en: '❗ ' })}${bad} ${tr({ it: 'voci rosse: lavoro da fare', en: 'red items: work to do' })}`; cls = 'bad'; }
+    else if (warn > 0) { badge = `${tr({ it: '🧰 ', en: '🧰 ' })}${warn} ${tr({ it: 'da leggere, nessun dramma', en: 'to read, no drama' })}`; cls = 'warn'; }
+    else { badge = tr({ it: '✔ soddisfatto — la macchina è a punto', en: '✔ satisfied — the car is on point' }); cls = 'ok'; }
     const monitor = [];
-    if (s.live) monitor.push(`<span class="chip ${s.live === 'in pista' ? 'gold' : ''}"><span class="dot ${s.live === 'in pista' ? 'on' : ''}"></span>${s.live}</span>`);
-    if (s.telem) monitor.push(`<span class="chip">📺 telem. ${s.telem}</span>`);
+    const live = s.live === 'in pista' ? tr({ it: 'in pista', en: 'out on track' }) : s.live;
+    if (s.live) monitor.push(`<span class="chip ${s.live === 'in pista' ? 'gold' : ''}"><span class="dot ${s.live === 'in pista' ? 'on' : ''}"></span>${live}</span>`);
+    if (s.telem) monitor.push(`<span class="chip">📺 ${tr({ it: 'telem.', en: 'telem.' })} ${s.telem}</span>`);
     /* MONITOR TEST: mentre il meccanico lavora (checklist attiva) mostra quante
        aree sta verificando — e quando finisce, che sono tutte a punto. */
-    if (Number(s.areas) > 0) monitor.push(`<span class="chip ${bad || warn ? '' : 'green'}">🧪 ${s.areas} are${s.areas === 1 ? 'a' : 'e'} in monitoraggio</span>`);
+    if (Number(s.areas) > 0) monitor.push(tr({
+      it: `<span class="chip ${bad || warn ? '' : 'green'}">🧪 ${s.areas} ${s.areas === 1 ? 'area' : 'aree'} in monitoraggio</span>`,
+      en: `<span class="chip ${bad || warn ? '' : 'green'}">🧪 ${s.areas} area${s.areas === 1 ? '' : 's'} monitored</span>`
+    }));
     /* SETUP CAMBIATO: se il file caricato su disco è più nuovo dell'ultima
        telemetria analizzata, i dati del meccanico parlano del vecchio setup. */
-    if (s.stale) monitor.push('<span class="chip red" title="Il file di setup montato è cambiato DOPO l\'ultima uscita: i numeri del box parlano del vecchio assetto — fai 2 giri per rigenerare la base.">⚠️ dati del vecchio setup</span>');
+    if (s.stale) monitor.push(`<span class="chip red" title="${tr({ it: "Il file di setup montato è cambiato DOPO l'ultima uscita: i numeri del box parlano del vecchio assetto — fai 2 giri per rigenerare la base.", en: 'The mounted setup file changed AFTER the last run: the numbers in the box refer to the old setup — do 2 laps to regenerate the baseline.' })}">⚠️ ${tr({ it: 'dati del vecchio setup', en: 'old-setup data' })}</span>`);
     return `<div class="mech-id">
       <span class="mech-avatar">${window.mechIcon(22)}</span>
-      <span class="mech-name"><b>Il Meccanico</b> <span class="muted">— responsabile dell'assetto, dal box</span></span>
+      <span class="mech-name"><b>${tr({ it: 'Il Meccanico', en: 'The Mechanic' })}</b> <span class="muted">— ${tr({ it: "responsabile dell'assetto, dal box", en: 'in charge of the setup, from the box' })}</span></span>
       <span class="mech-badge ${cls}">${badge}</span>
       ${monitor.length ? `<span class="mech-live">${monitor.join(' ')}</span>` : ''}
     </div>`;

@@ -378,18 +378,18 @@ async function seasonEndFlow(force){
     const r = await api('season-end', {force});
     await refreshBoot();
     const offersHtml = r.offers.length ? r.offers.map(o=>`<div class="offer"><span class="n">${o.index}) ${esc(o.display)}</span>
-      <span class="muted">L${o.level} · ${esc(o.discipline)} · ${esc(o.note)} · ${o.access==='closed'?'parco chiuso (solo contratto)':`affitto ${money(o.rent)} €`}</span>
-      <span class="m"><button class="mini" data-acc="${o.index}" data-name="${esc(o.display)}">firma</button></span></div>`).join('')
-      : '<div class="empty">Nessuna offerta disponibile.</div>';
-    modal(`Stagione ${r.me.season ?? ''} chiusa`, `
-      <div class="winline ${r.champion?'gold':''}">${r.champion ? '🏆 CAMPIONE!' : 'Posizione finale: P'+r.me.position}</div>
-      <div style="text-align:center" class="muted">${r.me.points} punti${r.bonus ? ' · bonus titolo '+money(r.bonus)+' €' : ''}</div>
-      ${r.memoryAssigned ? `<div class="banner warn" style="margin-top:12px">📜 <b>Eredità di famiglia:</b> ${esc(r.memoryAssigned.ancestor)}, tuo ${esc(r.memoryAssigned.relation)} (${esc(r.memoryAssigned.era)}), ti affida l'impresa «${esc(r.memoryAssigned.objective)}» in ${esc(r.memoryAssigned.series)}${r.memoryAssigned.carName ? ` con la sua ${esc(r.memoryAssigned.carName)}` : ''}. Eredità in palio: <b>${money(r.memoryAssigned.inherit)} €</b>.</div>` : ''}
-      <h2 style="margin:18px 0 8px;font-size:11.5px;text-transform:uppercase;letter-spacing:1.4px;color:var(--dim)">Offerte per la prossima stagione</h2>
+      <span class="muted">L${o.level} · ${esc(o.discipline)} · ${esc(o.note)} · ${o.access==='closed'? tr({ it: 'parco chiuso (solo contratto)', en: 'closed park (contract only)' }) : `${tr({ it: 'affitto', en: 'rent' })} ${money(o.rent)} €`}</span>
+      <span class="m"><button class="mini" data-acc="${o.index}" data-name="${esc(o.display)}">${tr({ it: 'firma', en: 'sign' })}</button></span></div>`).join('')
+      : `<div class="empty">${tr({ it: 'Nessuna offerta disponibile.', en: 'No offers available.' })}</div>`;
+    modal(tr({ it: 'Stagione {S} chiusa', en: 'Season {S} closed' }).replace('{S}', r.me.season ?? ''), `
+      <div class="winline ${r.champion?'gold':''}">${r.champion ? tr({ it: '🏆 CAMPIONE!', en: '🏆 CHAMPION!' }) : tr({ it: 'Posizione finale:', en: 'Final position:' }) + ' P' + r.me.position}</div>
+      <div style="text-align:center" class="muted">${r.me.points} ${tr({ it: 'punti', en: 'points' })}${r.bonus ? ` · ${tr({ it: 'bonus titolo', en: 'title bonus' })} ${money(r.bonus)} €` : ''}</div>
+      ${r.memoryAssigned ? `<div class="banner warn" style="margin-top:12px">📜 <b>${tr({ it: 'Eredità di famiglia:', en: 'Family heritage:' })}</b> ${esc(r.memoryAssigned.ancestor)}, ${tr({ it: 'tuo', en: 'yours' })} ${esc(r.memoryAssigned.relation)} (${esc(r.memoryAssigned.era)}), ${tr({ it: 'ti affida l\'impresa', en: 'entrusts you with the feat' })} «${esc(r.memoryAssigned.objective)}» ${tr({ it: 'in', en: 'in' })} ${esc(r.memoryAssigned.series)}${r.memoryAssigned.carName ? ` ${tr({ it: 'con la sua', en: 'with their' })} ${esc(r.memoryAssigned.carName)}` : ''}. ${tr({ it: 'Eredità in palio:', en: 'Inheritance at stake:' })} <b>${money(r.memoryAssigned.inherit)} €</b>.</div>` : ''}
+      <h2 style="margin:18px 0 8px;font-size:11.5px;text-transform:uppercase;letter-spacing:1.4px;color:var(--dim)">${tr({ it: 'Offerte per la prossima stagione', en: 'Offers for next season' })}</h2>
       ${offersHtml}`,
-      [['Deciderò dopo','ghost',()=>{ render(); }]]);
+      [[tr({ it: 'Deciderò dopo', en: 'I will decide later' }), 'ghost', () => { render(); }]]);
     $$('button[data-acc]').forEach(b => b.onclick = async () => {
-      try { const rr = await api('accept', {index:Number(b.dataset.acc)}); $('#modal-root').innerHTML=''; toast('Contratto firmato: '+rr.signed, 'ok'); await refreshBoot(); render(); }
+      try { const rr = await api('accept', {index:Number(b.dataset.acc)}); $('#modal-root').innerHTML=''; toast(`${tr({ it: 'Contratto firmato: ', en: 'Contract signed: ' })}${rr.signed}`, 'ok'); await refreshBoot(); render(); }
       catch(e){ toast(e.message,'err'); }
     });
   } catch(e){
