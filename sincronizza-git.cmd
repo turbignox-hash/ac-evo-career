@@ -42,7 +42,9 @@ exit /b 0
 
 :mancanteremota
 echo.
-echo   La quarta copia (off-site) non e' ancora impostata: servono 2 minuti una volta sola.
+echo   Il remote off-site risulta perso (giusto se accade cambiando PC o spostando
+echo   la cartella): ricreare richiede 2 minuti, una volta sola. Oggi e' set su:
+echo   un repository privato su GitHub di nome ac-evo-career.
 echo.
 echo   1. Crea online un repository PRIVATO e VUOTO di nome ac-evo-career:
 echo        https://github.com/new   (visibilita' "Private", niente README/licenze)

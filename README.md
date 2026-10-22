@@ -362,7 +362,7 @@ Il progetto è protetto da quattro copie indipendenti. Se una riparte ridotta a 
 |--------------------|-----------------------------------------------------------------------|--------------------------------------|
 | disco              | codice, dati e documenti di lavoro, storia git                        | cartella del progetto sul Desktop    |
 | OneDrive           | zip completo (codice, git, save personali, mappe) e pacchetto portatile | cartelle OneDrive                   |
-| magazzino su L:    | le stesse due zip, con impronte SHA-256 ricontrollate                 | disco L:, cartella CarrieraEVO       || off-site (facoltativa) | la sola storia git dei commit | repository online (consigliato privato) su GitHub o GitLab |
+| magazzino su L:    | le stesse due zip, con impronte SHA-256 ricontrollate                 | disco L:, cartella CarrieraEVO       || off-site (configurata) | la sola storia git dei commit | repository privato su GitHub (`ac-evo-career`) |
 
 Strumenti, in ordine di uso:
 
@@ -374,9 +374,10 @@ Strumenti, in ordine di uso:
   coperti dal backup. È un avviso: non tocca e non rompe nulla.
 - avvia.cmd lance in versione breve lo stesso controllo quando apre la interfaccia:
   parla solo se c'è un problema, resta muto se il disco L: è staccato di proposito.
-- sincronizza-git.cmd è la copia off-site: pubblica la storia git su un repository
-  online (consigliato privato). Configurazione una volta sola: creare il repository vuoto,
-  poi git remote add offsite <url>, poi ri-lanciare lo script.
+- sincronizza-git.cmd è la copia off-site, già attiva: il remote `offsite` punta al
+  repository privato su GitHub. A ogni esecuzione spinge la storia aggiornata; le
+  credenziali browser (Git Credential Manager) sono già salvate. Solo se il remote
+  si dovesse perdere: ricrearlo una volta con `git remote add offsite <url>`.
 
 Ogni zip completo contiene la guida COME-RIPRISTINARE.txt con i passi per rimettere
 in piedi il progetto (estrarre, npm test, avvia.cmd).
