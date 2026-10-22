@@ -780,7 +780,7 @@ async function drawSetup(m){
       ? '<span class="tag green" style="font-size:10px;padding:1px 6px">OK</span>'
       : `<span class="tag" style="font-size:10px;padding:1px 6px;background:#3a1d1d;color:#ff9b9b">${emptyN} vuoti</span>`;
     return `<details style="margin-top:6px" ${c.files.some(f=>!f.valid)?'open':''}><summary style="cursor:pointer;font-size:12.5px"><b>${esc(c.car)}</b> ${health} <span class="muted" style="font-size:11px">· ${c.total} file totali · ultimi ${c.files.length} elencati</span></summary>
-      <table style="margin-top:6px"><thead><tr><th>Quando</th><th>Pista</th><th class="right">Dimensione</th><th>Stato</th><th class="right">Canali con dati</th></tr></thead><tbody>${files}</tbody></table>
+      <table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Dimensione', en: 'Size' })}</th><th>${tr({ it: 'Stato', en: 'State' })}</th><th class="right">${tr({ it: 'Canali con dati', en: 'Channels with data' })}</th></tr></thead><tbody>${files}</tbody></table>
     </details>`;
   }).join('');
   const anyEmpty = (diag.cars ?? []).some((c) => (c.files ?? []).some((f) => !f.valid));
@@ -788,7 +788,7 @@ async function drawSetup(m){
     <h2>Diagnostica telemetria <span class="h-act">i file .ld che EVO scrive in Saved Games\\ACE\\MoTec</span></h2>
     ${anyEmpty ? `<div class="banner warn" style="margin-bottom:8px">${tr({ it: 'Ci sono file vuoti (solo intestazione, 0 canali con dati): la telemetria non era attiva in EVO — si attiva in Setup → Elettronica (e i giri si impostano PRIMA di avviare la sessione). Riusa la sessione e i file conterranno dati veri. Finché così non fosse, i consigli del BOX su quelle auto usano la stima.', en: 'There are empty files (header only, 0 channels with data): telemetry was NOT active in EVO — turn it on in Setup → Electronics (and set laps BEFORE starting the session). Reuse the session and the files will hold real data. Until then, the BOX uses estimates for those cars.' })}</div>` : `<div class="banner good" style="margin-bottom:8px">${tr({ it: 'Tutti gli ultimi file hanno dati: la telemetria sta funzionando.', en: 'All recent files have data: telemetry is working.' })}</div>`}
     ${diagRows}
-    <div class="muted" style="margin-top:8px">Un file valido pesa 2–11 MB e ha 62 canali con dati; uno vuoto pesa ~19 KB (solo intestazione). Aggiorna la pagina per risentonare dopo una sessione.</div>
+    <div class="muted" style="margin-top:8px">${tr({ it: 'Un file valido pesa 2–11 MB e ha 62 canali con dati; uno vuoto pesa ~19 KB (solo intestazione). Aggiorna la pagina per risentonare dopo una sessione.', en: 'A valid file weighs 2–11 MB and has 62 channels with data; an empty one weighs ~19 KB (header only). Refresh the page to re-listen after a session.' })}</div>
   </div>` : `<div class="panel" style="margin-top:14px"><h2>${tr({ it: 'Diagnostica telemetria', en: 'Telemetry diagnostics' })}</h2><div class="muted">${tr({ it: 'Nessun file MoTeC trovato in {P}: fai una sessione e EVO scriverà il primo file.', en: 'No MoTeC file found in {P}: run a session and EVO will write the first one.' }).replace('{P}', esc(diag.root ?? 'Saved Games\\ACE\\MoTec'))}</div></div>`;
   m.innerHTML += diagHtml;
 
@@ -797,32 +797,32 @@ async function drawSetup(m){
     api('system-health').catch(() => null),
     api('warnings').catch(() => ({ total: 0, modules: [] })),
   ]);
-  let healthHtml = `<div class="panel" style="margin-top:14px" id="system-health"><h2>Salute sistema <span class="h-act">lettore live e telemetria</span></h2>`;
+  let healthHtml = `<div class="panel" style="margin-top:14px" id="system-health"><h2>${tr({ it: 'Salute sistema', en: 'System health' })} <span class="h-act">${tr({ it: 'lettore live e telemetria', en: 'live reader and telemetry' })}</span></h2>`;
   if (health) {
     const rd = health.reader ?? {};
     const liveRow = (label, ok, note) => `<div style="padding:3px 0;border-bottom:1px solid var(--line,#222)"><b>${label}:</b> ${ok ? '<span class="tag green" style="font-size:10px;padding:1px 6px">ok</span>' : '<span class="tag" style="font-size:10px;padding:1px 6px;background:#3a1d1d;color:#ff9b9b">no</span>'}${note ? ` <span class="muted" style="font-size:11px">${note}</span>` : ''}</div>`;
-    healthHtml += liveRow('Processo PowerShell', rd.running, rd.ps1Exists ? (rd.alive ? 'vivo e aggiorna' : (rd.running ? 'avviato ma silenzioso' : 'non ancora partito (si avvia al primo accesso al LIVE)')) : 'script tools/acevo-live.ps1 mancante');
-    healthHtml += liveRow('Gioco in sessione', health.game, health.gameVersion ? `versione gioco ${esc(health.gameVersion)}` : '');
-    if (health.smVersion) healthHtml += `<div style="padding:3px 0"><b>Shared memory:</b> <span class="muted" style="font-size:11px">interfaccia ${esc(health.smVersion)}${health.gameVersion ? ' · gioco ' + esc(health.gameVersion) : ''}${rd.restarts ? ` · ${rd.restarts} ricicli del lettore` : ''}</span></div>`;
+    healthHtml += liveRow(tr({ it: 'Processo PowerShell', en: 'PowerShell process' }), rd.running, rd.ps1Exists ? (rd.alive ? tr({ it: 'vivo e aggiorna', en: 'alive and updating' }) : (rd.running ? tr({ it: 'avviato ma silenzioso', en: 'started but quiet' }) : tr({ it: 'non ancora partito (si avvia al primo accesso al LIVE)', en: 'not started yet (starts at first LIVE access)' }))) : tr({ it: 'script tools/acevo-live.ps1 mancante', en: 'tools/acevo-live.ps1 script missing' }));
+    healthHtml += liveRow(tr({ it: 'Gioco in sessione', en: 'Game in session' }), health.game, health.gameVersion ? tr({ it: `versione gioco ${esc(health.gameVersion)}`, en: `game version ${esc(health.gameVersion)}` }) : '');
+    if (health.smVersion) healthHtml += `<div style="padding:3px 0"><b>${tr({ it: 'Shared memory:', en: 'Shared memory:' })}</b> <span class="muted" style="font-size:11px">${tr({ it: `interfaccia ${esc(health.smVersion)}`, en: `interface ${esc(health.smVersion)}` })}${health.gameVersion ? tr({ it: ` · gioco ${esc(health.gameVersion)}`, en: ` · game ${esc(health.gameVersion)}` }) : ''}${rd.restarts ? tr({ it: ` · ${rd.restarts} ricicli del lettore`, en: ` · ${rd.restarts} reader recycles` }) : ''}</span></div>`;
     if (health.stderrTail) healthHtml += `<div class="muted" style="font-size:11px;margin-top:4px">PowerShell stderr: ${esc(health.stderrTail)}</div>`;
     const ld = health.telem?.lastLd;
     if (ld) {
-      healthHtml += `<div style="padding:3px 0;border-bottom:1px solid var(--line,#222)"><b>Ultimo file .ld:</b> ${ld.valid ? '<span class="tag green" style="font-size:10px;padding:1px 6px">dati ok</span>' : '<span class="tag" style="font-size:10px;padding:1px 6px;background:#3a1d1d;color:#ff9b9b">VUOTO</span>'} <span class="muted" style="font-size:11px">${esc(ld.car)} · ${esc(ld.file)} · ${Math.round(ld.size/1024)} KB · ${esc(ld.when)} · ${ld.withData}/${ld.channels} canali</span></div>`;
+      healthHtml += `<div style="padding:3px 0;border-bottom:1px solid var(--line,#222)"><b>${tr({ it: 'Ultimo file .ld:', en: 'Last .ld file:' })}</b> ${ld.valid ? `<span class="tag green" style="font-size:10px;padding:1px 6px">${tr({ it: 'dati ok', en: 'data ok' })}</span>` : `<span class="tag" style="font-size:10px;padding:1px 6px;background:#3a1d1d;color:#ff9b9b">${tr({ it: 'VUOTO', en: 'EMPTY' })}</span>`} <span class="muted" style="font-size:11px">${esc(ld.car)} · ${esc(ld.file)} · ${Math.round(ld.size/1024)} KB · ${esc(ld.when)} · ${ld.withData}/${ld.channels} ${tr({ it: 'canali', en: 'channels' })}</span></div>`;
       if (!ld.valid) healthHtml += `<div class="banner warn" style="margin-top:6px">${tr({ it: "L'ultimo file scritto da EVO è vuoto (solo intestazione): la telemetria non era attiva in EVO (Setup → Elettronica, da impostare PRIMA di avviare la sessione). Finché non scrive dati veri, i consigli del BOX usano la stima.", en: 'The last file written by EVO is empty (header only): telemetry was NOT active in EVO (Setup → Electronics, set BEFORE starting the session). Until it writes real data, the BOX uses estimates.' })}</div>`;
     } else {
-      healthHtml += `<div class="muted" style="font-size:11px">Nessun file .ld trovato in ${(health.telem?.dirsChecked ?? []).map((d) => esc(d)).join(', ')}.</div>`;
+      healthHtml += `<div class="muted" style="font-size:11px">${tr({ it: 'Nessun file .ld trovato in', en: 'No .ld file found in' })} ${(health.telem?.dirsChecked ?? []).map((d) => esc(d)).join(', ')}.</div>`;
     }
   } else {
     healthHtml += '<div class="muted">Endpoint system-health non disponibile: riavvia il server del tool.</div>';
   }
   healthHtml += '</div>';
 
-  let warnsHtml = `<div class="panel" style="margin-top:14px" id="warnings-panel"><h2>Registro errori <span class="h-act">ultimi problemi degli strumenti (data/errors.jsonl)</span></h2>`;
+  let warnsHtml = `<div class="panel" style="margin-top:14px" id="warnings-panel"><h2>${tr({ it: 'Registro errori', en: 'Error log' })} <span class="h-act">${tr({ it: 'ultimi problemi degli strumenti (data/errors.jsonl)', en: 'latest tool problems (data/errors.jsonl)' })}</span></h2>`;
   const mods = warns.modules ?? [];
   if (!mods.length) {
-    warnsHtml += '<div class="banner good">Nessun errore registrato: gli strumenti lavorano puliti.</div>';
+    warnsHtml += `<div class="banner good">${tr({ it: 'Nessun errore registrato: gli strumenti lavorano puliti.', en: 'No errors recorded: the tools are running clean.' })}</div>`;
   } else {
-    warnsHtml += mods.map((md) => `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12.5px"><b>${esc(md.module)}</b> <span class="tag" style="font-size:10px;padding:1px 6px;background:#3a2a1d;color:#ffc78a">${md.count}</span> <span class="muted" style="font-size:11px">ultimo: ${esc(String(md.last[0]?.at ?? '').slice(0,19).replace('T',' '))}</span></summary><div style="margin-top:4px">${md.last.map((w) => `<div style="padding:2px 0;border-bottom:1px solid var(--line,#222);font-size:12px"><span class="muted">${esc(String(w.at).slice(11,19))}</span> ${esc(w.message)}${w.extra?` <span class="muted">(${esc(w.extra)})</span>`:''}</div>`).join('')}</div></details>`).join('');
+    warnsHtml += mods.map((md) => `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12.5px"><b>${esc(md.module)}</b> <span class="tag" style="font-size:10px;padding:1px 6px;background:#3a2a1d;color:#ffc78a">${md.count}</span> <span class="muted" style="font-size:11px">${tr({ it: 'ultimo:', en: 'last:' })} ${esc(String(md.last[0]?.at ?? '').slice(0,19).replace('T',' '))}</span></summary><div style="margin-top:4px">${md.last.map((w) => `<div style="padding:2px 0;border-bottom:1px solid var(--line,#222);font-size:12px"><span class="muted">${esc(String(w.at).slice(11,19))}</span> ${esc(w.message)}${w.extra?` <span class="muted">(${esc(w.extra)})</span>`:''}</div>`).join('')}</div></details>`).join('');
   }
   warnsHtml += '</div>';
   m.innerHTML += healthHtml + warnsHtml;

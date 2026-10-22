@@ -30,10 +30,15 @@ import { recordWarning } from './warnings.mjs';
 // Ogni tema: auto protagoniste (quella in premio + le rivali ospiti), piste
 // preferite, mood. Le auto sono scelte tra quelle che Mauro ha davvero in EVO
 // (viste in MoTec o nel catalogo); id/label in stile leggibile.
-const THEMES = [
+// Doppio linguaggio: name resta la lingua di nascita (italiano, stabile dentro
+// allo stato), nameEn è la controparte per la lettura in EN. La scelta della
+// lingua avviene SOLO alla visualizzazione (themeName → tr), mai alla
+// generazione: il save resta intatto rispetto alla lingua del momento.
+export const THEMES = [
   {
     id: 'group_b',
     name: 'Ritorno del Gruppo B',
+    nameEn: 'Return of Group B',
     intro: 'I mostri degli anni \'80 tornano in pista per una notte: rumore, turbina e paura.',
     prizeCar: { id: 'peugeot_205_t16', name: 'Peugeot 205 T16' },
     guests: ['audi_r8_lms_gt4_evo', 'lancia_delta_s4'], // rivali ospiti (se presenti nel gioco)
@@ -50,6 +55,7 @@ const THEMES = [
   {
     id: 'classic_gt',
     name: 'Leggende GT',
+    nameEn: 'GT Legends',
     intro: 'Le GT che hanno fatto la storia si sfidano su un tracciato al tramonto.',
     prizeCar: { id: 'ferrari_288_gto', name: 'Ferrari 288 GTO' },
     guests: ['porsche_911_gt3_rs_992', 'lamborghini_countach_lp5000_qv'],
@@ -66,6 +72,7 @@ const THEMES = [
   {
     id: 'night_sprint',
     name: 'Notte Sprint',
+    nameEn: 'Night Sprint',
     intro: 'Sprint notturna: giri contati, zero margini, fari accesi.',
     prizeCar: { id: 'audi_r8_lms_gt4_evo', name: 'Audi R8 LMS GT4 Evo' },
     guests: ['porsche_911_gt3_rs_992', 'mini_john_cooper_s'],
@@ -82,6 +89,7 @@ const THEMES = [
   {
     id: 'legend_finale',
     name: 'Il Gran Finale dei Campioni',
+    nameEn: 'The Champions’ Grand Finale',
     intro: tr({ it: "Invito d'onore a fine stagione: i migliori del paddock, una pista leggendaria, un'auto da sogno in palio.", en: 'End-of-season honor invite: the best of the paddock, one legendary track, a dream car at stake.' }),
     prizeCar: { id: 'lamborghini_countach_lp5000_qv', name: 'Lamborghini Countach LP5000 QV' },
     guests: ['porsche_911_gt3_rs_992', 'audi_r8_lms_gt4_evo', 'mini_john_cooper_s'],
@@ -100,6 +108,11 @@ const THEMES = [
 /* ------------------------------------------------------------------ */
 /* stato                                                               */
 /* ------------------------------------------------------------------ */
+
+/** Nome del tema nella lingua attiva (nameEn può mancare nei vecchi inviti salvati). */
+export function themeName(t) {
+  return tr({ it: t?.name ?? '', en: t?.nameEn ?? t?.name ?? '' });
+}
 
 export function ensureEvents(state) {
   state.events ??= { active: null, history: [], showCase: [], lastRoundChecked: null };
@@ -157,9 +170,9 @@ export function maybeSpawnEvent(ladder, state, { seasonJustEnded = false } = {})
   }
   if (!invite) return null;
   ev.active = invite;
-  pushMessage(state, `${invite.theme.name}: sei stato invitato a un evento speciale. Guarda il pannello Eventi nel Cruscotto.`, 'event');
+  pushMessage(state, tr({ it: `${themeName(invite.theme)}: sei stato invitato a un evento speciale. Guarda il pannello Eventi nel Cruscotto.`, en: `${themeName(invite.theme)}: you have been invited to a special event. Check the Events panel on the Dashboard.` }), 'event');
   try {
-    publishNotice(`Invito speciale: ${invite.theme.name}`, invite.theme.intro, { season: state.season, kind: 'event' });
+    publishNotice(tr({ it: `Invito speciale: ${themeName(invite.theme)}`, en: `Special invite: ${themeName(invite.theme)}` }), invite.theme.intro, { season: state.season, kind: 'event' });
   } catch { /* la gazzetta non deve bloccare */ }
   return invite;
 }
@@ -180,7 +193,7 @@ function buildInvite(ladder, state, theme, tier, racesRun) {
     createdAt: new Date().toISOString(),
     season: state.season,
     afterRound: racesRun,
-    theme: { id: theme.id, name: theme.name, intro: theme.intro },
+    theme: { id: theme.id, name: theme.name, nameEn: theme.nameEn ?? theme.name, intro: theme.intro },
     trackId, trackDisplay, weather,
     laps: theme.laps, hour: theme.hour, timeScale: theme.timeScale,
     guests: theme.guestNames,
@@ -197,7 +210,7 @@ export function acceptEvent(ladder, state, eventId) {
   const ev = ensureEvents(state);
   if (!ev.active || ev.active.id !== eventId) throw new Error(tr({ it: 'Invito non trovato o già scaduto.', en: 'Invite not found or already expired.' }));
   ev.active.acceptedAt = new Date().toISOString();
-  pushMessage(state, tr({ it: `Accettato l'invito: ${ev.active.theme.name} su ${ev.active.trackDisplay}. La scheda gara è nel pannello Eventi.`, en: `Invite accepted: ${ev.active.theme.name} on ${ev.active.trackDisplay}. The race sheet is in the Events panel.` }), 'event');
+  pushMessage(state, tr({ it: `Accettato l'invito: ${themeName(ev.active.theme)} su ${ev.active.trackDisplay}. La scheda gara è nel pannello Eventi.`, en: `Invite accepted: ${themeName(ev.active.theme)} on ${ev.active.trackDisplay}. The race sheet is in the Events panel.` }), 'event');
   return ev.active;
 }
 
@@ -205,7 +218,7 @@ export function declineEvent(ladder, state, eventId) {
   const ev = ensureEvents(state);
   if (!ev.active || ev.active.id !== eventId) throw new Error(tr({ it: 'Invito non trovato o già scaduto.', en: 'Invite not found or already expired.' }));
   ev.history.push({ ...ev.active, declinedAt: new Date().toISOString(), outcome: 'declined' });
-  pushMessage(state, tr({ it: `Invito rifiutato: ${ev.active.theme.name}. Magari la prossima.`, en: `Invite declined: ${ev.active.theme.name}. Maybe next time.` }), 'info');
+  pushMessage(state, tr({ it: `Invito rifiutato: ${themeName(ev.active.theme)}. Magari la prossima.`, en: `Invite declined: ${themeName(ev.active.theme)}. Maybe next time.` }), 'info');
   ev.active = null;
   return true;
 }
@@ -217,7 +230,7 @@ export function expireEvents(ladder, state) {
   const racesRun = (state.results[state.node] ?? []).filter((r) => r.season === state.season).length;
   if (racesRun - ev.active.afterRound > ev.active.deadlineRounds) {
     ev.history.push({ ...ev.active, outcome: 'expired' });
-    pushMessage(state, tr({ it: `L'invito a ${ev.active.theme.name} è scaduto: dovevi correrlo entro ${ev.active.deadlineRounds} gare.`, en: `The invitation to ${ev.active.theme.name} expired: you had to race it within ${ev.active.deadlineRounds} races.` }), 'info');
+    pushMessage(state, tr({ it: `L'invito a ${themeName(ev.active.theme)} è scaduto: dovevi correrlo entro ${ev.active.deadlineRounds} gare.`, en: `The invitation to ${themeName(ev.active.theme)} expired: you had to race it within ${ev.active.deadlineRounds} races.` }), 'info');
     ev.active = null;
     return true;
   }
@@ -246,24 +259,24 @@ export function finishEvent(ladder, state, { position, bestLapSec = null, note =
 
   if (money > 0) {
     state.money += money;
-    recordFlows(state, [{ kind: 'bonus', money, reason: `evento speciale ${a.theme.name} (P${pos})` }]);
+    recordFlows(state, [{ kind: 'bonus', money, reason: tr({ it: `evento speciale ${themeName(a.theme)} (P${pos})`, en: `special event ${themeName(a.theme)} (P${pos})` }) }]);
   }
   if (rep > 0) state.rep += rep;
 
   let showcaseEntry = null;
   if (won && !prize.duplicateCash) {
-    showcaseEntry = { carId: prize.carId, carName: prize.carName, theme: a.theme.name, season: state.season, at: new Date().toISOString(), bestLapSec };
+    showcaseEntry = { carId: prize.carId, carName: prize.carName, theme: a.theme.name, themeEn: a.theme.nameEn ?? null, season: state.season, at: new Date().toISOString(), bestLapSec };
     ev.showCase.push(showcaseEntry);
-    pushMessage(state, `🏆 Auto vinta: ${prize.carName} entra in vetrina! (${a.theme.name})`, 'title');
-    try { publishNotice(`${state.driver.name} vince ${prize.carName}`, `${a.theme.name}: vittoria e auto leggendaria in vetrina.`, { season: state.season, kind: 'event' }); } catch { /* pazienza */ }
+    pushMessage(state, tr({ it: `🏆 Auto vinta: ${prize.carName} entra in vetrina! (${themeName(a.theme)})`, en: `🏆 Car won: ${prize.carName} enters the trophy room! (${themeName(a.theme)})` }), 'title');
+    try { publishNotice(tr({ it: `${state.driver.name} vince ${prize.carName}`, en: `${state.driver.name} wins ${prize.carName}` }), tr({ it: `${themeName(a.theme)}: vittoria e auto leggendaria in vetrina.`, en: `${themeName(a.theme)}: win and legendary car in the trophy room.` }), { season: state.season, kind: 'event' }); } catch { /* pazienza */ }
   }
 
   pushMessage(state, won
-    ? `Vinto l'evento ${a.theme.name} (P1)! Premio: ${prize.duplicateCash ? `${money} € (auto già in vetrina)` : prize.carName + ' + ' + money + ' €'}${rep ? `, +${rep} rep` : ''}.`
-    : `Evento ${a.theme.name} chiuso in P${pos}: ${money ? money + ' €' : 'nessun premio'}${rep ? `, +${rep} rep` : ''}.`, won ? 'good' : 'info');
+    ? tr({ it: `Vinto l'evento ${themeName(a.theme)} (P1)! Premio: ${prize.duplicateCash ? `${money} € (auto già in vetrina)` : prize.carName + ' + ' + money + ' €'}${rep ? `, +${rep} rep` : ''}.`, en: `Event ${themeName(a.theme)} won (P1)! Prize: ${prize.duplicateCash ? `${money} € (car already in the trophy room)` : prize.carName + ' + ' + money + ' €'}${rep ? `, +${rep} rep` : ''}.` })
+    : tr({ it: `Evento ${themeName(a.theme)} chiuso in P${pos}: ${money ? money + ' €' : 'nessun premio'}${rep ? `, +${rep} rep` : ''}.`, en: `Event ${themeName(a.theme)} closed in P${pos}: ${money ? money + ' €' : 'no prize'}${rep ? `, +${rep} rep` : ''}.` }), won ? 'good' : 'info');
   a.outcome = won ? 'won' : 'finished';
   ev.active = null;
-  recordWarning('events', `evento registrato: ${a.theme.name} P${pos}`, `money:${money} rep:${rep}`);
+  recordWarning('events', tr({ it: `evento registrato: ${themeName(a.theme)} P${pos}`, en: `event recorded: ${themeName(a.theme)} P${pos}` }), `money:${money} rep:${rep}`);
   return { position: pos, money, rep, won, showcaseEntry, history: ev.history };
 }
 
@@ -307,8 +320,14 @@ function prizeOrOwnedLabel(ladder, state, a) {
   const ev = ensureEvents(state);
   const owned = ev.showCase.find((c) => c.carId === a.prize.carId);
   return owned
-    ? `${owned.carName} (la tua, vinta in ${owned.theme})`
-    : `${a.prize.carName} — è il premio: chi vince la porta a casa`;
+    ? tr({
+        it: `${owned.carName} (la tua, vinta in ${owned.theme})`,
+        en: `${owned.carName} (yours, won in ${owned.themeEn ?? owned.theme})`,
+      })
+    : tr({
+        it: `${a.prize.carName} — è il premio: chi vince la porta a casa`,
+        en: `${a.prize.carName} — it is the prize: whoever wins takes it home`,
+      });
 }
 
 /* ------------------------------------------------------------------ */
@@ -317,10 +336,12 @@ function prizeOrOwnedLabel(ladder, state, a) {
 
 export function eventsOverview(ladder, state) {
   const ev = ensureEvents(state);
+  const nameOf = (t) => (t ? { ...t, name: themeName(t) } : t);
   return {
-    active: ev.active,
+    active: ev.active && { ...ev.active, theme: nameOf(ev.active.theme) },
     card: eventCard(ladder, state),
-    showCase: ev.showCase.slice().reverse(),
-    history: ev.history.slice(-10).reverse(),
+    // vetrina e storia mostrate nella lingua attiva; nel raw restano quelle di nascita
+    showCase: ev.showCase.slice().reverse().map((c) => ({ ...c, theme: tr({ it: c.theme, en: c.themeEn ?? c.theme }) })),
+    history: ev.history.slice(-10).reverse().map((h) => ({ ...h, theme: nameOf(h.theme) })),
   };
 }

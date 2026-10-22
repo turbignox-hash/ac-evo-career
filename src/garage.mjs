@@ -14,6 +14,7 @@
 import { loadCatalog } from './catalog.mjs';
 import { carImageOf, carPriceOf } from './cars.mjs';
 import { pushMessage } from './state.mjs';
+import { tr } from './lang.mjs';
 import { recordFlows } from './flows.mjs';
 import { TRACK_INFO } from './tracks.mjs';
 import { normTrack } from './tracknames.mjs';
@@ -72,7 +73,7 @@ export function importShowcase(state) {
       carName: s.carName ?? s.carId,
       how: 'won',
       since: s.at ?? new Date().toISOString(),
-      note: s.theme ? `vinta in ${s.theme} (stagione ${s.season ?? '?'})` : null,
+      note: s.theme ? tr({ it: `vinta in ${s.theme} (stagione ${s.season ?? '?'})`, en: `won in ${s.themeEn ?? s.theme} (season ${s.season ?? '?'})` }) : null,
     });
     g.importedFromShowcase.push(s.carId);
     added.push(s.carName ?? s.carId);

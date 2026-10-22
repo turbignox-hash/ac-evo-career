@@ -8,6 +8,7 @@ import { TRACK_INFO } from '../src/tracks.mjs';
 import { MEM_TEMPLATES, RELATIONS, RELATIONS_EN, RANKS } from '../src/memories.mjs';
 import { PIANI_EN } from '../src/webui-views.mjs';
 import { PIANI } from '../src/orario.mjs';
+import { THEMES } from '../src/events.mjs';
 
 test('TRACK_INFO: historyEn, nickEn e countryEn su ogni pista (per lo meno 15 piste)', () => {
   const ids = Object.keys(TRACK_INFO);
@@ -64,5 +65,14 @@ test('PIANI_EN: una traduzione per ogni piano orario', () => {
   }
   for (const id of Object.keys(PIANI_EN)) {
     assert.ok(PIANI[id], `PIANI_EN ha la chiave in piu' '${id}'`);
+  }
+});
+
+test('THEMES: ogni evento speciale ha nameEn diversa dall’italiano', () => {
+  assert.ok(THEMES.length >= 4, `solo ${THEMES.length} temi evento`);
+  for (const t of THEMES) {
+    assert.equal(typeof t.name, 'string', `name italiana manca su ${t.id}`);
+    assert.equal(typeof t.nameEn, 'string', `nameEn manca su ${t.id}`);
+    assert.notEqual(t.nameEn, t.name, `nameEn = name (traduzione mancante) su ${t.id}`);
   }
 });
