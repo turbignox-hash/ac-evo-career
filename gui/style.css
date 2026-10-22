@@ -269,7 +269,7 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .mail-carriera{border-color:rgba(93,169,255,.35);background:rgba(93,169,255,.05)}
 .mail .tag{flex:0 0 auto}
 
-/* ============ agenda (stile Zero to Apex) ============ */
+/* ============ agenda (stile del modello originario) ============ */
 /* oro = ci sono le GARE DEL TUO campionato in quel giorno. Il giorno corrente
    NON ha cornice (confondeva con le iscrizioni in oro): la sua DATA diventa verde */
 .ag-day.hasmine{border-color:rgba(255,209,102,.65);background:linear-gradient(to top, rgba(255,209,102,.14), rgba(255,209,102,.14)),radial-gradient(circle at 20% 15%, rgba(255,209,102,.18), transparent 70%),rgba(255,209,102,.05)}
@@ -392,3 +392,14 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .mech-badge.bad{color:var(--bad);border-color:#e05d5d55;background:#e05d5d10}
 .mech-live{display:inline-flex;gap:6px;margin-left:auto;flex-wrap:wrap}
 .mech-live .chip{background:var(--panel2)}
+
+/* -------- wizard: striscia dei passi con bozzetti (onboarding + Impostazioni) -------- */
+.wzsteps{display:flex;gap:6px;align-items:stretch;margin:0 0 14px;flex-wrap:wrap}
+.wzstep{flex:1;min-width:148px;border:1px solid #283046;border-radius:10px;padding:10px 12px 8px;background:#0f1420;opacity:.55;filter:grayscale(.35);display:flex;flex-direction:column;gap:6px}
+.wzstep .sk svg{display:block}
+.wzstep .lbl{font-size:12px;font-weight:600;color:var(--text)}
+.wzstep.done{opacity:.92;filter:none;border-color:#234c2c;background:#101a12}
+.wzstep.done .lbl{color:#7f7}
+.wzstep.cur{opacity:1;filter:none;border-style:dashed;border-color:#6b5a2a;background:#171310}
+.wzstep.cur .lbl{color:#ffcc66}
+.wz-arrow{align-self:center;color:#4a5570;flex:none;opacity:.75}

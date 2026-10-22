@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readd
 import { dirname, join, extname, basename, relative, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { resolvePaths, isGameRunning, STEAM_APP_ID, GAME_EXE } from './paths.mjs';
+import { resolvePaths, isGameRunning, STEAM_APP_ID, GAME_EXE, dataDirCandidates, findGameExe, isDir, isFile, launchGame } from './paths.mjs';
 import { scanContent, validateLadder } from './content.mjs';
 import {
   createCareer, loadState, saveState, nodeById, disciplineName, tierOf, gateStatus,
@@ -285,11 +285,86 @@ async function api(context0, req, res, action, body) {
   }
 
   switch (action) {
+    case 'wizard': {
+      // WIZARD del primo avvio (Mauro 22/10 stile «spunta verde»): stato del
+      // percorso dati e dell'exe, salvataggio manuale persistito in
+      // evo.config.json (appEnv lo rilegge a OGNI request: niente riavvio),
+      // e preparazione = scansione dei contenuti EVO. Niente download: le
+      // immagini auto (carmaps/) sono opzionali e restano asset locali.
+      let envNow = appEnv();
+      const wAct = body.action ?? 'check';
+      if (wAct === 'explore') {
+        // 📂 TASTO RAPIDO DEL WIZARD: apre Esplora risorse sulla cartella dati di
+        // EVO (selezionata dentro la cartella madre, così la vedi evidenziata);
+        // con un path esplicito apre quello — sempre esistente, sempre LOCALE
+        // (niente percorsi di rete: explorer può condurre ovunque a vista ma non
+        // esegue nulla di per sé). Fire-and-forget: explorer esce con codice 1
+        // anche quando riesce, quindi non aspettiamo il suo exit code.
+        let target = String(body.path ?? '').trim();
+        if (!target) target = (() => { try { return resolvePaths(appEnv()).primary ?? ''; } catch { return ''; } })();
+        if (!target) return sendJson(res, 400, { error: 'Nessuna cartella dati conosciuta: registra prima il percorso nel wizard.' });
+        if (target.startsWith('//') || (target[0] === '\\' && target[1] === '\\')) return sendJson(res, 400, { error: 'Percorso di rete non consentito.' });
+        if (!isDir(target)) return sendJson(res, 400, { error: `Cartella inesistente: ${target}` });
+        if (process.platform !== 'win32') return sendJson(res, 400, { error: `Apri a mano: ${target}` });
+        import('node:child_process').then(({ spawn }) => {
+          spawn('explorer', [`/select,${target}`], { detached: true, stdio: 'ignore' }).unref();
+        });
+        return sendJson(res, 200, { ok: true, opened: target });
+      }
+      if (wAct === 'launch') {
+        // ▶ TASTO RAPIDO DEL WIZARD: avvia EVO con l'URI ufficiale di Steam
+        // (steam://rungameid/<id>) — funziona anche SENZA exe ricavato dalla
+        // Steam Library, e parte solo se il gioco non è già aperto.
+        if (process.platform !== 'win32') return sendJson(res, 400, { error: 'Avvio automatico non supportato su questa piattaforma: apri EVO a mano.' });
+        try {
+          let paths = null;
+          try { paths = resolvePaths(appEnv()); } catch { paths = { gameExe: null }; }
+          const via = await launchGame(paths, { exe: false });
+          return sendJson(res, 200, { ok: true, ...via });
+        } catch (e) {
+          return sendJson(res, 500, { error: `Avvio non riuscito: ${e.message}` });
+        }
+      }
+      if (wAct === 'set') {
+        const dir = String(body.dataDir ?? '').trim();
+        if (dir) {
+          if (!isDir(dir)) return sendJson(res, 400, { error: `Cartella inesistente: ${dir}` });
+          const somiglia = /(\\|\/)ACE$/i.test(dir) || ['Results', 'Logs', 'MoTec', 'SavedCars', 'mod', 'Content', 'compat'].some((n) => isDir(join(dir, n)));
+          if (!somiglia) {
+            return sendJson(res, 400, { error: "Questa cartella non assomiglia alla cartella dati di EVO (ci mancano sottocartelle come Results/MoTec). La cartella giusta è di solito …\\Saved Games\\ACE." });
+          }
+          writeConfig({ dataDir: dir });
+        }
+        const exe = String(body.gameExe ?? '').trim();
+        if (exe) {
+          if (!isFile(exe)) return sendJson(res, 400, { error: `File non trovato: ${exe}` });
+          if (!/AssettoCorsaEVO\\.exe$/i.test(exe)) return sendJson(res, 400, { error: 'Serve proprio AssettoCorsaEVO.exe (dentro la cartella della Steam Library).' });
+          writeConfig({ gameExe: exe });
+        }
+      }
+      // lo Stato SI RILEGGE tutto DOPO l'eventuale 'set': la config nuova vale subito
+      if (wAct === 'set') envNow = appEnv();
+      let view = null;
+      try { view = viewSetup(loadLadder(), resolvePaths(envNow)); } catch { /* folder data assente: resta null */ }
+      const candidates = dataDirCandidates(process.env).map((d) => ({ dir: d, ok: isDir(d) }));
+      let carmaps = 0;
+      try { carmaps = readdirSync(join(GUI_DIR, 'carmaps')).filter((f) => f.toLowerCase().endsWith('.jpg')).length; } catch { /* niente foto: opzionale */ }
+      return sendJson(res, 200, {
+        action: wAct,
+        dataDir: view?.dataDirs?.[0] ?? null,
+        candidates,
+        gameExe: view?.gameExe ?? null,
+        career: existsSync(SAVE_FILE),
+        content: view?.content ?? { cars: 0, tracks: 0 },
+        carmaps,
+        saved: view?.saved ?? {},
+      });
+    }
     case 'boot': {
       return sendJson(res, 200, {
         hasCareer: hasCareer(),
         header: state ? viewHeader(ladder, state) : null,
-        setup: viewSetup(ladder),
+        setup: viewSetup(ladder, paths),
         gameRunning: await isGameRunning(),
         // badge urgente sul menu Messaggi: email priorità alta della posta del pilota
         mailUrgent: state ? mailbox(ladder, state).mails.filter((m) => m.priorita === 'urgente').length : 0,
@@ -738,7 +813,7 @@ async function api(context0, req, res, action, body) {
       return sendJson(res, 200, systemHealth(paths, mode));
     }
     case 'agenda': {
-      // calendario CONTINUO stile Zero to Apex: vista giornata + strip calendario + griglia filtri
+      // calendario CONTINUO stile del modello originario: vista giornata + strip calendario + griglia filtri
       const day = agendaDay(state);
       const viewDay = Number.isFinite(Number(body.day)) && Number(body.day) >= 1 ? Math.floor(Number(body.day)) : day;
       const filter = typeof body.filter === 'string' ? body.filter : 'tutte';    // tutte|fattibili|iscritte|bloccate
@@ -802,7 +877,7 @@ async function api(context0, req, res, action, body) {
     }
     case 'agenda-choose': {
       // sceglie la gara di OGGI (o del giorno che si sta guardando, se consentito):
-      // solo gare fattibili, al massimo 3 per giornata — come le scelte di Zero to Apex.
+      // solo gare fattibili, al massimo 3 per giornata — come le scelte del modello originario.
       // Rerscegliere la stessa serie è ok.
       const id = String(body.nodeId ?? '');
       // se la carta è di un giorno FUTURO in vista, si punta lì; mai nel passato
@@ -2045,7 +2120,15 @@ const server = createServer(async (req, res) => {
       }
       const action = url.pathname.slice('/api/'.length);
       const body = req.method === 'POST' ? await readBody(req) : {};
-      return await serialize(() => api(context(), req, res, action, body));
+      // il CONTESTO non fa schioffare il cruscotto: al PRIMO AVVIO senza cartella
+    // dati EVO resolvePaths lancia, e sotto ogni API sparisce. In quel caso degradi
+    // con paths null — il wizard (/api/wizard) è lì per sistemare il percorso.
+    return await serialize(() => {
+      let context0;
+      try { context0 = context(); }
+      catch (e) { context0 = { ladder: loadLadder(), paths: null, pathsError: e.message }; }
+      return api(context0, req, res, action, body);
+    });
     }
     if (url.pathname === '/' || url.pathname === '/index.html') {
       const file = join(GUI_DIR, 'index.html');

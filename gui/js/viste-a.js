@@ -1,20 +1,156 @@
+/* -------- wizard del primo avvio E PANNELLO IMPOSTAZIONI: componenti riusati --------
+   Stile installazione Windows: lista di controllo con spunte verdi per la
+   cartella dati EVO e l'exe, percorso manuale persistito in evo.config.json
+   (il server lo riscopre SUBITO, senza riavvio), preparazione = scansione dei
+   contenuti del gioco, poi si apre il form dell'identità del pilota.
+   La checklist è UNA SOLA (wizardChecklist, qui sotto): la usa l'onboarding
+   (drawOnboarding) e la scheda Impostazioni (viste-d), così le due schermate
+   non camminano mai disallineate.
+   NIENTE download: le foto auto (carmaps/) sono opzionali e restano asset locali. */
+
+/* bozzetti a china dei quattro passi: schermate disegnate a manina (SVG a
+   tratto spezzato), così si CAPISCE dove si è nel flusso senza leggere la
+   fila di parole. Il passo «giusto» ha la cornice tratteggiata dorata. */
+const WZ_SKETCHES = [
+  ["Percorsi", `<svg viewBox="0 0 96 40" width="96" height="40" fill="none" stroke="var(--dim,#8fa3bd)" stroke-width="1.4" aria-hidden="true"><rect x="4" y="4" width="88" height="32" rx="4" stroke-dasharray="4 3"/><path d="M12 11h12l3-3h7v6H12z"/><path d="M14 22l2.4 2.4L21 19.6" stroke="#6f6"/><path d="M26 22h44" stroke-dasharray="6 4"/><path d="M14 28l2.4 2.4L21 25.6" stroke="#6f6"/><path d="M26 28h44" stroke-dasharray="6 4"/></svg>`],
+  ["Preparazione", `<svg viewBox="0 0 96 40" width="96" height="40" fill="none" stroke="var(--dim,#8fa3bd)" stroke-width="1.4" aria-hidden="true"><rect x="4" y="4" width="88" height="32" rx="4" stroke-dasharray="4 3"/><circle cx="30" cy="17" r="7" stroke-dasharray="3 2"/><path d="M35 22l5 3" stroke-linecap="round"/><path d="M54 22c3-4 12-4 18-1m-18 1-1 3h19l-1-3M56 25a2 2 0 1 0 .1 0M70 25a2 2 0 1 0 .1 0" stroke-dasharray="2 2"/></svg>`],
+  ["Pilota", `<svg viewBox="0 0 96 40" width="96" height="40" fill="none" stroke="var(--dim,#8fa3bd)" stroke-width="1.4" aria-hidden="true"><rect x="4" y="4" width="88" height="32" rx="4" stroke-dasharray="4 3"/><path d="M16 12h6M13 18h8" stroke-linecap="round"/><rect x="26" y="10" width="44" height="7" rx="2" stroke="#f66" stroke-dasharray="3 2"/><path d="M29 14h8" stroke-linecap="round" stroke-dasharray="2 2"/><rect x="26" y="21" width="22" height="7" rx="2" stroke-dasharray="3 2"/><circle cx="18" cy="31" r="2.5"/><path d="M15 36c.6-2.6 1.7-3.5 3-3.5S20.4 33.4 21 36"/></svg>`],
+  ["Cruscotto", `<svg viewBox="0 0 96 40" width="96" height="40" fill="none" stroke="var(--dim,#8fa3bd)" stroke-width="1.4" aria-hidden="true"><rect x="4" y="4" width="88" height="32" rx="4"/><path d="M12 13a14 14 0 0 1 22 0" stroke="#ffcc66"/><path d="M23 13l4-5" stroke-linecap="round"/><rect x="46" y="10" width="10" height="20" stroke-dasharray="3 2"/><path d="M58 14h26M58 20h26M58 26h18" stroke-dasharray="5 3"/><path d="M12 28v9m0-9 6-1v7l-6 1"/></svg>`],
+];
+const WZ_ARROW = `<svg class="wz-arrow" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none"><path d="M2 8h9m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>`;
+function wizardSketchSteps(w){
+  const done = !!w.dataDir;
+  const prep = done && (w.content?.cars > 0);
+  const career = !!w.career;
+  let cur = career ? 3 : (!done ? 0 : !prep ? 1 : 2);
+  const states = ['done', 'done', 'done', career ? 'done' : ''];
+  states[cur] = 'cur';
+  return `<div class="wzsteps">` + WZ_SKETCHES.map((s, i) =>
+    (i ? WZ_ARROW : '') +
+    `<div class="wzstep ${states[i]}"><span class="sk">${s[1]}</span><span class="lbl">${i + 1}. ${s[0]}</span></div>`
+  ).join('') + `</div>`;
+}
+
+/* la checklist completa: LA STESSA per onboarding e Impostazioni. Torna la
+   risposta corrente del server (o null se morto), così chi chiama decide
+   cosa sbloccare a valle (es. il form pilota dell'onboarding). Ogni modifica
+   (set) la ricarica da sola: il server rilegge la config a ogni request. */
+async function wizardChecklist(box, opts = {}){
+  box.innerHTML = '<div class="muted" style="padding:8px 0">Verifico l\'installazione di EVO…</div>';
+  let w;
+  try { w = await api('wizard', { action: 'check' }); } catch (e) {
+    box.innerHTML = `<div class="banner bad">Il server non risponde: ${esc(e.message)}</div>`;
+    return null;
+  }
+  const OKI = '<span style="color:var(--ok,#7f7);font-size:15px;margin-right:2px">✔</span>';
+  const MIS = '<span style="color:#f66;font-size:14px;margin-right:2px">✗</span>';
+  const WRN = '<span style="color:var(--warn,#ffb454);font-size:15px;margin-right:2px">⚠</span>';
+  const boxRow = (ico, tol, title, sub, warn) =>
+    `<div style="padding:9px 12px;border:1px solid ${warn ? '#4a3a2a' : 'var(--line,#283046)'};border-radius:9px;margin-bottom:8px;display:flex;gap:10px;align-items:center;background:${warn ? '#171310' : '#0f1420'}">${ico}
+     <div><b style="font-size:13.5px">${title}</b>${sub ? `<div class="muted" style="font-size:12px;margin-top:1px">${sub}</div>` : ''}</div>${tol ? `<span class="muted" style="margin-left:auto;font-size:11px">${tol}</span>` : ''}</div>`;
+  const rows = [];
+  /* 0 — azioni rapide:  📂 apre la cartella dati in Esplora risorse (selezionata
+     dentro la sua cartella madre),  ▶ avvia EVO tramite l'URI ufficiale Steam
+     (funziona anche senza exe ricavato dal disco). Tutto via server locale. */
+  rows.push(`<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px">
+    <button class="ghost" id="wz-open-exp" type="button">📂 Apri la cartella in Esplora risorse</button>
+    <button class="ghost" id="wz-launch" type="button">▶ Avvia EVO (Steam)</button>
+    <span class="muted" style="font-size:11px">azioni locali, affidate al server: nessun download</span>
+  </div>`);
+  /* 1 — cartella dati EVO: la spunta verde che serve */
+  if (w.dataDir) {
+    rows.push(boxRow(OKI, 'ok', 'Cartella dati EVO', esc(w.dataDir)));
+  } else {
+    const cercati = (w.candidates ?? []).map((c) => `${c.ok ? OKI : MIS} <code style="font-size:11px">${esc(c.dir)}</code>`).join(' · ');
+    rows.push(`<div style="padding:10px 12px;border:1px solid #4a3a2a;border-radius:9px;margin-bottom:8px;background:#171310">${MIS}
+      <b style="font-size:13.5px">Cartella dati EVO non trovata</b>
+      <div class="muted" style="font-size:12px;margin-top:3px">ho guardato: ${cercati || 'nessun percorso standard'}</div>
+      <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap">
+        <input type="text" id="wz-dir" placeholder="incolla qui il percorso (es. C:/Users/Tu/Saved Games/ACE)" style="flex:1;min-width:300px">
+        <button class="act" id="wz-dir-save" type="button">💾 Registra percorso</button>
+      </div>
+      <div class="muted" style="font-size:11px;margin-top:6px">Copia l'indirizzo dalla barra di Esplora risorse. Se l'EVO non è mai partito, avvialo una volta: crea la cartella da solo.</div>
+    </div>`);
+  }
+  /* 2 — exe del gioco: spunta, NON blocca (senza exe si parte via Steam URI) */
+  if (w.gameExe) {
+    rows.push(boxRow(OKI, 'ok', 'AssettoCorsaEVO.exe', esc(w.gameExe)));
+  } else {
+    rows.push(boxRow(WRN, 'si sistema da solo', 'Gioco non trovato nelle Steam library',
+      'non blocca nulla: il cruscotto parte uguale, e l\'avvio va via Steam. Se vuoi il lancio diretto, incolla il percorso:', true) +
+      `<div class="row" style="margin:-2px 0 8px;gap:8px;flex-wrap:wrap;padding-left:12px">
+        <input type="text" id="wz-exe" placeholder="es. D:/SteamLibrary/steamapps/common/Assetto Corsa EVO/AssettoCorsaEVO.exe" style="flex:1;min-width:300px">
+        <button class="act" id="wz-exe-save" type="button">💾 Registra exe</button>
+      </div>`);
+  }
+  /* 3 — preparazione: scansione dei contenuti del gioco (niente download!) */
+  let content = w.content;
+  if (w.dataDir) {
+    if (w.content.cars) {
+      rows.push(boxRow(OKI, 'ok', 'Contenuti EVO letti', `${w.content.cars} auto · ${w.content.tracks} piste nel content del gioco${w.carmaps ? ` · ${w.carmaps} foto auto installate` : ' · foto auto non installate (opzionali: il garage resta funzionante, senza render)'}`));
+    } else {
+      try {
+        const p = await api('wizard', { action: 'prepare' });
+        content = p.content ?? content;
+        if (p.content?.cars) rows.push(boxRow(OKI, 'ok', 'Contenuti EVO letti', `${p.content.cars} auto · ${p.content.tracks} piste nel content del gioco${p.carmaps ? ` · ${p.carmaps} foto auto installate` : ' · foto auto non installate (opzionali)'}`));
+        else rows.push(boxRow(WRN, '', 'Contenuti EVO', 'il content del gioco è vuoto: lancia EVO una volta e riprova (Setup → tutti i contenuti si scaricano lì)', true));
+      } catch { /* la preparazione non blocca: si può anche rifare */ }
+    }
+  }
+  box.innerHTML = (opts.sketch === false ? '' : wizardSketchSteps({ ...w, content })) +
+    rows.filter((r) => typeof r !== 'function').join('');
+  $('#wz-open-exp')?.addEventListener('click', async () => {
+    try {
+      const r = await api('wizard', { action: 'explore', path: w.dataDir ?? '' });
+      toast(r.via === 'already-running' ? 'Il gioco è già aperto.' : 'Esplora risorse aperto.', 'ok');
+    } catch (e) { toast(e.message, 'err'); }
+  });
+  $('#wz-launch')?.addEventListener('click', async () => {
+    try {
+      const r = await api('wizard', { action: 'launch' });
+      toast(r.via === 'already-running' ? 'Il gioco è già in esecuzione: usalo da lì.' : 'Comando di avvio inviato a Steam.', 'ok');
+    } catch (e) { toast(e.message, 'err'); }
+  });
+  $('#wz-dir-save')?.addEventListener('click', async () => {
+    const dir = $('#wz-dir')?.value.trim();
+    if (!dir) return;
+    try { await api('wizard', { action: 'set', dataDir: dir }); toast('Cartella dati registrata, la rileggo…', 'ok'); await opts.onChanged?.(); await wizardChecklist(box, opts); }
+    catch (e) { toast(e.message, 'err'); }
+  });
+  $('#wz-exe-save')?.addEventListener('click', async () => {
+    const exe = $('#wz-exe')?.value.trim();
+    if (!exe) return;
+    try { await api('wizard', { action: 'set', gameExe: exe }); toast('Percorso del gioco registrato.', 'ok'); await opts.onChanged?.(); await wizardChecklist(box, opts); }
+    catch (e) { toast(e.message, 'err'); }
+  });
+  /* chi ci dà un form da sbloccare (l'onboarding): lo sblocchiamo qui quando
+     la cartella dati è riconosciuta, perché solo allora arrivano i dati veri */
+  if (opts.unlockForm) {
+    const form = $(opts.unlockForm);
+    if (form) form.style.display = w.dataDir ? '' : 'none';
+  }
+  return w;
+}
+
 /* -------- onboarding -------- */
 function drawOnboarding(m){
   $('#idblock').classList.add('hidden');
   $('#hstats').classList.add('hidden');
   const s = boot.setup;
+  const okDetected = s.dataDirs?.length || (s.content.cars + s.content.tracks > 0);
   m.innerHTML = `
   <div class="hero">
     <div class="kicker">Assetto Corsa EVO · gestionale carriera</div>
-    <div class="big">Costruisci la tua carriera<br>dal basso fino alla Formula Apex</div>
+    <div class="big">Costruisci la tua carriera<br>dalla prima coppa fino alle serie di punta</div>
     <div class="lead">29 serie · 6 discipline · contratti, rivali e difficoltà adattiva.</div>
-    <div class="setup-facts">
+    <div id="wz" class="wiz" style="margin:16px 0 4px;text-align:left"></div>
+    <div class="setup-facts" style="${okDetected ? '' : 'display:none'}">
       <span class="chip">${s.content.cars} auto viste</span>
       <span class="chip">${s.content.tracks} piste viste</span>
       <span class="chip">${s.ladder.nodes} serie</span>
       ${s.gameExe ? '<span class="chip green">gioco trovato</span>' : '<span class="chip red">gioco non trovato</span>'}
     </div>
-    <form id="f-new">
+    <form id="f-new" class="career" style="${okDetected ? '' : 'display:none'}">
       <div class="field"><label>Nome pilota — uguale a come corri in EVO</label><input type="text" id="i-name" placeholder="es. Mauro Turbigno" required></div>
       <div class="grid2">
         <div class="field"><label>Nazione</label><input type="text" id="i-nation" value="ITA" maxlength="3"></div>
@@ -36,6 +172,8 @@ function drawOnboarding(m){
       toast('Carriera creata: benvenuto nel paddock.', 'ok');
     } catch(err){ toast(err.message, 'err'); }
   };
+  /* il wizard: lista di controllo tirata dal server (stato vero, non indovinato) */
+  wizardChecklist($('#wz'), { onChanged: refreshBoot, unlockForm: '#f-new' });
 }
 
 /* -------- cruscotto -------- */
@@ -158,7 +296,7 @@ async function drawLifePanel(){
   } catch { el.innerHTML = '<h2>Vita fuori pista</h2><div class="empty">Non disponibile.</div>'; }
 }
 
-/* -------- eredità di famiglia (memorie stile Zero to Apex) -------- */
+/* -------- eredità di famiglia (memorie stile del modello originario) -------- */
 async function drawHeritagePanel(){
   const el = $('#p-heritage'); if (!el) return;
   try {
@@ -291,7 +429,7 @@ function drawCardInto(el, card){
     <div id="ingegnere-live" style="margin-top:10px"></div>
     ${card.outlook ? `<div style="margin-top:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2,#151a24)">
       <div style="font-size:12px;margin-bottom:4px"><b>Obiettivo giro</b> · ${card.outlook.lapTarget ? `il tuo best qui: <b style="color:var(--acc)">${esc(card.outlook.lapTarget.time)}</b> <span class="muted">(${esc(card.outlook.lapTarget.car ?? '')}, ${esc((card.outlook.lapTarget.at||'').slice(0,10))})</span>` : '<span class="muted">prima volta su questo tracciato: tutto da scrivere</span>'}${card.outlook.mastery ? ` · <span class="tag ${card.outlook.mastery.level>=3?'gold':'blue'}" style="font-size:10px;padding:1px 6px">maestria: ${esc(card.outlook.mastery.name)}</span>` : ''}</div>
-      <div style="font-size:12px;margin-bottom:4px"><b>Stagione</b> · ${card.outlook.standingPosition?`P${card.outlook.standingPosition} in classifica · `:''}${card.outlook.racesRun}/${card.outlook.totalRounds} gare corse · ${card.outlook.seasonPoints} punti${card.outlook.duel?` · ⚔️ duello con <b>${esc(card.outlook.duel.name)}</b> a ${card.outlook.duel.gap} pt`:''}${card.outlook.crowd?` · <span title="stima spettatori dalla pista (stile audience di Zero to Apex)">🧑‍🤝‍🧑 ${(card.outlook.crowd/1000).toFixed(0)}k attesi</span>`:''}</div>
+      <div style="font-size:12px;margin-bottom:4px"><b>Stagione</b> · ${card.outlook.standingPosition?`P${card.outlook.standingPosition} in classifica · `:''}${card.outlook.racesRun}/${card.outlook.totalRounds} gare corse · ${card.outlook.seasonPoints} punti${card.outlook.duel?` · ⚔️ duello con <b>${esc(card.outlook.duel.name)}</b> a ${card.outlook.duel.gap} pt`:''}${card.outlook.crowd?` · <span title="stima spettatori dalla pista (stile audience del modello originario)">🧑‍🤝‍🧑 ${(card.outlook.crowd/1000).toFixed(0)}k attesi</span>`:''}</div>
       ${card.outlook.contract?.length ? `<div style="font-size:12px;margin-bottom:4px"><b>Contratto</b> · ${card.outlook.contract.map(c=>`<span title="${esc(c.progress)}" style="white-space:nowrap">${c.decided===false?'<span style="color:var(--bad)">✗</span>':c.ok?'<span style="color:var(--good)">✓</span>':'•'} ${esc(c.text.split(' ').slice(0,4).join(' '))}…</span>`).join(' ')}</div>` : ''}
     ${(card.timeMultiplier ?? 1) !== 1 ? `<div style="font-size:12px;margin-bottom:4px"><b>Tempo</b> · moltiplicatore consigliato: <b>${card.timeMultiplier}x</b> <span class="muted">(col gioco che corre più in fretta il pomeriggio si comprime: le ore di sessione restano quelle del calendario)</span></div>` : ''}
       ${card.outlook.rivals?.length ? `<div style="font-size:12px"><b>Rivali già visti</b> · ${card.outlook.rivals.map(r=>`<span class="chip ${r.h2h.beats>r.h2h.losses?'':'gold'}" data-rival="${esc(r.key??'')}" data-name="${esc(r.name)}" style="font-size:10px;padding:1px 6px;cursor:pointer" title="tu-lui: ${r.h2h.losses}-${r.h2h.beats} — clicca per la scheda completa">${esc(r.name.split(' ')[0])} ${r.h2h.losses}-${r.h2h.beats}</span>`).join(' ')}</div>` : ''}

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "_modello": [
-    "Carriera per Assetto Corsa EVO, derivata dal modello dati di Zero to Apex (AMS2):",
+    "Carriera per Assetto Corsa EVO, derivata dal modello dati del modello originario (AMS2):",
     "  career_ladder.psv  -> discipline | level 1..7 | tier rookie/semipro/pro/elite | nodi per classe",
     "  econ.json          -> phase, disc, comprar/alquiler/entry/premio, model pocket|sponsor|factory|heritage, champion",
     "  points.json        -> tabelle punti reali per epoca/serie, con fl_point, fl_top_n, pole_point",
@@ -333,7 +333,7 @@
       ]
     ],
     "cap": 100,
-    "note": "Conversione difficolta' interna (70..120, stile Zero to Apex) -> slider AI di EVO (0..100), a tratti lineari fra punti di ancoraggio; sopra il 100 interno si resta al massimo 100%. Calibrata sul riscontro reale: 90-100% in Coppa GT86 ancora troppo facile, quindi 95 interno ~ 99% di gioco. Muovi i punti qui se l'AI del gioco cambia con le patch."
+    "note": "Conversione difficolta' interna (70..120, stile del modello originario) -> slider AI di EVO (0..100), a tratti lineari fra punti di ancoraggio; sopra il 100 interno si resta al massimo 100%. Calibrata sul riscontro reale: 90-100% in Coppa GT86 ancora troppo facile, quindi 95 interno ~ 99% di gioco. Muovi i punti qui se l'AI del gioco cambia con le patch."
   },
   "weatherNames": {
     "0": "Clear",
@@ -1583,7 +1583,7 @@
     },
     {
       "nodeId": "formula_apex",
-      "display": "Formula Apex",
+      "display": "Formula Elite",
       "discipline": "single",
       "level": 7,
       "access": "closed",
@@ -2127,7 +2127,7 @@
     },
     {
       "nodeId": "gt_apex",
-      "display": "GT Apex",
+      "display": "GT Elite",
       "discipline": "gt",
       "level": 7,
       "access": "closed",
@@ -2495,7 +2495,7 @@
     },
     {
       "nodeId": "endurance_apex",
-      "display": "Endurance Apex",
+      "display": "Endurance Elite",
       "discipline": "endurance",
       "level": 7,
       "access": "closed",
@@ -2987,7 +2987,7 @@
     },
     {
       "nodeId": "strada_apex",
-      "display": "Strada Apex",
+      "display": "Strada Elite",
       "discipline": "strada",
       "level": 7,
       "access": "closed",

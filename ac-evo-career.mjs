@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ac-evo-career — carriera persistente automatizzata per Assetto Corsa EVO, in stile Zero to Apex.
+// ac-evo-career — carriera persistente automatizzata per Assetto Corsa EVO, ispirata a un'app di carriera per AMS2.
 //
 // Uso:  node ac-evo-career.mjs <comando> [opzioni]
 // Aiuto: node ac-evo-career.mjs help

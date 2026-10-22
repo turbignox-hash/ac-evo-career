@@ -1,6 +1,6 @@
 # Ricerca automazione gara — stato e conclusioni (18 settembre 2026)
 
-Obiettivo: preparare la gara personalizzata di EVO da file, come Zero to Apex fa su AMS2.
+Obiettivo: preparare la gara personalizzata di EVO da file, come fa su AMS2 il progetto di carriera da cui questo deriva.
 
 ## Cosa abbiamo imparato
 

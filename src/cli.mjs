@@ -336,7 +336,7 @@ function cmdStatus() {
   return 0;
 }
 
-/** agenda — il calendario a GIORNI (stile Zero to Apex).
+/** agenda — il calendario a GIORNI (stile del modello originario).
  *  agenda                      gare di OGGI di tutti i campionati iscritti + fattibili
  *  agenda --fattibili          solo le serie a cui puoi iscriverti ORA (per livello/gate)
  *  agenda --salta              salta al giorno dopo
@@ -1003,7 +1003,7 @@ function cmdDifficulty(args) {
     if (mode === 'fixed') {
       const value = Number(args.flags.value ?? 95);
       if (!Number.isFinite(value) || value < 70 || value > 120) {
-        throw new Error('--value vuole un numero fra 70 e 120 (scala interna, come Zero to Apex).');
+        throw new Error('--value vuole un numero fra 70 e 120 (scala interna, come nel modello originario).');
       }
       for (const node of ladder.nodes) state.difficulty.base[node.nodeId] = value;
       state.difficulty.trim = {};

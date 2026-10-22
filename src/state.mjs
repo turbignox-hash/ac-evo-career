@@ -1,10 +1,9 @@
 // state.mjs — la carriera salvata: soldi, reputazione, gate, classifica, difficoltà, mercato,
 // più la vita fuori pista: contratti con obiettivi, sponsor dinamici, sfide, sigilli.
 //
-// Regole prese da Zero to Apex:
+// Regole prese dal modello originario:
 //  - gate per posizione: ogni serie chiede un piazzamento nei primi N in una serie inferiore;
-//  - accesso open|closed: le serie chiuse (Formula Apex, GT Apex, Endurance Apex...) vogliono
-//    reputazione e contratto, non soldi;
+//  - accesso open|closed: le serie di punta chiuse vogliono reputazione e contratto, non soldi;
 //  - economia per serie: pocket | sponsor | factory | heritage, con acquisto, affitto,
 //    iscrizione, premio per posizione e bonus titolo;
 //  - difficolta' a strati: base + trim + offClass + offTrack, con un solo clamp su 70..120;
@@ -99,7 +98,7 @@ export function createCareer(ladder, { name, first, last, nation = 'ITA', discip
     results: {},
     bestFinish: {},
     championships: {},
-    // agenda a giorni (stile Zero to Apex): il primo sedile parte il giorno 1
+    // agenda a giorni (stile del modello originario): il primo sedile parte il giorno 1
     agenda: { day: 1 },
     seats: { [startNode.nodeId]: { day: 1, season: 1 } },
     world: createWorld(ladder, seed ?? fullName.trim().toLowerCase()),
@@ -272,7 +271,7 @@ export function standingsFor(ladder, state, node, season = state.season) {
         : pointsFor(ladder, node, entry.position, entry.dnf);
       add(entry.driverId, pts);
     }
-    // punti COMPLETI stile Zero to Apex: giro veloce e pole valgono per tutti,
+    // punti COMPLETI stile del modello originario: giro veloce e pole valgono per tutti,
     // non solo per il giocatore. Nei round simulati il vincitore della gara porta
     // anche i bonus (come in pointsForPos); per il giocatore valgono i flag veri.
     if (roundsPlayed.has(r)) {
@@ -579,7 +578,7 @@ export function careerStats(ladder, state) {
 export function applyRaceResult(ladder, state, node, payload) {
   const { position, gridSize, dnf = false, fl = false, track = null, round = state.round, at = new Date().toISOString(),
     laps = null, winnerLaps = null, bestLap = null, totalTime = null, gapMs = null, car = null, carNumber = null, sectors = null, durationMin = null } = payload;
-  // round A TEMPO (durationMin>0, stile Zero to Apex): la "distanza" piena è la durata
+  // round A TEMPO (durationMin>0, stile del modello originario): la "distanza" piena è la durata
   // del calendario e il premio scala con la distanza scelta (50% → metà premio)
   const distPct = [25, 50, 75, 100].includes(Number(state.raceSettings?.[node.nodeId]?.distPct)) ? Number(state.raceSettings[node.nodeId].distPct) : 100;
   node = { ...node, econ: { ...node.econ, prize: Math.max(1, Math.round((node.econ.prize ?? 0) * distPct / 100)) } };
@@ -633,7 +632,7 @@ export function applyRaceResult(ladder, state, node, payload) {
     }
   }
 
-  // FONDO SPETTATORI (audience di Zero to Apex): le piste del mondo portano gente,
+  // FONDO SPETTATORI (audience del modello originario): le piste del mondo portano gente,
   // e lo sponsor paga una quota proporzionale al pubblico della pista (max +50%).
   let crowdBonus = 0;
   const crowd = raceCrowdFor(track ?? node.calendar[round]?.track);

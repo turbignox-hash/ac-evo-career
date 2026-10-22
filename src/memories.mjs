@@ -1,10 +1,10 @@
-// memories.mjs — le Memorie di famiglia (ispirate a "memories.json" di Zero to Apex).
+// memories.mjs — le Memorie di famiglia (ispirate a "memories.json" del modello originario).
 //
 // Ogni titolo vinto sblocca un capitolo della saga di famiglia: un antenato che
 // gareggiava in un'altra epoca ti affida la sua auto (il "relic") e la sua impresa.
 // Rifare l'impresa porta a casa l'eredità in denaro e il titolo di famiglia.
 //
-// Regole prese da Zero to Apex:
+// Regole prese dal modello originario:
 //  - ogni capitolo ha: antenato+relazione, epoca, disciplina/serie, auto, rounds,
 //    obiettivo ("termina tra i primi 5"), eredità (inherit) e premio a ripetizione;
 //  - i capitoli salgono di difficoltà e di eredità generazione dopo generazione;
@@ -20,7 +20,7 @@ import { recordFlows } from './flows.mjs';
 import { publishNotice } from './gazzetta.mjs';
 
 /* ------------------------------------------------------------------ */
-/* pubblico per pista (audience.json di Zero to Apex)                  */
+/* pubblico per pista (audience.json del modello originario)                  */
 /* ------------------------------------------------------------------ */
 
 /** Spettatori tipici per pista (id ladder). Ordini di grandezza realistici: le

@@ -345,13 +345,12 @@ function viewCard(ladder, state, car = null) {
   };
 }
 
-function viewSetup(ladder) {
-  const { ladder: _l, paths } = context();
-  // cache TTL 30s: scanContent cammina l'intera installazione EVO — /api/boot
-  // veniva riscritto riga per riga ad ogni caricamento pagina (cache in content.mjs)
-  const content = scanContentCached(paths);
-  const issues = validateLadder(ladder, content);
-  // gli slot carriera (1..3): quale esiste, chi lo usa, quello attivo di questa sessione
+function viewSetup(ladder, paths = null) {
+  // paths può essere null (primo avvio senza cartella dati): non crasha MAI —
+  // il wizard è lì per sistemare il percorso; qui va solo il minimo vitale.
+  if (!paths) {
+    try { paths = context().paths; } catch { paths = null; }
+  }
   const slots = [1, 2, 3].map((s) => {
     const file = join(DATA_DIR, savePath(s));
     let pilota = null, gare = 0;
@@ -362,6 +361,20 @@ function viewSetup(ladder) {
     } catch { /* slot vuoto o corrotto: non è un errore qui */ }
     return { slot: s, file: savePath(s), exists: existsSync(file), pilota, gare, active: s === SLOT };
   });
+  if (!paths) {
+    return {
+      dataDirs: [], resultsDirs: [], logsDirs: [], gameExe: null, slots,
+      saved: existsSync(CONFIG_FILE) ? JSON.parse(readFileSync(CONFIG_FILE, 'utf8')) : {},
+      content: { cars: 0, tracks: 0 },
+      ladder: { nodes: ladder.nodes.length, disciplines: ladder.disciplines.length },
+      issues: [],
+      steamUrl: `steam://rungameid/${STEAM_APP_ID}`,
+    };
+  }
+  // cache TTL 30s: scanContent cammina l'intera installazione EVO — /api/boot
+  // veniva riscritto riga per riga ad ogni caricamento pagina (cache in content.mjs)
+  const content = scanContentCached(paths);
+  const issues = validateLadder(ladder, content);
   return {
     dataDirs: paths.dataDirs,
     resultsDirs: paths.resultsDirs,

@@ -1,9 +1,9 @@
 # ac-evo-career — carriera automatizzata per Assetto Corsa EVO
 
-Una carriera persistente in stile **Zero to Apex** (l'app di `jozeed1` per Automobilista 2),
-ma costruita per **Assetto Corsa EVO**.
+Una carriera persistente automatizzata per **Assetto Corsa EVO**, ispirata a un'app
+di carriera per Automobilista 2.
 
-Zero to Apex non è un mod di contenuti: è un'applicazione che sta *fuori* dal gioco. Decide la gara,
+Il modello d'origine non è un mod di contenuti: è un'applicazione che sta *fuori* dal gioco. Decide la gara,
 avvia il simulatore, poi rilegge i risultati e aggiorna soldi, reputazione, classifica e mercato.
 Per EVO si fa la stessa cosa, con una differenza importante e detta subito:
 
@@ -12,9 +12,8 @@ Per EVO si fa la stessa cosa, con una differenza importante e detta subito:
 > interfaccia: l'app ti dice *esattamente* cosa impostare (una schermata, due click) e apre il gioco
 > per te. Tutto il resto è automatico: **il risultato lo legge dai file nativi del gioco**.
 
-**Il modello di carriera è ricavato dall'installazione reale di Zero to Apex**
-(`%LOCALAPPDATA%\Zero to Apex`): `career/FIELDSET.md`, `career_ladder.psv`, `econ.json`,
-`points.json`, `profiles.json`, `class_difficulty.psv`, `series_access.psv` e una stagione salvata.
+**Il modello di carriera è ricavato dall'installazione reale del progetto d'ispirazione per AMS2**
+(con campi di `career`, ladder, economia, punti, profili, classi e serie).
 
 ## Il ciclo di gioco
 
@@ -133,14 +132,14 @@ con le offerte di sedile.
 | Rookie | 1–2 | compatte, monomarca, MX-5, GT86 |
 | Semi-pro | 3–4 | storiche turbo, turismo, GT4, gruppo B |
 | Pro | 5–6 | GT3, GT2, turismo pro, Formula 2004, endurance |
-| Elite | 7 | Formula Apex (SF-25), GT Apex, Endurance Apex, Strada Apex |
+| Elite | 7 | Formula Elite (SF-25), GT Elite, Endurance Elite, Strada Elite |
 
 Le sei discipline sono **Entry Level, Turismo, Monoposto, Gran Turismo, Endurance, Strada e Rally**.
 
 - **Gate per posizione.** Ogni serie chiede un piazzamento nei primi *N* in una serie inferiore
   (es. `top: 5`). Senza quel risultato il sedile non è disponibile, e `series` ti dice cosa manca.
 - **Accesso aperto o chiuso.** Le serie `open` si comprano o si affittano; quelle `closed`
-  (Formula Apex, GT Apex, Endurance Apex, Strada Apex) sono parco chiuso: servono reputazione e un
+  (Formula Elite, GT Elite, Endurance Elite, Strada Elite) sono parco chiuso: servono reputazione e un
   contratto. Con un contratto ufficiale non paghi il sedile, vieni pagato.
 - **Economia per serie.** Modelli `pocket`, `sponsor`, `factory`, `heritage` con prezzo d'acquisto,
   affitto, iscrizione a gara, premio per posizione, bonus titolo e premio maggiorato (×1,5) nelle
@@ -155,7 +154,7 @@ Le sei discipline sono **Entry Level, Turismo, Monoposto, Gran Turismo, Enduranc
   calo dopo i 33, ritiri e nuovi rookie. Le serie alte pescano i piloti più forti del parco, quelle
   basse i rookie. Alcuni sono `hot` (in forma) e due per serie sono gli `iconici`.
 - **Difficoltà a strati.** `totale = base + trim + offClass + offTrack` con un solo clamp su
-  70–120, esattamente come Zero to Apex, convertito nello slider AI del gioco
+  70–120, con un solo clamp su tutta la banda, convertito nello slider AI del gioco
   (70 → 30%, 120 → 100%: la serie d'ingresso sta intorno al 50%, l'apice al 95%).
   Il `trim` si adatta a te (±10) e ogni risultato anomalo non viene applicato in silenzio:
   resta in attesa e decidi con `difficulty --accept` o `--reject`.
@@ -262,8 +261,8 @@ nel menu stanno in `contentNames`.
 }
 ```
 
-**`ai` è la banda della griglia**: il più forte sta in alto, il più debole in basso (in Zero to Apex
-è la `CurveSkill`). La difficoltà media della serie è il centro della banda, e da lì si applicano
+**`ai` è la banda della griglia**: il più forte sta in alto, il più debole in basso (nel progetto
+d'origine è la `CurveSkill`). La difficoltà media della serie è il centro della banda, e da lì si applicano
 trim adattivo e offset. La conversione verso lo slider del gioco è in `aiSlider`: se il gioco cambia
 scala, si regola lì.
 
@@ -334,7 +333,7 @@ data/results-archive/                  copia dei risultati grezzi di ogni gara i
 - **La difficoltà AI si imposta in gioco.** L'app la calcola (slider + aggressività + banda dei
   rivali) e la adatta a strati dopo ogni gara, ma lo slider lo muovi tu: il gioco non lo accetta da
   fuori. Il suggerimento adattivo resta in attesa finché non lo accetti o lo rifiuti.
-- **Niente pannello dentro il gioco o in VR.** Zero to Apex usa una DLL per disegnare la sua
+- **Niente pannello dentro il gioco o in VR.** Il progetto d'origine usa una DLL per disegnare la sua
   interfaccia dentro AMS2. Qui non si tocca il processo del gioco: si alternano terminale e simulatore.
 - **Il career nativo di EVO resta intatto.** Questa è una progressione parallela, non la sostituisce.
 - **Meteo e nomi dei preset.** L'app indica il meteo bersaglio (es. "Scattered clouds" → "Overcast");
@@ -351,10 +350,15 @@ data/results-archive/                  copia dei risultati grezzi di ogni gara i
 
 ## Riferimenti
 
-- **Zero to Apex**, per il modello di carriera: struttura ricavata leggendo la sua installazione
-  (`career/FIELDSET.md`, `career_ladder.psv`, `econ.json`, `points.json`, `profiles.json`,
-  `class_difficulty.psv`).
-  [OverTake](https://www.overtake.gg/downloads/career-mode-fully-automated-no-race-setup-needed-zero-to-apex.85567/).
+- **Il progetto di carriera per Automobilista 2** da cui nasce il modello: struttura ricavata
+  leggendo la sua installazione (ladder, economia, punti, profili, classi e serie).
 - **Assetto Corsa EVO**, formato dei risultati: `Results\*.sessionresults.json` nella cartella dati.
 - **ACE Career Mode** (`acecareermode.com`), carriera di terze parti per EVO che usa i replay `.rpy`:
   utile come termine di paragone — qui si legge il risultato nativo, senza upload né account.
+
+## Licenza
+
+Opera privata: **© 2026 Mauro Turbigno — tutti i diritti riservati** (testo completo in
+[LICENSE.md](LICENSE.md)). Niente ridistribuzione, pubblicazione o riuso in altri
+prodotti senza autorizzazione scritta; le immagini ufficiali di auto e piste
+(`gui/carmaps/`, `gui/trackmaps/`) restano di KUNOS e non sono ridistribuibili.

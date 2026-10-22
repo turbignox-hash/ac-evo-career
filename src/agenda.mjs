@@ -1,6 +1,6 @@
-// agenda.mjs — il calendario CONTINUO della carriera (stile Zero to Apex).
+// agenda.mjs — il calendario CONTINUO della carriera (stile del modello originario).
 //
-// Rif. schermata "SERIE REALI · CALENDARIO" di Zero to Apex:
+// Rif. schermata "SERIE REALI · CALENDARIO" del modello originario:
 //  - la carriera comincia in una DATA REALE e avanza di 1 giorno a ogni gara;
 //  - le gare di TUTTE le serie della scala vivono sulla griglia di giorni:
 //    ogni serie corre a cadenza fissa da un giorno d'ancoraggio (la sua iscrizione,
@@ -383,7 +383,7 @@ export function canChoose(state, d, nodeId = null) {
 }
 
 /* ------------------------------------------------------------------ */
-/* impegni e CONFLITTI (l'header "I TUOI IMPEGNI" di Zero to Apex)     */
+/* impegni e CONFLITTI (l'header "I TUOI IMPEGNI" del modello originario)     */
 /* ------------------------------------------------------------------ */
 
 /** Uno SPOSTAMENTO permanente: il sedile della serie slitta avanti di 

@@ -1,4 +1,4 @@
-// Il calendario CONTINUO (stile Zero to Apex): date reali, griglia affollata,
+// Il calendario CONTINUO (date reali, griglia affollata,
 // cap di 3 scelte per giornata, impegni e conflitti, gate di reputazione severo
 // (GT4 e superiori al riparo CADAUNO a rep basse). Tutto su carriere temporanee.
 import test from 'node:test';

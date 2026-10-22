@@ -1,11 +1,11 @@
 // world.mjs — il mondo dei piloti rivali: chi sono, come crescono, come si popolano le griglie.
 //
-// Come in Zero to Apex: il livello di una serie definisce la BANDA di difficolta' (ai: [lo, hi]),
+// Come nel modello originario: il livello di una serie definisce la BANDA di difficolta' (ai: [lo, hi]),
 // il pilota piu' forte sta in alto e il piu' debole in basso (CurveSkill). Le statistiche innate
 // del pilota (skill distinta da cons/aggr) decidono chi entra nella serie e in che ordine,
 // mentre la banda della serie decide quanto vanno forte sul giro.
 
-export const OUR_MIN = 70;   // estremi della difficolta' interna (come Zero to Apex)
+export const OUR_MIN = 70;   // estremi della difficolta' interna (come nel modello originario)
 export const OUR_MAX = 120;
 
 /* ------------------------------------------------------------------ */
@@ -120,7 +120,7 @@ export function createWorld(ladder, seed = 'evo-world-1', count = 240) {
       seasons: 0,
     });
   }
-  // gli "iconici" sono i piu' forti in circolazione: hanno un bonus banda in Zero to Apex
+  // gli "iconici" sono i piu' forti in circolazione: hanno un bonus banda nel modello originario
   [...drivers].sort((a, b) => b.skill - a.skill).slice(0, Math.round(count * 0.08)).forEach((d) => { d.iconic = true; });
   return { seed, created: 1, drivers };
 }
@@ -210,7 +210,7 @@ export function gridFor(world, ladder, node, season) {
  * (quella letta dal file risultati del gioco), gli altri scalano.
  * player = { position, dnf } oppure null (gara non disputata).
  *
- * RUBBER-BAND (stile Zero to Apex): quando il giocatore è in striscia vincente,
+ * RUBBER-BAND (stile del modello originario): quando il giocatore è in striscia vincente,
  * i rivali "in forma" (hot) alzano il ritmo — il campionato non si regala.
  */
 export function finishOrder(grid, node, season, roundIndex, player = null, ladder = null, history = null) {
@@ -268,7 +268,7 @@ export function pointsFor(ladder, node, position, dnf = false) {
 }
 
 /**
- * Punti COMPLETI stile Zero to Apex: tabella per posizione + punto giro veloce
+ * Punti COMPLETI stile del modello originario: tabella per posizione + punto giro veloce
  * (solo dentro top flTopN) + punto pole. Nei ROUND SIMULATI entrambi i bonus
  * vanno al vincitore di gara (chi parte davanti vince e spesso firma anche il
  * giro veloce); il giocatore reale invece porta i SUOI flag (entry.fl/entry.pole)

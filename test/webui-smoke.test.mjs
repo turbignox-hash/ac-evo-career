@@ -92,6 +92,13 @@ test('il server GUI parte e serve le API chiave (boot, status, card, pagina)', a
       assert.ok(/css|javascript/.test(ct), `asset ${src} deve avere il MIME giusto (ha: ${ct})`);
     }
 
+    // 3-bis) il WIZARD del primo avvio: stato delle ricerche e risposta pulita
+    const wiz = await getJson('/api/wizard');
+    assert.equal(wiz.code, 200, 'wizard deve rispondere 200 anche quando si controlla soltanto');
+    assert.ok(typeof wiz.j.dataDir, 'string', 'wizard.dataDir (percorso trovato o null)');
+    assert.ok(Array.isArray(wiz.j.candidates) && wiz.j.candidates.length >= 1 && wiz.j.candidates.some((c) => c.ok), 'wizard deve elencare i percorsi candidati, e con ACE_DATA nota il candidato è quello (verde)');
+    assert.ok(wiz.j.content && typeof wiz.j.content.cars === 'number', 'wizard.content con i conteggi (cars/tracks)');
+
     // 3) lo stato del watcher: attivo (questo server incassa, se c'è una carriera)
     const watcher = await getJson('/api/watcher');
     assert.equal(watcher.code, 200, 'watcher deve rispondere 200');

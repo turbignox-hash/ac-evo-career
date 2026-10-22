@@ -244,7 +244,10 @@ async function pathPicker(pick, onOk){
 
 /* -------- impostazioni -------- */
 function drawSettings(m){
-  const s = boot.setup, h = boot.header;
+  const s = boot.setup;
+  /* slot senza carriera (es. provato con ACE_SLOT libero): boot.header è null —
+     senza questa guardia la scheda non si rendeva affatto */
+  const h = boot.header ?? { driver: { name: '(nessuna carriera in questo slot)' }, money: 0 };
   const slotsHtml = (s.slots ?? []).map((sl) => `
     <tr class="${sl.active?'cur':''}" style="cursor:pointer" title="clicca: avvia questo slot (o apri il suo browser se è già attivo)">
       <td><b>Slot ${sl.slot}</b>${sl.active?' <span class="tag gold">attivo</span>':''}</td>
@@ -259,10 +262,9 @@ function drawSettings(m){
     <div class="faint" style="margin-top:8px" id="slot-instructions">Clicca una riga (o il bottone a destra) per avviare quello slot: parte <b>pilota-N.cmd</b> da solo, senza variabili da scrivere. I lanciatori sono anche avviabili a mano dalla cartella del programma, e gli slot si aprono anche insieme (slot 1 → porta 8642, slot 2 → 8643, slot 3 → 8644). Ogni slot ha il SUO salvataggio e i SUOI backup: mai mischiati. Lo slot 1 contiene le carriere fatte fino ad oggi. Il watcher segue lo slot del lanciatore che l'ha aperto. Lo slot attivo di questa sessione NON cambia a caldo: qui si apre la sua finestra, per cambiarlo davvero chiudi questa e apri l'altro.</div>
   </div>
   <div class="grid2">
-    <div class="panel"><h2>Installazione</h2>
-      <div class="muted">Cartelle dati</div><div style="font-size:13px;word-break:break-all">${s.dataDirs.map(esc).join('<br>') || '—'}</div>
-      <div class="muted" style="margin-top:8px">Risultati</div><div style="font-size:13px;word-break:break-all">${s.resultsDirs.map(esc).join('<br>') || '—'}</div>
-      <div class="muted" style="margin-top:8px">Eseguibile</div><div style="font-size:13px;word-break:break-all">${esc(s.gameExe ?? 'non trovato (verrà usato Steam)')}</div>
+    <div class="panel"><h2>Installazione <span class="h-act">stessa checklist del primo avvio — si modifica a caldo, senza riavvio</span></h2>
+      <div id="wz-re" class="wiz" style="text-align:left;margin-bottom:10px"></div>
+      <div class="muted" style="font-size:12px">Cartelle Risultati viste dal watcher</div><div style="font-size:13px;word-break:break-all">${s.resultsDirs.map(esc).join('<br>') || '—'}</div>
       <form id="f-paths" style="margin-top:14px">
         <div class="field"><label>Cartella ACE (override)</label>
           <div class="row"><input type="text" id="i-data" placeholder="C:\\Users\\...\\Saved Games\\ACE" value="${esc(s.saved.dataDir ?? '')}" style="flex:1"><button type="button" class="mini" id="b-pick-data" title="sfoglia il disco">🔍 cerca…</button></div>
@@ -308,6 +310,7 @@ function drawSettings(m){
       .then(r => { toast(r.note ?? 'Lanciatore avviato.', 'ok'); b.disabled = false; })
       .catch(err => { toast(err.message, 'err'); b.disabled = false; });
   });
+  wizardChecklist($('#wz-re'), { sketch: false, onChanged: refreshBoot });
   $('#f-paths').onsubmit = async (e) => {
     e.preventDefault();
     try { await api('setup-save', {dataDir:$('#i-data').value, gameExe:$('#i-game').value, resultsDir:$('#i-results')?.value ?? ''}); await refreshBoot(); toast('Percorsi salvati.','ok'); render(); }
