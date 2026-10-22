@@ -605,7 +605,13 @@ async function drawSetup(m){
      Delegazione al DOCUMENT: i pannelli diagnostici in fondo alla vista fanno
      m.innerHTML += e RI-PARSEANO tutto — un listener attaccato ai nodi muore.
      Il contesto (auto/pista/giri) si aggiorna a ogni render qui sotto. */
-  window.__applySetupCtx = { car: carSel?.carName ?? tel.car ?? cur?.car ?? null, track: cur?.track ?? tel.trackDisplay ?? null, raceLaps: tel.raceLaps ?? null };
+  /* Pista del consiglio, ordine di verità (lezione 22/10 ore 20:49: dal pannello
+     il_copy «— EVO-consigliato» partì su Nürburgring mentre ai box Paul Ricard):
+     1. pista della sessione LIVE del gioco (ai box); 2. ultima telemetria (gioco
+     chiuso); 3. pista del round. Prima si prendeva solo l'ultima .ld e la pista
+     della telemetria di IERI mandò il salvataggio nella cartella sbagliata. */
+  const liveTrack = live?.session?.track ?? null;
+  window.__applySetupCtx = { car: carSel?.carName ?? tel.car ?? cur?.car ?? null, track: liveTrack ?? cur?.track ?? tel.trackDisplay ?? null, raceLaps: tel.raceLaps ?? null };
   if (!window.__applySetupDeleg) {
     window.__applySetupDeleg = true;
     const psiD = (v) => (v == null ? '—' : Number(v).toFixed(1));

@@ -4,7 +4,7 @@
 // E' SUPPORTO, non server: qui dentro niente http, niente switch API.
 // (estrazione dal monolite webui.mjs del 2026-10-18: prima dello split 1845 righe)
 
-import { readFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolvePaths } from './paths.mjs';
@@ -24,7 +24,18 @@ export const CONFIG_FILE = join(DATA_DIR, 'evo.config.json');
 export const GUI_DIR = join(PROJECT, 'gui');
 export const BACKUP_DIR = join(DATA_DIR, 'backups');
 
-export function loadLadder() { return localizeLadder(JSON.parse(readFileSync(LADDER_FILE, 'utf8'))); }
+// Il ladder è il file più grande del progetto (7000+ righe di JSON) ed è
+// riletto a OGNI richiesta del launcher (context → loadLadder): si ri-parsa
+// solo quando il mtime cambia. localizeLadder resta fuori dalla memo: è
+// idempotente e segue la lingua corrente a ogni chiamata.
+let _ladderMemo = null; // { mtime, ladder }
+export function loadLadder() {
+  const mtime = (existsSync(LADDER_FILE) ? statSync(LADDER_FILE).mtimeMs : 0);
+  if (!_ladderMemo || _ladderMemo.mtime !== mtime) {
+    _ladderMemo = { mtime, ladder: JSON.parse(readFileSync(LADDER_FILE, 'utf8')) };
+  }
+  return localizeLadder(_ladderMemo.ladder);
+}
 
 export function appEnv() {
   const env = { ...process.env };

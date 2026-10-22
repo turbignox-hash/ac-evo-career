@@ -497,3 +497,31 @@ serve l'inglese. Tradurre tutto in una sessione sola avrebbe obbligato a estrarr
   NSX −3,52s a 5%), confidenza bassa. L'11% resta NON MISURATO su dati veri:
   serve un round PR nuovo stesso impianto della 19:01, poi si valuta il timbro.
 - Anche il backup del registro: data/backups/grid-calibrazione.bak-prima-guardie.json.
+
+## SEBRING: IL BOOK DICE "Sebring", EVO VUOLE "Sebring International Raceway" (22/10/2026, sera)
+
+Ronda RX-7 su Sebring GP: "prepara la gara" ha scritto il weekend con i campi
+pista presi dal LIBRO, e il riquadro della pista nel menù è uscito VUOTO.
+
+- CHE COSA: il riquadro della pista risultava VUOTO nel menù e il load crashava
+  (stesso schema del Nürburgring del 21/10, path risorsa inesistente). Il file
+  portava name "Sebring", id 29, 6019 m — i valori del LIBRO (TRACK_INFO),
+  NON quelli dell'asset EVO.
+- SCAVINO con il nuovissimo tools/watch-gamemode.tmp.mjs (fs.watch sul file
+  weekend + dump dei campi 3.5.x a ogni riscrittura): guardato l'utente fare
+  UN GIRO DI CLICK USA nel menù EVO (Road Atlanta 28, Laguna Seca 24, COTA 34,
+  Watkins Glen 40, Sebring 45). Il file SANO che EVO scrive da solo porta:
+  name "Sebring International Raceway", 5954 m, tag "GP", layout "GP Race"
+  (COTA invece va col layout "National Race" e attr "National"; Watkins col
+  "Short Inner Loop Race") — Sebring è UNICA ma NON è fuori standard: i suoi
+  tag/layout combaciano i default mono-layout del book. SOLO name e length
+  differiscono.
+- FIX (set-track.mjs): TRACK_SPECIALS.sebring = { name: 'Sebring
+  International Raceway', lengthM: 5954, tag 'GP', layout: 'GP Race',
+  continente: 'North America' }. Spec verificato DRY su tutti e tre gli alias
+  ("Sebring GP" / "Sebring" / il nome asset) e il file già sano su disco:
+  0 campi da riscrivere.
+- REGOLA VIVENTE: ogni pista che il launcher prepara col file vuoto/crash
+  merita IL GIRO DI CLICK USA nel menù EVO col watch attivo, poi l'entry in
+  TRACK_SPECIALS con i valori OSSERVATI (non dedotti). La lista comincia da
+  nurburgring e paul_ricard e ora anche sebring.

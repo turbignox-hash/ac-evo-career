@@ -86,11 +86,11 @@ import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
  *    per la serie in grid-classes.json: la griglia mescola davvero)
  *  - 1 sola auto senza pool        → 'monomarca'
  */
-let _classesCache = null;
 function tipoGriglia(node) {
   if (!Array.isArray(node?.cars) || node.cars.length !== 1) return 'multimarca';
-  _classesCache ??= loadClasses();
-  return _classesCache.classi?.[node.nodeId]?.poolAuto?.length ? "multi-marca d'epoca" : 'monomarca';
+  // loadClasses ora memore per mtime in gridbuilder (22/10): si può chiamare
+  // sempre, senza la cache qui che restava STANTIA dopo una convalida.
+  return loadClasses().classi?.[node.nodeId]?.poolAuto?.length ? "multi-marca d'epoca" : 'monomarca';
 }
 // griglia: la calibrazione (calibSummary) va A CALDO dal nuovo hot.mjs, sotto nel
 // pannello griglia — non c'è import statico di grid-calib.mjs qui in testa
@@ -1631,7 +1631,20 @@ async function api(context0, req, res, action, body) {
         const savedDir = paths.dataDirs?.[0] ?? '';
         if (!savedDir) return sendJson(res, 409, { error: 'Cartella Saved Games/ACE non impostata (Impostazioni).' });
         const carName = String(body.car ?? '').trim();
-        const trackName = String(body.track ?? '').trim();
+        let trackName = String(body.track ?? '').trim();
+        // GUARDIA «PISTA GIUSTA» (lezione 22/10 ore 20:49: la copia «— EVO-consigliato»
+        // della RX-7 finì su Nürburgring mentre ai box Paul Ricard): se EVO è aperto
+        // con una sessione attiva, la pista VERA del gioco comanda — richiesta per
+        // un'altra pista ⇒ NON scrivo (il gioco non mostra i setup salvati di una
+        // pista diversa); richiesta senza pista ⇒ uso quella live.
+        {
+          let liveTrack = null;
+          try { if (await syncLiveReader() !== 'off') liveTrack = liveReader()?.snapshot?.()?.session?.track ?? null; } catch { /* live non disponibile: si decide senza */ }
+          if (liveTrack) {
+            if (trackName && !trkSame(liveTrack, trackName)) return sendJson(res, 200, { ok: false, track: trackName, liveTrack, hint: tr({ it: `Il gioco è su «${liveTrack}» ma la richiesta mira a «${trackName}»: non scrivo la copia «EVO-consigliato» su una pista diversa (in gioco la lista CARICA mostra solo auto + pista corrente). Aggiorna il pannello se la pista è cambiata.`, en: `The game is at «${liveTrack}» but the request targets «${trackName}»: I won't write the «EVO-consigliato» copy on a different track (in game the LOAD list shows only current car+track). Refresh the panel if the track changed.` }) });
+            trackName = trackName || liveTrack;
+          }
+        }
         // listSetups aggiunge già "Car Setups": gli va la radice di Saved Games
         const setupsRootDir = savedDir.replace(/[\\/]$/, '');
         let setups = carName ? listSetups(setupsRootDir, { car: carName, track: trackName }) : listSetups(setupsRootDir);
@@ -1645,6 +1658,10 @@ async function api(context0, req, res, action, body) {
         }
         console.log('[setup-apply] savedDir=', savedDir, '| setups trovati=', setups.length, setups.map((s) => s.file).slice(0, 3));
         if (!setups.length) return sendJson(res, 200, { ok: false, hint: tr({ it: `Nessun .carsetup per «${carName || 'questa auto'}»: DENTRO EVO, nel setup, salva una volta il setup con CARICA/SALVA (anche i valori default): poi l'applicazione funziona.`, en: `No .carsetup for «${carName || 'this car'}»: INSIDE EVO, in the setup screen, save the setup once with LOAD/SAVE (default values are fine): then the apply step works.` }) });
+        // (stessa lezione) se la pista richiesta non è quella dei .carsetup trovati
+        // (caso: pista chiesta e NO setup di quella pista → fallback «tutta la vita»),
+        // la copia finirebbe NELLA CARTA SBAGLIATA e in gioco non si vedrebbe: rifiuto.
+        if (trackName && setups[0]?.track && !trkSame(setups[0].track, trackName)) return sendJson(res, 200, { ok: false, track: trackName, foundTrack: setups[0].track, hint: tr({ it: `Nessun .carsetup per questa auto su «${trackName}» (ho trovato solo il base su «${setups[0].track}»): salvare UNA volta un setup in EVO su quella pista e riprova — la copia «EVO-consigliato» va accanto alla sua base, altrimenti il gioco non la mostra.`, en: `No .carsetup for this car at «${trackName}» (found the base only at «${setups[0].track}»): save a setup in EVO on that track once and retry — the «EVO-consigliato» copy goes next to its base, or the game won't show it.` }) });
         // la base del consiglio è SEMPRE il TUO setup: le copie «— EVO-consigliato»
         // generate dai click precedenti si escludono (altrimenti: doppio suffisso e
         // il consiglio parte dai valori già corretti, non dal tuo file)

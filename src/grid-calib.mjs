@@ -333,7 +333,19 @@ function buildProposte(evento, cls, track) {
       });
       continue;
     }
-    if (r.deltaVsBaseSec > -TOL_SEC) continue;                      // in pace con la base (o più lenta): si deve le regole
+    // DISCESA (22/10, chiede Mauro: «la Peugeot troppo lenta, dovrebbe lottare
+    // con i primi»): una penalizzata chiaramente PIÙ LENTA della base (>2s) dimostra
+    // penalità eccessiva — stessa pendenza dell'alzata, ma in giù e con pavimento a 0.
+    if (r.deltaVsBaseSec > 2) {
+      const proposta = Math.max(0, Math.round((r.pct - (r.deltaVsBaseSec / pendenza)) * 2) / 2);
+      if (proposta !== r.pct) prop.push({
+        leva: 'perTraccia', direzione: 'giù', auto: r.auto, da: `${r.kg}kg/${r.pct}%`, a: `${r.kg}kg/${proposta}%`,
+        perche: `${fmt(r.deltaVsBaseSec)} sotto la base su ${evento.pista ?? '?'}: penalità troppo larga, la alleggerisco`,
+        comando: `grid-classes.json → perTraccia["${track}"].restrictorPct["${r.preset ?? r.auto}"] = ${proposta} (ora ${r.pct})`,
+      });
+      continue;
+    }
+    if (r.deltaVsBaseSec > -TOL_SEC) continue;                      // in pace con la base: niente da dire
     const proposta = Math.min(capPct, Math.round((r.pct + ((-r.deltaVsBaseSec) / pendenza)) * 2) / 2);
     if (proposta <= r.pct) continue;
     prop.push({

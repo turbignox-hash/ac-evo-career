@@ -17,7 +17,7 @@
 // Flusso di gara serale: chiuso EVO → `node ac-evo-career.mjs griglia [--dry]`
 // → aperto EVO → menu griglia (senza GENERA) → APPLICA → via.
 //
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodeMsg, encodeMsg, gridFileOf } from '../tools/evo-grid.mjs';
@@ -36,8 +36,17 @@ const f32 = (b) => (b && b.length >= 4) ? Buffer.from(b.slice?.() ?? b).readFloa
 const setF32 = (v) => { const b = Buffer.alloc(4); b.writeFloatLE(v, 0); return b; };
 const utf8 = (b) => Buffer.from(b).toString('utf8');
 
+// grid-classes.json è richiesto più volte per ogni import/analisi (grid-calib
+// lo legge in analyzeRace E in recordEvent): si ri-parsa solo se il mtime cambia.
+// REGOLA: chi muta le classi deve SOTTO scrivere il file (come già fanno
+// appuntaConvalida e grid-balance): la scrittura cambia mtime e invalida il memo.
+let _classesMemo = null; // { mtime, dati }
 export function loadClasses() {
-  return existsSync(CLASSES_FILE) ? JSON.parse(readFileSync(CLASSES_FILE, 'utf8')) : { classi: {} };
+  const mtime = existsSync(CLASSES_FILE) ? statSync(CLASSES_FILE).mtimeMs : 0;
+  if (!_classesMemo || _classesMemo.mtime !== mtime) {
+    _classesMemo = { mtime, dati: existsSync(CLASSES_FILE) ? JSON.parse(readFileSync(CLASSES_FILE, 'utf8')) : { classi: {} } };
+  }
+  return _classesMemo.dati;
 }
 
 /** classe combaciante SOLO per preset (per chi lavora sul file customgrid:
