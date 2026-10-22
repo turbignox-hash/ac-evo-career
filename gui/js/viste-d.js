@@ -261,6 +261,16 @@ function drawSettings(m){
     <table><thead><tr><th></th><th>Carriera</th><th class="right">Come si usa</th></tr></thead><tbody>${slotsHtml}</tbody></table>
     <div class="faint" style="margin-top:8px" id="slot-instructions">Clicca una riga (o il bottone a destra) per avviare quello slot: parte <b>pilota-N.cmd</b> da solo, senza variabili da scrivere. I lanciatori sono anche avviabili a mano dalla cartella del programma, e gli slot si aprono anche insieme (slot 1 → porta 8642, slot 2 → 8643, slot 3 → 8644). Ogni slot ha il SUO salvataggio e i SUOI backup: mai mischiati. Lo slot 1 contiene le carriere fatte fino ad oggi. Il watcher segue lo slot del lanciatore che l'ha aperto. Lo slot attivo di questa sessione NON cambia a caldo: qui si apre la sua finestra, per cambiarlo davvero chiudi questa e apri l'altro.</div>
   </div>
+  <div class="panel"><h2>Lingua <span class="h-act">la pagina si ricarica al cambio</span></h2>
+    <div class="row" style="align-items:center">
+      <label class="muted" for="i-lingua">Lingua interfaccia</label>
+      <select id="i-lingua" style="min-width:180px">
+        <option value="it">Italiano</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+    <div class="muted" style="margin-top:8px;font-size:12px">La scelta vale per questo browser. Menu e banner aggiornamenti sono già bilingui; le viste si traducono al giro in cui si toccano (regola "pigra", vedi README).</div>
+  </div>
   <div class="grid2">
     <div class="panel"><h2>Installazione <span class="h-act">stessa checklist del primo avvio — si modifica a caldo, senza riavvio</span></h2>
       <div id="wz-re" class="wiz" style="text-align:left;margin-bottom:10px"></div>
@@ -310,6 +320,9 @@ function drawSettings(m){
       .then(r => { toast(r.note ?? 'Lanciatore avviato.', 'ok'); b.disabled = false; })
       .catch(err => { toast(err.message, 'err'); b.disabled = false; });
   });
+  // lingua: selettore collegato a gui/js/lang.js (tr + impostaLingua)
+  const selLingua = $('#i-lingua');
+  if (selLingua) { selLingua.value = window.LINGUA; selLingua.onchange = (e) => impostaLingua(e.target.value); }
   wizardChecklist($('#wz-re'), { sketch: false, onChanged: refreshBoot });
   $('#f-paths').onsubmit = async (e) => {
     e.preventDefault();

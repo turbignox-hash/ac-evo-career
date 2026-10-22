@@ -438,3 +438,25 @@ Note tecniche:
   npm test 93/93 passati, save e mappe al loro posto.
 - Il zip completo NON si condivide: contiene save personali e mappe KUNOS,
   che sono ad uso personale; dettagli in LICENSE.md e in COME-RIPRISTINARE.txt.
+
+## LINGUA DELLA GUI: infrastruttura pronta, traduzione "pigra" (22/10/2026)
+
+Motivo: se un giorno il progetto viene pubblicato (PUBLICA-CHECKLIST.md, fase 4)
+serve l'inglese. Tradurre tutto in una sessione sola avrebbe obbligato a estrarre
+~770 testi in un colpo, con un alto rischio di regressioni. Deciso quindi:
+
+- `gui/js/lang.js`: LINGUA letta dal localStorage (chiave `evo-lingua`), funzione
+  `tr({ it: '...', en: '...' })` con le due voci, e `impostaLingua()` che salva
+  e ricarica la pagina. Testo senza voce inglese → resta l'italiano: la GUI non
+  resta mai vuota.
+- Selettore Lingua in Impostazioni (viste-d.js): Italiano / English, vale per
+  quel browser; nessun campo nuovo nel save, nessuna API nuova.
+- Già bilingui: menu di navigazione (core.js TABS), banda Aggiornamenti al
+  completo (testo, bottoni, toast), chip header "EVO aperto/chiuso".
+- REGOLA PIGRA per Buffy (l'agente): ogni volta che una vista viene toccata per
+  qualsiasi manutenzione, le sue stringhe si convertono in `tr({it,en})` nello
+  stesso giro, con `npm test` dopo. Vista dopo vista la traduzione si completa
+  senza sessione dedicata. La CLI e l'output del server (src/cli.mjs,
+  src/webui.mjs) restano italiani fino alla fase 4 della checklist.
+- Totale da convertire nelle viste: ~770 testi (conteggio 22/10/2026,
+  core + 7 file viste in gui/js).

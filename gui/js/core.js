@@ -30,22 +30,23 @@ async function drawAggBar(agg){
   if (!host) return;
   const a = agg ?? await (async () => { try { return await api('agg-info'); } catch { return { skip: true }; } })();
   if (!a || a.skip || a.diverged || !(a.remotoAvanti > 0)) { host.innerHTML = ''; return; }
+  const n = a.remotoAvanti;
   host.innerHTML = `<div class="banner warn" style="margin:10px 0 2px">
-    ↑ <b>Ci sono ${a.remotoAvanti} aggiornamenti di progetto su GitHub.</b>
-    <span class="muted" style="font-size:12px">si aggiorna solo il codice: il tuo save non si tocca.</span>
-    <button class="mini" id="agg-now" style="margin-left:10px">Aggiorna ora</button>
-    <button class="link" id="agg-later" style="margin-left:6px">più tardi</button></div>`;
+    ↑ <b>${tr({ it: `Aggiornamenti di progetto pronti su GitHub: ${n}`, en: `Project updates ready on GitHub: ${n}` })}</b>
+    <span class="muted" style="font-size:12px">${tr({ it: 'si aggiorna solo il codice: il tuo save non si tocca.', en: 'only the code updates; your save is never touched.' })}</span>
+    <button class="mini" id="agg-now" style="margin-left:10px">${tr({ it: 'Aggiorna ora', en: 'Update now' })}</button>
+    <button class="link" id="agg-later" style="margin-left:6px">${tr({ it: 'più tardi', en: 'later' })}</button></div>`;
   $('#agg-now', host).onclick = async () => {
     const b = $('#agg-now', host);
-    b.disabled = true; b.textContent = 'Aggiorno...';
+    b.disabled = true; b.textContent = tr({ it: 'Aggiorno...', en: 'Updating...' });
     try {
       const r = await api('agg-install');
-      if (r.ok && r.nessuno) toast('Nessun aggiornamento mancante.', 'ok');
-      else if (r.ok && r.testOk === false) toast('Aggiornato a ' + (r.hash ?? '?') + ', ma npm test è FALLITO: guarda la console.', 'err');
-      else if (r.ok) toast('Aggiornato a ' + (r.hash ?? '?') + ' — test passati. Riavvia il launcher per il codice nuovo.', 'ok');
-      else toast(r.messaggio ?? 'Aggiornamento non riuscito.', 'err');
+      if (r.ok && r.nessuno) toast(tr({ it: 'Nessun aggiornamento mancante.', en: 'No missing updates.' }), 'ok');
+      else if (r.ok && r.testOk === false) toast(tr({ it: 'Aggiornato a ' + (r.hash ?? '?') + ', ma npm test è FALLITO: guarda la console.', en: 'Updated to ' + (r.hash ?? '?') + ', but npm test FAILED: check the console.' }), 'err');
+      else if (r.ok) toast(tr({ it: 'Aggiornato a ' + (r.hash ?? '?') + ' — test passati. Riavvia il launcher per il codice nuovo.', en: 'Updated to ' + (r.hash ?? '?') + ' — tests passed. Restart the launcher to load the new code.' }), 'ok');
+      else toast(r.messaggio ?? tr({ it: 'Aggiornamento non riuscito.', en: 'Update failed.' }), 'err');
       drawAggBar(); // fresh via agg-info: la barra scompare se tutto combacia
-    } catch (e) { toast(e.message, 'err'); b.disabled = false; b.textContent = 'Aggiorna ora'; }
+    } catch (e) { toast(e.message, 'err'); b.disabled = false; b.textContent = tr({ it: 'Aggiorna ora', en: 'Update now' }); }
   };
   $('#agg-later', host).onclick = () => { host.innerHTML = ''; };
 }
@@ -121,14 +122,27 @@ const flagOf = (c) => COUNTRY_FLAG[c] ?? '🏁';
 /* bandiera a scacchi inline per i titoli di gara */
 const CFLAG = '<svg viewBox="0 0 16 16" style="width:14px;height:14px;vertical-align:-2px" fill="none" aria-hidden="true"><path d="M2.5 1.5h11v13h-11z"/><path d="M2.5 1.5h3.67v3.6H2.5zM9.83 5.1h3.67v3.6H9.83zM6.17 8.7h3.66v3.6H6.17z" fill="currentColor" stroke="none"/></svg>';
 const TABS = [
-  ['dashboard','Cruscotto'], ['agenda','Centro gare'], ['setup','Setup'], ['messages','Messaggi'], ['championships','Campionati'], ['griglia','Griglia'], ['standings','Mondiale'],
-  ['rivals','Rivali'], ['tracks','Piste'], ['cars','Auto'], ['garage','Garage'], ['import','Risultati'],
-  ['archive','Archivio'], ['stats','Statistiche'],
-  ['banca','Finanze'], ['difficulty','Difficoltà'], ['settings','Impostazioni'],
+  ['dashboard',      tr({ it: 'Cruscotto',      en: 'Dashboard' })],
+  ['agenda',         tr({ it: 'Centro gare',    en: 'Race centre' })],
+  ['setup',          tr({ it: 'Setup',          en: 'Setup' })],
+  ['messages',       tr({ it: 'Messaggi',       en: 'Messages' })],
+  ['championships',  tr({ it: 'Campionati',     en: 'Championships' })],
+  ['griglia',        tr({ it: 'Griglia',        en: 'Grid' })],
+  ['standings',      tr({ it: 'Mondiale',       en: 'World' })],
+  ['rivals',         tr({ it: 'Rivali',         en: 'Rivals' })],
+  ['tracks',         tr({ it: 'Piste',          en: 'Tracks' })],
+  ['cars',           tr({ it: 'Auto',           en: 'Cars' })],
+  ['garage',         tr({ it: 'Garage',         en: 'Garage' })],
+  ['import',         tr({ it: 'Risultati',      en: 'Results' })],
+  ['archive',        tr({ it: 'Archivio',       en: 'Archive' })],
+  ['stats',          tr({ it: 'Statistiche',    en: 'Stats' })],
+  ['banca',          tr({ it: 'Finanze',        en: 'Finances' })],
+  ['difficulty',     tr({ it: 'Difficoltà',     en: 'Difficulty' })],
+  ['settings',       tr({ it: 'Impostazioni',   en: 'Settings' })],
 ]; /* la vista LIVE è stata RIMOSSA su richiesta Mauro (21/10 23:5x): «non la
    guarderebbe nessuno». Backup completo in sessione-21-10/.backup-live-21-10/. Il motore
    live sottostante (src/live.mjs, lettore PS, strip header «In pista»,
-   caricamento automatdomestiche import) resta: lo usano telemetria e setup.
+   caricamento automatico import) resta: lo usano telemetria e setup.
 /* un colore per ogni sezione: le icone della nav restano riconoscibili a colpo d'occhio */
 const TAB_COLORS = {
   dashboard:'#5da9ff', agenda:'#ff7a45', calendar:'#b48cff', standings:'#ffd166',  rivals:'#ff6b6b',
@@ -231,7 +245,7 @@ function paintHeader(h){
 async function refreshBoot(){
   boot = await api('boot');
   $('#dot-evo').classList.toggle('on', !!boot.gameRunning);
-  $('#t-evo').textContent = boot.gameRunning ? 'EVO aperto' : 'chiuso';
+  $('#t-evo').textContent = boot.gameRunning ? tr({ it: 'EVO aperto', en: 'EVO open' }) : tr({ it: 'chiuso', en: 'closed' });
   drawNav();
   if (boot.hasCareer) paintHeader(boot.header);
 }

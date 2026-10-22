@@ -85,6 +85,12 @@ un bottone **Aggiorna ora** che installa tutto (fetch + `git merge --ff-only` + 
 dopo un tuo clic. Il consenso è sempre chiesto: niente aggiornamenti silenziosi,
 e il save in `data/` resta fuori dal repo, quindi l'installazione tocca solo codice.
 
+La lingua si sceglie in Impostazioni (Italiano / English): la scelta resta nel
+browser e la pagina si ricarica da sola. Un testo senza traduzione disponibile
+mostra l'italiano, mai il vuoto. Menu, banda Aggiornamenti e chip header sono già
+bilingui; le viste si traducono al giro in cui si toccano, con la regola "pigra"
+di NOTE-AUTOMAZIONE.md; l'infrastruttura vive in `gui/js/lang.js`.
+
 ### Live: verifica automatica della gara (memoria condivisa)
 
 Il tool legge i tre blocchi di **memoria condivisa ufficiale** di EVO (`Local\acevo_pmf_*`, sola
