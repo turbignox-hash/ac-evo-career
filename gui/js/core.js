@@ -21,6 +21,35 @@ function toast(text, kind='') {
   setTimeout(() => t.remove(), kind === 'err' ? 8000 : 4200);
 }
 
+/* ===================== barra aggiornamenti da GitHub =====================
+   aparece solo se il remote offsite e' IN AVANTI del disco: "Aggiorna ora"
+   porta giu' il codice (fetch + merge --ff-only) e gira i test. Il save
+   carriera non entra nel repo: non si tocca mai. */
+async function drawAggBar(agg){
+  const host = $('#aggbar');
+  if (!host) return;
+  const a = agg ?? await (async () => { try { return await api('agg-info'); } catch { return { skip: true }; } })();
+  if (!a || a.skip || a.diverged || !(a.remotoAvanti > 0)) { host.innerHTML = ''; return; }
+  host.innerHTML = `<div class="banner warn" style="margin:10px 0 2px">
+    ↑ <b>Ci sono ${a.remotoAvanti} aggiornamenti di progetto su GitHub.</b>
+    <span class="muted" style="font-size:12px">si aggiorna solo il codice: il tuo save non si tocca.</span>
+    <button class="mini" id="agg-now" style="margin-left:10px">Aggiorna ora</button>
+    <button class="link" id="agg-later" style="margin-left:6px">più tardi</button></div>`;
+  $('#agg-now', host).onclick = async () => {
+    const b = $('#agg-now', host);
+    b.disabled = true; b.textContent = 'Aggiorno...';
+    try {
+      const r = await api('agg-install');
+      if (r.ok && r.nessuno) toast('Nessun aggiornamento mancante.', 'ok');
+      else if (r.ok && r.testOk === false) toast('Aggiornato a ' + (r.hash ?? '?') + ', ma npm test è FALLITO: guarda la console.', 'err');
+      else if (r.ok) toast('Aggiornato a ' + (r.hash ?? '?') + ' — test passati. Riavvia il launcher per il codice nuovo.', 'ok');
+      else toast(r.messaggio ?? 'Aggiornamento non riuscito.', 'err');
+      drawAggBar(); // fresh via agg-info: la barra scompare se tutto combacia
+    } catch (e) { toast(e.message, 'err'); b.disabled = false; b.textContent = 'Aggiorna ora'; }
+  };
+  $('#agg-later', host).onclick = () => { host.innerHTML = ''; };
+}
+
 function modal(title, bodyHtml, buttons){
   const root = $('#modal-root');
   root.innerHTML = `<div class="modal"><div class="mh">${esc(title)}<button class="x" aria-label="chiudi">×</button></div>
@@ -128,6 +157,7 @@ async function render(){
   if (window.__setupTimer) { clearInterval(window.__setupTimer); window.__setupTimer = null; }
   if (!boot.hasCareer) return drawOnboarding(m);
   paintHeader(boot.header);
+  drawAggBar(boot.aggiornamenti ?? null);
   m.innerHTML = '<div class="panel"><span class="spin"></span></div>';
   try {
   if (tab==='dashboard')  return await drawDashboard(m);

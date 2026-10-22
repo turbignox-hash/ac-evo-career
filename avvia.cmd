@@ -154,6 +154,8 @@ start "Carriera EVO — guardia" "%~dp0guarda.cmd"
 goto dopo
 
 :aprigui
+rem aggiornamenti: se GitHub e' avanti del disco, chiede s/N (Invio o 15s = no)
+node "%~dp0tools\aggiornamenti.mjs" --breve 2>nul
 rem avviso discreto: parla solo se il backup e' stantio o incompleto
 node "%~dp0tools\magazzino-check.mjs" --breve 2>nul
 start "Carriera EVO" /MIN "%~dp0gui-run.cmd"

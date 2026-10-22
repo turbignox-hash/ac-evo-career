@@ -41,6 +41,17 @@ import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
 import { parseSetup, applyEdits, listSetups, writeSetupCopy } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
 import { changeWeekendTrack, currentWeekendTrack, WEEKEND_FILE } from '../tools/set-track.mjs';
+import { statoAggiornamenti, installaAggiornamenti } from '../tools/aggiornamenti.mjs';
+
+// cache degli aggiornamenti per il boot: al massimo un giro (ls-remote) al minuto
+let AGG_CACHE = null, AGG_AT = 0;
+function aggMemo() {
+  if (!AGG_CACHE || Date.now() - AGG_AT > 60000) {
+    try { AGG_CACHE = statoAggiornamenti(); } catch { AGG_CACHE = { skip: true, motivo: 'controllo non riuscito.' }; }
+    AGG_AT = Date.now();
+  }
+  return AGG_CACHE;
+}
 import { currentWeatherPreset, setWeatherPreset, PRESETS, setWeatherCustom, presetForLabel } from './weather.mjs';
 import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
 import { sameTrack as trkSame, sameCar as carSame } from './tracknames.mjs';
@@ -366,9 +377,20 @@ async function api(context0, req, res, action, body) {
         header: state ? viewHeader(ladder, state) : null,
         setup: viewSetup(ladder, paths),
         gameRunning: await isGameRunning(),
+        // barra aggiornamenti: interrogiamo GitHub con cache (max un giro al minuto)
+        aggiornamenti: aggMemo(),
         // badge urgente sul menu Messaggi: email priorità alta della posta del pilota
         mailUrgent: state ? mailbox(ladder, state).mails.filter((m) => m.priorita === 'urgente').length : 0,
       });
+    }
+    case 'agg-info': {
+      // fresh ogni volta: il client lo ripete dopo un'installazione
+      return sendJson(res, 200, statoAggiornamenti());
+    }
+    case 'agg-install': {
+      // l'utente ha cliccato "Aggiorna ora": il consenso è già dato per definizione
+      try { return sendJson(res, 200, installaAggiornamenti()); }
+      catch (e) { return sendJson(res, 200, { ok: false, messaggio: String(e.message ?? e) }); }
     }
     case 'agenda-sign-preview': {
       // ANTICIPO CONFLITTI alla firma: come cadrebbe il calendario della nuova serie
