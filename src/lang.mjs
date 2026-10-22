@@ -18,7 +18,11 @@ export function applyLangConfig(stored) {
   return setLang(stored);
 }
 
-export const tr = (p) => (p && (p[lang()] ?? p.it)) ?? '';
+// Coppia usata appena prima del pushMessage: chi chiama tr() e subito pusha
+// in bacheca registra anche l'EN (messaggi bilingui nel save, il resto dati).
+let lastPair = null;
+export const takeLastPair = () => { const p = lastPair; lastPair = null; return p; };
+export const tr = (p) => { lastPair = p && typeof p === 'object' ? p : null; return (p && (p[lang()] ?? p.it)) ?? ''; };
 
 /* ------------------------------------------------------------------ */
 /* localizzazione della scala carriera                                 */

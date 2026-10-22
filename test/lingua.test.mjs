@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TRACK_INFO } from '../src/tracks.mjs';
 import { MEM_TEMPLATES, RELATIONS, RELATIONS_EN, RANKS } from '../src/memories.mjs';
-import { PIANI_EN } from '../src/webui-views.mjs';
+import { PIANI_EN, legacyMessageEn } from '../src/webui-views.mjs';
 import { PIANI } from '../src/orario.mjs';
 import { THEMES } from '../src/events.mjs';
 
@@ -75,4 +75,31 @@ test('THEMES: ogni evento speciale ha nameEn diversa dall’italiano', () => {
     assert.equal(typeof t.nameEn, 'string', `nameEn manca su ${t.id}`);
     assert.notEqual(t.nameEn, t.name, `nameEn = name (traduzione mancante) su ${t.id}`);
   }
+});
+
+// I messaggi vecchi (in bacheca da save pre-bilingui) hanno formati fissi:
+// legacyMessageEn li rigenera in inglese. Ogni formato noto DEVE tradurre.
+test('legacyMessageEn: clausole sponsor e bollettini gara tradotti', () => {
+  const IT_EN = [
+    ['Contratto sponsor: prendi almeno il giro veloce nelle ultime 2 gare. Premio al rispetto: 500 €', 'Contract sponsor: get at least the fastest lap in the last 2 races. Reward for compliance: €500'],
+    ['Iscrizione Trofeo Sostenibile round 1 (-250).', 'Entry fee Trofeo Sostenibile round 1 (-250).'],
+    ['Stagione 3 in GT World chiusa in P2 con 84 punti.', 'Season 3 in GT World closed in P2 with 84 points.'],
+    ['CAMPIONE di GT World (stagione 3)! Bonus titolo +2500.', 'CHAMPION of GT World (season 3)! Title bonus +2500.'],
+    ['Formula Re · 2: ritiro · +0 premio (+0 sponsor) · +4 reputazione', 'Formula Re · 2: retired · +0 prize (+0 sponsor) · +4 reputation'],
+    ['Monza · Gara di apertura: P1 · +500 premio (+250 sponsor) · +8 reputazione', 'Monza · Gara di apertura: P1 · +500 prize (+250 sponsor) · +8 reputation'],
+    ['Monza · Gara di apertura: P1 +2.3" · giro veloce 1:23.456 · +500 premio (prova iconica) (+250 sponsor) · +8 reputazione', 'Monza · Gara di apertura: P1 +2.3" · fastest lap 1:23.456 · +500 prize (iconic race) (+250 sponsor) · +8 reputation'],
+    ['Nuovo miglior giro personale a Suzuka: 02:17.976 (Porsche 911 GT3 RS (992)).', 'New personal best lap at Suzuka: 02:17.976 (Porsche 911 GT3 RS (992)).'],
+    ['Missione sponsor centrata: podio entro il round 4 (+2400 da Officina Bruno).', 'Sponsor mission met: podium by round 4 (+2400 from Officina Bruno).'],
+    ['Scelta la gara del giorno: Roadster Challenge R2 (Mount Panorama).', 'Picked today\'s race: Roadster Challenge R2 (Mount Panorama).'],
+    ['Iscritto a Roadster Challenge: le sue gare partono sulla griglia del calendario da oggi.', 'Signed up for Roadster Challenge: its races start from today\'s calendar grid.'],
+    ['Difficoltà AI impostata su "fixed" (valore 93).', 'AI difficulty set to "fixed" (value 93).'],
+    ['Difficoltà EVO di Roadster Challenge impostata a consiglio automatico.', 'EVO difficulty of Roadster Challenge set to auto suggestion.'],
+    ['Difficoltà regolata a mano: trim -6 su Roadster Challenge.', 'Difficulty set by hand: trim -6 on Roadster Challenge.'],
+    ['Difficoltà di Roadster Challenge portata a trim -5 (P1 su 12 (atteso intorno a P6, scarto +5)): banda EVO ora 69–70%.', 'Difficulty of Roadster Challenge moved to trim -5 (P1 su 12 (atteso intorno a P6, scarto +5)): EVO band now 69–70%.'],
+    ['Modalità test attiva: tutte le gare a 3 giri (richiesta Mauro 19/10). Riattiva con: node ac-evo-career.mjs test-mode --off', 'Test mode active: all races at 3 laps (richiesta Mauro 19/10). Restore with: node ac-evo-career.mjs test-mode --off'],
+    ['Il Gran Finale dei Campioni: sei stato invitato a un evento speciale. Guarda il pannello Eventi nel Cruscotto.', 'Il Gran Finale dei Campioni: you have been invited to a special event. Check the Events panel on the Dashboard.'],
+    ['Default difficoltà: AI 94-95% su tutte le serie (modalità fissa, interna 93). È il tuo livello di gara dopo le due P1 a Mount Panorama e Suzuka.', 'Default difficulty: AI 94-95% on all series (fixed mode, internal 93). It\'s your race level after due P1 a Mount Panorama e Suzuka.'],
+    ['Carriera iniziata in Coppa 500. Soldi in tasca: 6000.', 'Career started in Coppa 500. Cash on hand: €6000.'],
+  ];
+  for (const [it, en] of IT_EN) assert.equal(legacyMessageEn(it), en, `traduzione EN mancante per: ${it}`);
 });

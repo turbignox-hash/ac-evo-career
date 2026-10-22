@@ -41,12 +41,14 @@ function clausePoolFor(node) {
   const rounds = node.calendar.length;
   const podio = Math.max(2, Math.round(size * 0.15));
   const top = Math.max(4, Math.round(size * 0.4));
+  // Clausola bilingue PER DATO: text è la lingua di nascita (italiano), textEn
+  // la controparte. La scelta della lingua avviene alla vista, mai qui.
   return [
-    { id: 'podiums', text: tr({ it: `chiudi almeno ${podio} gare sul podio`, en: `finish at least ${podio} races on the podium` }), target: podio, metric: 'podiums' },
-    { id: 'points', text: tr({ it: `totalizza almeno ${rounds * 14} punti in stagione`, en: `score at least ${rounds * 14} championship points in the season` }), target: rounds * 14, metric: 'points' },
-    { id: 'wins', text: tr({ it: `vinci almeno ${Math.max(1, Math.round(rounds / 4))} gare`, en: `win at least ${Math.max(1, Math.round(rounds / 4))} races` }), target: Math.max(1, Math.round(rounds / 4)), metric: 'wins' },
-    { id: 'nofirst3', text: tr({ it: 'nessun ritiro nelle prime 3 gare', en: 'no retirements in the first 3 races' }), target: 3, metric: 'nofirst3' },
-    { id: 'standings', text: tr({ it: `chiudi il campionato nei primi ${top}`, en: `close the championship in the top ${top}` }), target: top, metric: 'standings' },
+    { id: 'podiums', text: `chiudi almeno ${podio} gare sul podio`, textEn: `finish at least ${podio} races on the podium`, target: podio, metric: 'podiums' },
+    { id: 'points', text: `totalizza almeno ${rounds * 14} punti in stagione`, textEn: `score at least ${rounds * 14} championship points in the season`, target: rounds * 14, metric: 'points' },
+    { id: 'wins', text: `vinci almeno ${Math.max(1, Math.round(rounds / 4))} gare`, textEn: `win at least ${Math.max(1, Math.round(rounds / 4))} races`, target: Math.max(1, Math.round(rounds / 4)), metric: 'wins' },
+    { id: 'nofirst3', text: 'nessun ritiro nelle prime 3 gare', textEn: 'no retirements in the first 3 races', target: 3, metric: 'nofirst3' },
+    { id: 'standings', text: `chiudi il campionato nei primi ${top}`, textEn: `close the championship in the top ${top}`, target: top, metric: 'standings' },
   ];
 }
 
@@ -64,7 +66,9 @@ export function refreshContractTexts(ladder, state, node) {
   const pool = clausePoolFor(node);
   for (const cl of c.clauses) {
     const fresh = pool.find((p) => p.id === cl.id);
+    // migrazione una-tanto-via dei testi: la frase cambia, target/metrica no
     if (fresh && fresh.text !== cl.text) cl.text = fresh.text;
+    if (fresh && fresh.textEn != null && fresh.textEn !== cl.textEn) cl.textEn = fresh.textEn;
   }
 }
 
@@ -133,7 +137,7 @@ export function contractStatus(ladder, state) {
     const ok = cl.metric === 'nofirst3' ? cur === 0 : (cur != null && cur >= target);
     const progress = cl.metric === 'nofirst3' ? tr({ it: `${cur} ritiri (max 0)`, en: `${cur} retirements (max 0)` }) : tr({ it: `${cur ?? '—'}/${target ?? '—'}`, en: `${cur ?? '—'}/${target ?? '—'}` });
     const decided = cl.metric === 'nofirst3' ? (cur > 0 ? false : null) : null; // false = già persa
-    return { ...cl, text: fresh?.text ?? cl.text, progress, ok, decided };
+    return { ...cl, text: tr({ it: fresh?.text ?? cl.text, en: fresh?.textEn ?? cl.textEn ?? cl.text }), progress, ok, decided };
   });
   return { contract: c, rows, metrics: { podiums: m.podiums, wins: m.wins, points: m.points, rounds: m.rounds, roundsTotal: m.rounds, standingPos: m.standingPos } };
 }
@@ -146,7 +150,7 @@ export function settleContract(ladder, state, { recordFlows }) {
   const results = c.clauses.map((cl) => {
     const [cur, target] = clauseProgress(cl, m);
     const ok = cl.metric === 'nofirst3' ? cur === 0 : (cl.metric === 'standings' ? (m.standingPos != null && m.standingPos <= target) : cur >= target);
-    return { id: cl.id, text: cl.text, ok, progress: cl.metric === 'nofirst3' ? tr({ it: `${cur} ritiri`, en: `${cur} retirements` }) : tr({ it: `${cur ?? '—'} su ${target ?? '—'}`, en: `${cur ?? '—'} of ${target ?? '—'}` }) };
+    return { id: cl.id, text: tr({ it: cl.text, en: cl.textEn ?? cl.text }), textEn: cl.textEn ?? cl.text, ok, progress: cl.metric === 'nofirst3' ? tr({ it: `${cur} ritiri`, en: `${cur} retirements` }) : tr({ it: `${cur ?? '—'} su ${target ?? '—'}`, en: `${cur ?? '—'} of ${target ?? '—'}` }) };
   });
   const kept = results.filter((r) => r.ok).length;
   const success = kept === results.length;
@@ -157,8 +161,14 @@ export function settleContract(ladder, state, { recordFlows }) {
     state.money += paid;
   }
   const text = success
-    ? `Contratto ${c.display}: tutti gli obiettivi rispettati (${results.map((r) => r.text).join('; ')}). Premio contrattuale +${paid}.`
-    : `Contratto ${c.display}: obiettivi mancati (${results.filter((r) => !r.ok).map((r) => r.text).join('; ')}). Nessun premio contrattuale.`;
+    ? tr({
+        it: `Contratto ${c.display}: tutti gli obiettivi rispettati (${results.map((r) => r.text).join('; ')}). Premio contrattuale +${paid}.`,
+        en: `Contract ${c.display}: every objective met (${results.map((r) => r.textEn ?? r.text).join('; ')}). Contractual reward +${paid}.`,
+      })
+    : tr({
+        it: `Contratto ${c.display}: obiettivi mancati (${results.filter((r) => !r.ok).map((r) => r.text).join('; ')}). Nessun premio contrattuale.`,
+        en: `Contract ${c.display}: objectives missed (${results.filter((r) => !r.ok).map((r) => r.textEn ?? r.text).join('; ')}). No contractual reward.`,
+      });
   if (paid) recordFlows(state, [{ kind: 'contract', money: paid, reason: `premio contratto ${c.display} S${c.season}` }]);
   const L2 = ensureLife(state);
   L2.contractHistory = [{ season: c.season, display: c.display, verdict: c.verdict, payout: paid }, ...(L2.contractHistory ?? [])].slice(0, 12);
@@ -195,6 +205,7 @@ export function sponsorOffers(ladder, state) {
     deadlineRound: t.deadline,
     target: 'podio',
     note: `${t.perRace} € a gara in stagione + ${t.bonus} € se sali sul podio entro il round ${t.deadline}`,
+    noteEn: `€${t.perRace} per race in the season + €${t.bonus} if you podium by round ${t.deadline}`,
     series: node.display,
   }];
 }

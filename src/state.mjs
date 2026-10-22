@@ -18,6 +18,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createWorld, gridFor, finishOrder, evolveWorld, pointsFor, pointsForPos, skillToEvoSlider, clamp } from './world.mjs';
 import { recordFlows } from './flows.mjs';
+import { takeLastPair, tr } from './lang.mjs';
 import { ensureLife, ensureContract, settleContract, sponsorFor, sigilDefs, checkSigils } from './life.mjs';
 import { assignNextMemory, checkMemoryProgress, raceCrowdFor } from './memories.mjs';
 import { publishNotice } from './gazzetta.mjs';
@@ -444,7 +445,7 @@ export function enterNode(ladder, state, node, { buy = false, force = false } = 
   if (state.round >= node.calendar.length) state.round = 0;
   // contratto di stagione: tre clausole con premio finale (uno per stagione+serie)
   const contract = ensureContract(ladder, state, node);
-  if (contract) pushMessage(state, `Contratto ${node.display}: ${contract.clauses.map((c) => c.text).join('; ')}. Premio al rispetto: ${contract.payout} €`, 'info');
+  if (contract) pushMessage(state, tr({ it: `Contratto ${node.display}: ${contract.clauses.map((c) => c.text).join('; ')}. Premio al rispetto: ${contract.payout} €`, en: `Contract ${node.display}: ${contract.clauses.map((c) => c.textEn ?? c.text).join('; ')}. Reward for compliance: ${contract.payout} €` }), 'info');
   return state;
 }
 
@@ -607,7 +608,10 @@ export function applyRaceResult(ladder, state, node, payload) {
       const rec = s.bestLaps[track];
       if (!rec || lapTimeMs(bestLap) < lapTimeMs(rec.time)) {
         s.bestLaps[track] = { time: bestLap, car, season: state.season, round, node: node.nodeId, at };
-        pushMessage(state, `Nuovo miglior giro personale a ${track}: ${bestLap} (${car ?? 'auto n/d'}).`, 'good');
+        pushMessage(state, tr({
+          it: `Nuovo miglior giro personale a ${track}: ${bestLap} (${car ?? 'auto n/d'}).`,
+          en: `New personal best lap at ${track}: ${bestLap} (${car ?? 'car n/a'}).`,
+        }), 'good');
       }
     }
   }
@@ -628,7 +632,10 @@ export function applyRaceResult(ladder, state, node, payload) {
       sponsorTotal += sp.bonus;
       sp.missionDone = true;
       recordFlows(state, [{ kind: 'bonus', money: sp.bonus, reason: `${sp.name} — missione podio entro il round ${sp.deadlineRound + 1}` }]);
-      pushMessage(state, `Missione sponsor centrata: podio entro il round ${sp.deadlineRound + 1} (+${sp.bonus} da ${sp.name}).`, 'money');
+      pushMessage(state, tr({
+        it: `Missione sponsor centrata: podio entro il round ${sp.deadlineRound + 1} (+${sp.bonus} da ${sp.name}).`,
+        en: `Sponsor mission met: podium by round ${sp.deadlineRound + 1} (+${sp.bonus} from ${sp.name}).`,
+      }), 'money');
     }
   }
 
@@ -661,7 +668,10 @@ export function applyRaceResult(ladder, state, node, payload) {
   const gapText = !dnf && Number.isFinite(gapMs) && gapMs != null && gapMs > 0
     ? (gapMs >= 60000 ? `+${Math.floor(gapMs / 60000)}'${String(Math.round((gapMs % 60000) / 1000)).padStart(2, '0')}"` : `+${(gapMs / 1000).toFixed(1)}"`)
     : null;
-  pushMessage(state, `${node.display} · ${node.calendar[round]?.name ?? 'Round ' + (round + 1)}: ${dnf ? 'ritiro' : 'P' + position}${gapText ? ' ' + gapText : ''}${fl && bestLap ? ` · giro veloce ${bestLap}` : ''} · +${prize} premio${iconicRound ? ' (prova iconica)' : ''} (+${sponsorTotal} sponsor) · +${rep} reputazione`, dnf ? 'bad' : position <= 3 ? 'good' : 'info');
+  pushMessage(state, tr({
+    it: `${node.display} · ${node.calendar[round]?.name ?? 'Round ' + (round + 1)}: ${dnf ? 'ritiro' : 'P' + position}${gapText ? ' ' + gapText : ''}${fl && bestLap ? ` · giro veloce ${bestLap}` : ''} · +${prize} premio${iconicRound ? ' (prova iconica)' : ''} (+${sponsorTotal} sponsor) · +${rep} reputazione`,
+    en: `${node.display} · ${node.calendar[round]?.name ?? 'Round ' + (round + 1)}: ${dnf ? 'retired' : 'P' + position}${gapText ? ' ' + gapText : ''}${fl && bestLap ? ` · fastest lap ${bestLap}` : ''} · +${prize} prize${iconicRound ? ' (iconic race)' : ''} (+${sponsorTotal} sponsor) · +${rep} reputation`,
+  }), dnf ? 'bad' : position <= 3 ? 'good' : 'info');
 
   const proposal = proposeDifficulty(ladder, state, node, dnf ? gridSize : position, gridSize);
   // memoria di famiglia in corso: la gara sta contando per l'impresa dell'antenato?
@@ -685,9 +695,9 @@ export function seasonEnd(ladder, state) {
     state.championships[node.nodeId].push(state.season);
     state.titles.push({ season: state.season, node: node.nodeId, display: node.display });
     state.money += bonus;
-    pushMessage(state, `CAMPIONE di ${node.display} (stagione ${state.season})! Bonus titolo +${bonus}.`, 'title');
+    pushMessage(state, tr({ it: `CAMPIONE di ${node.display} (stagione ${state.season})! Bonus titolo +${bonus}.`, en: `CHAMPION of ${node.display} (season ${state.season})! Title bonus +${bonus}.` }), 'title');
   } else {
-    pushMessage(state, `Stagione ${state.season} in ${node.display} chiusa in P${me.position} con ${me.points} punti.`, 'info');
+    pushMessage(state, tr({ it: `Stagione ${state.season} in ${node.display} chiusa in P${me.position} con ${me.points} punti.`, en: `Season ${state.season} in ${node.display} closed in P${me.position} with ${me.points} points.` }), 'info');
   }
   state.seasons.push({ season: state.season, node: node.nodeId, position: me.position, points: me.points, champion });
 
@@ -797,7 +807,16 @@ export function postRaceEffects(ladder, state, node) {
 /* ------------------------------------------------------------------ */
 
 export function pushMessage(state, text, kind = 'info') {
-  state.messages.push({ at: new Date().toISOString(), kind, text });
+  // Messaggio bilingue: se il testo viene da tr({it,en}), la coppia è consumata
+  // da takeLastPair (lang.mjs). Guardia di combacenza: la coppia vale solo se
+  // uno dei due lati è proprio il testo passato (niente coppie stantie di altro).
+  const m = { at: new Date().toISOString(), kind, text };
+  const pair = takeLastPair();
+  if (pair && typeof pair.it === 'string' && (pair.it === text || pair.en === text)) {
+    m.text = pair.it; // la lingua di nascita nel save resta l'italiano
+    if (pair.en != null && pair.en !== pair.it) m.textEn = pair.en;
+  }
+  state.messages.push(m);
   if (state.messages.length > 60) state.messages = state.messages.slice(-60);
 }
 

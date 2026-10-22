@@ -309,7 +309,7 @@ export function chargeEntry(ladder, state, node) {
   // contratto di stagione garantito anche per la prima serie (createCareer non passa da enterNode)
   const contract = ensureContract(ladder, state, node);
   refreshContractTexts(ladder, state, node);
-  if (contract) pushMessage(state, tr({ it: `Contratto ${node.display}: ${contract.clauses.map((c) => c.text).join('; ')}. Premio al rispetto: ${contract.payout} €`, en: `Contract ${node.display}: ${contract.clauses.map((c) => c.text).join('; ')}. Reward for compliance: ${contract.payout} €` }), 'info');
+  if (contract) pushMessage(state, tr({ it: `Contratto ${node.display}: ${contract.clauses.map((c) => c.text).join('; ')}. Premio al rispetto: ${contract.payout} €`, en: `Contract ${node.display}: ${contract.clauses.map((c) => c.textEn ?? c.text).join('; ')}. Reward for compliance: ${contract.payout} €` }), 'info');
   const fee = entryFee(node);
   const round = state.round;
   const already = (state.results[node.nodeId] ?? []).some((r) => r.season === state.season && r.round === round);

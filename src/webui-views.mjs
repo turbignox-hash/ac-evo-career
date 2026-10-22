@@ -104,7 +104,7 @@ function viewStatus(ladder, state) {
       round: r.round + 1, track: trackName(ladder, r.track),
       dnf: r.dnf, position: r.position, points: r.points, prize: r.prize, fl: r.fl,
     })),
-    messages: (state.messages ?? []).slice(-12).reverse(),
+    messages: (state.messages ?? []).slice(-12).reverse().map(messageForLang),
   };
 }
 
@@ -163,10 +163,90 @@ function viewStandings(ladder, state) {
   };
 }
 
+/** Messaggi nati prima del doppio linguaggio: restano italiani nel save, ma
+ *  i template deterministici si rigenerano in EN alla vista: la firma dello
+ *  sponsor e gli annunci di contratto di stagione (i formati sono fissi). */
+const LEGACY_CLAUSE_EN = [
+  [/chiudi almeno (\d+) gare sul podio/g, (n) => `finish at least ${n} races on the podium`],
+  [/totalizza almeno (\d+) punti in stagione/g, (n) => `score at least ${n} championship points in the season`],
+  [/vinci almeno (\d+) gare/g, (n) => `win at least ${n} races`],
+  [/prendi almeno il giro veloce nelle ultime (\d+) gare/g, (n) => `get at least the fastest lap in the last ${n} races`],
+  [/nessun ritiro nelle prime 3 gare/g, () => 'no retirements in the first 3 races'],
+  [/chiudi il campionato nei primi (\d+)/g, (n) => `close the championship in the top ${n}`],
+];
+function LegacyContractPhrasesEn(text) {
+  let out = String(text ?? '');
+  for (const [re, fn] of LEGACY_CLAUSE_EN) out = out.replace(re, (_, n) => fn(n));
+  return out;
+}
+function legacyMessageEn(text) {
+  const k = String(text ?? '');
+  let m = k.match(/^Contratto sponsor firmato: (.+)\. (.+)\.$/);
+  if (m) return `Sponsor contract signed: ${m[1]}. ` + LegacyContractPhrasesEn(m[2].replace(/(\d+) € a gara in stagione \+ (\d+) € se sali sul podio entro il round (\d+)/, '€$1 per race in the season + €$2 if you podium by round $3')) + '.';
+  m = k.match(/^Contratto (.+): tutti gli obiettivi rispettati \((.+)\)\. Premio contrattuale \+(\d+)\.$/);
+  if (m) return `Contract ${m[1]}: every objective met (${LegacyContractPhrasesEn(m[2])}). Contractual reward +${m[3]}.`;
+  m = k.match(/^Contratto (.+): obiettivi mancati \((.+)\)\. Nessun premio contrattuale\.$/);
+  if (m) return `Contract ${m[1]}: objectives missed (${LegacyContractPhrasesEn(m[2])}). No contractual reward.`;
+  m = k.match(/^Contratto (.+): (.+)\. Premio al rispetto: (\d+) €$/);
+  if (m) return `Contract ${m[1]}: ${LegacyContractPhrasesEn(m[2])}. Reward for compliance: €${m[3]}`;
+  m = k.match(/^(.+?) · (.+?): (ritiro|P\d+)(.*?) · \+(\d+) premio( \(prova iconica\))? \(\+(\d+) sponsor\) · \+(\d+) reputazione$/);
+  if (m) return `${m[1]} · ${m[2]}: ${m[3] === 'ritiro' ? 'retired' : m[3]}${String(m[4] ?? '').replace('giro veloce', 'fastest lap')} · +${m[5]} prize${m[6] ? ' (iconic race)' : ''} (+${m[7]} sponsor) · +${m[8]} reputation`;
+  m = k.match(/^Iscrizione (.+) round (\d+) \(-(\d+)\)\.$/);
+  if (m) return `Entry fee ${m[1]} round ${m[2]} (-${m[3]}).`;
+  m = k.match(/^Stagione (\d+) in (.+) chiusa in P(\d+) con (\d+) punti\.$/);
+  if (m) return `Season ${m[1]} in ${m[2]} closed in P${m[3]} with ${m[4]} points.`;
+  m = k.match(/^CAMPIONE di (.+) \(stagione (\d+)\)! Bonus titolo \+(\d+)\.$/);
+  if (m) return `CHAMPION of ${m[1]} (season ${m[2]})! Title bonus +${m[3]}.`;
+  m = k.match(/^Carriera iniziata in (.+)\. Soldi in tasca: (\d+)\.$/);
+  if (m) return `Career started in ${m[1]}. Cash on hand: €${m[2]}.`;
+  m = k.match(/^Nuovo miglior giro personale a (.+): (\S+) \((.+)\)\.$/);
+  if (m) return `New personal best lap at ${m[1]}: ${m[2]} (${m[3]}).`;
+  m = k.match(/^Missione sponsor centrata: podio entro il round (\d+) \(\+(\d+) da (.+)\)\.$/);
+  if (m) return `Sponsor mission met: podium by round ${m[1]} (+${m[2]} from ${m[3]}).`;
+  m = k.match(/^Scelta la gara del giorno: (.+) R(\d+) \((.+)\)\.$/);
+  if (m) return `Picked today's race: ${m[1]} R${m[2]} (${m[3]}).`;
+  m = k.match(/^Iscritto a (.+?): le sue gare partono sulla griglia del calendario da oggi\.$/);
+  if (m) return `Signed up for ${m[1]}: its races start from today's calendar grid.`;
+  m = k.match(/^Difficoltà EVO di (.+) impostata a consiglio automatico\.$/);
+  if (m) return `EVO difficulty of ${m[1]} set to auto suggestion.`;
+  m = k.match(/^Difficoltà EVO di (.+) impostata a ([\d?]+–[\d?]+%)\.$/);
+  if (m) return `EVO difficulty of ${m[1]} set to ${m[2]}.`;
+  m = k.match(/^Difficoltà regolata a mano: trim ([+-]?\d+) su (.+)\.$/);
+  if (m) return `Difficulty set by hand: trim ${m[1]} on ${m[2]}.`;
+  m = k.match(/^Difficoltà di (.+) portata a trim ([+-]?\d+) \((.+)\): banda EVO ora ([\d?]+–[\d?]+%)\.$/);
+  if (m) return `Difficulty of ${m[1]} moved to trim ${m[2]} (${m[3]}): EVO band now ${m[4]}.`;
+  m = k.match(/^Modalità test attiva: tutte le gare a (\d+) giri \((.+)\)\. Riattiva con: (.+)$/);
+  if (m) return `Test mode active: all races at ${m[1]} laps (${m[2]}). Restore with: ${m[3]}`;
+  m = k.match(/^Difficoltà AI impostata su \"(.+)\"(?: \(valore (\d+)\))?\.$/);
+  if (m) return `AI difficulty set to "${m[1]}"${m[2] ? ` (value ${m[2]})` : ''}.`;
+  m = k.match(/^(.+): sei stato invitato a un evento speciale\. Guarda il pannello Eventi nel Cruscotto\.$/);
+  if (m) return `${m[1]}: you have been invited to a special event. Check the Events panel on the Dashboard.`;
+  m = k.match(/^Default difficoltà: AI ([\d-]+)% su tutte le serie \(modalità fissa, interna (\d+)\)\. È il tuo livello di gara dopo (la|le) (.+)\.$/);
+  if (m) return `Default difficulty: AI ${m[1]}% on all series (fixed mode, internal ${m[2]}). It's your race level after ${m[4]}.`;
+  m = k.match(/^Default difficoltà: AI ([\d-]+)% su tutte le serie \(modalità fissa, interna (\d+)\)\.$/);
+  if (m) return `Default difficulty: AI ${m[1]}% on all series (fixed mode, internal ${m[2]}).`;
+  return null;
+}
+
+/** Un messaggio del save nella lingua attiva: i bilingui (text, textEn)>
+ *  prendono il testo della lingua; i vecchi monolingui passano da
+ *  legacyMessageEn (template deterministici rigenerabili) e restano invariati
+ *  se il formato non è noto. */
+function messageForLang(m) {
+  const raw = typeof m === 'string' ? { text: m } : { ...m };
+  const it = typeof raw.text === 'string' ? raw.text : '';
+  if (raw.textEn) { raw.text = tr({ it, en: raw.textEn }); return raw; }
+  const en = legacyMessageEn(it);
+  if (en) raw.text = tr({ it, en });
+  return raw;
+}
+
 function viewMessages(ladder, state) {
   return {
     mailbox: mailbox(ladder, state),
-    messages: (state.messages ?? []).slice(-20).reverse(),
+    // bacheca nella lingua attiva: i messaggi nuovi portano textEn, i vecchi
+    // restano quelli di nascita (salvo i template deterministici, rigenerabili)
+    messages: (state.messages ?? []).slice(-20).reverse().map(messageForLang),
     offers: (state.offers ?? []).map((o) => {
       // ogni offerta porta con se la scheda completa della serie: si apre dal Messaggi
       const detail = (() => { try { return seriesNodeView(ladder, state, nodeById(ladder, o.nodeId)); } catch { return null; } })();
@@ -218,7 +298,16 @@ function viewCard(ladder, state, car = null) {
     carAdvice: card.carAdvice,
     outlook: card.outlook,
     challenge: card.challenge ?? null,
-    pendingNudge: state.pendingNudge ?? null,
+    // il nudge "serie troppo facile" porta nel save la ragione in italiano:
+    // i formati sono fissi (import.mjs), li rimappiamo alla lingua attiva
+    pendingNudge: (() => {
+      const n = state.pendingNudge;
+      if (!n) return null;
+      let reason = n.reason ?? '';
+      const m = String(reason).match(/^vittoria con (\d+)s di margine sulla P2$/);
+      if (m) reason = tr({ it: reason, en: `win with a ${m[1]}s gap on P2` });
+      return { ...n, reason };
+    })(),
     // il "Suggerimento in attesa" del trim adattivo (pagina Difficoltà) proposto anche qui
     pendingProposal: state.difficulty?.pending ?? null,
     heritageActive: (() => {
@@ -402,4 +491,4 @@ function viewSetup(ladder, paths = null) {
 
 }
 
-export { viewStatus, seriesNodeView, viewCalendar, viewStandings, viewMessages, viewCard, viewDifficulty, viewSetup };
+export { viewStatus, seriesNodeView, viewCalendar, viewStandings, viewMessages, viewCard, viewDifficulty, viewSetup, legacyMessageEn };

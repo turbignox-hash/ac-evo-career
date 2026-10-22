@@ -953,9 +953,15 @@ async function api(context0, req, res, action, body) {
           for (const r of results) if (Number(r.season) > last) last = Number(r.season);
           const seatSeason = (last && results.filter((r) => Number(r.season) === last).length < g.node.calendar.length) ? last : state.season;
           state.seats[id] = { day: day0, season: seatSeason };
-          pushMessage(state, `Iscritto a ${g.node.display}: le sue gare partono sulla griglia del calendario da oggi.`, 'info');
+          pushMessage(state, tr({
+            it: `Iscritto a ${g.node.display}: le sue gare partono sulla griglia del calendario da oggi.`,
+            en: `Signed up for ${g.node.display}: its races start from today's calendar grid.`,
+          }), 'info');
         }
-        pushMessage(state, `Scelta la gara del giorno: ${g.node.display} R${g.index + 1} (${g.track}).`, 'info');
+        pushMessage(state, tr({
+          it: `Scelta la gara del giorno: ${g.node.display} R${g.index + 1} (${g.track}).`,
+          en: `Picked today's race: ${g.node.display} R${g.index + 1} (${g.track}).`,
+        }), 'info');
       }
       recordChoice(state, day0, id);
       persist(state);
@@ -980,7 +986,7 @@ async function api(context0, req, res, action, body) {
               const p = String(card.outlook.lapTarget.car).trim().split(/\s+/);
               if (p.length >= 2 && p[0].toLowerCase() === p[1].toLowerCase()) card.outlook.lapTarget.car = p.slice(1).join(' ');
             }
-            if (row.info) card.outlook.trackInfo = { nick: row.info.nick, country: row.info.country, lengthKm: row.info.lengthKm, corners: row.info.corners, opened: row.info.opened, history: row.info.history, fullName: row.info.fullName, outline: row.info.outline ?? null, map: row.info.map ?? null };
+            if (row.info) card.outlook.trackInfo = { nick: row.info.nick, nickEn: row.info.nickEn ?? null, country: row.info.country, countryEn: row.info.countryEn ?? null, lengthKm: row.info.lengthKm, corners: row.info.corners, opened: row.info.opened, history: row.info.history, historyEn: row.info.historyEn ?? null, fullName: row.info.fullName, outline: row.info.outline ?? null, map: row.info.map ?? null };
           }
         }
       } catch { /* il libro delle piste non deve mai rompere la card */ }
@@ -1241,7 +1247,10 @@ async function api(context0, req, res, action, body) {
           d.trim = {};
         }
         if (body.mode === 'adaptive') { d.base = {}; d.pending = null; }
-        pushMessage(state, `Difficoltà AI impostata su "${body.mode}"${body.value ? ` (valore ${body.value})` : ''}.`, 'info');
+        pushMessage(state, tr({
+          it: `Difficoltà AI impostata su "${body.mode}"${body.value ? ` (valore ${body.value})` : ''}.`,
+          en: `AI difficulty set to "${body.mode}"${body.value ? ` (value ${body.value})` : ''}.`,
+        }), 'info');
       } else if (body.op === 'lock' || body.op === 'unlock') {
         nodeById(ladder, String(body.nodeId));
         const list = new Set(d.locked);
@@ -1260,7 +1269,10 @@ async function api(context0, req, res, action, body) {
           ((state.raceSettings ??= {})[node.nodeId] ??= {}).sliderMin = lo;
           state.raceSettings[node.nodeId].sliderMax = hi;
         }
-        pushMessage(state, `Difficoltà EVO di ${node.display} impostata a ${body.clear ? 'consiglio automatico' : (state.raceSettings[node.nodeId]?.sliderMin ?? '?') + '–' + (state.raceSettings[node.nodeId]?.sliderMax ?? '?') + '%'}.`, 'info');
+        pushMessage(state, tr({
+          it: `Difficoltà EVO di ${node.display} impostata a ${body.clear ? 'consiglio automatico' : (state.raceSettings[node.nodeId]?.sliderMin ?? '?') + '–' + (state.raceSettings[node.nodeId]?.sliderMax ?? '?') + '%'}.`,
+          en: `EVO difficulty of ${node.display} set to ${body.clear ? 'auto suggestion' : (state.raceSettings[node.nodeId]?.sliderMin ?? '?') + '–' + (state.raceSettings[node.nodeId]?.sliderMax ?? '?') + '%'}.`,
+        }), 'info');
       } else if (body.op === 'trim') {
         const val = Math.max(-20, Math.min(20, Math.round(Number(body.value ?? 0))));
         if (!Number.isFinite(val)) return sendJson(res, 400, { error: 'Il trim vuole un numero fra -20 e +20.' });
@@ -1281,7 +1293,10 @@ async function api(context0, req, res, action, body) {
           S.sliderMax = Math.max(S.sliderMin, Math.min(100, (S.sliderMax ?? Math.round((state.raceSettings[t]?.sliderMax ?? 93))) + shift));
         }
         d.pending = null;
-        pushMessage(state, `Difficoltà regolata a mano: trim ${val >= 0 ? '+' : ''}${val} su ${body.nodeId === 'all' ? 'tutte le serie' : nodeById(ladder, String(body.nodeId ?? state.node)).display}.`, 'info');
+        pushMessage(state, tr({
+          it: `Difficoltà regolata a mano: trim ${val >= 0 ? '+' : ''}${val} su ${body.nodeId === 'all' ? 'tutte le serie' : nodeById(ladder, String(body.nodeId ?? state.node)).display}.`,
+          en: `Difficulty set by hand: trim ${val >= 0 ? '+' : ''}${val} on ${body.nodeId === 'all' ? 'all series' : nodeById(ladder, String(body.nodeId ?? state.node)).display}.`,
+        }), 'info');
       } else if (body.op === 'accept' || body.op === 'reject') {
         const p = d.pending;
         if (!p) return sendJson(res, 400, { error: tr({ it: 'Nessun suggerimento in attesa.', en: 'No pending suggestion.' }) });
@@ -1296,7 +1311,10 @@ async function api(context0, req, res, action, body) {
             S.sliderMin = Math.max(0, Math.min(100, (S.sliderMin ?? 88) + shift));
             S.sliderMax = Math.max(S.sliderMin, Math.min(100, (S.sliderMax ?? 93) + shift));
           }
-          pushMessage(state, `Difficoltà di ${nodeById(ladder, p.nodeId).display} portata a trim ${p.to >= 0 ? '+' : ''}${p.to} (${p.reason}): banda EVO ora ${state.raceSettings[p.nodeId]?.sliderMin ?? '?'}–${state.raceSettings[p.nodeId]?.sliderMax ?? '?'}%.`, 'info');
+          pushMessage(state, tr({
+            it: `Difficoltà di ${nodeById(ladder, p.nodeId).display} portata a trim ${p.to >= 0 ? '+' : ''}${p.to} (${p.reason}): banda EVO ora ${state.raceSettings[p.nodeId]?.sliderMin ?? '?'}–${state.raceSettings[p.nodeId]?.sliderMax ?? '?'}%.`,
+            en: `Difficulty of ${nodeById(ladder, p.nodeId).display} moved to trim ${p.to >= 0 ? '+' : ''}${p.to} (${p.reason}): EVO band now ${state.raceSettings[p.nodeId]?.sliderMin ?? '?'}–${state.raceSettings[p.nodeId]?.sliderMax ?? '?'}%.`,
+          }), 'info');
         }
         d.pending = null;
       } else {
@@ -1801,7 +1819,7 @@ async function api(context0, req, res, action, body) {
       const offer = list.find((o) => o.tier === wanted) ?? list[list.length - 1];
       if (!offer) return sendJson(res, 400, { error: tr({ it: 'Nessuna offerta di sponsor disponibile.', en: 'No sponsor offer available.' }) });
       acceptSponsor(state, offer);
-      pushMessage(state, `Contratto sponsor firmato: ${offer.name}. ${offer.note}.`, 'money');
+      pushMessage(state, tr({ it: `Contratto sponsor firmato: ${offer.name}. ${offer.note}.`, en: `Sponsor contract signed: ${offer.name}. ${offer.noteEn ?? offer.note}.` }), 'money');
       persist(state);
       return sendJson(res, 200, { ok: true, header: viewHeader(ladder, state) });
     }

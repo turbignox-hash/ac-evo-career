@@ -531,23 +531,23 @@ async function drawLiveStrip(){
          Con liveMode 'off' (disattivato a mano) il chip diventa il COMANDO. */
       if (r.liveMode === 'off'){
         host.className = 'chip';
-        host.innerHTML = '<span class="dot"></span> Live spento · <b data-live-on style="cursor:pointer;text-decoration:underline">attiva</b>';
-        host.title = 'Telemetria live disattivata a mano: niente strip in pista, verifica di gara LIVE e import automatico dei risultati (importa a mano da Centro gare). «attiva» la rimette in AUTO: riparte da sola quando apri EVO. Sopra restano valide: il chip GIOCO segue il processo del gioco.';
+        host.innerHTML = `<span class="dot"></span> ${tr({ it: 'Live spento · ', en: 'Live off · ' })}<b data-live-on style="cursor:pointer;text-decoration:underline">${tr({ it: 'attiva', en: 'enable' })}</b>`;
+        host.title = tr({ it: 'Telemetria live disattivata a mano: niente strip in pista, verifica di gara LIVE e import automatico dei risultati (importa a mano da Centro gare). «attiva» la rimette in AUTO: riparte da sola quando apri EVO. Sopra restano valide: il chip GIOCO segue il processo del gioco.', en: 'Live telemetry switched off by hand: no on-track strip, no LIVE race check and no automatic result import (import by hand from Race centre). "enable" puts it back to AUTO: it starts by itself when you open EVO. Above still true: the GAME chip follows the game process.' });
         return;
       }
       const age = Date.now() - (h?.telem?.lastLd?.mtimeMs ?? 0);
-      const ultima = h?.telem?.lastLd ? new Date(h.telem.lastLd.mtimeMs).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : null;
-      const label = r.stale ? 'EVO · segnale live perso'
-        : (h?.telem?.lastLd?.valid && age < 10000 ? 'EVO · sessione chiusa — scrittura telemetria'
-        : (ultima ? `EVO chiuso · telem. ore ${ultima}` : 'EVO chiuso'));
+      const ultima = h?.telem?.lastLd ? new Date(h.telem.lastLd.mtimeMs).toLocaleTimeString(window.LINGUA === 'en' ? 'en-GB' : 'it-IT', { hour: '2-digit', minute: '2-digit' }) : null;
+      const label = r.stale ? tr({ it: 'EVO · segnale live perso', en: 'EVO · live signal lost' })
+        : (h?.telem?.lastLd?.valid && age < 10000 ? tr({ it: 'EVO · sessione chiusa — scrittura telemetria', en: 'EVO · session closed — writing telemetry' })
+        : (ultima ? tr({ it: `EVO chiuso · telem. ore ${ultima}`, en: `EVO closed · telemetry ${ultima}` }) : tr({ it: 'EVO chiuso', en: 'EVO closed' })));
       host.innerHTML = `<span class="dot"></span> ${label}`; host.className = 'chip';
-      host.title = r.stale ? 'I dati live non si aggiornano da oltre 20s: se EVO è aperto, il lettore si ricicla da solo entro 30s.' : (ultima ? `Ultima telemetria scritta da EVO alle ${ultima}: quando riapri il gioco la scritta torna a seguire la sessione in diretta.` : '');
+      host.title = r.stale ? tr({ it: 'I dati live non si aggiornano da oltre 20s: se EVO è aperto, il lettore si ricicla da solo entro 30s.', en: 'Live data has not updated for over 20s: if EVO is open, the reader recycles itself within 30s.' }) : (ultima ? tr({ it: `Ultima telemetria scritta da EVO alle ${ultima}: quando riapri il gioco la scritta torna a seguire la sessione in diretta.`, en: `Last telemetry written by EVO at ${ultima}: when you reopen the game the strip follows the live session again.` }) : '');
       return;
     }
     const p = r.player;
-    if (!p || !r.live){ host.className = 'chip'; host.innerHTML = `<span class="dot on"></span> EVO aperto · ${esc(r.session?.type ?? '')}`; return; }
+    if (!p || !r.live){ host.className = 'chip'; host.innerHTML = `<span class="dot on"></span> ${tr({ it: 'EVO aperto', en: 'EVO open' })} · ${esc(r.session?.type ?? '')}`; return; }
     host.className = 'chip gold';
-    const rec = w?.armed ? ' · ⏺ registrazione' : '';
+    const rec = w?.armed ? tr({ it: ' · ⏺ registrazione', en: ' · ⏺ recording' }) : '';
     host.innerHTML = `<span class="dot on"></span> ${p.position ? 'P'+p.position+'/'+p.drivers : 'in pista'}${p.lapsTotal?` · giro ${p.lapNo ?? p.lapsDone+1}/${p.lapsTotal}`:''}${p.gapAhead?` · +${p.gapAhead.toFixed(1)}s`:''}${p.bestLap?` · best ${p.bestLap}`:''}${rec}`;
   } catch { host.className = 'chip'; }
 }
@@ -580,28 +580,28 @@ function drawMotecStrip(h){
   if (!ld){
     const anyDir = (h?.telem?.dirsState ?? []).some((d) => d.exists);
     host.className = 'chip';
-    host.innerHTML = '<span class="dot"></span> attesa EVO';
-    host.title = 'Nessun file .ld ancora: appena termini una sessione, EVO scrive la telemetria e l\'indicatore si accende. Ricorda: in EVO attiva la registrazione telemetria in Setup → Elettronica (e imposta i giri per la sessione) PRIMA di avviare la sessione.';
+    host.innerHTML = `<span class="dot"></span> ${tr({ it: 'attesa EVO', en: 'waiting for EVO' })}`;
+    host.title = tr({ it: 'Nessun file .ld ancora: appena termini una sessione, EVO scrive la telemetria e l\'indicatore si accende. Ricorda: in EVO attiva la registrazione telemetria in Setup → Elettronica (e imposta i giri per la sessione) PRIMA di avviare la sessione.', en: "No .ld file yet: as soon as you finish a session, EVO writes the telemetry and the indicator lights up. Remember: in EVO enable telemetry recording in Setup → Electronics (and set the laps for the session) BEFORE starting the session." });
     if (!anyDir) host.className = 'chip hidden';
     return;
   }
   const age = Date.now() - (ld.mtimeMs ?? 0);
   if (ld.valid && age < 10000){
     host.className = 'chip gold';
-    host.innerHTML = '<span class="dot rec"></span> ⏺ registra';
-    host.title = 'MoTeC sta registrando: ' + ld.car + (ld.track ? ' · ' + ld.track : '') + ' · aggiornato ' + ld.when + '. Ricorda: in EVO la registrazione va attivata in Setup → Elettronica e i giri impostati PRIMA di avviare la sessione.';
+    host.innerHTML = `<span class="dot rec"></span> ${tr({ it: '⏺ registra', en: '⏺ recording' })}`;
+    host.title = tr({ it: 'MoTeC sta registrando: ' + ld.car + (ld.track ? ' · ' + ld.track : '') + ' · aggiornato ' + ld.when + '. Ricorda: in EVO la registrazione va attivata in Setup → Elettronica e i giri impostati PRIMA di avviare la sessione.', en: "MoTeC is recording: " + ld.car + (ld.track ? ' · ' + ld.track : '') + ' · updated ' + ld.when + '. Remember: in EVO recording is enabled in Setup → Electronics and the laps are set BEFORE starting the session.' });
   } else if (ld.valid){
     host.className = 'chip green';
-    host.innerHTML = '<span class="dot on"></span> dati ok';
-    host.title = 'Ultimo file MoTeC con dati: ' + ld.car + (ld.track ? ' · ' + ld.track : '') + ' · ' + ld.when + '. Ricorda: in EVO attiva la registrazione telemetria in Setup → Elettronica (e imposta i giri) PRIMA di avviare la sessione.';
+    host.innerHTML = `<span class="dot on"></span> ${tr({ it: 'dati ok', en: 'data ok' })}`;
+    host.title = tr({ it: 'Ultimo file MoTeC con dati: ' + ld.car + (ld.track ? ' · ' + ld.track : '') + ' · ' + ld.when + '. Ricorda: in EVO attiva la registrazione telemetria in Setup → Elettronica (e imposta i giri) PRIMA di avviare la sessione.', en: "Last MoTeC file with data: " + ld.car + (ld.track ? ' · ' + ld.track : '') + ' · ' + ld.when + '. Remember: in EVO enable telemetry recording in Setup → Electronics (and set the laps) BEFORE starting the session.' });
   } else if (age < 10000){
     host.className = 'chip red';
-    host.innerHTML = '<span class="dot rec"></span> scrive vuoto!';
-    host.title = 'EVO sta scrivendo il file ma è vuoto: la telemetria non era attiva in EVO (' + ld.car + (ld.track ? ' · ' + ld.track : '') + '). Attivala in Setup → Elettronica (con i giri impostati) PRIMA di avviare la sessione; finché non ci sono dati veri, i consigli del BOX useranno la stima.';
+    host.innerHTML = `<span class="dot rec"></span> ${tr({ it: 'scrive vuoto!', en: 'writing empty!' })}`;
+    host.title = tr({ it: 'EVO sta scrivendo il file ma è vuoto: la telemetria non era attiva in EVO (' + ld.car + (ld.track ? ' · ' + ld.track : '') + '). Attivala in Setup → Elettronica (con i giri impostati) PRIMA di avviare la sessione; finché non ci sono dati veri, i consigli del BOX useranno la stima.', en: "EVO is writing the file but it is empty: telemetry was not active in EVO (" + ld.car + (ld.track ? ' · ' + ld.track : '') + "). Enable it in Setup → Electronics (with the laps set) BEFORE starting the session; until there is real data, the BOX tips will use the estimate." });
   } else {
     host.className = 'chip red';
-    host.innerHTML = '<span class="dot"></span> file vuoto';
-    host.title = 'L\'ultimo file .ld di EVO non ha dati (' + ld.when + '): la telemetria non era attiva in EVO. Si attiva in Setup → Elettronica, PRIMA di avviare la sessione; finché non ci sono dati veri, i consigli del BOX usano la stima.';
+    host.innerHTML = `<span class="dot"></span> ${tr({ it: 'file vuoto', en: 'empty file' })}`;
+    host.title = tr({ it: 'L\'ultimo file .ld di EVO non ha dati (' + ld.when + '): la telemetria non era attiva in EVO. Si attiva in Setup → Elettronica, PRIMA di avviare la sessione; finché non ci sono dati veri, i consigli del BOX usano la stima.', en: "EVO's last .ld file has no data (" + ld.when + "): telemetry was not active in EVO. It is enabled in Setup → Electronics, BEFORE starting the session; until there is real data, the BOX tips will use the estimate." });
   }
 }
 

@@ -40,6 +40,7 @@ export const THEMES = [
     name: 'Ritorno del Gruppo B',
     nameEn: 'Return of Group B',
     intro: 'I mostri degli anni \'80 tornano in pista per una notte: rumore, turbina e paura.',
+    introEn: "The '80s monsters return to the track for one night: noise, turbos and fear.",
     prizeCar: { id: 'peugeot_205_t16', name: 'Peugeot 205 T16' },
     guests: ['audi_r8_lms_gt4_evo', 'lancia_delta_s4'], // rivali ospiti (se presenti nel gioco)
     guestNames: ['Rinaldo Capello', 'Michele Mouton'],
@@ -57,6 +58,7 @@ export const THEMES = [
     name: 'Leggende GT',
     nameEn: 'GT Legends',
     intro: 'Le GT che hanno fatto la storia si sfidano su un tracciato al tramonto.',
+    introEn: 'The GTs that made history duel on a track at sunset.',
     prizeCar: { id: 'ferrari_288_gto', name: 'Ferrari 288 GTO' },
     guests: ['porsche_911_gt3_rs_992', 'lamborghini_countach_lp5000_qv'],
     guestNames: ['Jochen Mass', 'Stefan Roser'],
@@ -74,6 +76,7 @@ export const THEMES = [
     name: 'Notte Sprint',
     nameEn: 'Night Sprint',
     intro: 'Sprint notturna: giri contati, zero margini, fari accesi.',
+    introEn: 'Night sprint: counted laps, zero margins, headlights on.',
     prizeCar: { id: 'audi_r8_lms_gt4_evo', name: 'Audi R8 LMS GT4 Evo' },
     guests: ['porsche_911_gt3_rs_992', 'mini_john_cooper_s'],
     guestNames: ['Nico Bakker', 'Luca Salgado'],
@@ -90,7 +93,8 @@ export const THEMES = [
     id: 'legend_finale',
     name: 'Il Gran Finale dei Campioni',
     nameEn: 'The Champions’ Grand Finale',
-    intro: tr({ it: "Invito d'onore a fine stagione: i migliori del paddock, una pista leggendaria, un'auto da sogno in palio.", en: 'End-of-season honor invite: the best of the paddock, one legendary track, a dream car at stake.' }),
+    intro: "Invito d'onore a fine stagione: i migliori del paddock, una pista leggendaria, un'auto da sogno in palio.",
+    introEn: 'End-of-season honor invite: the best of the paddock, one legendary track, a dream car at stake.',
     prizeCar: { id: 'lamborghini_countach_lp5000_qv', name: 'Lamborghini Countach LP5000 QV' },
     guests: ['porsche_911_gt3_rs_992', 'audi_r8_lms_gt4_evo', 'mini_john_cooper_s'],
     guestNames: ['Hans Stuck', 'Ayrton Senna Jr.', 'Tom Kristensen'],
@@ -112,6 +116,14 @@ export const THEMES = [
 /** Nome del tema nella lingua attiva (nameEn può mancare nei vecchi inviti salvati). */
 export function themeName(t) {
   return tr({ it: t?.name ?? '', en: t?.nameEn ?? t?.name ?? '' });
+}
+
+/** Tema legacy per id o nome italiano dei vecchi salvataggi (senza nameEn):
+ *  rimappare qui mantiene la traduzione disponibile una volta per tutti. */
+const LEGACY_THEME = { 'Ritorno del Gruppo B': 'Return of Group B' };
+export function legacyThemeNameEn(name) {
+  const inThemes = THEMES.find((x) => x.name === name);
+  return inThemes?.nameEn ?? LEGACY_THEME[name ?? ''] ?? null;
 }
 
 export function ensureEvents(state) {
@@ -193,7 +205,7 @@ function buildInvite(ladder, state, theme, tier, racesRun) {
     createdAt: new Date().toISOString(),
     season: state.season,
     afterRound: racesRun,
-    theme: { id: theme.id, name: theme.name, nameEn: theme.nameEn ?? theme.name, intro: theme.intro },
+    theme: { id: theme.id, name: theme.name, nameEn: theme.nameEn ?? theme.name, intro: theme.intro, introEn: theme.introEn ?? theme.intro },
     trackId, trackDisplay, weather,
     laps: theme.laps, hour: theme.hour, timeScale: theme.timeScale,
     guests: theme.guestNames,
@@ -322,7 +334,7 @@ function prizeOrOwnedLabel(ladder, state, a) {
   return owned
     ? tr({
         it: `${owned.carName} (la tua, vinta in ${owned.theme})`,
-        en: `${owned.carName} (yours, won in ${owned.themeEn ?? owned.theme})`,
+        en: `${owned.carName} (yours, won in ${owned.themeEn ?? legacyThemeNameEn(owned.theme) ?? owned.theme})`,
       })
     : tr({
         it: `${a.prize.carName} — è il premio: chi vince la porta a casa`,
@@ -336,12 +348,12 @@ function prizeOrOwnedLabel(ladder, state, a) {
 
 export function eventsOverview(ladder, state) {
   const ev = ensureEvents(state);
-  const nameOf = (t) => (t ? { ...t, name: themeName(t) } : t);
+  const nameOf = (t) => (t ? { ...t, name: themeName(t), intro: tr({ it: t.intro ?? '', en: t.introEn ?? THEMES.find((x) => x.id === t.id)?.introEn ?? t.intro ?? '' }) } : t);
   return {
     active: ev.active && { ...ev.active, theme: nameOf(ev.active.theme) },
     card: eventCard(ladder, state),
     // vetrina e storia mostrate nella lingua attiva; nel raw restano quelle di nascita
-    showCase: ev.showCase.slice().reverse().map((c) => ({ ...c, theme: tr({ it: c.theme, en: c.themeEn ?? c.theme }) })),
+    showCase: ev.showCase.slice().reverse().map((c) => ({ ...c, theme: tr({ it: c.theme, en: c.themeEn ?? legacyThemeNameEn(c.theme) ?? c.theme }) })),
     history: ev.history.slice(-10).reverse().map((h) => ({ ...h, theme: nameOf(h.theme) })),
   };
 }
