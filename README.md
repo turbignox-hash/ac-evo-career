@@ -70,6 +70,21 @@ node ac-evo-career.mjs content --search gt3
 
 ### Interfaccia grafica (consigliata)
 
+Doppio click su **`apri-gui.cmd`** (o voce **1** del menu `avvia.cmd`): la carriera si apre
+nel browser come un pannello professionale, con barra laterale, identità pilota in testa,
+cruscotto con statistiche stagione (vittorie, podi, punti, grafico round), scheda gara con
+**checklist spuntabile campo per campo** e copia negli appunti, calendario, classifica,
+serie, paddock, import dei risultati con un click, difficoltà, messaggi e impostazioni.
+Tutto resta sul tuo PC: il server ascolta solo su `127.0.0.1:8642` e usa lo stesso
+file di salvataggio della CLI.
+
+E sopra il Cruscotto c'è la banda **Aggiornamenti**: all'apertura la GUI confronta il
+repository GitHub privato con il disco; se GitHub è più avanti (per esempio dopo un
+ripristino, o su un secondo PC) appare la banda gialla «Ci sono N aggiornamenti» con
+un bottone **Aggiorna ora** che installa tutto (fetch + `git merge --ff-only` + test)
+dopo un tuo clic. Il consenso è sempre chiesto: niente aggiornamenti silenziosi,
+e il save in `data/` resta fuori dal repo, quindi l'installazione tocca solo codice.
+
 ### Live: verifica automatica della gara (memoria condivisa)
 
 Il tool legge i tre blocchi di **memoria condivisa ufficiale** di EVO (`Local\acevo_pmf_*`, sola
@@ -91,14 +106,6 @@ La GUI ha due sezioni di consultazione che leggono in sola lettura l'installazio
 - **Archivio**: tutte le sessioni presenti nei Results di EVO (gare, qualifiche, online e offline)
   con ricerca, e la **classificazione completa di ogni gara**: piloti, auto, giri, miglior giro,
   tempo totale e gap al vincitore al centesimo.
-
-Doppio click su **`apri-gui.cmd`** (o voce **1** del menu `avvia.cmd`): la carriera si apre
-nel browser come un pannello professionale, con barra laterale, identità pilota in testa,
-cruscotto con statistiche stagione (vittorie, podi, punti, grafico round), scheda gara con
-**checklist spuntabile campo per campo** e copia negli appunti, calendario, classifica,
-serie, paddock, import dei risultati con un click, difficoltà, messaggi e impostazioni.
-Tutto resta sul tuo PC: il server ascolta solo su `127.0.0.1:8642` e usa lo stesso
-file di salvataggio della CLI.
 
 ### Cominciare
 
