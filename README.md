@@ -348,6 +348,35 @@ data/results-archive/                  copia dei risultati grezzi di ogni gara i
 - **Il formato del salvataggio è legato a questa versione** (`data/evo-career.save.json`, `version: 1`):
   se il modello cambia, l'app te lo dice e ti chiede di ricominciare invece di rompersi a metà.
 
+## Backup: il magazzino
+
+Il progetto è protetto da quattro copie indipendenti. Se una riparte ridotta a zero, le altre tre non muoiono con lei.
+
+| copia              | cosa salva                                                            | dove                                 |
+|--------------------|-----------------------------------------------------------------------|--------------------------------------|
+| disco              | codice, dati e documenti di lavoro, storia git                        | cartella del progetto sul Desktop    |
+| OneDrive           | zip completo (codice, git, save personali, mappe) e pacchetto portatile | cartelle OneDrive                   |
+| magazzino su L:    | le stesse due zip, con impronte SHA-256 ricontrollate                 | disco L:, cartella CarrieraEVO       |
+| off-site (facoltativa) | la sola storia git dei commit                                     | repository privato su GitHub o GitLab |
+
+Strumenti, in ordine di uso:
+
+- AggiornaMagazzino.cmd sta nella cartella CarrieraEVO del disco L:  Un doppio click
+  copia in magazzino gli ultimi zip (solo se sono cambiati), ricalcola le impronte
+  SHA-256 e riscrive LEGGIMI-MAGAZZINO.txt con le impronte vere, non vecchie.
+- controlla-magazzino.cmd sta nella cartella del progetto (oppure npm run magazzino).
+  Dice se l'ultimo backup è vecchio oltre 21 giorni o se ci sono commit non ancora
+  coperti dal backup. È un avviso: non tocca e non rompe nulla.
+- avvia.cmd lance in versione breve lo stesso controllo quando apre la interfaccia:
+  parla solo se c'è un problema, resta muto se il disco L: è staccato di proposito.
+- sincronizza-git.cmd è la copia off-site: pubblica la storia git su un repository
+  privato online. Configurazione una volta sola: creare il repository privato vuoto,
+  poi git remote add offsite <url>, poi ri-lanciare lo script.
+
+Ogni zip completo contiene la guida COME-RIPRISTINARE.txt con i passi per rimettere
+in piedi il progetto (estrarre, npm test, avvia.cmd).
+
+## Riferimenti
 ## Riferimenti
 
 - **Il progetto di carriera per Automobilista 2** da cui nasce il modello: struttura ricavata

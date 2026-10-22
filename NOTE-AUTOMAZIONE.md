@@ -403,3 +403,38 @@ rilegge i filtri solo ari di campo già censiti (usa `p.rideHeight`, `p.camberRA
 `p.suspensionTravel`, `p.airTemp`, `p.roadTemp`, `p.wheelPressure`, `p.tyreCoreTemp`,
 `p.brake`, `p.ballast`, `p.fuel`). LA SPENSA POLA LA PROVA: rilanci con
 `node tools/watch-setup-changes.mjs`; mappe con `node tools/map-setup-spy.mjs`.
+## MAGAZZINO BACKUP e COPERTURA OFF-SITE (22/10/2026)
+
+Le copie del progetto sono quattro, indipendenti tra loro:
+
+1. Disco: la cartella del progetto sul Desktop, con .git.
+2. OneDrive: i due zip (backup completo e pacchetto portatile).
+3. Disco L:, cartella CarrieraEVO: lo stesso coppia di zip, con impronte SHA-256.
+4. Repository privato online (facoltativo): la sola storia git dei commit.
+
+Strumenti:
+
+- AggiornaMagazzino.cmd (su L:\CarrieraEVO): copia in magazzino lo zip più
+  recente trovato in Desktop\Mod ac evo\dist\ e su OneDrive, solo se è cambiato,
+  e riscrive LEGGIMI-MAGAZZINO.txt con le impronte SHA-256 rinfrescate.
+- controlla-magazzino.cmd (progetto) oppure npm run magazzino: è un avviso.
+  Allerta se l'ultimo backup ha più di 21 giorni (soglia variabile a riga di
+  comando) o se ci sono commit git nati dopo il backup più recente.
+- avvia.cmd lancia lo stesso check in forma breve quando apre la GUI: una riga
+  sola se va tutto bene, avviso se no, silenzio con il disco L: staccato.
+- sincronizza-git.cmd (progetto): la copia off-site. Configurazione una volta
+  sola: repo privato vuoto su GitHub, poi
+  git remote add offsite https://github.com/TUONOME/ac-evo-career.git
+  poi doppio click sullo script. Il primo push chiede login nel browser.
+
+Note tecniche:
+
+- Il check dei commit confronta la data dell'ultimo commit HEAD con la data del
+  file più recente del magazzino. Confronto per date, non per contenuto.
+- Il zip completo si crea con bsdtar (il tar di Windows). Esclusioni: dist/,
+  node_modules, demo, sessione-21-10. Dentro: .git, data/ (save personali),
+  gui/carmaps, gui/trackmaps, COME-RIPRISTINARE.txt.
+- Ripristino collaudato: estrazione in cartella di prova, git log a puntamento,
+  npm test 93/93 passati, save e mappe al loro posto.
+- Il zip completo NON si condivide: contiene save personali e mappe KUNOS,
+  che sono ad uso personale; dettagli in LICENSE.md e in COME-RIPRISTINARE.txt.
