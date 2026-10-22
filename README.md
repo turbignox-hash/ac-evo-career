@@ -82,12 +82,24 @@ serie, paddock, import dei risultati con un click, difficoltà, messaggi e impos
 Tutto resta sul tuo PC: il server ascolta solo su `127.0.0.1:8642` e usa lo stesso
 file di salvataggio della CLI.
 
-E sopra il Cruscotto c'è la banda **Aggiornamenti**: all'apertura la GUI confronta il
-repository GitHub privato con il disco; se GitHub è più avanti (per esempio dopo un
-ripristino, o su un secondo PC) appare la banda gialla «Ci sono N aggiornamenti» con
-un bottone **Aggiorna ora** che installa tutto (fetch + `git merge --ff-only` + test)
-dopo un tuo clic. Il consenso è sempre chiesto: niente aggiornamenti silenziosi,
-e il save in `data/` resta fuori dal repo, quindi l'installazione tocca solo codice.
+E sopra il Cruscotto c'è la banda **Aggiornamenti**, che a ogni avvio della GUI
+confronta il remote `offsite` con il disco. Dietro la banda c'è questo ciclo:
+
+- GitHub è al passo (o la rete manca) → la banda resta zitta e l'app parte come
+  sempre; da terminale il check può dire a voce «sei al passo con GitHub».
+- GitHub è più avanti (per esempio dopo un ripristino, o su un secondo PC) →
+  banda gialla «Ci sono N aggiornamenti di progetto su GitHub» con il bottone
+  **Aggiorna ora**. Installare significa `git fetch` + `git merge --ff-only` +
+  `npm test`: se i test passano la banda dice a che commit sei arrivato, se
+  falliscono mostra l'output (l'aggiornamento resta, il problema è visibile).
+  Dopo un aggiornamento va **riavviato il launcher** (o il server GUI): un
+  processo che gira tiene in memoria il codice di quando è nato.
+- Dal terminale lo stesso gesto vive in `node tools/aggiornamenti.mjs`: senza
+  argomenti chiede `s/N` (Invio o 15 secondi = no), `--breve` resta zitto se
+  sei al passo. Stesso comportamento quando l'avvio parte da `avvia.cmd`:
+  il controllo gira prima dell'interfaccia e lo chiede a voce.
+- **Il consenso è sempre richiesto** (niente aggiornamenti silenziosi) e il
+  save in `data/` resta fuori dal repo: l'aggiornamento tocca solo codice.
 
 ## Lingua: italiano e inglese
 
