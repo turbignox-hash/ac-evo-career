@@ -1,0 +1,49 @@
+# COME RIPRISTINARE AC EVO CAREER da questo backup
+
+Questo zip contiene lo stato COMPLETO del progetto, incluso il repository git con
+tutta la storia dei commit. Dal backup si ricostruisce il progetto esattamente
+com'era al momento della generazione dello zip, su un altro PC o sullo stesso,
+anche senza OneDrive e senza accesso alla repo GitHub.
+
+## Contenuto
+
+- Codice sorgente, configurazioni, documentazione  (tracciati in git)
+- `.git/`                -> tutta la storia dei commit
+- `data/`                -> i TUOI save personali (carriera, telemetrie, griglie)
+- `gui/carmaps/`         -> mappe ufficiali KUNOS VAL/ACE estratte dal gioco
+- `gui/trackmaps/`       -> mappe piste ufficiali KUNOS
+- Guida di ripristino (questo file)
+
+## Ripristino (3 passi)
+
+1. Estrai lo zip in una cartella vuota, per esempio sul Desktop.
+
+2. Verifica storia e test (opzionale ma consigliato):
+
+       git log --oneline -5
+       npm test
+
+   Se i 93 test passano, il ripristino e' riuscito.
+
+3. Avvia il gioco/career come al solito:
+
+       avvia.cmd        (career completo, con avviso backup all'avvio)
+       apri-gui.cmd     (solo interfaccia grafica)
+
+## Comandi utili dopo il ripristino
+
+    controlla-magazzino.cmd   stato del backup (vecchiaia + commit coperti)
+    npm test                  i 93 test del progetto
+    git log --oneline         la storia dei commit
+
+## Note
+
+- Se lo zip completo si perde TUTTO (disco + L: + OneDrive), la storia git vive
+  anche nel repository privato GitHub (`offsite`, vedi `sincronizza-git.cmd`):
+  basta clonarlo e rifare lo zip con la data aggiornata.
+- `dist/` (runtime Node + pacchetto portatile) NON e' in questo zip: e' backuppato
+  separatamente come `CarrieraEVO-portabile.zip` (impronta nel magazzino su L:).
+- Le mappe KUNOS in `gui/carmaps` e `gui/trackmaps` restano proprieta' di KUNOS /
+  402 Games: usale solo per uso personale, non ridistribuirle.
+- Altre copie di questo file e dello zip: cartella `L:\CarrieraEVO` (magazzino con
+  AggiornaMagazzino.cmd) e OneDrive / Desktop / ACE-Career-backup.
