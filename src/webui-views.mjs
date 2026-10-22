@@ -22,6 +22,7 @@ import {
 import { agendaDay, dateLabel, scheduledDay, racesOnDay, prossimoGiornoConGara } from './agenda.mjs';
 import { raceCard } from './race.mjs';
 import { PIANI } from './orario.mjs';
+import { tr } from './lang.mjs';
 import { mailbox } from './mailbox.mjs';
 import { memoryRoundHint } from './memories.mjs';
 import { tyreClassOf } from './setup.mjs';
@@ -34,6 +35,16 @@ import { appEnv, context, DATA_DIR, SLOT, CONFIG_FILE } from './webui-env.mjs';
 const money = (n) => Number(n ?? 0).toLocaleString('it-IT');
 const trackName = (ladder, id) => ladder.contentNames?.tracks?.[id] ?? id;
 const carName = (ladder, id) => ladder.contentNames?.cars?.[id] ?? id;
+
+/** Etichette EN dei piani orari (l'italiano sta in PIANI.label, orario.mjs). */
+const PIANI_EN = {
+  notte: 'Night race',
+  crepuscolo: 'From dusk to night',
+  alba: 'The gentle dawn',
+  tramontoalba: 'Dusk to dawn (48x)',
+  variabile: 'Different hours every time',
+  mattina: 'Morning race',
+};
 
 // CONTEGGIO ALLA PROSSIMA GARA: guarda i giorni PROSSIMI (da oggi+1) e prendi
 // la prima gara di campionato iscritto; se è già in ritardo la prende tra quelle
@@ -109,11 +120,12 @@ function seriesNodeView(ladder, state, node) {
     carImages: node.cars.map((c) => { const name = carName(ladder, c); return { name, image: carImageOf(name) ?? carImageOf(c) ?? null }; }),
     calendar: node.calendar.map((r) => ({ name: r.name, track: trackName(ladder, r.track), laps: r.laps, hour: r.hour, weather: ladder.weatherNames?.[String(r.weather)] ?? null })),
     format: prof ? [
-      `prove ${prof.practiceMin ?? 0} min`, `qualifiche ${prof.qualifyMin ?? 0} min`,
-      prof.start === 'grid' ? 'partenza da fermo (griglia)' : 'partenza lanciata',
-      prof.wx === 'dynamic' ? 'meteo dinamico' : 'meteo fisso',
-      prof.pitreq ? 'pit-stop obbligatorio' : 'niente pit obbligatorio',
-      prof.timeScale > 1 ? `tempo ×${prof.timeScale}` : 'tempo reale',
+      tr({ it: `prove ${prof.practiceMin ?? 0} min`, en: `practice ${prof.practiceMin ?? 0} min` }),
+      tr({ it: `qualifiche ${prof.qualifyMin ?? 0} min`, en: `qualifying ${prof.qualifyMin ?? 0} min` }),
+      prof.start === 'grid' ? tr({ it: 'partenza da fermo (griglia)', en: 'standing start (grid)' }) : tr({ it: 'partenza lanciata', en: 'rolling start' }),
+      prof.wx === 'dynamic' ? tr({ it: 'meteo dinamico', en: 'dynamic weather' }) : tr({ it: 'meteo fisso', en: 'fixed weather' }),
+      tr({ it: prof.pitreq ? 'pit-stop obbligatorio' : 'niente pit obbligatorio', en: prof.pitreq ? 'mandatory pit-stop' : 'no mandatory pit' }),
+      prof.timeScale > 1 ? tr({ it: `tempo ×${prof.timeScale}`, en: `time ×${prof.timeScale}` }) : tr({ it: 'tempo reale', en: 'real time' }),
     ] : [],
     ai: node.ai ?? [],
     pointsInfo: ps ? { table: ps.table, fl: ps.flPoint ?? 0, pole: ps.polePoint ?? 0, note: ps.note ?? null } : null,
@@ -192,7 +204,7 @@ function viewCard(ladder, state, car = null) {
     aggressionLocked: true,
     timeMultiplier: card.timeMultiplier ?? 1,
     // piani orari per la select "Piano orario della serie" (orario.mjs)
-    piani: Object.fromEntries(Object.entries(PIANI).map(([id, p]) => [id, { label: p.label }])),
+    piani: Object.fromEntries(Object.entries(PIANI).map(([id, p]) => [id, { label: tr({ it: p.label, en: PIANI_EN[id] ?? p.label }) }])),
     pianoCurrent: state.raceSettings?.[card.node.nodeId]?.piano ?? null,
     distPct: card.distPct ?? 100,
     baseLaps: card.baseLaps ?? null,
@@ -268,13 +280,13 @@ function viewCard(ladder, state, car = null) {
       const profile = card.profile ?? {};
       const pitKmh = profile.pitkmh ?? 60;
       if (profile.pitreq) {
-        tips.push({ icon: '🔧', title: 'Pit-stop obbligatorio', text: laps
-          ? `almeno 1 sosta: scendi tra il giro ${Math.max(2, Math.ceil(laps / 2) - 2)} e il giro ${Math.min(laps - 1, Math.ceil(laps / 2) + 2)} (finestra sicura) — limite box ${pitKmh} km/h, controlla la riga gomme`
-          : `almeno 1 sosta — limite box ${pitKmh} km/h` });
+        tips.push({ icon: '🔧', title: tr({ it: 'Pit-stop obbligatorio', en: 'Mandatory pit stop' }), text: laps
+          ? tr({ it: `almeno 1 sosta: scendi tra il giro ${Math.max(2, Math.ceil(laps / 2) - 2)} e il giro ${Math.min(laps - 1, Math.ceil(laps / 2) + 2)} (finestra sicura) — limite box ${pitKmh} km/h, controlla la riga gomme`, en: `at least 1 stop: dive in between lap ${Math.max(2, Math.ceil(laps / 2) - 2)} and lap ${Math.min(laps - 1, Math.ceil(laps / 2) + 2)} (safe window) — pit limiter ${pitKmh} km/h, check the tyre row` })
+          : tr({ it: `almeno 1 sosta — limite box ${pitKmh} km/h`, en: `at least 1 stop — pit limiter ${pitKmh} km/h` }) });
       } else if (laps != null && laps >= 12) {
-        tips.push({ icon: '⛽', title: 'Sosta consigliata', text: `gara di ${laps} giri senza pit obbligatorio: se la benzina non arriva${fuel ? ` (${fuel.need} L stimati)` : ''} o le gomme cedono dopo metà gara, la sosta a metà è quasi sempre vincente` });
+        tips.push({ icon: '⛽', title: tr({ it: 'Sosta consigliata', en: 'Suggested stop' }), text: tr({ it: `gara di ${laps} giri senza pit obbligatorio: se la benzina non arriva${fuel ? ` (${fuel.need} L stimati)` : ''} o le gomme cedono dopo metà gara, la sosta a metà è quasi sempre vincente`, en: `a ${laps}-lap race with no mandatory pit: if the fuel does not arrive${fuel ? ` (~${fuel.need} L estimated)` : ''} or the tyres fade after mid-race, the mid-race stop is almost always the winner` }) });
       } else if (laps != null) {
-        tips.push({ icon: '🚫', title: 'Niente sosta', text: `gara di ${laps} giri: benzina e gomme arrivano in fondo — il pit ti costa troppo tempo, evitalo a meno di danni` });
+        tips.push({ icon: '🚫', title: tr({ it: 'Niente sosta', en: 'No stop' }), text: tr({ it: `gara di ${laps} giri: benzina e gomme arrivano in fondo — il pit ti costa troppo tempo, evitalo a meno di danni`, en: `a ${laps}-lap race: fuel and tyres make it to the end — the pit costs you too much time, avoid it unless damaged` }) });
       }
       const wx = card.weather ?? '';
       const wet = /rain/i.test(wx);
@@ -282,32 +294,32 @@ function viewCard(ladder, state, car = null) {
       if (race?.ok && race.raceStartPsi != null) {
         let psi = race.raceStartPsi;
         const notes = [];
-        if (wet) { psi = Math.round((psi + 0.4) * 10) / 10; notes.push('+0.4 per il bagnato (la gomma lavora più fredda)'); }
-        if (profile.pitreq && laps) { notes.push('dopo il pit: azzeri il bring-in, la gomma nuova riparte ~1 PSI sotto il target'); }
-        if ((card.round?.hour ?? 12) >= 17) { notes.push('a sera la pista si raffredda: se dopo 5 giri sei sotto target, apri 0.2'); }
-        tips.push({ icon: '🛞', title: `Pressione gomme ideale: ${psi} PSI`, text: `partenza da freddo per la gara di ${laps ?? '?'} giri (target a caldo ${tyre.target} PSI${notes.length ? ' · ' + notes.join(' · ') : ''})` });
+        if (wet) { psi = Math.round((psi + 0.4) * 10) / 10; notes.push(tr({ it: '+0.4 per il bagnato (la gomma lavora più fredda)', en: '+0.4 for the wet (the tyre runs cooler)' })); }
+        if (profile.pitreq && laps) { notes.push(tr({ it: 'dopo il pit: azzeri il bring-in, la gomma nuova riparte ~1 PSI sotto il target', en: 'after the pit: the bring-in resets, the new tyre leaves ~1 PSI below target' })); }
+        if ((card.round?.hour ?? 12) >= 17) { notes.push(tr({ it: 'a sera la pista si raffredda: se dopo 5 giri sei sotto target, apri 0.2', en: 'in the evening the track cools down: if after 5 laps you are under target, open 0.2' })); }
+        tips.push({ icon: '🛞', title: tr({ it: `Pressione gomme ideale: ${psi} PSI`, en: `Ideal tyre pressure: ${psi} PSI` }), text: tr({ it: `partenza da freddo per la gara di ${laps ?? '?'} giri (target a caldo ${tyre.target} PSI${notes.length ? ' · ' + notes.join(' · ') : ''})`, en: `cold start for the ${laps ?? '?'}-lap race (hot target ${tyre.target} PSI${notes.length ? ' · ' + notes.join(' · ') : ''})` }) });
       } else {
         // senza telemetria usabile: stima dalla classe gomme con la regola dei 4 PSI
         // (la gomma in stint sano sale di 3–5 PSI: parti ~4 sotto il target a caldo)
         const est = Math.round((tyre.target - 4 + (wet ? 0.4 : 0)) * 10) / 10;
-        tips.push({ icon: '🛞', title: `Pressione gomme ideale: ~${est} PSI (stima)`, text: `nessun dato telemetrico ancora: regola dei 4 PSI — parti ~4 sotto il target (${tyre.target} a caldo${wet ? ' · +0.4 per il bagnato' : ''}) e correggi alla prossima uscita` });
+        tips.push({ icon: '🛞', title: tr({ it: `Pressione gomme ideale: ~${est} PSI (stima)`, en: `Ideal tyre pressure: ~${est} PSI (estimate)` }), text: tr({ it: `nessun dato telemetrico ancora: regola dei 4 PSI — parti ~4 sotto il target (${tyre.target} a caldo${wet ? ' · +0.4 per il bagnato' : ''}) e correggi alla prossima uscita`, en: `no telemetry data yet: the 4-PSI rule — start ~4 under the target (${tyre.target} hot${wet ? ' · +0.4 for the wet' : ''}) and correct at the next session` }) });
       }
       if (telemEmpty) {
-        tips.push({ icon: '📭', title: 'Telemetria di questa auto vuota', text: 'EVO non ha scritto i dati nel file MoTeC (capita in alcune sessioni, es. time attack, o chiudendo il gioco di colpo): rifai un paio di giri in prova e i consigli torneranno calcolati sui tuoi dati veri' });
+        tips.push({ icon: '📭', title: tr({ it: 'Telemetria di questa auto vuota', en: 'Empty telemetry for this car' }), text: tr({ it: 'EVO non ha scritto i dati nel file MoTeC (capita in alcune sessioni, es. time attack, o chiudendo il gioco di colpo): rifai un paio di giri in prova e i consigli torneranno calcolati sui tuoi dati veri', en: 'EVO wrote no data into the MoTeC file (happens in some sessions, e.g. time attack, or closing the game abruptly): run a couple of practice laps and the tips will be back, computed on your real data' }) });
       }
       if (wrongTrack) {
-        tips.push({ icon: '📭', title: `Nessuna telemetria su ${card.trackName}`, text: wrongTrackName
-          ? `l'ultima telemetria di questa auto è da ${wrongTrackName}: non la usiamo per questa gara perché pressioni e consumi cambiano da pista a pista — fai qualche giro in prova e i consigli torneranno calcolati sui tuoi dati veri`
-          : 'non hai ancora girato su questa pista con questa auto: fai qualche giro in prova e i consigli torneranno calcolati sui tuoi dati veri' });
+        tips.push({ icon: '📭', title: tr({ it: `Nessuna telemetria su ${card.trackName}`, en: `No telemetry on ${card.trackName}` }), text: wrongTrackName
+          ? tr({ it: `l'ultima telemetria di questa auto è da ${wrongTrackName}: non la usiamo per questa gara perché pressioni e consumi cambiano da pista a pista — fai qualche giro in prova e i consigli torneranno calcolati sui tuoi dati veri`, en: `the latest telemetry of this car is from ${wrongTrackName}: not using it for this race, since pressures and consumption change track by track — run some practice laps and the tips will be back, computed on your real data` })
+          : tr({ it: 'non hai ancora girato su questa pista con questa auto: fai qualche giro in prova e i consigli torneranno calcolati sui tuoi dati veri', en: 'you have not lapped this track with this car yet: run some practice laps and the tips will be back, computed on your real data' }) });
       }
       if (wet) {
-        tips.push({ icon: '🌧️', title: 'Bagnato fisso', text: `gara TUTTA in pioggia (${wx.replace(/^.*_/, '')}): accelera dolce in trazione e anticipa la frenata di 10–15 m` });
+        tips.push({ icon: '🌧️', title: tr({ it: 'Bagnato fisso', en: 'Fixed wet' }), text: tr({ it: `gara TUTTA in pioggia (${wx.replace(/^.*_/, '')}): accelera dolce in trazione e anticipa la frenata di 10–15 m`, en: `the WHOLE race in the rain (${wx.replace(/^.*_/, '')}): feed the throttle gently in traction and brake 10–15 m earlier` }) });
       }
       if ((card.round?.hour ?? 12) >= 17) {
-        tips.push({ icon: '🌆', title: 'Gara serale', text: `partenza alle ${String(card.round.hour).padStart(2, '0')}:00: la pista si raffredda col passare dei giri — la pressione scende, non strafare con la partenza` });
+        tips.push({ icon: '🌆', title: tr({ it: 'Gara serale', en: 'Evening race' }), text: tr({ it: `partenza alle ${String(card.round.hour).padStart(2, '0')}:00: la pista si raffredda col passare dei giri — la pressione scende, non strafare con la partenza`, en: `start at ${String(card.round.hour).padStart(2, '0')}:00: the track cools down lap after lap — pressure drops, keep the launch gentle` }) });
       }
       if (fuel?.need != null) {
-        tips.push({ icon: '⛽', title: 'Benzina', text: `${fuel.need} litri per ${fuel.laps} giri (consumo medio ${fuel.perLap} L/giro dalla telemetria) + 1 di riserva` });
+        tips.push({ icon: '⛽', title: tr({ it: 'Benzina', en: 'Fuel' }), text: tr({ it: `${fuel.need} litri per ${fuel.laps} giri (consumo medio ${fuel.perLap} L/giro dalla telemetria) + 1 di riserva`, en: `${fuel.need} litres for ${fuel.laps} laps (average consumption ${fuel.perLap} L/lap from telemetry) + 1 in reserve` }) });
       }
       return { tyre: { classLabel: tyre.label, target: tyre.target, race, fuel }, boxRadio: { tips } };
     })(),

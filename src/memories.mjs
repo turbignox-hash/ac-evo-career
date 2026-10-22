@@ -118,7 +118,7 @@ const fmtMs = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000
 /* i capitoli: obiettivi tematici per epoca                            */
 /* ------------------------------------------------------------------ */
 
-const MEM_TEMPLATES = [
+export const MEM_TEMPLATES = [
   {
     id: 'lorigine', era: 0, disc: 'endurance', rel: 0,
     title: 'Le Origini', titleEn: 'The Origins',
