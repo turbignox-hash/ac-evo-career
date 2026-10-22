@@ -214,7 +214,7 @@ function viewCard(ladder, state, car = null) {
       if (!mem || mem.done) return null;
       const isRound = mem.nodeId === card.node.nodeId && (mem.rounds ?? []).includes(card.round?.track);
       if (!isRound) return null;
-      return { title: mem.title, ancestor: mem.ancestor, relation: mem.relation, era: mem.era, objective: mem.objective?.text ?? '', done: mem.progress?.length ?? 0, total: (mem.tracksDisplay ?? mem.rounds ?? []).length, inherit: mem.inherit };
+      return { title: mem.title, titleEn: mem.titleEn ?? null, ancestor: mem.ancestor, relation: mem.relation, relationEn: mem.relationEn ?? null, era: mem.era, objective: mem.objective?.text ?? '', objectiveEn: mem.objective?.en ?? null, done: mem.progress?.length ?? 0, total: (mem.tracksDisplay ?? mem.rounds ?? []).length, inherit: mem.inherit };
     })(),
     heritageHint: memoryRoundHint(ladder, state),
     entryFee: card.node.econ.entry,

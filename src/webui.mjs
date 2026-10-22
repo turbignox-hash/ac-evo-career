@@ -1837,7 +1837,7 @@ async function api(context0, req, res, action, body) {
         bonus: result.bonus,
         offers: result.offers.map((o) => ({ ...o, discipline: disciplineName(ladder, o.discipline) })),
         eventSpawned: finale ? { id: finale.id, theme: finale.theme.name, track: finale.trackDisplay } : null,
-        memoryAssigned: memNow ? { title: memNow.title, ancestor: memNow.ancestor, relation: memNow.relation, era: memNow.era, series: memNow.series, objective: memNow.objective?.text ?? '', inherit: memNow.inherit, carName: memNow.carName ?? null } : null,
+        memoryAssigned: memNow ? { title: memNow.title, titleEn: memNow.titleEn ?? null, ancestor: memNow.ancestor, relation: memNow.relation, relationEn: memNow.relationEn ?? null, era: memNow.era, series: memNow.series, objective: memNow.objective?.text ?? '', objectiveEn: memNow.objective?.en ?? null, inherit: memNow.inherit, carName: memNow.carName ?? null } : null,
         header: viewHeader(ladder, state),
       });
     }

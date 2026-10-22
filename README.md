@@ -102,9 +102,16 @@ node ac-evo-career.mjs next                      # output in inglese
 ```
 
 La scelta non tocca il salvataggio: i dati restano gli stessi in entrambe le lingue.
-I testi salvati nel save (clausole di contratto, messaggi ricevuti) sono bilingui e
-si visualizzano nella lingua corrente; le descrizioni delle discipline nei file dati
-restano in italiano. L'infrastruttura della CLI vive in `src/lang.mjs`.
+I testi salvati nel save (clausole di contratto, messaggi ricevuti, capitoli delle
+Memorie di famiglia) sono bilingui e si visualizzano nella lingua corrente.
+L'infrastruttura della CLI vive in `src/lang.mjs`.
+
+**Schede bilingui nei dati:** le 18 piste del Libro delle piste (`src/tracks.mjs`)
+hanno i campi `historyEn`, `nickEn` e `countryEn` accanto a quelli italiani: la
+scheda storica, il soprannome e la bandiera si mostrano nella lingua corrente della
+GUI. Anche i capitoli delle Memorie di famiglia (`src/memories.mjs`) portano il
+titolo, lo stemma, l'obiettivo e la parentela in entrambe le lingue: il pannello
+📜 Eredità e l'invito nei messaggi scelgono la lingua da soli.
 
 ### Live: verifica automatica della gara (memoria condivisa)
 

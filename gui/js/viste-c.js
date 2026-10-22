@@ -290,10 +290,10 @@ async function drawGarage(m){
 async function drawTracks(m){
   const t = await api('tracks');
   const lapMs = (s) => { const m = String(s??'').match(/^(\d+):(\d{2})\.(\d{3})$/); return m ? (+m[1])*60000 + (+m[2])*1000 + (+m[3]) : null; };
-  const flag = (c) => ({ 'Italia':'🇮🇹','Giappone':'🇯🇵','Austria':'🇦🇹','Australia':'🇦🇺','Germania':'🇩🇪','Stati Uniti':'🇺🇸' }[c] ?? '🏁');
+  const flag = (c) => ({ 'Italia':'🇮🇹','Italy':'🇮🇹','Giappone':'🇯🇵','Japan':'🇯🇵','Austria':'🇦🇹','Australia':'🇦🇺','Germania':'🇩🇪','Germany':'🇩🇪','Stati Uniti':'🇺🇸','USA':'🇺🇸','Regno Unito':'🇬🇧','United Kingdom':'🇬🇧','Belgio':'🇧🇪','Belgium':'🇧🇪','Sudafrica':'🇿🇦','South Africa':'🇿🇦','Francia':'🇫🇷','France':'🇫🇷' }[c] ?? '🏁');
   const rows = t.rows.map((r) => `<tr>
     <td><b>${flag(r.info?.country)} ${esc(r.track)}</b>${r.id===t.next?.id?` <span class="tag gold" style="font-size:10px;padding:1px 6px">${tr({ it: 'prossima', en: 'next' })}</span>`:''}${r.inLadder?'':` <span class="faint">(${tr({ it: 'fuori ladder', en: 'off ladder' })})</span>`}</td>
-    <td class="muted">${r.info?esc(r.info.nick):'—'}</td>
+    <td class="muted">${r.info?esc(tr({ it: r.info.nick, en: r.info.nickEn })):''}</td>
     <td class="right"><b>${r.personal?esc(r.personal.time):'—'}</b>${r.personal?`<br><span class="faint" style="font-size:11px">${esc(r.personal.car??'')}</span>`:''}</td>
     <td class="right">${r.session?`<b>${esc(r.session.time)}</b> <span class="faint">${esc(r.session.driver)}${r.session.mine?` (${tr({ it: 'tu', en: 'you' })})`:''}</span>`:'—'}</td>
     <td class="right">${(() => { const a=lapMs(r.personal?.time), b=lapMs(r.session?.time); return (a&&b)?(b<a?`<span class="tag gold" style="font-size:10px;padding:1px 6px">−${((a-b)/1000).toFixed(3)}</span>`:`<span class="tag green" style="font-size:10px;padding:1px 6px">+${((b-a)/1000).toFixed(3)}</span>`):'—'; })()}</td>
@@ -310,11 +310,11 @@ async function drawTracks(m){
   $$('button[data-hist]').forEach((b) => b.onclick = () => {
     const r = t.rows.find((x) => x.id === b.dataset.hist);
     const i = r?.info;
-    $('#track-hist').innerHTML = !i ? '' : `<div class="panel" style="margin-top:14px"><h2>${flag(i.country)} ${esc(i.fullName)} <span class="h-act">${esc(i.country)} · ${i.lengthKm} km · ${i.corners} ${tr({ it: 'curve · inaugurato nel ', en: 'corners · opened in ' })}${i.opened}</span></h2>
+    $('#track-hist').innerHTML = !i ? '' : `<div class="panel" style="margin-top:14px"><h2>${flag(i.country)} ${esc(i.fullName)} <span class="h-act">${esc(tr({ it: i.country, en: i.countryEn }))} · ${i.lengthKm} km · ${i.corners} ${tr({ it: 'curve · inaugurato nel ', en: 'corners · opened in ' })}${i.opened}</span></h2>
       ${i.photo ? `<img src="${i.photo}" alt="${tr({ it: 'vista aerea di ', en: 'aerial view of ' })}${esc(r.track)}" style="width:100%;max-width:520px;aspect-ratio:16/9;object-fit:cover;background:#000;border-radius:10px;margin-bottom:10px">` : (i.map ? `<img src="${i.map}" alt="${tr({ it: 'tracciato ', en: 'layout ' })}${esc(r.track)}" style="width:100%;max-width:420px;object-fit:contain;background:#000;border-radius:10px;padding:12px;margin-bottom:10px${i.map.endsWith('.svg')?';filter:invert(1);opacity:.92':''}">` : '')}
       ${r.layoutRows?.length>1 ? `<h3 style="margin:0 0 6px;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim)">${tr({ it: 'Record per configurazione (', en: 'Records by configuration (' })}${r.layoutRows.length} ${tr({ it: 'layout)', en: 'layouts)' })}</h3>
       <table style="margin-bottom:10px"><thead><tr><th>${tr({ it: 'Layout', en: 'Layout' })}</th><th class="right">${tr({ it: 'Lunghezza', en: 'Length' })}</th><th class="right">${tr({ it: 'Box', en: 'Pits' })}</th><th class="right">${tr({ it: 'Tuo miglior', en: 'Your best' })}</th><th class="right">${tr({ it: 'Record di sessione', en: 'Session record' })}</th></tr></thead><tbody>${r.layoutRows.map(l=>`<tr><td><b>${esc(l.layout)}</b></td><td class="right">${l.lengthKm??'—'} km</td><td class="right">${l.pits??'—'}</td><td class="right">${l.mine?`<b>${esc(l.mine.time)}</b>${l.mineFallback?'<span class="faint"> *</span>':''}`:'—'}</td><td class="right">${l.session?`${esc(l.session.time)} <span class="faint">${esc(l.session.driver)}</span>`:'—'}</td></tr>`).join('')}</tbody></table><div class="faint" style="margin:-6px 0 10px;font-size:11px">* ${tr({ it: 'dal record personale in carriera/prove (una sola configurazione corsa: il save non distingue i layout)', en: 'from the personal record in career/practice (only one layout raced: the save does not distinguish layouts)' })}</div>` : ''}
-      <div style="line-height:1.6">${esc(i.history)}</div></div>`;
+      <div style="line-height:1.6">${esc(tr({ it: i.history, en: i.historyEn }))}</div></div>`;
     $('#track-hist').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 ;

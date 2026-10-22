@@ -70,19 +70,21 @@ export function ensureHeritage(state) {
 /* ------------------------------------------------------------------ */
 
 const RELATIONS = ['bisnonno', 'prozio', 'nonno', 'prozio', 'zio grande', 'nonno', 'padre'];
+const RELATIONS_EN = ['great-grandfather', 'great-uncle', 'grandfather', 'great-uncle', 'great uncle', 'grandfather', 'father'];
 const ERAS = ['1968', '1974', '1983', '1989', '1995', '2004', '2013'];
 const SEATS = [41, 24, 7, 12, 33, 5, 18];
 
 const RANKS = [
-  { min: 1, label: 'Debuttante' },
-  { min: 3, label: 'Timoniere' },
-  { min: 6, label: 'Campionetto' },
-  { min: 10, label: 'Veterano del paddock' },
-  { min: 15, label: 'Signore della carriera' },
-  { min: 21, label: 'Leggenda di famiglia' },
-  { min: 28, label: 'Mito immortale' },
+  { min: 1, label: 'Debuttante', labelEn: 'Rookie' },
+  { min: 3, label: 'Timoniere', labelEn: 'Wheelman' },
+  { min: 6, label: 'Campionetto', labelEn: 'Club champion' },
+  { min: 10, label: 'Veterano del paddock', labelEn: 'Paddock veteran' },
+  { min: 15, label: 'Signore della carriera', labelEn: 'Career lord' },
+  { min: 21, label: 'Leggenda di famiglia', labelEn: 'Family legend' },
+  { min: 28, label: 'Mito immortale', labelEn: 'Immortal myth' },
 ];
 const rankOf = (n) => [...RANKS].reverse().find((r) => n >= r.min)?.label ?? RANKS[0].label;
+const rankPairOf = (n) => { const r = [...RANKS].reverse().find((x) => n >= x.min) ?? RANKS[0]; return { it: r.label, en: r.labelEn }; };
 
 /** Le "leggende" della griglia: il paddock d'epoca con cui ti confronti. */
 const LEGENDS = {
@@ -119,51 +121,51 @@ const fmtMs = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000
 const MEM_TEMPLATES = [
   {
     id: 'lorigine', era: 0, disc: 'endurance', rel: 0,
-    title: 'Le Origini',
-    crest: 'lo Scudo dell\'Origine',
-    objective: { text: 'termina la gara tra i primi 5', kind: 'positionTop', value: 5 },
+    title: 'Le Origini', titleEn: 'The Origins',
+    crest: 'lo Scudo dell\'Origine', crestEn: 'the Shield of Origin',
+    objective: { text: 'termina la gara tra i primi 5', en: 'finish the race inside the top 5', kind: 'positionTop', value: 5 },
     inherit: 60000, repeat: 14000, rounds: 2,
   },
   {
     id: 'lannimale', era: 1, disc: 'strada', rel: 1,
-    title: 'L\'Anno Selvaggio',
-    crest: 'la Spilla del Turbina',
-    objective: { text: 'chiudi in zona punti', kind: 'pointsTop', value: 0.55 },
+    title: 'L\'Anno Selvaggio', titleEn: 'The Wild Year',
+    crest: 'la Spilla del Turbina', crestEn: 'the Turbine Badge',
+    objective: { text: 'chiudi in zona punti', en: 'finish inside the points zone', kind: 'pointsTop', value: 0.55 },
     inherit: 85000, repeat: 18000, rounds: 2,
   },
   {
     id: 'lannidoro', era: 2, disc: 'endurance', rel: 2,
-    title: 'L\'Età dell\'Oro',
-    crest: 'l\'Aquila della Gruppo C',
-    objective: { text: 'salisci sul podio tra le leggende', kind: 'positionTop', value: 3 },
+    title: 'L\'Età dell\'Oro', titleEn: 'The Golden Age',
+    crest: 'l\'Aquila della Gruppo C', crestEn: 'the Group C Eagle',
+    objective: { text: 'salisci sul podio tra le leggende', en: 'make the podium among the legends', kind: 'positionTop', value: 3 },
     inherit: 110000, repeat: 26000, rounds: 2,
   },
   {
     id: 'ilpioniere', era: 3, disc: 'touring', rel: 3,
-    title: 'Il Pioniere',
-    crest: 'il Fazzoletto del Gruppo A',
-    objective: { text: 'vinci la tua manche: chiudi davanti a metà griglia', kind: 'positionShare', value: 0.5 },
+    title: 'Il Pioniere', titleEn: 'The Pioneer',
+    crest: 'il Fazzoletto del Gruppo A', crestEn: 'the Group A Handkerchief',
+    objective: { text: 'vinci la tua manche: chiudi davanti a metà griglia', en: 'win your race: finish in the front half of the grid', kind: 'positionShare', value: 0.5 },
     inherit: 130000, repeat: 30000, rounds: 3,
   },
   {
     id: 'ilruggito', era: 4, disc: 'gt', rel: 4,
-    title: 'Il Ruggito dei GT',
-    crest: 'lo Stemma dei GT',
-    objective: { text: 'termina in cima alla classifica di serie', kind: 'standings', value: 1 },
+    title: 'Il Ruggito dei GT', titleEn: 'The Roar of the GTs',
+    crest: 'lo Stemma dei GT', crestEn: 'the GT Emblem',
+    objective: { text: 'termina in cima alla classifica di serie', en: 'finish on top of the championship standings', kind: 'standings', value: 1 },
     inherit: 150000, repeat: 34000, rounds: 3,
   },
   {
     id: 'ilmonoposto', era: 5, disc: 'single', rel: 5,
-    title: 'Il Monoposto di Famiglia',
-    crest: 'il Casco Rosso',
-    objective: { text: 'centra il podio in monoposto', kind: 'positionTop', value: 3 },
+    title: 'Il Monoposto di Famiglia', titleEn: 'The Family Single-Seater',
+    crest: 'il Casco Rosso', crestEn: 'the Red Helmet',
+    objective: { text: 'centra il podio in monoposto', en: 'make the podium in single-seaters', kind: 'positionTop', value: 3 },
     inherit: 175000, repeat: 40000, rounds: 2,
   },
   {
     id: 'lattimo', era: 6, disc: 'gt', rel: 6,
-    title: 'L\'Attimo Zero',
-    crest: 'il Sigillo dell\'Apice',
-    objective: { text: 'vinci la gara dedicata', kind: 'win', value: 1 },
+    title: 'L\'Attimo Zero', titleEn: 'The Zero Moment',
+    crest: 'il Sigillo dell\'Apice', crestEn: 'the Apex Seal',
+    objective: { text: 'vinci la gara dedicata', en: 'win the dedicated race', kind: 'win', value: 1 },
     inherit: 220000, repeat: 50000, rounds: 2,
   },
 ];
@@ -191,6 +193,7 @@ function buildMemory(ladder, state, tpl, index) {
     index,
     ancestor: `${ancestors[tpl.rel % ancestors.length]} ${name}`,
     relation: rel,
+    relationEn: RELATIONS_EN[tpl.rel % RELATIONS_EN.length],
     era: ERAS[tpl.era % ERAS.length],
     series: series.display,
     nodeId: series.nodeId,
@@ -203,8 +206,11 @@ function buildMemory(ladder, state, tpl, index) {
     tracksDisplay: picks.map((t) => trackDisp(ladder, t)),
     objective: { ...tpl.objective },
     relic: `${tpl.era >= 0 && ERAS[tpl.era % ERAS.length] >= '1989' ? 'Prototipo' : 'Auto storica'} #${SEATS[tpl.era % SEATS.length]} (livrea d'epoca)`,
+    relicEn: `${tpl.era >= 0 && ERAS[tpl.era % ERAS.length] >= '1989' ? 'Prototype' : 'Vintage car'} #${SEATS[tpl.era % SEATS.length]} (period livery)`,
     crest: tpl.crest,
+    crestEn: tpl.crestEn,
     title: tpl.title,
+    titleEn: tpl.titleEn,
     inherit: tpl.inherit,
     repeat: tpl.repeat,
     assignedSeason: state.season,
@@ -224,7 +230,7 @@ export function assignNextMemory(ladder, state) {
   H.active = { ...mem, progress: [], done: false, claimed: false };
   pushMessage(state, tr({
     it: `📜 Eredità di famiglia: ${mem.ancestor}, tuo ${mem.relation} (${mem.era}, ${mem.series}). Ti lascia ${mem.carName ?? 'la sua auto'} e un incasso di ${mem.inherit.toLocaleString('it-IT')} €: rifa la sua impresa (${mem.objective.text}) e il titolo ${mem.title} è tuo.`,
-    en: `📜 Family heritage: ${mem.ancestor}, your ${mem.tr_EN_relation ?? mem.relation} (${mem.era}, ${mem.series}). He leaves you ${mem.carName ?? 'his car'} and a payment of €${mem.inherit.toLocaleString('it-IT')}: re-run his feat (${mem.objective.text}) and the title ${mem.title} is yours.`,
+    en: `📜 Family heritage: ${mem.ancestor}, your ${mem.relationEn ?? mem.relation} (${mem.era}, ${mem.series}). He leaves you ${mem.carName ?? 'his car'} and a payment of €${mem.inherit.toLocaleString('it-IT')}: re-run his feat (${mem.objective.en ?? mem.objective.text}) and the title ${mem.titleEn ?? mem.title} is yours.`,
   }), 'title');
   return H.active;
 }
@@ -253,17 +259,17 @@ export function checkMemoryProgress(ladder, state, entry) {
   let ok = false;
   let detail = '';
   switch (mem.objective.kind) {
-    case 'positionTop': ok = pos <= mem.objective.value; detail = `P${pos} su ${gridSize} (serviva top ${mem.objective.value})`; break;
+    case 'positionTop': ok = pos <= mem.objective.value; detail = tr({ it: `P${pos} su ${gridSize} (serviva top ${mem.objective.value})`, en: `P${pos} of ${gridSize} (needed top ${mem.objective.value})` }); break;
     case 'pointsTop': {
       const sys = ladder.pointsSystems[node.points];
       const leader = sys?.table?.[0] ?? 25;
       const need = Math.max(1, Math.round(leader * mem.objective.value));
       ok = (entry.points ?? 0) >= need;
-      detail = `${entry.points ?? 0} punti (serviva ${need}+)`;
+      detail = tr({ it: `${entry.points ?? 0} punti (serviva ${need}+)`, en: `${entry.points ?? 0} points (needed ${need}+)` });
       break;
     }
-    case 'positionShare': ok = pos <= Math.max(2, Math.round(gridSize * mem.objective.value)); detail = `P${pos} su ${gridSize}`; break;
-    case 'win': ok = pos === 1; detail = `P${pos} su ${gridSize} (serviva la vittoria)`; break;
+    case 'positionShare': ok = pos <= Math.max(2, Math.round(gridSize * mem.objective.value)); detail = tr({ it: `P${pos} su ${gridSize}`, en: `P${pos} of ${gridSize}` }); break;
+    case 'win': ok = pos === 1; detail = tr({ it: `P${pos} su ${gridSize} (serviva la vittoria)`, en: `P${pos} of ${gridSize} (the win was needed)` }); break;
     default: ok = false; detail = `P${pos}`;
   }
   const prog = { round: entry.round, track: entry.track, when: new Date().toISOString(), ok, detail, durationMin: entry.durationMin ?? null };
@@ -286,7 +292,10 @@ export function checkMemoryProgress(ladder, state, entry) {
       en: `📜 Feat re-run! ${mem.ancestor} smiles somewhere: the inheritance (€${mem.inherit.toLocaleString('it-IT')}) is ready to claim on the Heritage panel.`,
     }), 'title');
     try {
-      publishNotice(`L'impresa di famiglia: ${mem.title} rifatta`, `${state.driver?.name ?? 'Il pilota'} ha ripetuto l'impresa di ${mem.ancestor} (${mem.era}): ${mem.objective.text}. L'eredità di famiglia è pronta.`, { season: state.season, kind: 'notice' });
+      publishNotice(tr({ it: `L'impresa di famiglia: ${mem.title} rifatta`, en: `The family feat: ${mem.titleEn ?? mem.title} re-run` }), tr({
+        it: `${state.driver?.name ?? 'Il pilota'} ha ripetuto l'impresa di ${mem.ancestor} (${mem.era}): ${mem.objective.text}. L'eredità di famiglia è pronta.`,
+        en: `${state.driver?.name ?? 'The driver'} has re-run the feat of ${mem.ancestor} (${mem.era}): ${mem.objective.en ?? mem.objective.text}. The family inheritance is ready.`,
+      }), { season: state.season, kind: 'notice' });
     } catch { /* la gazzetta non blocca mai */ }
   }
   return { memory: mem, progress: prog, done: mem.done };
@@ -297,20 +306,20 @@ export function claimMemory(ladder, state) {
   const H = ensureHeritage(state);
   const mem = H.active;
   if (!mem || !mem.done || mem.claimed) {
-    throw new Error('Nessuna eredità pronta: completa prima la memoria in corso (pannello Eredità sul cruscotto).');
+    throw new Error(tr({ it: 'Nessuna eredità pronta: completa prima la memoria in corso (pannello Eredità sul cruscotto).', en: 'No inheritance ready: complete the current chapter first (Heritage panel on the dashboard).' }));
   }
   mem.claimed = true;
   state.money += mem.inherit;
-  recordFlows(state, [{ kind: 'heritage', money: mem.inherit, reason: `eredità ${mem.title} — ${mem.ancestor} (${mem.era})` }]);
+  recordFlows(state, [{ kind: 'heritage', money: mem.inherit, reason: tr({ it: `eredità ${mem.title} — ${mem.ancestor} (${mem.era})`, en: `inheritance ${mem.titleEn ?? mem.title} — ${mem.ancestor} (${mem.era})` }) }]);
   pushMessage(state, tr({
     it: `📜 Eredità incassata: +${mem.inherit.toLocaleString('it-IT')} € — ${mem.title} entra nella storia di famiglia. ${mem.crest} è tuo.`,
-    en: `📜 Inheritance claimed: +€${mem.inherit.toLocaleString('it-IT')} — ${mem.title} enters the family history. ${mem.crest} is yours.`,
+    en: `📜 Inheritance claimed: +€${mem.inherit.toLocaleString('it-IT')} — ${mem.titleEn ?? mem.title} enters the family history. ${mem.crestEn ?? mem.crest} is yours.`,
   }), 'title');
   const completed = { ...mem, claimedAt: new Date().toISOString(), claimedSeason: state.season };
   delete completed.progress;
   H.completed.push(completed);
   H.active = null;
-  return { claimed: mem.inherit, completed: completed.title, total: H.completed.length };
+  return { claimed: mem.inherit, completed: tr({ it: completed.title, en: completed.titleEn ?? completed.title }), total: H.completed.length };
 }
 
 /** Vista per la GUI: pannello "Eredità di famiglia" del cruscotto. */
@@ -320,14 +329,15 @@ export function heritageOverview(ladder, state) {
   return {
     completedCount: H.completed.length,
     totalChapters: MEM_TEMPLATES.length,
-    completed: H.completed.map((c) => ({ id: c.id, title: c.title, ancestor: c.ancestor, era: c.era, series: c.series, crest: c.crest, inherit: c.inherit, claimedAt: c.claimedAt ?? null })),
-    rank: rankOf(H.completed.length),
+    completed: H.completed.map((c) => ({ id: c.id, title: c.title, titleEn: c.titleEn ?? null, ancestor: c.ancestor, era: c.era, series: c.series, crest: c.crest, crestEn: c.crestEn ?? null, inherit: c.inherit, claimedAt: c.claimedAt ?? null })),
+    rank: rankPairOf(H.completed.length).it,
+    rankEn: rankPairOf(H.completed.length).en,
     active: active ? {
-      id: active.id, title: active.title, ancestor: active.ancestor, relation: active.relation,
+      id: active.id, title: active.title, titleEn: active.titleEn ?? null, ancestor: active.ancestor, relation: active.relation, relationEn: active.relationEn ?? null,
       era: active.era, series: active.series, disc: active.disc, seat: active.seat,
       carId: active.carId, carName: active.carName,
       legends: active.legends, rounds: active.tracksDisplay, roundsDone: active.progress.length,
-      objective: active.objective, relic: active.relic, crest: active.crest,
+      objective: active.objective, relic: active.relic, relicEn: active.relicEn ?? null, crest: active.crest, crestEn: active.crestEn ?? null,
       inherit: active.inherit, repeat: active.repeat, done: !!active.done, claimed: !!active.claimed,
       progress: active.progress.map((p) => ({ track: trackDisp(ladder, p.track), ok: p.ok, detail: p.detail, durationMin: p.durationMin ?? null })),
     } : null,
