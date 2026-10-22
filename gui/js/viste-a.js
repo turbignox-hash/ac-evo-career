@@ -652,7 +652,8 @@ function drawCardInto(el, card){
     try {
       const r = await api('race', {car: $('#sel-car', el)?.value});
       const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella finestra esistente.', en: 'EVO is already open: set the race in the existing window.' }) : (r.launched && !r.launched.error ? tr({ it: 'Gioco avviato.', en: 'Game launched.' }) : tr({ it: 'Gioco non avviato: aprilo tu.', en: 'Game not launched: open it yourself.' }));
-      toast(`${tr({ it: 'Gara segnata', en: 'Race marked' })}${r.fee?` · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(r.fee)} €`:''}. ${note}`, 'ok');
+      const gridMsg = r.prep?.grid?.rebuild ? ` ${r.prep.grid.rebuild.startsWith('non riuscita') ? '⚠' : '═'} Griglia serie: ${r.prep.grid.rebuild}.` : '';
+      toast(`${tr({ it: 'Gara segnata', en: 'Race marked' })}${r.fee?` · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(r.fee)} €`:''}. ${note}${gridMsg}`, r.prep?.grid?.rebuild?.startsWith('non riuscita') ? 'warn' : 'ok');
       drawCardInto(el, r.card);
       await refreshBoot();
     } catch(e){ toast(e.message, 'err'); btn.disabled=false; btn.textContent = tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' }); }

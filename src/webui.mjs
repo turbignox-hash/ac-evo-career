@@ -70,7 +70,7 @@ import { heritageOverview, claimMemory, memoryRoundHint } from './memories.mjs';
 import { resetNews } from './gazzetta.mjs';
 // griglia: tab bilanciamento (celle, classi, perTraccia) + azioni di scrittura
 import { loadClasses } from './gridbuilder.mjs';
-import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, GRID_FILE } from './grid-apply.mjs';
+import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, rebuildGridApply, GRID_FILE } from './grid-apply.mjs';
 import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
 
 /* TAG GRIGLIA all'iscrizione (richiesta Mauro 21/10: la coppa a un'unica auto
@@ -1157,8 +1157,33 @@ async function api(context0, req, res, action, body) {
         // flotta sbagliata la notte del 20/10 (Donington). A EVO aperto si
         // scrive solo dal menu principale: regole della 7ª prova.
         try {
+          // RICOSTRUZIONE DELLA GRIGLIA quando il customgrid sul disco è di
+          // un'altra serie (23/10 mattina: si è passati a Coppa RX-7 col file
+          // ancora GT3-vs-EXP; il tasto NON importava MAI la nuova serie).
+          // Il CLI 'prepara' (cmdPrepara) lo ha sempre fatto via cmdGriglia:
+          // porto lo stesso gesto nell'app, prima della vigia — che dopo la
+          // scrittura trova il bilancio già in piedi (il builder applica le
+          // regole delle poolAuto della classe della serie in grid-classes.json).
+          // Falli silente: un errore non blocca l'iscrizione — la card sotto
+          // resta il piano B (come fa il CLI: "la griglia non pronta: la
+          // carriera prosegue con la card qui sotto").
           if (existsSync(GRID_FILE)) {
-            prep.grid = {};
+            try {
+              const rb = rebuildGridApply({
+                ladder,
+                nodeId: state.node,
+                roundIndex: Math.min(state.round ?? 0, node.calendar.length - 1),
+                force: true,   // a EVO aperto si può scrivere dal menu principale (7ª prova 19/10, certificata in NOTE-AUTOMAZIONE)
+              });
+              if (rb.written) {
+                prep.grid = prep.grid ?? {};
+                prep.grid.rebuild = `riscritta per "${rb.report.serie}" — ${rb.report.gridSize} celle${rb.report.poolMulti ? ` (${rb.report.poolMulti})` : ''}${rb.source ? ` · template: ${rb.source}` : ''}`;
+                prep.grid.written = true;
+              }
+            } catch (e) {
+              prep.grid = prep.grid ?? {};
+              prep.grid.rebuild = `non riuscita (${e.message})`;
+            }
             const zp = zeroBalanceProposal(GRID_FILE, { track: card.trackName ?? null });
             if (zp) {
               const out = applyBalance({ track: card.trackName ?? null, force: true });

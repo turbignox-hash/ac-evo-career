@@ -12,11 +12,12 @@
 //   const out = applyBalance({ track: 'Sebring International Raceway' });  // classe auto-matchata
 //   const out = applyAi([94, 99]);
 //   const out = dropCellsApply(['preset_mk8gti_mech_1', 'BMW M3 E46 CSL']);
-import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, copyFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { dirname, join, basename } from 'node:path';
 import { sameTrack } from './tracknames.mjs';
-import { gameRunning, encodeMsg } from '../tools/evo-grid.mjs';
+import { gameRunning, encodeMsg, gridFileOf } from '../tools/evo-grid.mjs';
 import { balanceCells, dropCells, setAiRange, planFromClass, readCells, DEFAULT_FILE } from '../tools/grid-balance.mjs';
-import { loadClasses, pickClassInfo } from './gridbuilder.mjs';
+import { loadClasses, pickClassInfo, buildGridMessage } from './gridbuilder.mjs';
 
 export const GRID_FILE = DEFAULT_FILE;
 
@@ -73,6 +74,70 @@ export function dropCellsApply(matchers, { file = GRID_FILE, force = false, dry 
   if (dry) return { droppate: res.droppate, written: false };
   const backup = writeSafe(encodeMsg(res.fields), file, { force });
   return { droppate: res.droppate, written: true, backup };
+}
+
+/**
+ * Ricostruisce la griglia della RONDA (multiclasse/auto della serie) dallo
+ * stesso template che c'è sul disco, con il match della classe del builder:
+ * è il gesto del CLI `griglia --servo-prepara` (cli.mjs cmdGriglia) messo a
+ * disposizione dell'app GUI. A differenza di applyBalance/applyAi NON
+ * presuppoone una classe combaciante per preset: se il customgrid sul disco
+ * appartiene a un'altra serie (lezione del 23/10 mattina: avevo ancora
+ * GT3-vs-EXP ma il save era sulla Coppa RX-7), la classe matchata è l'altra
+ * e le zavorre scritte erano per lei; ricostruisce da template PLUS la
+ * ricollocazione della classe della serie e delle sue poolAuto.
+ * opts: { ladder, nodeId, roundIndex, file, force, dry }.
+ * Ritorna { buffer, report, written, backup } o throw (NO_GRID / serie
+ * fuori ladder / senza pool: il throw ha un messaggio già pronto come
+ * commando per l'utente).
+ */
+export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE, force = false, dry = false } = {}) {
+  if (!ladder || !nodeId || roundIndex == null) throw Object.assign(new Error('rebuildGridApply: servono ladder, nodeId e roundIndex'), { code: 'NO_ARGS' });
+  // il TEMPLATE è il file attuale; su una serie con poolAuto dichiarato il
+  // template con quel pool può esistere solo nei backup .bak-griglia/.bak-apply
+  // del passato (il file corrente appartiene a UN'altra serie). Provo il file
+  // corrente e in sua mancanza a fondo la stringa pronunciata di backup più
+  // recente che POSSIde il pool della serie — ma SEMPRE il file corrente resta
+  // il file di partenza: la scrittura non tocca i backup, e no altro template
+  // moderno venga usato.
+  // La scelta del backup: cerco in ordine di mtime l'ultimo candidato
+  // (bacgriglia/backu-apply) che passa una dry-run del builder col pool di
+  // questa serie — quindi nessuna altra potrebbe scelcarsi da sé.
+  try {
+    const first = buildGridMessage({ ladder, nodeId, roundIndex, file });
+    if (dry) return { report: first.report, written: false };
+    const backup = writeSafe(first.buffer, file, { force });
+    return { report: first.report, written: true, backup };
+  } catch (firstErr) {
+    if (firstErr.code || !existsSync(file)) throw firstErr;
+    // 2) backup compatibile: stessa serie (poolAuto) presenti nel file.
+    try {
+      const cls = loadClasses().classi?.[nodeId] ?? null;
+      const pool = Array.isArray(cls?.poolAuto) ? cls.poolAuto : (Array.isArray((ladder.nodes ?? []).find((n) => n.nodeId === nodeId)?.cars) ? ladder.nodes.find((n) => n.nodeId === nodeId).cars : null);
+      if (!pool || pool.length < 2) throw firstErr;
+      const dir = dirname(file);
+      const baks = readdirSync(dir).filter((f) => f.startsWith(basename(file) + '.bak-'));
+      baks.sort((a, b) => statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs);
+      let lastErr = firstErr;
+      for (const nome of baks.slice(0, 40)) {
+        try {
+          const buf = readFileSync(join(dir, nome));
+          // match veloce per CAR-ID di cella (il poolAuto è dichiarato a quelle
+          // chiavi, non a preset): il builder filtro il pool con la STESSA
+          // chiave (field 3), quindi un backup con ≥3 modelli del pool passa
+          // dove un match per preset fallirebbe con acqua alla gola.
+          const ids = new Set(gridFileOf(buf).cells.map((c) => c.carId).filter(Boolean));
+          const hit = pool.filter((p) => ids.has(p)).length;
+          if (hit < 3) continue;   // il backup non ha abbastanza auto del pool
+          const { buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: join(dir, nome) });
+          if (dry) return { report, written: false, source: nome };
+          const backup = writeSafe(buffer, file, { force });
+          return { report, written: true, backup, source: nome };
+        } catch (e) { lastErr = e; }
+      }
+      throw lastErr;
+    } catch (e) { throw e; }
+  }
 }
 
 /** Stato della griglia per la GUI: celle, config, classe combaciata e perTraccia attiva. */
