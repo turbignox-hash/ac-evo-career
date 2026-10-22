@@ -11,6 +11,10 @@ Per EVO si fa la stessa cosa, con una differenza importante e detta subito:
 > Non esiste l'equivalente di `race.ini` di Assetto Corsa 1. Quindi la gara si prepara nella sua
 > interfaccia: l'app ti dice *esattamente* cosa impostare (una schermata, due click) e apre il gioco
 > per te. Tutto il resto è automatico: **il risultato lo legge dai file nativi del gioco**.
+>
+> **L'unico intervento che resta in carico a te è selezionare l'auto a mano:** al momento non è
+> possibile impostarla in automatico, quindi la scegli tu nell'interfaccia del gioco —
+> e sulla scheda gara trovi già indicato quale.
 
 **Il modello di carriera è ricavato dall'installazione reale del progetto d'ispirazione per AMS2**
 (con campi di `career`, ladder, economia, punti, profili, classi e serie).
@@ -329,7 +333,9 @@ data/results-archive/                  copia dei risultati grezzi di ogni gara i
 
 - **La gara non si può lanciare via file.** EVO ignora argomenti da riga di comando e legge le
   sessioni solo dalla sua interfaccia (definizioni protobuf binarie). L'app ti dà la schermata esatta
-  da impostare e apre il gioco: due click e corri. Se questo cambierà, cambia solo `src/race.mjs`.
+  da impostare e apre il gioco: due click e corri. L'unico intervento che resta in carico a te è
+  **selezionare l'auto a mano** (non è fattibile da fuori al momento): quale, lo vedi nella scheda gara.
+  Se questo cambierà, cambia solo `src/race.mjs`.
 - **La difficoltà AI si imposta in gioco.** L'app la calcola (slider + aggressività + banda dei
   rivali) e la adatta a strati dopo ogni gara, ma lo slider lo muovi tu: il gioco non lo accetta da
   fuori. Il suggerimento adattivo resta in attesa finché non lo accetti o lo rifiuti.
@@ -356,8 +362,7 @@ Il progetto è protetto da quattro copie indipendenti. Se una riparte ridotta a 
 |--------------------|-----------------------------------------------------------------------|--------------------------------------|
 | disco              | codice, dati e documenti di lavoro, storia git                        | cartella del progetto sul Desktop    |
 | OneDrive           | zip completo (codice, git, save personali, mappe) e pacchetto portatile | cartelle OneDrive                   |
-| magazzino su L:    | le stesse due zip, con impronte SHA-256 ricontrollate                 | disco L:, cartella CarrieraEVO       |
-| off-site (facoltativa) | la sola storia git dei commit                                     | repository privato su GitHub o GitLab |
+| magazzino su L:    | le stesse due zip, con impronte SHA-256 ricontrollate                 | disco L:, cartella CarrieraEVO       || off-site (facoltativa) | la sola storia git dei commit | repository online (consigliato privato) su GitHub o GitLab |
 
 Strumenti, in ordine di uso:
 
@@ -370,13 +375,12 @@ Strumenti, in ordine di uso:
 - avvia.cmd lance in versione breve lo stesso controllo quando apre la interfaccia:
   parla solo se c'è un problema, resta muto se il disco L: è staccato di proposito.
 - sincronizza-git.cmd è la copia off-site: pubblica la storia git su un repository
-  privato online. Configurazione una volta sola: creare il repository privato vuoto,
+  online (consigliato privato). Configurazione una volta sola: creare il repository vuoto,
   poi git remote add offsite <url>, poi ri-lanciare lo script.
 
 Ogni zip completo contiene la guida COME-RIPRISTINARE.txt con i passi per rimettere
 in piedi il progetto (estrarre, npm test, avvia.cmd).
 
-## Riferimenti
 ## Riferimenti
 
 - **Il progetto di carriera per Automobilista 2** da cui nasce il modello: struttura ricavata

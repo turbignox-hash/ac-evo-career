@@ -421,6 +421,7 @@ function drawCardInto(el, card){
     ${card.carImage ? `<div style="display:flex;align-items:center;gap:12px;margin:8px 0 4px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2,#121822)">
       <img src="${card.carImage}" alt="${esc(card.carName ?? '')}" style="width:150px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#0d1118">
       <div style="font-size:12.5px"><b>Auto della giornata</b><br>${esc(card.carName ?? '')} <span class="muted">${card.carChoices?.length>1?'· puoi cambiarla dal selettore':''}</span></div>
+      <div style="font-size:11.5px;margin-top:5px;color:var(--warn,#ffb454)">⚠️ <b>Seleziona l'auto A MANO in EVO</b> — è l'unico intervento manuale della gara: al momento non è possibile impostarla in automatico da fuori.</div>
     </div>` : ''}
     <div class="cklbar"><i style="width:${doneCount/card.settings.length*100}%"></i></div>
     <div class="cklmeta"><span class="muted">checklist di configurazione: ${doneCount}/${card.settings.length}</span><button class="link" id="b-ckl-reset">azzera</button></div>
@@ -499,7 +500,7 @@ function drawCardInto(el, card){
       <button class="ghost" id="b-copy">Copia scheda</button>
     </div>
     <button class="act" id="b-race" style="width:100%;margin-top:10px">🏁 Prepara tutto e divertiti</button>
-    <div class="muted" style="margin-top:10px">Imposta i campi nella gara personalizzata di EVO spuntando la lista qui sopra; a scheda completa, premi Invio.</div>`;
+    <div class="muted" style="margin-top:10px">Imposta i campi nella gara personalizzata di EVO spuntando la lista qui sopra; a scheda completa, premi Invio. Ricorda: l'auto va selezionata a mano nel gioco — resta l'unica cosa che l'app non può fare da fuori.</div>`;
   const save = () => {
     checked = $$('.ckl input', el).filter(c=>c.checked).map(c=>Number(c.dataset.i));
     localStorage.setItem(key, JSON.stringify(checked));
