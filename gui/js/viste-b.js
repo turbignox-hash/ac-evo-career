@@ -483,7 +483,7 @@ async function drawStats(m){
     <h2><span class="st-ico">${STI.cup}</span> ${tr({ it: 'SALA TROFEI', en: 'TROPHY HALL' })} <span class="h-act">${tr({ it: 'tutto quello che la carriera ha vinto', en: 'everything the career has won' })}</span></h2>
     ${s.trophies?.length ? `<div class="st-trophies">${s.trophies.map(t=>`<div class="st-trophy">${rivalAvatarText(t.icon, 40)}<div><b>${esc(t.label)}</b><div class="muted" style="font-size:12px">${esc(t.detail)}</div></div></div>`).join('')}</div>` : ''}
     ${s.sigils?.length ? `<details style="margin-top:10px" open><summary style="cursor:pointer;font-size:12.5px"><b>${tr({ it: 'Sigilli del pilota', en: 'Driver sigils' })}</b> <span class="muted" style="font-size:11.5px">— ${s.sigils.length} ${tr({ it: 'sbloccati', en: 'unlocked' })}</span></summary>
-      <div class="st-kpis" style="margin-top:8px">${s.sigils.map(x=>`<div class="kpi st-kpi" title="${tr({ it: 'dal ', en: 'since ' })}${esc(String(x.at||'').slice(0,10))}"><div class="l">${esc(x.label ?? x.id)}</div><div class="v" style="font-size:13.5px;font-weight:500">${esc(x.detail ?? '')}</div></div>`).join('')}</div></details>` : ''}
+      <div class="st-kpis" style="margin-top:8px">${s.sigils.map(x=>`<div class="kpi st-kpi" title="${tr({ it: 'dal ', en: 'since ' })}${esc(String(x.at||'').slice(0,10))}"><div class="l">${esc(x.label ?? x.id)}</div><div class="v" style="font-size:13.5px;font-weight:500">${esc(x.detailEn ?? x.detail ?? '')}</div></div>`).join('')}</div></details>` : ''}
   </div>` : '';
   /* 2) grafici andamento */
   const grafici = s.history.length >= 2 ? `

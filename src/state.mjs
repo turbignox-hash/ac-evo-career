@@ -494,19 +494,19 @@ export function careerStats(ladder, state) {
   // sala trofei: le prime volte e i record, letti dalla storia delle gare
   const tDisp = (r) => `${ladder.contentNames?.tracks?.[r.track] ?? r.track} · S${r.season} R${r.round + 1}`;
   const trophies = [];
-  if (all.length) trophies.push({ icon: '🎬', label: 'Esordio', detail: tDisp(all[0]) });
+  if (all.length) trophies.push({ icon: '🎬', label: tr({ it: 'Esordio', en: 'Debut' }), detail: tDisp(all[0]) });
   const firstPodium = all.find((r) => !r.dnf && r.position <= 3);
-  if (firstPodium) trophies.push({ icon: '🥉', label: 'Primo podio', detail: `P${firstPodium.position} · ${tDisp(firstPodium)}` });
+  if (firstPodium) trophies.push({ icon: '🥉', label: tr({ it: 'Primo podio', en: 'First podium' }), detail: `P${firstPodium.position} · ${tDisp(firstPodium)}` });
   const firstWin = all.find((r) => !r.dnf && r.position === 1);
-  if (firstWin) trophies.push({ icon: '🏆', label: 'Prima vittoria', detail: tDisp(firstWin) });
+  if (firstWin) trophies.push({ icon: '🏆', label: tr({ it: 'Prima vittoria', en: 'First win' }), detail: tDisp(firstWin) });
   const firstPole = all.find((r) => r.pole === true);
-  if (firstPole) trophies.push({ icon: '⚡', label: 'Prima pole', detail: tDisp(firstPole) });
+  if (firstPole) trophies.push({ icon: '⚡', label: tr({ it: 'Prima pole', en: 'First pole' }), detail: tDisp(firstPole) });
   const firstFL = all.find((r) => r.fl);
-  if (firstFL) trophies.push({ icon: '⏱️', label: 'Primo giro veloce', detail: tDisp(firstFL) });
-  for (const t of titles) trophies.push({ icon: '👑', label: 'Titolo', detail: `${t.display} · stagione ${t.season}` });
+  if (firstFL) trophies.push({ icon: '⏱️', label: tr({ it: 'Primo giro veloce', en: 'First fastest lap' }), detail: tDisp(firstFL) });
+  for (const t of titles) trophies.push({ icon: '👑', label: tr({ it: 'Titolo', en: 'Title' }), detail: tr({ it: `${t.display} · stagione ${t.season}`, en: `${t.display} · season ${t.season}` }) });
   const bestRecovery = all.filter((r) => Number.isFinite(r.gridPosition) && Number.isFinite(r.position))
     .map((r) => ({ r, gain: r.gridPosition - r.position })).sort((a, b) => b.gain - a.gain)[0];
-  if (bestRecovery && bestRecovery.gain > 0) trophies.push({ icon: '🚀', label: 'Rimonta record', detail: `P${bestRecovery.r.gridPosition} → P${bestRecovery.r.position} (+${bestRecovery.gain}) · ${tDisp(bestRecovery.r)}` });
+  if (bestRecovery && bestRecovery.gain > 0) trophies.push({ icon: '🚀', label: tr({ it: 'Rimonta record', en: 'Record recovery' }), detail: tr({ it: `P${bestRecovery.r.gridPosition} → P${bestRecovery.r.position} (+${bestRecovery.gain}) · ${tDisp(bestRecovery.r)}`, en: `P${bestRecovery.r.gridPosition} → P${bestRecovery.r.position} (+${bestRecovery.gain}) · ${tDisp(bestRecovery.r)}` }) });
   let streakBest = 0, streakRun = 0;
   for (const r of all) {
     if (!r.dnf && r.position === 1) { streakRun += 1; streakBest = Math.max(streakBest, streakRun); }
@@ -514,7 +514,7 @@ export function careerStats(ladder, state) {
   }
   if (streakBest >= 2) {
     const end = all.filter((r) => !r.dnf && r.position === 1).slice(-streakBest);
-    trophies.push({ icon: '🔥', label: `${streakBest} vittorie di fila`, detail: end.map((r) => tDisp(r)).join(' · ') });
+    trophies.push({ icon: '🔥', label: tr({ it: `${streakBest} vittorie di fila`, en: `${streakBest} wins in a row` }), detail: end.map((r) => tDisp(r)).join(' · ') });
   }
   // rimonte e posizioni guadagnate: servono la griglia di partenza (dai rivali) e la gara
   const startMap = new Map();
@@ -554,7 +554,7 @@ export function careerStats(ladder, state) {
       .sort((a, b) => a.display.localeCompare(b.display)),
     trophies,
     tracks,
-    sigils: (state.life?.sigils ?? []).map((s) => ({ ...(sigilDefs(ladder).find((d) => d.id === s.id) ?? {}), ...s })),
+    sigils: ensureLife(state).sigils.map((s) => ({ ...(sigilDefs(ladder).find((d) => d.id === s.id) ?? {}), ...s })),
     saga: all.slice().reverse().slice(0, 12).map((r) => ({
       season: r.season, round: r.round + 1,
       series: ladder.nodes.find((n) => n.nodeId === r.nodeId)?.display ?? r.nodeId,

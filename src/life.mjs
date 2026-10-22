@@ -24,7 +24,31 @@ export function ensureLife(state) {
   L.contractHistory ??= [];    // [{ season, display, verdict, payout }]
   L.sponsor ??= null;          // { name, tier, perRace, bonus, deadlineRound, takenRound, payout }
   L.challenge ??= null;        // { round, nodeId, text, reward, penalty, kind, target, verdict:null }
-  L.sigils ??= [];             // [{ id, at, detail }]
+  L.sigils ??= [];             // [{ id, at, detail, detailEn }]
+  // Migrazione UNA-TANTO-VIA: i sigilli scrittati prima della bilinguizzazione
+  // (o senza) detailEn ricevono la controparte inglese ricavata dal dettaglio.
+  if (L.sigils.length && L.sigils.some((s) => !s.detailEn)) {
+    L.sigils = L.sigils.map((s) => {
+      if (s.detailEn || !s.detail) return s;
+      const map = [
+        [/^vittoria da pole$/, 'win from pole'],
+        [/^pole \+ vittoria \+ giro veloce$/, 'pole + win + fastest lap'],
+        [/^(\d+) vittorie di fila$/, (n) => `${n} wins in a row`],
+        [/^(\d+) gare di fila a punti$/, (n) => `${n} points finishes in a row`],
+        [/^(\d+) titoli$/, (n) => `${n} titles`],
+        [/^stagione ([\w-]+) senza ritiri$/, (n) => `season ${n} without a retirement`],
+        [/^rimonta \+(\d+) posizioni$/, (n) => `recovery of +${n} places`],
+      ];
+      let en = null;
+      for (const [re, out] of map) {
+        const m = re.exec(s.detail);
+        if (!m) continue;
+        en = typeof out === 'function' ? out(m[1]) : out;
+        break;
+      }
+      return en ? { ...s, detailEn: en } : s;
+    });
+  }
   L.challengeStats ??= { taken: 0, won: 0 };
   L.challengeLostRep ??= 0;
   L.paddockQuotes ??= {};      // key -> ultima citazione
@@ -305,14 +329,14 @@ export function settleChallenge(ladder, state, entry, { pushMessage, recordFlows
 
 export function sigilDefs(ladder) {
   return [
-    { id: 'lightsout', label: 'Luci spente', detail: 'vittoria partendo da pole' },
-    { id: 'last2first', label: 'Dall\'ultimo al primo', detail: 'vittoria partendo dall\'ultimo posto' },
-    { id: 'grandchelem', label: 'Grand Chelem', detail: 'pole + vittoria + giro veloce nella stessa gara' },
-    { id: 'streak3', label: 'Treno in corsa', detail: '3 vittorie di fila' },
-    { id: 'streak5points', label: 'Metro pari', detail: '5 gare di fila a punti' },
-    { id: 'champion2', label: 'Bicampione', detail: '2 titoli in carriera' },
-    { id: 'cleanseason', label: 'Anno senza macchie', detail: 'una stagione senza ritiri (min. 3 gare)' },
-    { id: 'comeback5', label: 'Sottano', detail: 'rimonta di almeno 5 posizioni' },
+    { id: 'lightsout', label: tr({ it: 'Luci spente', en: 'Lights out' }), detail: tr({ it: 'vittoria partendo da pole', en: 'win from pole position' }) },
+    { id: 'last2first', label: tr({ it: "Dall'ultimo al primo", en: 'Last to first' }), detail: tr({ it: "vittoria partendo dall'ultimo posto", en: 'win from the last grid spot' }) },
+    { id: 'grandchelem', label: 'Grand Chelem', detail: tr({ it: 'pole + vittoria + giro veloce nella stessa gara', en: 'pole + win + fastest lap in the same race' }) },
+    { id: 'streak3', label: tr({ it: 'Treno in corsa', en: 'Running train' }), detail: tr({ it: '3 vittorie di fila', en: '3 wins in a row' }) },
+    { id: 'streak5points', label: tr({ it: 'Metro pari', en: 'Steady stepper' }), detail: tr({ it: '5 gare di fila a punti', en: '5 points finishes in a row' }) },
+    { id: 'champion2', label: tr({ it: 'Bicampione', en: 'Two-time champion' }), detail: tr({ it: '2 titoli in carriera', en: '2 titles in the career' }) },
+    { id: 'cleanseason', label: tr({ it: 'Anno senza macchie', en: 'Spotless season' }), detail: tr({ it: 'una stagione senza ritiri (min. 3 gare)', en: 'a season with no retirements (min. 3 races)' }) },
+    { id: 'comeback5', label: tr({ it: 'Sottano', en: 'Fighter' }), detail: tr({ it: 'rimonta di almeno 5 posizioni', en: 'recovery of at least 5 places' }) },
   ];
 }
 
@@ -321,33 +345,41 @@ export function checkSigils(ladder, state) {
   const L = ensureLife(state);
   const have = new Set(L.sigils.map((s) => s.id));
   const out = [];
-  const add = (id, detail) => { if (!have.has(id)) { out.push({ id, detail }); L.sigils.push({ id, at: new Date().toISOString(), detail }); } };
+  /* ogni sigillo conserva la coppia it/en alla scarata (le vecchie restano          */
+  /*  con solo detail IT: la vista cade su detailEn ?? detail). */
+  const add = (id, pair) => {
+    if (!have.has(id)) {
+      const detail = pair?.it ?? '', detailEn = pair?.en ?? detail;
+      out.push({ id, detail, detailEn });
+      L.sigils.push({ id, at: new Date().toISOString(), detail, detailEn });
+    }
+  };
   const all = Object.entries(state.results ?? {}).flatMap(([, list]) => list);
   const wins = all.filter((r) => !r.dnf && r.position === 1);
-  if (wins.some((r) => r.pole === true)) add('lightsout', 'vittoria da pole');
+  if (wins.some((r) => r.pole === true)) add('lightsout', tr({ it: 'vittoria da pole', en: 'win from pole' }));
   if (wins.some((r) => Number.isFinite(r.gridPosition) && r.gridPosition === (r.gridSize ?? null))) {
     const last = wins.find((r) => r.gridPosition === r.gridSize);
-    add('last2first', `P${last.gridSize} → P1`);
+    add('last2first', { it: `P${last.gridSize} → P1`, en: `P${last.gridSize} → P1` });
   }
-  if (wins.some((r) => r.pole === true && r.fl)) add('grandchelem', 'pole + vittoria + giro veloce');
+  if (wins.some((r) => r.pole === true && r.fl)) add('grandchelem', tr({ it: 'pole + vittoria + giro veloce', en: 'pole + win + fastest lap' }));
   // vittorie di fila (in ordine di data)
   const sorted = all.slice().sort((a, b) => String(a.at ?? '').localeCompare(String(b.at ?? '')));
   let run = 0, bestRun = 0;
   for (const r of sorted) { if (!r.dnf && r.position === 1) { run += 1; bestRun = Math.max(bestRun, run); } else run = 0; }
-  if (bestRun >= 3) add('streak3', `${bestRun} vittorie di fila`);
+  if (bestRun >= 3) add('streak3', tr({ it: `${bestRun} vittorie di fila`, en: `${bestRun} wins in a row` }));
   // 5 gare a punti di fila
   let ptsRun = 0;
   for (const r of sorted) { if (!r.dnf && (r.points ?? 0) > 0) { ptsRun += 1; if (ptsRun >= 5) break; } else ptsRun = 0; }
-  if (ptsRun >= 5) add('streak5points', '5 gare di fila a punti');
-  if ((state.titles ?? []).length >= 2) add('champion2', `${state.titles.length} titoli`);
+  if (ptsRun >= 5) add('streak5points', tr({ it: '5 gare di fila a punti', en: '5 points finishes in a row' }));
+  if ((state.titles ?? []).length >= 2) add('champion2', tr({ it: `${state.titles.length} titoli`, en: `${state.titles.length} titles` }));
   // stagione senza ritiri
   for (const s of state.seasons ?? []) {
     const seasonRaces = all.filter((r) => r.season === s.season);
-    if (seasonRaces.length >= 3 && seasonRaces.every((r) => !r.dnf)) { add('cleanseason', `stagione ${s.season} senza ritiri`); break; }
+    if (seasonRaces.length >= 3 && seasonRaces.every((r) => !r.dnf)) { add('cleanseason', tr({ it: `stagione ${s.season} senza ritiri`, en: `season ${s.season} without a retirement` })); break; }
   }
   const bestComeback = all.filter((r) => Number.isFinite(r.gridPosition) && Number.isFinite(r.position) && !r.dnf)
     .map((r) => r.gridPosition - r.position).sort((a, b) => b - a)[0] ?? 0;
-  if (bestComeback >= 5) add('comeback5', `rimonta +${bestComeback} posizioni`);
+  if (bestComeback >= 5) add('comeback5', tr({ it: `rimonta +${bestComeback} posizioni`, en: `recovery of +${bestComeback} places` }));
   return out;
 }
 
