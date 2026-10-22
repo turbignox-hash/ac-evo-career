@@ -20,6 +20,7 @@ import { readFileSync, existsSync, copyFileSync, mkdirSync, unlinkSync } from 'n
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeJsonAtomic } from './atomic.mjs';
+import { tr } from './lang.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);
@@ -101,7 +102,7 @@ export function testModeBanner() {
   if (!m) return null;
   const dal = String(m.dal ?? '').slice(0, 16).replace('T', ' ');
   return [
-    `⚠  MODALITÀ TEST ATTIVA: tutte le gare della scala a ${m.giri} giri (da ${dal}, ${m.rond} rond toccate).`,
-    `   Per riattivare le distanze vere: node ac-evo-career.mjs test-mode --off`,
+    tr({ it: `⚠  MODALITÀ TEST ATTIVA: tutte le gare della scala a ${m.giri} giri (da ${dal}, ${m.rond} rond toccate).`, en: `⚠  TEST MODE ON: every ladder race at ${m.giri} laps (since ${dal}, ${m.rond} rounds touched).` }),
+    tr({ it: '   Per riattivare le distanze vere: node ac-evo-career.mjs test-mode --off', en: '   To restore the real distances: node ac-evo-career.mjs test-mode --off' }),
   ].join('\n');
 }

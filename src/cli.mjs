@@ -1,5 +1,6 @@
-// cli.mjs — i comandi della carriera EVO.
+// cli.mjs — i comandi della carriera EVO. Lingua: EVO_LANG=it|en (src/lang.mjs).
 
+import { tr, LANG } from './lang.mjs';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -126,39 +127,39 @@ function writeConfig(patch) {
 
 function cmdHelp() {
   const rows = [
-    ['setup', 'mostra l\'installazione rilevata e salva i percorsi trovati'],
-    ['content [--validate|--list|--search <testo>]', 'catalogo auto/piste visto nell\'installazione e verifica della scala'],
-    ['new --name "Nome" [--nation ITA] [--discipline gt]', 'comincia una carriera'],
-    ['rinomina --name "Nome Cognome"', 'cambia il nome pilota (deve combaciare con quello in EVO)'],
-    ['status', 'cruscotto: soldi, reputazione, sedile, tier, posizione'],
-    ['series [--discipline gt] [--all]', 'la scala completa con gate e serie bloccate'],
-    ['enter <nodeId> [--buy] [--force]', 'cambia serie, comprando o affittando il sedile'],
-    ['calendar', 'calendario della stagione con ora e meteo di ogni round'],
-    ['agenda [--fattibili] [--salta|--prossima] [--corri <nodeId>]', ' calendario a GIORNI: gare di ogni campionato iscritto, le fattibili per livello, salto di giornata'],
-    ['standings', 'classifica della serie'],
-    ['paddock [--all]', 'piloti rivali: archetipo, eta\', banda di difficolta\''],
-    ['messages', 'messaggi e notizie dal paddock'],
-    ['next [--car <id>]', 'la prossima gara in dettaglio: cosa impostare nel gioco'],
-    ['race [--car <id>] [--dry-run] [--no-launch]', 'paga l\'iscrizione, segna la gara attesa e apre il gioco'],
-    ['prepara [--car <id>] [--dry] [--serie <nodeId>] [--round N]', 'iscrizione ronda + griglia zavorrata + vigia + card in un gesto: poi scegli il round in EVO (flusso no-restart)'],
-    ['import [--position N --cars M] [--dnf] [--fl] [--inspect] [--force]', 'legge il risultato e aggiorna la carriera'],
-    ['watch [--every N]', 'guardia automatica: incassa da solo ogni gara nuova scritta da EVO (ogni 15s)'],
-    ['difficulty [--mode adaptive|fixed|custom] [--value N] [--trim <serie|all> <valore>] [--lock/--unlock <node>] [--accept|--reject]', 'difficolta\' AI di tutte le serie (trim manuale -20..+20)'],
-    ['season-end', 'chiude l\'anno, paga il titolo e apre il mercato'],
-    ['review [--season N] [--export]', 'la rassegna della stagione: gare, rivali, duelli'],
-    ['gazzetta', 'la stampa del paddock: titoli e voci dopo ogni gara'],
-    ['piano', 'pianificatore: dove puoi correre l\'anno prossimo'],
-    ['sfida [--accept]', 'la mini-sfida facoltativa della prossima gara'],
-    ['dottore', 'verifica l\'integrità della carriera (e --fix corregge)'],
-    ['accept <n>', 'accetta un\'offerta di sedile'],
-    ['griglia [--serie <nodeId>] [--round N] [--dry] [--force]', 'scrive il customgrid della GARA DEL GIORNO: auto del pool + bilanciamento (funziona anche a EVO aperto, dal menu principale; mai dal menu griglia, mai con GENERA)'],
-    ['griglia-calib [--convalida "pista"] [--dry] [--reset]', 'calibrazione dai risultati reali: confidenza per classe+traccia, proposte, appunta la convalida con --convalida'],
-    ['test-mode [--giri N] | --on | --off', 'modalità test: TUTTE le gare a N giri (default 3). Con --off tornano i giri originali dei calendari'],
+    ['setup', tr({ it: "mostra l'installazione rilevata e salva i percorsi trovati", en: 'shows the detected installation and saves the found paths' })],
+    ['content [--validate|--list|--search <testo>]', tr({ it: "catalogo auto/piste visto nell'installazione e verifica della scala", en: 'car/track catalogue seen in the installation and ladder check' })],
+    ['new --name "Nome" [--nation ITA] [--discipline gt]', tr({ it: 'comincia una carriera', en: 'starts a career' })],
+    ['rinomina --name "Nome Cognome"', tr({ it: 'cambia il nome pilota (deve combaciare con quello in EVO)', en: 'changes the driver name (must match the one in EVO)' })],
+    ['status', tr({ it: 'cruscotto: soldi, reputazione, sedile, tier, posizione', en: 'dashboard: money, reputation, seat, tier, position' })],
+    ['series [--discipline gt] [--all]', tr({ it: 'la scala completa con gate e serie bloccate', en: 'the full ladder with gates and locked series' })],
+    ['enter <nodeId> [--buy] [--force]', tr({ it: 'cambia serie, comprando o affittando il sedile', en: 'changes series, buying or renting the seat' })],
+    ['calendar', tr({ it: 'calendario della stagione con ora e meteo di ogni round', en: 'season calendar with time and weather of each round' })],
+    ['agenda [--fattibili] [--salta|--prossima] [--corri <nodeId>]', tr({ it: ' calendario a GIORNI: gare di ogni campionato iscritto, le fattibili per livello, salto di giornata', en: ' DAILY calendar: races of each joined championship, the level-feasible ones, day skip' })],
+    ['standings', tr({ it: 'classifica della serie', en: 'series standings' })],
+    ['paddock [--all]', tr({ it: "piloti rivali: archetipo, eta', banda di difficolta'", en: "rival drivers: archetype, age, difficulty band" })],
+    ['messages', tr({ it: 'messaggi e notizie dal paddock', en: 'messages and news from the paddock' })],
+    ['next [--car <id>]', tr({ it: 'la prossima gara in dettaglio: cosa impostare nel gioco', en: 'the next race in detail: what to set in the game' })],
+    ['race [--car <id>] [--dry-run] [--no-launch]', tr({ it: "paga l'iscrizione, segna la gara attesa e apre il gioco", en: 'pays the entry, marks the awaited race and opens the game' })],
+    ['prepara [--car <id>] [--dry] [--serie <nodeId>] [--round N]', tr({ it: 'iscrizione ronda + griglia zavorrata + vigia + card in un gesto: poi scegli il round in EVO (flusso no-restart)', en: 'round entry + ballasted grid + checker + card in one move: then pick the round in EVO (no-restart flow)' })],
+    ['import [--position N --cars M] [--dnf] [--fl] [--inspect] [--force]', tr({ it: 'legge il risultato e aggiorna la carriera', en: 'reads the result and updates the career' })],
+    ['watch [--every N]', tr({ it: 'guardia automatica: incassa da solo ogni gara nuova scritta da EVO (ogni 15s)', en: 'automatic guard: collects every new race written by EVO by itself (every 15s)' })],
+    ['difficulty [--mode adaptive|fixed|custom] [--value N] [--trim <serie|all> <valore>] [--lock/--unlock <node>] [--accept|--reject]', tr({ it: "difficolta' AI di tutte le serie (trim manuale -20..+20)", en: 'AI difficulty of all series (manual trim -20..+20)' })],
+    ['season-end', tr({ it: "chiude l'anno, paga il titolo e apre il mercato", en: 'closes the year, pays the title and opens the market' })],
+    ['review [--season N] [--export]', tr({ it: 'la rassegna della stagione: gare, rivali, duelli', en: 'the season review: races, rivals, duels' })],
+    ['gazzetta', tr({ it: 'la stampa del paddock: titoli e voci dopo ogni gara', en: 'the paddock press: headlines and voices after each race' })],
+    ['piano', tr({ it: "pianificatore: dove puoi correre l'anno prossimo", en: 'planner: where you can race next year' })],
+    ['sfida [--accept]', tr({ it: 'la mini-sfida facoltativa della prossima gara', en: 'the optional mini-challenge of the next race' })],
+    ['dottore', tr({ it: 'verifica l\'integrità della carriera (e --fix corregge)', en: 'checks the career integrity (and --fix repairs)' })],
+    ['accept <n>', tr({ it: "accetta un'offerta di sedile", en: 'accepts a seat offer' })],
+    ['griglia [--serie <nodeId>] [--round N] [--dry] [--force]', tr({ it: 'scrive il customgrid della GARA DEL GIORNO: auto del pool + bilanciamento (funziona anche a EVO aperto, dal menu principale; mai dal menu griglia, mai con GENERA)', en: 'writes the customgrid of the RACE OF THE DAY: pool cars + balance (works even with EVO open, from the main menu; never from the grid menu, never with GENERATE)' })],
+    ['griglia-calib [--convalida "pista"] [--dry] [--reset]', tr({ it: 'calibrazione dai risultati reali: confidenza per classe+traccia, proposte, appunta la convalida con --convalida', en: 'calibration from real results: confidence per class+track, proposals, bookmarks the validation with --convalida' })],
+    ['test-mode [--giri N] | --on | --off', tr({ it: 'modalità test: TUTTE le gare a N giri (default 3). Con --off tornano i giri originali dei calendari', en: 'test mode: ALL races at N laps (default 3). With --off the original calendar laps come back' })],
   ];
-  console.log(C.bold('\nac-evo-career — carriera per Assetto Corsa EVO\n'));
-  console.log('Uso: node ac-evo-career.mjs <comando> [opzioni]\n');
+  console.log(C.bold(tr({ it: '\nac-evo-career — carriera per Assetto Corsa EVO\n', en: '\nac-evo-career — career for Assetto Corsa EVO\n' })));
+  console.log(tr({ it: 'Uso: node ac-evo-career.mjs <comando> [opzioni]\n', en: 'Usage: node ac-evo-career.mjs <command> [options]\n' }));
   for (const [cmd, desc] of rows) console.log(`  ${C.cyan(cmd.padEnd(52))} ${desc}`);
-  console.log(`\n${C.dim('Flusso tipico: next -> race -> corri -> import')}\n`);
+  console.log(`\n${C.dim(tr({ it: 'Flusso tipico: next -> race -> corri -> import', en: 'Typical flow: next -> race -> run -> import' }))}\n`);
   return 0;
 }
 
@@ -169,25 +170,25 @@ function cmdSetup(args) {
     if (typeof args.flags.data === 'string') patch.dataDir = args.flags.data;
     if (typeof args.flags.game === 'string') patch.gameExe = args.flags.game;
     writeConfig(patch);
-    console.log(C.green('Percorsi salvati in data/evo.config.json'));
+    console.log(C.green(tr({ it: 'Percorsi salvati in data/evo.config.json', en: 'Paths saved in data/evo.config.json' })));
   }
   const paths = resolvePaths(appEnv());
-  console.log(C.bold('\nInstallazione rilevata\n'));
-  console.log(`  cartelle dati   ${paths.dataDirs.join('\n                  ')}`);
-  console.log(`  risultati       ${paths.resultsDirs.length ? paths.resultsDirs.join(', ') : C.red('nessuna cartella Results (avvia il gioco almeno una volta)')}`);
-  console.log(`  log             ${paths.logsDirs.length ? paths.logsDirs.join(', ') : '(nessuna)'}`);
-  console.log(`  eseguibile      ${paths.gameExe ?? C.yellow('non trovato (il lancio userà Steam)')}`);
-  console.log(`  scala carriera  ${ladder.nodes.length} serie, ${ladder.disciplines.length} discipline\n`);
+  console.log(C.bold(tr({ it: '\nInstallazione rilevata\n', en: '\nDetected installation\n' })));
+  console.log(`  ${tr({ it: 'cartelle dati', en: 'data folders' })}   ${paths.dataDirs.join('\n                  ')}`);
+  console.log(`  ${tr({ it: 'risultati', en: 'results' })}        ${paths.resultsDirs.length ? paths.resultsDirs.join(', ') : C.red(tr({ it: 'nessuna cartella Results (avvia il gioco almeno una volta)', en: 'no Results folder (launch the game at least once)' }))}`);
+  console.log(`  ${tr({ it: 'log', en: 'logs' })}             ${paths.logsDirs.length ? paths.logsDirs.join(', ') : `(${tr({ it: 'nessuna', en: 'none' })})`}`);
+  console.log(`  ${tr({ it: 'eseguibile', en: 'executable' })}      ${paths.gameExe ?? C.yellow(tr({ it: 'non trovato (il lancio userà Steam)', en: 'not found (launch will use Steam)' }))}`);
+  console.log(`  ${tr({ it: 'scala carriera', en: 'career ladder' })}  ${ladder.nodes.length} ${tr({ it: 'serie', en: 'series' })}, ${ladder.disciplines.length} ${tr({ it: 'discipline', en: 'disciplines' })}\n`);
 
   const content = scanContent(paths);
-  console.log(`  contenuto visto ${content.cars.size} auto, ${content.tracks.size} piste (da log e season definition)\n`);
+  console.log(`  ${tr({ it: 'contenuto visto', en: 'content seen' })} ${content.cars.size} ${tr({ it: 'auto', en: 'cars' })}, ${content.tracks.size} ${tr({ it: 'piste', en: 'tracks' })} (${tr({ it: 'da log e season definition', en: 'from logs and season definition' })})\n`);
   const issues = validateLadder(ladder, content);
   if (issues.length) {
-    console.log(C.yellow(`  ${issues.length} riferimenti della scala non trovati nell'installazione: usa "content --validate" per l'elenco.`));
+    console.log(C.yellow(`  ${tr({ it: "{N} riferimenti della scala non trovati nell'installazione: usa \"content --validate\" per l'elenco.", en: '{N} ladder references not found in the installation: use "content --validate" for the list.' }).replace('{N}', issues.length)}`));
   } else {
-    console.log(C.green('  La scala carriera combacia con il contenuto installato.'));
+    console.log(C.green(tr({ it: '  La scala carriera combacia con il contenuto installato.', en: '  The career ladder matches the installed content.' })));
   }
-  console.log(`\n${C.dim('Puoi forzare i percorsi con:  node ac-evo-career.mjs setup --data "<cartella ACE>" --game "<AssettoCorsaEVO.exe>"')}\n`);
+  console.log(`\n${C.dim(tr({ it: 'Puoi forzare i percorsi con:  node ac-evo-career.mjs setup --data "<cartella ACE>" --game "<AssettoCorsaEVO.exe>"', en: 'You can force paths with:  node ac-evo-career.mjs setup --data "<ACE folder>" --game "<AssettoCorsaEVO.exe>"' }))}\n`);
   return 0;
 }
 
@@ -197,37 +198,37 @@ function cmdContent(args) {
   if (args.flags.search) {
     const term = String(args.flags.search);
     const found = searchContent(content, ladder, term);
-    console.log(C.bold(`\nRicerca "${term}"\n`));
-    console.log(`  auto:  ${found.cars.join(', ') || C.dim('nessuna')}`);
-    console.log(`  piste: ${found.tracks.join(', ') || C.dim('nessuna')}\n`);
+    console.log(C.bold(tr({ it: '\nRicerca "{T}"\n', en: '\nSearch "{T}"\n' }).replace('{T}', term)));
+    console.log(`  ${tr({ it: 'auto:', en: 'cars:' })}  ${found.cars.join(', ') || C.dim(tr({ it: 'nessuna', en: 'none' }))}`);
+    console.log(`  ${tr({ it: 'piste:', en: 'tracks:' })} ${found.tracks.join(', ') || C.dim(tr({ it: 'nessuna', en: 'none' }))}\n`);
     return 0;
   }
   if (args.flags.list) {
-    console.log(C.bold(`\nAuto viste nell'installazione (${content.cars.size})\n`));
+    console.log(C.bold(tr({ it: "\nAuto viste nell'installazione ({N})\n", en: '\nCars seen in the installation ({N})\n' }).replace('{N}', content.cars.size)));
     for (const id of [...content.cars].sort()) console.log(`  ${id.padEnd(42)} ${C.dim(ladder.contentNames?.cars?.[id] ?? '')}`);
-    console.log(C.bold(`\nPiste viste nell'installazione (${content.tracks.size})\n`));
+    console.log(C.bold(tr({ it: "\nPiste viste nell'installazione ({N})\n", en: '\nTracks seen in the installation ({N})\n' }).replace('{N}', content.tracks.size)));
     for (const id of [...content.tracks].sort()) console.log(`  ${id.padEnd(42)} ${C.dim(ladder.contentNames?.tracks?.[id] ?? '')}`);
     console.log();
     return 0;
   }
   if (args.flags.validate) {
     const issues = validateLadder(ladder, content);
-    console.log(C.bold('\nVerifica della scala carriera\n'));
+    console.log(C.bold(tr({ it: '\nVerifica della scala carriera\n', en: '\nCareer ladder check\n' })));
     if (!issues.length) {
-      console.log(C.green(`  Nessun problema: ${ladder.nodes.length} serie, tutte le auto e le piste esistono nell'installazione.\n`));
+      console.log(C.green(tr({ it: "  Nessun problema: {N} serie, tutte le auto e le piste esistono nell'installazione.\n", en: '  No problems: {N} series, every car and track exists in the installation.\n' }).replace('{N}', ladder.nodes.length)));
       return 0;
     }
-    console.log(`  ${issues.length} problemi:\n`);
+    console.log(`  ${issues.length} ${tr({ it: 'problemi:', en: 'problems:' })}\n`);
     for (const issue of issues) {
-      const label = { car: 'auto', track: 'pista', points: 'punti', profile: 'profilo', gate: 'gate' }[issue.kind];
+      const label = { car: tr({ it: 'auto', en: 'car' }), track: tr({ it: 'pista', en: 'track' }), points: tr({ it: 'punti', en: 'points' }), profile: tr({ it: 'profilo', en: 'profile' }), gate: 'gate' }[issue.kind];
       console.log(`  ${C.yellow(issue.node.padEnd(22))} ${label.padEnd(7)} ${C.red(issue.id.padEnd(38))} ${C.dim(issue.display)}`);
-      if (issue.suggestions?.length) console.log(`${' '.repeat(24)}${C.dim('forse intendevi: ' + issue.suggestions.join(', '))}`);
+      if (issue.suggestions?.length) console.log(`${' '.repeat(24)}${C.dim(tr({ it: 'forse intendevi: ', en: 'maybe you meant: ' }) + issue.suggestions.join(', '))}`);
     }
     console.log();
     return 1;
   }
-  console.log(`\nContenuto visto: ${content.cars.size} auto, ${content.tracks.size} piste.`);
-  console.log('Usa --validate per la verifica della scala, --list per l\'elenco, --search <testo> per cercare.\n');
+  console.log(tr({ it: '\nContenuto visto: {A} auto, {T} piste.', en: '\nContent seen: {A} cars, {T} tracks.' }).replace('{A}', content.cars.size).replace('{T}', content.tracks.size));
+  console.log(tr({ it: "Usa --validate per la verifica della scala, --list per l'elenco, --search <testo> per cercare.\n", en: 'Use --validate for the ladder check, --list for the list, --search <text> to search.\n' }));
   return 0;
 }
 
@@ -235,10 +236,10 @@ function cmdNew(args) {
   const { ladder } = context();
   const name = typeof args.flags.name === 'string' ? args.flags.name : null;
   if (!name && !(args.flags.first && args.flags.last)) {
-    throw new Error('Serve il nome del pilota: new --name "Mauro Sgamer" --nation ITA');
+    throw new Error(tr({ it: 'Serve il nome del pilota: new --name "Mauro Sgamer" --nation ITA', en: 'The driver name is required: new --name "John Driver" --nation ITA' }));
   }
   if (existsSync(SAVE_FILE) && !args.flags.force) {
-    throw new Error(`Esiste già una carriera in ${SAVE_FILE}.\nAggiungi --force per ricominciare (il file viene sovrascritto).`);
+    throw new Error(tr({ it: 'Esiste già una carriera in {F}.\nAggiungi --force per ricominciare (il file viene sovrascritto).', en: 'A career already exists in {F}.\nAdd --force to start over (the file is overwritten).' }).replace('{F}', SAVE_FILE));
   }
   const state = createCareer(ladder, {
     name,
@@ -252,10 +253,10 @@ function cmdNew(args) {
   resetNews();           // la gazzetta riparte pulita
   saveState(SAVE_FILE, state);
   const node = nodeById(ladder, state.node);
-  console.log(C.bold(`\nBenvenuto ${state.driver.name} (${state.driver.nation})\n`));
-  console.log(`  Prima serie: ${C.cyan(node.display)} — ${disciplineName(ladder, node.discipline)}, livello ${node.level} (${tierOf(ladder, node.level)})`);
-  console.log(`  Soldi: ${money(state.money)}   Reputazione: ${state.rep}`);
-  console.log(`\n${C.dim('Prossimo passo:  node ac-evo-career.mjs next')}\n`);
+  console.log(C.bold(tr({ it: '\nBenvenuto {N} ({O})\n', en: '\nWelcome {N} ({O})\n' }).replace('{N}', state.driver.name).replace('{O}', state.driver.nation)));
+  console.log(`  ${tr({ it: 'Prima serie:', en: 'First series:' })} ${C.cyan(node.display)} — ${disciplineName(ladder, node.discipline)}, ${tr({ it: 'livello', en: 'level' })} ${node.level} (${tierOf(ladder, node.level)})`);
+  console.log(`  ${tr({ it: 'Soldi:', en: 'Money:' })} ${money(state.money)}   ${tr({ it: 'Reputazione:', en: 'Reputation:' })} ${state.rep}`);
+  console.log(`\n${C.dim(tr({ it: 'Prossimo passo:  node ac-evo-career.mjs next', en: 'Next step:  node ac-evo-career.mjs next' }))}\n`);
   return 0;
 }
 
@@ -269,14 +270,14 @@ function cmdRinomina(args) {
   const first = typeof args.flags.first === 'string' ? args.flags.first : null;
   const last = typeof args.flags.last === 'string' ? args.flags.last : null;
   if (!name && !first && !last) {
-    throw new Error('Uso: rinomina --name "Mauro Turbigno"   oppure   rinomina --first Mauro --last Turbigno');
+    throw new Error(tr({ it: 'Uso: rinomina --name "Mauro Turbigno"   oppure   rinomina --first Mauro --last Turbigno', en: 'Usage: rinomina --name "John Driver"   or   rinomina --first John --last Driver' }));
   }
   const { before, after } = renameDriver(state, { name, first, last });
-  pushMessage(state, `Nome pilota aggiornato: ${before} -> ${after}.`, 'info');
+  pushMessage(state, `${tr({ it: 'Nome pilota aggiornato:', en: 'Driver name updated:' })} ${before} -> ${after}.`, 'info');
   saveState(SAVE_FILE, state);
-  console.log(C.green(`\nNome pilota: ${after}`));
-  console.log(C.dim('  Usa esattamente il nome con cui corri in EVO: serve a farti riconoscere nei risultati.'));
-  console.log(C.dim('  Verifica con:  import --inspect --full\n'));
+  console.log(C.green(tr({ it: '\nNome pilota: {N}', en: '\nDriver name: {N}' }).replace('{N}', after)));
+  console.log(C.dim(tr({ it: '  Usa esattamente il nome con cui corri in EVO: serve a farti riconoscere nei risultati.', en: '  Use exactly the name you race with in EVO: it makes you recognizable in the results.' })));
+  console.log(C.dim(tr({ it: '  Verifica con:  import --inspect --full\n', en: '  Check with:  import --inspect --full\n' })));
   return 0;
 }
 
@@ -286,8 +287,8 @@ function header(state, ladder) {
   const standing = playerStanding(ladder, state, node);
   const sponsor = sponsorTier(state);
   return [
-    C.bold(`\n${state.driver.name} (${state.driver.nation})`) + C.dim(`   stagione ${state.season} · ${node.display}`),
-    `  ${C.green(money(state.money))} in banca   ${C.cyan(state.rep + ' rep')}${sponsor ? C.dim(' (' + sponsor.name + ')') : ''}   ${C.yellow('P' + (standing?.position ?? '?') + '/' + node.gridSize)} in classifica   round ${Math.min(state.round + 1, node.calendar.length)}/${node.calendar.length}`,
+    C.bold(`\n${state.driver.name} (${state.driver.nation})`) + C.dim(`   ${tr({ it: 'stagione', en: 'season' })} ${state.season} · ${node.display}`),
+    `  ${C.green(money(state.money))} ${tr({ it: 'in banca', en: 'in the bank' })}   ${C.cyan(state.rep + ' rep')}${sponsor ? C.dim(' (' + sponsor.name + ')') : ''}   ${C.yellow('P' + (standing?.position ?? '?') + '/' + node.gridSize)} ${tr({ it: 'in classifica', en: 'in standings' })}   ${tr({ it: 'round', en: 'round' })} ${Math.min(state.round + 1, node.calendar.length)}/${node.calendar.length}`,
   ].join('\n');
 }
 
@@ -302,37 +303,37 @@ function cmdStatus() {
 
   console.log(header(state, ladder));
   const guard = watcherStatus();
-  if (guard.alive) console.log(`  ${C.green('👁 guardia attiva')} — incassa da sola le gare nuove (ultimo controllo ${Math.round(guard.ageMs / 1000)}s fa)`);
-  else console.log(`  ${C.dim('👁 guardia ferma — avvia guarda.cmd per incassare le gare in automatico')}`);
-  console.log(`\n  Sedile: ${node.display} — ${disciplineName(ladder, node.discipline)}, livello ${node.level} (${tierOf(ladder, node.level)}), accesso ${node.access}`);
-  console.log(`  Modello economico: ${node.econ.model}   Iscrizione ${money(node.econ.entry)}   Premio ${money(node.econ.prize)}${node.econ.champion ? '   Titolo ' + money(node.econ.champion) : ''}`);
-  console.log(`  Difficoltà AI: slider ${diff.slider}% (interna ${diff.total.toFixed(0)}, trim ${signed(diff.trim)})`);
+  if (guard.alive) console.log(`  ${C.green(tr({ it: '👁 guardia attiva', en: '👁 guard active' }))} — ${tr({ it: 'incassa da sola le gare nuove (ultimo controllo {S}s fa)', en: 'collects new races by itself (last check {S}s ago)' }).replace('{S}', Math.round(guard.ageMs / 1000))}`);
+  else console.log(`  ${C.dim(tr({ it: '👁 guardia ferma — avvia guarda.cmd per incassare le gare in automatico', en: '👁 guard idle — run guarda.cmd to collect races automatically' }))}`);
+  console.log(`\n  ${tr({ it: 'Sedile:', en: 'Seat:' })} ${node.display} — ${disciplineName(ladder, node.discipline)}, ${tr({ it: 'livello', en: 'level' })} ${node.level} (${tierOf(ladder, node.level)}), ${tr({ it: 'accesso', en: 'access' })} ${node.access}`);
+  console.log(`  ${tr({ it: 'Modello economico:', en: 'Economy model:' })} ${node.econ.model}   ${tr({ it: 'Iscrizione', en: 'Entry' })} ${money(node.econ.entry)}   ${tr({ it: 'Premio', en: 'Prize' })} ${money(node.econ.prize)}${node.econ.champion ? `   ${tr({ it: 'Titolo', en: 'Title' })} ${money(node.econ.champion)}` : ''}`);
+  console.log(`  ${tr({ it: 'Difficoltà AI: slider', en: 'AI difficulty: slider' })} ${diff.slider}% (${tr({ it: 'interna', en: 'internal' })} ${diff.total.toFixed(0)}, trim ${signed(diff.trim)})`);
   if (state.titles.length) {
-    console.log(`\n  Titoli: ${state.titles.map((t) => `${t.display} (S${t.season})`).join(', ')}`);
+    console.log(`\n  ${tr({ it: 'Titoli:', en: 'Titles:' })} ${state.titles.map((t) => `${t.display} (S${t.season})`).join(', ')}`);
   }
   ensureFlowsSeeded(state);
   const contr = contractStatus(ladder, state);
   if (contr) {
-    console.log(`\n  Contratto ${contr.contract.display} (premio ${money(contr.contract.payout)}):`);
+    console.log(`\n  ${tr({ it: 'Contratto', en: 'Contract' })} ${contr.contract.display} (${tr({ it: 'premio', en: 'payout' })} ${money(contr.contract.payout)}):`);
     for (const row of contr.rows) console.log(`    ${row.ok ? C.green('✓') : C.yellow('•')} ${row.text} — ${row.progress}`);
   }
   const L = ensureLife(state);
   if (L.duel?.season === state.season) {
-    console.log(`  Duello di stagione: ${C.cyan(L.duel.name)} — voi due a ${L.duel.myPoints} pt contro ${L.duel.hisPoints} pt (differenza ${L.duel.gap}).`);
+    console.log(`  ${tr({ it: 'Duello di stagione:', en: 'Season duel:' })} ${C.cyan(L.duel.name)} — ${tr({ it: 'voi due a', en: 'you two at' })} ${L.duel.myPoints} pt ${tr({ it: 'contro', en: 'vs' })} ${L.duel.hisPoints} pt (${tr({ it: 'differenza', en: 'difference' })} ${L.duel.gap}).`);
   }
   const sp = state.life?.sponsor;
-  if (sp?.takenSeason === state.season) console.log(`  Sponsor: ${C.cyan(sp.name)} — ${sp.perRace} € a gara${sp.missionDone ? '' : `, missione: podio entro il round ${sp.deadlineRound + 1} per +${sp.bonus}`}`);
+  if (sp?.takenSeason === state.season) console.log(`  ${tr({ it: 'Sponsor:', en: 'Sponsor:' })} ${C.cyan(sp.name)} — ${sp.perRace} € ${tr({ it: 'a gara', en: 'per race' })}${sp.missionDone ? '' : `, ${tr({ it: 'missione: podio entro il round', en: 'mission: podium by round' })} ${sp.deadlineRound + 1} ${tr({ it: 'per +', en: 'for +' })}${sp.bonus}`}`);
   const myResults = (state.results[node.nodeId] ?? []).filter((r) => r.season === state.season);
   if (myResults.length) {
-    console.log(`\n  Stagione in corso:`);
+    console.log(`\n  ${tr({ it: 'Stagione in corso:', en: 'Season so far:' })}`);
     for (const r of myResults.sort((a, b) => a.round - b.round)) {
       const track = ladder.contentNames?.tracks?.[r.track] ?? r.track;
-      console.log(`    R${r.round + 1} ${track.padEnd(18)} ${r.dnf ? C.red('ritiro') : 'P' + r.position}  ${r.points} punti  +${money(r.prize)}`);
+      console.log(`    R${r.round + 1} ${track.padEnd(18)} ${r.dnf ? C.red(tr({ it: 'ritiro', en: 'DNF' })) : 'P' + r.position}  ${r.points} ${tr({ it: 'punti', en: 'points' })}  +${money(r.prize)}`);
     }
   } else {
-    console.log(C.dim('\n  Nessuna gara disputata in questa serie.'));
+    console.log(C.dim(tr({ it: '\n  Nessuna gara disputata in questa serie.', en: '\n  No races run in this series yet.' })));
   }
-  console.log(`\n${C.dim('Prossima gara:  node ac-evo-career.mjs next')}\n`);
+  console.log(`\n${C.dim(tr({ it: 'Prossima gara:  node ac-evo-career.mjs next', en: 'Next race:  node ac-evo-career.mjs next' }))}\n`);
   return 0;
 }
 
@@ -354,17 +355,17 @@ function cmdAgenda(args) {
     const before = agendaDay(state);
     const after = avanzaGiorno(state);
     saveState(SAVE_FILE, state);
-    console.log(C.dim(`\n  Giorno ${before} saltato: siamo al giorno ${after}.`));
+    console.log(C.dim(tr({ it: '\n  Giorno {B} saltato: siamo al giorno {A}.', en: '\n  Day {B} skipped: we are on day {A}.' }).replace('{B}', before).replace('{A}', after)));
   } else if (args.flags.prossima) {
     const target = prossimoGiornoConGara(ladder, state);
     if (target == null) {
-      console.log(C.yellow('\n  Nessuna gara futura nei campionati iscritti (stagioni complete: usa season-end).'));
+      console.log(C.yellow(tr({ it: '\n  Nessuna gara futura nei campionati iscritti (stagioni complete: usa season-end).', en: '\n  No future race in the joined championships (seasons complete: use season-end).' })));
       return 0;
     }
     const before = agendaDay(state);
     avanzaGiorno(state, target);
     saveState(SAVE_FILE, state);
-    console.log(C.dim(`\n  Dal giorno ${before} (${dateLabel(before)}) al giorno ${target} (${dateLabel(target)}): si va alla prossima gara di campionato.`));
+    console.log(C.dim(tr({ it: '\n  Dal giorno {B} ({D1}) al giorno {A} ({D2}): si va alla prossima gara di campionato.', en: '\n  From day {B} ({D1}) to day {A} ({D2}): we jump to the next championship race.' }).replace('{B}', before).replace('{D1}', dateLabel(before)).replace('{A}', target).replace('{D2}', dateLabel(target))));
   }
 
   // scelta della gara di oggi: il sedile in corsa è già quello, altrimenti si firma e si punta
@@ -372,8 +373,8 @@ function cmdAgenda(args) {
   if (targetId) {
     const target = gareDelGiorno(ladder, state).gare.find((g) => g.node.nodeId === targetId);
     if (!target) {
-      const list = gareDelGiorno(ladder, state).gare.map((g) => g.node.nodeId).join(', ') || '(nessuna)';
-      throw new Error(`La serie "${targetId}" non ha gare due in agenda.\nGare di oggi: ${list}\nUsa "agenda" per vedere la giornata.`);
+      const list = gareDelGiorno(ladder, state).gare.map((g) => g.node.nodeId).join(', ') || `(${tr({ it: 'nessuna', en: 'none' })})`;
+      throw new Error(tr({ it: 'La serie "{S}" non ha gare oggi in agenda.\nGare di oggi: {L}\nUsa "agenda" per vedere la giornata.', en: 'The series "{S}" has no race today in the agenda.\nToday races: {L}\nUse "agenda" to see the day.' }).replace('{S}', targetId).replace('{L}', list));
     }
     if (state.node !== targetId) {
       state.node = targetId;                       // puntiamo su quella serie
@@ -381,54 +382,54 @@ function cmdAgenda(args) {
       // il sedile è già del pilota: nessun costo extra per la scelta di oggi
     }
     saveState(SAVE_FILE, state);
-    console.log(C.green(`\n  Scelta per oggi: ${target.node.display} R${target.index + 1} (${target.track}).\n  Paga e corri con "race" (o controlla con "next"), poi l'import avanza il giorno.`));
+    console.log(C.green(tr({ it: '\n  Scelta per oggi: {D} R{R} ({T}).\n  Paga e corri con "race" (o controlla con "next"), poi l\'import avanza il giorno.', en: '\n  Pick for today: {D} R{R} ({T}).\n  Pay and run with "race" (or check with "next"), then the import moves the day forward.' }).replace('{D}', target.node.display).replace('{R}', target.index + 1).replace('{T}', target.track)));
     return 0;
   }
 
   const today = gareDelGiorno(ladder, state);
-  console.log(C.bold(`\nAgenda — GIORNO ${today.day} · ${dateLabel(today.day)}\n`));
+  console.log(C.bold(tr({ it: '\nAgenda — GIORNO {D} · {L}\n', en: '\nAgenda — DAY {D} · {L}\n' }).replace('{D}', today.day).replace('{L}', dateLabel(today.day))));
 
   // le gare di oggi dei campionati iscritti (una per serie)
   if (!Object.keys(state.seats ?? {}).length) {
-    console.log(C.yellow('  Nessun campionato in corso: firma un sedile con "enter <nodeId>" o "accept <n>".'));
+    console.log(C.yellow(tr({ it: '  Nessun campionato in corso: firma un sedile con "enter <nodeId>" o "accept <n>".', en: '  No championship running: sign a seat with "enter <nodeId>" or "accept <n>".' })));
   } else if (!today.gare.length) {
     const fut = prossimoGiornoConGara(ladder, state);
-    console.log(C.green('  Oggi non ci sono gare.'));
-    if (fut != null) console.log(C.dim(`  Prossima gara di campionato: giorno ${fut} (agenda --prossima per saltare).`));
-    console.log(C.dim('  Salta la giornata: agenda --salta'));
+    console.log(C.green(tr({ it: '  Oggi non ci sono gare.', en: '  No races today.' })));
+    if (fut != null) console.log(C.dim(tr({ it: '  Prossima gara di campionato: giorno {D} (agenda --prossima per saltare).', en: '  Next championship race: day {D} (agenda --prossima to skip).' }).replace('{D}', fut)));
+    console.log(C.dim(tr({ it: '  Salta la giornata: agenda --salta', en: '  Skip the day: agenda --salta' })));
   } else {
     for (const g of today.gare) {
-      const when = g.onSchedule ? C.green('in calendario oggi') : C.yellow(`in ritardo (era il giorno ${g.scheduledDay}, salta il tempo e corri quando vuoi)`);
-      console.log(`  ${g.onSchedule ? C.bold('►') : ' '} ${pad(g.node.display, 26)} R${g.index + 1}/${g.node.calendar.length} — ${g.track}${g.laps ? `, ${g.laps} giri` : ''}`);
+      const when = g.onSchedule ? C.green(tr({ it: 'in calendario oggi', en: 'on schedule today' })) : C.yellow(tr({ it: 'in ritardo (era il giorno {D}, salta il tempo e corri quando vuoi)', en: 'overdue (it was day {D}, skip the time and run whenever you want)' }).replace('{D}', g.scheduledDay));
+      console.log(`  ${g.onSchedule ? C.bold('►') : ' '} ${pad(g.node.display, 26)} R${g.index + 1}/${g.node.calendar.length} — ${g.track}${g.laps ? `, ${g.laps} ${tr({ it: 'giri', en: 'laps' })}` : ''}`);
       console.log(`    ${pad('', 24)} ${when}`);
     }
-    console.log(C.dim(`\n  Scegli con "agenda --corri <nodeId>" (poi "race" come al solito): la gara finita avanza il giorno di 1.`));
+    console.log(C.dim(tr({ it: '\n  Scegli con "agenda --corri <nodeId>" (poi "race" come al solito): la gara finita avanza il giorno di 1.', en: '\n  Pick with "agenda --corri <nodeId>" (then "race" as usual): a finished race moves the day by 1.' })));
   }
 
   // sotto: la griglia COMPLETA di oggi — tutte le gare in programma (come le "serie reali")
   const griglia = racesOnDay(ladder, state, today.day);
   if (griglia.length) {
-    console.log(C.bold(`\nGare in programma oggi (${griglia.length})\n`));
+    console.log(C.bold(tr({ it: '\nGare in programma oggi ({N})\n', en: '\nRaces scheduled today ({N})\n' }).replace('{N}', griglia.length)));
     for (const g of griglia) {
-      const tag = g.stato === 'iscritto' ? C.green('iscritto')
-        : g.fattibile ? C.cyan('fattibile') : C.red('bloccata');
-      console.log(`  ${pad(g.node.display, 28)} R${g.index + 1}/${g.node.calendar.length}  ${pad(g.track, 26)} ${String(g.laps ?? '—').padStart(2)} giri  ${tag}`);
+      const tag = g.stato === 'iscritto' ? C.green(tr({ it: 'iscritto', en: 'joined' }))
+        : g.fattibile ? C.cyan(tr({ it: 'fattibile', en: 'feasible' })) : C.red(tr({ it: 'bloccata', en: 'locked' }));
+      console.log(`  ${pad(g.node.display, 28)} R${g.index + 1}/${g.node.calendar.length}  ${pad(g.track, 26)} ${String(g.laps ?? '—').padStart(2)} ${tr({ it: 'giri', en: 'laps' })}  ${tag}`);
       if (!g.fattibile && g.gateReasons.length) console.log(`       ${C.dim(g.gateReasons.join('; '))}`);
     }
-    console.log(C.dim('\n  Solo le gare fattibili (o dei campionati iscritti) si possono scegliere: agenda --corri <nodeId>.'));
+    console.log(C.dim(tr({ it: '\n  Solo le gare fattibili (o dei campionati iscritti) si possono scegliere: agenda --corri <nodeId>.', en: '\n  Only feasible races (or joined championships) can be picked: agenda --corri <nodeId>.' })));
   }
 
   // l'elenco delle serie della scala, filtrabile su fattibili
   const fattibili = !!args.flags.fattibili;
   const rows = elencoCompleto(ladder, state, { fattibili });
-  console.log(C.bold(`\nSerie della scala${fattibili ? ' — solo fattibili con il tuo livello' : ' (tutte)'}\n`));
+  console.log(C.bold(`${tr({ it: '\nSerie della scala', en: '\nLadder series' })}${fattibili ? tr({ it: ' — solo fattibili con il tuo livello', en: ' — only feasible with your level' }) : tr({ it: ' (tutte)', en: ' (all)' })}\n`));
   for (const s of rows) {
-    const tag = s.iscritto ? C.green(pad('iscritto', 12)) : s.fattibile ? C.cyan(pad('fattibile', 12)) : s.stato === 'completata' ? C.dim(pad('completata', 12)) : C.red(pad('bloccata', 12));
-    const nx = s.next ? `prossima: ${s.next.track}, R${s.next.roundIndex + 1}, ${dateShort(s.next.scheduledDay)}` : 'stagione chiusa';
+    const tag = s.iscritto ? C.green(pad(tr({ it: 'iscritto', en: 'joined' }), 12)) : s.fattibile ? C.cyan(pad(tr({ it: 'fattibile', en: 'feasible' }), 12)) : s.stato === 'completata' ? C.dim(pad(tr({ it: 'completata', en: 'completed' }), 12)) : C.red(pad(tr({ it: 'bloccata', en: 'locked' }), 12));
+    const nx = s.next ? `${tr({ it: 'prossima:', en: 'next:' })} ${s.next.track}, R${s.next.roundIndex + 1}, ${dateShort(s.next.scheduledDay)}` : tr({ it: 'stagione chiusa', en: 'season closed' });
     console.log(`  L${String(s.level).padEnd(2)} ${pad(s.display, 26)} ${tag} ${C.dim(nx)}`);
     if (fattibili && !s.fattibile) console.log(`       ${C.red(s.gateReasons.join('; '))}`);
   }
-  if (!fattibili) console.log(C.dim('\n  agenda --fattibili: solo le serie a cui puoi partecipare con il livello di maestria attuale.'));
+  if (!fattibili) console.log(C.dim(tr({ it: '\n  agenda --fattibili: solo le serie a cui puoi partecipare con il livello di maestria attuale.', en: '\n  agenda --fattibili: only the series you can join with your current mastery level.' })));
   return 0;
 }
 
@@ -438,7 +439,7 @@ function cmdSeries(args) {
   const discipline = typeof args.flags.discipline === 'string' ? args.flags.discipline : null;
   const showAll = !!args.flags.all;
 
-  console.log(C.bold(`\nScala carriera${discipline ? ' — ' + disciplineName(ladder, discipline) : ''}\n`));
+  console.log(C.bold(`${tr({ it: '\nScala carriera', en: '\nCareer ladder' })}${discipline ? ' — ' + disciplineName(ladder, discipline) : ''}\n`));
   for (const disc of ladder.disciplines) {
     if (discipline && disc.id !== discipline) continue;
     const nodes = ladder.nodes.filter((n) => n.discipline === disc.id).sort((a, b) => a.level - b.level);
@@ -448,14 +449,14 @@ function cmdSeries(args) {
       const gate = gateStatus(ladder, state, node);
       const current = node.nodeId === state.node;
       const req = node.requires ? `${nodeById(ladder, node.requires.nodeId).display} top ${node.requires.top}` : '—';
-      const mark = current ? C.green(pad('◄ attuale', 12)) : gate.ok ? C.cyan(pad('aperta', 12)) : C.red(pad('bloccata', 12));
-      console.log(`   ${pad('L' + node.level, 3)} ${pad(node.display, 26)} ${mark} ${C.dim('gate: ' + req)}`);
+      const mark = current ? C.green(pad(tr({ it: '◄ attuale', en: '◄ current' }), 12)) : gate.ok ? C.cyan(pad(tr({ it: 'aperta', en: 'open' }), 12)) : C.red(pad(tr({ it: 'bloccata', en: 'locked' }), 12));
+      console.log(`   ${pad('L' + node.level, 3)} ${pad(node.display, 26)} ${mark} ${C.dim(`gate: ${req}`)}`);
       if (!gate.ok && (showAll || discipline)) console.log(`       ${C.red(gate.reasons.join('; '))}`);
-      if (showAll) console.log(`       ${C.dim(`${node.gridSize} auto · ${node.points} · ${node.econ.model} · affitto ${money(node.econ.rent)} · premio ${money(node.econ.prize)}`)}`);
+      if (showAll) console.log(`       ${C.dim(`${node.gridSize} ${tr({ it: 'auto', en: 'cars' })} · ${node.points} · ${node.econ.model} · ${tr({ it: 'affitto', en: 'rent' })} ${money(node.econ.rent)} · ${tr({ it: 'premio', en: 'prize' })} ${money(node.econ.prize)}`)}`);
     }
     console.log();
   }
-  console.log(C.dim('  enter <nodeId> per firmare un sedile aperto. Le serie bloccate dicono cosa manca.\n'));
+  console.log(C.dim(tr({ it: '  enter <nodeId> per firmare un sedile aperto. Le serie bloccate dicono cosa manca.\n', en: '  enter <nodeId> to sign an open seat. Locked series tell you what is missing.\n' })));
   return 0;
 }
 
@@ -464,12 +465,12 @@ function cmdCalendar() {
   const state = requireState();
   const node = nodeById(ladder, state.node);
   const played = new Set((state.results[node.nodeId] ?? []).filter((r) => r.season === state.season).map((r) => r.round));
-  console.log(C.bold(`\nCalendario ${node.display} — stagione ${state.season}\n`));
+  console.log(C.bold(tr({ it: '\nCalendario {D} — stagione {S}\n', en: '\nCalendar {D} — season {S}\n' }).replace('{D}', node.display).replace('{S}', state.season)));
   node.calendar.forEach((round, i) => {
     const track = ladder.contentNames?.tracks?.[round.track] ?? round.track;
     const weather = ladder.weatherNames[String(round.weather)];
     const mark = played.has(i) ? C.green('✓') : i === state.round ? C.yellow('►') : ' ';
-    console.log(`  ${mark} R${i + 1} ${round.name.padEnd(34)} ${String(round.laps).padStart(2)} giri  ${String(round.hour).padStart(2)}:00  ${C.dim(weather)}`);
+    console.log(`  ${mark} R${i + 1} ${round.name.padEnd(34)} ${String(round.laps).padStart(2)} ${tr({ it: 'giri', en: 'laps' })}  ${String(round.hour).padStart(2)}:00  ${C.dim(weather)}`);
   });
   console.log();
   return 0;
@@ -480,11 +481,11 @@ function cmdStandings() {
   const state = requireState();
   const node = nodeById(ladder, state.node);
   const table = standingsFor(ladder, state, node);
-  console.log(C.bold(`\nClassifica ${node.display} — stagione ${state.season}\n`));
+  console.log(C.bold(tr({ it: '\nClassifica {D} — stagione {S}\n', en: '\nStandings {D} — season {S}\n' }).replace('{D}', node.display).replace('{S}', state.season)));
   table.forEach((row) => {
     const me = row.isPlayer ? C.green('◄ ') : '  ';
-    const tag = row.isPlayer ? 'TU' : row.iconic ? 'ICON' : row.hot ? 'HOT ' : '';
-    console.log(`  ${me}P${String(row.position).padStart(2)}  ${row.name.padEnd(24)} ${String(row.points).padStart(3)} pt  ${C.dim(row.country + ' ' + tag)}`);
+    const tag = row.isPlayer ? tr({ it: 'TU', en: 'YOU' }) : row.iconic ? 'ICON' : row.hot ? 'HOT ' : '';
+    console.log(`  ${me}P${String(row.position).padStart(2)}  ${row.name.padEnd(24)} ${String(row.points).padStart(3)} ${tr({ it: 'pt', en: 'pts' })}  ${C.dim(row.country + ' ' + tag)}`);
   });
   console.log();
   return 0;
@@ -496,12 +497,12 @@ function cmdPaddock(args) {
   const node = nodeById(ladder, state.node);
   const rows = paddock(state.world, ladder, node, state.season);
   const limit = args.flags.all ? rows.length : 12;
-  console.log(C.bold(`\nPaddock ${node.display} — ${rows.length} rivali (i primi ${limit})\n`));
+  console.log(C.bold(tr({ it: '\nPaddock {D} — {N} rivali (i primi {L})\n', en: '\nPaddock {D} — {N} rivals (first {L})\n' }).replace('{D}', node.display).replace('{N}', rows.length).replace('{L}', limit)));
   for (const r of rows.slice(0, limit)) {
-    console.log(`  ${r.name.padEnd(24)} ${r.country}  ${String(r.age).padStart(2)} anni  ${r.archetypeName.padEnd(14)} banda ${r.bandValue.toFixed(0).padStart(3)} (slider ${String(r.evoSlider).padStart(3)}%)  ${r.iconic ? C.yellow('iconico') : r.hot ? C.cyan('in forma') : ''}`);
+    console.log(`  ${r.name.padEnd(24)} ${r.country}  ${String(r.age).padStart(2)} ${tr({ it: 'anni', en: 'yrs' })}  ${r.archetypeName.padEnd(14)} ${tr({ it: 'banda', en: 'band' })} ${r.bandValue.toFixed(0).padStart(3)} (${tr({ it: 'slider', en: 'slider' })} ${String(r.evoSlider).padStart(3)}%)  ${r.iconic ? C.yellow(tr({ it: 'iconico', en: 'iconic' })) : r.hot ? C.cyan(tr({ it: 'in forma', en: 'in form' })) : ''}`);
   }
-  console.log(C.dim(`\n  Archetipi: ${Object.values(ladder.archetypes).map((a) => a.name).join(', ')}`));
-  console.log(C.dim(`  Parco piloti totale: ${state.world.drivers.length} (${state.world.drivers.filter((d) => d.active).length} attivi)\n`));
+  console.log(C.dim(`\n  ${tr({ it: 'Archetipi:', en: 'Archetypes:' })} ${Object.values(ladder.archetypes).map((a) => a.name).join(', ')}`));
+  console.log(C.dim(tr({ it: '  Parco piloti totale: {N} ({A} attivi)\n', en: '  Total driver pool: {N} ({A} active)\n' }).replace('{N}', state.world.drivers.length).replace('{A}', state.world.drivers.filter((d) => d.active).length)));
   return 0;
 }
 
@@ -514,14 +515,14 @@ function cmdMessages(args) {
   if (args.flags['read-all']) {
     for (const m of state.messages) m.read = true;
     saveState(SAVE_FILE, state);
-    console.log(C.bold('\nMessaggi') + C.dim(` — ${unread.length} segnati come letti\n`));
+    console.log(C.bold(tr({ it: '\nMessaggi', en: '\nMessages' })) + C.dim(tr({ it: ' — {N} segnati come letti\n', en: ' — {N} marked as read\n' }).replace('{N}', unread.length)));
     return 0;
   }
 
   // digest: i non letti raggruppati per giorno, i più recenti prima
   if (args.flags.digest) {
-    console.log(C.bold(`\nMessaggi — digest: ${unread.length} non letti\n`));
-    if (!unread.length) { console.log(C.green('  Inbox pulita: nessun messaggio da leggere.\n')); return 0; }
+    console.log(C.bold(tr({ it: '\nMessaggi — digest: {N} non letti\n', en: '\nMessages — digest: {N} unread\n' }).replace('{N}', unread.length)));
+    if (!unread.length) { console.log(C.green(tr({ it: '  Inbox pulita: nessun messaggio da leggere.\n', en: '  Clean inbox: no messages to read.\n' }))); return 0; }
     const byDay = {};
     for (const m of unread) {
       const day = m.at.slice(0, 10);
@@ -536,54 +537,54 @@ function cmdMessages(args) {
         const color = m.kind === 'good' || m.kind === 'title' ? C.green : m.kind === 'bad' ? C.red : m.kind === 'money' ? C.yellow : C.dim;
         console.log(`    ${C.dim(m.at.slice(11, 16))}  ${color(m.text)}`);
       }
-      if (group.length > 3) console.log(C.dim(`    …e altre ${group.length - 3}`));
+      if (group.length > 3) console.log(C.dim(tr({ it: '    …e altre {N}', en: '    …and {N} more' }).replace('{N}', group.length - 3)));
     }
-    if (days.length > MAX_DAYS) console.log(C.dim(`\n  …e altri ${days.length - MAX_DAYS} giorni`));
-    console.log(C.dim('\n  per segnare tutto letto:  messages --read-all\n'));
+    if (days.length > MAX_DAYS) console.log(C.dim(tr({ it: '\n  …e altri {N} giorni', en: '\n  …and {N} more days' }).replace('{N}', days.length - MAX_DAYS)));
+    console.log(C.dim(tr({ it: '\n  per segnare tutto letto:  messages --read-all\n', en: '\n  to mark all as read:  messages --read-all\n' })));
     return 0;
   }
 
-  console.log(C.bold(`\nMessaggi${unread.length ? C.dim(` — ${unread.length} non letti`) : ''}\n`));
-  console.log(C.dim(`  digest: messages --digest · segna letti: messages --read-all\n`));
+  console.log(C.bold(`${tr({ it: '\nMessaggi', en: '\nMessages' })}${unread.length ? C.dim(tr({ it: ' — {N} non letti', en: ' — {N} unread' }).replace('{N}', unread.length)) : ''}\n`));
+  console.log(C.dim(tr({ it: '  digest: messages --digest · segna letti: messages --read-all\n', en: '  digest: messages --digest · mark as read: messages --read-all\n' })));
   for (const m of state.messages.slice(-15)) {
     const day = m.at.slice(0, 10);
     const color = m.kind === 'good' || m.kind === 'title' ? C.green : m.kind === 'bad' ? C.red : m.kind === 'money' ? C.yellow : C.dim;
     console.log(`  ${C.dim(day)}  ${color(m.text)}`);
   }
   if (state.offers.length) {
-    console.log(C.bold('\nOfferte sul tavolo\n'));
+    console.log(C.bold(tr({ it: '\nOfferte sul tavolo\n', en: '\nOffers on the table\n' })));
     for (const o of state.offers) {
-      console.log(`  ${C.cyan(String(o.index) + ')')} ${o.display.padEnd(26)} L${o.level} ${disciplineName(ladder, o.discipline).padEnd(14)} ${C.dim(o.note + ' · affitto ' + money(o.rent))}`);
+      console.log(`  ${C.cyan(String(o.index) + ')')} ${o.display.padEnd(26)} L${o.level} ${disciplineName(ladder, o.discipline).padEnd(14)} ${C.dim(`${o.note} · ${tr({ it: 'affitto', en: 'rent' })} ${money(o.rent)}`)}`);
     }
-    console.log(C.dim('\n  accept <n> per firmare.\n'));
+    console.log(C.dim(tr({ it: '\n  accept <n> per firmare.\n', en: '\n  accept <n> to sign.\n' })));
   } else console.log();
   return 0;
 }
 
 function printCard(ladder, state, card) {
-  console.log(C.bold(`\n${card.node.display} — round ${card.roundIndex + 1}/${card.totalRounds}: ${card.round.name}\n`));
-  console.log(`  ${C.dim('Imposta questo nel gioco:')}`);
+  console.log(C.bold(`\n${card.node.display} — ${tr({ it: 'round', en: 'round' })} ${card.roundIndex + 1}/${card.totalRounds}: ${card.round.name}\n`));
+  console.log(`  ${C.dim(tr({ it: 'Imposta questo nel gioco:', en: 'Set this in the game:' }))}`);
   for (const [label, value] of card.settings) {
     console.log(`    ${label.padEnd(18)} ${value}`);
   }
   const o = card.outlook;
   if (o) {
-    console.log(`\n  ${C.bold('Report pre-gara')}`);
-    console.log(`    classifica ${o.standingPosition ? 'P' + o.standingPosition : '—'} · ${o.racesRun}/${o.totalRounds} gare · ${o.seasonPoints} punti${o.mastery?.level ? ` · pista: ${o.mastery.name} (${o.mastery.races} gare)` : ''}`);
-    if (o.lapTarget) console.log(`    obiettivo giro: ${o.lapTarget.time} (tuo best con ${o.lapTarget.car ?? 'n/d'})`);
-    if (o.duel) console.log(`    duello di stagione: ${o.duel.name} a ${o.duel.gap} punti`);
-    if (o.contract?.length) for (const c of o.contract) console.log(`    clausola: ${c.ok ? '✓' : '•'} ${c.text} (${c.progress})`);
+    console.log(`\n  ${C.bold(tr({ it: 'Report pre-gara', en: 'Pre-race report' }))}`);
+    console.log(`    ${tr({ it: 'classifica', en: 'standings' })} ${o.standingPosition ? 'P' + o.standingPosition : '—'} · ${o.racesRun}/${o.totalRounds} ${tr({ it: 'gare', en: 'races' })} · ${o.seasonPoints} ${tr({ it: 'punti', en: 'points' })}${o.mastery?.level ? ` · ${tr({ it: 'pista:', en: 'track:' })} ${o.mastery.name} (${o.mastery.races} ${tr({ it: 'gare', en: 'races' })})` : ''}`);
+    if (o.lapTarget) console.log(`    ${tr({ it: 'obiettivo giro:', en: 'lap target:' })} ${o.lapTarget.time} (${tr({ it: 'tuo best con', en: 'your best with' })} ${o.lapTarget.car ?? tr({ it: 'n/d', en: 'n/a' })})`);
+    if (o.duel) console.log(`    ${tr({ it: 'duello di stagione:', en: 'season duel:' })} ${o.duel.name} ${tr({ it: 'a', en: 'at' })} ${o.duel.gap} ${tr({ it: 'punti', en: 'points' })}`);
+    if (o.contract?.length) for (const c of o.contract) console.log(`    ${tr({ it: 'clausola:', en: 'clause:' })} ${c.ok ? '✓' : '•'} ${c.text} (${c.progress})`);
   }
   if (card.challenge) {
     const c = card.challenge;
-    console.log(`\n  ${C.yellow('Sfida della ronda')}: ${c.text}${c.accepted ? ' (accettata)' : ''}`);
-    console.log(`    ${C.dim(`premio ${c.reward} € se ci riesci, -${c.penalty} rep se fallisci. Accetta con: sfida --accept`)}`);
+    console.log(`\n  ${C.yellow(tr({ it: 'Sfida della ronda', en: 'Round challenge' }))}: ${c.text}${c.accepted ? ` (${tr({ it: 'accettata', en: 'accepted' })})` : ''}`);
+    console.log(`    ${C.dim(tr({ it: 'premio {R} € se ci riesci, -{P} rep se fallisci. Accetta con: sfida --accept', en: 'reward {R} € if you make it, -{P} rep if you fail. Accept with: challenge --accept' }).replace('{R}', c.reward).replace('{P}', c.penalty))}`);
   }
   if (card.warnings.length) {
-    console.log(`\n  ${C.yellow('Note')}`);
+    console.log(`\n  ${C.yellow(tr({ it: 'Note', en: 'Notes' }))}`);
     for (const w of card.warnings) console.log(`    - ${w}`);
   }
-  console.log(`\n  ${C.dim(`Difficoltà proposta: slider AI ${card.difficulty.slider}% · aggressività ${card.profile.aggr}% · ${card.opponents} avversari`)}`);
+  console.log(`\n  ${C.dim(tr({ it: 'Difficoltà proposta: slider AI {S}% · aggressività {A}% · {O} avversari', en: 'Suggested difficulty: AI slider {S}% · aggression {A}% · {O} opponents' }).replace('{S}', card.difficulty.slider).replace('{A}', card.profile.aggr).replace('{O}', card.opponents))}`);
 }
 
 function cmdNext(args) {
@@ -595,10 +596,10 @@ function cmdNext(args) {
   const car = typeof args.flags.car === 'string' ? args.flags.car : null;
   const card = raceCard(ladder, state, { car });
   if (car && !card.node.cars.includes(car)) {
-    throw new Error(`Auto "${car}" non ammessa in ${card.node.display}.\nAmmesse: ${card.node.cars.join(', ')}`);
+    throw new Error(tr({ it: 'Auto "{C}" non ammessa in {D}.\nAmmesse: {L}', en: 'Car "{C}" not allowed in {D}.\nAllowed: {L}' }).replace('{C}', car).replace('{D}', card.node.display).replace('{L}', card.node.cars.join(', ')));
   }
   printCard(ladder, state, card);
-  console.log(`\n${C.dim('Quando sei pronto:  node ac-evo-career.mjs race   (paga l\'iscrizione e apre il gioco)')}\n`);
+  console.log(`\n${C.dim(tr({ it: "Quando sei pronto:  node ac-evo-career.mjs race   (paga l'iscrizione e apre il gioco)", en: 'When ready:  node ac-evo-career.mjs race   (pays the entry and opens the game)' }))}\n`);
   return 0;
 }
 
@@ -610,42 +611,42 @@ async function cmdRace(args) {
   const card = raceCard(ladder, state, { car: typeof args.flags.car === 'string' ? args.flags.car : null });
 
   if (state.round >= node.calendar.length) {
-    console.log(C.yellow(`\nStagione completata in ${node.display}: chiudi l'anno con "season-end".\n`));
+    console.log(C.yellow(tr({ it: '\nStagione completata in {D}: chiudi l\'anno con "season-end".\n', en: '\nSeason completed in {D}: close the year with "season-end".\n' }).replace('{D}', node.display)));
     return 0;
   }
   if (args.flags['dry-run']) {
     printCard(ladder, state, card);
-    console.log(`\n${C.dim('(dry-run: nessuna iscrizione pagata, gioco non avviato)')}\n`);
+    console.log(`\n${C.dim(tr({ it: '(dry-run: nessuna iscrizione pagata, gioco non avviato)', en: '(dry-run: no entry paid, game not started)' }))}\n`);
     return 0;
   }
   if (await isGameRunning()) {
-    console.log(`\n  ${C.yellow('Nota: Assetto Corsa EVO risulta già aperto.')} ${C.dim('Configura la gara nella finestra già aperta; il gioco non verrà avviato di nuovo.')}`);
+    console.log(`\n  ${C.yellow(tr({ it: 'Nota: Assetto Corsa EVO risulta già aperto.', en: 'Note: Assetto Corsa EVO appears to be already open.' }))} ${C.dim(tr({ it: 'Configura la gara nella finestra già aperta; il gioco non verrà avviato di nuovo.', en: 'Set the race in the window already open; the game will not be started again.' }))}`);
   }
   const fee = chargeEntry(ladder, state, node);
   markPending(ladder, state, card);
   saveState(SAVE_FILE, state);
 
   printCard(ladder, state, card);
-  if (fee) console.log(`\n  ${C.yellow('Iscrizione pagata: ' + money(fee))}`);
+  if (fee) console.log(`\n  ${C.yellow(tr({ it: 'Iscrizione pagata: ', en: 'Entry paid: ' }) + money(fee))}`);
 
   if (args.flags['no-launch']) {
-    console.log(`\n${C.dim('(gioco non avviato: --no-launch)  Apri Assetto Corsa EVO e imposta la gara.')}\n`);
+    console.log(`\n${C.dim(tr({ it: '(gioco non avviato: --no-launch)  Apri Assetto Corsa EVO e imposta la gara.', en: '(game not started: --no-launch)  Open Assetto Corsa EVO and set the race.' }))}\n`);
     return 0;
   }
   try {
     const res = await launch(paths, { force: !!args.flags['force-launch'] });
     if (res.via === 'already-running') {
-      console.log(`\n  ${C.green('Assetto Corsa EVO è già aperto')}: non ne avvio un secondo, altrimenti il gioco mostra un errore.`);
-      console.log(`  ${C.dim('Imposta la gara qui sopra nella finestra già aperta.')}`);
-      console.log(`  ${C.dim('(se vuoi forzare una nuova istanza: race --force-launch)')}`);
+      console.log(`\n  ${C.green(tr({ it: 'Assetto Corsa EVO è già aperto', en: 'Assetto Corsa EVO is already open' }))}: ${tr({ it: 'non ne avvio un secondo, altrimenti il gioco mostra un errore.', en: 'I will not start a second one, otherwise the game shows an error.' })}`);
+      console.log(`  ${C.dim(tr({ it: 'Imposta la gara qui sopra nella finestra già aperta.', en: 'Set the race above in the window already open.' }))}`);
+      console.log(`  ${C.dim(tr({ it: '(se vuoi forzare una nuova istanza: race --force-launch)', en: '(to force a new instance: race --force-launch)' }))}`);
     } else {
-      console.log(`\n  ${C.green('Gioco avviato')} ${C.dim('(' + res.via + ': ' + res.target + ')')}`);
+      console.log(`\n  ${C.green(tr({ it: 'Gioco avviato', en: 'Game started' }))} ${C.dim(`(${res.via}: ${res.target})`)}`);
     }
   } catch (e) {
-    console.log(`\n  ${C.yellow('Non sono riuscito ad aprire il gioco: ' + e.message)}`);
-    console.log(`  ${C.dim('Aprilo tu e imposta la gara qui sopra.')}`);
+    console.log(`\n  ${C.yellow(tr({ it: 'Non sono riuscito ad aprire il gioco: ', en: 'Could not open the game: ' }) + e.message)}`);
+    console.log(`  ${C.dim(tr({ it: 'Aprilo tu e imposta la gara qui sopra.', en: 'Open it yourself and set the race above.' }))}`);
   }
-  console.log(`\n${C.dim('A fine gara:  node ac-evo-career.mjs import')}\n`);
+  console.log(`\n${C.dim(tr({ it: 'A fine gara:  node ac-evo-career.mjs import', en: 'After the race:  node ac-evo-career.mjs import' }))}\n`);
   return 0;
 }
 
@@ -660,17 +661,17 @@ async function cmdPrepara(args) {
   const dry = !!args.flags.dry;
   const gameOn = await isGameRunning();
 
-  console.log(C.bold('\nPrepara-ronda'));
-  console.log(C.dim('  iscrizione della ronda · griglia zavorrata · vigia · card — niente riavvio del gioco.'));
-  if (gameOn) console.log(C.dim("  protocollo no-restart: resta sul menù di EVO e NON aprire l'editor griglia."));
+  console.log(C.bold(tr({ it: '\nPrepara-ronda', en: '\nPrepare-round' })));
+  console.log(C.dim(tr({ it: '  iscrizione della ronda · griglia zavorrata · vigia · card — niente riavvio del gioco.', en: '  round entry · ballasted grid · checker · card — no game restart.' })));
+  if (gameOn) console.log(C.dim(tr({ it: "  protocollo no-restart: resta sul menù di EVO e NON aprire l'editor griglia.", en: '  no-restart protocol: stay on the EVO menu and DO NOT open the grid editor.' })));
 
   // 1) griglia della ronda (scrittura ok anche a gioco aperto: EVO rilegge
   //    il customgrid al lancio del weekend; backup automatico incluso)
   try {
     await cmdGriglia({ _: [], flags: { force: true, dry, serie: typeof args.flags.serie === 'string' ? args.flags.serie : undefined, round: args.flags.round, 'servo-prepara': true, car: args.flags.car } });
   } catch (e) {
-    console.log(C.yellow(`\n  Griglia non preparata: ${e.message}`));
-    console.log(C.dim('  (serve il customgrid generato dal GENERA a gioco chiuso; la carriera prosegue con la card qui sotto)'));
+    console.log(C.yellow(tr({ it: '\n  Griglia non preparata: ', en: '\n  Grid not prepared: ' }) + e.message));
+    console.log(C.dim(tr({ it: '  (serve il customgrid generato dal GENERA a gioco chiuso; la carriera prosegue con la card qui sotto)', en: '  (the customgrid generated by GENERATE with the game closed is required; the career goes on with the card below)' })));
   }
 
   // 2) vigia del bilancio: dopo la scrittura il bilancio deve stare in piedi
@@ -678,23 +679,23 @@ async function cmdPrepara(args) {
     const zp = zeroBalanceProposal(CUSTOMGRID_FILE, { track: trackOfCurrentRound(ladder) });
     if (zp) {
       const out = applyBalance({ serie: zp.classe, track: zp.track ?? trackOfCurrentRound(ladder), force: gameOn });
-      console.log(C.green(`\n  ✓ vigia: bilancio di "${out.classe}" riscritto sul customgrid${out.trkMsg ? out.trkMsg : ''}`));
-      if (gameOn) console.log(C.dim("  (EVO aperto: resta sul menù e NON aprire l'editor griglia, o un risalvataggio cancella di nuovo il bilancio)"));
+      console.log(C.green(`\n  ✓ ${tr({ it: 'vigia: bilancio di', en: 'checker: balance of' })} "${out.classe}" ${tr({ it: 'riscritto sul customgrid', en: 'rewritten on the customgrid' })}${out.trkMsg ? out.trkMsg : ''}`));
+      if (gameOn) console.log(C.dim(tr({ it: "  (EVO aperto: resta sul menù e NON aprire l'editor griglia, o un risalvataggio cancella di nuovo il bilancio)", en: '  (EVO open: stay on the menu and DO NOT open the grid editor, or a re-save wipes the balance again)' })));
     }
-  } catch (e) { console.log(C.yellow(`  vigia: ${e.message}`)); }
+  } catch (e) { console.log(C.yellow(`  ${tr({ it: 'vigia:', en: 'checker:' })} ${e.message}`)); }
 
   // 3) iscrizione della ronda + card (il lancio resta a te: il gioco rilegge
   //    il customgrid al lancio del weekend — niente riavvii)
   if (dry) {
     console.log();
     printCard(ladder, state, raceCard(ladder, state, { car: typeof args.flags.car === 'string' ? args.flags.car : null }));
-    console.log(C.dim('\n(dry-run: nessun addebito e nessuna griglia scritta)'));
-    console.log(C.dim('Rilancia senza --dry per pagare l\'iscrizione e preparare davvero.\n'));
+    console.log(C.dim(tr({ it: '\n(dry-run: nessun addebito e nessuna griglia scritta)', en: '\n(dry-run: no charge and no grid written)' })));
+    console.log(C.dim(tr({ it: "Rilancia senza --dry per pagare l'iscrizione e preparare davvero.\n", en: 'Rerun without --dry to pay the entry and prepare for real.\n' })));
     return 0;
   }
   console.log();
   await cmdRace({ _: [], flags: { 'no-launch': true, car: args.flags.car } });
-  console.log(`\n${C.bold('Tutto pronto')}: ${C.dim('nel menù di EVO scegli il round e parti — EVO rilegge il customgrid al lancio. La vigia custodisce la griglia. A fine gara:  node ac-evo-career.mjs import')}\n`);
+  console.log(`\n${C.bold(tr({ it: 'Tutto pronto', en: 'All ready' }))}: ${C.dim(tr({ it: 'nel menù di EVO scegli il round e parti — EVO rilegge il customgrid al lancio. La vigia custodisce la griglia. A fine gara:  node ac-evo-career.mjs import', en: 'in the EVO menu pick the round and go — EVO re-reads the customgrid at launch. The checker guards the grid. After the race:  node ac-evo-career.mjs import' }))}\n`);
   return 0;
 }
 
@@ -705,13 +706,13 @@ function cmdImport(args) {
 
   if (args.flags.inspect) {
     const files = listResultFiles(paths);
-    if (!files.length) { console.log(C.yellow(`\nNessun file risultati in ${paths.resultsDirs.join(', ') || '(nessuna cartella)'}\n`)); return 0; }
-    console.log(C.bold(`\nUltimi file di risultato (${files.length} totali)\n`));
+    if (!files.length) { console.log(C.yellow(tr({ it: '\nNessun file risultati in {P}\n', en: '\nNo result files in {P}\n' }).replace('{P}', paths.resultsDirs.join(', ') || `(${tr({ it: 'nessuna cartella', en: 'no folder' })})`))); return 0; }
+    console.log(C.bold(tr({ it: '\nUltimi file di risultato ({N} totali)\n', en: '\nLatest result files ({N} total)\n' }).replace('{N}', files.length)));
     for (const f of files.slice(0, 5)) {
       let result;
       try { result = readSessionResult(f.file); } catch { continue; }
-      console.log(`  ${f.name}  ${C.dim(new Date(f.mtime).toLocaleString('it-IT'))}`);
-      console.log(`    sessione ${result.session} · pista ${result.track} · ${(result.drivers ?? []).length} piloti`);
+      console.log(`  ${f.name}  ${C.dim(new Date(f.mtime).toLocaleString(LANG === 'en' ? 'en-GB' : 'it-IT'))}`);
+      console.log(`    ${tr({ it: 'sessione', en: 'session' })} ${result.session} · ${tr({ it: 'pista', en: 'track' })} ${result.track} · ${(result.drivers ?? []).length} ${tr({ it: 'piloti', en: 'drivers' })}`);
       if (args.flags.full) console.log(describeResult(result).split('\n').map((l) => '    ' + l).join('\n'));
     }
     console.log();
@@ -721,13 +722,13 @@ function cmdImport(args) {
   // registro anti-doppioni: cosa è già stato incassato e quando
   if (args.flags.ledger) {
     const files = importedFiles();
-    console.log(C.bold(`\nRegistro import (${files.length} file già incassati)\n`));
+    console.log(C.bold(tr({ it: '\nRegistro import ({N} file già incassati)\n', en: '\nImport ledger ({N} files already collected)\n' }).replace('{N}', files.length)));
     for (const f of files.slice(0, 20)) {
       console.log(`  ${String(f.at ?? '').slice(0, 16).replace('T', ' ')}  ${f.file}  →  ${f.node ?? f.nodeId ?? '?'} R${(f.round ?? 0) + 1}${f.position ? ', P' + f.position : ''}`);
     }
     const log = importLog(10);
     if (log.length) {
-      console.log(C.dim('\nUltimi eventi:'));
+      console.log(C.dim(tr({ it: '\nUltimi eventi:', en: '\nLatest events:' })));
       for (const l of log) console.log(`  ${C.dim(String(l.at ?? '').slice(0, 19).replace('T', ' '))}  ${l.outcome ?? '?'}  ${l.file ?? ''}${l.outcome === 'ignored' ? ' (' + (l.reason ?? '') + ')' : ''}`);
     }
     console.log();
@@ -745,51 +746,51 @@ function cmdImport(args) {
     out = runImport(ladder, paths, state, { manual, allowAny: !!args.flags['allow-any'], force: !!args.flags.force });
   } catch (e) {
     if (e.code === 'NO_CANDIDATE' && e.detail) {
-      const lines = [`Nessuna gara da importare che combaci con la ronda attesa (${(e.detail.expected ?? []).join(' / ')}).`];
+      const lines = [tr({ it: `Nessuna gara da importare che combaci con la ronda attesa (${(e.detail.expected ?? []).join(' / ')}).`, en: `No result to import matching the expected round (${(e.detail.expected ?? []).join(' / ')}).` })];
       const files = e.detail.files ?? [];
       if (files.length) {
-        lines.push('File recenti presenti:');
-        for (const f of files) lines.push(`  ${f.name} — sessione ${f.session}, pista ${f.track}, ${f.drivers} piloti${f.isRace ? '' : ' (non una gara)'}`);
+        lines.push(tr({ it: 'File recenti presenti:', en: 'Recent files found:' }));
+        for (const f of files) lines.push(`  ${f.name} — ${tr({ it: `sessione ${f.session}, pista ${f.track}, ${f.drivers} piloti${f.isRace ? '' : ' (non una gara)'}`, en: `session ${f.session}, track ${f.track}, ${f.drivers} drivers${f.isRace ? '' : ' (not a race)'}` })}`);
       } else {
-        lines.push(`Non ci sono file in ${paths.resultsDirs.join(', ') || '(nessuna cartella Results)'}.`);
+        lines.push(tr({ it: `Non ci sono file in ${paths.resultsDirs.join(', ') || '(nessuna cartella Results)'}.`, en: `There are no files in ${paths.resultsDirs.join(', ') || '(no Results folder)'}.` }));
       }
-      lines.push('Se la gara è quella giusta usa --allow-any, oppure inserisci la posizione a mano con --position N.');
+      lines.push(tr({ it: 'Se la gara è quella giusta usa --allow-any, oppure inserisci la posizione a mano con --position N.', en: "If it is the right race use --allow-any, or enter the position by hand with --position N." }));
       throw new Error(lines.join('\n'));
     }
     if (e.code === 'PLAYER_NOT_FOUND' && e.detail) {
       throw new Error([
-        `Non ho riconosciuto il tuo pilota in ${e.detail.file ?? 'questo file'}.`,
-        `Piloti senza contrassegno AI: ${(e.detail.candidates ?? []).join(', ') || 'nessuno'}.`,
-        `Inserisci la posizione a mano: import --position N --cars <numero-auto> [--dnf] [--fl]`,
+          tr({ it: `Non ho riconosciuto il tuo pilota in ${e.detail.file ?? 'questo file'}.`, en: `I could not recognize your driver in ${e.detail.file ?? 'this file'}.` }),
+          tr({ it: `Piloti senza contrassegno AI: ${(e.detail.candidates ?? []).join(', ') || 'nessuno'}.`, en: `Drivers without the AI badge: ${(e.detail.candidates ?? []).join(', ') || 'none'}.` }),
+          tr({ it: `Inserisci la posizione a mano: import --position N --cars <numero-auto> [--dnf] [--fl]`, en: 'Enter the position by hand: import --position N --cars <car-count> [--dnf] [--fl]' }),
       ].join('\n'));
     }
     if (e.code === 'TRACK_MISMATCH' && e.detail) {
       throw new Error([
-        `La gara trovata è su "${e.detail.actual}" ma la ronda attesa è su "${(e.detail.expected ?? []).join(' / ')}".`,
-        'Usa --force per importarla comunque, o --allow-any per cercare fra tutte le gare.',
+          tr({ it: `La gara trovata è su "${e.detail.actual}" ma la ronda attesa è su "${(e.detail.expected ?? []).join(' / ')}".`, en: `The found race is on "${e.detail.actual}" but the expected round is on "${(e.detail.expected ?? []).join(' / ')}".` }),
+          tr({ it: 'Usa --force per importarla comunque, o --allow-any per cercare fra tutte le gare.', en: 'Use --force to import it anyway, or --allow-any to search all races.' }),
       ].join('\n'));
     }
     throw e;
   }
 
   if (out.duplicate) {
-    console.log(C.yellow('\nNessun nuovo risultato registrato\n'));
+    console.log(C.yellow(tr({ it: '\nNessun nuovo risultato registrato\n', en: '\nNo new result recorded\n' })));
     console.log(`  ${C.dim(out.source)}`);
-    console.log(`  ${C.dim('Per forzarlo comunque: import --force.   Registro: import --ledger')}`);
+    console.log(`  ${C.dim(tr({ it: 'Per forzarlo comunque: import --force.   Registro: import --ledger', en: 'To force it anyway: import --force.   Ledger: import --ledger' }))}`);
     return 0;
   }
 
   const entry = out.entry;
-  console.log(C.bold(`\nRisultato importato — ${out.node}, round ${out.round}\n`));
+  console.log(C.bold(tr({ it: `\nRisultato importato — ${out.node}, round ${out.round}\n`, en: `\nResult imported — ${out.node}, round ${out.round}\n` })));
   console.log(`  ${C.dim(out.source)}`);
-  console.log(`  Posizione: ${entry.dnf ? C.red('ritiro') : 'P' + entry.position} su ${entry.gridSize}${entry.fl ? C.yellow(' · giro veloce') : ''}`);
-  console.log(`  Punti: ${entry.points}   Premio: ${money(entry.prize)}   Reputazione: +${entry.rep}`);
-  console.log(`  Classifica: P${out.standing.before ?? '?'} -> ${C.cyan('P' + (out.standing.after ?? '?'))} (${out.standing.points} punti)`);
-  console.log(`  Banca: ${C.green(money(out.money))}   Reputazione: ${out.rep}`);
-  if (out.backup) console.log(`  ${C.dim('Backup automatico: ' + String(out.backup).replace(/^.*bak-auto-/, ''))}`);
+  console.log(`  ${tr({ it: 'Posizione:', en: 'Position:' })} ${entry.dnf ? C.red(tr({ it: 'ritiro', en: 'retired' })) : 'P' + entry.position} ${tr({ it: 'su', en: 'of' })} ${entry.gridSize}${entry.fl ? C.yellow(tr({ it: ' · giro veloce', en: ' · fast lap' })) : ''}`);
+  console.log(`  ${tr({ it: 'Punti:', en: 'Points:' })} ${entry.points}   ${tr({ it: 'Premio:', en: 'Prize:' })} ${money(entry.prize)}   ${tr({ it: 'Reputazione:', en: 'Reputation:' })} +${entry.rep}`);
+  console.log(`  ${tr({ it: 'Classifica:', en: 'Standings:' })} P${out.standing.before ?? '?'} -> ${C.cyan('P' + (out.standing.after ?? '?'))} (${out.standing.points} ${tr({ it: 'punti', en: 'points' })})`);
+  console.log(`  ${tr({ it: 'Banca:', en: 'Bank:' })} ${C.green(money(out.money))}   ${tr({ it: 'Reputazione:', en: 'Reputation:' })} ${out.rep}`);
+  if (out.backup) console.log(`  ${C.dim(tr({ it: 'Backup automatico: ', en: 'Automatic backup: ' }) + String(out.backup).replace(/^.*bak-auto-/, ''))}`);
   if (out.proposal) {
-    console.log(`\n  ${C.yellow('Suggerimento difficoltà')}: ${out.proposal.reason} -> trim ${signed(out.proposal.from)} / ${signed(out.proposal.to)}`);
-    console.log(`  ${C.dim('difficulty --accept   oppure   difficulty --reject')}`);
+    console.log(`\n  ${C.yellow(tr({ it: 'Suggerimento difficoltà', en: 'Difficulty suggestion' }))}: ${out.proposal.reason} -> trim ${signed(out.proposal.from)} / ${signed(out.proposal.to)}`);
+    console.log(`  ${C.dim(tr({ it: 'difficulty --accept   oppure   difficulty --reject', en: 'difficulty --accept   or   difficulty --reject' }))}`);
   }
   if (out.file) {
     const gg = gridGuardProposal(out.file);
@@ -803,11 +804,11 @@ function cmdImport(args) {
   const ap = aiRangeProposal(CUSTOMGRID_FILE);
   if (ap) console.log(`\n${C.yellow(ap.msg)}\n`);
   stampaCalib(out.calibrazione);
-  if (out.agenda?.jump) console.log(`\n  ${C.green('Calendario portato avanti')}: salto al giorno ${out.agenda.day} — i tuoi sedili non avevano gare dopo questa.`);
+  if (out.agenda?.jump) console.log(`\n  ${C.green(tr({ it: 'Calendario portato avanti', en: 'Calendar moved forward' }))}: ${tr({ it: 'salto al giorno ', en: 'jumping to day ' })}${out.agenda.day} — ${tr({ it: 'i tuoi sedili non avevano gare dopo questa.', en: 'your seats had no races after this one.' })}`);
   if (out.seasonDone) {
-    console.log(`\n  ${C.green('Stagione completata!')} ${C.dim('node ac-evo-career.mjs season-end')}`);
+    console.log(`\n  ${C.green(tr({ it: 'Stagione completata!', en: 'Season completed!' }))} ${C.dim('node ac-evo-career.mjs season-end')}`);
   }
-  console.log(`\n${C.dim('Prossima gara:  node ac-evo-career.mjs next')}\n`);
+  console.log(`\n${C.dim(tr({ it: 'Prossima gara:  node ac-evo-career.mjs next', en: 'Next race:  node ac-evo-career.mjs next' }))}\n`);
   return 0;
 }
 
@@ -816,9 +817,9 @@ async function cmdWatch(args) {
   const secs = Math.max(3, Number(args.flags.every) || Math.round(WATCH_INTERVAL_MS / 1000));
   const baseline = Date.now(); // niente gare precedenti al via del watcher
 
-  console.log(C.bold(`\n👁 watcher attivo — controllo ogni ${secs}s · Ctrl+C per uscire\n`));
-  console.log(C.dim('  Incassa da solo ogni gara che EVO scrive da adesso in poi (registro anti-doppioni e backup inclusi).\n'));
-  console.log(C.dim('  File risultati: ' + (paths.resultsDirs.join(', ') || '(nessuna cartella Results)') + '\n'));
+  console.log(C.bold(tr({ it: `\n👁 watcher attivo — controllo ogni ${secs}s · Ctrl+C per uscire\n`, en: `\n👁 watcher active — checking every ${secs}s · Ctrl+C to exit\n` })));
+  console.log(C.dim(tr({ it: '  Incassa da solo ogni gara che EVO scrive da adesso in poi (registro anti-doppioni e backup inclusi).\n', en: '  Collects every race EVO writes from now on by itself (anti-duplicate ledger and backup included).\n' })));
+  console.log(C.dim(tr({ it: '  File risultati: ', en: 'Result files: ' }) + (paths.resultsDirs.join(', ') || tr({ it: '(nessuna cartella Results)', en: '(no Results folder)' })) + '\n'));
 
   let stop = false;
   const onSigint = () => { stop = true; };
@@ -836,7 +837,7 @@ async function cmdWatch(args) {
     return zeroBalanceProposal(CUSTOMGRID_FILE, { track: trackOfCurrentRound(ladder) });
   };
   const preflight = checkGridFile(true);
-  if (preflight) console.log(`\n  ${C.yellow('alla partenza:')} customgrid senza bilancio — viene proposto qui sotto al primo giro\n`);
+  if (preflight) console.log(`\n  ${C.yellow(tr({ it: 'alla partenza:', en: 'at startup:' }))} ${tr({ it: 'customgrid senza bilancio — viene proposto qui sotto al primo giro', en: 'customgrid without balance — it is proposed below on the first pass' })}\n`);
   try {
     while (!stop) {
       const t0 = Date.now();
@@ -844,18 +845,18 @@ async function cmdWatch(args) {
       const out = watchOnce(ladder, paths, { baselineMs: baseline });
       if (out.imported) {
         const e = out.imported.entry;
-        console.log(C.green(`\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dnf ? 'ritiro' : 'P' + e.position}/${e.gridSize}${e.fl ? ' · giro veloce' : ''} · +${e.points} pt · +${e.prize} €`));
-        console.log(`  ${C.dim('Banca: ' + out.imported.money + ' · rep ' + out.imported.rep)}`);
-        if (out.imported.proposal) console.log(`  ${C.yellow('Suggerimento difficoltà')}: trim ${signed(out.imported.proposal.from)} / ${signed(out.imported.proposal.to)} — decidilo con difficulty --accept / --reject\n`);
+        console.log(C.green(tr({ it: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €`, en: tr({ it: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €`, en: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €` }) })));
+        console.log(`  ${C.dim(tr({ it: 'Banca: ', en: 'Bank: ' }) + out.imported.money + ' · rep ' + out.imported.rep)}`);
+        if (out.imported.proposal) console.log(`  ${C.yellow(tr({ it: 'Suggerimento difficoltà', en: 'Difficulty suggestion' }))}: trim ${signed(out.imported.proposal.from)} / ${signed(out.imported.proposal.to)} — ${tr({ it: 'decidilo con difficulty --accept / --reject', en: 'decide with difficulty --accept / --reject' })}\n`);
         else console.log();
         if (out.imported.file) {
           const gg = gridGuardProposal(out.imported.file);
           if (gg) console.log(`${C.yellow(gg.msg)}\n`);
         }
         stampaCalib(out.imported.calibrazione);
-        if (out.imported.agenda?.jump) console.log(`  ${C.green('✓ calendario auto-avanzato')} al giorno ${out.imported.agenda.day} (nessuna gara dei sedili dopo questa gara)\n`);
+        if (out.imported.agenda?.jump) console.log(`  ${C.green(tr({ it: '✓ calendario auto-avanzato', en: '✓ calendar auto-advanced' }))} ${tr({ it: 'al giorno', en: 'to day' })} ${out.imported.agenda.day} (${tr({ it: 'nessuna gara dei sedili dopo questa gara', en: 'no seat races after this race' })})\n`);
       } else if (out.error) {
-        console.log(`  ${C.red('watcher:')} ${out.error.message}\n`);
+        console.log(`  ${C.red(tr({ it: 'watcher:', en: 'watcher:' }))} ${out.error.message}\n`);
       }
       // vigia del bilancio perso: se il menu di EVO ha risalvato il customgrid
       // e ha cannato zavorre/penalità, RIPRISTINA da solo. Anche a gioco aperto
@@ -870,19 +871,19 @@ async function cmdWatch(args) {
           const out = applyBalance({ serie: zp.classe, track: trackVigia, force: gameRunning() });
           gridWarned = true;
           const notaGame = gameRunning()
-            ? '\n  (EVO aperto: resta sul menù e NON aprire l\'editor griglia, o un suo risalvataggio cancella di nuovo il bilancio)'
+            ? tr({ it: "\n  (EVO aperto: resta sul menù e NON aprire l'editor griglia, o un suo risalvataggio cancella di nuovo il bilancio)", en: "\n  (EVO open: stay on the menu and DO NOT open the grid editor, or a re-save wipes the balance again)" })
             : '';
-          console.log(C.green(`\n  ✓ ripristino automatico: bilancio di "${out.classe}" riscritto sul customgrid${out.trkMsg ? out.trkMsg : ''}${notaGame}\n`));
+          console.log(C.green(tr({ it: `\n  ✓ ripristino automatico: bilancio di "${out.classe}" riscritto sul customgrid${out.trkMsg ? out.trkMsg : ''}${notaGame}\n`, en: `\n  ✓ automatic restore: balance of "${out.classe}" rewritten on the customgrid${out.trkMsg ? out.trkMsg : ''}${notaGame}\n` })));
         } catch (e) { console.log(`\n${C.yellow(zp.msg)}\n`); if (e.code !== 'GAME_RUNNING') throw e; }
       }
-      else if (zp === null && gridWarned) { gridWarned = false; console.log(C.green('\n  ✓ bilancio ripristinato sul customgrid\n')); }
+      else if (zp === null && gridWarned) { gridWarned = false; console.log(C.green(tr({ it: '\n  ✓ bilancio ripristinato sul customgrid\n', en: '\n  ✓ balance restored on the customgrid\n' }))); }
       // vigia del campo AI: se l'intervallo 21/22 combacia col pin di classe non dice nulla;
       // se diverge, applica (a gioco chiuso ripristina da solo, come il bilancio)
       const ap = aiRangeProposal(CUSTOMGRID_FILE);
       if (ap) {
         try {
           const airOut = applyAi(ap.atteso, { force: gameRunning() });
-          console.log(C.green(`\n  ✓ ripristino automatico: campo AI ${airOut.ai[0]}-${airOut.ai[1]} riscritto sul customgrid (trovato: ${ap.trovato[0]}-${ap.trovato[1]})\n`));
+          console.log(C.green(tr({ it: `\n  ✓ ripristino automatico: campo AI ${airOut.ai[0]}-${airOut.ai[1]} riscritto sul customgrid (trovato: ${ap.trovato[0]}-${ap.trovato[1]})\n`, en: `\n  ✓ automatic restore: AI field ${airOut.ai[0]}-${airOut.ai[1]} rewritten on the customgrid (found: ${ap.trovato[0]}-${ap.trovato[1]})\n` })));
         } catch (e) { console.log(`\n${C.yellow(ap.msg)}\n`); if (e.code !== 'GAME_RUNNING') throw e; }
       }
       // niente rumore quando una scansione non trova niente di nuovo
@@ -893,7 +894,7 @@ async function cmdWatch(args) {
   } finally {
     process.removeListener('SIGINT', onSigint);
   }
-  console.log('\n  watcher chiuso.\n');
+  console.log(tr({ it: '\n  watcher chiuso.\n', en: '\n  watcher closed.\n' }));
   return 0;
 }
 
@@ -901,11 +902,11 @@ function cmdReview(args) {
   const { ladder } = context();
   const state = requireState();
   const seasons = reviewableSeasons(state);
-  if (!seasons.length) { console.log(C.yellow('\nAncora nessuna gara: la rassegna arriva dopo la prima stagione.\n')); return 0; }
+  if (!seasons.length) { console.log(C.yellow(tr({ it: '\nAncora nessuna gara: la rassegna arriva dopo la prima stagione.\n', en: '\nNo races yet: the review arrives after the first season.\n' }))); return 0; }
   let wanted = seasons[0];
   if (Number.isFinite(Number(args.flags.season))) {
     wanted = Number(args.flags.season);
-    if (!seasons.includes(wanted)) throw new Error(`Della stagione ${wanted} non ci sono gare registrate. Disponibili: ${seasons.join(', ')}.`);
+    if (!seasons.includes(wanted)) throw new Error(tr({ it: `Della stagione ${wanted} non ci sono gare registrate. Disponibili: ${seasons.join(', ')}.`, en: `Season ${wanted} has no recorded races. Available: ${seasons.join(', ')}.` }));
   }
   const r = seasonReview(ladder, state, { season: wanted });
   console.log('\n' + r.text.split('\n').map((l) => l
@@ -914,15 +915,15 @@ function cmdReview(args) {
     .join('\n') + '\n');
   if (args.flags.export) {
     const file = exportReview(r);
-    console.log(C.green(`Rassegna salvata in ${file}\n`));
+    console.log(C.green(tr({ it: `Rassegna salvata in ${file}\n`, en: `Review saved to ${file}\n` })));
   }
   return 0;
 }
 
 function cmdGazzetta() {
   const items = newsFeed(15);
-  console.log(C.bold('\n📰 Gazzetta del paddock\n'));
-  if (!items.length) { console.log(C.dim('  Nessuna notizia: arrivano dopo la prima gara importata.\n')); return 0; }
+  console.log(C.bold(tr({ it: '\n📰 Gazzetta del paddock\n', en: '\n📰 Paddock gazette\n' })));
+  if (!items.length) { console.log(C.dim(tr({ it: '  Nessuna notizia: arrivano dopo la prima gara importata.\n', en: '  No news yet: they arrive after the first imported race.\n' }))); return 0; }
   for (const n of items) {
     console.log(`  ${C.dim(String(n.at ?? '').slice(0, 10))}  ${C.bold(n.title)}`);
     if (n.body) console.log(`    ${C.dim(n.body.split('\n').join('\n    '))}`);
@@ -936,12 +937,12 @@ function cmdPiano() {
   const state = requireState();
   ensureFlowsSeeded(state);
   const rows = careerPlanner(ladder, state);
-  console.log(C.bold(`\nPianificatore — stagione ${state.season + 1} · banca ${money(state.money)} · rep ${state.rep}\n`));
+  console.log(C.bold(tr({ it: `\nPianificatore — stagione ${state.season + 1} · banca ${money(state.money)} · rep ${state.rep}\n`, en: `\nPlanner — season ${state.season + 1} · bank ${money(state.money)} · rep ${state.rep}\n` })));
   for (const r of rows.filter((x) => x.open || x.blockers.length).slice(0, 18)) {
-    const mark = r.current ? C.green('◄ attuale') : r.open ? C.cyan('aperta  ') : C.red('bloccata');
-    console.log(`  ${mark} ${C.bold(r.display.padEnd(26))} L${r.level}  affitto ${money(r.rent).padStart(7)} · premio ${money(r.prize).padStart(7)}  ${C.dim(r.blockers.join('; ') || 'gate superato')}`);
+    const mark = r.current ? C.green(tr({ it: '◄ attuale', en: '◄ current' })) : r.open ? C.cyan(tr({ it: 'aperta  ', en: 'open    ' })) : C.red(tr({ it: 'bloccata', en: 'locked' }));
+    console.log(`  ${mark} ${C.bold(r.display.padEnd(26))} L${r.level}  ${tr({ it: 'affitto', en: 'rent' })} ${money(r.rent).padStart(7)} · ${tr({ it: 'premio', en: 'prize' })} ${money(r.prize).padStart(7)}  ${C.dim(r.blockers.join('; ') || tr({ it: 'gate superato', en: 'gate passed' }))}`);
   }
-  console.log(C.dim('\n  "series" per l\'elenco completo con i gate.\n'));
+  console.log(C.dim(tr({ it: "\n  \"series\" per l'elenco completo con i gate.\n", en: '\n  "series" for the full list with its gates.\n' })));
   return 0;
 }
 
@@ -949,17 +950,17 @@ function cmdSfida(args) {
   const { ladder } = context();
   const state = requireState();
   const c = challengeFor(ladder, state);
-  if (!c) { console.log(C.yellow('\nNessuna sfida disponibile (stagione chiusa o sfida già valutata).\n')); return 0; }
+  if (!c) { console.log(C.yellow(tr({ it: '\nNessuna sfida disponibile (stagione chiusa o sfida già valutata).\n', en: '\nNo challenge available (season closed or challenge already scored).\n' }))); return 0; }
   if (args.flags.accept) {
-    if (c.accepted) { console.log(C.yellow(`\nSfida già accettata: ${c.text}\n`)); return 0; }
+    if (c.accepted) { console.log(C.yellow(tr({ it: `\nSfida già accettata: ${c.text}\n`, en: `\nChallenge already accepted: ${c.text}\n` }))); return 0; }
     acceptChallenge(state, c);
     saveState(SAVE_FILE, state);
-    console.log(C.green(`\nSfida accettata: ${c.text}`));
-    console.log(C.dim(`  premio ${c.reward} € se ci riesci, -${c.penalty} rep se fallisci.\n`));
+    console.log(C.green(tr({ it: `\nSfida accettata: ${c.text}`, en: `\nChallenge accepted: ${c.text}` })));
+    console.log(C.dim(tr({ it: `  premio ${c.reward} € se ci riesci, -${c.penalty} rep se fallisci.\n`, en: `  reward ${c.reward} € if you make it, -${c.penalty} rep if you fail.\n` })));
     return 0;
   }
-  console.log(C.bold(`\nSfida della ronda — ${c.text}\n`));
-  console.log(`  ${C.dim(`facoltativa · premio ${c.reward} € · penale -${c.penalty} rep · accetta con: sfida --accept\n`)}`);
+  console.log(C.bold(tr({ it: `\nSfida della ronda — ${c.text}\n`, en: `\nRound challenge — ${c.text}\n` })));
+  console.log(`  ${C.dim(tr({ it: `facoltativa · premio ${c.reward} € · penale -${c.penalty} rep · accetta con: sfida --accept\n`, en: `optional · reward ${c.reward} € · penalty -${c.penalty} rep · accept with: challenge --accept\n` }))}`);
   return 0;
 }
 
@@ -968,24 +969,24 @@ function cmdDottore(args) {
   const state = requireState();
   const issues = checkIntegrity(ladder, state);
   if (!issues.length) {
-    console.log(C.green('\nCarriera sotto controllo: gare, statistiche, cassa e bacheca tornano.\n'));
+    console.log(C.green(tr({ it: '\nCarriera sotto controllo: gare, statistiche, cassa e bacheca tornano.\n', en: '\nCareer under control: races, stats, bank and bulletin board all check out.\n' })));
     return 0;
   }
-  console.log(C.yellow(`\nTrovate ${issues.length} anomalie:\n`));
+  console.log(C.yellow(tr({ it: `\nTrovate ${issues.length} anomalie:\n`, en: `\nFound ${issues.length} anomalies:\n` })));
   for (const i of issues) console.log(`  ${i.severity === 'high' ? C.red('•') : C.yellow('•')} ${i.text}`);
   if (args.flags.fix) {
     const out = fixIntegrity(ladder, state);
     if (out.fixed.length) {
-      console.log(C.green('\nCorretto:'));
+      console.log(C.green(tr({ it: '\nCorretto:', en: '\nRepaired:' })));
       for (const f of out.fixed) console.log(`  ✓ ${f}`);
     }
     const rest = out.issues.filter((i) => !out.fixed.length || !i.text.includes('dice'));
     if (rest.length) {
-      console.log(C.dim('\nRestano da verificare a mano (nessuna correzione automatica possibile):'));
+      console.log(C.dim(tr({ it: '\nRestano da verificare a mano (nessuna correzione automatica possibile):', en: '\nStill to verify by hand (no automatic repair possible):' })));
       for (const i of rest) console.log(`  • ${i.text}`);
     }
   } else {
-    console.log(C.dim('\nCorreggi con:  node ac-evo-career.mjs dottore --fix\n'));
+    console.log(C.dim(tr({ it: '\nCorreggi con:  node ac-evo-career.mjs dottore --fix\n', en: '\nRepair with:  node ac-evo-career.mjs dottore --fix\n' })));
   }
   return 0;
 }
@@ -996,14 +997,14 @@ function cmdDifficulty(args) {
 
   if (args.flags.mode) {
     const mode = String(args.flags.mode);
-    if (!['adaptive', 'fixed', 'custom'].includes(mode)) throw new Error('--mode vuole adaptive, fixed oppure custom.');
+    if (!['adaptive', 'fixed', 'custom'].includes(mode)) throw new Error(tr({ it: "--mode vuole adaptive, fixed oppure custom.", en: '--mode wants adaptive, fixed or custom.' }));
     state.difficulty.mode = mode;
     state.difficulty.base ??= {};
     state.difficulty.trim ??= {};
     if (mode === 'fixed') {
       const value = Number(args.flags.value ?? 95);
       if (!Number.isFinite(value) || value < 70 || value > 120) {
-        throw new Error('--value vuole un numero fra 70 e 120 (scala interna, come nel modello originario).');
+        throw new Error(tr({ it: '--value vuole un numero fra 70 e 120 (scala interna, come nel modello originario).', en: '--value wants a number between 70 and 120 (internal scale, like the original model).' }));
       }
       for (const node of ladder.nodes) state.difficulty.base[node.nodeId] = value;
       state.difficulty.trim = {};
@@ -1012,9 +1013,9 @@ function cmdDifficulty(args) {
       state.difficulty.base = {};
       state.difficulty.pending = null;
     }
-    pushMessage(state, `Difficoltà AI impostata su "${mode}"${args.flags.value ? ` (valore ${args.flags.value})` : ''}.`, 'info');
+    pushMessage(state, tr({ it: `Difficoltà AI impostata su "${mode}"${args.flags.value ? ` (valore ${args.flags.value})` : ''}.`, en: `AI difficulty set to "${mode}"${args.flags.value ? ` (value ${args.flags.value})` : ''}.` }), 'info');
     saveState(SAVE_FILE, state);
-    console.log(C.green(`\nModalità difficoltà: ${mode}\n`));
+    console.log(C.green(tr({ it: `\nModalità difficoltà: ${mode}\n`, en: `\nDifficulty mode: ${mode}\n` })));
     return 0;
   }
   if (args.flags.lock || args.flags.unlock) {
@@ -1024,18 +1025,18 @@ function cmdDifficulty(args) {
     if (args.flags.lock) list.add(id); else list.delete(id);
     state.difficulty.locked = [...list];
     saveState(SAVE_FILE, state);
-    console.log(C.green(`\n${id}: difficoltà ${args.flags.lock ? 'bloccata' : 'sbloccata'}.\n`));
+    console.log(C.green(tr({ it: `\n${id}: difficoltà ${args.flags.lock ? 'bloccata' : 'sbloccata'}.\n`, en: `\n${id}: difficulty ${args.flags.lock ? 'locked' : 'unlocked'}.\n` })));
     return 0;
   }
   if (args.flags.accept || args.flags.reject) {
     const pending = state.difficulty.pending;
-    if (!pending) { console.log(C.yellow('\nNessun suggerimento in attesa.\n')); return 0; }
+    if (!pending) { console.log(C.yellow(tr({ it: '\nNessun suggerimento in attesa.\n', en: '\nNo pending suggestion.\n' }))); return 0; }
     if (args.flags.accept) {
       state.difficulty.trim[pending.nodeId] = pending.to;
-      pushMessage(state, `Difficoltà di ${nodeById(ladder, pending.nodeId).display} portata a trim ${pending.to >= 0 ? '+' : ''}${pending.to} (${pending.reason}).`, 'info');
+      pushMessage(state, tr({ it: `Difficoltà di ${nodeById(ladder, pending.nodeId).display} portata a trim ${pending.to >= 0 ? '+' : ''}${pending.to} (${pending.reason}).`, en: `Difficulty of ${nodeById(ladder, pending.nodeId).display} moved to trim ${pending.to >= 0 ? '+' : ''}${pending.to} (${pending.reason}).` }), 'info');
       console.log(C.green(`\nTrim ${pending.nodeId}: ${pending.from} -> ${pending.to}\n`));
     } else {
-      console.log(C.yellow(`\nSuggerimento rifiutato: trim resta a ${pending.from}.\n`));
+      console.log(C.yellow(tr({ it: `\nSuggerimento rifiutato: trim resta a ${pending.from}.\n`, en: `\nSuggestion rejected: trim stays at ${pending.from}.\n` })));
     }
     state.difficulty.pending = null;
     saveState(SAVE_FILE, state);
@@ -1053,7 +1054,7 @@ function cmdDifficulty(args) {
       else id = p;
     }
     if (val == null || !Number.isFinite(val)) {
-      throw new Error('Uso: difficulty --trim <serie|all> <valore>   (es. difficulty --trim gt86_cup +12, intervallo -20..+20).');
+      throw new Error(tr({ it: 'Uso: difficulty --trim <serie|all> <valore>   (es. difficulty --trim gt86_cup +12, intervallo -20..+20).', en: 'Usage: difficulty --trim <series|all> <value>   (e.g. difficulty --trim gt86_cup +12, range -20..+20).' }));
     }
     val = Math.max(-20, Math.min(20, Math.round(val)));
     const scopeAll = (id === 'all');
@@ -1063,13 +1064,13 @@ function cmdDifficulty(args) {
     state.difficulty.trim ??= {};
     for (const t of targets) state.difficulty.trim[t] = val;
     state.difficulty.pending = null;
-    pushMessage(state, `Difficoltà regolata a mano: trim ${val >= 0 ? '+' : ''}${val} su ${scopeAll ? 'tutte le serie' : nodeById(ladder, targets[0]).display}.`, 'info');
+    pushMessage(state, tr({ it: `Difficoltà regolata a mano: trim ${val >= 0 ? '+' : ''}${val} su ${scopeAll ? 'tutte le serie' : nodeById(ladder, targets[0]).display}.`, en: `Difficulty set by hand: trim ${val >= 0 ? '+' : ''}${val} on ${scopeAll ? 'all series' : nodeById(ladder, targets[0]).display}.` }), 'info');
     saveState(SAVE_FILE, state);
-    console.log(C.green(`\nTrim ${val >= 0 ? '+' : ''}${val} applicato a: ${targets.join(', ')}\n`));
+    console.log(C.green(tr({ it: `\nTrim ${val >= 0 ? '+' : ''}${val} applicato a: ${targets.join(', ')}\n`, en: `\nTrim ${val >= 0 ? '+' : ''}${val} applied to: ${targets.join(', ')}\n` })));
     return 0;
   }
 
-  console.log(C.bold(`\nDifficoltà AI — modalità ${state.difficulty.mode}\n`));
+  console.log(C.bold(tr({ it: `\nDifficoltà AI — modalità ${state.difficulty.mode}\n`, en: `\nAI difficulty — mode ${state.difficulty.mode}\n` })));
   const byDiscipline = new Map();
   for (const node of ladder.nodes) {
     const track = node.calendar[Math.min(state.round, node.calendar.length - 1)]?.track;
@@ -1079,7 +1080,7 @@ function cmdDifficulty(args) {
   for (const [disc, rows] of byDiscipline) {
     console.log(` ${C.bold(disciplineName(ladder, disc))}`);
     for (const { node, d } of rows.sort((a, b) => a.node.level - b.node.level)) {
-      const lock = d.locked ? C.yellow(' [bloccata]') : '';
+      const lock = d.locked ? C.yellow(tr({ it: ' [bloccata]', en: ' [locked]' })) : '';;
       const current = node.nodeId === state.node ? C.green('◄') : ' ';
       console.log(`   ${current} ${node.display.padEnd(26)} base ${d.base.toFixed(0).padStart(3)}  trim ${(d.trim >= 0 ? '+' : '') + d.trim}  classe ${(d.offClass >= 0 ? '+' : '') + d.offClass}  pista ${(d.offTrack >= 0 ? '+' : '') + d.offTrack}  = ${d.total.toFixed(0).padStart(3)}  slider ${String(d.slider).padStart(3)}%${lock}`);
     }
@@ -1087,8 +1088,8 @@ function cmdDifficulty(args) {
   }
   if (state.difficulty.pending) {
     const p = state.difficulty.pending;
-    console.log(`  ${C.yellow('In attesa')}: ${nodeById(ladder, p.nodeId).display} — ${p.reason} -> trim ${p.to >= 0 ? '+' : ''}${p.to}`);
-    console.log(C.dim('  difficulty --accept   oppure   difficulty --reject\n'));
+    console.log(`  ${C.yellow(tr({ it: 'In attesa', en: 'Waiting' }))}: ${nodeById(ladder, p.nodeId).display} — ${p.reason} -> trim ${p.to >= 0 ? '+' : ''}${p.to}`);
+    console.log(C.dim(tr({ it: '  difficulty --accept   oppure   difficulty --reject\n', en: '  difficulty --accept   or   difficulty --reject\n' })));
   }
   return 0;
 }
@@ -1099,18 +1100,22 @@ function cmdSeasonEnd(args) {
   const node = nodeById(ladder, state.node);
   const played = (state.results[node.nodeId] ?? []).filter((r) => r.season === state.season).length;
   if (played < node.calendar.length && !args.flags.force) {
-    throw new Error(`Stagione ${state.season} in ${node.display}: ${played}/${node.calendar.length} gare disputate.\nUsa --force per chiudere comunque.`);
+    throw new Error(tr({ it: `Stagione ${state.season} in ${node.display}: ${played}/${node.calendar.length} gare disputate.\nUsa --force per chiudere comunque.`, en: `Season ${state.season} in ${node.display}: ${played}/${node.calendar.length} races run.\nUse --force to close anyway.` }));
   }
   const result = seasonEnd(ladder, state);
   saveState(SAVE_FILE, state);
 
-  console.log(C.bold(`\nFine stagione ${state.season - 1} — ${node.display}\n`));
-  console.log(`  ${result.champion ? C.green('CAMPIONE') : 'Posizione finale: P' + result.me.position} — ${result.me.points} punti${result.bonus ? '  bonus titolo +' + money(result.bonus) : ''}`);
-  console.log(`\n  ${C.bold('Offerte di sedile per la stagione ' + state.season)}`);
+  console.log(C.bold(tr({ it: `\nFine stagione ${state.season - 1} — ${node.display}\n`, en: `\nEnd of season ${state.season - 1} — ${node.display}\n` })));
+  console.log(`  ${result.champion ? C.green(tr({ it: 'CAMPIONE', en: 'CHAMPION' })) : tr({ it: 'Posizione finale: P', en: 'Final position: P' }) + result.me.position} — ${result.me.points} ${tr({ it: 'punti', en: 'points' })}${result.bonus ? tr({ it: '  bonus titolo +' + money(result.bonus), en: '  title bonus +' + money(result.bonus) }) : ''}`);
+  console.log(`\n  ${C.bold(tr({ it: 'Offerte di sedile per la stagione ' + state.season, en: 'Seat offers for season ' + state.season }))}`);
   for (const o of result.offers) {
-    console.log(`   ${C.cyan(String(o.index) + ')')} ${o.display.padEnd(26)} L${o.level} ${disciplineName(ladder, o.discipline).padEnd(14)} ${C.dim(o.note + ' · affitto ' + money(o.rent) + (o.access === 'closed' ? ' · parco chiuso' : ''))}`);
+    const notaOfferta = o.note + tr({
+      it: ' · affitto ' + money(o.rent) + (o.access === 'closed' ? ' · parco chiuso' : ''),
+      en: ' · rent ' + money(o.rent) + (o.access === 'closed' ? ' · closed grid' : ''),
+    });
+    console.log(`   ${C.cyan(String(o.index) + ')')} ${o.display.padEnd(26)} L${o.level} ${disciplineName(ladder, o.discipline).padEnd(14)} ${C.dim(notaOfferta)}`);
   }
-  console.log(C.dim('\n  accept <n> per firmare un contratto, oppure "series" per vedere tutto.\n'));
+  console.log(C.dim(tr({ it: '\n  accept <n> per firmare un contratto, oppure "series" per vedere tutto.\n', en: '\n  accept <n> to sign a contract, or "series" to see everything.\n' })));
   return 0;
 }
 
@@ -1118,10 +1123,10 @@ function cmdAccept(args) {
   const { ladder } = context();
   const state = requireState();
   const index = Number(args._[1]);
-  if (!Number.isFinite(index)) throw new Error('Uso: accept <n> (il numero dell\'offerta mostrato da season-end o messages).');
+  if (!Number.isFinite(index)) throw new Error(tr({ it: "Uso: accept <n> (il numero dell'offerta mostrato da season-end o messages).", en: 'Usage: accept <n> (the offer number shown by season-end or messages).' }));
   const node = acceptOffer(ladder, state, index);
   saveState(SAVE_FILE, state);
-  console.log(C.green(`\nContratto firmato: ${node.display} (livello ${node.level}, ${disciplineName(ladder, node.discipline)})\n`));
+  console.log(C.green(tr({ it: `\nContratto firmato: ${node.display} (livello ${node.level}, ${disciplineName(ladder, node.discipline)})\n`, en: `\nContract signed: ${node.display} (level ${node.level}, ${disciplineName(ladder, node.discipline)})\n` })));
   console.log(C.dim('  node ac-evo-career.mjs next\n'));
   return 0;
 }
@@ -1130,12 +1135,12 @@ function cmdEnter(args) {
   const { ladder } = context();
   const state = requireState();
   const id = args._[1];
-  if (!id) throw new Error('Uso: enter <nodeId> [--buy] [--force]');
+  if (!id) throw new Error(tr({ it: 'Uso: enter <nodeId> [--buy] [--force]', en: 'Usage: enter <nodeId> [--buy] [--force]' }));
   const node = nodeById(ladder, id);
   enterNode(ladder, state, node, { buy: !!args.flags.buy, force: !!args.flags.force });
   saveState(SAVE_FILE, state);
-  console.log(C.green(`\nSedile ${node.display}: ${node.econ.buy === 0 ? 'contratto ufficiale' : args.flags.buy ? 'comprato' : 'affittato'}.`));
-  console.log(`  Banca: ${money(state.money)}   Round ${state.round + 1}/${node.calendar.length}\n`);
+  console.log(C.green(tr({ it: `\nSedile ${node.display}: ${node.econ.buy === 0 ? 'contratto ufficiale' : args.flags.buy ? 'comprato' : 'affittato'}.`, en: `\nSeat ${node.display}: ${node.econ.buy === 0 ? 'official contract' : args.flags.buy ? 'bought' : 'rented'}.` })));
+  console.log(`  ${tr({ it: 'Banca:', en: 'Bank:' })} ${money(state.money)}   ${tr({ it: 'Round', en: 'Round' })} ${state.round + 1}/${node.calendar.length}\n`);
   return 0;
 }
 
@@ -1152,12 +1157,12 @@ async function cmdGriglia(args) {
     // scrivere solo dalla schermata PRINCIPALE (mai dal menu griglia, il menu
     // griglia non rilegge a runtime) e mai col GENERA aperto (riscrive il file
     // col range in memoria della UI). In quelle condizioni: promemoria, e via.
-    console.log(C.yellow('\nEVO è aperto: ok scrivere lo stesso (menu ricarica il file a ogni entrata).') + C.dim('\nMa solo da (o verso) la schermata PRINCIPALE: non stare nel menu griglia, e non usare GENERA dopo la scrittura (riscriverebbe il file).\n'));
+    console.log(C.yellow(tr({ it: '\nEVO è aperto: ok scrivere lo stesso (menu ricarica il file a ogni entrata).', en: '\nEVO is open: writing anyway is fine (the menu re-reads the file on every entry).' })) + C.dim(tr({ it: '\nMa solo da (o verso) la schermata PRINCIPALE: non stare nel menu griglia, e non usare GENERA dopo la scrittura (riscriverebbe il file).\n', en: '\nBut only from (or to) the MAIN screen: do not stay in the grid menu, and do not use GENERATE after writing (it would rewrite the file).\n' })));
   }
   const ladder = loadLadder();
   const state = loadState(SAVE_FILE);
   const nodeId = typeof args.flags.serie === 'string' ? args.flags.serie : state.node;
-  if (!nodeId) throw new Error('nessuna serie corrente: usa --serie <nodeId>');
+  if (!nodeId) throw new Error(tr({ it: 'nessuna serie corrente: usa --serie <nodeId>', en: 'no current series: use --serie <nodeId>' }));
   // round: quello segnato in attesa dallo stato (round corrente della serie)
   const roundIndex = typeof args.flags.round === 'string' ? Number(args.flags.round) : (state.round ?? 0);
   // --template: costruisce da un file DIVERSO dall'attuale (es. il backup
@@ -1169,40 +1174,40 @@ async function cmdGriglia(args) {
 
   const { buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: tplFile });
   const C_ = C;
-  console.log(C_.bold(`\nGriglia della gara del giorno\n`));
+  console.log(C_.bold(tr({ it: `\nGriglia della gara del giorno\n`, en: `\nGrid of the race of the day\n` })));
   console.log(`  serie   ${report.serie}`);
   console.log(`  celle   ${report.gridSize} da ${report.source.split('/').pop()}`);
   if (report.poolMulti) console.log(`  pool    ${report.poolMulti}`);
   console.log(`  bilanc. ${report.origine}`);
-  if (report.ai) console.log(`  abilità ${report.ai} → i piloti vengono riscalati a quel campo`);
+  if (report.ai) console.log(tr({ it: `  abilità ${report.ai} → i piloti vengono riscalati a quel campo`, en: `  skill ${report.ai} → drivers are rescaled to that field` }));
   const byCar = {};
   for (const c of report.celle) byCar[c.split(' →')[0]] = byCar[c.split(' →')[0]] ?? c;
   for (const [car, line] of Object.entries(byCar)) console.log(`    ${car.padEnd(34)} ${line.split('→ ')[1] ?? ''}`);
-  if (args.flags.dry) { console.log(C_.dim('\nDRY: niente scritto. Lancia senza --dry per scrivere.\n')); return 0; }
+  if (args.flags.dry) { console.log(C_.dim(tr({ it: '\nDRY: niente scritto. Lancia senza --dry per scrivere.\n', en: '\nDRY: nothing written. Run without --dry to write.\n' }))); return 0; }
 
   const bak = `${file}.bak-griglia-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   copySyncGrid(file, bak);
   writeFileSync(`${file}.tmp`, buffer);
   renameSync(`${file}.tmp`, file);
-  console.log(C_.green(`\nScritto ${file}`));
+  console.log(C_.green(tr({ it: `\nScritto ${file}`, en: `\nWritten ${file}` })));
   if (args.flags['servo-prepara']) return 0;
-  console.log(C_.dim(`  backup: ${bak}\n  prossimi passi: apri EVO → menu griglia (SENZA GENERA) → controlla → APPLICA → gara.\n`));
+  console.log(C_.dim(tr({ it: `  backup: ${bak}\n  prossimi passi: apri EVO → menu griglia (SENZA GENERA) → controlla → APPLICA → gara.\n`, en: `  backup: ${bak}\n  next steps: open EVO → grid menu (NO GENERATE) → check → APPLY → race.\n` })));
   return 0;
 }
 
 function stampaCalib(calib) {
   if (!calib) return;
   if (!calib.proposte?.length) {
-    console.log(`  ${C.dim(`calibrazione: ${calib.segnale} · confidenza "${calib.confidenza}" su ${calib.obs} gare (${calib.traccia}) — registro: data/grid-calibrazione.json`)}`);
+    console.log(`  ${C.dim(tr({ it: `calibrazione: ${calib.segnale} · confidenza "${calib.confidenza}" su ${calib.obs} gare (${calib.traccia}) — registro: data/grid-calibrazione.json`, en: `calibration: ${calib.segnale} · confidence "${calib.confidenza}" over ${calib.obs} races (${calib.traccia}) — ledger: data/grid-calibrazione.json` }))}`);
     return;
   }
-  console.log(`\n  ${C.bold('Calibrazione dai risultati')} — ${calib.classe} · ${calib.traccia} (${C.yellow(calib.segnale)})`);
+  console.log(`\n  ${C.bold(tr({ it: 'Calibrazione dai risultati', en: 'Calibration from results' }))} — ${calib.classe} · ${calib.traccia} (${C.yellow(calib.segnale)})`);
   for (const p of calib.proposte) {
     console.log(`    ${C.yellow('•')} ${p.perche}`);
     console.log(`      ${C.dim(p.leva === 'campo-ai' ? `campo AI ${p.da} → ${C.bold(p.a)}` : `${p.auto}: ${p.da} → ${C.bold(p.a)}`)}`);
     if (p.comando) console.log(`      ${C.dim('→ ' + p.comando)}`);
   }
-  console.log(`  ${C.dim('riepilogo e storico: node ac-evo-career.mjs griglia-calib')}`);
+  console.log(`  ${C.dim(tr({ it: 'riepilogo e storico: node ac-evo-career.mjs griglia-calib', en: 'summary and history: node ac-evo-career.mjs griglia-calib' }))}`);
 }
 
 const fmtSec = (v) => (v == null ? '—' : (v > 0 ? '+' : '') + v.toFixed(2) + 's');
@@ -1215,14 +1220,14 @@ async function cmdOrario(args) {
   const pianok = args._[1] ?? null;   // args._[0] è il comando "orario"
   // senza argomenti: mostra i piani e lo stato del round corrente
   if (!pianok) {
-    console.log(C.bold('\nOrario piani (orario.mjs):'));
+    console.log(C.bold(tr({ it: '\nOrario piani (orario.mjs):', en: '\nRace-time plans (orario.mjs):' })));
     for (const [id, p] of Object.entries(PIANI)) {
       console.log(`  ${C.yellow(id.padEnd(14))} ${p.desc}`);
     }
     const cur = currentRaceTime();
-    if (cur) console.log(C.dim(`\n  Gamemodesave: gara ora ${cur.hour}:${String(cur.minute ?? 0).padStart(2, '0')} · scala tempo ${cur.scale}x (sessioni: ${cur.blocchi.join(', ')})`));
-    console.log(C.dim(`\n  Uso: orario <piano> --serie <nodeId> [--da 0 --a 6] [--dry]`));
-    console.log(C.dim(`       orario --ora 21 --scala 48        (gara corrente: tramonto->alba)`));
+    if (cur) console.log(C.dim(tr({ it: `\n  Gamemodesave: gara ora ${cur.hour}:${String(cur.minute ?? 0).padStart(2, '0')} · scala tempo ${cur.scale}x (sessioni: ${cur.blocchi.join(', ')})`, en: `\n  Gamemodesave: race now ${cur.hour}:${String(cur.minute ?? 0).padStart(2, '0')} · time scale ${cur.scale}x (sessions: ${cur.blocchi.join(', ')})` })));
+    console.log(C.dim(tr({ it: '\n  Uso: orario <piano> --serie <nodeId> [--da 0 --a 6] [--dry]', en: '\n  Usage: orario <plan> --serie <nodeId> [--da 0 --a 6] [--dry]' })));
+    console.log(C.dim(tr({ it: "       orario --ora 21 --scala 48        (gara corrente: tramonto->alba)", en: '       orario --ora 21 --scala 48        (current race: sunset->dawn)' })));
     return 0;
   }
   const serie = args.flags.serie ?? null;
@@ -1231,7 +1236,7 @@ async function cmdOrario(args) {
     const da = args.flags.da != null ? Number(args.flags.da) : 0;
     const a = args.flags.a != null ? Number(args.flags.a) : null;
     const rep = applyPianoToCalendar(ladder, serie, pianok, { da, a, dry });
-    console.log(`\n  Piano ${C.bold(rep.piano)} su ${C.bold(serie)}${dry ? ' [dry]' : ' drafts ladder: hours e timeScale scritti nel calendario'}\n`);
+    console.log(`\n  ${tr({ it: 'Piano', en: 'Plan' })} ${C.bold(rep.piano)} ${tr({ it: 'su', en: 'on' })} ${C.bold(serie)}${dry ? ' [dry]' : tr({ it: ' drafts ladder: hours e timeScale scritti nel calendario', en: ' drafts ladder: hours and timeScale written into the calendar' })}\n`);
     for (const r of rep.righe) {
       console.log(`    R${r.round + 1} ${r.name}: ${r.prima.hour ?? '—'}h/${String(r.prima.timeScale ?? '—')}x → ${C.bold(`${r.dopo.hour}h/${r.dopo.timeScale}x`)}`);
     }
@@ -1243,12 +1248,12 @@ async function cmdOrario(args) {
   const minute = args.flags.min != null ? Number(args.flags.min) : null;
   if (hour == null && scale == null && minute == null) {
     const cur = currentRaceTime();
-    if (!cur) { console.log(C.red('\n  gamemodesave non leggibile.\n')); return 1; }
-    console.log(`\n  Gara ora ${cur.hour}:${String(cur.minute ?? 0).padStart(2, '0')} · scala ${cur.scale}x\n`);
+    if (!cur) { console.log(C.red(tr({ it: '\n  gamemodesave non leggibile.\n', en: '\n  gamemodesave not readable.\n' }))); return 1; }
+    console.log(`\n  ${tr({ it: 'Gara ora', en: 'Race now' })} ${cur.hour}:${String(cur.minute ?? 0).padStart(2, '0')} · ${tr({ it: 'scala', en: 'scale' })} ${cur.scale}x\n`);
     return 0;
   }
   const r = setRaceTime({ hour, minute, scale, dry });
-  console.log(`\n  ${dry ? '[dry] ' : ''}Ora=${r.spec.hour ?? '—'} scala=${r.spec.scale ?? '—'}x → ${r.changed}/${r.blocchi} blocchi${r.written ? ` · backup ${r.backup}` : ''}\n`);
+  console.log(`\n  ${dry ? '[dry] ' : ''}${tr({ it: 'Ora=', en: 'Hour=' })}${r.spec.hour ?? '—'} ${tr({ it: 'scala=', en: 'scale=' })}${r.spec.scale ?? '—'}x → ${r.changed}/${r.blocchi} ${tr({ it: 'blocchi', en: 'blocks' })}${r.written ? ` · ${tr({ it: 'backup', en: 'backup' })} ${r.backup}` : ''}\n`);
   return 0;
 }
 
@@ -1256,64 +1261,64 @@ function cmdTestMode(args) {
   if (args.flags.on || args.flags.giri) {
     const out = testModeOn({ giri: args.flags.giri ? Number(args.flags.giri) : 3 });
     if (out.already) {
-      console.log(C.yellow(`\nModalità test già attiva a ${out.giri} giri.\n`));
+      console.log(C.yellow(tr({ it: `\nModalità test già attiva a ${out.giri} giri.\n`, en: `\nTest mode already active at ${out.giri} laps.\n` })));
       return 0;
     }
-    console.log(C.yellow(`\n⚠  MODALITÀ TEST ATTIVATA: tutte le gare della scala a ${out.giri} giri (${out.rond} rond toccate).`));
-    console.log(C.dim('  Banner in status/next/agenda finché non spegni. Riattiva le distanze vere con: test-mode --off\n'));
+    console.log(C.yellow(tr({ it: `\n⚠  MODALITÀ TEST ATTIVATA: tutte le gare della scala a ${out.giri} giri (${out.rond} rond toccate).`, en: `\n⚠  TEST MODE ON: every ladder race at ${out.giri} laps (${out.rond} rounds touched).` })));
+    console.log(C.dim(tr({ it: '  Banner in status/next/agenda finché non spegni. Riattiva le distanze vere con: test-mode --off\n', en: '  Banner in status/next/agenda until you switch it off. Restore the real distances with: test-mode --off\n' })));
     try {
       const { ladder } = context();
       const state = requireState();
-      pushMessage(state, `Modalità test attiva: tutte le gare a ${out.giri} giri (richiesta Mauro 19/10). Riattiva con: node ac-evo-career.mjs test-mode --off`, 'info');
+      pushMessage(state, tr({ it: `Modalità test attiva: tutte le gare a ${out.giri} giri (richiesta Mauro 19/10). Riattiva con: node ac-evo-career.mjs test-mode --off`, en: `Test mode active: all races at ${out.giri} laps. Restore with: node ac-evo-career.mjs test-mode --off` }), 'info');
       saveState(SAVE_FILE, state);
     } catch { /* senza carriera il banner CLI basta */ }
     return 0;
   }
   if (args.flags.off) {
     const out = testModeOff();
-    if (out.already) { console.log(C.dim('\nModalità test non attiva (nulla da ripristinare).\n')); return 0; }
-    console.log(C.green(`\n✓ Distanze originali ripristinate su ${out.ripristinate} rond${out.mancanti ? ` (${out.mancanti} senza riferimento originale: lasciate come sono)` : ''}.\n`));
+    if (out.already) { console.log(C.dim(tr({ it: '\nModalità test non attiva (nulla da ripristinare).\n', en: '\nTest mode not active (nothing to restore).\n' }))); return 0; }
+    console.log(C.green(tr({ it: `\n✓ Distanze originali ripristinate su ${out.ripristinate} rond${out.mancanti ? ` (${out.mancanti} senza riferimento originale: lasciate come sono)` : ''}.\n`, en: `\n✓ Original distances restored on ${out.ripristinate} rounds${out.mancanti ? ` (${out.mancanti} without an original reference: left as they are)` : ''}.\n` })));
     return 0;
   }
   const banner = testModeBanner();
-  console.log(banner ? C.yellow('\n' + banner + '\n') : C.dim('\nModalità test spenta: le gare seguono i giri originali dei calendari.\n')); 
+  console.log(banner ? C.yellow('\n' + banner + '\n') : C.dim(tr({ it: '\nModalità test spenta: le gare seguono i giri originali dei calendari.\n', en: '\nTest mode off: races follow the original calendar laps.\n' }))); 
   return 0;
 }
 
 async function cmdGrigliaCalib(args) {
-  if (args.flags.reset) { resetCalib(); console.log(`\n  Registro calibrazione azzerato (data/grid-calibrazione.json).\n`); return 0; }
+  if (args.flags.reset) { resetCalib(); console.log(`\n  ${tr({ it: 'Registro calibrazione azzerato (data/grid-calibrazione.json).', en: 'Calibration ledger reset (data/grid-calibrazione.json).' })}\n`); return 0; }
   if (args.flags.convalida !== undefined) {
     const track = typeof args.flags.convalida === 'string' ? args.flags.convalida : null;
     const out = appuntaConvalida({ trkKey: track, dry: !!args.flags.dry });
     if (!out.messaggio.length) {
-      console.log(C.yellow('\n  Nessuna classe+traccia con confidenza ALTA da appuntare.'));
-      console.log(C.dim('  (la confidenza alta arriva dopo ≥2 gare con i supplementi in pace con la base)\n'));
+      console.log(C.yellow(tr({ it: '\n  Nessuna classe+traccia con confidenza ALTA da appuntare.', en: '\n  No class+track with HIGH confidence to record.' })));
+      console.log(C.dim(tr({ it: '  (la confidenza alta arriva dopo ≥2 gare con i supplementi in pace con la base)\n', en: '  (high confidence arrives after ≥2 races with the supplements in peace with the base)\n' })));
       return 0;
     }
     console.log('\n' + out.messaggio.map((m) => '  ' + m).join('\n') + '\n');
-    if (args.flags.dry) console.log(C.dim('  (dry run: niente scritto. Lancia senza --dry per applicare)\n'));
+    if (args.flags.dry) console.log(C.dim(tr({ it: '  (dry run: niente scritto. Lancia senza --dry per applicare)\n', en: '  (dry run: nothing written. Run without --dry to apply)\n' })));
     return 0;
   }
   const sum = calibSummary();
-  console.log(C.bold(`\nCalibrazione dai risultati — ${sum.eventi} gare in registro (${calibFile()})\n`));
+  console.log(C.bold(tr({ it: `\nCalibrazione dai risultati — ${sum.eventi} gare in registro (${calibFile()})\n`, en: `\nCalibration from results — ${sum.eventi} races in the ledger (${calibFile()})\n` })));
   if (!sum.gruppi.length) {
-    console.log(C.dim('  Vuoto: il registro si riempe da solo ad ogni import di gara con auto di una classe conosciuta.\n'));
+    console.log(C.dim(tr({ it: '  Vuoto: il registro si riempe da solo ad ogni import di gara con auto di una classe conosciuta.\n', en: '  Empty: the ledger fills itself at every race import with cars from a known class.\n' })));
     return 0;
   }
   for (const g of sum.gruppi) {
     const conf = { alta: C.green, media: C.yellow, bassa: C.red, nessuna: C.dim }[g.confidenza] ?? C.dim;
-    console.log(`  ${C.bold(g.classe)} · ${C.cyan(g.trkKey)} — ${g.obs} gare (${g.ok} in tolleranza) · confidenza ${conf(g.confidenza)}${g.convalidatoAdesso ? C.green(' · convalidata') : ''}`);
+    console.log(`  ${C.bold(g.classe)} · ${C.cyan(g.trkKey)} — ${g.obs} ${tr({ it: 'gare', en: 'races' })} (${g.ok} ${tr({ it: 'in tolleranza', en: 'in tolerance' })}) · ${tr({ it: 'confidenza', en: 'confidence' })} ${conf(g.confidenza)}${g.convalidatoAdesso ? C.green(tr({ it: ' · convalidata', en: ' · validated' })) : ''}`);
     for (const a of g.perAuto.slice(0, 8)) {
       const mark = a.medSec <= -0.8 ? C.red : a.medSec < 0.8 ? C.green : C.dim;
-      console.log(`      ${a.auto.padEnd(34)} ${mark(fmtSec(a.medSec))} dalla base`);
+      console.log(`      ${a.auto.padEnd(34)} ${mark(fmtSec(a.medSec))} ${tr({ it: 'dalla base', en: 'from the base' })}`);
     }
     if (g.ultimaProposta.length) {
       for (const p of g.ultimaProposta) {
-        console.log(`      ${C.yellow('proposta')} ${p.leva === 'campo-ai' ? `campo AI ${p.da} → ${C.bold(p.a)}` : `${p.auto}: ${p.da} → ${C.bold(p.a)}`}  ${C.dim(p.perche)}`);
+        console.log(`      ${C.yellow(tr({ it: 'proposta', en: 'proposal' }))} ${p.leva === 'campo-ai' ? tr({ it: `campo AI ${p.da} → ${C.bold(p.a)}`, en: `AI field ${p.da} → ${C.bold(p.a)}` }) : tr({ it: `${p.auto}: ${p.da} → ${C.bold(p.a)}`, en: `${p.auto}: ${p.da} → ${C.bold(p.a)}` })}  ${C.dim(p.perche)}`);
         if (p.comando) console.log(`        ${C.dim('→ ' + p.comando)}`);
       }
     }
-    if (g.suggerisciConvalida) console.log(`      ${C.green('convalidabile ora:')} ${C.bold(`griglia-calib --convalida "${g.trkKey}"`)}  ${C.dim('(o solo in lettura: --convalida --dry)')}`);
+    if (g.suggerisciConvalida) console.log(`      ${C.green(tr({ it: 'convalidabile ora:', en: 'can be validated now:' }))} ${C.bold(`griglia-calib --convalida "${g.trkKey}"`)}  ${C.dim(tr({ it: '(o solo in lettura: --convalida --dry)', en: '(or read-only: --convalida --dry)' }))}`);
   }
   console.log();
   return 0;
@@ -1359,12 +1364,12 @@ export async function main(argv) {
       case 'enter': return cmdEnter(args);
       case 'agenda': return cmdAgenda(args);
       default:
-        console.log(C.yellow(`\nComando "${command}" non riconosciuto.`));
+        console.log(C.yellow(tr({ it: `\nComando "${command}" non riconosciuto.`, en: `\nCommand "${command}" not recognized.` })));
         cmdHelp();
         return 1;
     }
   } catch (e) {
-    console.error(`\n${C.red('Errore:')} ${e.message}`);
+    console.error(`\n${C.red(tr({ it: 'Errore:', en: 'Error:' }))} ${e.message}`);
     if (process.env.DEBUG) console.error(e.stack);
     return 1;
   }

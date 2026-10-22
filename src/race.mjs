@@ -9,13 +9,14 @@
 // Il resto, cioe' la lettura del risultato, e' automatico: lo fa il file nativo del gioco.
 
 import { difficultyFor, entryFee, pushMessage, nodeById, playerStanding, isClosedNode } from './state.mjs';
-import { contractStatus, challengeFor, trackMastery, sponsorFor, ensureContract } from './life.mjs';
+import { contractStatus, challengeFor, trackMastery, sponsorFor, ensureContract, refreshContractTexts } from './life.mjs';
 import { raceCrowdFor } from './memories.mjs';
 import { launchGame } from './paths.mjs';
 import { loadCatalog } from './catalog.mjs';
 import { rivalsOutlook } from './rivals.mjs';
 import { recordFlows } from './flows.mjs';
 import { recordWarning } from './warnings.mjs';
+import { tr, LANG } from './lang.mjs';
 
 /* Nomi delle opzioni meteo come compaiono ESATTAMENTE nel menu di EVO
  * (sereno, nuvole sparse, nuvoloso, coperto, pioggia leggera, pioggia, pioggia intensa).
@@ -28,6 +29,15 @@ const EVO_WEATHER = {
   3: 'pioggia leggera',
   4: 'pioggia',
   5: 'pioggia intensa',
+};
+// corrispettivi del menu Meteo in un'installazione EVO in inglese
+const EVO_WEATHER_EN = {
+  0: 'clear',
+  1: 'scattered clouds',
+  2: 'cloudy',
+  3: 'light rain',
+  4: 'rain',
+  5: 'heavy rain',
 };
 
 /* Layout reali del menu di EVO, dal catalogo del server dedicato (events_race_weekend.json).
@@ -142,25 +152,25 @@ export function raceCard(ladder, state, { car = null } = {}) {
     qualifyStart,
     carAdvice: advice.list,
     settings: [
-      ['Modalità', 'Weekend di gara'],
-      ['Pista', `${trackDisp} — layout ${layout}`],
-      ['Auto', `${carName(chosenCar)}${node.cars.length > 1 ? ` (una delle auto della serie: ${node.cars.map(carName).join(', ')})` : ''}`],
-      ['Avversari', `${node.gridSize - 1} auto`],
-      ['Auto avversarie', node.cars.length > 1 ? `tutte della serie: ${node.cars.map(carName).join(', ')}` : `${carName(node.cars[0])} (serie monomarca)`],
-      ['Difficoltà AI', `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%${diffShown.overridden ? ' — scelto a mano' : ''}`],
-      ['Aggressività AI', `${profile.aggr}% (in EVO è ancora bloccata: lasciala com'è)`],
-      ['Prove libere', card_sessionHint(profile.practiceMin, round, profile, 'P', practiceStartOv)],
-      ['Qualifiche', card_sessionHint(profile.qualifyMin, round, profile, 'Q', qualifyStartOv)],
-      ['Gara', `${laps} giri${round.laps ? ' (tempo reale)' : ''}${distPct !== 100 ? ` — ${distPct}% della distanza piena (${baseLaps} giri)` : ''}`],
-      ['Formato gara', round.durationMin
-        ? `a TEMPO: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minuti (distanza piena ${round.durationMin}′) — in EVO scegli "Durata" invece dei giri`
-        : `a GIRI: ${laps} giri${distPct !== 100 ? ` (${distPct}% di ${baseLaps})` : ''}`],
-      ['Moltiplicatore tempo', `${profile.timeScale ?? 1}x${round.timeScale ? " — impostato dal piano orario del round" : " — lascialo a 1x: le raccomandazioni d'ora assumono il tempo reale"}`],
-      ['Ora del giorno', `${String(round.hour).padStart(2, '0')}:00${round.timeScale && round.timeScale > 1 ? `, ${round.timeScale}x: la luce si muove durante la gara` : ' — il sole parte da qui e scende fino alla bandiera a scacchi (col moltiplicatore tempo accelera pure lui)'}`],
-      ['Meteo', card_weatherHint(round.weather)],
-      ['Partenza', profile.start === 'rolling' ? 'lanciata, se l\'opzione è disponibile' : 'da fermo (griglia)'],
-      ['Pit obbligatorio', profile.pitreq ? 'sì, almeno 1 sosta' : 'no'],
-      ['Danni', 'consigliato: leggeri (le serie storiche perdonano meno)'],
+      [tr({ it: 'Modalità', en: 'Mode' }), tr({ it: 'Weekend di gara', en: 'Race weekend' })],
+      [tr({ it: 'Pista', en: 'Track' }), tr({ it: `${trackDisp} — layout ${layout}`, en: `${trackDisp} — layout ${layout}` })],
+      [tr({ it: 'Auto', en: 'Car' }), tr({ it: `${carName(chosenCar)}${node.cars.length > 1 ? ` (una delle auto della serie: ${node.cars.map(carName).join(', ')})` : ''}`, en: `${carName(chosenCar)}${node.cars.length > 1 ? ` (one of the series cars: ${node.cars.map(carName).join(', ')})` : ''}` })],
+      [tr({ it: 'Avversari', en: 'Opponents' }), tr({ it: `${node.gridSize - 1} auto`, en: `${node.gridSize - 1} cars` })],
+      [tr({ it: 'Auto avversarie', en: 'Opponent cars' }), tr({ it: node.cars.length > 1 ? `tutte della serie: ${node.cars.map(carName).join(', ')}` : `${carName(node.cars[0])} (serie monomarca)`, en: node.cars.length > 1 ? `all from the series: ${node.cars.map(carName).join(', ')}` : `${carName(node.cars[0])} (one-make series)` })],
+      [tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), tr({ it: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%${diffShown.overridden ? ' — scelto a mano' : ''}`, en: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%${diffShown.overridden ? ' — set by hand' : ''}` })],
+      [tr({ it: 'Aggressività AI', en: 'AI aggression' }), tr({ it: `${profile.aggr}% (in EVO è ancora bloccata: lasciala com'è)`, en: `${profile.aggr}% (still locked in EVO: leave it as is)` })],
+      [tr({ it: 'Prove libere', en: 'Practice' }), card_sessionHint(profile.practiceMin, round, profile, 'P', practiceStartOv)],
+      [tr({ it: 'Qualifiche', en: 'Qualifying' }), card_sessionHint(profile.qualifyMin, round, profile, 'Q', qualifyStartOv)],
+      [tr({ it: 'Gara', en: 'Race' }), tr({ it: `${laps} giri${round.laps ? ' (tempo reale)' : ''}${distPct !== 100 ? ` — ${distPct}% della distanza piena (${baseLaps} giri)` : ''}`, en: `${laps} laps${round.laps ? ' (real time)' : ''}${distPct !== 100 ? ` — ${distPct}% of the full distance (${baseLaps} laps)` : ''}` })],
+      [tr({ it: 'Formato gara', en: 'Race format' }), round.durationMin
+        ? tr({ it: `a TEMPO: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minuti (distanza piena ${round.durationMin}′) — in EVO scegli "Durata" invece dei giri`, en: `BY TIME: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minutes (full distance ${round.durationMin}′) — in EVO pick "Duration" instead of laps` })
+        : tr({ it: `a GIRI: ${laps} giri${distPct !== 100 ? ` (${distPct}% di ${baseLaps})` : ''}`, en: `BY LAPS: ${laps} laps${distPct !== 100 ? ` (${distPct}% of ${baseLaps})` : ''}` })],
+      [tr({ it: 'Moltiplicatore tempo', en: 'Time multiplier' }), tr({ it: `${profile.timeScale ?? 1}x${round.timeScale ? " — impostato dal piano orario del round" : " — lascialo a 1x: le raccomandazioni d'ora assumono il tempo reale"}`, en: `${profile.timeScale ?? 1}x${round.timeScale ? " — set by the round's time plan" : " — keep it at 1x: the time recommendations assume real time"}` })],
+      [tr({ it: 'Ora del giorno', en: 'Time of day' }), tr({ it: `${String(round.hour).padStart(2, '0')}:00${round.timeScale && round.timeScale > 1 ? `, ${round.timeScale}x: la luce si muove durante la gara` : ' — il sole parte da qui e scende fino alla bandiera a scacchi (col moltiplicatore tempo accelera pure lui)'}`, en: `${String(round.hour).padStart(2, '0')}:00${round.timeScale && round.timeScale > 1 ? `, ${round.timeScale}x: light moves during the race` : ' — the sun starts here and sinks to the checkered flag (it speeds up with the time multiplier too)'}` })],
+      [tr({ it: 'Meteo', en: 'Weather' }), card_weatherHint(round.weather)],
+      [tr({ it: 'Partenza', en: 'Start' }), tr({ it: profile.start === 'rolling' ? 'lanciata, se l\'opzione è disponibile' : 'da fermo (griglia)', en: profile.start === 'rolling' ? 'rolling, if the option is available' : 'standing (grid)' })],
+      [tr({ it: 'Pit obbligatorio', en: 'Mandatory pit' }), tr({ it: profile.pitreq ? 'sì, almeno 1 sosta' : 'no', en: profile.pitreq ? 'yes, at least 1 stop' : 'no' })],
+      [tr({ it: 'Danni', en: 'Damage' }), tr({ it: 'consigliato: leggeri (le serie storiche perdonano meno)', en: 'recommended: light (history series forgive less)' })],
     ],
     warnings: buildWarnings(node, round, profile, diffShown, laps),
     outlook: (() => {
@@ -243,8 +253,11 @@ function carAdviceFor(node, carName) {
 
 function card_weatherHint(level) {
   // nome ESATTO dell'opzione nel menu Meteo di EVO (EVO_WEATHER in cima al file)
-  const target = EVO_WEATHER[Number(level)] ?? `meteo ${level}`;
-  if (Number(level) >= 3) return `${target} — gara TUTTA al bagnato: lascialo fisso per tutta la sessione (in EVO il meteo non evolve durante la gara)`;
+  const target = LANG === 'en' ? EVO_WEATHER_EN[Number(level)] ?? EVO_WEATHER[Number(level)] : EVO_WEATHER[Number(level)] ?? `meteo ${level}`;
+  if (Number(level) >= 3) return tr({
+    it: `${target} — gara TUTTA al bagnato: lascialo fisso per tutta la sessione (in EVO il meteo non evolve durante la gara)`,
+    en: `${target} — the race is FULLY wet: keep it fixed for the whole session (in EVO weather does not evolve during the race)`,
+  });
   return target;
 }
 
@@ -256,7 +269,7 @@ function card_sessionHint(min, round, profile, kind = 'P', overrideHour = null) 
   const scale = Math.max(1, profile.timeScale ?? 1);
   const dur = `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
   const h = round.hour ?? null;
-  if (!h) return `${dur} in tempo reale`;
+  if (!h) return tr({ it: `${dur} in tempo reale`, en: `${dur} in real time` });
   let hh, mm, chosen = false;
   if (Number.isFinite(overrideHour)) {
     chosen = true;
@@ -271,18 +284,23 @@ function card_sessionHint(min, round, profile, kind = 'P', overrideHour = null) 
     hh = String(Math.floor(start / 60)).padStart(2, '0');
     mm = String(start % 60).padStart(2, '0');
   }
-  const when = scale === 1 ? `alle ${hh}:${mm}` : `alle ${hh}:${mm} (tempo ${scale}x)`;
-  return `${dur} in tempo reale · ${when}${chosen ? " — come l'hai impostata tu" : " per arrivare all'ora di gara"}`;
+  const when = scale === 1
+    ? tr({ it: `alle ${hh}:${mm}`, en: `at ${hh}:${mm}` })
+    : tr({ it: `alle ${hh}:${mm} (tempo ${scale}x)`, en: `at ${hh}:${mm} (time ${scale}x)` });
+  return tr({
+    it: `${dur} in tempo reale · ${when}${chosen ? " — come l'hai impostata tu" : " per arrivare all'ora di gara"}`,
+    en: `${dur} real time · ${when}${chosen ? " — as you set it" : " so you reach the race hour"}`,
+  });
 }
 
 function buildWarnings(node, round, profile, diff, laps = null) {
   const out = [];
-  if (profile.pitreq) out.push('La sosta obbligatoria non è imponibile via file: impostala tu nella schermata regole, altrimenti la gara resta valida ma senza pit.');
-  if (profile.start === 'rolling') out.push('La partenza lanciata dipende dalla modalità scelta nel gioco: se non c\'è, la griglia da fermo vale lo stesso.');
-  if (diff.trim !== 0) out.push(`Difficoltà adattata di ${diff.trim > 0 ? '+' : ''}${diff.trim} rispetto al centro della serie ("difficulty" per i dettagli).`);
-  if (isClosedNode(node)) out.push('Serie a parco chiuso: si corre solo per contratto ufficiale, niente affitto né acquisto del sedile — la vettura la mette a disposizione il team.');
-  if (round.durationMin) out.push(`Ronda a tempo (${round.durationMin} minuti alla distanza piena): in EVO imposta la DURATA della gara, non il numero di giri.`);
-  if ((laps ?? round.laps) >= 15) out.push('Gara lunga: prepara gomme e benzina per la distanza, e valuta la sosta.');
+  if (profile.pitreq) out.push(tr({ it: 'La sosta obbligatoria non è imponibile via file: impostala tu nella schermata regole, altrimenti la gara resta valida ma senza pit.', en: 'The mandatory pit stop cannot be forced via file: set it yourself in the rules screen, otherwise the race stays valid but without a pit.' }));
+  if (profile.start === 'rolling') out.push(tr({ it: "La partenza lanciata dipende dalla modalità scelta nel gioco: se non c'è, la griglia da fermo vale lo stesso.", en: 'The rolling start depends on the mode picked in the game: if it is missing, the standing grid works just the same.' }));
+  if (diff.trim !== 0) out.push(tr({ it: `Difficoltà adattata di ${diff.trim > 0 ? '+' : ''}${diff.trim} rispetto al centro della serie ("difficulty" per i dettagli).`, en: `Difficulty adapted by ${diff.trim > 0 ? '+' : ''}${diff.trim} from the series center ("difficulty" for details).` }));
+  if (isClosedNode(node)) out.push(tr({ it: 'Serie a parco chiuso: si corre solo per contratto ufficiale, niente affitto né acquisto del sedile — la vettura la mette a disposizione il team.', en: 'Closed-grid series: you can race only via an official contract, no rent or seat purchase — the team provides the car.' }));
+  if (round.durationMin) out.push(tr({ it: `Ronda a tempo (${round.durationMin} minuti alla distanza piena): in EVO imposta la DURATA della gara, non il numero di giri.`, en: `Timed round (${round.durationMin} minutes at full distance): in EVO set the race DURATION, not the number of laps.` }));
+  if ((laps ?? round.laps) >= 15) out.push(tr({ it: 'Gara lunga: prepara gomme e benzina per la distanza, e valuta la sosta.', en: 'Long race: prepare tyres and fuel for the distance, and consider the pit stop.' }));
   return out;
 }
 
@@ -290,7 +308,8 @@ function buildWarnings(node, round, profile, diff, laps = null) {
 export function chargeEntry(ladder, state, node) {
   // contratto di stagione garantito anche per la prima serie (createCareer non passa da enterNode)
   const contract = ensureContract(ladder, state, node);
-  if (contract) pushMessage(state, `Contratto ${node.display}: ${contract.clauses.map((c) => c.text).join('; ')}. Premio al rispetto: ${contract.payout} €`, 'info');
+  refreshContractTexts(ladder, state, node);
+  if (contract) pushMessage(state, tr({ it: `Contratto ${node.display}: ${contract.clauses.map((c) => c.text).join('; ')}. Premio al rispetto: ${contract.payout} €`, en: `Contract ${node.display}: ${contract.clauses.map((c) => c.text).join('; ')}. Reward for compliance: ${contract.payout} €` }), 'info');
   const fee = entryFee(node);
   const round = state.round;
   const already = (state.results[node.nodeId] ?? []).some((r) => r.season === state.season && r.round === round);
@@ -298,11 +317,11 @@ export function chargeEntry(ladder, state, node) {
   const paidKey = `entry:${node.nodeId}:${state.season}:${round}`;
   state.paidEntries ??= {};
   if (state.paidEntries[paidKey]) return 0;
-  if (state.money < fee) throw new Error(`Iscrizione non pagabile: servono ${fee}, hai ${state.money}.`);
+  if (state.money < fee) throw new Error(tr({ it: `Iscrizione non pagabile: servono ${fee}, hai ${state.money}.`, en: `Entry fee not payable: it needs ${fee}, you have ${state.money}.` }));
   state.money -= fee;
   state.paidEntries[paidKey] = true;
   recordFlows(state, [{ kind: 'entry', money: -fee, reason: `iscrizione ${node.display} R${round + 1}` }]);
-  pushMessage(state, `Iscrizione ${node.display} round ${round + 1} (-${fee}).`, 'money');
+  pushMessage(state, tr({ it: `Iscrizione ${node.display} round ${round + 1} (-${fee}).`, en: `Entry fee ${node.display} round ${round + 1} (-${fee}).` }), 'money');
   return fee;
 }
 

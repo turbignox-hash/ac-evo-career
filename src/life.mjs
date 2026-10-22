@@ -9,6 +9,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { nodeById, playerStanding } from './state.mjs';
 import { gridFor } from './world.mjs';
+import { tr } from './lang.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -41,11 +42,11 @@ function clausePoolFor(node) {
   const podio = Math.max(2, Math.round(size * 0.15));
   const top = Math.max(4, Math.round(size * 0.4));
   return [
-    { id: 'podiums', text: `chiudi almeno ${podio} gare sul podio`, target: podio, metric: 'podiums' },
-    { id: 'points', text: `totalizza almeno ${rounds * 14} punti in stagione`, target: rounds * 14, metric: 'points' },
-    { id: 'wins', text: `vinci almeno ${Math.max(1, Math.round(rounds / 4))} gare`, target: Math.max(1, Math.round(rounds / 4)), metric: 'wins' },
-    { id: 'nofirst3', text: 'nessun ritiro nelle prime 3 gare', target: 3, metric: 'nofirst3' },
-    { id: 'standings', text: `chiudi il campionato nei primi ${top}`, target: top, metric: 'standings' },
+    { id: 'podiums', text: tr({ it: `chiudi almeno ${podio} gare sul podio`, en: `finish at least ${podio} races on the podium` }), target: podio, metric: 'podiums' },
+    { id: 'points', text: tr({ it: `totalizza almeno ${rounds * 14} punti in stagione`, en: `score at least ${rounds * 14} championship points in the season` }), target: rounds * 14, metric: 'points' },
+    { id: 'wins', text: tr({ it: `vinci almeno ${Math.max(1, Math.round(rounds / 4))} gare`, en: `win at least ${Math.max(1, Math.round(rounds / 4))} races` }), target: Math.max(1, Math.round(rounds / 4)), metric: 'wins' },
+    { id: 'nofirst3', text: tr({ it: 'nessun ritiro nelle prime 3 gare', en: 'no retirements in the first 3 races' }), target: 3, metric: 'nofirst3' },
+    { id: 'standings', text: tr({ it: `chiudi il campionato nei primi ${top}`, en: `close the championship in the top ${top}` }), target: top, metric: 'standings' },
   ];
 }
 
@@ -54,6 +55,19 @@ function clausePoolFor(node) {
  * crea e ritorna quello nuovo (al chiamante l'annuncio in bacheca), o null se
  * quello attuale è già valido.
  */
+/** Salvataggi d'epoca: le clausole del save portano i testi della lingua in cui
+ *  sono nate. Qui li sincronizzo con i testi correnti (stesso id, certo: target
+ *  e metrica restano quelli del save — cambia solo la frase). */
+export function refreshContractTexts(ladder, state, node) {
+  const c = ensureLife(state).contract;
+  if (!c) return;
+  const pool = clausePoolFor(node);
+  for (const cl of c.clauses) {
+    const fresh = pool.find((p) => p.id === cl.id);
+    if (fresh && fresh.text !== cl.text) cl.text = fresh.text;
+  }
+}
+
 export function ensureContract(ladder, state, node) {
   const L = ensureLife(state);
   if (L.contract && L.contract.season === state.season && L.contract.nodeId === node.nodeId) return null;
@@ -112,12 +126,14 @@ export function contractStatus(ladder, state) {
   const c = ensureLife(state).contract;
   if (!c || c.season !== state.season) return null;
   const m = seasonMetrics(ladder, state);
+  const pool = clausePoolFor(m.node); // testi correnti per lingua (per id)
   const rows = c.clauses.map((cl) => {
     const [cur, target] = clauseProgress(cl, m);
+    const fresh = pool.find((p) => p.id === cl.id);
     const ok = cl.metric === 'nofirst3' ? cur === 0 : (cur != null && cur >= target);
-    const progress = cl.metric === 'nofirst3' ? `${cur} ritiri (max 0)` : `${cur ?? '—'}/${target ?? '—'}`;
+    const progress = cl.metric === 'nofirst3' ? tr({ it: `${cur} ritiri (max 0)`, en: `${cur} retirements (max 0)` }) : tr({ it: `${cur ?? '—'}/${target ?? '—'}`, en: `${cur ?? '—'}/${target ?? '—'}` });
     const decided = cl.metric === 'nofirst3' ? (cur > 0 ? false : null) : null; // false = già persa
-    return { ...cl, progress, ok, decided };
+    return { ...cl, text: fresh?.text ?? cl.text, progress, ok, decided };
   });
   return { contract: c, rows, metrics: { podiums: m.podiums, wins: m.wins, points: m.points, rounds: m.rounds, roundsTotal: m.rounds, standingPos: m.standingPos } };
 }
@@ -130,7 +146,7 @@ export function settleContract(ladder, state, { recordFlows }) {
   const results = c.clauses.map((cl) => {
     const [cur, target] = clauseProgress(cl, m);
     const ok = cl.metric === 'nofirst3' ? cur === 0 : (cl.metric === 'standings' ? (m.standingPos != null && m.standingPos <= target) : cur >= target);
-    return { id: cl.id, text: cl.text, ok, progress: cl.metric === 'nofirst3' ? `${cur} ritiri` : `${cur ?? '—'} su ${target ?? '—'}` };
+    return { id: cl.id, text: cl.text, ok, progress: cl.metric === 'nofirst3' ? tr({ it: `${cur} ritiri`, en: `${cur} retirements` }) : tr({ it: `${cur ?? '—'} su ${target ?? '—'}`, en: `${cur ?? '—'} of ${target ?? '—'}` }) };
   });
   const kept = results.filter((r) => r.ok).length;
   const success = kept === results.length;
@@ -225,12 +241,12 @@ export function challengeFor(ladder, state) {
   const kinds = [];
   if (strong) kinds.push({
     kind: 'beat', target: strong.name,
-    text: `chiudi davanti a ${strong.name}`,
+    text: tr({ it: `chiudi davanti a ${strong.name}`, en: `finish ahead of ${strong.name}` }),
     reward: Math.round((node.econ.prize ?? 3000) * 0.12), penalty: 5,
   });
   kinds.push(
-    { kind: 'nopit', target: '1', text: 'chiudi la gara in zona punti senza toccare nulla (nessun ritiro)', reward: Math.round((node.econ.prize ?? 3000) * 0.1), penalty: 5 },
-    { kind: 'top3', target: '3', text: 'chiudi almeno terzo', reward: Math.round((node.econ.prize ?? 3000) * 0.12), penalty: 5 },
+    { kind: 'nopit', target: '1', text: tr({ it: 'chiudi la gara in zona punti senza toccare nulla (nessun ritiro)', en: 'finish the race in the points without touching anything (no retirements)' }), reward: Math.round((node.econ.prize ?? 3000) * 0.1), penalty: 5 },
+    { kind: 'top3', target: '3', text: tr({ it: 'chiudi almeno terzo', en: 'finish at least third' }), reward: Math.round((node.econ.prize ?? 3000) * 0.12), penalty: 5 },
   );
   const k = kinds[h % kinds.length];
   return { season: state.season, nodeId: node.nodeId, round: state.round, ...k, accepted: false, verdict: null };

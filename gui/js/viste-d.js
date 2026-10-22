@@ -6,33 +6,33 @@ async function drawDifficulty(m){
   const sr = v.sliderRange ?? {min:0, max:120};
   m.innerHTML = `
   <div class="panel">
-    <h2>Difficoltà AI <span class="h-act">modalità ${esc(v.mode)}</span></h2>
-    <div class="banner info" style="margin:0 0 12px">Lo slider AI di Assetto Corsa EVO va da <b>${sr.min}</b> a <b>${sr.max}%</b> e si imposta direttamente nel gioco. La difficoltà interna del tool (scala 70–120) viene convertita in quel range; la modalità adattiva aggiunge un <b>trim da ${rng.min} a ${rng.max > 0 ? '+' : ''}${rng.max}</b> in base ai risultati. Con i cursori qui sotto regoli il trim di ogni serie a mano.</div>
+    <h2>${tr({ it: 'Difficoltà AI', en: 'AI difficulty' })} <span class="h-act">${tr({ it: 'modalità ', en: 'mode ' })}${v.mode === 'adaptive' ? tr({ it: 'adattiva', en: 'adaptive' }) : tr({ it: 'fissa', en: 'fixed' })}</span></h2>
+    <div class="banner info" style="margin:0 0 12px">${tr({ it: 'Lo slider AI di Assetto Corsa EVO va da {MIN} a {MAX} e si imposta direttamente nel gioco. La difficoltà interna del tool (scala 70–120) viene convertita in quel range; la modalità adattiva aggiunge un trim da {A} a {B} in base ai risultati. Con i cursori qui sotto regoli il trim di ogni serie a mano.', en: 'The AI slider of Assetto Corsa EVO goes from {MIN} to {MAX} and is set directly in the game. The tool internal difficulty (scale 70–120) is converted into that range; the adaptive mode adds a trim from {A} to {B} based on results. With the sliders below you set each series trim by hand.' }).replace('{MIN}', `<b>${sr.min}</b>`).replace('{MAX}', `<b>${sr.max}%</b>`).replace('{A}', rng.min).replace('{B}', `${rng.max > 0 ? '+' : ''}${rng.max}`)}</div>
     <div class="row" style="margin-bottom:12px">
-      <button class="mini ${v.mode==='adaptive'?'on':''}" data-mode="adaptive">adattiva</button>
-      <button class="mini ${v.mode==='fixed'?'on':''}" data-mode="fixed">fissa</button>
-      <input type="number" id="i-diffval" min="70" max="120" value="95" style="width:90px" title="valore fisso (70–120)">
+      <button class="mini ${v.mode==='adaptive'?'on':''}" data-mode="adaptive">${tr({ it: 'adattiva', en: 'adaptive' })}</button>
+      <button class="mini ${v.mode==='fixed'?'on':''}" data-mode="fixed">${tr({ it: 'fissa', en: 'fixed' })}</button>
+      <input type="number" id="i-diffval" min="70" max="120" value="95" style="width:90px" title="${tr({ it: 'valore fisso (70–120)', en: 'fixed value (70–120)' })}">
     </div>
-    ${v.pending ? `<div class="banner ${v.pending.to>=(v.trimRange?.max??20)?'warn':''}">Suggerimento in attesa — ${esc(v.pendingDisplay)}: ${esc(v.pending.reason)} → trim ${v.pending.to >= 0 ? '+' : ''}${v.pending.to}${v.pending.to>=(v.trimRange?.max??20)?' (massimo raggiunto)':''}
-      <button class="mini" id="b-acc">accetta</button> <button class="mini" id="b-rej">rifiuta</button></div>` : ''}
+    ${v.pending ? `<div class="banner ${v.pending.to>=(v.trimRange?.max??20)?'warn':''}">${tr({ it: 'Suggerimento in attesa —', en: 'Pending suggestion —' })} ${esc(v.pendingDisplay)}: ${esc(v.pending.reason)} → trim ${v.pending.to >= 0 ? '+' : ''}${v.pending.to}${v.pending.to>=(v.trimRange?.max??20)?` (${tr({ it: 'massimo raggiunto', en: 'max reached' })})`:''}
+      <button class="mini" id="b-acc">${tr({ it: 'accetta', en: 'accept' })}</button> <button class="mini" id="b-rej">${tr({ it: 'rifiuta', en: 'reject' })}</button></div>` : ''}
     <div style="margin-top:10px">
     ${v.rows.map(r=>{
       const atMax = r.trim >= (v.trimRange?.max ?? 20);
       return `<div class="diff-row" data-id="${esc(r.id)}">
       <span>${r.current?'◄':''}</span><span class="nm">${esc(r.display)}${r.locked?' 🔒':''}</span>
-      <span class="num" title="base della serie + trim">base ${r.base}</span><span class="num" title="trim adattivo (±${rng.max})">trim ${r.trim>=0?'+':''}${r.trim}${atMax?' ⚠️':''}</span>
-      <span class="num" title="correzione classe / pista">${r.offClass>=0?'+':''}${r.offClass}/${r.offTrack>=0?'+':''}${r.offTrack}</span>
-      <span class="sl" title="centro consigliato convertito in slider EVO">${r.slider}%</span>
+      <span class="num" title="${tr({ it: 'base della serie + trim', en: 'series base + trim' })}">${tr({ it: 'base', en: 'base' })} ${r.base}</span><span class="num" title="${tr({ it: 'trim adattivo', en: 'adaptive trim' })} (±${rng.max})">${tr({ it: 'trim', en: 'trim' })} ${r.trim>=0?'+':''}${r.trim}${atMax?' ⚠️':''}</span>
+      <span class="num" title="${tr({ it: 'correzione classe / pista', en: 'class / track correction' })}">${r.offClass>=0?'+':''}${r.offClass}/${r.offTrack>=0?'+':''}${r.offTrack}</span>
+      <span class="sl" title="${tr({ it: 'centro consigliato convertito in slider EVO', en: 'suggested centre converted into the EVO slider' })}">${r.slider}%</span>
       <span class="rangebox">
-        <input type="number" class="rmin" min="0" max="100" step="1" value="${r.rangeMin}" title="minimo da impostare in EVO (consiglio: ${Math.max(0,r.slider-5)})" ${r.locked?'disabled':''}>
+        <input type="number" class="rmin" min="0" max="100" step="1" value="${r.rangeMin}" title="${tr({ it: 'minimo da impostare in EVO (consiglio: {V})', en: 'minimum to set in EVO (suggested: {V})' }).replace('{V}', Math.max(0,r.slider-5))}" ${r.locked?'disabled':''}>
         <span class="dash">–</span>
-        <input type="number" class="rmax" min="0" max="100" step="1" value="${r.rangeMax}" title="massimo da impostare in EVO (consiglio: ${Math.min(100,r.slider+5)})" ${r.locked?'disabled':''}>
+        <input type="number" class="rmax" min="0" max="100" step="1" value="${r.rangeMax}" title="${tr({ it: 'massimo da impostare in EVO (consiglio: {V})', en: 'maximum to set in EVO (suggested: {V})' }).replace('{V}', Math.min(100,r.slider+5))}" ${r.locked?'disabled':''}>
         <b class="pct">%</b>
-        <button class="mini rc" title="torna al default della serie: 88–93%" ${r.overridden?'':'style="visibility:hidden"'}>↺</button>
+        <button class="mini rc" title="${tr({ it: 'torna al default della serie: 88–93%', en: 'back to the series default: 88–93%' })}" ${r.overridden?'':'style="visibility:hidden"'}>↺</button>
       </span>
     </div>`;}).join('')}
     </div>
-    <div class="muted" style="margin-top:10px">⚠️ = trim al massimo (${rng.max}): oltre si va solo cambiando serie. Nelle caselle scrivi l'intervallo <b>min–max esatto da impostare in EVO</b> (${sr.min}–${sr.max}), come nel gioco: si salva da solo; ↺ torna al consiglio (centro ±5). Il consiglio si ferma a 100: se una serie resta facile anche a fondo scala, si cambia serie.</div>
+    <div class="muted" style="margin-top:10px">⚠️ = ${tr({ it: 'trim al massimo (', en: 'trim at the max (' })}${rng.max}): ${tr({ it: 'oltre si va solo cambiando serie. Nelle caselle scrivi l\'intervallo min–max esatto da impostare in EVO', en: 'beyond you only move by changing series. In the boxes type the exact min–max range to set in EVO' })} (${sr.min}–${sr.max}), ${tr({ it: 'come nel gioco: si salva da solo; ↺ torna al consiglio (centro ±5). Il consiglio si ferma a 100: se una serie resta facile anche a fondo scala, si cambia serie.', en: 'as in the game: it saves itself; ↺ goes back to the suggestion (centre ±5). The suggestion stops at 100: if a series stays easy even at full scale, change series.' })}</div>
   </div>`;
   $$('button[data-mode]').forEach(b => b.onclick = async () => {
     try { await api('difficulty-action', {op:'mode', mode:b.dataset.mode, value:Number($('#i-diffval').value)}); render(); } catch(e){ toast(e.message,'err'); }
@@ -44,14 +44,14 @@ async function drawDifficulty(m){
     const min = Number($('.rmin', row).value), max = Number($('.rmax', row).value);
     try {
       await api('difficulty-action', {op:'range', nodeId: row.dataset.id, min, max});
-      toast(`Intervallo di ${row.querySelector('.nm').textContent.trim()}: ${Math.min(min,max)}–${Math.max(min,max)}%`, 'ok');
+      toast(tr({ it: 'Intervallo di {S}: {R}%', en: 'Range of {S}: {R}%' }).replace('{S}', row.querySelector('.nm').textContent.trim()).replace('{R}', `${Math.min(min,max)}–${Math.max(min,max)}`), 'ok');
     } catch(e){ toast(e.message, 'err'); }
   };
   $$('.diff-row', m).forEach(row => {
     $('.rmin', row)?.addEventListener('change', () => saveRange(row));
     $('.rmax', row)?.addEventListener('change', () => saveRange(row));
     $('.rc', row)?.addEventListener('click', async () => {
-      try { await api('difficulty-action', {op:'range', nodeId: row.dataset.id, clear:true}); toast('Tornato il consiglio automatico.', 'ok'); }
+      try { await api('difficulty-action', {op:'range', nodeId: row.dataset.id, clear:true}); toast(tr({ it: 'Tornato il consiglio automatico.', en: 'Back to the automatic suggestion.' }), 'ok'); }
       catch(e){ toast(e.message, 'err'); }
     });
   });
@@ -394,8 +394,8 @@ async function seasonEndFlow(force){
     });
   } catch(e){
     if (e.data?.code === 'SEASON_INCOMPLETE') {
-      modal('Stagione incompleta', `<p>${esc(e.message)}</p><p class="muted" style="margin-top:8px">Puoi chiuderla comunque: le gare mancanti restano senza punti.</p>`,
-        [['Annulla','ghost',()=>{}], ['Chiudi comunque','ghost danger', () => { seasonEndFlow(true); }]]);
+      modal(tr({ it: 'Stagione incompleta', en: 'Incomplete season' }), `<p>${esc(e.message)}</p><p class="muted" style="margin-top:8px">${tr({ it: 'Puoi chiuderla comunque: le gare mancanti restano senza punti.', en: 'You can close it anyway: missing races stay scoreless.' })}</p>`,
+        [[tr({ it: 'Annulla', en: 'Cancel' }), 'ghost', () => {}], [tr({ it: 'Chiudi comunque', en: 'Close anyway' }), 'ghost danger', () => { seasonEndFlow(true); }]]);
       return;
     }
     toast(e.message, 'err');
@@ -423,25 +423,25 @@ async function drawRivals(m){
   const rows = d.rivals;
   m.innerHTML = `
   <div class="panel">
-    <h2>Registro rivali <span class="h-act">${d.totals.rivals} avversari con nome, da ${d.totals.races} gare importate</span></h2>
-    ${!rows.length ? '<div class="empty">Nessun rivale ancora: i nomi arrivano dai file risultato a ogni import di gara.</div>' : `
+    <h2>${tr({ it: 'Registro rivali', en: 'Rivals log' })} <span class="h-act">${d.totals.rivals} ${tr({ it: 'avversari con nome, da', en: 'named opponents, from' })} ${d.totals.races} ${tr({ it: 'gare importate', en: 'imported races' })}</span></h2>
+    ${!rows.length ? `<div class="empty">${tr({ it: 'Nessun rivale ancora: i nomi arrivano dai file risultato a ogni import di gara.', en: 'No rivals yet: names come from the result files at every race import.' })}</div>` : `
     <div class="grid2">
-      <div><div class="muted" style="margin-bottom:6px">😨 Nemesi — ti battono più spesso di quanto li batti</div>
-        ${d.nemesi.length ? d.nemesi.slice(0,4).map(r=>`<div class="rivalrow">${rivalAvatar(r.name)}<b>${esc(r.name)}</b>${r.nemesis?'<span class="tag red">nemesi</span>':''}<span class="muted">${esc(r.team ?? '')}</span>${h2hBadge(r.h2h.beats, r.h2h.losses)}</div>`).join('') : '<div class="muted">Nessuno ancora: continua così.</div>'}
+      <div><div class="muted" style="margin-bottom:6px">${tr({ it: '😨 Nemesi — ti battono più spesso di quanto li batti', en: '😨 Nemeses — they beat you more often than you beat them' })}</div>
+        ${d.nemesi.length ? d.nemesi.slice(0,4).map(r=>`<div class="rivalrow">${rivalAvatar(r.name)}<b>${esc(r.name)}</b>${r.nemesis?`<span class="tag red">${tr({ it: 'nemesi', en: 'nemesis' })}</span>`:''}<span class="muted">${esc(r.team ?? '')}</span>${h2hBadge(r.h2h.beats, r.h2h.losses)}</div>`).join('') : `<div class="muted">${tr({ it: 'Nessuno ancora: continua così.', en: 'None yet: keep it up.' })}</div>`}
       </div>
-      <div><div class="muted" style="margin-bottom:6px">😎 Vittime preferite — non ti battono mai</div>
-        ${d.vittime.length ? d.vittime.slice(0,4).map(r=>`<div class="rivalrow">${rivalAvatar(r.name)}<b>${esc(r.name)}</b><span class="muted">${esc(r.team ?? '')}</span>${h2hBadge(r.h2h.beats, r.h2h.losses)}</div>`).join('') : '<div class="muted">Le costruirai strada facendo.</div>'}
+      <div><div class="muted" style="margin-bottom:6px">${tr({ it: '😎 Vittime preferite — non ti battono mai', en: '😎 Favourite victims — they never beat you' })}</div>
+        ${d.vittime.length ? d.vittime.slice(0,4).map(r=>`<div class="rivalrow">${rivalAvatar(r.name)}<b>${esc(r.name)}</b><span class="muted">${esc(r.team ?? '')}</span>${h2hBadge(r.h2h.beats, r.h2h.losses)}</div>`).join('') : `<div class="muted">${tr({ it: 'Le costruirai strada facendo.', en: 'You will build them along the way.' })}</div>`}
       </div>
     </div>`}
   </div>
-  ${rows.length ? `<div class="panel"><h2>Tutti i rivali <span class="h-act">clicca una riga per la scheda completa</span></h2>
-    <table><thead><tr><th>Rivale</th><th>Squadra</th><th class="right">Gare insieme</th><th class="right">Tu–Lui</th><th>Momentum</th><th>Forma (ultime 5)</th><th class="right">Vittorie</th><th class="right">Podi</th></tr></thead>
+  ${rows.length ? `<div class="panel"><h2>${tr({ it: 'Tutti i rivali', en: 'All rivals' })} <span class="h-act">${tr({ it: 'clicca una riga per la scheda completa', en: 'click a row for the full sheet' })}</span></h2>
+    <table><thead><tr><th>${tr({ it: 'Rivale', en: 'Rival' })}</th><th>${tr({ it: 'Squadra', en: 'Team' })}</th><th class="right">${tr({ it: 'Gare insieme', en: 'Races together' })}</th><th class="right">${tr({ it: 'Tu–Lui', en: 'You–Him' })}</th><th>${tr({ it: 'Momentum', en: 'Momentum' })}</th><th>${tr({ it: 'Forma (ultime 5)', en: 'Form (last 5)' })}</th><th class="right">${tr({ it: 'Vittorie', en: 'Wins' })}</th><th class="right">${tr({ it: 'Podi', en: 'Podiums' })}</th></tr></thead>
     <tbody>${rows.map(r=>`<tr class="rival-link" data-key="${esc(r.key)}" style="cursor:pointer">
-      <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.nemesis?' <span class="tag red">nemesi</span>':''}${r.lastSeen?`<div class="faint" style="font-size:11px">visto: ${esc(r.lastSeen.node)} R${r.lastSeen.round}</div>`:''}</span></span></td>
+      <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.nemesis?` <span class="tag red">${tr({ it: 'nemesi', en: 'nemesis' })}</span>`:''}${r.lastSeen?`<div class="faint" style="font-size:11px">${tr({ it: 'visto: ', en: 'seen: ' })}${esc(r.lastSeen.node)} R${r.lastSeen.round}</div>`:''}</span></span></td>
       <td class="muted">${esc(r.team ?? '—')}</td>
       <td class="right">${r.sharedRaces}</td>
       <td class="right">${h2hBadge(r.h2h.beats, r.h2h.losses)}</td>
-      <td>${r.trend==null?'—':r.trend>0?`<span class="tag green">▲ +${r.trend}</span>`:r.trend<0?`<span class="tag bad">▼ ${r.trend}</span>`:'<span class="faint">stabile</span>'}</td>
+      <td>${r.trend==null?'—':r.trend>0?`<span class="tag green">▲ +${r.trend}</span>`:r.trend<0?`<span class="tag bad">▼ ${r.trend}</span>`:`<span class="faint">${tr({ it: 'stabile', en: 'stable' })}</span>`}</td>
       <td>${r.form.map(f=>`<span class="chip ${f==='DNF'?'':Number(f)<=3?'gold':''}" style="font-size:10px;padding:1px 6px">${f}</span>`).join(' ')}</td>
       <td class="right">${r.wins}</td>
       <td class="right">${r.podiums}</td>
@@ -455,25 +455,25 @@ async function showRival(key){
     const d = await api('rival-detail', {key});
     if (d.error) return toast(d.error, 'err');
     const net = d.h2h.losses - d.h2h.beats;
-    modal(`Scheda rivale — ${d.name}`, `
+    modal(`${tr({ it: 'Scheda rivale — ', en: 'Rival sheet — ' })}${d.name}`, `
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
         ${rivalAvatar(d.name, 48)}
-        <div><b style="font-size:16px">${esc(d.name)}</b><div class="muted" style="font-size:12px">${esc(d.team ?? 'senza squadra')}${d.nation?' · '+esc(d.nation):''}${d.car?' · '+esc(d.car):''}</div></div>
+        <div><b style="font-size:16px">${esc(d.name)}</b><div class="muted" style="font-size:12px">${esc(d.team ?? tr({ it: 'senza squadra', en: 'no team' }))}${d.nation?' · '+esc(d.nation):''}${d.car?' · '+esc(d.car):''}</div></div>
       </div>
       <div class="grid4" style="margin-bottom:14px">
-        <div class="kpi"><div class="l">Scontri</div><div class="v">${d.totals.races}</div></div>
-        <div class="kpi"><div class="l">Tu-Lui</div><div class="v ${net>0?'good':net<0?'bad':''}">${d.h2h.losses}–${d.h2h.beats}</div></div>
-        <div class="kpi"><div class="l">Vittorie</div><div class="v">${d.totals.wins}</div></div>
-        <div class="kpi"><div class="l">Suo best</div><div class="v">${d.bestPos!=null?'P'+d.bestPos:'—'}</div></div>
+        <div class="kpi"><div class="l">${tr({ it: 'Scontri', en: 'Meetings' })}</div><div class="v">${d.totals.races}</div></div>
+        <div class="kpi"><div class="l">${tr({ it: 'Tu-Lui', en: 'You-Him' })}</div><div class="v ${net>0?'good':net<0?'bad':''}">${d.h2h.losses}–${d.h2h.beats}</div></div>
+        <div class="kpi"><div class="l">${tr({ it: 'Vittorie', en: 'Wins' })}</div><div class="v">${d.totals.wins}</div></div>
+        <div class="kpi"><div class="l">${tr({ it: 'Suo best', en: 'His best' })}</div><div class="v">${d.bestPos!=null?'P'+d.bestPos:'—'}</div></div>
       </div>
-      <div class="muted" style="margin-bottom:10px">${esc(d.team ?? 'senza squadra')}${d.nation?' · '+esc(d.nation):''}${d.car?' · auto: '+esc(d.car):''}${d.since?' · in registro dal '+esc(d.since):''}</div>
-      ${d.winsDetail.length ? `<div style="margin-bottom:10px"><b>Ha vinto a:</b> ${d.winsDetail.map(w=>`${esc(w.track)} <span class="muted">S${w.season} R${w.round+1}</span>`).join(' · ')}</div>` : ''}
-      ${d.beatsMeAt.length ? `<div class="banner warn" style="margin-bottom:10px">Ti ha battuto a: <b>${d.beatsMeAt.map(esc).join(', ')}</b></div>` : ''}
-      ${d.beatsMeAt.length ? `<button class="mini acc" id="r-telem" style="margin-bottom:10px">📈 confronta la tua telemetria</button>` : ''}
-      <div style="max-height:260px;overflow:auto"><table><thead><tr><th>Gara</th><th class="right">Lui</th><th class="right">Tu</th><th>Suo giro</th><th>Esito</th></tr></thead><tbody>
-        ${d.meetings.map(m=>`<tr><td>${esc(m.track)} <span class="faint">S${m.season} R${m.round+1}</span></td><td class="right">${m.dnf?'rit.':m.pos!=null?'P'+m.pos:'—'}</td><td class="right">${m.mePos!=null?'P'+m.mePos:'—'}</td><td class="muted">${esc(m.bestLap??'—')}</td><td>${m.beatMe?'<span class="tag bad">battuto</span>':'<span class="tag good">vinto</span>'}</td></tr>`).join('')}
+      <div class="muted" style="margin-bottom:10px">${esc(d.team ?? tr({ it: 'senza squadra', en: 'no team' }))}${d.nation?' · '+esc(d.nation):''}${d.car?` · ${tr({ it: 'auto: ', en: 'car: ' })}${esc(d.car)}`:''}${d.since?` · ${tr({ it: 'in registro dal ', en: 'in the log since ' })}${esc(d.since)}`:''}</div>
+      ${d.winsDetail.length ? `<div style="margin-bottom:10px"><b>${tr({ it: 'Ha vinto a:', en: 'Has won at:' })}</b> ${d.winsDetail.map(w=>`${esc(w.track)} <span class="muted">S${w.season} R${w.round+1}</span>`).join(' · ')}</div>` : ''}
+      ${d.beatsMeAt.length ? `<div class="banner warn" style="margin-bottom:10px">${tr({ it: 'Ti ha battuto a: ', en: 'Beat you at: ' })}<b>${d.beatsMeAt.map(esc).join(', ')}</b></div>` : ''}
+      ${d.beatsMeAt.length ? `<button class="mini acc" id="r-telem" style="margin-bottom:10px">📈 ${tr({ it: 'confronta la tua telemetria', en: 'compare your telemetry' })}</button>` : ''}
+      <div style="max-height:260px;overflow:auto"><table><thead><tr><th>${tr({ it: 'Gara', en: 'Race' })}</th><th class="right">${tr({ it: 'Lui', en: 'Him' })}</th><th class="right">${tr({ it: 'Tu', en: 'You' })}</th><th>${tr({ it: 'Suo giro', en: 'His lap' })}</th><th>${tr({ it: 'Esito', en: 'Outcome' })}</th></tr></thead><tbody>
+        ${d.meetings.map(m=>`<tr><td>${esc(m.track)} <span class="faint">S${m.season} R${m.round+1}</span></td><td class="right">${m.dnf?'DNF':m.pos!=null?'P'+m.pos:'—'}</td><td class="right">${m.mePos!=null?'P'+m.mePos:'—'}</td><td class="muted">${esc(m.bestLap??'—')}</td><td>${m.beatMe?`<span class="tag bad">${tr({ it: 'battuto', en: 'beaten' })}</span>`:`<span class="tag good">${tr({ it: 'vinto', en: 'won' })}</span>`}</td></tr>`).join('')}
       </tbody></table></div>`,
-      [['Chiudi','ghost',()=>{}]]);
+      [[tr({ it: 'Chiudi', en: 'Close' }), 'ghost', () => {}]]);
     // TELEMETRIA RIVALE: il grafico del giro della TU'A auto (i suoi giri non
     // esistono nei file MoTeC: lì registra solo la sessione tua). Il valore è
     // guardare dove perdi tempo sulla pista DOVE ti ha battuto — la pista la
@@ -485,7 +485,7 @@ async function showRival(key){
       document.querySelector('#modal-root').innerHTML = '';   // chiude la scheda
       tab = 'setup'; drawNav();
       try { await render(); } catch { /* la vista vale comunque */ }
-      toast(`Grafico del giro sul Setup${track ? ': cerca la sessione su ' + track + ' (la pista dove ti prende)' : ''}. Guarda le bande gas/freno: lì capisci dove perdi il tempo.`, 'info');
+      toast(tr({ it: 'Grafico del giro sul Setup', en: 'Lap chart on Setup' }) + (track ? `${tr({ it: ': cerca la sessione su ', en: ': look for the session at ' })}${track}${tr({ it: ' (la pista dove ti prende)', en: ' (the track where he takes you)' })}` : '') + `. ${tr({ it: 'Guarda le bande gas/freno: lì capisci dove perdi il tempo.', en: "Look at the throttle/brake bands: that's where you lose the time." })}`, 'info');
     };
   } catch(e){ toast(e.message, 'err'); }
 }
