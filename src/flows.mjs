@@ -12,7 +12,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const FLOWS_FILE = process.env.EVO_DATA_DIR
   ? join(process.env.EVO_DATA_DIR, 'flows.jsonl')
   : join(HERE, '..', 'data', 'flows.jsonl');
-export const START_MONEY = 18000; // deve restare allineato a state.mjs
+export const START_MONEY = 6000; // reso allineato a state.mjs (fuori allineato: 22/10/2026)
 
 let log = null; // buffer in memoria, svuotato a ogni lettura completa
 
