@@ -1,3 +1,4 @@
+import "./_flows-sandbox.mjs"; // sandbox flussi
 // Lingua: le schede delle piste e i capitoli delle Memorie di famiglia sono
 // bilingui per costruzione; qui si verifica che NESSUN elemento sia tornato
 // solo-italiano (la GUI mostra l'inglese solo se il campo En c'è).

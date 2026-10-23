@@ -14,11 +14,12 @@
 // CLI:
 //   node tools/set-track.mjs --track "Red Bull Ring" [--dry] [--file <path>]
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
-import { decodeMsg, encodeMsg, gameRunning } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, gameRunning, GAME_MODES_DIR } from './evo-grid.mjs';
+import { join } from 'node:path';
 import { TRACK_INFO } from '../src/tracks.mjs';
 import { sameTrack } from '../src/tracknames.mjs';
 
-export const WEEKEND_FILE = 'C:/Users/Mauro/Saved Games/ACE/GameModes/GameModeType_RACE_WEEKEND.gamemodesave';
+export const WEEKEND_FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 
 // nazione ISO a 3 lettere (campo 3.5.1): TRACK_INFO porta il nome in italiano
 export const ISO = {

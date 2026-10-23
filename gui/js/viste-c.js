@@ -243,6 +243,7 @@ async function drawGarage(m){
       <span id="g-price" class="muted" style="font-size:11px"></span>
       <span class="muted" style="font-size:11px">${tr({ it: 'Le auto vinte negli eventi speciali arrivano qui da sole.', en: 'Cars won in special events arrive here by themselves.' })}</span>
     </div>
+    <div id="g-mech" style="margin-bottom:12px"></div>
     <div id="g-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px"></div>
   </div>`;
   const draw = (gg) => {
@@ -297,6 +298,7 @@ async function drawGarage(m){
   $('#g-add').onchange = priceHint;
   $('#g-how').onchange = priceHint;
   priceHint();
+  drawMechanicPanel('#g-mech', g.cars?.[0]?.carName ?? '');
   $('#g-addbtn').onclick = async () => {
     const sel = $('#g-add');
     if (!sel.value) return toast(tr({ it: "Scegli prima un'auto dal menu.", en: 'Pick a car from the menu first.' }), 'err');
@@ -305,6 +307,51 @@ async function drawGarage(m){
       sel.value = ''; priceHint(); draw(out.garage); if (out.header) { boot.header = out.header; paintHeader(out.header); } refreshBoot();
       toast(out.reused ? tr({ it: 'Auto già in garage.', en: 'Car already in the garage.' }) : tr({ it: 'Auto aggiunta al garage.', en: 'Car added to the garage.' }), out.reused ? 'info' : 'ok');
     } catch(e){ toast(e.message, 'err'); }
+  };
+}
+
+/* -------- segna al meccanico (Mauro 23/10) -------- */
+/* Il tasto del garage: scegli l'auto, il server legge il .carsetup di carriera
+   e racconta la scheda freno (zona, bias, torque) + la memoria dell'allievo.
+   Il meccanico NON decide qui: fotografa e lascia a te le scelte in gioco. */
+async function drawMechanicPanel(sel, prefill = '') {
+  const g = await api('my-garage');
+  const m = $(sel);
+  if (!m) return;
+  const cars = (g?.cars ?? []).map((c) => c.carName).filter(Boolean);
+  const fmtLapM = (s) => { if (!Number.isFinite(s)) return '—'; const mm = Math.floor(s / 60); return `${mm}:${(s - mm * 60).toFixed(1).padStart(4, '0')}`; };
+  m.innerHTML = `
+  <div class="panel">
+    <h2>🔧 ${tr({ it: 'Segna al meccanico', en: 'Note for the mechanic' })} <span class="h-act">${tr({ it: "scheda freno di carriera dell'auto: zona, bias e coppia, con la memoria dell'allievo", en: "the car's career brake card: zone, bias and torque, with the apprentice's memory" })}</span></h2>
+    <div class="row" style="margin-top:8px">
+      <select id="gm-car" style="flex:1;min-width:190px">${cars.map((n) => `<option value="${esc(n)}" ${n === prefill ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
+      <button class="act" id="gm-go" style="width:auto;padding:8px 14px">${tr({ it: 'Segna', en: 'Note it' })}</button>
+    </div>
+    <div id="gm-out" class="muted" style="margin-top:10px;font-size:12px">${tr({ it: "Scegli un'auto e premi Segna: leggo il file di carriera e ti mostro come sta il freno (solo lettura, il file non si tocca).", en: "Pick a car and press: I read the career file and show you the brake card (read-only, the file is not touched)." })}</div>
+  </div>`;
+  if (!$('#gm-car')) return;
+  $('#gm-car').value = cars.includes(prefill) ? prefill : (cars[0] ?? '');
+  $('#gm-go').onclick = async () => {
+    const car = $('#gm-car')?.value;
+    if (!car) return toast(tr({ it: 'Nessuna auto nel garage.', en: 'No cars in the garage.' }), 'err');
+    try {
+      const bp = await api('mechanic', { car });
+      const o = $('#gm-out');
+      if (!bp.ok) { o.innerHTML = `<span style="color:var(--warn)">⚠ ${esc(bp.carName ?? car)}: ${esc(bp.error ?? 'sconosciuto')}</span>`; return; }
+      const rows = [];
+      const addRow = (label, html) => rows.push(`<tr><td class="muted" style="width:150px;font-size:11.5px">${esc(label)}</td><td style="font-size:12px">${html}</td></tr>`);
+      if (bp.zone) addRow(tr({ it: 'zona freno', en: 'brake zone' }), `<b>${esc(bp.zone)}</b>`);
+      if (bp.brakes?.bias != null) addRow(tr({ it: 'bias freno', en: 'brake bias' }), `${esc(String(bp.brakes.bias))}%`);
+      if (bp.brakes?.mult != null) addRow(tr({ it: 'fattore freno', en: 'brake multiplier' }), `${esc(String(bp.brakes.mult))}%`);
+      if (bp.file) addRow(tr({ it: 'setup più recente', en: 'latest setup' }), `<span class="faint">${esc(bp.setupName ?? '')}${bp.track ? ' · ' + esc(bp.track) : ''}</span>`);
+      if (bp.ally?.has) {
+        if (bp.ally.best) addRow(tr({ it: 'migliore annotato', en: 'best noted' }), `🧠 ${fmtLapM(bp.ally.best.lap)}`);
+        if (bp.ally.storie?.length) addRow(tr({ it: 'storia allievo', en: 'apprentice memory' }), esc(bp.ally.storie.map((s) => s.field).join(' · ')));
+      }
+      o.innerHTML = rows.length
+        ? `<div style="color:var(--fg)"><table style="border-spacing:0 3px"><tbody>${rows.join('')}</tbody></table></div>`
+        : esc(tr({ it: 'Nessun dato di freno leggibile nel file di carriera di questa auto.', en: "No readable brake data in this car's career file." }));
+    } catch (err) { toast(err.message, 'err'); }
   };
 }
 

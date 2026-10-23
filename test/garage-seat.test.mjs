@@ -1,3 +1,4 @@
+import "./_flows-sandbox.mjs"; // sandbox flussi
 // garage-seat.test.mjs — la precedenza del garage all'ingresso in serie:
 // se il pool auto della serie combacia con un'auto in garage, il sedile
 // non si noleggia (e con garage vuoto o auto diversa si paga come sempre).

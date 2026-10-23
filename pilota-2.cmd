@@ -17,7 +17,7 @@ echo   Carriera del SECONDO PILOTA (slot 2)...
 echo   (salvataggio suo e separato: data\evo-career.save-2.json)
 echo.
 
-start "Carriera EVO Slot 2" /MIN "%~dp0gui-run.cmd"
+start "EVO Pitwall Slot 2" /MIN "%~dp0gui-run.cmd"
 
 timeout /t 2 >nul
 endlocal

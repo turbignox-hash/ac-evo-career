@@ -14,19 +14,21 @@
 // Lezione (19/10): la prima versione faceva la riscrittura a mano e HA CORROTTO
 // il file (tag/lunghezze ricalcolati male) → ripristinato dal .bak e riscritta
 // con decode/encodeMsg del progetto, verificata con round-trip PRIMA di scrivere.
+// Lezione (23/10): la funzione diventa LIBRERIA (weekendLaps/setWeekendLaps)
+// per il tasto "Prepara tutto e divertiti" degli eventi speciali in webui —
+// stessi identici gesti del CLI, con verifica di round-trip sul buffer OUT.
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
-import { decodeMsg, encodeMsg, verifyRoundTrip } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg, GAME_MODES_DIR } from '../tools/evo-grid.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FILE = 'C:/Users/Mauro/Saved Games/ACE/GameModes/GameModeType_RACE_WEEKEND.gamemodesave';
+const FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 const gameIsRunning = () => /AssettoCorsaEVO/i.test(execSync('tasklist', { encoding: 'utf8' }) ?? '');
 
-const asText = (b) => Buffer.from(b).toString('utf8').replace(/\x00/g, '').trim();
-
-function sessionsOf(buf) {
+/** Elenca le sessioni del gamemodesave: [{ i, nome, giri, tipo }] (letture pure). */
+export function sessionsOf(buf) {
   const blocks = decodeMsg(buf).filter((f) => f.field === 3 && f.wire === 2);
   return blocks.map((b, i) => {
     const inner = decodeMsg(b.bytes);
@@ -37,6 +39,14 @@ function sessionsOf(buf) {
     return { i, nome, giri, tipo };
   });
 }
+export const weekendLaps = (file = FILE) => sessionsOf(readFileSync(file));
+const asText = (b) => Buffer.from(b).toString('utf8').replace(/\x00/g, '').trim();
+
+/** Round-trip di controllo su un BUFFER (verifyRoundTrip di evo-grid legge un FILE). */
+const roundTripOk = (buf) => {
+  const out = encodeMsg(decodeMsg(buf));
+  return { ok: Buffer.compare(buf, Buffer.from(out)) === 0, size: buf.length, sizeOut: out.length };
+};
 
 /** patch del varint giri sul blocco sel: MODIFICA MINIMA sui byte decodificati. */
 function patchLaps(fields, sel, laps) {
@@ -52,6 +62,41 @@ function patchLaps(fields, sel, laps) {
     return;
   }
   throw new Error(`blocco sessione ${sel} non trovato`);
+}
+
+/** qual è il blocco GARA (nome race/gara o tipo 2) — stessa scelta del CLI. */
+export function raceBlockIndex(ses) {
+  return ses.findIndex((s) => /race|gara/i.test(s.nome ?? '') || s.tipo === 2);
+}
+
+/**
+ * Scrive `laps` giri sul blocco GARA del gamemodesave, con la SESSITA rete del
+ * CLI patchata in libreria (richiesta Mauro 23/10 per gli eventi speciali):
+ *   • patch minima del varint f2 del blocco race via decodeMsg/encodeMsg
+ *   • verifica di round-trip byte-identica sul buffer OUT + rilettura del valore
+ *   • backup datato + scrittura atomica (tmp → rename)
+ * Idempotente: se il blocco dice già quei giri, non tocca niente (written:false).
+ * opts: { file }. Ritorna { already, written, block, giri, backup }.
+ */
+export function setWeekendLaps(laps, { file = FILE } = {}) {
+  if (!Number.isInteger(laps) || laps <= 0) throw Object.assign(new Error(`giri deve essere un intero > 0, ricevo ${laps}`), { code: 'BAD_LAPS' });
+  const buf = readFileSync(file);
+  const ses = sessionsOf(buf);
+  const which = raceBlockIndex(ses);
+  if (which < 0) throw Object.assign(new Error('blocco gara non trovato nel gamemodesave'), { code: 'NO_RACE' });
+  if (ses[which].giri === laps) return { already: true, written: false, block: ses[which].nome, giri: laps, backup: null };
+  const fields = decodeMsg(buf);
+  patchLaps(fields, which, laps);
+  const out = Buffer.from(encodeMsg(fields));
+  const probeSes = sessionsOf(out);
+  if (probeSes[which].giri !== laps) throw new Error(`verifica fallita: il valore rileggetto non è ${laps}`);
+  const rt = roundTripOk(out);
+  if (!rt.ok) throw new Error(`round-trip NON byte-identico: ${JSON.stringify(rt)}`);
+  const backup = `${file}.bak-laps-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+  copyFileSync(file, backup);
+  writeFileSync(`${file}.tmp`, out);
+  renameSync(`${file}.tmp`, file);
+  return { already: false, written: true, block: ses[which].nome, giri: laps, backup };
 }
 
 /* ---------- CLI (solo se eseguito direttamente, non importato) ---------- */
@@ -75,26 +120,13 @@ if (!Number.isInteger(laps) || laps <= 0) { console.error('giri deve essere un i
 const selName = getArg('session');
 let which = selName != null
   ? ses.findIndex((s) => (s.nome ?? '').toLowerCase().includes(selName.toLowerCase()))
-  : ses.findIndex((s) => /race|gara/i.test(s.nome ?? '') || s.tipo === 2);
+  : raceBlockIndex(ses);
 if (which < 0) { console.error('sessione non trovata'); process.exit(1); }
 
 if (gameIsRunning()) { console.error('\nEVO è APERTO: chiudi il gioco prima di scrivere (il menu riscrive il file).'); process.exit(1); }
 
-// RITORNO-SICURO: patch round-trip su una copia e confronto byte
-const fields = decodeMsg(buf);
-patchLaps(fields, which, laps);
-const out = Buffer.from(encodeMsg(fields));
-const probe = decodeMsg(out);
-const probeSes = sessionsOf(probe);
-if (probeSes[which].giri !== laps) throw new Error('verifica fallita: il valore rileggetto non è ' + laps);
-// round-trip di controllo: tutto il resto deve essere identico tranne i giri del blocco
-const rt = verifyRoundTrip(out);
-if (!rt.ok) { console.error('round-trip NON byte-identico:', JSON.stringify(rt)); process.exit(1); }
-
-const bak = `${FILE}.bak-laps-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
-copyFileSync(FILE, bak);
-writeFileSync(`${FILE}.tmp`, out);
-renameSync(`${FILE}.tmp`, FILE);
-console.log(`\nscritto: giri=${laps} sul blocco "${ses[which].nome}" · backup: ${bak.split('/').pop()}`);
+const res = setWeekendLaps(laps, { file: FILE });  // tutta la rete (round-trip + backup) ora è nella libreria
+if (res.already) console.log(`\nil blocco "${res.block}" dice già ${laps} giri: niente scrittura.`);
+else console.log(`\nscritto: giri=${res.giri} sul blocco "${res.block}"${res.backup ? ` · backup: ${res.backup.split('/').pop()}` : ''}`);
 for (const s of sessionsOf(readFileSync(FILE))) console.log(label(s));
 }

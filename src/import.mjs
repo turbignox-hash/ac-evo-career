@@ -257,6 +257,7 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
     // la ronda della serie era a TEMPO? allora nel payload ci va anche la durata (per l'evento memoria e i consigli)
     payload = {
       position: info.position, gridSize: info.gridSize, dnf: info.dnf,
+      penalty: info.penalty, rawPos: info.rawPos, dsq: info.dsq,
       fl: lap.playerHasIt && !info.dnf,
       track: candidate.trackMatch ? result.track : (rnd.round.track ?? result.track),
       round: pending?.round ?? state.round,
@@ -265,7 +266,12 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
       sectors: secAnalysis,
       durationMin: rnd.round?.durationMin ?? null,
     };
-    sourceInfo = `${candidate.name} (${tr({ it: 'pilota riconosciuto da', en: 'driver recognised via' })}: ${how}${info.dnf ? tr({ it: ', ritiro', en: ', retirement' }) : ''}${lap.playerHasIt ? tr({ it: ', giro veloce', en: ', fastest lap' }) : ''})`;
+    const posNote = !info.dnf && !info.dsq && info.penalty
+      ? (info.rawPos && info.position !== info.rawPos
+        ? tr({ it: `, penalità ${info.penalty} (P${info.rawPos} → P${info.position})`, en: `, ${info.penalty} penalty (P${info.rawPos} → P${info.position})` })
+        : tr({ it: `, penalità ${info.penalty}`, en: `, ${info.penalty} penalty` }))
+      : '';
+    sourceInfo = `${candidate.name} (${tr({ it: 'pilota riconosciuto da', en: 'driver recognised via' })}: ${how}${info.dnf ? tr({ it: ', ritiro', en: ', retirement' }) : ''}${info.dsq ? tr({ it: ', SQUALIFICA', en: ', DISQUALIFIED' }) : ''}${posNote}${lap.playerHasIt && !info.dnf ? tr({ it: ', giro veloce', en: ', fastest lap' }) : ''})`;
 
     // dati di contesto per il registro rivali e le statistiche complete:
     // qualifica abbinata (stesso weekend, stessa pista) → posizione di partenza, pole, rimonta

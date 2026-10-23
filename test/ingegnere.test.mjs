@@ -1,3 +1,4 @@
+import "./_flows-sandbox.mjs"; // sandbox flussi
 // Suite delle funzioni pure del pacchetto "canto dell'ingegnere":
 //  - lapdelta.mjs: path del giro, matching in avanzamento, delta live, delta per fascia
 //  - engineer.mjs (pitWindow): benzina vs usura, il giro di sosta e la finestra

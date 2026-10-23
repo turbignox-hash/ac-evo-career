@@ -13,10 +13,12 @@
 //   node tools/set-driver-car.mjs --car "Audi RS 6 Avant" [--dry] [--force]
 import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { decodeMsg, encodeMsg, gameRunning } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, gameRunning, openDataDir, GAME_SAVEDIR } from './evo-grid.mjs';
 import { decodeGarage, readMap } from './set-car-sample.mjs';
 
-export const GARAGE_FILE = 'C:/Users/Mauro/Saved Games/ACE/ProfileData/4e119186-92b4-e500-a907-422b2017e883/OpenData/garage.drivergarage';
+// il profilo attivo si SCOPRE su disco (ProfileData/<guid>/OpenData): la GUID
+// cambia per installazione, il percorso fisso valeva solo sul PC di sviluppo
+export const GARAGE_FILE = join(openDataDir() ?? join(GAME_SAVEDIR, 'ProfileData', '_noprofile', 'OpenData'), 'garage.drivergarage');
 export const GARAGE_FLAG = 7;   // costante osservata su tutti i campioni (20/10/2026)
 
 export function garageCurrent(file = GARAGE_FILE) {

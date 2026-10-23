@@ -255,6 +255,16 @@ async function refreshBoot(){
   if (boot.versione && boot.versione.semver && boot.versione.semver !== '?') {
     let sf = $('.side-foot');
     if (sf) sf.innerHTML = `${tr({ it: 'Assetto Corsa EVO · tool locale', en: 'Assetto Corsa EVO · local tool' })}<br>${tr({ it: 'tutto resta sul tuo PC', en: 'everything stays on your PC' })}<br><span id="build-ver" title="versione della build (si aggiorna a ogni salvataggio del progetto su GitHub)">build ${esc(boot.versione.semver)}${boot.versione.hash ? ` · ${esc(boot.versione.hash)}` : ''}</span>`;
+    // footer: contatto e donazioni (scelta del 21/10: issue GitHub precompilata + Ko-fi).
+    // Il SERVER precompila titolo e corpo della segnalazione (versione build, serie in
+    // corso, ronda, pista, difficoltà, ultimi errori); l'utente completa e invia.
+    // 24/10 (richiesta Mauro): il caffè non più solo come link nel footer ma un
+    // BANNER proprio sopra i link — più visibile, resta comunque discreto.
+    const fl = boot.feedback || {};
+    const footLinks = [];
+    if (fl.kofi) sf.innerHTML += `<a class="kofi-banner" href="${esc(fl.kofi)}" target="_blank" rel="noopener" title="${tr({ it: 'Offri un caffè: sostieni lo sviluppo del tool — apre Ko-fi', en: 'Buy me a coffee: support the tool\'s development — opens Ko-fi' })}"><span class="cup">☕</span> ${tr({ it: 'Offrimi un caffè', en: 'Buy me a coffee' })}<span class="muted">${tr({ it: ' · sostieni lo sviluppo', en: ' · support the dev' })}</span></a>`;
+    if (fl.issuesUrl) footLinks.push(`<a href="${esc(fl.issuesUrl)}" target="_blank" rel="noopener" title="${tr({ it: 'Apre GitHub con la segnalazione già compilata: leggi, completa il dettaglio e invia', en: 'Opens GitHub with the report already filled in: read, add details and submit' })}">🐞 ${esc(tr({ it: 'Segnala un problema', en: 'Report a problem' }))}</a>`);
+    if (footLinks.length) sf.innerHTML += `<div class="foot-links">${footLinks.join('<span class="foot-sep">·</span>')}</div>`;
   }
   drawNav();
   if (boot.hasCareer) paintHeader(boot.header);

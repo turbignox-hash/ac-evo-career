@@ -12,7 +12,7 @@
 import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { recordWarning } from './warnings.mjs';
 import { dirname, join, basename } from 'node:path';
-import { findPlayerDriver } from './results.mjs';
+import { findPlayerDriver, penaltyOf, officialPositionOf } from './results.mjs';
 
 /* ------------------------------------------------------------------ */
 /* dove vive il server dedicato                                        */
@@ -194,19 +194,28 @@ export function resultDetail(paths, fileName) {
       return m ? Number(m[1]) * 60000 + Number(m[2]) * 1000 + Number(m[3]) : null;
     };
     const wMs = toMs(winnerTime);
+    // penalità vere di EVO: high_penalty ('+5.0s' | 'DT' | 'DSQ') — l'array
+    // `penalties` è quasi sempre vuoto. La posizione ufficiale la ricalcola
+    // officialPositionOf (i secondi il gioco li aggiunge a classificazione fatta,
+    // il campo position del file resta l'ordine di pista).
     const rows = drivers.map((d) => {
       const pos = Number(d.position) + (zeroBased ? 1 : 0);
+      const off = officialPositionOf(r, d);   // posizione ufficiale (penalità incluse)
       const tMs = toMs(d.total_time);
       const gap = tMs != null && wMs != null ? tMs - wMs : null;
       return {
-        position: pos, name: `${String(d.driver_name ?? '').replace(/^[•\u2022]/, '').trim()} ${d.driver_surname ?? ''}`.trim(),
+        // la DSQ e i non classificati non hanno posizione ufficiale: resta
+        // l'ordine di pista del file (sono già in coda)
+        position: off.position ?? pos, rawPos: pos, dsq: !!off.dsq,
+        name: `${String(d.driver_name ?? '').replace(/^[•\u2022]/, '').trim()} ${d.driver_surname ?? ''}`.trim(),
         nation: d.driver_nation ?? null, car: `${d.car_brand ?? ''} ${d.car_name ?? ''}`.trim(),
         isAI: /^[•\u2022]/.test(String(d.driver_name ?? '').trim()), me: d.is_current_driver === true,
         laps: d.laps ?? 0, bestLap: d.best_lap ?? null, hasBest: d.has_best_lap === true,
         totalTime: d.total_time ?? null, gap, pits: d.num_pits ?? 0,
-        penalty: (Array.isArray(d.penalties) && d.penalties.length) ? d.penalties.join(', ') : null,
+        penalty: penaltyOf(d).label,
+        offSort: (off.position ?? 0) || (1000 + pos),
       };
-    }).sort((a, b) => a.position - b.position);
+    }).sort((a, b) => a.offSort - b.offSort);
     return {
       file: safe, season: r.season ?? '?', event: r.event ?? '?', session: r.session ?? '?',
       track: r.track ?? '?', layout: r.layout ?? '',

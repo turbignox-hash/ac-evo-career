@@ -414,3 +414,13 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .wzstep.cur{opacity:1;filter:none;border-style:dashed;border-color:#6b5a2a;background:#171310}
 .wzstep.cur .lbl{color:#ffcc66}
 .wz-arrow{align-self:center;color:#4a5570;flex:none;opacity:.75}
+
+/* -------- footer sidebar: contatto (issue precompilata) e donazioni (Ko-fi) -------- */
+.side-foot .kofi-banner{display:flex;align-items:center;gap:6px;margin-top:8px;padding:8px 10px;border-radius:9px;border:1px solid var(--acc2);background:rgba(255,190,60,.09);color:#ffcc66;font-size:12px;text-align:left;transition:background .15s}
+.side-foot .kofi-banner:hover{background:rgba(255,190,60,.18)}
+.side-foot .kofi-banner .cup{font-size:14px}
+.side-foot .kofi-banner .muted{font-size:10.5px}
+.side-foot .foot-links{margin-top:6px;line-height:1.5;font-size:11px}
+.side-foot .foot-links a{color:var(--acc2)}
+.side-foot .foot-links a:hover{text-decoration:underline}
+.side-foot .foot-sep{color:var(--line);margin:0 5px}

@@ -578,7 +578,8 @@ export function careerStats(ladder, state) {
 
 export function applyRaceResult(ladder, state, node, payload) {
   const { position, gridSize, dnf = false, fl = false, track = null, round = state.round, at = new Date().toISOString(),
-    laps = null, winnerLaps = null, bestLap = null, totalTime = null, gapMs = null, car = null, carNumber = null, sectors = null, durationMin = null } = payload;
+    laps = null, winnerLaps = null, bestLap = null, totalTime = null, gapMs = null, car = null, carNumber = null, sectors = null, durationMin = null,
+    penalty = null, rawPos = null, dsq = false } = payload;
   // round A TEMPO (durationMin>0, stile del modello originario): la "distanza" piena è la durata
   // del calendario e il premio scala con la distanza scelta (50% → metà premio)
   const distPct = [25, 50, 75, 100].includes(Number(state.raceSettings?.[node.nodeId]?.distPct)) ? Number(state.raceSettings[node.nodeId].distPct) : 100;
@@ -590,7 +591,8 @@ export function applyRaceResult(ladder, state, node, payload) {
   state.results[node.nodeId] ??= [];
   const existing = state.results[node.nodeId].find((r) => r.season === state.season && r.round === round);
   const entry = { season: state.season, round, track, position, gridSize, dnf, fl, points, prize, rep, at,
-    laps, winnerLaps, bestLap, totalTime, gapMs, car, carNumber, sectors, durationMin };
+    laps, winnerLaps, bestLap, totalTime, gapMs, car, carNumber, sectors, durationMin,
+    penalty, rawPos, dsq };
   if (existing) Object.assign(existing, entry);
   else state.results[node.nodeId].push(entry);
 
@@ -668,9 +670,16 @@ export function applyRaceResult(ladder, state, node, payload) {
   const gapText = !dnf && Number.isFinite(gapMs) && gapMs != null && gapMs > 0
     ? (gapMs >= 60000 ? `+${Math.floor(gapMs / 60000)}'${String(Math.round((gapMs % 60000) / 1000)).padStart(2, '0')}"` : `+${(gapMs / 1000).toFixed(1)}"`)
     : null;
+  // penalità e squalifica in vista: «il gioco le calcola, anche il tool» (Mauro 23/10)
+  const posText = dsq ? tr({ it: 'squalifica', en: 'disqualified' }) : dnf ? tr({ it: 'ritiro', en: 'retired' }) : `P${position}`;
+  const penText = !dsq && !dnf && penalty
+    ? (rawPos && rawPos !== position
+      ? ` · ${tr({ it: `penalità ${penalty} (da P${rawPos})`, en: `${penalty} penalty (from P${rawPos})` })}`
+      : ` · ${tr({ it: `penalità ${penalty}`, en: `${penalty} penalty` })}`)
+    : '';
   pushMessage(state, tr({
-    it: `${node.display} · ${node.calendar[round]?.name ?? 'Round ' + (round + 1)}: ${dnf ? 'ritiro' : 'P' + position}${gapText ? ' ' + gapText : ''}${fl && bestLap ? ` · giro veloce ${bestLap}` : ''} · +${prize} premio${iconicRound ? ' (prova iconica)' : ''} (+${sponsorTotal} sponsor) · +${rep} reputazione`,
-    en: `${node.display} · ${node.calendar[round]?.name ?? 'Round ' + (round + 1)}: ${dnf ? 'retired' : 'P' + position}${gapText ? ' ' + gapText : ''}${fl && bestLap ? ` · fastest lap ${bestLap}` : ''} · +${prize} prize${iconicRound ? ' (iconic race)' : ''} (+${sponsorTotal} sponsor) · +${rep} reputation`,
+    it: `${node.display} · ${node.calendar[round]?.name ?? 'Round ' + (round + 1)}: ${posText}${penText}${gapText ? ' ' + gapText : ''}${fl && bestLap ? ` · giro veloce ${bestLap}` : ''} · +${prize} premio${iconicRound ? ' (prova iconica)' : ''} (+${sponsorTotal} sponsor) · +${rep} reputazione`,
+    en: `${node.display} · ${node.calendar[round]?.name ?? 'Round ' + (round + 1)}: ${posText}${penText}${gapText ? ' ' + gapText : ''}${fl && bestLap ? ` · fastest lap ${bestLap}` : ''} · +${prize} prize${iconicRound ? ' (iconic race)' : ''} (+${sponsorTotal} sponsor) · +${rep} reputation`,
   }), dnf ? 'bad' : position <= 3 ? 'good' : 'info');
 
   const proposal = proposeDifficulty(ladder, state, node, dnf ? gridSize : position, gridSize);

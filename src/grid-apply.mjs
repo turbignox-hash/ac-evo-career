@@ -12,22 +12,115 @@
 //   const out = applyBalance({ track: 'Sebring International Raceway' });  // classe auto-matchata
 //   const out = applyAi([94, 99]);
 //   const out = dropCellsApply(['preset_mk8gti_mech_1', 'BMW M3 E46 CSL']);
-import { readFileSync, writeFileSync, renameSync, copyFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, copyFileSync, existsSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import { dirname, join, basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { sameTrack } from './tracknames.mjs';
+import { tr } from './lang.mjs';
 import { gameRunning, encodeMsg, gridFileOf } from '../tools/evo-grid.mjs';
 import { balanceCells, dropCells, setAiRange, planFromClass, readCells, DEFAULT_FILE } from '../tools/grid-balance.mjs';
 import { loadClasses, pickClassInfo, buildGridMessage } from './gridbuilder.mjs';
+import { resolvePaths } from './paths.mjs';
+import { scanContentCached, carExists } from './content.mjs';
 
 export const GRID_FILE = DEFAULT_FILE;
 
+/* ---------- magazzino dei template PER SERIE ---------- */
+// Lezione 23/10 sera (Coppa Audi RS 3 Sportback): a ogni NUOVO campionato la
+// griglia sul disco è ancora quella della serie scorsa (14×F40) e il builder
+// non può ricostruire niente, perché le CELLE sono fotocopiate da un template
+// reale e per la serie nuova non ne esiste nessuno (verificato col byte-scan:
+// zero file sul disco contiene ks_audi_rs_3_sportback). Da qui il rituale
+// "una volta per serie: GENERA in EVO → APPLICA". Il magazzino lo rende
+// EFFIMERO UNA VOLTA SOLA: la prima costruzione riuscita della serie resta
+// sul disco (data/grid-templates/<nodeId>.customgrid) e TUTTI i round
+// successivi (anche dopo che il customgrid sul disco è passato ad altra
+// serie) si riscrivono da questo appunto, senza mai riaprire EVO per la griglia.
+const HERE_DIR = dirname(fileURLToPath(import.meta.url));
+const APPLY_DATA_DIR = process.env.EVO_DATA_DIR ?? join(dirname(HERE_DIR), 'data');
+const TEMPLATES_DIR = join(APPLY_DATA_DIR, 'grid-templates');
+const SNAPSHOTS_DIR = join(APPLY_DATA_DIR, 'customgrid-snapshots');
+const FACTORY_DIR = process.env.EVO_FACTORY_DIR ?? join(APPLY_DATA_DIR, '..', 'config', 'griglie-fabbrica');
+
+const templatePathOf = (nodeId) => join(TEMPLATES_DIR, String(nodeId).replace(/[^a-zA-Z0-9_.-]/g, '_') + '.customgrid');
+const factoryFileOf = (nodeId) => join(FACTORY_DIR, basename(templatePathOf(nodeId)));
+
+/** Appunta il buffer come template della serie. riscritture successive con byte
+ *  identici non toccano nulla (a ogni giro di poll il file non cambia). */
+function storeTemplate(nodeId, buf) {
+  try {
+    mkdirSync(TEMPLATES_DIR, { recursive: true });
+    const f = templatePathOf(nodeId);
+    const nuovo = Buffer.from(buf);
+    if (existsSync(f) && Buffer.compare(readFileSync(f), nuovo) === 0) return f;
+    if (existsSync(f)) copyFileSync(f, `${f}.bak-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`);
+    writeFileSync(f, nuovo);
+    return f;
+  } catch { return null; }
+}
+
+/* ---------- GRIGLIE DI FABBRICA ---------- */
+// DISTRIBUZIONE (24/10, domanda Mauro: «chi lo installa al primo cambio di
+// campionato si inceppa perché non trova i template delle auto, giusto?» —
+// sì). La cura è spedire le griglie COL programma: config/griglie-fabbrica/
+// <nodeId>.customgrid è l'ULTIMO ripiego della corsa dei candidati (prima il
+// magazzino per serie, poi i backup, poi gli snapshot). Il primo successo
+// appunta comunque il template in data/grid-templates, quindi da lì la
+// fabbrica non serve più.
+// LE CELLE sono fotografia reale presa da EVO (regola anti-crash rispettata,
+// lesson Suzuka + Gran Finale), ma un'INSTALLAZIONE può mancare di un'auto
+// citata dalla griglia: prima di provarla, ogni carId delle celle viene
+// giudicato con carExists (la STESSA base di validateLadder). Catalogo non
+// giudicabile (vuoto o illeggibile) → NESSUN blocco: si lascia la prova e
+// l'eventuale eroismo del builder.
+let installSnapshot = null;   // { cars: Set, carNames: Set } — solo i test la usano (niente scansione vera)
+export function setInstallSnapshot(s) { installSnapshot = s; }
+
+/** Le auto della griglia MANCANTI in questa installazione (nome leggibile). */
+function missingCarsOnInstall(file, ladder) {
+  try {
+    const content = installSnapshot ?? scanContentCached(resolvePaths());
+    if (!(content.cars?.size ?? 0) && !(content.carNames?.size ?? 0)) return [];   // nulla per giudicare: non blocchi niente
+    const ids = [...new Set(gridFileOf(readFileSync(file)).cells.map((c) => c.carId).filter(Boolean))];
+    return ids.filter((id) => !carExists(id, ladder, content)).map((id) => ladder.contentNames?.cars?.[id] ?? id);
+  } catch { return []; }   // catalogo assente o file illeggibile: non blocca
+}
+
+/** Errore dedicato quando la griglia di fabbrica cita auto assenti qui. */
+function missingCarError(mancanti) {
+  const elenco = [...new Set(mancanti)].slice(0, 4).join(', ');
+  return Object.assign(new Error(tr({
+    it: `La griglia di fabbrica cita auto che NON ci sono in questa installazione (${elenco}). Installa il contenuto, oppure costruisci la griglia a mano UNA volta: menu griglia del round in EVO → GENERA con le auto della serie → APPLICA — da lì il tool la appunta da solo.`,
+    en: `The factory grid cites cars MISSING from this installation (${elenco}). Install the car content, or build the grid by hand ONCE: the round's grid menu in EVO → GENERATE with the series' cars → APPLY — the tool records it from there.`,
+  })), { code: 'CAR_MISSING' });
+}
+
+/** Il messaggio builder "il template non contiene le auto della serie" diventa
+ *  il RITUALE corretto, una volta per serie invece di un'ansia eterna. */
+function noTemplateHint(e, ladder, nodeId) {
+  const msg = e?.message ?? String(e);
+  if (!/non contiene/.test(msg)) return e;
+  const node = (ladder.nodes ?? []).find((n) => n.nodeId === nodeId);
+  const cls = loadClasses().classi?.[nodeId] ?? null;
+  const pool = Array.isArray(cls?.poolAuto) ? cls.poolAuto : (Array.isArray(node?.cars) ? node.cars : []);
+  const names = ladder.contentNames?.cars ?? {};
+  const auto = pool.map((id) => names[id] ?? id).join(', ') || '(auto della serie)';
+  return Object.assign(new Error(tr({
+    it: `SERIE NUOVA, griglia ancora da costruire: nessun template sul disco ha le auto della serie — sul customgrid resta la griglia della gara scorsa. RIMEDIO (UNA volta per serie): in EVO, nel round che stai per correre, apri il menu griglia del round → GENERA con le auto della serie (${auto}) → APPLICA. Il tool fotografa quella griglia per la serie (data/grid-templates) e da lì in poi la riscrive da solo a ogni round.`,
+    en: `NEW SERIES, grid not built yet: no template on disk carries the series' cars — the previous race's grid stays on file. FIX (once per series): in EVO, in the round you are about to run, open the round's grid menu → GENERATE with the series' cars (${auto}) → APPLY. The tool snapshots that grid for the series and afterwards rewrites it by itself every round.`,
+  })), { code: 'NO_TEMPLATE' });
+}
+
+
 const writeSafe = (buf2, file = GRID_FILE, { force = false } = {}) => {
   if (gameRunning() && !force) throw Object.assign(new Error('EVO è APERTO: chiudi il gioco prima di scrivere la griglia.'), { code: 'GAME_RUNNING' });
+  // lezione vergine (24/10): senza file non c'è cosa da backuppare — prima gara
+  // della vita sul PC nuovo: la griglia nasce da zero (fabbrica), non da un resto.
   const backup = `${file}.bak-apply-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
-  copyFileSync(file, backup);
+  if (existsSync(file)) copyFileSync(file, backup);
   writeFileSync(`${file}.tmp`, buf2);
   renameSync(`${file}.tmp`, file);
-  return backup;
+  return backup || '(nessun backup: file assente prima della scrittura)';
 };
 
 /**
@@ -107,36 +200,71 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
     const first = buildGridMessage({ ladder, nodeId, roundIndex, file });
     if (dry) return { report: first.report, written: false };
     const backup = writeSafe(first.buffer, file, { force });
+    storeTemplate(nodeId, first.buffer);   // la griglia riuscita resta la memoria della serie
     return { report: first.report, written: true, backup };
   } catch (firstErr) {
-    if (firstErr.code || !existsSync(file)) throw firstErr;
-    // 2) backup compatibile: stessa serie (poolAuto) presenti nel file.
+    // lezione vergine (24/10, collaudo prova-vergine): sul PC di un player
+    // NUOVO last_grid.customgrid può NON ESISTERE (prima gara della vita,
+    // ENOENT): non va bloccata la corsa dei candidati — anzi è LÌ che serve
+    // la fabbrica. Solo i codici SEMANTICI del builder (CAR_MISSING ecc.)
+    //iscono l'errore subito; ENOENT va avanti coi candidati.
+    if (firstErr.code && firstErr.code !== 'ENOENT') throw noTemplateHint(firstErr, ladder, nodeId);
+    // 2) template appuntato della serie + backup compatibili: stessa serie
+    //    (poolAuto) presenti nel file.
     try {
       const cls = loadClasses().classi?.[nodeId] ?? null;
       const pool = Array.isArray(cls?.poolAuto) ? cls.poolAuto : (Array.isArray((ladder.nodes ?? []).find((n) => n.nodeId === nodeId)?.cars) ? ladder.nodes.find((n) => n.nodeId === nodeId).cars : null);
-      if (!pool || pool.length < 2) throw firstErr;
+      // pool VUOTO: nessuno stimolo. La soglia prima era <2: per le serie
+      // MONOMARCA (pool di 1 auto, come la Coppa RS 3) il template appuntato
+      // veniva buttato via senza nemmeno provarlo — è lo stesso buco del 23/10.
+      if (!pool || !pool.length) throw noTemplateHint(firstErr, ladder, nodeId);
       const dir = dirname(file);
+      // corsa dei candidati: PRIMA il template APPUNTATO della serie
+      // (data/grid-templates/<nodeId>.customgrid: sopravvive a ogni cambio di
+      // campionato), poi i backup del customgrid in ordine di mtime (tutti:
+      // il taglio a 40 fa perdere i più antichi, che sono proprio le memorie
+      // delle serie passate), poi gli snapshot del progetto.
+      const candidati = [];
+      const tPath = templatePathOf(nodeId);
+      if (existsSync(tPath)) candidati.push({ file: tPath, label: basename(tPath) });
       const baks = readdirSync(dir).filter((f) => f.startsWith(basename(file) + '.bak-'));
       baks.sort((a, b) => statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs);
+      candidati.push(...baks.map((n) => ({ file: join(dir, n), label: n })));
+      if (existsSync(SNAPSHOTS_DIR)) {
+        candidati.push(...readdirSync(SNAPSHOTS_DIR).filter((f) => f.endsWith('.customgrid')).map((n) => ({ file: join(SNAPSHOTS_DIR, n), label: n })));
+      }
+      // ULTIMO ripiego: la griglia di fabbrica spedita col programma.
+      if (existsSync(factoryFileOf(nodeId))) candidati.push({ file: factoryFileOf(nodeId), label: 'griglia di fabbrica: ' + basename(factoryFileOf(nodeId)), factory: true });
+      const fabbricaBloccata = [];
       let lastErr = firstErr;
-      for (const nome of baks.slice(0, 40)) {
+      for (const { file: nomeFile, label, factory } of candidati) {
         try {
-          const buf = readFileSync(join(dir, nome));
-          // match veloce per CAR-ID di cella (il poolAuto è dichiarato a quelle
-          // chiavi, non a preset): il builder filtro il pool con la STESSA
-          // chiave (field 3), quindi un backup con ≥3 modelli del pool passa
-          // dove un match per preset fallirebbe con acqua alla gola.
-          const ids = new Set(gridFileOf(buf).cells.map((c) => c.carId).filter(Boolean));
-          const hit = pool.filter((p) => ids.has(p)).length;
-          if (hit < 3) continue;   // il backup non ha abbastanza auto del pool
-          const { buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: join(dir, nome) });
-          if (dry) return { report, written: false, source: nome };
+          // GATE di fabbrica: i carId della griglia devono avere il contenuto
+          // installato (verifica con la stessa base di validateLadder).
+          if (factory) {
+            const mancanti = missingCarsOnInstall(nomeFile, ladder);
+            if (mancanti.length) { fabbricaBloccata.push(...mancanti); lastErr = missingCarError(mancanti); continue; }
+          }
+          // Giudice UNICO: buildGridMessage. Il pre-filtro per numero di
+          // modelli del pool (il vecchio minimo = min(3, pool.length)) era un
+          // falso vincolo (24/10): il builder accetta QUALUNQUE file con
+          // almeno una auto della pool (griglie con auto non ancora
+          // comprate = la normalità storica, Coppa Città inclusa) e possiede
+          // TUTTE le regole vere: monomarca, poolAuto, esclusioni di classe,
+          // celle uniche. Un pre-filtro qui, senza la semantica del builder,
+          // butta via template validi — e coppaa-citta è la prova.
+          const { buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: nomeFile });
+          if (dry) return { report, written: false, source: label };
           const backup = writeSafe(buffer, file, { force });
-          return { report, written: true, backup, source: nome };
+          storeTemplate(nodeId, buffer);
+          return { report, written: true, backup, source: label };
         } catch (e) { lastErr = e; }
       }
-      throw lastErr;
-    } catch (e) { throw e; }
+      // La fabbrica era l'unica strada e qui l'installazione manca di auto:
+      // il messaggio giusto è QUESTO, non il rituale generico.
+      if (fabbricaBloccata.length) throw missingCarError(fabbricaBloccata);
+      throw noTemplateHint(lastErr, ladder, nodeId);
+    } catch (e) { throw noTemplateHint(e, ladder, nodeId); }
   }
 }
 

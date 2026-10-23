@@ -23,9 +23,11 @@
 //   1. Si parte SEMPRE da un file esistente salvato dal gioco (mai da zero).
 //   2. Ciò che non mappiamo resta BYTE PER BYTE (round-trip verificato identico).
 //   3. Si patchano solo campi wire5 (f32) dentro blocchi nested già decodificati.
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
+import { tr } from './lang.mjs';
+import { memoOf, storiePerCampo } from './allievo.mjs';
 
 /* ---------- primitivi ---------- */
 const decode = (buf) => decodeMsg(Buffer.isBuffer(buf) ? buf : Buffer.from(buf));
@@ -295,6 +297,112 @@ export function applyEdits(buf, edits) {
   }
 
   return { bytes: Buffer.from(encodeMsg(fields)), changes };
+}
+
+/* ------------------------------------------------------------------ */
+/* SEGNA AL MECCANICO (Mauro 23/10): la scheda freno di un'auto.       */
+/* Non decide NIENTE di nuovo: fotografa la scelta dell'utente (quale   */
+/* far passare al meccanico), zona e bias del file .carsetup di carriera */
+/* e memoria dell'allievo — la GUI la mostra così com'è.                 */
+/* ------------------------------------------------------------------ */
+
+const normKey = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/**
+ * Da un nome scritto liberamente (modello, parola nel nome, id garage) prende
+ * il nome AUTO noto al progetto (garage/мена карри/каталог). Mai un id grezzo.
+ */
+export function normalizeNameMaybe(value, ladder, state) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return null;
+  const pool = new Set();
+  try { Object.values(ladder?.contentNames?.cars ?? {}).forEach((n) => n && pool.add(String(n).trim())); } catch { /* il catalogo mancano non blocca */ }
+  try { Object.keys(ladder?.contentNames?.cars ?? {}).forEach((n) => n && pool.add(String(n).trim())); } catch { }
+  try { (state?.cars ?? []).forEach((c) => { if (c?.carId) pool.add(String(c.carId).trim()); if (c?.carName) pool.add(String(c.carName).trim()); }); } catch { }
+  const poolList = [...pool].filter(Boolean);
+  if (poolList.includes(raw)) return raw;
+  const target = normKey(raw);
+  if (!target) return null;
+  return poolList.find((n) => normKey(n) === target)
+    ?? poolList.find((n) => normKey(n).includes(target) || target.includes(normKey(n)))
+    ?? (target.split(' ').length > 1
+      ? poolList.find((n) => target.split(' ').every((p) => normKey(n).includes(p)))
+      : null)
+    ?? null;
+}
+
+/**
+ * Zona freno prevalente: dal BIAS attuale del file .carsetup di carriera
+ * (> 55% verso l'anteriore, < 48% verso il posteriore, fra i due: equilibrata).
+ */
+export function brakeZoneOf(setup) {
+  const bias = Number(setup?.brakes?.bias);
+  return {
+    zona: Number.isFinite(bias) ? (bias >= 55 ? 'anteriore' : bias <= 48 ? 'posteriore' : 'equilibrata') : null,
+    labels: { bias: Number.isFinite(bias) ? bias : null },
+  };
+}
+
+/**
+ * La scheda freno di un'auto per il garage: prende il file .carsetup PIÙ
+ * RECENTE salvo dall'auto (tra tutte le piste: «il fondo di casa» dell'auto,
+ * l'assetto montato per ultimo), legge bias e fattore freno e ne esce la zona
+ * prevalente. Ok anche SENZA setup salvati: si dichiara.
+ * NOTA onesta: la telemetria per auto c'è già (MoTeC); qui il dato AGGIUNTO è
+ * la scelta consapevole dell'utente — quale auto far passare al meccanico.
+ */
+export function brakePlanOf(maybeName, ladder, state, { paths = null } = {}) {
+  const savedDir = paths?.dataDirs?.[0] ?? paths?.dataDirs?.[1] ?? null;
+  if (!savedDir) return { ok: false, error: tr({ it: 'Non trovo la cartella di EVO: servono i save giochi per leggere i setup.', en: "Can't find the EVO folder: Saved Games is needed to read the setups." }) };
+  const carName = normalizeNameMaybe(maybeName, ladder, state);
+  if (!carName) return { ok: false, error: tr({ it: `Nome auto non riconosciuto («${maybeName ?? '?'}»): scrivi il modello come in garage.`, en: `Car name not recognised ("${maybeName ?? '?'}"): type the model exactly as in the garage.` }) };
+  const root = setupsRoot(savedDir);
+  let carDir = null;
+  try {
+    const folders = readdirSync(root).filter((d) => !d.startsWith('.'));
+    carDir = folders.find((d) => d.toLowerCase() === carName.toLowerCase())
+      ?? folders.find((d) => normKey(d).includes(normKey(carName)) || normKey(carName).includes(normKey(d)));
+  } catch { /* carriera non leggibile */ }
+  if (!carDir) {
+    return { ok: false, carName, error: tr({ it: `${carName} non ha ancora nessun setup salvato: salva un setup in gioco e torno con la scheda.`, en: `${carName} has no saved setup yet: save a setup in-game and I'll come back with the card.` }) };
+  }
+  try {
+    // tutti i .carsetup dell'auto (per pista): il più RECENTE è la “firma” attuale;
+    // i nostri file “EVO-consigliato” non contano (non è l'assetto montato dall'utente)
+    const all = listSetups(savedDir, { car: carDir })
+      .filter((s) => !s.name.includes('EVO-consigliato'));
+    const pool = listSetups(savedDir, { car: carDir });
+    const pick = all.length ? all : pool;
+    if (!pick.length) {
+      return { ok: false, carName, error: tr({ it: `${carName} non ha ancora nessun setup salvato: salva un setup in gioco e torno con la scheda.`, en: `${carName} has no saved setup yet: save a setup in-game and I'll come back with the card.` }) };
+    }
+    const newest = [...pick].sort((a, b) => statSync(b.file).mtimeMs - statSync(a.file).mtimeMs)[0];
+    const si = readSetupFile(newest.file);
+    const cur = si?.setup;
+    const zona = brakeZoneOf(cur);
+    return { ok: true, carName, folder: carName, file: newest.file, track: newest.track, setupName: newest.name, brakes: cur.brakes ?? null, zone: zona.zona, zoneLabels: zona.labels };
+  } catch (e) {
+    return { ok: false, carName, error: (e?.message ?? String(e)) };
+  }
+}
+
+/**
+ * Aggiunge alla scheda la MEMORIA dell'allievo (quando la pista è nota):
+ * migliore di sempre e storia per campo — da allievo.mjs, i dati parlano da sé.
+ */
+export function annotateAllyAdvice(bp, { trackDisplay = null } = {}) {
+  if (!bp || bp.ok !== true || !bp.carName || !trackDisplay) return;
+  try {
+    const { rounds, best } = memoOf(bp.carName, trackDisplay);
+    const storie = storiePerCampo(rounds);
+    if (rounds.length || best) {
+      bp.ally = {
+        has: true,
+        best: best ? { lap: best.lap, at: best.at } : null,
+        storie: Object.entries(storie).map(([field, s]) => ({ field, ...s })),
+      };
+    }
+  } catch { /* l'annotazione non deve mai bloccare la scheda */ }
 }
 
 /* ---------- iscrizione file (per il TEST in gioco) ---------- */

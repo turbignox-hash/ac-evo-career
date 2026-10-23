@@ -15,7 +15,11 @@ import { localizeLadder, setLang, hasEnvOverride } from './lang.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const PROJECT = dirname(HERE);
 export const LADDER_FILE = join(PROJECT, 'config', 'career.evo.ladder.json');
-export const DATA_DIR = join(PROJECT, 'data');
+// Stessa regola di import.mjs: EVO_DATA_DIR (solo per i test) ridirige la cartella
+// dati del TOOL — save, config, backup — così il server di prova non tocca il
+// salvataggio vero del PC (il vecchio data dir fisso leggeva il save reale anche
+// nei test: bug del 23/10).
+export const DATA_DIR = process.env.EVO_DATA_DIR ?? join(PROJECT, 'data');
 // SLOT di carriera (1..3): lo slot si cambia SOLO riavviando il server con ACE_SLOT=n
 // (così watcher e import non mischiano due carriere nella stessa sessione).
 export const SLOT = activeSlot();

@@ -1,4 +1,6 @@
-# ac-evo-career — carriera automatizzata per Assetto Corsa EVO
+# EVO Pitwall (`ac-evo-career`) — carriera automatizzata per Assetto Corsa EVO
+
+🐞 **Bug o idea?** [Apri una issue su GitHub](https://github.com/turbignox-hash/ac-evo-career/issues/new) — oppure usa il link “Segnala un problema” nella barra laterale del tool: ti apre la stessa pagina *già compilata* con versione build, serie in corso, errori recenti e difficoltà. · ☕ **Sostieni il progetto:** [Ko-fi](https://ko-fi.com/NOME-UTENTE) ·
 
 Una carriera persistente automatizzata per **Assetto Corsa EVO**, ispirata a un'app
 di carriera per Automobilista 2.

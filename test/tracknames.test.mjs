@@ -1,3 +1,4 @@
+import "./_flows-sandbox.mjs"; // sandbox flussi
 // Il matching piste deve essere UNO SOLO (src/tracknames.mjs): qui si blindano le
 // due regressioni realmente capitate — accenti ("Nürburgring") e suffissi layout
 // ("Imola" vs "ImolaGP", "Nürburgring Gp Strecke") — più il contratto dei moduli

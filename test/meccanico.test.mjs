@@ -1,3 +1,4 @@
+import "./_flows-sandbox.mjs"; // sandbox flussi
 // meccanico.test.mjs — "il meccanico": consigli di setup per pista.
 // Si verifica che il profilo di pista derivi la base giusta (Monza=power,
 // piste dense=tecnica, metà=bilanciata) e che la telemetria CORREGGA

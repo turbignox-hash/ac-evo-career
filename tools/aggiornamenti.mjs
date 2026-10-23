@@ -10,7 +10,8 @@
 // Il save carriera NON si tocca: `data/` resta locale perche' e' fuori dal repo.
 // Senza rete il check si tace in forma breve e il launcher prosegue uguale.
 
-import { execFileSync, execSync } from 'node:child_process';
+import { execFileSync, execSync, execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import readline from 'node:readline/promises';
@@ -30,6 +31,43 @@ function gitOk(args) {
 }
 
 // --- 1: solo lettura, nessuna modifica ---
+// VARIANTE NON BLOCCANTE (audit freeze 23/10: la GUI riapriva '/api/boot' in
+// attesa di ls-remote — il server intero si congelava finché GitHub rispondeva,
+// fino a 8s). Stessa semantica della versione sincrona, ma con execFile in
+// attesa NON bloccante: il processor di altri server continua a girare.
+const execFileP = promisify(execFile);
+async function gitRunAsync(args, timeout = 15000) {
+  const { stdout } = await execFileP('git', args, {
+    encoding: 'utf8', cwd: RADICE, timeout,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+  });
+  return String(stdout ?? '').trim();
+}
+async function gitOkAsync(args) {
+  try { await execFileP('git', args, { stdio: 'pipe', cwd: RADICE, timeout: 15000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }); return true; }
+  catch { return false; }
+}
+export async function statoAggiornamentiAsync() {
+  let head = '';
+  try { head = await gitRunAsync(['rev-parse', 'HEAD']); }
+  catch { return { skip: true, motivo: 'git non disponibile qui.' }; }
+  let remoto = '';
+  try {
+    const out = await gitRunAsync(['ls-remote', 'offsite', 'refs/heads/main'], 8000);
+    remoto = (out.split('\t')[0] ?? '').trim();
+  } catch { return { skip: true, motivo: 'GitHub non raggiungibile (offline?).' }; }
+  if (!remoto) return { skip: true, motivo: 'il remote offsite non risponde con un commit.' };
+
+  if (remoto === head) return { equal: true, discoAvanti: 0 };
+  if (await gitOkAsync(['merge-base', '--is-ancestor', remoto, head])) return { discoAvanti: 1, remotoAvanti: 0, equal: false };
+  if (await gitOkAsync(['merge-base', '--is-ancestor', head, remoto])) {
+    let n = 0;
+    try { n = Number(await gitRunAsync(['rev-list', '--count', head + '..' + remoto])); } catch { /* resta 0 */ }
+    return { remotoAvanti: n || 1, discoAvanti: 0, equal: false };
+  }
+  return { diverged: true, equal: false };
+}
+
 export function statoAggiornamenti() {
   let head = '';
   try { head = gitRun(['rev-parse', 'HEAD']); }

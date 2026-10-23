@@ -1,3 +1,4 @@
+import "./_flows-sandbox.mjs"; // sandbox flussi
 // orario.test.mjs — piani orari per round (richiesta Mauro 21/10/2026):
 // notte, tramontoalba 48x, variabile, e specForRound deterministico.
 import { test } from 'node:test';

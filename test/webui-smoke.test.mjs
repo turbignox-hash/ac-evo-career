@@ -1,3 +1,4 @@
+import "./_flows-sandbox.mjs"; // sandbox flussi
 // webui-smoke.test.mjs — la RETE DI SICUREZZA del server GUI.
 //
 // Motivo: dopo lo split di webui.mjs (viste in webui-views.mjs, costanti in

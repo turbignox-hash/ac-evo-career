@@ -16,7 +16,7 @@ goto run
 
 :guidirect
 echo.
-echo   Apro l'interfaccia grafica della carriera EVO...
+echo   Apro l'interfaccia grafica di EVO Pitwall...
 echo   (si apre nel browser su http://127.0.0.1:8642)
 echo   Il server gira ridotto a icona nella barra delle applicazioni: da li' lo chiudi.
 echo.
@@ -150,7 +150,7 @@ echo.
 echo   La guardia si apre in una finestra a parte: restera' a vigilo'
 echo   finche' quella finestra resta aperta.
 echo.
-start "Carriera EVO — guardia" "%~dp0guarda.cmd"
+start "EVO Pitwall — guardia" "%~dp0guarda.cmd"
 goto dopo
 
 :aprigui
@@ -158,7 +158,7 @@ rem aggiornamenti: se GitHub e' avanti del disco, chiede s/N (Invio o 15s = no)
 node "%~dp0tools\aggiornamenti.mjs" --breve 2>nul
 rem avviso discreto: parla solo se il backup e' stantio o incompleto
 node "%~dp0tools\magazzino-check.mjs" --breve 2>nul
-start "Carriera EVO" /MIN "%~dp0gui-run.cmd"
+start "EVO Pitwall" /MIN "%~dp0gui-run.cmd"
 exit /b 0
 
 :run

@@ -18,9 +18,35 @@
 //   node tools/evo-grid.mjs --verify file     → round-trip: decode→encode byte-identico
 //   node tools/evo-grid.mjs --pi 16 17 file   → cambia la finestra PI (con backup)
 //
-import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { execSync } from 'node:child_process';
+
+// Percorsi di base dei salvataggi AC EVO dell'utente: derivati da USERPROFILE,
+// così i default dei tool libreria girano su qualunque PC (GUIDA-AMICO senza
+// ritocchi). Fallback storico = il PC di sviluppo (Mauro).
+export const USER_HOME = process.env.USERPROFILE || 'C:/Users/Mauro';
+// SANDBOX DEI FILE DI GIOCO (23/10): ACE_GAME_SAVEDIR reindirizza l'intera
+// cartella di salvataggio EVO (GameModes, OpenData, ProfileData) — tipo
+// EVO_DATA_DIR ma per i FILE DEL GIOCO, che prima rischiavano di essere
+// toccati dai test che lanciano i flussi webui (race/event-prep). Ne derivano
+// TUTTE le costanti dei tool (Weekend gamemodesave, customgrid, LGM,
+// drivergarage): un solo interruttore.
+export const GAME_SAVEDIR = process.env.ACE_GAME_SAVEDIR || join(USER_HOME, 'Saved Games', 'ACE');
+export const GAME_MODES_DIR = join(GAME_SAVEDIR, 'GameModes');
+
+/* Trova la cartella OpenData del profilo attivo: ProfileData/<guid>/OpenData*/
+export function openDataDir(root = GAME_SAVEDIR) {
+  const base = join(root, 'ProfileData');
+  try {
+    for (const d of readdirSync(base, { withFileTypes: true })) {
+      if (!d.isDirectory()) continue;
+      const od = join(base, d.name, 'OpenData');
+      if (existsSync(od)) return od;
+    }
+  } catch { /* niente ProfileData: profilo mai avviato sul PC */ }
+  return null;
+}
 
 /* guardia: la scrittura è pericolosa con il gioco aperto (il menu calpesta
    il file o lo riscrive in memoria). Rifiuta di default; --force per forzare. */
@@ -186,7 +212,7 @@ const isMain = process.argv[1] && import.meta.url === new URL(`file:///${process
 if (isMain) {
   const argv = process.argv.slice(2);
   const flag = argv[0];
-  const DEFAULT = 'C:/Users/Mauro/Saved Games/ACE/GameModes/last_grid.customgrid';
+  const DEFAULT = join(GAME_MODES_DIR, 'last_grid.customgrid');
   const jsonSafe = (k, v) => typeof v === 'bigint' ? Number(v) : (v?.type === 'Buffer' ? Buffer.from(v.data).toString('hex').slice(0, 64) + '…' : v);
   if (flag === '--dump') console.log(JSON.stringify(decodeMsg(readFileSync(argv[1] ?? DEFAULT)), jsonSafe, 1).slice(0, 4000));
   else if (flag === '--verify') { const r = verifyRoundTrip(argv[1] ?? DEFAULT); console.log(r.ok ? `ROUND-TRIP OK (${r.size}/${r.sizeOut} byte)` : `ROUND-TRIP DIVERSO (norm-preserving, non byte) ${JSON.stringify(r)}`); }

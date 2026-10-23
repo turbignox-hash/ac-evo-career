@@ -1,4 +1,4 @@
-// cli.mjs — i comandi della carriera EVO. Lingua: EVO_LANG=it|en (src/lang.mjs).
+// cli.mjs — i comandi di EVO Pitwall (la carriera per AC EVO). Lingua: EVO_LANG=it|en (src/lang.mjs).
 
 import { tr, lang, applyLangConfig, hasEnvOverride, localizeLadder } from './lang.mjs';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -21,7 +21,8 @@ import { seasonReview, reviewableSeasons, exportReview } from './review.mjs';
 import { checkIntegrity, fixIntegrity } from './integrity.mjs';
 import { contractStatus, challengeFor, acceptChallenge, ensureLife, careerPlanner } from './life.mjs';
 import { newsFeed } from './gazzetta.mjs';
-import { ensureFlowsSeeded, recentFlows, resetFlows } from './flows.mjs';
+import { ensureFlowsSeeded, recentFlows, resetFlows, dedupFlows } from './flows.mjs';
+import { scanCareer, autoRepair, clearBacheca, resetLedger, reseedFlows, flowDedup } from './maintenance.mjs';
 import { resetNews } from './gazzetta.mjs';
 import {
   agendaDay, gareDelGiorno, prossimoGiornoConGara, avanzaGiorno,
@@ -33,7 +34,7 @@ import { gridGuardProposal } from './grid-guard.mjs';
 import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
 import { applyBalance, applyAi } from './grid-apply.mjs';
 import { calibSummary, calibFile, resetCalib, appuntaConvalida } from './grid-calib.mjs';
-import { gameRunning } from '../tools/evo-grid.mjs';
+import { gameRunning, GAME_MODES_DIR } from '../tools/evo-grid.mjs';
 import { testModeBanner, testModeOn, testModeOff } from './test-mode.mjs';
 import { PIANI, applyPianoToCalendar } from './orario.mjs';
 import { setRaceTime, currentRaceTime } from '../tools/set-racetime.mjs';
@@ -52,7 +53,7 @@ const SAVE_FILE = join(DATA_DIR, savePath(SLOT));
 const CONFIG_FILE = join(DATA_DIR, 'evo.config.json');
 const ARCHIVE_DIR = join(DATA_DIR, 'results-archive');
 // il customgrid “vista dal tool”: lo stesso file che il menu legge/applizza
-const CUSTOMGRID_FILE = join(process.env.USERPROFILE ?? 'C:/Users/Mauro', 'Saved Games', 'ACE', 'GameModes', 'last_grid.customgrid');
+const CUSTOMGRID_FILE = join(GAME_MODES_DIR, 'last_grid.customgrid');
 
 const C = {
   red: (s) => `\x1b[31m${s}\x1b[0m`,
@@ -159,6 +160,7 @@ function cmdHelp() {
     ['griglia [--serie <nodeId>] [--round N] [--dry] [--force]', tr({ it: 'scrive il customgrid della GARA DEL GIORNO: auto del pool + bilanciamento (funziona anche a EVO aperto, dal menu principale; mai dal menu griglia, mai con GENERA)', en: 'writes the customgrid of the RACE OF THE DAY: pool cars + balance (works even with EVO open, from the main menu; never from the grid menu, never with GENERATE)' })],
     ['griglia-calib [--convalida "pista"] [--dry] [--reset]', tr({ it: 'calibrazione dai risultati reali: confidenza per classe+traccia, proposte, appunta la convalida con --convalida', en: 'calibration from real results: confidence per class+track, proposals, bookmarks the validation with --convalida' })],
     ['test-mode [--giri N] | --on | --off', tr({ it: 'modalità test: TUTTE le gare a N giri (default 3). Con --off tornano i giri originali dei calendari', en: 'test mode: ALL races at N laps (default 3). With --off the original calendar laps come back' })],
+    ['pulisci [--bacheca] [--ledger] [--flows-reseed] [--flows-dedup] [--auto]', tr({ it: 'manutenzione: ripara ciò che si può (--auto), poi le liste volute: bacheca, registro import, flussi dal salvataggio, doppioni. Ogni pulizia chiede --yes', en: 'maintenance: repair what can be fixed (--auto), then the requested lists: board, import ledger, flows from the save, duplicates — every cleanup needs --yes' })],
   ];
   console.log(C.bold(tr({ it: '\nac-evo-career — carriera per Assetto Corsa EVO\n', en: '\nac-evo-career — career for Assetto Corsa EVO\n' })));
   console.log(tr({ it: 'Uso: node ac-evo-career.mjs <comando> [opzioni]\n', en: 'Usage: node ac-evo-career.mjs <command> [options]\n' }));
@@ -825,7 +827,7 @@ function cmdImport(args) {
   const entry = out.entry;
   console.log(C.bold(tr({ it: `\nRisultato importato — ${out.node}, round ${out.round}\n`, en: `\nResult imported — ${out.node}, round ${out.round}\n` })));
   console.log(`  ${C.dim(out.source)}`);
-  console.log(`  ${tr({ it: 'Posizione:', en: 'Position:' })} ${entry.dnf ? C.red(tr({ it: 'ritiro', en: 'retired' })) : 'P' + entry.position} ${tr({ it: 'su', en: 'of' })} ${entry.gridSize}${entry.fl ? C.yellow(tr({ it: ' · giro veloce', en: ' · fast lap' })) : ''}`);
+  console.log(`  ${tr({ it: 'Posizione:', en: 'Position:' })} ${entry.dsq ? C.red(tr({ it: 'squalificato', en: 'disqualified' })) : entry.dnf ? C.red(tr({ it: 'ritiro', en: 'retired' })) : 'P' + entry.position} ${tr({ it: 'su', en: 'of' })} ${entry.gridSize}${entry.penalty && !entry.dnf && !entry.dsq ? C.yellow(tr({ it: ` · penalità ${entry.penalty}${entry.rawPos && entry.rawPos !== entry.position ? ` (da P${entry.rawPos})` : ''}`, en: ` · ${entry.penalty} penalty${entry.rawPos && entry.rawPos !== entry.position ? ` (from P${entry.rawPos})` : ''}` })) : ''}${entry.fl ? C.yellow(tr({ it: ' · giro veloce', en: ' · fast lap' })) : ''}`);
   console.log(`  ${tr({ it: 'Punti:', en: 'Points:' })} ${entry.points}   ${tr({ it: 'Premio:', en: 'Prize:' })} ${money(entry.prize)}   ${tr({ it: 'Reputazione:', en: 'Reputation:' })} +${entry.rep}`);
   console.log(`  ${tr({ it: 'Classifica:', en: 'Standings:' })} P${out.standing.before ?? '?'} -> ${C.cyan('P' + (out.standing.after ?? '?'))} (${out.standing.points} ${tr({ it: 'punti', en: 'points' })})`);
   console.log(`  ${tr({ it: 'Banca:', en: 'Bank:' })} ${C.green(money(out.money))}   ${tr({ it: 'Reputazione:', en: 'Reputation:' })} ${out.rep}`);
@@ -887,7 +889,7 @@ async function cmdWatch(args) {
       const out = watchOnce(ladder, paths, { baselineMs: baseline });
       if (out.imported) {
         const e = out.imported.entry;
-        console.log(C.green(tr({ it: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €`, en: tr({ it: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €`, en: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €` }) })));
+        console.log(C.green(tr({ it: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dsq ? tr({ it: 'squalifica', en: 'DSQ' }) : e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €`, en: tr({ it: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dsq ? tr({ it: 'squalifica', en: 'DSQ' }) : e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €`, en: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dsq ? tr({ it: 'squalifica', en: 'DSQ' }) : e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €` }) })));
         console.log(`  ${C.dim(tr({ it: 'Banca: ', en: 'Bank: ' }) + out.imported.money + ' · rep ' + out.imported.rep)}`);
         if (out.imported.proposal) console.log(`  ${C.yellow(tr({ it: 'Suggerimento difficoltà', en: 'Difficulty suggestion' }))}: trim ${signed(out.imported.proposal.from)} / ${signed(out.imported.proposal.to)} — ${tr({ it: 'decidilo con difficulty --accept / --reject', en: 'decide with difficulty --accept / --reject' })}\n`);
         else console.log();
@@ -1030,6 +1032,56 @@ function cmdDottore(args) {
   } else {
     console.log(C.dim(tr({ it: '\nCorreggi con:  node ac-evo-career.mjs dottore --fix\n', en: '\nRepair with:  node ac-evo-career.mjs dottore --fix\n' })));
   }
+  return 0;
+}
+
+// PULISCI — manutenzione della carriera (23/10/2026): lo stesso rione Manutenzione
+// della webui, da riga di comando. Il dottore che ripara e le liste che si puliscono.
+function cmdPulisci(args) {
+  const { ladder } = context();
+  const state = requireState();
+  ensureFlowsSeeded(state);
+  const persistState = () => saveState(SAVE_FILE, state);
+  let did = false;
+
+  if (args.flags.auto) {
+    const out = autoRepair(ladder, state, { persist: persistState });
+    if (!out.issues.length) console.log(C.green(tr({ it: '  Scansione completa: tutto torna.', en: '  Full scan: everything checks out.' })));
+    else if (out.fixed.length) { console.log(C.green(tr({ it: `  Scansione + riparazione: corretti ${out.fixed.length} valori:`, en: `  Scan + repair: fixed ${out.fixed.length} values:` }))); for (const f of out.fixed) console.log(`    ✓ ${f}`); did = true; }
+    else { console.log(C.yellow(tr({ it: `  ${out.issues.length} anomalie restano (verificabili con "dottore")`, en: `  ${out.issues.length} issues remain (check with "dottore")` }))); did = true; }
+  } else if (!args.flags.bacheca && !args.flags.ledger && !args.flags['flows-reseed'] && !args.flags['flows-dedup'] && !args.flags.yes) {
+    // senza nessuna opzione: solo la scansione (letta sempre dalle fonti vive) e il riepilogo di ciò che si può fare
+    const { issues } = scanCareer(ladder, state);
+    if (!issues.length) console.log(C.green(tr({ it: '\nScansione completa: tutto torna.\n', en: '\nFull scan: everything checks out.\n' })));
+    else {
+      console.log(C.yellow(tr({ it: `\nScansione completa: ${issues.length} anomalie:\n`, en: '\nFull scan: found anomalies:\n' })));
+      for (const i of issues) console.log(`  ${i.severity === 'high' ? C.red('•') : C.yellow('•')} ${i.text}`);
+      console.log(C.dim(`\n  ${tr({ it: 'Ripara ciò che si può:  node ac-evo-career.mjs pulisci --auto', en: 'Repair what can be fixed:  node ac-evo-career.mjs pulisci --auto' })}\n`));
+    }
+    console.log(C.dim(tr({ it: 'Pulizie con conferma:  --bacheca (svuota annunci) · --ledger (registro import) · --flows-reseed (flussi dal salvataggio) · --flows-dedup (doppioni) — tutte richiedono --yes.', en: 'Cleanups need confirmation:  --bacheca (clear posts) · --ledger (import ledger) · --flows-reseed (flows from the save) · --flows-dedup (duplicates) — all need --yes.' })));
+    return 0;
+  }
+
+  const YES = !!args.flags.yes;
+  const need = () => { if (!YES) { console.log(C.yellow(tr({ it: '  Serve --yes per confermare una pulizia (tocca liste di memoria: non tornano indietro).', en: '  Confirm with --yes (this touches memory lists: no way back).' }))); process.exitCode = 1; return false; } return true; };
+
+  if (args.flags.bacheca && need()) {
+    const r = clearBacheca(state, { persist: persistState });
+    console.log(C.green(`  ${tr({ it: 'Bacheca svuotata:', en: 'Board cleared:' })} ${r.removed} ${tr({ it: 'annunci cancellati (la traccia resta in bacheca).', en: 'posts removed (a trace stays on the board).' })}`)); did = true;
+  }
+  if (args.flags.ledger && need()) {
+    resetLedger();
+    console.log(C.green(tr({ it: '  Registro anti-doppioni azzerato: da qui un file già incassato può volere un nuovo incasso se lo re-importi a mano.', en: '  Anti-duplicate ledger reset: from now on an already banked file can be banked again by hand.' }))); did = true;
+  }
+  if (args.flags['flows-reseed'] && need()) {
+    reseedFlows(state, { persist: persistState });
+    console.log(C.green(tr({ it: '  Registro flussi ricalcolato dal salvataggio attuale (una riga di seme, cassa e rep allineate).', en: '  Flow ledger re-seeded from the current save (one seed row; money and rep aligned).' }))); did = true;
+  }
+  if (args.flags['flows-dedup'] && need()) {
+    const r = flowDedup();
+    console.log(C.green(`  ${tr({ it: 'Doppioni esatti tolti:', en: 'Exact duplicates removed:' })} ${r.removed} (${tr({ it: 'restano', en: 'left' })} ${r.kept}).`)); did = true;
+  }
+  if (!did && !args.flags.auto) return 0;
   return 0;
 }
 
@@ -1212,7 +1264,7 @@ async function cmdGriglia(args) {
   // d'epoca multi-marca del 21/10 ore 12:34); la scrittura va SEMPRE su
   // last_grid.customgrid, con il suo backup (lezione 21/10 16:5x: nel primo
   // giro il flag sovrascriveva il template stesso — recuperato dal backup).
-  const file = join(process.env.USERPROFILE ?? 'C:/Users/Mauro', 'Saved Games', 'ACE', 'GameModes', 'last_grid.customgrid');
+  const file = join(GAME_MODES_DIR, 'last_grid.customgrid');
   const tplFile = typeof args.flags.template === 'string' ? args.flags.template : file;
 
   const { buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: tplFile });
@@ -1399,6 +1451,7 @@ export async function main(argv) {
       case 'piano': case 'planner': return cmdPiano(args);
       case 'sfida': case 'challenge': return cmdSfida(args);
       case 'dottore': return cmdDottore(args);
+      case 'pulisci': case 'clean': return cmdPulisci(args);
       case 'accept': return cmdAccept(args);
       case 'griglia': case 'grid': return await cmdGriglia(args);
       case 'griglia-calib': case 'grid-calib': return await cmdGrigliaCalib(args);

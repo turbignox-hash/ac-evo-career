@@ -1,3 +1,4 @@
+import "./_flows-sandbox.mjs"; // sandbox flussi
 // gridclasses.test.mjs — le tre scoperte fragili del 19–20/10/2026, protette:
 //   1) restrictor: nel FILE è una FRAZIONE (raw = %/100 — setF32(pct/100));
 //      senza test, la classe roadster_classic era già regredita di un fattore 100.

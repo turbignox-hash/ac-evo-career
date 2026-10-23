@@ -73,7 +73,9 @@ async function drawDifficulty(m){
     [$('.smin', duo), $('.smax', duo)].forEach(inp => inp.addEventListener('input', (e) => clampDuo(duo, e.target.classList.contains('smin') ? 'smin' : 'smax', {z:true})));
     [$('.smin', duo), $('.smax', duo)].forEach(inp => inp.addEventListener('change', () => saveRange(row)));
     $('.rc', row)?.addEventListener('click', async () => {
-      try { await api('difficulty-action', {op:'range', nodeId: row.dataset.id, clear:true}); toast(tr({ it: 'Tornato il consiglio automatico (cursori del gioco tornati a centro ±5).', en: 'Back to the automatic suggestion (game sliders back to centre ±5).' }), 'ok'); }
+      try { await api('difficulty-action', {op:'range', nodeId: row.dataset.id, clear:true}); toast(row.dataset.id.startsWith('evento_')
+        ? tr({ it: 'Banda dell\'evento tornata al fisso 88–93 (quella della scheda evento).', en: 'Event band back to the fixed 88–93 (the event card one).' })
+        : tr({ it: 'Tornato il consiglio automatico (cursori del gioco tornati a centro ±5).', en: 'Back to the automatic suggestion (game sliders back to centre ±5).' }), 'ok'); }
       catch(e){ toast(e.message, 'err'); }
     });
   });
@@ -332,6 +334,23 @@ function drawSettings(m){
       <div class="row"><button class="ghost" id="b-integrity">${tr({ it: 'Controlla la carriera', en: 'Check the career' })}</button></div>
       <div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: 'Ricalcola statistiche, cassa e reputazione dalle gare e dalla bacheca: se qualcosa non torna (per esempio una gara fantasma) te lo dice e può correggere.', en: 'Recomputes stats, money and reputation from races and the board: if something is off (say a ghost race) it tells you and can fix it.' })}</div>
       <div id="integrity-out" style="margin-top:8px;font-size:13px"></div>
+      <h2 style="margin-top:22px">${tr({ it: 'Manutenzione', en: 'Maintenance' })}</h2>
+      <div class="row" style="flex-wrap:wrap;gap:8px">
+        <button class="ghost" id="b-maint-scan">${tr({ it: 'Scansiona ora', en: 'Scan now' })}</button>
+        <button class="ghost" id="b-maint-fix">${tr({ it: 'Scansiona e ripara', en: 'Scan and repair' })}</button>
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;cursor:pointer">
+        <input type="checkbox" id="i-maint-auto">
+        <span>${tr({ it: 'Auto-riparazione: il tool scansiona da solo all\'avvio e ogni 10 minuti, e corregge senza chiedere ciò che si corregge in sicurezza.', en: 'Auto-repair: the tool scans by itself at startup and every 10 minutes, safely fixing whatever can be fixed without asking.' })}</span>
+      </label>
+      <div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px">
+        <button class="mini ghost" id="b-maint-board">${tr({ it: 'Svuota bacheca', en: 'Clear the board' })}</button>
+        <button class="mini ghost" id="b-maint-ledger">${tr({ it: 'Azzera registro import', en: 'Reset import ledger' })}</button>
+        <button class="mini ghost" id="b-maint-flows">${tr({ it: 'Ricalcola flussi dal salvataggio', en: 'Re-seed flows from the save' })}</button>
+        <button class="mini ghost" id="b-maint-dedup">${tr({ it: 'Elimina doppioni dei flussi', en: 'Remove duplicate flows' })}</button>
+      </div>
+      <div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: 'Le pulizie chiedono conferma: tocchano liste di memoria (annunci, registro anti-doppioni, registro flussi) e niente torna indietro. Flussi ricalcolati e doppioni tolti non toccano il salvataggio: solo il registro, che si ricostruisce dai valori attuali.', en: 'Cleanups ask for confirmation first: they touch memory lists (posts, anti-duplicate ledger, flow ledger) and there is no way back. Re-seeding and dedup leave the save untouched: only the ledgers change, rebuilt from current values.' })}</div>
+      <div id="maint-out" style="margin-top:8px;font-size:13px"></div>
     </div>
   </div>`;
   // slot cliccabili: il bottone nella riga lancia pilota-N.cmd via slot-launch
@@ -367,6 +386,49 @@ function drawSettings(m){
       toast(tr({ it: 'Backup creato: ', en: 'Backup created: ' }) + r.backups[0]?.at, 'ok');
     } catch(err){ toast(err.message,'err'); }
   };
+  // ---- MANUTENZIONE: scansione, auto-riparazione e pulizie ----
+  const maintOut = $('#maint-out');
+  api('maintenance', { op: 'auto-status' }).then((r) => { $('#i-maint-auto').checked = !!r.autoRepair; }).catch(() => {});
+  $('#i-maint-auto').onchange = async (e) => {
+    try { await api('maintenance', { op: 'auto-toggle', on: e.target.checked }); toast(e.target.checked ? tr({ it: "Auto-riparazione attivata.", en: 'Auto-repair enabled.' }) : tr({ it: 'Auto-riparazione disattivata.', en: 'Auto-repair off.' }), 'ok'); }
+    catch (err) { toast(err.message, 'err'); e.target.checked = !e.target.checked; }
+  };
+  const showScan = ({ issues, fixed = [] } = {}) => {
+    if (!issues.length) { maintOut.innerHTML = `<div class="banner good">${tr({ it: `Tutto torna (scansione di ${new Date().toLocaleTimeString()}).`, en: `All clear (scanned at ${new Date().toLocaleTimeString()}).` })}</div>` + (fixed.length ? `<div class="muted" style="margin-top:6px">${tr({ it: 'Corretti: ', en: 'Fixed: ' }) + esc(fixed.join(', '))}</div>` : ''); return; }
+    maintOut.innerHTML = `<div class="banner warn"><b>${issues.length} ${tr({ it: 'anomalie:', en: 'issues:' })}</b><ul style="margin:6px 0 0 18px">${issues.map(i=>`<li>${esc(i.text)}</li>`).join('')}</ul></div>`;
+  };
+  $('#b-maint-scan').onclick = async () => {
+    try { showScan(await api('maintenance', { op: 'scan' })); }
+    catch (err) { toast(err.message, 'err'); }
+  };
+  $('#b-maint-fix').onclick = async () => {
+    try { const r = await api('maintenance', { op: 'fix' }); showScan(r); if (r.fixed.length) { await refreshBoot(); toast(tr({ it: 'Riparato: ', en: 'Repaired: ' }) + r.fixed.join(', '), 'ok'); } }
+    catch (err) { toast(err.message, 'err'); }
+  };
+  const manutenzione = (btnId, op, domTitle, domText) => {
+    $('#'+btnId).onclick = () => {
+      modal(domTitle, domText,
+        [[tr({ it: 'Annulla', en: 'Cancel' }), 'ghost', () => {}],
+         [tr({ it: 'Confermo', en: 'Confirm' }), 'danger', async () => {
+           try { const r = await api('maintenance', { op, confirm: true });
+             toast(tr({ it: 'Fatto. La traccia resta in bacheca.', en: 'Done. A trace is left on the board.' }), 'ok');
+             await refreshBoot(); render();
+           } catch (err) { toast(err.message, 'err'); }
+         }]]);
+    };
+  };
+  manutenzione('b-maint-board', 'clear-messages', tr({ it: 'Svuotare la bacheca?', en: 'Clear the board?' }),
+    `<p>${tr({ it: 'Tutti gli annunci in bacheca (anello a 60, quello che gira) vengono cancellati: premi, integrità e avvisi spariscono. Restano gare, soldi, statistiche e registro flussi.', en: 'All board posts (the 60-slot ring) are deleted: prizes, integrity and warnings disappear. Races, money, stats and the flow ledger stay.' })}</p>`);
+  manutenzione('b-maint-ledger', 'reset-ledger', tr({ it: 'Azzerare il registro import?', en: 'Reset the import ledger?' }),
+    `<p>${tr({ it: 'Il registro anti-doppioni va a vuoto: un file risultato già incassato potrebbe essere rincassato se lo re-importi da Centro gare. Usa solo se il registro è corrotto.', en: 'The anti-duplicate ledger is emptied: a result file already banked could be banked again if you re-import it by hand. Only use this if the ledger is corrupted.' })}</p>`);
+  manutenzione('b-maint-flows', 'reseed-flows', tr({ it: 'Ricalcolare i flussi?', en: 'Re-seed the flow ledger?' }),
+    `<p>${tr({ it: 'Il registro flussi viene azzerato e riparte da UNA riga di seme allineata a cassa e reputazione attuali del salvataggio. Il salvataggio non cambia.', en: 'The flow ledger is emptied and restarts from ONE seed row aligned with the save\'s current money and reputation. The save is not changed.' })}</p>`);
+  $('#b-maint-dedup').onclick = async () => {
+    try { const r = await api('maintenance', { op: 'dedup-flows', confirm: true });
+      toast(r.removed ? tr({ it: `Tolti ${r.removed} doppioni (restano ${r.kept}).`, en: `Removed ${r.removed} duplicates (${r.kept} left).` }) : tr({ it: 'Nessun doppione: il registro era già pulito.', en: 'No duplicates: the ledger was already clean.' }), r.removed ? 'ok' : 'info');
+    } catch (err) { toast(err.message, 'err'); }
+  };
+
   $('#b-integrity').onclick = async () => {
     const out = $('#integrity-out');
     try {

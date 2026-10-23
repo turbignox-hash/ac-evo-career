@@ -51,14 +51,31 @@ export function checkIntegrity(ladder, state) {
   if (state.rep !== rep) issues.push({ severity: 'high', text: `Reputazione: il salvataggio dice ${state.rep}, dai flussi registrati risulta ${rep} (diff ${state.rep - rep}).` });
 
   // coerenza interna delle gare
+  const board = state.messages ?? [];
+  // la bacheca è un anello a 60 (pushMessage): un annuncio più vecchio del primo
+  // messaggio ancora in bacheca è stato scritto e poi spinto fuori dal cap —
+  // non è un annuncio mancante (regola degli annunci scappati, 23/10/2026).
+  const oldestAt = board.length ? Math.min(...board.map((m) => new Date(m.at ?? 0).getTime())) : 0;
   for (const r of races) {
     const node = ladder.nodes.find((x) => x.nodeId === r.nodeId);
     const label = `${node?.display ?? r.nodeId} · ${node?.calendar?.[r.round]?.name ?? 'R' + (r.round + 1)}`;
     if (r.dnf && r.position === 1) issues.push({ severity: 'medium', text: `${label}: ritiro ma posizione 1 — dati contraddittori.` });
     if (r.bestLap && !lapMs(r.bestLap)) issues.push({ severity: 'low', text: `${label}: miglior giro "${r.bestLap}" in formato strano.` });
     const roundName = node?.calendar?.[r.round]?.name ?? `Round ${r.round + 1}`;
-    const has = (state.messages ?? []).some((m) => msgText(m).includes(String(roundName)) && (r.dnf ? msgText(m).includes('ritiro') : msgText(m).includes('P' + r.position)));
-    if (!has) issues.push({ severity: 'low', text: `Manca l'annuncio in bacheca per ${label}.` });
+    /* il calendario della ladder è l'attuale: per le stagioni passate la pista
+       della stessa round può essere cambiata (calendari riscritti), quindi il
+       nome da solo non basta — l'importer scrive gara e annuncio nello stesso
+       istante (±2 s), e un annuncio contesto è una prova decisamente migliore. */
+    const sameRace = (m) => {
+      const t = msgText(m);
+      if (t.includes(String(roundName)) && (r.dnf ? t.includes('ritiro') : t.includes('P' + r.position))) return true;
+      if (!r.at || !m.at) return false;
+      const dms = Math.abs(new Date(m.at).getTime() - new Date(r.at).getTime());
+      return dms <= 2000 && t.includes('premio');
+    };
+    const has = board.some((m) => sameRace(m));
+    const raceT = new Date(r.at ?? 0).getTime();
+    if (!has && Number.isFinite(raceT) && (!oldestAt || raceT >= oldestAt) && oldestAt > 0) issues.push({ severity: 'low', text: `Manca l'annuncio in bacheca per ${label}.` });
   }
   return issues;
 }

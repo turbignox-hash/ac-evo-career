@@ -3259,7 +3259,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "club_short",
-      "gridSize": 14,
+      "gridSize": 6,
       "ai": [
         78,
         88
@@ -3794,7 +3794,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "club_short",
-      "gridSize": 14,
+      "gridSize": 13,
       "ai": [
         78,
         88
@@ -4234,7 +4234,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 14,
+      "gridSize": 7,
       "ai": [
         82,
         92
@@ -4396,7 +4396,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 7,
       "ai": [
         85,
         95
@@ -4579,7 +4579,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 3,
       "ai": [
         85,
         95
@@ -4667,7 +4667,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 3,
       "ai": [
         85,
         95
@@ -5174,7 +5174,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 14,
       "ai": [
         85,
         95
@@ -5262,7 +5262,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 10,
       "ai": [
         88,
         98

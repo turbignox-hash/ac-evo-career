@@ -20,14 +20,14 @@
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodeMsg, encodeMsg, gridFileOf } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg, gridFileOf, GAME_MODES_DIR } from '../tools/evo-grid.mjs';
 import { sameTrack } from './tracknames.mjs';
 import { tr } from './lang.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);
 const CLASSES_FILE = join(PROJECT, 'data', 'grid-classes.json');
-const TEMPLATE_DEFAULT = 'C:/Users/Mauro/Saved Games/ACE/GameModes/last_grid.customgrid';
+const TEMPLATE_DEFAULT = join(GAME_MODES_DIR, 'last_grid.customgrid');
 const CARS_JSON = 'E:/SteamLibrary/steamapps/common/Assetto Corsa EVO Dedicated Server/cars.json';
 const PENDENZA_PCT_PER_PI = 25;   // calibrata 19/10/2026 sulla classe 8–9
 const BALLAST_STD = 100;
@@ -256,11 +256,15 @@ export function buildGridMessage(opts) {
   // riscala l'ABILITÀ dei piloti: priorità al campo AI PER-TRACCIA della classe
   // matchata (es. Sebring 97-98), poi all'aiStandard della classe (99-100, stan,
   // poi alla serie sul ladder, poi nessuna riscala (restano le skill del template).
+  // opts.aiBand: banda RICHIESTA (eventi speciali, tasto Prepara): la griglia
+  // dell'evento deve fare la banda fissa dell'invito (88-93), NON quella di una
+  // classe di campionato combaciata per caso con le auto ospiti.
   const matched = pickClass(classes, nodeId, poolPresets);
   const trkKey = matched.cls ? perTrackKey(matched.cls, round.track) : null;
   const clsAi = matched.cls?.perTraccia?.[trkKey]?.aiStandard ?? matched.cls?.aiStandard ?? null;
-  const aiEff = clsAi ?? (node.ai?.length === 2 ? node.ai : null);
-  const aiFrom = clsAi == null ? 'dal ladder' : (trkKey && matched.cls?.perTraccia?.[trkKey]?.aiStandard ? 'per-traccia' : 'standard della classe');
+  const bandaVoluta = Array.isArray(opts.aiBand) && opts.aiBand.length === 2;
+  const aiEff = bandaVoluta ? opts.aiBand : (clsAi ?? (node.ai?.length === 2 ? node.ai : null));
+  const aiFrom = bandaVoluta ? 'banda richiesta (evento)' : (clsAi == null ? 'dal ladder' : (trkKey && matched.cls?.perTraccia?.[trkKey]?.aiStandard ? 'per-traccia' : 'standard della classe'));
   // auto ESCLUSE dalla classe matchata: rimosse dal pool — la griglia non le
   // include affatto. Possono essere di classe (escludiAuto: vale ovunque, come
   // il Golf 8 R nella 9-10) o PER-TRACCIA (escludiAuto dentro la variante
@@ -276,34 +280,28 @@ export function buildGridMessage(opts) {
   }
 
   const newCells = [];
-  for (let i = 0; i < target; i++) newCells.push(poolCells[i % poolCells.length]);
-  // lezione 20/10 (7-8 crash a Suzuka): griglie scritte con CELLE IDENTICHE ripetute
-  // (loop su pool di 1-3: la monomarca 14×205, la mista 12 GT86/R5/Escort) crashano
-  // EVO 0.9.1 all'istanziazione (+1ms dopo l'ultimo Opponent found, 0xC0000005 su
-  // RenderWorker). Le griglie con preset MECC e VISUAL ALTERNATI (15+ celle, come le
-  // scrive il GENERA del gioco: visual_1/2/3, mech varianti) partono sempre.
-  // Rimedio: per ogni fila di celle-uguali consecutive alterniamo il VISUAL preset
-  // (visual_1 ↔ visual_2 se esistono nel file di partenza; altrimenti si lascia).
-  const visualOf = (b) => { for (const g of decodeMsg(b)) if (g.field === 11) { const t = utf8(g.bytes); const k = t.indexOf('\x12'); return (k >= 0 ? t.slice(k + 1).split('\x18')[0] : t) || null; } return null; };
-  const altVisual = (b, idx) => {
-    const v = visualOf(b);
-    if (!v) return b;                                                     // senza visual: si lascia
-    if (!/_(\d+)$/.test(v)) return b;
-    const n = Number(v.match(/_(\d+)$/)[1]);
-    const other = v.replace(/_(\d+)$/, '_' + (n === 1 ? 2 : 1));              // alterna 1↔2
-    if (!Object.values(carVisualKnown ?? {}).flat().includes(other) && !(carVisualKnown ?? {})[b] ) {
-      // il visual alternativo non è noto: uso solo la coppia (sicurezza crash-visuale)
-    }
-    const inner = decodeMsg(b);
-    const out = inner.map((g) => {
-      if (g.field !== 11) return g;
-      const t = utf8(g.bytes);
-      return { ...g, bytes: Buffer.from(t.replace(/(^|\x12)([^\x18]*_)(\d+)/, (m, pre, base, num) => pre + base + (Number(num) === n ? (n === 1 ? 2 : 1) : num)), 'utf8') };
-    });
-    return encodeMsg(out);
-  };
-  const withVisual = newCells.map((b, i) => (i % 2 === 1 ? altVisual(b, i) : b));
-  newCells.splice(0, newCells.length, ...withVisual);
+  // LEZIONE 20/10 (7-8 crash a Suzuka) + 23/10 (crash 19:32 sulla griglia F40 del
+  // Gran Finale): griglie scritte con CELLE IDENTICHE ripetute (loop su un pool
+  // con troppe poche varianti: la monomarca 14×205 o 5×F40 con solo 3 liveries)
+  // crashano EVO 0.9.1 (0xC0000005 all'istanziazione degli avversari). L'alternanza
+  // visual_1↔2 era morta sul nascere: il visual preset sta nel PRIMO segmento del
+  // campo 11 (es. preset_f40lm_visual_5), non nel nome dopo '\x12' ("F40 LM Visual
+  // 5", senza underscores). E le 5 F40 scritte ieri (visual 5/4/6 a giro) erano
+  // 3 uniche su 5: due PAIA identiche, crashato alla prima prova in gioco.
+  // La regola vera: ogni cella scritta deve essere BYTE-UNICA. Se il pool ha
+  // meno varianti uniche delle vetture richieste NON si scrive niente: si chiede
+  // o una griglia più piccola o un template più ricco (più liveries della stessa
+  // auto, generate in EVO e APPLICA — il gesto dei backup .bak-*).
+  const cellsUniche = [];
+  const vistiCella = new Set();
+  for (const b of poolCells) {
+    const k = Buffer.from(b).toString('hex');
+    if (!vistiCella.has(k)) { vistiCella.add(k); cellsUniche.push(b); }
+  }
+  if (cellsUniche.length < target) {
+    throw new Error(`griglia rifiutata: il template ha solo ${cellsUniche.length} celle uniche (servono ${target}) — con celle ripetute EVO 0.9.1 crasha (lezione 20/10 + crash 23/10 sull'F40). O si fissa la griglia a ${cellsUniche.length} vetture, o si genera in EVO una griglia personalizzata con più LIVERIES della stessa auto (${target} varianti) e si preme APPLICA.`);
+  }
+  for (let i = 0; i < target; i++) newCells.push(cellsUniche[i % cellsUniche.length]);
   const newDrivers = [];
   for (let i = 0; i < target; i++) newDrivers.push(tpl.drivers[i % tpl.drivers.length]);
 
@@ -326,6 +324,30 @@ export function buildGridMessage(opts) {
     }
   }
 
+  // STESSA REGOLA DELLE CELLE per i driver: due driver byte-identici (nome uguale,
+  // skill uguale) possono instanziare lo stesso problema che crasha. Con il pool
+  // corto, i driver tiled si ripetono: si spacchetta il campo skill (f4, float)
+  // finché l'elenco è tutto distinto, restando nella banda (88-93) o in 0..1.
+  const limitiDriver = aiEff?.length === 2 ? [aiEff[0] / 100, aiEff[1] / 100] : [0.01, 1];
+  const passoSkill = (limitiDriver[1] - limitiDriver[0]) / (target + 1);
+  const nudgeSkill = (b) => {
+    const inner = decodeMsg(b);
+    const i4 = inner.findIndex((x) => x.field === 4 && x.wire === 5);
+    if (i4 < 0) return b;
+    const v = Math.min(limitiDriver[1], Math.max(limitiDriver[0], (f32(inner[i4].bytes) ?? 0) + passoSkill));
+    inner[i4].bytes = setF32(v);
+    return encodeMsg(inner);
+  };
+  const vistiDriver = new Set();
+  for (let i = 0; i < target; i++) {
+    let b = newDrivers[i];
+    if (!b) continue;
+    let k = Buffer.from(b).toString('hex');
+    for (let tries = 0; vistiDriver.has(k) && tries < target + 2; tries++) { b = nudgeSkill(b); k = Buffer.from(b).toString('hex'); }
+    vistiDriver.add(k);
+    newDrivers[i] = b;
+  }
+
   // preset presentein celle (per il bilanciamento per preset; dedup)
   const presets = [...new Set(newCells.map((b) => {
     for (const g of decodeMsg(b)) if (g.field === 10) return decodeMsg(g.bytes).filter((x) => x.field === 1).map((x) => utf8(x.bytes))[0] ?? null;
@@ -334,7 +356,12 @@ export function buildGridMessage(opts) {
   // NOTE: se la serie ha auto proprie (node.cars) NON presenti nel template
   // pool, segnalo il conflitto nel report: il template è la sorgente delle celle
   // (zero rischio crash), il ladder descrive la serie — nel dubbio vince il pool.
-  const { origine, rules } = rulesFor(classes, nodeId, presets, matched.cls, matched.id, round.track);
+  // opts.noBalance: la griglia di UN EVENTO SPECIALE non bilancia niente (gli
+  // ospiti sono auto diverse fra loro per scelta del tema; zavorre di una classe
+  // di campionato combaciata per caso sarebbero capricciose).
+  const { origine, rules } = opts.noBalance
+    ? { origine: 'evento speciale: nessun bilanciamento (auto ospiti libere)', rules: [] }
+    : rulesFor(classes, nodeId, presets, matched.cls, matched.id, round.track);
   const bilanciate = newCells.map((b) => applyRulesToCell(b, rules));
 
   // config campo 3: partiamo dai raw del template e patchiamo ciò che cambia
@@ -346,6 +373,11 @@ export function buildGridMessage(opts) {
     else cfgNew.push(value);       // ordine non garantito alla coda, i protobuf lo tollerano
   };
   setCfg(1, { field: 1, wire: 0, varint: BigInt(target) });
+  // 23/10: il builder ora incolona il campo `2 = 1` nella config, come fa
+  // EVO (la nativa lo scrive sempre). VERDETTO rev. 4 (NOTE AUTOMAZIONE): quel
+  // campo NON è la causa dei crash all'avvio sessione (flaky, nella UI del
+  // menu) — resta scritto per uniformità con EVO, non come difesa.
+  setCfg(2, { field: 2, wire: 0, varint: 1n });
   if (aiEff?.length === 2) { setCfg(21, { field: 21, wire: 0, varint: BigInt(aiEff[0]) }); setCfg(22, { field: 22, wire: 0, varint: BigInt(aiEff[1]) }); }
   // finestra PI: dal pool reale del template (min/max dei PI dei preset, arrotondate)
   const pi = carPiByPreset();

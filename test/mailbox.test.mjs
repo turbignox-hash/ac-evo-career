@@ -1,3 +1,4 @@
+import "./_flows-sandbox.mjs"; // sandbox flussi
 // mailbox.test.mjs — la posta del pilota: UNA EMAIL = UNA DECISIONE.
 // Il restyling 21/10/2026 (dopo la casella a 14 urgenti gemelle) impone:
 //  - gare in ritardo: UNA sola email che le elenca tutte (non una per serie);

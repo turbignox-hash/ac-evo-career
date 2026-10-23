@@ -21,6 +21,7 @@ import {
 } from './state.mjs';
 import { agendaDay, dateLabel, scheduledDay, racesOnDay, prossimoGiornoConGara } from './agenda.mjs';
 import { raceCard } from './race.mjs';
+import { eventCard } from './events.mjs';
 import { PIANI } from './orario.mjs';
 import { tr } from './lang.mjs';
 import { mailbox } from './mailbox.mjs';
@@ -295,6 +296,9 @@ function viewCard(ladder, state, car = null) {
     qualifyStart: card.qualifyStart,
     settings: card.settings,
     warnings: card.warnings,
+    // rituale della prima griglia della serie (23/10: serie nuova = template
+    // assente sul disco): se c'è da fare tell'ora, la card la mostra in testa
+    gridRitual: card.gridRitual ?? null,
     carAdvice: card.carAdvice,
     outlook: card.outlook,
     challenge: card.challenge ?? null,
@@ -437,6 +441,29 @@ function viewCard(ladder, state, car = null) {
       overridden: oMin != null || oMax != null,
     });
   }
+  // L'EVENTO SPECIALE non è una serie del ladder (lezione 23/10: la scheda
+  // difficoltà lo ometteva e Mauro non vedeva la sua banda): con un evento
+  // attivo lo si mostra in cima alla lista, con i suoi SOLO cursori — banda
+  // fissa 88–93 della card evento, o l'override scritto dall'utente (id
+  // `evento_*`, ce l'ha anche il tasto range del pannello). NON ha base/trim:
+  // sono le colonne del ladder, qui segnata con "—".
+  try {
+    const evCard = eventCard(ladder, state);
+    if (evCard) {
+      const evId = `evento_${evCard.theme?.id ?? 'speciale'}`;
+      const ov = state.raceSettings?.[evId] ?? {};
+      const lo = Number.isFinite(Number(ov.sliderMin)) ? Number(ov.sliderMin) : evCard.diffMin;
+      const hi = Number.isFinite(Number(ov.sliderMax)) ? Number(ov.sliderMax) : evCard.diffMax;
+      rows.unshift({
+        id: evId, display: `★ ${evCard.theme?.name ?? 'Evento speciale'} — evento speciale`, discipline: 'evento speciale',
+        current: false, base: '—', trim: '—', offClass: '—', offTrack: '—',
+        total: null, slider: lo, locked: false,
+        rangeMin: lo, rangeMax: hi,
+        overridden: ov.sliderMin != null || ov.sliderMax != null,
+        evento: true,
+      });
+    }
+  } catch { /* senza stato/eventi la scheda resta quella delle sole serie */ }
   return {
     mode: state.difficulty?.mode ?? 'adaptive',
     internalRange: { min: 70, max: 120 },

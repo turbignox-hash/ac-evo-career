@@ -137,8 +137,10 @@ export function closest(id, pool, count = 3) {
   return scored.slice(0, count).map((s) => s.candidate);
 }
 
-/** Match auto: ID esatto (ks_* o preset_*) oppure il nome dichiarato della scala esiste nel catalogo. */
-function carExists(id, ladder, content) {
+/** Match auto: ID esatto (ks_* o preset_*) oppure il nome dichiarato della scala esiste nel catalogo.
+ *  Esportato per il gate delle GRIGLIE DI FABBRICA (grid-apply.mjs: una griglia
+ *  spedita col programma va giudicata con gli STESSI criteri di validateLadder). */
+export function carExists(id, ladder, content) {
   if (content.cars.has(id)) return true;
   const disp = ladder.contentNames?.cars?.[id];
   if (disp && content.carNames?.size) {

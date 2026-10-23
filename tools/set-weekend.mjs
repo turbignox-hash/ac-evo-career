@@ -19,9 +19,10 @@
 //   node tools/set-weekend.mjs --air-temp 22 --clear            (meteo: sempre sereno = fixed)
 //   node tools/set-weekend.mjs --date 2025-05-12               (data del weekend)
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
-import { decodeMsg, encodeMsg, gameRunning } from './evo-grid.mjs';
+import { join } from 'node:path';
+import { decodeMsg, encodeMsg, gameRunning, GAME_MODES_DIR } from './evo-grid.mjs';
 
-export const WEEKEND_FILE = 'C:/Users/Mauro/Saved Games/ACE/GameModes/GameModeType_RACE_WEEKEND.gamemodesave';
+export const WEEKEND_FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 
 /** Legge tutti i parametri programmatici del weekend per la CLI/GUI. */
 export function weekendShow(file = WEEKEND_FILE) {

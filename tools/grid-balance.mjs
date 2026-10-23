@@ -27,11 +27,11 @@
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { decodeMsg, encodeMsg, gridFileOf, gameRunning } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, gridFileOf, gameRunning, GAME_MODES_DIR } from './evo-grid.mjs';
 import { patchPerTrack } from '../src/gridbuilder.mjs';   // supplementi per-traccia della classe (cls.perTraccia)
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-export const DEFAULT_FILE = 'C:/Users/Mauro/Saved Games/ACE/GameModes/last_grid.customgrid';
+export const DEFAULT_FILE = join(GAME_MODES_DIR, 'last_grid.customgrid');
 const CLASSES_FILE = join(HERE, '..', 'data', 'grid-classes.json');
 
 const f32 = (b) => (b && b.length >= 4) ? Buffer.from(b.slice?.() ?? b).readFloatLE(0) : null;

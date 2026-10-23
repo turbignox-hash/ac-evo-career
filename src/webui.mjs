@@ -7,7 +7,7 @@
 
 import { createServer } from 'node:http';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, renameSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import { dirname, join, extname, basename, relative, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -36,7 +36,7 @@ import { rivalsOverview, rivalDetail } from './rivals.mjs';
 import { alreadyImportedHash, importedFiles, importLog, resetImportRegistry } from './import.mjs';
 import { hot } from './hot.mjs';
 import { checkIntegrity, fixIntegrity } from './integrity.mjs';
-import { maybeSpawnEvent, acceptEvent, declineEvent, finishEvent, eventCard, eventsOverview, expireEvents, ensureEvents } from './events.mjs';
+import { maybeSpawnEvent, acceptEvent, declineEvent, finishEvent, eventCard, eventsOverview, expireEvents, ensureEvents, refreshActivePrize, autoFinishEventFromFile, eventTrackReal } from './events.mjs';
 import { seasonReview, reviewableSeasons, exportReview } from './review.mjs';
 import { contractStatus, sponsorOffers, acceptSponsor, declineSponsor, challengeFor, acceptChallenge, sigilDefs, ensureLife, sponsorFor, ensureContract, checkSigils } from './life.mjs';
 import { newsFeed } from './gazzetta.mjs';
@@ -45,18 +45,32 @@ import { recordWarning, readWarnings } from './warnings.mjs';
 import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, TYRE_CLASSES, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
 import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, kindIt, telemDiagnostics, lapTrace } from './motec.mjs';
 import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
-import { parseSetup, applyEdits, listSetups, writeSetupCopy } from './carsetup.mjs';
+import { parseSetup, applyEdits, listSetups, writeSetupCopy, brakePlanOf, annotateAllyAdvice } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
-import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, WEEKEND_FILE } from '../tools/set-track.mjs';
-import { statoAggiornamenti, installaAggiornamenti } from '../tools/aggiornamenti.mjs';
+import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, WEEKEND_FILE } from '../tools/set-track.mjs';
+import { setRaceTime, currentRaceTime } from '../tools/set-racetime.mjs';
+import { setWeekendLaps, weekendLaps } from '../tools/weekend-laps.mjs';
+// report.mjs: il bottone "Segnala un problema" costruisce l'URL della issue
+// GitHub precompilata (versione, serie in corso, errori recenti) e il link
+// Ko-fi dal config. Nessuna rete qui: il POST lo fa il browser.
+import { feedbackLinks } from './report.mjs';
+import { statoAggiornamentiAsync, installaAggiornamenti } from '../tools/aggiornamenti.mjs';
 
-// cache degli aggiornamenti per il boot: al massimo un giro (ls-remote) al minuto
-let AGG_CACHE = null, AGG_AT = 0;
-function aggMemo() {
-  if (!AGG_CACHE || Date.now() - AGG_AT > 60000) {
-    try { AGG_CACHE = statoAggiornamenti(); } catch { AGG_CACHE = { skip: true, motivo: 'controllo non riuscito.' }; }
-    AGG_AT = Date.now();
-  }
+// check degli aggiornamenti FUORI dal boot (audit freeze 23/10): qui prima
+// girava statoAggiornamenti() sincrono (execFileSync · git ls-remote → fino a
+// 8s: l'INTERO event loop del server si congela GUI alla mano) dentro /api/boot,
+// quindi la prima schermata aspettava la rete. Adesso hastá la cache un giro
+// al minuto con chiamata non bloccante, e la GUI lo pesca da /api/agg-info
+// (drawAggBar il nessun argomento fa già questa fetch di contorno) senza
+// fermare il primo pannello.
+let AGG_CACHE = null, AGG_AT = 0, AGG_FLIGHT = null;
+async function aggMemo() {
+  if (AGG_CACHE && Date.now() - AGG_AT < 60000) return AGG_CACHE;
+  AGG_FLIGHT ??= statoAggiornamentiAsync()
+    .then((r) => { AGG_CACHE = r; })
+    .catch(() => { AGG_CACHE = { skip: true, motivo: 'controllo non riuscito.' }; })
+    .finally(() => { AGG_AT = Date.now(); AGG_FLIGHT = null; });
+  await AGG_FLIGHT;
   return AGG_CACHE;
 }
 
@@ -80,7 +94,8 @@ import { sameTrack as trkSame, sameCar as carSame } from './tracknames.mjs';
 import { tr, lang, setLang, hasEnvOverride } from './lang.mjs';
 import { carsBook, carImageOf } from './cars.mjs';
 import { garageOverview, catalogPicker, addCar, removeCar, setNote, importShowcase, sellCar } from './garage.mjs';
-import { ensureFlowsSeeded, recentFlows, resetFlows } from './flows.mjs';
+import { ensureFlowsSeeded, recentFlows, resetFlows, dedupFlows } from './flows.mjs';
+import { scanCareer, autoRepair, clearBacheca, resetLedger, reseedFlows, flowDedup } from './maintenance.mjs';
 import { mailbox } from './mailbox.mjs';
 import {
   agendaDay, gareDelGiorno, prossimoGiornoConGara, avanzaGiorno, elencoCompleto,
@@ -91,8 +106,9 @@ import {
 import { heritageOverview, claimMemory, memoryRoundHint } from './memories.mjs';
 import { resetNews } from './gazzetta.mjs';
 // griglia: tab bilanciamento (celle, classi, perTraccia) + azioni di scrittura
-import { loadClasses } from './gridbuilder.mjs';
+import { loadClasses, buildGridMessage } from './gridbuilder.mjs';
 import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, rebuildGridApply, GRID_FILE } from './grid-apply.mjs';
+import { gridFileOf } from '../tools/evo-grid.mjs';
 import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
 // analisi.mjs: i cinque strumenti del pilota (autopsia, dossier rivali, banco
 // A/B, Monte Carlo sedili, tetto teorico) — letture pure, niente scritture.
@@ -123,6 +139,25 @@ import { writeJsonAtomic } from './atomic.mjs';
 // le VISTE (oggetti JSON per la GUI) stanno in webui-views.mjs
 import { PROJECT, DATA_DIR, SAVE_FILE, CONFIG_FILE, GUI_DIR, BACKUP_DIR, SLOT, loadLadder, appEnv, context, writeConfig, requireState, persist } from './webui-env.mjs';
 import { viewHeader, viewStatus, seriesNodeView, viewCalendar, viewStandings, viewMessages, viewCard, viewDifficulty, viewSetup } from './webui-views.mjs';
+
+/* GRIGLIA EVENTO GIÀ IN PIEDI (esito prova 23/10): la griglia a 14 F40 scritta
+ * sul disco è VALIDATA in gioco (log EVO 20:47: 14 avversari, zero eccezioni);
+ * il guard anti-celle-ripetute del builder invece la rifiuterebbe (nel template
+ * ci sono solo 3 varianti uniche della F40). IDEMPOTENZA DEL PREP: quando il
+ * customgrid ha GIÀ la forma voluta dal tema (celle == gridSize, tutte del
+ * pool, driver allineati) «Prepara tutto» la lascia sul posto e prosegue con
+ * meteo/avvio — mai una riscrittura a rischio su una griglia che gira.
+ * Il guard del builder resta in piedi per le forme SBAGLIATE: lì si rifiuta e
+ * si scrive il messaggio, mai una griglia sospetta. */
+function grigliaEventoGiaInPiede(file, gridSize, poolIds) {
+  if (!existsSync(file)) return false;
+  const g = gridFileOf(readFileSync(file));
+  if (g.cells.length !== gridSize || g.drivers.length !== gridSize) return false;
+  const ids = g.cells.map((c) => c.carId ?? c.carName ?? null);
+  return ids.length === gridSize
+    && ids.every((id) => id && poolIds.includes(id))
+    && poolIds.every((id) => ids.includes(id));
+}
 
 /* ------------------------------------------------------------------ */
 /* infrastruttura comune alla CLI                                      */
@@ -293,6 +328,41 @@ function liveMode() {
   try { m = JSON.parse(readFileSync(CONFIG_FILE, 'utf8')).liveMode; } catch { /* prima volta */ }
   return LIVE_MODES.includes(m) ? m : 'auto';
 }
+// Auto-riparazione (23/10): ON di default (tutto il specchio del dottore, ma in
+// gratuito). Si spegne da Impostazioni → Manutenzione. Letta A OGNI USO dal
+// config: il toggle sopravvive al riavvio come il liveMode.
+function autoRepairEnabled() {
+  try { return JSON.parse(readFileSync(CONFIG_FILE, 'utf8')).autoRepair !== false; }
+  catch { return true; }
+}
+
+let lastAutoRepairAt = 0;
+/** Un giro del dottore: scansiona la carriera e ripara SaFAMENTE ciò che si
+ *  può correggere senza domande. Chiamato all'avvio del pannello e poi ogni
+ *  10 minuti — con cache delle scansioni: al massimo una al periodo. */
+function maintenanceTick({ force = false } = {}) {
+  if (!existsSync(SAVE_FILE)) return null;
+  if (!autoRepairEnabled()) return null;
+  // Processo di test/sandbox (var d'ambiente per i test): niente auto-riparazione
+  // su file veri — il 23/10 il boot della webui di un test ha percorso
+  // fixIntegrity sul salvataggio reale del PC leggendo totali immaginari.
+  if (process.env.EVO_DATA_DIR || process.env.EVO_FLOWS_DIR) return null;
+  if (!force && Date.now() - lastAutoRepairAt < 10 * 60 * 1000) return null;
+  lastAutoRepairAt = Date.now();
+  try {
+    const { ladder } = context();
+    const state = requireState();
+    ensureFlowsSeeded(state);
+    const { issues } = scanCareer(ladder, state);
+    if (!issues.length) return { issues, fixed: [] };
+    const out = autoRepair(ladder, state, { persist });
+    if (out.fixed.length) recordWarning('maintenance.auto', 'auto-riparazione applicata', out.fixed.join(', '));
+    return out;
+  } catch (e) {
+    recordWarning('maintenance.auto', 'auto-riparazione non riuscita', e?.message ?? null);
+    return null;
+  }
+}
 async function syncLiveReader() {
   const mode = liveMode();
   const rd = liveReader();
@@ -305,7 +375,7 @@ async function syncLiveReader() {
 async function api(context0, req, res, action, body) {
   const { ladder, paths } = context0;
   const hasCareer = () => existsSync(SAVE_FILE);
-  const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'paddock', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'import-inspect', 'tracks', 'backup', 'grid-apply', 'grid-drop', 'grid-ai'];
+  const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'paddock', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-prep', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'event-prize-refresh', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'import-inspect', 'tracks', 'backup', 'grid-apply', 'grid-drop', 'grid-ai', 'mechanic', 'maintenance'];
   if (needsCareer.includes(action) && !state) {
     return sendJson(res, 400, { error: tr({ it: "Non c'è ancora una carriera: creane una dalla schermata iniziale.", en: 'There is no career yet: create one from the start screen.' }) });
   }
@@ -418,17 +488,22 @@ async function api(context0, req, res, action, body) {
         header: state ? viewHeader(ladder, state) : null,
         setup: viewSetup(ladder, paths),
         gameRunning: await isGameRunning(),
-        // barra aggiornamenti: interrogiamo GitHub con cache (max un giro al minuto)
-        aggiornamenti: aggMemo(),
+        // barra aggiornamenti: FUORI dal boot (freeze 23/10) — la GUI la pesca
+        // in contorno con /api/agg-info (drawAggBar(null) ultimata), così il
+        // primo pannello non aspetta la rete di GitHub.
+        aggiornamenti: null,
         // badge urgente sul menu Messaggi: email priorità alta della posta del pilota
         mailUrgent: state ? mailbox(ladder, state).mails.filter((m) => m.priorita === 'urgente').length : 0,
         // versione della build visibile in GUI (sidebar): package.json + breve hash git
         versione: buildVersion(),
+        // footer: "Segnala un problema" (issue precompilata) + link donazioni (config)
+        feedback: state ? feedbackLinks({ ladder, state }) : feedbackLinks(null),
       });
     }
     case 'agg-info': {
-      // fresh ogni volta: il client lo ripete dopo un'installazione
-      return sendJson(res, 200, statoAggiornamenti());
+      // fresh ogni volta: il client lo ripete dopo un'installazione. Versione
+      // ASINCRONA: git ls-remote non blocca più l'event loop (audit freeze 23/10).
+      return sendJson(res, 200, await aggMemo());
     }
     case 'agg-install': {
       // l'utente ha cliccato "Aggiorna ora": il consenso è già dato per definizione
@@ -502,7 +577,13 @@ async function api(context0, req, res, action, body) {
       let check = null;
       if (snap.game && state) {
         try {
-          const card = raceCard(ladder, state, { car: typeof body.car === 'string' ? body.car : null });
+          // body.event: verifica della SCHEDA EVENTO SPECIALE (pannello Eventi) invece
+          // della ronda di campionato — stessa meccanica, card diversa (eventCard porta
+          // già trackName/layout/carChoices stile raceCard)
+          const card = body.event
+            ? eventCard(ladder, state)
+            : raceCard(ladder, state, { car: typeof body.car === 'string' ? body.car : null });
+          if (!card) return sendJson(res, 200, { ...snap, check: null, waiting: true });
           const live = snap.session;
           const norm = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
           const has = (hay, needle) => !!hay && !!needle && (norm(hay).includes(norm(needle)) || norm(needle).includes(norm(hay)));
@@ -797,6 +878,35 @@ async function api(context0, req, res, action, body) {
       const out = fixIntegrity(ladder, state);
       return sendJson(res, 200, { ...out, header: viewHeader(ladder, state) });
     }
+    case 'maintenance': {
+      // Il rione MANUTENZIONE (richiesta Mauro 23/10: "il tool si ripari da solo,
+      // con scansioni manuali e opzioni per togliere le liste sporche"):
+      //   scan          → scansione completa (cache flussi svuotata, valori veri dal disco)
+      //   fix/auto      → scansione + riparazione di ciò che si corregge senza chiedere
+      //   auto-toggle   → lei parte da sola all'avvio e ogni 10 minuti (writeConfig)
+      // e le pulizie CON CONFERMA (body.confirm === true, la GUI apre la modale):
+      //   clear-messages (svuota bacheca) · reset-ledger (registro anti-doppioni)
+      //   reseed-flows (ricalcola flussi dal salvataggio) · dedup-flows (doppio esatti)
+      const op = String(body.op ?? 'scan');
+      if (['clear-messages', 'reset-ledger', 'reseed-flows', 'dedup-flows'].includes(op) && body.confirm !== true) {
+        return sendJson(res, 409, { error: tr({ it: 'Operazione irreversibile: serve la conferma (confirm=true).', en: 'This action cannot be undone: pass confirm=true.' }), needConfirm: true });
+      }
+      if (op === 'scan') return sendJson(res, 200, scanCareer(ladder, state));
+      if (op === 'fix') { const out = autoRepair(ladder, state, { persist }); return sendJson(res, 200, out); }
+      if (op === 'tick') { const out = maintenanceTick({ force: true }); return sendJson(res, 200, out ?? { issues: [], fixed: [], skipped: true }); }
+      if (op === 'auto-toggle') {
+        const on = !!body.on;
+        writeConfig({ autoRepair: on });
+        if (on) lastAutoRepairAt = 0;
+        return sendJson(res, 200, { ok: true, autoRepair: on });
+      }
+      if (op === 'auto-status') return sendJson(res, 200, { autoRepair: autoRepairEnabled() });
+      if (op === 'clear-messages') return sendJson(res, 200, clearBacheca(state, { persist }));
+      if (op === 'reset-ledger') return sendJson(res, 200, resetLedger());
+      if (op === 'reseed-flows') { reseedFlows(state, { persist }); return sendJson(res, 200, { ok: true }); }
+      if (op === 'dedup-flows') return sendJson(res, 200, flowDedup());
+      return sendJson(res, 400, { error: tr({ it: 'Operazione di manutenzione non valida.', en: 'Invalid maintenance op.' }) });
+    }
     case 'season-review': {
       const seasons = reviewableSeasons(state);
       const wanted = Number.isFinite(Number(body.season)) && Number(body.season) > 0 ? Number(body.season) : seasons[0] ?? state.season;
@@ -825,6 +935,21 @@ async function api(context0, req, res, action, body) {
         return sendJson(res, 200, out);
       }
       catch (e) { recordWarning('webui.garage', 'vista garage non riuscita: ' + (e?.message ?? '')); return sendJson(res, 200, { cars: [], total: 0, won: 0, bought: 0, totalWins: 0, justImported: [] }); }
+    }
+    case 'mechanic': {
+      // segna al meccanico (Mauro 23/10): la scheda freno dell'auto scelta.
+      // Niente consulti in più: zona dal bias di carriera, torque, e la memoria
+      // dell'allievo quando la pista della ronda è nota. La GUI la mostra come sta.
+      try {
+        const bp = brakePlanOf(body.car ?? body.carId, ladder, state, { paths });
+        if (bp.ok) {
+          const board = setupBoard(ladder, state);
+          const trackKey = body.track === 'all' ? null : (body.track ?? board.track ?? null);
+          const trackDisplay = trackKey ? (ladder.contentNames?.tracks?.[trackKey] ?? trackKey) : null;
+          annotateAllyAdvice(bp, { trackDisplay });
+        }
+        return sendJson(res, 200, bp);
+      } catch (e) { return sendJson(res, 400, { error: e.message }); }
     }
     case 'garage-catalog': return sendJson(res, 200, { cars: catalogPicker(ladder, { paths }) });
     case 'garage-add': {
@@ -888,6 +1013,146 @@ async function api(context0, req, res, action, body) {
     case 'event-accept': {
       try { acceptEvent(ladder, state, String(body.eventId ?? '')); persist(state); return sendJson(res, 200, { ok: true, events: eventsOverview(ladder, state) }); }
       catch (e) { return sendJson(res, 400, { error: e.message }); }
+    }
+    case 'event-prep': {
+      // «Prepara tutto e divertiti» per l'evento speciale: le AUTOMAZIONI
+      // dell'evento scrivono SOLO griglia (customgrid) e meteo (selettore
+      // lastgamemode) — tutto il resto (pista, auto, AI, ora, giri) si imposta a
+      // mano in EVO con la scheda, come da lezione 23/10. E avvio di EVO se chiuso.
+      try {
+        const card = eventCard(ladder, state);
+        if (!card) return sendJson(res, 409, { error: tr({ it: 'Nessun evento speciale attivo.', en: 'No special event active.' }) });
+        if (!card.acceptedAt) return sendJson(res, 409, { error: tr({ it: "Accetta l'invito prima: il tasto prepara la gara già accettata.", en: 'Accept the invite first: the button prepares the race you already accepted.' }) });
+        const running = await isGameRunning();
+        let prep = { track: null, weather: null };
+        // LEZIONE 23/10 (crash al tasto 'Lancia gara'): l'evento DEVE restare
+        // un mondo il SUO: la gara si gioca in "Gara personalizzata", NON via il
+        // weekend di carriera. QUI si scrivevano pista/AI/ora/giri su
+        // GameModeType_RACE_WEEKEND, che appartiene alla RONDA DELLA CARRIERA — ma
+        // quando la ronda avanzata (Mazda/Nürburgring) incontra il file dove
+        // l'evento ha scritto COTA/F40, EVO muore al caricamento (0xC0000005 su
+        // RenderWorker, il "crash da pista mancante"). La pista, l'AUTO, l'AI, l'ora e
+        // i giri dell'evento si impostano A MANO in EVO come da scheda (pannelli
+        // della gara personalizzata): la verifica live del pannello li controlla
+        // comunque in telemetria. Resta scritto dal tool: la griglia (customgrid)
+        // e il meteo del selettore.
+        prep.track = card.trackName;
+        prep.trackNote = tr({ it: 'pista da impostare a mano in EVO (gara personalizzata: non tocca il weekend di carriera)', en: 'track to set by hand in EVO (custom race: the career weekend is not touched)' });
+        // — AUTO: si seleziona a mano in EVO (scelta Mauro: la scrittura del
+        // drivergarage è scartata per non toccare il garage della carriera).
+        prep.car = card.carName ?? null;
+        prep.carNote = tr({ it: 'auto da selezionare a mano in EVO', en: 'car to pick by hand in EVO' });
+        try {
+          // weather dell'evento è un PRESET EVO (0 sereno, 1 sparse, 2 nuvoloso):
+          // si scrive SOLO se il selettore dice altro (come la ronda): ogni scrittura
+          // di setWeatherPreset solleva un file di backup, non la cumulare a ogni click
+          const cur = currentWeatherPreset();
+          if (card.weather != null && cur !== card.weather) {
+            const wx = setWeatherPreset(card.weather);
+            prep.weather = `${wx.preset.label} (era: ${PRESETS[wx.from]?.label ?? wx.from ?? '?'})`;
+            prep.weatherWritten = wx.written;
+          } else prep.weather = PRESETS[cur ?? card.weather]?.label ?? null;
+        } catch (e) { prep.weatherError = e.message; }
+        // — Le regole della gara (banda AI, ora/scala, giri) NON si scrivono QUI:
+        // sono campi della RONDA e il round di carriera porta i SUOI valori.
+        // In gara personalizzata si impostano a mano seguendo la scheda evento:
+        // slider AI (diffMin-diffMax), ora (hour), scala (timeScale) e giri (laps).
+        try {
+          // GRIGLIA DELL'EVENTO (richiesta Mauro 23/10: «la deve creare da solo
+          // come il bottone Prepara tutto del campionato»): costruita col BUILDER
+          // (buildGridMessage) come la griglia della ronda di campionato — celle
+          // del pool del TEMA fotocipiate dal template (zero-crash), driver scalati
+          // nella banda AI dell'evento (88-93), PI dal pool reale, niente
+          // bilanciamento (monomarca: zavorre di campionato sarebbero capricciose).
+          // Il tema può dichiarare gridCars/gridSize (eventi monomarca); in sua
+          // mancanza fallback storico = solo le celle ospiti del tema.
+          // Il template deve CONTENERE le auto del pool: se non ci sono, la
+          // griglia resta quella in piedi e il messaggio lo dice (niente scrittura).
+          const ospitiPool = card.theme?.gridCars ?? card.guestCarIds ?? [];
+          const gridSizeEv = card.theme?.gridSize ?? (ospitiPool.length + 2);
+          // VERDETTO 23/10 (rev. 4, NOTE-AUTOMAZIONE): il crash 0xC0000005
+          // all'Avvia sessione di EVO 0.9.1 è FLAKY e NON dipende né dal conto
+          // della griglia né dal file: lo stesso file (al byte) è crashato una
+          // volta e girato due volte dopo; 5→8 e taglio 8→5 girati entrambi in
+          // processo vivo; le 7 cadute del 23/10 sono lo stesso identico offset
+          // nella UI del menu (cohtml/Gameface). Il vecchio rifiuto «solo 14»
+          // si leva: QUALUNQUE conto si prepara. Se EVO crolla all'avvio:
+          // riprova, e se ripete riavvia EVO — il file resta a posto.
+          prep.crashAdvice = tr({
+            it: `se EVO crasha all'Avvia sessione (0xC0000005), è il bug flaky del gioco: riprova, e se ripete riavvia EVO — la griglia sul disco resta a posto`,
+            en: `if EVO crashes at session start (0xC0000005), that's the game's flaky bug: retry, and if it repeats, restart EVO — the grid on disk is fine`,
+          });
+          // IDEMPOTENTE: se la griglia sul disco ha GIÀ la forma dell'evento
+          // (prova a 14 F40 del 23/10 VALIDATA in gioco, log EVO 20:47) non si
+          // tocca: il builder la rifiuterebbe (guard anti-celle-ripetute su un
+          // template con poche varianti) e una riscrittura nuova rischierebbe di
+          // rovinare una griglia già provata in gioco. Prepara tutto prosegue
+          let giaInPiede = false;
+          try { giaInPiede = grigliaEventoGiaInPiede(GRID_FILE, gridSizeEv, ospitiPool); } catch (_) { /* lettura: si va col builder */ }
+          if (giaInPiede) {
+            prep.guests = `griglia già in piedi: ${gridSizeEv} celle, tutte ${ospitiPool.join(', ')} — niente da riscrivere, si va in pista con quella`;
+            prep.guestsWritten = false;
+          }
+          if (ospitiPool.length && existsSync(GRID_FILE) && !giaInPiede) {
+            const evNode = {
+              nodeId: `evento_${card.theme?.id ?? 'speciale'}`,
+              display: card.theme?.name ?? 'Evento speciale',
+              gridSize: gridSizeEv,
+              cars: ospitiPool,
+              calendar: [{ name: 'evento speciale', track: card.trackName, weather: card.weather ?? 0, laps: card.laps ?? null, hour: card.hour ?? null }],
+            };
+            // TEMPLATE: il customgrid corrente (celle reali del gioco), e se non
+            // contiene le auto del pool si cercano i BACKUP .bak-* (i più recenti
+            // prima) — il gesto di rebuildGridApply per il campionato. Alla
+            // MONOMARCA basta un modello nel template (il vincolo ≥3 modelli vale
+            // solo per i pool multi-marca del campionato).
+            const bakDir = dirname(GRID_FILE), bakBase = basename(GRID_FILE);
+            const candidati = [GRID_FILE,
+              ...readdirSync(bakDir).filter((f) => f.startsWith(`${bakBase}.bak-`)).sort().reverse().map((f) => join(bakDir, f))];
+            let built = null, sourceFile = null, ultimoErrore = null, errorePriore = null;
+            for (const cand of candidati) {
+              try { built = buildGridMessage({ ladder: { nodes: [evNode] }, nodeId: evNode.nodeId, roundIndex: 0, file: cand, aiBand: [card.diffMin ?? 88, card.diffMax ?? 93], noBalance: true }); sourceFile = cand; break; }
+              catch (e) {
+                // Il rifiuto esplicito del builder (celle uniche insufficienti,
+                // lezione crash 23/10: EVO muore con celle ripetute) è il
+                // messaggio più AZIONABILE per Mauro: portällo in finale al
+                // posto dell'ultimo generico "non contiene le auto della serie"
+                // che la lista dei backup fa emergere per ultimo.
+                if (!errorePriore && /griglia rifiutata|MULTI-MARCA/.test(String(e.message ?? e))) errorePriore = e;
+                ultimoErrore = e;
+              }
+            }
+            if (!built) throw errorePriore ?? ultimoErrore ?? new Error(`nessuna auto del pool dell'evento (${ospitiPool.join(', ')}) nel customgrid né nei suoi backup (${candidati.length} file provati): rigenera in EVO una griglia personalizzata con quelle auto e premi APPLICA (serve una volta sola)`);
+            const backup = `${GRID_FILE}.bak-evento-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+            copyFileSync(GRID_FILE, backup);          // il file di prima è il template della prossima ronda di campionato: rebuildGridApply lo recupera dai .bak-*
+            writeFileSync(`${GRID_FILE}.tmp`, built.buffer);
+            renameSync(`${GRID_FILE}.tmp`, GRID_FILE);  // scrittura atomica come i tool
+            prep.guests = `griglia riscritta: ${built.report.gridSize} celle${built.report.poolMulti ? ` · ${built.report.poolMulti}` : ''}${built.report.ai ? ` · AI ${built.report.ai}` : ''}${sourceFile !== GRID_FILE ? ` · template ${basename(sourceFile)}` : ''}`;
+            prep.guestsWritten = true;
+          }
+        } catch (e) {
+          // messaggio già pronto quando il customgrid sul disco non contiene le
+          // auto del pool: il resto del prep resta valido, la griglia si scrive dopo
+          const raw = String(e.message ?? e);
+          prep.guestsError = /non contiene le auto della serie|MULTI-MARCA|nessuna auto del pool|griglia rifiutata/.test(raw)
+            ? `griglia non riscritta: ${raw}`
+            : raw;
+        }
+        let launched = null;
+        if (!body.noLaunch) {
+          try { launched = await launch(paths, { force: !!body.forceLaunch }); }
+          catch (e) { launched = { error: e.message }; }
+        }
+        return sendJson(res, 200, { ok: true, prep, gameRunning: running, launched, events: eventsOverview(ladder, state) });
+      } catch (e) { return sendJson(res, 500, { error: e.message }); }
+    }
+    case 'event-prize-refresh': {
+      // correzione premio del vecchio invito attivo: se l'auto in palio è già
+      // posseduta e il tema ha riserve, sostituisce il premio (richiesta Mauro
+      // 23/10: "un'auto diversa che non ho già in garage"). Idempotente e scritta
+      // subito su disco (persist), come gli altri comandi evento.
+      try { const out = refreshActivePrize(ladder, state); persist(state); return sendJson(res, 200, { ok: true, ...out, events: eventsOverview(ladder, state) }); }
+      catch (e) { return sendJson(res, 400, { ok: false, error: String(e.message ?? e) }); }
     }
     case 'event-decline': {
       try { declineEvent(ladder, state, String(body.eventId ?? '')); persist(state); return sendJson(res, 200, { ok: true, events: eventsOverview(ladder, state) }); }
@@ -1289,6 +1554,64 @@ async function api(context0, req, res, action, body) {
           } else prep.weather = PRESETS[cur ?? wantIdx]?.label ?? null;
         }
       } catch (e) { prep.weatherError = e.message; }
+      // ORA + SCALA DEL TEMPO della ronda (la stessa automazione dell'evento,
+      // richiesta Mauro 23/10): l'ora del round (f4.4 del datetime di OGNI blocco
+      // sessione — prove/quali/gara si disallineano a ritroso) e il moltiplicatore
+      // (f7 float) nel gamemodesave, come il CLI 'orario'. Il round porta i SUOI
+      // hour/timeScale (piani notte/crepuscolo/…) e la scala efficace è già
+      // risolta dalla card (card.timeMultiplier: round > override serie > profilo).
+      // Idempotente: se ora e scala combaciano già, nessuna scrittura.
+      try {
+        const roundHour = card.round?.hour ?? null;
+        if (roundHour != null) {
+          const cur = currentRaceTime();
+          if (!cur) prep.hourError = 'gamemodesave non leggibile (EVO mai aperto sul weekend?)';
+          else {
+            const wantScale = card.timeMultiplier != null ? Math.max(1, Math.min(60, Number(card.timeMultiplier) || 1)) : null;
+            const sameHour = cur.hour === roundHour;
+            const sameScale = wantScale == null || Math.abs(Number(cur.scale) - wantScale) < 1e-6;
+            if (sameHour && sameScale) prep.hour = `già ${String(cur.hour).padStart(2, '0')}:${String(cur.minute ?? 0).padStart(2, '0')} · scala ${cur.scale}x`;
+            else {
+              const rt = setRaceTime({ hour: roundHour, scale: wantScale });
+              const era = cur.hour != null ? `${String(cur.hour).padStart(2, '0')}:${String(cur.minute ?? 0).padStart(2, '0')} · ${cur.scale}x` : '?';
+              prep.hour = `${String(roundHour).padStart(2, '0')}:00${wantScale != null ? ` · scala ${wantScale}x` : ''} (era ${era})`;
+              prep.hourWritten = rt.written;
+            }
+          }
+        }
+      } catch (e) { prep.hourError = e.message; }
+      try {
+        // GIRI della gara (f2 varint del blocco Race, come l'evento e il CLI
+        // weekend-laps): la DISTANZA scelta nel pannello regole è già dentro
+        // card.laps (25% → un quarto dei giri pieni della ronda). Le ronde a
+        // TEMPO restano fuori: lì la durata si imposta col campo Durata di EVO,
+        // non coi giri. Idempotente, con verifica di round-trip byte-identica
+        // e backup datato (lezione 19/10).
+        if (card.laps != null && card.round?.durationMin == null) {
+          const r = setWeekendLaps(card.laps);
+          prep.laps = r.already ? `già ${r.giri} giri` : `${r.giri} giri (blocco "${r.block}")`;
+          prep.lapsWritten = r.written;
+        }
+      } catch (e) { prep.lapsError = e.message; }
+      try {
+        // BANDA AI della ronda nei cursori del gioco (gamemodesave, campi 30/31 del
+        // primo blocco sessione): quella che EVO legge sul loading screen, NON quella
+        // salvata nel tool. Lezione 23/10: la ronda era partita con i cursori ereditati
+        // 88–93 (valori usati dall'evento) mentre le regole del pannello dicevano
+        // 95–96 — i settings del tool non sopravvivono a un event-prep e il Lancio
+        // non li riscriveva. Come per pista/ora/giri: si scrive AL LANCIO, sempre,
+        // dai valori del pannello regole della serie (sliderMin/Max); senza override
+        // si resta come sta (niente bande inventate).
+        const S = state.raceSettings?.[node.nodeId];
+        if (S?.sliderMin != null && S?.sliderMax != null) {
+          const cur = weekendAi();
+          if (!cur || cur.min !== S.sliderMin || cur.max !== S.sliderMax) {
+            const w = setWeekendAi(S.sliderMin, S.sliderMax);   // backup datato automatico
+            prep.ai = `${S.sliderMin}–${S.sliderMax} (era ${cur ? `${cur.min}-${cur.max}` : '—'})`;
+            prep.aiWritten = w.written;
+          } else prep.ai = `già ${cur.min}–${cur.max}`;
+        }
+      } catch (e) { prep.aiError = e.message; }
       let launched = null;
       if (!body.noLaunch) {
         try {
@@ -1326,7 +1649,7 @@ async function api(context0, req, res, action, body) {
           return {
             name: f.name, mtime: f.mtime, session: r.session, track: r.track,
             drivers: (r.drivers ?? []).length, isRace: isRaceSession(r),
-            me: driver ? { how, position: info.position, dnf: info.dnf, car: info.car } : null,
+            me: driver ? { how, position: info.position, rawPos: info.rawPos, dnf: info.dnf, dsq: info.dsq, penalty: info.penalty, car: info.car } : null,
             already: alreadyImportedHash(f.file),
           };
         } catch { return { name: f.name, mtime: f.mtime, session: '?', track: '?', drivers: 0, isRace: false }; }
@@ -1334,6 +1657,38 @@ async function api(context0, req, res, action, body) {
       return sendJson(res, 200, { files });
     }
     case 'difficulty-action': {
+      // Banda dell'EVENTO SPECIALE (richiesta Mauro 23/10: "88-93, e deve
+      // risultare anche nel pannello difficoltà"): riga `★ evento` in scheda,
+      // con i suoi due cursori e l'id `evento_*` (che NON è un nodo del ladder).
+      // L'override si salva solo nel tool: in gara personalizzata l'EVO la legge
+      // dalla barra AI che l'utente mette a mano — gamemodesave 30/31 appartiene
+      // alla ronda di carriera (lezione 23/10): è il lancio della ronda a
+      // riscriverla. L'evento NON usa il clamp a gap 1: vuole la banda LARGA
+      // 88–93 (i rivali sono calibrati così).
+      if (body.op === 'range' && /^evento_/.test(String(body.nodeId ?? ''))) {
+        const evCard = eventCard(ladder, state);
+        const evId = evCard ? `evento_${evCard.theme?.id ?? 'speciale'}` : null;
+        if (!evId || String(body.nodeId) !== evId) return sendJson(res, 404, { error: tr({ it: 'Nessun evento speciale attivo con questo id.', en: 'No special event active with this id.' }) });
+        if (body.clear) {
+          if (state.raceSettings?.[evId]) { delete state.raceSettings[evId].sliderMin; delete state.raceSettings[evId].sliderMax; }
+          pushMessage(state, tr({
+            it: `Banda AI dell'evento ${evCard.theme?.name ?? 'special'} tornata al fisso ${evCard.diffMin}–${evCard.diffMax}%.`,
+            en: `AI band of event ${evCard.theme?.name ?? 'special'} is back to the fixed ${evCard.diffMin}–${evCard.diffMax}%.`,
+          }), 'info');
+        } else {
+          const num = (v) => Math.max(0, Math.min(100, Math.round(Number(v))));
+          let lo = num(body.min ?? 0), hi = num(body.max ?? 0);
+          if (lo > hi) { const t = lo; lo = hi; hi = t; }
+          ((state.raceSettings ??= {})[evId] ??= {}).sliderMin = lo;
+          state.raceSettings[evId].sliderMax = hi;
+          pushMessage(state, tr({
+            it: `Banda AI dell'evento ${evCard.theme?.name ?? 'special'} impostata a ${lo}–${hi}% (default ${evCard.diffMin}–${evCard.diffMax}%): in gara personalizzata mettila a mano nella barra AI di EVO, la scheda evento resta la reference.`,
+            en: `AI band of event ${evCard.theme?.name ?? 'special'} set to ${lo}–${hi}% (default ${evCard.diffMin}–${evCard.diffMax}%): set it by hand on the EVO sliders in the custom race, the event card stays the reference.`,
+          }), 'info');
+        }
+        persist(state);
+        return sendJson(res, 200, { ok: true, view: viewDifficulty(ladder, state) });
+      }
       const d = state.difficulty;
       if (body.op === 'mode') {
         if (!['adaptive', 'fixed', 'custom'].includes(body.mode)) return sendJson(res, 400, { error: tr({ it: 'Modalità non valida.', en: 'Invalid mode.' }) });
@@ -2081,7 +2436,7 @@ async function api(context0, req, res, action, body) {
         return sendJson(res, 200, { ok: true, note: tr({ it: 'Slot già attivo: apro solo il browser.', en: 'Slot already active: opening just the browser.' }) });
       }
       import('node:child_process').then(({ spawn }) => {
-        spawn('cmd', ['/c', 'start', '', 'Carriera EVO Slot ' + n, launcher], { detached: true, stdio: 'ignore', cwd: PROJECT }).unref();
+        spawn('cmd', ['/c', 'start', '', 'EVO Pitwall Slot ' + n, launcher], { detached: true, stdio: 'ignore', cwd: PROJECT }).unref();
       });
       return sendJson(res, 200, { ok: true, note: tr({ it: `Lanciato pilota-${n}.cmd: si apre la sua carriera sulla sua porta (${8641 + n}). Questa finestra resta quello che è (slot ${SLOT}).`, en: `Launched pilota-${n}.cmd: its career opens on its own port (${8641 + n}). This window stays as it is (slot ${SLOT}).` }) });
     }
@@ -2163,6 +2518,15 @@ function watcherTick() {
       const trackOk = g.track && expectedTrack && (
         normTrack(g.track).includes(normTrack(expectedTrack)) || normTrack(expectedTrack).includes(normTrack(g.track))
       );
+      // EVENTO SPECIALE: quando c'è un invito accettato la gara da incassare è
+      // quella dell'evento, su una pista DIVERSA da quella del round di carriera.
+      // La pista attesa diventa quella dell'evento: senza questo l'armî della
+      // gara evento non avveniva mai e il risultato andava cliccato a mano.
+      const evActive = (() => { const ev = ensureEvents(state); const a = ev.active; return (a && a.acceptedAt) ? a : null; })();
+      const evTrack = evActive ? eventTrackReal(evActive) : null;
+      const evTrackOk = Boolean(evActive && g.track && evTrack && (
+        normTrack(g.track).includes(normTrack(evTrack)) || normTrack(evTrack).includes(normTrack(g.track))
+      ));
 
       /* Nel "weekend di gara" EVO etichetta prove/qualifica come TimeAttack/Practice:
          la gara vera si riconosce dal nome ("Race"/"Gara") o dal numero di giri
@@ -2176,15 +2540,18 @@ function watcherTick() {
         watcher.push(`Vedo ${g.track}: ${g.name ?? g.type} (prove/qualifica). Registro solo quando inizia la gara.`, 'info');
       }
 
-      if (snap.live && trackOk && raceish) {
+      if (snap.live && (evTrackOk || trackOk) && raceish) {
         if (!watcher.armed) {
           watcher.armed = true;
           watcher.armedAt = Date.now();
           watcher.racedEnd = false;
           watcher.seenNonRace = false;
-          watcher.push(`Gara di carriera rilevata: ${g.track} ${g.layout ?? ''}. Sto registrando.`, 'good');
+          watcher.expectEvent = evTrackOk; // se poi corri quella di carriera il flag torna falso al prossimo arm
+          watcher.push(evTrackOk
+            ? `Gara dell'evento rilevata: ${g.track} ${g.layout ?? ''}. Registrerò il risultato dell'evento da solo.`
+            : `Gara di carriera rilevata: ${g.track} ${g.layout ?? ''}. Sto registrando.`, 'good');
         }
-      } else if (watcher.armed && ((!snap.live && !snap.paused) || !trackOk)) {
+      } else if (watcher.armed && ((!snap.live && !snap.paused) || !(evTrackOk || trackOk))) {
         // usciti dalla gara armata (menu, schermata risultati, gioco chiuso):
         // la PAUSA non conta come fine gara — restiamo armati
         watcher.armed = false;
@@ -2201,16 +2568,48 @@ function watcherTick() {
         try {
           // in coda con le richieste API: nessuno sovrascrive lo state dell'altro
           const out = await serialize(async () => {
-            const out = await doImport(ladder, paths, state, { allowAny: false, force: false, since: watcher.sinceImport ?? null });
+            // EVENTO SPECIALE (richiesta Mauro 23/10: niente più click a mano):
+            // con un invito accettato il risultato si regista da solo dal file,
+            // posizione ufficiale e penalty incluse. Il modulo a mano resta come riserva.
+            const evAuto = watcher.expectEvent
+              ? autoFinishEventFromFile(ladder, state, { paths, sinceMs: (watcher.armedAt ?? Date.now()) - 10 * 60 * 1000 })
+              : null;
+            if (evAuto === null) {
+              const out = await doImport(ladder, paths, state, { allowAny: false, force: false, since: watcher.sinceImport ?? null });
+              persist(state);
+              return { career: out };
+            }
+            if (evAuto.waiting) return { waiting: evAuto.waiting };
             persist(state);
-            return out;
+            return { event: evAuto };
           });
+          if (out?.waiting) {
+            // il gioco non ha ancora scritto un file leggibile: si rimarta, con limite
+            watcher.tries = (watcher.tries ?? 0) + 1;
+            if (watcher.tries > 20) {
+              watcher.racedEnd = false;
+              watcher.wait = null;
+              watcher.tries = 0;
+              watcher.push('Risultato della gara speciale non ancora leggibile: chiudilo a mano dal pannello Eventi (Posizione d\'arrivo + Registra il risultato).', 'warn');
+            }
+            return;
+          }
+          watcher.tries = 0;
           watcher.racedEnd = false;
           watcher.wait = null;
+          watcher.expectEvent = false; // incassata: pronti per la prossima
           watcher.importSeq = (watcher.importSeq ?? 0) + 1; // la GUI se ne accorge e si ricarica da sola
-          watcher.push(out.duplicate
-            ? `Import ignorato: ${out.node} R${out.round} era già in carriera (nessun doppio premio).`
-            : `RISULTATO IMPORTATO: ${out.node} R${out.round} — ${out.entry.dnf ? 'ritiro' : 'P' + out.entry.position} · +${out.entry.points} pt · +${out.entry.prize} €`, out.duplicate ? 'warn' : 'good');
+          if (out?.event) {
+            const r = out.event.result ?? {};
+            watcher.push(r.won
+              ? `🏆 ${r.position === 1 ? 'EVENTO VINTO' : 'Evento chiuso P' + r.position} — ${r.carName ? r.carName + ' in vetrina! ' : ''}${r.money ? `+${r.money} €` : ''}${r.rep ? ` · +${r.rep} rep` : ''} — registrato da solo${out.event.file ? ` (${out.event.file})` : ''}.`
+              : `Evento chiuso P${r.position}${r.money ? `, +${r.money} €` : ''}${r.rep ? `, +${r.rep} rep` : ''} — registrato da solo.`, r.won ? 'good' : 'info');
+          } else {
+            const c = out?.career ?? out;
+            watcher.push(c.duplicate
+              ? `Import ignorato: ${c.node} R${c.round} era già in carriera (nessun doppio premio).`
+              : `RISULTATO IMPORTATO: ${c.node} R${c.round} — ${c.entry.dsq ? 'squalifica' : c.entry.dnf ? 'ritiro' : 'P' + c.entry.position}${c.entry.penalty && !c.entry.dnf && !c.entry.dsq ? ` (penalità ${c.entry.penalty})` : ''} · +${c.entry.points} pt · +${c.entry.prize} €`, (out?.career ?? out).duplicate ? 'warn' : 'good');
+          }
         } catch (e) {
           // niente risultati ancora scritti: riprova al prossimo giro per un po', poi molla
           if (!watcher.tries) watcher.tries = 0;
@@ -2366,7 +2765,7 @@ server.on('error', async (e) => {
 try { appEnv(); } catch { /* percorso sistemabile dal wizard */ } // lingua salvata: subito valida
 server.listen(PORT, '127.0.0.1', () => {
   const addr = `http://127.0.0.1:${PORT}`;
-  console.log(`\n  Carriera EVO — interfaccia grafica   [slot ${SLOT} di 3]`);
+  console.log(`\n  EVO Pitwall — interfaccia grafica   [slot ${SLOT} di 3]`);
   console.log(`  ${addr}  (tieni questa finestra aperta; Ctrl+C per chiudere)`);
   console.log(`  Watcher import automatico: attivo (deposita il risultato quando la gara finisce)\n`);
   if (OPEN) {
@@ -2380,3 +2779,11 @@ server.listen(PORT, '127.0.0.1', () => {
 // il watcher parte solo quando il server è davvero in ascolto (prima il primo
 // tick poteva scattare prima del listen)
 setInterval(watcherTick, 4000);
+// Auto-riparazione: un giro del dottore all'avvio e poi ogni 10 minuti (con la
+// cache delle scansioni, e solo se la carriera esiste e l'auto-riparazione è ON
+// — si può spegnere da Impostazioni → Manutenzione). Silence se è tutto pulito.
+// AUDIT FREEZE 23/10: lo scavo sincrono non sta più A IMPORT (prima eseguiva
+// ancora prima del listen: il primo click della GUI aspettava il dottore);
+// parte dopo 2.5s di server aperto, quando il cruscotto è già dipinto.
+setTimeout(() => maintenanceTick({ force: true }), 2500).unref();
+setInterval(() => maintenanceTick(), 10 * 60 * 1000);

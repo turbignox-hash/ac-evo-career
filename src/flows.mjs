@@ -8,18 +8,45 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-// EVO_DATA_DIR: solo per i test (il registro di test non tocca quello vero)
-const FLOWS_FILE = process.env.EVO_DATA_DIR
-  ? join(process.env.EVO_DATA_DIR, 'flows.jsonl')
-  : join(HERE, '..', 'data', 'flows.jsonl');
+// EVO_DATA_DIR: solo per i test (il registro di test non tocca quello vero).
+// La cartella si RISOLVE A OGNI CHIAMATA, non all'import: alcuni test (agenda,
+// webui-smoke…) importano i moduli prima di settare la variabile, e se il
+// percorso fosse congelato qui andrebbero a scrivere nel registro VERO del PC,
+// inquinando la carriera reale con flussi di prova (bug fissato il 23/10/2026).
+function flowsFile() {
+  // EVO_FLOWS_DIR: estremo sacrificabile per isolare SOLO il registro (i test
+  // lo usano così: non tocca né il save né le altre cartelle di EVO_DATA_DIR).
+  const dir = process.env.EVO_FLOWS_DIR || process.env.EVO_DATA_DIR;
+  return dir
+    ? join(dir, 'flows.jsonl')
+    : join(HERE, '..', 'data', 'flows.jsonl');
+}
+function debugFile() {
+  const env = process.env.EVO_FLOW_DEBUG ? String(process.env.EVO_FLOW_DEBUG) : null;
+  return env && /[\\/]/.test(env) ? env : join(HERE, '..', 'data', 'flows-debug.jsonl');
+}
+
+let logFile = null; // il percorso a cui si riferisce la cache `log`
+
+function ensureCache(file) {
+  if (log && logFile === file) return;
+  let money = START_MONEY;
+  let rep = 0;
+  for (const f of loadAll(file)) {
+    money += Number(f.money ?? 0);
+    rep += Number(f.rep ?? 0);
+  }
+  log = { money, rep };
+  logFile = file;
+}
 export const START_MONEY = 6000; // reso allineato a state.mjs (fuori allineato: 22/10/2026)
 
 let log = null; // buffer in memoria, svuotato a ogni lettura completa
 
-function append(entries) {
+function append(file, entries) {
   try {
-    mkdirSync(dirname(FLOWS_FILE), { recursive: true });
-    appendFileSync(FLOWS_FILE, entries.map((e) => JSON.stringify(e)).join('\n') + '\n', 'utf8');
+    mkdirSync(dirname(file), { recursive: true });
+    appendFileSync(file, entries.map((e) => JSON.stringify(e)).join('\n') + '\n', 'utf8');
   } catch { /* il registro non deve mai rompere la carriera */ }
 }
 
@@ -33,17 +60,24 @@ export function recordFlows(state, entries) {
     node: state.node ?? null,
     ...e,
   }));
-  append(rows);
+  // watchdog (23/10/2026): i ritiratori fantasma "Coppa 500 S1" scrivevano qui
+  // senza che l'import avesse visto un file nuovo. Ogni scrittura lascia una
+  // riga laterale con pid/argv di chi ha scritto — così il colpevole non scappa.
+  try {
+    appendFileSync(debugFile(), JSON.stringify({ at: rows[0].at, pid: process.pid, cmd: process.argv.slice(0, 4).join(' '), ppid: process.ppid, first: rows[0] }) + '\n', 'utf8');
+  } catch { /* il watchdog non deve mai fermare l'import */ }
+  const file = flowsFile();
+  append(file, rows);
   // la cache dei totali (se già calcolata) va aggiornata subito, altrimenti
   // il dottore vedrebbe anomalie fantasma
-  if (log) {
+  if (log && logFile === file) {
     for (const r of rows) { log.money += Number(r.money ?? 0); log.rep += Number(r.rep ?? 0); }
   }
 }
 
-function loadAll() {
+function loadAll(file) {
   try {
-    return readFileSync(FLOWS_FILE, 'utf8').split('\n').filter(Boolean)
+    return readFileSync(file, 'utf8').split('\n').filter(Boolean)
       .map((l) => { try { return JSON.parse(l); } catch { return null; } })
       .filter(Boolean);
   } catch { return []; }
@@ -51,30 +85,47 @@ function loadAll() {
 
 /** { money, rep } attesi: capitale iniziale + tutti i flussi registrati. */
 export function expectedTotals() {
-  if (log) return log;
-  let money = START_MONEY;
-  let rep = 0;
-  for (const f of loadAll()) {
-    money += Number(f.money ?? 0);
-    rep += Number(f.rep ?? 0);
-  }
-  log = { money, rep };
+  ensureCache(flowsFile());
   return log;
 }
 
 /** Lista dei flussi (per CLI/GUI, i più recenti per primi). */
 export function recentFlows(n = 30) {
-  return loadAll().slice(-n).reverse();
+  return loadAll(flowsFile()).slice(-n).reverse();
 }
 
 /** Azzera il registro (nuova carriera) e invalida la cache. */
 export function resetFlows() {
-  try { writeFileSync(FLOWS_FILE, '', 'utf8'); } catch { /* pazienza */ }
+  const file = flowsFile();
+  try { writeFileSync(file, '', 'utf8'); } catch { /* pazienza */ }
   log = null;
+  logFile = file;
 }
 
 /** Invalida la cache dopo una correzione manuale del dottore. */
-export function invalidateFlowsCache() { log = null; }
+export function invalidateFlowsCache() { log = null; logFile = null; }
+
+/**
+ * Pulizia del registro: rimuove le righe IDENTICHE (stesso istante, stesso nodo,
+ * stessa stagione, stesso tipo, stessi valori e stesso motivo: il doppio vero
+ * — per esempio un import eseguito due volte nello stesso secondo). Ritorna
+ * quante righe tolte: la pulizia manuale del dottore, non magia discriminante
+ * tra flussi legitimi simili.
+ */
+export function dedupFlows() {
+  const file = flowsFile();
+  const rows = loadAll(file);
+  if (!rows.length) return { kept: 0, removed: 0 };
+  const key = (f) => JSON.stringify([f.at, f.node ?? null, f.season ?? null, f.kind ?? null, f.money ?? 0, f.rep ?? 0, f.reason ?? '']);
+  const seen = new Set();
+  const kept = rows.filter((f) => { const k = key(f); if (seen.has(k)) return false; seen.add(k); return true; });
+  const removed = rows.length - kept.length;
+  if (removed > 0) {
+    try { writeFileSync(file, kept.map((e) => JSON.stringify(e)).join('\n') + (kept.length ? '\n' : ''), 'utf8'); } catch { /* il registro non deve mai rompere la carriera */ }
+    invalidateFlowsCache();
+  }
+  return { kept: kept.length, removed };
+}
 
 /** Riparte dai valori attuali del salvataggio (dopo un fix del dottore). */
 export function seedFlowsFrom(state) {
@@ -83,8 +134,9 @@ export function seedFlowsFrom(state) {
   const extraMoney = state.money - START_MONEY;
   if (extraMoney !== 0) seed.push({ at: new Date().toISOString(), kind: 'seed', money: extraMoney, rep: state.rep, reason: 'stato ereditato dalla carriera precedente al registro flussi' });
   else if (state.rep > 0) seed.push({ at: new Date().toISOString(), kind: 'seed', money: 0, rep: state.rep, reason: 'stato ereditato dalla carriera precedente al registro flussi' });
-  if (seed.length) append(seed);
+  if (seed.length) append(flowsFile(), seed);
   log = { money: state.money, rep: state.rep };
+  logFile = flowsFile();
 }
 
 /**
@@ -92,7 +144,7 @@ export function seedFlowsFrom(state) {
  * si parte dai valori attuali del salvataggio (che il dottore ha già validato).
  */
 export function ensureFlowsSeeded(state) {
-  if (existsSync(FLOWS_FILE)) return false;
+  if (existsSync(flowsFile())) return false;
   seedFlowsFrom(state);
   return true;
 }

@@ -9,6 +9,7 @@
 // Il resto, cioe' la lettura del risultato, e' automatico: lo fa il file nativo del gioco.
 
 import { difficultyFor, entryFee, pushMessage, nodeById, playerStanding, isClosedNode } from './state.mjs';
+import { rebuildGridApply } from './grid-apply.mjs';
 import { contractStatus, challengeFor, trackMastery, sponsorFor, ensureContract, refreshContractTexts } from './life.mjs';
 import { raceCrowdFor } from './memories.mjs';
 import { launchGame } from './paths.mjs';
@@ -118,6 +119,15 @@ export function raceCard(ladder, state, { car = null } = {}) {
     overridden: Number.isFinite(sliderMinOv) || Number.isFinite(sliderMaxOv),
   };
   const advice = carAdviceFor(node, (id) => ladder.contentNames?.cars?.[id] ?? id);
+  // SERIE NUOVA, griglia da sbloccare (23/10 sera: Coppa Audi RS 3 col customgrid
+  // ancora 5× F40 di ieri): la card dice SUBITO il rituale della prima griglia
+  // della serie, invece di farlo scoprire a tasto "Apri EVO" o in pista mentre
+  // in EVO si vede la griglia vecchia. Se la build a secco passa, qui non manca
+  // niente (gridRitual resta null): il rituale serve SOLO quando nessun
+  // template sul disco ha le auto della serie.
+  let gridRitual = null;
+  try { rebuildGridApply({ ladder, nodeId: node.nodeId, roundIndex, dry: true }); }
+  catch (e) { if (e?.code === 'NO_TEMPLATE') gridRitual = e.message; }
   const chosenCar = car ?? advice.pick ?? node.cars[0];
   const carName = (id) => ladder.contentNames?.cars?.[id] ?? id;
   const trackName = (id) => ladder.contentNames?.tracks?.[id] ?? id;
@@ -174,6 +184,7 @@ export function raceCard(ladder, state, { car = null } = {}) {
       [tr({ it: 'Danni', en: 'Damage' }), tr({ it: 'consigliato: leggeri (le serie storiche perdonano meno)', en: 'recommended: light (history series forgive less)' })],
     ],
     warnings: buildWarnings(node, round, profile, diffShown, laps),
+    gridRitual,
     outlook: (() => {
       // report pre-gara: obiettivo pista (miglior giro personale su questo tracciato),
       // punti e posizione della stagione in corso, rivali già incontrati nella serie

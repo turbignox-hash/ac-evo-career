@@ -17,7 +17,7 @@ echo   La TUA carriera (slot 1)...
 echo   (salvataggio invariato: data\evo-career.save.json)
 echo.
 
-start "Carriera EVO Slot 1" /MIN "%~dp0gui-run.cmd"
+start "EVO Pitwall Slot 1" /MIN "%~dp0gui-run.cmd"
 
 timeout /t 2 >nul
 endlocal

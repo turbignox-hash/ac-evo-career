@@ -20,9 +20,10 @@
 //   node tools/set-racetime.mjs --hour 21 --scale 48   // tramonto -> alba
 //   node tools/set-racetime.mjs --hour 2 --scale 2 --dry
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
-import { decodeMsg, encodeMsg } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, GAME_MODES_DIR } from './evo-grid.mjs';
+import { join } from 'node:path';
 
-export const WEEKEND_FILE = 'C:/Users/Mauro/Saved Games/ACE/GameModes/GameModeType_RACE_WEEKEND.gamemodesave';
+export const WEEKEND_FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 
 /** Legge ora/minuti/scala dal blocco "Race" (o dal blocco indicato, 0-based) del gamemodesave. */
 export function currentRaceTime(file = WEEKEND_FILE, blockName = 'Race') {

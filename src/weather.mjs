@@ -26,9 +26,10 @@
 //   node src/weather.mjs 4              // o per indice
 //   node src/weather.mjs --custom 0.35 0.45 0.1   // preset 7 + float timeline
 import { readFileSync, writeFileSync, copyFileSync } from 'node:fs';
-import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
+import { join } from 'node:path';
+import { decodeMsg, encodeMsg, GAME_MODES_DIR } from '../tools/evo-grid.mjs';
 
-const LGM = 'C:/Users/Mauro/Saved Games/ACE/GameModes/gamemode.lastgamemode';
+const LGM = join(GAME_MODES_DIR, 'gamemode.lastgamemode');
 
 export const PRESETS = [
   { id: 0, key: 'sereno', label: 'Sereno' },

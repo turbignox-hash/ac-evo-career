@@ -88,6 +88,63 @@ export function positionBase(result) {
   return { zeroBased, base: zeroBased ? 0 : 1 };
 }
 
+/* ------------------------------------------------------------------ */
+/* penalità di gara (richiesta Mauro 23/10: «il gioco le calcola, il tool no)  */
+/* ------------------------------------------------------------------ */
+//
+// In pratica EVO scrive la penalità VERA nel campo `high_penalty` del pilota:
+//   "+5.0s" / "+10.0s"  → tempo aggiunto a classificazione fatta
+//   "DT"                → drive-through (il tempo perso resta nel total_time)
+//   "DSQ"               → squalifica
+// Il campo `position` del file è l'ordine DI PISTA, PRIMA della penalità:
+// verificato su Paul Ricard 17/10/26 (P0 con +5.0s, gap P1 = 0.285s → ufficialmente P5)
+// e su Red Bull Ring 17/04/26 (DSQ già in coda). L'array `penalties` è quasi
+// sempre vuoto: non fidarsi di quello.
+
+/** La penalità di un pilota come la scrive EVO: { label, kind, ms, dsq }. */
+export function penaltyOf(d) {
+  const raw = String(d?.high_penalty ?? '').trim();
+  if (!raw) return { label: null, kind: null, ms: 0, dsq: false };
+  const m = raw.match(/^\+(\d+(?:\.\d+)?)s$/i);
+  if (m) return { label: raw, kind: 'time', ms: Math.round(Number(m[1]) * 1000), dsq: false };
+  if (/^DSQ$/i.test(raw)) return { label: raw, kind: 'dsq', ms: 0, dsq: true };
+  return { label: raw, kind: raw.toUpperCase(), ms: 0, dsq: false };   // es. "DT"
+}
+
+/** Tempera total_time di gara: supporta anche il formato h:mm:ss.d dei giri lunghi. */
+const raceMsOf = (t) => {
+  const m = String(t ?? '').match(/^(?:(\d+):)?(\d+):(\d+)(?:\.(\d+))?$/);
+  if (!m) return Infinity;
+  return ((Number(m[1] ?? 0) * 3600) + (Number(m[2]) * 60) + Number(m[3])) * 1000 + Number(m[4] ?? 0);
+};
+
+/** Positione UFFICIALE di un pilota: i classificati vengono riordinati con
+ *  total_time + penalità a tempo; DSQ e non classificati escono dal conto.
+ *  DT non si ricompone: il tempo dell'attraversamento è già nel giro. */
+export function officialPositionOf(result, d) {
+  const { zeroBased } = positionBase(result);
+  const toPos = (p) => (zeroBased ? Number(p) + 1 : Number(p));
+  const pen = penaltyOf(d);
+  if (!d || !d.total_time || Number(d.laps ?? 0) === 0 || pen.dsq) {
+    return { position: null, dsq: pen.dsq, penalty: pen.label };
+  }
+  const myMs = raceMsOf(d.total_time);
+  const myLaps = Number(d.laps ?? 0);
+  // Classificazione come la fa il gioco: prima i GIRI, poi il tempo corretto
+  // (i doppiati restano dietro anche se total_time è più basso del leader!).
+  const ahead = (result?.drivers ?? []).filter((o) => {
+    if (o === d) return false;
+    const p = penaltyOf(o);
+    if (p.dsq) return false;
+    if (!o.total_time || Number(o.laps ?? 0) === 0) return false;
+    const oLaps = Number(o.laps ?? 0);
+    if (oLaps !== myLaps) return oLaps > myLaps;
+    const t = raceMsOf(o.total_time);
+    return Number.isFinite(t) && (t + p.ms) < (myMs + pen.ms);
+  }).length;
+  return { position: ahead + 1, dsq: false, penalty: pen.label };
+}
+
 /** Miglior giro in assoluto e se il giocatore l'ha firmato. */
 export function bestLapInfo(result, playerDriver) {
   const drivers = result?.drivers ?? [];
@@ -106,18 +163,24 @@ export function bestLapInfo(result, playerDriver) {
   };
 }
 
-/** Posizione finale, ritiro e dati di contorno del pilota della carriera. */
+/** Posizione finale, ritiro e dati di contorno del pilota della carriera.
+ *  Con penalità a tempo la posizione viene RICOMPUTATA ufficiale (v. penaltyOf). */
 export function classify(result, entry) {
   const drivers = result?.drivers ?? [];
   const d = entry.driver;
   const { zeroBased } = positionBase(result);
   const toPosition = (p) => (zeroBased ? Number(p) + 1 : Number(p));
   const winner = drivers.find((x) => Number(x.position) === (zeroBased ? 0 : 1));
-  const dnf = !d || !d.total_time || Number(d.laps ?? 0) === 0;
+  const rawPos = d ? toPosition(d.position) : null;
+  const off = d ? officialPositionOf(result, d) : { position: null, dsq: false, penalty: null };
+  const dnf = !d || !d.total_time || Number(d.laps ?? 0) === 0 || off.dsq;
   return {
-    position: dnf ? drivers.length : toPosition(d.position),
+    position: dnf ? drivers.length : (off.position ?? rawPos),   // considerata la penalità
+    rawPos,
     gridSize: drivers.length,
     dnf,
+    dsq: !!off.dsq,
+    penalty: off.penalty ?? null,
     laps: d?.laps ?? 0,
     winnerLaps: winner?.laps ?? 0,
     bestLap: d?.best_lap ?? null,
@@ -169,10 +232,12 @@ export function describeResult(result) {
   lines.push(`meteo:     ${result?.weather_type ?? '?'}`);
   lines.push(`piloti:    ${drivers.length}`);
   const { zeroBased } = positionBase(result);
+  // il campo penalties è quasi sempre vuoto; la penalità vera sta in high_penalty
   for (const d of drivers) {
     const shown = zeroBased ? Number(d.position) + 1 : Number(d.position);
     const flag = d.is_current_driver ? '  <= PILOTA ATTUALE' : /^[•\u2022]/.test(String(d.driver_name).trim()) ? '' : '  <= senza contrassegno AI';
-    lines.push(`  P${shown} ${cleanName(d.driver_name)} ${d.driver_surname} (${d.driver_nation}) ${d.car_name} — giri ${d.laps}, best ${d.best_lap || '-'}${flag}`);
+    const labs = penaltyOf(d).label;
+    lines.push(`  P${shown} ${cleanName(d.driver_name)} ${d.driver_surname} (${d.driver_nation}) ${d.car_name} — giri ${d.laps}, best ${d.best_lap || '-'}${labs ? ` — penalità ${labs}` : ''}${flag}`);
   }
   return lines.join('\n');
 }

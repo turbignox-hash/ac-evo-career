@@ -11,10 +11,13 @@
 //   node tools/set-car.mjs --list                              (celle correnti + template disponibili nel sorgente)
 //   node tools/set-car.mjs --cell 0 --car "Ferrari Daytona SP3" [--dry]
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
-import { decodeMsg, encodeMsg, gameRunning } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, gameRunning, GAME_MODES_DIR } from './evo-grid.mjs';
+import { join } from 'node:path';
 
-export const GRID_FILE = 'C:/Users/Mauro/Saved Games/ACE/GameModes/last_grid.customgrid';
-export const TEMPLATE_SOURCE = 'C:/Users/Mauro/Saved Games/ACE/GameModes/last_grid.customgrid.bak-griglia-2026-10-19T23-10';
+export const GRID_FILE = join(GAME_MODES_DIR, 'last_grid.customgrid');
+// il template di riferimento storico (19/10/2026): il PRIMO round-trip ok, salvato
+// accanto al file perché serve a rigenerare la tabella celle quando serve.
+export const TEMPLATE_SOURCE = `${GRID_FILE}.bak-griglia-2026-10-19T23-10`;
 
 /** Le celle del customgrid: [{ id, name, idx, field }] per lettura e scrittura in loco. */
 export function gridCells(buf) {
