@@ -610,7 +610,7 @@ async function drawLiveStrip(){
         return;
       }
       const age = Date.now() - (h?.telem?.lastLd?.mtimeMs ?? 0);
-      const ultima = h?.telem?.lastLd ? new Date(h.telem.lastLd.mtimeMs).toLocaleTimeString(window.LINGUA === 'en' ? 'en-GB' : 'it-IT', { hour: '2-digit', minute: '2-digit' }) : null;
+      const ultima = h?.telem?.lastLd ? new Date(h.telem.lastLd.mtimeMs).toLocaleTimeString(window.LOCALE, { hour: '2-digit', minute: '2-digit' }) : null;
       const label = r.stale ? tr({ it: 'EVO · segnale live perso', en: 'EVO · live signal lost' })
         : (h?.telem?.lastLd?.valid && age < 10000 ? tr({ it: 'EVO · sessione chiusa — scrittura telemetria', en: 'EVO · session closed — writing telemetry' })
         : (ultima ? tr({ it: `EVO chiuso · telem. ore ${ultima}`, en: `EVO closed · telemetry ${ultima}` }) : tr({ it: 'EVO chiuso', en: 'EVO closed' })));

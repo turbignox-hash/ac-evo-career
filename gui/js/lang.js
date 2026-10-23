@@ -35,7 +35,11 @@ window.legacyIt = (s) => {
     .replace(/\bsotto la base su ([^:]+): penalità troppo larga, la alleggerisco\b/g, 'under the base at $1: penalty too large, easing it')
     .replace(/\bsulla base\b/g, 'from the base')
     .replace(/\b(dalla base) su\b/g, 'from the base at')
-    .replace(/\(stagione (\d+|\?)\)/g, '(season $1)');
+    .replace(/\(stagione (\d+|\?)\)/g, '(season $1)')
+    /* note di calibrazione generanti dalle gare (annotazione autoBase della griglia): */
+    .replace(/\(dal campo ([^,)]+), gara (\d+)\)/g, '(from the field $1, race $2)')
+    .replace(/\(base della calibrazione: ([^)]+)\)/g, '(calibration base: $1)')
+    .replace(/\bcalibrazione (\d+)-?(\d+)? \? \(gara (\d+)\)/g, 'calibration $1-$2 (race $3)');
 };
 
 window.impostaLingua = (lingua) => {

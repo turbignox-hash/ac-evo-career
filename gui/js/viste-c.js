@@ -1,4 +1,11 @@
 /* -------- risultati / import -------- */
+/* Trazione nei dati di progetto è in italiano (autoBase/specs): si presenta
+   nella lingua attiva, i dati su disco non si toccano. */
+function driveLabel(d) {
+  const s = String(d ?? '').trim().toLowerCase();
+  const map = { anteriore: { it: 'anteriore', en: 'front' }, posteriore: { it: 'posteriore', en: 'rear' }, integrale: { it: 'integrale', en: 'AWD' } };
+  return map[s] ? tr(map[s]) : (d ?? '');
+}
 async function drawImport(m){
   const [insp, card] = await Promise.all([api('import-inspect'), api('card')]);
   const pending = boot.header.pending;
@@ -129,7 +136,7 @@ async function drawCars(m){
       <img class="car-frame" src="${r.image}" alt="${esc(r.name)}" loading="lazy" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#0d1118">
       <div style="padding:8px 10px"><b style="font-size:12.5px">${esc(r.name)}</b> ${piBadge(r.pi)} <span class="faint" style="font-size:10px">${r.category==='racing'?` ${tr({ it: 'racing', en: 'racing' })}`:` ${tr({ it: 'stradale', en: 'road' })}`}</span>${inGar?` <span class="tag gold" style="font-size:10px;padding:1px 6px" title="${tr({ it: 'già nel tuo garage', en: 'already in your garage' })}">🏠 ${tr({ it: 'garage', en: 'garage' })}</span>`:''}
       ${price}
-      ${r.specs?.power!=null?`<div class="muted" style="font-size:11px;margin-top:4px">${r.specs.power} CV · ${r.specs.weight!=null?r.specs.weight+' kg · ':''}${esc(r.specs.drive??'')}</div>`:''}
+      ${r.specs?.power!=null?`<div class="muted" style="font-size:11px;margin-top:4px">${r.specs.power} ${tr({ it: 'CV', en: 'hp' })} · ${r.specs.weight!=null?r.specs.weight+' kg · ':''}${esc(driveLabel(r.specs.drive))}</div>`:''}
       ${r.variants?.length?`<div class="muted" style="font-size:11px;margin-top:2px">${tr({ it: 'varianti: ', en: 'variants: ' })}${esc(r.variants.join(', '))}</div>`:''}</div>
     </div>`;
     }).join('') || `<div class="empty">${tr({ it: 'Nessuna auto trovata.', en: 'No car found.' })}</div>`;
@@ -185,7 +192,7 @@ async function drawCars(m){
       ${row(tr({ it: 'Coppia', en: 'Torque' }), s.torque!=null?`${s.torque} Nm`:null)}
       ${row(tr({ it: 'Peso', en: 'Weight' }), s.weight!=null?`${s.weight} kg`:null)}
       ${row(tr({ it: 'Peso/potenza', en: 'Power/weight' }), s.pwratio!=null?esc(String(s.pwratio)):(s.power&&s.weight?`${(s.weight/s.power).toFixed(2)} kg/${tr({ it: 'CV', en: 'hp' })}`:null))}
-      ${row(tr({ it: 'Trazione', en: 'Drivetrain' }), s.drive?esc(s.drive):null)}
+      ${row(tr({ it: 'Trazione', en: 'Drivetrain' }), s.drive?esc(driveLabel(s.drive)):null)}
       ${row(tr({ it: 'Cambio', en: 'Gearbox' }), s.gearbox?esc(s.gearbox):null)}
       ${row(tr({ it: 'Velocità massima', en: 'Top speed' }), s.topspeed?esc(String(s.topspeed)):null)}
       ${row(tr({ it: 'Accelerazione', en: 'Acceleration' }), s.acceleration?esc(String(s.acceleration)):null)}
@@ -242,7 +249,7 @@ async function drawGarage(m){
     <div class="panel" style="padding:0;overflow:hidden" data-car="${esc(c.carId)}">
       ${c.image?`<img class="car-frame" src="${c.image}" alt="${esc(c.carName)}" loading="lazy" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#0d1118">`:''}
       <div style="padding:9px 11px">
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:13px">${esc(c.carName)}</b> ${badge(c.how, c.note)}${c.pi!=null?`<span class="tag blue" style="font-size:10px;padding:1px 6px" title="Perf. index dal server dedicato">PI ${c.pi.toFixed(1)}</span>`:''}</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:13px">${esc(c.carName)}</b> ${badge(c.how, c.note)}${c.pi!=null?`<span class="tag blue" style="font-size:10px;padding:1px 6px" title="${tr({ it: 'Perf. index dal server dedicato', en: 'Performance index from the dedicated server' })}">PI ${c.pi.toFixed(1)}</span>`:''}</div>
         <div class="muted" style="font-size:11px;margin-top:3px">${tr({ it: 'nel garage dal ', en: 'in the garage since ' })}${esc(new Date(c.since).toLocaleDateString(window.LOCALE ?? 'it-IT'))}${c.note?` · ${esc(legacyIt(c.note))}`:''}</div>
         <div style="display:flex;gap:10px;margin-top:7px;font-size:12px;flex-wrap:wrap">
           <span title="${tr({ it: 'gare con questa auto', en: 'races with this car' })}">🏁 ${c.stats.races} ${tr({ it: 'gare', en: 'races' })}</span>
@@ -420,7 +427,7 @@ async function drawSetup(m){
       areas: cl?.items?.length ?? 0,
       stale: !!tel.stale?.changed,
       live: live?.game ? (live?.live ? tr({ it: 'in pista', en: 'on track' }) : tr({ it: 'aperto', en: 'open' })) : null,
-      telem: h?.telem?.lastLd ? new Date(h.telem.lastLd.mtimeMs).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : null,
+      telem: h?.telem?.lastLd ? new Date(h.telem.lastLd.mtimeMs).toLocaleTimeString(window.LOCALE, { hour: '2-digit', minute: '2-digit' }) : null,
     };
     /* SETUP PIÙ NUOVO DELL'ULTIMA SESSIONE: il meccanico giudica i dati vecchi —
        mostrato GRANDE sopra la checklist, non solo come chip (Mauro 21/10). */
@@ -428,11 +435,21 @@ async function drawSetup(m){
       ? `<div class="banner warn" style="margin:10px 0 0;padding:10px 12px">⚠️ <b>${tr({ it: "Setup montato più recente dell'ultima uscita", en: 'Newer setup fitted after the last outing' })}</b> — ${tr({ it: 'la base dati del meccanico (giri, bump, camber, freni) parla della sessione di ', en: 'the mechanic\'s data (laps, bump, camber, brakes) refers to the session of ' })}<b>${esc(tel.stale.lastSession ?? '?')}</b>, ${tr({ it: 'ma il file di setup attivo è ', en: 'but the active setup file is ' })}<b>«${esc(tel.stale.file)}»</b> ${tr({ it: 'salvato alle ', en: 'saved at ' })}${esc(tel.stale.setupWhen ?? '')}.<br><span class="muted" style="font-size:11.5px">${tr({ it: 'Fai 2 giri con il nuovo assetto (telemetria attiva): appena il .ld esce, tutta l\'analisi si rigenera sui dati freschi. Il consiglio pressioni resta valido: si proietta sui TARGET, non sui valori del vecchio setup.', en: 'Do 2 laps with the new setup (telemetry on): as soon as the .ld appears, the whole analysis rebuilds on fresh data. The pressure advice stays valid: it projects onto TARGETS, not the old setup values.' })}</span></div>`
       : '';
     const DOT = { ok: '🟢', warn: '🟠', bad: '🔴', info: '🔸' };
+    /* Le chiavi 'area' della checklist sono parole-chiave fisse (parlate in bg,
+       non utente): si presentano nella lingua attiva, l'etichetta in it resta
+       parola-per-parola perché è il riferimento del people di progetto. */
+    const AREA = {
+      pressioni: { it: 'pressioni', en: 'pressures' }, bumpstop: { it: 'bumpstop', en: 'bumpstops' },
+      camber: { it: 'camber', en: 'camber' }, gomme: { it: 'gomme', en: 'tyres' },
+      freni: { it: 'freni', en: 'brakes' }, benzina: { it: 'benzina', en: 'fuel' },
+      tempo: { it: 'tempi', en: 'lap times' }, storia: { it: 'storia', en: 'history' },
+      telemetria: { it: 'telemetria', en: 'telemetry' },
+    };
     const clHtml = cl ? (
       cl.allGood
         ? `<div class="banner good" style="margin:10px 0;padding:10px 12px">🟢 <b>${tr({ it: 'Auto a punto — il meccanico non ha più niente da consigliare.', en: "Car dialed in — the mechanic has nothing more to suggest." })}</b> <span class="muted" style="font-size:11.5px">${tr({ it: 'Nessuna voce sotto soglia: puoi girare col setup attuale — la lista riparte colorata se qualcosa esce fuori al prossimo giro.', en: 'No item below threshold: you can run the current setup — the list lights up again if anything goes out on the next lap.' })}</span></div>`
         : `<ul style="margin:10px 0 4px;padding:0;list-style:none;font-size:13px;line-height:1.75">
-      ${cl.items.map((i) => `<li style="margin:0">${DOT[i.level] ?? '🔸'} <b>${esc(i.area)}</b> — ${esc(i.text)}</li>`).join('\n      ')}
+      ${cl.items.map((i) => `<li style="margin:0">${DOT[i.level] ?? '🔸'} <b>${esc(AREA[i.area] ? tr(AREA[i.area]) : i.area)}</b> — ${esc(i.text)}</li>`).join('\n      ')}
     </ul>`
     ) : '';
     /* SETUP RISISTEMATO: il GRAFICO DELLA TELEMETRIA è la prima cosa si vede,
