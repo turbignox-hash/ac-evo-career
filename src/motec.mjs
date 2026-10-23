@@ -335,6 +335,27 @@ export function lapTrace(ldFile, { lap = 'best', compare = 'best', points = 240 
   };
 }
 
+/**
+ * La striscia di UN giro per i consumatori esterni (il motore A/B di analisi.mjse
+ * e i test): riusa TUTTO il meccanismo di lapTrace (allineamento su frazione
+ * di distanza, conversione kmh, gas/freno normalizzati) con compare='none' —
+ * una sola implementazione del sampling, zero duplicazione.
+ */
+export function sampleLap(ldFile, lapNo = 'best', points = 240) {
+  const t = lapTrace(ldFile, { lap: lapNo, compare: 'none', points });
+  if (!t || !t.ok) return null;
+  return {
+    file: basename(ldFile),
+    lap: t.lap,
+    bestLapSec: t.durationSec,
+    durationSec: t.durationSec,
+    xs: t.points.map((p) => p.x),
+    vs: t.points.map((p) => p.v),
+    pts: t.points,
+    distKm: t.distanceKm,
+  };
+}
+
 /** Statistiche (min/max/media) di un canale sull'intera sessione. */
 function statsOf(ld, name) {
   const c = ld.channels.get(name); if (!c) return null;

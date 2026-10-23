@@ -59,6 +59,18 @@ export const TRACK_SPECIALS = {
   // cartella MoTec "Paul RicardLayout 1C-V2", come "NurburgringGp Strecke"):
   // tag = il nome del layout, layout lungo = il nome + " Race".
   paul_ricard: { name: 'Paul Ricard', tag: 'Layout 1C-V2', layout: 'Layout 1C-V2 Race', continent: 'Europe' },
+  // Sebring (guardo 22/10 sera, riquadro pista VUOTO preparando la gara): il
+  // book dice name "Sebring" / 6.019 km ma il leaderboard che EVO SCRIVE DA
+  // SOLO al pick dal menù (osservato con watch-gamemode.tmp.mjs su un giro di
+  // click USA: Road Atlanta, Laguna Seca, COTA, Watkins Glen, Sebring) porta
+  // name "Sebring International Raceway" e 5954 m, con tag "GP" e layout
+  // "GP Race" (i default). Con name "Sebring" il percorso risorsa esce
+  // sbagliato e il tess va vuoto/crasha al load: UNICA lezione del giro —
+  // la pista è mono-layout e NON ha ovaldal/short (Watkins sì: "Short Inner
+  // Loop Race", attr "Short Inner Loop"). Solo nome e lunghezza differiscono
+  // dal book: sebring è l'unico tracciato USA il cui name EVO NON è il name
+  // del book.
+  sebring: { name: 'Sebring International Raceway', lengthM: 5954, tag: 'GP', layout: 'GP Race', continent: 'North America' },
 };
 
 // continente (campo 3.5.8) per paese: usato per NON ereditare il continente
@@ -202,6 +214,56 @@ export function changeWeekendTrack(trackName, { file = WEEKEND_FILE, dry = false
   writeFileSync(`${file}.tmp`, out);
   renameSync(`${file}.tmp`, file);
   return { spec, blocchi: res.blocchi, changed: res.changed, written: true, backup };
+}
+
+/* ---------- difficoltà AI del weekend (campi 30/31 del blocco 3) ---------- */
+
+/**
+ * La banda AI realmente scritta nel gamemodesave: è questa che il gioco
+ * mostra sullo screen di caricamento (88–93 osservati il 23/10). Reader:
+ * ritorna { min, max } dai campi 30/31 del primo blocco sessione, o null.
+ */
+export function weekendAi(file = WEEKEND_FILE) {
+  let buf;
+  try { buf = readFileSync(file); } catch { return null; }
+  const f3 = decodeMsg(buf).find((f) => f.field === 3 && f.wire === 2);
+  if (!f3) return null;
+  const session = decodeMsg(f3.bytes);
+  const lo = session.find((s) => s.field === 30)?.varint;
+  const hi = session.find((s) => s.field === 31)?.varint;
+  return lo != null && hi != null ? { min: Number(lo), max: Number(hi) } : null;
+}
+
+/**
+ * Riscrive l'intervallo AI del weekend (campi 30/31), come i due cursori
+ * nella barra difficoltà del gioco — UNA SEMPLICE CORSIA: min e max. A
+ * differenza delle scritture griglia NON serve EVO chiuso (come la pista:
+ * provato sul gamemodesave reale); vale alla prossima apertura del weekend,
+ * e sullo screen di caricamento si vede la banda scritta qui.
+ * opts: { file, dry } — dry: solo report, niente scrittura.
+ */
+export function setWeekendAi(min, max, { file = WEEKEND_FILE, dry = false } = {}) {
+  const lo = Math.max(0, Math.min(100, Math.round(Number(min))));
+  const hi = Math.max(lo, Math.min(100, Math.round(Number(max))));
+  const buf = readFileSync(file);
+  const fields = decodeMsg(buf);
+  const f3 = fields.find((f) => f.field === 3 && f.wire === 2);
+  if (!f3) throw Object.assign(new Error('blocco sessione (campo 3) non trovato nel gamemodesave'), { code: 'NO_SESSION' });
+  const session = decodeMsg(f3.bytes);
+  let touched = false;
+  for (const [n, v] of [[30, lo], [31, hi]]) {
+    const i = session.findIndex((s) => s.field === n);
+    if (i >= 0) {
+      if (Number(session[i].varint) !== v) { session[i].varint = BigInt(Math.max(0, v)); touched = true; }
+    } else { session.push({ field: n, wire: 0, varint: BigInt(Math.max(0, v)) }); touched = true; }
+  }
+  f3.bytes = encodeMsg(session);
+  if (dry || !touched) return { ai: [lo, hi], changed: touched, written: false };
+  const backup = `${file}.bak-ai-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+  copyFileSync(file, backup);
+  writeFileSync(`${file}.tmp`, encodeMsg(fields));
+  renameSync(`${file}.tmp`, file);
+  return { ai: [lo, hi], changed: true, written: true, backup };
 }
 
 /* ---------- CLI (solo quando eseguito direttamente) ---------- */

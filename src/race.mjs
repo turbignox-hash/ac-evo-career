@@ -106,10 +106,11 @@ export function raceCard(ladder, state, { car = null } = {}) {
   const practiceStartOv = Number.isFinite(Number(ov.practiceStart)) ? Number(ov.practiceStart) : null;
   const qualifyStartOv = Number.isFinite(Number(ov.qualifyStart)) ? Number(ov.qualifyStart) : null;
   const diff = difficultyFor(ladder, state, node, round.track);
-  // in EVO la difficoltà AI si imposta come INTERVALLO min-max: il tool consiglia
-  // una banda ±5 attorno al valore calcolato; l'utente può spostarla o restringerla
-  const recMin = Math.max(0, Math.min(100, diff.slider - 5));
-  const recMax = Math.max(0, Math.min(100, diff.slider + 5));
+  // in EVO la difficoltà AI si imposta come INTERVALLO min-max: banda STRETTA di un
+  // punto (scelta Mauro 23/10: gap massimo 1% su tutte le serie, per avvicinare
+  // anche gli ultimi); si sposta col centro, l'utente la regola coi cursori
+  const recMin = Math.max(0, Math.min(100, Math.round(diff.slider)));
+  const recMax = Math.max(0, Math.min(100, recMin + 1));
   const diffShown = {
     ...diff,
     rangeMin: sliderMinOv ?? recMin,

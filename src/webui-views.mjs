@@ -425,13 +425,15 @@ function viewCard(ladder, state, car = null) {
     const ov = state.raceSettings?.[node.nodeId] ?? {};
     const oMin = Number.isFinite(Number(ov.sliderMin)) ? Number(ov.sliderMin) : null;
     const oMax = Number.isFinite(Number(ov.sliderMax)) ? Number(ov.sliderMax) : null;
+    // banda STRETTA di un punto (scelta Mauro 23/10: gap massimo 1% su tutte le serie)
+    const baseBand = oMin ?? Math.max(0, Math.round(d.slider));
     rows.push({
       id: node.nodeId, display: node.display, discipline: disciplineName(ladder, node.discipline),
       current: node.nodeId === state.node,
       base: Math.round(d.base ?? 0), trim: d.trim, offClass: d.offClass, offTrack: d.offTrack,
       total: Math.round(d.total), slider: d.slider, locked: !!d.locked,
-      rangeMin: oMin ?? Math.max(0, d.slider - 5),
-      rangeMax: oMax ?? Math.min(100, d.slider + 5),
+      rangeMin: baseBand,
+      rangeMax: oMax ?? Math.min(100, baseBand + 1),
       overridden: oMin != null || oMax != null,
     });
   }

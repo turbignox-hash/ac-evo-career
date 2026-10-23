@@ -54,6 +54,9 @@ function saveStore(store) {
 /* ingestione: griglia completa da ogni gara importata                 */
 /* ------------------------------------------------------------------ */
 
+/** Lettura in sola-libera dell'archivio rivali (registri/analisi esterni). */
+export function rivalsStore() { return loadStore(); }
+
 /**
  * Registra una gara appena importata in carriera: estrae l'intera griglia
  * (te + rivali), aggiorna testa a testa, statistiche dei rivali e archivio.

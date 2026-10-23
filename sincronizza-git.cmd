@@ -8,6 +8,13 @@ if errorlevel 1 goto mancanteremota
 echo.
 echo   --- SALVATAGGIO LOCALE + COPIA OFF-SITE ---
 
+rem 0) Numero di build: la versione del package.json sale di 1 a ogni salvataggio
+rem    (arriva in GUI nel pie' della barra laterale, "build x.y.z · hash").
+rem    Se il bump fallisce NON blocca il salvataggio.
+node tools\bump-versione.mjs
+if errorlevel 1 echo   -  bump della versione non riuscito: proseguo lo stesso.
+
+echo.
 rem 1) Prepara tutte le modifiche (anche i file nuovi), rispettando .gitignore
 git add -A
 

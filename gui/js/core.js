@@ -4,7 +4,7 @@ window.addEventListener('error', e => { (window.__errs = window.__errs || []).pu
 const $ = (s, el=document) => el.querySelector(s);
 const $$ = (s, el=document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const money = (n) => Number(n ?? 0).toLocaleString('it-IT');
+const money = (n) => Number(n ?? 0).toLocaleString(window.LOCALE ?? 'it-IT');
 const api = (action, call={}) => {
   // compat con lo stile del monolite: {method:'POST', body:{...}} — dopo lo split
   // alcune viste mandano ancora l'incartatura; il server in realtà vuole il SOLO body
@@ -88,6 +88,7 @@ const ICONS = {
   catalog:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 3.5h4.2v4.2H2.5zM9.3 3.5h4.2v4.2H9.3zM2.5 8.8h4.2V13H2.5zM9.3 8.8h4.2V13H9.3z"/></svg>',
   archive:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="4" rx="1"/><path d="M3.5 6.5V13h9V6.5M6 9.5h4"/></svg>',
   rivals:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.2" cy="5" r="2.2"/><circle cx="10.8" cy="5" r="2.2"/><path d="M1.8 13c.4-2.4 1.7-3.6 3.4-3.6S8.2 10.6 8.6 13M7.4 13c.4-2.4 1.7-3.6 3.4-3.6s3 1.2 3.4 3.6"/></svg>',
+  analisi:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 13.5V4M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v9.5H4a1.5 1.5 0 0 1-1.5-1.5z"/><path d="M5 6.5h3l1.5 3.5 1.5-2 1.5 2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   testday:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h3l2-4 2 8 2-5 1.5 2H14" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   /* la voce Setup porta la FIGURA del meccanico (cappellino + tuta + chiave):
      è lui il protagonista di quella scheda, non una generica chiave inglese */
@@ -125,6 +126,7 @@ const TABS = [
   ['dashboard',      tr({ it: 'Cruscotto',      en: 'Dashboard' })],
   ['agenda',         tr({ it: 'Centro gare',    en: 'Race centre' })],
   ['setup',          tr({ it: 'Setup',          en: 'Setup' })],
+  ['analisi',        tr({ it: 'Analisi',        en: 'Analysis' })],
   ['messages',       tr({ it: 'Messaggi',       en: 'Messages' })],
   ['championships',  tr({ it: 'Campionati',     en: 'Championships' })],
   ['griglia',        tr({ it: 'Griglia',        en: 'Grid' })],
@@ -146,6 +148,7 @@ const TABS = [
 /* un colore per ogni sezione: le icone della nav restano riconoscibili a colpo d'occhio */
 const TAB_COLORS = {
   dashboard:'#5da9ff', agenda:'#ff7a45', calendar:'#b48cff', standings:'#ffd166',  rivals:'#ff6b6b',
+  analisi:'#a3e433',
   tracks:'#e8c46b', cars:'#74c0fc', garage:'#ffd43b', import:'#63e6e2', griglia:'#82ccdd',
   setup:'#f78fb3', catalog:'#82ccdd', archive:'#c9a0ff', stats:'#69db7c',
   difficulty:'#5f7cff', messages:'#ffa94d', settings:'#adb5bd', banca:'#ffd43b',
@@ -155,7 +158,7 @@ function drawNav(){
   const offers = boot?.header?.offers?.length || 0;
   const urgent = boot?.mailUrgent || 0;
   $('#nav').innerHTML = TABS.map(([id,label]) =>
-    `<button data-tab="${id}" class="${tab===id?'on':''}">${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${tr({ it: `${urgent} email urgenti: gare da disputare o conflitti`, en: `${urgent} urgent emails: races to run or conflicts` })}">⚠️${urgent}</span>`:''}</button>`).join('');
+    `<button data-tab="${id}" class="${tab===id?'on':''}">${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${tr({ it: `${urgent} email urgenti: gare da disputare o conflitti`, en: `${urgent} ${urgent===1?'urgent email':'urgent emails'}: races to run or conflicts` })}">⚠️${urgent}</span>`:''}</button>`).join('');
   $$('#nav button').forEach(b => b.onclick = () => { tab = b.dataset.tab; drawNav(); render(); });
 }
 
@@ -177,6 +180,7 @@ async function render(){
   if (tab==='dashboard')  return await drawDashboard(m);
       if (tab==='agenda')     return await drawAgenda(m);
     if (tab==='rivals')     return await drawRivals(m);
+    if (tab==='analisi')    return await drawAnalisi(m);
     if (tab==='championships') return await drawChampionships(m);
     if (tab==='calendar')   return await drawCalendar(m);
     if (tab==='standings')  return await drawWorldRanking(m);
@@ -246,6 +250,12 @@ async function refreshBoot(){
   boot = await api('boot');
   $('#dot-evo').classList.toggle('on', !!boot.gameRunning);
   $('#t-evo').textContent = boot.gameRunning ? tr({ it: 'EVO aperto', en: 'EVO open' }) : tr({ it: 'chiuso', en: 'closed' });
+  // versione della build: aggiornamento automatico a ogni sincronizzazione git
+  // (tools/bump-versione.mjs) — package.json + hash breve del commit.
+  if (boot.versione && boot.versione.semver && boot.versione.semver !== '?') {
+    let sf = $('.side-foot');
+    if (sf) sf.innerHTML = `${tr({ it: 'Assetto Corsa EVO · tool locale', en: 'Assetto Corsa EVO · local tool' })}<br>${tr({ it: 'tutto resta sul tuo PC', en: 'everything stays on your PC' })}<br><span id="build-ver" title="versione della build (si aggiorna a ogni salvataggio del progetto su GitHub)">build ${esc(boot.versione.semver)}${boot.versione.hash ? ` · ${esc(boot.versione.hash)}` : ''}</span>`;
+  }
   drawNav();
   if (boot.hasCareer) paintHeader(boot.header);
 }/* l'etichetta STATICHE dell'header (index.html): tradotte una volta sola */
@@ -295,7 +305,7 @@ const TAB_FALL_ICON = {
   live:'📡', dashboard:'📊', agenda:'🗓️', setup:'🔧', messages:'📨',
   championships:'🏆', griglia:'🏁', standings:'🌐', rivals:'🤝',
   tracks:'🗺️', cars:'🚘', garage:'🏠', import:'📥',
-  archive:'🗃️', stats:'📈', banca:'💰', difficulty:'🎚️', settings:'⚙️',
+  archive:'🗃️', stats:'📈', banca:'💰', difficulty:'🎚️', settings:'⚙️', analisi:'🔬',
 };
 const HAS_EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u;
 function decoratePanels(scope) {

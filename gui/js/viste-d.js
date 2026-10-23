@@ -7,7 +7,7 @@ async function drawDifficulty(m){
   m.innerHTML = `
   <div class="panel">
     <h2>${tr({ it: 'Difficoltà AI', en: 'AI difficulty' })} <span class="h-act">${tr({ it: 'modalità ', en: 'mode ' })}${v.mode === 'adaptive' ? tr({ it: 'adattiva', en: 'adaptive' }) : tr({ it: 'fissa', en: 'fixed' })}</span></h2>
-    <div class="banner info" style="margin:0 0 12px">${tr({ it: 'Lo slider AI di Assetto Corsa EVO va da {MIN} a {MAX} e si imposta direttamente nel gioco. La difficoltà interna del tool (scala 70–120) viene convertita in quel range; la modalità adattiva aggiunge un trim da {A} a {B} in base ai risultati. Con i cursori qui sotto regoli il trim di ogni serie a mano.', en: 'The AI slider of Assetto Corsa EVO goes from {MIN} to {MAX} and is set directly in the game. The tool internal difficulty (scale 70–120) is converted into that range; the adaptive mode adds a trim from {A} to {B} based on results. With the sliders below you set each series trim by hand.' }).replace('{MIN}', `<b>${sr.min}</b>`).replace('{MAX}', `<b>${sr.max}%</b>`).replace('{A}', rng.min).replace('{B}', `${rng.max > 0 ? '+' : ''}${rng.max}`)}</div>
+  <div class="banner info" style="margin:0 0 12px">${tr({ it: 'Lo slider AI di Assetto Corsa EVO va da {MIN} a {MAX}. La banda che scegli qui viene scritta DAVVERO nei cursori del gioco e cambia la gara: vale alla PROSSIMA apertura del weekend — se il weekend era già avviato, resta la vecchia banda fino alla riapertura, e lo screen di caricamento mostra quella del weekend avviato. Banda consigliata STRETTA: min–max entro 1 punto (avvicina anche gli ultimi).', en: 'The AI slider of Assetto Corsa EVO goes from {MIN} to {MAX}. The band you pick here is really written to the game sliders and changes the race: it takes effect at the NEXT weekend open — a weekend already running keeps the old band until reopened, and the loading screen shows that one. Suggested band is NARROW: min–max within 1 point (brings the backmarkers closer).' }).replace('{MIN}', `<b>${sr.min}</b>`).replace('{MAX}', `<b>${sr.max}%</b>`)}</div>
     <div class="row" style="margin-bottom:12px">
       <button class="mini ${v.mode==='adaptive'?'on':''}" data-mode="adaptive">${tr({ it: 'adattiva', en: 'adaptive' })}</button>
       <button class="mini ${v.mode==='fixed'?'on':''}" data-mode="fixed">${tr({ it: 'fissa', en: 'fixed' })}</button>
@@ -24,34 +24,56 @@ async function drawDifficulty(m){
       <span class="num" title="${tr({ it: 'correzione classe / pista', en: 'class / track correction' })}">${r.offClass>=0?'+':''}${r.offClass}/${r.offTrack>=0?'+':''}${r.offTrack}</span>
       <span class="sl" title="${tr({ it: 'centro consigliato convertito in slider EVO', en: 'suggested centre converted into the EVO slider' })}">${r.slider}%</span>
       <span class="rangebox">
-        <input type="number" class="rmin" min="0" max="100" step="1" value="${r.rangeMin}" title="${tr({ it: 'minimo da impostare in EVO (consiglio: {V})', en: 'minimum to set in EVO (suggested: {V})' }).replace('{V}', Math.max(0,r.slider-5))}" ${r.locked?'disabled':''}>
-        <span class="dash">–</span>
-        <input type="number" class="rmax" min="0" max="100" step="1" value="${r.rangeMax}" title="${tr({ it: 'massimo da impostare in EVO (consiglio: {V})', en: 'maximum to set in EVO (suggested: {V})' }).replace('{V}', Math.min(100,r.slider+5))}" ${r.locked?'disabled':''}>
-        <b class="pct">%</b>
-        <button class="mini rc" title="${tr({ it: 'torna al default della serie: 88–93%', en: 'back to the series default: 88–93%' })}" ${r.overridden?'':'style="visibility:hidden"'}>↺</button>
+        <span class="duo" title="${tr({ it: ' due cursori sulla STESSA barra, come nel gioco: trascina il minimo e il massimo (consiglio: banda di 1 punto). Si scrivono anche sui cursori di EVO, alla prossima apertura del weekend', en: 'two handles on the SAME bar, like in the game: drag the minimum and maximum (suggest: 1-point band). Written to the EVO sliders too, at the next weekend open' })}">
+          <span class="sel" style="left:${Math.min(r.rangeMin,r.rangeMax)}%;right:${100-Math.max(r.rangeMin,r.rangeMax)}%"></span>
+          <input type="range" class="smin" min="0" max="100" step="1" value="${r.rangeMin}" ${r.locked?'disabled':''}>
+          <input type="range" class="smax" min="0" max="100" step="1" value="${r.rangeMax}" ${r.locked?'disabled':''}>
+        </span>
+        <b class="pair">${Math.min(r.rangeMin,r.rangeMax)}–${Math.max(r.rangeMin,r.rangeMax)}%</b>
+        <button class="mini rc" title="${tr({ it: 'torna al consiglio: centro ±5', en: 'back to the suggestion: centre ±5' })}" ${r.overridden?'':'style="visibility:hidden"'}>↺</button>
       </span>
     </div>`;}).join('')}
     </div>
-    <div class="muted" style="margin-top:10px">⚠️ = ${tr({ it: 'trim al massimo (', en: 'trim at the max (' })}${rng.max}): ${tr({ it: 'oltre si va solo cambiando serie. Nelle caselle scrivi l\'intervallo min–max esatto da impostare in EVO', en: 'beyond you only move by changing series. In the boxes type the exact min–max range to set in EVO' })} (${sr.min}–${sr.max}), ${tr({ it: 'come nel gioco: si salva da solo; ↺ torna al consiglio (centro ±5). Il consiglio si ferma a 100: se una serie resta facile anche a fondo scala, si cambia serie.', en: 'as in the game: it saves itself; ↺ goes back to the suggestion (centre ±5). The suggestion stops at 100: if a series stays easy even at full scale, change series.' })}</div>
+    <div class="muted" style="margin-top:10px">⚠️ = ${tr({ it: 'trim al massimo (', en: 'trim at the max (' })}${rng.max}): ${tr({ it: 'oltre si va solo cambiando serie. Coi due cursori fai la banda min–max da impostare in EVO', en: 'beyond you only move by changing series. With the two handles you make the min–max band to set in EVO' })} (${sr.min}–${sr.max}), ${tr({ it: 'come nel gioco: si salvano al rilascio (e si scrivono anche nei cursori di EVO); ↺ torna al consiglio (centro e centro+1). Il consiglio si ferma a 100: se una serie resta facile anche a fondo scala, si cambia serie.', en: 'as in the game: saved on release (and written to the EVO sliders); ↺ goes back to the suggestion (centre and centre+1). The suggestion stops at 100: if a series stays easy even at full scale, change series.' })}</div>
   </div>`;
   $$('button[data-mode]').forEach(b => b.onclick = async () => {
     try { await api('difficulty-action', {op:'mode', mode:b.dataset.mode, value:Number($('#i-diffval').value)}); render(); } catch(e){ toast(e.message,'err'); }
   });
   $('#b-acc')?.addEventListener('click', async () => { await api('difficulty-action', {op:'accept'}); render(); });
   $('#b-rej')?.addEventListener('click', async () => { await api('difficulty-action', {op:'reject'}); render(); });
-  // intervallo min-max di ogni serie, come nel gioco: si salva appena cambi una delle due caselle
+  // intervallo min-max di ogni serie, come nel gioco: DUE cursori sulla stessa
+  // barra. Al trascinamento si ricollocano a vicenda (il minimo non passa sopra
+  // il massimo e viceversa); si salvano solo al rilascio, e il server riscrive
+  // i cursori del gioco (gamemodesave 30/31).
+  const clampDuo = (duo, who, {z = false} = {}) => {
+    const smin = $('.smin', duo), smax = $('.smax', duo), sel = $('.sel', duo);
+    let lo = Math.max(0, Math.min(100, Number(smin.value)));
+    let hi = Math.max(0, Math.min(100, Number(smax.value)));
+    if (lo > hi) { if (who === 'smin') { hi = lo; smax.value = hi; } else { lo = hi; smin.value = lo; } }
+    smin.value = String(lo); smax.value = String(hi);
+    sel.style.left = lo + '%'; sel.style.right = (100 - hi) + '%';
+    const pair = duo.parentElement.querySelector('.pair');
+    if (pair) pair.textContent = `${lo}\u2013${hi}%`;
+    // a banda chiusa i due cursori si coprono: sta sopra quello MOSSO PER ULTIMO
+    if (z) { smax.style.zIndex = lo >= hi ? 3 : 1; smin.style.zIndex = lo >= hi ? 2 : 3; }
+    return [lo, hi];
+  };
   const saveRange = async (row) => {
-    const min = Number($('.rmin', row).value), max = Number($('.rmax', row).value);
+    const duo = $('.duo', row);
+    const [min, max] = clampDuo(duo, null);
     try {
       await api('difficulty-action', {op:'range', nodeId: row.dataset.id, min, max});
-      toast(tr({ it: 'Intervallo di {S}: {R}%', en: 'Range of {S}: {R}%' }).replace('{S}', row.querySelector('.nm').textContent.trim()).replace('{R}', `${Math.min(min,max)}–${Math.max(min,max)}`), 'ok');
+      toast(tr({ it: 'Intervallo di {S}: {R}%', en: 'Range of {S}: {R}%' }).replace('{S}', row.querySelector('.nm').textContent.trim()).replace('{R}', `${min}\u2013${max}`), 'ok');
     } catch(e){ toast(e.message, 'err'); }
   };
   $$('.diff-row', m).forEach(row => {
-    $('.rmin', row)?.addEventListener('change', () => saveRange(row));
-    $('.rmax', row)?.addEventListener('change', () => saveRange(row));
+    const duo = $('.duo', row);
+    if (!duo) return;
+    clampDuo(duo, null);
+    [$('.smin', duo), $('.smax', duo)].forEach(inp => inp.addEventListener('input', (e) => clampDuo(duo, e.target.classList.contains('smin') ? 'smin' : 'smax', {z:true})));
+    [$('.smin', duo), $('.smax', duo)].forEach(inp => inp.addEventListener('change', () => saveRange(row)));
     $('.rc', row)?.addEventListener('click', async () => {
-      try { await api('difficulty-action', {op:'range', nodeId: row.dataset.id, clear:true}); toast(tr({ it: 'Tornato il consiglio automatico.', en: 'Back to the automatic suggestion.' }), 'ok'); }
+      try { await api('difficulty-action', {op:'range', nodeId: row.dataset.id, clear:true}); toast(tr({ it: 'Tornato il consiglio automatico (cursori del gioco tornati a centro ±5).', en: 'Back to the automatic suggestion (game sliders back to centre ±5).' }), 'ok'); }
       catch(e){ toast(e.message, 'err'); }
     });
   });
@@ -83,7 +105,8 @@ async function drawMessages(m){
     } else if (mm.action?.kind === 'vai-classifica') {
       actions = `<button class="mini acc" data-maction="vai-classifica">🏅 ${tr({ it: 'apri la Classifica', en: 'open Standings' })}</button>`;
     } else if (mm.action?.kind === 'sponsor-sign') {
-      actions = `<button class="mini acc" data-maction="sponsor-sign" data-tier="${mm.action.tier ?? ''}" data-name="${esc(mm.action.name ?? '')}">✍️ ${tr({ it: 'firma con', en: 'sign with' })} ${esc(mm.action.name ?? 'sponsor')} (${tr({ it: 'tier', en: 'tier' })} ${mm.action.tier ?? '?'})</button>`;
+      { const nm = String(mm.action.name ?? ''); const tierTxt = nm.includes('tier') ? '' : ` (${tr({ it: 'tier', en: 'tier' })} ${mm.action.tier ?? '?'})`;
+      actions = `<button class="mini acc" data-maction="sponsor-sign" data-tier="${mm.action.tier ?? ''}" data-name="${esc(nm)}">✍️ ${tr({ it: 'firma con', en: 'sign with' })} ${esc(nm || 'sponsor')}${tierTxt}</button>`; }
     } else if (mm.action?.kind === 'vai-rivale') {
       actions = `<button class="mini acc" data-maction="vai-rivale" data-rival="${esc(mm.action.rivalKey ?? '')}">🔙 ${tr({ it: 'apri la scheda di', en: 'open the card of' })} ${esc(mm.action.name ?? 'rivale')}</button>`;
     } else if (mm.kind === 'Carriera' && /trim/i.test(mm.corpo)) {
@@ -105,7 +128,7 @@ async function drawMessages(m){
   <div class="panel">
     <h2>${tr({ it: 'Posta del pilota', en: 'Driver mailbox' })} <span class="h-act">${mb.mails.length} ${tr({ it: 'email', en: 'emails' })} · ${esc(mb.oggi ?? '')}</span></h2>
     <div class="row" style="margin-bottom:10px">${chips}</div>
-    ${mails.filter(x=>x.priorita==='urgente').length ? `<div class="muted" style="margin-bottom:8px">⚠️ ${mails.filter(x=>x.priorita==='urgente').length} ${tr({ it: 'email urgenti (gare da disputare, conflitti da risolvere)', en: 'urgent emails (races to run, conflicts to resolve)' })}</div>` : ''}
+    ${(()=>{ const nUrg = mails.filter(x=>x.priorita==='urgente').length; return nUrg ? `<div class="muted" style="margin-bottom:8px">⚠️ ${nUrg} ${tr({ it: nUrg===1 ? 'email urgente (gare da disputare, conflitti da risolvere)' : 'email urgenti (gare da disputare, conflitti da risolvere)', en: nUrg===1 ? 'urgent email (races to run, conflicts to resolve)' : 'urgent emails (races to run, conflicts to resolve)' })}</div>` : ''; })()}
     ${mails.length ? mails.map(mailCard).join('') : `<div class="empty">${tr({ it: 'Niente in questa casella: torna più tardi o cambia filtro.', en: 'Nothing in this box: come back later or change the filter.' })}</div>`}
   </div>
   <div class="grid2">
@@ -198,14 +221,14 @@ async function pathPicker(pick, onOk){
   const wantFile = String(pick).startsWith('file:');
   const fileWanted = wantFile ? pick.slice(5).toLowerCase() : null;
   let cur = 'root:';
-  modal(wantFile ? `🔍 Cerca su disco — ${fileWanted}` : '🔍 Cerca su disco — scegli la cartella', `
+  modal(wantFile ? `${tr({it:'🔍 Cerca su disco',en:'🔍 Browse the disk'})} — ${fileWanted}` : `${tr({it:'🔍 Cerca su disco — scegli la cartella',en:'🔍 Browse the disk — choose a folder'})}`, `
     <div id="pk-crumbs" class="muted" style="font-size:12px;word-break:break-all;margin-bottom:8px"></div>
     <div id="pk-list" style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px"></div>
     ${wantFile ? '<div class="muted" style="margin-top:8px;font-size:12px">Entra nella cartella di installazione di EVO (es. E:\\SteamLibrary\\steamapps\\common\\Assetto Corsa EVO) e seleziona il file in fondo.</div>' : ''}
   `,
   [
-    ['Annulla', 'ghost', () => {}],
-    ['Scelgo questa cartella', 'act', () => { if (!wantFile) onOk(cur.replace('drive:', '')); }],
+    [''+tr({it:'Annulla',en:'Cancel'}), 'ghost', () => {}],
+    [tr({it:'Scelgo questa cartella',en:'Choose this folder'}), 'act', () => { if (!wantFile) onOk(cur.replace('drive:', '')); }],
   ]);
   const list = $('#pk-list');
   const crumbs = $('#pk-crumbs');
@@ -215,10 +238,10 @@ async function pathPicker(pick, onOk){
     try { d = await api('browse', { path: p }); }
     catch(e){ list.innerHTML = `<div class="banner bad" style="margin:6px">${esc(e.message)}</div>`; return; }
     cur = d.kind === 'root' ? 'root:' : d.path;
-    crumbs.innerHTML = d.kind === 'root' ? '💻 Il tuo PC — scegli l\'unità' : esc(d.path);
-    if (!wantFile) $('.mf button.act').textContent = 'Scelgo «' + (d.kind === 'root' ? 'home' : d.path) + '»';
+    crumbs.innerHTML = d.kind === 'root' ? (tr({it:'💻 Il tuo PC — scegli l\'unità',en:'💻 Your PC — pick a drive'})) : esc(d.path);
+    if (!wantFile) $('.mf button.act').textContent = tr({ it: 'Scelgo «' + (d.kind === 'root' ? 'home' : d.path) + '»', en: 'Choose «' + (d.kind === 'root' ? 'home' : d.path) + '»' });
     let html = '';
-    if (d.parent) html += `<button class="pk-row" data-go="${esc(d.parent)}" style="width:100%;text-align:left;padding:5px 10px;background:none;border:none;border-bottom:1px solid var(--line);cursor:pointer;color:var(--dim)">⬆️ .. (su di uno)</button>`;
+    if (d.parent) html += `<button class="pk-row" data-go="${esc(d.parent)}" style="width:100%;text-align:left;padding:5px 10px;background:none;border:none;border-bottom:1px solid var(--line);cursor:pointer;color:var(--dim)">⬆️ .. (${tr({it:'su di uno',en:'up one level'})})</button>`;
     for (const e of (d.drives ?? [])) html += `<button class="pk-row" data-go="drive:${esc(e)}" style="width:100%;text-align:left;padding:5px 10px;background:none;border:none;border-bottom:1px solid var(--line);cursor:pointer">💽 <b>${esc(e)}</b></button>`;
     for (const e of (d.entries ?? [])) html += `<button class="pk-row" data-go="${esc(e.path)}" style="width:100%;text-align:left;padding:5px 10px;background:none;border:none;border-bottom:1px solid var(--line);cursor:pointer">📁 ${esc(e.name)}</button>`;
     if (d.kind === 'root' && wantFile) html += '<div class="muted" style="padding:8px">Scegli il disco dove hai installato il gioco, poi entra in steamapps → common → Assetto Corsa EVO.</div>';
@@ -473,8 +496,59 @@ async function showRival(key){
       <div style="max-height:260px;overflow:auto"><table><thead><tr><th>${tr({ it: 'Gara', en: 'Race' })}</th><th class="right">${tr({ it: 'Lui', en: 'Him' })}</th><th class="right">${tr({ it: 'Tu', en: 'You' })}</th><th>${tr({ it: 'Suo giro', en: 'His lap' })}</th><th>${tr({ it: 'Esito', en: 'Outcome' })}</th></tr></thead><tbody>
         ${d.meetings.map(m=>`<tr><td>${esc(m.track)} <span class="faint">S${m.season} R${m.round+1}</span></td><td class="right">${m.dnf?'DNF':m.pos!=null?'P'+m.pos:'—'}</td><td class="right">${m.mePos!=null?'P'+m.mePos:'—'}</td><td class="muted">${esc(m.bestLap??'—')}</td><td>${m.beatMe?`<span class="tag bad">${tr({ it: 'battuto', en: 'beaten' })}</span>`:`<span class="tag good">${tr({ it: 'vinto', en: 'won' })}</span>`}</td></tr>`).join('')}
       </tbody></table></div>`,
+      [[tr({ it: '📄 Dossier completo', en: '📄 Full dossier' }), 'acc', () => { openDossier(key); }],
+       [tr({ it: 'Chiudi', en: 'Close' }), 'ghost', () => {}]]);
+    /* DOSSIER COMPLETE del rivale (src/analisi.mjs, module 5): ritmo/delta giro,
+   piste dove è più forte, costanza e mappa degli scontri — un pannello insieme
+   per capire COME batterlo, non solo contro chi sei. */
+async function openDossier(key){
+  try {
+    const d = await api('rival-dossier', {key});
+    if (d.error) return toast(d.error, 'err');
+    if (!d) return toast(tr({ it: 'Rivale non trovato.', en: 'Rival not found.' }), 'err');
+    const ds = (ms, sign = false) => (Number.isFinite(ms) && ms != null
+      ? `${ms > 0 && sign ? '+' : ms < 0 ? '−' : ''}${(Math.abs(ms) / 1000).toFixed(2)}s` : '—');
+    /* RIASSUNTO «come batterlo» (richiesta Mauro 23/10): tre righe a colpo d'occhio,
+       senza numeri inutili — i valori son già nelle tabelle qui sotto. Deriva TUTTO
+       dai dati del dossier: niente opinioni. */
+    const batt = [];
+    const slow = d.pace?.himVsMeSec != null ? d.pace.himVsMeSec > 0 : null;
+    if (slow === true) batt.push(tr({ it: '🥪 Lui gira più lento di te sul giro: tieni il TUO ritmo e la faida si risolve da sola.', en: '🥪 He runs slower than you per lap: keep YOUR pace and the feud settles itself.' }));
+    else if (slow === false) batt.push(tr({ it: '🥩 Lui gira più veloce di te: non inseguirlo a occhio — attacca dove crolla (piste qui sotto), difenditi dove è più forte.', en: '🥩 He runs faster than you: do not chase him blindly — strike where he crumbles (tracks below), defend where he is stronger.' }));
+    if (d.weakTracks?.length) batt.push(tr({ it: `🎯 ATTACCA a ${d.weakTracks.map(t => t.track).join(', ')} — lì perde di più dal tuo ritmo.`, en: `🎯 STRIKE at ${d.weakTracks.map(t => t.track).join(', ')} — that is where he loses the most from your pace.` }));
+    if (d.hisTracks?.length) batt.push(tr({ it: `🛡️ DIFENDITI a ${d.hisTracks.map(t => t.track).join(', ')} — lì gira a parità tua.`, en: `🛡️ DEFEND at ${d.hisTracks.map(t => t.track).join(', ')} — he runs at your level there.` }));
+    if (d.consistency?.verdict) batt.push(d.consistency.verdict);
+    else if (d.pace?.closeTrendText) batt.push(d.pace.closeTrendText);
+    const riass = batt.slice(0, 3);
+    modal(`${tr({ it: 'Dossier del rivale — ', en: 'Rival dossier — ' })}${d.name}`, `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        ${rivalAvatar(d.name, 48)}
+        <div><b style="font-size:16px">${esc(d.name)}</b><div class="muted" style="font-size:12px">${esc(d.team ?? tr({ it: 'senza squadra', en: 'no team' }))}${d.nation ? ' · ' + esc(d.nation) : ''}${d.car ? ' · ' + esc(d.car) : ''}</div></div>
+      </div>
+      <div class="grid4" style="margin-bottom:12px">
+        <div class="kpi"><div class="l">${tr({ it: 'Scontri', en: 'Meetings' })}</div><div class="v">${d.meetingsCount}</div></div>
+        <div class="kpi"><div class="l">${tr({ it: 'Δ giro medio', en: 'Avg lap Δ' })}</div><div class="v ${d.pace?.himVsMeSec > 0 ? 'good' : d.pace?.himVsMeSec != null ? 'bad' : ''}">${d.pace?.himVsMeSec != null ? (d.pace.himVsMeSec > 0 ? '+' : '−') + Math.abs(d.pace.himVsMeSec).toFixed(2) : '—'}s</div></div>
+        <div class="kpi"><div class="l">${tr({ it: 'Vittorie', en: 'Wins' })}</div><div class="v">${d.totals.wins}</div></div>
+        <div class="kpi"><div class="l">${tr({ it: 'DNF suoi', en: 'His DNFs' })}</div><div class="v">${d.consistency?.dnfRate ?? '—'}%</div></div>
+      </div>
+      ${riass.length ? `<div class="panel" style="margin-bottom:12px;padding:10px 14px;background:var(--panel2,rgba(0,0,0,.15))">
+        <div style="font-size:11.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim,#8a8a8a);font-weight:700;margin-bottom:6px">${tr({ it: 'Come batterlo — in tre righe', en: 'How to beat him — three lines' })}</div>
+        ${riass.map(s => `<div style="margin:4px 0;font-size:13px;line-height:1.45">${esc(s)}</div>`).join('')}
+      </div>` : ''}
+      ${d.pace?.verdict ? `<div class="banner ${d.pace.himVsMeSec > 0 ? 'good' : 'warn'}" style="margin-bottom:8px">⏱️ ${esc(d.pace.verdict)}</div>` : ''}
+      ${d.pace?.closeTrendText ? `<div class="muted" style="margin-bottom:12px;font-size:12.5px">↗️ ${esc(d.pace.closeTrendText)}</div>` : ''}
+      ${d.consistency?.verdict ? `<div class="muted" style="margin-bottom:12px;font-size:12.5px">📐 ${esc(d.consistency.verdict)}</div>` : ''}
+      ${d.perTrack?.length ? `<div style="margin-bottom:12px"><b>${tr({ it: 'Per pista (Δ suo giro − il tuo, mediana):', en: 'Per track (Δ his lap − yours, median):' })}</b>
+        <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${d.perTrack.slice(0,12).map(t=>`<span class="chip ${t.deltaMs > 0 ? '' : 'gold'}" style="font-size:11px">${esc(t.track)} ${ds(t.deltaMs, true)}</span>`).join('')}</div></div>` : ''}
+      ${d.hisTracks?.length ? `<div class="banner warn" style="margin-bottom:8px">🚩 ${tr({ it: 'Dove è più forte di te: ', en: 'Where he is stronger than you: ' })}<b>${d.hisTracks.map(t=>esc(t.track)).join(', ')}</b>${d.weakTracks?.length ? `<span class="muted"> · ${tr({ it: 'dove invece crolla: ', en: 'where he crumbles: ' })}<b>${d.weakTracks.map(t=>esc(t.track)).join(', ')}</b></span>` : ''}</div>` : ''}
+      <details><summary class="muted" style="cursor:pointer">${tr({ it: `mappa degli scontri (${d.meetings?.length ?? 0})`, en: `map of the meetings (${d.meetings?.length ?? 0})` })}</summary>
+        <div style="margin-top:8px;max-height:240px;overflow:auto"><table><thead><tr><th>${tr({ it: 'Gara', en: 'Race' })}</th><th class="right">${tr({ it: 'Lui', en: 'Him' })}</th><th class="right">${tr({ it: 'Tu', en: 'You' })}</th><th class="right">Δ giro</th><th>${tr({ it: 'Esito', en: 'Outcome' })}</th></tr></thead>
+        <tbody>${(d.meetings ?? []).map(m=>`<tr><td>${esc(m.track)} <span class="faint">S${m.season} R${m.round+1}</span></td><td class="right">${m.dnf ? 'DNF' : m.pos != null ? 'P'+m.pos : '—'}</td><td class="right">${m.myPos != null ? 'P'+m.myPos : '—'}</td><td class="muted">${ds(m.himVsMeMs, true)}</td><td>${m.beatMe ? `<span class="tag bad">${tr({ it: 'battuto', en: 'beaten' })}</span>` : `<span class="tag good">${tr({ it: 'vinto', en: 'won' })}</span>`}</td></tr>`).join('')}</tbody></table></div></details>`,
       [[tr({ it: 'Chiudi', en: 'Close' }), 'ghost', () => {}]]);
-    // TELEMETRIA RIVALE: il grafico del giro della TU'A auto (i suoi giri non
+  } catch(e){ toast(e.message, 'err'); }
+}
+
+// TELEMETRIA RIVALE: il grafico del giro della TU'A auto (i suoi giri non
     // esistono nei file MoTeC: lì registra solo la sessione tua). Il valore è
     // guardare dove perdi tempo sulla pista DOVE ti ha battuto — la pista la
     // rileviamo dalla prima beatMeAt e arrivi sul Setup con lo schermo pronto.

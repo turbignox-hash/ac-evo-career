@@ -93,7 +93,7 @@ function sectorRowsHtml(sec){
 /* -------- libro delle auto -------- */
 async function drawCars(m){
   const b = await api('cars');
-  const money = (n) => Number(n ?? 0).toLocaleString('it-IT');
+  const money = (n) => Number(n ?? 0).toLocaleString(window.LOCALE ?? 'it-IT');
   const inLadder = new Set(b.rows.filter(r=>r.ladderId).map(r=>r.ladderId));
   const nRoad = b.rows.filter(r=>r.category==='road').length;
   const nRacing = b.rows.filter(r=>r.category==='racing').length;
@@ -243,7 +243,7 @@ async function drawGarage(m){
       ${c.image?`<img class="car-frame" src="${c.image}" alt="${esc(c.carName)}" loading="lazy" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#0d1118">`:''}
       <div style="padding:9px 11px">
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:13px">${esc(c.carName)}</b> ${badge(c.how, c.note)}${c.pi!=null?`<span class="tag blue" style="font-size:10px;padding:1px 6px" title="Perf. index dal server dedicato">PI ${c.pi.toFixed(1)}</span>`:''}</div>
-        <div class="muted" style="font-size:11px;margin-top:3px">${tr({ it: 'nel garage dal ', en: 'in the garage since ' })}${esc(new Date(c.since).toLocaleDateString('it-IT'))}${c.note?` · ${esc(c.note)}`:''}</div>
+        <div class="muted" style="font-size:11px;margin-top:3px">${tr({ it: 'nel garage dal ', en: 'in the garage since ' })}${esc(new Date(c.since).toLocaleDateString(window.LOCALE ?? 'it-IT'))}${c.note?` · ${esc(legacyIt(c.note))}`:''}</div>
         <div style="display:flex;gap:10px;margin-top:7px;font-size:12px;flex-wrap:wrap">
           <span title="${tr({ it: 'gare con questa auto', en: 'races with this car' })}">🏁 ${c.stats.races} ${tr({ it: 'gare', en: 'races' })}</span>
           <span title="${tr({ it: 'vittorie', en: 'wins' })}" style="color:var(--good)">🥇 ${c.stats.wins}</span>
@@ -349,8 +349,8 @@ function lapChartSvg(t){
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;background:#0d1118;border:1px solid var(--line);border-radius:8px">
     <line x1="${PAD}" y1="${zeroY}" x2="${W - PAD / 2}" y2="${zeroY}" stroke="var(--line2)"/>
     <line x1="${PAD}" y1="${yV(0)}" x2="${PAD}" y2="${yV(maxV)}" stroke="var(--line2)"/>
-    <text x="${PAD}" y="14" fill="#8fa" font-size="11">giro ${t.lap} (${t.durationSec}s) — km/h</text>
-    ${C ? `<text x="${W - 300}" y="14" fill="#f96" font-size="11">giro ${C.lap} (${C.durationSec}s)</text>` : ''}
+    <text x="${PAD}" y="14" fill="#8fa" font-size="11">${tr({ it: 'giro ', en: 'lap ' })}${t.lap} (${t.durationSec}s) — km/h</text>
+    ${C ? `<text x="${W - 300}" y="14" fill="#f96" font-size="11">${tr({ it: 'giro ', en: 'lap ' })}${C.lap} (${C.durationSec}s)</text>` : ''}
     <text x="${PAD}" y="${yV(maxV) + 14}" fill="var(--dim)" font-size="10">${Math.round(maxV)} km/h</text>
     <text x="${PAD}" y="${H - 6}" fill="#7f7" font-size="10">${tr({ it: 'differenza col confronto: verde = sei più veloce · rosso = più lento', en: 'delta vs comparison: green = you are faster · red = slower' })}</text>
     ${strip((p) => p.br ?? 0, H - PAD - DBAND + 4, 8, '#f55')}

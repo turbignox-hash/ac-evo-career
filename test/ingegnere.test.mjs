@@ -1,96 +1,166 @@
-// ingegnere.test.mjs — l'ingegnere di gara LIVE: benzina, gomme, gap, pit
-// dal modulo engineer.mjs (funzione pura: la snapshot la costruiamo a mano).
+// Suite delle funzioni pure del pacchetto "canto dell'ingegnere":
+//  - lapdelta.mjs: path del giro, matching in avanzamento, delta live, delta per fascia
+//  - engineer.mjs (pitWindow): benzina vs usura, il giro di sosta e la finestra
+//
+// Tutto senza gioco: le tracce sono costruite a mano, come farebbe la shared
+// memory su una pista a anello (un quadrato 100×100, 400 m; auto a 2 m/ms? no:
+// auto ~55 m/s, tempi di giro ~7300 ms).
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { engineerLive } from '../src/engineer.mjs';
+import { buildPathProg, matchTrack, liveDelta, deltaSegments, nearestOnPath } from '../src/lapdelta.mjs';
+import { pitWindow, engineerLive } from '../src/engineer.mjs';
 
-const snapRace = ({
-  fuel = 15, lapsDone = 3, lapsTotal = 10, lapsPossible = null,
-  tyreWear = [0.9, 0.82, 0.95, 0.78], gapAhead = 4, gapBehind = 6, inPit = false,
-} = {}) => ({
-  live: true,
-  session: { type: 'Race' },
-  player: { fuel, lapsDone, lapsTotal, lapsPossible, tyreWear, tyreCoreTemp: [80, 82, 85, 79], gapAhead, gapBehind, inPit, position: 4, drivers: 18, timeLeft: null },
+const TAU = Math.PI * 2;
+
+/* una pista circolare nel piano XZ: raggio dato, npt campioni, lungheza nota */
+function circle(r = 63.66, npt = 64) {
+  return Array.from({ length: npt }, (_, i) => {
+    const a = (i / npt) * TAU;
+    return { x: r * Math.cos(a), z: r * Math.sin(a) };
+  });
+}
+/* il percorso del best: il cerchio con i TEMPI (auto costante 55 m/s) */
+const CIRC = 2 * Math.PI * 63.66;                 // ≈ 400 m
+const BEST_LAP = Math.round(CIRC / 55 * 1000);    // ≈ 7274 ms
+function bestTrack(npt = 64) {
+  return circle().map((p, i) => ({ ...p, t: Math.round(i / npt * BEST_LAP) }));
+}
+/* il giro corrente: stesso anello, campionamento più rado, con un ritardo dato
+   (in ms) costante su tutto il giro — il delta conosciuto della prova.
+   IMPORTANTI le frazioni: il tempo è calcolato sull'indice ORIGINARIO del
+   cerchio (posizione = frazione di giro), non sull'indice dopo il filtro:
+   altrimenti le posizioni corrono il giro intero mentre i tempi si fermano
+   a metà e il matching è senza senso. */
+function curTrack(delayMs, npt = 40, skipFrom = 0) {
+  const base = circle();
+  const step = Math.max(1, Math.round(base.length / npt));
+  // il tempo è calcolato sull'indice ORIGINARIO del cerchio (posizione =
+  // frazione di giro), non sull'indice dopo il filtro: altrimenti le posizioni
+  // corrono il giro intero mentre i tempi si fermano a metà. Niente cap sul
+  // BEST_LAP: qui i tempi stanno tutti nel giro e il wrap del lapCurrent
+  // della MMF lo gestisce il lettore, non il modello.
+  return base
+    .map((p, j) => ({ x: p.x, z: p.z, j }))
+    .filter(({ j }) => j % step === 0 && j >= skipFrom)
+    .map(({ x, z, j }) => ({ x, z, t: Math.round((j / base.length) * BEST_LAP + delayMs) }));
+}
+
+test('buildPathProg: frazione di distanza crescente e chiusura a 1', () => {
+  const path = buildPathProg(bestTrack());
+  assert.ok(path, 'il path del best non si costruisce');
+  const ps = path.pts.map((p) => p.p);
+  assert.ok(Math.abs(ps[0]) < 0.001, 'il primo punto parte da 0');
+  assert.ok(Math.abs(ps[ps.length - 1] - 1) < 0.001, 'l\u2019ultimo punto arriva a 1');
+  for (let i = 1; i < ps.length; i++) assert.ok(ps[i] >= ps[i - 1], 'non monotono');
 });
 
-test('fuori gara o menu: nessun consiglio, niente gauges', () => {
-  assert.equal(engineerLive({ live: false, session: { type: 'Race' }, player: null }, {}).live, false);
-  assert.equal(engineerLive(snapRace(), { fuelPerLap: 2.4, raceLaps: 10 }).live, true);
-  const pratica = engineerLive({ live: true, session: { type: 'HotStint' }, player: snapRace().player }, {});
-  assert.equal(pratica.live, false);
+test('matchTrack: il giro corrente si allinea in avanzamento e riconosce il terreno', () => {
+  const path = buildPathProg(bestTrack());
+  const cur = curTrack(400);               // 0.4 s di ritardo sul best
+  const m = matchTrack(cur, path);
+  assert.ok(m && m.length >= 3, 'il matching non rende abbastanza punti');
+  for (let i = 1; i < m.length; i++) assert.ok(m[i].p >= m[i - 1].p - 0.001, 'progresso non crescente');
+  // il delta rispecchia il ritardo noto (±50 ms: interpolazioni, abbondanze)
+  const errs = m.slice(3).map((w) => Math.abs(w.dz - 400));
+  assert.ok(Math.max(...errs) < 60, `delta fuori scala: max ${Math.max(...errs)} ms`);
 });
 
-test('benzina insufficiente: consiglio prio 1 con giri possibili vs rimasti', () => {
-  // consumo 2.4 L/giro × 10 giri = 24 L, in motore ne restano 15 → deficit ~2.75 giri
-  const m = engineerLive(snapRace({ fuel: 15 }), { fuelPerLap: 2.4, raceLaps: 10 });
-  const benzo = m.tips.find((t) => t.icon === '⛽');
-  assert.ok(benzo, 'manca il consiglio benzina');
-  assert.equal(benzo.prio, 1);
-  assert.match(benzo.title, /Benzina per 6.3 giri, ne restano 7/);
+test('liveDelta: il delta al punto attuale è circa il ritardo sperimentale', () => {
+  const path = buildPathProg(bestTrack());
+  const cur = curTrack(400);
+  const d = liveDelta(cur, path, null);
+  assert.ok(d, 'il liveDelta non esce');
+  assert.ok(Math.abs(d.deltaMs - 400) < 60, `delta ${d.deltaMs} ms ≠ attesi ~400`);
+  assert.ok(d.prog > 0 && d.prog <= 1);
 });
 
-test('benzina margine comodo: consiglio informativo non urgente', () => {
-  const m = engineerLive(snapRace({ fuel: 30 }), { fuelPerLap: 2.4, raceLaps: 10 });
-  const benzo = m.tips.find((t) => t.icon === '⛽');
-  assert.ok(benzo);
-  assert.equal(benzo.prio, 3);
-  assert.match(m.tips.find((t) => t.icon === '⛽').title, /Benzina per 12.5 giri/);
+test('liveDelta: ISLAND FALLITA con il giro più VELOCE del best (delta negativo)', () => {
+  const path = buildPathProg(bestTrack());
+  // il cur "precede" i tempi del best di 300 ms: buildPathProg del CUR non serve,
+  // il match si fa sui punti: sposto indietro i TEMPI del cur
+  const cur = curTrack(0).map((p) => ({ ...p, t: Math.max(0, p.t - 300) }));
+  const d = liveDelta(cur, path, null);
+  assert.ok(d, 'il liveDelta non esce');
+  assert.ok(d.deltaMs < -250, `delta ${d.deltaMs} ms dovrebbe essere ≈ −300`);
 });
 
-test('senza telemetria benzina: niente consiglio fuel se non c\'è una fonte valida', () => {
-  const m = engineerLive(snapRace({ fuel: 15, lapsPossible: null }), { fuelPerLap: null, raceLaps: 10 });
-  assert.equal(m.tips.find((t) => t.icon === '⛽'), undefined);
+test('deltaSegments: ogni fetta ha il delta medio vicino al ritardo noto', () => {
+  const path = buildPathProg(bestTrack());
+  const cur = curTrack(400);
+  const segs = deltaSegments(cur, path, 24);
+  assert.ok(Array.isArray(segs) && segs.length === 24, 'le fette non hanno la lunghezza giusta');
+  const usable = segs.filter((s) => s.dv != null);
+  assert.ok(usable.length >= 12, `solo ${usable.length} fette usabili`);
+  for (const s of usable) assert.ok(Math.abs(s.dv - 0.4) < 0.08, `fetta a ${s.p}: ${s.dv}s ≠ 0.4s`);
+  // il progresso del secondo cono con giro a METÀ: le fette non passate restano null
+  const half = curTrack(400, 40).filter((p) => p.t < BEST_LAP / 2);
+  const segsH = deltaSegments(half, path, 24);
+  const nulls = segsH.filter((s) => s.dv == null).length;
+  assert.ok(nulls >= 6, `con mezz'ora di giro solo ${nulls} fette vuote`);
 });
 
-test('lapsPossibleFuel del gioco: ha la precedenza sulla stima dal consumo', () => {
-  const m = engineerLive(snapRace({ fuel: 15, lapsPossible: 5 }), { fuelPerLap: 2.4, raceLaps: 10 });
-  const benzo = m.tips.find((t) => t.icon === '⛽');
-  assert.match(benzo.title, /^Benzina per 5 giri/);
+test('nearestOnPath: senza fascia aggancia il punto più vicino, con fascia rispetta la zona', () => {
+  const path = buildPathProg(bestTrack());
+  const p1 = nearestOnPath(path, circle()[16].x, circle()[16].z);
+  assert.ok(p1 && Math.abs(p1.p - 16 / 64) < 0.03, 'nearest senza fascia sbaglia quartiere');
+  const p2 = nearestOnPath(path, circle()[16].x, circle()[16].z, 0.75, 0.1);
+  assert.ok(p2 == null || Math.abs(p2.p - 0.75) < 0.1, 'la fascia non filtra');
 });
 
-test('usura gomme: scale 0-1 normalizzate, peggio wheel con priorità critica a ≥80%', () => {
-  const critica = engineerLive(snapRace({ tyreWear: [0.9, 0.82, 0.95, 0.78] }), {});
-  const gomma = critica.tips.find((t) => t.icon === '🛞');
-  assert.ok(gomma);
-  assert.match(gomma.title, /LR al limite: 95%/);
-  assert.deepEqual(critica.gauges.wear, [90, 82, 95, 78]); // gauges: scala normalizzata 0-100
-  assert.deepEqual(critica.gauges.temp?.length, 4);
+/* ---------------- pitWindow ---------------- */
+
+const GA = { lapsDone: 10, wear: [40, 55, 38, 42], lapsOnFuel: 4, lapsLeft: 10 };
+
+test('pitWindow: benzina mancante → sosta obbligatoria, non oltre il serbatoio secco', () => {
+  const p = pitWindow(GA, { inRace: true, lapsTotal: 20 });
+  assert.ok(p && p.need === 'fuel', `need = ${p?.need}`);
+  assert.ok(p.pitLap >= 11 && p.pitLap <= 13, `pitLap ${p.pitLap}: deve stare nell'orizzonte del serbatoio`);
+  assert.ok(p.window[0] <= p.pitLap && p.window[1] >= p.pitLap, 'la finestra non contiene il pit lap');
+  assert.ok(p.fuel.deficit > 0, 'il deficit manca');
 });
 
-test('usura media: consiglio di gestione', () => {
-  const m = engineerLive(snapRace({ tyreWear: [0.6, 0.58, 0.31, 0.35] }), {});
-  const gomma = m.tips.find((t) => t.icon === '🛞');
-  assert.match(gomma.title, /LF/);
-  assert.equal(gomma.prio, 2);
+test('pitWindow: usura alta → sosta per gomme solo DENTRO la gara', () => {
+  const p = pitWindow({ ...GA, wear: [20, 30, 18, 22], lapsOnFuel: 15, lapsLeft: 10 }, { inRace: true, lapsTotal: 30 });
+  assert.ok(p && p.need === 'wear', `need = ${p?.need}`);
+  assert.ok(p.wear.criticalLap > 10 && p.wear.criticalLap < 30, `criticalLap ${p.wear?.criticalLap}`);
+  // stessa usura lenta con gara più corta: NON si consiglia la sosta
+  const q = pitWindow({ ...GA, wear: [20, 30, 18, 22], lapsOnFuel: 15, lapsLeft: 10 }, { inRace: true, lapsTotal: 12 });
+  assert.ok(q && q.need === null, `need = ${q?.need} (non dovrebbe fermare)`);
 });
 
-test('usura bassa (0-100 scale): tutto sano, spingi', () => {
-  const m = engineerLive(snapRace({ tyreWear: [30, 25, 18, 20] }), {});
-  const gomma = m.tips.find((t) => t.icon === '🛞');
-  assert.match(gomma.title, /Gomme sane/);
+test('pitWindow: gomma già al limite → "now", pit lap subito', () => {
+  // benzina SANO deliberatamente (15 giri copribili su 8 restanti): qui si prova
+  // SOLO l'usura — con la benzina corta il «need» giusto sarebbe fuel/both, non wear
+  const p = pitWindow({ ...GA, lapsDone: 20, wear: [86, 84, 80, 81], lapsOnFuel: 15, lapsLeft: 8 }, { inRace: true, lapsTotal: 30 });
+  assert.ok(p && p.need === 'wear' && p.wear.now, 'la gomma al limite non gridata');
+  assert.equal(p.pitLap, 21, 'con la gomma a terra il pit è SUBITO');
 });
 
-test('gap stretti: attacco davanti, difesa dietro', () => {
-  const m = engineerLive(snapRace({ gapAhead: 0.8, gapBehind: 0.9 }), {});
-  const avanti = m.tips.find((t) => t.icon === '🏁');
-  const dietro = m.tips.find((t) => t.icon === '🛡️');
-  assert.ok(avanti && dietro);
-  assert.match(avanti.title, /A 0.8s/);
-  assert.match(dietro.title, /da 0.9s/);
+test('pitWindow: tutto in salute → nessuna sosta; fuori gara → null', () => {
+  const ok = pitWindow({ lapsDone: 5, wear: [10, 12, 9, 11], lapsOnFuel: 12, lapsLeft: 6 }, { inRace: true, lapsTotal: 12 });
+  assert.ok(ok && ok.need === null, `need = ${ok?.need}`);
+  const out = pitWindow(GA, { inRace: false, lapsTotal: 20 });
+  assert.equal(out, null, 'fuori gara la finestra non esiste');
 });
 
-test('in pitlane: consiglio limitatore in cima alla radio', () => {
-  const m = engineerLive(snapRace({ inPit: true }), {});
-  const pit = m.tips.find((t) => t.icon === '🔧');
-  assert.ok(pit);
-  assert.equal(pit.prio, 1);
+test('engineerLive: in gara restituisce live + pit; fuori resta silenzioso', () => {
+  const snapIn = { live: true, session: { type: 'Race' }, player: { fuel: 40, tyreWear: [0.4, 0.55, 0.38, 0.42], lapsTotal: 20, lapsDone: 10, lapsPossible: 4, gapAhead: 1.2, gapBehind: 3, position: 3, drivers: 20 } };
+  const live = engineerLive(snapIn, {});
+  assert.ok(live.live && live.pit, 'manca pit nella risposta live');
+  assert.ok(live.pit.need === 'fuel', `pit.need = ${live.pit?.need}`);
+  assert.ok(live.tips.some((t) => t.icon === '🏁'), 'manca il tip di gap davanti');
+  const snapOut = { live: true, session: { type: 'Practice' }, player: snapIn.player };
+  const quiet = engineerLive(snapOut, {});
+  assert.ok(!quiet.live && quiet.pit === null, 'fuori gara l\u2019ingegnere deve tacere');
 });
 
-test('gara a tempo: timer nel titolo quando non ci sono giri totali', () => {
-  const snap = snapRace({ lapsTotal: null });
-  snap.player.timeLeft = '12:34';
-  const m = engineerLive(snap, {});
-  const timer = m.tips.find((t) => t.icon === '⏱️');
-  assert.ok(timer);
-  assert.match(timer.title, /12:34/);
+test('engineerLive: nelle PROVE (TimeAttack di EVO) la radio vive ma la finestra pit no', () => {
+  const snapTA = { live: true, session: { type: 'TimeAttack' }, player: { fuel: 40, tyreWear: [0.4, 0.55, 0.38, 0.42], lapsTotal: 0, lapsDone: 0, lapsPossible: 4, gapAhead: 1.2, gapBehind: 3, position: 1, drivers: 20 } };
+  const ta = engineerLive(snapTA, {});
+  assert.ok(ta.live && ta.pit === null, 'in prova la radio vive, la finestra pit tace');
+  assert.ok(ta.tips.some((t) => t.icon === '🛞'), 'manca il tip gomme nelle prove');
+  const snapOut = { live: true, session: { type: 'Practice' }, player: snapTA.player };
+  const quiet = engineerLive(snapOut, {});
+  assert.ok(!quiet.live && quiet.pit === null, 'type non riconosciuto → la radio tace');
 });

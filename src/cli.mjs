@@ -37,6 +37,8 @@ import { gameRunning } from '../tools/evo-grid.mjs';
 import { testModeBanner, testModeOn, testModeOff } from './test-mode.mjs';
 import { PIANI, applyPianoToCalendar } from './orario.mjs';
 import { setRaceTime, currentRaceTime } from '../tools/set-racetime.mjs';
+import { changeWeekendTrack, currentWeekendTrack } from '../tools/set-track.mjs';
+import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
 import { renameSync, copyFileSync as copySyncGrid, statSync } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -143,7 +145,7 @@ function cmdHelp() {
     ['messages', tr({ it: 'messaggi e notizie dal paddock', en: 'messages and news from the paddock' })],
     ['next [--car <id>]', tr({ it: 'la prossima gara in dettaglio: cosa impostare nel gioco', en: 'the next race in detail: what to set in the game' })],
     ['race [--car <id>] [--dry-run] [--no-launch]', tr({ it: "paga l'iscrizione, segna la gara attesa e apre il gioco", en: 'pays the entry, marks the awaited race and opens the game' })],
-    ['prepara [--car <id>] [--dry] [--serie <nodeId>] [--round N]', tr({ it: 'iscrizione ronda + griglia zavorrata + vigia + card in un gesto: poi scegli il round in EVO (flusso no-restart)', en: 'round entry + ballasted grid + checker + card in one move: then pick the round in EVO (no-restart flow)' })],
+    ['prepara [--car <id>] [--dry] [--serie <nodeId>] [--round N] [--pista] [--auto]', tr({ it: 'iscrizione ronda + griglia zavorrata + vigia + card in un gesto; con --pista/--auto (o --tutto) scrive anche pista e auto del garage (di default si scelgono a mano in EVO)', en: 'round entry + ballasted grid + checker + card in one move; with --pista/--auto (or --tutto) it also writes track and garage car (by default you set them by hand in EVO)' })],
     ['import [--position N --cars M] [--dnf] [--fl] [--inspect] [--force]', tr({ it: 'legge il risultato e aggiorna la carriera', en: 'reads the result and updates the career' })],
     ['watch [--every N]', tr({ it: 'guardia automatica: incassa da solo ogni gara nuova scritta da EVO (ogni 15s)', en: 'automatic guard: collects every new race written by EVO by itself (every 15s)' })],
     ['difficulty [--mode adaptive|fixed|custom] [--value N] [--trim <serie|all> <valore>] [--lock/--unlock <node>] [--accept|--reject]', tr({ it: "difficolta' AI di tutte le serie (trim manuale -20..+20)", en: 'AI difficulty of all series (manual trim -20..+20)' })],
@@ -665,8 +667,43 @@ async function cmdPrepara(args) {
   const gameOn = await isGameRunning();
 
   console.log(C.bold(tr({ it: '\nPrepara-ronda', en: '\nPrepare-round' })));
-  console.log(C.dim(tr({ it: '  iscrizione della ronda · griglia zavorrata · vigia · card — niente riavvio del gioco.', en: '  round entry · ballasted grid · checker · card — no game restart.' })));
+  console.log(C.dim(tr({ it: '  iscrizione della ronda · griglia zavorrata · vigia · card — niente riavvio del gioco (pista/auto solo con --pista/--auto).', en: '  round entry · ballasted grid · checker · card — no game restart (track/car only with --pista/--auto).' })));
   if (gameOn) console.log(C.dim(tr({ it: "  protocollo no-restart: resta sul menù di EVO e NON aprire l'editor griglia.", en: '  no-restart protocol: stay on the EVO menu and DO NOT open the grid editor.' })));
+
+  // card della ronda una volta sola: serve al passo 0 (pista/auto) e al dry-run
+  const card = raceCard(ladder, state, { car: typeof args.flags.car === 'string' ? args.flags.car : null });
+
+  // 0) pista + auto del WEEKEND (set-track + set-driver-car) — ORA FACOLTATIVE
+  //    (richiesta Mauro 23/10): le scritte attecchiscono solo al lancio FREDDO
+  //    di EVO; col gioco già aperto l'utente continua a vedere pista/auto
+  //    vecchie ("non attecchiscono", lezione 22–23/10). Default = come prima:
+  //    pista e auto si scelgono a mano in EVO; con --pista / --auto (o --tutto)
+  //    il tool le riscrive comunque. Errori silente: non bloccano la ronda.
+  const wantPista = args.flags.pista != null || args.flags.tutto != null;
+  const wantAuto = args.flags.auto != null || args.flags.tutto != null;
+  const prepMsg = [];
+  if (!wantPista && !wantAuto) {
+    prepMsg.push(C.dim(`  ${tr({ it: '· pista e auto: si impostano a mano in EVO (com\'era prima — --pista/--auto per farle scrivere al tool)', en: '· track and car: set by hand in EVO (as before — --pista/--auto to have the tool write them)' })}`));
+  }
+  // Pista e auto SOLO se chieste a voce (--pista/--auto): senza, com'era prima
+  // dell'automatismo — si impostano a mano in EVO e il flusso di lancio resta
+  // quello_HW1 clearfixЧЕ che funzionava sattura.
+  if (wantPista) try {
+    if (card.trackName) {
+      const t = changeWeekendTrack(card.trackName, { dry });
+      if (t.written) prepMsg.push(C.green(`  ✓ ${tr({ it: 'pista', en: 'track' })}: ${C.bold(card.trackName)} — ${tr({ it: `scritta sul gamemodesave (${t.blocchi} sessioni)`, en: `written to the gamemodesave (${t.blocchi} sessions)` })}`));
+      else prepMsg.push(C.dim(`  · ${tr({ it: 'pista', en: 'track' })}: ${card.trackName} — ${dry ? tr({ it: 'verrebbe scritta', en: 'would be written' }) : tr({ it: 'già in piedi', en: 'already in place' })} (${t.blocchi} ${tr({ it: 'sessioni', en: 'sessions' })})`));
+    } else prepMsg.push(C.dim(`  · ${tr({ it: 'pista corrente', en: 'current track' })}: ${currentWeekendTrack() ?? tr({ it: 'non leggibile', en: 'unreadable' })}`));
+  } catch (e) { prepMsg.push(C.yellow(`  ${tr({ it: 'pista:', en: 'track:' })} ${e.message}`)); }
+  if (wantAuto) try {
+    if (card.carName) {
+      const c = setDriverCar(card.carName, { dry });
+      if (c.written) prepMsg.push(C.green(`  ✓ ${tr({ it: 'auto del garage', en: 'garage car' })}: ${C.bold(c.name)} — ${tr({ it: 'scritta sul drivergarage', en: 'written to the drivergarage' })}`));
+      else prepMsg.push(C.dim(`  · ${tr({ it: 'auto del garage', en: 'garage car' })}: ${c.name} — ${dry ? tr({ it: 'verrebbe scritta', en: 'would be written' }) : tr({ it: 'raggiunta senza scrittura', en: 'reached without writing' })}`));
+    } else prepMsg.push(C.dim(`  · ${tr({ it: 'auto del garage', en: 'garage car' })}: ${garageCurrent().name ?? tr({ it: 'non nel dizionario', en: 'not in the dictionary' })}`));
+  } catch (e) { prepMsg.push(C.yellow(`  ${tr({ it: 'auto:', en: 'car:' })} ${e.message}`)); }
+  for (const m of prepMsg) console.log(m);
+  if (gameOn) console.log(C.dim(tr({ it: "  (EVO aperto: pista e auto valgono al lancio del weekend, non a runtime)", en: '  (EVO open: track and car take effect at the weekend launch, not at runtime)' })));
 
   // 1) griglia della ronda (scrittura ok anche a gioco aperto: EVO rilegge
   //    il customgrid al lancio del weekend; backup automatico incluso)
@@ -691,14 +728,16 @@ async function cmdPrepara(args) {
   //    il customgrid al lancio del weekend — niente riavvii)
   if (dry) {
     console.log();
-    printCard(ladder, state, raceCard(ladder, state, { car: typeof args.flags.car === 'string' ? args.flags.car : null }));
-    console.log(C.dim(tr({ it: '\n(dry-run: nessun addebito e nessuna griglia scritta)', en: '\n(dry-run: no charge and no grid written)' })));
+    printCard(ladder, state, card);
+    console.log(C.dim(tr({ it: '\n(dry-run: nessun addebito, niente pista/auto/griglia scritte)', en: '\n(dry-run: no entry fee, no track/car/grid written)' })));
     console.log(C.dim(tr({ it: "Rilancia senza --dry per pagare l'iscrizione e preparare davvero.\n", en: 'Rerun without --dry to pay the entry and prepare for real.\n' })));
     return 0;
   }
   console.log();
   await cmdRace({ _: [], flags: { 'no-launch': true, car: args.flags.car } });
-  console.log(`\n${C.bold(tr({ it: 'Tutto pronto', en: 'All ready' }))}: ${C.dim(tr({ it: 'nel menù di EVO scegli il round e parti — EVO rilegge il customgrid al lancio. La vigia custodisce la griglia. A fine gara:  node ac-evo-career.mjs import', en: 'in the EVO menu pick the round and go — EVO re-reads the customgrid at launch. The checker guards the grid. After the race:  node ac-evo-career.mjs import' }))}\n`);
+  console.log(`\n${C.bold(tr({ it: 'Tutto pronto', en: 'All ready' }))}: ${C.dim(tr({ it: `nel menù di EVO scegli il round e parti —${wantPista || wantAuto ? ' pista e auto scritti a freddo, apri il pannello pista prima di "Parti" (lezione 22/10) —' : ' pista e auto le scegli a mano in EVO;'} customgrid già a posto. La vigia custodisce la griglia.`, en: `in the EVO menu pick the round and go —${wantPista || wantAuto ? ' track and car were written cold, open the track panel before "Race" (Oct 22 lesson) —' : ' track and car you set by hand in EVO;'} the customgrid is already set. The checker guards the grid.` }))}\n`);
+  console.log(C.yellow(tr({ it: '  ⚠ All\'avvio di EVO apri UNA volta la lista piste del weekend e torna indietro PRIMA di "Parti": a gioco freddo il pannello pista parte vuoto, e da lì "Parti" crasha il gioco (lezione 22/10).', en: '  ⚠ At EVO launch open the weekend track list ONCE and go back BEFORE "Race": from cold the track panel starts empty, and "Race" from there crashes the game (lesson of Oct 22).' })));
+  console.log(C.dim(tr({ it: '  A fine gara:  node ac-evo-career.mjs import\n', en: '  After the race:  node ac-evo-career.mjs import\n' })));
   return 0;
 }
 

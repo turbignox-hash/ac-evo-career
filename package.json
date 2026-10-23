@@ -1,6 +1,6 @@
 {
   "name": "ac-evo-career",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "description": "Carriera persistente automatizzata per Assetto Corsa EVO, ispirata a un'app di carriera per AMS2.",
@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node ./ac-evo-career.mjs",
     "test": "node --test \"test/*.test.mjs\"",
-    "magazzino": "node tools/magazzino-check.mjs"
+    "magazzino": "node tools/magazzino-check.mjs",
+    "bump": "node tools/bump-versione.mjs"
   },
   "engines": {
     "node": ">=18"

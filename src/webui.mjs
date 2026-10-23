@@ -6,6 +6,7 @@
 // Il browser si apre su http://127.0.0.1:<porta> — tutto resta sul tuo PC.
 
 import { createServer } from 'node:http';
+import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import { dirname, join, extname, basename, relative, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
@@ -46,7 +47,7 @@ import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice
 import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
 import { parseSetup, applyEdits, listSetups, writeSetupCopy } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
-import { changeWeekendTrack, currentWeekendTrack, WEEKEND_FILE } from '../tools/set-track.mjs';
+import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, WEEKEND_FILE } from '../tools/set-track.mjs';
 import { statoAggiornamenti, installaAggiornamenti } from '../tools/aggiornamenti.mjs';
 
 // cache degli aggiornamenti per il boot: al massimo un giro (ls-remote) al minuto
@@ -57,6 +58,21 @@ function aggMemo() {
     AGG_AT = Date.now();
   }
   return AGG_CACHE;
+}
+
+// ---------- VERSIONE DELLA BUILD (richiesta Mauro 23/10) ----------
+// Sorgenti: package.json ("0.1.0") + 7 cifre dell'hash del commit corrente.
+// Il numero cresce a ogni sincronizzazione (tools/bump-versione.mjs lo incrementa
+// nel package.json PRIMA del commit) quindi due build mai uguali si vedono pure:
+// lo stesso semver con hash diversi. Silenzioso se git manca (es. copia senza .git).
+let BUILD_VERSION = null;
+function buildVersion() {
+  if (BUILD_VERSION) return BUILD_VERSION;
+  let ver = '?', hash = '';
+  try { ver = JSON.parse(readFileSync(join(PROJECT, 'package.json'), 'utf8')).version ?? '?'; } catch { /* package.json illeggibile */ }
+  if (!/^\d+\.\d+\.\d+/.test(ver)) ver = '0.1.0';
+  try { hash = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: PROJECT, encoding: 'utf8', timeout: 4000, stdio: ['ignore', 'pipe', 'ignore'] }).trim().slice(0, 7); } catch { /* senza git resta solo il semver */ }
+  return (BUILD_VERSION = { semver: ver, hash: hash || null });
 }
 import { currentWeatherPreset, setWeatherPreset, PRESETS, setWeatherCustom, presetForLabel } from './weather.mjs';
 import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
@@ -78,6 +94,9 @@ import { resetNews } from './gazzetta.mjs';
 import { loadClasses } from './gridbuilder.mjs';
 import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, rebuildGridApply, GRID_FILE } from './grid-apply.mjs';
 import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
+// analisi.mjs: i cinque strumenti del pilota (autopsia, dossier rivali, banco
+// A/B, Monte Carlo sedili, tetto teorico) — letture pure, niente scritture.
+import { raceAutopsy, rivalDossier, setupAB, seatMonteCarlo, tettoReport } from './analisi.mjs';
 
 /* TAG GRIGLIA all'iscrizione (richiesta Mauro 21/10: la coppa a un'unica auto
  * non deve più nascondere dietro il nome "Coppa X" cosa troverai in pista):
@@ -403,6 +422,8 @@ async function api(context0, req, res, action, body) {
         aggiornamenti: aggMemo(),
         // badge urgente sul menu Messaggi: email priorità alta della posta del pilota
         mailUrgent: state ? mailbox(ladder, state).mails.filter((m) => m.priorita === 'urgente').length : 0,
+        // versione della build visibile in GUI (sidebar): package.json + breve hash git
+        versione: buildVersion(),
       });
     }
     case 'agg-info': {
@@ -544,12 +565,47 @@ async function api(context0, req, res, action, body) {
         } catch { /* senza telemetria si stima dal HUD del gioco */ }
       }
       const live = engineerLive(snap, { fuelPerLap, raceLaps });
-      return sendJson(res, 200, { ...live, telemTrack, fuelPerLap: live.gauges?.fuelPerLap ?? null });
+      // oltre a benzina/usura/gap, la radio porta dentro anche il DELTA DI RITMO
+      // (giro corrente vs best della sessione) e la MAPPA «dove perdo tempo»:
+      // la traccia del best + i tagli per fascia + il punto auto, già pronti per l'SVG.
+      return sendJson(res, 200, {
+        ...live,
+        telemTrack,
+        fuelPerLap: live.gauges?.fuelPerLap ?? null,
+        delta: snap.delta ?? null,
+        mapTrack: snap.map?.best ?? null,
+        carPos: snap.map?.cur ?? null,
+        timing: snap.player ? { currentLap: snap.player.currentLapText, lastLap: snap.player.lastLap, bestLap: snap.player.bestLap } : null,
+      });
     }
     case 'stats': return sendJson(res, 200, careerStats(ladder, state));
     case 'rivals': return sendJson(res, 200, rivalsOverview(ladder, state, { q: typeof body.q === 'string' ? body.q : null }));
     case 'imports': return sendJson(res, 200, { ledger: importedFiles().slice(0, 30), log: importLog(20) });
     case 'rival-detail': return sendJson(res, 200, rivalDetail(String(body.key ?? '')) ?? { error: tr({ it: 'Rivale non trovato.', en: 'Rival not found.' }) });
+    case 'rival-dossier': return sendJson(res, 200, rivalDossier(String(body.key ?? '')) ?? { error: tr({ it: 'Rivale non trovato.', en: 'Rival not found.' }) });
+    // analisi (tab Analisi): autopsia dell'ultima gara, tetto teorico, banco A/B, Monte Carlo sedili
+    case 'autopsy': return sendJson(res, 200, raceAutopsy(ladder, state) ?? { error: tr({ it: 'Nessuna gara ancora: dopo il primo import qui arriva la scomposizione del deficit.', en: 'No race yet: the deficit breakdown lands here after the first import.' }) });
+    case 'tetto': return sendJson(res, 200, tettoReport(ladder, state));
+    case 'seat-mc': return sendJson(res, 200, seatMonteCarlo(ladder, state, { sims: Number(body.sims) || 400 }));
+    case 'ab-list': {
+      const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
+      const sessions = listMotecSessions(root).slice(0, 40).map((s) => ({
+        file: s.name, path: s.file, car: s.car, track: s.track,
+        when: new Date(s.mtime).toLocaleString('it-IT'), mtimeMs: s.mtime,
+      }));
+      return sendJson(res, 200, { ok: true, sessions });
+    }
+    case 'ab-setup': {
+      try {
+        const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
+        const all = listMotecSessions(root);
+        const pick = (name) => all.find((s) => s.name === String(name ?? ''))
+          ?? (isFile(String(name ?? '')) ? { file: String(name) } : null);
+        const a = pick(body.fileA), b = pick(body.fileB);
+        if (!a || !b) return sendJson(res, 400, { error: tr({ it: 'Seleziona due sessioni MoTeC (A e B).', en: 'Pick two MoTeC sessions (A and B).' }) });
+        return sendJson(res, 200, setupAB(a.file, b.file, { points: Number(body.points) || 240 }));
+      } catch (e) { return sendJson(res, 500, { error: e.message }); }
+    }
     case 'world-ranking': {
       // classifica MONDIALE per prestige: tutti i piloti del mondo ordinati per
       // skill innata (i più forti sono i "F1"), con la tua posizione in elenco
@@ -813,6 +869,8 @@ async function api(context0, req, res, action, body) {
         const delta = Math.max(-5, Math.min(5, Math.round(Number(body.delta) || 0)));
         S.sliderMin = Math.max(0, Math.min(100, S.sliderMin + delta));
         S.sliderMax = Math.max(S.sliderMin, Math.min(100, S.sliderMax + delta));
+        // anche il nudge arriva al gioco: banda del weekend riscritta per coerenza
+        try { setWeekendAi(S.sliderMin, S.sliderMax); } catch { /* scheda valida comunque */ }
         // il suggerimento in sospeso (se c'è) è stato gestito: si chiude
         delete state.pendingNudge;
         persist(state);
@@ -1013,8 +1071,13 @@ async function api(context0, req, res, action, body) {
       const S = o[node.nodeId];
       const num = (v, lo, hi) => { const n = Number(v); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, Math.round(n))) : null; };
       if (body.sliderMin != null) S.sliderMin = num(body.sliderMin, 0, 100);
-      if (body.sliderMax != null) S.sliderMax = num(body.sliderMax, 0, 100);
-      if (S.sliderMin != null && S.sliderMax != null && S.sliderMin > S.sliderMax) { const t = S.sliderMin; S.sliderMin = S.sliderMax; S.sliderMax = t; }
+      if (body.sliderMax != null) S.sliderMax = num(body.sliderMax, 0, 100);        if (S.sliderMin != null && S.sliderMax != null && S.sliderMin > S.sliderMax) { const t = S.sliderMin; S.sliderMin = S.sliderMax; S.sliderMax = t; }
+        // banda STRETTA (gap ≤1, Mauro 23/10) e coerenza col gioco: qualunque pagina
+        // salvi (currencyDifficoltà o regole gara), i cursori di EVO finiscono sulla STESSA banda.
+        if (S.sliderMin != null && S.sliderMax != null) {
+          S.sliderMax = Math.min(S.sliderMax, S.sliderMin + 1);
+          try { setWeekendAi(S.sliderMin, S.sliderMax); } catch { /* il gamemodesave può mancare: la card resta valida */ }
+        }
       if (body.practiceStart != null) S.practiceStart = num(body.practiceStart, 0, 23);
       if (body.qualifyStart != null) S.qualifyStart = num(body.qualifyStart, 0, 23);
       if (body.timeScale != null) S.timeScale = Math.max(1, Math.min(60, Number(body.timeScale) || 1));
@@ -1294,6 +1357,9 @@ async function api(context0, req, res, action, body) {
         d.locked = [...list];
       } else if (body.op === 'range') {
         // intervallo slider EVO di una serie (min-max, come nel gioco); vuoto = torna al consiglio
+        // La banda viene scritta ANCHE nei cursori del gioco (gamemodesave, campi 30/31):
+        // senza quella scrittura l'utente vede i due valori solo nel tool, non sullo-loading
+        // screen di EVO (23/10: registro 91–96 a mano, il gioco correva 88–93).
         const node = nodeById(ladder, String(body.nodeId ?? state.node));
         if (body.clear) {
           if (state.raceSettings?.[node.nodeId]) { delete state.raceSettings[node.nodeId].sliderMin; delete state.raceSettings[node.nodeId].sliderMax; }
@@ -1302,12 +1368,28 @@ async function api(context0, req, res, action, body) {
           let lo = num(body.min ?? 0), hi = num(body.max ?? 0);
           if (!Number.isFinite(lo) || !Number.isFinite(hi)) return sendJson(res, 400, { error: 'Min e max vogliono numeri fra 0 e 100.' });
           if (lo > hi) { const t = lo; lo = hi; hi = t; }
+          hi = Math.min(hi, lo + 1);   // banda STRETTA: gap massimo 1% (scelta Mauro 23/10)
           ((state.raceSettings ??= {})[node.nodeId] ??= {}).sliderMin = lo;
           state.raceSettings[node.nodeId].sliderMax = hi;
         }
+        // esempio il band da scrivere nel gioco: l'override, altrimenti il consiglio (centro ±5)
+        const track = node.calendar[Math.min(state.round, node.calendar.length - 1)]?.track;
+        const band = body.clear ? null : [state.raceSettings[node.nodeId].sliderMin, state.raceSettings[node.nodeId].sliderMax];
+        const suggest = difficultyFor(ladder, state, node, track);
+        const baseBand = Math.max(0, Math.min(100, Math.round(suggest.slider)));
+        const want = band ?? [baseBand, Math.min(100, baseBand + 1)];
+        let gioMsg = '';
+        try {
+          const w = setWeekendAi(want[0], want[1]);
+          gioMsg = w.written
+            ? tr({ it: ' Scritti anche i cursori del gioco — valgono alla PROSSIMA apertura del weekend: se il weekend era già avviato resta la vecchia banda fino alla riapertura (e lo screen di caricamento mostra quella del weekend avviato).', en: ' The game sliders are written too — they take effect at the NEXT weekend open: a weekend already running keeps the old band until reopened (and the loading screen shows that one).' })
+            : tr({ it: ' I cursori del gioco sono già a posto.', en: ' The game sliders already match.' });
+        } catch (e) {
+          gioMsg = tr({ it: ` ⚠ Non scritti nel gamemodesave (${e.message}): la serie prende il valore solo nel tool.`, en: ` ⚠ Not written to the gamemodesave (${e.message}): only the tool holds the value.` });
+        }
         pushMessage(state, tr({
-          it: `Difficoltà EVO di ${node.display} impostata a ${body.clear ? 'consiglio automatico' : (state.raceSettings[node.nodeId]?.sliderMin ?? '?') + '–' + (state.raceSettings[node.nodeId]?.sliderMax ?? '?') + '%'}.`,
-          en: `EVO difficulty of ${node.display} set to ${body.clear ? 'auto suggestion' : (state.raceSettings[node.nodeId]?.sliderMin ?? '?') + '–' + (state.raceSettings[node.nodeId]?.sliderMax ?? '?') + '%'}.`,
+          it: `Difficoltà EVO di ${node.display} impostata a ${body.clear ? 'consiglio automatico' : (state.raceSettings[node.nodeId]?.sliderMin ?? '?') + '–' + (state.raceSettings[node.nodeId]?.sliderMax ?? '?') + '%'}.${gioMsg}`,
+          en: `EVO difficulty of ${node.display} set to ${body.clear ? 'auto suggestion' : (state.raceSettings[node.nodeId]?.sliderMin ?? '?') + '–' + (state.raceSettings[node.nodeId]?.sliderMax ?? '?') + '%'}.${gioMsg}`,
         }), 'info');
       } else if (body.op === 'trim') {
         const val = Math.max(-20, Math.min(20, Math.round(Number(body.value ?? 0))));
@@ -1316,18 +1398,20 @@ async function api(context0, req, res, action, body) {
           ? ladder.nodes.map((n) => n.nodeId)
           : [nodeById(ladder, String(body.nodeId ?? state.node)).nodeId];
         d.trim ??= {};
-        // la banda EVO della serie segue il trim: 1 punto di trim = 5 punti slider
-        // (come il consiglio automatico centro±5). Così cruscotto e pagina difficoltà
-        // mostrano SEMPRE la stessa banda anche quando il trim cambia.
+        // la banda EVO della serie segue il trim: 1 punto di trim = 1 punto slider
+        // (banda STRETTA di 1 punto, scelta Mauro 23/10). Così cruscotto e pagina
+        // difficoltà mostrano SEMPRE la stessa banda anche quando il trim cambia.
         for (const t of targets) {
           const before = d.trim[t] ?? 0;
           d.trim[t] = val;
           const RS = (state.raceSettings ??= {});
           const S = (RS[t] ??= {});
-          const shift = (val - before) * 5;
+          const shift = (val - before) * 1;
           S.sliderMin = Math.max(0, Math.min(100, (S.sliderMin ?? Math.round((state.raceSettings[t]?.sliderMin ?? 88))) + shift));
-          S.sliderMax = Math.max(S.sliderMin, Math.min(100, (S.sliderMax ?? Math.round((state.raceSettings[t]?.sliderMax ?? 93))) + shift));
+          S.sliderMax = Math.max(S.sliderMin, Math.min(100, (S.sliderMax ?? Math.round((state.raceSettings[t]?.sliderMax ?? 89))) + shift));
         }
+        // il trim della serie corrente arriva anche ai cursori del gioco
+        try { const cs = state.raceSettings[state.node]; if (cs?.sliderMin != null) setWeekendAi(cs.sliderMin, cs.sliderMax); } catch { /* se manca il file si va avanti */ }
         d.pending = null;
         pushMessage(state, tr({
           it: `Difficoltà regolata a mano: trim ${val >= 0 ? '+' : ''}${val} su ${body.nodeId === 'all' ? 'tutte le serie' : nodeById(ladder, String(body.nodeId ?? state.node)).display}.`,
@@ -1340,13 +1424,15 @@ async function api(context0, req, res, action, body) {
           const before = d.trim[p.nodeId] ?? 0;
           d.trim[p.nodeId] = p.to;
           // il suggerimento accettato sposta anche la banda EVO della serie (+1 trim = +5 slider)
-          const shift = (p.to - before) * 5;
+          const shift = (p.to - before) * 1;
           if (shift) {
             const RS = (state.raceSettings ??= {});
             const S = (RS[p.nodeId] ??= {});
             S.sliderMin = Math.max(0, Math.min(100, (S.sliderMin ?? 88) + shift));
-            S.sliderMax = Math.max(S.sliderMin, Math.min(100, (S.sliderMax ?? 93) + shift));
+            S.sliderMax = Math.max(S.sliderMin, Math.min(100, (S.sliderMax ?? 89) + shift));
           }
+          // accettare il suggerimento sulla serie corrente riscrive anche i cursori del gioco
+          try { if (p.nodeId === state.node) { const cs = state.raceSettings[p.nodeId]; if (cs?.sliderMin != null) setWeekendAi(cs.sliderMin, cs.sliderMax); } } catch { /* se manca il file si va avanti */ }
           pushMessage(state, tr({
             it: `Difficoltà di ${nodeById(ladder, p.nodeId).display} portata a trim ${p.to >= 0 ? '+' : ''}${p.to} (${p.reason}): banda EVO ora ${state.raceSettings[p.nodeId]?.sliderMin ?? '?'}–${state.raceSettings[p.nodeId]?.sliderMax ?? '?'}%.`,
             en: `Difficulty of ${nodeById(ladder, p.nodeId).display} moved to trim ${p.to >= 0 ? '+' : ''}${p.to} (${p.reason}): EVO band now ${state.raceSettings[p.nodeId]?.sliderMin ?? '?'}–${state.raceSettings[p.nodeId]?.sliderMax ?? '?'}%.`,

@@ -13,8 +13,99 @@ import { tr } from './lang.mjs';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 
+/* ------------------------------------------------------------------ */
+/* finestra pit: QUANDO fermarsi                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * La finestra pit ragionata: fonde le due ragioni di sosta e dice «entro
+ * questo giro, se non vuoi finire a corto».
+ *
+ *  - benzina: se i giri copribili (lapsOnFuel) non bastano ai giri restanti
+ *    (lapsLeft) la sosta è obbligatoria; l'orario più tardi possibile è il
+ *    giro in cui il serbatoio si asciuga.
+ *  - gomme: dal consumo medio di gomma (usura / giri fatti) stima il giro in
+ *    cui la gomma peggiore tocca la soglia critica dell'85%; si consiglia la
+ *    sosta solo se quel limite torna DENTRO la gara.
+ *
+ * Decide QUANDO, non CONVIENE: sapere se fermarsi è più veloce resta
+ * all'umano — qui il numero arriva prima che arrivi la gomma a terra.
+ *
+ * Input: gauges = le misure già assemblate da engineerLive; opts = { inRace, lapsTotal, pitLossSec }
+ * Ritorna: null (fuori gara / senza dati) oppure:
+ *  { need: 'fuel'|'wear'|'both', reason, pitLap, lapsToWindow,
+ *    window: [startLap, endLap], wear: {worst, rate, criticalLap}|null,
+ *    fuel: {lapsOnFuel, lapsLeft, deficit, pitLap}|null, pitLossSec }
+ */
+export function pitWindow(gauges, opts = {}) {
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+  const lapsTotal = num(opts.lapsTotal);
+  const lapsDone = num(gauges?.lapsDone);
+  const wear = Array.isArray(gauges?.wear) ? gauges.wear.filter((v) => v != null) : [];
+  const lapsOnFuel = num(gauges?.lapsOnFuel);
+  const lapsLeft = num(gauges?.lapsLeft);
+  const inRace = !!opts.inRace;
+  const pitLossSec = num(opts.pitLossSec) > 5 ? Math.round(num(opts.pitLossSec)) : 30;
+  if (!inRace || lapsDone == null) return null;
+
+  /* ---------- benzina ---------- */
+  let fuel = null;
+  if (lapsOnFuel != null && lapsLeft != null && lapsLeft > 0) {
+    const deficit = r1(lapsLeft - lapsOnFuel);
+    if (deficit > 0.5) {
+      // il giro più tardi possibile: sì a completare il giro, ma su quell'ultimo giro
+      // il serbatoio è uguale a zero: fermarci è l'ultimissima chance.
+      const latest = lapsTotal != null ? Math.min(lapsTotal - 1, lapsDone + Math.max(0, Math.ceil(lapsOnFuel) - 1)) : lapsDone + Math.max(0, Math.ceil(lapsOnFuel) - 1);
+      fuel = { lapsOnFuel, lapsLeft, deficit, pitLap: Math.max(lapsDone + 1, latest) };
+    }
+  }
+
+  /* ---------- gomme ---------- */
+  let wearOut = null;
+  const worst = wear.length ? r1(Math.max(...wear)) : null;
+  if (worst != null && lapsDone > 0) {
+    const rate = Math.round((worst / lapsDone) * 100) / 100;   // % di usura per giro
+    if (rate > 0) {
+      const CRIT = 85;                                         // sopra la soglia la gomma non regge
+      const remain = CRIT - worst;
+      if (remain <= 0) {
+        wearOut = { worst, rate, criticalLap: lapsDone, now: true };
+      } else {
+        const criticalLap = lapsDone + Math.ceil(remain / rate);
+        // consiglio di fermarsi SOLO se il limite torna dentro la gara
+        if (lapsTotal == null || criticalLap <= lapsTotal - 1) {
+          wearOut = { worst, rate, criticalLap, now: false };
+        }
+      }
+    } else if (worst >= 85) {
+      wearOut = { worst, rate: 0, criticalLap: lapsDone, now: true };
+    }
+  }
+
+  /* ---------- fonde le due pressioni: il pit lap è la prima scadenza ---------- */
+  const scadenze = [fuel?.pitLap, wearOut?.criticalLap].filter((v) => Number.isFinite(v));
+  if (!scadenze.length && !fuel && !wearOut) {
+    // niente benzina esplicita e niente usura fuori soglia: nessuna sosta prevista
+    return { need: null, reason: tr({ it: 'nessuna sosta prevista', en: 'no stop expected' }), pitLap: null, lapsToWindow: null, window: null, wear: null, fuel: null, pitLossSec };
+  }
+  const pitLap = scadenze.length ? Math.max(lapsDone + 1, Math.min(...scadenze)) : lapsDone + 1;
+  const both = fuel && wearOut && Math.abs(fuel.pitLap - wearOut.criticalLap) <= 1;
+  const need = both ? 'both' : (fuel ? 'fuel' : 'wear');
+  const reason = both
+    ? tr({ it: 'benzina e gomme scadono nello stesso giro', en: 'fuel and tyres due the same lap' })
+    : need === 'fuel'
+      ? tr({ it: `benzina manca di ${fuel.deficit} giri`, en: `fuel short by ${fuel.deficit} laps` })
+      : (wearOut?.now
+        ? tr({ it: `gomma ${worst}% al limite: fermarsi`, en: `tyre at ${worst}%: pit now` })
+        : tr({ it: `gomma peggiore (${worst}%) al limite al giro ${wearOut.criticalLap + 1}`, en: `worst tyre (${worst}%) hits the limit on lap ${wearOut.criticalLap + 1}` }));
+  // la finestra: si può anticipare di un giro (traction e buon senso), non ritardare
+  const window = [Math.max(lapsDone + 1, pitLap - 1), Math.max(lapsDone + 1, pitLap)];
+  return { need, reason, pitLap, lapsToWindow: Math.max(0, pitLap - (lapsDone + 1)), window, wear: wearOut, fuel, pitLossSec };
+}
+
 /**
  * Consigli live dell'ingegnere.
+ *
  * snap = snapshot() del liveReader, arricchita nel chiamante: player.fuel,
  *        player.tyreWear, player.lapsDone, player.lapsTotal,
  *        player.gapAhead, player.gapBehind, player.inPit, player.timeLeft
@@ -24,21 +115,28 @@ const r1 = (v) => Math.round(v * 10) / 10;
  *                    se il giocatore l'ha in HUD — non lo leggiamo dai dati)
  *        raceLaps:   giri previsti dalla ronda (card.round.laps)
  *
- * ritorna { ok, live, tips: [{icon,title,text}], gauges }
+ * ritorna { ok, live, tips: [{icon,title,text}], gauges, pit }
  *  - tips:   SOLO i consigli validi ADESSO (stesso formato dei tips statici del
  *            box radio del cruscotto: icona + titolo + testo)
  *  - gauges: i numeri crudi per il pannello (fuel, giri, gomme, gap)
+ *  - pit:    la finestra sosta calcolata da pitWindow (null fuori gara)
  */
 export function engineerLive(snap, ctx = {}) {
   const player = snap?.player ?? null;
-  const inRace = !!snap?.live && snap?.session?.type === 'Race' && !!player;
+  const sessionType = snap?.session?.type ?? null;
+  // L'ingegnere parla in TUTTE le sessioni in pista (lezione 23/10: EVO codifica
+  // le prove libere come «TimeAttack», non come «Race» — restando muti su
+  // Race-only il pannello delta/resta spento proprio nei giri di prova dove
+  // serve). La FINESTRA PIT resta invece una cosa da soltanto gara.
+  const inSession = !!snap?.live && ['Race', 'HotStint', 'TimeAttack'].includes(sessionType) && !!player;
+  const inRace = sessionType === 'Race';
   const gauges = {
     lapsDone: null, lapsTotal: null, fuel: null, lapsOnFuel: null, lapsLeft: null,
     wear: null, temp: null, gapAhead: null, gapBehind: null,
     position: null, drivers: null, timeLeft: null,
     raceLaps: ctx.raceLaps ?? null, fuelPerLap: ctx.fuelPerLap ?? null,
   };
-  if (!player || !inRace) return { ok: true, live: false, tips: [], gauges };
+  if (!player || !inSession) return { ok: true, live: false, tips: [], gauges, pit: null };
 
   const tips = [];
   const fuelPerLap = Number(ctx.fuelPerLap);
@@ -75,11 +173,11 @@ export function engineerLive(snap, ctx = {}) {
     });
   }
 
-  /* ---------- gomme: usura per ruota, oggigiorno è 0-1 (vita rimasta) o 0-100 ---------- */
+  /* ---------- gomme: usura per ruota, già 0-1 (vita rimasta) o 0-100 ---------- */
   const wear = (player.tyreWear ?? []).map((v) => Number(v));
   const wearVals = wear.filter(Number.isFinite);
   if (wearVals.length === 4) {
-    // gioco um può mandare 0-1 o 0-100: normalizziamo al posto giusto
+    // il gioco può mandare 0-1 o 0-100: normalizziamo al posto giusto
     const scale = wearVals.some((v) => v > 1.5) ? 1 : 100;
     const pct = wear.map((v) => (Number.isFinite(v) ? Math.round(v * scale * 10) / 10 : null));
     const worst = pct.reduce((a, v, i) => (v != null && (a == null || v > a.wear) ? { wheel: WHEEL_NAMES[i], wear: v } : a), null);
@@ -126,5 +224,6 @@ export function engineerLive(snap, ctx = {}) {
   gauges.timeLeft = player.timeLeft ?? null;
   gauges.raceLaps = ctx.raceLaps ?? null;
   gauges.fuelPerLap = Number.isFinite(fuelPerLap) ? fuelPerLap : null;
-  return { ok: true, live: true, tips, gauges };
+  const pit = pitWindow(gauges, { inRace, lapsTotal: gauges.lapsTotal });
+  return { ok: true, live: true, tips, gauges, pit };
 }

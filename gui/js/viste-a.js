@@ -417,10 +417,10 @@ function drawCardInto(el, card){
   const doneCount = card.settings.filter((_,i)=>isDone(i)).length;    el.innerHTML = `<h2>${LI.flag} ${tr({ it: 'Prossima gara', en: 'Next race' })} <span class="h-act">R${card.roundIndex+1} ${tr({ it: 'di', en: 'of' })} ${card.totalRounds}${card.agendaDayLabel ? ` · ${esc(card.agendaDayLabel)}` : ''}</span></h2>
 
     <div class="title">${CFLAG} ${esc(card.roundName)}</div>
-    <div class="sub">${esc(card.nodeDisplay)} · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(card.entryFee)} € · ${tr({ it: 'si paga una volta per round', en: 'paid once per round' })}${card.agendaDay ? (card.agendaDay <= (boot.header?.day ?? 0) ? '' : ' · ' + tr({ it: 'in calendario per il ', en: 'scheduled for the ' }) + esc(card.agendaDayLabel ?? (tr({ it: 'giorno ', en: 'day ' }) + card.agendaDay))) : ''}</div>
+    <div class="sub">${esc(card.nodeDisplay)} · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(card.entryFee)} € · ${tr({ it: 'si paga una volta per round', en: 'paid once per round' })}${card.agendaDay ? (card.agendaDay <= (boot.header?.day ?? 0) ? '' : ' · ' + tr({ it: 'in calendario per il ', en: 'scheduled for ' }) + esc(card.agendaDayLabel ?? (tr({ it: 'giorno ', en: 'day ' }) + card.agendaDay))) : ''}</div>
     ${card.carImage ? `<div style="display:flex;align-items:center;gap:12px;margin:8px 0 4px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2,#121822)">
       <img src="${card.carImage}" alt="${esc(card.carName ?? '')}" style="width:150px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#0d1118">
-      <div style="font-size:12.5px"><b>${tr({ it: 'Auto della giornata', en: "Today's car" })}</b><br>${esc(card.carName ?? '')} <span class="muted">${card.carChoices?.length>1?'· '+tr({ it: 'puoi cambiarla dal selettore', en: 'you can switch it from the picker' }):''}</span></div>
+      <div style="font-size:12.5px;flex:none;min-width:110px;max-width:180px"><b>${tr({ it: 'Auto della giornata', en: "Today's car" })}</b><br>${esc(card.carName ?? '')} <span class="muted">${card.carChoices?.length>1?'· '+tr({ it: 'puoi cambiarla dal selettore', en: 'you can switch it from the picker' }):''}</span></div>
       <div style="font-size:11.5px;margin-top:5px;color:var(--warn,#ffb454)">⚠️ <b>${tr({ it: "Seleziona l'auto A MANO in EVO", en: 'Pick the car BY HAND in EVO' })}</b> — ${tr({ it: "è l'unico intervento manuale della gara: al momento non è possibile impostarla in automatico da fuori.", en: "it is the only manual step of the race: for now it cannot be set automatically from outside." })}</div>
     </div>` : ''}
     <div class="cklbar"><i style="width:${doneCount/card.settings.length*100}%"></i></div>
@@ -514,8 +514,65 @@ function drawCardInto(el, card){
   // RADIO LIVE DELL'INGEGNERE: benzina residua, usura gomme, gap — dati veri
   // della shared memory mentre il gioco gira. Se non c'è gara in corso il
   // pannello resta buio (nessun rumore, il cruscotto non si sporca).
+  // DAL 23/10 dentro la radio anche: il DELTA DI RITMO (giro corrente vs best
+  // della sessione), la MAPPA «dove perdo tempo» e la FINESTRA PIT, più il
+  // COPILOTA VOCALE (speechSynthesis, tutto locale): le stesse info dette con
+  // la voce, perché in gara il monitor non lo si guarda.
   window.__ingLiveStop?.();
   const ingOut = $('#ingegnere-live', el);
+  window.__copilot ??= { on: localStorage.getItem('evo-copilot') === 'on', last: {}, at: 0 };
+  const cp = window.__copilot;
+  /* la voce: speechSynthesis del browser, voce italiana se c'è, locale al 100% */
+  const cpSpeak = (text) => {
+    if (!text) return;
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'it-IT'; u.rate = 1.1; u.volume = 0.9;
+      const v = (speechSynthesis.getVoices() ?? []).find((vv) => /^it/i.test(vv.lang));
+      if (v) u.voice = v;
+      speechSynthesis.speak(u);
+    } catch { /* la voce non deve mai rompere la vista */ }
+  };
+  /* i narratori che si ripetono: per categoria un distanziello di tempo, così
+     il copilota parla quando CAMBIA qualcosa, non in Loop ogni 4 secondi */
+  const cpSay = (k, text, gapMs = 9000) => {
+    const now = Date.now();
+    if (cp.last[k] && now - cp.last[k] < gapMs) return;
+    cp.last[k] = now;
+    cpSpeak(text);
+  };
+  const fmtDelta = (ms) => (ms == null || !Number.isFinite(ms) ? '—' : (ms < 0 ? '−' : '+') + (Math.abs(ms) / 1000).toFixed(2) + ' s');
+  /* la MAPPA «dove perdo tempo»: il contorno del best lap con sopra le fette
+     colorate del delta (verde = guadagni, rosso = perdi) e il punto dell'auto */
+  const deltaMapSvg = (track, segments, carPos) => {
+    if (!track || track.length < 6) return '';
+    const xs = track.map((p) => p[0]), zs = track.map((p) => p[1]);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
+    const W = 270, H = 200, PAD = 16;
+    const sx = Math.max(1, maxX - minX), sz = Math.max(1, maxZ - minZ);
+    const s = Math.min((W - 2 * PAD) / sx, (H - 2 * PAD) / sz);
+    const X = (x) => +(PAD + (x - minX) * s).toFixed(1);
+    const Z = (z) => +(PAD + (z - minZ) * s).toFixed(1);
+    const line = (pts) => pts.map((p, i) => `${i ? 'L' : 'M'}${X(p[0])},${Z(p[1])}`).join(' ');
+    const n = track.length;
+    // i tagli del delta fino in piazza: la traccia si scansiona a passi di strada
+    // regolari (25 m), quindi la frazione di giro 0..1 sta circa Sugli INDICI
+    const segs = (Array.isArray(segments) ? segments : []).map((se) => {
+      if (se.dv == null || Math.abs(se.dv) <= 0.1) return '';
+      const i0 = Math.max(0, Math.floor(se.p * n) - 1);
+      const i1 = Math.min(n - 1, i0 + Math.max(2, Math.ceil(n / 40)));
+      if (i1 - i0 < 1) return '';
+      const col = se.dv > 0.1 ? '#f66' : '#7f7';
+      const label = `${tr({ it: 'fetta di giro', en: 'lap slice' })} ${(se.p * 100).toFixed(0)}% · ${fmtDelta(se.dv * 1000)}`;
+      return `<path d="${line(track.slice(i0, i1 + 1))}" fill="none" stroke="${col}" stroke-width="4.2" opacity="0.95" stroke-linecap="round"><title>${esc(label)}</title></path>`;
+    }).join('');
+    const car = carPos && Number.isFinite(carPos[0]) && Number.isFinite(carPos[1])
+      ? `<circle cx="${X(carPos[0])}" cy="${Z(carPos[1])}" r="4.5" fill="#fff" stroke="#5da9ff" stroke-width="2"><title>${tr({ it: 'la tua auto adesso', en: 'your car now' })}</title></circle>` : '';
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:290px;min-width:230px;background:#0d1118;border:1px solid var(--line);border-radius:8px" role="img">
+      <path d="${line(track)}" fill="none" stroke="var(--dim,#5a6b85)" stroke-width="2" stroke-linejoin="round"/>
+      ${segs}${car}
+    </svg>`;
+  };
   const ingDraw = async () => {
     if (!document.body.contains(ingOut)) { window.__ingLiveStop?.(); return; }
     try {
@@ -523,17 +580,95 @@ function drawCardInto(el, card){
       if (!document.body.contains(ingOut)) return;
       if (!m?.live) { ingOut.innerHTML = ''; return; }
       const wearRow = (m.gauges?.wear || []).length === 4 ? `<span class="muted" style="font-size:11px">${tr({ it: 'gomme', en: 'tyres' })} LF ${m.gauges.wear[0]}% · RF ${m.gauges.wear[1]}% · LR ${m.gauges.wear[2]}% · RR ${m.gauges.wear[3]}%${m.gauges.temp&&m.gauges.temp.every(v=>v>0)?' · core '+m.gauges.temp.map(v=>v+'°C').join('/'):''}</span>` : '';
+      /* --- DELTA DI RITMO: il numero grande che oggi non c'era --- */
+      const dv = m.delta?.dv ?? m.delta?.hudDv ?? null;   // ms, con il segno
+      const dvCol = dv == null ? 'var(--text)' : dv < 0 ? '#7f7' : '#f66';
+      const dvSub = m.delta?.source === 'tracked'
+        ? tr({ it: `vs il tuo best della sessione${m.timing?.bestLap ? ' ' + esc(m.timing.bestLap) : ''}`, en: `vs your session best${m.timing?.bestLap ? ' ' + esc(m.timing.bestLap) : ''}` })
+        : tr({ it: "delta HUD del gioco — il tuo best si traccia al primo giro valido", en: "HUD delta — your best gets traced from the first valid lap" });
+      const dvHtml = `<div style="flex:1;min-width:190px">
+          <div style="font-size:40px;font-weight:800;color:${dvCol};line-height:1;letter-spacing:-1px">${esc(fmtDelta(dv))}</div>
+          <div class="muted" style="font-size:11px;margin-top:3px">${dvSub}</div>
+          <div class="muted" style="font-size:11px;margin-top:2px">${m.timing?.lastLap ? tr({ it: 'ultimo giro ', en: 'last lap ' }) + `<b>${esc(m.timing.lastLap)}</b>` : ''}${m.timing?.bestLap ? ` · ${tr({ it: 'best ', en: 'best ' })}${esc(m.timing.bestLap)}` : ''}${dv != null && dv < 0 ? ` · <span style="color:#7f7">${tr({ it: 'stai andando sotto', en: 'running quicker' })}</span>` : dv != null ? ` · <span style="color:#f66">${tr({ it: 'stai perdendo', en: 'losing time' })}</span>` : ''}</div>
+        </div>`;
+      /* --- FINESTRA PIT: quando fermarsi, prima che la gomma dica la sua --- */
+      const pit = m.pit;
+      const pitHtml = pit && pit.need
+        ? `<div class="banner warn" style="margin-top:8px;padding:8px 10px"><b>🔧 ${tr({ it: 'Finestra pit', en: 'Pit window' })}</b> — ${esc(pit.reason)}. ${tr({ it: 'Fermarsi al giro ', en: 'Pit on lap ' })}<b>${pit.pitLap + 1}</b> ${pit.lapsToWindow === 0 ? tr({ it: '(aperta adesso)', en: '(open now)' }) : `· ${tr({ it: 'si apre tra ', en: 'opens in ' })}<b>${pit.lapsToWindow}</b> ${tr({ it: 'giri', en: 'laps' })}`} · <span class="muted">${tr({ it: 'fermarsi dopo perdere ~', en: 'staying out costs ~' })}${pit.pitLossSec}s</span></div>`
+        : (pit && pit.need === null ? `<div class="muted" style="font-size:11px;margin-top:6px">🔧 ${esc(pit.reason)}</div>` : '');
+      const mapHtml = deltaMapSvg(m.mapTrack, m.delta?.segments, m.carPos);
       ingOut.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:#0d1118">
-        <div style="font-size:12px;margin-bottom:5px"><b>${tr({ it: '🎧 Ingegnere LIVE', en: '🎧 Engineer LIVE' })}</b> <span class="muted" style="font-size:11px">· P${m.gauges.position??'—'}/${m.gauges.drivers??'—'}${m.gauges.lapsTotal!=null?` · ${tr({ it: 'giro ', en: 'lap ' })}${m.gauges.lapsDone+1}/${m.gauges.lapsTotal}`:''}${m.gauges.timeLeft?` · ${tr({ it: 'resta ', en: 'left ' })}${esc(m.gauges.timeLeft)}`:''}${m.gauges.fuel!=null?` · ${tr({ it: 'benzina ', en: 'fuel ' })}${m.gauges.fuel} L`:''}${m.telemTrack?` · ${tr({ it: 'consumo da ', en: 'consumption from ' })}${esc(m.telemTrack)}`:''}</span></div>
-        <div style="display:flex;flex-direction:column;gap:4px">${(m.tips||[]).map(t=>`<div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.4"><span style="flex:none">${t.icon}</span><span><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></span></div>`).join('')}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div style="font-size:12px"><b>${tr({ it: '🎧 Ingegnere LIVE', en: '🎧 Engineer LIVE' })}</b> <span class="muted" style="font-size:11px">· P${m.gauges.position??'—'}/${m.gauges.drivers??'—'}${m.gauges.lapsTotal!=null?` · ${tr({ it: 'giro ', en: 'lap ' })}${m.gauges.lapsDone+1}/${m.gauges.lapsTotal}`:''}${m.gauges.timeLeft?` · ${tr({ it: 'resta ', en: 'left ' })}${esc(m.gauges.timeLeft)}`:''}${m.gauges.fuel!=null?` · ${tr({ it: 'benzina ', en: 'fuel ' })}${m.gauges.fuel} L`:''}${m.telemTrack?` · ${tr({ it: 'consumo da ', en: 'consumption from ' })}${esc(m.telemTrack)}`:''}</span></div>
+          <button class="mini" id="cp-toggle" type="button" title="${esc(tr({ it: 'Copilota vocale: le stesse info dell\'ingegnere, dette con la voce. Del tutto locale (speechSynthesis del browser): niente servizi, niente rete.', en: 'Voice copilot: the same engineer info, spoken aloud. Fully local (browser speechSynthesis): no services, no network.' }))}" style="margin-left:auto;letter-spacing:0.2px">
+            <span style="color:${cp.on ? '#7f7' : 'inherit'}">${cp.on ? '🔊 copilota ON' : '🔈 copilota'}</span></button>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-top:8px">
+          ${dvHtml}
+          ${mapHtml ? `<div style="flex:none">${mapHtml}<div class="muted" style="font-size:10.5px;margin-top:4px;max-width:290px"><span style="color:#7f7">■ ${tr({ it: 'guadagni', en: 'gain' })}</span> · <span style="color:#f66">■ ${tr({ it: 'perdi', en: 'lose' })}</span> · ${tr({ it: 'passa il mouse sulle fette per il decimo esatto', en: 'hover the slices for the exact tenth' })}</div></div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">${(m.tips||[]).map(t=>`<div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.4"><span style="flex:none">${t.icon}</span><span><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></span></div>`).join('')}</div>
         ${wearRow ? `<div style="margin-top:6px">${wearRow}</div>` : ''}
+        ${pitHtml}
       </div>`;
+      $('#cp-toggle', ingOut)?.addEventListener('click', () => {
+        cp.on = !cp.on;
+        localStorage.setItem('evo-copilot', cp.on ? 'on' : 'off');
+        if (!cp.on) { try { speechSynthesis.cancel(); } catch {} }
+        else cpSpeak(tr({ it: 'Copilota attivo.', en: 'Copilot on.' }));
+        ingDraw();
+      });
+      /* --- i NARRATORI del copilota: parlano quando la cosa CAMBIA, non in loop --- */
+      if (cp.on) {
+        const g = m.gauges ?? {};
+        /* 1) delta live: ogni 12 s il ritmo della posizione attuale */
+        if (dv != null) {
+          const txt = dv < 0
+            ? tr({ it: `sei più veloce del best di ${(Math.abs(dv)/1000).toFixed(1)}`, en: `you are ${(Math.abs(dv)/1000).toFixed(1)} quicker than best` })
+            : tr({ it: `sei più lento del best di ${(dv/1000).toFixed(1)}`, en: `you are ${(dv/1000).toFixed(1)} slower than best` });
+          if (Date.now() - (cp.at ?? 0) > 12000) { cp.at = Date.now(); cpSpeak(txt); }
+        }
+        /* 2) giri completati: tempo e chi ha battuto il best... in parole */
+        const lapNo = m.delta?.lapNo ?? null;
+        if (lapNo != null && cp.last.lapNo != null && lapNo > cp.last.lapNo) {
+          const nuova = m.timing?.lastLap ? tr({ it: `Giro ${lapNo} fatto in ${m.timing.lastLap}`, en: `Lap ${lapNo} in ${m.timing.lastLap}` }) : tr({ it: `Giro ${lapNo} finito`, en: `Lap ${lapNo} done` });
+          if (m.delta?.bestLapNo === lapNo) cpSpeak(nuova + ' ' + tr({ it: 'nuovo best della sessione!', en: "that's a new session best!" }));
+          else cpSay('lapdone', nuova);
+        }
+        if (lapNo != null) cp.last.lapNo = lapNo;
+        /* 3) benzina: la voce solo quando i giri copribili calano davvero */
+        if (g.lapsOnFuel != null && cp.last.fuel != null && g.lapsOnFuel < cp.last.fuel - 0.49) {
+          cpSpeak(g.lapsLeft != null && g.lapsOnFuel < g.lapsLeft + 1
+            ? tr({ it: `Attenzione benzina: per ${g.lapsOnFuel} giri, ne restano ${g.lapsLeft}`, en: `Fuel watch: ${g.lapsOnFuel} laps left in the tank, ${g.lapsLeft} to go` })
+            : tr({ it: `Benzina per ${g.lapsOnFuel} giri`, en: `Fuel for ${g.lapsOnFuel} laps` }));
+        }
+        if (g.lapsOnFuel != null) cp.last.fuel = g.lapsOnFuel;
+        /* 4) gomme: parlo solo quando la soglia cambia fascia */
+        const worst = (g.wear ?? []).filter(Number.isFinite).
+          reduce((a, v) => Math.max(a, v), 0);
+        const band = !worst ? 0 : worst >= 80 ? 2 : worst >= 55 ? 1 : 0;
+        if (band > (cp.last.wearBand ?? 0) && band > 0) cpSpeak(tr({ it: `Gomme al ${Math.round(worst)} percento`, en: `Tyres at ${Math.round(worst)} percent` }));
+        if (worst != null) cp.last.wearBand = band;
+        /* 5) gap davanti: sotto 1.5 s la actio si annuncia da sola */
+        if (g.gapAhead != null && g.gapAhead > 0 && g.gapAhead < 1.5) {
+          const k = Math.round(g.gapAhead * 10);
+          if (cp.last.gap !== k) { cp.last.gap = k; cpSpeak(tr({ it: `Gap davanti ${g.gapAhead.toFixed(1)}`, en: `Gap ahead ${g.gapAhead.toFixed(1)}` })); }
+        } else cp.last.gap = null;
+        /* 6) finestra pit: la prima volta la dico con cura, poi solo se slitta */
+        if (pit && pit.need && pit.pitLap != null && cp.last.pit !== pit.pitLap) {
+          cp.last.pit = pit.pitLap;
+          cpSpeak(pit.lapsToWindow === 0
+            ? tr({ it: `Sosta: aperta adesso, fermati questo giro`, en: `Pit window open: stop this lap` })
+            : tr({ it: `Sosta: si apre tra ${pit.lapsToWindow} giri, entro il giro ${pit.pitLap + 1}`, en: `Pit window in ${pit.lapsToWindow} laps, by lap ${pit.pitLap + 1}` }));
+        }
+      }
     } catch { /* il live non deve mai rompere la vista */ }
   };
   if (ingOut) {
     ingDraw();
     const t = setInterval(ingDraw, 4000);
-    window.__ingLiveStop = () => { clearInterval(t); window.__ingLiveStop = null; };
+    // uscendo dal cruscotto si spegne anche la voce: niente radio fantasma
+    window.__ingLiveStop = () => { clearInterval(t); try { if (cp.on) speechSynthesis.cancel(); } catch {} window.__ingLiveStop = null; };
   }
   // pannello "regole del weekend": intervallo slider AI (min-max come in EVO), orari, moltiplicatore
   const rsWire = (id, vid, suffix='') => {

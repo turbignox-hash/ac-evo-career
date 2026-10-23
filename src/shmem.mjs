@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { recordWarning } from './warnings.mjs';
+import { buildPathProg, liveDelta, deltaSegments } from './lapdelta.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PS1 = join(HERE, '..', 'tools', 'acevo-live.ps1');
@@ -402,6 +403,15 @@ export function fmtMs(ms) {
   return `${m}:${String(s).padStart(2, '0')}.${String(r).padStart(3, '0')}`;
 }
 
+/** il delta dell'HUD del gioco («+0.456» / «-0.123», millisecondi con il segno) */
+export function parseHudDelta(text) {
+  if (!text) return null;
+  const m = /^([+-])\s*(\d+[.,]\d+)$/.exec(String(text).trim());
+  if (!m) return null;
+  const v = Number(m[2].replace(',', '.')) * 1000;
+  return Number.isFinite(v) ? (m[1] === '-' ? -Math.round(v) : Math.round(v)) : null;
+}
+
 export class LiveReader {
   constructor({ intervalMs = 900 } = {}) {
     this.intervalMs = intervalMs;
@@ -410,6 +420,15 @@ export class LiveReader {
     this.lastMsgAt = 0; // qualsiasi messaggio (anche nogame): prova che il lettore è vivo
     this.buffer = '';
     this.restarts = 0;  // quante volte il watchdog ha riciclato il processo
+    // --- tracking del giro per il delta di ritmo (lapdelta.mjs) ---
+    this.lapTrack = [];      // [{x, z, t:ms}] del giro CORRENTE
+    this.lapNoSeen = null;   // numero del giro visto per ultimo
+    this.bestTrack = null;   // la traccia [{x, z, t}] del MIGLIOR giro della sessione
+    this.bestLapNo = null;
+    this.bestLapMs = null;
+    this._bestPath = null;   // buildPathProg della traccia del best (memo)
+    this._deltaCache = null; // segments memo: una chiave = il giro corrente|len traccia
+    this._deltaKey = '';
   }
   start() {
     // auto-riparazione: se il processo PowerShell è vivo ma da troppo tempo non
@@ -467,6 +486,53 @@ export class LiveReader {
     });
     child.on('exit', () => { if (this.child === child) this.child = null; });
   }
+  /** cambio giro: il giro appena chiuso diventa il nuovo best della sessione? */
+  _commitLap(lapNo) {
+    const g = this.last.graphics;
+    const track = this.lapTrack;
+    // serve una traccia lunga (min 10 campioni) e un giro completo (≥ 15 s)
+    const lapMs = Number(g?.lastLapMs);
+    if (track.length >= 10 && Number.isFinite(lapMs) && lapMs > 15000
+      && g?.isValidLap && (this.bestLapMs == null || lapMs < this.bestLapMs)) {
+      this.bestTrack = track.slice();
+      this.bestLapNo = lapNo;
+      this.bestLapMs = lapMs;
+      this._bestPath = null;         // il percorso cambia col nuovo best
+      this._deltaCache = null;
+      this._deltaKey = '';
+    }
+    this.lapTrack = [];              // riparte il campionamento del giro nuovo
+  }
+
+  /** il delta «adesso» + i tagli per fascia (memo: li ricalcola a cambio di giro o di traccia) */
+  _deltaInfo() {
+    const g = this.last.graphics;
+    const hud = parseHudDelta(g?.timing?.delta ?? null);
+    if (!this.bestTrack || this.bestTrack.length < 4) {
+      return { source: 'hud', dv: hud, bestLapMs: this.bestLapMs ?? g?.bestLapMs ?? null, bestLapNo: this.bestLapNo ?? null };
+    }
+    this._bestPath ??= buildPathProg(this.bestTrack);
+    if (!this._bestPath) return { source: 'hud', dv: hud, bestLapMs: this.bestLapMs, bestLapNo: this.bestLapNo };
+    const key = `${this.bestLapMs}|${this.lapNoSeen}|${this.lapTrack.length}`;
+    if (this._deltaKey !== key) {
+      this._deltaCache = {
+        live: liveDelta(this.lapTrack, this._bestPath, Number(g?.currentLapMs)),
+        segments: deltaSegments(this.lapTrack, this._bestPath, 48),
+      };
+      this._deltaKey = key;
+    }
+    return {
+      source: 'tracked',
+      bestLapMs: this.bestLapMs,
+      bestLapNo: this.bestLapNo,
+      lapNo: this.lapNoSeen ?? null,
+      dv: this._deltaCache.live?.deltaMs ?? null,     // ms
+      prog: this._deltaCache.live?.prog ?? null,
+      hudDv: hud,
+      segments: this._deltaCache.segments,
+    };
+  }
+
   handle(msg) {
     this.lastMsgAt = Date.now();
     if (msg.ev === 'nogame') { this.last.game = false; this.last.static = null; this.last.graphics = null; return; }
@@ -489,6 +555,22 @@ export class LiveReader {
       if (!last || Math.hypot(pt0[0] - last[0], pt0[2] - last[2]) > 60) {
         tr.push([pt0[0], pt0[2]]);
         if (tr.length > 1500) this.trail = tr.filter((_, i) => i % 2 === 0);
+      }
+    }
+    /* --- tracking del giro per il delta di ritmo (lapdelta.mjs) --- */
+    const g = this.last.graphics;
+    if (g?.carCoords?.[0]) {
+      const [x,, z] = g.carCoords[0];
+      const lapNo = g.currentLapNo;
+      if (Number.isFinite(lapNo) && this.lapNoSeen != null && lapNo !== this.lapNoSeen) {
+        this._commitLap(this.lapNoSeen);       // il giro appena chiuso va in campagna per il best
+      }
+      if (Number.isFinite(lapNo)) this.lapNoSeen = lapNo;
+      const lapMs = Number(g.currentLapMs);
+      if (Number.isFinite(x) && Number.isFinite(z) && Number.isFinite(lapMs) && lapMs > 0 && g.status === 2) {
+        const kt = this.lapTrack;
+        const lp = kt.length ? kt[kt.length - 1] : null;
+        if (!lp || Math.hypot(x - lp.x, z - lp.z) > 25) kt.push({ x, z, t: lapMs });
       }
     }
   }
@@ -516,8 +598,17 @@ export class LiveReader {
         timedRace: !!st.timedRace,
       },
       timing: g?.timing ?? null,
+      // delta di ritmo: il giro di adesso contro il best della sessione (o l'HUD del gioco)
+      delta: this._deltaInfo(),
       // mappa live: contorno raccolto dai tuoi giri + coordinate delle auto in griglia
-      map: { trail: this.trail ?? [], cars: g?.carCoords ?? null },
+      // + la traccia del BEST (per la mappa «dove perdo tempo») e il punto auto di adesso
+      map: {
+        trail: this.trail ?? [],
+        cars: g?.carCoords ?? null,
+        best: this.bestTrack ? this.bestTrack.map((p) => [Math.round(p.x), Math.round(p.z)]) : null,
+        bestLap: this.bestLapMs != null ? { no: this.bestLapNo, ms: this.bestLapMs } : null,
+        cur: g?.carCoords?.[0] ? [Math.round(g.carCoords[0][0]), Math.round(g.carCoords[0][2])] : null,
+      },
       player: g ? {
         car: g.carModel?.trim() || p?.car || null,
         driver: `${g.driverName?.trim() || ''} ${g.driverSurname?.trim() || ''}`.trim() || null,

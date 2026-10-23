@@ -32,6 +32,7 @@ import { lapToMs, positionBase } from './results.mjs';
 import { loadClasses, perTrackKey } from './gridbuilder.mjs';
 import { readCells, DEFAULT_FILE as GRID_FILE } from '../tools/grid-balance.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
+import { tr } from './lang.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);
@@ -307,13 +308,13 @@ function buildProposte(evento, cls, track) {
     const propostaAi = `${lo}-${hi2}`;
     if (propostaAi !== ai.join('-')) prop.push({
       leva: 'campo-ai', direzione: 'giù', da: ai.join('-'), a: propostaAi,
-      perche: `campo troppo forte: mediana best AI ${fmt(f.campoVsMeSec)} sopra di te (P${f.miaPos}/${f.grid}, ${f.aiDavanti} AI davanti)`,
+      perche: tr({ it: `campo troppo forte: mediana best AI ${fmt(f.campoVsMeSec)} sopra di te (P${f.miaPos}/${f.grid}, ${f.aiDavanti} AI davanti)`, en: `field too strong: AI best median ${fmt(f.campoVsMeSec)} above you (P${f.miaPos}/${f.grid}, ${f.aiDavanti} AI ahead)` }),
       comando: cmdAi(lo, hi2),
     });
   } else if (f && !f.dnf && f.miaPos === 1 && (f.margineP2Sec ?? 0) > 10 && ai && ai[1] < 100) {
     prop.push({
       leva: 'campo-ai', direzione: 'su', da: ai.join('-'), a: `${ai[0]}-${Math.min(100, ai[1] + 1)}`,
-      perche: `vittoria con ${fmt(f.margineP2Sec)} sulla P2: campo troppo debole per la tua mano`,
+      perche: tr({ it: `vittoria con ${fmt(f.margineP2Sec)} sulla P2: campo troppo debole per la tua mano`, en: `win with ${fmt(f.margineP2Sec)} over P2: field too soft for your hand` }),
       comando: cmdAi(ai[0], Math.min(100, ai[1] + 1)),
     });
   }
@@ -328,7 +329,7 @@ function buildProposte(evento, cls, track) {
     if (r.capRaggiunto || r.pct >= capPct) {
       if (r.deltaVsBaseSec < -2 && r.preset) prop.push({
         leva: 'escludi', auto: r.auto, preset: r.preset, da: `${r.kg}kg/${capPct}% (cap)`, a: 'escludi dal pool',
-        perche: `al cap e sfugge ancora: ${fmt(r.deltaVsBaseSec)} dalla base su ${evento.pista ?? '?'}`,
+        perche: tr({ it: `al cap e sfugge ancora: ${fmt(r.deltaVsBaseSec)} dalla base su ${evento.pista ?? '?'}`, en: `already at the cap and still escaping: ${fmt(r.deltaVsBaseSec)} from the base at ${evento.pista ?? '?'}` }),
         comando: `grid-classes.json → perTraccia["${track}"].escludiAuto += "${r.preset}" · poi nel file: node tools/grid-balance.mjs --drop ${r.preset}`,
       });
       continue;
@@ -340,7 +341,7 @@ function buildProposte(evento, cls, track) {
       const proposta = Math.max(0, Math.round((r.pct - (r.deltaVsBaseSec / pendenza)) * 2) / 2);
       if (proposta !== r.pct) prop.push({
         leva: 'perTraccia', direzione: 'giù', auto: r.auto, da: `${r.kg}kg/${r.pct}%`, a: `${r.kg}kg/${proposta}%`,
-        perche: `${fmt(r.deltaVsBaseSec)} sotto la base su ${evento.pista ?? '?'}: penalità troppo larga, la alleggerisco`,
+        perche: tr({ it: `${fmt(r.deltaVsBaseSec)} sotto la base su ${evento.pista ?? '?'}: penalità troppo larga, la alleggerisco`, en: `${fmt(r.deltaVsBaseSec)} under the base at ${evento.pista ?? '?'}: penalty too large, easing it` }),
         comando: `grid-classes.json → perTraccia["${track}"].restrictorPct["${r.preset ?? r.auto}"] = ${proposta} (ora ${r.pct})`,
       });
       continue;
@@ -350,7 +351,7 @@ function buildProposte(evento, cls, track) {
     if (proposta <= r.pct) continue;
     prop.push({
       leva: 'perTraccia', auto: r.auto, da: `${r.kg}kg/${r.pct}%`, a: `${r.kg}kg/${proposta}%`,
-      perche: `${fmt(r.deltaVsBaseSec)} dalla base su ${evento.pista ?? '?'}`,
+      perche: tr({ it: `${fmt(r.deltaVsBaseSec)} dalla base su ${evento.pista ?? '?'}`, en: `${fmt(r.deltaVsBaseSec)} from the base at ${evento.pista ?? '?'}` }),
       comando: `grid-classes.json → perTraccia["${track}"].restrictorPct["${r.preset ?? r.auto}"] = ${proposta} (ora ${r.pct})`,
     });
   }
