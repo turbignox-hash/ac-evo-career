@@ -830,9 +830,9 @@ async function api(context0, req, res, action, body) {
     case 'garage-add': {
       try {
         const out = addCar(state, { carId: body.carId, carName: body.carName, how: body.how === 'won' ? 'won' : 'bought', note: body.note ?? null });
-        if (!out.reused) pushMessage(state, out.car.how === 'won' ? `🏆 ${out.car.carName} entra nel garage (vinta).` : `${out.car.carName} entra nel garage (comprata).`, 'money');
+        if (!out.reused) pushMessage(state, out.car.how === 'won' ? tr({ it: `🏆 ${out.car.carName} entra nel garage (vinta).`, en: `🏆 ${out.car.carName} joins the garage (won).` }) : tr({ it: `${out.car.carName} entra nel garage (comprata a ${out.price.toLocaleString('it-IT')} €).`, en: `${out.car.carName} joins the garage (bought for ${out.price.toLocaleString('it-IT')} €).` }), 'money');
         persist(state);
-        return sendJson(res, 200, { ok: true, reused: out.reused, garage: garageOverview(ladder, state, { paths }) });
+        return sendJson(res, 200, { ok: true, reused: out.reused, garage: garageOverview(ladder, state, { paths }), header: viewHeader(ladder, state) });
       } catch (e) { return sendJson(res, 400, { error: e.message }); }
     }
     case 'garage-remove': {

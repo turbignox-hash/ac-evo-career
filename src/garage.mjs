@@ -81,22 +81,39 @@ export function importShowcase(state) {
   return added;
 }
 
-/** Aggiunge (o riusa) un'auto dal catalogo. how: 'bought' | 'won'. */
+/** Aggiunge (o riusa) un'auto dal catalogo. how: 'bought' | 'won'.
+ *  BUG 23/10: le COMPRATE prima non costavano nulla — si aggiungeva gratis e
+ *  poi si rivendeva (70% della valutazione): soldi dal nulla. Ora l'acquisto
+ *  porta il prezzo di listino (carPriceOf) e lo scrive nel registro flussi.
+ *  Le auto VINTE restano gratis (arrivano dall'evento). */
 export function addCar(state, { carId, carName, how = 'bought', note = null }) {
   const g = ensureGarage(state);
   const id = String(carId ?? '').trim();
   if (!id) throw new Error('Serve il codice auto (carId).');
+  const nome = String(carName ?? id);
   const existing = g.cars.find((c) => c.carId === id);
-  if (existing) return { car: existing, reused: true };
+  if (existing) return { car: existing, reused: true, price: null };
+  let price = null;
+  if (how !== 'won') {
+    price = carPriceOf(nome) ?? carPriceOf(id);
+    if (price == null) {
+      throw new Error(tr({ it: `Prezzo non noto per ${nome}: non si può comprare a prezzo inventato. Aggiungila come «vinta».`, en: `No catalogue price for ${nome}: cannot buy it at a made-up price. Add it as "won" instead.` }));
+    }
+    if (state.money < price) {
+      throw new Error(tr({ it: `Soldi insufficienti: ${nome} costa ${price.toLocaleString('it-IT')} € ma in banca restano ${Math.round(state.money).toLocaleString('it-IT')} €.`, en: `Not enough money: ${nome} costs ${price.toLocaleString('it-IT')} € but the bank holds ${Math.round(state.money).toLocaleString('it-IT')} €.` }));
+    }
+    state.money -= price;
+    recordFlows(state, [{ kind: 'buy', money: -price, reason: tr({ it: `acquisto ${nome} (prezzo di listino)`, en: `bought ${nome} (list price)` }) }]);
+  }
   const car = {
     carId: id,
-    carName: String(carName ?? id),
+    carName: nome,
     how: how === 'won' ? 'won' : 'bought',
     since: new Date().toISOString(),
     note: note ?? null,
   };
   g.cars.push(car);
-  return { car, reused: false };
+  return { car, reused: false, price };
 }
 
 export function removeCar(state, carId) {
@@ -230,5 +247,5 @@ export function sellCar(ladder, state, carId) {
 export function catalogPicker(ladder, { env = process.env, paths = null } = {}) {
   let catalog = null;
   try { catalog = loadCatalog(paths, env); } catch { catalog = null; }
-  return (catalog?.cars ?? []).map((c) => ({ id: c.id, name: c.name, pi: c.pi })).sort((a, b) => a.name.localeCompare(b.name));
+  return (catalog?.cars ?? []).map((c) => ({ id: c.id, name: c.name, pi: c.pi, price: carPriceOf(c.name) ?? carPriceOf(c.id) })).sort((a, b) => a.name.localeCompare(b.name));
 }

@@ -236,10 +236,11 @@ async function drawGarage(m){
     <div class="row" style="align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
       <select id="g-add" style="flex:1;min-width:220px">
         <option value="">— ${tr({ it: "aggiungi un'auto dal catalogo…", en: 'add a car from the catalog…' })}</option>
-        ${cat.cars.map(c=>`<option value="${esc(c.id)}" data-name="${esc(c.name)}">${esc(c.name)}${c.pi!=null?` (PI ${c.pi.toFixed(1)})`:''}</option>`).join('')}
+        ${cat.cars.map(c=>`<option value="${esc(c.id)}" data-name="${esc(c.name)}">${esc(c.name)}${c.pi!=null?` (PI ${c.pi.toFixed(1)})`:''}${c.price!=null?` · ${money(c.price)} €`:''}</option>`).join('')}
       </select>
       <select id="g-how" style="width:130px"><option value="bought">${tr({ it: 'comprata', en: 'bought' })}</option><option value="won">${tr({ it: 'vinta', en: 'won' })}</option></select>
       <button class="act" id="g-addbtn" style="width:auto;padding:8px 14px">${tr({ it: 'Aggiungi', en: 'Add' })}</button>
+      <span id="g-price" class="muted" style="font-size:11px"></span>
       <span class="muted" style="font-size:11px">${tr({ it: 'Le auto vinte negli eventi speciali arrivano qui da sole.', en: 'Cars won in special events arrive here by themselves.' })}</span>
     </div>
     <div id="g-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px"></div>
@@ -283,12 +284,26 @@ async function drawGarage(m){
     });
   };
   draw(g);
+  const priceHint = () => {
+    const sel = $('#g-add');
+    const c = sel.value ? cat.cars.find(x => x.id === sel.value) : null;
+    const el = $('#g-price');
+    if (!c) { el.textContent = ''; return; }
+    if (sel.value && $('#g-how').value === 'bought') {
+      if (c.price == null) el.textContent = tr({ it: '⚠ prezzo non noto: si può aggiungere solo come vinta', en: '⚠ no catalogue price: it can only be added as won' });
+      else el.textContent = `${tr({ it: 'price ', en: 'price ' })}${money(c.price)} € · ${tr({ it: 'resterebbero ', en: 'left after buy: ' })}${money(boot.header.money - c.price)} €`;
+    } else el.textContent = tr({ it: 'gratis (auto vinta)', en: 'free (won car)' });
+  };
+  $('#g-add').onchange = priceHint;
+  $('#g-how').onchange = priceHint;
+  priceHint();
   $('#g-addbtn').onclick = async () => {
     const sel = $('#g-add');
     if (!sel.value) return toast(tr({ it: "Scegli prima un'auto dal menu.", en: 'Pick a car from the menu first.' }), 'err');
     try {
       const out = await api('garage-add', { carId: sel.value, carName: sel.selectedOptions[0].dataset.name, how: $('#g-how').value });
-      sel.value = ''; draw(out.garage); toast(out.reused ? tr({ it: 'Auto già in garage.', en: 'Car already in the garage.' }) : tr({ it: 'Auto aggiunta al garage.', en: 'Car added to the garage.' }), out.reused ? 'info' : 'ok');
+      sel.value = ''; priceHint(); draw(out.garage); if (out.header) { boot.header = out.header; paintHeader(out.header); } refreshBoot();
+      toast(out.reused ? tr({ it: 'Auto già in garage.', en: 'Car already in the garage.' }) : tr({ it: 'Auto aggiunta al garage.', en: 'Car added to the garage.' }), out.reused ? 'info' : 'ok');
     } catch(e){ toast(e.message, 'err'); }
   };
 }
