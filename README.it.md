@@ -87,24 +87,23 @@ Interfaccia in inglese nei catturi; la lingua si sceglie in Impostazioni
 
 ## Novità delle build recenti
 
-Fatto nella fascia **0.1.2–0.1.3** (ogni salvataggio via `sincronizza-git.cmd`
+Fatto nella fascia **0.1.3–0.1.4** (ogni salvataggio via `sincronizza-git.cmd`
 fa salire il numero di build mostrato nel piè della barra laterale):
 
-- **Interfaccia bilingue ovunque.** Il cambio lingua (Italiano / English) vive
-  ora nella configurazione del progetto: GUI **e** CLI mostrano sempre la stessa
-  lingua — comprese date, nomi dei giorni e testi generati tanto tempo prima,
-  che si traducono in visualizzazione senza toccare il save. Anche numeri e
-  soldi seguono la lingua (`379.076 €` in italiano, `379,076 €` in inglese).
-- **Analisi alzata.** Il tab sta ora subito sotto Setup, dove il grafico del
-  giro e il banco A/B si usano più spesso insieme.
-- **Ordinali e formati in inglese.** `1st of the grid`, il punto decimale e il
-  separatore delle migliaia adesso rispettano la lingua scelta.
-- **Le proposte di bilanciamento parlano la tua lingua.** Le nuove note di
-  calibrazione («campo troppo forte: mediana best AI +4,41 s sopra di te…»)
-  nascono bilingui alla fonte; le vecchie si traducono in visualizzazione.
-- **La sincronizzazione off-site è un click.** Lo script di sincronizzazione fa
-  salire la versione build all'inizio di tutto: il piè non può mai riportare una
-  versione vecchia dopo un aggiornamento.
+- **Il meccanico spiega le sue aree.** Ogni consiglio di setup ora cita il
+  capitolo di GUIDA-AMICO da cui nasce (gomme, aerodinamica, sospensioni,
+  freni…): il consiglio per principianti e la pagina che lo spiega sono a un
+  click di distanza. Coperti da test dedicati, perché le regole future
+  (piste/telemetria) non possano regredire.
+- **I messaggi storici leggono in inglese naturale.** Le note del paddock e di
+  calibrazione griglia scritte quando la carriera era in italiano («vinta in»,
+  «sulla base…») si traducono in visualizzazione nell'interfaccia inglese — il
+  save non viene comunque mai toccato, su cruscotto, messaggi, griglia e
+  archivio.
+- **FAQ per l'installazione della GUIDA-AMICO.** Nuova appendice con i cinque
+  problemi più frequenti (import non letto, fonte di telemetria mancante,
+  messa a punto griglia, ricerca cartelle su disco, libreria Steam spostata)
+  nello stesso stile a parole povere della guida.
 
 ## Installazione
 

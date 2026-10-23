@@ -92,3 +92,54 @@ Dalla GUI c'è anche la banda **Aggiornamenti** sopra il Cruscotto, col bottone
 | il wizard non trova EVO | gioco mai avviato? cartelle dati non in `Saved Games\ACE`? forza con `setup --data ... --game ...` |
 | `content --validate` lamenta auto/piste | l'installazione EVO non ha quel DLC/mod: sostituisci la serie o raggiorna il gioco |
 | l'import dei risultati non parte col watcher | il nome pilota nel save deve coincidere col nome in EVO; guarda «Messaggi» o `node ac-evo-career.mjs import --inspect` |
+
+---
+
+## Appendice — FAQ e problemi frequenti
+
+Le risposte di use quotidiano, le stesse del README con qualche caso in più
+tipico del primo avvio su un PC nuovo. Se qui manca il tuo sintomo, il README
+(it) ha la sezione completa: [README.it.md](README.it.md).
+
+**L'import dice «risultato non letto / posizioni sbagliate».** Controlla che il
+file sia uno nativo (`Results\*.sessionresults.json`, non una copia risalvata)
+e che il nome del pilota combaci con `Logs\log-*.txt` (`Creating Car (Nome…)`).
+EVO scrive le posizioni da 0 e l'import lo gestisce, ma un file modificato a
+mano rompe il formato: in quel caso entra la gara a mano con
+`import --position N --cars M`.
+
+**Il Meccanico dice che manca una fonte.** Vuol dire che per quell'auto non c'è
+ancora telemetria `.ld` usabile (o il file è vuoto): fai un giro netto in gioco
+e alla prossima analisi i consigli nascono su dati veri. Spiega sempre quale
+fonte manca e su quale stima ripiega.
+
+**Due auto della stessa classe si contendono la gara a fatica.** Le griglie di
+stessa categoria prendono zavorre e penalità dalla calibrazione, non a stima:
+hanno bisogno prima di un po' di gare vere, poi ricalibrano con confidenza per
+pista. La convergenza si segue nel tab **Griglia** (`griglia-calib` è la versione
+da terminale).
+
+**La GUI mostra «cerca su disco» invece di leggere una cartella.** È voluto:
+i dialoghi del browser non restituiscono i percorsi scelti, quindi il cercatore
+sfoglia le unità del PC. Arriva fino alla cartella Risultati e conferma lì.
+
+**Ho aggiornato il gioco / spostato la libreria Steam.** Rilancia
+`node ac-evo-career.mjs setup` (oppure correggi i percorsi vivi in
+Impostazioni, senza riavviare) e passa `content --validate` per verificare che
+la scala combaci ancora.
+
+**Ho clonato ma il launcher dice «offsite non risponde».** Manca
+`git remote rename origin offsite` (capitolo 2). Onestamente: parte lo stesso,
+diciamo che gli aggiornamenti restano muti finché il remote non ha quel nome.
+
+**Ho aggiornato il codice ma la GUI è rimasta com'era.** Il codice nuovo si usa
+al prossimo riavvio del launcher: chiudi la finestra del terminale e ri-doppio
+click su `avvia.cmd`. Il piè di pagina mostra sempre la build attiva
+(`build x.y.z · hash`): se non cambia, il launcher è ancora quello vecchio.
+
+**La lingua si può cambiare?** Sì, in **Impostazioni**: vale per la GUI e anche
+per il terminale (una scelta sola, salvata nel progetto, non nel tuo save).
+
+**Perdo la carriera se aggiornano il tool?** No: gli aggiornamenti toccano solo
+codice; il save in `data/` sta fuori dal repository e non si tocca mai. Per
+prudenza il launcher tiene comunque copie del save (cartella `data/backups/`).

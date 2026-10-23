@@ -619,7 +619,7 @@ async function drawLiveStrip(){
       return;
     }
     const p = r.player;
-    if (!p || !r.live){ host.className = 'chip'; host.innerHTML = `<span class="dot on"></span> ${tr({ it: 'EVO aperto', en: 'EVO open' })} · ${esc(r.session?.type ?? '')}`; return; }
+    if (!p || !r.live){ host.className = 'chip'; host.innerHTML = `<span class="dot on"></span> ${tr({ it: 'EVO aperto', en: 'EVO open' })} · ${esc(legacyIt(r.session?.type ?? ''))}`; return; }
     host.className = 'chip gold';
     const rec = w?.armed ? tr({ it: ' · ⏺ registrazione', en: ' · ⏺ recording' }) : '';
     host.innerHTML = `<span class="dot on"></span> ${p.position ? 'P'+p.position+'/'+p.drivers : 'in pista'}${p.lapsTotal?` · giro ${p.lapNo ?? p.lapsDone+1}/${p.lapsTotal}`:''}${p.gapAhead?` · +${p.gapAhead.toFixed(1)}s`:''}${p.bestLap?` · best ${p.bestLap}`:''}${rec}`;

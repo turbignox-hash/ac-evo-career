@@ -546,7 +546,7 @@ async function drawBanca(m){
   const rowsHtml = rows
     .filter(r=>bancaView.filter==='in' ? Number(r.money??0)>0 : bancaView.filter==='out' ? Number(r.money??0)<0 : true)
     .map((r)=>{ const k=KIND[r.kind]||{icon:'•',label:r.kind,side:null}; const m=Number(r.money??0);
-      return `<tr><td class="faint" style="white-space:nowrap">${esc(String(r.at||'').slice(5,16).replace('T',' '))}</td><td>${k.icon} <span class="muted">${esc(k.label)}</span></td><td>${esc(r.reason??'')}</td><td class="right" style="white-space:nowrap">${m?`<span style="color:${m>0?'var(--good)':'var(--bad)'};font-weight:600">${m>0?'+':''}${money(m)} €</span>`:(r.rep?`<span class="faint">rep ${r.rep>0?'+':''}${r.rep}</span>`:'')}</td></tr>`;
+      return `<tr><td class="faint" style="white-space:nowrap">${esc(String(r.at||'').slice(5,16).replace('T',' '))}</td><td>${k.icon} <span class="muted">${esc(k.label)}</span></td><td>${esc(legacyIt(r.reason??''))}</td><td class="right" style="white-space:nowrap">${m?`<span style="color:${m>0?'var(--good)':'var(--bad)'};font-weight:600">${m>0?'+':''}${money(m)} €</span>`:(r.rep?`<span class="faint">rep ${r.rep>0?'+':''}${r.rep}</span>`:'')}</td></tr>`;
     }).join('');
   m.innerHTML = `
   <div class="panel">

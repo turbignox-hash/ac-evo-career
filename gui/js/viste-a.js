@@ -776,7 +776,7 @@ function drawCardInto(el, card){
       } else {
         liveBox.className = 'livebar live-off';
         const s = r.session ?? {};
-        liveBox.innerHTML = `<span class="dot on"></span><span class="st">EVO aperto</span><span class="sep">·</span><span class="muted">${esc(s.type ?? '')} · ${esc(s.track ?? '?')} ${esc(s.layout ?? '')} · ${esc(s.session.name || tr({ it: 'sessione libera', en: 'free session' }))}</span>`;
+        liveBox.innerHTML = `<span class="dot on"></span><span class="st">${tr({ it: 'EVO aperto', en: 'EVO open' })}</span><span class="sep">·</span><span class="muted">${esc(legacyIt(s.type ?? ''))} · ${esc(s.track ?? '?')} ${esc(s.layout ?? '')} · ${esc(s.session.name || tr({ it: 'sessione libera', en: 'free session' }))}</span>`;
       }
     } catch { /* server occupato: riprova al prossimo giro */ }
     setTimeout(pollLive, 2000);

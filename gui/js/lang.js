@@ -28,6 +28,10 @@ window.legacyIt = (s) => {
   if (window.LINGUA !== 'en') return t;
   return t
     .replace(/\bvinta in\b/g, 'won in')
+    /* chip live e stati di sessione (src/shmem.mjs scrive la parola italiana): */
+    .replace(/\bsconosciuta\b/g, 'unknown')
+    /* movimenti del garage nei flussi (src/garage.mjs, memo storici): */
+    .replace(/\bvendita ([^()]+) \((\d+) km, valutata ([\d.,]+) €\)/g, 'sale $1 ($2 km, appraised $3 €)')
     .replace(/\bvittoria con\b/g, 'win with')
     .replace(/\bsulla P(\d+)\b/g, 'over P$1')
     .replace(/\bcampo troppo debole per la tua mano\b/g, 'field too soft for your hand')

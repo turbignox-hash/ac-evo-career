@@ -109,24 +109,20 @@ next race.
 
 ## What's new in the recent builds
 
-Released in the **0.1.2–0.1.3** line (every save through `sincronizza-git.cmd`
+Released in the **0.1.3–0.1.4** line (every save through `sincronizza-git.cmd`
 bumps the build number shown in the side footer):
 
-- **Bilingual interface everywhere.** The language switch (Italiano / English)
-  now lives in the project configuration, so GUI **and** CLI show the same
-  language at all times — including dates, weekday names and messages
-  generated long ago, which are translated on display without touching your
-  save. Numbers and money follow the language too (`379.076 €` in Italian,
-  `379,076 €` in English).
-- **Analysis moved up.** The tab now sits right below Setup, where the lap
-  chart and the A/B bench are used together most.
-- **Ordinals and formats in English.** `1st of the grid`, decimal points and
-  thousands separators now match the chosen language.
-- **The balance proposals speak your language.** New calibration notes
-  ("field too strong: AI best median +4.41 s above you…" ) are written
-  bilingual at the source; older ones are translated on display.
-- **The off-site sync is one click.** The sync script bumps the build version
-  first, so the footer can never show an old version after an update.
+- **The mechanic explains its areas.** Each setup recommendation now names the
+  chapter of GUIDA-AMICO it comes from (tyres, aerodynamics, suspension,
+  brakes…), so a beginner's tip and its explanation page are one click apart.
+  Covered by dedicated tests so future tracks/telemetry rules cannot regress.
+- **Legacy messages read natural English.** Paddock notes and grid calibration
+  notes written back when the career ran in Italian (`vinta in`, `sulla base…`)
+  are translated on display in the English interface — the save file is still
+  never modified, across dashboard, messages, grid and archive screens.
+- **FAQ for a friend's install.** GUIDA-AMICO gains an appendix with the five
+  most common issues (unread imports, missing telemetry source, grid tuning,
+  on-disk folder search, moved Steam library) in the same plain-words style.
 
 ## Installation
 
