@@ -1,0 +1,14 @@
+# EVO Pitwall — report build 0.1.11 (49a476e)
+_Data: 2026-10-24 · Aggiornamento da **v0.1.9**_
+
+## Correzioni e novità
+- Armonica DI DEFAULT per tutte le serie: piu rifiuti col gesto delle 14 liveries · e2c7a6b
+- lapNo in 'hud' pure: il narratore «giro finito» della copilota parla dal giro 1 · 84cf21d
+- Vigia del parco auto + copilota curato + soldi e reputazione reintrodotti (v0.1.11) · 49a476e
+
+- Esito suite di test: FALLITI ❌ — VEDI LOG: il pacchetto è arrivato ma i test non passano
+
+## Come si aggiorna
+- **Dalla GUI:** la barra in alto dice "Aggiornamenti di progetto pronti su GitHub" → bottone **Aggiorna ora** (fetch + merge + test; il server si riavvia da solo).
+- **Da console:** ri-doppio click su `avvia.cmd` → conferma `s` alla domanda.
+- Il save in `data/` non si tocca mai: gli aggiornamenti portano solo codice.
