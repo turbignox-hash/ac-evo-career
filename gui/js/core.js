@@ -175,6 +175,12 @@ async function render(){
   if (!boot.hasCareer) return drawOnboarding(m);
   paintHeader(boot.header);
   drawAggBar(boot.aggiornamenti ?? null);
+  // check periodico mentre il tab resta aperto (24/10: prima si vedeva solo
+  // al lancio): ogni 10 minuti la stessa /api/agg-info NON bloccante, così il
+  // badge compare anche se GitHub va avanti nel frattempo. Nessun poll al
+  // server di più: la cache Memo vale 60s e il contorno resta leggero.
+  clearInterval(window.__aggTimer);
+  window.__aggTimer = setInterval(() => drawAggBar(), 600000);
   m.innerHTML = '<div class="panel"><span class="spin"></span></div>';
   try {
   if (tab==='dashboard')  return await drawDashboard(m);

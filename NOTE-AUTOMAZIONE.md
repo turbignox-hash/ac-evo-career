@@ -706,6 +706,62 @@ Simulazione errori (test/corrupt-inputs.test.mjs, 12+3 casi):
 - sessionresults sporchi (senza drivers, senza position); penali con
   etichette assurde (+0s, X2, DT) → etichetta raw invariata, mai calcoli
   inventati; positionBase con driver senza position → 0-based;
-- pruneBackups su dir/file assenti → silenzioso, mai un crash.
-In tutti i casi: errore pulito o degradazione guidata, MAI scritture a
+- pruneBackups su dir/file assenti → silenzioso, mai un crash.In tutti i casi: errore pulito o degradazione guidata, MAI scritture a
 metà (sonda .tmp/.bak = 0), MAI stack nudo a schermo.
+
+### Aggiornamenti: badge GUI + refresh periodico (24/10)
+Il badge nella GUI c'era GIÀ (#aggbar in index.html, drawAggBar in core.js,
+API agg-info / agg-install in webui.mjs con call non bloccante: il codice
+rispettato audit 23/10). Aggiunto: refresh ogni 10 minuti mentre il
+launcher resta aperto (__aggTimer in core.js) — prima il badge si vedeva
+SOLO all'avvio, una GitHub nuova rilasciata dopo non compariva finché non
+si riapriva. La cache Memo server resta 60s e la check non blocca il boot.
+
+### Guardiano di raccolta acceso (24/10 pomeriggio)
+Watcher raccogli-griglie acceso: log data/raccogli-24-10.log, quadro a
+video (71/71 auto mappate sul catalogo installato — 0 da fotografare
+come AUTO). SERIE NON COPERTE restano 3 (scoperte dal quadro stesso):
+- Coppa Hyundai i30 N (coppa_hyundai-i30-n-hb), griglia 14
+- Coppa Ferrari F2004 (coppa_ferrari-f2004), griglia 16
+- Coppa 500 (coppa_500), griglia 12
+Attenzione: "auto mappata" vuol dire fotografia in grezze; una SERIE
+serve col SUO file in magazzino/fabbrica, altrimenti la corsa dei
+candidati a install vergine si appoggia ai soli backup o agli snapshot.
+
+### Lancia Delta: prototipo Evo 3 "Violet" (catalogo) — DOVE STIAMO
+Nel catalogo del disco GIÀ registrata come UNA carriera con due
+varianti: hfevoii → Standard (PI 9.05) e Evo 3 "Violet" (PI 9.13).
+La serie sul ladder è la MONOMARCA Evo II (griglia giustamente tutta
+Evo II Standard); il prototipo Evo 3 sta FUORI dalle serie attuali.
+CHE MANCA: le CELLE fotografate col preset Evo 3 (fabbrica e magazzino
+hanno solo celle "HF Integrale Evo 2 Preset Base"), servono per eventuali
+pool multiclasse con finestra PI ~9.0-9.2. RITUALE (una volta):
+In EVO → gara personalizzata → scegli Lancia Delta → variante Evo 3
+"Violet" → menu griglia → GENERA → APPLICA → AVVIA la sessione (Esc
+appena carichi). Il guardiano fotografa (griglie-grezz); poi va
+verificato che le celle abbiano il preset Evo 3 e NON il preset Evo 2.
+
+## PIANO COMPATIBILITA' EVO 0.10 (9 dicembre) — appuntato 24/10
+Cosa arriva con l'update: regione Eifel + Free Roam + (tipico del trend
+KUNOS) piste fisse e auto nuove. Impatto SUL TOOL:
+1. PISTE: tracks.mjs mappa i nomi/layout dall'installazione — l'update
+   aggiunge layout; il guardiano ricarica il catalogo per mtime, il rischio
+   è un nome NUOVO fuori dal MATCH delle piste: si corregge
+   con una mappatura a mano o scan del trackid dopo l'update. NON si
+   blocca la gara: track-unknown = avviso, non crash (già così).
+2. AUTO: il catalogo si aggiorna con lo scan (serverFound già parametro):
+   auto nuove PI fuori range → gate CAR_MISSING se la serie le
+   cita; niente serie con auto nuove finché non c'è il dato sul
+   disco: regola"serie attive PRIMA dell'update non si toccano".
+3. GRIGLIE: l'update potrebbe CAMBIARE il protobuf dei customgrid
+   (il caso vero del 0.9.1: celle identiche crash). Precauzione: al
+   PRIMO round post-update, fare UN rituale completo (GENERA+APPLICA) e
+   verificare il quadro _delta-celle: se il formato è cambiato il decoder
+   lo dice subito. prova-vergine gira anche qui.
+4. FREE ROAM: è fuori target del tool (carriera = sessioni chiuse), NON
+   dobbiamo adattarci: ma le piste dell'Eifel arrivano STESSO nel
+   catalogo, il check non le deve segnalare come "sconosciute".
+5. BACKUP PRE-UPDATE: snapshot-pre-aggiornamento.mjs fotografa
+   gamemodesave/customgrid/offline_profile PRIMA di installare 0.10.
+   LANCIO OBBLIGATORIO il giorno dell'update.
+
