@@ -69,7 +69,10 @@ const oggi = new Date().toISOString().slice(0, 10);
 let testRiga = '';
 if (conTest) {
   let ok = true, nota = '';
-  try { execFileSync('npm', ['test'], { cwd: RADICE, encoding: 'utf8', timeout: 120000, stdio: ['ignore', 'pipe', 'pipe'] }); }
+  // niente npm: su Windows npm è un .cmd e execFileSync (senza shell) lo
+  // rifiuta con EINVAL — l'esito sembrava sempre FALLITO. Il runner è node:
+  // `node --test` (scopre i file in test/ da solo, package.json concorda).
+  try { execFileSync(process.execPath, ['--test'], { cwd: RADICE, encoding: 'utf8', timeout: 120000, stdio: ['ignore', 'pipe', 'pipe'] }); }
   catch (e) { ok = false; nota = ' — VEDI LOG: il pacchetto è arrivato ma i test non passano'; }
   testRiga = `- Esito suite di test: ${ok ? 'passati ✅' : 'FALLITI ❌' + nota}\n`;
 }
