@@ -470,3 +470,4 @@ Private work: **© 2026 Mauro Turbigno — all rights reserved** (full text in
 [LICENSE.md](LICENSE.md)). No redistribution, publication or reuse in other
 products without written permission; the official car and track images
 (`gui/carmaps/`, `gui/trackmaps/`) remain KUNOS's and are not redistributable.
+Prova della barra aggiornamenti: arrivato da GitHub, 24/10 sera.
