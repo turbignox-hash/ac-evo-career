@@ -87,6 +87,19 @@ Interfaccia in inglese nei catturi; la lingua si sceglie in Impostazioni
   in `data/` non si tocca mai); al passo o offline → zitta. Da terminale:
   `node tools/aggiornamenti.mjs` (domanda `s/N`, Invio/15 s = no).
 
+### Zip o clone? I due modi di installarlo su un altro PC
+
+| | **Clone git** (consigliato) | **Zip del pacchetto-amico** |
+| --- | --- | --- |
+| Serve | Node 18+ e Git (2 min, GUI di GitHub Desktop va benissimo) | solo Node 18+ |
+| Aggiornamenti | **automatici**: ogni avvio di `avvia.cmd` (o bottone GUI) propone fetch+merge,.Invio/15 s = no | **automatici va bene**: a partire dal 24/10 il pacchetto porta `build-id.txt` e l'updater scarica da solo la codifica nuova via API GitHub; per un repo **privato** si deve avere un token di lettura in `data/.github-token` (o `GITHUB_TOKEN`) una volta sola |
+| Installi una volta | `git clone …` + `git remote rename origin offsite` | doppio click su `avvia.cmd` (il wizard trova le cartelle) |
+| il save (`data/`) | mai toccato dagli aggiornamenti | mai toccato dagli aggiornamenti (la copia via zip esclude per sicuro `data/`) |
+| File rimossi dal progetto sui tuo disco | spariti (merge vero) | restano sul disco innocui (la copia non cancella) |
+| Avvertenza | il repo privato chiede le credenziali GitHub la prima volta | se non metti il token, l'updater dice «privato e senza token» e resta muto: ri-scarichi lo zip a mano |
+
+Detto breve: **amico d'infanzia che aggiorna spesso → clone**; **chi vuole solo un file da doppio-click → zip + token**.
+
 ## Novità delle build recenti
 
 Fatto nella fascia **0.1.3–0.1.4** (ogni salvataggio via `sincronizza-git.cmd`

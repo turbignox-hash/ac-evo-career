@@ -13,6 +13,7 @@
 import { execFileSync, execSync, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { dirname, join, resolve } from 'node:path';
+import { viaGit, statoZipAsync, installaZip } from './aggiorna-zip.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import readline from 'node:readline/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -48,6 +49,11 @@ async function gitOkAsync(args) {
   catch { return false; }
 }
 export async function statoAggiornamentiAsync() {
+  // VIA ZIP (24/10): senza .git non c'è cosa mergeta — il confronto è
+  // build-id.txt vs l'ultimo commit di GitHub via API, e l'installazione
+  // scarica la zipball (tools/aggiorna-zip.mjs). STESSA forma di risultato:
+  // GUI, launcher e CLI non sanno la differenza.
+  if (!viaGit()) return statoZipAsync();
   let head = '';
   try { head = await gitRunAsync(['rev-parse', 'HEAD']); }
   catch { return { skip: true, motivo: 'git non disponibile qui.' }; }
@@ -90,7 +96,10 @@ export function statoAggiornamenti() {
 }
 
 // --- 2: l'aggiornamento VERO, sempre richiesto a voce prima ---
-export function installaAggiornamenti() {
+export async function installaAggiornamenti() {
+  // VIA ZIP (24/10): senza .git la «merge» è la copia della zipball con
+  // data/ intatto (aggiorna-zip.mjs.installaZip), seguita dal suo npm test
+  if (!viaGit()) return await installaZip();
   const s = statoAggiornamenti();
   if (s.skip) return { ok: false, messaggio: 'aggiornamento non controllabile adesso: ' + (s.motivo ?? '') };
   if (s.diverged) return { ok: false, messaggio: 'GitHub e il disco divergono: allinearli richiede una decisione tua (push o pull), non un aggiornamento automatico.' };
@@ -124,7 +133,8 @@ async function chiedi(domanda, ms) {
 
 async function main() {
   const breve = process.argv.includes('--breve');
-  const s = statoAggiornamenti();
+  // la variante ASINCRONA decide da sola il canale: clone (git) o zip (API)
+  const s = await statoAggiornamentiAsync();
   if (s.skip) {
     if (!breve) console.log('  -  aggiornamenti: ' + (s.motivo ?? 'non controllabili adesso.'));
     return;

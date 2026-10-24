@@ -14,8 +14,10 @@
 // Uso:   node tools/pacchetto-amico.mjs [--no-test]
 //        --no-test  salta la prova npm test nella cartella estratta
 import { execFileSync, spawnSync } from 'node:child_process';
+// tar dichiarato QUI (e non più giù): anche l'iniezione del build-id lo usa
+const TAR = process.env.SystemRoot ? join(process.env.SystemRoot, 'System32', 'tar.exe') : 'tar';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, rmSync, statSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, statSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -57,8 +59,27 @@ execFileSync('git', ['archive', '--format=zip', '--prefix=ac-evo-career/', '-o',
   ':(exclude)pacchetti',      // gli zip dentro lo zip, ché schifo
 ], { cwd: RADICE });
 
+// 2b) BUILD-ID DENTRO LO ZIP (24/10): l'installazione-zip DEVE scoprire da
+// sola che committò ha a bordo, iltrimenti l'auto-aggiornamento
+// (tools/aggiorna-zip.mjs) non ha un predicato per il confronto. Estraggo
+// l'archivio, inietto il commit e lo re-imballo con tar (bsdtar -a crea lo
+// zip dal solo suffisso .zip).
+{
+  const tmp = mkdtempSync(join(tmpdir(), 'pacchetto-id-'));
+  try {
+    const dest = join(tmp, 'tree');
+    mkdirSync(dest, { recursive: true });
+    spawnSync(TAR, ['-xf', basename(zip), '-C', dest], { cwd: PACCHETTI });
+    writeFileSync(join(dest, 'ac-evo-career', 'build-id.txt'), `${head}\n(v${versione})\n`, 'utf8');
+    spawnSync(TAR, ['-a', '-cf', basename(zip), '-C', dest, 'ac-evo-career'], { cwd: PACCHETTI });
+    if (spawnSync(TAR, ['-tf', basename(zip)], { cwd: PACCHETTI, encoding: 'utf8' }).stdout.includes('ac-evo-career/build-id.txt') === false) {
+      throw new Error('build-id.txt non è dentro lo zip: l iniezione non ha funzionato');
+    }
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+}
+
 // tar: su Windows serve il bsdtar di System32 (legge gli zip; il GNU tar di Git Bash no)
-const TAR = process.env.SystemRoot ? join(process.env.SystemRoot, 'System32', 'tar.exe') : 'tar';
+// (la definizione di TAR sta in cima: l'iniezione del build-id la usa prima)
 
 // 3) controllo del contenuto: niente data/, .git/, carmaps, trackmaps, dist, demo, sessione-
 //    (tar su Windows interpreta "C:\..." come host remoto: cwd + nome relativo)

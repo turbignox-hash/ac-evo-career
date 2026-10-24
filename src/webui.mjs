@@ -547,7 +547,7 @@ async function api(context0, req, res, action, body) {
     case 'agg-install': {
       // l'utente ha cliccato "Aggiorna ora": il consenso è già dato per definizione
       try {
-        const r = installaAggiornamenti();
+        const r = await installaAggiornamenti();
         // AUTO-RESTART (24/10, richiesta Mauro): se il codice è davvero cambiato
         // e i test non sono morti, il server si riavvia DA SOLO: spawna l'helper
         // staccato (che ammazza questo processo, aspetta la porta e riparte con

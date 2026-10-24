@@ -10,7 +10,10 @@ Il **save carriera non passa** con il repo: ogni PC si crea la propria carriera
 - **Node.js 18 o superiore** (`node -v` per controllarlo): nessun'altra dipendenza.
 - **Assetto Corsa EVO installato e avviato almeno una volta** (così esistono le
   sue cartelle dati: `Saved Games\ACE`).
-- Git (basta quello che arriva con le GitHub Desktop o `git-scm.com`).
+- Per la via **clone**: Git (basta quello che arriva con le GitHub Desktop o
+  `git-scm.com`).
+- Per la via **zip**: niente altro; se il repo GitHub è **privato**, un token di
+  lettura salvato una volta in `data/.github-token` (o variabile `GITHUB_TOKEN`).
 
 ## 2. Clone (il modo che riceve gli aggiornamenti)
 
@@ -24,9 +27,27 @@ git remote rename origin offsite     # così il controllo aggiornamenti guarda i
 altro: senza quel passo il check dice «il remote offsite non risponde con un
 commit» e l'app parte comunque (solo senza aggiornamenti).
 
-Invece dello zip: il **clone è la via consigliata** — con lo zip i futuri
-aggiornamenti vanno presi a mano (ri-scarico e ri-copia), col clone arrivano
-dal launcher.
+**Via zip** (chi non vuole installare Git): scarichi il pacchetto, lo estrai,
+doppio click su `avvia.cmd` — il wizard di prima apertura fa il resto.
+Gli aggiornamenti arrivano **automatici** anche così, dal 24/10: nel pacchetto
+c'è `ac-evo-career/build-id.txt` e ad ogni avvio il launcher confronta quella
+build con l'ultima su GitHub (`tools/aggiorna-zip.mjs` — scarica tarball via
+API, sostituisce DI PROPOSITO solo codice e config e non tocca niente tuo).
+Due note oneste: lo zip non elimina i file che il progetto ha levato
+(merge vero solo col clone); su repo privato serve il token di lettura (§5-bis).
+
+## 5-bis. Token di lettura (solo zip su repo privato)
+
+Il repo è **privato**: l'updater zip chiede una chiave di lettura.
+
+1. Su GitHub: **Settings → Developer settings → Personal access tokens →
+   Fine-grained** → *Generate new token*: repository solo ac-evo-career,
+   permessi **Contents: Read-only** (e *Metadata: Read*, che viene da sé).
+2. Crea la cartella `data/` e dentro un file **`data/.github-token`** col token
+   (una riga sola — oppure la variabile d'ambiente `GITHUB_TOKEN`).
+
+Una volta sola: poi l'aggiornamento è silenzioso uguale al clone. Il `from-zip`
+senza token resta «privato e senza token».
 
 ## 3. Primo avvio
 
@@ -79,6 +100,11 @@ Ogni volta che parti da `avvia.cmd` (o apri l'interfaccia di nuovo):
 - ci sono aggiornamenti → `↑ Ci sono N aggiornamenti … Installare ora? [s/N]`
   (Invio o 15s = no): installare fa `fetch + merge --ff-only + npm test`, e
   consiglia di riavviare il launcher per usare il codice nuovo;
+- (via **zip** invece) l'installazione è silenziosa: l'updater prende la build
+  nuova su GitHub, la mette al posto del codice in `ac-evo-career/`, e avvisa
+  «**avvia il launcher ancora una volta** per usare il nuovo»;
+- idem la GUI: la banda Aggiornamenti mostra la build remota e lo stesso
+  bottone **Aggiorna ora**;
 - il save in `data/` non si tocca mai: gli aggiornamenti toccano solo codice.
 
 Dalla GUI c'è anche la banda **Aggiornamenti** sopra il Cruscotto, col bottone
@@ -88,7 +114,9 @@ Dalla GUI c'è anche la banda **Aggiornamenti** sopra il Cruscotto, col bottone
 
 | Sintomo | Cosa guardare |
 | --- | --- |
-| «il remote offsite non risponde con un commit» | manca `git remote rename origin offsite` (o sei offline: parte comunque) |
+| «il remote offsite non risponde con un commit» | (clone) manca `git remote rename origin offsite` (o sei offline: parte comunque) |
+| lo zip non si auto-aggiorna | il file `ac-evo-career/build-id.txt` manca nel pacchetto (vecchio bundle) → ri-scarichi una volta lo zip nuovo; (repo privato) manca `data/.github-token` → §5-bis; (offline) parte lo stesso, riproverà all'avvio dopo |
+| l'aggiorno-zip dice «c'è lavoro sul disco che la copia leva» | hai file tuoi dentro le cartelle codice/config: spostali fuori da `ac-evo-career/` (o mettili in una cartella nuova data/ o）： la copia non tocca mai `data/` né alcun tuo file fuori da quelle cartelle |
 | il wizard non trova EVO | gioco mai avviato? cartelle dati non in `Saved Games\ACE`? forza con `setup --data ... --game ...` |
 | `content --validate` lamenta auto/piste | l'installazione EVO non ha quel DLC/mod: sostituisci la serie o raggiorna il gioco |
 | l'import dei risultati non parte col watcher | il nome pilota nel save deve coincidere col nome in EVO; guarda «Messaggi» o `node ac-evo-career.mjs import --inspect` |

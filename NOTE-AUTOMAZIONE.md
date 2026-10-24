@@ -1360,3 +1360,37 @@ considerare un'etichetta  sul file o una conferma esplicita.
 - PROVATO VIVO su slot 3 (porta 8644, server riavviato): scoped → 1 auto
   (Abarth 695, le 5 uscite del campionato 500 di oggi) e archivio 5 file;
   all → 18 auto / 191 file e 238 risultati. Suite 174/174 verde.
+
+
+## AGGIORNAMENTO AUTOMATICO VIA ZIP (24/10, tarda: "cioe' preso a mano? non si autoaggiorna?") — FATTO
+- Il pacchetto-amico ora scrive `build-id.txt` alla radice dello zip
+  (versione + HEAD, la stessa riga che la GUI mostra nel pie' di pagina).
+- `tools/aggiorna-zip.mjs`: l'updater per le installazioni dezipdate
+  (quelle SENZA .git, il caso dell'amico dello zip):
+  • legge `ac-evo-career/build-id.txt` e interroga GitHub
+    (GET api.github.com .../commits/main, timeout 2 s): avanti o al passo;
+  • se GitHub e' avanti scarica il tarball (repo PRIVATO: token di lettura
+    da `GITHUB_TOKEN` o `data/.github-token`), lo estrae in
+    `tools/_update-<pid>` e copia SOLO le cartelle di codice e config
+    (src/ tools/ gui/ config/ docs/ report/ test/) piu' i file radice con
+    estensione;
+  • `data/` NON viene MAI toccato (il save dell'amico resta suo);
+  • se la build nuova ha file IN MENO (codice levato dal progetto), li
+    elenca prima di applicare e chiede Invio (CTRL-C annulla); da webui la
+    domanda passa in modalita' muto (applica direttamente, avvisa dopo);
+  • alla fine scrive il `build-id.txt` nuovo: l'amico al prossimo avvio
+    e' "al passo" senza fare nulla.
+- `aggiornamenti.mjs`: se nella cartella non c'e' .git delega a
+  aggiorna-zip; il clone continua a usare il flusso git di sempre.
+  Aggiunto anche il comando diretto `node tools/aggiornamenti.mjs from-zip`.
+- webui.mjs: il bottone Aggiorna ora AWAITA la risposta dell'aggiornamento
+  (prima la banda spariva senza dire cosa fosse successo; ora dice cosa
+  è accaduto: aggiornato / al passo / privato senza token / offline).
+- test/aggiorna-zip.test.mjs: 5 test con fetch e tar FINTI ( nessuna rete
+  vera nelle suite ): al passo, avanti con copia, protezione data/,
+  avviso per file rimossi, repo privato senza token.
+- Prova dal vivo: estrazione pulita del nuovo zip (senza .git) con un
+  file sentinella in data/ ("un-save-caro.txt"): dopo il from-zip il
+  sentinella resta intatto e lo strumento dice "sei al passo" (il pack
+  era della HEAD corrente). Documentato in README.it.md ("Zip o clone?")
+  e GUIDA-AMICO.md (6-bis token per repo privato).
