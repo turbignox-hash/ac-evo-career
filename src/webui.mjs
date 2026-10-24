@@ -57,9 +57,9 @@ import { statoAggiornamentiAsync, installaAggiornamenti } from '../tools/aggiorn
 // check degli aggiornamenti FUORI dal boot (audit freeze 23/10): qui prima
 // girava statoAggiornamenti() sincrono (execFileSync · git ls-remote → fino a
 // 8s: l'INTERO event loop del server si congela GUI alla mano) dentro /api/boot,
-// quindi la prima schermata aspettava la rete. Adesso hastá la cache un giro
+// quindi la prima schermata aspettava la rete. Adesso c'è la cache un giro
 // al minuto con chiamata non bloccante, e la GUI lo pesca da /api/agg-info
-// (drawAggBar il nessun argomento fa già questa fetch di contorno) senza
+// (drawAggBar senza argomento fa già questa fetch di contorno) senza
 // fermare il primo pannello.
 let AGG_CACHE = null, AGG_AT = 0, AGG_FLIGHT = null;
 async function aggMemo() {
@@ -513,7 +513,22 @@ async function api(context0, req, res, action, body) {
     }
     case 'agg-install': {
       // l'utente ha cliccato "Aggiorna ora": il consenso è già dato per definizione
-      try { return sendJson(res, 200, installaAggiornamenti()); }
+      try {
+        const r = installaAggiornamenti();
+        // AUTO-RESTART (24/10, richiesta Mauro): se il codice è davvero cambiato
+        // e i test non sono morti, il server si riavvia DA SOLO: spawna l'helper
+        // staccato (che ammazza questo processo, aspetta la porta e riparte con
+        // node src/webui.mjs) e qui risponde al browser «riavvio programmato».
+        if (r.ok && !r.nessuno && r.testOk !== false) {
+          AGG_CACHE = null; AGG_AT = 0; // il prossimo agg-info parte fresco
+          const { spawn } = await import('node:child_process');
+          spawn(process.execPath, [join('tools', 'riavvia-webui.mjs'), String(process.pid)], {
+            cwd: PROJECT, detached: true, stdio: 'ignore',
+          }).unref();
+          r.riavvio = true;
+        }
+        return sendJson(res, 200, r);
+      }
       catch (e) { return sendJson(res, 200, { ok: false, messaggio: String(e.message ?? e) }); }
     }
     case 'agenda-sign-preview': {

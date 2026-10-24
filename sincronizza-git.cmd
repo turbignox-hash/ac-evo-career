@@ -42,6 +42,14 @@ git push offsite --all
 if errorlevel 1 goto errore
 git push offsite --tags
 if errorlevel 1 goto errore
+
+echo.
+rem 3) Report di build (richiesta Mauro 24/10): dopo ogni push genera il
+rem    riepilogo pubblicabile delle correzioni di questa build in data/report,
+rem    e lo committe+spinge lui stesso. Fallisse, NON blocca il salvataggio.
+node "%~dp0tools\report-build.mjs"
+if errorlevel 1 echo   -  report di build non generato: il salvataggio e' comunque andato.
+
 echo.
 echo   Fatto: progetto salvato nel progetto e storia copiata anche online.
 pause

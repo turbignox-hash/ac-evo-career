@@ -706,8 +706,44 @@ Simulazione errori (test/corrupt-inputs.test.mjs, 12+3 casi):
 - sessionresults sporchi (senza drivers, senza position); penali con
   etichette assurde (+0s, X2, DT) → etichetta raw invariata, mai calcoli
   inventati; positionBase con driver senza position → 0-based;
-- pruneBackups su dir/file assenti → silenzioso, mai un crash.In tutti i casi: errore pulito o degradazione guidata, MAI scritture a
+- pruneBackups su dir/file assenti → silenzioso, mai un crash.
+In tutti i casi: errore pulito o degradazione guidata, MAI scritture a
 metà (sonda .tmp/.bak = 0), MAI stack nudo a schermo.
+
+### Collaudo distribuzione: barra "Aggiorna ora" in GUI (24/10, fine)
+Replica dello stato del PC amico: disco locale INDIETRO di un commit
+(d82b5aa) e remote offsite/main AVANTI con un commit di prova (b06290e,
+riga appositamente aggiunta al README).
+
+Risultati TUTTI PASS:
+- barra in alto: compare col conteggio giusto ("Aggiornamenti di
+  progetto pronti su GitHub: 1") + bottone Aggiorna ora + più tardi.
+- clic su Aggiorna ora → bottone diventa "Aggiorno...", il fetch +
+  merge --ff-only + npm test girano, barra sparisce da sola quando
+  tutto combacia di nuovo.
+- Indicatore in Impostazioni (drawAggStatus): prima "Aggiornamenti in
+  attesa su GitHub 1 — usa la barra in alto · verificato alle
+  [ora]"; dopo il clic "Aggiornato: nessun aggiornamento in attesa ·
+  build v0.1.8 · d82b5aa".
+- Lingua EN/IT: entrambe consistenti, il pannello traduce bene.
+- cleanup: disco e remote riportati a d82b5aa (push forzato), README
+  di prova ripulito, niente righe di test rimaste.
+
+Dettagli implementazione visti sul caldo:
+- la risposta /api/agg-info è CACHED per 60s (AGG_CACHE in webui.mjs):
+  dopo un reset a mano del disco la cache dice ancora lo stato VECCHIO
+  per ≤60s, poi si riallinea (verificato: dopo il refresh il conteggio
+  remotoAvanti torna corretto). NON è un bug: se si testa a mano il
+  disco va solo aspettato il giro della cache.
+- il pannello Impostazioni usa la STESSA cache: dopo un clic di
+  installazione il nuovo stato arriva al prossimo ridisegno del
+  pannello (coerente col refresh 60s del server).
+
+Verdetto: il percorso d'entrata dell'amico funziona FINO ALLA FINE —
+GitHub nuovo → barra in alto → clic → fetch+test → codice nuovo sul
+suo disco, senza toccare il save. La meccanica si può CONSIDERARE
+affidata per l'amico; resta da verificare solo che l'installazione
+di Pinokio sul PC nuovo peschi anche d82b5aa dopo l'aggiornamento.
 
 ### Aggiornamenti: badge GUI + refresh periodico (24/10)
 Il badge nella GUI c'era GIÀ (#aggbar in index.html, drawAggBar in core.js,
@@ -757,11 +793,34 @@ KUNOS) piste fisse e auto nuove. Impatto SUL TOOL:
    (il caso vero del 0.9.1: celle identiche crash). Precauzione: al
    PRIMO round post-update, fare UN rituale completo (GENERA+APPLICA) e
    verificare il quadro _delta-celle: se il formato è cambiato il decoder
-   lo dice subito. prova-vergine gira anche qui.
-4. FREE ROAM: è fuori target del tool (carriera = sessioni chiuse), NON
-   dobbiamo adattarci: ma le piste dell'Eifel arrivano STESSO nel
-   catalogo, il check non le deve segnalare come "sconosciute".
+   lo dice subito. prova-vergine gira anche qui.4. FREE ROAM: è fuori target del tool (carriera = sessioni chiuse), NON
+ dobbiamo adattarci: ma le piste dell'Eifel arrivano STESSO nel
+ catalogo, il check non le deve segnalare come "sconosciute".
 5. BACKUP PRE-UPDATE: snapshot-pre-aggiornamento.mjs fotografa
    gamemodesave/customgrid/offline_profile PRIMA di installare 0.10.
    LANCIO OBBLIGATORIO il giorno dell'update.
+
+### Report di build + auto-restart del launcher (24/10, tardissima)
+DUE richieste Mauro entrate insieme: «ogni build deve scrivere un report
+ da pubblicare con le correzioni» e «automatizza il kill+rientro del
+ launcher dopo Aggiorna ora».
+
+REPORT DI BUILD — tools/report-build.mjs, agganciato a FINE di
+ sincronizza-git.cmd (dopo il push, non bloccante): rilegge i commit
+ dall'ultimo report pubblicato (puntatore data/report/ultimo-report.json)
+ e scrive data/report/build-vX.Y.Z-<hash>.md (elenco correzioni + istruzioni
+ di aggiornamento), poi lo committa e lo spinge lui stesso. --dry per la
+ preview, --test per aggiungere l'esito della suite. Il primo report
+ (v0.1.8, d82b5aa) raccoglie a ritroso gli ultimi 30 commit come storia.
+
+AUTO-RESTART — tools/riavvia-webui.mjs NUOVO: agg-install (webui.mjs)
+ se l'installazione ha cambiato codice e i test non sono morti, spawna
+ l'helper staccato e risponde «riavvio programmato»; l'helper aspetta 1.2s
+ la risposta HTTP al browser, ammazza il PID vecchio, aspetta la porta
+ libera (poll, max 10s) e riparte `node src/webui.mjs` (finestra ridotta
+ su Windows). La GUI (core.js): toast «il server si riavvia da solo» +
+ sonda /api/agg-info ogni 1s: quando il server giù torna su, location.reload().
+ Fallback intatto: se testOk === false NON si riavvia (toast rosso a mano);
+ via console (avvia.cmd) resta il «riavvia il launcher» manuale.
+
 

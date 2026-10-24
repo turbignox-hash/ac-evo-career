@@ -43,7 +43,18 @@ async function drawAggBar(agg){
       const r = await api('agg-install');
       if (r.ok && r.nessuno) toast(tr({ it: 'Nessun aggiornamento mancante.', en: 'No missing updates.' }), 'ok');
       else if (r.ok && r.testOk === false) toast(tr({ it: 'Aggiornato a ' + (r.hash ?? '?') + ', ma npm test è FALLITO: guarda la console.', en: 'Updated to ' + (r.hash ?? '?') + ', but npm test FAILED: check the console.' }), 'err');
-      else if (r.ok) toast(tr({ it: 'Aggiornato a ' + (r.hash ?? '?') + ' — test passati. Riavvia il launcher per il codice nuovo.', en: 'Updated to ' + (r.hash ?? '?') + ' — tests passed. Restart the launcher to load the new code.' }), 'ok');
+      else if (r.ok) {
+        if (r.riavvio) {
+          // AUTO-RESTART (24/10): il server si riavvia da solo col codice nuovo.
+          toast(tr({ it: 'Aggiornato a ' + (r.hash ?? '?') + ' — test passati. Il server si riavvia da solo: la pagina si ricarica tra poco.', en: 'Updated to ' + (r.hash ?? '?') + ' — tests passed. The server restarts on its own: the page reloads shortly.' }), 'ok');
+          const t0 = Date.now(); let giu = false;
+          const iv = setInterval(async () => {
+            if (Date.now() - t0 > 45000) { clearInterval(iv); return; }
+            try { const c = await fetch('/api/agg-info', { signal: AbortSignal.timeout(1500) }); if (c.ok && giu) { clearInterval(iv); setTimeout(() => location.reload(), 800); } }
+            catch { giu = true; }
+          }, 1000);
+        } else toast(tr({ it: 'Aggiornato a ' + (r.hash ?? '?') + ' — test passati. Riavvia il launcher per il codice nuovo.', en: 'Updated to ' + (r.hash ?? '?') + ' — tests passed. Restart the launcher to load the new code.' }), 'ok');
+      }
       else toast(r.messaggio ?? tr({ it: 'Aggiornamento non riuscito.', en: 'Update failed.' }), 'err');
       drawAggBar(); // fresh via agg-info: la barra scompare se tutto combacia
     } catch (e) { toast(e.message, 'err'); b.disabled = false; b.textContent = tr({ it: 'Aggiorna ora', en: 'Update now' }); }
