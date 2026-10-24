@@ -12,7 +12,7 @@
 //   const out = applyBalance({ track: 'Sebring International Raceway' });  // classe auto-matchata
 //   const out = applyAi([94, 99]);
 //   const out = dropCellsApply(['preset_mk8gti_mech_1', 'BMW M3 E46 CSL']);
-import { readFileSync, writeFileSync, renameSync, copyFileSync, existsSync, readdirSync, statSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, copyFileSync, existsSync, readdirSync, statSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sameTrack } from './tracknames.mjs';
@@ -53,10 +53,26 @@ function storeTemplate(nodeId, buf) {
     const f = templatePathOf(nodeId);
     const nuovo = Buffer.from(buf);
     if (existsSync(f) && Buffer.compare(readFileSync(f), nuovo) === 0) return f;
-    if (existsSync(f)) copyFileSync(f, `${f}.bak-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`);
+    if (existsSync(f)) { copyFileSync(f, `${f}.bak-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`); pruneBackups(f, { keep: 10 }); }
     writeFileSync(f, nuovo);
     return f;
   } catch { return null; }
+}
+
+/* ---------- DISCARICA DEI BACKUP (ottimizzazione 24/10) ---------- */
+// I .bak-<file>-<data> crescono a ogni gara senza freno (28 nello stesso
+// turno): qua ogni nuovo backup spazza via i più vecchi DELLO STESSO file,
+// tenendone una pila recente (i backup restano una fonte della corsa dei
+// candidati: tetto ALTissimo, non un minimo). La pulizia non deve MAI far
+// fallire una gara: ignora tutto ciò che non riesce a togliere.
+export function pruneBackups(file, { keep = 25 } = {}) {
+  try {
+    const dir = dirname(file), base = basename(file);
+    const pila = readdirSync(dir)
+      .filter((n) => { const dot = n.lastIndexOf('.bak-'); return n.startsWith(base + '.bak-') && Number.isFinite(Number(n.slice(dot + 5).split('-')[0])); })
+      .sort((a, b) => statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs);
+    for (const vecchio of pila.slice(keep)) { try { rmSync(join(dir, vecchio)); } catch { /* occupato: si rimuove la prossima gara */ } }
+  } catch { /* niente da potare */ }
 }
 
 /* ---------- GRIGLIE DI FABBRICA ---------- */
@@ -117,7 +133,7 @@ const writeSafe = (buf2, file = GRID_FILE, { force = false } = {}) => {
   // lezione vergine (24/10): senza file non c'è cosa da backuppare — prima gara
   // della vita sul PC nuovo: la griglia nasce da zero (fabbrica), non da un resto.
   const backup = `${file}.bak-apply-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
-  if (existsSync(file)) copyFileSync(file, backup);
+  if (existsSync(file)) { copyFileSync(file, backup); pruneBackups(file); }
   writeFileSync(`${file}.tmp`, buf2);
   renameSync(`${file}.tmp`, file);
   return backup || '(nessun backup: file assente prima della scrittura)';

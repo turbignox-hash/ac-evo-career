@@ -677,3 +677,35 @@ template in data/grid-templates, quindi la fabbrica serve solo la prima volta.
   seconda sovrascrive la prima sul file — fotografare UNA serie per volta e
   fare la copia in magazzino/fabbrica PRIMA di avviare la sessione della
   serie seguente.
+
+## 24/10 sera — collaudo profondo, ottimizzazione, simulazione errori
+
+Richiesta Mauro: «dai una bella ottimizzazione, controllo approfondito,
+simula possibili errori, poi push su GitHub e appunta il verdetto».
+
+VERDETTO: positivo. Suite completa verde: 173 test / 173 pass
+(`node --test test/*.test.mjs`), da 170 del pomeriggio.
+
+Difetti trovati e corretti in questo turno:
+- integrity/sameRace: dopo la correzione penalità del 23/10 il position
+  del risultato cambia, l'annuncio storico in bacheca diceva P1 mentre il
+  match falliva; esteso il match col rawPos (posizione di pista
+  pre-penalità). Niente più annunci di gare doppiate da penalità corrette.
+- Discarica dei backup: i .bak-<file>-<data> crescevano senza freno (28
+  nello stesso turno). Nuovo pruneBackups() in grid-apply.mjs, chiamato da
+  writeSafe (tetto 25), da cmdGriglia (25) e da storeTemplate (10): a ogni
+  nuovo backup della STESSA griglia escono i più vecchi. I backup restano
+  una fonte della corsa dei candidati: tetto alto, pila recente integra.
+  NON tocca la griglia vera né nomi fuori standard (.bak_con_underscore).
+- Dottore: già sistemato nel pomeriggio (statistiche + reputazione),
+  ri-scansione serale pulita.
+
+Simulazione errori (test/corrupt-inputs.test.mjs, 12+3 casi):
+- template assente / corrotto / senza celle / auto estranee alla serie;
+- serie inesistente; round fuori calendario; JSON malformati;
+- sessionresults sporchi (senza drivers, senza position); penali con
+  etichette assurde (+0s, X2, DT) → etichetta raw invariata, mai calcoli
+  inventati; positionBase con driver senza position → 0-based;
+- pruneBackups su dir/file assenti → silenzioso, mai un crash.
+In tutti i casi: errore pulito o degradazione guidata, MAI scritture a
+metà (sonda .tmp/.bak = 0), MAI stack nudo a schermo.

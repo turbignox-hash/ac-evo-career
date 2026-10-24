@@ -22,3 +22,10 @@ track-monitor.log
 .backup-*/
 .setup-backup/
 sessione-*/
+
+# backup di griglia e runtime web (24/10: la discarica resta locale, ora c'è pruneBackups)
+*.bak-griglia*
+*.bak-apply*
+.webui.pid
+_server-log.txt
+_crashlog.ps1

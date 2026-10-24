@@ -32,7 +32,7 @@ import { writeJsonAtomic } from './atomic.mjs';
 import { buildGridMessage } from './gridbuilder.mjs';
 import { gridGuardProposal } from './grid-guard.mjs';
 import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
-import { applyBalance, applyAi } from './grid-apply.mjs';
+import { applyBalance, applyAi, pruneBackups } from './grid-apply.mjs';
 import { calibSummary, calibFile, resetCalib, appuntaConvalida } from './grid-calib.mjs';
 import { gameRunning, GAME_MODES_DIR } from '../tools/evo-grid.mjs';
 import { testModeBanner, testModeOn, testModeOff } from './test-mode.mjs';
@@ -41,7 +41,6 @@ import { setRaceTime, currentRaceTime } from '../tools/set-racetime.mjs';
 import { changeWeekendTrack, currentWeekendTrack } from '../tools/set-track.mjs';
 import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
 import { renameSync, copyFileSync as copySyncGrid, statSync } from 'node:fs';
-
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const PROJECT = dirname(HERE);
 const LADDER_FILE = join(PROJECT, 'config', 'career.evo.ladder.json');
@@ -1282,6 +1281,7 @@ async function cmdGriglia(args) {
 
   const bak = `${file}.bak-griglia-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   copySyncGrid(file, bak);
+  pruneBackups(file);
   writeFileSync(`${file}.tmp`, buffer);
   renameSync(`${file}.tmp`, file);
   console.log(C_.green(tr({ it: `\nScritto ${file}`, en: `\nWritten ${file}` })));

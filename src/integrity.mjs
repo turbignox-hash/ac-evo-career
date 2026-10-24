@@ -69,6 +69,13 @@ export function checkIntegrity(ladder, state) {
     const sameRace = (m) => {
       const t = msgText(m);
       if (t.includes(String(roundName)) && (r.dnf ? t.includes('ritiro') : t.includes('P' + r.position))) return true;
+      /* annuncio scritto PRIMA della riscrittura delle penalità (24/10, flow
+         _fix-penalita): la posizione in pista all'epoca era quella di ordine
+         pista — qui nota come rawPos. Nel dubbio che un'annuncio "P1" c'e
+         JUNK per una gara ora registrata come P6 con una penalità +5.0s,
+         il match è valido lo stesso: è la STESSA gara, scritta con il punti
+         di vista di allora, non un annuncio perso. */
+      if (t.includes(String(roundName)) && !r.dnf && !r.dsq && r.penalty && Number.isFinite(r.rawPos) && t.includes('P' + r.rawPos)) return true;
       if (!r.at || !m.at) return false;
       const dms = Math.abs(new Date(m.at).getTime() - new Date(r.at).getTime());
       return dms <= 2000 && t.includes('premio');
