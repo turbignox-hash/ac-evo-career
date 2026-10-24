@@ -15,9 +15,13 @@
   una banda ±2%): stessa vettura, stesso preset meccanico, stesso visual,
   firma in byte diversa. LA REGOLA ANTI-CRASH (cella byte-unica) RESTA TUTTA.
 - IMPLEMENTAZIONE (src/gridbuilder.mjs):
-  • opt-in PER SERIE in grid-classes.json: classi."coppa_bmw-m3-e46-csl" =
-    { armonica: true } — SOLO la CSL per ora (rischio contenuto): le altre
-    serie niente, e il rifiuto di ieri resta il loro destino.
+  • DI DEFAULT PER TUTTE LE SERIE (24/10 notte, Mauro «applica dappertutto
+    a tutte le auto» dopo la CSL OK in pista): i nodi senza voce in
+    grid-classes.json parte in armonica — vale anche per i campionati
+    NUOVI di un amico, senza alcuna config.
+  • Opt-out PER SERIE: classi."ser-id" = { "armonica": false } torna al
+    rifiuto col gesto «14 liveries + APPLICA» (l'unico vero interruttore:
+    la vecchia "armonica": true della CSL ora è ridondante).
   • se le uniche < target e l'armonica è accesa, i posti mancanti sono cloni
     armonici + VERIFY finale nel tassellamento: se due cloni capitassero sullo
     STESSO valore float, il passo sale (+50 · 0,3‰, sempre in banda ±2%).
@@ -25,10 +29,11 @@
     prima (mai una scrittura a rischio crash).
   • il memo delle classi guarda ora anche il PERCORSO (i test con
     EVO_CLASSES_FILE cambiavano file nello stesso mtime: dati vecchi).
-- TEST NUOVI in gridbuilder-uniche.test.mjs: (1) "ARMONICA opt-in: pool corto
-  → 4 celle con 2 reali + 2 cloni, TUTTE byte-uniche, stesso carId nel report"
-  (2) "ARMONICA OFF di default: il rifiuto di prima resta". Suite COMPLETA
-  176/176 verde.
+- TEST NUOVI in gridbuilder-uniche.test.mjs: (1) "ARMONICA DEFAULT: pool corto
+  SENZA voce in grid-classes.json → 4 celle con 2 reali + 2 cloni, TUTTE
+  byte-uniche, stesso carId nel report" (2) "ARMONICA SPENTA PER SERIE con
+  "armonica": false: il rifiuto di prima resta (test rifiuto rifatto con il
+  nuovo interruttore)". Suite COMPLETA 176/176 verde.
 - VERIFICA VIVA CSL (hard force target 14 dal template di fabbrica):
   14 celle scritte · 14 byte-uniche · 11 cloni armonici · cloni differiscono
   solo nel float f42 (offset ~byte 153).

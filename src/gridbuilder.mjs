@@ -334,8 +334,10 @@ export function buildGridMessage(opts) {
     // ARMONICA (24/10, doppio passo Mauro «Test harmonic CSL»): le varianti
     // REALI della CSL sul disco sono 3-5, ma la ronda nativa chiede 14 — e il
     // gesto "14 liveries + APPLICA" non è sempre fattibile (il gioco non
-    // offre hi-differenti varianti per ogni auto). Opt-in PER SERIE
-    // (grid-classes.json → classi[node].armonica = true): si completano i
+    // offre hi-differenti varianti per ogni auto). 24/10 sera, Mauro
+    // «applica dappertutto»: armonica DI DEFAULT per tutte le serie (così
+    // gira anche sui campionati nuovi di un amico), si spegne PER SERIE con
+    // grid-classes.json → classi[node].armonica = false. Si completano i
     // posti mancanti con cloni delle celle reali resi byte-DISTINTI ritoccando
     // SOLO un campo float di tetto (±2‰·k) — si evita la sola cosa che ha
     // davvero crashato (lezione 20/10 + F40 23/10: due paia BYTE-IDENTICHE); la
@@ -343,12 +345,12 @@ export function buildGridMessage(opts) {
     // e gira. Rimane un ESATTO fallback: se il template non offre un valore
     // float utile, si cade nel vecchio rifiuto, ché l'altra via è il crash.
     const cls = loadClasses().classi?.[nodeId];
-    if (cls?.armonica === true && armonizza(cellsUniche, target)) {
+    if (cls?.armonica !== false && armonizza(cellsUniche, target)) {
       cloniArmonici = target - cellsUniche.length;
     } else {
       throw new Error(tr({
-        it: `griglia rifiutata: il template ha solo ${cellsUniche.length} celle uniche (servono ${target}) — con celle ripetute EVO 0.9.1 crasha (lezione 20/10 + crash 23/10 sull'F40). O si fissa la griglia a ${cellsUniche.length} vetture, o si genera in EVO una griglia personalizzata con più LIVERIES della stessa auto (${target} varianti) e si preme APPLICA oppure si accende "armonica: true" per ${nodeId} in grid-classes.json.`,
-        en: `grid rejected: the template has only ${cellsUniche.length} unique cells (need ${target}) — repeated cells crash EVO 0.9.1 (lesson 20/10 + 23/10 F40 crash). Either fix the grid to ${cellsUniche.length} cars, or generate a custom grid in EVO with more LIVERIES of the same car (${target} variants) and press APPLY, or set "armonica: true" for ${nodeId} in grid-classes.json.`,
+        it: `griglia rifiutata: il template ha solo ${cellsUniche.length} celle uniche (servono ${target}) — con celle ripetute EVO 0.9.1 crasha (lezione 20/10 + crash 23/10 sull'F40). O si fissa la griglia a ${cellsUniche.length} vetture, o si genera in EVO una griglia personalizzata con più LIVERIES della stessa auto (${target} varianti) e si preme APPLICA, oppure si spegne l'armonica per ${nodeId} (se l'hai disattiva con "armonica": false riattivala togliendo la voce).`,
+        en: `grid rejected: the template has only ${cellsUniche.length} unique cells (need ${target}) — repeated cells crash EVO 0.9.1 (lesson 20/10 + 23/10 F40 crash). Either fix the grid to ${cellsUniche.length} cars, or generate a custom grid in EVO with more LIVERIES of the same car (${target} variants) and press APPLY, or re-enable harmonics for ${nodeId} (if you turned it off with "armonica": false, remove that entry).`,
       }));
     }
   }

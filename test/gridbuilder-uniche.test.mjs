@@ -85,16 +85,27 @@ test('pool più ricco del necessario: celle non ripetute e count pescata dal tar
 });
 
 test('il rifiuto porta il gesto adeguato (liveries + APPLICA) nel messaggio', () => {
-  let err = null;
-  try { costruisce([4], 3); } catch (e) { err = e; }
-  assert.ok(err, 'il template con 1 sola variante per 3 vetture è rifiutato');
-  assert.match(err.message, /APPLICA/, 'il messaggio deve dire COME si sblocca');
+  // con l'armonica di default il rifiuto resta solo per il nodo dichiarato
+  // "armonica": false (o senza float utile nel template): qui il primo caso
+  const fixtureCls = join(TMP, 'grid-classes-off-rifiuto.json');
+  writeFileSync(fixtureCls, JSON.stringify({ classi: { evento_test: { armonica: false } } }));
+  const primaEnv = process.env.EVO_CLASSES_FILE;
+  process.env.EVO_CLASSES_FILE = fixtureCls;
+  try {
+    let err = null;
+    try { costruisce([4], 3); } catch (e) { err = e; }
+    assert.ok(err, 'il template con 1 sola variante per 3 vetture è rifiutato');
+    assert.match(err.message, /APPLICA/, 'il messaggio deve dire COME si sblocca');
+  } finally {
+    if (primaEnv === undefined) delete process.env.EVO_CLASSES_FILE; else process.env.EVO_CLASSES_FILE = primaEnv;
+  }
 });
 
-test('ARMONICA (opt-in per serie): pool corto → completa con cloni byte-distinti', async () => {
-  // fixtures classes con armonica: true SOLO per il nodo evento_test
+test('ARMONICA (default per tutte le serie): pool corto senza voce in grid-classes.json → cloni byte-distinti', async () => {
+  // il nodo NON è in classi: con l'armonica di default (24/10 sera, «applica
+  // dappertutto») il pool corto si completa con cloni, senza alcuna config
   const fixtureCls = join(TMP, 'grid-classes-armonica.json');
-  writeFileSync(fixtureCls, JSON.stringify({ classi: { evento_test: { armonica: true } } }));
+  writeFileSync(fixtureCls, JSON.stringify({ classi: {} }));
   const primaEnv = process.env.EVO_CLASSES_FILE;
   process.env.EVO_CLASSES_FILE = fixtureCls;
   try {
@@ -115,10 +126,18 @@ test('ARMONICA (opt-in per serie): pool corto → completa con cloni byte-distin
   }
 });
 
-test('ARMONICA OFF di default: senza opt-in il rifiuto resta', () => {
-  // altre serie NON armoniche: nulla cambia rispetto a prima (lezione 20/10+23/10)
-  let err = null;
-  try { costruisce([4], 5); } catch (e) { err = e; }
-  assert.ok(err, '1 sola variante per 5 vetture senza armonica → rifiuto');
-  assert.match(err.message, /APPLICA/);
+test('ARMONICA spenta PER SERIE con "armonica": false: il rifiuto col gesto APPLICA resta', () => {
+  // l'opt-out è l'unico modo per tornare al comportamento vecchio
+  const fixtureCls = join(TMP, 'grid-classes-off.json');
+  writeFileSync(fixtureCls, JSON.stringify({ classi: { evento_test: { armonica: false } } }));
+  const primaEnv = process.env.EVO_CLASSES_FILE;
+  process.env.EVO_CLASSES_FILE = fixtureCls;
+  try {
+    let err = null;
+    try { costruisce([4], 5); } catch (e) { err = e; }
+    assert.ok(err, 'armonica:false esplicito + 1 sola variante → rifiuto');
+    assert.match(err.message, /APPLICA/);
+  } finally {
+    if (primaEnv === undefined) delete process.env.EVO_CLASSES_FILE; else process.env.EVO_CLASSES_FILE = primaEnv;
+  }
 });
