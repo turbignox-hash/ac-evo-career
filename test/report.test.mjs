@@ -7,7 +7,7 @@ process.env.EVO_DATA_DIR = process.env.EVO_DATA_DIR ?? ''; // fissato sotto, pri
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,5 +56,13 @@ test('feedbackLinks senza repo GitHub: issuesUrl null, nessun errore', () => {
 
 test('githubRepo() reale: rileva la repo dal remote git del progetto', async () => {
   const { githubRepo } = await import('../src/report.mjs?v=report-test2');
-  assert.match(githubRepo() ?? '', /^[\w.-]+\/[\w.-]+$/, 'owner/repo dal remote git (se presente)');
+  // il pacchetto amico (zip da git archive) NON porta .git: nell'estrazione il
+  // valore atteso è l'assenza (undefined/stringa vuota) SENZA crash. Solo dove
+  // .git c'è davvero si esige owner/repo ben formato.
+  const r = githubRepo();
+  if (existsSync(join(ROOT, '.git'))) {
+    assert.match(r ?? '', /^[\w.-]+\/[\w.-]+$/, 'owner/repo dal remote git (se presente)');
+  } else {
+    assert.equal(r ?? '', '', 'senza .git: niente repo e nessun errore');
+  }
 });
