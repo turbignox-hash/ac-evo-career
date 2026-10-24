@@ -54,7 +54,7 @@ profiles, classes and series).
 
 ## Screenshots (every tab of the real interface)
 
-The interface has 18 tabs. These are live screenshots of the tool running on a
+The interface has 19 tabs. These are live screenshots of the tool running on a
 real career save (interface set to English):
 
 | Tab | What you get |
@@ -73,6 +73,7 @@ real career save (interface set to English):
 | ![Garage](docs/screenshots/12-garage.png) | **Garage** — cars you own or won, appraisals and sales. |
 | ![Results](docs/screenshots/13-results.png) | **Results** — one-click import of the last compatible race (or manual entry). |
 | ![Archive](docs/screenshots/14-archive.png) | **Archive** — every session written by EVO, searchable, with full classifications. |
+| (screenshot coming) | **Free laps** — the pure test-day mode: pick PRACTICE, track and car in EVO and just drive; every session the game writes lands in the hotlap book by itself, with the PB book per car × track and the ideal lap built from your best-ever sectors. The career is never touched. |
 | ![Stats](docs/screenshots/15-stats.png) | **Stats** — trophy hall, sigils, points and position charts. |
 | ![Finances](docs/screenshots/16-finances.png) | **Finances** — the flow ledger: prizes, sponsors, entries. |
 | ![Difficulty](docs/screenshots/17-difficulty.png) | **Difficulty** — per-series AI bands, adaptive trim, everything written to the game sliders. |

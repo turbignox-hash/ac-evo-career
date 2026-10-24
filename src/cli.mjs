@@ -886,6 +886,11 @@ async function cmdWatch(args) {
       const t0 = Date.now();
       heartbeat(secs); // il cruscotto capisce da qui che la guardia è viva
       const out = watchOnce(ladder, paths, { baselineMs: baseline });
+      // giri liberi (24/10): una sessione di prove non sparisce nel nulla —
+      // nasce una riga nel quaderno data/hotlaps.json, carriera intoccata
+      for (const e of (out.hotlaps ?? [])) {
+        console.log(C.green(tr({ it: `\n  ⏱ giro libero nel quaderno: ${e.carPretty ?? e.car ?? '?'} @ ${e.trackPretty ?? e.track ?? '?'} — best ${e.bestLap ?? '—'}${e.isPB ? ' (PB!)' : ''}`, en: `\n  ⏱ free-lap session in the book: ${e.carPretty ?? e.car ?? '?'} @ ${e.trackPretty ?? e.track ?? '?'} — best ${e.bestLap ?? '—'}${e.isPB ? ' (PB!)' : ''}` })));
+      }
       if (out.imported) {
         const e = out.imported.entry;
         console.log(C.green(tr({ it: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dsq ? tr({ it: 'squalifica', en: 'DSQ' }) : e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €`, en: tr({ it: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dsq ? tr({ it: 'squalifica', en: 'DSQ' }) : e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €`, en: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dsq ? tr({ it: 'squalifica', en: 'DSQ' }) : e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €` }) })));

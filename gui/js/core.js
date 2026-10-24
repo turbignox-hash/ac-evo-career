@@ -123,6 +123,8 @@ const ICONS = {
   tracks:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4.5 1.5 3.6 14.5M11.5 1.5l.9 13" stroke-linecap="round"/><path d="M8 3.5v1.6M8 7.2v1.6M8 10.9v1.6" stroke-linecap="round"/></svg>',
   cars:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 9.5 4 5.8A1.8 1.8 0 0 1 5.7 4.5h4.6A1.8 1.8 0 0 1 12 5.8l1.5 3.7M2.5 9.5h11M2.5 9.5v2.6a.9.9 0 0 0 .9.9h1.2a.9.9 0 0 0 .9-.9v-.4h5.8v.4a.9.9 0 0 0 .9.9h1.2a.9.9 0 0 0 .9-.9V9.5"/></svg>',
   garage:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 7 8 2.5 14.5 7M3 6.3V13.5h10V6.3M5 13.5V10h6v3.5M5 11.5h6"/></svg>',
+  gauge:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 12a5.5 5.5 0 1 1 11 0"/><path d="M8 12 10.8 7" stroke-linecap="round"/></svg>',
+  hotlaps:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="9" r="5"/><path d="M8 9V6.2M6.4 1.7h3.2M10.6 5.2l1.4 .4" stroke-linecap="round"/></svg>',
 };
 /* icone dei pannelli del cruscotto (16x16, stile coerente con la nav) */
 const LI = {
@@ -164,6 +166,7 @@ const TABS = [
   ['garage',         tr({ it: 'Garage',         en: 'Garage' })],
   ['import',         tr({ it: 'Risultati',      en: 'Results' })],
   ['archive',        tr({ it: 'Archivio',       en: 'Archive' })],
+  ['gironi',         tr({ it: 'Giri liberi',    en: 'Free laps' })],
   ['stats',          tr({ it: 'Statistiche',    en: 'Stats' })],
   ['banca',          tr({ it: 'Finanze',        en: 'Finances' })],
   ['difficulty',     tr({ it: 'Difficoltà',     en: 'Difficulty' })],
@@ -177,7 +180,8 @@ const TAB_COLORS = {
   dashboard:'#5da9ff', agenda:'#ff7a45', calendar:'#b48cff', standings:'#ffd166',  rivals:'#ff6b6b',
   analisi:'#a3e433',
   tracks:'#e8c46b', cars:'#74c0fc', garage:'#ffd43b', import:'#63e6e2', griglia:'#82ccdd',
-  setup:'#f78fb3', catalog:'#82ccdd', archive:'#c9a0ff', stats:'#69db7c',
+  setup:'#f78fb3', catalog:'#82ccdd',  archive:'#c9a0ff', stats:'#69db7c',
+  gironi:'#63e6be',
   difficulty:'#5f7cff', messages:'#ffa94d', settings:'#adb5bd', banca:'#ffd43b',
 };
 let tab = 'dashboard';
@@ -222,6 +226,7 @@ async function render(){
     if (tab==='garage')     return await drawGarage(m);
     if (tab==='catalog')    return await drawArchive(m);
     if (tab==='archive')    return await drawArchive(m);
+    if (tab==='gironi')     return await drawGironi(m);
     if (tab==='stats')      return await drawStats(m);
     if (tab==='banca')      return await drawBanca(m);
     if (tab==='import')     return await drawImport(m);

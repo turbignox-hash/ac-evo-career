@@ -41,6 +41,7 @@ import { seasonReview, reviewableSeasons, exportReview } from './review.mjs';
 import { contractStatus, sponsorOffers, acceptSponsor, declineSponsor, challengeFor, acceptChallenge, sigilDefs, ensureLife, sponsorFor, ensureContract, checkSigils } from './life.mjs';
 import { newsFeed } from './gazzetta.mjs';
 import { recordTestDay, testDayLog, calibrationSummary } from './testday.mjs';
+import { recordHotlaps, hotlapSweep, hotlapsLog } from './hotlaps.mjs';
 import { recordWarning, readWarnings } from './warnings.mjs';
 import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
 import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, telemDiagnostics, lapTrace } from './motec.mjs';
@@ -2152,6 +2153,21 @@ async function api(context0, req, res, action, body) {
         return sendJson(res, e.code ? 409 : 500, { error: e.message, code: e.code, detail: e.detail });
       }
     }
+    case 'hotlaps': {
+      // quaderno dei giri liberi (data/hotlaps.json): elenco sessioni non-gara
+      // catturate dal watcher + libro PB per auto+pista. Con 'record-file' si
+      // registra a mano un vecchio file risultato (import del passato).
+      try {
+        if (body.action === 'record-file') {
+          const out = recordHotlaps(ladder, paths, state, { file: String(body.file ?? '').trim(), since: 0 });
+          const reg = out.registered[0] ?? null;
+          return sendJson(res, 200, { ok: true, registered: out.registered.length, entry: reg, log: hotlapsLog(40) });
+        }
+        return sendJson(res, 200, { ok: true, log: hotlapsLog(40) });
+      } catch (e) {
+        return sendJson(res, 500, { error: e.message });
+      }
+    }
     case 'setup-apply': {
       // IL CICLO dei setup: giro → MoTeC → patcha le pressioni consigliate DAI
       // DATI VERI su una COPIA del .carsetup in uso («… — EVO-consigliato»);
@@ -2586,6 +2602,31 @@ function watcherTick() {
       if (!existsSync(SAVE_FILE)) return;
       const state = requireState();
       const snap = liveReader().snapshot();
+
+      /* GIRI LIBERI (24/10, Mauro: «se l'utente volesse semplicemente girare
+         per realizzare giri veloci»: i risultati NON-gara che EVO scrive in
+         Results non finiscono più nel nulla — ogni sessione di prove si
+         registra da sola nel quaderno data/hotlaps.json (dedup per nome,
+         MAI carriera / soldi / punti). Prima spazzata = catch-up di tutte le
+         sessioni di prove già sul disco; poi ogni giro guarda solo i nuovi.
+         Un errore qui non tocca l'import della carriera. */
+      if (!watcher.hotlapsBusy) {
+        watcher.hotlapsBusy = true;
+        try {
+          const h = hotlapSweep(ladder, paths, state, { since: watcher.hotlapsSince ?? 0 });
+          watcher.hotlapsSince = Date.now();
+          if (h.registered.length) {
+            const last = h.registered[0];
+            watcher.push(h.registered.length === 1
+              ? `Giro libero nel quaderno: ${last.carPretty ?? last.car} @ ${last.trackPretty ?? last.track} — best ${last.bestLap}${last.isPB ? ' (PB!)' : ''}`
+              : `${h.registered.length} giri liberi nel quaderno (ultimo: ${last.carPretty ?? last.car} @ ${last.trackPretty ?? last.track}${last.bestLap ? ` — best ${last.bestLap}` : ''}).`, 'good');
+          }
+        } catch (e) {
+          recordWarning('hotlaps', 'spazzata giri liberi fallita', e.message);
+        } finally {
+          watcher.hotlapsBusy = false;
+        }
+      }
 
       if (!snap.game) {
         if (watcher.armed) {

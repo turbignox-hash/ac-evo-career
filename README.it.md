@@ -47,7 +47,7 @@ classi e serie).
    l'app programma solo preset meteo fissi per round. Quando Kunos la aggiungerà,
    i file da toccare sono `src/weather.mjs` e i profili dei round.
 
-## Schermate (tutte le 18 tab della GUI reale)
+## Schermate (tutte le 19 tab della GUI reale)
 
 Interfaccia in inglese nei catturi; la lingua si sceglie in Impostazioni
 (Italiano / English). La stessa documentazione in inglese è nel [README.md](README.md).
@@ -68,6 +68,7 @@ Interfaccia in inglese nei catturi; la lingua si sceglie in Impostazioni
 | ![Garage](docs/screenshots/12-garage.png) | **Garage** — auto possedute o vinte, stime e vendite. |
 | ![Risultati](docs/screenshots/13-results.png) | **Risultati** — import con un click dell'ultima gara compatibile (o inserimento a mano). |
 | ![Archivio](docs/screenshots/14-archive.png) | **Archivio** — ogni sessione scritta da EVO, ricercabile, con classifiche complete. |
+| (screenshot in arrivo) | **Giri liberi** — la modalità pura della giornata di test: scegli PRATICA, pista e auto in EVO e gira; ogni sessione che il gioco scrive si registra da sola nel quaderno, con il libro PB per auto × pista e il giro ideale sommato dai migliori settoriali di sempre. La carriera non si tocca. |
 | ![Statistiche](docs/screenshots/15-stats.png) | **Statistiche** — stanza dei trofei, sigilli, grafici di punti e posizione. |
 | ![Finanze](docs/screenshots/16-finances.png) | **Finanze** — il registro dei flussi: premi, sponsor, iscrizioni. |
 | ![Difficoltà](docs/screenshots/17-difficulty.png) | **Difficoltà** — bande AI per serie, trim adattivo, tutto va negli slider del gioco. |

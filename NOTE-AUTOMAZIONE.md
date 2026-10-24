@@ -1,3 +1,38 @@
+## GIRONI LIBERI — il quaderno delle hotlap: scegli pista e auto e gira, il resto da solo (24/10, notte) — FATTO E TESTATO
+
+- Domanda Mauro: «e se l'utente volesse semplicemente girare per realizzare
+  giri veloci da confrontare col motec, affinare assetti etc — ci manca una
+  modalità free: scegli pista e auto e gira a piacimento, i giri registrati
+  e analizzati». Non serve imposta la sessione dal tool: la scheda PRATICA
+  di EVO è già la sessione più semplice (3 campi, senza avversari né
+  griglia) e il file risultato esce come per le gare.
+- src/hotlaps.mjs (nuovo): il QUADERNO data/hotlaps.json per-slot (slot 1 =
+  data/, slot 2-3 = data/slot-N/). `recordHotlaps()` registra ogni file
+  risultato NON-gara con dedup per nome file;  testimone `state.driver` per
+  riconoscere IL TUO sedile (i risultati di altri restano fuori); ogni riga:
+  pista (nome bello dal ladder), auto, meteo, giri, ultimi 10 tempi,
+  best, settoriali del giorno e giro teorico. MAI carriera: soldi, punti,
+  rep = 0 — qui si duella con sé stessi. `recordHotlaps({file})` registra a
+  mano un vecchio risultato (recupero del passato).
+- Libro PB `book.records`: per COPPIA auto+pista il giro migliore di sempre
+  con bandierina isPB sulla sessione detentrice e il GIRO IDEALE (somma dei
+  migliori settoriali che quel sedile ha MAI fatto lì) — la roba da MoTeC.
+- Watcher, due posti: src/watch.mjs watchOnce mette nel quaderno i non-gari
+  a ogni tick del CLI (una posizione di scarto «non è una gara (nel quaderno
+  giri liberi)» resta per il registro delle gare); src/webui.mjs watcherTick
+  fa la stessa spazzata dal launcher — prima spazzata catch-up di tutta la
+  storia delle prove già sul disco (24/10: 120 sessioni salvate dalle
+  giornate di prove di prima), poi ogni giro guarda solo i nuovi, messaggino nel Live quando
+  nasce una riga. API webui `hotlaps` (+ action record-file).
+- GUI: nuova tab «Giri liberi» dopo Archivio (core.js ICONS/TABS/render):
+  elenco delle ultime 25 sessioni con la PB in evidenza + pannello LIBRO PB
+  «auto × pista» con giro ideale; menu per registrare a mano un vecchio
+  file risultato dall'archivio.
+- Test: test/hotlaps.test.mjs (7) — gare fuori, dedup, PB che cambia bandiera,
+  outsider fuori, watcher che alimenta il quaderno senza incassare carriera,
+  spazzata con high-water mark zero letture doppie, record a mano per nome.
+  Suite completa 192/192 (dopo: era 185/181).
+
 ## VIGIA DEL PARCO AUTO — l'auto del sedile fuori serie vale ZERO (24/10, notte) — FATTO E TESTATO
 
 - Richiesta Mauro: «ho fatto una gara con la Toyota e al posto della 1600 ho

@@ -433,6 +433,71 @@ async function drawArchive(m){
   $('#arc-q').oninput = () => paint($('#arc-q').value);
 }
 
+/* -------- giri liberi (24/10) --------
+   La modalità del simracer puro: scegli pista e auto in EVO e gira a piacere —
+   il tool cattura da solo ogni sessione non-gara che EVO scrive in Results.
+   Libro PB per auto+pista con il giro ideale sommato dai migliori settoriali
+   di sempre. La carriera NON si tocca: qui si legge solo data/hotlaps.json. */
+const MS = (ms) => (Number.isFinite(ms) && ms > 0)
+  ? `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}.${String(Math.floor(ms % 1000)).padStart(3, '0')}`
+  : '—';
+async function drawGironi(m){
+  const q = await api('hotlaps', {});
+  const log = q.log ?? q;
+  const S = log.sessions ?? [], P = log.records ?? [];
+  m.innerHTML = `
+  <div class="panel">
+    <h2>${tr({ it: 'Giri liberi', en: 'Free laps' })} <span class="h-act">${log.total} ${tr({ it: 'sessioni in quaderno', en: 'sessions in the book' })}</span></h2>
+    <div class="muted" style="font-size:11.5px;margin:0 0 8px">${tr({ it: 'Scegli PRATICA in EVO, pista e auto e gira: ogni sessione che il gioco scrive si registra da sola qui. La carriera non si tocca: soldi, punti e rep restano a 0.', en: 'Pick PRACTICE in EVO, pick track and car and run: every session the game writes lands here by itself. Career untouched: money, points and rep stay at 0.' })}</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <select id="hl-file" style="max-width:340px"><option value="">${tr({ it: '— registra un vecchio file a mano —', en: '— register an old file by hand —' })}</option></select>
+      <button class="mini act" id="hl-reg">${tr({ it: 'Registra file', en: 'Register file' })}</button>
+    </div>
+    <div id="hl-body"></div>
+  </div>
+  <div class="panel">
+    <h2>${tr({ it: 'Libro PB — auto × pista', en: 'PB book — car × track' })}</h2>
+    ${P.length ? `<table><thead><tr><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'PB', en: 'PB' })}</th><th class="right">${tr({ it: 'Giro ideale', en: 'Ideal lap' })}</th><th class="muted">${tr({ it: ' Dal', en: 'Since' })}</th></tr></thead>
+      <tbody>${P.map(r=>`<tr><td>${esc(r.carPretty ?? r.car)}</td><td>${esc(r.trackPretty ?? r.track)}${esc(r.layout ?? '')}</td><td class="right"><b>${esc(r.lap ?? MS(r.lapMs))}</b></td><td class="right ${r.idealLapMs && r.idealLapMs < r.lapMs ? 'good' : 'muted'}">${r.idealLapMs ? MS(r.idealLapMs) : '—'}</td><td class="muted">${esc(String(r.at ?? '').slice(0, 16).replace('T', ' '))}</td></tr>`).join('')}</tbody></table>`
+      : `<div class="empty">${tr({ it: 'Nessun PB ancora: gira in pratica e il quaderno impara.', en: 'No PB yet: run a practice session and the book will learn.' })}</div>`}
+  </div>`;
+
+  /* il dettaglio delle sessioni: le ultime 25 con pista, auto, meteo, giri e best */
+  const body = $('#hl-body');
+  const paint = () => {
+    body.innerHTML = S.length ? `<table><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Meteo', en: 'Weather' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'Miglior giro', en: 'Best lap' })}</th><th class="right">${tr({ it: 'Settori', en: 'Sectors' })}</th></tr></thead>
+      <tbody>${S.slice(0, 25).map(e => `<tr class="${e.isPB ? 'hl-pb' : ''}">
+        <td class="muted">${esc(String(e.at ?? '').slice(0, 16).replace('T', ' '))}</td>
+        <td>${esc(e.trackPretty ?? e.track)} ${e.layout ? `<span class="faint">${esc(e.layout)}</span>` : ''}</td>
+        <td>${esc(e.carPretty ?? e.car)}${e.isPB ? ` <span class="tag gold" title="${tr({ it: 'il tuo giro migliore di sempre su questa pista con questa auto', en: 'your all-time best on this track in this car' })}">${tr({ it: 'PB', en: 'PB' })}</span>` : ''}</td>
+        <td class="muted">${esc(e.weather ?? '—')}</td>
+        <td class="right">${e.lapsCount}</td>
+        <td class="right"><b>${esc(e.bestLap ?? '—')}</b></td>
+        <td class="right muted">${(e.sectors ?? []).map(s => `${s.index}. ${esc(s.mineText ?? '—')}`).join(' · ') || '—'}</td>
+      </tr>`).join('')}</tbody></table>
+      <div class="muted" style="margin-top:8px">${tr({ it: 'PB = una riga del libro PB. Aggiorna il pannello quando il watcher registra (10 s max) o ricarica la pagina.', en: 'PB = a book-PB row. The panel follows the watcher registers (within 10 s) or reload the page.' })}</div>`
+      : `<div class="empty">${tr({ it: 'Nessuna sessione di prove in quaderno: gira in PRATICA e il tool fa il resto.', en: 'No practice session in the book: run a PRACTICE session and the tool does the rest.' })}</div>`;
+  };
+  paint();
+
+  /*  file da registrare a mano: la lista la dà l'archivio (catalog): i risultati
+     non-gara sono file come gli altri; filtro via le gare */
+  const sel = $('#hl-file');
+  try {
+    const c = await (await fetch(`/api/catalog`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) })).json();
+    const rows = (c.archive?.rows ?? []).filter(r => r.session && String(r.session).toLowerCase() !== 'race');
+    sel.innerHTML += rows.slice(0, 60).reverse().map(r => `<option value="${esc(r.file)}">${esc(r.file)}</option>`).join('');
+  } catch { /* senza archivio il menu resta vuoto: non blocca il tab */ }
+  $('#hl-reg').onclick = async () => {
+    if (!sel.value) return toast(tr({ it: 'Scegli prima un file dal menu.', en: 'Pick a file from the menu first.' }), 'err');
+    try {
+      const r = await api('hotlaps', { action: 'record-file', file: sel.value });
+      toast(r.registered ? tr({ it: 'Sessione registrata nel quaderno.', en: 'Session registered in the book.' }) : tr({ it: 'Il file non era una prova tua o era già nel quaderno.', en: 'The file was not one of your practice sessions or was already in the book.' }), r.registered ? 'ok' : '');
+      render();
+    } catch (e) { toast(e.message, 'err'); }
+  };
+}
+
 async function openResult(file){
   const d = await api('result-detail', { file });
   if (d.error) return toast(d.error, 'err');

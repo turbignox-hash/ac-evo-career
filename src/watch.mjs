@@ -10,7 +10,10 @@
 // Garanzie:
 //  - NON incassa mai file scritti prima del suo avvio (baseline): niente gare
 //    vecchie recuperate per sbaglio al lancio.
-//  - NON tocca qualifiche, prove libere o file illeggibili: solo session="race".
+//  - NON incassa qualifiche, prove libere o file illeggibili nella carriera:
+//    le registra però nel quaderno dei GIRI LIBERI (24/10, hotlaps.mjs), così
+//    le sessioni di prove alimentano il libro PB per auto+pista senza toccare
+//    soldi, punti o rep.
 //  - Un errore non uccide il watcher: viene mostrato una volta per file e annotato
 //    nel registro errori (warnings.mjs); il ciclo riparte al tick successivo.
 //  - Se nessun file combacia con la ronda attesa NON succede nulla: la pista si
@@ -21,6 +24,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { runImport, SAVE_FILE } from './import.mjs';
 import { loadState } from './state.mjs';
+import { recordHotlaps } from './hotlaps.mjs';
 import { recordWarning } from './warnings.mjs';
 import { listResultFiles, readSessionResult, isRaceSession } from './results.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
@@ -73,6 +77,20 @@ export function watchOnce(ladder, paths, { baselineMs = 0, stateLoader = () => l
   outcome.scanned = fresh.length;
   if (!fresh.length) return outcome;
 
+  // Prima cosa a ogni tick: i NON-gari nel quaderno giri liberi (dedup interno
+  // per nome file, MAI carriera): il quaderno è autosufficiente anche se il
+  // gioco scrive prove SENZA che una gara sia mai in vista. Un errore qui non
+  // bagna la scansione delle gare che segue.
+  try {
+    const st = stateLoader();
+    const hl = recordHotlaps(ladder, paths, st, { since: baselineMs - 60 * 1000 });
+    outcome.hotlaps = hl.registered;
+    outcome.hotLapsSkipped = hl.skipped.length;
+  } catch (e) {
+    outcome.hotlaps = [];
+    recordWarning('watch', 'quaderno giri liberi', e.message);
+  }
+
   for (const f of fresh) {
     let result;
     try {
@@ -82,7 +100,9 @@ export function watchOnce(ladder, paths, { baselineMs = 0, stateLoader = () => l
       continue;
     }
     if (!isRaceSession(result)) {
-      outcome.ignored.push({ name: f.name, reason: 'non è una gara' });
+      // le sessioni di prove non sparano nel nulla: il quaderno le cattura
+      // (in cima al tick il registro è già capitato bacatamente)
+      outcome.ignored.push({ name: f.name, reason: 'non è una gara (nel quaderno giri liberi)' });
       continue;
     }
 
