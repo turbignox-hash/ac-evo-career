@@ -154,20 +154,18 @@ function rulesFor(classes, serieId, presets, matchedCls, matchedId, trackRef) {
     if (perTrack) origine += ` · supplementi per-traccia "${perTrack}"`;
     return { origine, rules, cls };
   }
-  // proposta da PI: base = preset col PI più basso nella serie
-  const pi = carPiByPreset();
-  const withPi = presets.filter((p) => pi[p] != null);
-  if (withPi.length) {
-    const minPi = Math.min(...withPi.map((p) => pi[p]));
-    return {
-      origine: `proposta da PI (pendenza ${PENDENZA_PCT_PER_PI}%/punto, zavorra ${BALLAST_STD}kg)`,
-      rules: presets.map((p) => {
-        const d = pi[p] != null ? pi[p] - minPi : null;
-        return { rule: { preset: p }, kg: d == null || d <= 0.02 ? 0 : BALLAST_STD, pct: d == null || d <= 0.02 ? 0 : Math.min(20, Math.round(d * PENDENZA_PCT_PER_PI * 4) / 4) };
-      }),
-    };
-  }
-  return { origine: 'nessuna (catalogo absent: griglia senza bilanciamento)', rules: [] };
+  // DECISIONE MAURO 24/10 (collaudo GT3 Serie A: tutte le non-base al cap
+  // 20%+100kg senza che UNA sola gara della serie sia mai girata): una serie
+  // multiclasse NUOVA parte a 0 — nessuna penalità teorica dal PI catalogo.
+  // Il bilancio vero nasce dai risultati: griglia-calib studia le gare e scrive
+  // la classe in grid-classes.json; da quel giro in poi le regole qui sopra
+  // amatriciano da sole. Il PI resta nella finestra (config 23/24), non nelle
+  // celle. tools/grid-tune.mjs resta il distruttore manuale delle proposte PI
+  // per chi vuole già un'avamaria da registrare a mano in una classe.
+  return {
+    origine: 'nessuna classe nota e nessuna gara di questa serie: griglia a 0 (il bilancio lo costruisce griglia-calib dai risultati)',
+    rules: [],
+  };
 }
 
 function applyRulesToCell(cellBytes, rules) {
