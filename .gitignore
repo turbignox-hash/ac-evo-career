@@ -29,3 +29,4 @@ sessione-*/
 .webui.pid
 _server-log.txt
 _crashlog.ps1
+*.customgrid.bak-20*
