@@ -3097,7 +3097,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "club_short",
-      "gridSize": 14,
+      "gridSize": 12,
       "ai": [
         78,
         88
@@ -7112,7 +7112,7 @@
       "requires": null,
       "points": "club",
       "profile": "club_short",
-      "gridSize": 12,
+      "gridSize": 14,
       "ai": [
         70,
         76

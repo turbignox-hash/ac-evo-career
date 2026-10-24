@@ -585,7 +585,12 @@ function drawCardInto(el, card){
   const ingOut = $('#ingegnere-live', el);
   // richiesti 25/10: copilota ATTIVO DI DEFAULT (spegnibile col bottone: la
   // scelta resta nel localStorage e esplicitamente 'off' vince sempre)
-  window.__copilot ??= { on: localStorage.getItem('evo-copilot') !== 'off', last: {}, at: 0 };
+  // 24/10 (pomeriggio): last/at sono LE FRECCE dei narratori — se sopravvivono
+  // alla sessione precedente il copilota parlava di giri che non c'entravano
+  // («sto finendo il giro 1» mentre si parte): FIX, appena la live torna viva
+  // si azzera il tutto e resta muta 15 s (le shared memory dell'EVO nascono
+  // con i valori della sessione prima: i primi tick sono dati bruciati).
+  window.__copilot ??= { on: localStorage.getItem('evo-copilot') !== 'off', last: {}, at: 0, seenLive: false, grace: 0 };
   const cp = window.__copilot;
   /* la voce: speechSynthesis del browser, locale al 100%. La lingua della voce
      SEGUE l'interfaccia (window.LINGUA): inglese UI → voce inglese, italiana
@@ -651,6 +656,15 @@ function drawCardInto(el, card){
       const m = await api('ingegnere', {});
       if (!document.body.contains(ingOut)) return;
       if (!m?.live) { ingOut.innerHTML = ''; return; }
+      /* sessione NUOVA (era morta o strtotime avvio pagina): memoria dei
+         narratori a zero e 15 s di silenzio — le MMF del gioco portano i
+         valori della sessione PRECEDENTE nei primi istanti */
+      if (!cp.seenLive) {
+        cp.seenLive = true;
+        cp.last = {};
+        cp.at = 0;
+        cp.grace = Date.now() + 15000;
+      }
       const wearRow = (m.gauges?.wear || []).length === 4 ? `<span class="muted" style="font-size:11px">${tr({ it: 'gomme', en: 'tyres' })} LF ${m.gauges.wear[0]}% · RF ${m.gauges.wear[1]}% · LR ${m.gauges.wear[2]}% · RR ${m.gauges.wear[3]}%${m.gauges.temp&&m.gauges.temp.every(v=>v>0)?' · core '+m.gauges.temp.map(v=>v+'°C').join('/'):''}</span>` : '';
       /* --- DELTA DI RITMO: il numero grande che oggi non c'era --- */
       const dv = m.delta?.dv ?? m.delta?.hudDv ?? null;   // ms, con il segno
@@ -691,7 +705,7 @@ function drawCardInto(el, card){
         ingDraw();
       });
       /* --- i NARRATORI del copilota: parlano quando la cosa CAMBIA, non in loop --- */
-      if (cp.on) {
+      if (cp.on && Date.now() > (cp.grace ?? 0)) {   // la grazia copre l'avvio: niente voci sballate
         const g = m.gauges ?? {};
         /* 1) delta live: ogni 12 s il ritmo della posizione attuale */
         if (dv != null) {

@@ -24,7 +24,8 @@ import { assignNextMemory, checkMemoryProgress, raceCrowdFor } from './memories.
 import { publishNotice } from './gazzetta.mjs';
 import { recordWarning } from './warnings.mjs';
 
-const RIVALS_FILE = join(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'rivals.json');
+// nido per-slot (24/10): rivals vive con la SUA carriera, il save 3 non incassa il campione del save 1
+const RIVALS_FILE = join(slotDataDir(), 'rivals.json');
 
 export const SAVE_VERSION = 1;
 
@@ -44,6 +45,47 @@ export function savePath(slot) {
 /** Il numero di slot attivo da env/flag; mai oltre 3. */
 export function activeSlot(env = process.env) {
   return Math.max(1, Math.min(3, Math.floor(Number(env.ACE_SLOT) || 1)));
+}
+
+/* MODALITÀ «SENZA VINCOLI» (24/10, richiesta Mauro: «leva tutti i blocchi dei
+ * campionati, soldi e reputazione, fammi entrare dove voglio»): se esiste
+ * data/senza-vincoli.json tutti i cancelletti della scalata si APRONO:
+ *  - gateStatus = sempre ok (niente piazzamenti-minimi né reputazione minima);
+ *  - sedili: comprati o affittati GRATIS (il soldo della scalata resta intatto);
+ *  - iscrizione di ronda: zero (race.chargeEntry). 
+ * Il file viene ricontrollato ogni 5 s: per TORNARE alla scalata vera basta
+ * cancellarlo. Restano a pagamento gli acquisti in garage (mercato, non campionati). */
+const BASE_DATA_DIR = process.env.EVO_DATA_DIR ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'data');
+const SENZA_VINCOLI_FILE = join(BASE_DATA_DIR, 'senza-vincoli.json');
+let _senzaVincoliAt = 0;
+let _senzaVincoli = false;
+export function senzaVincoli() {
+  const now = Date.now();
+  if (now - _senzaVincoliAt > 5000) {
+    // override esplicito da env: '1' = sempre ON, '0' = sempre OFF (i test della
+    // scalata lo fissano a '0': descrivono il comportamento canonico)
+    const env = process.env.EVO_SENZA_VINCOLI;
+    _senzaVincoli = env != null ? env !== '0' : existsSync(SENZA_VINCOLI_FILE);
+    _senzaVincoliAt = now;
+  }
+  return _senzaVincoli;
+}
+
+/* NIDO DEI REGISTRI PER-SLOT (24/10,requested da Mauro col save 3 vergine) —
+ * rivals.json, archivio risultati, ledger e log di import, magazzino griglie,
+ * snapshot customgrid, journal stagioni, backup del save e flussi appartengono
+ * alla VITA di UNA carriera: fino a ieri erano tutti in data/ condivisi, e una
+ * carriera nuova (es. simulare il PC amico) partiva con gli album del save 1
+ * già pieni. Regola:
+ *   slot 1 → data/                (le carriere fin qui non si spostano)
+ *   slot 2-3 → data/slot-2|-3/    (nati vergini e RESTANO vergini)
+ * Restano CONDIVISI le cose del PC o del progetto: grid-classes.json,
+ * griglie-fabbrica, calibrazione AI, MoTec (EVO scrive per-PC), config, ladder,
+ * errors.jsonl. */
+export function slotDataDir(env = process.env) {
+  const base = env.EVO_DATA_DIR ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'data');
+  const s = activeSlot(env);
+  return s === 1 ? base : join(base, `slot-${s}`);
 }
 // partenza POVERA (visione "dalla 500"): la scalata si compra con i premie,
 // non col pacchetto di benvenuto. I vecchi salvataggi non cambiano: è il valore
@@ -83,6 +125,11 @@ export function createCareer(ladder, { name, first, last, nation = 'ITA', discip
   const parts = fullName.trim().split(/\s+/);
   return {
     version: SAVE_VERSION,
+    // momento di nascita della carriera (24/10): la LAP CHART e lo storico setup
+    // di MoTeC (per-PC) si filtrano da qua → un save vergine parte con il cruscotto
+    // VERGINO, senza le sessioni telemetriche delle carriere precedenti. I save
+    // vecchi non lo hanno e restano com'erano: vedono tutto.
+    createdAt: Date.now(),
     driver: {
       name: fullName.trim(),
       first: first ?? parts[0],
@@ -197,6 +244,9 @@ export function saveState(file, state) {
 /* ------------------------------------------------------------------ */
 
 export function gateStatus(ladder, state, node) {
+  // senza vincoli: i cancelletti della scalata (piazzamenti, reputazione)
+  // non bloccano più niente (Mauro 24/10, test libero dei campionati)
+  if (senzaVincoli()) return { ok: true, reasons: [] };
   const reasons = [];
   let ok = true;
   const req = node.requires;
@@ -403,7 +453,8 @@ function garageCarForSeat(state, node) {
 
 export function enterNode(ladder, state, node, { buy = false, force = false } = {}) {
   const gate = gateStatus(ladder, state, node);
-  if (!gate.ok && !force) {
+  const libera = senzaVincoli();
+  if (!gate.ok && !force && !libera) {
     throw new Error(`Sedile non disponibile in ${node.display}:\n  - ${gate.reasons.join('\n  - ')}\nUsa --force per forzare.`);
   }
   const closed = isClosedNode(node);
@@ -413,9 +464,14 @@ export function enterNode(ladder, state, node, { buy = false, force = false } = 
     // parco chiuso: il team ti mette a disposizione auto e posto (niente acquisti, niente affitto)
     pushMessage(state, `${node.display} è a parco chiuso: contratto ufficiale, la vettura te la danno loro.`, 'info');
   } else if (buy && buyPrice > 0) {
-    if (state.money < buyPrice) throw new Error(`Servono ${buyPrice} per comprare il sedile, ne hai ${state.money}.`);
-    state.money -= buyPrice;
-    pushMessage(state, `Hai comprato il sedile in ${node.display} (-${buyPrice}).`, 'money');
+    if (libera) {
+      // senza vincoli il sedile si compra gratis: il soldo della scalata resta intatto
+      pushMessage(state, `Senza vincoli: sedile in ${node.display} gratuito (vano i ${buyPrice}).`, 'info');
+    } else {
+      if (state.money < buyPrice) throw new Error(`Servono ${buyPrice} per comprare il sedile, ne hai ${state.money}.`);
+      state.money -= buyPrice;
+      pushMessage(state, `Hai comprato il sedile in ${node.display} (-${buyPrice}).`, 'money');
+    }
   } else {
     const rent = closed ? 0 : (econ.rent ?? 0);
     const owned = rent > 0 ? garageCarForSeat(state, node) : null;
@@ -424,9 +480,13 @@ export function enterNode(ladder, state, node, { buy = false, force = false } = 
       // la usi tu e il noleggio non esiste (l'usura la paga l'odometro del garage)
       pushMessage(state, `Il sedile in ${node.display} vai a sedere con la tua ${owned.carName} del garage: niente affitto (risparmiati ${rent}).`, 'money');
     } else if (rent > 0) {
-      if (state.money < rent) throw new Error(`Servono ${rent} per l'affitto del sedile in ${node.display}, ne hai ${state.money}.`);
-      state.money -= rent;
-      pushMessage(state, `Hai affittato il sedile in ${node.display} (-${rent}).`, 'money');
+      if (libera) {
+        pushMessage(state, `Senza vincoli: affitto del sedile in ${node.display} gratuito (vano il ${rent}).`, 'info');
+      } else {
+        if (state.money < rent) throw new Error(`Servono ${rent} per l'affitto del sedile in ${node.display}, ne hai ${state.money}.`);
+        state.money -= rent;
+        pushMessage(state, `Hai affittato il sedile in ${node.display} (-${rent}).`, 'money');
+      }
     }
   }
   state.node = node.nodeId;

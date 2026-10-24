@@ -400,7 +400,11 @@ function camberProxyOf(ld, laps) {
 }
 
 /** Sessioni MoTeC salvate (auto/circuito facoltativi), la più recente prima. */
-export function listMotecSessions(motecRoot, { car = null, track = null } = {}) {
+export function listMotecSessions(motecRoot, { car = null, track = null, afterMs = 0 } = {}) {
+  // afterMs (24/10): nascono i save con createdAt → MoTeC è per-PC e senza filtro
+  // una carriera vergine incassava le sessioni telemetriche delle carriere
+  // precedenti. afterMs = state.createdAt: si mostra solo il POST-nascita.
+  // Diagnostica e analisi senza contesto di carriera passano 0 (tutto visibile).
   const out = [];
   let carDirs = [];
   try { carDirs = readdirSync(motecRoot, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name); } catch { return out; }
@@ -422,6 +426,7 @@ export function listMotecSessions(motecRoot, { car = null, track = null } = {}) 
         const full = join(tdir, f);
         let mtime = 0, size = 0;
         try { const st = statSync(full); mtime = st.mtimeMs; size = st.size; } catch { continue; }
+        if (afterMs && mtime < afterMs) continue; // prima che la carriera nascesse: non è sua
         out.push({ file: full, name: f, car: cd, track: td, mtime, size });
       }
     }
@@ -478,8 +483,8 @@ export function readResultMeta(resultsDir, { endMs, track = null, windowMs = 120
  * Storico sessioni di un'auto (ultime prima): ogni voce con tipo sessione
  * (incrociato con i file Results), giri, benzina, pressioni, assetto in pratica.
  */
-export function collectSessions(motecRoot, resultsDir, { car = null, track = null, limit = 10 } = {}) {
-  const list = listMotecSessions(motecRoot, { car, track });
+export function collectSessions(motecRoot, resultsDir, { car = null, track = null, limit = 10, afterMs = 0 } = {}) {
+  const list = listMotecSessions(motecRoot, { car, track, afterMs });
   const out = [];
   for (const s of list) {
     if (out.length >= limit) break;
@@ -510,12 +515,14 @@ export function collectSessions(motecRoot, resultsDir, { car = null, track = nul
  * Serve a vedere al volo i file .ld vuoti (solo intestazione): significa che
  * la telemetria non era attiva in EVO durante la sessione (non è un bug del gioco).
  */
-export function telemDiagnostics(motecRoot, { perCar = 6 } = {}) {
+export function telemDiagnostics(motecRoot, { perCar = 6, afterMs = 0 } = {}) {
   const out = [];
   let carDirs = [];
   try { carDirs = readdirSync(motecRoot, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name); } catch { return out; }
   for (const car of carDirs) {
-    const all = listMotecSessions(motecRoot, { car });
+    // afterMs (24/10): come listMotecSessions — le uscite nate PRIMA della
+    // carriera (slot 1, prove storiche) restano fuori: MoTec è per PC.
+    const all = listMotecSessions(motecRoot, { car, afterMs });
     if (!all.length) continue;
     const files = [];
     for (const s of all.slice(0, perCar)) {

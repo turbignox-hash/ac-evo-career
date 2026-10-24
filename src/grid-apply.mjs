@@ -19,9 +19,11 @@ import { sameTrack } from './tracknames.mjs';
 import { tr } from './lang.mjs';
 import { gameRunning, encodeMsg, gridFileOf } from '../tools/evo-grid.mjs';
 import { balanceCells, dropCells, setAiRange, planFromClass, readCells, DEFAULT_FILE } from '../tools/grid-balance.mjs';
+import { weekendCarCount } from '../tools/set-track.mjs';
 import { loadClasses, pickClassInfo, buildGridMessage } from './gridbuilder.mjs';
 import { resolvePaths } from './paths.mjs';
 import { scanContentCached, carExists } from './content.mjs';
+import { slotDataDir } from './state.mjs';
 
 export const GRID_FILE = DEFAULT_FILE;
 
@@ -37,10 +39,14 @@ export const GRID_FILE = DEFAULT_FILE;
 // successivi (anche dopo che il customgrid sul disco è passato ad altra
 // serie) si riscrivono da questo appunto, senza mai riaprire EVO per la griglia.
 const HERE_DIR = dirname(fileURLToPath(import.meta.url));
-const APPLY_DATA_DIR = process.env.EVO_DATA_DIR ?? join(dirname(HERE_DIR), 'data');
+// nido per-slot (24/10): magazzino e snapshot vivono con la SUA carriera (slot 1 =
+// data/ come fino ad oggi, slot 2-3 = data/slot-N/ vergini); la FABBRICA resta
+// condivisa com'era (config/griglie-fabbrica): fotocopia statica del progetto,
+// non appartiene a nessuna carriera.
+const APPLY_DATA_DIR = slotDataDir();
 const TEMPLATES_DIR = join(APPLY_DATA_DIR, 'grid-templates');
 const SNAPSHOTS_DIR = join(APPLY_DATA_DIR, 'customgrid-snapshots');
-const FACTORY_DIR = process.env.EVO_FACTORY_DIR ?? join(APPLY_DATA_DIR, '..', 'config', 'griglie-fabbrica');
+const FACTORY_DIR = process.env.EVO_FACTORY_DIR ?? join(dirname(HERE_DIR), 'config', 'griglie-fabbrica');
 
 const templatePathOf = (nodeId) => join(TEMPLATES_DIR, String(nodeId).replace(/[^a-zA-Z0-9_.-]/g, '_') + '.customgrid');
 const factoryFileOf = (nodeId) => join(FACTORY_DIR, basename(templatePathOf(nodeId)));
@@ -208,6 +214,33 @@ export function dropCellsApply(matchers, { file = GRID_FILE, force = false, dry 
  */
 export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE, force = false, dry = false } = {}) {
   if (!ladder || !nodeId || roundIndex == null) throw Object.assign(new Error('rebuildGridApply: servono ladder, nodeId e roundIndex'), { code: 'NO_ARGS' });
+  // GATE DEL CONTEGGIO (24/10 15:50, Coppa 500): la carriera EVO si aspetta
+  // un numero FISSO di avversari per ronda (gamemodesave 3.7/3.10): 14 per
+  // quasi tutte le coppe monomarca, non i 6/12/13 a caso che avevamo messo
+  // nella scala. Se il customgrid viene scritto con un conteggio diverso,
+  // EVO 0.9.1 termina il processo subito dopo «Opponent [N] found!»
+  // (0xC0000005 nel Render Worker). La griglia DEVE avere TANTE celle quante
+  // le vetture native. La sovrascrittura vale solo se la pista del
+  // gamemodesave è la STESSA della ronda (siamo davvero «dentro» la ronda); se
+  // il file cita un'altra pista, nessuna allineamento (ambiente di test, EVO
+  // vergine, round diverso). Le tre strade di scrittura qui sotto parla
+  // tutte da `ladderUsa`, clonato SOLO se serve correggere il nodo.
+  let bridge = null;
+  let ladderUsa = ladder;
+  try {
+    const nativo = weekendCarCount();
+    const round = (ladder.nodes ?? []).find((n) => n.nodeId === nodeId)?.calendar?.[roundIndex];
+    if (nativo && round && nativo.track && sameTrack(nativo.track, round.track)) {
+      const node0 = (ladder.nodes ?? []).find((n) => n.nodeId === nodeId);
+      if (node0 && node0.gridSize !== nativo.cars) {
+        const prima = node0.gridSize;
+        ladderUsa = { ...ladder, nodes: ladder.nodes.map((n) => (n === node0 ? { ...n, gridSize: nativo.cars } : n)) };
+        bridge = { from: prima, to: nativo.cars };
+        console.log(`[griglia] conteggio allineato al gamemodesave: gridSize ${prima} → ${nativo.cars} («${nodeId}», ${nativo.cars} vetture native)`);
+      }
+    }
+  } catch { /* il conteggio non è mai un blocco: se non si legge, si va come prima */ }
+  ladder = ladderUsa;
   // il TEMPLATE è il file attuale; su una serie con poolAuto dichiarato il
   // template con quel pool può esistere solo nei backup .bak-griglia/.bak-apply
   // del passato (il file corrente appartiene a UN'altra serie). Provo il file
@@ -223,7 +256,7 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
     if (dry) return { report: first.report, written: false };
     const backup = writeSafe(first.buffer, file, { force });
     storeTemplate(nodeId, first.buffer);   // la griglia riuscita resta la memoria della serie
-    return { report: first.report, written: true, backup };
+    return { report: first.report, written: true, backup, countAlign: bridge };
   } catch (firstErr) {
     // lezione vergine (24/10, collaudo prova-vergine): sul PC di un player
     // NUOVO last_grid.customgrid può NON ESISTERE (prima gara della vita,
@@ -279,7 +312,7 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
           if (dry) return { report, written: false, source: label };
           const backup = writeSafe(buffer, file, { force });
           storeTemplate(nodeId, buffer);
-          return { report, written: true, backup, source: label };
+          return { report, written: true, backup, source: label, countAlign: bridge };
         } catch (e) { lastErr = e; }
       }
       // La fabbrica era l'unica strada e qui l'installazione manca di auto:

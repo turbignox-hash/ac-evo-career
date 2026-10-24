@@ -12,10 +12,13 @@ import { fileURLToPath } from 'node:url';
 import { lapToMs } from './results.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 import { recordWarning } from './warnings.mjs';
+import { slotDataDir } from './state.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-// EVO_DATA_DIR: solo per i test (ridirige l'archivio in una cartella temporanea)
-const DATA_DIR = process.env.EVO_DATA_DIR ?? join(HERE, '..', 'data');
+// nido per-slot (24/10): il campione di rivali vive con la SUA carriera — slot 1 = data,
+// slot 2-3 = data/slot-N vergini. Ciclo con state.mjs innocuo: slotDataDir è una
+// function hoisted (richiamabile anche a metà del giro di import circolare).
+const DATA_DIR = slotDataDir();
 const RIVALS_FILE = join(DATA_DIR, 'rivals.json');
 
 /* ------------------------------------------------------------------ */

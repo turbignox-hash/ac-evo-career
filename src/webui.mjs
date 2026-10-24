@@ -421,8 +421,17 @@ async function api(context0, req, res, action, body) {
       // UNA lingua per tutti: la scelta in Impostazioni vale anche per CLI e server.
       // Si salva in evo.config.json e si applica subito al server vivo. EVO_LANG
       // in ambiente resta arbitrato superiore (utile per forzare via terminale).
+      // LETTURA (GET / niente body.lang): la GUI nuova resta d'accordo col
+      // server quando il browser non ha mai scelto lui (24/10: la copilota
+      // parlava italiano sull'interfaccia inglese perché ogni porta è un
+      // ORIGIN suo con localStorage separato — vedi gui/js/lang.js).
       const v = String(body.lang ?? '').toLowerCase();
-      if (!['it', 'en'].includes(v)) return sendJson(res, 400, { error: tr({ it: 'Lingua non riconosciuta (it|en).', en: 'Unknown language (it|en).' }) });
+      if (!['it', 'en'].includes(v)) {
+        if (!('lang' in body) || body.lang == null || body.lang === '') {
+          return sendJson(res, 200, { ok: true, lang: lang() });
+        }
+        return sendJson(res, 400, { error: tr({ it: 'Lingua non riconosciuta (it|en).', en: 'Unknown language (it|en).' }) });
+      }
       if (!hasEnvOverride()) setLang(v);
       writeConfig({ lang: v });
       return sendJson(res, 200, { ok: true, lang: lang() });
@@ -600,7 +609,7 @@ async function api(context0, req, res, action, body) {
       });
     }
     case 'status': return sendJson(res, 200, viewStatus(ladder, state));
-    case 'catalog': return sendJson(res, 200, loadCatalog(paths, process.env, { driver: state?.driver ?? null }));
+    case 'catalog': return sendJson(res, 200, loadCatalog(paths, process.env, { driver: state?.driver ?? null, afterMs: body.all ? 0 : (state?.createdAt ?? 0) }));
     case 'result-detail': return sendJson(res, 200, resultDetail(paths, String(body.file ?? '')) ?? { error: tr({ it: 'File non trovato.', en: 'File not found.' }) });
     case 'watcher':
       return sendJson(res, 200, { active: true, armed: watcher.armed, racedEnd: watcher.racedEnd, lastMsg: watcher.lastMsg, events: watcher.events, seq: watcher.importSeq ?? 0 });
@@ -1468,7 +1477,13 @@ async function api(context0, req, res, action, body) {
       const { paths: pNow } = context();
       // come negli altri punti del file: prima Saved Games\ACE, poi Documents\ACE
       const root = pNow.dataDirs?.[0] ? join(pNow.dataDirs[0], 'MoTec') : join(pNow.dataDirs?.[1] ?? '', 'MoTec');
-      return sendJson(res, 200, { root, cars: telemDiagnostics(root) });
+      // SCOPE CARRIERA (24/10, slot 3): MoTec è UNA cartella per PC condivisa
+      // da tutti gli slot — la diagnostica di una carriera vergine elencava
+      // anche lo storico dello slot 1 e delle prove vecchie. Dalla
+      // nascita della carriera (state.createdAt) in poi; body.all = 1 mostra
+      // TUTTO il disco (interruttore nella vista).
+      const dopo = body.all ? 0 : (state?.createdAt ?? 0);
+      return sendJson(res, 200, { root, scoped: !!dopo, all: !!body.all, sinceLocal: dopo ? new Date(dopo).toLocaleString('it-IT') : null, cars: telemDiagnostics(root, { afterMs: dopo }) });
     }
     case 'new-career': {
       if (!body.name || !String(body.name).trim()) return sendJson(res, 400, { error: tr({ it: 'Serve il nome del pilota.', en: 'The driver name is required.' }) });

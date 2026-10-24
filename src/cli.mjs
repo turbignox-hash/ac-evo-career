@@ -11,7 +11,7 @@ import {
   createCareer, loadState, saveState, nodeById, disciplineName, tierOf, gateStatus,
   standingsFor, playerStanding, difficultyFor, seasonEnd,
   acceptOffer, pushMessage, sponsorTier, enterNode, renameDriver,
-  savePath, activeSlot,
+  savePath, activeSlot, slotDataDir,
 } from './state.mjs';
 import { paddock } from './world.mjs';
 import { raceCard, markPending, chargeEntry, launch } from './race.mjs';
@@ -53,7 +53,8 @@ const DATA_DIR = process.env.EVO_DATA_DIR ?? join(PROJECT, 'data');
 const SLOT = activeSlot();
 const SAVE_FILE = join(DATA_DIR, savePath(SLOT));
 const CONFIG_FILE = join(DATA_DIR, 'evo.config.json');
-const ARCHIVE_DIR = join(DATA_DIR, 'results-archive');
+// nido per-slot (24/10): l'archivio dei risultati vive con la SUA carriera
+const ARCHIVE_DIR = join(slotDataDir(), 'results-archive');
 // il customgrid “vista dal tool”: lo stesso file che il menu legge/applizza
 const CUSTOMGRID_FILE = join(GAME_MODES_DIR, 'last_grid.customgrid');
 

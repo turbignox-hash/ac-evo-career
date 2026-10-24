@@ -13,13 +13,19 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 // webui-smoke…) importano i moduli prima di settare la variabile, e se il
 // percorso fosse congelato qui andrebbero a scrivere nel registro VERO del PC,
 // inquinando la carriera reale con flussi di prova (bug fissato il 23/10/2026).
+// nido per-slot (24/10): il registro dei flussi è VITA della carriera → vive
+// nel nido di slot (slot 1 = data/ com'è sempre stato, slot 2-3 = data/slot-N/).
+// Lo spiego INLINE senza importare state.mjs: state importa flows (giro già
+// circolare — non aggiungiamo il secondo arco, flows chiama slotDataDir solo
+// a runtime quindi andrebbe, ma il flusso è troppo centrale per rischiare).
+function slotDataDirHere() {
+  const base = process.env.EVO_FLOWS_DIR || process.env.EVO_DATA_DIR || join(HERE, '..', 'data');
+  const s = Math.max(1, Math.min(3, Math.floor(Number(process.env.ACE_SLOT) || 1)));
+  return s === 1 ? base : join(base, `slot-${s}`);
+}
+
 function flowsFile() {
-  // EVO_FLOWS_DIR: estremo sacrificabile per isolare SOLO il registro (i test
-  // lo usano così: non tocca né il save né le altre cartelle di EVO_DATA_DIR).
-  const dir = process.env.EVO_FLOWS_DIR || process.env.EVO_DATA_DIR;
-  return dir
-    ? join(dir, 'flows.jsonl')
-    : join(HERE, '..', 'data', 'flows.jsonl');
+  return join(slotDataDirHere(), 'flows.jsonl');
 }
 function debugFile() {
   const env = process.env.EVO_FLOW_DEBUG ? String(process.env.EVO_FLOW_DEBUG) : null;

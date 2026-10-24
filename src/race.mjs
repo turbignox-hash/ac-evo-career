@@ -8,7 +8,7 @@
 //   2. apre il gioco per te.
 // Il resto, cioe' la lettura del risultato, e' automatico: lo fa il file nativo del gioco.
 
-import { difficultyFor, entryFee, pushMessage, nodeById, playerStanding, isClosedNode } from './state.mjs';
+import { difficultyFor, entryFee, pushMessage, nodeById, playerStanding, isClosedNode, senzaVincoli } from './state.mjs';
 import { rebuildGridApply } from './grid-apply.mjs';
 import { contractStatus, challengeFor, trackMastery, sponsorFor, ensureContract, refreshContractTexts } from './life.mjs';
 import { raceCrowdFor } from './memories.mjs';
@@ -321,7 +321,7 @@ export function chargeEntry(ladder, state, node) {
   const contract = ensureContract(ladder, state, node);
   refreshContractTexts(ladder, state, node);
   if (contract) pushMessage(state, tr({ it: `Contratto ${node.display}: ${contract.clauses.map((c) => c.text).join('; ')}. Premio al rispetto: ${contract.payout} €`, en: `Contract ${node.display}: ${contract.clauses.map((c) => c.textEn ?? c.text).join('; ')}. Reward for compliance: ${contract.payout} €` }), 'info');
-  const fee = entryFee(node);
+  const fee = senzaVincoli() ? 0 : entryFee(node);
   const round = state.round;
   const already = (state.results[node.nodeId] ?? []).some((r) => r.season === state.season && r.round === round);
   if (already || fee === 0) return 0;

@@ -153,6 +153,37 @@ export function currentWeekendTrack(file = WEEKEND_FILE) {
 }
 
 /**
+ * Quante VETTURE si aspetta la carriera EVO per la ronda corrente: nel blocco
+ * 3 del gamemodesave i campi 3.10 ripetuti (w2) sono UNA auto ciascuno e il
+ * 3.7 (w0) dichiara il conteggio. Lezione 24/10 15:50 (Coppa 500, crash
+ * 0xC0000005 subito dopo «Opponent [12] found!»): se il customgrid viene
+ * scritto con un numero di celle DIVERSO da questo, il gioco cerca l'ai
+ * mancante e crasha. Il contatore NATIVO (gamemodesave) vince sempre sulla
+ * gridSize del ladder, che era una stima nostra mai confermata da EVO.
+ * Ritorna { cars, declared, track } (cars = voci 3.10 reali del primo blocco
+ * 3, declared = il 3.7 dichiarato, track = pista correntemente impostata),
+ * oppure null se il gamemodesave non c'è / non si legge (PC vergine, EVO mai
+ * avviato: comportamento come prima, nessuna override).
+ */
+export function weekendCarCount(file = WEEKEND_FILE) {
+  let buf;
+  try { buf = readFileSync(file); } catch { return null; }
+  let fields;
+  try { fields = decodeMsg(buf); } catch { return null; }
+  const f3 = fields.find((f) => f.field === 3 && f.wire === 2);
+  if (!f3) return null;
+  let session;
+  try { session = decodeMsg(f3.bytes); } catch { return null; }
+  const cars = session.filter((s) => s.field === 10 && s.wire === 2);
+  const dec = session.find((s) => s.field === 7 && s.wire === 0);
+  return {
+    cars: cars.length,
+    declared: dec ? Number(dec.varint) : null,
+    track: currentWeekendTrack(file),
+  };
+}
+
+/**
  * Riscrive i campi pista in TUTTI i blocchi 3.5 del gamemodesave.
  * spec = { nation, name, tag, layout, continent, lengthM } — i campi non dati
  * restano quelli originali di ogni blocco. Ritorna { fields, blocchi, changed }.

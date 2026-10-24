@@ -134,7 +134,10 @@ function readJsonSafe(file) {
   } catch { return null; }
 }
 
-export function listArchive(paths, { limit = 200, driver = null } = {}) {
+export function listArchive(paths, { limit = 200, driver = null, afterMs = 0 } = {}) {
+  // afterMs (24/10, slot 3): i Results di EVO sono UNA cartella per PC condivisa
+  // da tutti gli slot — un archivio vergine incassava lo storico dello slot 1.
+  // afterMs = nascita della carriera (state.createdAt): si mostra solo il POST.
   const entries = [];
   for (const dir of resultDirs(paths)) {
     if (!existsSync(dir)) continue;
@@ -144,6 +147,7 @@ export function listArchive(paths, { limit = 200, driver = null } = {}) {
       const full = join(dir, f);
       let st;
       try { st = statSync(full); } catch { continue; }
+      if (afterMs && st.mtimeMs < afterMs) continue; // prima della nascita: non è suo
       entries.push({ file: f, dir, mtime: st.mtimeMs, size: st.size });
     }
   }
@@ -175,7 +179,7 @@ export function listArchive(paths, { limit = 200, driver = null } = {}) {
       me: me ? { position: myPos, bestLap: me.best_lap ?? null, car: `${me.car_brand ?? ''} ${me.car_name ?? ''}`.trim() } : null,
     });
   }
-  return { total: entries.length, rows };
+  return { total: entries.length, rows, scoped: !!afterMs };
 }
 
 /** Dettaglio di un file risultato: griglia completa con giri, tempi e gap. */
@@ -292,12 +296,13 @@ let cache = null;
 let cacheAt = 0;
 const TTL = 60 * 1000;
 
-export function loadCatalog(paths, env = process.env, { fresh = false, driver = null } = {}) {
+export function loadCatalog(paths, env = process.env, { fresh = false, driver = null, afterMs = 0 } = {}) {
   // la cache è solo per auto/piste del server; l'archivio si ricalcola sempre
   // (i Results cambiano di continuo) e riceve il pilota per il riconoscimento
+  // e il confine temporale della carriera (afterMs, 24/10)
   const cached = !fresh && cache && Date.now() - cacheAt < TTL ? cache : null;
   if (cached) {
-    return { ...cached, archive: listArchive(paths, { driver }) };
+    return { ...cached, archive: listArchive(paths, { driver, afterMs }) };
   }
   const server = serverDir(paths, env);
   const dataRoots = (paths?.dataDirs ?? []).filter((d) => existsSync(d));
@@ -309,7 +314,7 @@ export function loadCatalog(paths, env = process.env, { fresh = false, driver = 
     serverPath: server,
     cars: server ? parseCars(server) : [],
     tracks: server ? parseTracks(server) : [],
-    archive: listArchive(paths, { driver }),
+    archive: listArchive(paths, { driver, afterMs }),
     motec: scanMotec(motecRoots),
     savedCars: scanSavedCars(savedCarRoots),
     scannedAt: new Date().toISOString(),

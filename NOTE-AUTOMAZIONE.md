@@ -1,3 +1,208 @@
+## GRIGLIA ARMONICA — la CSL (e ogni serie marcata) gira senza il gesto delle 14 liveries (24/10, sera) — IMPLEMENTATA E TESTATA
+
+- Problema: Coppa BMW M3 E46 CSL rifiutata perché il progetto possiede soltanto
+  5 varianti byte-uniche della CSL e la ronda nativa chiede 14 (gate del
+  conteggio, lezione 15:50). Il gesto «14 liveries + APPLICA» non sempre è
+  fattibile: il gioco non offre necessariamente 14 varianti per auto.
+  Mauro: «Test harmonic CSL» — trovato un modo per FARLA GIRARE senza gesto.
+- Cosa dicono le prove: le F40 crashate avevano DUE PAIA BYTE-IDENTICHE
+  (lezione 20/10 + crash 23/10); la griglia scritta da EVO per la Delta Evo II
+  LIVERIES ripetute e viene accettata (7 visual ×2, 14 celle, 10 uniche).
+  Quindi il criterio necessario è la BYTE-UNICITÀ delle celle, non
+  l'unicità delle liveries. DECISIONE: si può COMPLETARE il campo con cloni
+  delle celle reali che differiscono per un solo campo float di poco
+  sostanzioso (il f42 della cella: 10.0000191 nella CSL, ±0,3‰·k dentro
+  una banda ±2%): stessa vettura, stesso preset meccanico, stesso visual,
+  firma in byte diversa. LA REGOLA ANTI-CRASH (cella byte-unica) RESTA TUTTA.
+- IMPLEMENTAZIONE (src/gridbuilder.mjs):
+  • opt-in PER SERIE in grid-classes.json: classi."coppa_bmw-m3-e46-csl" =
+    { armonica: true } — SOLO la CSL per ora (rischio contenuto): le altre
+    serie niente, e il rifiuto di ieri resta il loro destino.
+  • se le uniche < target e l'armonica è accesa, i posti mancanti sono cloni
+    armonici + VERIFY finale nel tassellamento: se due cloni capitassero sullo
+    STESSO valore float, il passo sale (+50 · 0,3‰, sempre in banda ±2%).
+  • se nessun float bersaglio nel template → rifiuto ESATTAMENTE come
+    prima (mai una scrittura a rischio crash).
+  • il memo delle classi guarda ora anche il PERCORSO (i test con
+    EVO_CLASSES_FILE cambiavano file nello stesso mtime: dati vecchi).
+- TEST NUOVI in gridbuilder-uniche.test.mjs: (1) "ARMONICA opt-in: pool corto
+  → 4 celle con 2 reali + 2 cloni, TUTTE byte-uniche, stesso carId nel report"
+  (2) "ARMONICA OFF di default: il rifiuto di prima resta". Suite COMPLETA
+  176/176 verde.
+- VERIFICA VIVA CSL (hard force target 14 dal template di fabbrica):
+  14 celle scritte · 14 byte-uniche · 11 cloni armonici · cloni differiscono
+  solo nel float f42 (offset ~byte 153).
+- Dal vivo: al prossimo lancio della serie CSL "Prepara tutto e divertiti"
+  la griglia rifiuta più niente: con il gate del conteggio (nativi 14) la
+  combinazione reali+cloni si scrive. Se EVO comunque crashasse alla
+  • un rischio residuo resta: se il dedup interno di EVO 0.9.1 guardasse il
+    SOLO visual (non i byte) la serie crasherebbe alla prima istanziazione:
+    a quel punto tornare al gesto — in EVO generare griglia personalizzata con
+    quante più LIVERIES della CSL e APPLICA.
+- (contesto) Mauro ancora le auto AUDI in griglia: sul customgrid resta la
+  griglia della serie scorsa (i rifiuti armonici NON toccano il file, per
+  progetto: niente scritture a rischio); si sistema al primo prep riuscito.
+## COPPA BMW M3 E46 CSL: SOLTANTO 5 VARIANTI UNICHE SU 14 CHIESTE (24/10, 20:05) — DIAGNOSI
+
+- Mauro firma la Coppa BMW M3 E46 CSL e al lancio appare (e sparisce):
+  «griglia rifiutata: il template ha solo 3 celle uniche (servono 14)».
+  LE CAUSE: (1) il ladder dice gridSize 3 ma il GATE DEL CONTEGGIO (24/10,
+  15:50) allinea al nativo del gamemodesave = 14 vetture; (2) nel progetto
+  esistono SOLO 5 celle byte-uniche di ks_bmw_m3_e46_csl (scansione 594
+  file: fabbrica + magazzini + grezze). Il builder rifiuta a ragione:
+  sotto 14 uniche si andrebbero a ripetere celle → crash EVO (lezione
+  20/10 + F40 23/10). Per salvare la serie: in EVO generare la griglia
+  personalizzata con 14 varianti DISTINTE della CSL e premere APPLICA
+  (tab Griglia): se il gioco non offre 14 varianti, la serie non pode
+  corrersi col campo pieno.
+- BMW percorribili SUBITO (varianti contate vs native): M8 Competition
+  19≥14 ✅, M4 GT3 24≥10 ✅, M3 E30 Evo III 18≥7 ✅; M4 CSL 10<14 ❌.
+- Il toast che scompare: è il messaggio del builder al momento del
+  lancio; finché non si risolve la serie non parte con griglia propria.
+## COPILOTA IN ITALIANO SULL'UI INGLESE (24/10, 19:35) — CORRETTO
+
+- Mauro: «il copilot parla italiano e sono sulla versione inglese».
+  RADICE: ogni porta/finestra dell'app (8642, 8644…) è un ORIGIN browser
+  suo → localStorage separato. La copilota parla con window.LINGUA
+  (localStorage) ma le finestre nuove partono col default 'it' anche
+  quando il SERVER è in en (evo.config.json): testo vocale = client tr()
+  = italiano su UI inglese (le card server-rendered restavano en).
+- FIX DOPPIO:
+  • src/webui.mjs — azione 'lang' ora RISPONDE ANCHE in LETTURA (GET /
+    niente body.lang): risponde { ok:true, lang } senza toccare niente. La
+    POST (Impostazioni) resta com'era, test lingua-server confermato.
+  • gui/js/lang.js — se il browser non ha mai scelto (niente
+    'evo-lingua' nel localStorage) la GUI ADOTTA la lingua del server:
+    seconda fetch /api/lang, se diversa un SOLO reload (segno in
+    sessionStorage = niente loop). La scelta manuale in Impostazioni
+    vince sempre (scrive il localStorage).
+  RISULTATO: voce copilota, date, numeri e tutti i testi client seguono
+  la lingua del server in ogni finestra, senza toccare niente a mano.
+- PROVA DAL VIVO su server vergine: GET /api/lang → it; POST en → 200
+  en; GET di nuovo → en. Suite 174/174 verde.
+## MODALITÀ «SENZA VINCOLI»: CANCELLETTI, SEDILI E ISCRIZIONI APERTI (24/10, 19:10) — FATTO
+
+- Richiesta Mauro (mentre prova la copilota sulla serie): «leva tutti i
+  blocchi per i campionati, soldi e reputazione, fammi entrare dove voglio».
+  Nata la modalità attivabile/disattivabile: basta che esista il file
+  data/senza-vincoli.json (creato {} e ACCESO ora; si spegne CANCELLANDOLO,
+  ricontrollato ogni 5 s — niente riavvi). Override via env
+  EVO_SENZA_VINCOLI=1|0 (i test lo fissano a '0').
+  CHE COSA APRE (src/state.mjs senzaVincoli() + gateStatus + enterNode,
+  src/race.mjs chargeEntry):
+  • gateStatus = sempre ok: niente piazzamenti-minimi nelle feeder né
+    reputazione minima — ogni serie si firma, anche quelle chiuse;
+  • sedili GRATIS: affitto e acquisto non toccano il soldo della carriera
+    (messaggio in casella: «Senza vincoli: affitto/ acquisto gratuito»);
+  • iscrizione di ronda a zero (chargeEntry paga 0 €).
+  RESTANO INTATTI: premii, contratti di stagione, copilota, economica in
+  garage (le auto si comprano ancora a prezzo pieno).
+- TEST: suite 174/174 verdi (gate/agenda/garage-seat pinnati a EVO_SENZA_
+  VINCOLI='0': descrivono la scalata canonica). Prove dal vivo ON: con
+  rep 1 e feeder mai corsa il gate apre, affitto 3000 e acquisto 90.000
+  non toccano il soldino (10 €), iscrizione 250 € → 0. Prova OFF: il
+  gate blocca di nuovo come prima.
+## CRASH EVO AL CARICAMENTO GARA: GRIGLIA SCRITTA A MANO FUORI CONTESTO (24/10, 18:34→18:52) — CORRETTO E RIPRISTINATO
+
+- Mauro lancia la gara e la schermata di caricamento torna al desktop.
+  RADICE (mia, non del template): avevo scritto la griglia multiclasse
+  (12 celle, 6 R5 + 6 Escort con zavorre) DIRETTAMENTE in
+  GameModes/last_grid.customgrid mentre la RONDA configurata in EVO era
+  di un'altra serie (conteggio nativo 14, auto differenti).
+  Il gioco istanzia le celle così come sono ma il round dichiara
+  14 slot/usate differenti → crash all'istanziazione (lezione del 20/10
+  ripetuta con un gesto diverso). Il TEMPLATE multiclasse era e resta
+  verificato (12 celle byte-uniche, driver unici, AI 78-88).
+- RIPRISTINO: last_grid.customgrid = copia di
+  last_grid.customgrid.bak-multi-2026-10-24-16-34-48 (la griglia che c'era
+  prima della mia scrittura). Copia di sicurezza della griglia crashata:
+  last_grid.customgrid.bak-pre-restore-24-10.
+- REGOLA FISSA (come indica già la nota di sopra, ora è LA VERITÀ):
+  la last_grid si scrive SOLO con «Prepara e divertiti» della SERIE
+  GIUSTA, dalla UI, mentre la ronda di quella serie è quella attiva in
+  EVO. Mai scritture manuali sul file: EVO riconfigura il round al
+  prossimo menu di sessione e una griglia fuori contesto lo pianta.
+  Per provare la multiclasse: UI → Coppa Strada → firma (rep 20) →
+  apri la sua ronda in EVO → Prepara e divertiti → il builder scrive le
+  6+6 con zavorre dentro la ronda GIUSTA.
+## COPILOTA VOCALE SBAGLIATA ALL'AVVIO + MONITOR (24/10, 18:40)
+
+- Reperto Mauro: «mentre sto partendo in gara mi dice che sta finendo il
+  giro 1 e più». RADICE PROBABILE (da confermare col log live):
+  1) window.__copilot (i "last" dei narratori) SOPRAVVIVE alla sessione:
+     a nuova gara la copilota parte con i contatori della gara prima;
+  2) le shared memory dell'EVO (MMF) NON si ricreano a sessione nuova:
+     i primi tick del lettore portano giro/tempo/lastLap DI PRIMA.
+- FIX sul cruscotto (gui/js/viste-a.js): a sessione che torna viva (o
+  primo avvio pagina) il copilota AZZERA last/at e resta muta 15 s
+  (grazia: i primi tick sono dati bruciati — dopo parte regolare).
+- MONITOR per giudicare in pista (non parla, osserva): tools/
+  _monitor-copilota.mjs replica ESATTAMENTE i narratori del client e
+  scrive data/copilot-<porta>-24-10.jsonl ogni 4 s: frase che DIREBBE
+  + dati crudi (lapNo, lapsDone, lastLap, delta, fuel, gap, pit).
+  Attivo su porte 8644 (save-3) e 8642. A gara finita si legge il log e
+  si vede ogni discorso fuori momento col suo perché.
+- Reload della pagina = il fix parte al prossimo avvio di sessione.
+
+## MULTICLASSE R5 PRONTA CON ZAVORRE (24/10, 16:30 → 17:05): Coppa Strada — R5 + Escort RS Cosworth
+
+- Richiesta Mauro: «prepara con la r5 una multiclasse, appena finisco
+  questa la provo» + «con zavorre e penalità per le macchine più potenti».
+  Serie già nel ladder: **Coppa Strada** (coppa_strada_80) — MULTICLASSE,
+  griglia 12: **Renault 5 GT Turbo** e **Ford Escort RS Cosworth**, 3 ronde
+  (Imola · Nürburgring GP · Monza), rep richiesta 20 (di lui ne ha 570).
+- ZAVORRE: prima prova la serie era a 0 (nessuna classe nota). Aggiunta
+  la classe **coppa_strada_80** in data/grid-classes.json con le regole
+  RIUSATE dalla classe calibrata gr86-r5-escort (19/10, «bilanciamento
+  perfetto» convalidato da Mauro a Brands Hatch):
+  **Escort RS Cosworth = 100 kg + restrictor 8%** · **R5 GT Turbo = base
+  (0/0)**. Niente aiStandard sulla classe: la serie resta sulla banda del
+  ladder (78-88), senza bandi da campionati più forti. Per-traccia si
+  aggiungerà dai risultati con griglia-calib (Imola/Nürburgring/Monza
+  hanno rettilinei lunghi: se l'Escort scappa, cap 20% come su Suzuka/Monza).
+- VERIFICA fatta a secco su TUTTE le 3 ronde con il template di fabbrica
+  (config/griglie-fabbrica/coppa_strada_80.customgrid, già coperto dal
+  guardiano del 24/10, identico in magazzino):
+  • build OK su Imola/Nürburgring/Monza — 12 celle, **6 R5 + 6 Escort**,
+    tutte byte-uniche (mai due uguali → zero rischio crash del 20/10);
+  • driver 12/12 unici, AI 78-88 dal ladder, finestra PI 8-9 coerente
+    con le due auto; meteo per ronda scritto (0/1/2: sereno → pioggia).
+  • niente righe di bilancio: per una serie MISTA il builder non
+    equiparare niente tra marche diverse — rispetta il dato come
+    vuole il gioco.
+- Nessun codice toccato: solo verifica. Le suite griglia
+  (grid-templates + gridbuilder-uniche + gridclasses) 14/14 verde.
+- COME LA PROVA subito dopo la gara R5: in UI apri la serie Coppa
+  Strada → firma/iscriviti → Prepara e divertiti — la griglia viene
+  scritta dal builder con la mix 6+6 già collaudata. (Scrivere il file
+  ORA su Ancel GameModes inutile: EVO lo riscrive al prossimo menu di
+  sessione — il valore è nel template, e quello è pronto.)
+
+## GRIGLIA R5 RESTAVA QUELLA DELLA 500 (24/10, 16:13) — CORRETTO
+
+- Mauro passa alla Coppa R5 Turbo (Brands Hatch R1), preme Prepara: sul
+  customgrid restava la griglia della serie scorsa (14× Abarth 695).
+  RADICE DOPPIA:
+  (1) il template di fabbrica della R5 conteneva solo 11 CELLE BYTE-UNICHE
+      su 14 richieste dal conteggio nativo (14 vetture nel gamemodesave del
+      round) — il builder correttamente RIFIUTA con celle ripetute (lezione
+      20/10, crash EVO 0.9.1) e niente veniva scritto;
+  (2) le 24 celle R5 uniche raccolte il 24/10 erano sparse su 69 file
+      (fabbrica, magazzini, grezze, .bak-*) e nessuno le aveva fuse.
+- FIX: tools/_merge-r5.mjs — fonde tutte le celle R5 uniche trovate nei
+  magazzini nel template di fabbrica config/griglie-fabbrica/
+  coppa_r5-turbo.customgrid (24 celle byte-uniche, driver e config del
+  file base restano; backup .bak-merge-2026-10-24-16-13). Il builder ora
+  costruisce 12 O 14 celle, qualunque sia il conteggio nativo: prova a
+  secco con force/dry = OK (source «griglia di fabbrica», AI 76-82 dal
+  ladder). Per FARE la scrittura su disco serve EVO CHIUSO: al prossimo
+  «Prepara e divertiti» la griglia R5 parte con le 500 riscritte.
+- PER LE PROSSIME SERIE: se una monomarca arriva a meno liveries uniche
+  del conteggio nativo, la stessa fusione (template da TUTTE le celle
+  raccolte) vale per qualunque nodeId: le sorgenti sono già le quattro
+  cartelle standard.
+- Suite griglia: grid-templates + gridbuilder-uniche = 10/10 verde.
+
 ## RISOLTO — DELTA «PROTOTIPO EVO 3» (24/10, 10:06): il preset del prototipo È STATO CONFERMATO nel campo mechPreset delle celle: «HF Integrale Evo 2 Preset Evo 3 Prototype» (PI 9.1) vs «HF Integrale Evo 2 Preset Base» (PI 9.0). Confermata la regola già vista su Emira/Exige: le varianti stessa auto si distinguono SOLO dal mechPreset. La griglia del prototipo però è stata RIFIUTATA dal builder (14× Visual 8, tutte identiche → 0 celle uniche, rischio crash EVO come F40): la fabbrica resta coperta dalla Evo II Base (14 celle, 10 liverie, 10:05). Se serve una serie sul prototipo: GENERA con >=10 LIVERIES diverse del prototipo → APPLICA → AVVIA la sessione.
 
 ## DOMANI (25/10) — RIPRENDERE LA RACCOLTA
@@ -1064,3 +1269,25 @@ considerare un'etichetta  sul file o una conferma esplicita.
   warn già esistente. Basato sul caso reale del 24/10 (Imposta gara non
   applicata da schermata Inizia sessione). Basta un refresh della pagina:
   la GUI è statica, niente riavvio del server.
+
+## SCOPE CARRIERA IN SETUP/ARCHIVIO (24/10, sera) — FATTO E PROVATO
+- Segnalazione Mauro: in Impostazioni la diagnostica telemetria mostrava
+  18 auto / 191 file e l'archivio 238 risultati — tutto lo STORICO del PC
+  (slot 1, prove di settembre/aprile) visto che MoTec e Results sono UNA
+  cartella per PC condivisa dagli slot. Il save 3 (nato oggi alle 15:43)
+  sembrava pieno di file "sue".
+- SCOPE: ogni vista parte dal confine temporale della carriera
+  (state.createdAt) con la stessa strada del garage (listMotecSessions
+  afterMs, già del pomeriggio):
+  • motec.mjs → telemDiagnostics(root, { afterMs }): le auto senza uscite
+    post-nascita spariscono dal quadro;
+  • catalog.mjs → listArchive(..., afterMs) + loadCatalog pass-through
+    (archivio sempre ricalcolato, la cache resta per auto/piste);
+  • webui.mjs → case 'catalog' e 'telem-diagnostics' passano
+    state.createdAt; body.all = true mostra TUTTO il PC.
+- GUI: riga di scope + interruttore («Mostra tutto il PC» / «Solo
+  carriera») in Diagnostica telemetria (viste-c) e Archivio sessioni
+  (viste-b); nessun refresh magico: il toggle ridisegna la vista.
+- PROVATO VIVO su slot 3 (porta 8644, server riavviato): scoped → 1 auto
+  (Abarth 695, le 5 uscite del campionato 500 di oggi) e archivio 5 file;
+  all → 18 auto / 191 file e 238 risultati. Suite 174/174 verde.

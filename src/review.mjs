@@ -5,13 +5,13 @@
 // (comando "review", anche per le stagioni passate con --season N).
 
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { nodeById } from './state.mjs';
+import { join } from 'node:path';
+import { nodeById, slotDataDir } from './state.mjs';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const RIVALS_FILE = join(HERE, '..', 'data', 'rivals.json');
-const JOURNAL_DIR = join(HERE, '..', 'data', 'journal');
+// nido per-slot (24/10): la rassegna legge i rivali della SUA carriera e scrive
+// il journal nel nido di slot (slot 1 = data/ com'è sempre stato, slot 2-3 = data/slot-N/)
+const RIVALS_FILE = join(slotDataDir(), 'rivals.json');
+const JOURNAL_DIR = join(slotDataDir(), 'journal');
 
 /**
  * La rassegna della stagione `season` (default: la più recente registrata

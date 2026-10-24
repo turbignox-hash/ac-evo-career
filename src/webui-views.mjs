@@ -340,13 +340,13 @@ function viewCard(ladder, state, car = null) {
         const p = resolvePaths(appEnv());
         const root = p.dataDirs?.[0] ? join(p.dataDirs[0], 'MoTec') : join(p.dataDirs?.[1] ?? '', 'MoTec');
         const resultsDir = p.resultsDirs?.[0] ?? join(root, '..', 'Results');
-        let sessions = collectSessions(root, resultsDir, { car: card.carName, track: card.trackName, limit: 8 });
+        let sessions = collectSessions(root, resultsDir, { car: card.carName, track: card.trackName, limit: 8, afterMs: state.createdAt ?? 0 });
         // FALLBACK MAI PIU' SILENZIOSO: se il round ha una pista nota e non esiste
         // telemetria SU QUELLA pista, non prendiamo le sessioni recenti dell'auto —
         // subito dopo una gara sarebbero proprio la gara appena corsa (pista diversa):
         // pressioni e consumi cambiano da pista a pista e fuorviano. Il fallback
         // auto-only resta solo per i round senza pista nota (primissima partenza).
-        if (!sessions.length && !card.trackName) sessions = collectSessions(root, resultsDir, { car: card.carName, limit: 8 });
+        if (!sessions.length && !card.trackName) sessions = collectSessions(root, resultsDir, { car: card.carName, limit: 8, afterMs: state.createdAt ?? 0 });
         // EVO a volte scrive il file MoTeC SENZA i dati (solo intestazione: capita in
         // alcune sessioni, es. time attack, o chiudendo il gioco di colpo): lo segnaliamo
         // invece di lasciare il box muto sulla pressione
@@ -354,9 +354,9 @@ function viewCard(ladder, state, car = null) {
           telemEmpty = false;
         } else if (card.trackName) {
           wrongTrack = true; // niente telemetria utilizzabile su QUESTA pista
-          wrongTrackName = listMotecSessions(root, { car: card.carName })[0]?.track ?? null;
+          wrongTrackName = listMotecSessions(root, { car: card.carName, afterMs: state.createdAt ?? 0 })[0]?.track ?? null;
         } else {
-          telemEmpty = listMotecSessions(root, { car: card.carName }).length > 0;
+          telemEmpty = listMotecSessions(root, { car: card.carName, afterMs: state.createdAt ?? 0 }).length > 0;
         }
         const raceLaps = card.round?.laps ?? card.baseLaps ?? 10;
         if (sessions.length) race = racePressureAdvice(sessions, { target: tyre.target, raceLaps });

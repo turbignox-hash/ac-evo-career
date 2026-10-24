@@ -20,6 +20,27 @@ window.tr = (p) => (p && (p[window.LINGUA] ?? p.it)) ?? '';
 /* locale dei numeri e delle date: garantito dalla stessa lingua dell'interfaccia */
 window.LOCALE = window.LINGUA === 'en' ? 'en-US' : 'it-IT';
 
+/* Ogni porta/finestra dell'app è un ORIGIN suo: il localStorage è separato e
+   una finestra nuova (slot 3, seconda istanza) parte con 'it' di default
+   anche quando il server é in inglese — 24/10: la copilota parlava italiano
+   sull'interfaccia inglese. Se il browser NON ha mai scelto lui (niente
+   'evo-lingua' nel localStorage), ADOTTA la lingua del server (evo.config);
+   la leggiamo da /api/lang (GET, aggiunto al server lo stesso giorno).
+   Il segno in sessionStorage impedisce ricariche all'infinito: adottare
+   ricarica la pagina UNA volta sola per lingua. */
+if (!localStorage.getItem('evo-lingua')) {
+  const segno = 'evo-lingua-adoptata';
+  fetch('/api/lang').then((r) => (r.ok ? r.json() : null)).then((j) => {
+    const sk = j?.lang;
+    if ((sk === 'it' || sk === 'en') && sk !== window.LINGUA && sessionStorage.getItem(segno) !== sk) {
+      sessionStorage.setItem(segno, sk);
+      location.reload();
+    } else if (sk === window.LINGUA) {
+      sessionStorage.setItem(segno, sk);
+    }
+  }).catch(() => {});
+}
+
 /* Testi storicizzati nel save (note garage, proposte griglia…) sono stati
    generati in italiano quando la carriera era in IT: qui si sistemano SOLO in
    visualizzazione durante la lettura, i dati sul disco non si toccano mai.  */

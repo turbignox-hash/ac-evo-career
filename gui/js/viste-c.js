@@ -850,8 +850,11 @@ async function drawSetup(m){
   };
   window.__lcMech();
 
-  // diagnostica telemetria: stato dei file .ld scritti da EVO, per auto
-  const diag = await api('telem-diagnostics').catch(() => ({ cars: [] }));
+  // diagnostica telemetria: stato dei file .ld scritti da EVO, per auto.
+  // SCOPE CARRIERA (24/10): di default solo i file nati con QUESTA carriera
+  // (MoTec è UNA cartella per PC, condivisa dagli slot); l'interruttore mostra
+  // tutto il disco.
+  const diag = await api('telem-diagnostics', { all: !!window.__diagAllMoTec }).catch(() => ({ cars: [] }));
   const fmtKB = (n) => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
   const diagRows = (diag.cars ?? []).map((c) => {
     const files = (c.files ?? []).map((f) => `<tr>
@@ -869,13 +872,20 @@ async function drawSetup(m){
     </details>`;
   }).join('');
   const anyEmpty = (diag.cars ?? []).some((c) => (c.files ?? []).some((f) => !f.valid));
+  const diagScope = (diag.all
+    ? tr({ it: 'Mostrato TUTTO il PC: la cartella MoTec è condivisa dagli slot e lo storico resta visibile.', en: 'Showing the WHOLE PC: the MoTec folder is shared across slots and the older history stays visible.' })
+    : tr({ it: `Mostrati solo i file nati con QUESTA carriera${diag.sinceLocal ? ` (dal ${diag.sinceLocal})` : ''}: MoTec è una cartella condivisa per PC.`, en: `Showing only files born with THIS career${diag.sinceLocal ? ` (since ${diag.sinceLocal})` : ''}: MoTec is a PC-wide shared folder.` })
+  ) + `<button class="mini" id="b-diag-all" style="margin-left:6px">${diag.all ? tr({ it: 'Solo carriera', en: 'Career only' }) : tr({ it: 'Mostra tutto il PC', en: 'Show the whole PC' })}</button>`;
   const diagHtml = (diag.cars ?? []).length ? `<div class="panel" style="margin-top:14px" id="telem-diag">
     <h2>Diagnostica telemetria <span class="h-act">i file .ld che EVO scrive in Saved Games\\ACE\\MoTec</span></h2>
+    <div class="muted" style="font-size:11.5px;margin:0 0 8px">${diagScope}</div>
     ${anyEmpty ? `<div class="banner warn" style="margin-bottom:8px">${tr({ it: 'Ci sono file vuoti (solo intestazione, 0 canali con dati): la telemetria non era attiva in EVO — si attiva in Setup → Elettronica (e i giri si impostano PRIMA di avviare la sessione). Riusa la sessione e i file conterranno dati veri. Finché così non fosse, i consigli del BOX su quelle auto usano la stima.', en: 'There are empty files (header only, 0 channels with data): telemetry was NOT active in EVO — turn it on in Setup → Electronics (and set laps BEFORE starting the session). Reuse the session and the files will hold real data. Until then, the BOX uses estimates for those cars.' })}</div>` : `<div class="banner good" style="margin-bottom:8px">${tr({ it: 'Tutti gli ultimi file hanno dati: la telemetria sta funzionando.', en: 'All recent files have data: telemetry is working.' })}</div>`}
     ${diagRows}
     <div class="muted" style="margin-top:8px">${tr({ it: 'Un file valido pesa 2–11 MB e ha 62 canali con dati; uno vuoto pesa ~19 KB (solo intestazione). Aggiorna la pagina per risentonare dopo una sessione.', en: 'A valid file weighs 2–11 MB and has 62 channels with data; an empty one weighs ~19 KB (header only). Refresh the page to re-listen after a session.' })}</div>
   </div>` : `<div class="panel" style="margin-top:14px"><h2>${tr({ it: 'Diagnostica telemetria', en: 'Telemetry diagnostics' })}</h2><div class="muted">${tr({ it: 'Nessun file MoTeC trovato in {P}: fai una sessione e EVO scriverà il primo file.', en: 'No MoTeC file found in {P}: run a session and EVO will write the first one.' }).replace('{P}', esc(diag.root ?? 'Saved Games\\ACE\\MoTec'))}</div></div>`;
   m.innerHTML += diagHtml;
+  const bDiagAll = $('#b-diag-all');
+  if (bDiagAll) bDiagAll.onclick = () => { window.__diagAllMoTec = !window.__diagAllMoTec; render(); };
 
   // salute sistema + registro errori: diagnostica degli strumenti, non della carriera
   const [health, warns] = await Promise.all([

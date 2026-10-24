@@ -6,6 +6,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { enterNode } from '../src/state.mjs';
 
+// i test descrivono la scalata canonica: la modalità «senza vincoli» (se il
+// dev ce l'ha accesa sulla sua data/) non dovrà regalare affitti qui
+process.env.EVO_SENZA_VINCOLI = '0';
+
 const mkNode = (cars, rent = 3000) => ({
   nodeId: 'n1',
   display: 'Serie Prova',

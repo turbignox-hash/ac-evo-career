@@ -8,7 +8,7 @@ import { readFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolvePaths } from './paths.mjs';
-import { loadState, saveState, savePath, activeSlot } from './state.mjs';
+import { loadState, saveState, savePath, activeSlot, slotDataDir } from './state.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 import { localizeLadder, setLang, hasEnvOverride } from './lang.mjs';
 
@@ -26,7 +26,10 @@ export const SLOT = activeSlot();
 export const SAVE_FILE = join(DATA_DIR, savePath(SLOT));
 export const CONFIG_FILE = join(DATA_DIR, 'evo.config.json');
 export const GUI_DIR = join(PROJECT, 'gui');
-export const BACKUP_DIR = join(DATA_DIR, 'backups');
+// nido per-slot (24/10): i backup del save vivono con la SUA carriera (slot 1 =
+// data/backups com'è sempre stato, slot 2-3 = data/slot-N/backups vergini):
+// dall'Impostazioni dello slot 3 si vedono e si ripristinano SOLO i backup di slot 3
+export const BACKUP_DIR = join(slotDataDir(), 'backups');
 
 // Il ladder è il file più grande del progetto (7000+ righe di JSON) ed è
 // riletto a OGNI richiesta del launcher (context → loadLadder): si ri-parsa

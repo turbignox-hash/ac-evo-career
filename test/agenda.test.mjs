@@ -9,6 +9,10 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// i test descrivono la scalata canonica: la modalità «senza vincoli» (se il
+// dev ce l'ha accesa sulla sua data/) non deve aprirgli i cancelletti
+process.env.EVO_SENZA_VINCOLI = '0';
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = dirname(HERE);
 const LADDER = JSON.parse(readFileSync(join(ROOT, 'config', 'career.evo.ladder.json'), 'utf8'));

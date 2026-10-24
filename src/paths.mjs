@@ -127,7 +127,9 @@ export function listFiles(dir) {
 export async function isGameRunning() {
   if (platform() !== 'win32') return false;
   try {
-    const { stdout } = await execFileAsync('tasklist', ['/FI', `IMAGENAME eq ${GAME_EXE}`, '/NH'], { windowsHide: true });
+    // timeout (24/10): tasklist assediato (antivirus, gioco che parte) non deve
+    // tenere in mezzo il server — il verdetto «non appena» resta conservativo
+    const { stdout } = await execFileAsync('tasklist', ['/FI', `IMAGENAME eq ${GAME_EXE}`, '/NH'], { windowsHide: true, timeout: 10000 });
     return stdout.toLowerCase().includes(GAME_EXE.toLowerCase());
   } catch {
     return false;
@@ -148,8 +150,13 @@ export async function launchGame(paths, { exe = true, force = false } = {}) {
     // come file (24/10: errore "Impossibile trovare il file 'EVO Pitwall Slot 3'"); con spazi nel
     // percorso del gioco il bug era anche peggio.
     // il titolo esplicito (con spazi → Node lo quotà) protegge i percorsi con spazi:
-    // "" vuoto si perde e start legge il titolo come file (bug 'EVO Pitwall Slot 3', 24/10)
-    await execFileAsync('cmd', ['/c', 'start', 'EVO', paths.gameExe], { windowsHide: true });
+    // "" vuoto si perde e start legge il titolo come file (bug 'EVO Pitwall Slot 3', 24/10).
+    // MA il titolo deve PER FORZA contenere uno spazio: 'EVO' nudo non viene quotato da
+    // Node e start lo interpretava come PROGRAMMA da cercare (24/10: «Command failed:
+    // cmd /c start EVO E:\...AssettoCorsaEVO.exe» = cercava un file «EVO»). Titolo con
+    // spazio → Node lo mette tra virgolette → start lo legge come titolo. Prova innocua
+    // (cmd /c exit come bersaglio): 'EVO' → Command failed, 'EVO Pitwall' → exit 0.
+    await execFileAsync('cmd', ['/c', 'start', 'EVO Pitwall', paths.gameExe], { windowsHide: true, timeout: 10000 });
     return { via: 'exe', target: paths.gameExe };
   }
   // gli URL non hanno spazi: NIENTE titolo, altrimenti start prenderebbe 'EVO' come programma

@@ -23,13 +23,19 @@ const { encodeMsg } = ev;
 const TMP = mkdtempSync(join(tmpdir(), 'grid-uniche-test-'));
 const B = (s) => Buffer.from(String(s), 'utf8');
 
-/** cella minima come la scrive il gioco: 3 id + 4 nome + 10 preset mec + 11 visual */
-const cella = (id, nome, preset, visual) => encodeMsg([
-  { field: 3, wire: 2, bytes: B(id) },
-  { field: 4, wire: 2, bytes: B(nome) },
-  { field: 10, wire: 2, bytes: encodeMsg([{ field: 1, wire: 2, bytes: B(preset) }]) },
-  { field: 11, wire: 2, bytes: B('\n' + String.fromCharCode(visual.length + 0x10) + visual) },
-]);
+/** cella minima come la scrive il gioco: 3 id + 4 nome + 10 preset mec + 11 visual.
+ *  Il f42 float (10.x) è il campo faro dell'ARMONICA: le celle reali della CSL
+ *  lo hanno (dump: 10.0000191) — per i cloni matematici serve un bersaglio float. */
+const cella = (id, nome, preset, visual) => {
+  const f = Buffer.alloc(4); f.writeFloatLE(10.000019073486328, 0);
+  return encodeMsg([
+    { field: 3, wire: 2, bytes: B(id) },
+    { field: 4, wire: 2, bytes: B(nome) },
+    { field: 10, wire: 2, bytes: encodeMsg([{ field: 1, wire: 2, bytes: B(preset) }]) },
+    { field: 11, wire: 2, bytes: B('\n' + String.fromCharCode(visual.length + 0x10) + visual) },
+    { field: 42, wire: 5, bytes: f },
+  ]);
+};
 /** driver minimo con skill (campo 4 float) distinta per posizione */
 const driverSkill = (skill) => {
   const f = Buffer.alloc(4); f.writeFloatLE(skill, 0);
@@ -83,4 +89,36 @@ test('il rifiuto porta il gesto adeguato (liveries + APPLICA) nel messaggio', ()
   try { costruisce([4], 3); } catch (e) { err = e; }
   assert.ok(err, 'il template con 1 sola variante per 3 vetture è rifiutato');
   assert.match(err.message, /APPLICA/, 'il messaggio deve dire COME si sblocca');
+});
+
+test('ARMONICA (opt-in per serie): pool corto → completa con cloni byte-distinti', async () => {
+  // fixtures classes con armonica: true SOLO per il nodo evento_test
+  const fixtureCls = join(TMP, 'grid-classes-armonica.json');
+  writeFileSync(fixtureCls, JSON.stringify({ classi: { evento_test: { armonica: true } } }));
+  const primaEnv = process.env.EVO_CLASSES_FILE;
+  process.env.EVO_CLASSES_FILE = fixtureCls;
+  try {
+    const out = costruisce([1, 2], 4);   // 2 reali + 2 cloni armonici
+    const ev = await import('../tools/evo-grid.mjs');
+    const top = ev.decodeMsg(out.buffer);
+    const celle = top.filter((f) => f.field === 1).map((f) => Buffer.from(f.bytes).toString('hex'));
+    assert.equal(celle.length, 4, 'campo pieno a 4');
+    assert.equal(new Set(celle).size, 4, 'cloni REQUIRED byte-distinti: niente paia identiche (crash 23/10)');
+    assert.equal(out.report.armonica, 2, 'nel report contati i cloni');
+    // il clono resta la STESSA vettura (carId e preset invariati)
+    const hexOf = (h) => Buffer.from(h, 'hex');
+    const carIdOf = (b) => { for (const g of ev.decodeMsg(b)) if (g.field === 3) return g.bytes.toString(); return null; };
+    const ids = celle.map((h) => carIdOf(hexOf(h)));
+    assert.ok(ids.every((x) => x === 'ks_f40_lm'), 'i cloni restano nella serie');
+  } finally {
+    if (primaEnv === undefined) delete process.env.EVO_CLASSES_FILE; else process.env.EVO_CLASSES_FILE = primaEnv;
+  }
+});
+
+test('ARMONICA OFF di default: senza opt-in il rifiuto resta', () => {
+  // altre serie NON armoniche: nulla cambia rispetto a prima (lezione 20/10+23/10)
+  let err = null;
+  try { costruisce([4], 5); } catch (e) { err = e; }
+  assert.ok(err, '1 sola variante per 5 vetture senza armonica → rifiuto');
+  assert.match(err.message, /APPLICA/);
 });

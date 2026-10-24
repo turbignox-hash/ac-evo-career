@@ -20,7 +20,10 @@ import { alreadyImportedHash } from './import.mjs';
 import { matchTrackName, sameTrack, matchesAnyTrack } from './tracknames.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-export const TESTDAY_FILE = join(HERE, '..', 'data', 'testdays.json');
+// nido per-slot (24/10): il quaderno delle prove vive con la SUA carriera
+// (slot 1 = data/ com'è sempre stato, slot 2-3 = data/slot-N/ vergini)
+import { slotDataDir } from './state.mjs';
+export const TESTDAY_FILE = join(slotDataDir(), 'testdays.json');
 
 const trackName = (ladder, id) => ladder.contentNames?.tracks?.[id] ?? id;
 

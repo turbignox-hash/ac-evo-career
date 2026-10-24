@@ -406,7 +406,9 @@ export function annotateAllyAdvice(bp, { trackDisplay = null } = {}) {
 
 /* ---------- iscrizione file (per il TEST in gioco) ---------- */
 export function setupsRoot(savedDir) { return join(savedDir, 'Car Setups'); }
-export function listSetups(savedDir, { car = null, track = null } = {}) {
+export function listSetups(savedDir, { car = null, track = null, afterMs = 0 } = {}) {
+  // afterMs (24/10): i .carsetup sono per-PC → con un save con createdAt la
+  // storia del meccanico parte vergine (solo i file scritti dalla nascita in avanti)
   const root = setupsRoot(savedDir);
   if (!existsSync(root)) return [];
   const out = [];
@@ -417,7 +419,10 @@ export function listSetups(savedDir, { car = null, track = null } = {}) {
     for (const t of trks) {
       const tdir = join(cdir, t);
       for (const fname of (existsSync(tdir) ? readdirSync(tdir) : [])) {
-        if (fname.toLowerCase().endsWith('.carsetup')) out.push({ car: c, track: t, name: fname.replace(/\.carsetup$/i, ''), file: join(tdir, fname) });
+        if (!fname.toLowerCase().endsWith('.carsetup')) continue;
+        const full = join(tdir, fname);
+        if (afterMs) { try { if (statSync(full).mtimeMs < afterMs) continue; } catch { continue; } }
+        out.push({ car: c, track: t, name: fname.replace(/\.carsetup$/i, ''), file: full });
       }
     }
   }

@@ -42,12 +42,14 @@ const utf8 = (b) => Buffer.from(b).toString('utf8');
 export function classesFile() {
   return process.env.EVO_CLASSES_FILE ?? join(PROJECT, 'data', 'grid-classes.json');
 }
-let _classesMemo = null; // { mtime, dati }
+let _classesMemo = null; // { percorso, mtime, dati }
 export function loadClasses() {
   const F = classesFile();
   const mtime = existsSync(F) ? statSync(F).mtimeMs : 0;
-  if (!_classesMemo || _classesMemo.mtime !== mtime) {
-    _classesMemo = { mtime, dati: existsSync(F) ? JSON.parse(readFileSync(F, 'utf8')) : { classi: {} } };
+  // il memo PARLA anche del PERCORSO (test con EVO_CLASSES_FILE a cambio file:
+  // due fixture scritte nello stesso tick hanno la stessa mtime ma non i dati).
+  if (!_classesMemo || _classesMemo.percorso !== F || _classesMemo.mtime !== mtime) {
+    _classesMemo = { percorso: F, mtime, dati: existsSync(F) ? JSON.parse(readFileSync(F, 'utf8')) : { classi: {} } };
   }
   return _classesMemo.dati;
 }
@@ -189,6 +191,35 @@ function applyRulesToCell(cellBytes, rules) {
   return { bytes: encodeMsg(out), kg: 0, pct: 0, car: cell.preset ?? cell.carName ?? '?' };
 }
 
+/* ---------- ARMONICA ---------- */
+const PASSO_ARMONICO = 0.0003;   // ±2‰·k: invisibile in gara, unica la firma in byte
+/** Il primo float DI PRIMO LIVELLO della cella è il bersaglio del ritocco:
+ *  nella CSL è il f42 (valore 10.0xxxx), campo “di tuning” senza fisica attaccata.
+ *  Ritorno { index, valore } o null (niente float utile → niente armonica). */
+function bersaglioArmonico(cellBytes) {
+  const inner = decodeMsg(cellBytes);
+  const i = inner.findIndex((g) => g.wire === 5 && g.bytes?.length === 4);
+  return i < 0 ? null : { index: i, valore: f32(inner[i].bytes) ?? 0 };
+}
+/** Ritorna true (eiene) se TUTTE le target uniche necessarie sono ottenibili. */
+function armonizza(cellsUniche, target) {
+  return cellsUniche.every((b) => bersaglioArmonico(b) !== null);
+}
+/** Clone della cella di posizione i%len: stesso vettura, stesso preset, stesso
+ *  visual — by byte diverso via il float bersaglio ×(1 + (k+1)·passo). K parte
+ *  da 0 per i cloni; dentro band ±2% comunque non esce. */
+function cloneArmonico(cellBytes, k) {
+  const inner = decodeMsg(cellBytes);
+  const bers = bersaglioArmonico(cellBytes);
+  const m = 1 + (k + 1) * PASSO_ARMONICO;
+  inner[bers.index].bytes = setF32(mantieniBanda(bers.valore, m));
+  return Buffer.from(encodeMsg(inner));
+}
+function mantieniBanda(v, m) {
+  const x = v * m;
+  return Math.max(v * 0.98, Math.min(v * 1.02, x));
+}
+
 /* ---------- costruzione messaggio completo ---------- */
 /**
  * opts = { ladder, nodeId, roundIndex, state, file }
@@ -298,10 +329,52 @@ export function buildGridMessage(opts) {
     const k = Buffer.from(b).toString('hex');
     if (!vistiCella.has(k)) { vistiCella.add(k); cellsUniche.push(b); }
   }
+  let cloniArmonici = 0;
   if (cellsUniche.length < target) {
-    throw new Error(`griglia rifiutata: il template ha solo ${cellsUniche.length} celle uniche (servono ${target}) — con celle ripetute EVO 0.9.1 crasha (lezione 20/10 + crash 23/10 sull'F40). O si fissa la griglia a ${cellsUniche.length} vetture, o si genera in EVO una griglia personalizzata con più LIVERIES della stessa auto (${target} varianti) e si preme APPLICA.`);
+    // ARMONICA (24/10, doppio passo Mauro «Test harmonic CSL»): le varianti
+    // REALI della CSL sul disco sono 3-5, ma la ronda nativa chiede 14 — e il
+    // gesto "14 liveries + APPLICA" non è sempre fattibile (il gioco non
+    // offre hi-differenti varianti per ogni auto). Opt-in PER SERIE
+    // (grid-classes.json → classi[node].armonica = true): si completano i
+    // posti mancanti con cloni delle celle reali resi byte-DISTINTI ritoccando
+    // SOLO un campo float di tetto (±2‰·k) — si evita la sola cosa che ha
+    // davvero crashato (lezione 20/10 + F40 23/10: due paia BYTE-IDENTICHE); la
+    // griglia scritta da EVO ha liveries ripetute (Delta Evo II: 7 visual ×2)
+    // e gira. Rimane un ESATTO fallback: se il template non offre un valore
+    // float utile, si cade nel vecchio rifiuto, ché l'altra via è il crash.
+    const cls = loadClasses().classi?.[nodeId];
+    if (cls?.armonica === true && armonizza(cellsUniche, target)) {
+      cloniArmonici = target - cellsUniche.length;
+    } else {
+      throw new Error(tr({
+        it: `griglia rifiutata: il template ha solo ${cellsUniche.length} celle uniche (servono ${target}) — con celle ripetute EVO 0.9.1 crasha (lezione 20/10 + crash 23/10 sull'F40). O si fissa la griglia a ${cellsUniche.length} vetture, o si genera in EVO una griglia personalizzata con più LIVERIES della stessa auto (${target} varianti) e si preme APPLICA oppure si accende "armonica: true" per ${nodeId} in grid-classes.json.`,
+        en: `grid rejected: the template has only ${cellsUniche.length} unique cells (need ${target}) — repeated cells crash EVO 0.9.1 (lesson 20/10 + 23/10 F40 crash). Either fix the grid to ${cellsUniche.length} cars, or generate a custom grid in EVO with more LIVERIES of the same car (${target} variants) and press APPLY, or set "armonica: true" for ${nodeId} in grid-classes.json.`,
+      }));
+    }
   }
-  for (let i = 0; i < target; i++) newCells.push(cellsUniche[i % cellsUniche.length]);
+  // tiling con VERIFY finale: due cloni di basi diverse potrebbero capitare sul
+  // STESSO valore float (10.000019·1.0003 == 10.003·(1)): doppioni byte → crash.
+  // Risolvo rialzando il passo (+50.0003 fresche) finché l'elenco è tutto distinto.
+  const vistiFinale = new Set();
+  for (let i = 0; i < target; i++) {
+    const base = cellsUniche[i % cellsUniche.length];
+    let b = i < cellsUniche.length ? Buffer.from(base) : cloneArmonico(base, i - cellsUniche.length);
+    let kClone = i - cellsUniche.length, tentativi = 0;
+    let firma = Buffer.from(b).toString('hex');
+    while (vistiFinale.has(firma) && tentativi < 50) {
+      b = cloneArmonico(base, kClone + 50 + tentativi);
+      firma = Buffer.from(b).toString('hex');
+      tentativi++;
+    }
+    if (vistiFinale.has(firma)) {
+      throw new Error(tr({
+        it: `griglia rifiutata: anche con la modalità armonica non riesco a rendere ${target} celle byte-distinte da ${cellsUniche.length} reali (nessun float utile nel template). In EVO: griglia personalizzata con più LIVERIES della stessa auto (${target} varianti) e APPLICA.`,
+        en: `grid rejected: even in harmonic mode I cannot make ${target} byte-distinct cells from ${cellsUniche.length} real ones (no usable float in the template). In EVO: custom grid with more LIVERIES of the same car (${target} variants) and APPLY.`,
+      }));
+    }
+    vistiFinale.add(firma);
+    newCells.push(b);
+  }
   const newDrivers = [];
   for (let i = 0; i < target; i++) newDrivers.push(tpl.drivers[i % tpl.drivers.length]);
 
@@ -399,6 +472,7 @@ export function buildGridMessage(opts) {
 
   const report = {
     serie: `${node.display} · ${round.name ?? round.track} (round ${roundIndex + 1}/${node.calendar.length})`,
+    armonica: cloniArmonici || null,
     gridSize: target,
     source: file,
     poolMulti: poolMultiInfo ? `multi-marca: ${poolMultiInfo.auto} auto diverse (${poolMultiInfo.celle} celle nel template)` : null,

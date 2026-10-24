@@ -385,10 +385,16 @@ async function enterFlow(nodeId, name, econ){
 
 /* -------- archivio risultati -------- */
 async function drawArchive(m){
-  const c = await api('catalog');
+  // SCOPE CARRIERA (24/10): di default solo i risultati nati con QUESTA carriera
+  // (Results è UNA cartella per PC, condivisa dagli slot); l'interruttore mostra
+  // tutto il disco.
+  const c = await api('catalog', { all: !!window.__arcAllPc });
   m.innerHTML = `
   <div class="panel">
     <h2>${tr({ it: 'Archivio sessioni', en: 'Session archive' })} <span class="h-act">${c.archive.total} ${tr({ it: 'file nei Results di EVO', en: 'files in EVO\'s Results' })}</span></h2>
+    <div class="muted" style="font-size:11.5px;margin:0 0 8px">${c.archive.scoped
+      ? `${tr({ it: 'Mostrati solo i file nati con QUESTA carriera: Results è una cartella condivisa per PC.', en: 'Showing only files born with THIS career: Results is a PC-wide shared folder.' })} <button class="mini" id="b-arc-all">${tr({ it: 'Mostra tutto il PC', en: 'Show the whole PC' })}</button>`
+      : `${tr({ it: 'Mostrato TUTTO il PC: Results è una cartella condivisa dagli slot.', en: 'Showing the WHOLE PC: Results is shared across slots.' })} <button class="mini" id="b-arc-all">${tr({ it: 'Solo carriera', en: 'Career only' })}</button>`}</div>
     <div class="row"><input type="text" id="arc-q" placeholder="${tr({ it: 'Cerca pista, pilota, sessione…', en: 'Search track, driver, session…' })}" style="max-width:280px"></div>
     <div id="arc-body"></div>
   </div>`;
@@ -422,6 +428,8 @@ async function drawArchive(m){
     $$('.arc-row', body).forEach(tr => tr.onclick = () => openResult(tr.dataset.file));
   };
   paint();
+  const bAll = $('#b-arc-all');
+  if (bAll) bAll.onclick = () => { window.__arcAllPc = !window.__arcAllPc; render(); };
   $('#arc-q').oninput = () => paint($('#arc-q').value);
 }
 
