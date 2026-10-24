@@ -124,7 +124,9 @@ const ICONS = {
   cars:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 9.5 4 5.8A1.8 1.8 0 0 1 5.7 4.5h4.6A1.8 1.8 0 0 1 12 5.8l1.5 3.7M2.5 9.5h11M2.5 9.5v2.6a.9.9 0 0 0 .9.9h1.2a.9.9 0 0 0 .9-.9v-.4h5.8v.4a.9.9 0 0 0 .9.9h1.2a.9.9 0 0 0 .9-.9V9.5"/></svg>',
   garage:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 7 8 2.5 14.5 7M3 6.3V13.5h10V6.3M5 13.5V10h6v3.5M5 11.5h6"/></svg>',
   gauge:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 12a5.5 5.5 0 1 1 11 0"/><path d="M8 12 10.8 7" stroke-linecap="round"/></svg>',
-  hotlaps:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="9" r="5"/><path d="M8 9V6.2M6.4 1.7h3.2M10.6 5.2l1.4 .4" stroke-linecap="round"/></svg>',
+  /* 24/10: l'icona del quaderno giri liberi era scritta sulla chiave `hotlaps`
+     ma la nav cerca ICONE[tab] per `gironi`: il tab nasceva SENZA icona (Mauro). */
+  gironi:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="9" r="5"/><path d="M8 9V6.2M6.4 1.7h3.2M10.6 5.2l1.4 .4" stroke-linecap="round"/></svg>',
 };
 /* icone dei pannelli del cruscotto (16x16, stile coerente con la nav) */
 const LI = {

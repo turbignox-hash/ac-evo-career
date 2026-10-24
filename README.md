@@ -20,9 +20,10 @@ with one important difference stated up front:
 > moment it cannot be set automatically, so you choose it in the game's
 > interface — and the race card already tells you *which* one.
 
-**The career model was reconstructed from the real install of the AMS2 career
-project it is inspired by** (its `career` fields, ladder, economy, points,
-profiles, classes and series).
+**The career is inspired by Apex to Zero, the Automobilista 2 career app — but
+developed from scratch**: the ladder, economy, points, profiles, classes and
+series are code and data written for EVO, not a reconstruction of the original
+project.
 
 ## The four things you should know first
 
@@ -451,7 +452,8 @@ bumper. Each full zip contains COME-RIPRISTINARE.txt (restore steps).
 
 ## References
 
-- **The Automobilista 2 career project** the model comes from.
+- **Apex to Zero**, the Automobilista 2 career app the idea comes from
+  (everything else is developed from scratch).
 - **Assetto Corsa EVO**, result format: `Results\*.sessionresults.json`.
 - **ACE Career Mode** (acecareermode.com), a third-party EVO career using `.rpy`
   replays — a useful comparison; here the native result is read, no uploads nor

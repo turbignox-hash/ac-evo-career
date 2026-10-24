@@ -20,9 +20,9 @@ differenza importante e detta subito:
 > momento non è possibile impostarla in automatico, quindi la scegli tu
 > nell'interfaccia del gioco — e sulla scheda gara trovi già indicato quale.
 
-**Il modello di carriera è ricavato dall'installazione reale del progetto
-d'ispirazione per AMS2** (campi di `career`, ladder, economia, punti, profili,
-classi e serie).
+**La carriera è ispirata ad Apex to Zero, l'app di carriera per Automobilista 2,
+ma è sviluppata da zero**: ladder, economia, punti, profili, classi e serie sono
+codice e dati scritti per EVO, non ricostruzioni del progetto d'origine.
 
 ## I quattro appunti da sapere in partenza
 
@@ -452,7 +452,8 @@ COME-RIPRISTINARE.txt (passi di ripristino).
 
 ## Riferimenti
 
-- **Il progetto di carriera per Automobilista 2** da cui nasce il modello.
+- **Apex to Zero**, il progetto di carriera per Automobilista 2 da cui nasce
+  l'idea (il resto è sviluppato da zero).
 - **Assetto Corsa EVO**, formato dei risultati: `Results\*.sessionresults.json`.
 - **ACE Career Mode** (acecareermode.com), carriera di terze parti per EVO che
   usa i replay `.rpy`: termine di paragone utile — qui si legge il risultato
