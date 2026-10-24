@@ -146,7 +146,7 @@ async function main() {
   console.log('  [\u2191] Ci sono ' + s.remotoAvanti + ' aggiornamenti di progetto su GitHub. (il tuo save non si tocca)');
   const si = await chiedi('      Installare ora? [s/N] (attendi 15s, Invio = no): ', 15000);
   if (!si) { console.log('  -  aggiornamento saltato: si parte con la versione sul disco.'); return; }
-  const r = installaAggiornamenti();
+  const r = await installaAggiornamenti();
   if (r.ok && r.nessuno) console.log('  -  ' + r.messaggio);
   else if (r.ok) {
     console.log('  [x] Installati ' + r.installati + ' aggiornamenti: ora sei a ' + (r.hash ?? '?') + '.');
