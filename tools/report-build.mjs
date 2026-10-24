@@ -68,13 +68,26 @@ const oggi = new Date().toISOString().slice(0, 10);
 // ---- esito test (facoltativo) -----------------------------------------
 let testRiga = '';
 if (conTest) {
-  let ok = true, nota = '';
-  // niente npm: su Windows npm è un .cmd e execFileSync (senza shell) lo
-  // rifiuta con EINVAL — l'esito sembrava sempre FALLITO. Il runner è node:
-  // `node --test` (scopre i file in test/ da solo, package.json concorda).
-  try { execFileSync(process.execPath, ['--test'], { cwd: RADICE, encoding: 'utf8', timeout: 120000, stdio: ['ignore', 'pipe', 'pipe'] }); }
-  catch (e) { ok = false; nota = ' — VEDI LOG: il pacchetto è arrivato ma i test non passano'; }
-  testRiga = `- Esito suite di test: ${ok ? 'passati ✅' : 'FALLITI ❌' + nota}\n`;
+  // il conteggio si LEGGE dal run vero (# tests / # pass / # fail di node --test):
+  // nessun numero scritto a mano (24/10: «suite 187/187» era il conteggio di
+  // metà sessione, la suite vera era 181 — così il report dice sempre il reale)
+  let ok = true, nota = '', tests = '?', pass = '?', fail = '?';
+  const prendi = (out, r) => (out.match(new RegExp('# ' + r + ' \\d+'))?.[0]?.split(' ')[2] ?? '?');
+  try {
+    // STESSO glob di npm test: la scoperta di default di `node --test` (senza
+    // argomenti) becca anche i file HELPER che iniziano con "test-" o stanno
+    // in test/ (_flows-sandbox, _game-sandbox, src/test-mode.mjs,
+    // tools/test-f2-insert.mjs e le 2 copie in dist/) — e gonfiava il
+    // conteggio da 181 a 187. Il glob dà la suite canonica.
+    const out = execFileSync(process.execPath, ['--test', 'test/*.test.mjs'], { cwd: RADICE, encoding: 'utf8', timeout: 120000, stdio: ['ignore', 'pipe', 'pipe'] });
+    tests = prendi(out, 'tests'); pass = prendi(out, 'pass'); fail = prendi(out, 'fail');
+  } catch (e) {
+    ok = false;
+    const out = String(e.stdout ?? '') + String(e.stderr ?? '');
+    tests = prendi(out, 'tests'); pass = prendi(out, 'pass'); fail = prendi(out, 'fail');
+    nota = ` — VEDI LOG: il pacchetto è arrivato ma i test non passano (${pass}/${tests} passati, ${fail} falliti)`;
+  }
+  testRiga = `- Esito suite di test: ${ok ? `passati ✅ (${pass}/${tests} test)` : 'FALLITI ❌' + nota}\n`;
 }
 
 const prima = daVersione ? `Aggiornamento da **${daVersione}**` : 'Primo report del meccanismo (storia recente inclusa)';

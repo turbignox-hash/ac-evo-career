@@ -6,7 +6,7 @@ _Data: 2026-10-24 · Aggiornamento da **v0.1.9**_
 - lapNo in 'hud' pure: il narratore «giro finito» della copilota parla dal giro 1 · 84cf21d
 - Vigia del parco auto + copilota curato + soldi e reputazione reintrodotti (v0.1.11) · 49a476e
 
-- Esito suite di test: passati ✅ (riga corretta dopo il fix: il vecchio script misurava `npm` via execFileSync e su Windows falliva da solo — il ragionatore ora usa `node --test`; reale 187/187)
+- Esito suite di test: passati ✅ (riga corretta dopo il fix: il vecchio script misurava `npm` via execFileSync e su Windows falliva da solo — il ragionatore ora usa `node --test`; suite reale **181/181** — nota: il «187/187» scritto qui prima contava anche 6 file-helper di prova raccattati dalla scoperta default di node --test, vedi NOTE-AUTOMAZIONE 24/10)
 
 ## Come si aggiorna
 - **Dalla GUI:** la barra in alto dice "Aggiornamenti di progetto pronti su GitHub" → bottone **Aggiorna ora** (fetch + merge + test; il server si riavvia da solo).

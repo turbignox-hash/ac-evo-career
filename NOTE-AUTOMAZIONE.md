@@ -26,7 +26,10 @@
   (30 s), ultimo giro + bandiera a scacchi, cambio posizione.
 - Test: test/car-pool.test.mjs (5) + e2e watcher sistemato (la Ferrari
   296 default di evo-fake-result in serie stocking-car valeva autoFuori:
-  ora --car Abarth 695). Suite completa 187/187.
+  ora --car Abarth 695). Suite completa 187/187 (conteggio di allora:
+  la scoperta default di node --test prendeva anche gli helper; con il
+  glob canonico di npm test la suite reale è 181 — vedi nota «CONTEGGIO
+  SUITE» più giù).
 
 ## GRIGLIA ARMONICA — la CSL (e ogni serie marcata) gira senza il gesto delle 14 liveries (24/10, sera) — IMPLEMENTATA E TESTATA
 
@@ -160,7 +163,16 @@
     senzaVincoli non serve più lì, tolto dall'import di race.mjs);
   • resta aperta la prova-libera delle serie per piazzamenti, mentre
     l'economia e la reputazione proiettano la scalata vera.
-  Suite 187/187 verde.## CRASH EVO AL CARICAMENTO GARA: GRIGLIA SCRITTA A MANO FUORI CONTESTO (24/10, 18:34→18:52) — CORRETTO E RIPRISTINATO
+ ♮ CONTEGGIO SUITE (24/10): la suite CANONICA è quella di `npm test`, cioè
+  `node --test "test/*.test.mjs"` → 181/181. La scoperta di default di
+  `node --test` SENZA argomenti becca 6 file si-test-ppure, non test:
+  test/_flows-sandbox.mjs, test/_game-sandbox.mjs, src/test-mode.mjs,
+  tools/test-f2-insert.mjs e le 2 copie in dist/ → 187. I numeri
+  «187/187» scritti nelle note più sopra (e nel messaggio di commit
+  49a476e) includono quei 6 — la suite vera è 181. Ogni contatore d'ora
+  in poi legge il conteggio dal run reale (report-build.mjs usa il
+  glob), niente più numeri a mano.
+## CRASH EVO AL CARICAMENTO GARA: GRIGLIA SCRITTA A MANO FUORI CONTESTO (24/10, 18:34→18:52) — CORRETTO E RIPRISTINATO
 - Mauro lancia la gara e la schermata di caricamento torna al desktop.
   RADICE (mia, non del template): avevo scritto la griglia multiclasse
   (12 celle, 6 R5 + 6 Escort con zavorre) DIRETTAMENTE in
