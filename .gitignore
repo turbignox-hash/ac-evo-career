@@ -30,3 +30,6 @@ sessione-*/
 _server-log.txt
 _crashlog.ps1
 *.customgrid.bak-20*
+# backup di salvataggi e scarti di curl nella root
+*.bak-20*
+http_code
