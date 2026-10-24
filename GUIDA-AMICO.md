@@ -55,7 +55,10 @@ Doppio click su **`avvia.cmd`**:
 
 1. il launcher controlla aggiornamenti (silenzio se sei al passo; se GitHub è
    avanti chiede `s/N` — Invio o 15 secondi = no);
-2. apre l'interfaccia grafica nel browser su `http://127.0.0.1:8642`.
+2. crea sul **Desktop** la scorciatoia «Carriera EVO» (solo se manca o è senza
+   icona: i giri dopo tocca niente) — da lì avvii con un doppio click,
+   l'icona è quella del programma;
+3. apre l'interfaccia grafica nel browser su `http://127.0.0.1:8642`.
 
 Alla prima apertura la GUI mostra il **wizard**: trova da solo le cartelle dati
 (`%USERPROFILE%\Saved Games\ACE`), il gioco in Steam (`AssettoCorsaEVO.exe`) e
