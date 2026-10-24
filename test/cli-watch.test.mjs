@@ -93,7 +93,11 @@ test('watchOnce incassa davvero una gara fresca della pista attesa (end-to-end, 
 
   // gara finta in formato EVO (stesso generatore usato per la demo), fresca e sulla pista attesa
   const fake = spawnSync(process.execPath, [join(ROOT, 'tools', 'evo-fake-result.mjs'),
-    '--dir', Results, '--player', 'Test Driver', '--track', 'Imola', '--position', '2', '--cars', '14',], { encoding: 'utf8', timeout: 30000 });
+    '--dir', Results, '--player', 'Test Driver', '--track', 'Imola', '--position', '2', '--cars', '14',
+    // auto AMMESSA della serie (coppa_citta: Abarth 695/Golf GTI/Alfa Junior):
+    // la vigia del parco auto (car-pool.mjs) giudica la car del risultato e la
+    // Ferrari 296 default qui valeva autoFuori → premio ZERO.
+    '--car', 'Abarth 695 Biposto',], { encoding: 'utf8', timeout: 30000 });
   assert.equal(fake.status, 0, `evo-fake-result exit ${fake.status}: ${(fake.stderr || fake.stdout || '').slice(-300)}`);
 
   const { saveState } = await import('../src/state.mjs?v=e2e');

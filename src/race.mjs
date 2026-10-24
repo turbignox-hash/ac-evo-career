@@ -8,7 +8,7 @@
 //   2. apre il gioco per te.
 // Il resto, cioe' la lettura del risultato, e' automatico: lo fa il file nativo del gioco.
 
-import { difficultyFor, entryFee, pushMessage, nodeById, playerStanding, isClosedNode, senzaVincoli } from './state.mjs';
+import { difficultyFor, entryFee, pushMessage, nodeById, playerStanding, isClosedNode } from './state.mjs';
 import { rebuildGridApply } from './grid-apply.mjs';
 import { contractStatus, challengeFor, trackMastery, sponsorFor, ensureContract, refreshContractTexts } from './life.mjs';
 import { raceCrowdFor } from './memories.mjs';
@@ -18,6 +18,7 @@ import { rivalsOutlook } from './rivals.mjs';
 import { recordFlows } from './flows.mjs';
 import { recordWarning } from './warnings.mjs';
 import { tr, lang } from './lang.mjs';
+import { carPoolOf, carInPool } from './car-pool.mjs';
 
 /* Nomi delle opzioni meteo come compaiono ESATTAMENTE nel menu di EVO
  * (sereno, nuvole sparse, nuvoloso, coperto, pioggia leggera, pioggia, pioggia intensa).
@@ -127,8 +128,22 @@ export function raceCard(ladder, state, { car = null } = {}) {
   let gridRitual = null;
   try { rebuildGridApply({ ladder, nodeId: node.nodeId, roundIndex, dry: true }); }
   catch (e) { if (e?.code === 'NO_TEMPLATE') gridRitual = e.message; }
-  const chosenCar = car ?? advice.pick ?? node.cars[0];
   const carName = (id) => ladder.contentNames?.cars?.[id] ?? id;
+  // VIGIA DEL PARCO AUTO (24/10, richiesta Mauro: «potrei prendere una F1 e la UI
+  // non se ne accorgerebbe dandomi la vittoria»): la scheda PROPOSTE SOLO le auto
+  // ammesse della serie — la classe in grid-classes.json con poolAuto (multiclasse)
+  // se c'è, altrimenti le node.cars del ladder. Un'auto più potente presa comunque
+  // nel gioco NON si nasconde: l'import la marchia senza punti e senza premio
+  // (vedi car-pool.mjs) e qui la card la individua SUBITO, prima di partire.
+  const parco = carPoolOf(ladder, node.nodeId);
+  const parcoIDs = parco.ids.length ? parco.ids : node.cars;
+  const idOf = (x) => (parcoIDs.includes(x) ? x
+    : parcoIDs.find((id) => carName(id).toLowerCase().trim() === String(x ?? '').toLowerCase().trim()) ?? null);
+  const sceltaParcheggiabile = car ? idOf(car) : null;
+  const adviceCar = advice.pick && parcoIDs.includes(advice.pick) ? advice.pick : parcoIDs[0];
+  const chosenCar = sceltaParcheggiabile ?? adviceCar;
+  const fuoriParco = parco.ammesse.length && !!car && !sceltaParcheggiabile;
+  const chosenCarName = carName(chosenCar);
   const trackName = (id) => ladder.contentNames?.tracks?.[id] ?? id;
   const trackDisp = trackName(round.track);
   const layout = layoutFor(trackDisp);
@@ -146,8 +161,11 @@ export function raceCard(ladder, state, { car = null } = {}) {
     totalRounds: node.calendar.length,
     round,
     car: chosenCar,
-    carName: carName(chosenCar),
-    carChoices: node.cars.map((id) => ({ id, display: carName(id) })),
+    carName: chosenCarName,
+    // il selettore (GUI e --car) mostra SOLO il parco ammesso: la multiclasse con
+    // poolAuto in grid-classes.json, altrimenti le auto della serie del ladder
+    carChoices: parcoIDs.map((id) => ({ id, display: carName(id) })),
+    carPool: parco,
     opponentCars: node.cars.map(carName),
     trackId: round.track,
     trackName: trackName(round.track),
@@ -164,7 +182,7 @@ export function raceCard(ladder, state, { car = null } = {}) {
     settings: [
       [tr({ it: 'Modalità', en: 'Mode' }), tr({ it: 'Weekend di gara', en: 'Race weekend' })],
       [tr({ it: 'Pista', en: 'Track' }), tr({ it: `${trackDisp} — layout ${layout}`, en: `${trackDisp} — layout ${layout}` })],
-      [tr({ it: 'Auto', en: 'Car' }), tr({ it: `${carName(chosenCar)}${node.cars.length > 1 ? ` (una delle auto della serie: ${node.cars.map(carName).join(', ')})` : ''}`, en: `${carName(chosenCar)}${node.cars.length > 1 ? ` (one of the series cars: ${node.cars.map(carName).join(', ')})` : ''}` })],
+      [tr({ it: 'Auto', en: 'Car' }), tr({ it: `${chosenCarName}${node.cars.length > 1 ? ` (un'auto ammessa della serie: ${parco.ammesse.slice(0, 6).join(', ')})` : ` (serie monomarca: ${chosenCarName})`}`, en: `${chosenCarName}${node.cars.length > 1 ? ` (one of the series' pool cars: ${parco.ammesse.slice(0, 6).join(', ')})` : ` (one-make series: ${chosenCarName})`}` })],
       [tr({ it: 'Avversari', en: 'Opponents' }), tr({ it: `${node.gridSize - 1} auto`, en: `${node.gridSize - 1} cars` })],
       [tr({ it: 'Auto avversarie', en: 'Opponent cars' }), tr({ it: node.cars.length > 1 ? `tutte della serie: ${node.cars.map(carName).join(', ')}` : `${carName(node.cars[0])} (serie monomarca)`, en: node.cars.length > 1 ? `all from the series: ${node.cars.map(carName).join(', ')}` : `${carName(node.cars[0])} (one-make series)` })],
       [tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), tr({ it: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%${diffShown.overridden ? ' — scelto a mano' : ''}`, en: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%${diffShown.overridden ? ' — set by hand' : ''}` })],
@@ -213,6 +231,10 @@ export function raceCard(ladder, state, { car = null } = {}) {
       return c ? { season: c.season, nodeId: c.nodeId, round: c.round, kind: c.kind, text: c.text, reward: c.reward, penalty: c.penalty, accepted: !!c.accepted, verdict: c.verdict } : null;
     })(),
   };
+  if (fuoriParco) base.warnings.push(tr({
+    it: `Auto fuori serie: «${chosenCarName}» non è nel parco ammesso (${parco.ammesse.slice(0, 5).join(', ')}) — in EVO scegli una di queste: un'auto fuori pool all'import vale 0 punti e 0 premio, comunque vada la gara.`,
+    en: `Car flagged outside the series: «${chosenCarName}» is not in the allowed pool (${parco.ammesse.slice(0, 5).join(', ')}) — pick one of those in EVO: an outside-pool car scores 0 points and 0 prize at import, no matter how the race goes.`,
+  }));
   return {
     ...base,
     distPct,
@@ -321,7 +343,10 @@ export function chargeEntry(ladder, state, node) {
   const contract = ensureContract(ladder, state, node);
   refreshContractTexts(ladder, state, node);
   if (contract) pushMessage(state, tr({ it: `Contratto ${node.display}: ${contract.clauses.map((c) => c.text).join('; ')}. Premio al rispetto: ${contract.payout} €`, en: `Contract ${node.display}: ${contract.clauses.map((c) => c.textEn ?? c.text).join('; ')}. Reward for compliance: ${contract.payout} €` }), 'info');
-  const fee = senzaVincoli() ? 0 : entryFee(node);
+  // iscrizione tornata canonica (24/10 notte, Mauro: «reintroduci i soldi e la
+  // reputazione per i campionati») — la modalità «senza vincoli» apre solo
+  // quello che decide gateStatus (piazzamenti), niente più iscrizioni gratis
+  const fee = entryFee(node);
   const round = state.round;
   const already = (state.results[node.nodeId] ?? []).some((r) => r.season === state.season && r.round === round);
   if (already || fee === 0) return 0;

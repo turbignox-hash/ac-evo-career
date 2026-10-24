@@ -1,0 +1,101 @@
+// car-pool.test.mjs — il vigia del parco auto (24/10, richiesta Mauro: «potrei
+// prendere una F1 e la UI non se ne accorgerebbe»): qui si prova che si
+// ACCORGE. Il pool della serie (poolAuto − escludiAuto della classe, o node.cars
+// del ladder) e il match tollerante dei nomi come li scrive EVO (brand + modello,
+// con o senza anno, accenti a caso).
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { carPoolOf, carInPool } from '../src/car-pool.mjs';
+
+const TMP = mkdtempSync(join(tmpdir(), 'carpool-'));
+
+// ladder minimo: una serie monomarca + una con poolAuto in grid-classes.json
+const LADDER = {
+  contentNames: {
+    cars: {
+      'ks_ae86_1600': 'Toyota Sprinter Trueno 1600GT-Apex (AE86)',
+      'ks_ae86_gtv': 'Toyota Sprinter Trueno GT-Apex (AE86)',
+      'ks_f40_lm': 'Ferrari F40 LM',
+      'ks_mini_jcs_1990': 'Mini John Cooper S',
+      'ks_mazda_mx5_na': 'Mazda MX-5 NA',
+      'ks_s2000_ap1': 'Honda S2000 AP1',
+    },
+  },
+  nodes: [
+    { nodeId: 'coppa_ae86', cars: ['ks_ae86_1600', 'ks_ae86_gtv'] },
+    { nodeId: 'coppa_strada', cars: ['ks_s2000_ap1'] },
+  ],
+};
+
+function scriviClassi(obj) {
+  mkdirSync(TMP, { recursive: true });
+  const f = join(TMP, `grid-classes-${Date.now()}-${Math.random().toString(16).slice(2)}.json`);
+  writeFileSync(f, JSON.stringify(obj), 'utf8');
+  process.env.EVO_CLASSES_FILE = f;
+  return () => { delete process.env.EVO_CLASSES_FILE; };
+}
+
+test('senza classe in grid-classes.json: il pool è node.cars della serie', () => {
+  const ripristina = scriviClassi({ classi: {} });
+  try {
+    const parco = carPoolOf(LADDER, 'coppa_ae86');
+    assert.deepEqual(parco.ids, ['ks_ae86_1600', 'ks_ae86_gtv']);
+    assert.deepEqual(parco.ammesse, ['Toyota Sprinter Trueno 1600GT-Apex (AE86)', 'Toyota Sprinter Trueno GT-Apex (AE86)']);
+  } finally { ripristina(); }
+});
+
+test('classe con poolAuto: il pool sostituisce node.cars, escludiAuto le toglie via', () => {
+  // i token del preset (≥3 lettere: 'jcs', 'mx5na') riconoscono le auto
+  // escluse dentro i nomi/ID del pool, come la Coppa RX-7 FD del 23/10
+  const ripristina = scriviClassi({
+    classi: {
+      coppa_strada: {
+        poolAuto: ['ks_s2000_ap1', 'ks_mini_jcs_1990', 'ks_mazda_mx5_na'],
+        escludiAuto: ['preset_jcs_mech_1', 'preset_mx5na_mech_1'],
+      },
+    },
+  });
+  try {
+    const parco = carPoolOf(LADDER, 'coppa_strada');
+    assert.deepEqual(parco.ids, ['ks_s2000_ap1']);
+    assert.deepEqual(parco.escluse, ['Mini John Cooper S', 'Mazda MX-5 NA']);
+    assert.ok(parco.ammesse.some((n) => /S2000/.test(n)));
+  } finally { ripristina(); }
+});
+
+test('l\'auto della vittoria combacia col pool anche a parole mescolate/annate diverse', () => {
+  const ripristina = scriviClassi({ classi: { coppa_ae86: { poolAuto: ['ks_ae86_1600'] } } });
+  try {
+    const ammesse = carPoolOf(LADDER, 'coppa_ae86').ammesse;
+    // il nome del risultato: brand + modello, con o senza anno/accenti
+    assert.equal(carInPool('Toyota Sprinter Trueno 1600GT-Apex (AE86)', ammesse), true);
+    assert.equal(carInPool('toyota  trueno  1600gt-apex (ae86)', ammesse), true);
+    assert.equal(carInPool('Toyota Sprinter Trueno 1600 GT Apex', ammesse), true);
+  } finally { ripristina(); }
+});
+
+test('la F1 nel sedile della Coppa AE86 NON passa: il vigia la vede', () => {
+  const ripristina = scriviClassi({ classi: { coppa_ae86: { poolAuto: ['ks_ae86_1600'] } } });
+  try {
+    const ammesse = carPoolOf(LADDER, 'coppa_ae86').ammesse;
+    assert.equal(carInPool('Ferrari F2004', ammesse), false);
+    assert.equal(carInPool(' McLaren MP4/4', ammesse), false);
+    // e nemmeno la versione potenziata della STESSA auto (richiesta di Mauro:
+    // «la 1600 lasciala, ho preso la potenziata e la gara è semplice»)
+    assert.equal(carInPool('Toyota Sprinter Trueno GT-Apex (AE86)', ammesse), false);
+  } finally { ripristina(); }
+});
+
+test('niente pool (classe né nodo), niente giudizio: carInPool ammette tutto', () => {
+  const ripristina = scriviClassi({ classi: {} });
+  try {
+    const parco = carPoolOf(LADDER, 'serie_inesistente');
+    assert.deepEqual(parco.ammesse, []);
+    assert.equal(carInPool('Ferrari F2004', parco.ammesse), true);   // niente da confrontare: non si blocca
+    assert.equal(carInPool(null, ammi(parco)), true);   // il risultato che tace non si giudica
+  } finally { ripristina(); }
+});
+const ammi = (parco) => parco.ammesse;

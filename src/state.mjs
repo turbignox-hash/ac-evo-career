@@ -47,14 +47,15 @@ export function activeSlot(env = process.env) {
   return Math.max(1, Math.min(3, Math.floor(Number(env.ACE_SLOT) || 1)));
 }
 
-/* MODALITÀ «SENZA VINCOLI» (24/10, richiesta Mauro: «leva tutti i blocchi dei
- * campionati, soldi e reputazione, fammi entrare dove voglio»): se esiste
- * data/senza-vincoli.json tutti i cancelletti della scalata si APRONO:
- *  - gateStatus = sempre ok (niente piazzamenti-minimi né reputazione minima);
- *  - sedili: comprati o affittati GRATIS (il soldo della scalata resta intatto);
- *  - iscrizione di ronda: zero (race.chargeEntry). 
- * Il file viene ricontrollato ogni 5 s: per TORNARE alla scalata vera basta
- * cancellarlo. Restano a pagamento gli acquisti in garage (mercato, non campionati). */
+/* MODALITÀ «SENZA VINCOLI» (24/10, richiesta Mauro — 2° giro la stessa sera:
+ * «reintroduci i soldi e la reputazione per i campionati», poi si riprende
+ * con la build): se esiste data/senza-vincoli.json si aprono SOLO i
+ * cancelletti a PIAZZAMENTO della scalata (i «servono il top N nella serie
+ * montante); la REPUTAZIONE torna a contare e il DENARO torna a muoversi:
+ * sedili comprati o affittati al prezzo vero, iscrizione di ronda pagata
+ * anche al primo giro (chargeEntry). Il file viene ricontrollato ogni 5 s:
+ * per TORNARE alla scalata vera al 100% basta cancellarlo. Restano a
+ * pagamento anche gli acquisti in garage (mercato, ma quello era già così). */
 const BASE_DATA_DIR = process.env.EVO_DATA_DIR ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'data');
 const SENZA_VINCOLI_FILE = join(BASE_DATA_DIR, 'senza-vincoli.json');
 let _senzaVincoliAt = 0;
@@ -244,13 +245,14 @@ export function saveState(file, state) {
 /* ------------------------------------------------------------------ */
 
 export function gateStatus(ladder, state, node) {
-  // senza vincoli: i cancelletti della scalata (piazzamenti, reputazione)
-  // non bloccano più niente (Mauro 24/10, test libero dei campionati)
-  if (senzaVincoli()) return { ok: true, reasons: [] };
+  // senza vincoli: i cancelletti a PIAZZAMENTO si aprono (test libero delle
+  // serie), ma la REPUTAZIONE richiesta resta un vero blocco (24/10 notte,
+  // Mauro: soldi e reputazione reintrodotti per i campionati)
+  const aperto = senzaVincoli();
   const reasons = [];
   let ok = true;
   const req = node.requires;
-  if (req) {
+  if (req && !aperto) {
     const best = state.bestFinish[req.nodeId];
     const feeder = nodeById(ladder, req.nodeId);
     if (best == null) {
@@ -452,9 +454,12 @@ function garageCarForSeat(state, node) {
 }
 
 export function enterNode(ladder, state, node, { buy = false, force = false } = {}) {
+  // la modalità «senza vincoli» (= cancelletti a piazzamento aperti, già
+  // gestito dentro gateStatus) NON sorvola la reputazione e NON regala i
+  // sedili: il denaro della scalata torna a muoversi (24/10 notte, revisione
+  // Mauro «reintroduci i soldi e la reputazione per i campionati»)
   const gate = gateStatus(ladder, state, node);
-  const libera = senzaVincoli();
-  if (!gate.ok && !force && !libera) {
+  if (!gate.ok && !force) {
     throw new Error(`Sedile non disponibile in ${node.display}:\n  - ${gate.reasons.join('\n  - ')}\nUsa --force per forzare.`);
   }
   const closed = isClosedNode(node);
@@ -464,14 +469,9 @@ export function enterNode(ladder, state, node, { buy = false, force = false } = 
     // parco chiuso: il team ti mette a disposizione auto e posto (niente acquisti, niente affitto)
     pushMessage(state, `${node.display} è a parco chiuso: contratto ufficiale, la vettura te la danno loro.`, 'info');
   } else if (buy && buyPrice > 0) {
-    if (libera) {
-      // senza vincoli il sedile si compra gratis: il soldo della scalata resta intatto
-      pushMessage(state, `Senza vincoli: sedile in ${node.display} gratuito (vano i ${buyPrice}).`, 'info');
-    } else {
-      if (state.money < buyPrice) throw new Error(`Servono ${buyPrice} per comprare il sedile, ne hai ${state.money}.`);
-      state.money -= buyPrice;
-      pushMessage(state, `Hai comprato il sedile in ${node.display} (-${buyPrice}).`, 'money');
-    }
+    if (state.money < buyPrice) throw new Error(`Servono ${buyPrice} per comprare il sedile, ne hai ${state.money}.`);
+    state.money -= buyPrice;
+    pushMessage(state, `Hai comprato il sedile in ${node.display} (-${buyPrice}).`, 'money');
   } else {
     const rent = closed ? 0 : (econ.rent ?? 0);
     const owned = rent > 0 ? garageCarForSeat(state, node) : null;
@@ -480,13 +480,9 @@ export function enterNode(ladder, state, node, { buy = false, force = false } = 
       // la usi tu e il noleggio non esiste (l'usura la paga l'odometro del garage)
       pushMessage(state, `Il sedile in ${node.display} vai a sedere con la tua ${owned.carName} del garage: niente affitto (risparmiati ${rent}).`, 'money');
     } else if (rent > 0) {
-      if (libera) {
-        pushMessage(state, `Senza vincoli: affitto del sedile in ${node.display} gratuito (vano il ${rent}).`, 'info');
-      } else {
-        if (state.money < rent) throw new Error(`Servono ${rent} per l'affitto del sedile in ${node.display}, ne hai ${state.money}.`);
-        state.money -= rent;
-        pushMessage(state, `Hai affittato il sedile in ${node.display} (-${rent}).`, 'money');
-      }
+      if (state.money < rent) throw new Error(`Servono ${rent} per l'affitto del sedile in ${node.display}, ne hai ${state.money}.`);
+      state.money -= rent;
+      pushMessage(state, `Hai affittato il sedile in ${node.display} (-${rent}).`, 'money');
     }
   }
   state.node = node.nodeId;
@@ -639,20 +635,30 @@ export function careerStats(ladder, state) {
 export function applyRaceResult(ladder, state, node, payload) {
   const { position, gridSize, dnf = false, fl = false, track = null, round = state.round, at = new Date().toISOString(),
     laps = null, winnerLaps = null, bestLap = null, totalTime = null, gapMs = null, car = null, carNumber = null, sectors = null, durationMin = null,
-    penalty = null, rawPos = null, dsq = false } = payload;
+    penalty = null, rawPos = null, dsq = false, autoFuori = null } = payload;
+  // VIGIA DEL PARCO AUTO (24/10, richiesta Mauro): la gara girata con un'auto
+  // FUORI dal parco della serie (una classe multiclasse ha il poolAuto di
+  // grid-classes.json, altrimenti valgono le node.cars del ladder) si registra
+  // MA valendo ZERO: niente punti, niente premio, nessuna reputazione, la
+  // vittoria non entra nei contatori di carriera e nei record personali.
+  // La posizione resta nell'archivio — che rimane per vedere — ma il
+  // campionato non lo paga.
+  const fuori = !!autoFuori;
   // round A TEMPO (durationMin>0, stile del modello originario): la "distanza" piena è la durata
   // del calendario e il premio scala con la distanza scelta (50% → metà premio)
   const distPct = [25, 50, 75, 100].includes(Number(state.raceSettings?.[node.nodeId]?.distPct)) ? Number(state.raceSettings[node.nodeId].distPct) : 100;
   node = { ...node, econ: { ...node.econ, prize: Math.max(1, Math.round((node.econ.prize ?? 0) * distPct / 100)) } };
-  const points = pointsFor(ladder, node, position, dnf);
+  const points = fuori ? 0 : pointsFor(ladder, node, position, dnf);
   const iconicRound = isIconicRound(node, track ?? node.calendar[round]?.track);
-  const prize = dnf ? 0 : prizeFor(node, position, gridSize, { iconicRound });
-  const rep = dnf ? 1 : Math.round(repGain(node, position, gridSize) * (iconicRound ? 1.25 : 1));
+  const prize = dnf || fuori ? 0 : prizeFor(node, position, gridSize, { iconicRound });
+  const rep = dnf ? 1 : fuori ? 0 : Math.round(repGain(node, position, gridSize) * (iconicRound ? 1.25 : 1));
   state.results[node.nodeId] ??= [];
   const existing = state.results[node.nodeId].find((r) => r.season === state.season && r.round === round);
   const entry = { season: state.season, round, track, position, gridSize, dnf, fl, points, prize, rep, at,
     laps, winnerLaps, bestLap, totalTime, gapMs, car, carNumber, sectors, durationMin,
-    penalty, rawPos, dsq };
+    penalty, rawPos, dsq,
+    // il sigillo del vigia: auto fuori parco → l'Ufficio sport vedrà perché
+    autoFuori: fuori ? { car: autoFuori?.car ?? null } : null };
   if (existing) Object.assign(existing, entry);
   else state.results[node.nodeId].push(entry);
 
@@ -660,13 +666,13 @@ export function applyRaceResult(ladder, state, node, payload) {
   if (!existing) {
     const s = ensureStats(state);
     s.races += 1;
-    if (!dnf) {
+    if (!dnf && !fuori) {   // fuori parco: zero statistiche di merito (niente vittoria, niente podio)
       s.laps += Number(laps ?? 0) || 0;
       if (position === 1) s.wins += 1;
       if (position <= 3) s.podiums += 1;
     }
-    if (fl) s.fastestLaps += 1;
-    if (!dnf && track && bestLap) {
+    if (fl && !fuori) s.fastestLaps += 1;
+    if (!dnf && !fuori && track && bestLap) {
       const rec = s.bestLaps[track];
       if (!rec || lapTimeMs(bestLap) < lapTimeMs(rec.time)) {
         s.bestLaps[track] = { time: bestLap, car, season: state.season, round, node: node.nodeId, at };
@@ -690,7 +696,7 @@ export function applyRaceResult(ladder, state, node, payload) {
     sponsorTotal += sp.perRace;
     sp.roundsPaid += 1;
     recordFlows(state, [{ kind: 'sponsor', money: sp.perRace, reason: `${sp.name} — quota gara` }]);
-    if (!dnf && position <= 3 && round <= sp.deadlineRound && !sp.missionDone) {
+    if (!dnf && !fuori && position <= 3 && round <= sp.deadlineRound && !sp.missionDone) {
       sponsorTotal += sp.bonus;
       sp.missionDone = true;
       recordFlows(state, [{ kind: 'bonus', money: sp.bonus, reason: `${sp.name} — missione podio entro il round ${sp.deadlineRound + 1}` }]);
@@ -716,7 +722,7 @@ export function applyRaceResult(ladder, state, node, payload) {
 
   state.money += prize + sponsorTotal;
   state.rep += rep;
-  if (!dnf) {
+  if (!dnf && !fuori) {   // fuori parco: il bestFinish della scalata non subisce benefici
     const best = state.bestFinish[node.nodeId];
     state.bestFinish[node.nodeId] = best == null ? position : Math.min(best, position);
   }
@@ -741,6 +747,14 @@ export function applyRaceResult(ladder, state, node, payload) {
     it: `${node.display} · ${node.calendar[round]?.name ?? 'Round ' + (round + 1)}: ${posText}${penText}${gapText ? ' ' + gapText : ''}${fl && bestLap ? ` · giro veloce ${bestLap}` : ''} · +${prize} premio${iconicRound ? ' (prova iconica)' : ''} (+${sponsorTotal} sponsor) · +${rep} reputazione`,
     en: `${node.display} · ${node.calendar[round]?.name ?? 'Round ' + (round + 1)}: ${posText}${penText}${gapText ? ' ' + gapText : ''}${fl && bestLap ? ` · fastest lap ${bestLap}` : ''} · +${prize} prize${iconicRound ? ' (iconic race)' : ''} (+${sponsorTotal} sponsor) · +${rep} reputation`,
   }), dnf ? 'bad' : position <= 3 ? 'good' : 'info');
+  // il comunicato del vigia — la UI non può più fingere di non sapere quale auto ha girato (24/10)
+  if (fuori) {
+    const parcoMsg = (autoFuori?.ammesse ?? []).slice(0, 5).join(', ') || null;
+    pushMessage(state, tr({
+      it: `🚫 Auto FUORI dal parco ammesso di ${node.display}: «${car ?? 'n/d'}»${parcoMsg ? ` — ammesse: ${parcoMsg}` : ''}. La gara è registrata come P${position} ma vale ZERO: 0 punti, 0 premio, 0 reputazione, e vittoria/podio non contano in carriera. Corri la prossima con una vettura della serie e quella paga.`,
+      en: `🚫 Car OUTSIDE the series' pool at ${node.display}: «${car ?? 'n/a'}»${parcoMsg ? ` — allowed: ${parcoMsg}` : ''}. The race is recorded as P${position} but scores ZERO: 0 points, 0 prize, 0 reputation, win/podium don't count in the career. Run the next one with a series car and that one pays.`,
+    }), 'bad');
+  }
 
   const proposal = proposeDifficulty(ladder, state, node, dnf ? gridSize : position, gridSize);
   // memoria di famiglia in corso: la gara sta contando per l'impresa dell'antenato?

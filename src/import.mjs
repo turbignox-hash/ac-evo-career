@@ -34,6 +34,7 @@ import { writeJsonAtomic } from './atomic.mjs';
 import { slotDataDir, savePath, activeSlot } from './state.mjs';
 import { recordRaceFromResult } from './grid-calib.mjs';
 import { avanzaDopoGara } from './agenda.mjs';
+import { carPoolOf, carInPool } from './car-pool.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);
@@ -317,6 +318,20 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
   }
 
   const targetNode = state.pending ? nodeById(ladder, state.pending.node) : node;
+  // VIGIA DEL PARCO AUTO (24/10, richiesta Mauro: «potrei prendere una F1 e la UI
+  // non se ne accorgerebbe dandomi la vittoria»): qui si accorge. L'auto scritta
+  // dal risultato deve rientrare nel parco della serie (classe multiclasse con
+  // poolAuto in grid-classes.json, altrimenti node.cars); fuori → la gara SI
+  // REGISTRA ma valendo ZERO punti e ZERO premio (payload.autoFuori, gestito in
+  // applyRaceResult). Niente giudizio quando l'archivio non scrive l'auto.
+  let autoFuori = null;
+  if (payload.car && !manual) {
+    const parco = carPoolOf(ladder, targetNode.nodeId);
+    if (parco.ammesse.length && !carInPool(payload.car, parco.ammesse)) autoFuori = payload.car;
+  }
+  if (autoFuori) {
+    payload.autoFuori = { car: autoFuori, ammesse: carPoolOf(ladder, targetNode.nodeId).ammesse };
+  }
   const before = playerStanding(ladder, state, targetNode);
   const isNew = !state.results[targetNode.nodeId]?.some((r) => r.season === state.season && r.round === payload.round);
   // RETE 1b — stessa stagione/ronda già in carriera (anche da un file diverso):
@@ -484,7 +499,7 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
     source: sourceInfo,
     node: targetNode.display,
     round: entry.round + 1,
-    entry: { position: entry.dnf ? null : entry.position, gridSize: entry.gridSize, dnf: entry.dnf, fl: entry.fl, points: entry.points, prize: entry.prize, rep: entry.rep, sectors: entry.sectors ?? null },
+    entry: { position: entry.dnf ? null : entry.position, gridSize: entry.gridSize, dnf: entry.dnf, fl: entry.fl, points: entry.points, prize: entry.prize, rep: entry.rep, sectors: entry.sectors ?? null, autoFuori: entry.autoFuori ?? null },
     standing: { before: before?.position ?? null, after: after?.position ?? null, points: after?.points ?? 0 },
     money: state.money, rep: state.rep,
     proposal: proposal ? { reason: proposal.reason, from: proposal.from, to: proposal.to } : null,

@@ -596,6 +596,25 @@ function drawCardInto(el, card){
      SEGUE l'interfaccia (window.LINGUA): inglese UI → voce inglese, italiana
      UI → voce italiana. Nessuna voce sottile della lingua scelta = voce di
      default del sistema (il testo resta comunque corretto). */
+  /* La lista delle voci del browser si carica ASINCRONA (Chrome/Edge): al
+     primo discorso getVoices() è VUOTA e resta la voce di sistema — sulla
+     UI inglese parlava italiano (24/10, Mauro: «ora parla solo italiano»).
+     Cache + onvoiceschanged + scandenza: la voce scelta È quella della
+     lingua dell'interfaccia, identica esatta → prefisso → default. Se la
+     lingua attiva non ha NESSUNA voce installata lo dICO una volta sola. */
+  cp.voci = cp.voci ?? { lista: null, avvisata: {} };
+  const voiceRelod = () => { cp.voci.lista = null; };
+  const vociDi = () => {
+    const vs = speechSynthesis.getVoices?.() ?? [];
+    if (vs.length) { cp.voci.lista = vs; return vs; }
+    if (cp.voci.lista) return cp.voci.lista;
+    return [];
+  };
+  try {
+    speechSynthesis.onvoiceschanged = voiceRelod;
+    // alcuni browser non sparano l'evento: un giro di getVoices() accende la lista
+    setTimeout(() => { cp.voci.lista = speechSynthesis.getVoices?.() ?? cp.voci.lista; }, 600);
+  } catch { /* compatibilità */ }
   const cpSpeak = (text) => {
     if (!text) return;
     try {
@@ -603,10 +622,19 @@ function drawCardInto(el, card){
       const u = new SpeechSynthesisUtterance(text);
       const lv = en ? 'en' : 'it';
       u.lang = en ? 'en-US' : 'it-IT'; u.rate = 1.1; u.volume = 0.9;
-      const vs = speechSynthesis.getVoices() ?? [];
-      const v = vs.find((vv) => (vv.lang ?? '').toLowerCase() === u.lang.toLowerCase())
-        ?? vs.find((vv) => (vv.lang ?? '').toLowerCase().startsWith(lv));
+      const norm = (s) => String(s ?? '').toLowerCase().replace('_', '-');
+      const vs = vociDi();
+      const v = vs.find((vv) => norm(vv.lang) === u.lang.toLowerCase())
+        ?? vs.find((vv) => norm(vv.lang).startsWith(u.lang.toLowerCase()))
+        ?? vs.find((vv) => norm(vv.lang).startsWith(lv));
       if (v) u.voice = v;
+      if (!v && !cp.voci.avvisata[lv] && vs.length) {
+        cp.voci.avvisata[lv] = true;
+        toast(tr({
+          it: `Voce copilota: nessuna voce ${lv.toUpperCase()} installata nel sistema — improvviso con la voce predefinita ma con gli accenti sbagliati. (Pannello Windows → Voce → Aggiungi voci.)`,
+          en: `Copilot voice: no ${lv.toUpperCase()} voice installed on this system — it speaks with the default voice but the wrong accent. (Windows Settings → Speech → Add voices.)`,
+        }), 'warn');
+      }
       speechSynthesis.speak(u);
     } catch { /* la voce non deve mai rompere la vista */ }
   };
@@ -683,6 +711,13 @@ function drawCardInto(el, card){
         ? `<div class="banner warn" style="margin-top:8px;padding:8px 10px"><b>🔧 ${tr({ it: 'Finestra pit', en: 'Pit window' })}</b> — ${esc(pit.reason)}. ${tr({ it: 'Fermarsi al giro ', en: 'Pit on lap ' })}<b>${pit.pitLap + 1}</b> ${pit.lapsToWindow === 0 ? tr({ it: '(aperta adesso)', en: '(open now)' }) : `· ${tr({ it: 'si apre tra ', en: 'opens in ' })}<b>${pit.lapsToWindow}</b> ${tr({ it: 'giri', en: 'laps' })}`} · <span class="muted">${tr({ it: 'fermarsi dopo perdere ~', en: 'staying out costs ~' })}${pit.pitLossSec}s</span></div>`
         : (pit && pit.need === null ? `<div class="muted" style="font-size:11px;margin-top:6px">🔧 ${esc(pit.reason)}</div>` : '');
       const mapHtml = deltaMapSvg(m.mapTrack, m.delta?.segments, m.carPos);
+      /* VIGIA DEL PARCO AUTO (24/10, Mauro): se l'auto del sedile non è una di
+         quelle ammesse della serie, il pannello lo dice SUBITO — in rosso —
+         perché all'import quella gara vale zero (0 punti, 0 premio). */
+      const auto = m.auto ?? null;
+      const autoHtml = auto && auto.ammesse?.length && !auto.ok
+        ? `<div class="banner warn" style="margin-top:8px;padding:8px 10px;border-color:#c33"><b>🚫 ${tr({ it: 'Auto fuori dal parco della serie', en: 'Car outside the series pool' })}</b> — ${esc(auto.mine ?? '?')} · ${tr({ it: 'ammesse: ', en: 'allowed: ' })}${esc(auto.ammesse.join(', '))} · <b>${tr({ it: 'all\'import vale 0 punti e 0 premio', en: 'scores 0 points and 0 prize at import' })}</b></div>`
+        : '';  // in parco: nessun rumore
       ingOut.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:#0d1118">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <div style="font-size:12px"><b>${tr({ it: '🎧 Ingegnere LIVE', en: '🎧 Engineer LIVE' })}</b> <span class="muted" style="font-size:11px">· P${m.gauges.position??'—'}/${m.gauges.drivers??'—'}${m.gauges.lapsTotal!=null?` · ${tr({ it: 'giro ', en: 'lap ' })}${m.gauges.lapsDone+1}/${m.gauges.lapsTotal}`:''}${m.gauges.timeLeft?` · ${tr({ it: 'resta ', en: 'left ' })}${esc(m.gauges.timeLeft)}`:''}${m.gauges.fuel!=null?` · ${tr({ it: 'benzina ', en: 'fuel ' })}${m.gauges.fuel} L`:''}${m.telemTrack?` · ${tr({ it: 'consumo da ', en: 'consumption from ' })}${esc(m.telemTrack)}`:''}</span></div>
@@ -696,6 +731,7 @@ function drawCardInto(el, card){
         <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">${(m.tips||[]).map(t=>`<div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.4"><span style="flex:none">${t.icon}</span><span><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></span></div>`).join('')}</div>
         ${wearRow ? `<div style="margin-top:6px">${wearRow}</div>` : ''}
         ${pitHtml}
+        ${autoHtml}
       </div>`;
       $('#cp-toggle', ingOut)?.addEventListener('click', () => {
         cp.on = !cp.on;
@@ -707,20 +743,37 @@ function drawCardInto(el, card){
       /* --- i NARRATORI del copilota: parlano quando la cosa CAMBIA, non in loop --- */
       if (cp.on && Date.now() > (cp.grace ?? 0)) {   // la grazia copre l'avvio: niente voci sballate
         const g = m.gauges ?? {};
-        /* 1) delta live: ogni 12 s il ritmo della posizione attuale */
+        /* 1) delta live: 12 s MINIMI fra discorsi, ma SOLO se il valore cambia
+              per davvero (barre da 0.4 s): lo stesso «sei più lento di 0.3»
+              ogni 12 s era rumore (24/10, Mauro in pista). Il primo numero
+              si SEMINA in silenzio: i primi tick possono portare i dati
+              bruciati della sessione prima. */
         if (dv != null) {
-          const txt = dv < 0
-            ? tr({ it: `sei più veloce del best di ${(Math.abs(dv)/1000).toFixed(1)}`, en: `you are ${(Math.abs(dv)/1000).toFixed(1)} quicker than best` })
-            : tr({ it: `sei più lento del best di ${(dv/1000).toFixed(1)}`, en: `you are ${(dv/1000).toFixed(1)} slower than best` });
-          if (Date.now() - (cp.at ?? 0) > 12000) { cp.at = Date.now(); cpSpeak(txt); }
+          const bucket = Math.round(dv / 400);
+          if (cp.last.dvBucket == null || cp.at === 0) cp.last.dvBucket = bucket;   // semina senza voce
+          else if (bucket !== cp.last.dvBucket && Date.now() - (cp.at ?? 0) > 12000) {
+            cp.last.dvBucket = bucket; cp.at = Date.now();
+            cpSpeak(dv < 0
+              ? tr({ it: `Sei più veloce del best di ${(Math.abs(dv)/1000).toFixed(1)}`, en: `You are ${(Math.abs(dv)/1000).toFixed(1)} quicker than best` })
+              : tr({ it: `Sei più lento del best di ${(dv/1000).toFixed(1)}`, en: `You are ${(dv/1000).toFixed(1)} slower than best` }));
+          }
         }
-        /* 2) giri completati: tempo e chi ha battuto il best... in parole */
+        /* 2) giri completati: si parla SOLO di un giro NUOVO osservato in BARA
+              (antovo giro + tempo never visto prima): all'avvio la live può
+              riagganciarsi con il «giro 1» già completo della sessione
+              precedente e il solo numero non basta (24/10, Mauro: «all'avvio
+              della gara dice che avevo già completato il giro 1»). Il primo
+              lapNo si SEMINA in silenzio; un lapNo che scende = sessione
+              nuova, resetta tutto senza voce. */
         const lapNo = m.delta?.lapNo ?? null;
-        if (lapNo != null && cp.last.lapNo != null && lapNo > cp.last.lapNo) {
-          const nuova = m.timing?.lastLap ? tr({ it: `Giro ${lapNo} fatto in ${m.timing.lastLap}`, en: `Lap ${lapNo} in ${m.timing.lastLap}` }) : tr({ it: `Giro ${lapNo} finito`, en: `Lap ${lapNo} done` });
+        const lastLapTxt = m.timing?.lastLap ?? null;
+        if (lapNo != null && cp.last.lapNo != null && lapNo < cp.last.lapNo) { cp.last.lapNo = lapNo; cp.last.lastLapTxt = lastLapTxt; }
+        if (lapNo != null && cp.last.lapNo != null && lapNo > cp.last.lapNo && lastLapTxt && lastLapTxt !== cp.last.lastLapTxt) {
+          const nuova = tr({ it: `Giro ${lapNo} fatto in ${lastLapTxt}`, en: `Lap ${lapNo} in ${lastLapTxt}` });
           if (m.delta?.bestLapNo === lapNo) cpSpeak(nuova + ' ' + tr({ it: 'nuovo best della sessione!', en: "that's a new session best!" }));
           else cpSay('lapdone', nuova);
         }
+        if (lastLapTxt != null) cp.last.lastLapTxt = lastLapTxt;
         if (lapNo != null) cp.last.lapNo = lapNo;
         /* 3) benzina: la voce solo quando i giri copribili calano davvero */
         if (g.lapsOnFuel != null && cp.last.fuel != null && g.lapsOnFuel < cp.last.fuel - 0.49) {
@@ -747,6 +800,27 @@ function drawCardInto(el, card){
             ? tr({ it: `Sosta: aperta adesso, fermati questo giro`, en: `Pit window open: stop this lap` })
             : tr({ it: `Sosta: si apre tra ${pit.lapsToWindow} giri, entro il giro ${pit.pitLap + 1}`, en: `Pit window in ${pit.lapsToWindow} laps, by lap ${pit.pitLap + 1}` }));
         }
+        /* 7) AUTO DEL PARCO (24/10, Mauro): fuori dalla lista ammesse lo dico,
+              e lo ripeto ogni 30 s finché il sedile non torna in regola */
+        if (auto && auto.ammesse?.length && !auto.ok) {
+          cpSay('autofuori', tr({
+            it: `Attenzione: ${auto.mine ?? 'questa auto'} non è del parco della serie. Ammesse: ${auto.ammesse.slice(0, 3).join(', ')}. La gara non vale punti.`,
+            en: `Warning: ${auto.mine ?? 'this car'} is not from the series pool. Allowed: ${auto.ammesse.slice(0, 3).join(', ')}. The race scores nothing.`,
+          }), 30000);
+        }
+        /* 8) ULTIMO GIRO: lo dico una volta per sessione, poi la bandiera */
+        const lt = g.lapsTotal, ld = g.lapsDone;
+        if (lt != null && ld != null && lt > 0) {
+          if (ld + 1 === lt && !cp.last.ultimo) { cp.last.ultimo = true; cpSpeak(tr({ it: 'Ultimo giro!', en: 'Final lap!' })); }
+          if (ld >= lt && !cp.last.bandiera) { cp.last.bandiera = true; cpSpeak(tr({ it: 'Bandiera a scacchi!', en: 'Checkered flag!' })); }
+          if (ld + 1 < lt) cp.last.ultimo = false;   // sessione nova: riparte il cancellino
+        }
+        /* 9) POSIZIONE: cambia sedile in classifica → una voce (ma non a ogni tick) */
+        if (g.position != null && cp.last.pos != null && g.position !== cp.last.pos) {
+          const verso = g.position < cp.last.pos ? tr({ it: 'recuperata', en: 'gained' }) : tr({ it: 'persa', en: 'lost' });
+          cpSay('postalk', tr({ it: `Sei P${g.position}: posizione ${verso}.`, en: `You are P${g.position}: position ${verso}.` }), 15000);
+        }
+        if (g.position != null) cp.last.pos = g.position;
       }
     } catch { /* il live non deve mai rompere la vista */ }
   };

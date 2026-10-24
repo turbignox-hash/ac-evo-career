@@ -47,6 +47,7 @@ import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice
 import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
 import { parseSetup, listSetups, writeSetupCopy, brakePlanOf, annotateAllyAdvice } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
+import { carPoolOf, carInPool } from './car-pool.mjs';
 import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, WEEKEND_FILE } from '../tools/set-track.mjs';
 import { setRaceTime, currentRaceTime } from '../tools/set-racetime.mjs';
 import { setWeekendLaps } from '../tools/weekend-laps.mjs';
@@ -699,11 +700,25 @@ async function api(context0, req, res, action, body) {
         } catch { /* senza telemetria si stima dal HUD del gioco */ }
       }
       const live = engineerLive(snap, { fuelPerLap, raceLaps });
+      // VIGIA DEL PARCO AUTO: mentre giri, copilota e pannello sanno SUBITO se
+      // l'auto del sedile è una di quelle ammesse della serie — un'auto fuori
+      // pool all'import vale zero (car-pool.mjs); qui la si annuncia live.
+      let auto = null;
+      try {
+        const parco = carPoolOf(ladder, state.pending?.node ?? state.node);
+        if (parco.ammesse.length) auto = {
+          ok: !snap.player?.car || carInPool(snap.player.car, parco.ammesse),
+          mine: snap.player?.car ?? null,
+          ammesse: parco.ammesse.slice(0, 6),
+          classe: parco.classe,
+        };
+      } catch { /* senza pool la copilota non giudica */ }
       // oltre a benzina/usura/gap, la radio porta dentro anche il DELTA DI RITMO
       // (giro corrente vs best della sessione) e la MAPPA «dove perdo tempo»:
       // la traccia del best + i tagli per fascia + il punto auto, già pronti per l'SVG.
       return sendJson(res, 200, {
         ...live,
+        auto,
         telemTrack,
         fuelPerLap: live.gauges?.fuelPerLap ?? null,
         delta: snap.delta ?? null,

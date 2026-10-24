@@ -1,3 +1,33 @@
+## VIGIA DEL PARCO AUTO — l'auto del sedile fuori serie vale ZERO (24/10, notte) — FATTO E TESTATO
+
+- Richiesta Mauro: «ho fatto una gara con la Toyota e al posto della 1600 ho
+  preso la potenziata; potrei prendere anche una F1 e la UI non se ne
+  accorgerebbe dandomi la vittoria». Limitare la scelta nel gioco non si può
+  (EVO sceglie a mano il sedile), ma anche SEGNALARLO e NON PAGARLO sì.
+- src/car-pool.mjs (nuovo): `carPoolOf(ladder, nodeId)` — pool = poolAuto della
+  classe (grid-classes.json) quando esiste, altrimenti node.cars; minus le
+  esclusioni `escludiAuto` (token del preset contro nome+ID). `carInPool(car,
+  ammesse)`: match per stringa normalizzata OPPURE per CIFRE+parole lunghe
+  ('1600 GT Apex' combacia con '1600GT-Apex (AE86)'; la Trueno GT-Apex SENZA
+  1600 NON passa: versione potenziata della stessa auto ripescata e negata).
+- Il morso: import.mjs marca payload.autoFuori → applyRaceResult registra la
+  gara MA a ZERO punti/premio/reputazione (vittoria e podio non contano in
+  carriera, il sigillo resta nell'archivio). race.mjs: la scheda gara elenca
+  SOLO le auto ammesse (carChoices/carPool) + banner fuoriParco. webui.mjs
+  live: campo `auto` {ok,mine,ammesse,classe}. viste-a.js: banner rosso nel
+  pannello ingegnere + narratore copilota (ripete ogni 30 s finché in regola).
+- I 9 discorsi del copilota (viste-a.js): delta ritmo (12 s MINIMI ma solo se
+  cambia per davvero ≥0.4 s — 24/10 notte: «continua a dire sei più veloce» era
+  ripetizione a valore fermo), giro completato (SOLO osservato da vivo, con
+  tempo mai visto prima — 24/10 notte: all'avvio diceva «giro 1 già fatto» su
+  dati bruciati della sessione prima; lapNo che scende = sessione nuova e
+  silenzio), benzina (calo giri copribili), gomme per fascia usura, gap
+  davanti <1.5 s, finestra pit (prima volta + slittamenti), auto fuori parco
+  (30 s), ultimo giro + bandiera a scacchi, cambio posizione.
+- Test: test/car-pool.test.mjs (5) + e2e watcher sistemato (la Ferrari
+  296 default di evo-fake-result in serie stocking-car valeva autoFuori:
+  ora --car Abarth 695). Suite completa 187/187.
+
 ## GRIGLIA ARMONICA — la CSL (e ogni serie marcata) gira senza il gesto delle 14 liveries (24/10, sera) — IMPLEMENTATA E TESTATA
 
 - Problema: Coppa BMW M3 E46 CSL rifiutata perché il progetto possiede soltanto
@@ -64,7 +94,7 @@
   19≥14 ✅, M4 GT3 24≥10 ✅, M3 E30 Evo III 18≥7 ✅; M4 CSL 10<14 ❌.
 - Il toast che scompare: è il messaggio del builder al momento del
   lancio; finché non si risolve la serie non parte con griglia propria.
-## COPILOTA IN ITALIANO SULL'UI INGLESE (24/10, 19:35) — CORRETTO
+## COPPILOTA IN ITALIANO SULL'UI INGLESE (24/10, 19:35 + 24/10 notte) — CORRETTO
 
 - Mauro: «il copilot parla italiano e sono sulla versione inglese».
   RADICE: ogni porta/finestra dell'app (8642, 8644…) è un ORIGIN browser
@@ -83,9 +113,17 @@
     vince sempre (scrive il localStorage).
   RISULTATO: voce copilota, date, numeri e tutti i testi client seguono
   la lingua del server in ogni finestra, senza toccare niente a mano.
+- 2° giro (24/10 notte, Mauro: «ora parla solo italiano»): contribuiva la
+  CARICAMENTO ASINCRONO della lista voci (Chrome/Edge: al primo discorso
+  getVoices() è vuota → resta la voce di sistema, italiana). In viste-a.js:
+  cache della lista + speechSynthesis.onvoiceschanged + scandenza 600 ms,
+  scelta voce lingua-dell'UI (esatta → prefisso → default) e TOAST una
+  volta sola quando la lingua attiva non ha voci installate (rimedio:
+  Pannello Windows → Voce → Aggiungi voci). I testi erano già in due
+  lingue (tr in base a window.LINGUA, tutti i narratori con en).
 - PROVA DAL VIVO su server vergine: GET /api/lang → it; POST en → 200
   en; GET di nuovo → en. Suite 174/174 verde.
-## MODALITÀ «SENZA VINCOLI»: CANCELLETTI, SEDILI E ISCRIZIONI APERTI (24/10, 19:10) — FATTO
+## MODALITÀ «SENZA VINCOLI»: CANCELLETTI, SEDILI E ISCRIZIONI APERTI (24/10, 19:10) — FATTO · 2° GIRO la stessa notte: SOLDI E REPUTAZIONE REINTRODOTTI
 
 - Richiesta Mauro (mentre prova la copilota sulla serie): «leva tutti i
   blocchi per i campionati, soldi e reputazione, fammi entrare dove voglio».
@@ -107,8 +145,22 @@
   rep 1 e feeder mai corsa il gate apre, affitto 3000 e acquisto 90.000
   non toccano il soldino (10 €), iscrizione 250 € → 0. Prova OFF: il
   gate blocca di nuovo come prima.
-## CRASH EVO AL CARICAMENTO GARA: GRIGLIA SCRITTA A MANO FUORI CONTESTO (24/10, 18:34→18:52) — CORRETTO E RIPRISTINATO
 
+- 2° GIRO (24/10 notte, Mauro: «reintroduci i soldi e la reputazione per
+  i campionati, poi riprendi»): la modalità si RIDUCE a un solo perk —
+  i cancelletti a PIAZZAMENTO restano aperti (gateStatus: il ramo req
+  è saltato quando è accesa), TUTTO il resto torna canonico:
+  • repRequired è di nuovo un blocco vero in gateStatus E in enterNode
+    (l'ingresso non sorvola più il gate: sedile negato se la rep non
+    basta — provato dal vivo: repRequired 50, rep 0 → «reputazione
+    0/50 per un contratto ufficiale»);
+  • sedili: acquisto e affitto SI PAGANO (via i rami «Senza vincoli:
+    gratuito» in enterNode);
+  • iscrizione di ronda SI PAGA (race.mjs chargeEntry: fee = entryFee;
+    senzaVincoli non serve più lì, tolto dall'import di race.mjs);
+  • resta aperta la prova-libera delle serie per piazzamenti, mentre
+    l'economia e la reputazione proiettano la scalata vera.
+  Suite 187/187 verde.## CRASH EVO AL CARICAMENTO GARA: GRIGLIA SCRITTA A MANO FUORI CONTESTO (24/10, 18:34→18:52) — CORRETTO E RIPRISTINATO
 - Mauro lancia la gara e la schermata di caricamento torna al desktop.
   RADICE (mia, non del template): avevo scritto la griglia multiclasse
   (12 celle, 6 R5 + 6 Escort con zavorre) DIRETTAMENTE in

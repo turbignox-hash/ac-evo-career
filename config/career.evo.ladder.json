@@ -1178,7 +1178,7 @@
       "requires": null,
       "points": "sro_gtwc",
       "profile": "feature",
-      "gridSize": 16,
+      "gridSize": 14,
       "ai": [
         87,
         98
@@ -1980,7 +1980,7 @@
       "requires": null,
       "points": "sro_gtwc",
       "profile": "feature",
-      "gridSize": 20,
+      "gridSize": 14,
       "ai": [
         90,
         101
@@ -7112,7 +7112,7 @@
       "requires": null,
       "points": "club",
       "profile": "club_short",
-      "gridSize": 14,
+      "gridSize": 12,
       "ai": [
         70,
         76
