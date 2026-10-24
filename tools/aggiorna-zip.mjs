@@ -77,7 +77,11 @@ export function scriviBuildId(sha, radice = RADICE) {
  *  la GUI e il launcher non fanno nessun reformato. */
 export async function statoZipAsync(radice = RADICE) {
   const locale = leggiBuildId(radice);
-  if (!locale) return { skip: true, motivo: 'installazione muta (zip anteriore al 24/10): ri-scarica lo zip UNA volta, da lì si auto-aggiorna.' };
+  // ZIP di GitHubpresa dal sito = codice SENZA build-id: non è più un'installazione
+  // «muta» da ri-scaricare: al PRIMO avvio il launcher la porta al passo con
+  // main (zipball + copia + build-id scritto) e da lì è un'installazione-zip
+  // normale, identica al pacchetto-amico. Semplice e fedele a ZtA (26/10).
+  const primoZip = !locale;
   let r;
   try {
     const c = new AbortController();
@@ -85,7 +89,9 @@ export async function statoZipAsync(radice = RADICE) {
     try { r = await fetch(`${API}/commits/main`, { headers: header(), signal: c.signal }); }
     finally { clearTimeout(t); }
   } catch {
-    return { skip: true, motivo: 'GitHub non raggiungibile (offline?).' };
+    return { skip: true, motivo: primoZip
+      ? 'primo avvio da ZIP: GitHub non raggiungibile (offline?) — il primo si scarica da solo appena torna la rete.'
+      : 'GitHub non raggiungibile (offline?).' };
   }
   if (r.status === 404 || r.status === 401 || r.status === 403) {
     return { skip: true, motivo: r.status === 404
@@ -100,7 +106,7 @@ export async function statoZipAsync(radice = RADICE) {
   if (remoto === locale) return { equal: true, discoAvanti: 0 };
   // 1 = "c'è almeno un aggiornamento": il numero esatto chiede la history,
   // che un'installazione zip non possiede
-  return { remotoAvanti: 1, discoAvanti: 0, remoto, locale };
+  return { remotoAvanti: 1, discoAvanti: 0, remoto, locale: locale || null, primoZip };
 }
 
 /** Copia RICORSIVA sovrascrivendo, MA senza mai toccare le cartelle dei dati

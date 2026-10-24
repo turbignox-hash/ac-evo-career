@@ -36,6 +36,11 @@ API, sostituisce DI PROPOSITO solo codice e config e non tocca niente tuo).
 Due note oneste: lo zip non elimina i file che il progetto ha levato
 (merge vero solo col clone); su repo privato serve il token di lettura (§5-bis).
 
+**Via «Download ZIP» di GitHub** (github.com → Code → Download ZIP): dal 26/10
+vale lo stesso auto-aggiornamento — senza `build-id.txt` il PRIMO avvio guarda
+main su GitHub e porta da solo l'installazione al passo (serve il token di
+lettura su repo privato, §5-bis); da quel momento è identica alla via zip.
+
 ## 5-bis. Token di lettura (solo zip su repo privato)
 
 Il repo è **privato**: l'updater zip chiede una chiave di lettura.

@@ -18,9 +18,10 @@ griglia sul save 3 di questo PC. Spuntare a mano mentre si va.
          (repo privato → serve l'accesso GitHub di chi lo gesticisce) +
          `git remote rename origin offsite`.
       3. **Download ZIP da GitHub** (github.com → Code → Download ZIP):
-         *funziona ma sta muta* — non ha `build-id.txt` quindi l'autoaggiornamento
-         zip salta sempre e ogni novità la si prende ri-scaricando. Da NON
-         usare se il punto della prova è l'aggiornamento.
+         dal 26/10 si autoporta al passo al PRIMO avvio (scarica main da solo
+         e scrive il build-id): su repo privato serve il token di lettura §5-bis
+         prima del primo avvio. Fedeltà inferiore al pacchetto (la copia parte
+         dal commit di download, poi si uniforma al primo update).
 - [ ] MAI copiare `data/` nella macchina pulita: ogni PC deve farsi la SUA carriera vergine.
 
 ### Primo avvio (il vero test dell'amico)

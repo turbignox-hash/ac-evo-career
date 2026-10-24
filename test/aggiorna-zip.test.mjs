@@ -53,9 +53,38 @@ test('viaGit distingue il clone dalla cartella zip', () => {
   assert.equal(viaGit(casa), true, 'clonata — la via git');
 });
 
-test('statoZipAsync senza build-id: skip con motivo chiaro, NIENTE rete', async () => {
+test('statoZipAsync senza build-id: GUARDA SAME (remotoAvanti+primoZip): il primo avvio si porta da solo al passo con main', async () => {
   const casa = TMP();
-  const s = await statoZipAsync(casa);
-  assert.equal(s.skip, true);
-  assert.match(s.motivo, /ri-scarica lo zip/);
+  // fetch simulata: GitHub risponde col proprio sha (main); NIENTE rete vera
+  const finta = async () => ({ ok: true, status: 200, json: async () => ({ sha: '1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b' }) });
+  const vera = globalThis.fetch;
+  globalThis.fetch = finta;
+  try {
+    const s = await statoZipAsync(casa);
+    assert.equal(s.skip, undefined, 'non è più skip: da ZtA-apprezzato, il primo avvio scarica da solo');
+    assert.equal(s.remotoAvanti, 1);
+    assert.equal(s.primoZip, true, 'flag per il messaggio giusto al primo avvio');
+    assert.equal(s.remoto, '1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b');
+  } finally { globalThis.fetch = vera; }
+});
+
+test('statoZipAsync senza build-id su repo PRIVATO senza token: skip col rimedio chiaro (token)', async () => {
+  const casa = TMP();
+  const finta = async () => ({ ok: false, status: 404 });
+  const vera = globalThis.fetch;
+  globalThis.fetch = finta;
+  try {
+    const s = await statoZipAsync(casa);
+    assert.equal(s.skip, true);
+    assert.match(s.motivo, /token di LETTURA/);
+  } finally { globalThis.fetch = vera; }
+});
+
+test('installaZip segna il build-id NUOVO: la seconda volta è un installazione zip normale', () => {
+  const casa = TMP();
+  assert.equal(leggiBuildId(casa), '', 'primo avvio: muta (già coperto dal test sopra)');
+  // certificato installazione: dentro INSTALLA_VERA la copia di codice riuscita
+  // su build-id via scriviBuildId: registra l'hash di main senza riscaricarlo
+  scriviBuildId('1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b', casa);
+  assert.equal(leggiBuildId(casa), '1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b');
 });
