@@ -15,7 +15,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, existsSync, mkdirSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -70,10 +70,13 @@ test('la prima build riuscita viene APPUNTATA per la serie (template store)', as
   const out = ga.rebuildGridApply({ ladder: LADDER, nodeId: 'serie_f40_test', roundIndex: 0, file, force: true });
   assert.equal(out.written, true);
   assert.ok(existsSync(STORE()), 'il template della serie resta sul disco');
-  const primoBackup = out.backup;
+  const prima = readFileSync(STORE());
   const secondo = ga.rebuildGridApply({ ladder: LADDER, nodeId: 'serie_f40_test', roundIndex: 0, file, force: true });
   assert.equal(secondo.written, true);
-  assert.equal(secondo.backup, primoBackup, 'a byte uguali il magazzino non si riscrive');
+  // a byte uguali il magazzino NON si riscrive: niente confronto sui nomi dei
+  // backup (il 24/10 flakAVA quando il test attraversava il cambio di minuto:
+  // bak-apply-...T12-12 vs ...T12-13) — si confronta il CONENUTO del store.
+  assert.equal(readFileSync(STORE()).equals(prima), true, 'a byte uguali il magazzino non si riscrive');
 });
 
 test('il cambio ronda su altra serie non blocca la ronda: il template appuntato vale', async () => {
@@ -124,6 +127,10 @@ test('macchina vergine, nessun template sul disco: la GRIGLIA DI FABBRICA copre 
 });
 
 test("griglia di fabbrica con auto ASSENTE dall'installazione: rifiuto chiaro (CAR_MISSING)", () => {
+  // il magazzino parte VUOTO: con un template della F40 ancora in piedi dai test
+  // precedenti la costruzione si sarebbe fermata al template, mai alla fabbrica
+  // (flake di ordine, 24/10)
+  rmSync(join(TMP, 'grid-templates'), { recursive: true, force: true });
   ga.setInstallSnapshot({ cars: new Set(), carNames: new Set(['audi rs 3 sportback']) });   // la F40 no
   writeFileSync(FABBRICA('serie_f40_test'), templateF40(4, 'ks_f40_lm'));
   const file = scrivi(templateF40(4, 'ks_mazda_mx5_nd'));

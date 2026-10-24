@@ -144,10 +144,16 @@ export async function launchGame(paths, { exe = true, force = false } = {}) {
   }
   if (!force && await isGameRunning()) return { via: 'already-running', target: GAME_EXE };
   if (exe && paths.gameExe) {
-    await execFileAsync('cmd', ['/c', 'start', '', paths.gameExe], { windowsHide: true });
+    // titolo esplicito al posto di "": cmd.exe lo perderebbe e start leggerebbe 'EVO Pitwall...'
+    // come file (24/10: errore "Impossibile trovare il file 'EVO Pitwall Slot 3'"); con spazi nel
+    // percorso del gioco il bug era anche peggio.
+    // il titolo esplicito (con spazi → Node lo quotà) protegge i percorsi con spazi:
+    // "" vuoto si perde e start legge il titolo come file (bug 'EVO Pitwall Slot 3', 24/10)
+    await execFileAsync('cmd', ['/c', 'start', 'EVO', paths.gameExe], { windowsHide: true });
     return { via: 'exe', target: paths.gameExe };
   }
-  await execFileAsync('cmd', ['/c', 'start', '', `steam://rungameid/${STEAM_APP_ID}`], { windowsHide: true });
+  // gli URL non hanno spazi: NIENTE titolo, altrimenti start prenderebbe 'EVO' come programma
+  await execFileAsync('cmd', ['/c', 'start', `steam://rungameid/${STEAM_APP_ID}`], { windowsHide: true });
   return { via: 'steam', target: `steam://rungameid/${STEAM_APP_ID}` };
 }
 

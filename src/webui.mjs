@@ -2451,13 +2451,16 @@ async function api(context0, req, res, action, body) {
       if (n === SLOT) {
         const addr = `http://127.0.0.1:${PORT}`;
         import('node:child_process').then(({ spawn }) => {
-          if (process.platform === 'win32') spawn('cmd', ['/c', 'start', '', addr], { detached: true, stdio: 'ignore' }).unref();
+          // URL senza spazi: start lo esegue come command e apre il browser — niente titolo
+          if (process.platform === 'win32') spawn('cmd', ['/c', 'start', addr], { detached: true, stdio: 'ignore' }).unref();
           else spawn('xdg-open', [addr], { detached: true, stdio: 'ignore' }).unref();
         });
         return sendJson(res, 200, { ok: true, note: tr({ it: 'Slot già attivo: apro solo il browser.', en: 'Slot already active: opening just the browser.' }) });
       }
       import('node:child_process').then(({ spawn }) => {
-        spawn('cmd', ['/c', 'start', '', 'EVO Pitwall Slot ' + n, launcher], { detached: true, stdio: 'ignore', cwd: PROJECT }).unref();
+        // il titolo (con spazi → Node lo quota) resta il primo quoted arg di start:
+        // il vuoto "" si perde e start leggerebbe 'EVO Pitwall Slot 3' come file (24/10)
+        spawn('cmd', ['/c', 'start', 'Slot ' + n, launcher], { detached: true, stdio: 'ignore', cwd: PROJECT }).unref();
       });
       return sendJson(res, 200, { ok: true, note: tr({ it: `Lanciato pilota-${n}.cmd: si apre la sua carriera sulla sua porta (${8641 + n}). Questa finestra resta quello che è (slot ${SLOT}).`, en: `Launched pilota-${n}.cmd: its career opens on its own port (${8641 + n}). This window stays as it is (slot ${SLOT}).` }) });
     }
@@ -2768,7 +2771,8 @@ server.on('error', async (e) => {
         console.log(`  Apro solo il browser — nessuna seconda istanza (il watcher è unico).\n`);
         if (OPEN) {
           const { spawn } = await import('node:child_process');
-          if (process.platform === 'win32') spawn('cmd', ['/c', 'start', '', addr], { detached: true, stdio: 'ignore' }).unref();
+          // URL senza spazi: start lo esegue come command e apre il browser — niente titolo
+          if (process.platform === 'win32') spawn('cmd', ['/c', 'start', addr], { detached: true, stdio: 'ignore' }).unref();
           else spawn('xdg-open', [addr], { detached: true, stdio: 'ignore' }).unref();
         }
         process.exit(0);
@@ -2791,7 +2795,7 @@ server.listen(PORT, '127.0.0.1', () => {
   console.log(`  Watcher import automatico: attivo (deposita il risultato quando la gara finisce)\n`);
   if (OPEN) {
     import('node:child_process').then(({ spawn }) => {
-      if (process.platform === 'win32') spawn('cmd', ['/c', 'start', '', addr], { detached: true, stdio: 'ignore' }).unref();
+      if (process.platform === 'win32') spawn('cmd', ['/c', 'start', addr], { detached: true, stdio: 'ignore' }).unref();
       else spawn('xdg-open', [addr], { detached: true, stdio: 'ignore' }).unref();
     });
   }

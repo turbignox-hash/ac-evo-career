@@ -27,6 +27,31 @@ Piano veloce: griglia mista GT sportive (Emira + Maserati GT2 + AMG GT2) e grigl
   sul first try non blocca più la corsa dei candidati (la fabbrica alza il
   PC senza customgrid).
 
+## BUG «Impossibile trovare il file 'EVO Pitwall Slot 3'» (24/10, 14:08) — CORRETTO
+
+- Da Impostazioni → apri slot 3, Windows dava «Impossibile trovare il file
+  'EVO Pitwall Slot 3'. Verificare che il nome del file sia corretto».
+  Radice: spawn('cmd', ['/c', 'start', '', titolo, file]) — Node PASSA la
+  stringa vuota al cmdline di cmd: start vede
+  `start "" "EVO Pitwall Slot 3" <file>` e prende il SECONDO quoted come
+  FILE da eseguire (= il titolo). Fix: il titolo DEVE essere il primo
+  quoted arg di start (con spazi Node lo quota da solo: 'Slot ' + n →
+  `start "Slot 3" "C:\...\pilota-3.cmd"`).
+- REGOLA GENERALE dei «start» via spawn di Node:
+  • bersaglio con spazi (gameExe,launcher): titolo esplicito QUOTATO →
+    prima; e il vuoto '' non va MAI passato;
+  • bersaglio SENZA spazi (URL http/steam://): NIENTE titolo affatto,
+    altrimenti il titolo non quotato viene preso come PROGRAMMA (start
+    Pitwall http://... cercherebbe il file 'Pitwall').
+  Sistemati: webui.mjs (slot launcher, 3× apertura browser) e paths.mjs
+  (avvio gioco + steam://rungameid). Prova dal vivo con probe .cmd e URL:
+  exit 0 su entrambe le forme.
+- FLAKE A CAVALLO DI MINUTO: grid-templates test 75 confrontava i NOMI dei
+  backup (bak-apply-...T12-12 vs T12-13 quando il test attraversa
+  il cambio di minuto) e l'80 rischiava di fermarsi al template del test
+  sopra prima di arrivare alla fabbrica. Ora il 75 confronta i BYTE del
+  magazzino e l'80 parte con il magazzino svuotato. Suite 173/173 stabile.
+
 ## PACCHETTO INSTALLAZIONE AMICO (24/10, richiesta Mauro) — FATTO E COLLAUDATO
 
 - tools/pacchetto-amico.mjs genera pacchetti/ac-evo-career-amico-vX.Y.Z-<hash>.zip
