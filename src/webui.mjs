@@ -41,7 +41,7 @@ import { seasonReview, reviewableSeasons, exportReview } from './review.mjs';
 import { contractStatus, sponsorOffers, acceptSponsor, declineSponsor, challengeFor, acceptChallenge, sigilDefs, ensureLife, sponsorFor, ensureContract, checkSigils } from './life.mjs';
 import { newsFeed } from './gazzetta.mjs';
 import { recordTestDay, testDayLog, calibrationSummary } from './testday.mjs';
-import { recordHotlaps, hotlapSweep, hotlapsLog } from './hotlaps.mjs';
+import { recordHotlaps, hotlapSweep, hotlapsLog, hotlapsStats, hotlapsProgress } from './hotlaps.mjs';
 import { recordWarning, readWarnings } from './warnings.mjs';
 import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
 import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, telemDiagnostics, lapTrace } from './motec.mjs';
@@ -2163,7 +2163,9 @@ async function api(context0, req, res, action, body) {
           const reg = out.registered[0] ?? null;
           return sendJson(res, 200, { ok: true, registered: out.registered.length, entry: reg, log: hotlapsLog(40) });
         }
-        return sendJson(res, 200, { ok: true, log: hotlapsLog(40) });
+        // le analisi della gita (26/10): numeri, curva di progresso — il delta
+        // per settore lo fa il browser dai dati che già spedisce qui
+        return sendJson(res, 200, { ok: true, log: hotlapsLog(40), stats: hotlapsStats(), progress: hotlapsProgress() });
       } catch (e) {
         return sendJson(res, 500, { error: e.message });
       }

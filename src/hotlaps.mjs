@@ -20,6 +20,7 @@ import { writeJsonAtomic } from './atomic.mjs';
 import { listResultFiles, readSessionResult, isRaceSession, findPlayerDriver, classify, sectorAnalysis } from './results.mjs';
 import { slotDataDir } from './state.mjs';
 import { matchTrackName, sameCar } from './tracknames.mjs';
+import { TRACK_INFO } from './tracks.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // nido per-slot (24/10): le hotlap vivono con la SUA carriera
@@ -198,6 +199,62 @@ export function recordHotlaps(ladder, paths, state, { file = null, since = null 
 export function hotlapsLog(n = 40) {
   const b = loadBook();
   return { sessions: b.sessions.slice(0, n), records: b.records ?? [], total: b.sessions.length };
+}
+
+/* ------------------------------------------------------------------ */
+/* ANALISI della gita (26/10, scelta Mauro sul tab): numeri, progresso   */
+/* ------------------------------------------------------------------ */
+
+/** Lunghezza (km) della pista come scritta dal gioco, se il libro la conosce. */
+function trackLengthKm(fileTrack) {
+  const names = Object.entries(TRACK_INFO).flatMap(([k, x]) => [k, x?.name]);
+  const hit = matchTrackName(fileTrack ?? '', names);
+  if (!hit) return null;
+  for (const [k, x] of Object.entries(TRACK_INFO)) {
+    if (k === hit || x?.name === hit) return Number(x?.lengthKm) || null;
+  }
+  return null;
+}
+
+/** La gita in numeri: sessioni, giri, km (dove la lunghezza è nota), PB, auto e piste. */
+export function hotlapsStats() {
+  const b = loadBook();
+  let laps = 0, km = 0, kmKnown = true;
+  const cars = new Set(), tracks = new Set();
+  for (const e of b.sessions) {
+    laps += Number(e.lapsCount) || 0;
+    cars.add(e.carPretty ?? e.car ?? '?');
+    tracks.add(e.trackPretty ?? e.track ?? '?');
+    const len = trackLengthKm(e.track);
+    if (len) km += (Number(e.lapsCount) || 0) * len;
+    else kmKnown = false; // pista fuori dal libro: i km restano sottostimati onesto
+  }
+  return {
+    sessions: b.sessions.length, laps,
+    km: Math.round(km), kmKnown,
+    pb: (b.records ?? []).length,
+    cars: cars.size, tracks: tracks.size,
+  };
+}
+
+/** La CURVA DI PROGRESSO: per auto+pista con almeno 2 uscite, la best lap nel
+ *  tempo (più vecchia → più recente). Le uscite singole non fanno una curva. */
+export function hotlapsProgress() {
+  const b = loadBook();
+  const groups = new Map();
+  for (const e of b.sessions) {
+    if (!e.bestLapMs) continue;
+    const k = keyOf(e);
+    if (!groups.has(k)) groups.set(k, {
+      key: k, car: e.car, carPretty: e.carPretty, track: e.track, trackPretty: e.trackPretty,
+      layout: e.layout ?? null, points: [],
+    });
+    groups.get(k).points.push({ at: e.at, ms: e.bestLapMs });
+  }
+  for (const g of groups.values()) g.points.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  return [...groups.values()]
+    .filter((g) => g.points.length >= 2)
+    .sort((a, b) => (a.trackPretty ?? '').localeCompare(b.trackPretty ?? ''));
 }
 
 /**
