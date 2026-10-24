@@ -131,6 +131,8 @@ console.log(`   SHA-256: ${sha}`);
 console.log(`   cartelle/albero: ${Object.keys(conteggio).sort().map((k) => `${k}(${conteggio[k]})`).join(' ')}`);
 console.log(`   test nel pacchetto: ${testTxt}`);
 if (avvisi.length) { console.log('⚠ avvisi:'); for (const a of avvisi) console.log('   - ' + a); }
-console.log('\nCome consegnarlo: condividi lo zip. All interno c GUIDA-AMICO.md, che spiega che col CLONE',
-  'gli aggiornamenti arrivano dal launcher — con questa via dello zip invece vanno presi a mano.');
+console.log('\nCome consegnarlo: condividi lo zip. Dentro c\'è GUIDA-AMICO.md, che spiega che',
+  'col CLONE gli aggiornamenti arrivano dal launcher; con lo ZIP dal 24/10 siete\n',
+  'AUTO pure lì: basta che l\'amico prenda una volta questo pacchetto (che porta',
+  'build-id.txt) e — se il repo è privato — salvi un token di lettura in data/.github-token.');
 console.log(`Percorso: ${zip}`);
