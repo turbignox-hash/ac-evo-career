@@ -33,3 +33,4 @@ _crashlog.ps1
 # backup di salvataggi e scarti di curl nella root
 *.bak-20*
 http_code
+*.bak-*
