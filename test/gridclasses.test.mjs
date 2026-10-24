@@ -8,12 +8,20 @@ import "./_flows-sandbox.mjs"; // sandbox flussi
 //      (non si sommano) solo sulla pista combaciata.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const CLASSES = join(HERE, '..', 'data', 'grid-classes.json');
+// invarianti del FORMATO delle classi: letture a una fixture congelata
+// (test/fixtures/grid-classes-sample.json) quando data/grid-classes.json non
+// c'è (pacchetto amico estratto). Se c'è il dato del PC si usa quello: le
+// stesse asserzioni valore-these valgono su entrambe le fonti (regole 0/0,
+// aiStandard pinnato...). Priorità però all'archivo esistente del progetto.
+const CLASSES = process.env.EVO_CLASSES_FILE
+  ?? (existsSync(join(HERE, '..', 'data', 'grid-classes.json'))
+    ? join(HERE, '..', 'data', 'grid-classes.json')
+    : join(HERE, 'fixtures', 'grid-classes-sample.json'));
 
 test('restrictor: la scrittura usa setF32(pct/100) — il campo file è una FRAZIONE', async () => {
   const src = readFileSync(join(HERE, '..', 'src', 'gridbuilder.mjs'), 'utf8');

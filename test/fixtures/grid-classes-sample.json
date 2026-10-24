@@ -1,0 +1,459 @@
+{
+  "_readme": [
+    "Convenzioni di classe per il bilanciamento automatico delle gare personalizzate multi-marca.",
+    "Ogni classe = finestra PI del menu + regole ballast/restrictor per auto.",
+    "restrictorPct è la penalità in % (8 = penalità 8%, il selettore UI non la offre ma il file sì).",
+    "Le regole si applicano a TUTTE le celle di quell'auto; le auto senza regola vengono azzerate (auto base).",
+    "Derivazione empirica di Mauro, 19/10/2026: zavorra 100kg + penalità 10% a tutte meno la Renault → gara combattuta alla pari."
+  ],
+  "classi": {
+    "pi-10-11-moderna": {
+      "note": "Classe 10–11 PI moderna: M3 E46 CSL, Mini JCW (Tune), Golf 8 GTI, Supra MKIV, T16, Abarth (+ Audi Sport quattro = auto di Mauro, non bilanciata). Storia: 1ª gara bilanciata a 99-100 validata a Brands Hatch (1558: 13 AI in ~1s); le stesse regole su COTA si spalancano per i rettilinei lunghi (gare 1629+1701, ~10s) → supplementi perTraccia COTA (Golf 9%, M3 13,5%, Supra 3,5%, T16 0kg/5%). A Brands restano le regole base; prossima gara COTA decide col --report.",
+      "piMin": 10,
+      "piMax": 11,
+      "autoBase": "Abarth 695 Biposto",
+      "regole": [
+        {
+          "preset": "preset_e46csl_mech_1",
+          "auto": "BMW M3 E46 CSL",
+          "ballastKg": 100,
+          "restrictorPct": 6
+        },
+        {
+          "preset": "preset_jcs_mech_2",
+          "auto": "Mini John Cooper S",
+          "ballastKg": 100,
+          "restrictorPct": 1.5
+        },
+        {
+          "preset": "preset_mk8gti_mech_1",
+          "auto": "Volkswagen Golf 8 GTI",
+          "ballastKg": 100,
+          "restrictorPct": 1
+        },
+        {
+          "preset": "preset_supramkiv_mech_1",
+          "auto": "Toyota Supra MKIV",
+          "ballastKg": 100,
+          "restrictorPct": 0.5
+        },
+        {
+          "preset": "preset_t16_mech_1",
+          "auto": "Peugeot 205 T16",
+          "ballastKg": 0,
+          "restrictorPct": 5,
+          "nota": "aggiunta 19/10 dopo COTA: la T16 (PI 9.84) era finita nel pool 10-11 SENZA regola e con 0/0 batteva la base di ~4,1s (P2/P5)"
+        },
+        {
+          "preset": "preset_695b_mech_1",
+          "auto": "Abarth 695 Biposto",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        }
+      ],
+      "perTraccia": {
+        "_readme": "CHIAVE = pista (matched con sameTrack, anche tramite id ladder). restrictorPct = % ASSOLUTA da usare su quella pista: sostituisce il restrictorPct di regole, NON si somma. Le zavorre restano quelle di regole. 'convalidato': true = supplementi di QUESTA traccia verificati in pista dal guardiano (grid-guard).",
+        "Circuit Of The Americas": {
+          "nota": "Derivazione 19/10 dalle gare 1629 e 1701 (COTA GP, campo 99-100): le regole di Brands NON tengono sui rettilinei lunghi — Golf 100/1 dominava (P1-P2 in entrambe, mediana best −6,8s dalla base), M3 100/6 −6,5s, T16 senza regola −4,1s, Supra 100/0.5 −2,7s; Mini ≈ base. Spread campo ~10s contro ~1s a Brands. Pendenza stimata su COTA ~0,8 s/% (0,55 a Brands scalata per lunghezza giro 163s vs 112s). Correzioni: Golf 1→9, M3 6→13,5, Supra 0.5→3.5 (90% della correzione piena, per non sovrappenalizzare alla prima gara); T16 0kg/5%. Mini e Abarth intatti.",
+          "convalidato": false,
+          "restrictorPct": {
+            "preset_mk8gti_mech_1": 9,
+            "preset_e46csl_mech_1": 13.5,
+            "preset_supramkiv_mech_1": 3.5
+          }
+        },
+        "Sebring International Raceway": {
+          "nota": "RAGGIUNTA DALLE GARE (19/10, gara 1755 — la pratica 1737 era giri volati a freddo/non confrontabili): pace calda per modello con le regole correnti — Golf 14% 2:34.7, M3 4.5% 2:32.2, Tu/RX-7 0/0 2:45.0, Supra 5% ≈ Mini 1.5% 2:50.0, Abarth base 2:53.7. Pendenza da tre coppie in-gara concordi ~0,57 s/%. «Primì 2 troppo veloci» confermato: Golf/M3 sfuggono di 10-13s/lap. CORREZIONE AI CAP DEL GIOCO (100kg/20%): Golf 14→20, M3 4.5→20 → pace attesa Golf ≈ 2:38, M3 ≈ 2:41 (−4÷7s su di te, non eliminabile oltre il cap); Mini/Supra/Abarth intatti (già dietro di 5-9s). Se ancora troppo lontani alle 3 gir i, l'unica leva oltre il cap è ESCLUDERE Golf/M3 dal pool Sebring (precedente: Golf 8 R excluso al cap nella 9-10) o abbassare il campo AI.",
+          "convalidato": false,
+          "restrictorPct": {
+            "preset_mk8gti_mech_1": 20,
+            "preset_e46csl_mech_1": 20,
+            "preset_supramkiv_mech_1": 5
+          }
+        },
+        "Monza": {
+          "nota": "19/10 gara 2142 (Monza, pool multiclasse + R5 di Mauro): pace AI Golf −16.89s, M3 −7.11s, Mini −5.67s, Supra −4.18s dalla base; la R5 di Mauro sta +14.30s sotto il base. Penalità dai cap per riportare il campo alla base.",
+          "convalidato": false,
+          "restrictorPct": {
+            "preset_mk8gti_mech_1": 20,
+            "preset_e46csl_mech_1": 18.5,
+            "preset_jcs_mech_2": 11.5,
+            "preset_supramkiv_mech_1": 8
+          }
+        }
+      },
+      "storia": [
+        {
+          "data": "2026-10-19",
+          "variante": "gara di studio a zero (1527, Brands Hatch, campo 94-95)",
+          "esito": "M3 E46 CSL −3,3s dall'Abarth (base); resto serrato in 0,8s"
+        },
+        {
+          "data": "2026-10-19",
+          "variante": "prima gara bilanciata al campo 99-100 (1558): M3 6%, Mini 1,5%, Golf 1%, Supra 0,5%, Abarth base",
+          "esito": "CONVALIDATA: 13 AI in ~1,0s (1:52.79–1:53.77) con pesi diversi over 100% — regole definitive; M3 6% rientrata da −3,3s a +0,5s rispetto alla base"
+        },
+        {
+          "data": "2026-10-19",
+          "variante": "le STESSE regole su COTA GP (gare 1629 + 1701, campo 99-100): le auto potenti prendono tutto dai rettilinei lunghi",
+          "esito": "campo si spalanca (~10s): Golf 1% P1-P2 (mediana −6,8s dalla base), M3 6% −6,5s (bimodale: −4,8 a 1629, −10,2 a 1701), T16 senza regola −4,1s, Supra 0.5% −2,7s, Mini ≈ base. Ricalibrata con perTraccia COTA (Golf 9%, M3 13,5%, Supra 3,5% + T16 0kg/5% su tutte le piste). DA RICONVALIDARE alla prossima gara COTA; a Brands vale ancora la base 6/1,5/1/0,5"
+        },
+        {
+          "data": "2026-10-19",
+          "variante": "weekend nuovo a Sebring: il menu risalvando il customgrid ha PERSO zavorre/penalità (celle tornate a 0/0, AI 99-100 e PI intatti); la prova libera 1737 è servita come baseline A ZERO",
+          "esito": "gap raw su Sebring: Golf −11,4s, Supra −4,1s, M3 −3,9s, Mini −2,1s vs base Abarth → perTraccia Sebring (Golf 14%, M3 4.5%, Supra 5%; Mini intatta). Lezione operativa: dopo ogni risalvataggio da menu, rifilare il balancio con grid-balance --track prima della gara"
+        },
+        {
+          "data": "2026-10-19",
+          "variante": "gara 1755 (Sebring GP, 3 giri standard ora) ABORTITA da Mauro: «i primi 2 sono troppo veloci per me» (2 Golf P0-P1), rules Golf 14%/M3 4.5%",
+          "esito": "pace calda in-gara: Golf 2:34.7 P0-P1, M3 2:32.2 P2-P3 (i due piostri più veloci del campo!), Tu 2:45.0, Supra/Mini 2:50.0, Abarth 2:53.7 → pendenza ~0,57 s/%; perTraccia portata ai cap (Golf 20%, M3 20%: pace attesa ≈2:38/2:41). Manca ancora ~4-7s/lap: se alle 3 giri still troppo lontani → escludere Golf/M3 dal pool Sebring o abbassare campo AI"
+        }
+      ],
+      "aiStandard": [
+        99,
+        100
+      ],
+      "aiStandardPerche": "Standard di Mauro (convalidato con gare del 19/10: campo più compatto e realistico). Il GENERA del menu lo perde: riscrivere col tool.",
+      "convalidatoSu": [
+        "Brands Hatch"
+      ]
+    },
+    "strada-brands-9-10": {
+      "note": "Classe 9–10 PI / filtro STRADA (19/10, pomeriggio): 11 modelli studiati con 2 gare pulite a zero su Brands Hatch (261019-1351/1358). Base = Delta HF Evo II (AI più lenta del pool). Conversione: 1 punto penalità ≈ 0,55s di gap. Zavorra 100kg su tutte le non-base. DA CONVALIDARE in pista.",
+      "piMin": 9,
+      "piMax": 10,
+      "autoBase": "Mercedes-Benz 190E 2.5-16 Evo II (dal campo 94-95, gara 1458)",
+      "escludiAuto": [
+        "preset_mk8r_mech_1"
+      ],
+      "escludiPerche": "Golf 8 R: escluso su decisione di Mauro (gara 1411: vincente anche al cap 100/20). NOTA calibrazione 94-95 (gara 1458): con base 190E sarebbe compensabile a ~16% — se Mauro lo riaborra, togliere da escludiAuto.",
+      "aiStandard": [
+        99,
+        100
+      ],
+      "aiStandardPerche": "Standard di Mauro (convalidato con gare del 19/10: campo più compatto e realistico). Il GENERA del menu lo perde: riscrivere col tool.",
+      "LIMITI_GIOCO": {
+        "ballastMaxKg": 100,
+        "restrictorMaxPct": 20,
+        "nota": "il gioco CAPPA i valori del file: scrivere 140kg produce 100kg in gara (verificato gara 1411); il filtro escludiAuto è l'unica leva oltre i limiti"
+      },
+      "regole": [
+        {
+          "preset": "preset_mk8r_mech_1",
+          "auto": "VW Golf 8 R",
+          "ballastKg": 100,
+          "restrictorPct": 16,
+          "escluso": true,
+          "nota": "sarebbe 16% con la nuova base: resta escluso finché Mauro non decide"
+        },
+        {
+          "preset": "preset_t16_mech_1",
+          "auto": "Peugeot 205 T16",
+          "ballastKg": 100,
+          "restrictorPct": 8
+        },
+        {
+          "preset": "preset_nsxr_mech_1",
+          "auto": "Honda NSX-R 92R",
+          "ballastKg": 100,
+          "restrictorPct": 5
+        },
+        {
+          "preset": "preset_s2000ap1_mech_1",
+          "auto": "Honda S2000 AP1",
+          "ballastKg": 100,
+          "restrictorPct": 6
+        },
+        {
+          "preset": "preset_rx7fd_mech_1",
+          "auto": "Mazda RX-7 FD",
+          "ballastKg": 100,
+          "restrictorPct": 2
+        },
+        {
+          "preset": "preset_m3evoiii_mech_1",
+          "auto": "BMW M3 E30 Evo III",
+          "ballastKg": 100,
+          "restrictorPct": 1
+        },
+        {
+          "preset": "preset_i30n_hb_mech_2",
+          "auto": "Hyundai i30 N Performance",
+          "ballastKg": 80,
+          "restrictorPct": 2
+        },
+        {
+          "preset": "preset_i30n_hb_mech_1",
+          "auto": "Hyundai i30 N",
+          "ballastKg": 80,
+          "restrictorPct": 2
+        },
+        {
+          "preset": "preset_jcs_mech_1",
+          "auto": "Mini John Cooper S",
+          "ballastKg": 100,
+          "restrictorPct": 10
+        },
+        {
+          "preset": "preset_mx5na_mech_2",
+          "auto": "Mazda MX-5 NA",
+          "ballastKg": 100,
+          "restrictorPct": 15
+        },
+        {
+          "preset": "preset_190e_mech_1",
+          "auto": "Mercedes 190E Evo II",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        },
+        {
+          "preset": "preset_hfevoii_mech_1",
+          "auto": "Lancia Delta HF Evo II",
+          "ballastKg": 100,
+          "restrictorPct": 2
+        }
+      ],
+      "storia": [
+        {
+          "data": "2026-10-19",
+          "variante": "gare di studio a zero (1351 + 1358, Brands Hatch, campo 88-93)",
+          "esito": "delta misurati: Golf 11,0s sopra la base Delta, Delta fondo"
+        },
+        {
+          "data": "2026-10-19",
+          "variante": "prima gara bilanciata (1411, Brands Hatch): Golf 100/20, T16 100/12, MX-5/Mini 100kg pieno",
+          "esito": "fascia centrale VALIDATA (7 auto in 1,1s: RX-7/NSX/S2000/190E/M3 attesi ~•). Falliti: Golf ancora dominante (+6s sul gruppo), T16 caduta troppo (~5s oltre), MX-5 e Mini schiacciate (100kg su auto leggere pesa troppo)"
+        },
+        {
+          "data": "2026-10-19",
+          "variante": "RAFFINATA (scritta 14:2x): Golf 140kg/20% (zavorra più aggressiva, restrictor già al massimo provato), T16 9%, MX-5 50kg/6%, Mini 50kg/4.5%, i30 80kg/3%",
+          "esito": "gara 1436: il gioco ha CAPPATO a 100kg (Golf ha corso 100/20) — i 140 non fanno nulla; campo alzato a 92-93% da Mauro"
+        },
+        {
+          "data": "2026-10-19",
+          "variante": "RICENTRATA per campo 92-93% (media AI): T16 8%, RX-7 5%, S2000 4%, NSX 4.5%, MX-5 3.5%, Mini 2% — il resto cambiato",
+          "esito": "gara 1436: sotto-gruppo ancora +2.5÷4.3s dietro la base; centro validato"
+        },
+        {
+          "data": "2026-10-19",
+          "variante": "gara di studio a zero al NUOVO CAMPO 94-95 (1458) — base SPOSTATA su 190E Evo II (centro reale del pool al campo alto): T16 17.5%, NSX 9%, S2000 6%, RX-7/M3/i30 2%, Delta 4%, Mini 14.5%, MX-5 20% (cap)",
+          "esito": "in prova: al campo 94-95 la Delta non regge più come base (2:01.4 contro T16 1:49.7); il pool si spalanca (20.5s) e tutte le regole ricostruite"
+        }
+      ]
+    },
+    "gr86-r5-escort": {
+      "note": "Classe 8–9 PI di Mauro (19/10): GR86, R5 GT Turbo, Escort RS Cosworth. La Renault è la base più lenta. VARIANTE ATTIVA NEL FILE (19/10, 10:28): Sierra (Escort) a 8% per più competizione; se la gara non è combattuta abbastanza, tornare al 10% con --rule \"Ford Escort RS Cosworth=100,10\".",
+      "piMin": 8,
+      "piMax": 9,
+      "autoBase": "Renault 5 GT Turbo",
+      "regole": [
+        {
+          "preset": "preset_gr86_mech_3",
+          "auto": "GR86 Hakone Edition",
+          "ballastKg": 100,
+          "restrictorPct": 10
+        },
+        {
+          "preset": "preset_gr86_mech_2",
+          "auto": "GR86 Trueno Edition",
+          "ballastKg": 100,
+          "restrictorPct": 10
+        },
+        {
+          "preset": "preset_gr86_mech_1",
+          "auto": "GR86 Standard",
+          "ballastKg": 100,
+          "restrictorPct": 5
+        },
+        {
+          "auto": "Ford Escort RS Cosworth",
+          "ballastKg": 100,
+          "restrictorPct": 8
+        },
+        {
+          "auto": "Renault 5 GT Turbo",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        }
+      ],
+      "storia": [
+        {
+          "data": "2026-10-19",
+          "variante": "GR86 10% · Escort 10% · Renault 0",
+          "esito": "gara combattuta alla pari"
+        },
+        {
+          "data": "2026-10-19",
+          "variante": "GR86 10% · Escort 8% · Renault 0",
+          "esito": "CONFERMATO da Mauro: bilanciamento perfetto"
+        },
+        {
+          "data": "2026-10-19",
+          "variante": "GR86 5% · Escort 8% · Renault 0",
+          "esito": "in prova: le varianti Toyota uscivano troppo lente col 10% (scritto alle 10:36)"
+        },
+        {
+          "data": "2026-10-19",
+          "variante": "GR86 differentiato per variante: Hakone+Trueno (PI 8.89) 10% · Standard (PI 8.86) 5% · Escort 8% · Renault 0",
+          "esito": "in prova (scritto alle 10:42): le Toyota EDITION erano le troppo lente del punto precedente"
+        }
+      ],
+      "aiStandard": [
+        92,
+        96
+      ],
+      "aiStandardPerche": "92-96 (scelta Mauro 21/10 dopo Nurburgring R5 P1 +15.3s: troppo facile anche con banda 88-93). Il GENERA del menu lo perde: riscrivere col tool.",
+      "convalidatoSu": [
+        "Brands Hatch"
+      ],
+      "notaAi": "92-96 (21/10, era 88-93, a suo tempo era 99-100): alzato dopo R5 Nurburgring P1 +15.3s — le AI 88-93 non reggono contro la RX-7 nemmeno a zavorre piene. Storia: 99-100 causava 6 crash deterministici 0xC0000005 al session start su griglia mista zavorrata (20/10): se i crash tornano, ripartire da 90-94 e salire a passi di 1. Variante 88-93 ok provata in pista a Donington.",
+      "perTraccia": {
+        "Suzuka": {
+          "restrictorPct": {
+            "preset_gr86_mech_1": 20,
+            "preset_gr86_mech_2": 20,
+            "preset_gr86_mech_3": 20,
+            "Ford Escort RS Cosworth": 20
+          },
+          "nota": "da gara reale 20/10 (Suzuka, P1 mia +10s dal migliore GR86): GR86 ed Escort mostrano -17,2/-8,6s dalla base R5 — restrittore al tetto 20%. Convalidato 1 gara, confidenza bassa."
+        },
+        "Monza": {
+          "restrictorPct": {
+            "preset_gr86_mech_1": 20,
+            "preset_gr86_mech_2": 20,
+            "preset_gr86_mech_3": 20,
+            "Ford Escort RS Cosworth": 20
+          },
+          "nota": "da gara reale 19/10 (Monza): GR86/Escort -9,5/-11,8s dalla base R5 — restrittore 20%. Gara di calibrazione anti-doppioni responsabile."
+        },
+        "Donington Park": {
+          "aiStandard": [
+            88,
+            90
+          ],
+          "nota": "da gara reale 20/10 Donington (P13/16 con AI 88-93 mediana +23s di sopra): campo AI troppo forte — 88-90 proposti dalla calibrazione. OBSOLETO rispetto alla base? La banda di serie è ora 92-96 (21/10): a Donington ricalibrare col --report prima di fidarsi di questo override."
+        }
+      }
+    },
+    "roadster_classic": {
+      "note": "Ricetta manuale di Mauro (formula bilanciata oil-test 19/10/2026: Mount Panorama R2 P1 +0.575'', Paul Ricard R3 P1 +0.575''): le auto \"pw\" del campo 100 kg + 0,2%, Emira libera (anche per chi la guida). Match del builder: per id serie roadster_classic. La vigia del bilancio perso (zeroBalanceProposal) matcha SOLO per preset: i preset di Exige/R8/Emira vanno captati dal customgrid menù alla prossima griglia manuale e aggiunti qui.",
+      "LIMITI_GIOCO": {
+        "ballastMaxKg": 100,
+        "restrictorMaxPct": 20
+      },
+      "regole": [
+        {
+          "auto": "Lotus Exige V6 Cup",
+          "ballastKg": 100,
+          "restrictorPct": 20
+        },
+        {
+          "auto": "Audi R8 V10 performance quattro",
+          "ballastKg": 100,
+          "restrictorPct": 20
+        },
+        {
+          "auto": "Toyota Supra MKIV",
+          "ballastKg": 100,
+          "restrictorPct": 20
+        },
+        {
+          "auto": "Lotus Emira",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        }
+      ]
+    },
+    "coppa_mazda-rx7-fd": {
+      "note": "Griglia MULTI-MARCA 1990-2005 della Coppa RX-7 FD (scelta Mauro 21/10: la monomarca forzata del builder era anti-storica — la serie a un'unica auto deve correre come le altre). poolAuto = i 9 modelli d'epoca vivi nel template (celle vere del GENERA EVO del 21/10 ore 12:34: NSX-R, S2000, RX-7 FD, 205 T16, 190E Evo II, Mini JCS, M3 E30 Evo III, MX-5 NA, Delta HF Evo II). Le regole SONO i valori calibrati della classe strada-brands-9-10 (stesso pool di modelli, gare 19/10 con gap P1 +0,575); eccezione: preset_mx5na_mech_1 non era nel pool calibrato — valore derivato dal PI (mech_2 15% − ΔPI 0,25 punto × 25%/punto ≈ 8,75%). RIFORNITO 23/10 (Mauro, gare RBR 261023-0036 asciutto + 261023-0114 bagnato): RX-7/S2000/NSX sul ritmo (0–3 s/lap), M3/T16/Delta +5–6,5 s/lap dal base → corr. parziale −3 punti; Mini e MX-5 +23–26 s/lap (girate in ENTRAMBE le gare, recupero di ~40 punti restrittore impossibile sotto il cap 20%) → escludiAuto dal pool, stessa leva del Golf 8 R.",
+      "escludiAuto": ["preset_jcs_mech_1", "preset_mx5na_mech_1"],
+      "escludiPerche": "Mini JCS e MX-5 NA: esclusi su decisione di Mauro 23/10 — gare RBR 261023-0036 (asciutto) e 261023-0114 (bagnato): mediana best-lap +23,1/+22,9 s/lap (Mini, restrittore 10%) e +26,3/+24,1 (MX-5, 8,75%), entrambe GIRATE in gara. Con pendenza ~0,57 s/% servirebbero ~40 punti di SOTTRAZIONE oltre il cap 20%: la vera pace del pool non lo compensa. Le regole resto nel file; se Mauro le riammette, togliere da escludiAuto e valutare 0%.",
+      "autoBase": "Mercedes-Benz 190E 2.5-16 Evo II (base della calibrazione: kg 0 / 0%)",
+      "poolAuto": [
+        "ks_honda_nsx_r",
+        "ks_honda_s2000_ap1",
+        "ks_mazda_rx7_fd",
+        "ks_peugeot_205_t16",
+        "ks_mercedes_190e_evo_ii",
+        "ks_mini_jcs_1990",
+        "ks_bmw_m3_e30_evo_iii",
+        "ks_mazda_mx5_na",
+        "ks_lancia_delta_hf_integrale_evo_ii"
+      ],
+      "LIMITI_GIOCO": {
+        "ballastMaxKg": 100,
+        "restrictorMaxPct": 20
+      },
+      "regole": [
+        { "preset": "preset_rx7fd_mech_1", "auto": "Mazda RX-7 FD Spirit R", "ballastKg": 100, "restrictorPct": 2 },
+        { "preset": "preset_t16_mech_1", "auto": "Peugeot 205 T16", "ballastKg": 100, "restrictorPct": 8, "nota": "23/10 post-RBR (asciutto + bagnato: gap vs base 190E +6,1/+5,4 s/lap a 11% → chiudo ~1,7s scendendo 11 → 8; 22/10 dopo Sebring era 8→11)" },
+        { "preset": "preset_nsxr_mech_1", "auto": "Honda NSX-R 92R", "ballastKg": 100, "restrictorPct": 5 },
+        { "preset": "preset_s2000ap1_mech_1", "auto": "Honda S2000 AP1", "ballastKg": 100, "restrictorPct": 6 },
+        { "preset": "preset_m3evoiii_mech_1", "auto": "BMW M3 E30 Sport Evo (Evolution III)", "ballastKg": 100, "restrictorPct": 0.5, "nota": "23/10 post-RBR (asciutto + bagnato: gap vs base 190E +6,0/+5,2 s/lap a 3,5% → chiudo ~1,7s scendendo 3,5 → 0,5; 22/10 dopo Sebring era 1→3,5)" },
+        { "preset": "preset_jcs_mech_1", "auto": "Mini John Cooper S", "ballastKg": 100, "restrictorPct": 10, "nota": "ESCLUSA dal pool 23/10 (escludiAuto): gare RBR 261023 × 2 girata, +23 s/lap a 10% — regola tenuta per eventuale riammissione" },
+        { "preset": "preset_mx5na_mech_1", "auto": "Mazda MX-5 NA", "ballastKg": 100, "restrictorPct": 8.75, "nota": "ESCLUSA dal pool 23/10 (escludiAuto): gare RBR 261023 × 2 girata, +25 s/lap a 8,75% — regola tenuta per eventuale riammissione (valore derivato dal PI: mech_2 15% − ΔPI 0,25 × 25%/punto ≈ 8,75)" },
+        { "preset": "preset_hfevoii_mech_1", "auto": "Lancia Delta HF integrale Evoluzione II", "ballastKg": 100, "restrictorPct": 3, "nota": "23/10 post-RBR (asciutto + bagnato: gap vs base 190E +6,5/+5,7 s/lap a 6% → chiudo ~1,7s scendendo 6 → 3; 22/10 dopo Sebring era stato alzato a 6)" },
+        { "preset": "preset_190e_mech_1", "auto": "Mercedes-Benz 190E 2.5-16 Evo II", "ballastKg": 0, "restrictorPct": 0 }
+      ],
+      "perTraccia": {
+        "Paul Ricard": {
+          "convalidato": false,
+          "restrictorPct": {
+            "preset_nsxr_mech_1": 11
+          }
+        }
+      }
+    },
+    "hyper_road": {
+      "note": "MONOMARCA (decisione Mauro 20/10, post Suzuka R4): 16 GT3RS identiche — la zavorra per-auto identica non bilancia niente dentro il campo, quindi regole a 0/0 e la difficoltà si regola SOLO col campo AI (skill), non con handicap fisici. Il bilancio fisico (100kg+9%) ha tenuto R4 (field unito ~1s) ma era una leva globale, non un equilibrio: se le vittorie tornano facili si muove il campo AI. Le regole fisiche tornano SOLO se rientra la SP3 (multiclasse, era ~5s/giro sopra le GT3RS su datiMonza) — lì il problema di bilancio nasce davvero.",
+      "aiStandard": [
+        94,
+        95
+      ],
+      "aiStandardPerche": "Pin della monomarca (20/10, nel pacchetto griglia): il GENERA del menu perde il campo AI — il builder lo riscrive a ogni griglia e la vigia sul campo AI lo ripristina se sparisce. Scelto per la lotta (le AI nude erano ~4,5s sotto a Suzuka con il cap dei 100kg); si ricalibra con i dati della prima gara a campo nudo (RBB R5).",
+      "LIMITI_GIOCO": {
+        "ballastMaxKg": 100,
+        "restrictorMaxPct": 20
+      },
+      "regole": [
+        {
+          "preset": "preset_gt3rs_mech_1",
+          "auto": "Porsche 911 GT3 RS (992)",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        },
+        {
+          "preset": "preset_gt3rs_mech_2",
+          "auto": "Porsche 911 GT3 RS (992)",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        },
+        {
+          "preset": "preset_sp3_mech_1",
+          "auto": "Ferrari Daytona SP3",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        }
+      ]
+    },
+    "gt3_296_vs_exp": {
+      "note": "Fase Giola (21/10, inizio 22/10): Imola, 7x Dallara EXP vs 7x Ferrari 296 GT3 (lui in 296, griglia costruita a mano — nessuna classe combaciava). Regole derivate dal dato empirico della vigilia: 0/0 EXP top 1:49.45 (Scott, 12 giri); 50kg/3% → 1:50.30-1:50.86 (+1.08s dallo zero, TROPPOvicino: 2330 la sua 296 (1:50.256) da P1 stava solo +0.16 sopra le EXP, 2355 margine max +1.16); 100kg/5% → 1:51.74–52.47 (+2.29s, servono dati in gara). Alzata 22/10 a 75kg/5% (+0.93s stimati dal 50/3, interpolazione lineare tra le due misure): EXP attese ~1:51.3-1:51.8 ≈ margine 1.5-2s sui suoi 1:49.5-1:50.3 del 2330/2355. Da ricalibrare al primodato della gara vera (23 giri stabili).",
+      "autoBase": "Ferrari 296 GT3 (auto di Mauro e fascia AI centrale: Nielsen/Crawford 1:51.0-1:51.5, resto 1:53.8-1:55.5)",
+      "LIMITI_GIOCO": {
+        "ballastMaxKg": 100,
+        "restrictorMaxPct": 20
+      },
+      "regole": [
+        { "preset": "preset_dalexp_mech_1", "auto": "Dallara EXP", "ballastKg": 75, "restrictorPct": 5 },
+        { "preset": "preset_296gt3_mech_1", "auto": "Ferrari 296 GT3", "ballastKg": 0, "restrictorPct": 0 }
+      ],
+      "storia": [
+        {
+          "data": "2026-10-22",
+          "variante": "apertura fase a 50kg/3% (sul dato pratico del 21/10 sera)",
+          "esito": "GIUDICATA TROPPO POCA dal Mauro («ancora troppo veloci»): le 7 EXP chiudevano 1:50.42-51.72 con margine solo +0.16/+1.81 dalla sua 296; 0015 (22/10) le prime 4 EXP sotto 1:51.0 già al 1-2° giro. Sezione da convalidare in gara: 75kg/5%"
+        }
+      ]
+    }
+  }
+}

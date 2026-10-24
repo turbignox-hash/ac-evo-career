@@ -29,7 +29,7 @@ import { readFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { lapToMs, positionBase } from './results.mjs';
-import { loadClasses, perTrackKey } from './gridbuilder.mjs';
+import { loadClasses, perTrackKey, classesFile } from './gridbuilder.mjs';
 import { readCells, DEFAULT_FILE as GRID_FILE } from '../tools/grid-balance.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 import { tr } from './lang.mjs';
@@ -39,7 +39,7 @@ const PROJECT = dirname(HERE);
 // EVO_DATA_DIR: solo per i test (ridirige il registro in una cartella temporanea)
 const DATA_DIR = process.env.EVO_DATA_DIR ?? join(PROJECT, 'data');
 const CALIB_FILE = () => join(DATA_DIR, 'grid-calibrazione.json');
-const CLASSES_FILE = join(PROJECT, 'data', 'grid-classes.json');
+const CLASSES_FILE = () => classesFile();
 const BACKUP_DIR = join(DATA_DIR, 'backups');
 
 const TOL_SEC = 0.8;         // "raggiunto" se il penalizzato sta entro quest'delta dalla base
@@ -526,8 +526,8 @@ export function appuntaConvalida({ classe = null, trkKey = null, dry = false } =
     messaggio.push(`✓ ${g.classe} · ${g.trkKey}: convalidato: true (${g.obs} gare coerenti)`);
   }
   if (!dry && applicate.length) {
-    try { mkdirs(BACKUP_DIR); copyFileSync(CLASSES_FILE, join(BACKUP_DIR, `grid-classes.bak-${stamp()}.json`)); } catch { /* il backup non deve bloccare */ }
-    writeJsonAtomic(CLASSES_FILE, classes);
+    try { mkdirs(BACKUP_DIR); copyFileSync(CLASSES_FILE(), join(BACKUP_DIR, `grid-classes.bak-${stamp()}.json`)); } catch { /* il backup non deve bloccare */ }
+    writeJsonAtomic(CLASSES_FILE(), classes);
   }
   return { applicate, messaggio };
 }

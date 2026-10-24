@@ -32,7 +32,7 @@ import { patchPerTrack } from '../src/gridbuilder.mjs';   // supplementi per-tra
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const DEFAULT_FILE = join(GAME_MODES_DIR, 'last_grid.customgrid');
-const CLASSES_FILE = join(HERE, '..', 'data', 'grid-classes.json');
+const CLASSES_FILE = () => process.env.EVO_CLASSES_FILE ?? join(HERE, '..', 'data', 'grid-classes.json');
 
 const f32 = (b) => (b && b.length >= 4) ? Buffer.from(b.slice?.() ?? b).readFloatLE(0) : null;
 const setF32 = (v) => { const b = Buffer.alloc(4); b.writeFloatLE(v, 0); return b; };
@@ -40,7 +40,7 @@ const utf8 = (b) => Buffer.from(b).toString('utf8');
 
 /* ---------- lettura convenzioni classi ---------- */
 export function loadClasses() {
-  return JSON.parse(readFileSync(CLASSES_FILE, 'utf8'));
+  return JSON.parse(readFileSync(CLASSES_FILE(), 'utf8'));
 }
 
 /* ---------- lettura celle (per dump/DROP/GUI) ---------- */

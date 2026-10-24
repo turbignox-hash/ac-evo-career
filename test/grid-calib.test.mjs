@@ -13,12 +13,23 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const TMP = mkdtempSync(join(tmpdir(), 'calib-test-'));
 process.env.EVO_DATA_DIR = TMP;   // PRIMA dell'import: grid-calib legge l'env
+// La calibrazione dei test vive su UNA COPIA della fixture congelata
+// (test/fixtures/grid-classes-sample.json = le classi di data/grid-classes.json
+// al 24/10/2026): senza questo i test grid-calib dipendevano dal data/ locales
+// e nel pacchetto amico estratto cadevano 12/173. La copia è scrivibile (le
+// convalide del test 5 scrivono il file) e sta nella cartella temporanea:
+// niente mutate né il data/ vero né la fixture.
+const SAMPLE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'grid-classes-sample.json');
+const CLASSES_TMP = join(TMP, 'grid-classes.json');
+copyFileSync(SAMPLE, CLASSES_TMP);
+process.env.EVO_CLASSES_FILE = CLASSES_TMP;   // PRIMA dell'import: gridbuilder legge l'env
 
 const calib = await import('../src/grid-calib.mjs');
 

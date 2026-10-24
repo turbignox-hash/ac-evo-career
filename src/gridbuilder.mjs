@@ -26,7 +26,6 @@ import { tr } from './lang.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);
-const CLASSES_FILE = join(PROJECT, 'data', 'grid-classes.json');
 const CARS_JSON = 'E:/SteamLibrary/steamapps/common/Assetto Corsa EVO Dedicated Server/cars.json';
 
 const f32 = (b) => (b && b.length >= 4) ? Buffer.from(b.slice?.() ?? b).readFloatLE(0) : null;
@@ -37,11 +36,18 @@ const utf8 = (b) => Buffer.from(b).toString('utf8');
 // lo legge in analyzeRace E in recordEvent): si ri-parsa solo se il mtime cambia.
 // REGOLA: chi muta le classi deve SOTTO scrivere il file (come già fanno
 // appuntaConvalida e grid-balance): la scrittura cambia mtime e invalida il memo.
+// EVO_CLASSES_FILE: solo per i test — punto la fixture congelata in test/fixtures/
+// (il 24/10 i test grid-calib dipendevano da data/grid-classes.json, che nella
+// cartella estratta del pacchetto amico non c'è: i test cadevano 13/173).
+export function classesFile() {
+  return process.env.EVO_CLASSES_FILE ?? join(PROJECT, 'data', 'grid-classes.json');
+}
 let _classesMemo = null; // { mtime, dati }
 export function loadClasses() {
-  const mtime = existsSync(CLASSES_FILE) ? statSync(CLASSES_FILE).mtimeMs : 0;
+  const F = classesFile();
+  const mtime = existsSync(F) ? statSync(F).mtimeMs : 0;
   if (!_classesMemo || _classesMemo.mtime !== mtime) {
-    _classesMemo = { mtime, dati: existsSync(CLASSES_FILE) ? JSON.parse(readFileSync(CLASSES_FILE, 'utf8')) : { classi: {} } };
+    _classesMemo = { mtime, dati: existsSync(F) ? JSON.parse(readFileSync(F, 'utf8')) : { classi: {} } };
   }
   return _classesMemo.dati;
 }

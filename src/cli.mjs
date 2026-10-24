@@ -44,7 +44,10 @@ import { renameSync, copyFileSync as copySyncGrid, statSync } from 'node:fs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const PROJECT = dirname(HERE);
 const LADDER_FILE = join(PROJECT, 'config', 'career.evo.ladder.json');
-const DATA_DIR = join(PROJECT, 'data');
+// Stessa regola di import.mjs/webui-env.mjs: EVO_DATA_DIR (solo per i test)
+// ridirige la cartella dati. Senza questo il fumo CLI leggeva data/ del progetto
+// e passava solo perché c'era un save vero (il pacchetto amico scopre il 24/10).
+const DATA_DIR = process.env.EVO_DATA_DIR ?? join(PROJECT, 'data');
 // SLOT di carriera (1..3): ACE_SLOT=2 sceglie il secondo salvataggio (o --slot via env).
 // Lo slot risolve QUI (una volta, all'avvio del processo) e vale per tutto il giro.
 const SLOT = activeSlot();
