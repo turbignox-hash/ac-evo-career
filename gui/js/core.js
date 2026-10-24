@@ -51,6 +51,22 @@ async function drawAggBar(agg){
   $('#agg-later', host).onclick = () => { host.innerHTML = ''; };
 }
 
+/* Indicatore SEMPRE leggibile in Impostazioni (24/10): anche in stato di quiete
+   («tutto combacia») si dice CHE COSA è aggiornato e QUANDO è stato verificato.
+   La barra in alto resta il messaggio d'interesse: qui si parla quando l'utente va
+   a cercarla */
+async function drawAggStatus(host){
+  if (!host) return;
+  const a = await (async () => { try { return await api('agg-info'); } catch (e) { return { skip: true, motivo: e.message }; } })();
+  const b = a?.build ? `<b>v${esc(a.build.semver)}</b>${a.build.hash ? ` · ${esc(a.build.hash)}` : ''}` : '';
+  const qundo = a?.verificato ? ` · ${tr({ it: 'verificato alle', en: 'checked at' })} ${esc(String(a.verificato))}` : '';
+  if (a?.skip) host.innerHTML = `${tr({ it: 'Controllo aggiornamenti non disponibile', en: 'Update check not available' })}${a.motivo ? `: ${esc(a.motivo)}` : ''}${b ? ` · build ${b}` : ''}`;
+  else if (a?.diverged) host.innerHTML = `<span style="color:#e0c98a">${tr({ it: '⚠ disco e GitHub sono divergi (commit in conflitto): l\'aggiornamento automatico non parte, serve un intervento a mano.', en: '⚠ disk and GitHub have diverged (conflicting commits): the automatic update will not run — a manual sync is needed.' })}</span>`;
+  else if (a?.discoAvanti > 0) host.innerHTML = `${tr({ it: 'Il disco è AVANTI di GitHub (commit locali non ancora spinti)', en: 'Disk is AHEAD of GitHub (local commits not pushed yet)' })}${qundo}${b ? ` · build ${b}` : ''}`;
+  else if (a?.remotoAvanti > 0) host.innerHTML = `${tr({ it: 'Aggiornamenti in attesa su GitHub', en: 'Updates waiting on GitHub' })} <b>${a.remotoAvanti}</b>${tr({ it: ' — usa la barra in alto', en: ' — use the bar above' })}${qundo}`;
+  else host.innerHTML = `${tr({ it: 'Aggiornato', en: 'Up to date' })}${tr({ it: ': nessun aggiornamento in attesa', en: ': no update waiting' })}${qundo}${b ? ` · build ${b}` : ''}`;
+}
+
 function modal(title, bodyHtml, buttons){
   const root = $('#modal-root');
   root.innerHTML = `<div class="modal"><div class="mh">${esc(title)}<button class="x" aria-label="chiudi">×</button></div>

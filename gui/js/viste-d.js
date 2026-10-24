@@ -286,6 +286,10 @@ function drawSettings(m){
     <table><thead><tr><th></th><th>${tr({ it: 'Carriera', en: 'Career' })}</th><th class="right">${tr({ it: 'Come si usa', en: 'How to use' })}</th></tr></thead><tbody>${slotsHtml}</tbody></table>
     <div class="faint" style="margin-top:8px" id="slot-instructions">${tr({ it:`Clicca una riga (o il bottone a destra) per avviare quello slot: parte <b>pilota-N.cmd</b> da solo, senza variabili da scrivere. I lanciatori sono anche avviabili a mano dalla cartella del programma, e gli slot si aprono anche insieme (slot 1 → porta 8642, slot 2 → 8643, slot 3 → 8644). Ogni slot ha il SUO salvataggio e i SUOI backup: mai mischiati. Lo slot 1 contiene le carriere fatte fino ad oggi. Il watcher segue lo slot del lanciatore che l'ha aperto. Lo slot attivo di questa sessione NON cambia a caldo: qui si apre la sua finestra, per cambiarlo davvero chiudi questa e apri l'altro.`, en:`Click a row (or the button on the right) to launch that slot: <b>pilota-N.cmd</b> starts on its own, with no variables to type. The launchers can also be started manually from the program folder, and slots can open together (slot 1 → port 8642, slot 2 → 8643, slot 3 → 8644). Each slot has its OWN save file and its OWN backups: never mixed. Slot 1 holds the careers made up to now. The watcher follows the slot of the launcher that opened it. This session's active slot does NOT switch live: from here you open its window; to really change slot, close this one and open the other.` })}</div>
   </div>
+  <div class="panel"><h2>${tr({ it: 'Aggiornamenti', en: 'Updates' })} <span class="h-act">${tr({ it: 'controllo automatico: all\'avvio e poi ogni 10 minuti', en: 'automatic: at launch, then every 10 minutes' })}</span></h2>
+    <div id="agg-status" class="muted" style="font-size:13px">…</div>
+    <div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: 'Quando un aggiornamento è pronto, la barra compare in ALTO: "Aggiorna ora" porta giù il codice e fa i test — il save non si tocca.', en: 'When an update is ready, the bar appears at the TOP: "Update now" pulls the code and runs the tests — the save is never touched.' })}</div>
+  </div>
   <div class="panel"><h2>${tr({ it: 'Lingua', en: 'Language' })} <span class="h-act">${tr({ it: 'la pagina si ricarica al cambio', en: 'the page reloads when you switch' })}</span></h2>
     <div class="row" style="align-items:center">
       <label class="muted" for="i-lingua">${tr({ it: 'Lingua interfaccia', en: 'Interface language' })}</label>
@@ -354,6 +358,7 @@ function drawSettings(m){
     </div>
   </div>`;
   // slot cliccabili: il bottone nella riga lancia pilota-N.cmd via slot-launch
+  if (typeof drawAggStatus === 'function') drawAggStatus($('#agg-status', m));
   $$('button[data-slot-go], button[data-slot-open]').forEach(b => b.onclick = () => {
     const n = b.dataset.slotGo ?? b.dataset.slotOpen;
     if (!n) return;

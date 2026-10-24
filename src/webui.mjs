@@ -500,7 +500,16 @@ async function api(context0, req, res, action, body) {
     case 'agg-info': {
       // fresh ogni volta: il client lo ripete dopo un'installazione. Versione
       // ASINCRONA: git ls-remote non blocca più l'event loop (audit freeze 23/10).
-      return sendJson(res, 200, await aggMemo());
+      // Indicatore Impostazioni (24/10): accanto al puro stato porto BUILD locale
+      // (semver + hash del disco) e il momento dell'ultima verifica — così la GUI
+      // mostra "aggiornato a …" anche quando tutto combacia (prima il response
+      // era SECCO: in stato di quiete l'utente non vedeva più nulla in giro).
+      const stato = await aggMemo();
+      return sendJson(res, 200, {
+        ...stato,
+        build: buildVersion(),
+        verificato: AGG_AT ? new Date(AGG_AT).toLocaleTimeString('it-IT') : null,
+      });
     }
     case 'agg-install': {
       // l'utente ha cliccato "Aggiorna ora": il consenso è già dato per definizione
