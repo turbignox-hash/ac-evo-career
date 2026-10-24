@@ -14,19 +14,19 @@ import {
   savePath, activeSlot,
 } from './state.mjs';
 import { paddock } from './world.mjs';
-import { raceCard, nextRound, markPending, chargeEntry, launch } from './race.mjs';
+import { raceCard, markPending, chargeEntry, launch } from './race.mjs';
 import { listResultFiles, readSessionResult, describeResult } from './results.mjs';
 import { runImport, importedFiles, importLog, resetImportRegistry } from './import.mjs';
 import { seasonReview, reviewableSeasons, exportReview } from './review.mjs';
 import { checkIntegrity, fixIntegrity } from './integrity.mjs';
 import { contractStatus, challengeFor, acceptChallenge, ensureLife, careerPlanner } from './life.mjs';
 import { newsFeed } from './gazzetta.mjs';
-import { ensureFlowsSeeded, recentFlows, resetFlows, dedupFlows } from './flows.mjs';
+import { ensureFlowsSeeded, resetFlows } from './flows.mjs';
 import { scanCareer, autoRepair, clearBacheca, resetLedger, reseedFlows, flowDedup } from './maintenance.mjs';
 import { resetNews } from './gazzetta.mjs';
 import {
   agendaDay, gareDelGiorno, prossimoGiornoConGara, avanzaGiorno,
-  elencoCompleto, racesOnDay, calendarStrip, dateLabel, dateShort, CADENZA_GIORNI,
+  elencoCompleto, racesOnDay, dateLabel, dateShort,
 } from './agenda.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 import { buildGridMessage } from './gridbuilder.mjs';
@@ -66,7 +66,6 @@ const C = {
 const money = (n) => `${n.toLocaleString('it-IT')}`;
 const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
 const pad = (text, width) => String(text).padEnd(width);
-const colored = (text, width, colorFn) => colorFn(pad(text, width));
 
 /* traccia del giro atteso: serve a grid-balance --track per i supplementi */
 function trackOfCurrentRound(ladder) {
@@ -304,7 +303,6 @@ function cmdStatus() {
   const bannerTest = testModeBanner();
   if (bannerTest) console.log(C.yellow(bannerTest));
   const node = nodeById(ladder, state.node);
-  const standing = playerStanding(ladder, state, node);
   const diff = difficultyFor(ladder, state, node, node.calendar[Math.min(state.round, node.calendar.length - 1)]?.track);
 
   console.log(header(state, ladder));
@@ -473,7 +471,6 @@ function cmdCalendar() {
   const played = new Set((state.results[node.nodeId] ?? []).filter((r) => r.season === state.season).map((r) => r.round));
   console.log(C.bold(tr({ it: '\nCalendario {D} — stagione {S}\n', en: '\nCalendar {D} — season {S}\n' }).replace('{D}', node.display).replace('{S}', state.season)));
   node.calendar.forEach((round, i) => {
-    const track = ladder.contentNames?.tracks?.[round.track] ?? round.track;
     const weather = ladder.weatherNames[String(round.weather)];
     const mark = played.has(i) ? C.green('✓') : i === state.round ? C.yellow('►') : ' ';
     console.log(`  ${mark} R${i + 1} ${round.name.padEnd(34)} ${String(round.laps).padStart(2)} ${tr({ it: 'giri', en: 'laps' })}  ${String(round.hour).padStart(2)}:00  ${C.dim(weather)}`);
@@ -745,7 +742,6 @@ async function cmdPrepara(args) {
 function cmdImport(args) {
   const { ladder, paths } = context();
   const state = requireState();
-  const node = nodeById(ladder, state.node);
 
   if (args.flags.inspect) {
     const files = listResultFiles(paths);
@@ -953,7 +949,7 @@ function cmdReview(args) {
   }
   const r = seasonReview(ladder, state, { season: wanted });
   console.log('\n' + r.text.split('\n').map((l) => l
-    .replace(/^#{1,2} /, (m) => C.bold(''))
+    .replace(/^#{1,2} /, () => C.bold(''))
     .replace(/\*\*(.+?)\*\*/g, (m, s1) => C.cyan(s1)))
     .join('\n') + '\n');
   if (args.flags.export) {
@@ -1362,7 +1358,7 @@ function cmdTestMode(args) {
     console.log(C.yellow(tr({ it: `\n⚠  MODALITÀ TEST ATTIVATA: tutte le gare della scala a ${out.giri} giri (${out.rond} rond toccate).`, en: `\n⚠  TEST MODE ON: every ladder race at ${out.giri} laps (${out.rond} rounds touched).` })));
     console.log(C.dim(tr({ it: '  Banner in status/next/agenda finché non spegni. Riattiva le distanze vere con: test-mode --off\n', en: '  Banner in status/next/agenda until you switch it off. Restore the real distances with: test-mode --off\n' })));
     try {
-      const { ladder } = context();
+      context();
       const state = requireState();
       pushMessage(state, tr({ it: `Modalità test attiva: tutte le gare a ${out.giri} giri (richiesta Mauro 19/10). Riattiva con: node ac-evo-career.mjs test-mode --off`, en: `Test mode active: all races at ${out.giri} laps. Restore with: node ac-evo-career.mjs test-mode --off` }), 'info');
       saveState(SAVE_FILE, state);

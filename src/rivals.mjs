@@ -76,7 +76,6 @@ export function recordRaceGrid(result, playerPayload, { season, round, nodeId, n
   const toPos = (p) => (zeroBased ? Number(p) + 1 : Number(p));
 
   const meKey = rivalKey(playerPayload.driverFirst, playerPayload.driverLast);
-  const winner = drivers.reduce((a, b) => (toPos(b.position) < toPos(a.position) ? b : a), drivers[0] ?? null);
   const vendetta = { newNemesi: [], settled: [] }; // nemesi dichiarate e vendette assestate in questa gara
 
   const raceRow = {

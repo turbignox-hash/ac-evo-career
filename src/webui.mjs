@@ -7,25 +7,23 @@
 
 import { createServer } from 'node:http';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, renameSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, copyFileSync, renameSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import { dirname, join, extname, basename, relative, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
-import { fileURLToPath } from 'node:url';
-import { resolvePaths, isGameRunning, STEAM_APP_ID, GAME_EXE, dataDirCandidates, findGameExe, isDir, isFile, launchGame } from './paths.mjs';
-import { scanContent, validateLadder } from './content.mjs';
+import { resolvePaths, isGameRunning, GAME_EXE, dataDirCandidates, isDir, isFile, launchGame } from './paths.mjs';
+
 import {
-  createCareer, loadState, saveState, nodeById, disciplineName, tierOf, gateStatus,
-  standingsFor, playerStanding, difficultyFor, seasonEnd,
-  acceptOffer, pushMessage, sponsorTier, enterNode, renameDriver, careerStats,
-  savePath, activeSlot,
+  createCareer, nodeById, disciplineName, gateStatus,
+  standingsFor, difficultyFor, seasonEnd,
+  acceptOffer, pushMessage, enterNode, renameDriver, careerStats,
 } from './state.mjs';
-import { paddock, ourToSkill, OUR_MIN, OUR_MAX } from './world.mjs';
+import { ourToSkill, OUR_MIN, OUR_MAX } from './world.mjs';
 import { loadCatalog, resultDetail } from './catalog.mjs';
-import { liveReader, fmtMs } from './shmem.mjs';
+import { liveReader } from './shmem.mjs';
 import { raceCard, markPending, chargeEntry, launch } from './race.mjs';
-import { PIANI, applyPianoToCalendar, pianoFor } from './orario.mjs';
+import { applyPianoToCalendar } from './orario.mjs';
 import {
-  listResultFiles, readSessionResult, isRaceSession, describeResult, findPlayerDriver, classify,
+  listResultFiles, readSessionResult, isRaceSession, findPlayerDriver, classify,
 } from './results.mjs';
 import { rivalsOverview, rivalDetail } from './rivals.mjs';
 // runImport sta FUORI dall'import statico: la catena import.mjs → grid-calib.mjs
@@ -42,14 +40,14 @@ import { contractStatus, sponsorOffers, acceptSponsor, declineSponsor, challenge
 import { newsFeed } from './gazzetta.mjs';
 import { recordTestDay, testDayLog, calibrationSummary } from './testday.mjs';
 import { recordWarning, readWarnings } from './warnings.mjs';
-import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, TYRE_CLASSES, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
-import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, kindIt, telemDiagnostics, lapTrace } from './motec.mjs';
+import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
+import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, telemDiagnostics, lapTrace } from './motec.mjs';
 import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
-import { parseSetup, applyEdits, listSetups, writeSetupCopy, brakePlanOf, annotateAllyAdvice } from './carsetup.mjs';
+import { parseSetup, listSetups, writeSetupCopy, brakePlanOf, annotateAllyAdvice } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
 import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, WEEKEND_FILE } from '../tools/set-track.mjs';
 import { setRaceTime, currentRaceTime } from '../tools/set-racetime.mjs';
-import { setWeekendLaps, weekendLaps } from '../tools/weekend-laps.mjs';
+import { setWeekendLaps } from '../tools/weekend-laps.mjs';
 // report.mjs: il bottone "Segnala un problema" costruisce l'URL della issue
 // GitHub precompilata (versione, serie in corso, errori recenti) e il link
 // Ko-fi dal config. Nessuna rete qui: il POST lo fa il browser.
@@ -88,22 +86,22 @@ function buildVersion() {
   try { hash = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: PROJECT, encoding: 'utf8', timeout: 4000, stdio: ['ignore', 'pipe', 'ignore'] }).trim().slice(0, 7); } catch { /* senza git resta solo il semver */ }
   return (BUILD_VERSION = { semver: ver, hash: hash || null });
 }
-import { currentWeatherPreset, setWeatherPreset, PRESETS, setWeatherCustom, presetForLabel } from './weather.mjs';
+import { currentWeatherPreset, setWeatherPreset, PRESETS, presetForLabel } from './weather.mjs';
 import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
 import { sameTrack as trkSame, sameCar as carSame } from './tracknames.mjs';
 import { tr, lang, setLang, hasEnvOverride } from './lang.mjs';
 import { carsBook, carImageOf } from './cars.mjs';
-import { garageOverview, catalogPicker, addCar, removeCar, setNote, importShowcase, sellCar } from './garage.mjs';
-import { ensureFlowsSeeded, recentFlows, resetFlows, dedupFlows } from './flows.mjs';
+import { garageOverview, catalogPicker, addCar, removeCar, setNote, sellCar } from './garage.mjs';
+import { ensureFlowsSeeded, recentFlows, resetFlows } from './flows.mjs';
 import { scanCareer, autoRepair, clearBacheca, resetLedger, reseedFlows, flowDedup } from './maintenance.mjs';
 import { mailbox } from './mailbox.mjs';
 import {
-  agendaDay, gareDelGiorno, prossimoGiornoConGara, avanzaGiorno, elencoCompleto,
-  racesOnDay, calendarStrip, dateLabel, dateShort, MAX_SCELTE_PER_GIORNO, CADENZA_GIORNI,
+  agendaDay, prossimoGiornoConGara, avanzaGiorno,
+  racesOnDay, calendarStrip, dateLabel, MAX_SCELTE_PER_GIORNO, CADENZA_GIORNI,
   choicesForDay, canChoose, recordChoice, impegni, shiftSeat,
   scheduledDay, nextUnplayedRound, hasSeat,
 } from './agenda.mjs';
-import { heritageOverview, claimMemory, memoryRoundHint } from './memories.mjs';
+import { heritageOverview, claimMemory } from './memories.mjs';
 import { resetNews } from './gazzetta.mjs';
 // griglia: tab bilanciamento (celle, classi, perTraccia) + azioni di scrittura
 import { loadClasses, buildGridMessage } from './gridbuilder.mjs';
@@ -133,12 +131,11 @@ import { midSeasonPulse } from './world.mjs';
 // allievo: la memoria del meccanico — i round di consigli incassano l'esito del
 // giro successivo e la generazione seguente annota la storia su ogni campo
 import { memoOf, registraRound, annotaAdvice, semaforoAdvice } from './allievo.mjs';
-import { writeJsonAtomic } from './atomic.mjs';
 
 // costanti di sessione, ladder e percorsi + appEnv/context stanno in webui-env.mjs;
 // le VISTE (oggetti JSON per la GUI) stanno in webui-views.mjs
 import { PROJECT, DATA_DIR, SAVE_FILE, CONFIG_FILE, GUI_DIR, BACKUP_DIR, SLOT, loadLadder, appEnv, context, writeConfig, requireState, persist } from './webui-env.mjs';
-import { viewHeader, viewStatus, seriesNodeView, viewCalendar, viewStandings, viewMessages, viewCard, viewDifficulty, viewSetup } from './webui-views.mjs';
+import { viewHeader, viewStatus, viewCalendar, viewStandings, viewMessages, viewCard, viewDifficulty, viewSetup } from './webui-views.mjs';
 
 /* GRIGLIA EVENTO GIÀ IN PIEDI (esito prova 23/10): la griglia a 14 F40 scritta
  * sul disco è VALIDATA in gioco (log EVO 20:47: 14 avversari, zero eccezioni);
@@ -1185,7 +1182,6 @@ async function api(context0, req, res, action, body) {
       const viewDay = Number.isFinite(Number(body.day)) && Number(body.day) >= 1 ? Math.floor(Number(body.day)) : day;
       const filter = typeof body.filter === 'string' ? body.filter : 'tutte';    // tutte|fattibili|iscritte|bloccate
       const disc = typeof body.discipline === 'string' ? body.discipline : null; // id disciplina o null
-      const today = gareDelGiorno(ladder, state);
       const griglia = racesOnDay(ladder, state, viewDay).filter((g) => {
         if (filter === 'fattibili') return g.fattibile;
         if (filter === 'iscritte') return g.stato === 'iscritto';
@@ -1864,13 +1860,11 @@ async function api(context0, req, res, action, body) {
           if (!carName && sessions.length > 1) sessions = sessions.filter((s) => s.car === sessions[0].car);
           const usedCar = sessions[0]?.car ?? carName;
           const tyre = usedCar ? tyreClassOf(usedCar) : null;
-          // BASE DI FABRICA (data/setup-defaults.json): valori DEFAULT SETUP di EVO
-          // per l'auto — dato alle regole 'raddrizzo l'asimmetria' (21/10)
-          let setupDefaults = null;
-          try {
-            const dRaw = JSON.parse(readFileSync(join(DATA_DIR, 'setup-defaults.json'), 'utf8'));
-            setupDefaults = (usedCar && dRaw[usedCar]) ?? Object.entries(dRaw).find(([k]) => !k.startsWith('_') && carSame(k, usedCar ?? ''))?.[1] ?? null;
-          } catch { /* la base di fabbrica è facoltativa */ }
+          // BASE DI FABRICA (data/setup-defaults.json) qui NON serve: questo percorso
+          // consiglia SOLO pressioni (dice nulla su camber/molle); il default-setup
+          // lo carica il percorso BILANCIA sotto (2177) per mechanicExtraEdits.
+          // (prima si leggeva il JSON a ogni chiamata API SENZA usarlo: lettura morta,
+          //  audit 24/10)
           const advice = pressureAdvice(sessions, { target: body.target ?? tyre?.target });
           // consiglio specifico GARA: usa i giri della ronda corrente (o 10 di default)
           // e privilegia uscite lunghe; le qualifiche da sole sottraggono ~0.2 PSI

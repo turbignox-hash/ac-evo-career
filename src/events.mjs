@@ -300,6 +300,9 @@ export function refreshActivePrize(ladder, state) {
 
 function buildInvite(ladder, state, theme, tier, racesRun) {
   const trackId = pick(theme.tracks, Math.floor(Math.random() * theme.tracks.length) + state.season * 7 + racesRun);
+  // i nomi delle PISTE (non delle auto): buildInvite è fuori da choosePrize,
+  // dove `names` era definito (bug 24/10: ReferenceError a ogni invito speciale)
+  const names = ladder.contentNames?.tracks ?? {};
   const trackDisplay = names[trackId] ?? trackId;
   const weather = pick(theme.weathers, Math.floor(Math.random() * 31) + state.season);
   // il premio NON è più fisso del tema: se l'auto da tema (o una riserva) è già
@@ -374,7 +377,7 @@ export function expireEvents(ladder, state) {
  * Registra il risultato della gara speciale. input: { position, bestLapSec }.
  * Vittoria (position 1) = auto in vetrina + soldi + rep; altri piazzamenti = soldi scalati.
  */
-export function finishEvent(ladder, state, { position, bestLapSec = null, note = null } = {}) {
+export function finishEvent(ladder, state, { position, bestLapSec = null } = {}) {
   const ev = ensureEvents(state);
   const a = ev.active;
   if (!a || !a.acceptedAt) throw new Error('Nessuna gara speciale in corso.');

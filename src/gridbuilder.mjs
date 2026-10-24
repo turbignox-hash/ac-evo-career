@@ -20,17 +20,14 @@
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodeMsg, encodeMsg, gridFileOf, GAME_MODES_DIR } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
 import { sameTrack } from './tracknames.mjs';
 import { tr } from './lang.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);
 const CLASSES_FILE = join(PROJECT, 'data', 'grid-classes.json');
-const TEMPLATE_DEFAULT = join(GAME_MODES_DIR, 'last_grid.customgrid');
 const CARS_JSON = 'E:/SteamLibrary/steamapps/common/Assetto Corsa EVO Dedicated Server/cars.json';
-const PENDENZA_PCT_PER_PI = 25;   // calibrata 19/10/2026 sulla classe 8–9
-const BALLAST_STD = 100;
 
 const f32 = (b) => (b && b.length >= 4) ? Buffer.from(b.slice?.() ?? b).readFloatLE(0) : null;
 const setF32 = (v) => { const b = Buffer.alloc(4); b.writeFloatLE(v, 0); return b; };
@@ -207,7 +204,6 @@ export function buildGridMessage(opts) {
     for (const g of decodeMsg(b)) if (g.field === 10) return decodeMsg(g.bytes).filter((x) => x.field === 1).map((x) => utf8(x.bytes))[0] ?? null;
     return null;
   };
-  const tplPresets = [...new Set(tpl.cells.map(presetOf).filter(Boolean))];
 
   // pool: se il ladder dice node.cars, prendo dal template SOLO quelle auto;
   // altrimenti tutto il pool (serie mista). Il MATCH della classe avviene sui

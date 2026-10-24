@@ -7,7 +7,7 @@
 // La regola dei 4 PSI: da freddo parte ~2 sotto il target; se dopo 3-4 giri la
 // pressione è salita più di ~4 PSI la partenza era troppo bassa.
 
-import { readFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeJsonAtomic } from './atomic.mjs';
@@ -108,7 +108,7 @@ export function fourPsi({ cold, hot, target }) {
  * su + cambio corta), bilanciata. Dà la BASE del setup per pista;
  * i dati reali (bumpstop, camber-proxy, freni) la correggono come seconda voce.
  */
-export function trackProfile(info, telem = null) {
+export function trackProfile(info) {
   const corners = Number(info?.corners ?? 0), len = Number(info?.lengthKm ?? 0);
   if (!corners || !len) return { tipo: 'sconosciuta', aero: null, note: [] };
   const densita = corners / len;                 // curve per km
@@ -126,7 +126,7 @@ export function trackProfile(info, telem = null) {
  * detta. Dove il gioco non espone i valori correnti (alettoni, barre, molle), il
  * consiglio è direzione + quantità, mai un numero assoluto da digitare.
  */
-export function setupAdvice(info, telem, { laps = null } = {}) {
+export function setupAdvice(info, telem) {
   const out = [];
   const add = (vedi, prio, text) => out.push({ vedi, prio, text });
   const prof = trackProfile(info, telem);

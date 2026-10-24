@@ -35,7 +35,7 @@ function load() {
   return { memo: {} };
 }
 
-/** Storia e migliore per auto+pista: { rounds, best } — rounds è in ordine di
+/** Storia e migliore per auto+pista: { rounds } — rounds è in ordine di
  *  tempo (i più recenti in fondo), best può essere null (mai registrato). */
 export function memoOf(carName, trackDisplay) {
   const e = load().memo[keyOf(carName, trackDisplay)];
@@ -109,7 +109,7 @@ export function registraRound({ carName, trackDisplay, advices, sessFile, bestLa
  * ridotto o a cambiare leva. NIENTE annotazione sui round pendenti.
  * Ritorna { consigli, storie } — consigli con campi testo estesi.
  */
-export function annotaAdvice(consigli, { rounds, best }) {
+export function annotaAdvice(consigli, { rounds }) {
   const storie = storiePerCampo(rounds);
   const out = (consigli ?? []).map((c) => {
     const st = storie[c.vedi];

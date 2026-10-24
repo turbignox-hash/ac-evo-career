@@ -13,7 +13,7 @@
 // Canali chiave: FUEL (litri a bordo), TYRE_PRESS_xx (psi), TYRE_TAIR_xx (°C),
 //   L/C/R_SURF_TEMP_xx (°C bordo gomma), BRAKE_TEMP_xx, SPEED, THROTTLE, BRAKE, GEAR, RPMS.
 
-import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync, openSync, readSync, closeSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, mkdirSync, openSync, readSync, closeSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fourPsi } from './setup.mjs';
@@ -67,12 +67,6 @@ function parseLdx(file) {
 }
 
 /** Legge un canale campione per indice. */
-function sampler(ld, name) {
-  const c = ld.channels.get(name);
-  if (!c) return null;
-  return (i) => ld.dv.getFloat32(c.off + Math.max(0, Math.min(c.cnt - 1, i)) * 4, true);
-}
-
 /** Indice del campione di un canale al tempo t (secondi dall'inizio sessione). */
 function idxAt(c, t) {
   return Math.max(0, Math.min(c.cnt - 1, Math.round(t * c.rate)));
@@ -130,7 +124,6 @@ function analyzeLdUncached(ldFile) {
   const ldxFile = ldFile.replace(/\.ld$/i, '.ldx');
   const beacons = parseLdx(ldxFile);
 
-  const F = ld.channels.get('FUEL');
   const bounds = [];
   if (beacons.length >= 2) {
     for (let g = 0; g < beacons.length; g++) {
@@ -621,7 +614,6 @@ export function racePressureAdvice(sessions, { target, raceLaps = null } = {}) {
   const base = pressureAdvice(sessions, { target });
   if (!base.ok) return base;
   // uscite lunghe (= tipo gara): quelle con molti giri validi
-  const long = sessions.filter((s) => (s.validLaps ?? 0) >= 5 && (s.hotPressures?.LF != null || s.hotPressures?.RR != null));
   const rows = [];
   for (const s of sessions) {
     const cold = s.coldPressures?.LF ?? s.coldPressures?.RR ?? null;

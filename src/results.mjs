@@ -122,8 +122,6 @@ const raceMsOf = (t) => {
  *  total_time + penalità a tempo; DSQ e non classificati escono dal conto.
  *  DT non si ricompone: il tempo dell'attraversamento è già nel giro. */
 export function officialPositionOf(result, d) {
-  const { zeroBased } = positionBase(result);
-  const toPos = (p) => (zeroBased ? Number(p) + 1 : Number(p));
   const pen = penaltyOf(d);
   if (!d || !d.total_time || Number(d.laps ?? 0) === 0 || pen.dsq) {
     return { position: null, dsq: pen.dsq, penalty: pen.label };

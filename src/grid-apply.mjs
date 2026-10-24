@@ -65,12 +65,18 @@ function storeTemplate(nodeId, buf) {
 // tenendone una pila recente (i backup restano una fonte della corsa dei
 // candidati: tetto ALTissimo, non un minimo). La pulizia non deve MAI far
 // fallire una gara: ignora tutto ciò che non riesce a togliere.
+// FALLITO in debug 24/10: il solo mtime basta? NO — su Windows il clock dei
+// file ha granularità turbolenta e backup scritti nello stesso tick escono con
+// la STESSA mtime: l'ordine di taglio diventava imprevedibile (il test
+// corrupt-inputs lo ha beccato: restava il secondo-vecchio, usciva un altro).
+// Tie-break: nome desc — il nome contiene la data del backup, quindi nel
+// pareggio l'ordine alfabetico discendente è il più recente in fila.
 export function pruneBackups(file, { keep = 25 } = {}) {
   try {
     const dir = dirname(file), base = basename(file);
     const pila = readdirSync(dir)
       .filter((n) => { const dot = n.lastIndexOf('.bak-'); return n.startsWith(base + '.bak-') && Number.isFinite(Number(n.slice(dot + 5).split('-')[0])); })
-      .sort((a, b) => statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs);
+      .sort((a, b) => (statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs) || (a < b ? 1 : a > b ? -1 : 0));
     for (const vecchio of pila.slice(keep)) { try { rmSync(join(dir, vecchio)); } catch { /* occupato: si rimuove la prossima gara */ } }
   } catch { /* niente da potare */ }
 }

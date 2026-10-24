@@ -16,7 +16,7 @@
 // Il ladder è condiviso fra gli slot di carriera: la modalità è di macchina,
 // non di singola carriera (giusto: sono i calendari di serie, non lo stato).
 
-import { readFileSync, existsSync, copyFileSync, mkdirSync, unlinkSync } from 'node:fs';
+import { readFileSync, copyFileSync, mkdirSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeJsonAtomic } from './atomic.mjs';

@@ -12,7 +12,6 @@ import { nodeById } from './state.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RIVALS_FILE = join(HERE, '..', 'data', 'rivals.json');
 const JOURNAL_DIR = join(HERE, '..', 'data', 'journal');
-const lapMs = (t) => { const m = String(t ?? '').match(/^(\d+):(\d+)\.(\d+)$/); return m ? +m[1] * 60000 + +m[2] * 1000 + +m[3] : Infinity; };
 
 /**
  * La rassegna della stagione `season` (default: la più recente registrata

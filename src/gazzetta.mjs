@@ -39,7 +39,7 @@ const shortName = (full) => String(full ?? '').trim().split(/\s+/)[0] ?? '';
  *           duello:{name} (il rivale più vicino in classifica), beaten:[nomi battuti], beatMe:[nomi] }
  */
 export function publishRaceNews(ctx) {
-  const { ladder, state, node, entry } = ctx;
+  const { state, node, entry } = ctx;
   const track = ctx.trackDisplay ?? node.display;
   const me = state.driver.first;
   const pos = entry.dnf ? null : entry.position;

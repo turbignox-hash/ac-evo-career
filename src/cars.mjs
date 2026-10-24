@@ -6,7 +6,7 @@
 // combaciano mai al 100% ("Mazda MX-5 ND Cup" vs "Mazda MX5 ND Cup (2017)"),
 // quindi si confronta la stringa normalizzata con tolleranza per l'anno in coda.
 
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync} from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 

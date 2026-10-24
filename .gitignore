@@ -34,3 +34,4 @@ _crashlog.ps1
 *.bak-20*
 http_code
 *.bak-*
+node_modules/

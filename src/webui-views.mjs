@@ -19,7 +19,7 @@ import {
   nodeById, disciplineName, tierOf, gateStatus,
   standingsFor, playerStanding, difficultyFor, savePath, sponsorTier,
 } from './state.mjs';
-import { agendaDay, dateLabel, scheduledDay, racesOnDay, prossimoGiornoConGara } from './agenda.mjs';
+import { agendaDay, dateLabel, scheduledDay, racesOnDay } from './agenda.mjs';
 import { raceCard } from './race.mjs';
 import { eventCard } from './events.mjs';
 import { PIANI } from './orario.mjs';

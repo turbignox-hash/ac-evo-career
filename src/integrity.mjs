@@ -20,7 +20,7 @@ const allRaces = (state) => Object.entries(state.results ?? {})
 const msgText = (m) => String(m?.text ?? m?.body ?? '');
 
 /** Cassa e reputazione attese, ricostruite dal registro flussi. */
-function moneyRepFromFlows(state) {
+function moneyRepFromFlows() {
   return expectedTotals();
 }
 

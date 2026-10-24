@@ -11,8 +11,8 @@
 
 import { fileURLToPath } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
-import { readdirSync, statSync } from 'node:fs';
-import { join, basename, dirname } from 'node:path';
+
+import { join, dirname } from 'node:path';
 import { listResultFiles, readSessionResult, lapToMs } from './results.mjs';
 import { normTrack as normTrk, sameTrack } from './tracknames.mjs';
 

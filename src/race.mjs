@@ -102,7 +102,6 @@ export function raceCard(ladder, state, { car = null } = {}) {
   // può portare hour/timeScale propri (piani notte/crepuscolo/alba/tramontoalba/
   // variabile). Precedenza: round del calendario > override serie > profilo ladder.
   if (Number.isFinite(Number(round.timeScale))) profile.timeScale = Number(round.timeScale);
-  const roundHour = Number.isFinite(Number(round.hour)) ? Number(round.hour) : null;
   if (Number.isFinite(Number(ov.timeScale))) profile.timeScale = Number(ov.timeScale);
   const practiceStartOv = Number.isFinite(Number(ov.practiceStart)) ? Number(ov.practiceStart) : null;
   const qualifyStartOv = Number.isFinite(Number(ov.qualifyStart)) ? Number(ov.qualifyStart) : null;

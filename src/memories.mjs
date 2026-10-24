@@ -128,7 +128,6 @@ function heroCarFor(ladder, disc) {
   return ladder.nodes.find((n) => n.discipline === disc)?.cars?.[0] ?? null;
 }
 
-const fmtMs = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}.${String(Math.round(ms % 1000)).padStart(3, '0')}`;
 
 /* ------------------------------------------------------------------ */
 /* i capitoli: obiettivi tematici per epoca                            */

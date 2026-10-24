@@ -16,7 +16,7 @@
 import { readFileSync, writeFileSync, renameSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createWorld, gridFor, finishOrder, evolveWorld, pointsFor, pointsForPos, skillToEvoSlider, clamp } from './world.mjs';
+import { createWorld, gridFor, finishOrder, evolveWorld, pointsFor, skillToEvoSlider, clamp } from './world.mjs';
 import { recordFlows } from './flows.mjs';
 import { takeLastPair, tr } from './lang.mjs';
 import { ensureLife, ensureContract, settleContract, sponsorFor, sigilDefs, checkSigils } from './life.mjs';
@@ -231,7 +231,7 @@ export function isClosedNode(node) {
 /* classifica della serie                                              */
 /* ------------------------------------------------------------------ */
 
-function playerAsDriver(state, node) {
+function playerAsDriver(state) {
   return { driverId: 'player', name: state.driver.name, country: state.driver.nation, carNumber: 1 };
 }
 
@@ -785,7 +785,6 @@ export function postRaceEffects(ladder, state, node) {
   const rivalPts = new Map();
   try {
     const grid = gridFor(state.world, ladder, node, season);
-    const sys = ladder.pointsSystems[node.points];
     const roundsPlayed = new Set((state.results[node.nodeId] ?? []).filter((r) => r.season === season).map((r) => r.round));
     for (const s of grid) rivalPts.set(s.driverId, { name: s.name, pts: 0 });
     for (const rIdx of roundsPlayed) {

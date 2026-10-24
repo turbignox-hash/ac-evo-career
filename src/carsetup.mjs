@@ -87,7 +87,7 @@ export function parseSetup(buf) {
     }
   }
 
-  s.springs = f.filter((x) => x.field === 2).map((e, i) => {
+  s.springs = f.filter((x) => x.field === 2).map((e) => {
     const g = decode(bytesOf(e));
     const get = (fld) => { const k = g.find((z) => z.field === fld && z.wire === 5); return k ? f32Of(k.bytes) : null; };
     const sub2 = g.find((z) => z.field === 2);
@@ -167,7 +167,6 @@ export function applyEdits(buf, edits) {
     }
     return false;
   };
-  const tagOf = (fld) => `campo ${fld}`;
 
   /* 1 = barraggio: ARB raw + freni/diff nested */
   const e1 = fields.find((x) => x.field === 1);

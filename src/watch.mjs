@@ -21,6 +21,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { runImport, SAVE_FILE } from './import.mjs';
 import { loadState } from './state.mjs';
+import { recordWarning } from './warnings.mjs';
 import { listResultFiles, readSessionResult, isRaceSession } from './results.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 

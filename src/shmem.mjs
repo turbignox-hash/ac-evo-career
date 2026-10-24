@@ -278,7 +278,6 @@ export function parseGraphics(buf) {
   const i32 = (o) => dv.getInt32(o, true);
   const u32 = (o) => dv.getUint32(o, true);
   const i16 = (o) => dv.getInt16(o, true);
-  const i8 = (o) => dv.getInt8(o);
   const str = (o, n = 33) => {
     const s = buf.slice(o, o + n);
     let end = 0; while (end < s.length && s[end] !== 0) end++;

@@ -92,8 +92,8 @@ function autoQuadra() {
     console.log(`ancora da fotografare: ${fuori.length}`);
     for (const n of fuori) console.log(`⬜ ${n}`);
   } else {
-    console.log(`catalogo ufficiale non leggibile — auto fotografate almeno una volta: ${els.length}`);
-    for (const [id, n] of els) console.log(`✅ ${n} [${id}]`);
+    console.log(`catalogo ufficiale non leggibile — auto fotografate almeno una volta: ${mappate.size}`);
+    for (const [id, n] of mappate) console.log(`✅ ${n} [${id}]`);
   }
   console.log('================================================================');
 }

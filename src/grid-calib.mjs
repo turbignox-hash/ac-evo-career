@@ -43,7 +43,6 @@ const CLASSES_FILE = join(PROJECT, 'data', 'grid-classes.json');
 const BACKUP_DIR = join(DATA_DIR, 'backups');
 
 const TOL_SEC = 0.8;         // "raggiunto" se il penalizzato sta entro quest'delta dalla base
-const TOL_SPREAD_SEC = 1.5;  // spread mediana del campo considerato compatto
 const PENDENZA_STD = 0.57;   // s/% di penalità, da 19/10 (Brands ~0.55, Sebring ~0.57) — sovrascrivibile per classe
 const OBS_ALTA = 2;          // osservazioni coerenti par convincere
 
@@ -409,7 +408,7 @@ export function recordEvent(evento, { classesNow = null } = {}) {
 /** Punto d'aggancio per runImport: analizza il grezzo e appende. Mai eccezioni fuori. */
 export function recordRaceFromResult({ result, playerDriver, track = null, gridFile = GRID_FILE, sourceFile = null } = {}) {
   try {
-    const { evento, proposte } = analyzeRace(result, { track, playerDriver, customgrid: gridFile, sourceFile });
+    const { evento } = analyzeRace(result, { track, playerDriver, customgrid: gridFile, sourceFile });
     if (!evento) return null;
     return recordEvent(evento);
   } catch (e) {

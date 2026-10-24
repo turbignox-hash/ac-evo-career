@@ -5,13 +5,10 @@
 // Tutto deterministico dove conta (i payout vengono registrati anche nei FLOWS
 // per il dottore) e tutto opzionale: senza questi dati la carriera funziona come prima.
 
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { nodeById, playerStanding } from './state.mjs';
 import { gridFor } from './world.mjs';
 import { tr } from './lang.mjs';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
 
 /* ------------------------------------------------------------------ */
 /* migrazione leggera del salvataggio                                  */
@@ -327,7 +324,7 @@ export function settleChallenge(ladder, state, entry, { pushMessage, recordFlows
 /* sigilli (sfide personali permanenti)                                */
 /* ------------------------------------------------------------------ */
 
-export function sigilDefs(ladder) {
+export function sigilDefs() {
   return [
     { id: 'lightsout', label: tr({ it: 'Luci spente', en: 'Lights out' }), detail: tr({ it: 'vittoria partendo da pole', en: 'win from pole position' }) },
     { id: 'last2first', label: tr({ it: "Dall'ultimo al primo", en: 'Last to first' }), detail: tr({ it: "vittoria partendo dall'ultimo posto", en: 'win from the last grid spot' }) },

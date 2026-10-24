@@ -8,7 +8,7 @@
 // priorità urgente spetta solo a ciò che esige un'azione entro oggi/domani.
 // Obiettivo: la casella si legge in 20 secondi, non si ignora all'istante.
 
-import { nodeById, gateStatus } from './state.mjs';
+import { nodeById } from './state.mjs';
 import { sponsorFor, sponsorOffers } from './life.mjs';
 import { nemesisReport, raceBulletin } from './rivals.mjs';
 import { tr } from './lang.mjs';
