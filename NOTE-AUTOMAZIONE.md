@@ -27,6 +27,35 @@ Piano veloce: griglia mista GT sportive (Emira + Maserati GT2 + AMG GT2) e grigl
   sul first try non blocca più la corsa dei candidati (la fabbrica alza il
   PC senza customgrid).
 
+## PACCHETTO INSTALLAZIONE AMICO (24/10, richiesta Mauro) — FATTO E COLLAUDATO
+
+- tools/pacchetto-amico.mjs genera pacchetti/ac-evo-career-amico-vX.Y.Z-<hash>.zip
+  da `git archive` del commit HEAD (tarpunta di tar.exe di System32: il GNU tar
+  di Git Bash non legge gli zip, e su Windows "C:\..." è host remoto per tar).
+  Dentro SOLO il repo tracciato; esclusi per costruzione: data/ (il save),
+  .git/ (storia), gui/carmaps+trackmaps (KUNOS, punto 3 LICENSE), dist/, demo/,
+  archive/ (script di ricerca via pathspec `:(exclude)archive`), pacchetti/.
+  A ogni esecuzione: elenco dei file, SHA-256 del pacchetto e PROVA VERA:
+  estrazione in una temp + npm test DENTRO la cartella estratta (checklist
+  fase 3 di PUBLICA-CHECKLIST). --no-test per saltare la prova.
+- Lezione del collaudo: 13 test su 173 cadevano NELL'ESTRAZIONE pur passando
+  in locale — i test dipendevano da data/: (a) src/cli.mjs NON rispettava
+  EVO_DATA_DIR (smoke CLI che leggeva data/ del progetto: passava solo perché
+  c'era il save vero)
+  → rispetta EVO_DATA_DIR come già import.mjs/webui-env.mjs;
+  (b) 12 test di calibrazione (grid-calib, gridclasses) leggevano
+  data/grid-classes.json: file CALIBRATO per PC, non tracciato nel repo
+  → nuovo override EVO_CLASSES_FILE (gridbuilder/grid-calib/grid-balance)
+  + FIXTURE CONGELATA test/fixtures/grid-classes-sample.json (le classi al
+  24/10). I test grid-calib copiano la fixture nella temp e puntano lì:
+  niente mutate né il data/ vero né la fixture (le convalide del test 5
+  scrivono il file della classe!).
+  (c) test 156 githubRepo(): senza .git (zip = git archive) aspetta l'assenza
+  senza crash; owner/repo matchato SOLO dove .git c'è davvero.
+  Verificato: dentro l'estrazione del pacchetto amico 173/173 PASS.
+  REGOLA NUOVA: i test non possono leggere file in data/ — quello è lo stato
+  per PC; ogni dipendenza simile va via fixture tracciata + env override.
+
 ## LEZIONE 23/10 ultime: la banda AI del pannello NON sopravvive al lancio (ronda RX-7)
 
 - La gara RX-7 del 23/10 (20:16, Nürburgring GP 13:00 sereno, 15 piloti) è
