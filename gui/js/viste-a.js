@@ -579,15 +579,24 @@ function drawCardInto(el, card){
   // la voce, perché in gara il monitor non lo si guarda.
   window.__ingLiveStop?.();
   const ingOut = $('#ingegnere-live', el);
-  window.__copilot ??= { on: localStorage.getItem('evo-copilot') === 'on', last: {}, at: 0 };
+  // richiesti 25/10: copilota ATTIVO DI DEFAULT (spegnibile col bottone: la
+  // scelta resta nel localStorage e esplicitamente 'off' vince sempre)
+  window.__copilot ??= { on: localStorage.getItem('evo-copilot') !== 'off', last: {}, at: 0 };
   const cp = window.__copilot;
-  /* la voce: speechSynthesis del browser, voce italiana se c'è, locale al 100% */
+  /* la voce: speechSynthesis del browser, locale al 100%. La lingua della voce
+     SEGUE l'interfaccia (window.LINGUA): inglese UI → voce inglese, italiana
+     UI → voce italiana. Nessuna voce sottile della lingua scelta = voce di
+     default del sistema (il testo resta comunque corretto). */
   const cpSpeak = (text) => {
     if (!text) return;
     try {
+      const en = window.LINGUA === 'en';
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'it-IT'; u.rate = 1.1; u.volume = 0.9;
-      const v = (speechSynthesis.getVoices() ?? []).find((vv) => /^it/i.test(vv.lang));
+      const lv = en ? 'en' : 'it';
+      u.lang = en ? 'en-US' : 'it-IT'; u.rate = 1.1; u.volume = 0.9;
+      const vs = speechSynthesis.getVoices() ?? [];
+      const v = vs.find((vv) => (vv.lang ?? '').toLowerCase() === u.lang.toLowerCase())
+        ?? vs.find((vv) => (vv.lang ?? '').toLowerCase().startsWith(lv));
       if (v) u.voice = v;
       speechSynthesis.speak(u);
     } catch { /* la voce non deve mai rompere la vista */ }
