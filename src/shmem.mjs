@@ -507,11 +507,15 @@ export class LiveReader {
   _deltaInfo() {
     const g = this.last.graphics;
     const hud = parseHudDelta(g?.timing?.delta ?? null);
+    // lapNo ANCHE in 'hud': senza di lui il narratore «giro finito» della copilota
+    // tace finché non entra 'tracked' (best committato) — lezione 24/10 sera:
+    // «altra gara ma ho sentito solo la benzina, niente tempi sul giro».
+    const lapNo = this.lapNoSeen ?? null;
     if (!this.bestTrack || this.bestTrack.length < 4) {
-      return { source: 'hud', dv: hud, bestLapMs: this.bestLapMs ?? g?.bestLapMs ?? null, bestLapNo: this.bestLapNo ?? null };
+      return { source: 'hud', dv: hud, bestLapMs: this.bestLapMs ?? g?.bestLapMs ?? null, bestLapNo: this.bestLapNo ?? null, lapNo };
     }
     this._bestPath ??= buildPathProg(this.bestTrack);
-    if (!this._bestPath) return { source: 'hud', dv: hud, bestLapMs: this.bestLapMs, bestLapNo: this.bestLapNo };
+    if (!this._bestPath) return { source: 'hud', dv: hud, bestLapMs: this.bestLapMs, bestLapNo: this.bestLapNo, lapNo };
     const key = `${this.bestLapMs}|${this.lapNoSeen}|${this.lapTrack.length}`;
     if (this._deltaKey !== key) {
       this._deltaCache = {
