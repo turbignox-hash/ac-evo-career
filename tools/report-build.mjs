@@ -17,8 +17,11 @@ import { join, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+// I report stanno in report/ alla RADICE del progetto: data/ è nel
+// .gitignore (dati del singolo PC) e un riepilogo da PUBBLICARE deve
+// salire su GitHub col repo.
 const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DIR = join(RADICE, 'data', 'report');
+const DIR = join(RADICE, 'report');
 const PUNTATORE = join(DIR, 'ultimo-report.json');
 
 const dry = process.argv.includes('--dry');
@@ -55,8 +58,9 @@ if (!righeCommi.length && !daHash) {
   // primo report: gli ultimi 30 commit bastano (l'amico rilegge la lista, non la storia)
   righeCommi = git(['log', '-n', '30', '--reverse', '--pretty=format:%H %s', head]).split('\n').filter(Boolean);
 }
-// niente rumore: i commit del report stesso non si auto-citano
-righeCommi = righeCommi.filter((r) => !/^.* Report (build|di build)/i.test(r));
+// niente rumore: i commit DEL REPORT stesso («Report build v…») non si
+// auto-citano — ma   un commit normale che PARLA di report resta dentro
+righeCommi = righeCommi.filter((r) => !/^.{40} Report (di )?build v/i.test(r));
 
 const v = versione();
 const oggi = new Date().toISOString().slice(0, 10);
@@ -108,10 +112,10 @@ writeFileSync(file, testo, 'utf8');
 writeFileSync(PUNTATORE, JSON.stringify({ hash: head, versione: `v${v}` }, null, 2) + '\n');
 console.log(`  [x] report build v${v} scritto: ${file}`);
 
-// ---- commit + del push del report (tolge solo se ha scritto) -----------
+// ---- commit + push del report (tocca il repo solo se ha scritto) -------
 try {
-  git(['add', 'data/report']);
-  const sporco = git(['status', '--porcelain', 'data/report']);
+  git(['add', 'report']);
+  const sporco = git(['status', '--porcelain', 'report']);
   if (sporco) {
     git(['commit', '-m', `Report build v${v} (${short}): riepilogo pubblicabile delle correzioni di questa build.`]);
     try { git(['push', 'offsite', 'HEAD']); console.log('  [x] report spinto su GitHub.'); }

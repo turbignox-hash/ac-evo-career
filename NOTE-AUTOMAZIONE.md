@@ -807,11 +807,15 @@ DUE richieste Mauro entrate insieme: «ogni build deve scrivere un report
 
 REPORT DI BUILD — tools/report-build.mjs, agganciato a FINE di
  sincronizza-git.cmd (dopo il push, non bloccante): rilegge i commit
- dall'ultimo report pubblicato (puntatore data/report/ultimo-report.json)
- e scrive data/report/build-vX.Y.Z-<hash>.md (elenco correzioni + istruzioni
- di aggiornamento), poi lo committa e lo spinge lui stesso. --dry per la
- preview, --test per aggiungere l'esito della suite. Il primo report
- (v0.1.8, d82b5aa) raccoglie a ritroso gli ultimi 30 commit come storia.
+ dall'ultimo report pubblicato (puntatore report/ultimo-report.json) e
+ scrive report/build-vX.Y.Z-<hash>.md (elenco correzioni + istruzioni di
+ aggiornamento), poi lo committa e lo spinge lui stesso. ATTENZIONE: la
+ cartella è report/ alla RADICE, NON data/report — data/ è nel .gitignore
+ (dati del singolo PC) e un riepilogo da PUBBLICARE deve salire su GitHub
+ col repo (lezione del primo lancio: il report scritto in data/ non poteva
+ essere committato). --dry per la preview, --test per aggiungere l'esito
+ della suite. Il primo report reale è build-0.1.9-88585ab.md (un commit:
+ report di build + auto-restart).
 
 AUTO-RESTART — tools/riavvia-webui.mjs NUOVO: agg-install (webui.mjs)
  se l'installazione ha cambiato codice e i test non sono morti, spawna
