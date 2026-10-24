@@ -20,6 +20,7 @@ const KS_CAR_RE = /\b(ks_[a-z0-9_]{4,50})\b/g;
 const IGNORED = new Set(['common_assets', 'common_phsx', 'interns', 'commos', 'commod']);
 
 const normId = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+export { normId };
 
 const SKIP_DIRS = new Set(['Replay']);
 
@@ -43,6 +44,11 @@ function walk(dir, depth = 0, out = []) {
 export function scanContent(paths) {
   const cars = new Set();
   const tracks = new Set();
+  // pacchetti auto VERI: solo i destinatari immediati di content/cars/<id>.
+  //cars Unione con i token ks_* liberi (liveries, visual/mech pack, campi dati) it
+  //infla il totale di decine di non-auto — lo usa il quadro auto del guardiano
+  //griglie (raccogli-griglie 24/10).
+  const carIds = new Set();
   const carNames = new Set(); // nomi ufficiali normalizzati (dal catalogo del server)
   const sources = new Map();
 
@@ -60,6 +66,7 @@ export function scanContent(paths) {
         const id = m[2];
         if (IGNORED.has(id)) continue;
         (kind === 'car' ? cars : tracks).add(id);
+        if (kind === 'car') carIds.add(id);
         seen.push(id);
       }
       // gli ID auto della famiglia ks_* citati dal gioco sono auto reali dell'installazione
@@ -81,7 +88,7 @@ export function scanContent(paths) {
     recordWarning('content.catalog', 'catalogo server non leggibile (continuo senza): ' + (e?.message ?? ''));
   }
 
-  return { cars, tracks, carNames, sources };
+  return { cars, carIds, tracks, carNames, sources };
 }
 
 /*

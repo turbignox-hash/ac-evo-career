@@ -15,12 +15,14 @@
 // uso:
 //   node tools/raccogli-griglie.mjs          → vigilanza (Ctrl+C per uscire)
 //   node tools/raccogli-griglie.mjs --stampa → solo il quadro coperte/da raccogliere
-import { readFileSync, writeFileSync, copyFileSync, existsSync, statSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, copyFileSync, existsSync, statSync, mkdirSync, readdirSync } from 'node:fs';
 import { basename } from 'node:path';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GAME_MODES_DIR, gridFileOf } from './evo-grid.mjs';
 import { buildGridMessage, loadClasses } from '../src/gridbuilder.mjs';
+import { resolvePaths } from '../src/paths.mjs';
+import { scanContentCached, normId } from '../src/content.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LADDER_FILE = join(HERE, '..', 'config', 'career.evo.ladder.json');
@@ -31,6 +33,9 @@ const FILE = join(GAME_MODES_DIR, 'last_grid.customgrid');
 // tutte"): non equipaggiano nessuna serie corrente, ma sono materiale per serie
 ///eventi futuri — quelle perse non si rifanno. Archivio in data/griglie-grezz.
 const GREZZE = join(HERE, '..', 'data', 'griglie-grezz');
+// voci di content/cars/ che NON sono pacchetti auto reali (cartelle tecnica)://
+// il quadro auto le esclude dal «da fotografare».
+const IGNORED_NON_AUTO = new Set(['common_assets', 'common_phsx', 'interns', 'commos', 'commod']);
 
 const ladder = JSON.parse(readFileSync(LADDER_FILE, 'utf8'));
 const classi = loadClasses().classi ?? {};
@@ -50,19 +55,66 @@ function quadra() {
   }
   console.log('====================================');
   console.log('Rituale per serie: EVO → round della serie → menu griglia → GENERA (liveries varie) → APPLICA → AVVIA la sessione (Esc appena carichi). Il guardiano fa il resto.');
+  autoQuadra();
 }
 
-/** Riconosce la serie: tutte le celle devono cadere nel pool; preferisce la copertura ESATTA, poi il pool più piccolo. */
+/** AUTO fotografate vs auto installate (richiesta Mauro 24/10: «dobbiamo
+ *  mappare tutte le auto anche se non in campionato»). L'unione degli scatti
+ *  viene da TRE fonti — fabbrica, magazzino, grezze — decodificando i carId
+ *  di ogni cella; il totale installato dal catalogo dell'installazione
+ *  (scan content). Con l'installazione non leggibile si mostra comunque la
+ *  copertura raccolta, senza finte certezze sul «mancano». */
+function autoQuadra() {
+  const mappate = new Map();   // carId → nome letto nelle celle
+  for (const dir of [FABBRICA, MAGAZZINO, GREZZE]) {
+    if (!existsSync(dir)) continue;
+    let files = [];
+    try { files = readdirSync(dir).filter((f) => f.endsWith('.customgrid')); } catch { continue; }
+    for (const f of files) {
+      try {
+        const g = gridFileOf(readFileSync(join(dir, f)));
+        for (const c of g.cells) {
+          if (c.carId && !mappate.has(c.carId)) mappate.set(c.carId, c.carName ?? nomeAuto(c.carId));
+        }
+      } catch { /* file rotti: non fermano il quadro */ }
+    }
+  }
+  // installate = catalogo ufficiale per NOME (l'installazione non espone le
+  // cartelle auto: i token ks_* che girano nei file includono le liveries).
+  let installate = null;
+  try { installate = [...scanContentCached(resolvePaths()).carNames]; } catch { }
+  const fotografateNome = new Set([...mappate.values()].map(normId).filter(Boolean));
+  console.log('=== AUTO MAPPATE (scatti in fabbrica + magazzino + grezze) ===');
+  if (installate && installate.length) {
+    const dentro = installate.filter((n) => fotografateNome.has(n));
+    const fuori = installate.filter((n) => !fotografateNome.has(n));
+    console.log(`auto fotografate almeno una volta: ${dentro.length} su ${installate.length} installate (catalogo ufficiale)`);
+    console.log(`ancora da fotografare: ${fuori.length}`);
+    for (const n of fuori) console.log(`⬜ ${n}`);
+  } else {
+    console.log(`catalogo ufficiale non leggibile — auto fotografate almeno una volta: ${els.length}`);
+    for (const [id, n] of els) console.log(`✅ ${n} [${id}]`);
+  }
+  console.log('================================================================');
+}
+
+/** Riconosce la serie: tutte le celle devono cadere nel pool; preferisce la copertura ESATTA, poi il pool più piccolo.
+ *  Le serie GEMELLE a pool identico (24/10: EVO genera monomarca e multi con lo stesso pool per i filtri di
+ *  prestazioni, es. Formula Elite e Coppa Ferrari SF-25 entrambe a ks_ferrari_sf_25) TUTTE partecipano:
+ *  la foto va in ognuna, non solo nella prima. */
 function serieDi(ids) {
   const cands = [];
   for (const n of ladder.nodes) {
     const pool = poolOf(n);
     if (!pool.length) continue;
-    if (ids.every((id) => pool.includes(id))) cands.push({ n, esatta: pool.length === ids.length, len: pool.length });
+    if (ids.every((id) => pool.includes(id))) cands.push({ n, esatta: pool.length === ids.length, len: pool.length, pool });
   }
   if (!cands.length) return null;
   cands.sort((a, b) => (b.esatta - a.esatta) || (a.len - b.len));
-  return { prima: cands[0].n, conflitti: cands.length > 1 ? cands.slice(1).map((c) => c.n.display) : [] };
+  const sig = (pool) => [...pool].sort().join('|');
+  const gemelle = cands.slice(1).filter((c) => sig(c.pool) === sig(cands[0].pool));
+  const altri = cands.slice(1).filter((c) => !gemelle.includes(c));
+  return { prima: cands[0].n, gemelle: gemelle.map((c) => c.n), altri: altri.map((c) => c.n) };
 }
 
 /** Le auto con meno liveries di gridSize NON si possono allargare (EVO crasha
@@ -121,16 +173,23 @@ function fotografia(buf) {
     else return { stampa: `❌ ${s.prima.display}: il builder RIFIUTA questa griglia (${String(e.message).split('\n')[0]}). Rifai il GENERA con più liveries uniche e riavvia la sessione.` };
   }
   const uniq = new Set(g.cells.map((c) => Buffer.from(c.raw).toString('hex'))).size;
+  // foto in OGNI serie gemella a pool identico (stessa griglia per tutte),
+  // + copia per la serie scelta: righe indipendenti per magazzino e fabbrica
+  const bersagli = [s.prima, ...s.gemelle];
   const copie = [];
-  for (const dir of [MAGAZZINO, FABBRICA]) {
-    const dest = join(dir, nodeIdSan(nodeId) + '.customgrid');
-    const vecchio = existsSync(dest) ? readFileSync(dest) : null;
-    if (vecchio && Buffer.compare(vecchio, buf) === 0) { copie.push(dest + ' (byte uguali, invariato)'); continue; }
-    if (vecchio) copyFileSync(dest, dest + '.bak-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16));
-    writeFileSync(dest, buf);
-    copie.push(dest);
+  for (const b of bersagli) {
+    for (const dir of [MAGAZZINO, FABBRICA]) {
+      const dest = join(dir, nodeIdSan(b.nodeId) + '.customgrid');
+      const vecchio = existsSync(dest) ? readFileSync(dest) : null;
+      if (vecchio && Buffer.compare(vecchio, buf) === 0) { copie.push(dest + ' (byte uguali, invariato)'); continue; }
+      if (vecchio) copyFileSync(dest, dest + '.bak-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16));
+      writeFileSync(dest, buf);
+      copie.push(dest);
+    }
   }
-  return { stampa: `${notaFissa}✅ ${s.prima.display} fotografata: ${g.cells.length} celle (${ids.length} modelli, ${uniq} uniche) →\n   ${copie.join('\n   ')}${s.conflitti.length ? `\n   (nota: le auto combaciano anche per ${s.conflitti.join(', ')} — se la serie è un'altra, dimmelo)` : ''}` };
+  const gemellaNota = s.gemelle.length ? `\n   (gemelle a pool identico: ${s.gemelle.map((x) => x.display).join(', ')} — la foto
+   va a tutte)` : '';
+  return { stampa: `${notaFissa}✅ ${s.prima.display} fotografata: ${g.cells.length} celle (${ids.length} modelli, ${uniq} uniche) →\n   ${copie.join('\n   ')}${gemellaNota}${s.altri.length ? `\n   (nota: le auto combaciano anche per ${s.altri.map((x) => x.display).join(', ')} — se la serie è un'altra, dimmelo)` : ''}` };
 }
 
 if (process.argv.includes('--stampa')) { quadra(); process.exit(0); }

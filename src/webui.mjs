@@ -1934,7 +1934,10 @@ async function api(context0, req, res, action, body) {
             raceAdvice,
             // la lista colorata del box: stato per area dai dati veri,
             // «auto a punto» quando tutto è verde (Mauro 21/10)
-            checklist: sessions.length ? boxChecklist(sessions, { target: tyre ? tyre.target : (body.target ?? null) }) : null,
+            // il box sa della GARA (non dell'uscita): i giri del round vanno nel
+            // checklist, così il consiglio benzina pianifica lo stint VERO — "5 giri"
+            // fisso consigliava benzina metà gara per una gara da 10 (richiesta Mauro 24/10)
+            checklist: sessions.length ? boxChecklist(sessions, { target: tyre ? tyre.target : (body.target ?? null), raceLaps }) : null,
           });
         }
         if (body.action === 'meccanico') {

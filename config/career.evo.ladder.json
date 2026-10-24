@@ -1434,7 +1434,7 @@
       "requires": null,
       "points": "f1_2003",
       "profile": "historic",
-      "gridSize": 16,
+      "gridSize": 3,
       "ai": [
         88,
         99
@@ -1611,7 +1611,7 @@
       "repRequired": 1750,
       "points": "f1_modern",
       "profile": "feature",
-      "gridSize": 20,
+      "gridSize": 6,
       "ai": [
         94,
         106
@@ -2840,7 +2840,7 @@
       "requires": null,
       "points": "sro_gtwc",
       "profile": "historic",
-      "gridSize": 16,
+      "gridSize": 10,
       "ai": [
         89,
         100
@@ -3604,7 +3604,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "club_short",
-      "gridSize": 14,
+      "gridSize": 6,
       "ai": [
         80,
         90
@@ -3699,7 +3699,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "club_short",
-      "gridSize": 14,
+      "gridSize": 11,
       "ai": [
         78,
         88
@@ -4146,7 +4146,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "club_short",
-      "gridSize": 14,
+      "gridSize": 11,
       "ai": [
         80,
         90
@@ -4315,7 +4315,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 14,
+      "gridSize": 12,
       "ai": [
         82,
         92
@@ -4484,7 +4484,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 4,
       "ai": [
         85,
         95
@@ -5343,7 +5343,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 10,
       "ai": [
         88,
         98
@@ -5438,7 +5438,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 14,
       "ai": [
         88,
         98
@@ -5519,7 +5519,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 14,
       "ai": [
         88,
         98
@@ -5607,7 +5607,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 9,
       "ai": [
         90,
         100
@@ -5695,7 +5695,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 14,
       "ai": [
         85,
         95
@@ -5783,7 +5783,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 12,
       "ai": [
         90,
         100
@@ -5878,7 +5878,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 13,
       "ai": [
         88,
         98
@@ -5959,7 +5959,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 14,
       "ai": [
         85,
         95
@@ -6047,7 +6047,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 9,
       "ai": [
         88,
         98
@@ -6494,7 +6494,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 14,
       "ai": [
         85,
         95
@@ -6575,7 +6575,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 14,
+      "gridSize": 10,
       "ai": [
         82,
         92
@@ -6656,7 +6656,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "club_short",
-      "gridSize": 14,
+      "gridSize": 6,
       "ai": [
         80,
         90
@@ -6751,7 +6751,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 14,
+      "gridSize": 9,
       "ai": [
         82,
         92
@@ -6832,7 +6832,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "club_short",
-      "gridSize": 14,
+      "gridSize": 10,
       "ai": [
         78,
         88
@@ -6927,7 +6927,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 14,
       "ai": [
         90,
         100
@@ -7031,7 +7031,7 @@
       "requires": null,
       "points": "one_make",
       "profile": "sprint",
-      "gridSize": 16,
+      "gridSize": 14,
       "ai": [
         88,
         98

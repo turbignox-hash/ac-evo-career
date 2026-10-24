@@ -236,7 +236,7 @@ const WHEEL_KEYS = ['LF', 'RF', 'LR', 'RR'];
  *
  * Unico replace dei banner lunghi: capibile in 5 secondi, aperto la GUI.
  */
-export function boxChecklist(sessions, { target = null } = {}) {
+export function boxChecklist(sessions, { target = null, raceLaps = null } = {}) {
   const cur = sessions?.[0] ?? null;
   const prev = sessions?.[1] ?? null;
   if (!cur) {
@@ -332,10 +332,15 @@ export function boxChecklist(sessions, { target = null } = {}) {
   }));
 
   /* 6. BENZINA — quanto beve un giro, per pianificare i pit */
-  if (cur.fuelPerLap != null) add('benzina', 'info', tr({
-    it: `${cur.fuelPerLap} L/giro → stint di 5 giri ≈ ${Math.ceil(cur.fuelPerLap * 5)} L (+ benzina di rimessa).`,
-    en: `${cur.fuelPerLap} L/lap → 5-lap stint ≈ ${Math.ceil(cur.fuelPerLap * 5)} L (+ top-up fuel).`,
-  }));
+  // (richiesta Mauro 24/10: il "5 giri" era fisso e consigliava metà benzina in
+  // una gara da 10 — ora il stint pianificato sono i GIRI DEL BOCAO della serie)
+  if (cur.fuelPerLap != null) {
+    const stint = Math.max(1, Number(raceLaps) || 5);
+    add('benzina', 'info', tr({
+      it: `${cur.fuelPerLap} L/giro → gara di ${stint} giri ≈ ${Math.ceil(cur.fuelPerLap * stint)} L (+ benzina di rimessa).`,
+      en: `${cur.fuelPerLap} L/lap → ${stint}-lap race ≈ ${Math.ceil(cur.fuelPerLap * stint)} L (+ top-up fuel).`,
+    }));
+  }
 
   /* 7. CONSISTENZA — la storia del meccanico: esita il tempo sta scendendo */
   const laps = (cur.laps ?? []).filter((l) => l.durationSec > 15 && l.fuelUsed != null && l.fuelUsed >= 0);

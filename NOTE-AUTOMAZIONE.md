@@ -1,4 +1,11 @@
-## DOMANI (25/10) — RIPRENDERE LA RACCOLTA DELLE GRIGLIE DI FABBRICA (Mauro 24/10: «riprendiamo domani, ricordamelo»)
+## RISOLTO — DELTA «PROTOTIPO EVO 3» (24/10, 10:06): il preset del prototipo È STATO CONFERMATO nel campo mechPreset delle celle: «HF Integrale Evo 2 Preset Evo 3 Prototype» (PI 9.1) vs «HF Integrale Evo 2 Preset Base» (PI 9.0). Confermata la regola già vista su Emira/Exige: le varianti stessa auto si distinguono SOLO dal mechPreset. La griglia del prototipo però è stata RIFIUTATA dal builder (14× Visual 8, tutte identiche → 0 celle uniche, rischio crash EVO come F40): la fabbrica resta coperta dalla Evo II Base (14 celle, 10 liverie, 10:05). Se serve una serie sul prototipo: GENERA con >=10 LIVERIES diverse del prototipo → APPLICA → AVVIA la sessione.
+
+## DOMANI (25/10) — RIPRENDERE LA RACCOLTA
+DELLE GRIGLIE DI FABBRICA (Mauro 24/10: «riprendiamo domani, ricordamelo»)
+
+### QUADRO AUTO 24/10 mattino: 62/71 fotografate, 9 restanti
+`Alfa Giulia Sprint GTA · Audi R8 V10 Performance · Lotus Emira · Maserati GT2 · Mercedes-AMG GT2 · Porsche 718 Cayman GT4 Clubsport · 911 GT3 Cup 992 · 911 GT3 RS 992 · 935`
+Piano veloce: griglia mista GT sportive (Emira + Maserati GT2 + AMG GT2) e griglia mista Porsche (718 GT4 Clubsport + GT3 Cup 992 + GT3 RS 992 + 935); le R8 V10 (road) e la Giulia Sprint GTA da sole. Guardiano già attivo col quadro AUTO (--stampa) e la logica GEMELLE a pool identico (formula_prova→champ, formula_apex→coppa_ferrari-sf-25). USCITE serie monomarca Ferrari tutte coperte; serie MULTICLASSE (GT3 Coppa, Serie A, GT Elite, Endurance…) ancora da fotografare COME SERIE.
 
 - Ottimo lavoro serato: **12/45 serie in fabbrica** (config/griglie-fabbrica/):
   Abarth 695 · Alfa Junior (fiss. 6) · 75 Turbo Evo (fiss. 7) · Giulia GTAm ·
