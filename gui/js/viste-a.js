@@ -353,6 +353,7 @@ async function drawEventsPanel(){
           <div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: "Difficoltà AI consigliata per la tua serie: → usa gli slider della scheda gara normale. Se ti serve, guarda il pannello Prossima gara.", en: "Recommended AI difficulty for your series: → use the sliders of the normal race sheet. If needed, see the Next race panel." })}</div>
         </details>
         <button class="act" id="b-ev-prep" style="width:100%;margin-top:8px">${tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' })}</button>
+        <div class="banner warn" style="margin-top:6px">⚠️ <b>${tr({ it: 'Resta nel MENU PRINCIPALE di EVO', en: 'Stay in the EVO MAIN MENU' })}</b> — ${tr({ it: 'non la schermata «Inizia sessione» con piste e auto: da lì pista e griglia si scrivono male e bisogna fare indietro e ripremere.', en: "not the 'Start session' screen with tracks and cars: from there track and grid cannot be written — go back to the menu and press again." })}</div>
         <div class="muted" style="margin-top:6px;font-size:11.5px">${(c.guests ?? a.guests ?? []).length ? tr({ it: "Ora, giri e gli avversari ospiti (2-3) partono da fuori col tasto Prepara, come la gara di campionato: su pista (gamemodesave) e griglia (customgrid) — se un ospite non è in nessuna griglia sul disco, resta a scelta mano in EVO e il tool lo segnala. La barra verifica l'impegno live.", en: 'Hour, laps and the guest rivals (2-3) are set from outside with the Prepare button, like the championship race — onto the track files (gamemodesave) and the grid (customgrid). If a guest car is in no grid on disk, you still pick them by hand in EVO and the tool says so. The bar verifies the setup live.' }) : tr({ it: "Ora, giri e la griglia monomarca partono da fuori col tasto Prepara, come la gara di campionato: su pista (gamemodesave) e griglia (customgrid), scritta dal tool col builder. La barra verifica l'impegno live.", en: 'Hour, laps and the one-make grid are set from outside with the Prepare button, like the championship race — onto the track files (gamemodesave) and the grid (customgrid), built by the tool with its grid builder. The bar verifies the setup live.' })}</div>
         <div class="livebar live-off" id="ev-livebar" style="margin-top:8px"><span class="dot"></span><span class="st">${tr({ it: 'Live evento', en: 'Live event' })}</span><span class="muted">${tr({ it: 'in attesa del gioco…', en: 'waiting for the game…' })}</span></div>
         <div class="muted" style="margin-top:6px;font-size:12px">🏁 ${tr({ it: 'A fine gara il risultato si incassa da solo, come le gare di campionato: apri il game, corre e chiudi. Non serve compilare nulla.', en: 'At the end of the race the result is collected automatically, like championship races: open the game, race and close it. No need to fill anything in.' })}</div>
@@ -412,7 +413,10 @@ async function drawEventsPanel(){
         if (p.crashAdvice) segs.push(p.crashAdvice);
         if (p.guestsError) segs.push(tr({ it: `griglia non riscritta (${p.guestsError})`, en: `grid NOT rewritten (${p.guestsError})` }));
         else if (p.guests != null) segs.push(tr({ it: `griglia evento: ${p.guests}`, en: `event grid: ${p.guests}` }));
-        const note = r.gameRunning ? tr({ it: 'EVO è già aperto', en: 'EVO is already open' }) : (r.launched && !r.launched.error ? tr({ it: 'EVO avviato', en: 'EVO launched' }) : tr({ it: 'EVO non avviato: aprilo tu', en: 'EVO not launched: open it yourself' }));
+        // il motivo REALE del mancato avvio appare nel toast (24/10: «simply not launched»
+// non diceva nulla — era l'unico indizio di gioco/Steam non raggiungibili)
+const launchErr = r.launched?.error ? ` (${String(r.launched.error).split('\n')[0]})` : '';
+const note = r.gameRunning ? tr({ it: 'EVO è già aperto', en: 'EVO is already open' }) : (r.launched && !r.launched.error ? tr({ it: 'EVO avviato', en: 'EVO launched' }) : tr({ it: `EVO non avviato: aprilo tu${launchErr}`, en: `EVO not launched: open it yourself${launchErr}` }));
         toast(`${tr({ it: 'Gara speciale pronta', en: 'Special race ready' })}: ${segs.join(' · ')} — ${note}.`, p.trackError || p.carError || p.weatherError || p.aiError || p.hourError || p.lapsError || p.guestsError ? 'warn' : 'ok');
       } catch(e){ toast(e.message, 'err'); }
       if (btn) { btn.disabled = false; btn.textContent = tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' }); }
@@ -557,8 +561,8 @@ function drawCardInto(el, card){
     <div class="row" style="margin-top:16px">
       <select id="sel-car" style="flex:1;min-width:200px">${card.carChoices.map(c=>`<option value="${esc(c.id)}"${c.id===card.car?' selected':''}>${esc(c.display)}</option>`).join('')}</select>
       <button class="ghost" id="b-copy">${tr({ it: 'Copia scheda', en: 'Copy sheet' })}</button>
-    </div>
-    <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' })}</button>
+    </div>    <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' })}</button>
+    <div class="banner warn" style="margin-top:8px">⚠️ <b>${tr({ it: 'Resta nel MENU PRINCIPALE di EVO', en: 'Stay in the EVO MAIN MENU' })}</b> — ${tr({ it: 'non aprire la schermata «Inizia sessione» (quella con la lista di piste e auto): da lì lo strumento non riesce a scrivere pista e griglia e il bottone non cambia nulla. Se ci sei già, torna indietro al menu e ripremi il bottone.', en: "don't open the 'Start session' screen (the one listing tracks and cars): from there the tool cannot write track and grid and the button changes nothing. If you are already there, go back to the menu and press the button again." })}</div>
     <div class="muted" style="margin-top:10px">${tr({ it: "Imposta i campi nella gara personalizzata di EVO spuntando la lista qui sopra; a scheda completa, premi Invio. Ricorda: l'auto va selezionata a mano nel gioco — resta l'unica cosa che l'app non può fare da fuori.", en: 'Set the fields in the EVO custom-race sheet by checking the list above; when the sheet is complete, press Start. Remember: the car must be picked by hand in the game — it is the one thing the app cannot do from outside.' })}</div>`;
   const save = () => {
     checked = $$('.ckl input', el).filter(c=>c.checked).map(c=>Number(c.dataset.i));
@@ -854,7 +858,9 @@ function drawCardInto(el, card){
     const btn = $('#b-race', el); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
     try {
       const r = await api('race', {car: $('#sel-car', el)?.value});
-      const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella finestra esistente.', en: 'EVO is already open: set the race in the existing window.' }) : (r.launched && !r.launched.error ? tr({ it: 'Gioco avviato.', en: 'Game launched.' }) : tr({ it: 'Gioco non avviato: aprilo tu.', en: 'Game not launched: open it yourself.' }));
+      // anche qui il motivo reale del mancato avvio va nel toast (24/10)
+const launchErr = r.launched?.error ? ` (${String(r.launched.error).split('\n')[0]})` : '';
+const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella finestra esistente.', en: 'EVO is already open: set the race in the existing window.' }) : (r.launched && !r.launched.error ? tr({ it: 'Gioco avviato.', en: 'Game launched.' }) : tr({ it: `Gioco non avviato: aprilo tu.${launchErr}`, en: `Game not launched: open it yourself.${launchErr}` }));
       const gridMsg = r.prep?.grid?.rebuild ? ` ${r.prep.grid.rebuild.startsWith('non riuscita') ? '⚠' : '═'} Griglia serie: ${r.prep.grid.rebuild}.` : '';
       // ora e giri della ronda scritti nel gamemodesave (stessa automazione
       // dell'evento): un segmento a segmento, con ⚠ quando va messa a mano

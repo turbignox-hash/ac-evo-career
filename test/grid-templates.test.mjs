@@ -22,6 +22,13 @@ import { join } from 'node:path';
 const TMP = mkdtempSync(join(tmpdir(), 'grid-templates-test-'));
 process.env.EVO_DATA_DIR = TMP;               // magazzino e snapshot redirigono qua
 process.env.EVO_FACTORY_DIR = join(TMP, 'fabbrica');   // griglie di fabbrica redirigono qua
+// anche i FILE DI GIOCO (24/10): il gate del conteggio legge il VERO
+// gamemodesave (weekendCarCount → tools/set-track.mjs); senza sabbia, sul PC
+// di sviluppo i cinque test che montano nodeName/track «Red Bull Ring» si
+// allineavano ALLA GARA REALE in corso (gridSize → 14) e si spezzavano
+// (servono 14, il fixture ne ha 6/8/4). Con la redirezione il file non c'è →
+// nativo null → nessun align, come su un EVO vergine.
+process.env.ACE_GAME_SAVEDIR = join(TMP, 'giochi-salvati');
 const ga = await import('../src/grid-apply.mjs');
 const ev = await import('../tools/evo-grid.mjs');
 const { encodeMsg } = ev;

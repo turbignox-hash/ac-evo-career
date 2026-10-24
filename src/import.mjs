@@ -31,6 +31,7 @@ import { recordFlows } from './flows.mjs';
 import { tr } from './lang.mjs';
 import { recordWarning } from './warnings.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
+import { slotDataDir, savePath, activeSlot } from './state.mjs';
 import { recordRaceFromResult } from './grid-calib.mjs';
 import { avanzaDopoGara } from './agenda.mjs';
 
@@ -38,14 +39,18 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);
 // EVO_DATA_DIR: solo per i test (ridirige i registri in una cartella temporanea)
 export const DATA_DIR = process.env.EVO_DATA_DIR ?? join(PROJECT, 'data');
-export const ARCHIVE_DIR = join(DATA_DIR, 'results-archive');
-export const SAVE_FILE = join(DATA_DIR, 'evo-career.save.json');
-const LEDGER_FILE = join(DATA_DIR, 'imports-ledger.json');
-const LOG_FILE = join(DATA_DIR, 'imports.log.jsonl');
-// backup unificati: data/backups/evo-career.save.bak-<data>.(auto.)json
+// nido per-slot (24/10): archivio, ledger, log e backup vivono con la SUA carriera
+// (slot 1 = data/ com'è sempre stato, slot 2-3 = data/slot-N/ vergini)
+const SLOT_DIR = slotDataDir();
+export const ARCHIVE_DIR = join(SLOT_DIR, 'results-archive');
+// il SAVE carriera resta in data/ root (il nome file è già per-slot via savePath)
+export const SAVE_FILE = join(DATA_DIR, savePath(activeSlot()));
+const LEDGER_FILE = join(SLOT_DIR, 'imports-ledger.json');
+const LOG_FILE = join(SLOT_DIR, 'imports.log.jsonl');
+// backup unificati: data[/slot-N]/backups/evo-career.save.bak-<data>.(auto.)json
 // (prima c'erano bak-auto-* in data/, bak-* manuali dalla GUI e ladder.backup-*
-// degli script: ora tutti vivono qui, con una sola rotazione)
-const BACKUP_DIR = join(DATA_DIR, 'backups');
+// degli script: ora tutti vivono qua, con una sola rotazione; PER SLOT dal 24/10)
+const BACKUP_DIR = join(SLOT_DIR, 'backups');
 const BACKUP_KEEP = 10;
 
 const trackName = (ladder, id) => ladder.contentNames?.tracks?.[id] ?? id;
@@ -181,7 +186,7 @@ function duplicateResult(ladder, state, targetNode, before, { reason, source, ro
  */
 // persist ha la firma (state): per default salva con saveState(SAVE_FILE, state) —
 // NON passa lo state come fosse un percorso.
-export function runImport(ladder, paths, state, { manual = null, allowAny = false, force = false, since = null, persist = (s) => saveState(SAVE_FILE, s) } = {}) {
+export function runImport(ladder, paths, state, { manual = null, allowAny = false, force = false, since = null, strict = false, persist = (s) => saveState(SAVE_FILE, s) } = {}) {
   const node = nodeById(ladder, state.node);
   let payload = null;
   let sourceInfo = null;
@@ -209,7 +214,13 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
     // Niente fallback senza filtro temporale: il watcher (ri-armatosi dopo una gara
     // già importata) riprenderebbe un file vecchio — es. la finale della stagione
     // appena chiusa — e lo registerebbe come gara nuova, con premio e punti fantasma.
-    if (!candidates.length && !allowAny && (pending?.startedAt ?? since)) candidates = pickCandidate(paths, { since: null, trackNames, allowAny: false });
+    // `strict` (24/10, recupero automatico del watcher): la finestra temporale
+    // resta VERA — un file VECCHIO combaciante con la pista attesa NON vale una
+    // gara (lezione del 20/10: un Monza vecchio mai incassato è avanzato la
+    // carriera da solo). Il fallback da `since: null` resta per l'import a mano
+    // (lì c'è un occhio umano e la conferma del cruscotto), dal recupero
+    // automatico no: riskierrebbe di «recuperare» una gara di settimane fa.
+    if (!strict && !candidates.length && !allowAny && (pending?.startedAt ?? since)) candidates = pickCandidate(paths, { since: null, trackNames, allowAny: false });
     if (!candidates.length) {
       const files = listResultFiles(paths);
       const seen = files.slice(0, 6).map((f) => {

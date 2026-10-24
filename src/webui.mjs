@@ -7,6 +7,7 @@
 
 import { createServer } from 'node:http';
 import { execFileSync } from 'node:child_process';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { readFileSync, writeFileSync, existsSync, copyFileSync, renameSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import { dirname, join, extname, basename, relative, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
@@ -16,6 +17,7 @@ import {
   createCareer, nodeById, disciplineName, gateStatus,
   standingsFor, difficultyFor, seasonEnd,
   acceptOffer, pushMessage, enterNode, renameDriver, careerStats,
+  slotDataDir,
 } from './state.mjs';
 import { ourToSkill, OUR_MIN, OUR_MAX } from './world.mjs';
 import { loadCatalog, resultDetail } from './catalog.mjs';
@@ -254,16 +256,24 @@ function systemHealth(paths, mode = null) {
 
 
 
+// temporizzazioni del GUARDIANO DELLA CODA (24/10, bug slot 3): una sola
+// azione rimasta appesa a un'attesa infinita teneva l'intero cruscotto in
+// ostaggio — le richieste dopo di lei restavano in fila e il bottone
+// «Prepara tutto» restava spinner senza mai rispondere. Variabile d'ambito
+// EVO_API_TIMEOUT_MS: serve SOLO ai test (default 20s sul PC vero).
+const API_TASK_TIMEOUT_MS = Math.max(250, Number(process.env.EVO_API_TIMEOUT_MS) || 20000);
+const API_HTTP_TIMEOUT_MS = API_TASK_TIMEOUT_MS + 750;
+
 /* ------------------------------------------------------------------ */
 /* import: UNA sola logica per GUI, CLI e watcher (src/import.mjs)     */
 /* ------------------------------------------------------------------ */
 
-async function doImport(ladder, paths, state, { manual = null, allowAny = false, force = false, since = null } = {}) {
+async function doImport(ladder, paths, state, { manual = null, allowAny = false, force = false, since = null, strict = false } = {}) {
   // hot('./import.mjs'): a ogni chiamata misura il mtime — se import.mjs o la sua
   // dipendenza grid-calib.mjs sono cambiati su disco, il launcher si mette al
   // passo SENZA riavvio (la stagione di gare non si spezza mai per una patch).
   const { runImport } = await hot('./import.mjs');
-  const out = runImport(ladder, paths, state, { manual, allowAny, force, since, persist });
+  const out = runImport(ladder, paths, state, { manual, allowAny, force, since, strict, persist });
   return { ...out, header: viewHeader(ladder, state) };
 }
 
@@ -284,6 +294,9 @@ const MIME = {
 };
 
 function sendJson(res, code, data) {
+  // già risposta (es. il timeout HTTP del guardiano ha già parlato): mai due
+  // scritture sulla stessa risposta — il browser the governa la prima
+  if (res.writableEnded || res.destroyed) return;
   const body = JSON.stringify(data);
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(body);
@@ -394,6 +407,16 @@ async function api(context0, req, res, action, body) {
   }
 
   switch (action) {
+    case 'hang-test': {
+      // SOLO TEST (EVO_TEST_HANG=1, corre da webui-queue.test.mjs): un'azione
+      // resta appesa, per provare che il guardiano della coda la segnala
+      // come 504 senza congelare le richieste dopo di lei.
+      // Fuori dai test risponde subito che non è prevista (niente buchi).
+      if (!process.env.EVO_TEST_HANG) {
+        return sendJson(res, 400, { error: tr({ it: 'Azione di test non attiva.', en: 'Test-only action is not active.' }) });
+      }
+      return new Promise(() => {});
+    }
     case 'lang': {
       // UNA lingua per tutti: la scelta in Impostazioni vale anche per CLI e server.
       // Si salva in evo.config.json e si applica subito al server vivo. EVO_LANG
@@ -662,7 +685,7 @@ async function api(context0, req, res, action, body) {
         try {
           const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
           const resultsDir = paths.resultsDirs?.[0] ?? join(root, '..', 'Results');
-          const sess = collectSessions(root, resultsDir, { car: snap.player.car, limit: 1 })[0] ?? null;
+          const sess = collectSessions(root, resultsDir, { car: snap.player.car, limit: 1, afterMs: state.createdAt ?? 0 })[0] ?? null;
           if (sess && Number.isFinite(sess.fuelPerLap) && sess.fuelPerLap > 0) { fuelPerLap = sess.fuelPerLap; telemTrack = sess.track ?? null; }
         } catch { /* senza telemetria si stima dal HUD del gioco */ }
       }
@@ -700,7 +723,7 @@ async function api(context0, req, res, action, body) {
     case 'ab-setup': {
       try {
         const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
-        const all = listMotecSessions(root);
+        const all = listMotecSessions(root, { afterMs: state.createdAt ?? 0 }); // solo sessioni della SUA carriera (24/10)
         const pick = (name) => all.find((s) => s.name === String(name ?? ''))
           ?? (isFile(String(name ?? '')) ? { file: String(name) } : null);
         const a = pick(body.fileA), b = pick(body.fileB);
@@ -1329,7 +1352,7 @@ async function api(context0, req, res, action, body) {
       // arricchisci la card col libro delle piste: record di sessione sulla stessa auto + scheda
       try {
         if (card.outlook) {
-          const book = trackBook(ladder, paths, state, { testdayFile: join(DATA_DIR, 'testdays.json') });
+          const book = trackBook(ladder, paths, state, { testdayFile: join(slotDataDir(), 'testdays.json') });
           const row = book.rows.find((r) => r.track === card.trackName || r.id === card.round?.track);
           // miniatura dell'auto selezionata per la prossima gara
           card.carImage = carImageOf(card.carName) ?? carImageOf(card.car) ?? null;
@@ -1654,6 +1677,17 @@ async function api(context0, req, res, action, body) {
         let spawn = null;
         try { expireEvents(ladder, state); spawn = maybeSpawnEvent(ladder, state); } catch (e) { recordWarning('events.spawn', 'generazione invito fallita', e?.message ?? null); }
         if (spawn) persist(state);
+        // AUTO-REFRESH del cruscotto (24/10): la GUI segue watcher.importSeq
+        // (viste-d.js, poll ogni 5s) e si ricarica da sola al cambio. Fino ad
+        // oggi SOLO il tick del watcher incrementava il contatore: un import
+        // manuale (bottone «importa» del Centro gare, o chiamata API mentre il
+        // gioco è chiuso) lasciava la pagina ferma sulla gara vecchia fino a un
+        // refresh a mano. Segnamo il ritmo UGUALE a quello del watcher:
+        // i duplicati e gli import vuoti NON toccano il contatore (niente
+        // ricariche inutili a ogni giro di polling).
+        if (!out?.duplicate && (out?.entry ?? out?.updated)) {
+          watcher.importSeq = (watcher.importSeq ?? 0) + 1;
+        }
         return sendJson(res, 200, { ...out, eventSpawned: spawn ? { id: spawn.id, theme: spawn.theme.name, track: spawn.trackDisplay } : null });
       } catch (e) {
         if (e.code) return sendJson(res, 409, { error: e.message, code: e.code, detail: e.detail });
@@ -1870,6 +1904,9 @@ async function api(context0, req, res, action, body) {
           // pressioni vere e assetto in pratica — la materia prima del suggeritore
           // (senza auto esplicita si usa l'auto più recente con telemetria, non la prima della lista)
           const board = setupBoard(ladder, state);
+          // MoTeC è per-PC: per un save con createdAt si mostrano solo le sessioni
+          // POST-nascita della carriera — il vergine non incassa quelle dei vecchi (24/10)
+          const afterMs = state.createdAt ?? 0;
           const carName = body.car ?? null;
           // 'all' = esplicitamente SENZA filtro pista (il pannello segue la
           // macchina in pista anche da gioco chiuso): niente fallback sulla pista
@@ -1877,9 +1914,9 @@ async function api(context0, req, res, action, body) {
           const trackKey = body.track === 'all' ? undefined : (body.track ?? board.track ?? undefined);
           const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
           const resultsDir = paths.resultsDirs?.[0] ?? join(root, '..', 'Results');
-          let sessions = collectSessions(root, resultsDir, { car: carName, track: trackKey, limit: body.limit ?? 10 });
-          if (!sessions.length && trackKey) sessions = collectSessions(root, resultsDir, { car: carName, limit: body.limit ?? 10 });
-          if (!sessions.length && !carName) sessions = collectSessions(root, resultsDir, { limit: body.limit ?? 10 });
+          let sessions = collectSessions(root, resultsDir, { car: carName, track: trackKey, limit: body.limit ?? 10, afterMs });
+          if (!sessions.length && trackKey) sessions = collectSessions(root, resultsDir, { car: carName, limit: body.limit ?? 10, afterMs });
+          if (!sessions.length && !carName) sessions = collectSessions(root, resultsDir, { limit: body.limit ?? 10, afterMs });
           // senza auto richiesta si usa solo l'auto più recente: mai consigli da telemetrie miste
           if (!carName && sessions.length > 1) sessions = sessions.filter((s) => s.car === sessions[0].car);
           const usedCar = sessions[0]?.car ?? carName;
@@ -1904,7 +1941,7 @@ async function api(context0, req, res, action, body) {
           try {
             const savedSetupDir = paths.dataDirs?.[0] ?? '';
             if (savedSetupDir) {
-              const cand = listSetups(savedSetupDir, { car: usedCar, track: trackKey ?? sessions[0]?.track })
+              const cand = listSetups(savedSetupDir, { car: usedCar, track: trackKey ?? sessions[0]?.track, afterMs })
                 .filter((s) => !s.name.includes('EVO-consigliato'));
               if (cand.length) {
                 cand.sort((a, b) => statSync(b.file).mtimeMs - statSync(a.file).mtimeMs);
@@ -1970,7 +2007,7 @@ async function api(context0, req, res, action, body) {
           try {
             // senza filtro pista: la correzione telemetrica usa l'ultima sessione dell'auto
             // (come il grafico del giro) — con base pista dichiarata nel pannello
-            const sess = collectSessions(root, paths.resultsDirs?.[0] ?? '', { car: carName, limit: 1 })[0] ?? null;
+            const sess = collectSessions(root, paths.resultsDirs?.[0] ?? '', { car: carName, limit: 1, afterMs: state.createdAt ?? 0 })[0] ?? null;
             if (sess) { telem = sess; sessFile = sess.file; }
           } catch { /* senza telemetria la base resta pista-solo */ }
           const adv = setupAdvice(TRACK && { ...TRACK, car: carName }, telem && {
@@ -2018,15 +2055,15 @@ async function api(context0, req, res, action, body) {
           const trackKey = body.track ?? null; // senza pista esplicita: l'auto, TUTTE le sue piste
           const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
           let pick = null;
-          if (body.file) pick = listMotecSessions(root, { car: carName ?? undefined, track: undefined }).find((s) => s.name === body.file) ?? null;
-          if (!pick) pick = listMotecSessions(root, { car: carName, track: trackKey })[0] ?? null;
+          if (body.file) pick = listMotecSessions(root, { car: carName ?? undefined, track: undefined, afterMs: state.createdAt ?? 0 }).find((s) => s.name === body.file) ?? null;
+          if (!pick) pick = listMotecSessions(root, { car: carName, track: trackKey, afterMs: state.createdAt ?? 0 })[0] ?? null;
           if (!pick) return sendJson(res, 200, { ok: false, hint: tr({ it: 'Nessuna telemetria MoTeC per questa auto: fai una sessione e EVO la salverà in Saved Games\\ACE\\MoTec.', en: 'No MoTeC telemetry for this car yet: run a session and EVO will save it to Saved Games\\ACE\\MoTec.' }) });
           const trace = lapTrace(pick.file, { lap: body.lap, compare: body.compare, points: body.points });
           const a = trace ? analyzeLd(pick.file) : null;
           if (!trace) return sendJson(res, 200, { ok: false, hint: 'File MoTeC senza giri validi o senza canale SPEED: ' + pick.name });
           // elenco sessioni dell'auto per il SELETTORE (la più recente prima):
           // quando/data/pista + numero giri validi — il client ricade su/lui quando gira il select
-          const allSessions = listMotecSessions(root, { car: carName }).slice(0, 30).map((s) => {
+          const allSessions = listMotecSessions(root, { car: carName, afterMs: state.createdAt ?? 0 }).slice(0, 30).map((s) => {
             let lapsN = 0;
             try { lapsN = (analyzeLd(s.file)?.validLaps) ?? 0; } catch { lapsN = 0; }
             return { file: s.name, track: s.track, when: new Date(s.mtime).toLocaleString('it-IT'), validLaps: lapsN };
@@ -2290,7 +2327,7 @@ async function api(context0, req, res, action, body) {
       // file risultato, nomi e lunghezze ufficiali dal catalogo) + schede storiche
       let catalog = null;
       try { catalog = loadCatalog(paths); } catch { catalog = null; } // il catalogo non deve rompere il libro
-      const book = trackBook(ladder, paths, state, { testdayFile: join(DATA_DIR, 'testdays.json'), catalog });
+      const book = trackBook(ladder, paths, state, { testdayFile: join(slotDataDir(), 'testdays.json'), catalog });
       return sendJson(res, 200, { ...book, next: nextTrackOf(ladder, state), driver: state.driver ?? null });
     }
     case 'cars': {
@@ -2503,6 +2540,12 @@ const watcher = {
   },
 };
 
+/* chiave stabile della ronda attesa: il recupero automatico smette di riprovare
+   una volta segnalata come duplicata, senza riprovarla a ogni giro del tick */
+function pendingKeyOf(p) {
+  try { return `${p.node}#${p.round}#${p.startedAt}`; } catch { return null; }
+}
+
 function watcherTick() {
   if (watcher.busy) return;
   watcher.busy = true;
@@ -2526,10 +2569,15 @@ function watcherTick() {
           watcher.push('Gioco chiuso.', 'info');
         }
         watcher.seenNonRace = false;
-        return;
+        if (!watcher.racedEnd) return;
+        // EVO chiuso MA la gara è appena finita: il file dei Risultati è già
+        // lì — si prosegue all'import qui sotto senza aspettare la riapertura
+        // del gioco (24/10: il risultato restava appeso finché EVO
+        // non ripartiva, e la pagina non si aggiornava mai da sola).
       }
 
-      const g = snap.session;
+      // EVO chiuso: nessuna sessione — detection inerte, l'import qui sotto basta
+      const g = snap.session ?? {};
       const player = snap.player ?? {};
       const pending = state.pending;
       const node = pending ? nodeById(ladder, pending.node) : nodeById(ladder, state.node);
@@ -2645,6 +2693,49 @@ function watcherTick() {
             watcher.push(`Nessun risultato importabile trovato (${e.message.slice(0, 80)}). Importa a mano dai Risultati.`, 'warn');
           }
         }
+      } else if (!watcher.armed && state?.pending?.startedAt && !(watcher.retroDup === pendingKeyOf(state.pending))) {
+        /* RECUPERO AUTOMATICO (24/10 — Mauro: «finita la gara, la UI non si
+           aggiorna da sola»): gara finita MENTRE il watcher non guardava
+           (server ripartito a gara in corso, lettore live fuori, EVO già al
+           menu) → nessun arm → l'import non partiva né mai il bump della seq
+           che fa ricaricare la pagina. Qui si incassa da solo ciò che combacia:
+           la stessa strada del bottone «importa» con le reti di sempre (match
+           della pista attesa, registro anti-doppioni, backup automatico) ma la
+           finestra temporale STRETTA (strict): niente file vecchie a pista
+           uguale (lezione Monza del 20/10). Dopo l'incasso il pending va via e
+           la GUI, al prossimo giro, vede il nuovo importSeq e si ricarica da solino. */
+        const pendKey = pendingKeyOf(state.pending);
+        try {
+          const out = await serialize(async () => {
+            const st = requireState();
+            const o = await doImport(ladder, paths, st, { allowAny: false, force: false, since: st.pending?.startedAt ?? null, strict: true });
+            persist(st);
+            return { career: o };
+          });
+          const c = out?.career ?? out;
+          if (c?.duplicate) {
+            // già incassata (registro anti-doppioni): niente bump della seq
+            // (la GUI non deve ricaricarsi a ogni giro) e si smette di
+            // riprovare finché la ronda resta la stessa.
+            watcher.retroDup = pendKey;
+          } else {
+            watcher.retroDup = null;
+            watcher.importSeq = (watcher.importSeq ?? 0) + 1; // la GUI si ricarica da sola
+            watcher.push(c?.node
+              ? `RISULTATO IMPORTATO (recuperato da solo): ${c.node} R${c.round} — ${c.entry?.dsq ? 'squalifica' : c.entry?.dnf ? 'ritiro' : 'P' + c.entry?.position} · +${c.entry?.points} pt · +${c.entry?.prize} €`
+              : 'Risultato della gara recuperato e incassato da solo.', 'good');
+          }
+        } catch (e) {
+          // nessun file combaciante = la norma fuori gara (prove, gare private):
+          // silenzio; un guasto vero va nel diario degli errori, una volta sola
+          if (!['NO_CANDIDATE', 'PLAYER_NOT_FOUND', 'TRACK_MISMATCH'].includes(e.code)) {
+            const msg = `Recupero automatico non riuscito: ${String(e?.message ?? e).slice(0, 110)}`;
+            if (watcher.lastMsg?.msg !== msg) {
+              recordWarning('watcher.retro', 'recupero automatico non riuscito', e?.message ?? String(e));
+              watcher.push(msg, 'warn');
+            }
+          }
+        }
       }
     } catch (e) {
       const msg = `Watcher: ${e?.message ?? e}`;
@@ -2661,9 +2752,20 @@ const norm = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
 // isGameRunning/launch) può sovrascrivere con il suo state vecchio un import
 // appena finito dal watcher — e la gara sparirebbe dal salvataggio.
 let _apiChain = Promise.resolve();
-function serialize(task) {
+function serialize(task, label = 'azione') {
   const run = _apiChain.then(task, task);
-  _apiChain = run.then(() => {}, () => {});
+  // GUARDIANO DELLA CODA (24/10, bug slot 3): la fila si sblocca da sola anche
+  // se l'azione in testa resta appesa a un'attesa infinita. L'azione dormigliona
+  // continua in sottofondo (la sua risposta, se un giorno arriva, va guardata da
+  // sendJson — niente doppie scritture), ma il server non resta più muto: le
+  // richieste dopo di lei proseguono e il browser riceve sempre un verdetto.
+  _apiChain = Promise.race([
+    run.catch(() => {}),
+    sleep(API_TASK_TIMEOUT_MS).then(() => {
+      console.log(`[coda] «${label}» ferma da ${Math.round(API_TASK_TIMEOUT_MS / 1000)}s: sblocco la fila (l'azione continua in sottofondo).`);
+      return null;
+    }),
+  ]).then(() => {}, () => {});
   return run;
 }
 
@@ -2730,18 +2832,32 @@ const server = createServer(async (req, res) => {
         if (hasBody && !ct.includes('application/json')) {
           return sendJson(res, 415, { error: 'Le API parlano solo application/json.' });
         }
-      }
-      const action = url.pathname.slice('/api/'.length);
+      }      const action = url.pathname.slice('/api/'.length);
       const body = req.method === 'POST' ? await readBody(req) : {};
       // il CONTESTO non fa schioffare il cruscotto: al PRIMO AVVIO senza cartella
-    // dati EVO resolvePaths lancia, e sotto ogni API sparisce. In quel caso degradi
-    // con paths null — il wizard (/api/wizard) è lì per sistemare il percorso.
-    return await serialize(() => {
-      let context0;
-      try { context0 = context(); }
-      catch (e) { context0 = { ladder: loadLadder(), paths: null, pathsError: e.message }; }
-      return api(context0, req, res, action, body);
-    });
+      // dati EVO resolvePaths lancia, e sotto ogni API sparisce. In quel caso degradi
+      // con paths null — il wizard (/api/wizard) è lì per sistemare il percorso.
+      const t0 = Date.now();
+      const out = await Promise.race([
+        serialize(() => {
+          let context0;
+          try { context0 = context(); }
+          catch (e) { context0 = { ladder: loadLadder(), paths: null, pathsError: e.message }; }
+          return api(context0, req, res, action, body);
+        }, action),
+        sleep(API_HTTP_TIMEOUT_MS).then(() => ({ __httpTimeout: true })),
+      ]);
+      // log SOLO delle azioni lente (il polling LIVE gira ogni ~2s: la finestra
+      // DOS resta leggibile) — le colpe si leggono in due righe
+      if (Date.now() - t0 > 300) console.log(`[api] ${action} ← ${Date.now() - t0}ms`);
+      if (out && out.__httpTimeout) {
+        console.log(`[api] ${action} NON ha risposto entro ${Math.round(API_HTTP_TIMEOUT_MS / 1000)}s (in stallo).`);
+        return sendJson(res, 504, { error: tr({
+          it: `L'azione «${action}» non ha risposto entro ${Math.round(API_HTTP_TIMEOUT_MS / 1000)}s: era in stallo, riprova. La finestra nera del server dice quale azione è ferma.`,
+          en: `The action “${action}” did not answer within ${Math.round(API_HTTP_TIMEOUT_MS / 1000)}s: it stalled, try again. The server's black console shows which action is stuck.`,
+        }) });
+      }
+      return out;
     }
     if (url.pathname === '/' || url.pathname === '/index.html') {
       const file = join(GUI_DIR, 'index.html');

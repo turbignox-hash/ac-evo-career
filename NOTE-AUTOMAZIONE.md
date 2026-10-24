@@ -818,6 +818,39 @@ Attenzione: "auto mappata" vuol dire fotografia in grezze; una SERIE
 serve col SUO file in magazzino/fabbrica, altrimenti la corsa dei
 candidati a install vergine si appoggia ai soli backup o agli snapshot.
 
+## VERDETTO crash «avvia sessione» slot 3 (24/10, pomeriggio) — RISOLTO
+Sintomo: Coppa 500 · Imola Round 1 preparata dal tool (12 celle), al
+ momento di AVVIARE la sessione EVO 0.9.1 muore con 0xC0000005 subito
+ dopo «Opponent [12] found!».
+Causa VERA (non protobuf, non corruzione): la carriera EVO si aspetta
+ UN NUMERO FISSO di avversari per ronda, scritto nel gamemodesave campo
+ 3.7 / voci 3.10 — 14 per la Coppa 500 (confermato con il dump:
+ cars:14, declared:14, track: «Imola») — mentre la scala nostra
+ diceva gridSize 12. Il gioco istanzia la 13ª auto che nel file non
+ c'è → crash. La mattina la gara GT3 era andata perché lì scala e
+ gamemodesave combaciavano (20/20).
+FIX (tre pezzi):
+1. tools/set-track.mjs: nuova export weekendCarCount() — legge il
+   gamemodesave e restituisce { cars, declared, track }; null se non
+   c'è (PC vergine → comportamento come prima).
+2. src/grid-apply.mjs · rebuildGridApply: GATE DEL CONTEGGIO — se la
+   pista del gamemodesave combacia con la ronda, il conteggio NATIVO
+   vince sulla gridSize della scala (clona il nodo ladder, niente
+   mutazioni del ladder condiviso) e il report porta countAlign
+   {from,to}. Non muta mai l'entra: slot non coerenti, ronda diversa,
+   gamemodesave assente → niente override.
+3. config/career.evo.ladder.json: coppa_500 gridSize 12 → 14.
+   (Le altre coppe monomarca restano come sono: il gate le allinea
+   automaticamente al valore nativo di EVO a ogni ronda.)
+Rimedi sul disco: griglia e gamemodesave riportati allo stato nativo
+ (14 celle, AI 94-95); negozio slot-3 rialineato al template nativo
+ (decesso .pre-correzione.bak-24-10 accanto).
+Verificato: suite completa 180/180 verde; dry-run di rebuildGridApply
+ su coppa_500 → gridSize 14, source = griglia nativa. Da RI-AVVIARE il
+ server slot-3 con il codice nuovo: il PRIMO «Prepara e divertiti»
+ dopo il riavvio riscrive la griglia a 14 (con log «conteggio
+ allineato») e la sessione non crasha più.
+
 ### Lancia Delta: prototipo Evo 3 "Violet" (catalogo) — DOVE STIAMO
 Nel catalogo del disco GIÀ registrata come UNA carriera con due
 varianti: hfevoii → Standard (PI 9.05) e Evo 3 "Violet" (PI 9.13).
@@ -881,4 +914,153 @@ AUTO-RESTART — tools/riavvia-webui.mjs NUOVO: agg-install (webui.mjs)
  Fallback intatto: se testOk === false NON si riavvia (toast rosso a mano);
  via console (avvia.cmd) resta il «riavvia il launcher» manuale.
 
+### GUARDIANO DELLA CODA (24/10, pomeriggio) — il tasto «Prepara tutto» restava
+spinner e il cruscotto slot 3 era tutto muto
+- LO SCENARIO Mauro: nuovo save 3, lingua inglese, click su «Prepara tutto e
+  divertiti» → il pulsante resta premuto, niente toast, e da lì ogni richiesta
+  del cruscotto in stallo (curl innocuo su /api/status: 10s = timeout; lo slot
+  1 invece risponde in 8ms).
+- RADICE: le azioni API girano in CODA (serialize) per non mescolare state
+  vecchio/nuovo col watcher: ma se l'azione di testa rimaneva appesa a
+  un'attesa infinita (processo figlio che non risponde, tasklist assediato
+  mentre EVO parte), la coda restava chiusa PER SEMPRE — nessun timeout in
+  nessuno dei due punti.
+- FIX 1 (webui.mjs — serialize): la fila si sblocca da sola dopo
+  EVO_API_TIMEOUT_MS (default 20s): l'azione dormigliona continua in
+  sottofondo (se un giorno si sblocca, la risposta in ritardo viene scartata
+  dalla sendJson aggiornata: niente doppie scritture), ma le richieste dopo
+  di lui girano subito.
+- FIX 2 (webui.mjs — server): timeout HTTP a fianco +750ms: il browser
+  riceve 504 con il nome dell'azione in stallo (bottone si riattiva, toast
+  rosso) invece dello spinner eterno.
+- FIX 3 (paths.mjs): tasklist (isGameRunning) e `cmd /c start` (avvio EVO)
+  guadagnano timeout 10s: erano gli unici richiami figli senza rete di
+  sicurezza.
+- STRUMENTO DI INDAGINE (finestra DOS): ogni azione lenta (>300ms) stampa
+  `[api] <azione> ← Nms`; un'azione appesa stampa `[coda] «azione» ferma da
+  20s: sblocco la fila` — la prossima volta la colpa si legge in due righe.
+- PROVA: test/webui-queue.test.mjs (hang-test, attiva SOLO con
+  EVO_TEST_HANG=1): leader appeso → 504, poi /api/watcher risponde in
+  fretta. Suite completa 174/174.
+- Il server slot 3 girava col codice VECCHIO: va riavviato (chiudi la
+  finestra nera e rilancia slot 3 da Impostazioni) per ricevere la
+  correzione.
 
+### NIDO PER-SLOT + CRUSCOTTO VERGINE (24/10, pomeriggio) — il save 3 vedeva tutte le
+impronte del save 1 (LAP CHART, Garage advice, storia setup, Griglia, Archivio,
+Analisi, Rassegna)
+- IL FATTO Mauro: carriera nuova sul save 3 → il cruscotto mostrava LAP CHART con
+  i giri del 11:26, presunzioni del meccanico del 21/10, tab Grid/Result/Archivio/
+  Analisi pieni. Motivo doppio: (a) i registri del TOOL vivevano tutti in data/
+  CONDIVISI fra gli slot; (b) MoTeC e Car Setups sono per-PC (EVO li scrive in
+  Saved Games) e nessun filtro separava le carriere.
+- FIX (a) — NIDO (state.mjs: nuovo export slotDataDir()): i registri della VITA
+  di una carriera ora vivono per slot: slot 1 = data/ COM'È SEMPRE STATO (le
+  carriere esistenti non si spostano di un byte), slot 2-3 = data/slot-2|3/
+  nati vergini e restano vergini. Colpiti: rivals.json (rivals.mjs + state.mjs
+  + review.mjs), archivio/ledger/log import + BACKUP_DIR (import.mjs + cli.mjs),
+  magazzino griglie e snapshot customgrid (grid-apply.mjs), testdays.json
+  (testday.mjs + webui.mjs), journal stagioni (review.mjs), flussi (flows.mjs),
+  listing/backup dalla GUI (webui-env.mjs BACKUP_DIR → dall'Impostazioni dello
+  slot 3 si vedono SOLO i backup di slot 3).
+- RESTANO CONDIVISI le cose del PC o del progetto: grid-classes.json,
+  griglie-fabbrica, calibrazione AI (grid-calib.mjs — è fisica dei rivali
+  su QUESTO PC, non di una carriera), errors.jsonl, config e ladder.
+- FIX (b) — CRUSCOTTO VERGINE: state.mjs createCareer ora scrive createdAt.
+  listMotecSessions/collectSessions (motec.mjs) e listSetups (carsetup.mjs)
+  accettano afterMs: le viste acetuttono la telemetria POST-nascita della
+  carriera. Save vecchi SENZA createdAt (slot 1) vedono tutto com'era. Toccati:
+  /api/card (webui-views), garage/sessions + staleness, azione setup, laptrace
+  + selettore sessioni, banco A/B, ingegnere. La «Diagnostica telemetria»
+  resta per-PC volutamente (è salute della macchina, non di un save).
+- PATCH SAVE 3 ESISTENTE: il save 3 è nato prima dell'invento quindi senza
+  createdAt: apposta con atomic write il campo = 24/10/2026 15:43 (script
+  one-off: legge, completa, rinomina .tmp). Con la nascita oggi, la sessione
+  11:26 di Laguna (save 1) esce dalla LAP CHART del save 3: vergine davvero.
+- TOAST MUDO SULL'AVVIO (24/10, «Race marked. Game not launched»): la GUI diceva
+  «aprilo tu» senza dire PERCHÉ. Ora il Web toasts viste-a.js (gara normale e
+  gara speciale) porta in CODA motivo reale: r.launched.error (prima riga), IT/EN.
+  Sonda fatta: resolvePaths vede E:\SteamLibrary\...\AssettoCorsaEVO.exe esistente
+  → il motivo reale si légge al prossimo tentativo (se ricapita). Attenzione:
+  questi fix valgono al RIAVVIO del server dello slot.
+- VERIFICA: node --check su 13 file toccati ✓; suite completa 174/174 ✓
+  (i test conservano EVO_DATA_DIR=root slot 1: zéro breakage).
+
+## BUG «Command failed: cmd /c start EVO E:\...\AssettoCorsaEVO.exe» (24/10, sera) — CORRETTO
+- Il toast col motivo reale ha subito aperto la cassa: l'amenda yesterday «start
+  senza titolo vuoto» aveva PRONE anche l'avvio dell'exe del gioco. spawn('cmd',
+  ['/c','start','EVO', exe]) — il titolo 'EVO' non conteneva SPACES, quindi Node
+  NON lo citava. Regola di cmd start: SOLO il primo argomento QUOTATO è il titolo
+  ("Slot 3" funzionava perché lo spazio faceva citare la citazione da Node);
+  senza citazioni start cerca un PROGRAMMA chiamato EVO → «Command failed» e
+  «Game not launched: open it yourself» col motivo vero nel toast.
+- REGOLA DELLE CITAZIONI (la regola):
+  · un argomento passa QUOTATO da Node ⇔ contiene uno spazio;
+  · il TITOLO di start deve perciò CONTENERE UNO SPAZIO ('EVO Pitwall', "Slot 3"…);
+  · i FILE con spazi si auto-citano e vanno bene com'erano;
+  · gli URL (steam://, http://) restano SENZA titolo (la forma del commit 8dcceef).
+- FIX (paths.mjs launchGame): titolo 'EVO' → 'EVO Pitwall'. Prova al vivo con
+  bersaglio innocuo (cmd /c exit): 'EVO' → exit ERR «Command failed»,
+  'EVO Pitwall' → exit 0. Suite 174/174 ✓ node --check ✓. Valido al riavvio
+  della finestra DOS dello slot.
+
+### Auto-refresh cruscotto su import manuale (24/10, sera)
+La GUI segue watcher.importSeq (viste-d.js, poll 5s) ma SOLO il tick del
+watcher lo incrementava: un import manuale («importa» a mano o via API con
+EVO chiuso) lasciava la pagina sulla gara vecchia fino al refresh a mano.
+FIX: case 'import' di webui.mjs muove il contatore UGUALE al tick (duplicati
+e import a vuoto no). Prova dal vivo: import (inatteso: ha incassato anche
+una Monza 20/10 mai depositata) seq 0→1, pagina si ricarica da sola.
+Suite 180/180. Slot-3 riavviato col fix.
+
+### Recovery: incassata per errore la Monza vecchia di slot 3 (24/10, sera)
+Durante la prova dell'auto-refresh la chiamata d'import ha trovato nei
+Results un file di gara mai incassato (261020-0015, Monza del 20/10,
+griglia 13 — NON la Monza della coppa) e il runImport l'ha usata come
+Round 2: il cruscotto saltava a Brands Hatch senza che la Monza 2 fosse
+corsa. RIPRISTINO dal backup automatico dell'import
+(data/slot-3/backups/...T14-49-20.auto.json): round 1, 6.322 ꜠.
+Il LEDGER resta com'è: il file sbagliato resta marcato incassato per
+hash, quindi l'«importa» manuale e il watcher NON lo ripiglieranno.
+Copia di sicurezza dello stato errante:
+evo-career.save.post-monza-errata.bak-2026-10-24.json (negozi slot-3).
+LEZIONE: il bottone «importa» senza finestra temporale (since) scatta
+qualunque file race fresco-newest nei Results: per gare fuori carboncopy
+considerare un'etichetta  sul file o una conferma esplicita.
+
+## RECUPERO AUTOMATICO quando il watcher non guardava (24/10, 18:xx) — FATTO E COLLAUDATO
+
+- Problema: finita una gara MENTRE il watcher non la guardava (server
+  ripartito a gara in corso, lettore live fuori, EVO già al menu), l'import
+  non partiva MAI: niente arm, niente racedEnd, niente bump della seq →
+  la GUI (che si ricarica solo dopo un incasso riuscito) restava ferma.
+  Caso reale: Red Bull (500 Cup R4, file delle 17:21) mai incassata finché
+  il server non ripartiva col codice nuovo.
+- Fix (webui.mjs, watcherTick):
+  1) EVO CHIUSO con la gara appena finita: il tick non fa più return secco —
+     prosegue all'import (il file dei Risultati è già lì).
+  2) RECUPERO AUTOMATICO: se non si è armati, la ronda è pendente e nessun
+     risultato combaciante è mai giunto, si incassa da solo ciò che combacia
+     (stessa strada del bottone «importa» con registro anti-doppioni e backup
+     automatico). Con `strict: true`: la finestra temporale resta VERA —
+     niente file vecchi a pista uguale (lezione Monza del 20/10); se il file
+     combaciante è già incassato si smette di riprovare (pendKey).
+- `strict` nuovo flag di runImport (import.mjs): salta fallback `since: null`
+  (quello che al click a mano può tirare dentro file vecchi). Il default è
+  falso: i percorsi vecchi si comportano come sempre; doImport lo passa.
+- COLLAUDATO DAL VIVO (slot 3, porta 8644): ripartito col codice nuovo, al
+  secondo tick → «RISULTATO IMPORTATO (recuperato da solo): 500 Cup R4 — P14»
+  · +0 pt · +324 €; il cruscotto è avanzato al FINALE · Fuji Speedway R5 di 5.
+- Suite 174/174 verde. In più: i cinque test grid-templates dipendevano dal
+  VERO gamemodesave del PC (il gate del conteggio 24/10 15:50 li allineava
+  alla gara reale): aggiunta la sabbia `ACE_GAME_SAVEDIR` in quel test.
+
+## NOTA «resta nel MENU PRINCIPALE» su Prepara e divertiti (24/10, richiesta Mauro)
+- Sotto il pulsante 🏁 Prepara tutto e divertiti (sia gara di campionato che
+  evento speciale, gui/js/viste-a.js) ora c'è un banner giallo: EVO deve stare
+  nel MENU PRINCIPALE, NON nella schermata «Inizia sessione» (quella con la
+  lista di piste e auto) — da lì pista e griglia non si scrivono e bisogna
+  fare indietro e ripremere il bottone. Testo bilingue it/en, stile .banner
+  warn già esistente. Basato sul caso reale del 24/10 (Imposta gara non
+  applicata da schermata Inizia sessione). Basta un refresh della pagina:
+  la GUI è statica, niente riavvio del server.
