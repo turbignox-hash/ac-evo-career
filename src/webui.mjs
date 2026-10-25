@@ -1607,13 +1607,26 @@ async function api(context0, _req, res, action, body) {
               } catch { /* file illeggibile: resta il verdetto neutro */ }
             }
           } else prep.track = currentWeekendTrack();
-        } catch (e) { prep.trackError = e.message; }
+        } catch (e) {
+          // 26/10 (PC vergine, test da zero): il file del weekend NON esiste
+          // ancora — l'errore secco ENOENT non diceva niente. Con la frase nuova
+          // il toast SPIEGA cosa fare: entrare UNA volta nel weekend di EVO.
+          const enoent = String(e?.code ?? '') === 'ENOENT' || String(e?.message ?? '').includes('ENOENT');
+          prep.trackError = enoent
+            ? tr({ it: "l'EVO non ha ancora il weekend di carriera: entra in EVO nel weekend del round UNA volta (basta la schermata del weekend, NON la sessione di pratica), poi ripremi Prepara tutto", en: 'EVO has no career weekend yet: enter the round weekend in EVO ONCE (the weekend screen is enough — not the practice session), then press Get ready again' })
+            : e.message;
+        }
         try {
           if (card.carName) {
             const c = setDriverCar(card.carName);
             prep.car = card.carName; prep.carWritten = c.written;
           } else prep.car = garageCurrent().name;
-        } catch (e) { prep.carError = e.message; }
+        } catch (e) {
+          const enoent = String(e?.code ?? '') === 'ENOENT' || String(e?.message ?? '').includes('ENOENT');
+          prep.carError = enoent
+            ? tr({ it: "il garage di EVO è ancora vergine: scegli l'auto a mano nel weekend (è l'unica cosa da fare dentro il gioco); dal prossimo avvio l'app la seleziona per te", en: "EVO's garage is still empty: pick the car by hand in the weekend (the only thing to do inside the game); from the next launch the app selects it for you" })
+            : e.message;
+        }
         // VIGIA DELLA GRIGLIA (come la CLI 'prepara'): se il customgrid ha la
         // classe combaciante ma il bilancio o il campo AI sono persi, li
         // riscrive. NON ricostruisce la griglia: le celle (auto) restano quelle

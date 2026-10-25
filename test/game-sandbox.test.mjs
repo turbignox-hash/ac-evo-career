@@ -102,8 +102,14 @@ test('webui event-prep in sandbox: noto a mano pista+auto, e il weekend di carri
   if (existsSync(REAL.weekend)) copyFileSync(REAL.weekend, WEEKEND_FILE);
   // customgrid/backup: template per la griglia evento, se esiste sul PC di sviluppo
   const realGameDir = dirname(REAL.weekend);
-  const templates = [join(realGameDir, 'last_grid.customgrid'),
-    ...readdirSync(realGameDir).filter((f) => f.startsWith('last_grid.customgrid.bak-')).sort().reverse().map((f) => join(realGameDir, f))];
+  // 26/10 (PC vergine simulato): il PC può avere Saved Games\ACE senza
+  // GameModes (EVO avviato ma weekend di carriera mai aperto): la semina di
+  // template parte SOLO se la cartella vera esiste, senò il test crolla per
+  // una condizione FUORI dal codice sotto prova.
+  const templates = existsSync(realGameDir)
+    ? [join(realGameDir, 'last_grid.customgrid'),
+      ...readdirSync(realGameDir).filter((f) => f.startsWith('last_grid.customgrid.bak-')).sort().reverse().map((f) => join(realGameDir, f))]
+    : [];
   for (const t of templates) if (existsSync(t)) { copyFileSync(t, GRID_FILE); break; }
 
   const weekPrima = snapshot(WEEKEND_FILE);
