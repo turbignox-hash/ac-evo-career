@@ -1,5 +1,14 @@
-# Generati: non vanno versionati
-data/
+# Generati: non vanno versionati — MA i cataloghi STATICI dell'auto (25/10,
+# installazione pulita: senza questi la GUI nasce muta sull'auto e il Prepara
+# non può scriverla) vanno CON il repo. data/* (non data/) permette la
+# ri-nezione manuale dei singoli file: il save e gli altri restano fuori.
+data/*
+!data/car-images.json
+!data/car-image-baseline.json
+!data/car-prices.json
+!data/car-specs.json
+!data/car-specs-extra.json
+!data/car-guids.json
 demo/
 dist/
 
