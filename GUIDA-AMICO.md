@@ -156,6 +156,42 @@ il tool non ne può cambiare il valore da fuori: se manca il gesto, il
 messaggio rosso lo spiega passo-passo al momento giusto. Dalla gara dopo il
 bottone giallo riscrive griglia, zavorre e penalità in automatico.
 
+### 3-bis (English version) — The first-launch dance, step by step
+
+This is the COMPLETE sequence, in the right order — identical on every new
+PC, so «Get everything ready» works at the first press. Four gestures in EVO,
+two screens in the GUI:
+
+1. **installa.cmd** → **avvia.cmd** → wizard: it finds the EVO data folders
+   and the Steam game on its own, then creates the career (driver name +
+   nation).
+2. **In EVO, once only: the WEEKEND screen.** Open EVO → Career → current
+   round → **reach the round's Race Weekend screen** (nothing to play, it is
+   enough that the screen appears) and go back to the EVO menu. This is
+   needed because the tool writes hour, laps and weather INTO the weekend
+   save file, and on a fresh PC EVO has not created it yet: this very
+   screen generates it.
+3. **GUI → Get everything ready and have fun** (the yellow button): hour,
+   laps, weather and grid get written into that file automatically. If the
+   red message «EVO has no career weekend yet» appears, step 2 is missing:
+   enter the round's weekend once and press the button again.
+4. **Inside the EVO weekend you pick the car with the mouse** (the only
+   gesture the tool cannot do from outside): the race sheet tells you which
+   one. This is intentional: the first race teaches the app which car is
+   yours — from the garage — and in every later race it picks it alone.
+5. **Go racing!** At the finish line the watcher imports the result
+   automatically: money, rep, points and the copilot do the rest. From the
+   second race on: ONLY the yellow button, the car is picked automatically,
+   zero manual gestures.
+
+⚠️ **The first MULTICLASS race adds one gesture, ONCE only:** in the Race
+Weekend menu move **Grid Type from AUTOMATIC to CUSTOM** and press **Apply**,
+then NEVER TOUCH the selector again. On a fresh install EVO starts
+AUTOMATIC and the tool cannot change it from outside: if the gesture is
+missing, the red message walks you through it at the right moment. From the
+next race on the yellow button rewrites the grid, ballast and penalties by
+itself.
+
 ## 4. Crea la tua carriera
 
 Dalla voce **3** del menu `avvia.cmd`, o direttamente nel browser (schermata
