@@ -299,6 +299,10 @@ function viewCard(ladder, state, car = null) {
     // rituale della prima griglia della serie (23/10: serie nuova = template
     // assente sul disco): se c'è da fare tell'ora, la card la mostra in testa
     gridRitual: card.gridRitual ?? null,
+    // PRIMA ACCENSIONE (26/10): il rituale «apri il Race Weekend una volta»
+    // Compare SOLO se EVO non ha ancora nessun weekend su disco — appena il
+    // round esiste (weekendSeen=true) l'avviso scompare da solo
+    weekendSeen: card.weekendSeen ?? true,
     carAdvice: card.carAdvice,
     outlook: card.outlook,
     challenge: card.challenge ?? null,

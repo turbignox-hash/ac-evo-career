@@ -20,7 +20,8 @@ import { recordWarning } from './warnings.mjs';
 import { tr, lang } from './lang.mjs';
 import { carPoolOf } from './car-pool.mjs';
 import { sameTrack } from './tracknames.mjs';
-import { weekendCarCount } from '../tools/set-track.mjs';
+import { existsSync } from 'node:fs';
+import { weekendCarCount, WEEKEND_FILE } from '../tools/set-track.mjs';
 
 /* Nomi delle opzioni meteo come compaiono ESATTAMENTE nel menu di EVO
  * (sereno, nuvole sparse, nuvoloso, coperto, pioggia leggera, pioggia, pioggia intensa).
@@ -130,6 +131,14 @@ export function raceCard(ladder, state, { car = null } = {}) {
   let gridRitual = null;
   try { rebuildGridApply({ ladder, nodeId: node.nodeId, roundIndex, dry: true }); }
   catch (e) { if (e?.code === 'NO_TEMPLATE') gridRitual = e.message; }
+  // PRIMA ACCENSIONE RISOLTA (26/10, richiesta Mauro): alla primissima volta
+  // nel gioco l'amico deve aprire UNA volta il Race Weekend del round
+  // (altrimenti il Prepara non trova il weekend di carriera) e di lì, col
+  // selettore Grid Type che diventa giusto una volta per tutte. La card
+  // mostra l'avviso SOLO finché il weekend non esiste: appena il round
+  // carica (weekendSeen=true) l'avviso sparisce da solo, senza che nessuno
+  // lo debba spuntare
+  const weekendSeen = existsSync(WEEKEND_FILE);
   const carName = (id) => ladder.contentNames?.cars?.[id] ?? id;
   // VIGIA DEL PARCO AUTO (24/10, richiesta Mauro: «potrei prendere una F1 e la UI
   // non se ne accorgerebbe dandomi la vittoria»): la scheda PROPOSTE SOLO le auto
@@ -231,6 +240,7 @@ export function raceCard(ladder, state, { car = null } = {}) {
     ],
     warnings: buildWarnings(node, round, profile, diffShown, laps),
     gridRitual,
+    weekendSeen,
     outlook: (() => {
       // report pre-gara: obiettivo pista (miglior giro personale su questo tracciato),
       // punti e posizione della stagione in corso, rivali già incontrati nella serie

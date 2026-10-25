@@ -167,6 +167,14 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .cklmeta{display:flex; justify-content:space-between; align-items:center; margin-top:4px}
 .warnlist{margin:10px 0 0 16px; color:#e0c98a; font-size:13px}
 .warnlist li{margin:3px 0}
+/* RIGA-CHIAVE GRID TYPE (26/10, Mauro: «sembra un messaggio come un altro, si
+   deve vedere bene»): nella scheda gara delle SERI MULTICLASSE la voce del
+   selettore Grid Type si vede a colpo d'occhio — bordo e fondo oro, chiave in
+   oro e badge «una volta sola»; le voci normali restano come erano */
+.ckl.chiave{background:rgba(255,209,102,.09); border:1px solid rgba(217,168,62,.55); border-bottom-color:rgba(217,168,62,.55); border-radius:9px; padding:9px 10px; margin:2px 0}
+.ckl.chiave .k{color:var(--acc); font-weight:700}
+.ckl.chiave .v{color:#ffe8bd}
+.ckl.chiave.done{opacity:.55}
 
 /* ============ sottotab catalogo ============ */
 .tabsmini{display:flex;gap:6px;margin-left:8px}
@@ -256,8 +264,11 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 #toast .t{background:#1e2530; border:1px solid var(--line2); border-radius:10px; padding:10px 18px; font-size:13.5px; max-width:580px; box-shadow:0 8px 28px #000a}
 #toast .t.err{border-color:#e05d5d66; background:#2a1c1c}
 #toast .t.ok{border-color:#4cc27a66}
-/* messaggio-AZIONE (27/10): rosso e stagliato, vive 15 s — si chiuda a mano col click */
+/* messaggio-AZIONE (27/10): rosso e stagliato — dal 26/10 seconda richiesta
+   Mauro: err/warn NON scadono più, l'amico li chiude con la ✕ (o col click) */
 #toast .t.rosso{border-color:#e0242c99; background:#3a1216; color:#ffb9bd; border-width:1.5px; cursor:pointer}
+#toast .t .tx{margin-left:14px; flex:0 0 auto; background:none; border:1px solid #ffffff33; color:inherit; opacity:.75; border-radius:6px; cursor:pointer; font-size:11px; line-height:1; padding:3px 8px}
+#toast .t .tx:hover{opacity:1; border-color:#ffffff66}
 
 .spin{display:inline-block; width:14px; height:14px; border:2px solid var(--dim); border-top-color:var(--acc); border-radius:50%; animation:sp 1s linear infinite; vertical-align:-2px}
 @keyframes sp{to{transform:rotate(360deg)}}

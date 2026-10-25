@@ -17,15 +17,27 @@ const api = (action, call={}) => {
 function toast(text, kind='', opts) {
   // Messaggio che CHIEDE UN'AZIONE all'utente (27/10, richiesta Mauro:
   // «rientra nel weekend dal menu di EVO» durava 4.2 s e non si leggeva):
-  // con opts.rosso diventa rosso, con opts.ms vive di più — e in ogni caso
-  // il toast si può chiudere a mano con un click (mai persa, chi non ci arriva).
+  // con opts.rosso diventa rosso. 26/10 seconda richiesta Mauro: ERRORI e
+  // WARN non si chiudono più da soli — restano aperti finché l'amico non
+  // preme la ✕ (o un click sul toast); solo i toast neutri restano a tempo.
   const o = opts ?? {};
   const t = document.createElement('div');
+  const persiste = kind === 'err' || kind === 'warn';
   t.className = 't ' + kind + (o.rosso ? ' rosso' : '');
-  t.textContent = text;
+  const msg = document.createElement('span');
+  msg.textContent = text;
+  t.appendChild(msg);
+  if (persiste) {
+    const x = document.createElement('button');
+    x.className = 'tx';
+    x.setAttribute('aria-label', tr({ it: 'chiudi avviso', en: 'close notice' }));
+    x.textContent = '✕';
+    x.onclick = (e) => { e.stopPropagation(); t.remove(); };
+    t.appendChild(x);
+  }
   t.onclick = () => t.remove();
   $('#toast').appendChild(t);
-  setTimeout(() => t.remove(), o.ms ?? (kind === 'err' ? 8000 : 4200));
+  if (!persiste) setTimeout(() => t.remove(), o.ms ?? 4200);
 }
 
 /* ===================== barra aggiornamenti da GitHub =====================
@@ -333,6 +345,23 @@ function paintHeader(h){
 
 async function refreshBoot(){
   boot = await api('boot');
+  /* RICARICAMENTO AUTO SU BUILD NUOVA (26/10, il caso Mauro: la tab del
+     browser resta aperta tra le sincronizzazioni git e `avvia.cmd` la riporta
+     a fuoco SENZA ricaricarla — l'app gira sui JS vecchi e le schede nuove
+     (es. il selettore lingua nell'onboarding) sembrano «mancanti». L'ETag
+     del server non può aiutare: il browser nemmeno chiede i file. Qui la
+     build vista si confronta con quella del server: se cambia, UNA sola     ricarica (segno in sessionStorage, mai loop) e tutto torna attuale. */
+  const buildVista = `${boot.versione?.semver ?? '?'}@${boot.versione?.hash ?? '?'}`;
+  const segnoBuild = 'evo-build-vista';
+  if (boot.versione?.semver && !boot.versione.semver.startsWith('?') && sessionStorage.getItem(segnoBuild) !== buildVista) {
+    sessionStorage.setItem(segnoBuild, buildVista);
+    if (sessionStorage.getItem(segnoBuild + '-reload') !== buildVista) {
+      sessionStorage.setItem(segnoBuild + '-reload', buildVista);
+      location.reload();
+      return;
+    }
+    sessionStorage.removeItem(segnoBuild + '-reload');
+  }
   $('#dot-evo').classList.toggle('on', !!boot.gameRunning);
   $('#t-evo').textContent = boot.gameRunning ? tr({ it: 'EVO aperto', en: 'EVO open' }) : tr({ it: 'chiuso', en: 'closed' });
   // versione della build: aggiornamento automatico a ogni sincronizzazione git

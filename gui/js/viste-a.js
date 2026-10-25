@@ -516,6 +516,7 @@ function drawCardInto(el, card){
     <div class="title">${CFLAG} ${esc(card.roundName)}</div>
     <div class="sub">${esc(card.nodeDisplay)} · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(card.entryFee)} € · ${tr({ it: 'si paga una volta per round', en: 'paid once per round' })}${card.agendaDay ? (card.agendaDay <= (boot.header?.day ?? 0) ? '' : ' · ' + tr({ it: 'in calendario per il ', en: 'scheduled for ' }) + esc(card.agendaDayLabel ?? (tr({ it: 'giorno ', en: 'day ' }) + card.agendaDay))) : ''}</div>
     <div class="banner warn" style="margin-top:10px">⚠️ <b>${tr({ it: "Seleziona l'auto A MANO in EVO", en: 'Pick the car BY HAND in EVO' })}</b> — ${tr({ it: "è l'unico intervento manuale della gara: al momento non è possibile impostarla in automatico da fuori. Torna qui quando l'hai fatta: clicca sul bottone 🏁 Prepara tutto e divertiti.", en: "it is the only manual step of the race: for now it cannot be set automatically from outside. When it's done, come back here: press the 🏁 Get everything ready and have fun button." })}</div>
+    ${card.weekendSeen === false ? `<div class="banner warn" style="margin-top:10px">🚩 <b>${tr({ it: 'Prima volta in EVO: apri una volta il Race Weekend', en: 'First time in EVO: open the Race Weekend once' })}</b> — ${tr({ it: 'entra nel menu del gioco e fai comparire la schermata «Race Weekend» del round UNA volta (basta vederla, non serve correre): senza quel passaggio «Prepara tutto» non trova niente. Già che ci sei, muovi il selettore <b>Grid Type su CUSTOM</b> e non toccarlo più: risolto una volta per tutte — e per le gare multiclasse serve comunque.', en: 'enter the game menu and show the round\'s «Race Weekend» screen ONCE (seeing it is enough — no need to run anything): without that step «Get everything ready» finds nothing. While you are there, move the <b>Grid Type selector to CUSTOM</b> and never touch it again: that solves it once and for all — and multiclass races need it anyway.' })}</div>` : ''}
     ${card.carImage ? `<div style="display:flex;align-items:center;gap:12px;margin:8px 0 4px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2,#121822)">
       <img src="${card.carImage}" alt="${esc(card.carName ?? '')}" style="width:150px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#0d1118">
       <div style="font-size:12.5px;flex:none;min-width:110px;max-width:180px"><b>${tr({ it: 'Auto della giornata', en: "Today's car" })}</b><br>${esc(card.carName ?? '')} <span class="muted">${card.carChoices?.length>1?'· '+tr({ it: 'puoi cambiarla dal selettore', en: 'you can switch it from the picker' }):''}</span></div>
@@ -583,8 +584,15 @@ function drawCardInto(el, card){
     <div style="margin-top:8px">
       ${card.settings.map(([k,v],i)=>{
         const isDiff = k === 'Difficoltà AI';
-        return `<div class="ckl ${isDone(i)?'done':''}" style="display:flex;align-items:center;gap:8px">
+        // RIGA-CHIAVE GRID TYPE (26/10, Mauro: «sembra un messaggio come un
+        // altro, si deve vedere bene»): la voce delle SERIE MULTICLASSE (il
+        // valore che parla di CUSTOM + zavorre) la Marcia in ORO con il
+        // badge «una volta sola», perché è IL gesto manuale che decide la
+        // gara — le voci normali restano com'erano
+        const chiave = /Tipo griglia|Grid Type/.test(k) && String(v).includes('CUSTOM');
+        return `<div class="ckl ${isDone(i)?'done':''}${chiave?' chiave':''}" style="display:flex;align-items:center;gap:8px">
           <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer"><input type="checkbox" data-i="${i}" ${isDone(i)?'checked':''}><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></label>
+          ${chiave?`<span class="tag gold" style="flex:none;font-size:10.5px">⚡ ${tr({ it: 'una volta sola', en: 'once only' })}</span>`:''}
           ${isDiff?`<span class="row" style="gap:4px;margin:0" title="${tr({ it: 'la gara è stata troppo facile? alza o abbassa la banda di 1 punto: vale per la serie (qualsiasi auto) e si riflette anche nella pagina Difficoltà', en: 'was the race too easy? raise or lower the band by 1 point: it applies to the series (any car) and also shows on the Difficulty page' })}">
             <button class="mini d-nudge" data-d="-1" style="padding:1px 8px">−1</button>
             <button class="mini d-nudge" data-d="+1" style="padding:1px 8px">+1</button>
@@ -1043,7 +1051,18 @@ const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella
       if (p.lapsError) segs.push(`⚠ ${p.lapsError}`);
       else if (p.laps != null) segs.push(p.laps);
       if (p.gridModeError) segs.push(`⚠ ${p.gridModeError}`);
-      const prepMsg = segs.length ? ` ${segs.join(' · ')}.` : '';
+      // DEDUPE (26/10, Mauro: «in rosso voglio solamente i problemi o le
+      // azioni da eseguire»): server, ora e giri ripetono la STESSA azione
+      // («entra una volta nel weekend, ripremi Prepara») in voci diverse —
+      // una sola ne basta. La GUIDA Grid Type (CUSTOM + Applica) NON cade:
+      // è l'istruzione unica che l'amico deve fare a mano nel menu di EVO.
+      const AZIONE_WEEKEND = /enter the (round('s)? )?weekend in EVO once|entra in EVO nel weekend del round|gamemodesave (not found|non trovato)|premi di nuovo Prepara|press Get ready again/;
+      const segsUnici = [];
+      for (const s of segs) {
+        if (AZIONE_WEEKEND.test(s) && segsUnici.some((v) => AZIONE_WEEKEND.test(v))) continue;
+        segsUnici.push(s);
+      }
+      const prepMsg = segsUnici.length ? ` ${segsUnici.join(' · ')}.` : '';
       const tipoToast = p.gridModeError || p.trackError || p.carError || p.hourError || p.lapsError || (p.track && p.trackWritten === false && !p.trackSame) || (r.prep?.grid?.rebuild?.startsWith('non riuscita')) ? 'warn' : 'ok';
       // L'istruzione che CHIEDE UN'AZIONE (rientra nel weekend dal menu di EVO,
       // ripremi Prepara) viveva 4.2 s e l'utente non faceva in tempo a leggerla
