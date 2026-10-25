@@ -298,6 +298,129 @@ export function setWeekendAi(min, max, { file = WEEKEND_FILE, dry = false } = {}
   return { ai: [lo, hi], changed: true, written: true, backup };
 }
 
+/* ---------- tipo griglia del menu EVO (campi 3.6/3.7 del primo blocco) ---------- */
+
+/**
+ * La MODALITA' GRIGLIA come il menu Race Weekend la tiene sul disco.
+ * MAPPATURA CANONICA (26/10 19:39, toggle LIVE fotografato a EVO APERTO:
+ * data/samples/gridtype/gt-193557-223 = AUTOMATIC in memoria del gioco,
+ * data/samples/gridtype/gt-193953-110 = CUSTOM scritto dal menu; il diff
+ * a campo è l'unico cambiamento nei campi bassi = 7 = 14 AGGIUNTO, col
+ * 6 = 1 che RESTA). Confermata anche a riavvio: al reopen con il disco
+ * in forma 6=1 + 7=N il menu nasce CUSTOM. Le prime mappe «6 e 7 si
+ * escludono» venivano dai MIEI write a freddo, che strappavano il 6: il
+ * gioco le scartava e ripartiva AUTOMATIC (sessione 19:09/19:25).
+ *   AUTOMATIC → il primo blocco sessione porta il campo 6 (w0) = 1 e NON il 7;
+ *   CUSTOM    → il primo blocco porta il campo 6 (w0) = 1 E il campo
+ *               7 (w0) = N (il valore dello slider «Number of Opponents»:
+ *               11 e 7 e 14 osservati muovendo lo slider e i toggle).
+ * Gli ALTRI blocchi sessione (qualifica/warm-up/gara) portano sempre
+ * campo 7 = 1 in ENTRAMBE le modalità: il branch vive solo nel primo blocco.
+ * Le file-piloti (campi 11 ripetuti: 14) NON cambiano col toggle: le celle
+ * vere le fissa il customgrid — questo campo è solo lo SBLOCCO del menu,
+ * e le zavorre/penalità di classe esistono solo con CUSTOM (lezione del
+ * 25/10: la Berline Moderne uscita monoclasse, menu su AUTOMATIC).
+ * Reader: ritorna { mode: 'automatic'|'custom'|null, count }, null se il
+ * gamemodesave non c'è / non si legge (PC vergine, EVO mai sul weekend).
+ */
+export function weekendGridMode(file = WEEKEND_FILE) {
+  let buf;
+  try { buf = readFileSync(file); } catch { return null; }
+  let fields;
+  try { fields = decodeMsg(buf); } catch { return null; }
+  const f3 = fields.find((f) => f.field === 3 && f.wire === 2);
+  if (!f3) return null;
+  let session;
+  try { session = decodeMsg(f3.bytes); } catch { return null; }
+  const f6 = session.find((s) => s.field === 6 && s.wire === 0);
+  const f7 = session.find((s) => s.field === 7 && s.wire === 0);
+  if (f7) return { mode: 'custom', count: Number(f7.varint) };
+  if (f6) return { mode: 'automatic', count: Number(f6.varint) };
+  return { mode: null, count: null };
+}
+
+/**
+ * Imposta la MODALITA' GRIGLIA del menu Race Weekend scrivendo la FORMA
+ * CANONICA del 26/10 (dietro la mappa del reader):
+ *   'custom'    → il 6 = 1 è TENUTO (o riscritto: forma strana) e il 7 = N
+ *                 aggiunto/modificato SUBITO DOPO il 6 — esattamente la
+ *                 serializzazione del toggle vivo del menu, quella che a
+ *                 riavvio il gioco ADOPTA (verificato: reopen su CUSTOM).
+ *   'automatic' → 6 = 1 in piedi e 7 RIMOSSO (la forma scritta dal gioco
+ *                 stesso a ogni toggle su AUTOMATIC).
+ * Con 'custom' serve ANCHE per lo sblocco del PC vergine (menu di fabbrica
+ * nasce AUTOMATIC): il Prepara lo scrive da solo per le serie MULTICLASSE —
+ * così le zavorre/penalità di classe arrivano al round senza gesti manuali
+ * (lezione del 25/10, Berline Moderne uscita monoclasse). Le MONOMARCA
+ * invece restano AUTOMATIC (Mauro 26/10 sera: "tutti alla pari, zavorre
+ * e penalità non servono"): EVO in AUTOMATIC porta già il suo conteggio
+ * fisso di carriera per la ronda, e il conteggio contabile lo allinea
+ * weekendCarCount in grid-apply (rebuildGridApply).
+ * Cosa scritta da fuori COME la pista (changeWeekendTrack): vale alla
+ * prossima apertura del menu/weekend. Idempotente: già nel modo richiesto
+ * (custom con quel N / automatic senza 7) → nessuna scrittura.
+ * opts: { file, dry } — dry: solo report, niente scrittura.
+ */
+export function setWeekendGridMode(mode, count, { file = WEEKEND_FILE, dry = false } = {}) {
+  const custom = mode === 'custom';
+  const n = Math.max(1, Math.min(127, Math.round(Number(count))));
+  const buf = readFileSync(file);
+  const fields = decodeMsg(buf);
+  const f3 = fields.find((f) => f.field === 3 && f.wire === 2);
+  if (!f3) throw Object.assign(new Error('blocco sessione (campo 3) non trovato nel gamemodesave'), { code: 'NO_SESSION' });
+  const session = decodeMsg(f3.bytes);
+  let i6 = session.findIndex((s) => s.field === 6 && s.wire === 0);
+  const i7 = session.findIndex((s) => s.field === 7 && s.wire === 0);
+  let touched = false;
+  // il 6 = 1 è presente in ENTRAMBE le forme canoniche: se manca (save
+  // strano), lo scrivo in prima posizione tra i campi alti, dopo il 5.
+  if (i6 < 0) {
+    let i = session.findIndex((s) => s.field > 6);
+    session.splice(i >= 0 ? i : session.length, 0, { field: 6, wire: 0, varint: BigInt(1) });
+    i6 = i >= 0 ? i : session.length - 1;
+    touched = true;
+  }
+  const out = { mode: custom ? 'custom' : 'automatic', count: custom ? n : null };
+  if (custom) {
+    if (i7 >= 0) {
+      if (Number(session[i7].varint) !== n) { session[i7].varint = BigInt(n); touched = true; }
+    } else {
+      // la forma canonica porta il 7 SUBITO DOPO il 6 (ordine del file
+      // scritto dal menu 19:39: 6 poi 7).
+      session.splice(i6 + 1, 0, { field: 7, wire: 0, varint: BigInt(n) });
+      touched = true;
+    }
+  } else if (i7 >= 0) {
+    session.splice(i7, 1);   // torna la forma automatic: 6 solo, 7 via
+    touched = true;
+  }
+  f3.bytes = encodeMsg(session);
+  if (dry || !touched) return { ...out, changed: touched, written: false };
+  const backup = `${file}.bak-gridmode-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+  copyFileSync(file, backup);
+  writeFileSync(`${file}.tmp`, encodeMsg(fields));
+  renameSync(`${file}.tmp`, file);
+  return { ...out, changed: true, written: true, backup };
+}
+
+/**
+ * Sblocca la modalità GRIGLIA CUSTOM (forma canonica 6=1 + 7=N, sopra). Wrapper
+ * pensato per il Prepara delle serie MULTICLASSE: lo stesso gesto che il
+ * 25/10 Mauro faceva A MANO nel menu («Grid Type da AUTOMATIC a CUSTOM»). */
+export function setWeekendGridCustom(count, opts = {}) {
+  return setWeekendGridMode('custom', count, opts);
+}
+
+/**
+ * RIPOSA la modalità AUTOMATIC (forma canonica: 6 = 1, 7 via). Per le
+ * MONOMARCA nel Prepara: se una gara multiclasse prima ha lasciato il
+ * custom in piedi, il modo del menu torna quello di fabbrica, dove EVO
+ * porta già da sé il conteggio fisso di carriera (e zavorre non le
+ * servono: auto tutta alla pari, richiesta Mauro 26/10 sera). */
+export function setWeekendGridAuto(opts = {}) {
+  return setWeekendGridMode('automatic', null, opts);
+}
+
 /* ---------- CLI (solo quando eseguito direttamente) ---------- */
 const isMain = process.argv[1] && import.meta.url === new URL(`file:///${process.argv[1].replace(/\\/g, '/')}`).href;
 if (isMain) {

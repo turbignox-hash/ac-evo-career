@@ -49,9 +49,10 @@ import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
 import { parseSetup, listSetups, writeSetupCopy, brakePlanOf, annotateAllyAdvice } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
 import { carPoolOf, carInPool } from './car-pool.mjs';
-import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, WEEKEND_FILE } from '../tools/set-track.mjs';
+import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, setWeekendGridCustom, setWeekendGridAuto, weekendGridMode, WEEKEND_FILE } from '../tools/set-track.mjs';
 import { setRaceTime, currentRaceTime } from '../tools/set-racetime.mjs';
 import { setWeekendLaps } from '../tools/weekend-laps.mjs';
+import { readCells } from '../tools/grid-balance.mjs';
 // report.mjs: il bottone "Segnala un problema" costruisce l'URL della issue
 // GitHub precompilata (versione, serie in corso, errori recenti) e il link
 // Ko-fi dal config. Nessuna rete qui: il POST lo fa il browser.
@@ -1624,16 +1625,16 @@ async function api(context0, _req, res, action, body) {
         } catch (e) {
           const enoent = String(e?.code ?? '') === 'ENOENT' || String(e?.message ?? '').includes('ENOENT');
           const unknown = String(e?.code ?? '') === 'UNKNOWN_CAR' || String(e?.message ?? '').includes('non nel dizionario');
+          // 25/10 (Mauro: «se tutto ok dovrebbe restare bianco, rosso solo quando
+          // ci sono problemi»): l'auto fuori dizionario NON è un problema — la
+          // gara parte lo stesso e alla prima import l'app impara l'auto dal
+          // garage. Prima finiva in carError e il rosso spurio faceva credere a
+          // un blocco che non c'era (la gara C'ERA). Ora va in carNote: nota
+          // neutra nel toast, nessun rosso.
           prep.carError = enoent
             ? tr({ it: "il garage di EVO è ancora vergine: scegli l'auto a mano nel weekend (è l'unica cosa da fare dentro il gioco); dalla gara dopo l'app la seleziona per te", en: "EVO's garage is still empty: pick the car by hand in the weekend (the only thing to do inside the game); from the race after the app picks it for you" })
-            : unknown
-              ? // 25/10 (installazione pulita): il dizionario personale delle
-                // auto (map.json) era PERSO insieme al vecchio data/ — ma la
-                // gara parte lo stesso e alla prima import l'app IMPARA
-                // l'auto dal garage. Diciamolo: il rosso spurio faceva
-                // credere a un blocco che non c'era (la gara C'ERA).
-                tr({ it: "auto non ancora nel dizionario dell'app: la gara parte lo stesso, scegli l'auto a mano in EVO; a fine gara l'app impara l'auto dal garage e dalle gare successive la seleziona da sola", en: "car not in the app dictionary yet: the race goes on anyway — pick it by hand in EVO; at the race end the app learns it from the garage and selects it by itself in later races" })
-              : e.message;
+            : (unknown ? null : e.message);
+          if (unknown) prep.carNote = tr({ it: "auto non ancora nel dizionario dell'app: la gara parte lo stesso, scegli l'auto a mano in EVO; a fine gara l'app impara l'auto dal garage e dalle gare successive la seleziona da sola", en: "car not in the app dictionary yet: the race goes on anyway — pick it by hand in EVO; at the race end the app learns it from the garage and selects it by itself in later races" });
         }
         // VIGIA DELLA GRIGLIA (come la CLI 'prepara'): se il customgrid ha la
         // classe combaciante ma il bilancio o il campo AI sono persi, li
@@ -1679,6 +1680,33 @@ async function api(context0, _req, res, action, body) {
               const out = applyAi(ap.atteso, { force: true });
               prep.grid.ai = `riscritto ${out.ai[0]}-${out.ai[1]} (trovato ${ap.trovato[0]}-${ap.trovato[1]})`; prep.grid.written = true;
             } else prep.grid.ai = ap?.atteso ? `ok (${ap.atteso[0]}-${ap.atteso[1]})` : null;
+          // TIPO GRIGLIA DEL MODO (26/10 sera, forme canoniche del toggle vivo
+          // fotografato e confermato a riavvio: automatic = 3.6 = 1 solo;
+          // custom = 3.6 = 1 TENUTO e 3.7 = N aggiunto — la forma del menu
+          // che il gioco ADOPTA a riavvio; la vecchia forma «6 trasformato in
+          // 7» veniva scartata e il menu rinascava AUTOMATIC).
+          // SCELTA DEL MODO (Mauro 26/10 sera): SOLO le serie MULTICLASSE
+          // sbloccano custom (servono le zavorre/penalità di classe, che in
+          // AUTOMATIC sono zero per definizione — lezione del 25/10, Berline
+          // Moderne uscita monoclasse). Le MONOMARCA restano AUTOMATIC:
+          // auto tutta alla pari, zavorre non le servono, e il conteggio
+          // fisso di carriera lo porta EVO da sé (weekendCarCount conta le
+          // 3.10 native e il rebuild allinea il customgrid a quello). Se una
+          // gara multiclasse prima ha lasciato il custom, il modo torna
+          // quello di fabbrica. Silente se il save manca (EVO mai sul
+          // weekend): la card resta valida.
+          try {
+            const celle = readCells(GRID_FILE)?.cells ?? [];
+            const mono = tipoGriglia(node) === 'monomarca';
+            const gm = mono ? setWeekendGridAuto() : setWeekendGridCustom(Math.max(1, celle.length - 1));
+            prep.gridMode = gm?.written
+              ? (mono
+                ? tr({ it: 'modo griglia riposto su AUTOMATIC (monomarca: auto alla pari)', en: 'grid mode reset to AUTOMATIC (single-make: all-equal cars)' })
+                : tr({ it: `custom sbloccato (contatore ${Math.max(1, celle.length - 1)})`, en: `custom unlocked (count ${Math.max(1, celle.length - 1)})` }))
+              : (mono
+                ? tr({ it: 'griglia automatic già in piedi', en: 'automatic grid already in place' })
+                : tr({ it: 'griglia custom già in piedi', en: 'custom grid already in place' }));
+          } catch (e) { prep.gridModeError = e.message; }
           } else prep.grid = { nota: 'nessun customgrid: usa tab Griglia o CLI griglia' };
         } catch (e) { prep.gridError = e.message; }
       }

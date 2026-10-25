@@ -783,23 +783,46 @@ function drawCardInto(el, card){
               : tr({ it: `Sei più lento del best di ${(dv/1000).toFixed(1)}`, en: `You are ${(dv/1000).toFixed(1)} slower than best` }));
           }
         }
-        /* 2) giri completati: si parla SOLO di un giro NUOVO osservato in BARA
-              (antovo giro + tempo never visto prima): all'avvio la live può
-              riagganciarsi con il «giro 1» già completo della sessione
-              precedente e il solo numero non basta (24/10, Mauro: «all'avvio
-              della gara dice che avevo già completato il giro 1»). Il primo
-              lapNo si SEMINA in silenzio; un lapNo che scende = sessione
-              nuova, resetta tutto senza voce. */
-        const lapNo = m.delta?.lapNo ?? null;
+        /* 2) TEMPO SUL TRAGUARDO (25/10, Mauro: «vorrei che dicesse il tempo
+              di ogni giro sul traguardo» — in gara aveva sentito SOLO le
+              posizioni): il giro compiuto si legge da lapsDone (totalLapCount
+              dell'HUD, cresce a ogni taglio) e il lapNo del delta resta la
+              scorta dove lapsDone non arriva (prova libera di sessioni
+              strane). Il primo contatore si SEMINA in silenzio; un contatore
+              che scende = sessione nuova, resetta tutto senza voce. Niente
+              tempo nuovo = niente voce: all'avvio della live il giro può
+              essere già compiuto della sessione precedente (24/10). */
         const lastLapTxt = m.timing?.lastLap ?? null;
-        if (lapNo != null && cp.last.lapNo != null && lapNo < cp.last.lapNo) { cp.last.lapNo = lapNo; cp.last.lastLapTxt = lastLapTxt; }
-        if (lapNo != null && cp.last.lapNo != null && lapNo > cp.last.lapNo && lastLapTxt && lastLapTxt !== cp.last.lastLapTxt) {
-          const nuova = tr({ it: `Giro ${lapNo} fatto in ${lastLapTxt}`, en: `Lap ${lapNo} in ${lastLapTxt}` });
-          if (m.delta?.bestLapNo === lapNo) cpSpeak(nuova + ' ' + tr({ it: 'nuovo best della sessione!', en: "that's a new session best!" }));
+        const lapNo = m.delta?.lapNo ?? null;
+        let compiuto = (Number.isFinite(g.lapsDone) && g.lapsDone > 0) ? g.lapsDone
+          : (lapNo != null && lapNo > 0 ? lapNo : null);
+        /* 25/10 (sera, Brands Hatch): il copilota ha detto «Giro 4» su una
+           gara da 3 — il taglio in più sul traguardo esiste nella telemetria
+           (brucia benzina: 26.8 → 25.2 L) ma NON entra nei risultati ufficiali
+           (il file del gioco resta 3 giri) né in quelli della carriera, e la
+           voce NON deve più dire un giro oltre il totale della sessione:
+           sarebbe artefatto, non gara.
+        Gli HUD di modalità strane lasciano lapsDone a 0 per TUTTA la gara:
+           in quel caso il contatore del delta è la scorta, e in DIRETTA:
+           nella telemetria salvata lapNo parte da 0 e sale a ogni taglio
+           (0,1,2,3,4 su una gara da 3), quindi lapNo = giri compiuti, non
+           «giro corrente»: il vecchio lapNo-1 annunciava in ritardo di uno
+           (Giro 2 sul traguardo del 1°). L'ho stickato nel replay del
+           registro copilota: solo «Giro 3» sopra la gara, mai «Giro 4». */
+        if (compiuto != null && Number.isFinite(g.lapsTotal) && g.lapsTotal > 0 && compiuto > g.lapsTotal) compiuto = g.lapsTotal;
+        if (compiuto != null && cp.last.giro != null && compiuto < cp.last.giro) { cp.last.giro = compiuto; cp.last.lastLapTxt = lastLapTxt; cp.last.meta = false; }
+        if (g.lapsDone != null && g.lapsDone <= 1) cp.last.meta = false;   // nuova sessione: la meta gara ricomincia
+        if (compiuto != null && cp.last.giro != null && compiuto > cp.last.giro && lastLapTxt && lastLapTxt !== cp.last.lastLapTxt) {
+          const nuova = tr({ it: `Giro ${compiuto} fatto in ${lastLapTxt}`, en: `Lap ${compiuto} in ${lastLapTxt}` });
+          if (m.delta?.bestLapNo === compiuto) cpSpeak(nuova + ' ' + tr({ it: 'nuovo best della sessione!', en: "that's a new session best!" }));
           else cpSay('lapdone', nuova);
         }
+        // il contatore si avanza SOLO con un tempo nuovo: se il traguardo arriva
+        // un attimo prima che l'HUD aggiorni lastLapMs, il giro prossimo si
+        // annuncia al tick successivo (4 s) con il tempo giusto, non si perde
+        if (compiuto != null && lastLapTxt && lastLapTxt !== cp.last.lastLapTxt) cp.last.giro = compiuto;
         if (lastLapTxt != null) cp.last.lastLapTxt = lastLapTxt;
-        if (lapNo != null) cp.last.lapNo = lapNo;
+        if (lapNo != null) cp.last.lapNo = lapNo;   // serve per il confronto best di sessione
         /* 3) benzina: la voce solo quando i giri copribili calano davvero */
         if (g.lapsOnFuel != null && cp.last.fuel != null && g.lapsOnFuel < cp.last.fuel - 0.49) {
           cpSpeak(g.lapsLeft != null && g.lapsOnFuel < g.lapsLeft + 1
@@ -807,6 +830,19 @@ function drawCardInto(el, card){
             : tr({ it: `Benzina per ${g.lapsOnFuel} giri`, en: `Fuel for ${g.lapsOnFuel} laps` }));
         }
         if (g.lapsOnFuel != null) cp.last.fuel = g.lapsOnFuel;
+        /* 3b) BENZINA ALLA META GARA (25/10, Mauro): al primo giro della seconda
+              metà una voce con litri e giri copribili una sola volta per
+              sessione — in mezzo alla gara non si guarda l'HUD. */
+        if (g.lapsTotal != null && g.lapsTotal > 0 && g.lapsDone != null && !cp.last.meta) {
+          const meta = Math.ceil(g.lapsTotal / 2);
+          if (g.lapsDone + 1 >= meta) {
+            cp.last.meta = true;
+            cpSpeak(tr({
+              it: `Meta gara: benzina ${g.fuel != null ? g.fuel + ' litri' : 'sconosciuta'}, per ${g.lapsOnFuel ?? 'un numero di'} giri${g.lapsLeft != null ? `, ne restano ${g.lapsLeft} dopo il traguardo` : ''}`,
+              en: `Half race: fuel ${g.fuel != null ? g.fuel + ' litres' : 'unknown'}, ${g.lapsOnFuel ?? '?'} laps on the tank${g.lapsLeft != null ? `, ${g.lapsLeft} to go after the line` : ''}`,
+            }));
+          }
+        }
         /* 4) gomme: parlo solo quando la soglia cambia fascia */
         const worst = (g.wear ?? []).filter(Number.isFinite).
           reduce((a, v) => Math.max(a, v), 0);
@@ -987,6 +1023,7 @@ const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella
       else if (p.track) segs.push(`⚠ ${tr({ it: `pista NON aggiornata (${p.track}): apri il weekend in EVO dal menu e ripremi Prepara`, en: `track NOT updated (${p.track}): open the weekend from EVO's menu and press Get ready again` })}`);
       if (p.carError) segs.push(`⚠ ${p.carError.startsWith('ENOENT') ? tr({ it: 'auto da selezionare a mano in EVO', en: 'car to pick by hand in EVO' }) : p.carError}`);
       else if (p.carWritten) segs.push(tr({ it: `auto ${p.car} pronta al prossimo avvio di EVO`, en: `car ${p.car} ready at EVO's next launch` }));
+      else if (p.carNote) segs.push(p.carNote);   // nota neutra (auto fuori dizionario): senza ⚠
       if (p.hourError) segs.push(`⚠ ${p.hourError}`);
       else if (p.hour != null) segs.push(`${tr({ it: 'ora', en: 'hour' })} ${p.hour}`);
       if (p.lapsError) segs.push(`⚠ ${p.lapsError}`);
@@ -997,7 +1034,13 @@ const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella
       // ripremi Prepara) viveva 4.2 s e l'utente non faceva in tempo a leggerla
       // (27/10, richiesta Mauro): 15 SECONDI e ROSSO, chuidibile col click.
       const azione = /rientra nel weekend|re-enter the weekend|ripremi Prepara|press Get ready again/.test(prepMsg);
-      toast(`${tr({ it: 'Gara segnata', en: 'Race marked' })}${r.fee?` · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(r.fee)} €`:''}. ${note}${gridMsg}${prepMsg}`, tipoToast, azione ? { ms: 15000, rosso: true } : undefined);
+      // ROSSO SOLO AI PROBLEMI (25/10, Mauro: «se tutto ok dovrebbe restare
+      // bianco, rosso solo quando ci sono problemi»): l'istruzione Riuscita
+      // «pista scritta: rientra nel weekend» — la voce NORMALE di ogni
+      // preparazione — accendeva il rosso perché la regex del gesticolo
+      // combaciava con lei. Ora il rosso segue tipoToast (solo warn); le
+      // istruzioni da leggere restano 15 s ma in bianco; il click le chiude.
+      toast(`${tr({ it: 'Gara segnata', en: 'Race marked' })}${r.fee?` · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(r.fee)} €`:''}. ${note}${gridMsg}${prepMsg}`, tipoToast, (azione || tipoToast === 'warn') ? { ms: 15000, rosso: tipoToast === 'warn' } : undefined);
       drawCardInto(el, r.card);
       await refreshBoot();
     } catch(e){ toast(e.message, 'err'); btn.disabled=false; btn.textContent = tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' }); }

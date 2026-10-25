@@ -1,6 +1,6 @@
 {
   "name": "ac-evo-career",
-  "version": "0.1.30",
+  "version": "0.1.31",
   "private": true,
   "type": "module",
   "description": "Carriera persistente automatizzata per Assetto Corsa EVO, ispirata a un'app di carriera per AMS2.",

@@ -64,13 +64,33 @@ async function poll(port, slot) {
       : { chi: 'delta12s', it: `sei più lento del best di ${(dv / 1000).toFixed(1)}` });
   }
   const lapNo = m.delta?.lapNo ?? null;
-  if (lapNo != null && slot.last.lapNo != null && lapNo > slot.last.lapNo) {
-    parla.push(m.timing?.lastLap
-      ? { chi: 'giroFatto', it: `Giro ${lapNo} fatto in ${m.timing.lastLap}` }
-      : { chi: 'giroFatto', it: `Giro ${lapNo} finito` });
-  }
-  if (lapNo != null) slot.last.lapNo = lapNo;
+  const lastLapTxt = m.timing?.lastLap ?? null;
   const g = m.gauges ?? {};
+  // replica 25/10: il traguardo si legge da lapsDone, e se la modalità lo
+  // lascia a 0 la scorta è lapNo DELTA DIRETTO (lapNo = giri compiuti, vedi
+  // viste-a.js: lezione Brands Hatch 25/10, replay del registro). Come in
+  // vista: niente voce oltre il totale della sessione — il taglio in più sul
+  // traguardo è artefatto, non gara (risultati ufficiali restano 3 giri)
+  let compiuto = (Number.isFinite(g.lapsDone) && g.lapsDone > 0) ? g.lapsDone
+    : (lapNo != null && lapNo > 0 ? lapNo : null);
+  if (compiuto != null && g.lapsTotal != null && g.lapsTotal > 0 && compiuto > g.lapsTotal) compiuto = g.lapsTotal;
+  if (compiuto != null && slot.last.giro != null && compiuto < slot.last.giro) { slot.last.giro = compiuto; slot.last.lastLapTxt = lastLapTxt; slot.last.meta = false; }
+  // ⚠ replica FEDELLE: qui sotto le condizioni restano IDENTICHE alla vista
+  if (g.lapsDone != null && g.lapsDone <= 1) slot.last.meta = false;
+  if (compiuto != null && slot.last.giro != null && compiuto > slot.last.giro && lastLapTxt && lastLapTxt !== slot.last.lastLapTxt) {
+    parla.push(m.delta?.bestLapNo === compiuto
+      ? { chi: 'giroFatto', it: `Giro ${compiuto} fatto in ${lastLapTxt} — nuovo best` }
+      : { chi: 'giroFatto', it: `Giro ${compiuto} fatto in ${lastLapTxt}` });
+  }
+  if (compiuto != null && lastLapTxt && lastLapTxt !== slot.last.lastLapTxt) slot.last.giro = compiuto;
+  if (lastLapTxt != null) slot.last.lastLapTxt = lastLapTxt;
+  if (g.lapsTotal != null && g.lapsTotal > 0 && g.lapsDone != null && !slot.last.meta) {
+    const meta = Math.ceil(g.lapsTotal / 2);
+    if (g.lapsDone + 1 >= meta) {
+      slot.last.meta = true;
+      parla.push({ chi: 'metaBenzina', it: `Meta gara: benzina ${g.fuel ?? '?'} L, per ${g.lapsOnFuel ?? '?'} giri${g.lapsLeft != null ? `, restano ${g.lapsLeft}` : ''}` });
+    }
+  }
   if (g.lapsOnFuel != null && slot.last.fuel != null && g.lapsOnFuel < slot.last.fuel - 0.49) {
     parla.push(g.lapsLeft != null && g.lapsOnFuel < g.lapsLeft + 1
       ? { chi: 'benzina', it: `Attenzione benzina: per ${g.lapsOnFuel} giri, ne restano ${g.lapsLeft}` }

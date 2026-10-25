@@ -8,7 +8,7 @@
 //   2. apre il gioco per te.
 // Il resto, cioe' la lettura del risultato, e' automatico: lo fa il file nativo del gioco.
 
-import { difficultyFor, entryFee, pushMessage, nodeById, playerStanding, isClosedNode } from './state.mjs';
+import { difficultyFor, entryFee, pushMessage, nodeById, playerStanding, isClosedNode, senzaVincoli } from './state.mjs';
 import { rebuildGridApply } from './grid-apply.mjs';
 import { contractStatus, challengeFor, trackMastery, sponsorFor, ensureContract, refreshContractTexts } from './life.mjs';
 import { raceCrowdFor } from './memories.mjs';
@@ -343,10 +343,10 @@ export function chargeEntry(ladder, state, node) {
   const contract = ensureContract(ladder, state, node);
   refreshContractTexts(ladder, state, node);
   if (contract) pushMessage(state, tr({ it: `Contratto ${node.display}: ${contract.clauses.map((c) => c.text).join('; ')}. Premio al rispetto: ${contract.payout} €`, en: `Contract ${node.display}: ${contract.clauses.map((c) => c.textEn ?? c.text).join('; ')}. Reward for compliance: ${contract.payout} €` }), 'info');
-  // iscrizione tornata canonica (24/10 notte, Mauro: «reintroduci i soldi e la
-  // reputazione per i campionati») — la modalità «senza vincoli» apre solo
-  // quello che decide gateStatus (piazzamenti), niente più iscrizioni gratis
-  const fee = entryFee(node);
+  // iscrizione canonica a prezzo pieno (24/10 notte) — ma il palinsesto
+  // «senza vincoli» dei test rapidi (25/10) riporta l'iscrizione a zero:
+  // i test non pagano, e cancellando data/senza-vincoli.json tutto torna.
+  const fee = senzaVincoli() ? 0 : entryFee(node);
   const round = state.round;
   const already = (state.results[node.nodeId] ?? []).some((r) => r.season === state.season && r.round === round);
   if (already || fee === 0) return 0;

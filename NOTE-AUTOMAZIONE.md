@@ -1,3 +1,123 @@
+## GRID TYPE SCRITTO DA FUORI (25/10 sera + 26/10 sera: forma canonica 6 RIMASTO + 7 aggiunto; Prepara: custom SOLO per le multiclasse)
+
+- LEZIONE DEFINITIVA 26/10 sera (toggle VIVO fotografato a menu aperto:
+  `tools/_toggle-watch.mjs` su TUTTA la cartella ACE, esito in
+  `data/samples/gridtype2/` — tre file toccati: gamemode.lastgamemode,
+  GameModeType_RACE_WEEKEND.gamemodesave, last_grid.customgrid):
+  la mappa dell'oneof scritta qui sotto era SBAGLIATA — veniva dai MIEI
+  write a freddo, che STRAPPANO il campo 6 per metterci il 7, e il gioco
+  al riavvio scarta quella forma e nasce AUTOMATIC (riproducibile:
+  scritto custom/11 a EVO spento, menu su AUTOMATIC con disco rimasto
+  custom/11). Il diff pulito del toggle dell'uomo (auto 19:35:57 →
+  custom 19:39:53, file 6317 → 15515 B, differenza nei campi bassi =
+  SOLO «7 = 14»):
+  → AUTOMATIC: campo 3.6 (w0) = 1, e il campo 7 è ASSENTE;
+  → CUSTOM:  campo 3.6 (w0) = 1 resta IN PIEDI, e il 3.7 (w0) = N si
+    aggiunge SUBITO DOPO (N = Number of Opponents: 14 live, alto 11 e 7
+    osservati prima sugli slider). CONFERMATO A RIAVVIO: riapre EVO e il
+    menu nasce CUSTOM senza toccare niente — la forma sul disco è
+    adottata, ma solo se il 6 ce l'ha (quello che scrive il menu).
+  Gli altri blocchi sessione portano sempre campo 7 = 1 in entrambe le
+  modalità; le file-piloti (campi 11) NON cambiano col toggle.
+- IMPLEMENTO NUOVO: `setWeekendGridMode(mode, count)` (writer canonico:
+  'custom' tiene il 6 = 1 e aggiorna/aggiunge il 7 = N; 'automatic' tiene
+  6 = 1 e TOGLIE il 7) in `tools/set-track.mjs`, con wrapper
+  `setWeekendGridCustom` (multiclasse) e `setWeekendGridAuto`
+  (monomarca). Il Prepara tutto ELEGGE il modo: serie MONOMARCA
+  (tipoGriglia → 'monomarca', richiesta Mauro 26/10 sera: auto tutte
+  alla pari, zavorre e penalità non servono) → AUTOMATIC (se una gara
+  multiclasse prima ha lasciato il custom, il modo torna quello di
+  fabbrica, e il conteggio fisso di carriera lo porta EVO da sé —
+  weekendCarCount/rebuild allineano); serie MULTICLASSE → CUSTOM
+  sbloccato con N = celle-1 (l'utente è una cella). Idempotente, backup
+  `bak-gridmode-*`.
+- VERIFICA LIVE: scritta la forma canonica a EVO chiudo/aperto col flusso
+  Prepara e riletta indietro custom/N; il test di persistenza È il
+  riavvio di EVO dopo il toggle in menu (menu nato CUSTOM: fatto 26/10
+  ore 19:4x). OGNUNO di questi pacchetti dist/ va rigenerato prima di
+  dare il pacchetto all'amico.
+
+- STORIA (mappa oneof SOSTITUITA da quella corretta sopra, mantenuta per
+  continuità): gli snapshot 19:09–19:25 alternati 6-solo/7-solo venivano
+  dai write a freddo di Buffy (6 rimpiazzato dal 7), non dal menu:
+  erano stelle generate fuori dal gioco, e il gioco le scartava — come
+  visible dal «riaperto sta su automatic» di ore 19:3x.
+
+- ULTIMO RIMASTO: la sezione qui sotto diceva «il flag non si scrive da
+  fuori QUI» — sbagliato, doveva solo essere TROVATO. La mappa l'abbiamo
+  fotografata insieme: Mauro muove il toggle Grid Type nel menu Race
+  Weekend con il watcher attivo (`tools/_gridtype-watch.mjs`), 6 snapshot
+  su `data/samples/gridtype/` e il diff a byte (`tools/_diff-gridtype.mjs`)
+  individua DUE byte che vivono nel PRIMO blocco sessione del
+  gamemodesave: è un ONEOF protobuf.
+  → AUTOMATIC: campo 6 (w0) = 1, e il campo 7 è ASSENTE;
+  → CUSTOM: campo 7 (w0) = N (N = Number of Opponents dello slider: 11 e
+    7 entrambi osservati muovendo lo slider col toggle fermo), e il 6 è
+    ASSENTE. Gli ALTRI blocchi sessione portano sempre campo 7 = 1 in
+    ENTRAMBE le modalità; le file-piloti (campli 11 ripetuti) NON cambiano
+    col toggle: 14 stabilmente — le celle vere le fissa il customgrid.
+- IMPLEMENTO: `weekendGridMode` (reader) + `setWeekendGridCustom`
+  (writer, conversione a STESSA POSIZIONE nel flusso di byte:
+  tag 0x30→0x38 e valore — niente re-encode colpevoli) in
+  `tools/set-track.mjs`; il Prepara tutto (`src/webui.mjs`, dentro la
+  vigia della griglia) chiama setWeekendGridCustom(celle-1) quando il
+  customgrid esiste e ha celle: il PC di un player NUOVO — menu che nasce
+  AUTOMATIC di fabbrica — apre il round col modo già sbloccato e le
+  zavorre/penalità di classe al posto di zero (25/10: Berline Moderne
+  uscita monoclasse). Idempotente, backup `bak-gridmode-*`.
+- VERIFICA LIVE: sul gamemodesave vero, conversione automatic→custom
+  scritta e riletta custom/11 (backup .bak-gridmode-…18-25); Mauro
+  confermerà il menu. OGNUNO di questi pacchetti dist/ va rigenerato
+  prima di dare il pacchetto all'amico.
+
+## ARMONIA GRIGLIE MULTISERIE (25/10 ssera): grid-classes.json e last_grid.customgrid RENCONTENO ALLA VITA, e si possono far ripartire
+
+- Mauro firma **Berline Moderne** (berline_moderne, multiclasse M4 CSL + M3
+  E46 CSL + Giulia GTAm, round 4 Paul Ricard) e la gara esce MONOCLASSE:
+  nel menù Grid Type = AUTOMATIC, e sul disco MANCANO entrambi
+  `Saved Games/ACE/GameModes/last_grid.customgrid` (con tutti i .bak-) e
+  `data/grid-classes.json` (gitignored, mai in repo). Senza di loro il
+  builder non ha né regole né classe, e il gioco con AUTOMATIC ignora il
+  customgrid e componga la griglia monomarca da sé.
+- RIPRISTINO: classi rialzate dal pacchetto dist (
+  `dist/CarrieraEVO-portabile/app/data/grid-classes.json`, copia del 22/10
+  con le classi a rules conosciute: strada-brands, gr86-r5-escort,
+  roadster_classic, hyper_road, rx7, …) + nuovo
+  `tools/_armonia-classi.mjs`: per ogni serie multiclasse SENZA classe
+  scrive una entrada `poolAuto = node.cars` con regole 0/0 (la calibrazione
+  nasce dai risultati, non dal teorico — decisione del 24/10). Result:
+  31 classi, tutte le multiclasse coperte. La calibrazione di apprendimento
+  resta in `data/grid-calibrazione.json` (mai cancellata) e si rimette in
+  piedi da sola gare dirigendole.
+- GRIGLIA: `rebuildGridApply` ha scritto da sola la ronda prendendo il
+  template della FABBRICA (`config/griglie-fabbrica/berline_moderne`):
+  14 celle GTAm/E46/M4CSL, classe `berline_moderne` matchata in automatico,
+  zavorre 0/0, AI 87-98. La fabbrica quindi è UNICA autorità di sanità:
+  anche se il customgrid sparisce, il rebuild si regge da soli.
+- DA FARE A MANO in EVO: nel menù RACE WEEKEND passa Grid Type da
+  AUTOMATIC a CUSTOM (il flag non si scrive da fuori QUI: è l'ammissione del
+  gioco al customgrid); zavorre e penalità arrivano col campo CUSTOM, con
+  AUTOMATIC sono zero per definizione.
+- LEZIONE per il futuro: quando il salvataggio cambia CHE STAGIONE, non dare
+  per scontata la vita del customgrid né di grid-classes.json — il quadro
+  di partenza è `node tools/raccogli-griglie.mjs --stampa` (fabbrica ✅) e
+  `node tools/_armonia-classi.mjs --stampa` (classi) prima di giudicare.
+
+## SBLOCCO «SENZA VINCOLI» — 3° giro (25/10): torna il palinsesto pieno per i test
+
+- Mauro continua a provare in fretta serie diverse (R5, poi una multiclasse):
+  rispetto alla revisione di stanotte (24/10: solo piazzamenti aperti, soldi e
+  rep canonici) `data/senza-vincoli.json` ora apre TUTTO finché dura il file:
+  cancelletti a piazzamento, REPUTAZIONE richiesta, sedili a costo zero
+  (affitto o acquisto) e iscrizioni di ronda a zero (gateStatus, enterNode
+  e chargeEntry). Restano intatti il garage e il mercato (quelli restano pagati).
+- VIA DI USCITA: cancellando il file la scalata vera torna al 100%; i test
+  della suite fissano EVO_SENZA_VINCOLI='0' e descrivono il comportamento
+  canonico, quindi non toccano questo comportamento. VERIFICA FATTIBILE in
+  uso reale (25/10, server ai piedi): /api/agenda riporta OGNI giorno con
+  available == total (prima: 9→8, 36→1…); prova a secco
+  tools/_prova-sblocco.mjs: giorno 31 → 9 gare elencate, 9 fattibili, 0 bloccate.
+
 ## DEBITI BIOME AZZERATI: gui/ + src/ senza più warnings (27/10) — FATTO E TESTATO
 
 - Carta «Triage codice morto»: nelle pagine gui/js (script classici del

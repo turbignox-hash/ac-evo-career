@@ -47,15 +47,13 @@ export function activeSlot(env = process.env) {
   return Math.max(1, Math.min(3, Math.floor(Number(env.ACE_SLOT) || 1)));
 }
 
-/* MODALITÀ «SENZA VINCOLI» (24/10, richiesta Mauro — 2° giro la stessa sera:
- * «reintroduci i soldi e la reputazione per i campionati», poi si riprende
- * con la build): se esiste data/senza-vincoli.json si aprono SOLO i
- * cancelletti a PIAZZAMENTO della scalata (i «servono il top N nella serie
- * montante); la REPUTAZIONE torna a contare e il DENARO torna a muoversi:
- * sedili comprati o affittati al prezzo vero, iscrizione di ronda pagata
- * anche al primo giro (chargeEntry). Il file viene ricontrollato ogni 5 s:
- * per TORNARE alla scalata vera al 100% basta cancellarlo. Restano a
- * pagamento anche gli acquisti in garage (mercato, ma quello era già così). */
+/* MODALITÀ «SENZA VINCOLI» (24/10, richiesta Mauro; dal 25/10 torna PALINSESTO
+ * completo per i test di Mauro col firmware nuovo): se esiste
+ * data/senza-vincoli.json SI APRE TUTTO finché dura il file — cancelletti a
+ * piazzamento, REPUTAZIONE richiesta e DENARO: sedili gratis, iscrizioni a
+ * zero. Serve per provare in fretta serie diverse (es. una multiclasse) senza
+ * ripetere la scalata. Il file viene ricontrollato ogni 5 s: per TORNARE alla
+ * scalata vera al 100% basta cancellarlo. */
 const BASE_DATA_DIR = process.env.EVO_DATA_DIR ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'data');
 const SENZA_VINCOLI_FILE = join(BASE_DATA_DIR, 'senza-vincoli.json');
 let _senzaVincoliAt = 0;
@@ -248,7 +246,7 @@ export function gateStatus(ladder, state, node) {
   // senza vincoli: i cancelletti a PIAZZAMENTO si aprono (test libero delle
   // serie), ma la REPUTAZIONE richiesta resta un vero blocco (24/10 notte,
   // Mauro: soldi e reputazione reintrodotti per i campionati)
-  const aperto = senzaVincoli();
+  const aperto = senzaVincoli(); // 25/10: apre anche la reputazione (test rapidi di serie)
   const reasons = [];
   let ok = true;
   const req = node.requires;
@@ -263,7 +261,7 @@ export function gateStatus(ladder, state, node) {
       reasons.push(`miglior piazzamento in ${feeder.display}: P${best} (serve top ${req.top})`);
     }
   }
-  if (node.repRequired && state.rep < node.repRequired) {
+  if (!aperto && node.repRequired && state.rep < node.repRequired) {
     ok = false;
     reasons.push(`reputazione ${state.rep}/${node.repRequired} per un contratto ufficiale`);
   }
@@ -454,10 +452,11 @@ function garageCarForSeat(state, node) {
 }
 
 export function enterNode(ladder, state, node, { buy = false, force = false } = {}) {
-  // la modalità «senza vincoli» (= cancelletti a piazzamento aperti, già
-  // gestito dentro gateStatus) NON sorvola la reputazione e NON regala i
-  // sedili: il denaro della scalata torna a muoversi (24/10 notte, revisione
-  // Mauro «reintroduci i soldi e la reputazione per i campionati»)
+  // la modalità «senza vincoli» (25/10: su richiesta di Mauro per i test
+  // rapidi, torna il palinsesto pieno della prima versione) apre cancelletti,
+  // reputazione e sedili: chi entra qui senza sediliGratis paga il prezzo
+  // pieno, come sempre quando il file NON esiste.
+  const gratis = senzaVincoli();
   const gate = gateStatus(ladder, state, node);
   if (!gate.ok && !force) {
     throw new Error(`Sedile non disponibile in ${node.display}:\n  - ${gate.reasons.join('\n  - ')}\nUsa --force per forzare.`);
@@ -469,9 +468,13 @@ export function enterNode(ladder, state, node, { buy = false, force = false } = 
     // parco chiuso: il team ti mette a disposizione auto e posto (niente acquisti, niente affitto)
     pushMessage(state, `${node.display} è a parco chiuso: contratto ufficiale, la vettura te la danno loro.`, 'info');
   } else if (buy && buyPrice > 0) {
-    if (state.money < buyPrice) throw new Error(`Servono ${buyPrice} per comprare il sedile, ne hai ${state.money}.`);
-    state.money -= buyPrice;
-    pushMessage(state, `Hai comprato il sedile in ${node.display} (-${buyPrice}).`, 'money');
+    if (gratis) {
+      pushMessage(state, `Senza vincoli: sedile in ${node.display} a costo zero (i test non pagano).`, 'money');
+    } else {
+      if (state.money < buyPrice) throw new Error(`Servono ${buyPrice} per comprare il sedile, ne hai ${state.money}.`);
+      state.money -= buyPrice;
+      pushMessage(state, `Hai comprato il sedile in ${node.display} (-${buyPrice}).`, 'money');
+    }
   } else {
     const rent = closed ? 0 : (econ.rent ?? 0);
     const owned = rent > 0 ? garageCarForSeat(state, node) : null;
@@ -480,9 +483,13 @@ export function enterNode(ladder, state, node, { buy = false, force = false } = 
       // la usi tu e il noleggio non esiste (l'usura la paga l'odometro del garage)
       pushMessage(state, `Il sedile in ${node.display} vai a sedere con la tua ${owned.carName} del garage: niente affitto (risparmiati ${rent}).`, 'money');
     } else if (rent > 0) {
-      if (state.money < rent) throw new Error(`Servono ${rent} per l'affitto del sedile in ${node.display}, ne hai ${state.money}.`);
-      state.money -= rent;
-      pushMessage(state, `Hai affittato il sedile in ${node.display} (-${rent}).`, 'money');
+      if (gratis) {
+        pushMessage(state, `Senza vincoli: affitto del sedile in ${node.display} a costo zero (i test non pagano).`, 'money');
+      } else {
+        if (state.money < rent) throw new Error(`Servono ${rent} per l'affitto del sedile in ${node.display}, ne hai ${state.money}.`);
+        state.money -= rent;
+        pushMessage(state, `Hai affittato il sedile in ${node.display} (-${rent}).`, 'money');
+      }
     }
   }
   state.node = node.nodeId;

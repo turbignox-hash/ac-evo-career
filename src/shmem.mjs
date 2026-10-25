@@ -626,7 +626,15 @@ export class LiveReader {
         // buffer: null, non numeri fantasma.
         position: g.totalDrivers ? (g.currentPos != null && g.currentPos >= 0 && g.currentPos < g.totalDrivers ? g.currentPos + 1 : null) : (g.currentPos != null ? g.currentPos + 1 : null),
         drivers: g.totalDrivers || null,
-        lapsDone: g.totalLapCount ?? 0,
+        // EVO MEMORIZZA IL GIRO IN CORSO in totalLapCount: 1 alla partenza,
+        // +1 a ogni traguardo — compiendo il giro 2 il campo legge 3 e la
+        // copilota diceva «Giro 3» (25/10, Mauro con la 500, «si sbaglia di
+        // un giro sul traguardo, al secondo dice 3 … terzo giro, quarto»).
+        // Qui lo si riporta a GIRI COMPIUTI, la semantica che TUTTI i
+        // consumatori (copilota, cruscotto «giro X/Y», ingegnere col suo
+        // lapsLeft e la finestra pit) davano per scontata: un solo punto
+        // di verità, niente -1 sparsi nelle viste.
+        lapsDone: Math.max(0, (Number.isFinite(g.totalLapCount) ? g.totalLapCount : 1) - 1),
         lapNo: g.currentLapNo ?? null,
         lapsTotal: g.totalLapsSession ?? null,
         bestLap: fmtMs(g.bestLapMs),
