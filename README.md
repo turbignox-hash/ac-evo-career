@@ -1,6 +1,6 @@
 # EVO Pitwall (`ac-evo-career`) — automated career for Assetto Corsa EVO
 
-🐞 **Bug or idea?** [Open a GitHub issue](https://github.com/turbignox-hash/ac-evo-career/issues/new) — or use the “Report a problem” link in the tool sidebar: it opens the same form *already filled in* with build version, current series, recent errors and difficulty. · ☕ **Support the project:** [Ko-fi](https://ko-fi.com/NOME-UTENTE) ·
+🐞 **Bug or idea?** [Open a GitHub issue](https://github.com/turbignox-hash/ac-evo-career/issues/new) — or use the “Report a problem” link in the tool sidebar: it opens the same form *already filled in* with build version, current series, recent errors and difficulty. · ☕ **Support the project:** [Ko-fi](https://ko-fi.com/turbigno) ·
 
 A persistent, automated career for **Assetto Corsa EVO**, modelled after a career
 app for Automobilista 2.
@@ -47,9 +47,7 @@ project.
    falls back to estimates, and it never changes anything inside the game unless
    you click **Apply** (it writes a `*-EVO-consigliato.carsetup` file next to
    yours).
-4. **No wet↔dry dynamic weather races yet — the game cannot do it.** Assets
-   Corsa EVO does not implement dynamic weather transitions (dry to wet and
-   back) *inside a session* at the time of writing, so the app schedules fixed
+4. **No wet↔dry dynamic weather races yet — the game cannot do it.**Assetto Corsa EVO does not implement dynamic weather transitions (dry to wet and back) *inside a session* at the time of writing, so the app schedules fixed
    weather presets per round only. If Kunos adds in-session dynamic weather, the
    only files to touch are `src/weather.mjs` and the round profiles.
 
