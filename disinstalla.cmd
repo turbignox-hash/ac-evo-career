@@ -20,7 +20,7 @@ rem    EVO_DISINSTALLA_OK       niente conferme: via tutto (carriera inclusa)
 rem    EVO_DISINSTALLA_KEEP     tengo la carriera (data\ traslocata)
 rem    EVO_DISINSTALLA_DESKTOP  desktop-vacanze del test (lista ';': se manca, i veri)
 rem    EVO_DISINSTALLA_RELAY    interno: la copia-servizio aspetta 2 s prima
-rem                             di cancellare, per lascirea finire il padre
+rem                             cancellare, per lasciare finire il padre
 rem ============================================================
 setlocal enabledelayedexpansion
 set "TARGET=%USERPROFILE%\EVO-Pitwall"
@@ -110,9 +110,9 @@ rmdir /S /Q "%TARGET%" 2>nul
 if exist "%TARGET%" goto hpersomacchia
 echo.
 echo   [x] Disinstallata: tolta la cartella [e la sua scorciatoia se c'era per lei].
-rem nota onesta: la copia-servizio in TEMP rimane (qualche KB): il dis
-rem rms self-yourself-non-passa col batch in-corsa, e TEMP si ripulise da
-rem Windows da solo — la lascio perdere,.zero danno.
+rem nota onesta: la copia-servizio in TEMP rimane (qualche KB): il batch
+rem in corsa non si cancella da solo, e TEMP si ripulisce da Windows da
+rem solo; la lascio perdere sulla pelle — zero danni.
 ver >nul
 exit /b 0
 
