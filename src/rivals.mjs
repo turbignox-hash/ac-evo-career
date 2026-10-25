@@ -8,13 +8,12 @@
 
 import { readFileSync, mkdirSync, existsSync, copyFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { lapToMs } from './results.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 import { recordWarning } from './warnings.mjs';
 import { slotDataDir } from './state.mjs';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
+
 // nido per-slot (24/10): il campione di rivali vive con la SUA carriera — slot 1 = data,
 // slot 2-3 = data/slot-N vergini. Ciclo con state.mjs innocuo: slotDataDir è una
 // function hoisted (richiamabile anche a metà del giro di import circolare).
@@ -163,7 +162,7 @@ export function recordRaceGrid(result, playerPayload, { season, round, nodeId, n
 /* ------------------------------------------------------------------ */
 
 /** I rivali già incontrati in questa serie, per la scheda gara. */
-export function rivalsOutlook(ladder, state, nodeId) {
+export function rivalsOutlook(_ladder, _state, nodeId) {
   const store = loadStore();
   const races = store.races.filter((r) => r.nodeId === nodeId);
   const out = [];
@@ -236,7 +235,7 @@ export function rivalDetail(key) {
 /* viste per la GUI                                                    */
 /* ------------------------------------------------------------------ */
 
-/** Panoramica rivali per la GUI: profili ordinati per scontri, testa a testa, classifica. */export function rivalsOverview(ladder, state, { q = null } = {}) {
+/** Panoramica rivali per la GUI: profili ordinati per scontri, testa a testa, classifica. */export function rivalsOverview(_ladder, state, { q = null } = {}) {
   const store = loadStore();
   const meKey = rivalKey(state.driver.first, state.driver.last);
 
@@ -345,3 +344,4 @@ export function raceBulletin() {
     davanti, dietro,
   };
 }
+

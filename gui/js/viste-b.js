@@ -137,7 +137,7 @@ async function drawAgenda(m){
   $$('button[data-corri]').forEach(b => { b.onclick = async () => {
     b.disabled = true;
     try {
-      const r = await api('agenda-choose', { method:'POST', body:{ nodeId: b.dataset.corri, day: agendaView.day ?? undefined } });
+      await api('agenda-choose', { method:'POST', body:{ nodeId: b.dataset.corri, day: agendaView.day ?? undefined } });
       toast(tr({ it: 'Gara scelta per oggi ✔ (serie attiva nel cruscotto)', en: "Race picked for today ✔ (series now active on the Dashboard)" }), 'ok');
       tab = 'calendar'; drawNav(); render();
     } catch(e){ toast(e.message, 'err'); b.disabled = false; }
@@ -253,7 +253,6 @@ async function drawChampionships(m){
       ? `<table><thead><tr><th></th><th>${tr({ it: 'Pilota', en: 'Driver' })}</th><th class="right">${tr({ it: 'Punti', en: 'Points' })}</th></tr></thead>
         <tbody>${c.standings.map(r=>`<tr class="${r.isPlayer?'me':''}"><td class="faint">P${r.position}</td><td>${esc(r.name)}${r.isPlayer?` <span class="tag gold">${tr({ it: 'tu', en: 'you' })}</span>`:''}</td><td class="right">${r.points}</td></tr>`).join('')}</tbody></table>`
       : `<div class="empty">${tr({ it: 'Classifica non disponibile.', en: 'Standings not available.' })}</div>`;
-    const dayNum = c.seatDay ? Math.ceil(1 + (c.calendar.length - 1) * 0) : null; // niente calcolo qui
     return `<div class="panel" id="champ-${esc(c.nodeId)}">
       <h2>${esc(c.display)} <span class="h-act">${tr({ it: 'stagione ', en: 'season ' })}${c.season}${c.isCurrent?` · <span class="tag gold">${tr({ it: 'serie attuale', en: 'current series' })}</span>`:''}</span></h2>
       <div class="muted" style="margin:-4px 0 8px">L${c.level} · ${esc(c.discipline)} · ${tr({ it: 'una gara a settimana', en: 'one race a week' })}</div>
@@ -346,42 +345,7 @@ function serieDetail(n){
     ${blocked}`, [[tr({ it: 'Chiudi', en: 'Close' }), 'ghost',()=>{}]]);
 }
 
-async function enterFlow(nodeId, name, econ){
-  const closed = econ?.access === 'closed';
-  const rent = closed ? 0 : (econ?.rent ?? 0);
-  const cost = closed
-    ? tr({ it: 'Serie a <b>parco chiuso</b>: ci si entra solo con il contratto ufficiale del team — niente affitto né riscatto del sedile, la vettura la mettono loro.', en: 'A <b>spec grid</b> series: entry only via the official team contract — no seat rent or buyout, the car is theirs.' })
-    : rent > 0
-    ? `${tr({ it: "L'affitto del sedile costa ", en: 'Renting the seat costs ' })}<b>${money(rent)} €</b>${tr({ it: ', addebitato subito alla firma.', en: ', charged immediately at signing.' })}`
-    : tr({ it: 'Sedile a contratto ufficiale: nessun costo di ingresso.', en: 'Seat on an official contract: no entry cost.' });
-  // ANTEPRIMA CONFLITTI: come cadrebbe il calendario della serie e dove collide
-  // con i campionati già iscritti. Si vede PRIMA di spendere soldi/reputazione.
-  let preview = null;
-  try { preview = await api('agenda-sign-preview', { nodeId }); } catch {}
-  const confs = preview?.conflictsTotal ?? 0;
-  const prevHtml = !preview ? '' : `
-    <div class="sig-prev">
-      <div class="muted" style="margin-bottom:4px">${tr({ it: 'Calendario previsto della serie (una gara ogni settimana da ', en: 'Projected series calendar (one race every week from ' })}${esc(preview.startLabel)}):</div>
-      ${preview.future.map(f=>`<div style="display:flex;gap:8px;align-items:baseline;padding:2px 0">
-        <span class="faint" style="min-width:120px">${esc(f.dateLabel)}</span>
-        <span>R${f.index+1} · ${esc(f.track)}${f.laps?` · ${f.laps} ${tr({ it: 'giri', en: 'laps' })}`:''}</span>
-        ${f.conflicts.length
-          ? `<span class="tag gold" title="${esc(f.conflicts.map(c=>c.display+' R'+(c.roundIndex+1)+' ('+c.dateLabel+')').join(', '))}">⚠️ ${tr({ it: 'conflitto: ', en: 'conflict: ' })}${esc(f.conflicts.map(c=>c.display).join(', '))}</span>`
-          : '<span class="faint">✓</span>'}
-      </div>`).join('')}
-      ${confs
-        ? `<div class="tag gold" style="margin-top:6px;display:inline-block">⚠️ ${confs} ${confs===1?tr({ it: 'conflitto', en: 'conflict' }):tr({ it: 'conflitti', en: 'conflicts' })} ${tr({ it: 'con i campionati già iscritti: al giorno di gara dovrai scegliere, e la gara saltata vale 0 punti.', en: 'with championships already signed: on race day you will have to choose, and the skipped race is worth 0 points.' })}</div>`
-        : `<div class="muted" style="margin-top:6px">✓ ${tr({ it: 'Nessun conflitto con i campionati già iscritti.', en: 'No conflict with championships already signed.' })}</div>`}
-    </div>`;
-  modal(`${tr({ it: 'Firma del sedile — ', en: 'Sign the seat — ' })}${esc(name)}`, `
-    <p>${tr({ it: 'Stai per lasciare la serie attuale e trasferirti in ', en: 'You are about to leave the current series and move to ' })}<b>${esc(name)}</b>.</p>
-    <p class="muted" style="margin-top:8px">${cost} ${tr({ it: "L'iscrizione si paga gara per gara; il calendario riparte dal round 1 della nuova serie.", en: 'Entry is paid race by race; the calendar restarts at round 1 of the new series.' })}</p>
-    ${prevHtml}`,
-    [[tr({ it: 'Annulla', en: 'Cancel' }), 'ghost',()=>{}], [confs?tr({ it: 'Firma comunque', en: 'Sign anyway' }):tr({ it: 'Firma il contratto', en: 'Sign the contract' }), 'act', async () => {
-      try { const r = await api('enter', {nodeId}); toast(tr({ it: 'Contratto firmato: ', en: 'Contract signed: ' }) + r.header.node.display, 'ok'); await refreshBoot(); render(); }
-      catch(e){ toast(e.message,'err'); return false; }
-    }]]);
-}
+
 
 /* -------- archivio risultati -------- */
 async function drawArchive(m){

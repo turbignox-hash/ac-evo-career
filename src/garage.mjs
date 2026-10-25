@@ -181,7 +181,7 @@ function lapMs(t) {
 /* vista per la GUI                                                    */
 /* ------------------------------------------------------------------ */
 
-export function garageOverview(ladder, state, { paths = null, env = process.env } = {}) {
+export function garageOverview(_ladder, state, { paths = null, env = process.env } = {}) {
   const g = ensureGarage(state);
   // ogni nuova vittoria in vetrina entra da sola
   const added = importShowcase(state);
@@ -224,7 +224,7 @@ export function garageOverview(ladder, state, { paths = null, env = process.env 
 
 /** Vende un'auto del garage: ricava il 70% della valutazione chilometrica,
  *  accredita i soldi e scrive il flusso. Ritorna il dettaglio per la GUI. */
-export function sellCar(ladder, state, carId) {
+export function sellCar(_ladder, state, carId) {
   const g = ensureGarage(state);
   const car = g.cars.find((c) => c.carId === String(carId ?? ''));
   if (!car) throw new Error('Auto non in garage: ' + carId);
@@ -244,8 +244,9 @@ export function sellCar(ladder, state, carId) {
 }
 
 /** Catalogo ridotto per il menu "aggiungi auto": nome, id e PI. */
-export function catalogPicker(ladder, { env = process.env, paths = null } = {}) {
+export function catalogPicker(_ladder, { env = process.env, paths = null } = {}) {
   let catalog = null;
   try { catalog = loadCatalog(paths, env); } catch { catalog = null; }
   return (catalog?.cars ?? []).map((c) => ({ id: c.id, name: c.name, pi: c.pi, price: carPriceOf(c.name) ?? carPriceOf(c.id) })).sort((a, b) => a.name.localeCompare(b.name));
 }
+

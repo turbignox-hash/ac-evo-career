@@ -361,7 +361,7 @@ export function chargeEntry(ladder, state, node) {
   return fee;
 }
 
-export function markPending(ladder, state, card) {
+export function markPending(_ladder, state, card) {
   state.pending = {
     node: card.node.nodeId,
     round: card.roundIndex,
@@ -381,3 +381,4 @@ export async function launch(paths, { exeOnly = true } = {}) {
 }
 
 export { difficultyFor, nodeById };
+

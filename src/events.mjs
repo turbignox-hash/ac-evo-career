@@ -42,7 +42,7 @@ import { listResultFiles, readSessionResult, isRaceSession, findPlayerDriver, cl
  *  - a invito già nato la scelta NON cambia da sola: il premio si cuoce
  *    nell'invito (refreshActivePrize serve per correggerlo a mano).
  */
-export function choosePrize(ladder, state, theme, { seed = 1 } = {}) {
+export function choosePrize(_ladder, state, theme, { seed = 1 } = {}) {
   ensureEvents(state);
   const owned = new Set([
     ...(state.events.showCase ?? []).map((c) => c.carId),
@@ -342,7 +342,7 @@ function buildInvite(ladder, state, theme, tier, racesRun) {
 /* azioni del giocatore                                                */
 /* ------------------------------------------------------------------ */
 
-export function acceptEvent(ladder, state, eventId) {
+export function acceptEvent(_ladder, state, eventId) {
   const ev = ensureEvents(state);
   if (!ev.active || ev.active.id !== eventId) throw new Error(tr({ it: 'Invito non trovato o già scaduto.', en: 'Invite not found or already expired.' }));
   ev.active.acceptedAt = new Date().toISOString();
@@ -350,7 +350,7 @@ export function acceptEvent(ladder, state, eventId) {
   return ev.active;
 }
 
-export function declineEvent(ladder, state, eventId) {
+export function declineEvent(_ladder, state, eventId) {
   const ev = ensureEvents(state);
   if (!ev.active || ev.active.id !== eventId) throw new Error(tr({ it: 'Invito non trovato o già scaduto.', en: 'Invite not found or already expired.' }));
   ev.history.push({ ...ev.active, declinedAt: new Date().toISOString(), outcome: 'declined' });
@@ -360,7 +360,7 @@ export function declineEvent(ladder, state, eventId) {
 }
 
 /** Scadenza naturale: gli inviti 'stagione' non accettati entro N gure di campionato svaniscono. */
-export function expireEvents(ladder, state) {
+export function expireEvents(_ladder, state) {
   const ev = ensureEvents(state);
   if (!ev.active || ev.active.tier !== 'stagione' || !ev.active.acceptedAt) return false;
   const racesRun = (state.results[state.node] ?? []).filter((r) => r.season === state.season).length;
@@ -377,7 +377,7 @@ export function expireEvents(ladder, state) {
  * Registra il risultato della gara speciale. input: { position, bestLapSec }.
  * Vittoria (position 1) = auto in vetrina + soldi + rep; altri piazzamenti = soldi scalati.
  */
-export function finishEvent(ladder, state, { position, bestLapSec = null } = {}) {
+export function finishEvent(_ladder, state, { position, bestLapSec = null } = {}) {
   const ev = ensureEvents(state);
   const a = ev.active;
   if (!a || !a.acceptedAt) throw new Error('Nessuna gara speciale in corso.');
@@ -486,7 +486,7 @@ export function eventTrackReal(a) {
 }
 
 /** L'auto che correrai l'evento: quella già in vetrina, o il premio da vincere. */
-export function eventCarName(ladder, state, a) {
+export function eventCarName(_ladder, state, a) {
   const ev = ensureEvents(state);
   return ev.showCase.find((c) => c.carId === a.prize.carId)?.carName ?? a.prize.carName;
 }
@@ -562,7 +562,7 @@ export function eventCard(ladder, state) {
   };
 }
 
-function prizeOrOwnedLabel(ladder, state, a) {
+function prizeOrOwnedLabel(_ladder, state, a) {
   const ev = ensureEvents(state);
   const owned = ev.showCase.find((c) => c.carId === a.prize.carId);
   return owned
@@ -591,3 +591,4 @@ export function eventsOverview(ladder, state) {
     history: ev.history.slice(-10).reverse().map((h) => ({ ...h, theme: nameOf(h.theme) })),
   };
 }
+

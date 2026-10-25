@@ -251,7 +251,7 @@ export function assignNextMemory(ladder, state) {
 }
 
 /** La memoria attiva (o null), con progresso aggiornato. */
-export function currentMemory(ladder, state) {
+export function currentMemory(_ladder, state) {
   const H = ensureHeritage(state);
   return H.active ? { ...H.active, rank: rankOf(H.completed.length + 1) } : null;
 }
@@ -317,7 +317,7 @@ export function checkMemoryProgress(ladder, state, entry) {
 }
 
 /** Incassa l'eredità di una memoria completata (bottone nel pannello Eredità). */
-export function claimMemory(ladder, state) {
+export function claimMemory(_ladder, state) {
   const H = ensureHeritage(state);
   const mem = H.active;
   if (!mem || !mem.done || mem.claimed) {
@@ -361,10 +361,12 @@ export function heritageOverview(ladder, state) {
 }
 
 /** La prossima pista della memoria in corso (nome visualizzato), o null. */
-export function memoryRoundHint(ladder, state) {
+export function memoryRoundHint(_ladder, state) {
   const H = ensureHeritage(state);
   const mem = H.active;
   if (!mem || mem.done) return null;
+  // biome-ignore lint/complexity/useIndexOf: il test è «pista NON ancora percorsa», non un membro identico dell'array progress
   const nextIdx = mem.rounds.findIndex((t) => !mem.progress.some((p) => p.track === t));
   return mem.tracksDisplay[nextIdx] ?? mem.tracksDisplay[0] ?? null;
 }
+

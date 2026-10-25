@@ -43,5 +43,22 @@
         "noUnusedFunctionParameters": "warn"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      // gui/js sona PAGINE DI SCRIPT CLASSICI: le viste si chiamano fra file con
+      // le globali del browser (core.js smista le tab verso drawAgenda/drawCars/
+      // modal/refreshBoot...), quindi Biome da solo ciascun file e non vede i
+      // usi — segnala «unused» funzioni che il routing usa davvero (triage
+      // 27/10: 30 avvisi, tutti falsi positivi confermati a mano; il dead code
+      // VERO — enterFlow, dayNum, row, guess, desc, locals inutili — è stato
+      // rimesso a mano). Qui le regole noUnused non ha senso tenerle: in src/
+      // resta tutto ON.
+      "includes": ["gui/js/**"],
+      "linter": { "rules": { "correctness": {
+        "noUnusedVariables": "off",
+        "noUnusedFunctionParameters": "off"
+      } } }
+    }
+  ]
 }

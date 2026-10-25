@@ -364,7 +364,7 @@ const splitSec = (t) => { // split EVO: '00:44.310' o '1:07.017' → secondi
   return Number.isFinite(n) ? n : null;
 };
 
-function segnaleTipo(evento, proposte) {
+function segnaleTipo(_evento, proposte) {
   const campo = proposte.find((p) => p.leva === 'campo-ai');
   if (campo) return campo.direzione === 'su' ? 'campo-troppo-debole' : 'campo-troppo-forte';
   const perAuto = proposte.filter((p) => p.leva === 'perTraccia');
@@ -534,3 +534,4 @@ export function appuntaConvalida({ classe = null, trkKey = null, dry = false } =
 
 const stamp = () => new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 function mkdirs(p) { try { mkdirSync(p, { recursive: true }); } catch { /* pazienza */ } }
+

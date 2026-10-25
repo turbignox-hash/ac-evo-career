@@ -375,7 +375,7 @@ export function difficultyFor(ladder, state, node, track = null) {
 }
 
 /** Proposta di correzione del trim, in attesa di conferma. */
-export function proposeDifficulty(ladder, state, node, position, gridSize) {
+export function proposeDifficulty(_ladder, state, node, position, gridSize) {
   if (state.difficulty.mode !== 'adaptive' || state.difficulty.locked.includes(node.nodeId)) return null;
   const expected = Math.round(gridSize * EXPECTED_POSITION_SHARE);
   const delta = expected - position; // positivo = hai fatto meglio del previsto
@@ -409,7 +409,7 @@ export function proposeDifficulty(ladder, state, node, position, gridSize) {
 /* ------------------------------------------------------------------ */
 
 /** Quota del montepremi per posizione: 1.000 al vincitore, decrescente. Le prove iconiche pagano x1,5. */
-export function prizeFor(node, position, gridSize, { iconicRound = false } = {}) {
+export function prizeFor(node, position, _gridSize, { iconicRound = false } = {}) {
   const factor = 1 / (1 + (position - 1) * 0.35);
   return Math.round(node.econ.prize * factor * (iconicRound ? 1.5 : 1));
 }
@@ -908,3 +908,4 @@ export function sponsorTier(state) {
 }
 
 export { gridFor, finishOrder, sigilDefs };
+

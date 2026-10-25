@@ -88,7 +88,7 @@ export function hasSeat(state, nodeId) {
 
 /** La stagione proposta per la serie n è la più recente che è ancora usa
  *  1  ha ronde non corse), altrimenti la nuova. */
-export function campaignSeason(ladder, state, node) {
+export function campaignSeason(_ladder, state, node) {
   const results = state.results?.[node.nodeId] ?? [];
   let last = 0;
   for (const r of results) if (Number(r.season) > last) last = Number(r.season);
@@ -498,3 +498,4 @@ export function elencoCompleto(ladder, state, { fattibili = false } = {}) {
     a.display.localeCompare(b.display));
   return out;
 }
+

@@ -130,7 +130,6 @@ export function watchOnce(ladder, paths, { baselineMs = 0, stateLoader = () => l
         recordWarning('watch', 'import dal watcher fallito', e.message);
       }
       outcome.ignored.push({ name: f.name, reason: (e.message ?? String(e)).split('\n')[0] });
-      continue;
     }
   }
   return outcome;

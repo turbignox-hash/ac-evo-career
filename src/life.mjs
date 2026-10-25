@@ -81,7 +81,7 @@ function clausePoolFor(node) {
 /** Salvataggi d'epoca: le clausole del save portano i testi della lingua in cui
  *  sono nate. Qui li sincronizzo con i testi correnti (stesso id, certo: target
  *  e metrica restano quelli del save — cambia solo la frase). */
-export function refreshContractTexts(ladder, state, node) {
+export function refreshContractTexts(_ladder, state, node) {
   const c = ensureLife(state).contract;
   if (!c) return;
   const pool = clausePoolFor(node);
@@ -100,7 +100,7 @@ export function ensureContract(ladder, state, node) {
 }
 
 /** Firmato il sedile, il contratto porta 3 clausole deterministiche per stagione+serie. */
-export function assignContract(ladder, state, node) {
+export function assignContract(_ladder, state, node) {
   const pool = clausePoolFor(node);
   const seedStr = `${node.nodeId}|${state.season}|contract`;
   let h = 2166136261 >>> 0;
@@ -338,7 +338,7 @@ export function sigilDefs() {
 }
 
 /** Controlla e assegna i sigilli dopo ogni gara. Ritorna i nuovi. */
-export function checkSigils(ladder, state) {
+export function checkSigils(_ladder, state) {
   const L = ensureLife(state);
   const have = new Set(L.sigils.map((s) => s.id));
   const out = [];
@@ -442,3 +442,4 @@ export function careerPlanner(ladder, state) {
   rows.sort((a, b) => Number(b.open) - Number(a.open) || b.level - a.level || a.display.localeCompare(b.display));
   return rows;
 }
+

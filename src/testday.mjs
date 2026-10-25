@@ -12,14 +12,13 @@
 
 import { readFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { writeJsonAtomic } from './atomic.mjs';
 import { listResultFiles, readSessionResult, findPlayerDriver, bestLapInfo, classify, sectorAnalysis } from './results.mjs';
 import { nodeById } from './state.mjs';
 import { alreadyImportedHash } from './import.mjs';
 import { matchTrackName, sameTrack, matchesAnyTrack } from './tracknames.mjs';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
+
 // nido per-slot (24/10): il quaderno delle prove vive con la SUA carriera
 // (slot 1 = data/ com'è sempre stato, slot 2-3 = data/slot-N/ vergini)
 import { slotDataDir } from './state.mjs';

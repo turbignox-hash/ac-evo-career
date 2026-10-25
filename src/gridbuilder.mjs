@@ -141,7 +141,7 @@ function pickClass(classes, serieId, presetList) {
   }
   return bestN >= 2 ? { id: bestId, cls: best } : { id: serieId, cls: null };   // ≥2 preset per fidarsi
 }
-function rulesFor(classes, serieId, presets, matchedCls, matchedId, trackRef) {
+function rulesFor(_classes, serieId, _presets, matchedCls, matchedId, trackRef) {
   const cls = matchedCls;
   if (cls?.regole) {
     // clamp ai LIMITI reali del gioco: l'UI (e la gara) cappano a 100kg / 20%;
@@ -202,7 +202,7 @@ function bersaglioArmonico(cellBytes) {
   return i < 0 ? null : { index: i, valore: f32(inner[i].bytes) ?? 0 };
 }
 /** Ritorna true (eiene) se TUTTE le target uniche necessarie sono ottenibili. */
-function armonizza(cellsUniche, target) {
+function armonizza(cellsUniche, _target) {
   return cellsUniche.every((b) => bersaglioArmonico(b) !== null);
 }
 /** Clone della cella di posizione i%len: stesso vettura, stesso preset, stesso
@@ -485,3 +485,4 @@ export function buildGridMessage(opts) {
   };
   return { buffer: encodeMsg(fields), report };
 }
+

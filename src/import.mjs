@@ -163,7 +163,7 @@ export function resetImportRegistry() {
 /* l'import vero (unica logica)                                        */
 /* ------------------------------------------------------------------ */
 
-function duplicateResult(ladder, state, targetNode, before, { reason, source, round, file }) {
+function duplicateResult(_ladder, state, targetNode, before, { reason, source, round, file }) {
   appendLog({
     at: new Date().toISOString(), outcome: 'ignored', reason, file: file ?? null,
     node: targetNode.display, season: state.season, round: round ?? null,
@@ -405,7 +405,7 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
   // vita fuori pista: verdetto sfida, duello di stagione, sigilli
   let challengeOut = null, duelOut = null, newSigils = [];
   try {
-    challengeOut = settleChallenge(ladder, state, { ...entry, nodeId: targetNode.nodeId }, { pushMessage: (s, t, k) => pushMessage(state, t, k), recordFlows });
+    challengeOut = settleChallenge(ladder, state, { ...entry, nodeId: targetNode.nodeId }, { pushMessage: (_s, t, k) => pushMessage(state, t, k), recordFlows });
   } catch { /* mai bloccare l'import */ }
   try {
     const eff = postRaceEffects(ladder, state, targetNode);
@@ -516,3 +516,4 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
     vendetta,
   };
 }
+

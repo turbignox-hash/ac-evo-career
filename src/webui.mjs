@@ -385,7 +385,7 @@ async function syncLiveReader() {
   return mode;
 }
 
-async function api(context0, req, res, action, body) {
+async function api(context0, _req, res, action, body) {
   const { ladder, paths } = context0;
   const hasCareer = () => existsSync(SAVE_FILE);
   const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'paddock', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-prep', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'event-prize-refresh', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'import-inspect', 'tracks', 'backup', 'grid-apply', 'grid-drop', 'grid-ai', 'mechanic', 'maintenance'];
@@ -2678,7 +2678,7 @@ function watcherTick() {
       // "Donington Park" (gioco) e "donington_park" (ladder) devono combaciare:
       // si eguagliano spazi/underscore e si scarta l'evento quando il game mode
       // mostra la pista senza layout ("Donington Park GP"), non la pista attesa
-      const normTrack = (s) => norm(s).replace(/[_\-]+/g, ' ').replace(/\s+gp$/,'').replace(/\s+/g, ' ').trim();
+      const normTrack = (s) => norm(s).replace(/[_-]+/g, ' ').replace(/\s+gp$/,'').replace(/\s+/g, ' ').trim();
       const trackOk = g.track && expectedTrack && (
         normTrack(g.track).includes(normTrack(expectedTrack)) || normTrack(expectedTrack).includes(normTrack(g.track))
       );
@@ -3020,3 +3020,4 @@ setInterval(watcherTick, 4000);
 // parte dopo 2.5s di server aperto, quando il cruscotto è già dipinto.
 setTimeout(() => maintenanceTick({ force: true }), 2500).unref();
 setInterval(() => maintenanceTick(), 10 * 60 * 1000);
+

@@ -218,7 +218,7 @@ function legacyMessageEn(text) {
   if (m) return `Difficulty of ${m[1]} moved to trim ${m[2]} (${m[3]}): EVO band now ${m[4]}.`;
   m = k.match(/^Modalità test attiva: tutte le gare a (\d+) giri \((.+)\)\. Riattiva con: (.+)$/);
   if (m) return `Test mode active: all races at ${m[1]} laps (${m[2]}). Restore with: ${m[3]}`;
-  m = k.match(/^Difficoltà AI impostata su \"(.+)\"(?: \(valore (\d+)\))?\.$/);
+  m = k.match(/^Difficoltà AI impostata su "(.+)"(?: \(valore (\d+)\))?\.$/);
   if (m) return `AI difficulty set to "${m[1]}"${m[2] ? ` (value ${m[2]})` : ''}.`;
   m = k.match(/^(.+): sei stato invitato a un evento speciale\. Guarda il pannello Eventi nel Cruscotto\.$/);
   if (m) return `${m[1]}: you have been invited to a special event. Check the Events panel on the Dashboard.`;

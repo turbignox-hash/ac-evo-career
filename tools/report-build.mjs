@@ -90,6 +90,35 @@ if (conTest) {
   testRiga = `- Esito suite di test: ${ok ? `passati ✅ (${pass}/${tests} test)` : 'FALLITI ❌' + nota}\n`;
 }
 
+// ---- quality-gate Biome (richiesta 26/10) -------------------------------
+// Il report dice anche la diagnostica del linter lasciata in src/ + gui/:
+// «clean» di build significa anche qualità del codice zero, non solo test
+// verdi. Il conteggio viene da `check --reporter=json` (nessun numero
+// scritto a mano, stessa lezione dei test del 24/10).
+let rigaBiome = '';
+{
+  let tot = null, err = 0, warn = 0, notaFall = '';
+  try {
+    // di default `check` esce con exit code != 0 SE c'è diagnostica: si
+    // legge l'output JSON a prescindere dal codice di uscita
+    let out = '';
+    try {
+      out = execFileSync('cmd.exe', ['/c', 'npx', '--yes', '@biomejs/biome@2.3.12', 'check', '--reporter=json', 'src', 'gui'], { cwd: RADICE, encoding: 'utf8', timeout: 120000, stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (e) { out = String(e.stdout ?? '') + String(e.stderr ?? ''); }
+    const json = JSON.parse(out.slice(out.indexOf('{')));
+    tot = Array.isArray(json.diagnostics) ? json.diagnostics.length : 0;
+    for (const d of json.diagnostics) {
+      if (d.severity === 'error') err += 1;
+      else if (d.severity === 'warn' || d.severity === 'warning') warn += 1;
+    }
+  } catch (e) {
+    notaFall = `non leggibile qui (${((e.message ?? e) + '').split(String.fromCharCode(10))[0]}) — controllare a mano con npx @biomejs/biome@2.3.12 check src gui`;
+  }
+  rigaBiome = tot != null
+    ? `- Biome quality-gate (src + gui): ${tot ? tot + ` diagnos${tot === 1 ? 'tica' : 'tiche'} ❌ (${err} error, ${warn} warning)` : 'nessuna diagnostica ✅'}\n`
+    : `- Biome quality-gate (src + gui): ${notaFall}\n`;
+}
+
 const prima = daVersione ? `Aggiornamento da **${daVersione}**` : 'Primo report del meccanismo (storia recente inclusa)';
 
 const testo = [
@@ -104,6 +133,7 @@ const testo = [
     return `- ${msg} · ${h}`;
   })),
   '',
+  rigaBiome,
   testRiga,
   '## Come si aggiorna',
   '- **Dalla GUI:** la barra in alto dice "Aggiornamenti di progetto pronti su GitHub" → bottone **Aggiorna ora** (fetch + merge + test; il server si riavvia da solo).',

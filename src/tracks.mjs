@@ -242,7 +242,7 @@ const nameKey = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]
  *  su TUTTI i piloti — in quel caso decide il nome (come fa l'import).
  *  Ritorna { byTrack: {pista: {auto: record}}, byLayout: {pista: {layout: {name, best, mine}}} }. */
 let _sessCache = { sig: null, val: null };
-function sessionStatsFromResults(paths, ladder, driver = null) {
+function sessionStatsFromResults(paths, _ladder, driver = null) {
   let sig = 0;
   try { for (const f of listResultFiles(paths)) sig += f.mtime; } catch { sig = -1; }
   if (_sessCache.sig === sig) return _sessCache.val;
@@ -406,3 +406,4 @@ export function nextTrackOf(ladder, state) {
   if (!id) return null;
   return { id, display: ladder.contentNames?.tracks?.[id] ?? TRACK_INFO[id]?.name ?? id, round, laps: rnd?.laps ?? null, hour: rnd?.hour ?? null, weather: rnd?.weather ?? null };
 }
+

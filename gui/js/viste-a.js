@@ -179,7 +179,7 @@ function drawOnboarding(m){
 /* -------- cruscotto -------- */
 async function drawDashboard(m){
   const [st, card, sb] = await Promise.all([api('status'), api('card'), api('save-backup').catch(() => null)]);
-  const h = st.header, d = st.difficulty, node = h.node;
+  const h = st.header, node = h.node;
   const res = st.results;
   // AVVISO IN PAGINA PRINCIPALE (27/10, richiesta Mauro: «quando il backup
   // del save fallisce, fai comparire un avviso anche in pagina principale»):
@@ -359,7 +359,7 @@ async function drawEventsPanel(){
         html += `<div class="row"><button class="act" id="b-ev-acc">${tr({ it: "Accetto l'invito", en: 'I accept the invite' })}</button><button class="ghost" id="b-ev-dec">${tr({ it: 'Rifiuta', en: 'Decline' })}</button></div>`;
       } else {
         html += `<details open style="margin:6px 0"><summary style="cursor:pointer;font-size:12.5px"><b>${tr({ it: '📋 Scheda da impostare in EVO', en: '📋 Sheet to set up in EVO' })}</b> <span class="muted" style="font-size:11px">— ${tr({ it: 'spuntala come la gara di campionato', en: 'check it off like the championship race' })}</span></summary>
-          <table style="margin-top:6px"><tbody>${c.settings.map((s,i)=>`<tr><td style="width:130px" class="muted">${esc(s[0])}</td><td>${esc(s[1])}</td></tr>`).join('')}</tbody></table>
+          <table style="margin-top:6px"><tbody>${c.settings.map((s)=>`<tr><td style="width:130px" class="muted">${esc(s[0])}</td><td>${esc(s[1])}</td></tr>`).join('')}</tbody></table>
           <div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: "Difficoltà AI consigliata per la tua serie: → usa gli slider della scheda gara normale. Se ti serve, guarda il pannello Prossima gara.", en: "Recommended AI difficulty for your series: → use the sliders of the normal race sheet. If needed, see the Next race panel." })}</div>
         </details>
         <button class="act" id="b-ev-prep" style="width:100%;margin-top:8px">${tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' })}</button>

@@ -21,7 +21,7 @@ import { readFileSync } from 'node:fs';
 import { sameTrack, sameCar } from './tracknames.mjs';
 import { loadClasses } from './gridbuilder.mjs';
 
-const msOf = (s) => { if (!s) return null; const m = s.match(/(\d+):(\d+)[\.](\d+)/); return m ? +m[1] * 60000 + +m[2] * 1000 + +m[3] : null; };
+const msOf = (s) => { if (!s) return null; const m = s.match(/(\d+):(\d+)[.](\d+)/); return m ? +m[1] * 60000 + +m[2] * 1000 + +m[3] : null; };
 const median = (arr) => { if (!arr.length) return null; const s = [...arr].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
 const fmtLap = (v) => v == null ? '—' : `${Math.floor(v / 60000)}:${String(Math.floor((v % 60000) / 1000)).padStart(2, '0')}.${String(Math.floor(v % 1000)).padStart(3, '0')}`;
 
@@ -59,7 +59,7 @@ export function matchClasse(modelli, classesDoc) {
 
 /* ---------- stato di convalida ---------- */
 /** null = convalidata (silenzio); stringa = perché NON è convalidata su questa pista. */
-export function statoConvalida(classe, id, track) {
+export function statoConvalida(classe, _id, track) {
   const per = classe.perTraccia ?? {};
   const trkKey = Object.keys(per).find((k) => !k.startsWith('_') && sameTrack(k, track));
   if (trkKey) {
@@ -121,3 +121,4 @@ export function gridGuardProposal(file, opts = {}) {
 
   return { propose: true, classe: matched.id, track, motivo, spread, gaps, msg };
 }
+

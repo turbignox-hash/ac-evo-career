@@ -568,7 +568,7 @@ function cmdMessages(args) {
   return 0;
 }
 
-function printCard(ladder, state, card) {
+function printCard(_ladder, _state, card) {
   console.log(C.bold(`\n${card.node.display} — ${tr({ it: 'round', en: 'round' })} ${card.roundIndex + 1}/${card.totalRounds}: ${card.round.name}\n`));
   console.log(`  ${C.dim(tr({ it: 'Imposta questo nel gioco:', en: 'Set this in the game:' }))}`);
   for (const [label, value] of card.settings) {
@@ -959,7 +959,7 @@ function cmdReview(args) {
   const r = seasonReview(ladder, state, { season: wanted });
   console.log('\n' + r.text.split('\n').map((l) => l
     .replace(/^#{1,2} /, () => C.bold(''))
-    .replace(/\*\*(.+?)\*\*/g, (m, s1) => C.cyan(s1)))
+    .replace(/\*\*(.+?)\*\*/g, (_m, s1) => C.cyan(s1)))
     .join('\n') + '\n');
   if (args.flags.export) {
     const file = exportReview(r);
@@ -1477,3 +1477,4 @@ export async function main(argv) {
 }
 
 export { SAVE_FILE, ARCHIVE_DIR, C, money, writeConfig };
+

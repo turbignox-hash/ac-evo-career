@@ -149,7 +149,7 @@ function countPlayerStreak(history) {
  * Quanti piloti "reclutare" per nodo. Le serie basse pescano i piloti meno forti del parco,
  * quelle alte i piu' forti: al livello 1 si corre contro i rookie, all'apice contro gli alieni.
  */
-function poolWindow(world, ladder, node, season) {
+function poolWindow(world, _ladder, node, season) {
   const active = world.drivers.filter((d) => d.active).sort((a, b) => b.skill - a.skill);
   const level = clamp(node.level, 1, 7);
   const windowSize = (node.gridSize - 1) * 3;
@@ -374,3 +374,4 @@ export function paddock(world, ladder, node, season) {
 }
 
 export { clamp };
+

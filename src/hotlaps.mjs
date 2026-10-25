@@ -15,14 +15,13 @@
 
 import { readFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { writeJsonAtomic } from './atomic.mjs';
 import { listResultFiles, readSessionResult, isRaceSession, findPlayerDriver, classify, sectorAnalysis } from './results.mjs';
 import { slotDataDir } from './state.mjs';
 import { matchTrackName, sameCar } from './tracknames.mjs';
 import { TRACK_INFO } from './tracks.mjs';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
+
 // nido per-slot (24/10): le hotlap vivono con la SUA carriera
 // (slot 1 = data/ com'è sempre stato, slot 2-3 = data/slot-N/ vergini)
 export const HOTLAPS_FILE = join(slotDataDir(), 'hotlaps.json');

@@ -96,7 +96,7 @@ async function drawMessages(m){
   const chips = kinds.map((k)=>`<button class="mini ${mailFilter===k?'acc':''}" data-mf="${k}">${k==='tutte'?tr({ it: 'tutte', en: 'all' }):(KIND_META[k]?KIND_META[k][1]+' '+(window.LINGUA==='en'?{Racing:'Racing',Sponsor:'Sponsor',Contratti:'Contracts',Carriera:'Career'}[k]??k:k):k)}</button>`).join('');
   const mails = mb.mails.filter((x) => mailFilter==='tutte' || x.kind===mailFilter);
   const mailCard = (mm) => {
-    const [cls, ico, desc] = KIND_META[mm.kind] ?? ['', '✉️', ''];
+    const [cls, ico] = KIND_META[mm.kind] ?? ['', '✉️'];
     // AZIONI DIRETTE in posta: guidate dai metadati `action` della mailbox
     // (una email = una decisione, e la decisione ha il suo bottone qui).
     let actions = '';
@@ -123,7 +123,7 @@ async function drawMessages(m){
       <pre class="mcorpo">${esc(mm.corpo)}</pre>
       ${actions ? `<div class="row" style="gap:6px;margin-top:8px">${actions}</div>` : ''}
       ${mm.action?.rivals?.length ? `<div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${mm.action.rivals.map(r=>`<span class="chip gold" data-rival="${esc(r.key??'')}" style="cursor:pointer" title="${tr({ it: 'apri la scheda pilota', en: 'open the driver card' })}">${esc(r.name)}</span>`).join('')}</div>` : ''}
-      ${mm.action?.rows?.length ? `<div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${mm.action.rows.map((rr,i)=>`<span class="chip" data-row-node="${esc(rr.nodeId??'')}" data-row-track="${esc(rr.trackKey??'')}" style="cursor:pointer" title="${tr({ it: 'serie → scheda gara · pista → scheda pista', en: 'series → race card · track → track card' })}">${esc(rr.label)}</span> <span class="chip gold" data-track-open="${esc(rr.trackKey??'')}" data-track-name="${esc(rr.track)}" style="cursor:pointer;font-size:10px;padding:1px 6px" title="${tr({ it: 'apri la scheda pista', en: 'open the track card' })}">📍</span>`).join('')}</div>` : ''}
+      ${mm.action?.rows?.length ? `<div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${mm.action.rows.map((rr)=>`<span class="chip" data-row-node="${esc(rr.nodeId??'')}" data-row-track="${esc(rr.trackKey??'')}" style="cursor:pointer" title="${tr({ it: 'serie → scheda gara · pista → scheda pista', en: 'series → race card · track → track card' })}">${esc(rr.label)}</span> <span class="chip gold" data-track-open="${esc(rr.trackKey??'')}" data-track-name="${esc(rr.track)}" style="cursor:pointer;font-size:10px;padding:1px 6px" title="${tr({ it: 'apri la scheda pista', en: 'open the track card' })}">📍</span>`).join('')}</div>` : ''}
     </div>`;
   };
   m.innerHTML = `
@@ -188,9 +188,7 @@ async function drawMessages(m){
     const nome = c.dataset.trackName;
     tab = 'tracks'; drawNav(); render().then?.(() => {});
     setTimeout(() => {
-      const row = $('#main table tr')?.parentElement; // best-effort: la vista è pronta
       $$('.b-hist').forEach(btn => { if (btn.dataset.hist && esc(nome).toLowerCase().includes(btn.dataset.hist.replace(/_/g,' ')) ) btn.click(); });
-      toast(tr({ it: 'Libro piste: storia della pista in fondo pagina (se presente).', en: 'Track book: track history at the bottom of the page (if present).' }), 'info');
     }, 350);
   }; });
   // azioni rapide: sessioni decisionali veloci senza cercare i pannelli
@@ -250,7 +248,6 @@ async function pathPicker(pick, onOk){
     if (wantFile) {
       // dentro a una cartella: se l'exe cercato è qui, offri la selezione del file
       if (d.kind === 'dir' && !d.path.endsWith('\\')) {
-        const guess = d.path + '\\' + fileWanted;
         // il server valuta l'esistenza in setup-save: proviamo il check con una fetch leggera su browse? No: tentiamo directamente il submit
         html += `<button class="act" id="pk-file" style="margin:8px;width:calc(100% - 16px)">📄 Usa ${esc(basename(fileWanted))} da questa cartella</button>`;
       }
@@ -464,7 +461,7 @@ function drawSettings(m){
       modal(domTitle, domText,
         [[tr({ it: 'Annulla', en: 'Cancel' }), 'ghost', () => {}],
          [tr({ it: 'Confermo', en: 'Confirm' }), 'danger', async () => {
-           try { const r = await api('maintenance', { op, confirm: true });
+           try { await api('maintenance', { op, confirm: true });
              toast(tr({ it: 'Fatto. La traccia resta in bacheca.', en: 'Done. A trace is left on the board.' }), 'ok');
              await refreshBoot(); render();
            } catch (err) { toast(err.message, 'err'); }

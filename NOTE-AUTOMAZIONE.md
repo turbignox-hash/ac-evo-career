@@ -1,3 +1,25 @@
+## DEBITI BIOME AZZERATI: gui/ + src/ senza più warnings (27/10) — FATTO E TESTATO
+
+- Carta «Triage codice morto»: nelle pagine gui/js (script classici del
+  browser) Biome non vede gli usi fra file (core.js smista le tab alle
+  draw* via globali), quindi segnala ~30 «unused» tutti falsi positivi:
+  verificati a mano uno per uno (flagOf/CFLAG/LI/modal/refreshBoot/
+  drawAggStatus citati dalle viste; draw* chiamate dallo switch di core.js).
+  CODICE MORTO VERO rimosso: `enterFlow` (viste-b, sostituito da
+  signOffer/accept), `dayNum` (calcolo vuoto), `row`/`guess`/`desc`/`r`
+  inutili (viste-b/d), `window.__lastPsi = null` con bind inutile, tre
+  parametri arrow mai usati e l'alias `d = st.difficulty` (viste-a).
+- src/: 36 parametri inutilizzati rinominati `_nome` (convenzione Biome,
+  le regole ignorano il trattino basso) via patch basata su riga/colonna
+  del lint; rimossi `HERE` e gli import morti di `fileURLToPath` in
+  hotlaps/rivals/testday — ma `dirname` era usato in fondo ai file: il
+  test ha urlato «dirname is not defined» e l'import è tornato. Lezione:
+  grep degli usi PRIMA di cancellare.
+- biome.jsonc: override `gui/js/**` che spenge solo noUnusedVariables e
+  noUnusedFunctionParameters (con il perché nel commento); in src/ resto
+  tutto attivo. Prova finale: `npx @biomejs/biome check src gui`
+  → 0 diagnosi; `node --test` → 203/203 pass.
+
 ## GIRONI LIBERI — il quaderno delle hotlap: scegli pista e auto e gira, il resto da solo (24/10, notte) — FATTO E TESTATO
 
 - Domanda Mauro: «e se l'utente volesse semplicemente girare per realizzare

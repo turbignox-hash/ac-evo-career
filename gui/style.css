@@ -259,6 +259,7 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 
 .spin{display:inline-block; width:14px; height:14px; border:2px solid var(--dim); border-top-color:var(--acc); border-radius:50%; animation:sp 1s linear infinite; vertical-align:-2px}
 @keyframes sp{to{transform:rotate(360deg)}}
+/* biome-ignore lint/complexity/noImportantStyles: nascondere deve sopravvivere anche agli stili inline dei pannelli */
 .hidden{display:none !important}
 .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
 .spread{justify-content:space-between}

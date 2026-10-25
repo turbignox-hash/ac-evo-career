@@ -124,7 +124,7 @@ async function drawCars(m){
     const onlyLadder = $('#cars-ladder').checked;
     const rows = b.rows.filter(r => (!cat || r.category===cat) && (!onlyLadder || r.ladderId) && (!q || r.name.toLowerCase().includes(q) || (r.ladderName??'').toLowerCase().includes(q)));
     const piBadge = (pi) => pi==null ? '' : `<span class="tag blue" style="font-size:10px;padding:1px 6px" title="${tr({ it: 'Perf. index dal server dedicato', en: 'Perf. index from the dedicated server' })}">PI ${pi.toFixed(1)}</span>`;
-    $('#cars-grid').innerHTML = rows.map((r,i)=>{
+    $('#cars-grid').innerHTML = rows.map((r)=>{
       const eco = r.ladderId ? b.economy?.[r.ladderId] : null;
       const inGar = r.ladderId && b.inGarage?.includes(r.ladderId);
       const price = r.realPrice != null
@@ -660,7 +660,7 @@ async function drawSetup(m){
   }
   $('#f-psi').onsubmit = (ev) => {
     ev.preventDefault();
-    const r = window.__lastPsi = null;
+    window.__lastPsi = null;
     api('garage', { action: 'psi', cold: Number($('#i-cold').value), hot: Number($('#i-hot').value), target: Number($('#i-target').value) })
       .then(p => {
         $('#psi-result').innerHTML = p.ok
@@ -816,7 +816,7 @@ async function drawSetup(m){
       const m = await api('garage', { action: 'meccanico', car: window.__lcCar ?? null, track: trackPanel ?? null });
       if (!m.ok) { out.innerHTML = ''; return; }
       const tag = { aero: tr({ it: '🪶 aerodinamica', en: '🪶 aero' }), trasmissione: tr({ it: '⚙️ cambio', en: '⚙️ gearbox' }), assetto: tr({ it: '🧱 assetto/altezza', en: '🧱 setup/height' }), camber: tr({ it: '📐 camber', en: '📐 camber' }), freni: tr({ it: '🛑 freni', en: '🛑 brakes' }), pressioni: tr({ it: '🛞 pressioni', en: '🛞 pressures' }), telemetria: tr({ it: '📡 telemetria', en: '📡 telemetry' }), memoria: tr({ it: '🧠 memoria', en: '🧠 memory' }) };
-      const rows = (m.consigli ?? []).map((c, i) => `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><span style="flex:0 0 130px;font-size:11.5px;color:var(--dim)">${tag[c.vedi] ?? c.vedi}</span><span style="font-size:12.5px;line-height:1.5">${c.text}</span></div>`).join('');
+      const rows = (m.consigli ?? []).map((c) => `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><span style="flex:0 0 130px;font-size:11.5px;color:var(--dim)">${tag[c.vedi] ?? c.vedi}</span><span style="font-size:12.5px;line-height:1.5">${c.text}</span></div>`).join('');
       /* STORIA DELL'ALLIEVO: i round di consigli chiusi con l'esito (delta del
          giro migliore) e il setup migliore — Mauro 21/10 voleva vederla subito. */
       let storiaHtml = '';
