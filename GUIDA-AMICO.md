@@ -123,6 +123,39 @@ node ac-evo-career.mjs content --list       # tutto il contenuto visto nell'inst
 Se manca del contenuto che possiedi, l'installazione va ritoccata prima di
 giocare: la validazione dice esattamente cosa.
 
+## 3-bis. La danza del primo avvio, in ordine (la sequenza da rifare a ogni nuovo PC)
+
+Questa è la sequenza COMPLETA, nell'ordine giusto — identica su ogni PC
+nuovo, così «Prepara tutto» parte al primo colpo. Quattro gesti in EVO,
+due schermate nella GUI:
+
+1. **installa.cmd** → **avvia.cmd** → wizard: cerca da solo le cartelle di
+   EVO, il gioco in Steam e crea la carriera (nome + nazione).
+2. **In EVO, una volta sola: la schermata del WEEKEND.** Entra in EVO →
+   Carriera → round attuale → **arriva alla schermata del WEEKEND**
+   (niente da giocare, basta che la schermata appaia) e torna indietro al
+   menu di EVO. Serve perché il tool scrive ora, giri e meteo DENTRO il file
+   del weekend, e su un PC vergine EVO non l'ha ancora creato: questa
+   schermata lo genera.
+3. **GUI → Prepara tutto e divertiti** (bottone giallo): ora, giri, meteo e
+   griglia finiscono nel file da soli. Se appare il messaggio rosso «EVO non
+   ha ancora un career weekend», significa che il passo 2 non è fatto: entra
+   una volta nel weekend del round e ri-premi il bottone.
+4. **Dentro il weekend di EVO si sceglie l'auto con il mouse** (l'unico
+   gesto che il tool non può fare da fuori): la scheda gara dice qual'è.
+   È VOLUTO: alla prima gara l'app IMPARA la tua auto dal garage, e nelle
+   gare dopo la seleziona da sola.
+5. **In pista!** Al traguardo il watcher importa il risultato da solo:
+   soldi, rep, punti e copilota fanno il resto. Dalla seconda gara in poi:
+   SOLO il bottone giallo, l'auto si sceglie da sola, zero gesti manuali.
+
+⚠️ **La prima gara MULTICLASSE aggiunge un gesto, UNA SOLA volta:** nel menu
+Race Weekend sposta **Grid Type da AUTOMATIC a CUSTOM** e premi **Applica**,
+poi NON TOCCARE PIÙ il selettore. A installazione nuova EVO nasce AUTOMATIC e
+il tool non ne può cambiare il valore da fuori: se manca il gesto, il
+messaggio rosso lo spiega passo-passo al momento giusto. Dalla gara dopo il
+bottone giallo riscrive griglia, zavorre e penalità in automatico.
+
 ## 4. Crea la tua carriera
 
 Dalla voce **3** del menu `avvia.cmd`, o direttamente nel browser (schermata
