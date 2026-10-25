@@ -188,6 +188,11 @@ export function applyAi([min, max], { file = GRID_FILE, force = false, dry = fal
   return { ai: [min, max], written: true, backup };
 }
 
+// MEMORIA DEL LOG (26/10): per ogni nodo tengo l'ultima coppia «prima→dopo»
+// mostrata in console — l'allineamento viene ricalcolato a ogni chiamata,
+// la riga identica non la ripeto (vedi GATE EXTRA in rebuildGridApply).
+const _ultimoAllineamento = new Map();
+
 /** Rimuove le auto (preset o nome) dal file. opts: { file, force, dry }. */
 export function dropCellsApply(matchers, { file = GRID_FILE, force = false, dry = false } = {}) {
   const res = dropCells(readFileSync(file), matchers.map((v) => String(v).startsWith('preset_') ? { preset: v } : { carName: v }));
@@ -230,13 +235,29 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
   try {
     const nativo = weekendCarCount();
     const round = (ladder.nodes ?? []).find((n) => n.nodeId === nodeId)?.calendar?.[roundIndex];
-    if (nativo && round && nativo.track && sameTrack(nativo.track, round.track)) {
+    // GATE EXTRA (26/10, report Mauro: il fiume «[griglia] conteggio allineato
+    // 12 → 0» in console): 0 vetture native NON È un conteggio credibile — è
+    // la lettura che non ha capito il gamemodesave (pista di prova, EVO chiuso,
+    // file colto a metà scrittura). Allineare la griglia a 0 vetture vorrebbe
+    // dire usarne una VUOTA, giustamente vietato dal commento del gate sopra:
+    // senza un numero sopra lo zero lascio la griglia del save CHIUSO ai livelli
+    // della scala, e il conto resta l'allineamento di quando si capisce davvero.
+    const contabile = Number.isFinite(nativo?.cars) && nativo.cars > 0;
+    if (nativo && round && contabile && nativo.track && sameTrack(nativo.track, round.track)) {
       const node0 = (ladder.nodes ?? []).find((n) => n.nodeId === nodeId);
       if (node0 && node0.gridSize !== nativo.cars) {
         const prima = node0.gridSize;
         ladderUsa = { ...ladder, nodes: ladder.nodes.map((n) => (n === node0 ? { ...n, gridSize: nativo.cars } : n)) };
         bridge = { from: prima, to: nativo.cars };
-        console.log(`[griglia] conteggio allineato al gamemodesave: gridSize ${prima} → ${nativo.cars} («${nodeId}», ${nativo.cars} vetture native)`);
+        // DEDUPLICAZIONE LOG (stesso momento del fiume): l'allineamento è in
+        // MEMORIA per chiamata, quindi il log identico si ripeteva a ogni
+        // ricostruzione. Lo stampo solo quando cambia davvero la coppia
+        // (nodo: prima → dopo) rispetto all'ultimo messaggio emesso.
+        const chiaveLog = `${nodeId}:${prima}→${nativo.cars}`;
+        if (_ultimoAllineamento.get(nodeId) !== chiaveLog) {
+          _ultimoAllineamento.set(nodeId, chiaveLog);
+          console.log(`[griglia] conteggio allineato al gamemodesave: gridSize ${prima} → ${nativo.cars} («${nodeId}», ${nativo.cars} vetture native)`);
+        }
       }
     }
   } catch { /* il conteggio non è mai un blocco: se non si legge, si va come prima */ }

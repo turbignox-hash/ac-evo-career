@@ -2903,6 +2903,14 @@ const norm = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
 // isGameRunning/launch) può sovrascrivere con il suo state vecchio un import
 // appena finito dal watcher — e la gara sparirebbe dal salvataggio.
 let _apiChain = Promise.resolve();
+// RICORDA-BUCHI ACQUA (26/10, report Mauro: «la finestra dos è un fiume»):
+// l'avviso come Jest di sblocco della fila è UTILE UNA VOLTA — quando un'azione
+// diventa la nuova testa appesa, non ad ogni poll live della GUI (che a colpa
+// del disco lento arriva lì da solo). Per la STESSA azione ripeto il messaggio
+// solo dopo 5 minuti di silenzio in console: lo sblocco della fila LA FA
+// puntuto, non si smette di farlo funzionare.
+const _codaUltimoAvviso = new Map(); // label → Date.now() del log mostrato
+
 function serialize(task, label = 'azione') {
   const run = _apiChain.then(task, task);
   // GUARDIANO DELLA CODA (24/10, bug slot 3): la fila si sblocca da sola anche
@@ -2913,7 +2921,12 @@ function serialize(task, label = 'azione') {
   _apiChain = Promise.race([
     run.catch(() => {}),
     sleep(API_TASK_TIMEOUT_MS).then(() => {
-      console.log(`[coda] «${label}» ferma da ${Math.round(API_TASK_TIMEOUT_MS / 1000)}s: sblocco la fila (l'azione continua in sottofondo).`);
+      const VEDI_OGNI = 5 * 60 * 1000; // 5 min per ETICHETTA: niente fiume in console
+      const scaduto = Date.now() - (_codaUltimoAvviso.get(label) ?? 0) >= VEDI_OGNI;
+      if (scaduto) {
+        _codaUltimoAvviso.set(label, Date.now());
+        console.log(`[coda] «${label}» ferma da ${Math.round(API_TASK_TIMEOUT_MS / 1000)}s: sblocco la fila (l'azione continua in sottofondo).`);
+      }
       return null;
     }),
   ]).then(() => {}, () => {});
