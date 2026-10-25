@@ -313,12 +313,20 @@ async function readBody(req) {
 }
 
 /* memo del controllo "il gioco è vivo?": tasklist costa ~200ms, il polling
-   LIVE gira a ~1.2s — nella cache 10s il costo diventa trascurabile */
-let _grAt = 0, _grVal = false;
+   LIVE gira a ~1.2s — nella cache 10s il costo diventa trascurabile.
+   26/10 (PC 2): tasklist può assisterarsi (WMI lento, antivirus) e ogni
+   sondaggio appeso finisce IN CODA seria del server: se un sondaggio costa
+   più di 3s la finestra cresce a 30s — meno tasklist, fila più libera. */
+let _grAt = 0, _grVal = false, _grMs = 0;
+// sessione telemetrica dell'ingegnere LIVE: memo 30s per auto (vedi case 'ingegnere')
+let _engSess = null, _engSessAt = 0;
 async function gameRunningMemo() {
-  if (Date.now() - _grAt < 10000) return _grVal;
-  _grAt = Date.now();
-  return (_grVal = await isGameRunning());
+  const finestra = _grMs > 3000 ? 30000 : 10000;
+  if (Date.now() - _grAt < finestra) return _grVal;
+  const t0 = Date.now(); _grAt = t0;
+  _grVal = await isGameRunning();
+  _grMs = Date.now() - t0;
+  return _grVal;
 }
 
 /* ---------- LIVE: modalità del lettore shared memory (richiesta Mauro 21/10) ----------
@@ -702,7 +710,15 @@ async function api(context0, _req, res, action, body) {
         try {
           const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
           const resultsDir = paths.resultsDirs?.[0] ?? join(root, '..', 'Results');
-          const sess = collectSessions(root, resultsDir, { car: snap.player.car, limit: 1, afterMs: state.createdAt ?? 0 })[0] ?? null;
+          // MEMO 30s per auto (26/10, PC 2): l'albero MoTec su un disco lento
+          // valgono decine di secondi per richiesta, e l'ingegnere parte ogni
+          // ~2s dal cruscotto: una scansione appesa TRATTENE l'intera fila
+          // delle API (è il circuito del flood «[coda] ferma da 20s»).
+          if (!(_engSess?.car === snap.player.car && Date.now() - _engSessAt < 30000)) {
+            const sess = collectSessions(root, resultsDir, { car: snap.player.car, limit: 1, afterMs: state.createdAt ?? 0 })[0] ?? null;
+            _engSess = sess; _engSessAt = Date.now();
+          }
+          const sess = _engSess;
           if (sess && Number.isFinite(sess.fuelPerLap) && sess.fuelPerLap > 0) { fuelPerLap = sess.fuelPerLap; telemTrack = sess.track ?? null; }
         } catch { /* senza telemetria si stima dal HUD del gioco */ }
       }
@@ -1579,6 +1595,17 @@ async function api(context0, _req, res, action, body) {
           if (card.trackName) {
             const t = changeWeekendTrack(card.trackName);
             prep.track = card.trackName; prep.trackWritten = t.written;
+            // 26/10 — changed===0 NON è un fallimento: il file può essere GIÀ
+            // sulla pista della ronda (secondo tap del bottone). Lo diciamo:
+            // senza questo il cruscotto resta muto e l'amico crede che l'app
+            // non abbia fatto nulla (vale la lezione del PC 2 con Mount
+            // Panorama: la scrittura c'era, il messaggio no).
+            if (!t.written) {
+              try {
+                const cur = currentWeekendTrack();
+                if (cur && String(cur).toLowerCase().includes(String(card.trackName).toLowerCase())) prep.trackSame = true;
+              } catch { /* file illeggibile: resta il verdetto neutro */ }
+            }
           } else prep.track = currentWeekendTrack();
         } catch (e) { prep.trackError = e.message; }
         try {

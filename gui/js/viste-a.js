@@ -975,16 +975,24 @@ function drawCardInto(el, card){
 const launchErr = r.launched?.error ? ` (${String(r.launched.error).split('\n')[0]})` : '';
 const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella finestra esistente.', en: 'EVO is already open: set the race in the existing window.' }) : (r.launched && !r.launched.error ? tr({ it: 'Gioco avviato.', en: 'Game launched.' }) : tr({ it: `Gioco non avviato: aprilo tu.${launchErr}`, en: `Game not launched: open it yourself.${launchErr}` }));
       const gridMsg = r.prep?.grid?.rebuild ? ` ${r.prep.grid.rebuild.startsWith('non riuscita') ? '⚠' : '═'} Griglia serie: ${r.prep.grid.rebuild}.` : '';
-      // ora e giri della ronda scritti nel gamemodesave (stessa automazione
-      // dell'evento): un segmento a segmento, con ⚠ quando va messa a mano
+      // ora, giri, PISTA e AUTO della ronda scritti nel gamemodesave/garage:
+      // ogni segmento a segmento, con ⚠ quando va messo a mano (26/10, PC 2:
+      // il bottone parlaceva solo di ora/giri — la pista restava Mount
+      // Panorama e il cruscotto non diceva se «Prepara» l'avesse toccata)
       const p = r.prep ?? {};
       const segs = [];
+      if (p.trackError) segs.push(`⚠ ${tr({ it: 'pista da impostare a mano', en: 'track to set by hand' })}`);
+      else if (p.trackWritten) segs.push(tr({ it: `pista ${p.track} scritta: rientra nel weekend dal menu di EVO`, en: `track ${p.track} written: re-enter the weekend from EVO's menu` }));
+      else if (p.trackSame) segs.push(tr({ it: `pista già ${p.track}: nulla da scrivere`, en: `track already ${p.track}: nothing to write` }));
+      else if (p.track) segs.push(`⚠ ${tr({ it: `pista NON aggiornata (${p.track}): apri il weekend in EVO dal menu e ripremi Prepara`, en: `track NOT updated (${p.track}): open the weekend from EVO's menu and press Get ready again` })}`);
+      if (p.carError) segs.push(`⚠ ${tr({ it: 'auto da selezionare a mano in EVO', en: 'car to pick by hand in EVO' })}`);
+      else if (p.carWritten) segs.push(tr({ it: `auto ${p.car} pronta al prossimo avvio di EVO`, en: `car ${p.car} ready at EVO's next launch` }));
       if (p.hourError) segs.push(`⚠ ${tr({ it: 'ora da impostare a mano in EVO', en: 'hour to set by hand in EVO' })}`);
       else if (p.hour != null) segs.push(`${tr({ it: 'ora', en: 'hour' })} ${p.hour}`);
       if (p.lapsError) segs.push(`⚠ ${tr({ it: 'giri da impostare a mano in EVO', en: 'laps to set by hand in EVO' })}`);
       else if (p.laps != null) segs.push(p.laps);
       const prepMsg = segs.length ? ` ${segs.join(' · ')}.` : '';
-      const tipoToast = p.hourError || p.lapsError || (r.prep?.grid?.rebuild?.startsWith('non riuscita')) ? 'warn' : 'ok';
+      const tipoToast = p.trackError || p.carError || p.hourError || p.lapsError || (p.track && p.trackWritten === false && !p.trackSame) || (r.prep?.grid?.rebuild?.startsWith('non riuscita')) ? 'warn' : 'ok';
       toast(`${tr({ it: 'Gara segnata', en: 'Race marked' })}${r.fee?` · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(r.fee)} €`:''}. ${note}${gridMsg}${prepMsg}`, tipoToast);
       drawCardInto(el, r.card);
       await refreshBoot();
