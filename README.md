@@ -113,29 +113,47 @@ next race.
 
 ## What's new in the recent builds
 
-Released in the **0.1.3–0.1.4** line (every save through `sincronizza-git.cmd`
-bumps the build number shown in the side footer):
+Highlights of the **0.1.13–0.1.18** line (every save writes a readable
+changelog under [report/](report/), with the real test-suite result inside):
 
-- **The mechanic explains its areas.** Each setup recommendation now names the
-  chapter of GUIDA-AMICO it comes from (tyres, aerodynamics, suspension,
-  brakes…), so a beginner's tip and its explanation page are one click apart.
-  Covered by dedicated tests so future tracks/telemetry rules cannot regress.
-- **Legacy messages read natural English.** Paddock notes and grid calibration
-  notes written back when the career ran in Italian (`vinta in`, `sulla base…`)
-  are translated on display in the English interface — the save file is still
-  never modified, across dashboard, messages, grid and archive screens.
-- **FAQ for a friend's install.** GUIDA-AMICO gains an appendix with the five
-  most common issues (unread imports, missing telemetry source, grid tuning,
-  on-disk folder search, moved Steam library) in the same plain-words style.
+- **The voice copilot speaks your language — and makes sense.** It follows the
+  interface language (English UI → English voice), never repeats a phrase
+  within 12 s, only speaks when a *value* actually changes, and stays silent
+  for the first seconds after a session switch — stale data of the previous
+  session is what once made it announce "finishing lap 1" while leaving the
+  pits.
+- **Grids now build themselves for every series.** The "harmonic" variant
+  system (a unique livery per cell — EVO crashes on schedules with repeated
+  cells) applies to **every car** of a series, not a single chosen one. Series
+  templates land in the save's warehouse (`data/grid-templates/`), factory
+  templates fill the gaps, and a fresh PC needs no manual "N liveries + APPLY"
+  ritual anymore. Progress of the learned balance on the **Grid** tab.
+- **Free laps — the test-day mode.** In EVO pick PRACTICE, any track, any car
+  and just drive: every session the game writes lands in the hotlap book by
+  itself, with the PB book per car × track, sector deltas against your best
+  ever, the ideal lap built from best-ever sectors and telemetry analysis.
+  The career is never touched.
+- **One-file install for a friend.** `installa.cmd` (a single file, a few KB)
+  installs everything on a Windows PC — portable Node downloaded if missing,
+  code from GitHub, `build-id.txt` written, tests run, desktop shortcut with
+  the program icon and the first-launch wizard. `disinstalla.cmd` undoes it
+  cleanly and refuses folders that don't look like an installation. Both are
+  covered by sandbox tests.
+- **Old closing messages stay readable.** Paddock and grid-calibration notes
+  written back when the career ran in Italian are translated on display in
+  the English interface — the save file is still never modified.
 
 ## Installation
 
-For a friend's install on another PC (clone from the repo, first setup, updates
-from the launcher, typical issues) there is a dedicated guide:
-[GUIDA-AMICO.md](GUIDA-AMICO.md).
+For a friend's install on another PC (first setup, updates from the launcher,
+typical issues) there is a dedicated guide: [GUIDA-AMICO.md](GUIDA-AMICO.md).
 
-Only **Node.js 18+** is needed. No dependencies to install. Assetto Corsa EVO
-installed and started at least once (so its data folders exist).
+Worth reading even for the shortest path: **copy `installa.cmd` to the other
+PC and double-click it** — portable Node (if missing), code, desktop shortcut
+and first-launch wizard are all handled, and `disinstalla.cmd` undoes the
+whole thing later. For the way via clone or ZIP-from-GitHub, **Node.js 18+** is
+the only prerequisite. Either way: Assetto Corsa EVO installed and started
+at least once (so its data folders exist).
 
 ```bash
 node ac-evo-career.mjs setup
@@ -473,5 +491,3 @@ Private work: **© 2026 Mauro Turbigno — all rights reserved** (full text in
 [LICENSE.md](LICENSE.md)). No redistribution, publication or reuse in other
 products without written permission; the official car and track images
 (`gui/carmaps/`, `gui/trackmaps/`) remain KUNOS's and are not redistributable.
-Prova della barra aggiornamenti: arrivato da GitHub, 24/10 sera.
-Prova auto-restart: collaudo del rientro automatico del launcher.

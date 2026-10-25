@@ -20,7 +20,9 @@ Pubblicare è una sequenza di decisioni, non un'azione: l'ordine conta.
 
 - [ ] Igiene: niente nomi personali o percorsi reali (grep su C:\Users, Mauro).
 - [ ] Primo avvio su PC vergine senza aiuti: setup trova EVO e apre la GUI.
-- [ ] npm test 93/93 dentro la cartella estratta.
+- [ ] npm test passato per intero dentro la cartella estratta
+      (203 test nelle build di fine ottobre 2026 — il numero cresce a ogni
+      build: conta dal run vero, non dal ricordo).
 - [ ] Canale di segnalazione sul repository.
 
 ## Fase 4 — Lingua inglese (solo per il modello (b), per ultime)

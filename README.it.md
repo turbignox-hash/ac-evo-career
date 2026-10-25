@@ -106,23 +106,38 @@ e il **Download ZIP dal sito** — entrambi si auto-regolano al primo avvio.)
 
 ## Novità delle build recenti
 
-Fatto nella fascia **0.1.3–0.1.4** (ogni salvataggio via `sincronizza-git.cmd`
-fa salire il numero di build mostrato nel piè della barra laterale):
+Salienti della fascia **0.1.13–0.1.18** — ogni salvataggio scrive anche la sua
+scheda leggibile in [report/](report/), con dentro l'esito vero della suite di
+test:
 
-- **Il meccanico spiega le sue aree.** Ogni consiglio di setup ora cita il
-  capitolo di GUIDA-AMICO da cui nasce (gomme, aerodinamica, sospensioni,
-  freni…): il consiglio per principianti e la pagina che lo spiega sono a un
-  click di distanza. Coperti da test dedicati, perché le regole future
-  (piste/telemetria) non possano regredire.
-- **I messaggi storici leggono in inglese naturale.** Le note del paddock e di
-  calibrazione griglia scritte quando la carriera era in italiano («vinta in»,
-  «sulla base…») si traducono in visualizzazione nell'interfaccia inglese — il
-  save non viene comunque mai toccato, su cruscotto, messaggi, griglia e
-  archivio.
-- **FAQ per l'installazione della GUIDA-AMICO.** Nuova appendice con i cinque
-  problemi più frequenti (import non letto, fonte di telemetria mancante,
-  messa a punto griglia, ricerca cartelle su disco, libreria Steam spostata)
-  nello stesso stile a parole povere della guida.
+- **Il copilota parla la tua lingua — e ha senso.** Segue la lingua
+dell'interfaccia (UI inglese → voce inglese), non ripete mai la stessa frase
+entro 12 s, parla solo quando il *valore* cambia davvero, e resta muta i primi
+secondi dopo un cambio di sessione: i dati stanti della sessione prima sono
+quelli che una volta gli facevano dire «sto finendo il giro 1» mentre eri
+ancora in uscita dai box.
+- **Le griglie si costruiscono da sole per tutte le serie.** Il sistema
+  «armonico» delle varianti (una livrea diversa per ogni cella — EVO crasha
+  con gli schemi con celle ripetute) vale per **tutte le auto** della serie,
+  non per una scelta a mano. I template di serie finiscono nel magazzino del
+  save (`data/grid-templates/`), quelli di fabbrica coprono i buchi, e su un
+  PC vergine non serve più il rituale manuale «N livree + APPLICA». Il
+  progresso del bilanciamento si segue nella tab **Griglia**.
+- **Giri liberi — la modalità della giornata di prove.** In EVO scegli
+  PRATICA, pista e auto qualunque e giri: ogni sessione che il gioco scrive
+  si registra da sola nel quaderno, con il libro PB per auto × pista, i delta
+  per settore contro i tuoi migliori di sempre, il giro ideale sommato dai
+  settori e l'analisi telemetrica. La carriera non si tocca.
+- **Installazione un-file per l'amico.** `installa.cmd` (un file solo, pochi
+  KB) installa tutto su un PC Windows — Node portatile scaricato se manca,
+  codice da GitHub,  `build-id.txt` scritto, test passati, scorciatoia sul
+  desktop con l'icona del programma e wizard di prima apertura.
+  `disinstalla.cmd` rimuove tutto in pulizia e rifiuta le cartelle che non
+  somigliano a un'installazione. Entrambi coperti da test in sandbox.
+- **I vecchi messaggi si leggono comunque.** Le note di paddock e di
+  calibrazione griglia scritte quando la carriera era in italiano si
+  traducono in visualizzazione nell'interfaccia inglese — il save non viene
+  comunque mai toccato.
 
 ## Installazione
 

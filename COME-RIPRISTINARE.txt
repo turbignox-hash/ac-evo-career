@@ -23,7 +23,8 @@ anche senza OneDrive e senza accesso alla repo GitHub.
        git log --oneline -5
        npm test
 
-   Se i 93 test passano, il ripristino e' riuscito.
+   Se la suite passa integra (203 test nelle build di fine ottobre 2026:
+   il numero cresce a ogni build), il ripristino e' riuscito.
 
 3. Avvia il gioco/career come al solito:
 
@@ -33,7 +34,7 @@ anche senza OneDrive e senza accesso alla repo GitHub.
 ## Comandi utili dopo il ripristino
 
     controlla-magazzino.cmd   stato del backup (vecchiaia + commit coperti)
-    npm test                  i 93 test del progetto
+    npm test                  la suite di test completa del progetto
     git log --oneline         la storia dei commit
 
 ## Note

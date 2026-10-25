@@ -52,7 +52,9 @@ di Carriera EVO (dentro manca `ac-evo-career.mjs`) non si tocca di suo gusto.
 
 ## 2. Vie di sviluppatore (clone e zip)
 
-Per chi lavora sul progetto, non per l'amico.```bash
+Per chi lavora sul progetto, non per l'amico.
+
+```bash
 git clone https://github.com/turbignox-hash/ac-evo-career.git
 cd ac-evo-career
 git remote rename origin offsite     # così il controllo aggiornamenti guarda il repo giusto
