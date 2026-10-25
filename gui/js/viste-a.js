@@ -178,9 +178,18 @@ function drawOnboarding(m){
 
 /* -------- cruscotto -------- */
 async function drawDashboard(m){
-  const [st, card] = await Promise.all([api('status'), api('card')]);
+  const [st, card, sb] = await Promise.all([api('status'), api('card'), api('save-backup').catch(() => null)]);
   const h = st.header, d = st.difficulty, node = h.node;
   const res = st.results;
+  // AVVISO IN PAGINA PRINCIPALE (27/10, richiesta Mauro: «quando il backup
+  // del save fallisce, fai comparire un avviso anche in pagina principale»):
+  // parla SOLO quando c'è un problema vero — stay zitto col PC vergine senza
+  // EVO (saveDirFound=false lo gestisce il wizard dell'installazione).
+  const sbBanner = sb?.saveDirFound && !sb.zips?.length
+    ? `<div class="banner warn" style="margin-bottom:10px">🛟 ${tr({ it: '<b>Il backup del save di EVO non è mai partito:</b> il launcher lo crea al suo primo avvio, oppure forzalo in Sistema → Backup del save di EVO. Senza backup, un save corrotto cancellerebbe tutta la carriera.', en: '<b>The EVO save backup never ran:</b> the launcher creates it at its first start, or force it in System → EVO save backup. Without a backup, a corrupted save would erase the whole career.' })}</div>`
+    : sb?.saveDirFound && sb.zips?.length && !sb.fresh
+    ? `<div class="banner warn" style="margin-bottom:10px">🛟 ${tr({ it: '<b>Il backup del save di EVO è stantio</b> (ultimo ', en: '<b>The EVO save backup is stale</b> (last ' })}${sb.ageHours < 24 ? `${Math.round(sb.ageHours)} ${tr({ it: 'ore', en: 'hours' })}` : `${Math.round(sb.ageHours / 24)} ${tr({ it: 'giorni', en: 'days' })}`}${tr({ it: ' fa): riavvia il launcher per rifarlo, o forza subito in Sistema → Backup del save di EVO.', en: ' ago): restart the launcher to redo it, or force it now in System → EVO save backup.' })}</div>`
+    : '';
   const races = res.length;
   const wins = res.filter(r=>!r.dnf && r.position===1).length;
   const podiums = res.filter(r=>!r.dnf && r.position<=3).length;
@@ -194,6 +203,7 @@ async function drawDashboard(m){
   m.innerHTML = `
   <div class="grid2">
     <div>
+      ${sbBanner}
       <div class="panel hero">
         <svg class="flagart" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 2h1.6v20H4z"/><path d="M5.6 3h12.8l-3 4.5 3 4.5H5.6z"/></svg>
         <h2>${LI.flag} ${esc(node.display)} · ${tr({ it: 'stagione', en: 'season' })} ${h.season}</h2>
