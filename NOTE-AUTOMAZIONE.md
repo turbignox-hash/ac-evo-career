@@ -1329,13 +1329,41 @@ griglia 13 — NON la Monza della coppa) e il runImport l'ha usata come
 Round 2: il cruscotto saltava a Brands Hatch senza che la Monza 2 fosse
 corsa. RIPRISTINO dal backup automatico dell'import
 (data/slot-3/backups/...T14-49-20.auto.json): round 1, 6.322 ꜠.
-Il LEDGER resta com'è: il file sbagliato resta marcato incassato per
-hash, quindi l'«importa» manuale e il watcher NON lo ripiglieranno.
+Il LEDGER resta com'è: il file sbagliato resta marcato incassato  per hash, quindi l'«importa» manuale e il watcher NON lo ripiglieranno.
 Copia di sicurezza dello stato errante:
 evo-career.save.post-monza-errata.bak-2026-10-24.json (negozi slot-3).
 LEZIONE: il bottone «importa» senza finestra temporale (since) scatta
 qualunque file race fresco-newest nei Results: per gare fuori carboncopy
 considerare un'etichetta  sul file o una conferma esplicita.
+
+
+## BACKUP AUTOMATICO DEL SAVE DI EVO (26/10, pre-prova PC vergine) — FATTO E COLLAUDATO
+- Il save di EVO (%USERPROFILE%\Saved Games\ACE, o Documents\ACE per le
+  versioni vecchie) è l'unico dato del PC che il progetto NON protegge:
+  un save corrotto o sbagliato a mano (slot sovrascritto, restore
+  fallito) manda in fumo TUTTA la carriera. tools/salva-save.mjs lo
+  zippa in data/salva-save/ con tar.exe di Windows (niente 7zip, niente
+  PS): slot-1/slot-2 in rotazione (ogni backup va sullo slot alternato,
+  scrive il vicino ?? salva-save.json), taglio automatico ai 4 zip
+  PIÙ recenti su TUTTI gli slot, copia data/salva-save.json con slot,
+  nome zip, size e prossimità.
+- CLIENT a hook: in avvia.cmd :aprigui, DOPO magazzino-check:
+  `node tools/salva-save.mjs 2>nul` — se il backup è più fresco di 36
+  ore NON fa nulla (scorciatoria zlibila in loop: zero IO di troppo);
+  se stantio zippa i lati in silenzio. --check per exit 0/1; --force;
+  --stale-hours N; --data <cartella> per il test ACE_DATA override.
+- PROVATO dal vivo (ACE_DATA su cartella finta in TEMP): zip valido
+  leggibile da tar.exe di Windows (tar dell Git-Bash GNU NON legge gli
+  zip: usare C:\Windows\System32\tar.exe), rotazione 5→4 su slot
+  alternati, json scritto. DUE BUG di parsing presi al vivo:
+  ① Number('0') è falsy → il `|| default` rimetteva 36h anche con
+   --stale-hours 0 (stantio considerato fresco); ② Number(null) = 0 →
+  la soglia era ZERO anche SENZA opzione, tutto sempre «stantio».
+  Fix: null = assente, solo numero finito ≥ 0 valebr
+- data/salva-save/ resta NEI GITIGNORE: gli zip backup di Mauro non
+  finiscono MAI nel repo (sincronizza-git.cmd fa `git add -A`).
+- Suite 203/203 ✓ (nessun test dedicato: tool di bootstrap, verificato
+  solo dal vivo; ne vale uno reale se il backup un giorno fallisce).
 
 ## RECUPERO AUTOMATICO quando il watcher non guardava (24/10, 18:xx) — FATTO E COLLAUDATO
 

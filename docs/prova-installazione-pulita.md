@@ -8,25 +8,27 @@ griglia sul save 3 di questo PC. Spuntare a mano mentre si va.
 ## A. Installazione pulita (il PC «dell'amico»)
 
 ### Prima di partire
-- [ ] **Node.js 18+ installato** (`node -v`): è l'unica dipendenza. Su un OS
-      pulito manca sempre: senza lui `avvia.cmd` non parte.
-- [ ] **La sorgente del codice, UNA delle tre** (in ordine di fedeltà):
+- [ ] **Node.js 18+ installato** (`node -v`): è l'unica dipendenza se si parte
+      da zip/clone. Con la via installer NON serve: se lo scarica da solo.
+- [ ] **La sorgente del codice, UNA delle tre** (consiglio: 1):
       1. **`installa.cmd` (dal 26/10 la via di DEFAULT, un file solo):** passa il
          file doppioclick dalla root alla macchina pulita e lancialo: scarica
          Node portatile se manca, chiede il token se il repo è privato, estrae
-         la zipball, scrive `build-id.txt`, testà, scorciatoia e avvio.
+         la zipball, scrive `build-id.txt`, testa, scorciatoia e avvio.
          (Sostituisce il pacchetto-amico per gli amici: resta valida come via.)
-      2. **Pacchetto-amico**: copia `pacchetti/ac-evo-career-amico-v*.zip`
-         su chiavetta nella macchina pulita e estrailo. È l'unico con
-         `build-id.txt` dentro: **si autoaggiorna** col bottoncino del launcher.
+      2. **Download ZIP da GitHub** (github.com → Code → Download ZIP): la via
+         che agganciano oggi la maggior parte: se niente `build-id.txt`, al
+         PRIMO avvio guarda `main` su GitHub e porta da solo l'installazione
+         al passo (solo Windows vergine: serve Node già installato).
       3. **Clone** `git clone https://github.com/turbignox-hash/ac-evo-career.git`
          (repo privato → serve l'accesso GitHub di chi lo gesticisce) +
          `git remote rename origin offsite`.
-      3. **Download ZIP da GitHub** (github.com → Code → Download ZIP):
-         dal 26/10 si autoporta al passo al PRIMO avvio (scarica main da solo
-         e scrive il build-id): su repo privato serve il token di lettura §5-bis
-         prima del primo avvio. Fedeltà inferiore al pacchetto (la copia parte
-         dal commit di download, poi si uniforma al primo update).
+### A-bis — disinstalla (facoltativa ma comodissima)
+- [ ] copia anche `disinstalla.cmd` sulla chiavetta: a fine prove, doppio click
+      sul vergine e controlla che tolga la cartella installata e la scorciatoia
+      **solo se punta a quella** (la tua installazione dev qui non si tocca).
+      È il primo test del disinstallatore VERO fuori dalla sandbox (i 5/5 sono
+      già passati qua).
 - [ ] MAI copiare `data/` nella macchina pulita: ogni PC deve farsi la SUA carriera vergine.
 
 ### Primo avvio (il vero test dell'amico)
@@ -49,14 +51,16 @@ griglia sul save 3 di questo PC. Spuntare a mano mentre si va.
       lo stesso messaggio entro 12 s
 - [ ] telemetria: il .ld è pieno (62 canali), MoTec e setups leggono
 
-### Autoaggiornamento (via pacchetto-amico LO SOLO)
-- [ ] al primo avvio il launcher **chiede di aggiornare** (`s/N` + Enter = no)
-      — GitHub main è avanti del pacchetto (0.1.14 → 0.1.15)
-- [ ] con `s` si scarica, copia il codice, lancia `npm test` **dentro l'installazione**
-- [ ] avvia il launcher un\'altra volta: la GUI scrive **0.1.15** e main
-- [ ] VERIFICA CHE NON HAI TOCCATO niente: `data/` (le dir di slot) restano
-      intatte prima e dopo l'aggiornamento — un PNG e un collegamento non si
-      cancellano con l'update
+### Autoaggiornamento
+- [ ] con la via installer o il Download ZIP **la copia parte già al passo**:
+      al primo avvio non deve chiedere niente (se GitHub è però avanti mentre
+      testi, la domanda `s/N` deve comparire — Invio o 15s = no)
+- [ ] se accetti con `s`: scarica, copia il codice, lancia `npm test` **dentro
+      l'installazione**; ri-avvia il launcher una volta e la GUI mostra la
+      build nuova nel piè di pagina (`build x.y.z · hash`)
+- [ ] VERIFICA CHE NON HAI PERSO niente: `data/`, la scorciatoia col PNG e
+      qualunque file tuo fuori dalle cartelle codice restano intatti prima e
+      dopo l'aggiornamento
 
 ---
 
@@ -80,6 +84,6 @@ solo il MAGAZZINO dei template: `data/slot-3/grid-templates/` ha già
 ---
 
 ## Esito del test (a fine sessione, qui sotto)
-- esito pacchetto-amico e auto-aggiornamento: ✔/✘ + note
+- esito installatore e auto-aggiornamento: ✔/✘ + note
 - esito griglie slot 3: ✔/✘ + note
 - anomalie trovate: (descrizione)
