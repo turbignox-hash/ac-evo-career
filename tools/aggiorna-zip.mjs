@@ -148,6 +148,15 @@ export async function installaZip(radice = RADICE) {
     try { r = await fetch(`${API}/zipball/main`, { headers: header(), redirect: 'follow', signal: c.signal }); }
     finally { clearTimeout(t); }
     if (!r.ok) {
+      // 403 con quota API azzerata NON è «repo privato»: il limite anonimo è
+      // 60 richieste/ora per IP e lo hanno bevuto i controlli anzichè il
+      // download — dire «metti un token» spingerebbe l'amico a crearne uno
+      // per niente (26/10, появи sul PC vergine).
+      if (r.status === 403 && r.headers.get('x-ratelimit-remaining') === '0') {
+        const reset = r.headers.get('x-ratelimit-reset');
+        const ora = reset ? new Date(Number(reset) * 1000).toLocaleTimeString('it-IT') : null;
+        return { ok: false, messaggio: `quota GitHub esaurita per questo IP${ora ? `: riprova dopo le ${ora}` : ' (riprova più tardi)'}.` };
+      }
       // 404/403 SENZA token = quasi sicuro repo privato: guida al token
       if ((r.status === 404 || r.status === 403) && !leggiToken()) return { ok: false, messaggio: 'il repo è privato: per lo scarico serve un token di lettura (data/.github-token o GITHUB_TOKEN).' };
       return { ok: false, messaggio: `scarico di GitHub non riuscito (HTTP ${r.status}).` };

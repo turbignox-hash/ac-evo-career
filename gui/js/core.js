@@ -187,12 +187,50 @@ const TAB_COLORS = {
   difficulty:'#5f7cff', messages:'#ffa94d', settings:'#adb5bd', banca:'#ffd43b',
 };
 let tab = 'dashboard';
+/* il mini-riassunto d'aiuto (27/10, domanda Mauro: «sezione con le spiegazioni
+   di ogni menu — utile o tempo perso?»). Un solo riquadro, si apre da qualunque
+   scheda: due righe per menu, la GUI si spiega da sola. Apostrofi SEMPRE con
+   \' niente stringhetricité: lezione del 27/10 (il primo inserto era rotto).
+   Le base strings in precedenza non respirano: la GUI si spiega da sola. */
+const AIUTO = [
+  ['dashboard', { it: 'La tua giornata: classifica di stagione, contratto, eredità, eventi e la scheda della prossima gara col tasto Prepara.', en: 'Your day: season standings, contract, legacy, events and the next-race sheet with the Get-ready button.' }],
+  ['agenda', { it: 'Il calendario: i round da correre, nel weekend con ora, giri e meteo già scritti dal tool.', en: 'The calendar: rounds ahead, with hour, laps and weather written by the tool for each weekend.' }],
+  ['setup', { it: 'La scheda del meccanico: assetti, pressioni e benzina consigliati per la gara (si portano a mano in EVO).', en: 'The mechanic sheet: recommended setup, pressures and fuel for the race (entered by hand in EVO).' }],
+  ['analisi', { it: 'Telemetria dei tuoi giri: confronto best-lap, settori e curva di guida su sessioni nuove o ricaricate.', en: 'Your lap telemetry: best-lap comparison, sectors and driving curve on fresh or loaded sessions.' }],
+  ['messages', { it: 'Il tavolo delle offerte: contratti, sponsor e mail del paddock da firmare o ignorare.', en: 'The offers table: contracts, sponsors and paddock mail to sign or ignore.' }],
+  ['championships', { it: 'Serie e campionati: stagione in corso, classifiche, premi e contratti di ogni trofeo.', en: 'Series and championships: current season, standings, prizes and contracts of every trophy.' }],
+  ['griglia', { it: 'Chi parte davanti: la griglia degli avversari della ronda, scritta nel gioco dal tool.', en: 'Who starts ahead: the race-weekend opponent grid, written into the game by the tool.' }],
+  ['standings', { it: 'Il quadro mondiale: piloti, squadre e sfide oltre la tua serie.', en: 'The world view: drivers, teams and rivalries beyond your series.' }],
+  ['rivals', { it: 'I tuoi avversari abituali: storico dei duelli e chi devi battere.', en: 'Your regular rivals: duel history and who you still have to beat.' }],
+  ['tracks', { it: 'Il libro delle piste: record personali, layout e storie di ogni tracciato.', en: 'The track book: personal records, layouts and stories for every circuit.' }],
+  ['cars', { it: 'Le auto: schede tecniche e compatibilità, anche di quelle viste nel content di EVO.', en: 'The cars: spec sheets and compatibility, including cars found in the EVO content.' }],
+  ['garage', { it: 'Il tuo box: auto possedute e setup registrati.', en: 'Your garage: owned cars and saved setups.' }],
+  ['import', { it: 'Gli incassi: i risultati delle gare di EVO si importano nella carriera (dopo la gara premi qui).', en: 'The bookkeeper: race results are imported from EVO into the career (press it after a race).' }],
+  ['archive', { it: 'La memoria di tutto quello che hai corso: risultati storici e statistiche passate.', en: 'Everything you ever raced: historical results and past stats.' }],
+  ['gironi', { it: 'I giri liberi: scegli pista e auto, gira a piacere — ogni giro è registrato e analizzato (best lap, settori, progresso).', en: 'Free laps: pick track and car, drive freely — each lap is recorded and analysed (best lap, sectors, progress).' }],
+  ['stats', { it: 'I numeri della carriera: vittorie, podi, punti e curve di andamento.', en: 'Career numbers: wins, podiums, points and form curves.' }],
+  ['banca', { it: 'Le finanze: entrate, spese e bilancio della stagione.', en: 'The finances: income, costs and the seasonal balance.' }],
+  ['difficulty', { it: 'La difficoltà adattiva: quanto la serie ti spinge, con il saldo della banda AI.', en: 'Adaptive difficulty: how hard the series pushes, with the AI band balance.' }],
+  ['settings', { it: 'La cantina tecnica: wizard dell\'installazione, aggiornamenti, backup del save, lingua e sistema.', en: 'The tech pit: setup wizard, updates, save backup, language and system.' }],
+];
+function drawAiuto(){
+  const riga = (id) => {
+    const d = (AIUTO.find(([k]) => k === id) ?? [])[1] ?? { it: '', en: '' };
+    return `<div style="padding:7px 0;border-bottom:1px solid var(--line,#283046)"><b style="font-size:13px">${esc((TABS.find(([k]) => k === id) ?? [,''])[1])}</b><div class="muted" style="font-size:12px;margin-top:2px">${esc(tr(d))}</div></div>`;
+  };
+  modal(tr({ it: 'Che fa ogni menu', en: 'What each menu does' }),
+    `<div class="muted" style="font-size:12px;margin-bottom:6px">${tr({ it: 'Due righe per menu, niente da configurare: un riepilogo che gira con te.', en: 'Two lines per menu, nothing to configure: a summary that travels with you.' })}</div>` +
+    TABS.map(([id]) => riga(id)).join(''),
+    [[tr({ it: 'Chiudi', en: 'Close' }), 'act', () => {}]]);
+}
 function drawNav(){
   const offers = boot?.header?.offers?.length || 0;
   const urgent = boot?.mailUrgent || 0;
   $('#nav').innerHTML = TABS.map(([id,label]) =>
-    `<button data-tab="${id}" class="${tab===id?'on':''}">${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${tr({ it: `${urgent} email urgenti: gare da disputare o conflitti`, en: `${urgent} ${urgent===1?'urgent email':'urgent emails'}: races to run or conflicts` })}">⚠️${urgent}</span>`:''}</button>`).join('');
-  $$('#nav button').forEach(b => { b.onclick = () => { tab = b.dataset.tab; drawNav(); render(); }; });
+    `<button data-tab="${id}" class="${tab===id?'on':''}">${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${tr({ it: `${urgent} email urgenti: gare da disputare o conflitti`, en: `${urgent} ${urgent===1?'urgent email':'urgent emails'}: races to run or conflicts` })}">⚠️${urgent}</span>`:''}</button>`).join('') +
+    `<button id="b-aiuto" title="${tr({ it: 'Che fa ogni menu', en: 'What each menu does' })}" style="margin-top:auto;border-top:1px solid var(--line,#283046)">❓ ${tr({ it: 'Aiuto', en: 'Help' })}</button>`;
+  $('#b-aiuto')?.addEventListener('click', drawAiuto);
+  $$('#nav button[data-tab]').forEach(b => { b.onclick = () => { tab = b.dataset.tab; drawNav(); render(); }; });
 }
 
 /* ============================== viste ============================== */
