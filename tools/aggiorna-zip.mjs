@@ -130,7 +130,12 @@ export async function installaZip(radice = RADICE) {
   const stato = await statoZipAsync(radice);
   if (stato.skip) return { ok: false, messaggio: 'aggiornamento non controllabile adesso: ' + (stato.motivo ?? '') };
   if (stato.equal || !stato.remotoAvanti) return { ok: true, nessuno: true, messaggio: 'Nessun aggiornamento: sei già al passo con GitHub.' };
-  if (!leggiToken()) return { ok: false, messaggio: 'il repo è privato: per lo scarico serve un token di lettura (data/.github-token o GITHUB_TOKEN).' };
+  // IL TOKEN SI CHIEDE SOLO SE GITHUB LO ESIGE (26/10, PC vergine di Mauro):
+  // col repo passato a PUBBLICO il vecchio gate «!leggiToken()» bloccava
+  // l'aggiornamento del TUTTO con un falso «repo è privato» — mentre la
+  // lista degli aggiornamenti arrivava (stato = API pubblica ok). Ora si
+  // prova lo scarico veramente: senza token funziona sui pubblici; se
+  // GitHub risponde 404/403 E non c'è token, LÌ si sprona il token.
 
   // scarico la zipball di main (tutto il codice del repo: senza .git, senza data/)
   const tmp = join(tmpdir(), 'evo-aggiorna-zip-' + Date.now());
@@ -142,7 +147,11 @@ export async function installaZip(radice = RADICE) {
     let r;
     try { r = await fetch(`${API}/zipball/main`, { headers: header(), redirect: 'follow', signal: c.signal }); }
     finally { clearTimeout(t); }
-    if (!r.ok) return { ok: false, messaggio: `scarico di GitHub non riuscito (HTTP ${r.status}).` };
+    if (!r.ok) {
+      // 404/403 SENZA token = quasi sicuro repo privato: guida al token
+      if ((r.status === 404 || r.status === 403) && !leggiToken()) return { ok: false, messaggio: 'il repo è privato: per lo scarico serve un token di lettura (data/.github-token o GITHUB_TOKEN).' };
+      return { ok: false, messaggio: `scarico di GitHub non riuscito (HTTP ${r.status}).` };
+    }
     const buf = Buffer.from(await r.arrayBuffer());
     if (buf.length < 10000) return { ok: false, messaggio: 'il download è troppo corto: niente zip credibile.' };
     writeFileSync(zipPath, buf);

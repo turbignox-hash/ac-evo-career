@@ -8,7 +8,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
@@ -26,16 +26,46 @@ function isFile(p) {
 }
 
 /**
+ * La cartella "Saved Games" di Windows, ANCHE SE viene ricollocata:
+ * Steam permette la libreria di gioco su un altro disco, ma il SAVE segue
+ * la cartella di sistema "Saved Games" che l'utente può reindirizzare
+ * (26/10, PC vergine di Mauro: gioco installato su D:, profilo non standard).
+ * Cerca in ordine:
+ *   1. override esplicito ACE_SAVEDIR (comanda, anche se non esiste: è scelta vera);
+ *   2. la cartella nota del registro (HKCU\...\User Shell Folders, GUID 4C5C32FF
+ *      = Saved Games): è il posto che il GIOCO consulta davvero;
+ *   3. il default classico %USERPROFILE%\Saved Games.
+ * Restituisce SOLO le esistenti (il default resta sempre in fondo: se il
+ * profilo sta su D:, anche %USERPROFILE% punta là).
+ */
+export function savedGamesRoots(env = process.env) {
+  if (env.ACE_SAVEDIR) return [env.ACE_SAVEDIR];   // override esplicito: comanda anche se non esiste ancora
+  const list = [];
+  if (platform() === 'win32') {
+    try {
+      const out = execFileSync('reg',
+        ['query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders',
+         '/v', '{4C5C32FF-BB9D-43B0-B5B4-2D72E54EAAA4}'],
+        { windowsHide: true, timeout: 8000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      const riga = out.split(/\r?\n/).find((l) => /REG_(EXPAND_)?SZ/i.test(l));
+      const val = riga?.split(/\s{2,}/).pop()?.trim() ?? '';
+      if (val) list.push(val.replace(/%([^%]+)%/g, (_, k) => env[k] ?? env[k.toLowerCase()] ?? ''));
+    } catch { /* chiave assente o reg non disponibile: resta il default */ }
+  }
+  list.push(join(homedir(), 'Saved Games'));
+  return [...new Set(list.filter((p) => p && isDir(p)))];
+}
+
+/**
  * Cartelle dati candidate, in ordine di priorità.
  * ACE_DATA è un override esplicito: se lo imposti, si usa SOLO quella cartella
  * (serve per la demo e per installazioni spostate a mano).
  */
 export function dataDirCandidates(env = process.env) {
   if (env.ACE_DATA) return [env.ACE_DATA];
-  const home = homedir();
   const list = [];
-  list.push(join(home, 'Saved Games', 'ACE'));
-  list.push(join(home, 'Documents', 'ACE'));
+  for (const s of savedGamesRoots(env)) list.push(join(s, 'ACE'));
+  list.push(join(homedir(), 'Documents', 'ACE'));
   if (env.ACE_DOCS) list.push(env.ACE_DOCS);
   return list;
 }

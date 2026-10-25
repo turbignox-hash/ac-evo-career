@@ -21,18 +21,21 @@
 import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { execSync } from 'node:child_process';
+import { savedGamesRoots } from '../src/paths.mjs';
 
-// Percorsi di base dei salvataggi AC EVO dell'utente: derivati da USERPROFILE,
-// così i default dei tool libreria girano su qualunque PC (GUIDA-AMICO senza
-// ritocchi). Fallback storico = il PC di sviluppo (Mauro).
-export const USER_HOME = process.env.USERPROFILE || 'C:/Users/Mauro';
+// Percorsi di base dei salvataggi AC EVO dell'utente: la stessa scoperta di
+// src/paths.mjs (Saved Games di Windows, anche ricollocato nel registro — profili
+// con i documenti su un altro disco, 26/10 PC vergine di Mauro), così i default
+// dei tool libreria girano su qualunque PC (GUIDA-AMICO senza ritocchi).
 // SANDBOX DEI FILE DI GIOCO (23/10): ACE_GAME_SAVEDIR reindirizza l'intera
 // cartella di salvataggio EVO (GameModes, OpenData, ProfileData) — tipo
 // EVO_DATA_DIR ma per i FILE DEL GIOCO, che prima rischiavano di essere
 // toccati dai test che lanciano i flussi webui (race/event-prep). Ne derivano
 // TUTTE le costanti dei tool (Weekend gamemodesave, customgrid, LGM,
 // drivergarage): un solo interruttore.
-export const GAME_SAVEDIR = process.env.ACE_GAME_SAVEDIR || join(USER_HOME, 'Saved Games', 'ACE');
+export const USER_HOME = process.env.USERPROFILE || 'C:/Users/Mauro';
+export const GAME_SAVEDIR = process.env.ACE_GAME_SAVEDIR
+  || join(savedGamesRoots(process.env)[0] ?? join(USER_HOME, 'Saved Games'), 'ACE');
 export const GAME_MODES_DIR = join(GAME_SAVEDIR, 'GameModes');
 
 /* Trova la cartella OpenData del profilo attivo: ProfileData/<guid>/OpenData*/

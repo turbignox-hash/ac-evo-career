@@ -178,6 +178,19 @@ Le risposte di use quotidiano, le stesse del README con qualche caso in più
 tipico del primo avvio su un PC nuovo. Se qui manca il tuo sintomo, il README
 (it) ha la sezione completa: [README.it.md](README.it.md).
 
+**Ho installato su un PC vergine e «Prepara tutto» dice «ora/giri da impostare a mano».**
+In un save nuovo EVO non ha ANCORA il file del weekend di carriera: le
+impostazioni della ronda (ora, giri, meteo) si scrivono SOLO dentro quello.
+Fai una volta questa danza: apri EVO → Carriera → il round attuale → arrivare
+alla schermata del WEEKEND (niente da giocare, basta che il file nasca) →
+chiudi o torna al menu → ri-premi **Prepara tutto e divertiti** nella GUI:
+di nuovo ora e giri finiscono nel file da soli (a schermata giusta la
+verifica live ti dice «Configurazione corretta!»).
+Stesso rimedio se il PC ha profilo o gioco su un disco diverso da C: e vedi
+strani «gamemodesave non trovato»: il tool guarda la cartella "Saved Games" di
+Windows anche se è stata spostata; un'uscita di soccorso sono i percorsi
+completi in ACE_DATA e ACE_GAME_SAVEDIR (Impostazioni).
+
 **L'import dice «risultato non letto / posizioni sbagliate».** Controlla che il
 file sia uno nativo (`Results\*.sessionresults.json`, non una copia risalvata)
 e che il nome del pilota combaci con `Logs\log-*.txt` (`Creating Car (Nome…)`).

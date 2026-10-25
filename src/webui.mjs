@@ -1658,7 +1658,9 @@ async function api(context0, _req, res, action, body) {
         const roundHour = card.round?.hour ?? null;
         if (roundHour != null) {
           const cur = currentRaceTime();
-          if (!cur) prep.hourError = 'gamemodesave non leggibile (EVO mai aperto sul weekend?)';
+          if (!cur) prep.hourError = existsSync(WEEKEND_FILE)
+            ? tr({ it: "l'EVO non ha ancora il weekend di carriera: entra in EVO nel weekend del round (basta la schermata del weekend), poi premi di nuovo Prepara tutto — l'ora si scrive da sola", en: "EVO has no career weekend yet: enter the round's weekend in EVO once (the weekend screen is enough), then press Get ready again — the hour is written automatically" })
+            : tr({ it: 'gamemodesave non trovato (EVO mai stato sul weekend?): apri il round in EVO una volta, poi premi di nuovo Prepara tutto', en: 'gamemodesave not found (EVO never reached the weekend?): open the round in EVO once, then press Get ready again' });
           else {
             const wantScale = card.timeMultiplier != null ? Math.max(1, Math.min(60, Number(card.timeMultiplier) || 1)) : null;
             const sameHour = cur.hour === roundHour;
@@ -1685,7 +1687,11 @@ async function api(context0, _req, res, action, body) {
           prep.laps = r.already ? `già ${r.giri} giri` : `${r.giri} giri (blocco "${r.block}")`;
           prep.lapsWritten = r.written;
         }
-      } catch (e) { prep.lapsError = e.message; }
+      } catch (e) {
+        prep.lapsError = (e.code === 'NO_RACE' || /ENOENT/.test(String(e.message ?? String(e))))
+          ? tr({ it: "l'EVO non ha ancora il weekend di carriera: entra in EVO nel weekend del round (basta la schermata), poi premi di nuovo Prepara tutto — i giri si scrivono da soli", en: "EVO has no career weekend yet: enter the round's weekend in EVO once (the weekend screen is enough), then press Get ready again — laps are written automatically" })
+          : e.message;
+      }
       try {
         // BANDA AI della ronda nei cursori del gioco (gamemodesave, campi 30/31 del
         // primo blocco sessione): quella che EVO legge sul loading screen, NON quella
