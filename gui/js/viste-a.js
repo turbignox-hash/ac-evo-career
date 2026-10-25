@@ -1022,18 +1022,23 @@ const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella
       else if (p.trackSame) segs.push(tr({ it: `pista già ${p.track}: nulla da scrivere`, en: `track already ${p.track}: nothing to write` }));
       else if (p.track) segs.push(`⚠ ${tr({ it: `pista NON aggiornata (${p.track}): apri il weekend in EVO dal menu e ripremi Prepara`, en: `track NOT updated (${p.track}): open the weekend from EVO's menu and press Get ready again` })}`);
       if (p.carError) segs.push(`⚠ ${p.carError.startsWith('ENOENT') ? tr({ it: 'auto da selezionare a mano in EVO', en: 'car to pick by hand in EVO' }) : p.carError}`);
+      // PIANO B GRID TYPE (26/10 notte): il selettore non scritto da fuori va
+      // al toast CON LA GUIDA intera (menu Race Weekend → Grid Type → CUSTOM
+      // → Applica) e rosso 15 s: è l'unico caso in cui l'amico deve toccare il
+      // menu di EVO (richiesta Mauro: «dice quello che serve a mano»).
       else if (p.carWritten) segs.push(tr({ it: `auto ${p.car} pronta al prossimo avvio di EVO`, en: `car ${p.car} ready at EVO's next launch` }));
       else if (p.carNote) segs.push(p.carNote);   // nota neutra (auto fuori dizionario): senza ⚠
       if (p.hourError) segs.push(`⚠ ${p.hourError}`);
       else if (p.hour != null) segs.push(`${tr({ it: 'ora', en: 'hour' })} ${p.hour}`);
       if (p.lapsError) segs.push(`⚠ ${p.lapsError}`);
       else if (p.laps != null) segs.push(p.laps);
+      if (p.gridModeError) segs.push(`⚠ ${p.gridModeError}`);
       const prepMsg = segs.length ? ` ${segs.join(' · ')}.` : '';
-      const tipoToast = p.trackError || p.carError || p.hourError || p.lapsError || (p.track && p.trackWritten === false && !p.trackSame) || (r.prep?.grid?.rebuild?.startsWith('non riuscita')) ? 'warn' : 'ok';
+      const tipoToast = p.gridModeError || p.trackError || p.carError || p.hourError || p.lapsError || (p.track && p.trackWritten === false && !p.trackSame) || (r.prep?.grid?.rebuild?.startsWith('non riuscita')) ? 'warn' : 'ok';
       // L'istruzione che CHIEDE UN'AZIONE (rientra nel weekend dal menu di EVO,
       // ripremi Prepara) viveva 4.2 s e l'utente non faceva in tempo a leggerla
       // (27/10, richiesta Mauro): 15 SECONDI e ROSSO, chuidibile col click.
-      const azione = /rientra nel weekend|re-enter the weekend|ripremi Prepara|press Get ready again/.test(prepMsg);
+      const azione = /rientra nel weekend|re-enter the weekend|ripremi Prepara|press Get ready again|Grid Type su CUSTOM|Grid Type to CUSTOM/.test(prepMsg);
       // ROSSO SOLO AI PROBLEMI (25/10, Mauro: «se tutto ok dovrebbe restare
       // bianco, rosso solo quando ci sono problemi»): l'istruzione Riuscita
       // «pista scritta: rientra nel weekend» — la voce NORMALE di ogni

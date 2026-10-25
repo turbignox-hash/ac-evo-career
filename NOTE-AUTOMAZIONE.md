@@ -1,4 +1,28 @@
-## GRID TYPE SCRITTO DA FUORI (25/10 sera + 26/10 sera: forma canonica 6 RIMASTO + 7 aggiunto; Prepara: custom SOLO per le multiclasse)
+## GRID TYPE SCRITTO DA FUORI (26/10 NOTTE, VERDETTO FINALE: CUSTOM PER TUTTE)
+
+- VERDETTO FINALE (26/10 notte, Coppa 75 al Suzuka, confermato IN GIOCO):
+  il modo CUSTOM lo portano COME ORA tutte le serie — monomarca compresa.
+  L'elezione mono=automatic dell'ora prima è STATA RITIRATA: la cartuccia
+  sul disco resta la sorgente della griglia  (il selettore nasce CUSTOM con
+  la forma scritta da fuori) e questa strada serve ugualmente bene per
+  mono e multi. Il parcheggio della cartuccia (monoGridAuto) è FUORI dal codice;
+  il file con suffisso .ritirata resta in data/parcheggio-monomarca/ come
+  memoria, ma la cartuccia buona da 14 celle è TORNATA al suo posto in
+  GameModes/last_grid.customgrid (e in data/grid-templates/, che per la
+  fabbrica è la sorgente primaria).
+- PROVA VIVA DEL SELETTORE-ESTERNO (26/10 notte, 4 movimenti del Mauro):
+  i TASTI SINTETICI (SendKeys e SendInput, AppActivate per PID) NON ARRIVANO
+  a EVO — la prova si è chiusa per il contorno umano; MA la scrittura della
+  forma canonica da fuori (setWeekendGridCustom) è STATA ADOTTATA dal menu
+  anche a EVO APERTO: scritto custom/13 → rientrata nel weekend → selettore
+  nato CUSTOM  (verificato a schermo dal Mauro). Attenzione: durante i toggle EVO
+  riscrive il weekend SENZA righe-pilota (6209 B, ~1500 B per sessione)
+  e il conteggio nativo si legge come 0 finché il weekend non viene
+  risacca dal menu: in quell'ora la fabbrica cascava sulla stima del
+  ladder (7 celle) — per questo la forma giusta da 14 celle è memorizzata
+  nel template in magazzino, e la copia .ritirata resta come riferimento.
+
+## STORICO (25/10 sera + 26/10 sera: forma canonica 6 RIMASTO + 7 aggiunto; Prepara: custom SOLO per le multiclasse — SOBITUITO dal verdetto sopra)
 
 - LEZIONE DEFINITIVA 26/10 sera (toggle VIVO fotografato a menu aperto:
   `tools/_toggle-watch.mjs` su TUTTA la cartella ACE, esito in

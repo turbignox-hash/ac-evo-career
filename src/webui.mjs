@@ -1653,23 +1653,28 @@ async function api(context0, _req, res, action, body) {
           // Falli silente: un errore non blocca l'iscrizione — la card sotto
           // resta il piano B (come fa il CLI: "la griglia non pronta: la
           // carriera prosegue con la card qui sotto").
-          if (existsSync(GRID_FILE)) {
-            try {
-              const rb = rebuildGridApply({
-                ladder,
-                nodeId: state.node,
-                roundIndex: Math.min(state.round ?? 0, node.calendar.length - 1),
-                force: true,   // a EVO aperto si può scrivere dal menu principale (7ª prova 19/10, certificata in NOTE-AUTOMAZIONE)
-              });
-              if (rb.written) {
-                prep.grid = prep.grid ?? {};
-                prep.grid.rebuild = `riscritta per "${rb.report.serie}" — ${rb.report.gridSize} celle${rb.report.poolMulti ? ` (${rb.report.poolMulti})` : ''}${rb.source ? ` · template: ${rb.source}` : ''}`;
-                prep.grid.written = true;
-              }
-            } catch (e) {
+          // RAMO GRIGLIA (26/10 notte, decisione finale di Mauro): il modo
+          // CUSTOM lo portano COME ORA tutte le serie, mono compresa — la
+          // riscrittura della griglia al Prepara resta per TUTTE (conteggio
+          // allineato al gamemodesave, zavorre/penalità solo dove la classe
+          // le chiede) e la cartuccia non si parcheggia più.
+          try {
+            const rb = rebuildGridApply({
+              ladder,
+              nodeId: state.node,
+              roundIndex: Math.min(state.round ?? 0, node.calendar.length - 1),
+              force: true,   // a EVO aperto si può scrivere dal menu principale (7ª prova 19/10, certificata in NOTE-AUTOMAZIONE)
+            });
+            if (rb.written) {
               prep.grid = prep.grid ?? {};
-              prep.grid.rebuild = `non riuscita (${e.message})`;
+              prep.grid.rebuild = `riscritta per "${rb.report.serie}" — ${rb.report.gridSize} celle${rb.report.poolMulti ? ` (${rb.report.poolMulti})` : ''}${rb.source ? ` · template: ${rb.source}` : ''}`;
+              prep.grid.written = true;
             }
+          } catch (e) {
+            prep.grid = prep.grid ?? {};
+            prep.grid.rebuild = `non riuscita (${e.message})`;
+          }
+          if (existsSync(GRID_FILE)) {
             const zp = zeroBalanceProposal(GRID_FILE, { track: card.trackName ?? null });
             if (zp) {
               const out = applyBalance({ track: card.trackName ?? null, force: true });
@@ -1678,37 +1683,52 @@ async function api(context0, _req, res, action, body) {
             const ap = aiRangeProposal(GRID_FILE);
             if (ap?.trovato && (ap.trovato[0] !== ap.atteso[0] || ap.trovato[1] !== ap.atteso[1])) {
               const out = applyAi(ap.atteso, { force: true });
-              prep.grid.ai = `riscritto ${out.ai[0]}-${out.ai[1]} (trovato ${ap.trovato[0]}-${ap.trovato[1]})`; prep.grid.written = true;
+              prep.grid.ai = `riscritto ${ap.atteso[0]}-${ap.atteso[1]} (trovato ${ap.trovato[0]}-${ap.trovato[1]})`; prep.grid.written = true;
             } else prep.grid.ai = ap?.atteso ? `ok (${ap.atteso[0]}-${ap.atteso[1]})` : null;
-          // TIPO GRIGLIA DEL MODO (26/10 sera, forme canoniche del toggle vivo
-          // fotografato e confermato a riavvio: automatic = 3.6 = 1 solo;
-          // custom = 3.6 = 1 TENUTO e 3.7 = N aggiunto — la forma del menu
-          // che il gioco ADOPTA a riavvio; la vecchia forma «6 trasformato in
-          // 7» veniva scartata e il menu rinascava AUTOMATIC).
-          // SCELTA DEL MODO (Mauro 26/10 sera): SOLO le serie MULTICLASSE
-          // sbloccano custom (servono le zavorre/penalità di classe, che in
-          // AUTOMATIC sono zero per definizione — lezione del 25/10, Berline
-          // Moderne uscita monoclasse). Le MONOMARCA restano AUTOMATIC:
-          // auto tutta alla pari, zavorre non le servono, e il conteggio
-          // fisso di carriera lo porta EVO da sé (weekendCarCount conta le
-          // 3.10 native e il rebuild allinea il customgrid a quello). Se una
-          // gara multiclasse prima ha lasciato il custom, il modo torna
-          // quello di fabbrica. Silente se il save manca (EVO mai sul
-          // weekend): la card resta valida.
-          try {
-            const celle = readCells(GRID_FILE)?.cells ?? [];
-            const mono = tipoGriglia(node) === 'monomarca';
-            const gm = mono ? setWeekendGridAuto() : setWeekendGridCustom(Math.max(1, celle.length - 1));
-            prep.gridMode = gm?.written
-              ? (mono
-                ? tr({ it: 'modo griglia riposto su AUTOMATIC (monomarca: auto alla pari)', en: 'grid mode reset to AUTOMATIC (single-make: all-equal cars)' })
-                : tr({ it: `custom sbloccato (contatore ${Math.max(1, celle.length - 1)})`, en: `custom unlocked (count ${Math.max(1, celle.length - 1)})` }))
-              : (mono
-                ? tr({ it: 'griglia automatic già in piedi', en: 'automatic grid already in place' })
-                : tr({ it: 'griglia custom già in piedi', en: 'custom grid already in place' }));
-          } catch (e) { prep.gridModeError = e.message; }
-          } else prep.grid = { nota: 'nessun customgrid: usa tab Griglia o CLI griglia' };
+          }
         } catch (e) { prep.gridError = e.message; }
+      }
+      // TIPO GRIGLIA DEL MODO (26/10 sera, forme canoniche del toggle vivo
+      // fotografato e confermato a riavvio: automatic = 3.6 = 1 solo;
+      // custom = 3.6 = 1 TENUTO e 3.7 = N aggiunto — la forma del menu
+      // che il gioco ADOPTA a riavvio; la vecchia forma «6 trasformato in
+      // 7» veniva scartata e il menu rinascava AUTOMATIC).
+      // DECISIONE FINALE (26/10 notte, dopo le gare di test di Mauro):
+      // ritira l'elezione del modo — TUTTE custom: la forma scritta
+      // qui è quella che vale per il menu EVO a riavvio, anche da un save
+      // nato AUTOMATIC di fabbrica (verificato live: scritto custom/14 a
+      // menu chiuso → menu nato CUSTOM da solo). Silente se il save manca.
+      // La forma è la STESSA (N = celle-1) per mono e multiclasse.
+      try {
+        const catuccia = existsSync(GRID_FILE) ? (readCells(GRID_FILE)?.cells ?? []) : null;
+        if (!catuccia) throw new Error('nessun customgrid sul disco: ripremi Prepara tutto (il rebuild la ricostruisce) o usa tab Griglia / CLI griglia');
+        // CARTUCCIA a 0 CELLE decodificabili (26/10 notte, il weekend rigenerato
+        // di EVO): non settle mai custom/1 — il contatore scende al template
+        // in magazzino (la memoria VERA della serie) e solo in ultima analisi
+        // si arresterà sul messaggio di errore con la guida (piano B).
+        let contatore = catuccia.length > 0 ? catuccia.length - 1 : null;
+        if (contatore == null) {
+          const nod = String(state.node).replace(/[^a-zA-Z0-9_.-]/g, '_');
+          const tPath = join(slotDataDir(), 'grid-templates', nod + '.customgrid');
+          if (!existsSync(tPath)) throw new Error(`customgrid sul disco ma con ${catuccia.length === 0 ? '0 celle' : 'celle non decodificabili'} e nessun template di serie in magazzino: ripremi Prepara tutto`);
+          const celle = readCells(readFileSync(tPath)).cells.length;
+          if (celle <= 0) throw new Error(`template di serie (${tPath}) non decodificabile: ripremi Prepara tutto`);
+          contatore = celle - 1;
+        } else if (contatore < 1) contatore = 1;
+        const gm = setWeekendGridCustom(contatore);
+        prep.gridMode = gm?.written
+          ? tr({ it: `custom sbloccato (contatore ${contatore})`, en: `custom unlocked (count ${contatore})` })
+          : tr({ it: 'griglia custom già in piedi', en: 'custom grid already in place' });
+      } catch (e) {
+        /* PIANO B (26/10 notte, richiesta Mauro): se la scrittura del modo non
+        passa (file letto a metà scrittura dal gioco, blocco lock su disco,
+        forma non decodificabile), l'amico NON resta indietro: il messaggio
+        che sale fino al toast guida il gesto manuale, che risolve sempre —
+        il menu EVO scrive la forma canonica esattamente come la scriveremmo noi. */
+        prep.gridModeError = tr({
+          it: `il selettore Grid Type non è stato scritto da fuori (${e.message}) — apri in EVO il menu Race Weekend del round: muovi Grid Type su CUSTOM e premi Applica (così le zavorre e le penalità di classe arrivano al via)`,
+          en: `the Grid Type selector was not written from outside (${e.message}) — open the round's Race Weekend menu in EVO: move Grid Type to CUSTOM and press Apply (this brings the class ballast and penalties to the start)`,
+        });
       }
       // meteo della ronda: FUORI dal cancello !running — la scrittura del selettore
       // in gamemode.lastgamemode è accettata anche a EVO aperto (verificato 20/10/2026:

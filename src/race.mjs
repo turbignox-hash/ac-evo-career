@@ -19,6 +19,8 @@ import { recordFlows } from './flows.mjs';
 import { recordWarning } from './warnings.mjs';
 import { tr, lang } from './lang.mjs';
 import { carPoolOf } from './car-pool.mjs';
+import { sameTrack } from './tracknames.mjs';
+import { weekendCarCount } from '../tools/set-track.mjs';
 
 /* Nomi delle opzioni meteo come compaiono ESATTAMENTE nel menu di EVO
  * (sereno, nuvole sparse, nuvoloso, coperto, pioggia leggera, pioggia, pioggia intensa).
@@ -155,6 +157,22 @@ export function raceCard(ladder, state, { car = null } = {}) {
   const practiceStart = practiceStartOv ?? backFrom(profile.practiceMin + 5 + profile.qualifyMin + 15);
   const qualifyStart = qualifyStartOv ?? backFrom(profile.qualifyMin + 15);
 
+  // REALE, non la stima del ladder (26/10 sera, la scheda dell'Alfa 75 diceva
+  // «6 cars» mentre il gamemodesave contava 14): il contatore del ladder era
+  // una stima nostra, il contatore NATIVO (weekendCarCount) è quello confermato
+  // dal gioco (lezione 24/10 del crash 0xC0000005). Lo mostro solo quando il
+  // gamemodesave è leggibile e la sua pista COINCIDE con la ronda: se il
+  // weekend è ancora su un'altra serie o su una pista vecchia, la stima resta.
+  // Niente file / niente corrispondenza → nessuna override, comportamento come
+  // prima (PC vergine).
+  const nato = (() => {
+    try {
+      const n = weekendCarCount();
+      return n && n.cars > 0 && sameTrack(n.track, trackName(round.track)) ? n : null;
+    } catch { return null; }
+  })();
+  const gridsReali = nato ? nato.cars : node.gridSize;
+
   const base = {
     node,
     roundIndex,
@@ -170,8 +188,8 @@ export function raceCard(ladder, state, { car = null } = {}) {
     trackId: round.track,
     trackName: trackName(round.track),
     weather: ladder.weatherNames[String(round.weather)] ?? `meteo ${round.weather}`,
-    gridSize: node.gridSize,
-    opponents: node.gridSize - 1,
+    gridSize: gridsReali,
+    opponents: gridsReali - 1,
     profile,
     difficulty: diffShown,
     difficultyBase: diff,
@@ -183,7 +201,7 @@ export function raceCard(ladder, state, { car = null } = {}) {
       [tr({ it: 'Modalità', en: 'Mode' }), tr({ it: 'Weekend di gara', en: 'Race weekend' })],
       [tr({ it: 'Pista', en: 'Track' }), tr({ it: `${trackDisp} — layout ${layout}`, en: `${trackDisp} — layout ${layout}` })],
       [tr({ it: 'Auto', en: 'Car' }), tr({ it: `${chosenCarName}${node.cars.length > 1 ? ` (un'auto ammessa della serie: ${parco.ammesse.slice(0, 6).join(', ')})` : ` (serie monomarca: ${chosenCarName})`}`, en: `${chosenCarName}${node.cars.length > 1 ? ` (one of the series' pool cars: ${parco.ammesse.slice(0, 6).join(', ')})` : ` (one-make series: ${chosenCarName})`}` })],
-      [tr({ it: 'Avversari', en: 'Opponents' }), tr({ it: `${node.gridSize - 1} auto`, en: `${node.gridSize - 1} cars` })],
+      [tr({ it: 'Avversari', en: 'Opponents' }), tr({ it: nato ? `${gridsReali - 1} auto (dichiarate dal gioco sul weekend: contatore nativo, non la stima del calendario)` : `${node.gridSize - 1} auto`, en: nato ? `${gridsReali - 1} cars (as declared by the game on this weekend: native counter, not the calendar's estimate)` : `${node.gridSize - 1} cars` })],
       [tr({ it: 'Auto avversarie', en: 'Opponent cars' }), tr({ it: node.cars.length > 1 ? `tutte della serie: ${node.cars.map(carName).join(', ')}` : `${carName(node.cars[0])} (serie monomarca)`, en: node.cars.length > 1 ? `all from the series: ${node.cars.map(carName).join(', ')}` : `${carName(node.cars[0])} (one-make series)` })],
       [tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), tr({ it: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%${diffShown.overridden ? ' — scelto a mano' : ''}`, en: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%${diffShown.overridden ? ' — set by hand' : ''}` })],
       [tr({ it: 'Aggressività AI', en: 'AI aggression' }), tr({ it: `${profile.aggr}% (in EVO è ancora bloccata: lasciala com'è)`, en: `${profile.aggr}% (still locked in EVO: leave it as is)` })],

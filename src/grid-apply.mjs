@@ -343,8 +343,7 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
     } catch (e) { throw noTemplateHint(e, ladder, nodeId); }
   }
 }
-
-/** Stato della griglia per la GUI: celle, config, classe combaciata e perTraccia attiva. */
+/* Stato della griglia per la GUI: celle, config, classe combaciata e perTraccia attiva. */
 export function gridStatus({ track = null, file = GRID_FILE } = {}) {
   let buf;
   try { buf = readFileSync(file); } catch { return { file, exists: false }; }
