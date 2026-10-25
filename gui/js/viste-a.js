@@ -97,6 +97,21 @@ async function wizardChecklist(box, opts = {}){
       } catch { /* la preparazione non blocca: si può anche rifare */ }
     }
   }
+  /* 4 — il weekend del round di carriera (27/10): su un save vergine il
+     GameModeType_RACE_WEEKEND.gamemodesave nasce SOLO alla prima apertura del
+     round in EVO; senza quel file «Prepara tutto» non può scrivere ora e giri
+     (aveva già l'avviso al tasto, ma chi lo leggeva lo vendeva come guasto).
+     Nel wizard, invece, lui lo SA PRIMA: spunta verde o passaggio guidato. */
+  if (w.career) {
+    if (w.weekendFile) {
+      rows.push(boxRow(OKI, 'ok', tr({ it: 'Weekend di carriera pronto', en: 'Career weekend ready' }),
+        tr({ it: 'il file del round c’è: ora, giri e meteo si scrivono da soli col tasto «Prepara tutto».', en: 'the round file exists: hour, laps and weather set themselves with Get ready.' })));
+    } else {
+      rows.push(boxRow(WRN, tr({ it: '1 apertura in EVO', en: '1 open in EVO' }),
+        tr({ it: 'Weekend mai aperto in EVO', en: 'Weekend not opened in EVO yet' }),
+        tr({ it: 'non trovo il file GameModeType_RACE_WEEKEND.gamemodesave: lo crea EVO alla prima apertura del round corrente. Apri Carriera → round in corso → la schermata del weekend una volta (giocare non serve), poi torna e premi «Prepara tutto» — ora, giri e meteo finiscono da soli nel round.', en: 'the game has never written GameModeType_RACE_WEEKEND.gamemodesave: EVO creates it the first time you open the current round. Open Career → current round → the weekend screen once (no need to play), then come back and press Get ready — hour, laps and weather land in the round by themselves.' }), true));
+    }
+  }
   box.innerHTML = (opts.sketch === false ? '' : wizardSketchSteps({ ...w, content })) +
     rows.filter((r) => typeof r !== 'function').join('');
   $('#wz-open-exp')?.addEventListener('click', async () => {

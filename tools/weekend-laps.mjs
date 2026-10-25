@@ -18,12 +18,10 @@
 // per il tasto "Prepara tutto e divertiti" degli eventi speciali in webui —
 // stessi identici gesti del CLI, con verifica di round-trip sul buffer OUT.
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 import { decodeMsg, encodeMsg, GAME_MODES_DIR } from '../tools/evo-grid.mjs';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
 const FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 const gameIsRunning = () => /AssettoCorsaEVO/i.test(execSync('tasklist', { encoding: 'utf8' }) ?? '');
 
@@ -40,7 +38,7 @@ export function sessionsOf(buf) {
   });
 }
 export const weekendLaps = (file = FILE) => sessionsOf(readFileSync(file));
-const asText = (b) => Buffer.from(b).toString('utf8').replace(/\x00/g, '').trim();
+const asText = (b) => Buffer.from(b).toString('utf8').split('\u0000').join('').trim();
 
 /** Round-trip di controllo su un BUFFER (verifyRoundTrip di evo-grid legge un FILE). */
 const roundTripOk = (buf) => {
@@ -118,7 +116,7 @@ const laps = Number(lapsArg);
 if (!Number.isInteger(laps) || laps <= 0) { console.error('giri deve essere un intero > 0'); process.exit(1); }
 
 const selName = getArg('session');
-let which = selName != null
+const which = selName != null
   ? ses.findIndex((s) => (s.nome ?? '').toLowerCase().includes(selName.toLowerCase()))
   : raceBlockIndex(ses);
 if (which < 0) { console.error('sessione non trovata'); process.exit(1); }

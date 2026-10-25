@@ -23,8 +23,8 @@ mkdirSync(join(DEMO, 'Results'), { recursive: true });
 const cars = new Set();
 const tracks = new Set();
 for (const node of ladder.nodes) {
-  (node.cars ?? []).forEach((c) => cars.add(c));
-  (node.calendar ?? []).forEach((r) => tracks.add(r.track));
+  for (const c of node.cars ?? []) cars.add(c);
+  for (const r of node.calendar ?? []) tracks.add(r.track);
 }
 
 const lines = ['[demo] caricamento contenuto di prova'];

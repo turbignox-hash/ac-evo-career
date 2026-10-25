@@ -107,5 +107,5 @@ test('le serie non iscritte non generano posta di gare (no spam \"altrove\")', (
 test('riassunto: max 20 email totali e id sequenziali in caso (inbox digeribile)', () => {
   const mails = mailbox(ladderBase(), fakeState({ day: 12, seats: seatsABC })).mails;
   assert.ok(mails.length <= 20, `casella troppo lunga: ${mails.length} email`);
-  mails.forEach((m, i) => assert.equal(m.id, `m${i + 1}`, 'id sequenziali stabili'));
+  for (const [i, m] of mails.entries()) assert.equal(m.id, `m${i + 1}`, 'id sequenziali stabili');
 });

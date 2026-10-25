@@ -32,4 +32,5 @@ const dump = (d, tag) => {
   console.log('--- ' + tag + ' ---');
   for (const k of Object.keys(out)) console.log(' ' + k + ' x' + out[k].length + '  [' + out[k].slice(0, 4).join(',') + (out[k].length > 4 ? ' ...' : '') + ']');
 };
-dump(da, 'pioggia'), dump(db, 'attuale');
+dump(da, 'pioggia');
+dump(db, 'attuale');

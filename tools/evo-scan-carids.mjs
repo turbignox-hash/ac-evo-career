@@ -21,7 +21,8 @@ while (pos < LIMIT) {
   if (n <= 0) break;
   const s = buf.toString('latin1');
   for (let i = s.indexOf(brand); i !== -1; i = s.indexOf(brand, i + 1)) {
-    const snip = s.slice(Math.max(0, i - 40), i + 120).replace(/[\u0000-\u001f]/g, '·');
+    const visibile = (t) => t.split('').map((ch) => (ch.charCodeAt(0) < 32 ? '·' : ch)).join('');
+    const snip = visibile(s.slice(Math.max(0, i - 40), i + 120));
     const m = snip.match(/(ks_[a-z0-9_]+)/);
     if (m) found.set(m[1], snip.slice(0, 150));
   }

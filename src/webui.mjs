@@ -512,6 +512,11 @@ async function api(context0, _req, res, action, body) {
         content: view?.content ?? { cars: 0, tracks: 0 },
         carmaps,
         saved: view?.saved ?? {},
+        // primo weekend (27/10): su un save vergine GameModeType_RACE_WEEKEND
+        // .gamemodesave nasce solo alla prima apertura del round in EVO — lo
+        // stato va nel wizard, così l'amico SA cosa manca prima di premere
+        // «Prepara tutto» e non scopre a gara rimandata.
+        weekendFile: existsSync(WEEKEND_FILE),
       });
     }
     case 'boot': {
