@@ -429,6 +429,18 @@ EVO scrive le posizioni da 0 e l'import lo gestisce, ma un file modificato a
 mano rompe il formato: in quel caso entra la gara a mano con
 `import --position N --cars M`.
 
+**Il copilota dice una posizione sbagliata (es. sei P8 e supero → «sei P6»).**
+Era un off-by-one della telemetria, corretto dalla v0.1.30: la posizione live
+arriva già come nell'HUD del gioco (la memoria di EVO conta da 0, la voce e il
+cruscotto da 1). Se lo senti ancora: riavvia il launcher e Ctrl+F5 sulla tab.
+
+**«Prepara tutto» segnala l'auto «non nel dizionario» in rosso, e la gara parte
+lo stesso.** Non è un blocco: pista, orari e giri sono scritti; solo
+l'auto — che l'app deve conoscere per selezionarla da sola — manca (PC nuovo o
+dizionario personale azzerato). Scegli l'auto a mano come al solito: a fine
+gara l'app impara l'auto dal garage e nelle gare successive la seleziona da
+sé, senza sampler.
+
 **Il Meccanico dice che manca una fonte.** Vuol dire che per quell'auto non c'è
 ancora telemetria `.ld` usabile (o il file è vuoto): fai un giro netto in gioco
 e alla prossima analisi i consigli nascono su dati veri. Spiega sempre quale

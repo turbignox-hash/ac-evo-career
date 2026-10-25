@@ -198,6 +198,18 @@ EVO scrive le posizioni da 0 e l'import lo gestisce, ma un file modificato a
 mano rompe il formato: in quel caso entra la gara a mano con
 `import --position N --cars M`.
 
+**Il copilota dimentica di dire una posizione che non c'entra (8 in pista → «sei P6»).**
+Corretto dalla v0.1.30: la posizione live esce già come la vedi nell'HUD del
+gioco (la memoria del gioco conta da 0, la voce conta da 1 come l'HUD). Se lo
+senti ancora, riavvia il launcher e ricarica la pagina (Ctrl+F5).
+
+**«Prepara tutto» dice che l'auto «non è nel dizionario» ma la gara parte lo stesso.**
+È VOLUTO, non un guasto: la pista, l'ora e i giri sono scritte, solo
+l'auto — che l'app deve conoscere per selezionarla da sola — non lo è ancora
+(succede su un PC nuovo o dopo un reset dei dati personali). Scegli l'auto a
+mano nel weekend COME SEMPRE: alla fine della gara l'app IMPARA l'auto dal
+garage e nelle gare successive la seleziona da solo, senza più toccare niente.
+
 **Il Meccanico dice che manca una fonte.** Vuol dire che per quell'auto non c'è
 ancora telemetria `.ld` usabile (o il file è vuoto): fai un giro netto in gioco
 e alla prossima analisi i consigli nascono su dati veri. Spiega sempre quale

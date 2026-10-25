@@ -35,6 +35,10 @@ import { slotDataDir, savePath, activeSlot } from './state.mjs';
 import { recordRaceFromResult } from './grid-calib.mjs';
 import { avanzaDopoGara } from './agenda.mjs';
 import { carPoolOf, carInPool } from './car-pool.mjs';
+// APPRENDIMENTO AUTO (25/10): a fine gara coppiamo il garage sul disco con il
+// nome dell'auto corsa — così il dizionario perso da un'installazione pulita
+// si ricostruisce da solo, senza sampler a mano.
+import { learnCar } from '../tools/set-car-sample.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);
@@ -253,6 +257,14 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
       throw err;
     }
     const { driver, how, candidates: notAI } = findPlayerDriver(result, state.driver);
+    if (driver) {
+      // IMPARIAMO L'AUTO qui, non nel Prepara: in gara è appena passata su
+      // quella macchina e il garage sul disco combacia. È il rimedio al
+      // dizionario perso di un'installazione pulita (25/10): alla gara dopo
+      // il Prepara la seleziona da solo. Fallo SILENZIOSO: un fallimento qui
+      // non deve sospendere un import di gara.
+      try { learnCar(`${driver.car_brand ?? ''} ${driver.car_name ?? ''}`.trim() || null); } catch { /* mai bloccare l'import */ }
+    }
     if (!driver) {
       const err = new Error(`Non ho riconosciuto il tuo pilota in ${candidate.name}.`);
       err.code = 'PLAYER_NOT_FOUND';

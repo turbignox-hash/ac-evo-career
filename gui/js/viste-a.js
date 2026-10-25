@@ -993,7 +993,11 @@ const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella
       else if (p.laps != null) segs.push(p.laps);
       const prepMsg = segs.length ? ` ${segs.join(' · ')}.` : '';
       const tipoToast = p.trackError || p.carError || p.hourError || p.lapsError || (p.track && p.trackWritten === false && !p.trackSame) || (r.prep?.grid?.rebuild?.startsWith('non riuscita')) ? 'warn' : 'ok';
-      toast(`${tr({ it: 'Gara segnata', en: 'Race marked' })}${r.fee?` · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(r.fee)} €`:''}. ${note}${gridMsg}${prepMsg}`, tipoToast);
+      // L'istruzione che CHIEDE UN'AZIONE (rientra nel weekend dal menu di EVO,
+      // ripremi Prepara) viveva 4.2 s e l'utente non faceva in tempo a leggerla
+      // (27/10, richiesta Mauro): 15 SECONDI e ROSSO, chuidibile col click.
+      const azione = /rientra nel weekend|re-enter the weekend|ripremi Prepara|press Get ready again/.test(prepMsg);
+      toast(`${tr({ it: 'Gara segnata', en: 'Race marked' })}${r.fee?` · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(r.fee)} €`:''}. ${note}${gridMsg}${prepMsg}`, tipoToast, azione ? { ms: 15000, rosso: true } : undefined);
       drawCardInto(el, r.card);
       await refreshBoot();
     } catch(e){ toast(e.message, 'err'); btn.disabled=false; btn.textContent = tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' }); }

@@ -25,8 +25,16 @@ import { decodeMsg } from './evo-grid.mjs';
 export const HERE = join(import.meta.dirname);
 const SAMPLES = join(HERE, '..', 'data', 'samples', 'garage');
 const MAP_FILE = join(SAMPLES, 'map.json');
-const PROFILE_DIR = 'C:/Users/Mauro/Saved Games/ACE/ProfileData/4e119186-92b4-e500-a907-422b2017e883/OpenData';
-const GARAGE = join(PROFILE_DIR, 'garage.drivergarage');
+// IL PROFILO NON È FISSO: la GUID cambia per installazione (25/10, installazione
+// pulita di Mauro: 49057b82-… al posto del vecchio 4e119186-…). Il sampler
+// resta sul percorso scoperto a disco (openDataDir di evo-grid): nulla più
+// da ritoccare a ogni PC.
+import { openDataDir, GAME_SAVEDIR } from './evo-grid.mjs';
+export function currentGarageFile() {
+  const od = openDataDir()
+    ?? join(GAME_SAVEDIR, 'ProfileData', '_noprofile', 'OpenData');
+  return join(od, 'garage.drivergarage');
+}
 
 /** decodifica il garage: { carHash, guid2, flag } — i campi 4.1/4.2 e 10. */
 export function decodeGarage(buf) {
@@ -43,6 +51,36 @@ export function decodeGarage(buf) {
 /** La mappa hash→nome appresa dai campioni (carKey = carHash+guid2). */
 export function readMap() {
   try { return JSON.parse(readFileSync(MAP_FILE, 'utf8')); } catch { return { entries: {} }; }
+}
+
+/**
+ * APPRENDIMENTO SILENZIOSO a fine gara (25/10, dizionario azzerato
+ * dall'installazione pulita): se la coppia (carHash|guid2) attualmente nel
+ * garage non è mappata e conosciamo il nome dell'auto CORSA (dal file
+ * risultati), impariamo la coppia — dalla gara dopo il Prepara seleziona
+ * l'auto da solo, senza sampler a mano.
+ * Torna { learned: true, name, key } o null se non c'era nulla da imparare.
+ */
+export function learnCar(name, { garage = currentGarageFile(), mapFile = MAP_FILE, dry = false } = {}) {
+  if (!name) return null;
+  if (!existsSync(garage)) return null;   // garage vergine: niente da mappare
+  let raw;
+  try { raw = decodeGarage(readFileSync(garage)); }
+  catch { return null; }                  // file a metà scrittura dal gioco: l'import dopo riprova
+  if (!raw?.carHash || raw.carHash === '0x0' || !raw?.guid2) return null;
+  const key = `${raw.carHash}|${raw.guid2}`;
+  const map = (function () {
+    try { return JSON.parse(readFileSync(mapFile, 'utf8')); } catch { return { entries: {} }; }
+  })();
+  if (map.entries?.[key]) return null;    // già a dizionario
+  if (dry) return { learned: false, dry: true, name, key };
+  try {
+    mkdirSync(SAMPLES, { recursive: true });
+    map.entries = map.entries ?? {};
+    map.entries[key] = String(name);
+    writeFileSync(mapFile, JSON.stringify(map, null, 1));
+    return { learned: true, name: String(name), key };
+  } catch { return null; }                // data senza permessi: non deve rompere l'import
 }
 
 /* ---------- CLI ---------- */
@@ -76,10 +114,11 @@ if (isMain) {
 
   console.log('campiono il garage ogni 700ms — cambia auto in gioco quando vuoi (ctrl+c per fermare):');
   let last = null;
+  const GARAGE_LIVE = currentGarageFile();
   setInterval(() => {
     try {
-      const buf = readFileSync(GARAGE);
-      const mtime = Math.round(statSync(GARAGE).mtimeMs);
+      const buf = readFileSync(GARAGE_LIVE);
+      const mtime = Math.round(statSync(GARAGE_LIVE).mtimeMs);
       const hex = buf.toString('hex');
       if (hex !== last) {
         if (last !== null) {

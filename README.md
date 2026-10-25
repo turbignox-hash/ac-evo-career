@@ -428,6 +428,18 @@ driver name matches `Logs\log-*.txt` (`Creating Car (Name ...)`). EVO writes
 positions 0-based and the import handles it, but a manually edited file breaks
 the format — use `import --position N --cars M` to enter the race by hand.
 
+**The copilot calls a wrong position (you are P8, you pass, it says "P6").**
+That was an off-by-one in telemetry, fixed since v0.1.30: the live position
+now matches the in-game HUD (EVO's shared memory counts from 0; the voice and
+dashboard count from 1). If you still hear it: restart the launcher and
+Ctrl+F5 the page.
+
+**"Get everything ready" shows the car "not in the dictionary" in red, yet the
+race is set.** Not a failure: track, hour and laps are written — only the car,
+which the app must know to pick it by itself, is missing (new PC or a reset of
+personal data). Pick the car by hand as usual: at the race end the app learns
+the car from the garage and picks it by itself in later races.
+
 **The Mechanic says a source is missing.** It means no usable `.ld` telemetry
 for that car yet (or an empty file): drive one clean lap in the game and the
 advice builds on real data at the next scan. It always explains which source is

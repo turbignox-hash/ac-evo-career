@@ -14,11 +14,18 @@ const api = (action, call={}) => {
     .then(async r => { const d = await r.json(); if (!r.ok) throw Object.assign(new Error(d.error || 'errore'), {data:d}); return d; });
 };
 
-function toast(text, kind='') {
+function toast(text, kind='', opts) {
+  // Messaggio che CHIEDE UN'AZIONE all'utente (27/10, richiesta Mauro:
+  // «rientra nel weekend dal menu di EVO» durava 4.2 s e non si leggeva):
+  // con opts.rosso diventa rosso, con opts.ms vive di più — e in ogni caso
+  // il toast si può chiudere a mano con un click (mai persa, chi non ci arriva).
+  const o = opts ?? {};
   const t = document.createElement('div');
-  t.className = 't ' + kind; t.textContent = text;
+  t.className = 't ' + kind + (o.rosso ? ' rosso' : '');
+  t.textContent = text;
+  t.onclick = () => t.remove();
   $('#toast').appendChild(t);
-  setTimeout(() => t.remove(), kind === 'err' ? 8000 : 4200);
+  setTimeout(() => t.remove(), o.ms ?? (kind === 'err' ? 8000 : 4200));
 }
 
 /* ===================== barra aggiornamenti da GitHub =====================

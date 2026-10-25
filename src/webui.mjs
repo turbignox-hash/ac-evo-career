@@ -1623,9 +1623,17 @@ async function api(context0, _req, res, action, body) {
           } else prep.car = garageCurrent().name;
         } catch (e) {
           const enoent = String(e?.code ?? '') === 'ENOENT' || String(e?.message ?? '').includes('ENOENT');
+          const unknown = String(e?.code ?? '') === 'UNKNOWN_CAR' || String(e?.message ?? '').includes('non nel dizionario');
           prep.carError = enoent
-            ? tr({ it: "il garage di EVO è ancora vergine: scegli l'auto a mano nel weekend (è l'unica cosa da fare dentro il gioco); dal prossimo avvio l'app la seleziona per te", en: "EVO's garage is still empty: pick the car by hand in the weekend (the only thing to do inside the game); from the next launch the app selects it for you" })
-            : e.message;
+            ? tr({ it: "il garage di EVO è ancora vergine: scegli l'auto a mano nel weekend (è l'unica cosa da fare dentro il gioco); dalla gara dopo l'app la seleziona per te", en: "EVO's garage is still empty: pick the car by hand in the weekend (the only thing to do inside the game); from the race after the app picks it for you" })
+            : unknown
+              ? // 25/10 (installazione pulita): il dizionario personale delle
+                // auto (map.json) era PERSO insieme al vecchio data/ — ma la
+                // gara parte lo stesso e alla prima import l'app IMPARA
+                // l'auto dal garage. Diciamolo: il rosso spurio faceva
+                // credere a un blocco che non c'era (la gara C'ERA).
+                tr({ it: "auto non ancora nel dizionario dell'app: la gara parte lo stesso, scegli l'auto a mano in EVO; a fine gara l'app impara l'auto dal garage e dalle gare successive la seleziona da sola", en: "car not in the app dictionary yet: the race goes on anyway — pick it by hand in EVO; at the race end the app learns it from the garage and selects it by itself in later races" })
+              : e.message;
         }
         // VIGIA DELLA GRIGLIA (come la CLI 'prepara'): se il customgrid ha la
         // classe combaciante ma il bilancio o il campo AI sono persi, li

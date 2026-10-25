@@ -615,7 +615,16 @@ export class LiveReader {
       player: g ? {
         car: g.carModel?.trim() || p?.car || null,
         driver: `${g.driverName?.trim() || ''} ${g.driverSurname?.trim() || ''}`.trim() || null,
-        position: g.currentPos || null,
+        // CURRENT POS È 0-BASED nonostante l'header (che dice «1 = leader»):
+        // prova reale del 25/10 (Imola 500 Cup, gara importata P5/10): il file
+        // sessionresults scriveva Mauro a position=4 e la SM diceva 4 per TUTTA
+        // la gara — l'HUD del gioco mostra 5. ZERO qui è il LEADER (il campo
+        // ACEVO_UNASSIGNED dell'header riguarda la CAR LOCATION, non la
+        // posizione). Il copilota e il cruscotto parlano le posizioni COME
+        // LE VEDI in pista: +1 qui alla sorgente, niente correzioni sparse
+        // nelle viste. Valori fuori griglia (≥ auto totali) = spazzatura del
+        // buffer: null, non numeri fantasma.
+        position: g.totalDrivers ? (g.currentPos != null && g.currentPos >= 0 && g.currentPos < g.totalDrivers ? g.currentPos + 1 : null) : (g.currentPos != null ? g.currentPos + 1 : null),
         drivers: g.totalDrivers || null,
         lapsDone: g.totalLapCount ?? 0,
         lapNo: g.currentLapNo ?? null,
