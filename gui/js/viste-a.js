@@ -179,6 +179,16 @@ function drawOnboarding(m){
       <button class="act" type="submit" style="width:100%">${tr({ it: 'Inizia la carriera', en: 'Start the career' })}</button>
     </form>
   </div>`;
+  // SELETTORE LINGUA AL PRIMO AVVIO (richiesta Mauro 26/10 sera): il primo
+  // schermo che l'amico vede dev'essere comprensibile SENZA passare da
+  // Impostazioni. Usa lo stesso legame di lang.js (impostaLingua: salva nel
+  // localStorage + notifica il server + ricarica), quindi il comportamento è
+  // identico al selettore di Impostazioni — solo raggiungibile subito.
+  const linguaSel = `<div class="field" style="max-width:220px;margin:-6px 0 14px"><label>${tr({ it: 'Lingua · Language', en: 'Language · Lingua' })}</label>
+    <select id="i-lingua"><option value="it">Italiano</option><option value="en">English</option></select></div>`;
+  $$('.lead', m)[0].insertAdjacentHTML('afterend', linguaSel);
+  const selBootLingua = $('#i-lingua', m);
+  if (selBootLingua) { selBootLingua.value = window.LINGUA; selBootLingua.onchange = (e) => impostaLingua(e.target.value); }
   $('#f-new').onsubmit = async (e) => {
     e.preventDefault();
     try {
