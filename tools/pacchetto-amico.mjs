@@ -91,8 +91,17 @@ for (const v of voci) {
   const primo = v.replace(/^ac-evo-career\//, '').split('/')[0];
   if (primo) conteggio[primo] = (conteggio[primo] ?? 0) + 1;
 }
+// CATALOGHI STATICI (25/10, installazione pulita): senza questi la GUI nasce
+// muta sull'auto → SONO CON IL PACCHETTO, specchiati sulla whitelist di
+// .gitignore. Il resto di data/ resta vietato (il save, il token, le copie
+// viventi che l'app genera col tempo).
+const CATALOGHI = [
+  'car-images.json', 'car-image-baseline.json', 'car-prices.json',
+  'car-specs.json', 'car-specs-extra.json', 'car-guids.json',
+].map((f) => `ac-evo-career/data/${f}`);
 const vietati = voci.filter((v) =>
-  /^ac-evo-career\/(data\/|\.git\/|dist\/|demo\/|archive\/|sessione-|_gui\/)/.test(v)
+  (!v.endsWith('/') && !CATALOGHI.includes(v) && /^ac-evo-career\/data\//.test(v))
+  || /^ac-evo-career\/(\.git\/|dist\/|demo\/|archive\/|sessione-|_gui\/)/.test(v)
   || /^ac-evo-career\/gui\/(carmaps|trackmaps)\//.test(v)
   || /Mauro|C:\\Users|C:\/Users/.test(v));
 if (vietati.length) {
