@@ -149,6 +149,14 @@ export function raceCard(ladder, state, { car = null } = {}) {
   const trackName = (id) => ladder.contentNames?.tracks?.[id] ?? id;
   const trackDisp = trackName(round.track);
   const layout = layoutFor(trackDisp);
+  // SERIE MULTICLASSE (26/10 notte, nota per l'amico): più di un modello di
+  // auto avversarie = griglia mista = zavorre e penalità di classe. In EVO
+  // arrivano al via SOLO col selettore Grid Type su CUSTOM (lezione Berline
+  // Moderne: AUTOMATIC le dalla via). La scheda lo dice SEMPRE sulle serie
+  // multiclasse: «una volta sola e poi non toccarlo più» — il Prepara
+  // riscrive comunque la forma da solo a ogni gara (mono compresa), e se la
+  // scrittura da fuori non passa, il toast rosso guida al gesto a mano.
+  const multiclasse = node.cars.length > 1;
   // ora d'inizio effettiva delle sessioni: override manuale, altrimenti il calcolo a ritroso
   const scale = Math.max(1, profile.timeScale ?? 1);
   const backFrom = (minsBefore) => round.hour != null
@@ -199,6 +207,9 @@ export function raceCard(ladder, state, { car = null } = {}) {
     carAdvice: advice.list,
     settings: [
       [tr({ it: 'Modalità', en: 'Mode' }), tr({ it: 'Weekend di gara', en: 'Race weekend' })],
+      [tr({ it: 'Tipo griglia (Grid Type)', en: 'Grid Type' }), multiclasse
+        ? tr({ it: 'CUSTOM — alla PRIMA gara multiclasse muovi il selettore Grid Type su CUSTOM una volta sola e poi NON TOCCARLO PIÙ: porta al via le zavorre e le penalità di classe. L’app lo riscrive da solo a ogni Prepara; se non ci riesce, il messaggio rosso ti guida al gesto a mano.', en: 'CUSTOM — at the FIRST multiclass race move the Grid Type selector to CUSTOM once and then NEVER TOUCH IT AGAIN: it brings the class ballast and penalties to the start. The app rewrites it by itself at every Get-ready; if it cannot, the red message walks you through the manual move.' })
+        : tr({ it: 'come lo hai già va bene (serie monomarca: tutti alla pari, zavorre non ne servono — l’app imposta da sola il numero di avversari)', en: 'whatever it already is, it is fine (one-make series: everyone is equal, no ballast needed — the app sets the opponent count by itself)' })],
       [tr({ it: 'Pista', en: 'Track' }), tr({ it: `${trackDisp} — layout ${layout}`, en: `${trackDisp} — layout ${layout}` })],
       [tr({ it: 'Auto', en: 'Car' }), tr({ it: `${chosenCarName}${node.cars.length > 1 ? ` (un'auto ammessa della serie: ${parco.ammesse.slice(0, 6).join(', ')})` : ` (serie monomarca: ${chosenCarName})`}`, en: `${chosenCarName}${node.cars.length > 1 ? ` (one of the series' pool cars: ${parco.ammesse.slice(0, 6).join(', ')})` : ` (one-make series: ${chosenCarName})`}` })],
       [tr({ it: 'Avversari', en: 'Opponents' }), tr({ it: nato ? `${gridsReali - 1} auto (dichiarate dal gioco sul weekend: contatore nativo, non la stima del calendario)` : `${node.gridSize - 1} auto`, en: nato ? `${gridsReali - 1} cars (as declared by the game on this weekend: native counter, not the calendar's estimate)` : `${node.gridSize - 1} cars` })],

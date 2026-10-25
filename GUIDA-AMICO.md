@@ -139,6 +139,22 @@ scheda gara (checklist) → EVO: imposti i campi e scegli l'auto A MANO → corr
 L'unico intervento manuale resta la selezione dell'auto: la scheda gara dice
 quale usare.
 
+### Prima gara multiclasse: Grid Type su CUSTOM, una volta sola
+
+A installazione nuova il menu di EVO nasce con **Grid Type = AUTOMATIC**.
+Va bene così per le serie con una sola auto (tutti alla pari, niente da
+regolare). Ma alla **prima gara con più di un modello in pista** (serie
+multiclasse: la scheda gara te lo dice con la riga "Tipo griglia (Grid
+Type)"):
+
+1. entra nel weekend della ronda in EVO, apri il menu Race Weekend;
+2. sposta **Grid Type da AUTOMATIC a CUSTOM** e premi **Applica**;
+3. finito: **non toccarlo più** — resta CUSTOM per tutta la carriera.
+
+Serve per le zavorre e le penalità di classe in griglia. Dalla gara dopo il
+bottone **Prepara tutto** riscrive la griglia da solo, e se la scrittura da
+fuori non passa un messaggio rosso ti guida di nuovo al gesto.
+
 ## 5. Ricevere gli aggiornamenti (dopo)
 
 Ogni volta che parti da `avvia.cmd` (o apri l'interfaccia di nuovo):
