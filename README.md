@@ -537,6 +537,15 @@ texts (contract clauses, letters, family-memory chapters) are bilingual by
 design. **The full version of this document in Italian is in
 [README.it.md](README.it.md).**
 
+Guides for a friend:
+
+- **Italian full guide:** [GUIDA-AMICO.md](GUIDA-AMICO.md) — the §3-bis
+  «first-launch dance» is bilingual inside; the English version lives right
+  after the Italian one.
+- **English full guide:** [FRIEND-GUIDE-EN.md](FRIEND-GUIDE-EN.md) — the whole
+  friend guide translated end to end (install, first launch, multiclass
+  gesture, updates, FAQ); it also travels inside the friend package.
+
 ## License
 
 Private work: **© 2026 Mauro Turbigno — all rights reserved** (full text in
