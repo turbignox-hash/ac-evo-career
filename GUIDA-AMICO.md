@@ -26,6 +26,22 @@ doppioclick `installa.cmd`** (uno solo, in radice del progetto, pochi KB) e
 Il friend non tocca terminali, git né zip: GitHub viene usato solo come
 mezzo di scarico e poi per gli aggiornamenti.
 
+## 0-ter. Disinstallare (da 26/10)
+
+Accanto a `installa.cmd` c'è **`disinstalla.cmd`** (si può copiare anche dentro
+la cartella installata, si gestisce da solo le installazioni):
+
+1. Invio per la cartella di default (`%USERPROFILE%\EVO-Pitwall`);
+2. se dentro `data\` c'è una **carriera**, chiede cosa farne:
+   `[k]` la tiene (la sposta in `<cartella>-data`, accanto) o `[b]` via tutto;
+3. toglie la scorciatoia «Carriera EVO» **solo se punta a quella cartella**
+   (una scorciatoia di un'altra installazione resta al suo posto);
+4. se il launcher è ancora aperto, te lo dice: chiudi (icona nella barra
+   delle applicazioni) e ri-lanciate.
+
+Il disinstallatore è protetto: una cartella che non assomiglia a un'installazione
+di Carriera EVO (dentro manca `ac-evo-career.mjs`) non si tocca di suo gusto.
+
 ## 1. Cos' serve
 
 - **Assetto Corsa EVO installato e avviato almeno una volta** (così esistono le

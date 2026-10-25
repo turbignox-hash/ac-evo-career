@@ -12,6 +12,19 @@ import { mkdtempSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+// nel .lnk (binario) i blocchi di testo sono UTF-16 ma NON allineati a parity
+// fissa: la decodifica dell'intero file come utf16le sbacia a seconda della
+// lunghezza del percorso (26/10: passava su "Desktop\\Mod ac evo" e moriva su
+// "EVO-Pitwall"). Si cerca la SEQUENZA DI BYTE della parola, alignment-proof.
+function contSiraw(lnk, par) {
+  const raw = readFileSync(lnk);
+  // prova la decodifica a offerta pari e a offerta dispari: una delle due
+  // allinea i blocchi UTF-16 interni al .lnk, sempre
+  const pari = raw.toString('utf16le');
+  const dispari = Buffer.concat([Buffer.from([0]), raw]).toString('utf16le');
+  return pari.includes(par) || dispari.includes(par);
+}
+
 const TOOL = join(import.meta.dirname, '..', 'tools', 'crea-scorciatoia.mjs');
 const WIN = process.platform === 'win32';
 
@@ -23,9 +36,8 @@ test('scorciatoia ASSENTE: viene creata con icona Pitwall, puntata ad avvia.cmd'
     const lnk = join(DESK, 'Carriera EVO.lnk');
     assert.equal(existsSync(lnk), true, 'il .lnk deve esistere nel desktop di prova');
     // dentro il .lnk (binario UTF-16) ci devono stare i percorsi del progetto
-    const utf16 = readFileSync(lnk).toString('utf16le');
-    assert.ok(utf16.includes('avvia.cmd'), 'target = avvia.cmd del progetto');
-    assert.ok(utf16.includes('pitwall.ico'), 'icona = gui/pitwall.ico del repo (non il node.exe verde)');
+    assert.ok(contSiraw(lnk, 'avvia.cmd'), 'target = avvia.cmd del progetto');
+    assert.ok(contSiraw(lnk, 'pitwall.ico'), 'icona = gui/pitwall.ico del repo (non il node.exe verde)');
   } finally { rmSync(DESK, { recursive: true, force: true }); }
 });
 
