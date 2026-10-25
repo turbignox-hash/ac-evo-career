@@ -11,10 +11,15 @@ griglia sul save 3 di questo PC. Spuntare a mano mentre si va.
 - [ ] **Node.js 18+ installato** (`node -v`): è l'unica dipendenza. Su un OS
       pulito manca sempre: senza lui `avvia.cmd` non parte.
 - [ ] **La sorgente del codice, UNA delle tre** (in ordine di fedeltà):
-      1. **Pacchetto-amico** (consigliata): copia `pacchetti/ac-evo-career-amico-v*.zip`
+      1. **`installa.cmd` (dal 26/10 la via di DEFAULT, un file solo):** passa il
+         file doppioclick dalla root alla macchina pulita e lancialo: scarica
+         Node portatile se manca, chiede il token se il repo è privato, estrae
+         la zipball, scrive `build-id.txt`, testà, scorciatoia e avvio.
+         (Sostituisce il pacchetto-amico per gli amici: resta valida come via.)
+      2. **Pacchetto-amico**: copia `pacchetti/ac-evo-career-amico-v*.zip`
          su chiavetta nella macchina pulita e estrailo. È l'unico con
          `build-id.txt` dentro: **si autoaggiorna** col bottoncino del launcher.
-      2. **Clone** `git clone https://github.com/turbignox-hash/ac-evo-career.git`
+      3. **Clone** `git clone https://github.com/turbignox-hash/ac-evo-career.git`
          (repo privato → serve l'accesso GitHub di chi lo gesticisce) +
          `git remote rename origin offsite`.
       3. **Download ZIP da GitHub** (github.com → Code → Download ZIP):

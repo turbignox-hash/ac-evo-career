@@ -5,6 +5,9 @@ rem Vuoi il menu completo?  apri un terminale nella cartella e lancia:  avvia.cm
 rem I comandi diretti restano validi:  avvia.cmd 4   (vedi le voci del menu)
 setlocal
 cd /d "%~dp0"
+rem Node portatile messo dall'installer (installa.cmd): se c'e', vale piu' del
+rem Node del sistema (26/10: l'installatore un-file scrive _node\ e non tocca PATH)
+if exist "%~dp0_node\node.exe" set "PATH=%~dp0_node;%PATH%"
 set "ONESHOT=%~1"
 
 :menu

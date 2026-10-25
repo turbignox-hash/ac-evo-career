@@ -88,18 +88,21 @@ Interfaccia in inglese nei catturi; la lingua si sceglie in Impostazioni
   in `data/` non si tocca mai); al passo o offline → zitta. Da terminale:
   `node tools/aggiornamenti.mjs` (domanda `s/N`, Invio/15 s = no).
 
-### Zip o clone? I due modi di installarlo su un altro PC
+### Zip o clone? I modi di installarlo su un altro PC
 
-| | **Clone git** (consigliato) | **Zip del pacchetto-amico** |
+| | **Un solo file, `installa.cmd`** (dal 26/10 il modo di default) | **Clone git** (per sviluppatori) |
 | --- | --- | --- |
-| Serve | Node 18+ e Git (2 min, GUI di GitHub Desktop va benissimo) | solo Node 18+ |
-| Aggiornamenti | **automatici**: ogni avvio di `avvia.cmd` (o bottone GUI) propone fetch+merge,.Invio/15 s = no | **automatici va bene**: a partire dal 24/10 il pacchetto porta `build-id.txt` e l'updater scarica da solo la codifica nuova via API GitHub; per un repo **privato** si deve avere un token di lettura in `data/.github-token` (o `GITHUB_TOKEN`) una volta sola |
-| Installi una volta | `git clone …` + `git remote rename origin offsite` | doppio click su `avvia.cmd` (il wizard trova le cartelle) |
-| il save (`data/`) | mai toccato dagli aggiornamenti | mai toccato dagli aggiornamenti (la copia via zip esclude per sicuro `data/`) |
-| File rimossi dal progetto sui tuo disco | spariti (merge vero) | restano sul disco innocui (la copia non cancella) |
-| Avvertenza | il repo privato chiede le credenziali GitHub la prima volta | se non metti il token, l'updater dice «privato e senza token» e resta muto: ri-scarichi lo zip a mano |
+| Serve | niente (Node lo scarica da solo, in forma portatile) | Node 18+ e Git |
+| Installi una volta | doppio click: chiede la cartella e il token di lettura su repo privato, poi da solo | `git clone …` + `git remote rename origin offsite` |
+| Aggiornamenti | **automatici**: `build-id.txt` scritto dall'installer e updater via API GitHub ogni avvio | **automatici**: ogni avvio di `avvia.cmd` (o bottone GUI) propone fetch+merge, Invio/15 s = no |
+| il save (`data/`) | mai toccato: nasce vergine sul PC dell'amico e gli aggiornamenti lo escludono | mai toccato dagli aggiornamenti (è fuori dal repo) |
+| File rimossi dal progetto sul tuo disco | restano sul disco innocui (la copia non cancella) | spariti (merge vero) |
+| Avvertenza | il token serve UNA volta ed è valido per tutti i PC | il repo privato chiede le credenziali GitHub la prima volta |
 
-Detto breve: **amico d'infanzia che aggiorna spesso → clone**; **chi vuole solo un file da doppio-click → zip + token**.
+Detto breve: **l'amico → un solo file `installa.cmd`**; **sviluppatore sincero → clone**.
+
+(Vie storiche, ancora valide: il **pacchetto-amico zip** di `tools/pacchetto-amico.mjs`
+e il **Download ZIP dal sito** — entrambi si auto-regolano al primo avvio.)
 
 ## Novità delle build recenti
 

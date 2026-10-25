@@ -1,23 +1,42 @@
 # Installare la carriera su un altro PC (guida per un amico)
 
 Questa guida vale per il caso «condivisione privata»: il progetto vive su GitHub
-(`https://github.com/turbignox-hash/ac-evo-career`) e l'amico clona lì.
+(`https://github.com/turbignox-hash/ac-evo-career`).
 Il **save carriera non passa** con il repo: ogni PC si crea la propria carriera
 (`data/` è fuori dal repository, di proposito).
 
+## 0. IL MODO UNO: un solo file, zero dipendenze (dal 26/10)
+
+Non esiste più il pacchetto da inviare a ogni amico: si passa **il file
+doppioclick `installa.cmd`** (uno solo, in radice del progetto, pochi KB) e
+è lui che installa TUTTO con un solo comando:
+
+1. doppio click (da qualunque cartella: può stare sul Desktop);
+2. Invio per la cartella di default (`%USERPROFILE%\EVO-Pitwall`);
+3. se il PC non ha Node, scarica un **Node portatile** dentro quella stessa
+   cartella — niente admin, niente winget;
+4. chiede **una volta** il token di lettura (§5-bis) e lo salva in
+   `data\.github-token`: gli aggiornamenti automatici del launcher sono
+   già a posto da subito;
+5. scarica il codice (zipball di `main`), lo estrae, scrive `build-id.txt`
+   e fa passare `npm test`;
+6. crea la scorciatoia «Carriera EVO» sul Desktop (icona compresa) e avvia
+   il **wizard** di prima apertura.
+
+Il friend non tocca terminali, git né zip: GitHub viene usato solo come
+mezzo di scarico e poi per gli aggiornamenti.
+
 ## 1. Cos' serve
 
-- **Node.js 18 o superiore** (`node -v` per controllarlo): nessun'altra dipendenza.
 - **Assetto Corsa EVO installato e avviato almeno una volta** (così esistono le
   sue cartelle dati: `Saved Games\ACE`).
-- Per la via **clone**: Git (basta quello che arriva con le GitHub Desktop o
-  `git-scm.com`).
-- Per la via **zip**: niente altro; se il repo GitHub è **privato**, un token di
-  lettura salvato una volta in `data/.github-token` (o variabile `GITHUB_TOKEN`).
+- Più niente: **Node si scarica da solo** se manca e **Git non serve** (sono
+  necessari solo per le vie «di sviluppatore» del capitolo 2).
+- Un token di lettura al repo se questo resta **privato** (una volta sola, §5-bis).
 
-## 2. Clone (il modo che riceve gli aggiornamenti)
+## 2. Vie di sviluppatore (clone e zip)
 
-```bash
+Per chi lavora sul progetto, non per l'amico.```bash
 git clone https://github.com/turbignox-hash/ac-evo-career.git
 cd ac-evo-career
 git remote rename origin offsite     # così il controllo aggiornamenti guarda il repo giusto
@@ -27,7 +46,7 @@ git remote rename origin offsite     # così il controllo aggiornamenti guarda i
 altro: senza quel passo il check dice «il remote offsite non risponde con un
 commit» e l'app parte comunque (solo senza aggiornamenti).
 
-**Via zip** (chi non vuole installare Git): scarichi il pacchetto, lo estrai,
+**Via zip** (per chi non vuole installare Git): scarichi il pacchetto, lo estrai,
 doppio click su `avvia.cmd` — il wizard di prima apertura fa il resto.
 Gli aggiornamenti arrivano **automatici** anche così, dal 24/10: nel pacchetto
 c'è `ac-evo-career/build-id.txt` e ad ogni avvio il launcher confronta quella
@@ -41,9 +60,11 @@ vale lo stesso auto-aggiornamento — senza `build-id.txt` il PRIMO avvio guarda
 main su GitHub e porta da solo l'installazione al passo (serve il token di
 lettura su repo privato, §5-bis); da quel momento è identica alla via zip.
 
-## 5-bis. Token di lettura (solo zip su repo privato)
+## 5-bis. Token di lettura (solo se il repo ri-passa privato)
 
-Il repo è **privato**: l'updater zip chiede una chiave di lettura.
+Stato al 26/10: il repo è **pubblico** e non serve nessun token — l'installatore
+accetta pure INVIO alla domanda. Se ripassasse privato: l'installatore chiede il
+token, lo salva in `data\.github-token` e l'updater zip guasta da quel file.
 
 1. Su GitHub: **Settings → Developer settings → Personal access tokens →
    Fine-grained** → *Generate new token*: repository solo ac-evo-career,
@@ -122,7 +143,9 @@ Dalla GUI c'è anche la banda **Aggiornamenti** sopra il Cruscotto, col bottone
 
 | Sintomo | Cosa guardare |
 | --- | --- |
-| «il remote offsite non risponde con un commit» | (clone) manca `git remote rename origin offsite` (o sei offline: parte comunque) |
+| l'installatore si blocca sul download di Node | rete o antivirus che filtra nodejs.org: prova di nuovo, oppure installa Node manualmente da nodejs.org e ri-lancia |
+| l'installatore dice «token scaduto o senza accesso» | il token è vecchio o non ha *Contents: Read-only* su questo repo: §5-bis |
+| «il remote offsite non risponde con un commit» | (solo vie clone) manca `git remote rename origin offsite` (o sei offline: parte comunque) |
 | lo zip non si auto-aggiorna | il file `ac-evo-career/build-id.txt` manca nel pacchetto (vecchio bundle) → ri-scarichi una volta lo zip nuovo; (repo privato) manca `data/.github-token` → §5-bis; (offline) parte lo stesso, riproverà all'avvio dopo |
 | l'aggiorno-zip dice «c'è lavoro sul disco che la copia leva» | hai file tuoi dentro le cartelle codice/config: spostali fuori da `ac-evo-career/` (o mettili in una cartella nuova data/ o）： la copia non tocca mai `data/` né alcun tuo file fuori da quelle cartelle |
 | il wizard non trova EVO | gioco mai avviato? cartelle dati non in `Saved Games\ACE`? forza con `setup --data ... --game ...` |
