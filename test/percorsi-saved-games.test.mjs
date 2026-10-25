@@ -9,6 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { statSync } from 'node:fs';
+import { join } from 'node:path';
 import { savedGamesRoots, dataDirCandidates } from '../src/paths.mjs';
 import { GAME_SAVEDIR } from '../tools/evo-grid.mjs';
 
@@ -36,7 +37,17 @@ test('dataDirCandidates: ogni Saved Games contribuisce la sua ACE', () => {
   for (const c of cands) assert.ok(c.endsWith('ACE'), `candidato fuori dallo schema ${c}`);
 });
 
-test('GAME_SAVEDIR dei tool: dentro una radice esistente (override rispettato)', () => {
-  assert.equal(statSync(GAME_SAVEDIR).isDirectory(), true,
-    `GAME_SAVEDIR (${GAME_SAVEDIR}) non esiste: i tool scrivono nel vuoto — è il bug del 26/10`);
+test('GAME_SAVEDIR dei tool: dentro una radice TROVATA (ACE può ancora mancare sul PC vergine)', () => {
+  // La guardia vera è sulla RADICE: il bug del 26/10 era il tool che resta
+  // muto mentre Windows ha «Saved Games» ricollocata. Su un PC vergine
+  // (prova dell'amico del 25/10: save spostato, radice c'è) ACE non esiste
+  // ancora — i tool sanno crearvi GameModes e non devono restare muti.
+  const roots = savedGamesRoots();
+  assert.ok(roots.length >= 1, 'nessuna radice di Saved Games: il tool resta muto');
+  const norm = (p) => p.replace(/\\/g, '/');
+  assert.ok(roots.some((r) => norm(GAME_SAVEDIR) === norm(join(r, 'ACE'))),
+    `GAME_SAVEDIR (${GAME_SAVEDIR}) non viene da nessuna radice trovata (${roots.join(' | ')}): è il bug del 26/10`);
+  assert.ok(/ACE$/.test(norm(GAME_SAVEDIR)), `GAME_SAVEDIR fuori dallo schema ACE: ${GAME_SAVEDIR}`);
+  const st = statSync(GAME_SAVEDIR, { throwIfNoEntry: false });
+  if (st) assert.equal(st.isDirectory(), true, `${GAME_SAVEDIR} esiste ma non è una cartella`);
 });
