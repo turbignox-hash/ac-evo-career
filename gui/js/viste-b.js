@@ -9,7 +9,7 @@ async function drawCalendar(m){
 
 /* -------- centro gare (ex Agenda, stile cockpit: calendario grande,
    pulsanti del tempo in evidenza, schede-gara racing a colpo d'occhio) --- */
-let agendaView = { day: null, filter: 'tutte', disc: null };
+const agendaView = { day: null, filter: 'tutte', disc: null };
 
 /* l'icona della DISCIPLINA sulla scheda: stessa famiglia di icone della nav,
    così le viste si uniformano senza creare diversità */
@@ -130,22 +130,22 @@ async function drawAgenda(m){
   // la data VECCHIA (boot già risolto prima dell'avanzamento) → la data sembrava ferma
   $('#ag-advance').onclick = async () => { await api('agenda-advance', { method:'POST' }); agendaView.day = null; await refreshBoot(); render(); };
   const nb = $('#ag-next'); if (nb) nb.onclick = async () => { await api('agenda-skip-to-next', { method:'POST' }); agendaView.day = null; await refreshBoot(); render(); };
-  $$('button[data-af]').forEach(b => b.onclick = () => { agendaView.filter = b.dataset.af; drawAgenda(m); });
-  $$('button[data-hidestarted]').forEach(b => b.onclick = () => { agendaView.hideStarted = !agendaView.hideStarted; drawAgenda(m); });
-  $$('button[data-disc]').forEach(b => b.onclick = () => { agendaView.disc = b.dataset.disc || null; drawAgenda(m); });
-  $$('button[data-goday]').forEach(b => b.onclick = () => { agendaView.day = Number(b.dataset.goday); drawAgenda(m); });
-  $$('button[data-corri]').forEach(b => b.onclick = async () => {
+  $$('button[data-af]').forEach(b => { b.onclick = () => { agendaView.filter = b.dataset.af; drawAgenda(m); }; });
+  $$('button[data-hidestarted]').forEach(b => { b.onclick = () => { agendaView.hideStarted = !agendaView.hideStarted; drawAgenda(m); }; });
+  $$('button[data-disc]').forEach(b => { b.onclick = () => { agendaView.disc = b.dataset.disc || null; drawAgenda(m); }; });
+  $$('button[data-goday]').forEach(b => { b.onclick = () => { agendaView.day = Number(b.dataset.goday); drawAgenda(m); }; });
+  $$('button[data-corri]').forEach(b => { b.onclick = async () => {
     b.disabled = true;
     try {
       const r = await api('agenda-choose', { method:'POST', body:{ nodeId: b.dataset.corri, day: agendaView.day ?? undefined } });
       toast(tr({ it: 'Gara scelta per oggi ✔ (serie attiva nel cruscotto)', en: "Race picked for today ✔ (series now active on the Dashboard)" }), 'ok');
       tab = 'calendar'; drawNav(); render();
     } catch(e){ toast(e.message, 'err'); b.disabled = false; }
-  });
-  $$('button[data-shift]').forEach(b => b.onclick = async () => {
+  }; });
+  $$('button[data-shift]').forEach(b => { b.onclick = async () => {
     await api('agenda-shift', { method:'POST', body:{ nodeId: b.dataset.shift } });
     render();
-  });
+  }; });
   // "GARE DEL GIORNO" si riempie qui: conteggio + card racing in un colpo solo
   const wrapEl = $('#gare-wrap');
   {
@@ -157,18 +157,18 @@ async function drawAgenda(m){
     if (!lista.length) wrapEl.innerHTML = `<div class="muted">${tr({ it: 'Nessuna gara corrisponde ai filtri in questo giorno. Prova un altro giorno dalla striscia calendario.', en: 'No race matches the filters on this day. Try another day from the calendar strip.' })}</div>`;
     else wrapEl.innerHTML = `<div class="ag-grid">${lista.map(gareCard).join('')}</div>`;
     // ricola i click (le card sono appena create)
-    $$('.ag-card', wrapEl).forEach(el => el.onclick = (e) => {
+    $$('.ag-card', wrapEl).forEach(el => { el.onclick = (e) => {
       if (e.target.closest('button')) return;
       raceCardModal(el.dataset.detail, a.viewDay);
-    });
-    $$('button[data-corri]', wrapEl).forEach(b => b.onclick = async () => {
+    }; });
+    $$('button[data-corri]', wrapEl).forEach(b => { b.onclick = async () => {
       b.disabled = true;
       try {
         await api('agenda-choose', { method:'POST', body:{ nodeId: b.dataset.corri, day: agendaView.day ?? undefined } });
         toast(tr({ it: 'Gara scelta per oggi ✔ (serie attiva nel cruscotto)', en: "Race picked for today ✔ (series now active on the Dashboard)" }), 'ok');
         tab = 'calendar'; drawNav(); render();
       } catch(e){ toast(e.message, 'err'); b.disabled = false; }
-    });
+    }; });
   }
 }
 
@@ -271,10 +271,10 @@ async function drawChampionships(m){
     </div>`;
   }).join('');
   // un click su un badge = scroll fluido alla sezione del campionato
-  $$('.champ-badge').forEach(b => b.onclick = () => {
+  $$('.champ-badge').forEach(b => { b.onclick = () => {
     const sec = $(`#champ-${CSS.escape(b.dataset.node)}`);
     if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
+  }; });
 }
 
 /* -------- classifica MONDIALE per prestigio -------- */
@@ -293,7 +293,7 @@ async function drawWorldRanking(m){
     <td>${r.traits?.length?r.traits.map(t=>`<span class="chip blue" style="font-size:10px;padding:1px 6px">${esc(t)}</span>`).join(' '):''}</td>
     <td class="muted" style="font-size:11px">${esc(r.archName ?? '')}</td></tr>`).join('')}</tbody>
   </table></div>`;
-  $$('.wr-row').forEach(tr => tr.onclick = () => showWorldPilot(tr.dataset.k, w.rows));
+  $$('.wr-row').forEach(tr => { tr.onclick = () => showWorldPilot(tr.dataset.k, w.rows); });
 }
 
 function showWorldPilot(name, rows){
@@ -425,7 +425,7 @@ async function drawArchive(m){
     body.innerHTML = flat.length ? `<table><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Sessione', en: 'Session' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th>${tr({ it: 'Tipo', en: 'Type' })}</th><th class="right">${tr({ it: 'Piloti', en: 'Drivers' })}</th><th>${tr({ it: 'Tu', en: 'You' })}</th><th>${tr({ it: 'Vincitore', en: 'Winner' })}</th></tr></thead>
     <tbody>${flat.map(({r,tries})=>rowHtml(r,tries)).join('')}</tbody></table><div class="muted" style="margin-top:8px">${tr({ it: 'Clicca una riga per la classificazione completa con tempi e gap. ×N = più tentativi nella stessa ora (si aprono dal dettaglio).', en: 'Click a row for the full classification with timings and gaps. ×N = multiple attempts in the same hour (opened from the detail).' })}</div>`
     : `<div class="empty">${tr({ it: 'Nessuna sessione trovata.', en: 'No session found.' })}</div>`;
-    $$('.arc-row', body).forEach(tr => tr.onclick = () => openResult(tr.dataset.file));
+    $$('.arc-row', body).forEach(tr => { tr.onclick = () => openResult(tr.dataset.file); });
   };
   paint();
   const bAll = $('#b-arc-all');
@@ -630,7 +630,7 @@ async function drawBanca(m){
       : `<div class="empty">${tr({ it: 'Nessun movimento del tipo scelto.', en: 'No entries of the chosen type.' })}</div>`}
     <div class="muted" style="margin-top:10px;font-size:12px">${tr({ it: 'Il registro parte dalla nascita del registro flussi: i tempi passati della carriera risultano come un unico movimento \"ripartenza\", calcolato a posteriori.', en: 'The ledger starts when the flow ledger was born: earlier career times show up as a single \"starting balance\" entry, computed after the fact.' })}</div>
   </div>`;
-  $$('button[data-bf]').forEach(b=>b.onclick=()=>{ bancaView.filter=b.dataset.bf; drawBanca(m); });
+  $$('button[data-bf]').forEach(b=>{ b.onclick=()=>{ bancaView.filter=b.dataset.bf; drawBanca(m); }; });
 }
-let bancaView = { filter:'tutte' };
+const bancaView = { filter:'tutte' };
 

@@ -140,7 +140,7 @@ async function drawCars(m){
       ${r.variants?.length?`<div class="muted" style="font-size:11px;margin-top:2px">${tr({ it: 'varianti: ', en: 'variants: ' })}${esc(r.variants.join(', '))}</div>`:''}</div>
     </div>`;
     }).join('') || `<div class="empty">${tr({ it: 'Nessuna auto trovata.', en: 'No car found.' })}</div>`;
-    $$('#cars-grid .car-click').forEach(el => el.onclick = () => carDetail(rows[Number(el.dataset.i)], b));
+    $$('#cars-grid .car-click').forEach(el => { el.onclick = () => carDetail(rows[Number(el.dataset.i)], b); });
   };
 
   /* grafico curve motore: potenza in kW (linea piena) e coppia in Nm (tratteggiata) */
@@ -210,11 +210,11 @@ async function drawCars(m){
       ${r.shTop!=null?`<div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: 'Baseline telemetry (SH) top: ', en: 'Baseline telemetry (SH) top: ' })}${(r.shTop*100).toFixed(1)}%</div>`:''}
     `, [[tr({ it: 'Chiudi', en: 'Close' }),'ghost',()=>{}]]);
   }
-  $$('#cars-cat button').forEach(btn => btn.onclick = () => {
+  $$('#cars-cat button').forEach(btn => { btn.onclick = () => {
     cat = btn.dataset.cat;
-    $$('#cars-cat button').forEach(x => x.style.borderColor = x===btn ? 'var(--acc)' : '');
+    $$('#cars-cat button').forEach(x => { x.style.borderColor = x===btn ? 'var(--acc)' : ''; });
     draw();
-  });
+  }; });
   $('#cars-q').oninput = draw;
   $('#cars-ladder').onchange = draw;
   draw();
@@ -268,12 +268,12 @@ async function drawGarage(m){
         </div>
       </div>
     </div>`).join('') || `<div class="empty">${tr({ it: "Garage vuoto: vinci un evento speciale o aggiungi un'auto dal catalogo.", en: 'Empty garage: win a special event or add a car from the catalog.' })}</div>`;
-    $$('#g-grid .g-savenote').forEach(b => b.onclick = async () => {
+    $$('#g-grid .g-savenote').forEach(b => { b.onclick = async () => {
       const card = b.closest('[data-car]');
       try { const out = await api('garage-note', { carId: card.dataset.car, note: $('.g-note', card).value }); draw(out.garage); toast(tr({ it: 'Nota salvata.', en: 'Note saved.' }), 'ok'); }
       catch(e){ toast(e.message, 'err'); }
-    });
-    $$('#g-grid .g-sell').forEach(b => b.onclick = async () => {
+    }; });
+    $$('#g-grid .g-sell').forEach(b => { b.onclick = async () => {
       const card = b.closest('[data-car]');
       if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.style.borderColor = 'var(--bad)'; b.textContent = tr({ it: 'confermi?', en: 'confirm?' }); setTimeout(()=>{ b.dataset.armed=''; b.style.borderColor=''; b.textContent=tr({ it: 'vendi', en: 'sell' }); }, 3000); return; }
       try {
@@ -282,7 +282,7 @@ async function drawGarage(m){
         toast(`${tr({ it: 'Venduta: +', en: 'Sold: +' })}${money(out.sold.gain)} € (${money(out.sold.km)} km).`, 'ok');
       }
       catch(e){ toast(e.message, 'err'); }
-    });
+    }; });
   };
   draw(g);
   const priceHint = () => {
@@ -376,7 +376,7 @@ async function drawTracks(m){
     <tbody>${rows}</tbody></table>
   </div>
   <div id="track-hist"></div>`;
-  $$('button[data-hist]').forEach((b) => b.onclick = () => {
+  $$('button[data-hist]').forEach((b) => { b.onclick = () => {
     const r = t.rows.find((x) => x.id === b.dataset.hist);
     const i = r?.info;
     $('#track-hist').innerHTML = !i ? '' : `<div class="panel" style="margin-top:14px"><h2>${flag(i.country)} ${esc(i.fullName)} <span class="h-act">${esc(tr({ it: i.country, en: i.countryEn }))} · ${i.lengthKm} km · ${i.corners} ${tr({ it: 'curve · inaugurato nel ', en: 'corners · opened in ' })}${i.opened}</span></h2>
@@ -385,7 +385,7 @@ async function drawTracks(m){
       <table style="margin-bottom:10px"><thead><tr><th>${tr({ it: 'Layout', en: 'Layout' })}</th><th class="right">${tr({ it: 'Lunghezza', en: 'Length' })}</th><th class="right">${tr({ it: 'Box', en: 'Pits' })}</th><th class="right">${tr({ it: 'Tuo miglior', en: 'Your best' })}</th><th class="right">${tr({ it: 'Record di sessione', en: 'Session record' })}</th></tr></thead><tbody>${r.layoutRows.map(l=>`<tr><td><b>${esc(l.layout)}</b></td><td class="right">${l.lengthKm??'—'} km</td><td class="right">${l.pits??'—'}</td><td class="right">${l.mine?`<b>${esc(l.mine.time)}</b>${l.mineFallback?'<span class="faint"> *</span>':''}`:'—'}</td><td class="right">${l.session?`${esc(l.session.time)} <span class="faint">${esc(l.session.driver)}</span>`:'—'}</td></tr>`).join('')}</tbody></table><div class="faint" style="margin:-6px 0 10px;font-size:11px">* ${tr({ it: 'dal record personale in carriera/prove (una sola configurazione corsa: il save non distingue i layout)', en: 'from the personal record in career/practice (only one layout raced: the save does not distinguish layouts)' })}</div>` : ''}
       <div style="line-height:1.6">${esc(tr({ it: i.history, en: i.historyEn }))}</div></div>`;
     $('#track-hist').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
+  }; });
 ;
 }
 
@@ -669,14 +669,14 @@ async function drawSetup(m){
       })
       .catch(e => { $('#psi-result').innerHTML = `<div class="banner bad">${esc(e.message)}</div>`; });
   };
-  $$('button[data-carnote]').forEach(btn => btn.onclick = async () => {
+  $$('button[data-carnote]').forEach(btn => { btn.onclick = async () => {
     const car = btn.dataset.carnote;
     const row = b.rows.find(r => r.car === car);
     const text = prompt(`${tr({ it: 'Nota di setup per ', en: 'Setup note for ' })}${row.carName} ${tr({ it: 'su ', en: 'at ' })}${b.trackDisplay ?? tr({ it: 'questa pista', en: 'this track' })}:`, row.note ?? '');
     if (text === null) return;
     await api('garage', { action: 'note', car, track: b.track, text });
     toast(text ? tr({ it: 'Nota salvata.', en: 'Note saved.' }) : tr({ it: 'Nota rimossa.', en: 'Note removed.' }), 'ok'); render();
-  });
+  }; });
 
   /* ⚡ APPLICA: chiude il CICLO — telemetria → consiglio → file di setup pronto
      sul disco. In EVO A GIOCO APERTO: setup → CARICA → «… — EVO-consigliato»:

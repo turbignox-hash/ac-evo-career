@@ -32,7 +32,7 @@ const BACKUP_DIR = join(PROJECT, 'data', 'backups');
 export function testMode() {
   try {
     const j = JSON.parse(readFileSync(TEST_FILE(), 'utf8'));
-    if (j && j.attivo) return j;
+    if (j?.attivo) return j;
   } catch { /* assente: modalità spenta */ }
   return null;
 }

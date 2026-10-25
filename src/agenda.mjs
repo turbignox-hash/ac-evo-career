@@ -79,7 +79,7 @@ export function ensureAgenda(state) {
 }
 
 export function hasSeat(state, nodeId) {
-  return !!(state.seats && state.seats[nodeId]);
+  return !!state.seats?.[nodeId];
 }
 
 /* ------------------------------------------------------------------ */

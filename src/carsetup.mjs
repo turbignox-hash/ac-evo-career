@@ -36,7 +36,7 @@ const f32Of = (b) => (b && b.length >= 4) ? Buffer.from(b).readFloatLE(0) : NaN;
 const setF32 = (v) => { const b = Buffer.alloc(4); b.writeFloatLE(Number(v), 0); return b; };
 /** leggi un blob come f32 packed SE È multiplo di 4 (per ARB/altri raw) */
 const f32PackOf = (b) => { const x = Buffer.from(b ?? []); return Array.from({ length: Math.floor(x.length / 4) }, (_, i) => x.readFloatLE(i * 4)); };
-const packF32 = (vals) => { const b = Buffer.alloc(4 * vals.length); vals.forEach((v, i) => b.writeFloatLE(Number(v), i * 4)); return b; };
+const packF32 = (vals) => { const b = Buffer.alloc(4 * vals.length); vals.forEach((v, i) => { b.writeFloatLE(Number(v), i * 4); }); return b; };
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const RUOTE = ['ant sx', 'ant dx', 'post sx', 'post dx', 'extra5', 'extra6'];
 
@@ -315,8 +315,8 @@ export function normalizeNameMaybe(value, ladder, state) {
   const raw = String(value ?? '').trim();
   if (!raw) return null;
   const pool = new Set();
-  try { Object.values(ladder?.contentNames?.cars ?? {}).forEach((n) => n && pool.add(String(n).trim())); } catch { /* il catalogo mancano non blocca */ }
-  try { Object.keys(ladder?.contentNames?.cars ?? {}).forEach((n) => n && pool.add(String(n).trim())); } catch { }
+  try { Object.values(ladder?.contentNames?.cars ?? {}).forEach((n) => { n && pool.add(String(n).trim()); }); } catch { /* il catalogo mancano non blocca */ }
+  try { Object.keys(ladder?.contentNames?.cars ?? {}).forEach((n) => { n && pool.add(String(n).trim()); }); } catch { }
   try { (state?.cars ?? []).forEach((c) => { if (c?.carId) pool.add(String(c.carId).trim()); if (c?.carName) pool.add(String(c.carName).trim()); }); } catch { }
   const poolList = [...pool].filter(Boolean);
   if (poolList.includes(raw)) return raw;

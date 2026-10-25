@@ -292,7 +292,7 @@ export function standingsFor(ladder, state, node, season = state.season) {
   const grid = gridFor(state.world, ladder, node, season);
   const totals = new Map();
   const add = (id, pts) => totals.set(id, (totals.get(id) ?? 0) + pts);
-  grid.forEach((s) => totals.set(s.driverId, 0));
+  grid.forEach((s) => { totals.set(s.driverId, 0); });
   totals.set('player', 0);
 
   const mine = (state.results[node.nodeId] ?? []).filter((r) => r.season === season);

@@ -9,7 +9,7 @@ const api = (action, call={}) => {
   // compat con lo stile del monolite: {method:'POST', body:{...}} — dopo lo split
   // alcune viste mandano ancora l'incartatura; il server in realtà vuole il SOLO body
   // (l'azione sta già nell'URL). Lo smaltiamo qui, una volta per tutte le chiamate.
-  const body = (call && call.body && call.method) ? call.body : call;
+  const body = (call?.body && call.method) ? call.body : call;
   return fetch(`/api/${action}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body ?? {})})
     .then(async r => { const d = await r.json(); if (!r.ok) throw Object.assign(new Error(d.error || 'errore'), {data:d}); return d; });
 };
@@ -192,7 +192,7 @@ function drawNav(){
   const urgent = boot?.mailUrgent || 0;
   $('#nav').innerHTML = TABS.map(([id,label]) =>
     `<button data-tab="${id}" class="${tab===id?'on':''}">${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${tr({ it: `${urgent} email urgenti: gare da disputare o conflitti`, en: `${urgent} ${urgent===1?'urgent email':'urgent emails'}: races to run or conflicts` })}">⚠️${urgent}</span>`:''}</button>`).join('');
-  $$('#nav button').forEach(b => b.onclick = () => { tab = b.dataset.tab; drawNav(); render(); });
+  $$('#nav button').forEach(b => { b.onclick = () => { tab = b.dataset.tab; drawNav(); render(); }; });
 }
 
 /* ============================== viste ============================== */
@@ -292,8 +292,8 @@ async function refreshBoot(){
   $('#t-evo').textContent = boot.gameRunning ? tr({ it: 'EVO aperto', en: 'EVO open' }) : tr({ it: 'chiuso', en: 'closed' });
   // versione della build: aggiornamento automatico a ogni sincronizzazione git
   // (tools/bump-versione.mjs) — package.json + hash breve del commit.
-  if (boot.versione && boot.versione.semver && boot.versione.semver !== '?') {
-    let sf = $('.side-foot');
+  if (boot.versione?.semver && boot.versione.semver !== '?') {
+    const sf = $('.side-foot');
     if (sf) sf.innerHTML = `${tr({ it: 'Assetto Corsa EVO · tool locale', en: 'Assetto Corsa EVO · local tool' })}<br>${tr({ it: 'tutto resta sul tuo PC', en: 'everything stays on your PC' })}<br><span id="build-ver" title="versione della build (si aggiorna a ogni salvataggio del progetto su GitHub)">build ${esc(boot.versione.semver)}${boot.versione.hash ? ` · ${esc(boot.versione.hash)}` : ''}</span>`;
     // footer: contatto e donazioni (scelta del 21/10: issue GitHub precompilata + Ko-fi).
     // Il SERVER precompila titolo e corpo della segnalazione (versione build, serie in
@@ -357,7 +357,7 @@ const TAB_FALL_ICON = {
   tracks:'🗺️', cars:'🚘', garage:'🏠', import:'📥',
   archive:'🗃️', stats:'📈', banca:'💰', difficulty:'🎚️', settings:'⚙️', analisi:'🔬',
 };
-const HAS_EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u;
+const HAS_EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]|\u{FE0F}/u;
 function decoratePanels(scope) {
   if (!scope) return;
   scope.querySelectorAll('.panel h2').forEach(h => {

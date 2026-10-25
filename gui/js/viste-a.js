@@ -22,7 +22,7 @@ function wizardSketchSteps(w){
   const done = !!w.dataDir;
   const prep = done && (w.content?.cars > 0);
   const career = !!w.career;
-  let cur = career ? 3 : (!done ? 0 : !prep ? 1 : 2);
+  const cur = career ? 3 : (!done ? 0 : !prep ? 1 : 2);
   const states = ['done', 'done', 'done', career ? 'done' : ''];
   states[cur] = 'cur';
   return `<div class="wzsteps">` + WZ_SKETCHES.map((s, i) =>
@@ -468,12 +468,12 @@ function drawCardInto(el, card){
   // del rivale (showRival in viste-d.js, subito dopo nel load). Se la chiave
   // non è in registro (rivale mai incassato), toast chiaro invece di errore.
   requestAnimationFrame(() => {
-    $$('.chip[data-rival]', el).forEach(c => c.onclick = () => {
+    $$('.chip[data-rival]', el).forEach(c => { c.onclick = () => {
       const k = c.dataset.rival;
       if (!k) { toast(tr({ it: 'Rivale non ancora in registro: arriva all\u2019import della gara.', en: 'Rival not in the registry yet: it comes with the race import.' }), 'info'); return; }
       if (typeof showRival === 'function') showRival(k);
       else toast(tr({ it: 'Scheda rivali non disponibile in questa vista.', en: 'Rival sheet not available in this view.' }), 'err');
-    });
+    }; });
   });
   if (card.seasonDone){
     el.innerHTML = `<h2>${LI.medal} ${tr({ it: 'Stagione completata', en: 'Season completed' })}</h2>
@@ -577,12 +577,12 @@ function drawCardInto(el, card){
   const save = () => {
     checked = $$('.ckl input', el).filter(c=>c.checked).map(c=>Number(c.dataset.i));
     localStorage.setItem(key, JSON.stringify(checked));
-    $$('.ckl', el).forEach((row,i)=>row.classList.toggle('done', checked.includes(i)));
+    $$('.ckl', el).forEach((row,i)=>{ row.classList.toggle('done', checked.includes(i)); });
     $('.cklbar i', el).style.width = (checked.length/card.settings.length*100) + '%';
     $('.cklmeta .muted', el).textContent = tr({ it: 'checklist di configurazione: ', en: 'setup checklist: ' }) + `${checked.length}/${card.settings.length}`;
     if (checked.length === card.settings.length) toast(tr({ it: 'Scheda completa: sei pronto a partire in EVO.', en: 'Sheet complete: you are ready to start in EVO.' }), 'ok');
   };
-  $$('.ckl input', el).forEach(c => c.onchange = save);
+  $$('.ckl input', el).forEach(c => { c.onchange = save; });
   $('#b-ckl-reset', el).onclick = (e) => { e.preventDefault(); localStorage.removeItem(key); drawCardInto(el, card); };
   // RADIO LIVE DELL'INGEGNERE: benzina residua, usura gomme, gap — dati veri
   // della shared memory mentre il gioco gira. Se non c'è gara in corso il
@@ -703,7 +703,7 @@ function drawCardInto(el, card){
         cp.at = 0;
         cp.grace = Date.now() + 15000;
       }
-      const wearRow = (m.gauges?.wear || []).length === 4 ? `<span class="muted" style="font-size:11px">${tr({ it: 'gomme', en: 'tyres' })} LF ${m.gauges.wear[0]}% · RF ${m.gauges.wear[1]}% · LR ${m.gauges.wear[2]}% · RR ${m.gauges.wear[3]}%${m.gauges.temp&&m.gauges.temp.every(v=>v>0)?' · core '+m.gauges.temp.map(v=>v+'°C').join('/'):''}</span>` : '';
+      const wearRow = (m.gauges?.wear || []).length === 4 ? `<span class="muted" style="font-size:11px">${tr({ it: 'gomme', en: 'tyres' })} LF ${m.gauges.wear[0]}% · RF ${m.gauges.wear[1]}% · LR ${m.gauges.wear[2]}% · RR ${m.gauges.wear[3]}%${m.gauges.temp?.every(v=>v>0)?' · core '+m.gauges.temp.map(v=>v+'°C').join('/'):''}</span>` : '';
       /* --- DELTA DI RITMO: il numero grande che oggi non c'era --- */
       const dv = m.delta?.dv ?? m.delta?.hudDv ?? null;   // ms, con il segno
       const dvCol = dv == null ? 'var(--text)' : dv < 0 ? '#7f7' : '#f66';
@@ -717,7 +717,7 @@ function drawCardInto(el, card){
         </div>`;
       /* --- FINESTRA PIT: quando fermarsi, prima che la gomma dica la sua --- */
       const pit = m.pit;
-      const pitHtml = pit && pit.need
+      const pitHtml = pit?.need
         ? `<div class="banner warn" style="margin-top:8px;padding:8px 10px"><b>🔧 ${tr({ it: 'Finestra pit', en: 'Pit window' })}</b> — ${esc(pit.reason)}. ${tr({ it: 'Fermarsi al giro ', en: 'Pit on lap ' })}<b>${pit.pitLap + 1}</b> ${pit.lapsToWindow === 0 ? tr({ it: '(aperta adesso)', en: '(open now)' }) : `· ${tr({ it: 'si apre tra ', en: 'opens in ' })}<b>${pit.lapsToWindow}</b> ${tr({ it: 'giri', en: 'laps' })}`} · <span class="muted">${tr({ it: 'fermarsi dopo perdere ~', en: 'staying out costs ~' })}${pit.pitLossSec}s</span></div>`
         : (pit && pit.need === null ? `<div class="muted" style="font-size:11px;margin-top:6px">🔧 ${esc(pit.reason)}</div>` : '');
       const mapHtml = deltaMapSvg(m.mapTrack, m.delta?.segments, m.carPos);
@@ -725,7 +725,7 @@ function drawCardInto(el, card){
          quelle ammesse della serie, il pannello lo dice SUBITO — in rosso —
          perché all'import quella gara vale zero (0 punti, 0 premio). */
       const auto = m.auto ?? null;
-      const autoHtml = auto && auto.ammesse?.length && !auto.ok
+      const autoHtml = auto?.ammesse?.length && !auto.ok
         ? `<div class="banner warn" style="margin-top:8px;padding:8px 10px;border-color:#c33"><b>🚫 ${tr({ it: 'Auto fuori dal parco della serie', en: 'Car outside the series pool' })}</b> — ${esc(auto.mine ?? '?')} · ${tr({ it: 'ammesse: ', en: 'allowed: ' })}${esc(auto.ammesse.join(', '))} · <b>${tr({ it: 'all\'import vale 0 punti e 0 premio', en: 'scores 0 points and 0 prize at import' })}</b></div>`
         : '';  // in parco: nessun rumore
       ingOut.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:#0d1118">
@@ -804,7 +804,7 @@ function drawCardInto(el, card){
           if (cp.last.gap !== k) { cp.last.gap = k; cpSpeak(tr({ it: `Gap davanti ${g.gapAhead.toFixed(1)}`, en: `Gap ahead ${g.gapAhead.toFixed(1)}` })); }
         } else cp.last.gap = null;
         /* 6) finestra pit: la prima volta la dico con cura, poi solo se slitta */
-        if (pit && pit.need && pit.pitLap != null && cp.last.pit !== pit.pitLap) {
+        if (pit?.need && pit.pitLap != null && cp.last.pit !== pit.pitLap) {
           cp.last.pit = pit.pitLap;
           cpSpeak(pit.lapsToWindow === 0
             ? tr({ it: `Sosta: aperta adesso, fermati questo giro`, en: `Pit window open: stop this lap` })
@@ -812,7 +812,7 @@ function drawCardInto(el, card){
         }
         /* 7) AUTO DEL PARCO (24/10, Mauro): fuori dalla lista ammesse lo dico,
               e lo ripeto ogni 30 s finché il sedile non torna in regola */
-        if (auto && auto.ammesse?.length && !auto.ok) {
+        if (auto?.ammesse?.length && !auto.ok) {
           cpSay('autofuori', tr({
             it: `Attenzione: ${auto.mine ?? 'questa auto'} non è del parco della serie. Ammesse: ${auto.ammesse.slice(0, 3).join(', ')}. La gara non vale punti.`,
             en: `Warning: ${auto.mine ?? 'this car'} is not from the series pool. Allowed: ${auto.ammesse.slice(0, 3).join(', ')}. The race scores nothing.`,
@@ -873,14 +873,14 @@ function drawCardInto(el, card){
     try { await api('challenge-accept', {}); toast(tr({ it: 'Sfida accettata: in bocca al lupo.', en: 'Challenge accepted: good luck.' }), 'ok'); drawCardInto(el, await api('card', { car: $('#sel-car', el)?.value ?? null })); }
     catch(e){ toast(e.message, 'err'); }
   });
-  $$('.d-nudge', el).forEach(b => b.onclick = async (e) => {
+  $$('.d-nudge', el).forEach(b => { b.onclick = async (e) => {
     e.preventDefault();
     try {
       const out = await api('difficulty-nudge', { delta: Number(b.dataset.d), car: $('#sel-car', el)?.value ?? null });
       drawCardInto(el, out.card);
       toast(`Difficoltà serie: ${out.card.difficulty.rangeMin}–${out.card.difficulty.rangeMax}%.`, 'ok');
     } catch(err){ toast(err.message, 'err'); }
-  });
+  }; });
   $('#b-nudge-apply', el)?.addEventListener('click', async () => {
     try {
       const out = await api('difficulty-nudge', { delta: Number(card.pendingNudge?.delta ?? 1), car: $('#sel-car', el)?.value ?? null });

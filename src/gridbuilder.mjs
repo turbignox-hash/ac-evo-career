@@ -142,7 +142,7 @@ function pickClass(classes, serieId, presetList) {
   return bestN >= 2 ? { id: bestId, cls: best } : { id: serieId, cls: null };   // ≥2 preset per fidarsi
 }
 function rulesFor(classes, serieId, presets, matchedCls, matchedId, trackRef) {
-  let cls = matchedCls;
+  const cls = matchedCls;
   if (cls?.regole) {
     // clamp ai LIMITI reali del gioco: l'UI (e la gara) cappano a 100kg / 20%;
     // valori oltre non producono nulla e tormentano la lettura dei risultati.
@@ -182,7 +182,7 @@ function applyRulesToCell(cellBytes, rules) {
   }
   const rl = rules.find((r) => r.rule.preset != null && r.rule.preset === cell.preset)
     ?? rules.find((r) => r.rule.carName != null && r.rule.carName === cell.carName);
-  let out = inner.filter((g) => g.field !== 24 && g.field !== 25);
+  const out = inner.filter((g) => g.field !== 24 && g.field !== 25);
   if (rl) {
     if (rl.kg > 0) out.push({ field: 24, wire: 0, varint: BigInt(Math.round(rl.kg)) });
     if (rl.pct > 0) out.push({ field: 25, wire: 5, bytes: setF32(rl.pct / 100) });

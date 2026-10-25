@@ -36,9 +36,9 @@ async function drawDifficulty(m){
     </div>
     <div class="muted" style="margin-top:10px">⚠️ = ${tr({ it: 'trim al massimo (', en: 'trim at the max (' })}${rng.max}): ${tr({ it: 'oltre si va solo cambiando serie. Coi due cursori fai la banda min–max da impostare in EVO', en: 'beyond you only move by changing series. With the two handles you make the min–max band to set in EVO' })} (${sr.min}–${sr.max}), ${tr({ it: 'come nel gioco: si salvano al rilascio (e si scrivono anche nei cursori di EVO); ↺ torna al consiglio (centro e centro+1). Il consiglio si ferma a 100: se una serie resta facile anche a fondo scala, si cambia serie.', en: 'as in the game: saved on release (and written to the EVO sliders); ↺ goes back to the suggestion (centre and centre+1). The suggestion stops at 100: if a series stays easy even at full scale, change series.' })}</div>
   </div>`;
-  $$('button[data-mode]').forEach(b => b.onclick = async () => {
+  $$('button[data-mode]').forEach(b => { b.onclick = async () => {
     try { await api('difficulty-action', {op:'mode', mode:b.dataset.mode, value:Number($('#i-diffval').value)}); render(); } catch(e){ toast(e.message,'err'); }
-  });
+  }; });
   $('#b-acc')?.addEventListener('click', async () => { await api('difficulty-action', {op:'accept'}); render(); });
   $('#b-rej')?.addEventListener('click', async () => { await api('difficulty-action', {op:'reject'}); render(); });
   // intervallo min-max di ogni serie, come nel gioco: DUE cursori sulla stessa
@@ -70,8 +70,8 @@ async function drawDifficulty(m){
     const duo = $('.duo', row);
     if (!duo) return;
     clampDuo(duo, null);
-    [$('.smin', duo), $('.smax', duo)].forEach(inp => inp.addEventListener('input', (e) => clampDuo(duo, e.target.classList.contains('smin') ? 'smin' : 'smax', {z:true})));
-    [$('.smin', duo), $('.smax', duo)].forEach(inp => inp.addEventListener('change', () => saveRange(row)));
+    [$('.smin', duo), $('.smax', duo)].forEach(inp => { inp.addEventListener('input', (e) => clampDuo(duo, e.target.classList.contains('smin') ? 'smin' : 'smax', {z:true})); });
+    [$('.smin', duo), $('.smax', duo)].forEach(inp => { inp.addEventListener('change', () => saveRange(row)); });
     $('.rc', row)?.addEventListener('click', async () => {
       try { await api('difficulty-action', {op:'range', nodeId: row.dataset.id, clear:true}); toast(row.dataset.id.startsWith('evento_')
         ? tr({ it: 'Banda dell\'evento tornata al fisso 88–93 (quella della scheda evento).', en: 'Event band back to the fixed 88–93 (the event card one).' })
@@ -151,9 +151,9 @@ async function drawMessages(m){
     </div>
     <div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: 'Le decisioni più importanti (sponsor, sfida) si firmano nel Cruscotto: il bottone ti porta lì con il pannello pronto.', en: 'The most important decisions (sponsor, challenge) are signed on the Dashboard: the button takes you there with the panel ready.' })}</div>
   </div>`;
-  $$('button[data-mf]').forEach(b => b.onclick = () => { mailFilter = b.dataset.mf; drawMessages(m); });
+  $$('button[data-mf]').forEach(b => { b.onclick = () => { mailFilter = b.dataset.mf; drawMessages(m); }; });
   // azioni dalle email: la posta diventa OPERATIVA (gare, agenda, trim)
-  $$('button[data-maction]').forEach(b => b.onclick = async () => {
+  $$('button[data-maction]').forEach(b => { b.onclick = async () => {
     const a = b.dataset.maction;
     if (a === 'vai-gara') { tab = 'dashboard'; drawNav(); render(); }
     else if (a === 'vai-agenda') { tab = 'agenda'; drawNav(); render(); }
@@ -175,16 +175,16 @@ async function drawMessages(m){
           catch(e){ toast(e.message,'err'); return false; }
         }]]);
     }
-  });
+  }; });
   // CHIP RIVALI nel bollettino: scheda pilota a un clic
-  $$('.chip[data-rival]', m).forEach(c => c.onclick = () => {
+  $$('.chip[data-rival]', m).forEach(c => { c.onclick = () => {
     const k = c.dataset.rival;
     if (k && typeof showRival === 'function') showRival(k);
     else toast(tr({ it: 'Rivale non in registro.', en: 'Rival not in the registry.' }), 'info');
-  });
+  }; });
   // RIGHE SETTIMANALE/ATARDO: chip serie (card gara) + 📍 pista (scheda pista)
-  $$('.chip[data-row-node]', m).forEach(c => c.onclick = () => { tab = 'dashboard'; drawNav(); render(); toast(tr({ it: 'Scheda gara nel Cruscotto.', en: 'Race card on the Dashboard.' }), 'info'); });
-  $$('.chip[data-track-open]', m).forEach(c => c.onclick = () => {
+  $$('.chip[data-row-node]', m).forEach(c => { c.onclick = () => { tab = 'dashboard'; drawNav(); render(); toast(tr({ it: 'Scheda gara nel Cruscotto.', en: 'Race card on the Dashboard.' }), 'info'); }; });
+  $$('.chip[data-track-open]', m).forEach(c => { c.onclick = () => {
     const nome = c.dataset.trackName;
     tab = 'tracks'; drawNav(); render().then?.(() => {});
     setTimeout(() => {
@@ -192,18 +192,18 @@ async function drawMessages(m){
       $$('.b-hist').forEach(btn => { if (btn.dataset.hist && esc(nome).toLowerCase().includes(btn.dataset.hist.replace(/_/g,' ')) ) btn.click(); });
       toast(tr({ it: 'Libro piste: storia della pista in fondo pagina (se presente).', en: 'Track book: track history at the bottom of the page (if present).' }), 'info');
     }, 350);
-  });
+  }; });
   // azioni rapide: sessioni decisionali veloci senza cercare i pannelli
-  $$('button[data-quick]').forEach(b => b.onclick = () => {
+  $$('button[data-quick]').forEach(b => { b.onclick = () => {
     const a = b.dataset.quick;
     if (a === 'sponsor-check' || a === 'challenge-check') { tab = 'dashboard'; drawNav(); render(); toast(tr({ it: 'Pannello "Vita fuori pista" nel Cruscotto: firma o rifiuta da lì.', en: 'The "Life off track" panel on the Dashboard: sign or decline from there.' }), 'info'); }
     else if (a === 'mail-all') { mailFilter = 'tutte'; drawMessages(m); }
-  });
-  $$('button[data-acc]').forEach(b => b.onclick = () => signOffer(Number(b.dataset.acc), b.dataset.name));
-  $$('button[data-detail]').forEach(b => b.onclick = () => {
+  }; });
+  $$('button[data-acc]').forEach(b => { b.onclick = () => signOffer(Number(b.dataset.acc), b.dataset.name); });
+  $$('button[data-detail]').forEach(b => { b.onclick = () => {
     const o = v.offers.find(x => x.index === Number(b.dataset.detail));
     if (o?.detail) serieDetail(o.detail);
-  });
+  }; });
 }
 
 function signOffer(index, name){
@@ -257,7 +257,7 @@ async function pathPicker(pick, onOk){
       if (!html) html = '<div class="muted" style="padding:10px">Cartella vuota.</div>';
     }
     list.innerHTML = html;
-    $$('.pk-row', list).forEach(b => b.onclick = () => load(b.dataset.go));
+    $$('.pk-row', list).forEach(b => { b.onclick = () => load(b.dataset.go); });
     $('#pk-file')?.addEventListener('click', async () => {
       const exe = d.path + '\\' + fileWanted;
       try { await api('setup-save', { gameExe: exe }); $('#modal-root').innerHTML = ''; toast('Eseguibile salvato: ' + exe, 'ok'); onOk(exe); }
@@ -363,14 +363,14 @@ function drawSettings(m){
   </div>`;
   // slot cliccabili: il bottone nella riga lancia pilota-N.cmd via slot-launch
   if (typeof drawAggStatus === 'function') drawAggStatus($('#agg-status', m));
-  $$('button[data-slot-go], button[data-slot-open]').forEach(b => b.onclick = () => {
+  $$('button[data-slot-go], button[data-slot-open]').forEach(b => { b.onclick = () => {
     const n = b.dataset.slotGo ?? b.dataset.slotOpen;
     if (!n) return;
     b.disabled = true;
     api('slot-launch', { method:'POST', body:{ slot: Number(n) } })
       .then(r => { toast(r.note ?? tr({ it: 'Lanciatore avviato.', en: 'Launcher started.' }), 'ok'); b.disabled = false; })
       .catch(err => { toast(err.message, 'err'); b.disabled = false; });
-  });
+  }; });
   // lingua: selettore collegato a gui/js/lang.js (tr + impostaLingua)
   const selLingua = $('#i-lingua');
   if (selLingua) { selLingua.value = window.LINGUA; selLingua.onchange = (e) => impostaLingua(e.target.value); }
@@ -527,10 +527,10 @@ async function seasonEndFlow(force){
       <h2 style="margin:18px 0 8px;font-size:11.5px;text-transform:uppercase;letter-spacing:1.4px;color:var(--dim)">${tr({ it: 'Offerte per la prossima stagione', en: 'Offers for next season' })}</h2>
       ${offersHtml}`,
       [[tr({ it: 'Deciderò dopo', en: 'I will decide later' }), 'ghost', () => { render(); }]]);
-    $$('button[data-acc]').forEach(b => b.onclick = async () => {
+    $$('button[data-acc]').forEach(b => { b.onclick = async () => {
       try { const rr = await api('accept', {index:Number(b.dataset.acc)}); $('#modal-root').innerHTML=''; toast(`${tr({ it: 'Contratto firmato: ', en: 'Contract signed: ' })}${rr.signed}`, 'ok'); await refreshBoot(); render(); }
       catch(e){ toast(e.message,'err'); }
-    });
+    }; });
   } catch(e){
     if (e.data?.code === 'SEASON_INCOMPLETE') {
       modal(tr({ it: 'Stagione incompleta', en: 'Incomplete season' }), `<p>${esc(e.message)}</p><p class="muted" style="margin-top:8px">${tr({ it: 'Puoi chiuderla comunque: le gare mancanti restano senza punti.', en: 'You can close it anyway: missing races stay scoreless.' })}</p>`,
@@ -586,7 +586,7 @@ async function drawRivals(m){
       <td class="right">${r.podiums}</td>
     </tr>`).join('')}</tbody></table>
   </div>` : ''}`;
-  $$('.rival-link', m).forEach((tr)=>tr.onclick=()=>showRival(tr.dataset.key));
+  $$('.rival-link', m).forEach((tr)=>{ tr.onclick=()=>showRival(tr.dataset.key); });
 }
 
 async function showRival(key){
@@ -748,7 +748,7 @@ setInterval(drawLiveStrip, 2000);
 if (!window.__liveToggleDeleg){
   window.__liveToggleDeleg = true;
   document.addEventListener('click', async (ev) => {
-    const t = ev.target && ev.target.closest && ev.target.closest('[data-live-on]');
+    const t = ev.target?.closest?.('[data-live-on]');
     if (!t) return;
     try {
       await api('live-toggle', { mode: 'auto' });

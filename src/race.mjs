@@ -18,7 +18,7 @@ import { rivalsOutlook } from './rivals.mjs';
 import { recordFlows } from './flows.mjs';
 import { recordWarning } from './warnings.mjs';
 import { tr, lang } from './lang.mjs';
-import { carPoolOf, carInPool } from './car-pool.mjs';
+import { carPoolOf } from './car-pool.mjs';
 
 /* Nomi delle opzioni meteo come compaiono ESATTAMENTE nel menu di EVO
  * (sereno, nuvole sparse, nuvoloso, coperto, pioggia leggera, pioggia, pioggia intensa).

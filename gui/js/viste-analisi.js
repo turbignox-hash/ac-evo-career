@@ -43,7 +43,7 @@ function renderAutopsia(host, d){
       <div class="kpi"><div class="l">${tr({ it: 'Giri', en: 'Laps' })}</div><div class="v">${e.laps ?? '—'}</div></div>
       <div class="kpi"><div class="l">${tr({ it: 'Gap vincitore', en: 'To winner' })}</div><div class="v">${Number.isFinite(e.gapMs) ? fmtSecMs(e.gapMs, false).replace('+', '+') : '—'}</div></div>
     </div>
-    ${(d.attributions ?? []).map((a, i) => `
+    ${(d.attributions ?? []).map((a) => `
       <div style="display:flex;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px dashed var(--line,#ddd)">
         <span class="tag ${a.kind === 'good' ? 'green' : a.kind === 'bad' ? 'bad' : ''}" style="min-width:120px;text-align:center">${esc(a.title)}</span>
         <span style="flex:1">${esc(a.text)}</span>

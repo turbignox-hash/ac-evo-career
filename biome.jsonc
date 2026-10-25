@@ -1,0 +1,47 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.3.12/schema.json",
+  // ============ IL PONTE (26/10, pulizia debiti Biome) ============
+  // formatter SEMPRE spento: lo stile è del progetto, Biome non riscrive
+  //   35k righe di codice che funziona (lezione 24/10: 35k diff riformattati).
+  // organizeImports spento: gli import sono composti a mano, non in ordine automatico.
+  // noRedundantUseStrict spento: i file di gui/js si caricano come <script>
+  //   classici nel browser, lì 'use strict' NON è ridondante (semantica vera).
+  // noAssignInExpressions spento: l'idioma di casa è
+  //   (registro[chiave] ??= iniziale) + uso subito dopo (34 posti).
+  // useTemplate / useExponentiationOperator / useArrowFunction spenti:
+  //   stile funzionante, si legge bene, non si tocca.
+  // Tutto il resto resta al livello raccomandato: gli warning di correttezza
+  //   restano visibili (noUnused*) e gli errori bloccano.
+  "formatter": {
+    "enabled": false
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "style": {
+        "useTemplate": "off",
+        "useExponentiationOperator": "off"
+      },
+      "complexity": {
+        "useArrowFunction": "off"
+      },
+      "suspicious": {
+        "noAssignInExpressions": "off",
+        "noRedundantUseStrict": "off"
+      },
+      "correctness": {
+        "noUnusedVariables": "warn",
+        "noUnusedImports": "warn",
+        "noUnusedFunctionParameters": "warn"
+      }
+    }
+  }
+}

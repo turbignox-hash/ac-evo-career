@@ -1112,7 +1112,7 @@ async function api(context0, req, res, action, body) {
         if (!card) return sendJson(res, 409, { error: tr({ it: 'Nessun evento speciale attivo.', en: 'No special event active.' }) });
         if (!card.acceptedAt) return sendJson(res, 409, { error: tr({ it: "Accetta l'invito prima: il tasto prepara la gara già accettata.", en: 'Accept the invite first: the button prepares the race you already accepted.' }) });
         const running = await isGameRunning();
-        let prep = { track: null, weather: null };
+        const prep = { track: null, weather: null };
         // LEZIONE 23/10 (crash al tasto 'Lancia gara'): l'evento DEVE restare
         // un mondo il SUO: la gara si gioca in "Gara personalizzata", NON via il
         // weekend di carriera. QUI si scrivevano pista/AI/ora/giri su
@@ -1257,7 +1257,7 @@ async function api(context0, req, res, action, body) {
       // ripensamento: l'invito accettato torna libero (senza penali)
       try {
         const ev = ensureEvents(state);
-        if (ev.active && ev.active.acceptedAt) { delete ev.active.acceptedAt; persist(state); }
+        if (ev.active?.acceptedAt) { delete ev.active.acceptedAt; persist(state); }
         return sendJson(res, 200, { ok: true, events: eventsOverview(ladder, state) });
       } catch (e) { return sendJson(res, 400, { error: e.message }); }
     }
@@ -1337,7 +1337,7 @@ async function api(context0, req, res, action, body) {
       // se la carta è di un giorno FUTURO in vista, si punta lì; mai nel passato
       const chooseDay = Math.max(agendaDay(state), Math.floor(Number(body.day) || 0) >= agendaDay(state) ? Math.floor(Number(body.day)) : agendaDay(state));
       let day0 = chooseDay >= agendaDay(state) ? chooseDay : agendaDay(state);
-      let griglia = racesOnDay(ladder, state, day0);
+      const griglia = racesOnDay(ladder, state, day0);
       let g = griglia.find((x) => x.node.nodeId === id);
       // ROBUSTEZZA: se nel giorno richiesto la serie non è a programma, cerco la sua
       // prossima gara nei giorni a venire (max 7): se la trovo, iscrivo con anchor
@@ -1345,7 +1345,7 @@ async function api(context0, req, res, action, body) {
       if (!g) {
         for (let dd = day0 + 1; dd <= day0 + 7 && !g; dd++) {
           const cand = racesOnDay(ladder, state, dd).find((x) => x.node.nodeId === id);
-          if (cand && cand.fattibile) { g = cand; day0 = dd; }
+          if (cand?.fattibile) { g = cand; day0 = dd; }
         }
         if (!g) {
           // als ultima risorsa dico QUANDO cade: la sua prossima disputa entro 30 giorni
@@ -1568,7 +1568,7 @@ async function api(context0, req, res, action, body) {
       // della Donington R3: a EVO già aperto il bottone non preparava nulla).
       // Falli silenti: se la pista non è nota o l'auto manca nel dizionario si
       // parte com'era, niente blocco del flusso.
-      let prep = { track: null, trackWritten: false, car: null, carWritten: false, grid: null };
+      const prep = { track: null, trackWritten: false, car: null, carWritten: false, grid: null };
       if (!body.noLaunch) {
         try {
           if (card.trackName) {
@@ -2686,7 +2686,7 @@ function watcherTick() {
       // quella dell'evento, su una pista DIVERSA da quella del round di carriera.
       // La pista attesa diventa quella dell'evento: senza questo l'armî della
       // gara evento non avveniva mai e il risultato andava cliccato a mano.
-      const evActive = (() => { const ev = ensureEvents(state); const a = ev.active; return (a && a.acceptedAt) ? a : null; })();
+      const evActive = (() => { const ev = ensureEvents(state); const a = ev.active; return (a?.acceptedAt) ? a : null; })();
       const evTrack = evActive ? eventTrackReal(evActive) : null;
       const evTrackOk = Boolean(evActive && g.track && evTrack && (
         normTrack(g.track).includes(normTrack(evTrack)) || normTrack(evTrack).includes(normTrack(g.track))
@@ -2942,7 +2942,7 @@ const server = createServer(async (req, res) => {
       // log SOLO delle azioni lente (il polling LIVE gira ogni ~2s: la finestra
       // DOS resta leggibile) — le colpe si leggono in due righe
       if (Date.now() - t0 > 300) console.log(`[api] ${action} ← ${Date.now() - t0}ms`);
-      if (out && out.__httpTimeout) {
+      if (out?.__httpTimeout) {
         console.log(`[api] ${action} NON ha risposto entro ${Math.round(API_HTTP_TIMEOUT_MS / 1000)}s (in stallo).`);
         return sendJson(res, 504, { error: tr({
           it: `L'azione «${action}» non ha risposto entro ${Math.round(API_HTTP_TIMEOUT_MS / 1000)}s: era in stallo, riprova. La finestra nera del server dice quale azione è ferma.`,

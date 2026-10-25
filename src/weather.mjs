@@ -149,7 +149,7 @@ export function setWeatherCustom({ rain = null, cloud = null, fog = null, lgmFil
     const sub = decodeMsg(subWrap.bytes);
     const w = sub.find((x) => x.field === 3 && x.wire === 2);   // payload meteo dello step
     if (!w) continue;
-    let wFields = decodeMsg(w.bytes);
+    const wFields = decodeMsg(w.bytes);
     let touched = false;
     for (const f of wFields) {
       const want = f.field === 8 ? rain : f.field === 11 ? cloud : f.field === 12 ? fog : undefined;

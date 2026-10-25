@@ -102,7 +102,6 @@ function readJsonSafe(file) {
   if (raw == null) return null;
   try { return JSON.parse(raw); } catch (e) {
     recordWarning('catalog', 'catalogo illeggibile, provo la sanifica: ' + file, e?.message ?? null);
-    return null;
   }
   // i JSON di Kunos contengono accapo reali dentro le stringhe, commenti e virgole finali:
   // sanifica caratteri di controllo dentro le stringhe, poi pulisce il resto
