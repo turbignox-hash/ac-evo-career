@@ -91,6 +91,7 @@ function buildVersion() {
   return (BUILD_VERSION = { semver: ver, hash: hash || null });
 }
 import { currentWeatherPreset, setWeatherPreset, PRESETS, presetForLabel } from './weather.mjs';
+import { statoBackup, forzaBackup } from '../tools/salva-save.mjs';
 import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
 import { sameTrack as trkSame, sameCar as carSame } from './tracknames.mjs';
 import { tr, lang, setLang, hasEnvOverride } from './lang.mjs';
@@ -989,6 +990,24 @@ async function api(context0, req, res, action, body) {
         copyFileSync(SAVE_FILE, target);
         const backups = listBackups(8);
         return sendJson(res, 200, { ok: true, created: target, backups });
+      } catch (e) { return sendJson(res, 500, { error: e.message }); }
+    }
+    case 'save-backup': {
+      // Stato del backup del SAVE di EVO (quello del gioco, non della
+      // carriera): vive in data/salva-save/ e si accomoda con tools/
+      // salva-save.mjs — libreria usata IN-PROCESS (26/10): lo stato e'
+      // uno scan solo-lettura, il forza chiama la stessa tar dell'avvio.
+      try {
+        const op = String(body.op ?? 'status');
+        let esito = null; // (scope, bug al vivo 26/10: const dentro l'if era invisibile a lastRun)
+        if (op === 'force') {
+          esito = forzaBackup({ force: true });
+          if (!esito.ok && esito.motivo !== 'save-dir-mancante') {
+            return sendJson(res, 500, { error: tr({ it: `backup non riuscito (${esito.motivo}): ${esito.errore ?? ''}`, en: `backup failed (${esito.motivo}): ${esito.errore ?? ''}` }), ...esito.stato, forced: true, lastRun: esito });
+          }
+        }
+        const st = statoBackup();
+        return sendJson(res, 200, { ...st, forced: op === 'force', lastRun: esito });
       } catch (e) { return sendJson(res, 500, { error: e.message }); }
     }
     case 'events':

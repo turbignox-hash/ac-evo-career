@@ -334,6 +334,10 @@ function drawSettings(m){
       </div>
       <div class="muted" id="backup-list" style="margin-top:6px;font-size:12px">${tr({ it: 'Crea una copia di sicurezza del salvataggio: soldi, risultati, rivali e statistiche restano intatti anche se qualcosa va storto.', en: 'Makes a safety copy of the save: money, results, rivals and stats stay intact even if something goes wrong.' })}</div>
       ${s.issues.length ? `<div class="banner warn" style="margin-top:16px">${tr({ it: `${s.issues.length} riferimenti della scala non trovati nell'installazione`, en: `${s.issues.length} ladder references not found in the installation` })}: ${esc(s.issues.slice(0,4).map(i=>i.id).join(', '))}${s.issues.length>4?'…':''}</div>` : `<div class="banner good" style="margin-top:16px">${tr({ it: 'La scala carriera combacia con il contenuto installato.', en: 'The career ladder matches the installed content.' })}</div>`}
+      <h2 style="margin-top:22px">${tr({ it: 'Backup del save di EVO', en: 'EVO save backup' })}</h2>
+      <div class="muted" style="font-size:12px">${tr({ it: "All'avvio del launcher il save del GIOCO (Saved Games\\ACE) viene zippato da solo, ma solo se l'ultimo backup ha più di 36 ore: due slot in rotazione, sempre i 4 zip più recenti. Qui vedi com'è messo e puoi forzarlo a mano in qualunque momento (anche con EVO aperto: non si spezza niente).", en: "At launcher start the GAME save (Saved Games\\ACE) is zipped automatically, but only if the last backup is older than 36 hours: two rotating slots, always the 4 newest zips. Here you can see where it stands and force it by hand at any time (even with EVO open: nothing breaks)." })}</div>
+      <div id="savebk-out" style="margin-top:8px;font-size:13px">…</div>
+      <div class="row" style="margin-top:10px"><button class="ghost" id="b-savebk">${tr({ it: 'Forza il backup del save ora', en: 'Force the save backup now' })}</button></div>
       <h2 style="margin-top:22px">${tr({ it: 'Verifica integrità', en: 'Integrity check' })}</h2>
       <div class="row"><button class="ghost" id="b-integrity">${tr({ it: 'Controlla la carriera', en: 'Check the career' })}</button></div>
       <div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: 'Ricalcola statistiche, cassa e reputazione dalle gare e dalla bacheca: se qualcosa non torna (per esempio una gara fantasma) te lo dice e può correggere.', en: 'Recomputes stats, money and reputation from races and the board: if something is off (say a ghost race) it tells you and can fix it.' })}</div>
@@ -390,6 +394,51 @@ function drawSettings(m){
       $('#backup-list').innerHTML = tr({ it: 'Ultimi backup: ', en: 'Latest backups: ' }) + r.backups.map(b=>esc(b.at)).join(' · ');
       toast(tr({ it: 'Backup creato: ', en: 'Backup created: ' }) + r.backups[0]?.at, 'ok');
     } catch(err){ toast(err.message,'err'); }
+  };
+  // ---- BACKUP DEL SAVE DI EVO (27/10): stato live + bottone forza ----
+  // Due nodi in pagina: #savebk-out (riquadro) e #b-savebk (forza). Il
+  // riquadro si rimpainta al volo: placca verde se fresco (< 36 h), gialla
+  // se stantio, avviso se il gioco non è mai stato avviato o non c'è ancora
+  // nessun zip.
+  const paintSaveBk = (b) => {
+    const out = $('#savebk-out');
+    if (!out) return;
+    const forza = $('#b-savebk');
+    if (!b.saveDirFound) {
+      out.innerHTML = `<div class="banner warn">${tr({ it: "Cartella del save di EVO non trovata: avvia il gioco una volta (o impostala in «Installazione»).", en: "The EVO save folder was not found: run the game once (or set it under «Installation»)." })}</div>`;
+      if (forza) forza.disabled = true;
+      return;
+    }
+    if (forza) forza.disabled = false;
+    if (!b.zips || !b.zips.length) {
+      out.innerHTML = `<div class="banner warn">${tr({ it: 'Nessun backup del save: il launcher ne crea uno al primo avvio, oppure forzalo ora.', en: 'No save backup yet: the launcher creates one at its next start, or force it now.' })}</div>`;
+      return;
+    }
+    const eta = b.ageHours < 1
+      ? tr({ it: `${Math.max(1, Math.round(b.ageHours * 60))} minuti fa`, en: `${Math.max(1, Math.round(b.ageHours * 60))} minutes ago` })
+      : tr({ it: `${Math.round(b.ageHours)} ore fa`, en: `${Math.round(b.ageHours)} hours ago` });
+    const conf = tr(b.zips.length === 1
+      ? { it: '1 zip su slot-1/2 · i 4 più recenti restano', en: '1 zip across slot-1/slot-2 · the 4 newest are kept' }
+      : { it: `${b.zips.length} zip su slot-1/2 · i 4 più recenti restano`, en: `${b.zips.length} zips across slot-1/slot-2 · the 4 newest are kept` });
+    out.innerHTML = `<div class="banner ${b.fresh ? 'good' : 'warn'}">
+      ${b.fresh
+        ? tr({ it: 'Backup fresco — ', en: 'Backup fresh — ' })
+        : tr({ it: 'Backup stantio (il launcher ne farà uno al prossimo avvio) — ', en: 'Backup stale (the launcher will make one at its next start) — ' })}
+      <b>${esc(b.ultimo.file)}</b> · ${eta}
+      <div class="faint" style="margin-top:4px">${esc(b.ultimo.slot)} · ${(b.ultimo.size / 1024).toFixed(0)} KB · ${conf}</div>
+    </div>`;
+  };
+  api('save-backup').then(paintSaveBk).catch(() => {});
+  $('#b-savebk').onclick = async () => {
+    const b = $('#b-savebk');
+    b.disabled = true; b.textContent = tr({ it: 'Zippo…', en: 'Zipping…' });
+    try {
+      const r = await api('save-backup', { op: 'force' });
+      paintSaveBk(r);
+      if (r.lastRun?.ok) toast(tr({ it: 'Backup del save creato: ', en: 'Save backup created: ' }) + r.lastRun.zip, 'ok');
+      else toast(tr({ it: 'Niente da fare: il backup era già fresco.', en: 'Nothing to do: the backup was already fresh.' }), 'ok');
+    } catch (err) { toast(err.message, 'err'); }
+    b.disabled = false; b.textContent = tr({ it: 'Forza il backup del save ora', en: 'Force the save backup now' });
   };
   // ---- MANUTENZIONE: scansione, auto-riparazione e pulizie ----
   const maintOut = $('#maint-out');

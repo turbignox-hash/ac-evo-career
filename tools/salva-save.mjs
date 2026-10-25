@@ -1,140 +1,140 @@
 #!/usr/bin/env node
-// salva-save.wjs — backup AUTOMATICO del save di Assetto Corsa EVO (26/10).
+// salva-save.mjs — backup AUTOMATICO del save di Assetto Corsa EVO (26/10).
 //
-// Punto di forza: - CLIENT a hook (come magazzino-check e aggiornamenti):
-//   risiede in avvia.cmd :aprigui, gira ogni doppio click del launcher;
-//   -0 se il backup è fresco, non fa niente MAI (le scorciatorie possono
-//   attaccarsi a gola ogni avvio correndo in loop; non tocca il GUI);
-//   -0 zip dello save con tar.exe (portabile, già installato su Windows 10+);
-//   -0 cubic che ruota sui 2 SLOT, NON SOLO COPIE: ogni save è su uno slot
-//   diverso, così il SAVE ATTIVO esce sempre fuori con lo zip più recente
-//   (rotazione uguale per slot tanto l'UPDATE non cancella niente);
-//   -0 taglio automatico ai 4 zip PIÙ RECENTI: l'utente non deve mai fare
-//   cose a mano;
-//   -0 CREAZIONE protetta: EVO il launcher non tocca data/ (che contiene
-//   tutti i default dell'utente), quindi lo zip NON PUÒ MAI sovrascrivere
-//   i registri del save: generiamo backup-save\\slot-N alla rovescia.
+// Che fa:
+//   - zip del save(Saved Games\ACE, o Documents\ACE per versioni vecchie, o
+//     ACE_DATA se l'override e' impostato) con tar.exe di Windows: niente
+//     7-zip, niente PowerShell, niente dipendenze;
+//   - slot-1 / slot-2 in ROTAZIONE (ogni backup va zo slot alternata, la
+//     conta vive in data/salva-save/salva-save.json → campo next);
+//   - taglio automatico ai MAX_ZIP=4 zip PIÙ RECENTI su TUTTI gli slot;
+//   - CLIENT a boot: se l'ultimo backup e' più fresco di 36 ore non fa
+//     nulla (silenzioso, exit 0): gli avvii del launcher in serie non
+//     fanno IO di tia senza motivo.
 //
-// LANCIO DIRETTO (i client questi:
-//   node tools/salva-save.mjs            backup se stantio (? > 36h)
-//   node tools/salva-save.mjs --check    exit 0: fresco   exit 1: stantio/assen
-//                                        [usato da run-primavera dopo]
-//   node tools/salva-save.mjs --force    backup SEMPRE (client con importo)
-//   node tools/salva-save.mjs --stale-hours N   tenere più fresco o più lento
-//   node tools/salva-save.mjs --data <cartella> override del save 2-to-1 per test
+// DUE MODI DI USARE IL MOTORE (26/10, sezione GUI «Backup del save di EVO»
+// in viste-d.js vivace in-process, senza spine l'CLI):
+//   import { statoBackup, forzaBackup } from '../tools/salva-save.mjs';
+//   statoBackup() → { saveDirFound, zips: [], ultimo, ageHours, fresh, ... }
+//   forzaBackup() → { ok, zip, size, slot, zip_vivi, stato }
+//
+// CLI (node tools/salva-save.mjs):
+//   (senza arg) backup SOLO se l'ultimo e' stantio (> 36 ore). Silenzioso:
+//   se stantio zippa; se fresco esce 0 senza fare una piega.
+//   --check        exit 0 = backup fresco, exit 1 = stantio/assen/corrotto
+//                  [usato da tool di prima-hiberna e magazzino-check]
+//   --force        backup SEMPRE (l'import in uppa non lo skipper)
+//   --stale-hours N  cambia la soglia (peccaminoso solo per test)
+//   --data <dir>   save da un'ALTRA cartella (peccaminoso per test)
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { dataDirCandidates } from '../src/paths.mjs';
 
 const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..');
+const DEST_BASE = join(RADICE, 'data', 'salva-save');
 
-const args = process.argv.slice(2);
-const flag = (nome) => {
-  const i = args.indexOf(`--${nome}`);
-  return i >= 0 ? (args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : true) : null;
-};
-const hasFlag = (nome) => args.includes(`--${nome}`) || flag(nome) != null;
+export const STALE_ORE_DEFAULT = 36;   // backup ogni ~girone e mezzo, massimo 3 avvii gratis
+export const MAX_ZIP = 4;              // su TUTTI gli slot: vecchi si cancellano SOLI
+export const NOMI_SLOT = ['slot-1', 'slot-2'];
 
-const STALE_ORE_DEFAULT = 36;   // un backup al giorno e mezzo circa, fino a 3 avvii GRATIS
-const MAX_ZIP = 4;              // su TUTTI gli slot poi: vecchi zip si cancellano SOLI
-const NOMI_SLOT = ['slot-1', 'slot-2'];
+// ————— parsing opzioni: solo se siamo la prima di comando —————
+const argv = process.argv.slice(2);
+function flag(nome) {
+  const i = argv.indexOf(`--${nome}`);
+  if (i < 0) return null;
+  const next = argv[i + 1];
+  return (next && !next.startsWith('--')) ? next : true;
+}
+function hasFlag(nome) { return argv.includes(`--${nome}`) || flag(nome) != null; }
 
-function leggiDirectory() {
-  const override = flag('data') || process.env.ACE_DATA || null;
-  const candidatas = override ? [override] : dataDirCandidates();
-  for (const c of candidatas) if (existsSync(c)) return c;
+/** quantità numerica CLI: Number('0') e' falsy e Number(null) = 0 — DUE
+ *  BUG presi al vivo 26/10 che qui non cambiano (null = «opzione assente»,
+ *  non ZERO). numberOr(flag) la risolve in un punto solo. */
+function numeroOr(raw, def) {
+  if (raw == null) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function leggiDirectory({ data = null } = {}) {
+  const override = data || process.env.ACE_DATA || null;
+  const candidates = override ? [override] : dataDirCandidates();
+  for (const c of candidates) if (existsSync(c)) return c;
   return null;
 }
 
-function ultimoZip(dir) {
-  // glob lento: i zip vivono SOLO in slot-*/ dire in esses...
-  const out = [];
+/** stato solo-lettura: l'ULTIMO zip, quanto e' fresco, lo slot destinato. */
+export function statoBackup({ staleHours = null, data = null } = {}) {
+  const soglia = numeroOr(staleHours, STALE_ORE_DEFAULT) ?? STALE_ORE_DEFAULT;
+  const dir = leggiDirectory({ data });
+  if (!dir) {
+    return { saveDirFound: false, dir: null, zips: [], ultimo: null, ageHours: null, fresh: false, staleHours: soglia, json: null, next: null };
+  }
+  const zips = [];
   for (const slot of NOMI_SLOT) {
-    const d = join(dir, slot);
+    const d = join(DEST_BASE, slot);
     if (!existsSync(d)) continue;
     for (const f of readdirSync(d)) {
+      if (!f.endsWith('.zip')) continue; // solo gli zip: il json non pure
       const p = join(d, f);
-      out.push(p);
+      const st = statSync(p);
+      // il file save-<quando>.zip porta il momento nel NOME; il mtime come
+      // indicatore di recentita' e' piu' resistency (utile se uno rinomina)
+      zips.push({ file: f, slot, path: p.replace(RADICE + '\\', '').replace(/\\/g, '/'), at: st.mtime.toISOString(), mtimeMs: st.mtimeMs, size: st.size });
     }
   }
-  if (!out.length) return null;
-  return out
-    .map((p) => ({ p, m: statSync(p).mtimeMs }))
-    .sort((a, b) => b.m - a.m)
-    [0];
-}
-
-function elastico(ms) {
-  const d = new Date(ms);
-  const due = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${due(d.getMonth() + 1)}-${due(d.getDate())}T${due(d.getHours())}-${due(d.getMinutes())}-${due(d.getSeconds())}`;
-}
-
-function principale() {
-  const dir = leggiDirectory();
-  if (!dir) {
-    // il gioco non è mai partito su questo PC: niente da salvare, non è un errore
-    if (hasFlag('check')) process.exit(1);
-    process.exit(0);
-  }
-
-  const dest = join(RADICE, 'data', 'salva-save');
-  const zippi = ultimoZip(dest);
-
-  if (!hasFlag('force') && zippi) {
-    const ore = (Date.now() - zippi.m) / 36e5;
-    // Number('0') e' falsy: il `|| default` lo rimangiava (36h anche con
-    // --stale-hours 0). Ma anche Number(null) = 0: la soglia sarebbe stata
-    // ZERO ore per chi NON passava --stale-hours, tutto sempre «stantio».
-    // null = «opzione assente», non 0. 26/10.
-    const rawst = flag('stale-hours');
-    const n = rawst == null ? NaN : Number(rawst);
-    const soglia = Number.isFinite(n) && n >= 0 ? n : STALE_ORE_DEFAULT;
-    if (ore < soglia) {
-      // fresco: CLIENT: esce 0 / --check: exit 0 con il cannone
-      if (hasFlag('check')) process.exit(0);
-      process.exit(0);
-    }
-    if (hasFlag('check')) process.exit(1);
-  }
-  if (hasFlag('check')) process.exit(zippi ? 0 : 1);
-
-  // ---------- decide lo slot NON attivo ----------
-  let prox = 1;
+  zips.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  const ultimo = zips[0] ?? null;
+  const ageHours = ultimo ? (Date.now() - ultimo.mtimeMs) / 36e5 : null;
+  const fresh = ultimo ? ageHours < soglia : false;
+  let json = null, next = null;
   try {
-    const info = JSON.parse(readFileSyncEx(join(dest, 'salva-save.json'), 'utf8'));
-    if (Number.isInteger(info.next) && info.next >= 1 && info.next <= NOMI_SLOT.length) prox = info.next;
-  } catch { /* primo giro: slot 1 */ }
+    json = JSON.parse(readFileSync(join(DEST_BASE, 'salva-save.json'), 'utf8'));
+    if (Number.isInteger(json?.next)) next = json.next;
+  } catch { /* mai girato: tutto a zero */ }
+  return { saveDirFound: true, dir, zips, ultimo, ageHours, fresh, staleHours: soglia, json, next: next ?? 1 };
+}
+
+/** fa il backup ORA (forza: sempre; nuovo: solo se stantio). Sync, tar.exe di
+ *  Windows: qualche secondo sugli 1-50 MB tipici del save. Gira anche con
+ *  EVO aperto (tar legge byte stabili: peggio che non far nulla). */
+export function forzaBackup({ force = true, staleHours = null, data = null } = {}) {
+  const soglia = numeroOr(staleHours, STALE_ORE_DEFAULT) ?? STALE_ORE_DEFAULT;
+  const dir = leggiDirectory({ data });
+  if (!dir) return { ok: false, motivo: 'save-dir-mancante' }; // EVO mai avviato: non e' un errore
+
+  const st = statoBackup({ staleHours: soglia, data });
+  if (!force && st.fresh) return { ok: false, motivo: 'fresco', stato: st };
+
+  let prox = 1;
+  if (Number.isInteger(st.json?.next) && st.json.next >= 1 && st.json.next <= NOMI_SLOT.length) prox = st.json.next;
   const slot = NOMI_SLOT[(prox - 1) % NOMI_SLOT.length];
 
-  // ---------- zip ----------
-  const quando = elastico(Date.now());
-  const file = join(dest, slot, `save-${quando}.zip`);
-  mkdirSync(join(dest, slot), { recursive: true });
+  const d = new Date();
+  const due = (n) => String(n).padStart(2, '0');
+  const quando = `${d.getFullYear()}-${due(d.getMonth() + 1)}-${due(d.getDate())}T${due(d.getHours())}-${due(d.getMinutes())}-${due(d.getSeconds())}`;
+  const file = join(DEST_BASE, slot, `save-${quando}.zip`);
+  mkdirSync(join(DEST_BASE, slot), { recursive: true });
 
-  // tar.exe è l'unico zip tool presente su ogni Windows 10+ (niente 7zip, niente PS)
   const tar = process.env.WINDIR ? join(process.env.WINDIR, 'System32', 'tar.exe') : 'tar.exe';
-  const esito = spawnSync(tar,
-    ['-caf', file, '-C', dir, '.'],
-    { windowsHide: true, timeout: 10 * 60_000 });
+  const esito = spawnSync(tar, ['-caf', file, '-C', dir, '.'], { windowsHide: true, timeout: 10 * 60_000 });
   if (esito.error || esito.status !== 0) {
-    console.error(`[!] backup non riuscito: ${esito.error?.message ?? (esito.stderr ?? '').slice(-400)}`);
-    rmSync(file, { force: true });
-    process.exit(0); // il launcher NON deve bloccarsi: fallimento silenzioso
+    const chi = esito.error?.message ?? String(esito.stderr ?? '').slice(-400);
+    rmSync(file, { force: true }); // il zip mezzo va tolto: e' promessa non tenuta
+    return { ok: false, motivo: 'tar-fallita', errore: chi, stato: statoBackup({ staleHours: soglia, data }) };
   }
 
-  // ---------- rotazione:巷 MAX_ZIP più recenti fra TUTTI gli slot ----------
+  // rotazione dei max MAX_ZIP su TUTTI gli slot (il json non conta)
   const tutti = [];
   for (const s of NOMI_SLOT) {
-    const d = join(dest, s);
-    if (!existsSync(d)) continue;
-    for (const f of readdirSync(d)) {
-      const p = join(d, f);
+    const ds = join(DEST_BASE, s);
+    if (!existsSync(ds)) continue;
+    for (const f of readdirSync(ds)) {
+      if (!f.endsWith('.zip')) continue;
+      const p = join(ds, f);
       tutti.push({ p, m: statSync(p).mtimeMs });
     }
   }
@@ -142,27 +142,32 @@ function principale() {
   for (const vecchio of tutti.slice(MAX_ZIP)) rmSync(vecchio.p, { force: true });
 
   const prossimo = (prox % NOMI_SLOT.length) + 1;
-  const taglio = tutti.slice(0, MAX_ZIP).length; // quelli GIUSTI che restano
-  writeFileSync(join(dest, 'salva-save.json'), JSON.stringify({
-    active: prox,
-    slot,
+  const centinaio = tutti.slice(0, MAX_ZIP).length;
+  writeFileSync(join(DEST_BASE, 'salva-save.json'), JSON.stringify({
+    active: prox, slot,
     zip: file.replace(RADICE + '\\', '').replace(/\\/g, '/'),
     quando,
     size: statSync(file).size,
-    zip_vivi: taglio,
+    zip_vivi: centinaio,
     next: prossimo,
   }, null, 2) + '\n');
 
-  // il client attivo si ha finito in avvia: niente a schermo in :aprigui
-  console.log(`[x] backup del save: ${file.replace(RADICE + '\\', '')}`);
-  process.exit(0);
+  return { ok: true, zip: file.replace(RADICE + '\\', '').replace(/\\/g, '/'), size: statSync(file).size, slot, zip_vivi: centinaio, stato: statoBackup({ staleHours: soglia, data }) };
 }
 
-// piccolo helper: readFileSync ma torna null se il file manca
-function readFileSyncEx(p, enc) {
-  try {
-    return readFileSync(p, enc);
-  } catch { return null; }
+// ————— CLI —————
+const isMain = process.argv[1] && import.meta.url === new URL(`file:///${process.argv[1].replace(/\\/g, '/')}`).href;
+if (isMain) {
+  const st = statoBackup({ staleHours: numeroOr(flag('stale-hours'), STALE_ORE_DEFAULT) ?? STALE_ORE_DEFAULT, data: flag('data') });
+  if (hasFlag('check')) {
+    process.exit(st.saveDirFound && st.zips.length && st.fresh ? 0 : 1);
+  }
+  const esito = forzaBackup({ force: hasFlag('force'), staleHours: numeroOr(flag('stale-hours'), STALE_ORE_DEFAULT) ?? STALE_ORE_DEFAULT, data: flag('data') });
+  if (!esito.ok) {
+    if (esito.motivo === 'save-dir-mancante') process.exit(0); // mai EVO: silenzioso
+    if (esito.motivo === 'fresco') process.exit(0); // fresh: CLIENT boot e' giusto che non faccia niente
+    console.error(`[!] backup non riuscito (${esito.motivo}): ${esito.errore ?? ''}`);
+    process.exit(0); // il launcher NON si blocca mai per il backup
+  }
+  console.log(`[x] backup del save: ${esito.zip} (${esito.size} B, slot diverso dal prec.)`);
 }
-
-principale();

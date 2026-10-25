@@ -1457,3 +1457,31 @@ considerare un'etichetta  sul file o una conferma esplicita.
   sentinella resta intatto e lo strumento dice "sei al passo" (il pack
   era della HEAD corrente). Documentato in README.it.md ("Zip o clone?")
   e GUIDA-AMICO.md (6-bis token per repo privato).
+
+
+## PANNELLO GUI «BACKUP DEL SAVE DI EVO» (26/10) — FATTO E COLLAUDATO
+- tools/salva-save.mjs trasformato in LIBRERIA + CLI (pattern set-track:
+  guard isMain su process.argv[1]): esporta statoBackup() (scan
+  solo-lettura: zips, ultimo, ageHours, fresh, json slot) e
+  forzaBackup({force, staleHours, data}) (tar + rotazione + json; torna
+  {ok, zip, size, slot, zip_vivi, stato}). La CLI resta identica dal
+  punto di vista esterno (--check / --force / --stale-hours / --data).
+- webui.mjs: nuovo case `save-backup` (accanto a `backup`): op=status →
+  stato; op=force → forzaBackup() in-process con la tar dell'avvio.
+  BUG beccato al vivo: `const esito` dentro l'if non era visibile a
+  lastRun sotto (ReferenceError) → hoist a `let esito = null`.
+- viste-d.js (pannello Pilota della scheda Sistema, tra «Carriera» e
+  «Verifica integrità»): h2 «Backup del save di EVO» con descrizione, i
+  riquadro #savebk-out (banner verde fresco / giallo stantio: nome zip,
+  età in min/ore, slot, KB, N zip vivi) e bottone #b-savebk «Forza il
+  backup del save ora» (disattivo se il gioco non è mai partito; testo
+  «Zippo…» durante; toast con il zip creato). Bilingue it/en lazy, come
+  tutte le viste.
+- PROVA dal vivo (server vera su porta 8799, ACE_DATA finta in TEMP, la
+  pulizia di data/salva-save fra un test e l'altro): /api/save-backup
+  status leggibile (zips con file/slot/size/at), op=force crea il zip
+  sullo slot alternato e lo dichiara in lastRun. Nota operativa: il
+  webui muore se la porta è occupata («già aperto, nessuna seconda
+  istanza») — i test con server vanno SEMPI ripuliti di listener prima
+  (netstat/taskkill), altrimenti curl risponde al server VECCHIO.
+- Suite 203/203 ✓ · node --check su webui.mjs, salva-save.mjs, viste-d.js ✓
