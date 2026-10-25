@@ -86,7 +86,7 @@ export function publishRaceNews(ctx) {
     body = `Weekend perfetto: il pubblico in piedi e il box che urla. «La macchina era un sogno», sbotta il vincitore.`;
   } else if (win) {
     title = `${fame(me)} trionfa a ${track}${fl ? ' con anche il giro veloce' : ''}`;
-    body = `Primo al traguardo${entry.gapMs ? ` con ${(entry.gapMs / 1000).toFixed(1)}\" di margine` : ''}: il campionato si colora di giallo.`;
+    body = `Primo al traguardo${entry.gapMs ? ` con ${(entry.gapMs / 1000).toFixed(1)}" di margine` : ''}: il campionato si colora di giallo.`;
   } else if (podium) {
     title = `${track}: podio per ${fame(me)} (P${pos})${fl ? ' e giro veloce' : ''}`;
     body = `Il boato del box esplode al traguardo. Il passo c'è, adesso serve il gradino più alto.`;

@@ -370,6 +370,30 @@ ACE_DATA="demo/ace" node ac-evo-career.mjs import
 `--position N --cars M`, `--fl` e `--dnf`. `ACE_DATA` è un override esclusivo: con
 quello impostato l'app guarda **solo** quella cartella.
 
+## Cancellino di qualità (Biome)
+
+Il repo porta la sua [biome.jsonc](biome.jsonc):
+`npx @biomejs/biome@2.3.12 check src gui` esce 0 ed è il cancellino prima di ogni
+salvataggio. Le scelte deliberate sono scritte lì, così non si riciafano più:
+
+- **il formatter è spento per sempre** e pure il riordino automatico degli
+  import: lo stile esistente è lo stile del progetto (35k righe che funzionano
+  non si riscrivono per un giudizio);
+- le regole che punirebbero gli idiomi voluti sono **off**: l'idioma di casa
+  `(registro[k] ??= iniziale).push(…)`, le freccette `c.onclick = () => {}`
+  dentro `forEach`, `'use strict'` nei `<script>` classici della GUI (lì NON è
+  ridondante, al contrario dei moduli), e le regole di puro gusto
+  (template literal, esponenti, preferenza per le arrow);
+- `noUnusedVariables`/`noUnusedImports`/`noUnusedFunctionParameters` restano a
+  livello **warning** e dicono la verità sui falsi positivi noti: i file della
+  GUI si spartiscono le globali tra tag `<script>` (per es. `drawAnalisi` viene
+  chiamata da `gui/js/core.js`), e alcuni parametri sembrano inutilizzati solo
+  perché ogni aiuto dello stesso modulo ha firma uniforme `(ladder, state, node)`.
+
+Nota pratica: Biome legge la configurazione solo se il file è `biome.jsonc`
+(oppure un `biome.json` senza commenti) — un `biome.json` coi commenti viene
+silenziosamente ignorato.
+
 ## File del progetto
 
 Il server della GUI è `src/webui.mjs` (API JSON + pagina in `gui/index.html`):

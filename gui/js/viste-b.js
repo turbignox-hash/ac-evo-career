@@ -628,7 +628,7 @@ async function drawBanca(m){
     ${rowsHtml
       ? `<table><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Tipo', en: 'Type' })}</th><th>${tr({ it: 'Motivo', en: 'Reason' })}</th><th class="right">${tr({ it: 'Importo', en: 'Amount' })}</th></tr></thead><tbody>${rowsHtml}</tbody></table>`
       : `<div class="empty">${tr({ it: 'Nessun movimento del tipo scelto.', en: 'No entries of the chosen type.' })}</div>`}
-    <div class="muted" style="margin-top:10px;font-size:12px">${tr({ it: 'Il registro parte dalla nascita del registro flussi: i tempi passati della carriera risultano come un unico movimento \"ripartenza\", calcolato a posteriori.', en: 'The ledger starts when the flow ledger was born: earlier career times show up as a single \"starting balance\" entry, computed after the fact.' })}</div>
+    <div class="muted" style="margin-top:10px;font-size:12px">${tr({ it: 'Il registro parte dalla nascita del registro flussi: i tempi passati della carriera risultano come un unico movimento "ripartenza", calcolato a posteriori.', en: 'The ledger starts when the flow ledger was born: earlier career times show up as a single "starting balance" entry, computed after the fact.' })}</div>
   </div>`;
   $$('button[data-bf]').forEach(b=>{ b.onclick=()=>{ bancaView.filter=b.dataset.bf; drawBanca(m); }; });
 }

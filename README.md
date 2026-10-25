@@ -374,6 +374,26 @@ ACE_DATA="demo/ace" node ac-evo-career.mjs import
 `--position N --cars M`, `--fl` and `--dnf` modes. `ACE_DATA` is an exclusive
 override: with it set, the app looks **only** at that folder.
 
+## Code quality gate (Biome)
+
+The repo carries its own [biome.jsonc](biome.jsonc): `npx @biomejs/biome@2.3.12 check src gui`
+exits 0 and is the lint gate before any commit. Three deliberate choices are
+written in that file, so nobody re-fights them:
+
+- **the formatter is permanently off** and so is import auto-organizing:
+  the existing style is the project's style (35k working lines are not
+  rewritten by a sentence);
+- the rules that would punish intentional idioms are **off**: the
+  `(m[k] ??= seed).push(…)` pattern, `btn.onclick = () => {}` arrow bodies
+  inside `forEach`, `'use strict'` in the GUI's plain `<script>` files
+  (in a classic script it is **not** redundant, unlike in modules), plus
+  template-literal/exponent/arrow-preference rules that are pure taste;
+- `noUnusedVariables`/`noUnusedImports`/`noUnusedFunctionParameters` stay at
+  **warning** level and honestly report known false positives: the GUI files
+  share globals across `<script>` tags (e.g. `drawAnalisi` is drawn from
+  `gui/js/core.js`), and module helpers keep unused-looking parameters only
+  to keep every helper's signature uniform (`(ladder, state, node)`).
+
 ## Project files
 
 The GUI server is `src/webui.mjs` (JSON API + page in `gui/index.html`): same
