@@ -49,7 +49,7 @@ import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
 import { parseSetup, listSetups, writeSetupCopy, brakePlanOf, annotateAllyAdvice } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
 import { carPoolOf, carInPool } from './car-pool.mjs';
-import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, setWeekendGridCustom, setWeekendGridAuto, weekendGridMode, WEEKEND_FILE } from '../tools/set-track.mjs';
+import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, setWeekendGridCustom, WEEKEND_FILE } from '../tools/set-track.mjs';
 import { setRaceTime, currentRaceTime } from '../tools/set-racetime.mjs';
 import { setWeekendLaps } from '../tools/weekend-laps.mjs';
 import { readCells } from '../tools/grid-balance.mjs';
@@ -1700,17 +1700,17 @@ async function api(context0, _req, res, action, body) {
       // menu chiuso → menu nato CUSTOM da solo). Silente se il save manca.
       // La forma è la STESSA (N = celle-1) per mono e multiclasse.
       try {
-        const catuccia = existsSync(GRID_FILE) ? (readCells(GRID_FILE)?.cells ?? []) : null;
-        if (!catuccia) throw new Error('nessun customgrid sul disco: ripremi Prepara tutto (il rebuild la ricostruisce) o usa tab Griglia / CLI griglia');
+        const celle = existsSync(GRID_FILE) ? (readCells(GRID_FILE)?.cells ?? []) : null;
+        if (!celle) throw new Error('nessun customgrid sul disco: ripremi Prepara tutto (il rebuild la ricostruisce) o usa tab Griglia / CLI griglia');
         // CARTUCCIA a 0 CELLE decodificabili (26/10 notte, il weekend rigenerato
         // di EVO): non settle mai custom/1 — il contatore scende al template
         // in magazzino (la memoria VERA della serie) e solo in ultima analisi
         // si arresterà sul messaggio di errore con la guida (piano B).
-        let contatore = catuccia.length > 0 ? catuccia.length - 1 : null;
+        let contatore = celle.length > 0 ? celle.length - 1 : null;
         if (contatore == null) {
           const nod = String(state.node).replace(/[^a-zA-Z0-9_.-]/g, '_');
           const tPath = join(slotDataDir(), 'grid-templates', nod + '.customgrid');
-          if (!existsSync(tPath)) throw new Error(`customgrid sul disco ma con ${catuccia.length === 0 ? '0 celle' : 'celle non decodificabili'} e nessun template di serie in magazzino: ripremi Prepara tutto`);
+          if (!existsSync(tPath)) throw new Error(`customgrid sul disco ma con ${celle.length === 0 ? '0 celle' : 'celle non decodificabili'} e nessun template di serie in magazzino: ripremi Prepara tutto`);
           const celle = readCells(readFileSync(tPath)).cells.length;
           if (celle <= 0) throw new Error(`template di serie (${tPath}) non decodificabile: ripremi Prepara tutto`);
           contatore = celle - 1;
