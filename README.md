@@ -218,6 +218,28 @@ dot) — the name EVO uses for you appears in `Logs\log-*.txt` on the line
 5. `import` — or let the GUI watcher do it: money, standings, rivals, upgrades
    and the mechanic's advice all refresh by themselves.
 
+**On a fresh PC, the first-launch dance, in order** (from the friend guide,
+§3-bis — the two gestures the tool cannot do from outside):
+
+1. **In EVO, once only: the round's WEEKEND screen.** Open EVO → Career →
+   current round → **reach the Race Weekend screen** (nothing to play: it is
+   enough that the screen appears) and go back to the EVO menu. The tool
+   writes hour, laps and weather INTO the weekend save file, and on a virgin
+   PC EVO has not created it yet — this very screen generates it.
+2. **Get everything ready and have fun** (the yellow button): hour, laps,
+   weather and grid get written automatically. The red message «EVO has no
+   career weekend yet» means step 1 is missing: enter the weekend once and
+   press the button again.
+3. **Pick the car by hand inside the EVO weekend** — the first race teaches
+   the app which car is yours; from the second race on it picks it alone.
+
+⚠️ **First MULTICLASS race, once only:** in the Race Weekend menu move
+**Grid Type from AUTOMATIC to CUSTOM** and press **Apply**, then never touch
+the selector again. A fresh install starts AUTOMATIC and the tool cannot
+flip it from outside; if the gesture is missing, the red message walks you
+through it. From the next race on the yellow button rewrites the grid,
+ballast and penalties by itself.
+
 ## The career: how it is built
 
 **79 series, 6 disciplines, 7 levels, 4 tiers** — not a straight line but a tree
