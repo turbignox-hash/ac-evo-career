@@ -21,6 +21,10 @@ import { context, SAVE_FILE } from './webui-env.mjs';
 import { loadState, nodeById, standingsFor, playerStanding } from './state.mjs';
 import { playerWorldSkill } from './world.mjs';
 import { tr } from './lang.mjs';
+// il libro delle piste (TRACK_INFO): il comando di cambio auto porta anche
+// pista+layout come «Prepara tutto» li ha scritti — in gioco l'applet fa
+// la SEQUENZA COMPLETA di Paddock (tipo di gara → pista → auto) (28/10 PM)
+import { specFor } from '../tools/set-track.mjs';
 
 export const PERIODO_MS = 2500;          // il ritmo delle fasce: 2.5 secondi esatti
 export const APP_KEY = 'cruscotto';      // il nome della cartella-app nel loader
@@ -86,8 +90,32 @@ export function vetrina(ladder, state) {
     // per una statistica nuova.
     classifica: miniClassifica(ladder, state),
     mondo: pannelloMondo(ladder, state),
+    // COMANDO IN DIRETTA (28/10, fa come Paddock): se c'è la gara
+    // preparata col suo nome auto completo, il cruscotto in gioco la
+    // imposta nel menu di EVO col canale menu (niente riavvio).
+    comando: comandoAuto(ladder, state),
     guiUrl: guiBaseUrl ?? (typeof process !== 'undefined' ? process.env.PITWALL_GUI_URL : null) ?? null,
   };
+}
+
+/** Il comando `setcar` per la vetrina: la gara del giorno preparata
+ *  (state.pending) se il contenuto del campo car è un nome conosciuto,
+ *  con l'impronta del pending (id) per far sì che l'applet la applichi
+ *  SOLO UNA volta per preparazione; pista+layout (dal libro TRACK_INFO,
+ *  gli stessi che «Prepara tutto» scrive per la ronda); il tutto null
+ *  se l'auto non è riconosciuta o non c'è la gara del giorno. */
+function comandoAuto(ladder, state) {
+  try {
+    const p = state?.pending;
+    if (!p || !p.car) return null;
+    const nome = ladder?.contentNames?.cars?.[p.car] ?? null;
+    if (!nome) return null;
+    const spec = p.trackNames?.[0] ? specFor(p.trackNames[0]) : null;
+    return {
+      id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome,
+      pista: spec?.name ?? null, layout: spec?.layout ?? null,
+    };
+  } catch { return null; }
 }
 
 /** Classifica della serie CORRENTE del pilota (node), fino a 6 righe + la tua:
