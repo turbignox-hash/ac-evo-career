@@ -9,6 +9,20 @@ data/*
 !data/car-specs.json
 !data/car-specs-extra.json
 !data/car-guids.json
+# DIZIONARIO AUTO DEL GARAGE (27/10, sta a: «e sul pc dell'amico che si
+# fa?»): le coppie hash→nome che il tool ha già imparato (oggi 15 auto —
+# Alfa 75, Golf MK8, RX-7, SF-25, 296 GT3…) viaggiano col repo e con lo
+# zip amico: l'amico NON parte con dizionario vuoto e alla prima gara di
+# una serie già nota il Prepara l'auto da solo. Le auto NUOVE restano
+# fuori (come sempre: si impara a fine gara, learnCar silenzioso) e
+# niente di personale sta dentro: sono solo coppia tecnica + nome auto.
+# Git non ri-include file dentro cartelle ignorate: apro SOLO la catena
+# samples/garage e la richiudo subito (i campioni .hex e i .log restano fuori).
+!data/samples/
+data/samples/*
+!data/samples/garage/
+data/samples/garage/*
+!data/samples/garage/map.json
 demo/
 dist/
 

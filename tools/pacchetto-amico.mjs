@@ -98,6 +98,12 @@ for (const v of voci) {
 const CATALOGHI = [
   'car-images.json', 'car-image-baseline.json', 'car-prices.json',
   'car-specs.json', 'car-specs-extra.json', 'car-guids.json',
+  // DIZIONARIO garage (27/10, «e sul pc dell'amico che si fa?»): le 15 auto
+  // già apprese dal sampler e da learnCar viaggiano col pacchetto — l'amico
+  // non parte col dizionario vuoto e alle serie note il Prepara l'auto da
+  // solo alla PRIMA gara (prima doveva farlo a mano). Le auto nuove restano
+  // sul flusso consueto: pick a mano la prima volta, impara a fine gara.
+  'samples/garage/map.json',
 ].map((f) => `ac-evo-career/data/${f}`);
 const vietati = voci.filter((v) =>
   (!v.endsWith('/') && !CATALOGHI.includes(v) && /^ac-evo-career\/data\//.test(v))
