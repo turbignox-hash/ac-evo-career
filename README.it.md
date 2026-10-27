@@ -142,7 +142,11 @@ dice una frase e verifica al volo la voce italiana.
   in silenzio il cruscotto del server e mostra pilota, gare del giorno e serie
   iscritte nell'app ACEUIAppLoader — si installa con
   `node tools/installa-cruscotto.mjs` e si tiene aggiornato dal publisher
-  (`src/uiapp-pub.mjs`).
+  (`src/uiapp-pub.mjs`). Dal 28/10 mostra anche la mini-classifica della serie
+  corrente e il pannello mondiale (skill e top-5 con la tua riga), col pulsante
+  che apre il Mondiale completo nella GUI del browser — tutto calcolato con le
+  stesse formule del server (`standingsFor`, `playerWorldSkill`): i numeri non
+  possono divergere.
 - **Paddock e classi auto (26–27/10).** Il motore di classi ora accoppia le
   serie al parco auto davvero presente sul disco: con le classi giuste le
   zavorre per traccia hanno perso il morso (ultime gare: zero sfori dalla

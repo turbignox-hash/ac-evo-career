@@ -54,6 +54,49 @@
     return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  function bloccoClassifica(c) {
+    if (!c || !c.righe || !c.righe.length) return '';
+    let h = '<div class="gruppo"><h2>Classifica · ' + esc(c.nome) + '</h2>';
+    h += '<div class="card"><table class="tab">';
+    for (const r of c.righe) {
+      h += '<tr class="' + (r.tu ? 'tu' : '') + '"><td class="pos">' + esc(r.pos) + '</td><td>' + esc(r.nome) +
+        (r.tu ? ' <span class="tu-tag">tu</span>' : '') + '</td><td class="punti">' + esc(r.punti) + '</td></tr>';
+    }
+    h += '</table></div></div>';
+    return h;
+  }
+
+  function bloccoMondo(m, guiUrl) {
+    if (!m) return '';
+    let h = '<div class="gruppo"><h2>Mondiale</h2><div class="card">';
+    h += '<div class="titolo">Posizione <b class="mio">' + esc(m.tuaPosizione) + '</b> di ' + esc(m.totale) +
+      ' <span class="punti-skill">skill ' + esc(m.tuaSkill) + '</span></div>';
+    h += '<table class="tab">';
+    for (const r of m.top) {
+      h += '<tr class="' + (r.tu ? 'tu' : '') + '"><td class="pos">' + esc(r.pos) + '</td><td>' + esc(r.nome) +
+        (r.tu ? ' <span class="tu-tag">tu</span>' : '') + '</td><td class="punti">' + esc(r.skill) + '</td></tr>';
+    }
+    h += '</table>';
+    if (guiUrl) {
+      const u = String(guiUrl);
+      h += '<div class="riga" style="margin-top:8px"><a class="apri-gui" href="javascript:void(0)" data-url="' + esc(u) + '">Mondiale completo ↗</a>' +
+        '<span class="nota"> ' + esc(u) + '</span></div>';
+    }
+    return h + '</div></div>';
+  }
+
+  // Il pulsante «Mondiale completo»: in gioco cohtml può bloccare window.open,
+  // perciò si prova anche external.openURL e comunque l'URL resta leggibile.
+  document.addEventListener('click', function (e) {
+    const a = e.target && e.target.closest ? e.target.closest('a.apri-gui') : null;
+    if (!a) return;
+    e.preventDefault();
+    const url = a.getAttribute('data-url') || (S.dati && S.dati.guiUrl) || null;
+    if (!url) return;
+    try { window.open(url, '_blank'); } catch (err) {}
+    try { if (window.external && typeof window.external.openURL === 'function') window.external.openURL(url); } catch (err) {}
+  });
+
   const STATI = {
     iscritto: ['iscritto', 'Iscritto'],
     disponibile: ['disponibile', 'Disponibile'],
@@ -101,6 +144,9 @@
     h += '</div><div class="gruppo"><h2>Serie iscritta</h2>';
     h += (d.iscritte ?? []).length ? (d.iscritte ?? []).map(cardIscritta).join('') : '<div class="vuoto">Nessuna serie iscritta.</div>';
     h += '</div>';
+    // niente blocco se la statistica non c'è (schema: nascondi, non mostrare vuoto)
+    h += bloccoClassifica(d.classifica);
+    h += bloccoMondo(d.mondo, d.guiUrl);
     host.innerHTML = h;
   }
 

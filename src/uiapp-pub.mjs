@@ -18,7 +18,8 @@ import { join } from 'node:path';
 import { savedGamesRoots } from './paths.mjs';
 import { agendaDay, racesOnDay, dateLabel, prossimoGiornoConGara, impegni } from './agenda.mjs';
 import { context, SAVE_FILE } from './webui-env.mjs';
-import { loadState } from './state.mjs';
+import { loadState, nodeById, standingsFor, playerStanding } from './state.mjs';
+import { playerWorldSkill } from './world.mjs';
 import { tr } from './lang.mjs';
 
 export const PERIODO_MS = 2500;          // il ritmo delle fasce: 2.5 secondi esatti
@@ -33,6 +34,13 @@ export function cartellaApp(env = process.env) {
     if (existsSync(dir)) return dir;
   }
   return null;
+}
+
+let guiBaseUrl = null;
+/** L'URL della GUI del cruscotto (server webui) per il collegamento «Mondiale
+ *  completo»: lo start del server lo passa a startUiappPublisher. */
+export function setGuiBaseUrl(url) {
+  if (url && typeof url === 'string') guiBaseUrl = url.replace(/\/$/, '');
 }
 
 /** La vetrina di oggi: STESSO algoritmo dell'<agenda> del server
@@ -71,7 +79,56 @@ export function vetrina(ladder, state) {
     prossimo: prossimoGiornoConGara(ladder, state),
     pilota: { nome: state?.driver?.name ?? '', saldo: state?.money ?? 0, rep: state?.rep ?? 0 },
     iscritte, gare,
+    // MINI-CLASSIFICA della serie del giorno e PANNELLO mondiale (richieste
+    // 28/10): entrambe calcolate con le funzioni UFFICIALI del server
+    // (standingsFor / playerWorldSkill) così il numero in gioco è lo stesso
+    // della GUI del browser. Ogni blocco in try: la vetrina non si rompe mai
+    // per una statistica nuova.
+    classifica: miniClassifica(ladder, state),
+    mondo: pannelloMondo(ladder, state),
+    guiUrl: guiBaseUrl ?? (typeof process !== 'undefined' ? process.env.PITWALL_GUI_URL : null) ?? null,
   };
+}
+
+/** Classifica della serie CORRENTE del pilota (node), fino a 6 righe + la tua:
+ *  stessa fonte del tab Campionati della GUI. */
+function miniClassifica(ladder, state) {
+  try {
+    if (!state || !state.node) return null;
+    const node = nodeById(ladder, state.node);
+    if (!node) return null;
+    const rows = standingsFor(ladder, state, node).slice(0, 7).map((r) => ({
+      pos: r.position, nome: r.name, punti: r.points, tu: !!r.isPlayer,
+    }));
+    if (!rows.some((r) => r.tu)) {
+      const me = playerStanding(ladder, state, node);
+      if (me) rows.push({ pos: me.position, nome: me.name, punti: me.points, tu: true });
+    }
+    return { nodeId: node.nodeId, nome: node.display ?? node.nodeId, righe: rows };
+  } catch { return null; }
+}
+
+/** Pannello mondiale: la tua posizione nel mondo per skill e la top-5.
+ *  Stessa formula del calcolo della GUI (playerWorldSkill). */
+function pannelloMondo(ladder, state) {
+  try {
+    if (!state) return null;
+    const cur = nodeById(ladder, state.node);
+    const tuaSkill = Math.round((cur ? playerWorldSkill(cur, state) : 0) * 100);
+    const rows = (state.world?.drivers ?? [])
+      .filter((d) => d.active !== false)
+      .map((d) => ({ nome: state?.alias?.[`world:${d.id}`] || `${d.first} ${d.last}`, skill: Math.round((Number(d.skill) || 0) * 100), tu: false }));
+    rows.push({ nome: state.driver.name, skill: tuaSkill, tu: true });
+    rows.sort((a, b) => b.skill - a.skill);
+    // la posizione VERA di ogni riga si calcola una volta sola: la tua riga
+    // appesa in fondo (oltre il 5° posto) non deve prendere la posizione finta
+    // della top-5
+    rows.forEach((x, i) => { x.pos = i + 1; });
+    const tuaPos = rows.findIndex((x) => x.tu) + 1;
+    const top = rows.slice(0, 5);
+    if (tuaPos > 5) top.push(rows[tuaPos - 1]);
+    return { totale: rows.length, tuaPosizione: tuaPos, tuaSkill, top: top.map((x) => ({ pos: x.pos, nome: x.nome, skill: x.skill, tu: !!x.tu })) };
+  } catch { return null; }
 }
 
 /** Un giro del publisher: scrive la fascia corrente e pulisce le vecchie. */
@@ -95,7 +152,8 @@ export function uiappTick(env = process.env) {
 }
 
 let timer = null;
-export function startUiappPublisher() {
+export function startUiappPublisher(baseUrl = null) {
+  if (baseUrl) setGuiBaseUrl(baseUrl);
   if (timer) return timer;
   if (!cartellaApp()) {
     console.log('  App «Cruscotto» in gioco: la mod App Loader non è installata — publisher fermo (installa con tools/installa-cruscotto.mjs).');

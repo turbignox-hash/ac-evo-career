@@ -19,7 +19,7 @@ import {
   acceptOffer, pushMessage, enterNode, renameDriver, careerStats,
   slotDataDir,
 } from './state.mjs';
-import { ourToSkill, OUR_MIN, OUR_MAX } from './world.mjs';
+import { ourToSkill, OUR_MIN, OUR_MAX, playerWorldSkill } from './world.mjs';
 import { loadCatalog, resultDetail } from './catalog.mjs';
 import { liveReader } from './shmem.mjs';
 import { raceCard, markPending, chargeEntry, launch } from './race.mjs';
@@ -844,17 +844,12 @@ async function api(context0, _req, res, action, body) {
           archDesc: archInfo[d.archetype]?.description ?? '',
         }))
         .sort((a, b) => b.skill - a.skill);
-      // skill DEL GIOCATORE dinamica: base dalla serie corrente, ma cresce coi
-      // RISULTATI reali (vittorie e podi spingono sopra la banda della serie):
-      // P1 in una serie bassa può valere più di un P8 in una alta.
+      // skill DEL GIOCATORE: UNA SOLA formula per tutto (vedi world.mjs):
+      // base dalla serie corrente, ma cresce coi RISULTATI reali (vittorie e
+      // podi spingono sopra la banda della serie): P1 in una serie bassa può
+      // valere più di un P8 in una alta.
       const cur = nodeById(ladder, state.node);
-      const [hi, lo] = cur.ai ?? [80, 70];
-      const base = ((Number(hi) || 80) + (Number(lo) || 70)) / 2;
-      const mineAll = Object.values(state.results ?? {}).flat().filter((r) => r.season === state.season);
-      const races = mineAll.length || 1;
-      const avgShare = mineAll.reduce((acc, r) => acc + (r.dnf ? 0 : 1 - ((Number(r.position) || 10) / (Number(r.gridSize) || 12))), 0) / races;
-      const bonuses = mineAll.filter((r) => !r.dnf && r.position === 1).length * 3 + mineAll.filter((r) => !r.dnf && r.position <= 3).length * 1.2;
-      const mySkill = ourToSkill(Math.max(OUR_MIN, Math.min(OUR_MAX, base + (avgShare - 0.5) * 12 + bonuses)));
+      const mySkill = playerWorldSkill(cur, state);
       const me = { key: 'player', name: state.driver.name, country: state.driver.nation, skill: mySkill, age: null, archetype: 'TU', form: '' };
       const all = [...rows, me].sort((a, b) => b.skill - a.skill);
       const myPos = all.findIndex((r) => r.key === 'player') + 1;
@@ -3221,10 +3216,10 @@ setInterval(watcherTick, 4000);
 // ancora prima del listen: il primo click della GUI aspettava il dottore);
 // parte dopo 2.5s di server aperto, quando il cruscotto è già dipinto.
 setTimeout(() => maintenanceTick({ force: true }), 2500).unref();
-setInterval(() => maintenanceTick(), 10 * 60 * 1000);
-
-// App «Cruscotto» in gioco (27/10): il publisher scrive la vetrina del giorno
-// nella cartella della mod (loader ACE), stessa aerodinamica del Paddock —
-// file statico JSON nuovo ogni 2.5s, il gioco non deve fare richiesta alcuna.
-startUiappPublisher();
+setInterval(() => maintenanceTick(), 10 * 60 * 1000);  // App «Cruscotto» in gioco (27/10): il publisher scrive la vetrina del giorno
+  // nella cartella della mod (loader ACE), stessa aerodinamica del Paddock —
+  // file statico JSON nuovo ogni 2.5s, il gioco non deve fare richiesta alcuna.
+  // Passo anche l'URL della GUI: serve per il collegamento «Mondiale completo»
+  // dentro il widget (request 28/10).
+  startUiappPublisher(`http://127.0.0.1:${PORT}`);
 

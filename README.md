@@ -145,7 +145,10 @@ changelog under [report/](report/), with the real test-suite result inside):
   game: it quietly reads the server dashboard and shows your driver, today's
   races and entered series in the ACEUIAppLoader app — install with
   `node tools/installa-cruscotto.mjs`, kept fresh by the publisher
-  (`src/uiapp-pub.mjs`).
+  (`src/uiapp-pub.mjs`). From 28/10 it also shows the mini-standings of your
+  current series and the world-skill panel, plus a button that opens the full
+  Mondiale in the browser GUI — all computed with the same server formulas
+  (`standingsFor`, `playerWorldSkill`) so the numbers can never diverge.
 - **Paddock and car classes (26–27/10).** The class engine now pairs series
   with the car park actually on disk: with the right classes per-track ballast
   has lost its bite (latest races: zero escapes from the base, no penalty

@@ -48,6 +48,20 @@ export function ourToSkill(v) {
   return clamp((v - OUR_MIN) / (OUR_MAX - OUR_MIN), 0, 1);
 }
 
+/** Skill mondiale del GIOCATORE (0..1): base dalla banda della serie corrente,
+ *  più i risultati reali della stagione (condivisione media della griglia legata ai
+ *  risultati e bonus per vittorie e podi). Fonte UNICA per il Mondiale della GUI e
+ *  per la mini-classifica del cruscotto in gioco così il numero non può divergere. */
+export function playerWorldSkill(curNode, state) {
+  const [hi, lo] = curNode?.ai ?? [80, 70];
+  const base = ((Number(hi) || 80) + (Number(lo) || 70)) / 2;
+  const mineAll = Object.values(state.results ?? {}).flat().filter((r) => r.season === state.season);
+  const races = mineAll.length || 1;
+  const avgShare = mineAll.reduce((acc, r) => acc + (r.dnf ? 0 : 1 - ((Number(r.position) || 10) / (Number(r.gridSize) || 12))), 0) / races;
+  const bonuses = mineAll.filter((r) => !r.dnf && r.position === 1).length * 3 + mineAll.filter((r) => !r.dnf && r.position <= 3).length * 1.2;
+  return ourToSkill(Math.max(OUR_MIN, Math.min(OUR_MAX, base + (avgShare - 0.5) * 12 + bonuses)));
+}
+
 /** Difficoltà interna -> slider AI del gioco (0..120). La mappatura è a tratti lineari
  *  fra i punti di ancoraggio del ladder (calibrata sul riscontro reale del pilota);
  *  in assenza di anchor si usa il vecchio formato lineare ourMin..ourMax -> evoMin..evoMax. */
