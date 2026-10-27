@@ -25,6 +25,9 @@ import { join } from 'node:path';
 
 export const WEEKEND_FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 
+const NOMI_SESSIONE = { Practice: 'Practice', Qualifying: 'Qualifying', Warmup: 'Warmup', Race: 'Race' };
+const nomeSessione = (n) => NOMI_SESSIONE[String(n ?? '').trim()] ?? null;
+
 /** Legge ora/minuti/scala dal blocco "Race" (o dal blocco indicato, 0-based) del gamemodesave. */
 export function currentRaceTime(file = WEEKEND_FILE, blockName = 'Race') {
   let buf;
@@ -45,6 +48,93 @@ export function currentRaceTime(file = WEEKEND_FILE, blockName = 'Race') {
   const scaleF = sess.find((s) => s.field === 7 && s.wire === 5);
   const scale = scaleF?.bytes ? Buffer.from(scaleF.bytes).readFloatLE(0) : 1;
   return { hour: hour != null ? Number(hour) : null, minute: min != null ? Number(min) : null, scale, block: i + 1, blocchi: blkl(blk) };
+}
+
+/** Per-sessione: ora/min/scala di OGNI blocco con nome. Il cruscotto del
+ *  server e la GUI la usano per il confronto idempotente di Prepara tutto. */
+export function currentSessionTimes(file = WEEKEND_FILE) {
+  let buf;
+  try { buf = readFileSync(file); } catch { return null; }
+  const fields = decodeMsg(buf);
+  const f3s = fields.filter((f) => f.field === 3 && f.wire === 2);
+  const out = [];
+  for (const f3 of f3s) {
+    const sess = decodeMsg(f3.bytes);
+    const n = sess.find((x) => x.field === 1);
+    const name = n ? Buffer.from(n.bytes).toString('utf8') : '?';
+    const f4 = sess.find((s) => s.field === 4 && s.wire === 2);
+    const dt = f4 ? decodeMsg(f4.bytes) : [];
+    const hour = dt.find((x) => x.field === 4)?.varint;
+    const min = dt.find((x) => x.field === 5)?.varint;
+    const scaleF = sess.find((s) => s.field === 7 && s.wire === 5);
+    out.push({ name, hour: hour != null ? Number(hour) : null, minute: min != null ? Number(min) : null, scale: scaleF?.bytes ? Buffer.from(scaleF.bytes).readFloatLE(0) : 1 });
+  }
+  return out;
+}
+
+/**
+ * Scrive ora distinta PER SESSIONE (richiesta Mauro 28/10: prove, qualifiche,
+ * warm-up e gara portano ciascuna il proprio orologio nel weekend, non più
+ * tutti la stessa ora).
+ *   setRaceSessions({ sessions: { Practice: 10, Qualifying: 12, Warmup: 14, Race: 15 } })
+ * Anche scala e minuti si passano per sessione (un oggetto { hour, minute, scale });
+ * i blocchi non nominati restano com'erano. Idempotente: il blocco già a posto
+ * non si tocca; un nome per sessione che non esiste nel file viene ignorato e
+ * segnalato in `mancanti`. Ritorna { blocchi, changed, written, backup, toccati }.
+ */
+export function setRaceSessions({ sessions = {}, scale = null, file = WEEKEND_FILE, dry = false } = {}) {
+  if (!sessions || !Object.keys(sessions).length) throw Object.assign(new Error('serve almeno una sessione (Practice/Qualifying/Warmup/Race)'), { code: 'NO_VALUES' });
+  const want = new Map();
+  for (const [k, v] of Object.entries(sessions)) {
+    const name = nomeSessione(k);
+    if (!name) continue;
+    const o = typeof v === 'object' && v != null ? v : { hour: v };
+    if (o.hour == null && o.minute == null && o.scale == null) continue;
+    want.set(name, { hour: o.hour != null ? Math.max(0, Math.min(23, Math.round(Number(o.hour)))) : null, minute: o.minute != null ? Math.max(0, Math.min(59, Math.round(Number(o.minute)))) : null, scale: o.scale != null ? Math.max(1, Math.min(60, Number(o.scale))) : null });
+  }
+  const buf = readFileSync(file);
+  const fields = decodeMsg(buf);
+  const f3s = fields.filter((f) => f.field === 3 && f.wire === 2);
+  let changed = 0;
+  const toccati = [], mancanti = new Set([...want.keys()]);
+  for (const f3 of f3s) {
+    const sess = decodeMsg(f3.bytes);
+    const n = sess.find((x) => x.field === 1);
+    const name = n ? Buffer.from(n.bytes).toString('utf8') : null;
+    if (!name || !want.has(name)) continue;
+    mancanti.delete(name);
+    const req = want.get(name);
+    const sc = req.scale ?? scale;
+    let touched = false;
+    const f4 = sess.find((s) => s.field === 4 && s.wire === 2);
+    if (f4) {
+      const dt = decodeMsg(f4.bytes);
+      for (const d of dt) {
+        if (req.hour != null && d.field === 4 && Number(d.varint) !== req.hour) { d.varint = BigInt(req.hour); touched = true; }
+        if (req.minute != null && d.field === 5 && Number(d.varint) !== req.minute) { d.varint = BigInt(req.minute); touched = true; }
+      }
+      if (touched) f4.bytes = encodeMsg(dt);
+    }
+    if (sc != null) {
+      const f7 = sess.find((s) => s.field === 7 && s.wire === 5);
+      if (f7) {
+        const cur = Buffer.from(f7.bytes).readFloatLE(0);
+        if (Math.abs(cur - sc) > 1e-6) { const b = Buffer.alloc(4); b.writeFloatLE(sc, 0); f7.bytes = b; touched = true; }
+      } else {
+        const b = Buffer.alloc(4); b.writeFloatLE(sc, 0);
+        sess.push({ field: 7, wire: 5, bytes: b });
+        touched = true;
+      }
+    }
+    f3.bytes = encodeMsg(sess);
+    if (touched) { changed++; toccati.push(name); }
+  }
+  if (dry || changed === 0) return { blocchi: f3s.length, toccati, mancanti: [...mancanti], changed, written: false, spec: Object.fromEntries(want) };
+  const backup = `${file}.bak-racetime-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+  copyFileSync(file, backup);
+  writeFileSync(`${file}.tmp`, encodeMsg(fields));
+  renameSync(`${file}.tmp`, file);
+  return { blocchi: f3s.length, toccati, mancanti: [...mancanti], changed, written: true, backup, spec: Object.fromEntries(want) };
 }
 function blkl(blk) {
   return blk.map((s) => {
@@ -112,6 +202,17 @@ if (isMain) {
   const args = process.argv.slice(2);
   const val = (flag) => { const i = args.indexOf(flag); return i >= 0 ? Number(args[i + 1]) : null; };
   const dry = args.includes('--dry');
+  // CLI: il nuovo gesto è --sessione (una fonte per prove/quali/warmup/gara)
+  if (args.includes('--sessione')) {
+    const codice = ['Practice', 'Qualifying', 'Warmup', 'Race'].map((n) => {
+      const h = val('--hour-' + n.toLowerCase());
+      return h != null ? [n, h] : null;
+    }).filter(Boolean);
+    const sess = codice.length ? Object.fromEntries(codice) : { [String(args[args.indexOf('--sessione') + 1] ?? 'Race')]: val('--hour') ?? 15 };
+    const r = setRaceSessions({ sessions: sess, scale: val('--scale'), dry });
+    console.log(`${dry ? '[dry] ' : ''}sessioni → ${JSON.stringify(r.spec)} → ${r.changed}/${r.blocchi} blocchi${r.written ? ` · backup ${r.backup}` : ' (nessuna scrittura)'}`);
+    process.exit(0);
+  }
   if (args.includes('--hour') || args.includes('--scale') || args.includes('--minute')) {
     const r = setRaceTime({ hour: val('--hour'), minute: val('--minute'), scale: val('--scale'), dry });
     console.log(`${dry ? '[dry] ' : ''}orario gara: hour=${r.spec.hour ?? '—'} min=${r.spec.minute ?? '—'} scala=${r.spec.scale ?? '—'}x → ${r.changed}/${r.blocchi} blocchi toccati${r.written ? ` · backup ${r.backup}` : ' (nessuna scrittura)'}`);

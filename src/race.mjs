@@ -110,6 +110,14 @@ export function raceCard(ladder, state, { car = null } = {}) {
   if (Number.isFinite(Number(ov.timeScale))) profile.timeScale = Number(ov.timeScale);
   const practiceStartOv = Number.isFinite(Number(ov.practiceStart)) ? Number(ov.practiceStart) : null;
   const qualifyStartOv = Number.isFinite(Number(ov.qualifyStart)) ? Number(ov.qualifyStart) : null;
+  const warmupStartOv = Number.isFinite(Number(ov.warmupStart)) ? Number(ov.warmupStart) : null;
+  const raceStartOv = Number.isFinite(Number(ov.raceStart)) ? Number(ov.raceStart) : null;
+  // ORE DISTINTE per sessione (richiesta Mauro 28/10): prove, qualifiche, warm-up
+  // e gara portano ciascuna il proprio orologio (default: calcolo a ritroso dal
+  // round, con il warm-up 15 min prima della gara). Con il moltiplicatore>1 il
+  // gioco riscorre indietro; qui si scrivono le ore distinte nei blocchi del
+  // gamemodesave (setRaceSessions), come dalla regola gara settings.
+  const raceHour = raceStartOv ?? round.hour ?? null;
   const diff = difficultyFor(ladder, state, node, round.track);
   // in EVO la difficoltà AI si imposta come INTERVALLO min-max: banda STRETTA di un
   // punto (scelta Mauro 23/10: gap massimo 1% su tutte le serie, per avvicinare
@@ -176,13 +184,16 @@ export function raceCard(ladder, state, { car = null } = {}) {
     : parco.classe != null
       ? [tr({ it: 'Tipo griglia (Grid Type)', en: 'Grid Type' }), tr({ it: 'CUSTOM — lo fissi alla prima gara di questa serie, poi l’app lo riscrive da sola a ogni Prepara.', en: 'CUSTOM — set it at the first race of this series, then the app rewrites it itself every “Get ready”.' })]
       : [tr({ it: 'Tipo griglia (Grid Type)', en: 'Grid Type' }), tr({ it: 'lascialo com’è — per questa serie non serve una posa speciale', en: 'leave it as is — this series needs no special setting' })];
-  // ora d'inizio effettiva delle sessioni: override manuale, altrimenti il calcolo a ritroso
+  // ora d'inizio effettiva delle sessioni: override manuale, altrimenti il calcolo
+  // a ritroso dal round (che con raceStart manuale si sposta tutto insieme). Warm-up:
+  // 15 min prima della gara (10 di pista + 5 di pausa), override manuale possibile.
   const scale = Math.max(1, profile.timeScale ?? 1);
-  const backFrom = (minsBefore) => round.hour != null
-    ? Math.floor((((round.hour * 60 - scale * minsBefore) % 1440) + 1440) % 1440 / 60)
+  const backFrom = (minsBefore) => raceHour != null
+    ? Math.floor((((raceHour * 60 - scale * minsBefore) % 1440) + 1440) % 1440 / 60)
     : 12;
   const practiceStart = practiceStartOv ?? backFrom(profile.practiceMin + 5 + profile.qualifyMin + 15);
   const qualifyStart = qualifyStartOv ?? backFrom(profile.qualifyMin + 15);
+  const warmupStart = warmupStartOv ?? backFrom(15);
 
   // REALE, non la stima del ladder (26/10 sera, la scheda dell'Alfa 75 diceva
   // «6 cars» mentre il gamemodesave contava 14): il contatore del ladder era
@@ -226,6 +237,8 @@ export function raceCard(ladder, state, { car = null } = {}) {
     timeMultiplier: profile.timeScale ?? 1,
     practiceStart,
     qualifyStart,
+    warmupStart,
+    raceHour,
     carAdvice: advice.list,
     settings: [
       [tr({ it: 'Modalità', en: 'Mode' }), tr({ it: 'Weekend di gara', en: 'Race weekend' })],
@@ -235,13 +248,14 @@ export function raceCard(ladder, state, { car = null } = {}) {
       [tr({ it: 'Auto', en: 'Car' }), chosenCarName],
       [tr({ it: 'Avversari', en: 'Opponents' }), tr({ it: `${gridsReali - 1} auto · ${node.cars.length > 1 ? 'multiclasse: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}`, en: `${gridsReali - 1} cars · ${node.cars.length > 1 ? 'multiclass: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}` })],
       [tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), tr({ it: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%`, en: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%` })],
-      [tr({ it: 'Prove libere', en: 'Practice' }), card_sessionHint(profile.practiceMin, round, profile, 'P', practiceStartOv)],
-      [tr({ it: 'Qualifiche', en: 'Qualifying' }), card_sessionHint(profile.qualifyMin, round, profile, 'Q', qualifyStartOv)],
+      [tr({ it: 'Prove libere', en: 'Practice' }), card_sessionHint(profile.practiceMin, round, profile, 'P', practiceStartOv, raceHour)],
+      [tr({ it: 'Qualifiche', en: 'Qualifying' }), card_sessionHint(profile.qualifyMin, round, profile, 'Q', qualifyStartOv, raceHour)],
+      [tr({ it: 'Warm-up', en: 'Warm-up' }), card_sessionHint(10, round, profile, 'W', warmupStartOv, raceHour)],
       [tr({ it: 'Gara', en: 'Race' }), round.durationMin
         ? tr({ it: `a TEMPO: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minuti`, en: `BY TIME: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minutes` })
         : tr({ it: `${laps} giri`, en: `${laps} laps` })],
       [tr({ it: 'Moltiplicatore tempo', en: 'Time multiplier' }), tr({ it: `${profile.timeScale ?? 1}x`, en: `${profile.timeScale ?? 1}x` })],
-      [tr({ it: 'Ora del giorno', en: 'Time of day' }), tr({ it: `${String(round.hour).padStart(2, '0')}:00`, en: `${String(round.hour).padStart(2, '0')}:00` })],
+      [tr({ it: 'Ora del giorno', en: 'Time of day' }), tr({ it: `${String(raceHour).padStart(2, '0')}:00${raceStartOv != null ? ' — orario di gara scelto a mano in Regole del weekend' : ''}`, en: `${String(raceHour).padStart(2, '0')}:00${raceStartOv != null ? ' — race time set by hand in Weekend rules' : ''}` })],
       [tr({ it: 'Meteo', en: 'Weather' }), card_weatherHint(round.weather)],
       [tr({ it: 'Partenza', en: 'Start' }), tr({ it: profile.start === 'rolling' ? 'lanciata' : 'da fermo (griglia)', en: profile.start === 'rolling' ? 'rolling' : 'standing (grid)' })],
       [tr({ it: 'Pit obbligatorio', en: 'Mandatory pit' }), tr({ it: profile.pitreq ? 'sì, almeno 1 sosta' : 'no', en: profile.pitreq ? 'yes, at least 1 stop' : 'no' })],
@@ -345,11 +359,12 @@ function card_weatherHint(level) {
 /** Durata delle sessioni con ora d'inizio consigliata: nel gioco le ore scorrono in tempo reale
  *  (o più in fretta col moltiplicatore), quindi la sessione va posizionata a ritroso rispetto
  *  all'ora di gara per trovarci all'orario. La stima include pause brevi fra le sessioni.
- *  Con un orario scelto a mano (override) quello vince sul calcolo automatico. */
-function card_sessionHint(min, round, profile, kind = 'P', overrideHour = null) {
+ *  Con un orario scelto a mano (override) quello vince sul calcolo automatico. baseHour è l'ora
+ *  di gara efficace (round > override raceStart, richiesta Mauro 28/10). */
+function card_sessionHint(min, round, profile, kind = 'P', overrideHour = null, baseHour = null) {
   const scale = Math.max(1, profile.timeScale ?? 1);
   const dur = `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
-  const h = round.hour ?? null;
+  const h = baseHour ?? round.hour ?? null;
   if (!h) return tr({ it: `${dur} in tempo reale`, en: `${dur} in real time` });
   let hh, mm, chosen = false;
   if (Number.isFinite(overrideHour)) {
@@ -360,7 +375,9 @@ function card_sessionHint(min, round, profile, kind = 'P', overrideHour = null) 
     // minuti reali che separano l'inizio sessione dalla partenza della gara
     const realBefore = kind === 'Q'
       ? profile.qualifyMin + 15
-      : profile.practiceMin + 5 + profile.qualifyMin + 15;
+      : kind === 'W'
+        ? 15 // warm-up: 10 min di pista + 5 di pausa prima della gara
+        : profile.practiceMin + 5 + profile.qualifyMin + 15;
     const start = Math.round(((h * 60 - scale * realBefore) % 1440 + 1440) % 1440);
     hh = String(Math.floor(start / 60)).padStart(2, '0');
     mm = String(start % 60).padStart(2, '0');

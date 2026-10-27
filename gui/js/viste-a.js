@@ -623,6 +623,8 @@ function drawCardInto(el, card){
         </div>
         <div class="field"><label>${tr({ it: 'Inizio prove libere (ora del gioco)', en: 'Practice start (game time)' })}</label><input type="number" id="rs-pstart" min="0" max="23" value="${card.practiceStart}"></div>
         <div class="field"><label>${tr({ it: 'Inizio qualifiche (ora del gioco)', en: 'Qualifying start (game time)' })}</label><input type="number" id="rs-qstart" min="0" max="23" value="${card.qualifyStart}"></div>
+        <div class="field"><label>${tr({ it: 'Inizio warm-up (ora del gioco)', en: 'Warm-up start (game time)' })}</label><input type="number" id="rs-wstart" min="0" max="23" value="${card.warmupStart ?? ''}"></div>
+        <div class="field"><label>${tr({ it: 'Partenza gara (ora del gioco)', en: 'Race start (game time)' })}</label><input type="number" id="rs-rstart" min="0" max="23" value="${card.raceHour ?? ''}"></div>
         <div class="field"><label>${tr({ it: 'Moltiplicatore tempo', en: 'Time multiplier' })}</label>
           <select id="rs-time">${[1,2,3,4,5,6,8,10,12,24,48].map(t=>`<option value="${t}" ${t===(card.timeMultiplier??1)?'selected':''}>${t}x</option>`).join('')}</select>
         </div>
@@ -998,8 +1000,10 @@ function drawCardInto(el, card){
         /* niente più sliderMin/Max da qui (31/10): la banda AI la comanda
            il trim adattivo (e ±1 del cruscotto), per le regole a mano c'è il
            pannello Difficoltà — questa scheda non la tocca più. */
-        practiceStart: Number($('#rs-pstart', el).value),
-        qualifyStart: Number($('#rs-qstart', el).value),
+        practiceStart: $('#rs-pstart', el).value === '' ? '' : Number($('#rs-pstart', el).value),
+        qualifyStart: $('#rs-qstart', el).value === '' ? '' : Number($('#rs-qstart', el).value),
+        warmupStart: $('#rs-wstart', el).value === '' ? '' : Number($('#rs-wstart', el).value),
+        raceStart: $('#rs-rstart', el).value === '' ? '' : Number($('#rs-rstart', el).value),
         timeScale: Number($('#rs-time', el).value),
         distPct: Number($('#rs-dist', el).value),
         piano: $('#rs-piano', el)?.value || null,

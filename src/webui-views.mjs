@@ -294,6 +294,8 @@ function viewCard(ladder, state, car = null) {
     prizeEff: card.prizeEff ?? null,
     practiceStart: card.practiceStart,
     qualifyStart: card.qualifyStart,
+    warmupStart: card.warmupStart,
+    raceHour: card.raceHour,
     settings: card.settings,
     warnings: card.warnings,
     // rituale della prima griglia della serie (23/10: serie nuova = template

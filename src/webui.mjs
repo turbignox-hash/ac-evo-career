@@ -50,7 +50,7 @@ import { parseSetup, listSetups, writeSetupCopy, brakePlanOf, annotateAllyAdvice
 import { engineerLive } from './engineer.mjs';
 import { carPoolOf, carInPool } from './car-pool.mjs';
 import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, setWeekendGridCustom, WEEKEND_FILE } from '../tools/set-track.mjs';
-import { setRaceTime, currentRaceTime } from '../tools/set-racetime.mjs';
+import { setRaceTime, currentRaceTime, currentSessionTimes, setRaceSessions } from '../tools/set-racetime.mjs';
 import { setWeekendLaps } from '../tools/weekend-laps.mjs';
 import { readCells } from '../tools/grid-balance.mjs';
 // report.mjs: il bottone "Segnala un problema" costruisce l'URL della issue
@@ -399,6 +399,12 @@ async function syncLiveReader() {
   if (mode === 'sempre') { rd.start(); return mode; }
   if (await gameRunningMemo()) rd.start(); else rd.stop();
   return mode;
+}
+
+/** Riassunto in una riga delle ore distinte per sessione (Practice 10:00 · …): serve
+ *  a card e preperare per dire all'amico COME sono posizionate le sessioni. */
+function orarioSessioni(sessi) {
+  return Object.entries(sessi ?? {}).map(([k, h]) => `${k} ${String(h).padStart(2, '0')}:00`).join(' · ');
 }
 
 async function api(context0, _req, res, action, body) {
@@ -1485,10 +1491,32 @@ async function api(context0, _req, res, action, body) {
           S.sliderMax = Math.min(S.sliderMax, S.sliderMin + 1);
           try { setWeekendAi(S.sliderMin, S.sliderMax); } catch { /* il gamemodesave può mancare: la card resta valida */ }
         }
-      if (body.practiceStart != null) S.practiceStart = num(body.practiceStart, 0, 23);
-      if (body.qualifyStart != null) S.qualifyStart = num(body.qualifyStart, 0, 23);
+      // ore distinte per sessione (richiesta Mauro 28/10): prove, qualifiche,
+      // warm-up e gara si fissano a mano per serie. Campo VUOTO ('') = torna al
+      // calcolo a ritroso per la sessione (raceStart vuoto = orario del round).
+      const oraFor = (v) => {
+        if (v === '' || v == null) return null; // il vuoto CANCELLA l'override
+        return num(v, 0, 23);
+      };
+      const cancella = (k, v) => { if (v === '') delete S[k]; };
+      if (body.practiceStart != null) { cancella('practiceStart', body.practiceStart); const v = oraFor(body.practiceStart); if (v != null) S.practiceStart = v; }
+      if (body.qualifyStart != null) { cancella('qualifyStart', body.qualifyStart); const v = oraFor(body.qualifyStart); if (v != null) S.qualifyStart = v; }
+      if (body.warmupStart != null) { cancella('warmupStart', body.warmupStart); const v = oraFor(body.warmupStart); if (v != null) S.warmupStart = v; }
+      if (body.raceStart != null) { cancella('raceStart', body.raceStart); const v = oraFor(body.raceStart); if (v != null) S.raceStart = v; }
       if (body.timeScale != null) S.timeScale = Math.max(1, Math.min(60, Number(body.timeScale) || 1));
       if (body.distPct != null) S.distPct = [25, 50, 75, 100].includes(Number(body.distPct)) ? Number(body.distPct) : null;
+      // le ore PER SESSIONE vanno anche sul gamemodesave del weekend, se esiste:
+      // scrittura idempotente con backup, e se il file manca si va avanti (il
+      // Prepara tutto le scrive appena il weekend nasce).
+      try {
+        if (existsSync(WEEKEND_FILE)) {
+          const sessi = {};
+          for (const [k, v] of Object.entries({ Practice: S.practiceStart, Qualifying: S.qualifyStart, Warmup: S.warmupStart, Race: S.raceStart })) {
+            if (Number.isFinite(Number(v))) sessi[k] = Number(v);
+          }
+          if (Object.keys(sessi).length) setRaceSessions({ sessions: sessi, file: WEEKEND_FILE });
+        }
+      } catch { /* gamemodesave assente o illeggibile: la card resta valida comunque */ }
       // PIANO ORARIO della serie (orario.mjs, richiesta Mauro 21/10/2026): scrive
       // hour/timeScale nei round del calendario della serie. body.piano='' = rimuovi.
       if (body.piano != null) {
@@ -1797,30 +1825,42 @@ async function api(context0, _req, res, action, body) {
           } else prep.weather = PRESETS[cur ?? wantIdx]?.label ?? null;
         }
       } catch (e) { prep.weatherError = e.message; }
-      // ORA + SCALA DEL TEMPO della ronda (la stessa automazione dell'evento,
-      // richiesta Mauro 23/10): l'ora del round (f4.4 del datetime di OGNI blocco
-      // sessione — prove/quali/gara si disallineano a ritroso) e il moltiplicatore
-      // (f7 float) nel gamemodesave, come il CLI 'orario'. Il round porta i SUOI
-      // hour/timeScale (piani notte/crepuscolo/…) e la scala efficace è già
-      // risolta dalla card (card.timeMultiplier: round > override serie > profilo).
-      // Idempotente: se ora e scala combaciano già, nessuna scrittura.
+      // ORE DISTINTE per sessione (richiesta Mauro 28/10, evoluzione del gesto
+      // "ora" del 23/10): prova, qualifica, warm-up e gara portano CIASCUNA il
+      // proprio orologio (f4.4 del proprio blocco), presi dalla card della ronda
+      // (override della serie, altrimenti calcolo a ritroso dal round) — non più
+      // una sola ora ripetuta su tutti i blocchi. La scala del tempo resta una
+      // sola (f7 su tutti i blocchi toccati): piani notte/crepuscolo la comandano.
+      // Idempotente: se le ore e la scala combaciano già, nessuna scrittura.
       try {
         const roundHour = card.round?.hour ?? null;
         if (roundHour != null) {
           const cur = currentRaceTime();
           if (!cur) prep.hourError = existsSync(WEEKEND_FILE)
-            ? tr({ it: "l'EVO non ha ancora il weekend di carriera: entra in EVO nel weekend del round (basta la schermata del weekend), poi premi di nuovo Prepara tutto — l'ora si scrive da sola", en: "EVO has no career weekend yet: enter the round's weekend in EVO once (the weekend screen is enough), then press Get ready again — the hour is written automatically" })
+            ? tr({ it: "l'EVO non ha ancora il weekend di carriera: entra in EVO nel weekend del round (basta la schermata del weekend), poi premi di nuovo Prepara tutto — le ore si scrivono da sole", en: "EVO has no career weekend yet: enter the round's weekend in EVO once (the weekend screen is enough), then press Get ready again — the hours are written automatically" })
             : tr({ it: 'gamemodesave non trovato (EVO mai stato sul weekend?): apri il round in EVO una volta, poi premi di nuovo Prepara tutto', en: 'gamemodesave not found (EVO never reached the weekend?): open the round in EVO once, then press Get ready again' });
           else {
             const wantScale = card.timeMultiplier != null ? Math.max(1, Math.min(60, Number(card.timeMultiplier) || 1)) : null;
-            const sameHour = cur.hour === roundHour;
-            const sameScale = wantScale == null || Math.abs(Number(cur.scale) - wantScale) < 1e-6;
-            if (sameHour && sameScale) prep.hour = `già ${String(cur.hour).padStart(2, '0')}:${String(cur.minute ?? 0).padStart(2, '0')} · scala ${cur.scale}x`;
+            const sessi = {};
+            for (const [k, v] of Object.entries({ Practice: card.practiceStart, Qualifying: card.qualifyStart, Warmup: card.warmupStart, Race: roundHour })) {
+              if (Number.isFinite(Number(v))) sessi[k] = Number(Math.round(Number(v)));
+            }
+            const ora = currentSessionTimes();
+            const tuttoAPosto = ora != null && ora.length > 0 && ora.every((s) => {
+              const w = sessi[s.name];
+              if (w == null) return true; // sessione senza orario voluto: non si tocca
+              const okOra = Number(s.hour) === w;
+              const okScala = wantScale == null || Math.abs(Number(s.scale) - wantScale) < 1e-6;
+              return okOra && okScala;
+            });
+            const sommario = ora.filter((s) => sessi[s.name] != null).map((s) => `${s.name} ${String(s.hour ?? '?').padStart(2, '0')}:${String(s.minute ?? 0).padStart(2, '0')}`).join(' · ');
+            if (tuttoAPosto) prep.hour = `già a posto — ${sommario}${wantScale != null ? ` · scala ${wantScale}x` : ''}`;
             else {
-              const rt = setRaceTime({ hour: roundHour, scale: wantScale });
-              const era = cur.hour != null ? `${String(cur.hour).padStart(2, '0')}:${String(cur.minute ?? 0).padStart(2, '0')} · ${cur.scale}x` : '?';
-              prep.hour = `${String(roundHour).padStart(2, '0')}:00${wantScale != null ? ` · scala ${wantScale}x` : ''} (era ${era})`;
+              const rt = setRaceSessions({ sessions: sessi, scale: wantScale });
+              prep.hour = orarioSessioni(sessi) + (wantScale != null ? ` · scala ${wantScale}x` : '');
+              prep.hourSessions = sessi;
               prep.hourWritten = rt.written;
+              prep.hourToccati = rt.toccati;
             }
           }
         }
