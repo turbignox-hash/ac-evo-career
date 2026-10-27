@@ -165,9 +165,18 @@ async function drawAgenda(m){
     // la scheda né in hover né al click. */
     $$('.ag-card', wrapEl).forEach(el => {
       let hov = 0;
-      const apri = () => raceCardModal(el.dataset.detail, a.viewDay);
+      const apri = () => raceCardModal(el.dataset.detail, a.viewDay, el);
       el.onmouseenter = () => { clearTimeout(hov); hov = setTimeout(apri, 380); };
-      el.onmouseleave = () => clearTimeout(hov);
+      // nel mouseleave arrivano DUE lavori: fermare il timer che ancora non ha
+      // aperto e — se la scheda a HOVER è già aperta — chiuderla da sola
+      // (richiesta Mauro 31/10: «non deve stare aperta, si chiude appena esco
+      // con il mouse dalla card»). La scheda nata da CLICK invece resta fino
+      // alla chiusura esplicita, come sempre.
+      el.onmouseleave = () => {
+        clearTimeout(hov);
+        const pan = $('.modal', $('#modal-root'));
+        if (pan && pan.dataset.hover === '1') $('#modal-root').innerHTML = '';
+      };
       el.onclick = (e) => {
         if (e.target.closest('button')) return;
         clearTimeout(hov);
@@ -186,10 +195,14 @@ async function drawAgenda(m){
 }
 
 /* -------- scheda-gara cliccabile in Agenda -------- */
-async function raceCardModal(nodeId, day){
+async function raceCardModal(nodeId, day, hos = null){
   let d;
   try { d = await api('agenda-detail', { nodeId, day }); }
   catch(e){ toast(e.message, 'err'); return; }
+  // HOVER (31/10): il dettaglio arriva in ritardo — se il mouse è già
+  // uscito dalla card mentre aspettavamo la risposta, la scheda non
+  // apre affatto: sarebbe una modale orfana senza chi che la tenga.
+  if (hos && !hos.matches(':hover')) return;
   const auto = (d.cars ?? []).join(', ') || '—';
   const cal = (d.calendar ?? []).map((r) => {
     const mark = r.played ? '✓' : r.current ? '►' : '';
@@ -212,7 +225,7 @@ async function raceCardModal(nodeId, day){
     ? `<span class="tag gold">★ ${tr({ it: 'tuo campionato', en: 'your championship' })}</span>`
     : d.fattibile ? `<span class="tag blue">${tr({ it: "fattibile: puoi firmare dall'agenda", en: 'pickable: sign up from the Agenda' })}</span>`
     : `<span class="tag gold" title="${esc((d.gateReasons??[]).join(' · '))}">🔒 ${(d.gateReasons??[])[0] ?? tr({ it: 'bloccata', en: 'locked' })}</span>`;
-  modal(`${esc(d.display)}${d.roundName ? ' — ' + esc(d.roundName) : ''}`, `
+  const r = modal(`${esc(d.display)}${d.roundName ? ' — ' + esc(d.roundName) : ''}`, `
     <div class="row" style="gap:6px;flex-wrap:wrap">${statoTxt}
       <span class="faint">L${d.level} · ${esc(d.discipline)} · ${tr({ it: 'stagione ', en: 'season ' })}${d.season}</span></div>
     <div style="margin:8px 0 2px"><b>${esc(d.roundName ?? '')}</b> — ${esc(d.track)} · ${d.laps??'—'} ${tr({ it: 'giri', en: 'laps' })} · ${tr({ it: 'ore ', en: 'at ' })}${String(d.hour).padStart(2,'0')}:00${d.weather?' · '+esc(d.weather):''}</div>
@@ -225,6 +238,14 @@ async function raceCardModal(nodeId, day){
     [[d.stato === 'iscritto' && d.isCurrent ? tr({ it: 'Vai in pista (Cruscotto)', en: 'Go racing (Dashboard)' }) : tr({ it: 'Chiudi', en: 'Close' }), 'act', () => {
       if (d.stato === 'iscritto' && d.isCurrent) { tab='dashboard'; drawNav(); render(); }
     }]]);
+  // nata dal passaggio del mouse (31/10): si marchia HOVER — al mouseleave
+  // della card l'handler qui sopra (nel loop delle .ag-card) la chiude;
+  // ma se il mouse ENTRA nel pannello la scheda diventa stabile: l'utente
+  // la sta leggendo, merita la chiusura esplicita come una scheda da click.
+  if (hos) {
+    const pan = $('.modal', r);
+    if (pan) { pan.dataset.hover = '1'; pan.onmouseenter = () => delete pan.dataset.hover; }
+  }
 }
 
 /* -------- campionati: le serie iscritte coi loro calendari e classifiche -------- */
