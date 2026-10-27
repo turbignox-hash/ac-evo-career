@@ -56,6 +56,12 @@ project.
 The interface has 19 tabs. These are live screenshots of the tool running on a
 real career save (interface set to English):
 
+**Everything is clickable** (since 28/10, Football-Manager style): a car name
+opens its spec sheet, a driver the rival card, a track the track book, a series
+the Championships tab, and the ruler's date/money/rep/season jump to the right
+tab. Page switches carry parameters: the search prefills itself and, if the
+match is unique, the sheet opens on its own.
+
 | Tab | What you get |
 | --- | --- |
 | ![Dashboard](docs/screenshots/01-dashboard.png) | **Dashboard** — season stats (wins, podiums, points, round chart), the race card with the exact session to set in EVO, and next-race reminder in the header. |

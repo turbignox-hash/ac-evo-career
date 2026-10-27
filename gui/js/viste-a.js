@@ -655,7 +655,7 @@ function drawCardInto(el, card){
         ];
       })().map(([k, v]) => `<div style="border:1px solid var(--line,#2a3341);border-radius:8px;padding:8px 10px;background:var(--panel2,#121822)">
         <div class="muted" style="font-size:10.5px;text-transform:uppercase;letter-spacing:1px">${esc(k)}</div>
-        <div style="font-size:13px;font-weight:600;margin-top:2px">${esc(v)}</div>
+        <div style="font-size:13px;font-weight:600;margin-top:2px">${k === 'Auto' && v && v !== '—' ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda tecnica dell\'auto', en: 'open the car spec sheet' })}" onclick="vai('cars',{search:'${String(v).replace(/'/g, "\\'")}\'})">${esc(v)}</span>` : esc(v)}</div>
       </div>`).join('')}
     </div>
     <details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:12px">${tr({ it: 'ⓘ Tutte le impostazioni del round', en: 'ⓘ All round settings' })}</summary>

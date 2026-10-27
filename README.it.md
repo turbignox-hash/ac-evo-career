@@ -52,6 +52,12 @@ codice e dati scritti per EVO, non ricostruzioni del progetto d'origine.
 Interfaccia in inglese nei catturi; la lingua si sceglie in Impostazioni
 (Italiano / English). La stessa documentazione in inglese è nel [README.md](README.md).
 
+**Tutto cliccabile** (dal 28/10, stile Football Manager): un nome auto porta alla
+sua scheda tecnica, un pilota alla scheda rivale, una pista al suo libro, la
+serie al tab Campionati, data/finanze/rep/stagione del righello al tab giusto.
+Cambi pagina con parametri: la ricerca si precompila e, se il match è secco,
+la scheda si apre da sola.
+
 | Tab | Cosa ti dà |
 | --- | --- |
 | ![Cruscotto](docs/screenshots/01-dashboard.png) | **Cruscotto** — statistiche di stagione (vittorie, podi, punti, grafico round), scheda gara con la sessione esatta da impostare in EVO, countdown alla prossima gara. |
