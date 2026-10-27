@@ -1046,7 +1046,13 @@ function drawCardInto(el, card){
       toast(tr({ it: 'Suggerimento rifiutato.', en: 'Suggestion rejected.' }), 'info');
     } catch(err){ toast(err.message, 'err'); }
   });
-  $('#sel-car', el).onchange = async () => drawCardInto(el, await api('card', {car: $('#sel-car', el).value}));
+  /* 27/10 (gara preparata verso mezzogiorno): il selettore auto esiste SOLO
+     nella card che ha il render (`card.carImage`) — quando l'auto della card
+     non combacia (es. Ferrari F40 LM assente nell'indice dei render) l'elemento
+     MANCA e questa riga senza guard rompeva l'intero ridisegno dopo «Prepara
+     tutto», cancellando anche le righe di log e coprendo il messaggio vero
+     del server (auto fuori dizionario = gara che parte lo stesso). Guard. */
+  $('#sel-car', el)?.addEventListener('change', async () => drawCardInto(el, await api('card', {car: $('#sel-car', el)?.value ?? null})));
   $('#b-copy', el).onclick = async () => {
     const text = `${card.nodeDisplay} — ${card.roundName} (R${card.roundIndex+1}/${card.totalRounds})\n` +
       card.settings.map(([k,v])=>`${k}: ${v}`).join('\n') + `\n${tr({ it: 'Difficoltà AI', en: 'AI difficulty' })}: ${card.difficulty.slider}% · ${tr({ it: 'aggressività', en: 'aggression' })} ${card.aggression}%`;
@@ -1144,7 +1150,11 @@ const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella
       prepConsole(righe);
       drawCardInto(el, r.card);
       await refreshBoot();
-    } catch(e){ prepConsole([`✖ ${e.message}`]); btn.disabled=false; btn.textContent = tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' }); }
+    /* 27/10: l'errore NON rimonta più il pannello da zero (solo «✖ ...»):
+       le righe già scritte dal server restano in vista e l'errore si aggiunge
+       in fondo — prima creditava tutto e l'amico perdeva cosa il tool
+       aveva fatto. */
+    } catch(e){ prepConsoleLine(`✖ ${e.message}`); btn.disabled=false; btn.textContent = tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' }); }
   };
 }
 

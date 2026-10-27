@@ -89,6 +89,26 @@ function prepConsole(lines) {
   next();
 }
 
+/* 27/10: AGGIUNGE una riga alla console di preparazione già aperta (se c'è),
+   senza avre di costruzione: nell'errore di fine «Prepara tutto» il catch
+   prima chiamava prepConsole(["✖ …"]) e il pannello si RICOstruiva con la
+   sola riga d'errore, cancellando l'elenco di ciò che il server aveva fatto
+   (pista scritta, auto da scegliere a mano…). Se la console non esiste, la
+   apre con quela riga sola. */
+function prepConsoleLine(line) {
+  const list = $('#preplog .pl-body');
+  if (!list) { prepConsole([String(line ?? '')]); return; }
+  const raw = String(line ?? '');
+  const row = document.createElement('div');
+  row.className = 'pl-row' + (raw.startsWith('⚠') ? ' warn' : raw.startsWith('✖') ? ' bad' : '');
+  row.innerHTML = `<span class="pl-stamp">${new Date().toLocaleTimeString('it-IT', { hour12: false })}</span><span class="pl-text"></span>`;
+  row.querySelector('.pl-text').textContent = raw;
+  list.appendChild(row);
+  list.scrollTop = list.scrollHeight;
+  const box = $('#preplog');
+  if (box) { clearTimeout(Number(box.dataset.kill ?? 0)); const t = setTimeout(() => box.remove(), 14000); box.dataset.kill = String(Number(t)); }
+}
+
 /* ===================== barra aggiornamenti da GitHub =====================
    aparece solo se il remote offsite e' IN AVANTI del disco: "Aggiorna ora"
    porta giu' il codice (fetch + merge --ff-only) e gira i test. Il save
