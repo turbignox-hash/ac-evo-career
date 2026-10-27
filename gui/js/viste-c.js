@@ -245,6 +245,17 @@ async function drawCars(m){
   $('#cars-q').oninput = draw;
   $('#cars-ladder').onchange = draw;
   draw();
+  /* NAVEGZIONE incrociata (28/10, stile Football Manager): se arrivo qui da
+     un nome auto cliccato da un'altra pagina, la ricerca si precompila e se
+     il match è SECCO (una sola auto) la scheda si apre da sé. */
+  const O = window.NAV_OPTS?.tab === 'cars' ? window.NAV_OPTS : null;
+  if (O?.search) {
+    window.NAV_OPTS = null;
+    $('#cars-q').value = O.search;
+    draw();
+    const hits = b.rows.filter(r => r.name.toLowerCase().includes(O.search.toLowerCase()) || (r.ladderName ?? '').toLowerCase().includes(O.search.toLowerCase()));
+    if (hits.length === 1) carDetail(hits[0], b);
+  } else { window.NAV_OPTS = null; }
 }
 
 /* -------- garage personale -------- */
@@ -278,7 +289,7 @@ async function drawGarage(m){
     <div class="panel" style="padding:0;overflow:hidden" data-car="${esc(c.carId)}">
       ${c.image?`<img class="car-frame" src="${c.image}" alt="${esc(c.carName)}" loading="lazy" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#0d1118">`:''}
       <div style="padding:9px 11px">
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:13px">${esc(c.carName)}</b> ${badge(c.how, c.note)}${c.pi!=null?`<span class="tag blue" style="font-size:10px;padding:1px 6px" title="${tr({ it: 'Perf. index dal server dedicato', en: 'Performance index from the dedicated server' })}">PI ${c.pi.toFixed(1)}</span>`:''}</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:13px;cursor:pointer;text-decoration:underline dotted" class="g-carlink" data-car="${esc(c.carName)}" title="${tr({ it: 'apri la scheda tecnica dell\'auto', en: 'open the car spec sheet' })}">${esc(c.carName)}</b> ${badge(c.how, c.note)}${c.pi!=null?`<span class="tag blue" style="font-size:10px;padding:1px 6px" title="${tr({ it: 'Perf. index dal server dedicato', en: 'Performance index from the dedicated server' })}">PI ${c.pi.toFixed(1)}</span>`:''}</div>
         <div class="muted" style="font-size:11px;margin-top:3px">${tr({ it: 'nel garage dal ', en: 'in the garage since ' })}${esc(new Date(c.since).toLocaleDateString(window.LOCALE ?? 'it-IT'))}${c.note?` · ${esc(legacyIt(c.note))}`:''}</div>
         <div style="display:flex;gap:10px;margin-top:7px;font-size:12px;flex-wrap:wrap">
           <span title="${tr({ it: 'gare con questa auto', en: 'races with this car' })}">🏁 ${c.stats.races} ${tr({ it: 'gare', en: 'races' })}</span>
@@ -312,6 +323,8 @@ async function drawGarage(m){
     }; });
   };
   draw(g);
+  /* Auto del garage CLICCABILE → scheda tecnica nel libro auto (28/10, stile FM). */
+  $$('#g-grid .g-carlink').forEach((e) => { e.onclick = () => vai('cars', { search: e.dataset.car }); });
   const priceHint = () => {
     const sel = $('#g-add');
     const c = sel.value ? cat.cars.find(x => x.id === sel.value) : null;
@@ -388,7 +401,7 @@ async function drawTracks(m){
   const lapMs = (s) => { const m = String(s??'').match(/^(\d+):(\d{2})\.(\d{3})$/); return m ? (+m[1])*60000 + (+m[2])*1000 + (+m[3]) : null; };
   const flag = (c) => ({ 'Italia':'🇮🇹','Italy':'🇮🇹','Giappone':'🇯🇵','Japan':'🇯🇵','Austria':'🇦🇹','Australia':'🇦🇺','Germania':'🇩🇪','Germany':'🇩🇪','Stati Uniti':'🇺🇸','USA':'🇺🇸','Regno Unito':'🇬🇧','United Kingdom':'🇬🇧','Belgio':'🇧🇪','Belgium':'🇧🇪','Sudafrica':'🇿🇦','South Africa':'🇿🇦','Francia':'🇫🇷','France':'🇫🇷' }[c] ?? '🏁');
   const rows = t.rows.map((r) => `<tr>
-    <td><b>${flag(r.info?.country)} ${esc(r.track)}</b>${r.id===t.next?.id?` <span class="tag gold" style="font-size:10px;padding:1px 6px">${tr({ it: 'prossima', en: 'next' })}</span>`:''}${r.inLadder?'':` <span class="faint">(${tr({ it: 'fuori ladder', en: 'off ladder' })})</span>`}</td>
+    <td><b>${flag(r.info?.country)} <span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda della pista', en: 'open the track card' })}" data-hist="${esc(r.id)}">${esc(r.track)}</span></b>${r.id===t.next?.id?` <span class="tag gold" style="font-size:10px;padding:1px 6px">${tr({ it: 'prossima', en: 'next' })}</span>`:''}${r.inLadder?'':` <span class="faint">(${tr({ it: 'fuori ladder', en: 'off ladder' })})</span>`}</td>
     <td class="muted">${r.info?esc(tr({ it: r.info.nick, en: r.info.nickEn })):''}</td>
     <td class="right"><b>${r.personal?esc(r.personal.time):'—'}</b>${r.personal?`<br><span class="faint" style="font-size:11px">${esc(r.personal.car??'')}</span>`:''}</td>
     <td class="right">${r.session?`<b>${esc(r.session.time)}</b> <span class="faint">${esc(r.session.driver)}${r.session.mine?` (${tr({ it: 'tu', en: 'you' })})`:''}</span>`:'—'}</td>
@@ -403,8 +416,8 @@ async function drawTracks(m){
     <tbody>${rows}</tbody></table>
   </div>
   <div id="track-hist"></div>`;
-  $$('button[data-hist]').forEach((b) => { b.onclick = () => {
-    const r = t.rows.find((x) => x.id === b.dataset.hist);
+  const apriStoria = (id) => {
+    const r = t.rows.find((x) => x.id === id);
     const i = r?.info;
     $('#track-hist').innerHTML = !i ? '' : `<div class="panel" style="margin-top:14px"><h2>${flag(i.country)} ${esc(i.fullName)} <span class="h-act">${esc(tr({ it: i.country, en: i.countryEn }))} · ${i.lengthKm} km · ${i.corners} ${tr({ it: 'curve · inaugurato nel ', en: 'corners · opened in ' })}${i.opened}</span></h2>
       ${i.photo ? `<img src="${i.photo}" alt="${tr({ it: 'vista aerea di ', en: 'aerial view of ' })}${esc(r.track)}" style="width:100%;max-width:520px;aspect-ratio:16/9;object-fit:cover;background:#000;border-radius:10px;margin-bottom:10px">` : (i.map ? `<img src="${i.map}" alt="${tr({ it: 'tracciato ', en: 'layout ' })}${esc(r.track)}" style="width:100%;max-width:420px;object-fit:contain;background:#000;border-radius:10px;padding:12px;margin-bottom:10px${i.map.endsWith('.svg')?';filter:invert(1);opacity:.92':''}">` : '')}
@@ -412,8 +425,17 @@ async function drawTracks(m){
       <table style="margin-bottom:10px"><thead><tr><th>${tr({ it: 'Layout', en: 'Layout' })}</th><th class="right">${tr({ it: 'Lunghezza', en: 'Length' })}</th><th class="right">${tr({ it: 'Box', en: 'Pits' })}</th><th class="right">${tr({ it: 'Tuo miglior', en: 'Your best' })}</th><th class="right">${tr({ it: 'Record di sessione', en: 'Session record' })}</th></tr></thead><tbody>${r.layoutRows.map(l=>`<tr><td><b>${esc(l.layout)}</b></td><td class="right">${l.lengthKm??'—'} km</td><td class="right">${l.pits??'—'}</td><td class="right">${l.mine?`<b>${esc(l.mine.time)}</b>${l.mineFallback?'<span class="faint"> *</span>':''}`:'—'}</td><td class="right">${l.session?`${esc(l.session.time)} <span class="faint">${esc(l.session.driver)}</span>`:'—'}</td></tr>`).join('')}</tbody></table><div class="faint" style="margin:-6px 0 10px;font-size:11px">* ${tr({ it: 'dal record personale in carriera/prove (una sola configurazione corsa: il save non distingue i layout)', en: 'from the personal record in career/practice (only one layout raced: the save does not distinguish layouts)' })}</div>` : ''}
       <div style="line-height:1.6">${esc(tr({ it: i.history, en: i.historyEn }))}</div></div>`;
     $('#track-hist').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }; });
-;
+  };
+  $$('button[data-hist]').forEach((b) => { b.onclick = () => apriStoria(b.dataset.hist); });
+  /* NAVEGZIONE incrociata (28/10, stile FM): arrivando da un nome pista crowds
+     cliccato in Statistiche, la scheda della pista si apre da sé. */
+  const oTR = window.NAV_OPTS?.tab === 'tracks' ? window.NAV_OPTS : null;
+  window.NAV_OPTS = null;
+  if (oTR?.search) {
+    const q = String(oTR.search).toLowerCase();
+    const bers = t.rows.find((r) => r.track.toLowerCase().includes(q));
+    if (bers) apriStoria(bers.id);
+  }
 }
 
 /* -------- grafico del giro: velocità + bande gas/freno + differenza --------- */

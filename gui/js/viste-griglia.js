@@ -25,7 +25,7 @@ async function drawGridTab(m){
     ${data.classe ? `<div style="margin:6px 0 10px">${tr({ it: 'Classe combaciata:', en: 'Matched class:' })} <b>${esc(data.classe)}</b>${data.perTraccia ? ` · ${tr({ it: 'per-traccia', en: 'per-track' })} <b>${esc(data.perTraccia)}</b> ${data.convalidato ? badgeOk : badgeKo}` : ''}</div>` : `<div class="muted" style="margin:6px 0 10px">${tr({ it: 'Nessuna classe combacia con le auto della griglia', en: 'No class matches the grid cars' })}</div>`}
     ${data.escluseClasse?.length || data.escluseTraccia?.length ? `<div class="banner" style="border-color:#d9a83e">${tr({ it: 'Auto escluse ancora presenti nel file: {A} → usa "Applica bilancio" per rimuoverle', en: 'Excluded cars still in the file: {A} → use "Apply balance" to remove them' }).replace('{A}', esc([...(data.escluseClasse ?? []), ...(data.escluseTraccia ?? [])].join(' · ')))}</div>` : ''}
     <table><thead><tr><th>#</th><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Preset', en: 'Preset' })}</th><th class="right">${tr({ it: 'Zavorra / Penalità', en: 'Ballast / Penalty' })}</th></tr></thead>
-    <tbody>${(data.cells ?? []).map((c, i) => `<tr><td class="muted">${i + 1}</td><td>${esc(c.name)}</td><td class="muted" style="font-size:11.5px">${esc(c.preset ?? '—')}</td><td class="right">${kgpct(c)}</td></tr>`).join('')}</tbody>
+    <tbody>${(data.cells ?? []).map((c, i) => `<tr><td class="muted">${i + 1}</td><td><span class="car-link" data-car="${esc(c.name)}" style="cursor:pointer;text-decoration:underline dotted">${esc(c.name)}</span></td><td class="muted" style="font-size:11.5px">${esc(c.preset ?? '—')}</td><td class="right">${kgpct(c)}</td></tr>`).join('')}</tbody>
     </table>
   </div>
 
@@ -38,7 +38,7 @@ async function drawGridTab(m){
         <div class="row" style="align-items:start;gap:14px;margin-top:10px;flex-wrap:wrap">
           <div style="flex:1;min-width:280px">
             <div class="muted" style="margin-bottom:4px">${tr({ it: 'Regole base', en: 'Base rules' })}${cl.autoBase ? ` — ${tr({ it: 'base: ', en: 'base: ' })}<b>${esc(legacyIt(cl.autoBase))}</b>` : ''}</div>
-            <table><tbody>${cl.regole.map((r) => `<tr><td>${esc(r.auto)}</td><td class="muted" style="font-size:11.5px">${esc(r.preset ?? '')}</td><td class="right">${r.kg}kg / ${pct(r.pct)}</td><td>${r.escluso ? `<span class="tag red">${tr({ it: 'esclusa', en: 'excluded' })}</span>` : ''}</td></tr>`).join('')}</tbody></table>
+            <table><tbody>${cl.regole.map((r) => `<tr><td><span class="car-link" data-car="${esc(r.auto)}" style="cursor:pointer;text-decoration:underline dotted">${esc(r.auto)}</span></td><td class="muted" style="font-size:11.5px">${esc(r.preset ?? '')}</td><td class="right">${r.kg}kg / ${pct(r.pct)}</td><td>${r.escluso ? `<span class="tag red">${tr({ it: 'esclusa', en: 'excluded' })}</span>` : ''}</td></tr>`).join('')}</tbody></table>
           </div>
           <div style="flex:1;min-width:280px">
             <div class="muted" style="margin-bottom:4px">${tr({ it: 'Supplementi per-traccia', en: 'Per-track supplements' })}</div>
@@ -67,7 +67,7 @@ async function drawGridTab(m){
       <details open style="margin-bottom:10px;border:1px solid var(--line,#333);border-radius:8px;padding:10px">
         <summary style="cursor:pointer"><b>${esc(g.classe)}</b> · <b>${esc(g.trkKey)}</b> — ${g.obs} ${tr({ it: 'gare', en: 'races' })} (${g.ok} ${tr({ it: 'in tolleranza', en: 'within tolerance' })}) ${confTag(g.confidenza)} ${g.convalidatoAdesso ? badgeOk : ''}</summary>
         <table><thead><tr><th>${tr({ it: 'Auto (AI)', en: 'Car (AI)' })}</th><th class="right">${tr({ it: 'Δ mediana vs base', en: 'Δ median vs base' })}</th></tr></thead>
-        <tbody>${g.perAuto.map((a) => `<tr><td>${esc(a.auto)}</td><td class="right" style="color:${a.medSec <= -0.8 ? '#e07070' : a.medSec < 0.8 ? '#7ec97e' : 'inherit'}">${a.medSec > 0 ? '+' : ''}${Number(a.medSec).toFixed(2)}s</td></tr>`).join('') || `<tr><td colspan="2" class="muted">${tr({ it: 'nessun dato per-auto (base nuda o cap raggiunto)', en: 'no per-car data (bare base or cap reached)' })}</td></tr>`}</tbody></table>
+        <tbody>${g.perAuto.map((a) => `<tr><td><span class="car-link" data-car="${esc(a.auto)}" style="cursor:pointer;text-decoration:underline dotted">${esc(a.auto)}</span></td><td class="right" style="color:${a.medSec <= -0.8 ? '#e07070' : a.medSec < 0.8 ? '#7ec97e' : 'inherit'}">${a.medSec > 0 ? '+' : ''}${Number(a.medSec).toFixed(2)}s</td></tr>`).join('') || `<tr><td colspan="2" class="muted">${tr({ it: 'nessun dato per-auto (base nuda o cap raggiunto)', en: 'no per-car data (bare base or cap reached)' })}</td></tr>`}</tbody></table>
         ${(g.ultimaProposta ?? []).length ? `<div class="banner" style="margin-top:8px;border-color:#d9a83e"><b>${tr({ it: 'Ultima proposta (', en: 'Last proposal (' })}${esc(String(g.ultimoAt ?? '').slice(0, 10))}):</b><br>${g.ultimaProposta.map((p) => p.leva === 'campo-ai' ? `${tr({ it: 'campo AI', en: 'AI field' })} ${esc(p.da)} → <b>${esc(p.a)}</b> — ${esc(legacyIt(p.perche))}` : `${esc(p.auto ?? '')}: ${esc(p.da)} → <b>${esc(p.a)}</b> — ${esc(legacyIt(p.perche))}`).join('<br>')}</div>` : `<div class="muted" style="margin-top:8px">${tr({ it: 'nessuna proposta: i supplementi tengono', en: 'no proposal: supplements hold' })}</div>`}
         ${g.suggerisciConvalida ? `<div class="muted" style="margin-top:6px">${tr({ it: 'convalidabile ora da terminale:', en: 'validatable now from the terminal:' })} <b>node ac-evo-career.mjs griglia-calib --convalida "${esc(g.trkKey)}"</b></div>` : ''}
       </details>`).join('')
@@ -93,6 +93,9 @@ async function drawGridTab(m){
     <div id="grid-out" style="margin-top:12px"></div>
     <div class="muted" style="font-size:11.5px;margin-top:10px">${tr({ it: '"Applica bilancio" riscrive zavorre/penalità della classe (con supplementi per-traccia se la traccia combacia) e rimuove dal pool le auto in escludiAuto (di classe o per-traccia).', en: '"Apply balance" rewrites the class ballast/penalties (with per-track supplements if the track matches) and removes escludiAuto cars from the pool (class-level or per-track).' })}</div>
   </div>`;
+
+  // NAVIGZIONE incrociata (28/10, stile Football Manager): ogni nome auto → scheda auto nel libro
+  $$('.car-link', m).forEach((e) => { e.onclick = () => vai('cars', { search: e.dataset.car }); });
 
   const out = (html, kind) => { $('#grid-out').innerHTML = html ? `<div class="banner ${kind ?? ''}">${html}</div>` : ''; };
   const busy = (btn, on, text) => { btn.disabled = on; btn.innerHTML = on ? '<span class="spin"></span>' : text; };

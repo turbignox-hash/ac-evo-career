@@ -570,7 +570,7 @@ export function careerStats(ladder, state) {
   const firstPodium = all.find((r) => !r.dnf && r.position <= 3);
   if (firstPodium) trophies.push({ icon: '🥉', label: tr({ it: 'Primo podio', en: 'First podium' }), detail: `P${firstPodium.position} · ${tDisp(firstPodium)}` });
   const firstWin = all.find((r) => !r.dnf && r.position === 1);
-  if (firstWin) trophies.push({ icon: '🏆', label: tr({ it: 'Prima vittoria', en: 'First win' }), detail: tDisp(firstWin) });
+  if (firstWin) trophies.push({    icon: '🏆', label: tr({ it: 'Prima vittoria', en: 'First win' }), detail: tDisp(firstWin) });
   const firstPole = all.find((r) => r.pole === true);
   if (firstPole) trophies.push({ icon: '⚡', label: tr({ it: 'Prima pole', en: 'First pole' }), detail: tDisp(firstPole) });
   const firstFL = all.find((r) => r.fl);
@@ -588,6 +588,30 @@ export function careerStats(ladder, state) {
     const end = all.filter((r) => !r.dnf && r.position === 1).slice(-streakBest);
     trophies.push({ icon: '🔥', label: tr({ it: `${streakBest} vittorie di fila`, en: `${streakBest} wins in a row` }), detail: end.map((r) => tDisp(r)).join(' · ') });
   }
+  /* TRAGUARDI di carriera (27/10, richiesta Mauro dopo l'inspezione della
+     MOD Paddock: «vedi se possiamo implementare una cosa del genere»):
+     contatori a scaglioni oltre alle prime volte. Tutti i numeri vengono
+     dalla storia delle gare (stessa fonte della pagina Statistiche):
+     niente dati esterni, niente di Kunos da aspettare. */
+  const wins = all.filter((r) => !r.dnf && r.position === 1).length;
+  const podi = all.filter((r) => !r.dnf && r.position >= 1 && r.position <= 3).length;
+  const pols = all.filter((r) => r.pole === true).length;
+  const fls = all.filter((r) => r.fl).length;
+  const laps = all.reduce((a, r) => a + (r.laps ?? 0), 0);
+  const milestones = [
+    { icon: '🏁', label: tr({ it: 'Gare disputate', en: 'Races entered' }), steps: [10, 25, 50, 100], value: all.length },
+    { icon: '🏆', label: tr({ it: 'Vittorie', en: 'Wins' }), steps: [1, 5, 10, 25], value: wins },
+    { icon: '🥉', label: tr({ it: 'Podi', en: 'Podiums' }), steps: [5, 10, 25, 50], value: podi },
+    { icon: '⚡', label: tr({ it: 'Pole position', en: 'Pole positions' }), steps: [1, 5, 10, 20], value: pols },
+    { icon: '⏱️', label: tr({ it: 'Giri veloci', en: 'Fastest laps' }), steps: [1, 5, 10, 20], value: fls },
+    { icon: '👑', label: tr({ it: 'Titoli vinti', en: 'Titles won' }), steps: [1, 3, 5, 10], value: titles.length },
+    { icon: '🛞', label: tr({ it: 'Giri percorsi', en: 'Laps completed' }), steps: [100, 500, 1000, 5000], value: laps },
+    { icon: '📅', label: tr({ it: 'Stagioni corse', en: 'Seasons raced' }), steps: [1, 3, 5, 10], value: (state.seasons ?? []).length },
+  ].map((g) => ({
+    ...g,
+    target: g.steps.filter((x) => x <= g.value).at(-1) ?? null,
+    next: g.steps.find((x) => x > g.value) ?? null,
+  }));
   // rimonte e posizioni guadagnate: servono la griglia di partenza (dai rivali) e la gara
   const startMap = new Map();
   try {
@@ -652,6 +676,7 @@ export function careerStats(ladder, state) {
       .map(([track, rec]) => ({ track, display: ladder.contentNames?.tracks?.[track] ?? track, ...rec }))
       .sort((a, b) => a.display.localeCompare(b.display)),
     trophies,
+    milestones,
     tracks,
     sigils: ensureLife(state).sigils.map((s) => ({ ...(sigilDefs(ladder).find((d) => d.id === s.id) ?? {}), ...s })),
     saga: all.slice().reverse().slice(0, 12).map((r) => ({

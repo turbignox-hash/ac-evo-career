@@ -641,8 +641,17 @@ async function drawRivals(m){
   </div>` : ''}`;
   $$('.rival-link', m).forEach((trr)=>{ trr.onclick=()=>showRival(trr.dataset.key); });
   $$('[data-rn]', m).forEach((b)=>{ b.onclick=(e)=>{ e.stopPropagation(); window.rinominaPilota('rival', b.dataset.rn, b.dataset.n, b.dataset.v).then(()=>render()); }; });
-  const bb = $('#b-bulk-rn');
-  if (bb) bb.onclick = () => bulkRinomina(rows);
+  /* NAVIGZIONE incrociata (28/10, stile Football Manager): arrivo qui con un
+     nome pilota cliccato altrove (griglia, archivio) → trovo la riga il cui
+     nome combacia (soprannome o nome vero) e spalanco la scheda come un clic. */
+  const opts = window.NAV_OPTS?.tab === 'rivals' ? window.NAV_OPTS : null;
+  window.NAV_OPTS = null;
+  if (opts?.openName) {
+    const q = opts.openName.toLowerCase();
+    const riga = rows.find(r => (r.name ?? '').toLowerCase().includes(q) || (r.realName ?? '').toLowerCase().includes(q));
+    if (riga) showRival(riga.key);
+    else toast(tr({ it: `Pilota "${opts.openName}" non ancora nel registro rivali.`, en: `Driver "${opts.openName}" is not in the rivals registry yet.` }), 'info');
+  }
 }
 
 /* Soprannomi in blocco (27/10, richiesta Mauro: «più piloti di fila»):

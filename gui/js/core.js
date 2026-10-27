@@ -306,6 +306,16 @@ function drawNav(){
   $$('#nav button[data-tab]').forEach(b => { b.onclick = () => { tab = b.dataset.tab; drawNav(); render(); }; });
 }
 
+/* Cambio pagina con PARAMETRI (28/10, stile Football Manager su richiesta Mauro:
+   tutto cliccabile — un nome auto porta alla scheda, un pilota alla scheda,
+   il righello al suo tab). `vai('cars', { search: 'BMW M3 E30' })` cambia tab
+   e passa le opzioni alla vista; la vista consuma NAV_OPTS e si organizza. */
+function vai(nuovoTab, opts = {}){
+  window.NAV_OPTS = { tab: nuovoTab, ...opts };
+  tab = nuovoTab; drawNav(); render();
+}
+window.vai = vai;
+
 /* ============================== viste ============================== */
 async function render(){
   const m = $('#main');
@@ -361,13 +371,16 @@ function paintHeader(h){
   $('#t-rep').textContent = String(h.rep);
   $('#t-date').textContent = h.todayLabel ? `${tr({ it: 'OGGI', en: 'TODAY' })} ${h.todayLabel}` : `${tr({ it: 'giorno', en: 'day' })} ${h.day ?? 1}`;
   $('#t-season').textContent = `S${h.season} · R${h.round}/${h.rounds}`;
-  // le tre statistiche chiave diventano scorciatoie: Data → Centro gare, Rep → Statistiche, Finanze → Finanze
+  // le statistiche chiave diventano scorciatoie: Data → Centro gare, Rep → Statistiche, Finanze → Finanze, Stagione → Campionati
   $('#t-date').style.cursor = 'pointer';
-  $('#t-date').onclick = () => { tab = 'agenda'; drawNav(); render(); };
+  $('#t-date').onclick = () => vai('agenda');
   $('#t-rep').style.cursor = 'pointer';
-  $('#t-rep').onclick = () => { tab = 'stats'; drawNav(); render(); };
+  $('#t-rep').onclick = () => vai('stats');
   $('#t-money').style.cursor = 'pointer';
-  $('#t-money').onclick = () => { tab = 'banca'; drawNav(); render(); };
+  $('#t-money').onclick = () => vai('banca');
+  const tsS = $('#t-season'); tsS.style.cursor = 'pointer';
+  tsS.title = tr({ it: 'vai ai Campionati', en: 'open Championships' });
+  tsS.onclick = () => vai('championships');
   // CONTEGGIO ALLA PROSSIMA GARA (badge header): rosso se in ritardo, giallo se ≤2 giorni.
   // Clic → Agenda. Serve a NON perdere gare "che non sapevi" (RX-7 R2 Sebring).
   const nr = h.nextRace;
@@ -388,7 +401,7 @@ function paintHeader(h){
       el.style.color = '';
       nrEl.title = `${nr.node} R${nr.round} ${tr({ it: 'a', en: 'at' })} ${nr.track} — ${nr.dateLabel}`;
     }
-    nrEl.onclick = () => { tab = 'agenda'; drawNav(); render(); };
+    nrEl.onclick = () => vai('agenda');
   } else { nrEl.style.display = 'none'; }
   if (h.heritage) {
     $('#hstat-heritage').style.display = '';
