@@ -626,7 +626,7 @@ async function drawRivals(m){
       </div>
     </div>`}
   </div>
-  ${rows.length ? `<div class="panel"><h2>${tr({ it: 'Tutti i rivali', en: 'All rivals' })} <span class="h-act">${tr({ it: 'clicca una riga per la scheda completa', en: 'click a row for the full sheet' })}</span></h2>
+  ${rows.length ? `<div class="panel"><h2>${tr({ it: 'Tutti i rivali', en: 'All rivals' })} <button class="mini acc" id="b-bulk-rn" style="margin-left:6px" title="${tr({ it: 'dà un soprannome a più piloti di fila, in una sola schermata', en: 'nickname many drivers in one go, on a single screen' })}">📝 ${tr({ it: 'Soprannomi in blocco', en: 'Nicknames in bulk' })}</button> <span class="h-act">${tr({ it: 'clicca una riga per la scheda completa', en: 'click a row for the full sheet' })}</span></h2>
     <table><thead><tr><th>${tr({ it: 'Rivale', en: 'Rival' })}</th><th>${tr({ it: 'Squadra', en: 'Team' })}</th><th class="right">${tr({ it: 'Gare insieme', en: 'Races together' })}</th><th class="right">${tr({ it: 'Tu–Lui', en: 'You–Him' })}</th><th>${tr({ it: 'Momentum', en: 'Momentum' })}</th><th>${tr({ it: 'Forma (ultime 5)', en: 'Form (last 5)' })}</th><th class="right">${tr({ it: 'Vittorie', en: 'Wins' })}</th><th class="right">${tr({ it: 'Podi', en: 'Podiums' })}</th></tr></thead>
     <tbody>${rows.map(r=>`<tr class="rival-link" data-key="${esc(r.key)}" style="cursor:pointer">
       <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.nemesis?` <span class="tag red">${tr({ it: 'nemesi', en: 'nemesis' })}</span>`:''}${r.lastSeen?`<div class="faint" style="font-size:11px">${tr({ it: 'visto: ', en: 'seen: ' })}${esc(r.lastSeen.node)} R${r.lastSeen.round}</div>`:''}</span><button class="btn ghost" style="padding:2px 7px;font-size:11px" data-rn="${esc(r.key)}" data-n="${esc(r.name)}" data-v="${esc(r.realName ?? '')}" title="${tr({ it: 'cambia il soprannome del pilota', en: 'change the driver nickname' })}">✏️</button></span></td>
@@ -639,8 +639,59 @@ async function drawRivals(m){
       <td class="right">${r.podiums}</td>
     </tr>`).join('')}</tbody></table>
   </div>` : ''}`;
-  $$('.rival-link', m).forEach((tr)=>{ tr.onclick=()=>showRival(tr.dataset.key); });
+  $$('.rival-link', m).forEach((trr)=>{ trr.onclick=()=>showRival(trr.dataset.key); });
   $$('[data-rn]', m).forEach((b)=>{ b.onclick=(e)=>{ e.stopPropagation(); window.rinominaPilota('rival', b.dataset.rn, b.dataset.n, b.dataset.v).then(()=>render()); }; });
+  const bb = $('#b-bulk-rn');
+  if (bb) bb.onclick = () => bulkRinomina(rows);
+}
+
+/* Soprannomi in blocco (27/10, richiesta Mauro: «più piloti di fila»):
+   un solo modal con ricerca e casella per ognuno; «Salva tutti» applica in fila
+   gli alias cambiati con le stesse chiamate alias-set della rinomina singola. */
+async function bulkRinomina(rows){
+  const D = rows.map((r) => ({ key: r.key, vero: r.realName ?? r.name ?? '', alias: (r.realName && r.name !== r.realName) ? r.name : '' }));
+  if (!D.length) return;
+  modal(tr({ it: 'Soprannomi in blocco', en: 'Nicknames in bulk' }), `
+    <div class="muted" style="margin-bottom:8px;font-size:12px">${tr({ it: 'Svuota una casella (o torna al nome vero) per ripristinare il nome originale. «Salva tutti» applica insieme i soprannomi cambiati.', en: 'Empty a box (or set it back to the real name) to restore the original name. "Save all" applies the changed nicknames together.' })}</div>
+    <input id="br-q" type="text" placeholder="${tr({ it: 'cerca un pilota…', en: 'search a driver…' })}" style="width:100%;margin-bottom:8px">
+    <div id="br-list" style="max-height:45vh;overflow:auto;border:1px solid var(--line);border-radius:8px"></div>
+    <div id="br-out" class="muted" style="margin-top:8px;font-size:12px"></div>`,
+    [[tr({ it: 'Salva tutti', en: 'Save all' }), 'act', () => { salva(); return false; }],
+     [tr({ it: 'Annulla', en: 'Cancel' }), 'ghost', () => {}]]);
+  const out = document.querySelector('#br-out');
+  const disegna = (q = '') => {
+    const list = document.querySelector('#br-list');
+    q = q.toLowerCase();
+    list.innerHTML = D
+      .filter((d) => !q || d.vero.toLowerCase().includes(q))
+      .map((d) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line)">
+          ${rivalAvatar(d.vero, 26)}
+          <span style="flex:1;min-width:0"><b style="font-size:12.5px">${esc(d.vero)}</b></span>
+          <input data-key="${esc(d.key)}" data-vero="${esc(d.vero)}" value="${esc(d.alias)}" placeholder="${tr({ it: 'nome vero', en: 'real name' })}" style="width:200px;font-size:12.5px">
+        </div>`).join('')
+      || `<div class="empty" style="padding:10px">${tr({ it: 'Nessun pilota con quel nome.', en: 'No driver with that name.' })}</div>`;
+  };
+  const salva = async () => {
+    let n = 0, err = null;
+    for (const inp of document.querySelectorAll('#br-list input[data-key]')) {
+      const nv = String(inp.value).trim();
+      const d = D.find((x) => x.key === inp.dataset.key);
+      if (!d || (nv === d.alias && nv !== d.vero)) continue;   // non cambiato
+      if (!nv || nv === d.vero) { if (d.alias) { /* ripristino */ } else continue; }
+      try { await api('alias-set', { scope: 'rival', key: d.key, alias: (!nv || nv === d.vero) ? '' : nv }); d.alias = nv; n += 1; }
+      catch (e) { err = e; break; }
+    }
+    if (err) out.innerHTML = `<span style="color:var(--bad)">${esc(err.message ?? String(err))}</span>`;
+    else out.textContent = tr({ it: `Soprannomi salvati: ${n}.`, en: `Nicknames saved: ${n}.` });
+    if (!err) {
+      document.querySelector('#modal-root').innerHTML = '';
+      toast(n ? tr({ it: `${n} soprannomi aggiornati.`, en: `${n} nicknames updated.` }) : tr({ it: 'Nessun cambiamento da salvare.', en: 'Nothing to save.' }), n ? 'ok' : 'info');
+      render();
+    }
+  };
+  disegna();
+  document.querySelector('#br-q').oninput = (e) => disegna(e.target.value);
 }
 
 async function showRival(key){

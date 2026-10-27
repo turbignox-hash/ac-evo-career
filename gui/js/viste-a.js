@@ -298,6 +298,7 @@ async function drawDashboard(m){
         <div class="grid2">
           <button class="qtile" id="b-review">${LI.book}<span><b>${tr({ it: 'Rassegna di fine stagione', en: 'End-of-season review' })}</b><small>${tr({ it: "il bilancio completo dell'anno", en: 'the full year in review' })}</small></span></button>
           <button class="qtile" id="b-integrity-quick">${LI.shield}<span><b>${tr({ it: 'Verifica integrità', en: 'Integrity check' })}</b><small>${tr({ it: 'controllo di coerenza della carriera', en: 'career consistency check' })}</small></span></button>
+          <button class="qtile" id="b-mondo">${ICONS.iconic ?? '⭐'}<span><b>${tr({ it: 'Classifica Mondiale', en: 'World Ranking' })}</b><small>${tr({ it: 'skill e profili di tutti i piloti del mondo, nel quadro di Campionati', en: 'skill and profiles of every driver, in the Championships panel' })}</small></span></button>
         </div>
       </div>
     </div>
@@ -309,6 +310,10 @@ async function drawDashboard(m){
   drawHeritagePanel();
   drawEventsPanel();
   $('#b-review').onclick = () => showReview();
+  /* Mondiale più visibile (27/10, Mauro: «resta un poco nascosto»): il tile
+     porta DENTRO Campionati con il pieghevole del quadro mondiale già aperto
+     (viste-b.js consuma il segnaposto __apriMondo). */
+  $('#b-mondo').onclick = () => { window.__apriMondo = true; tab = 'championships'; drawNav(); render(); };
   $('#b-integrity-quick').onclick = async () => {
     try {
       const r = await api('integrity');

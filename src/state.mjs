@@ -613,6 +613,16 @@ export function careerStats(ladder, state) {
      carriera, sommate dalle colonne vere dei risultati importati. */
   const totPrize = all.reduce((a, r) => a + (r.prize ?? 0), 0);
   const totRep = all.reduce((a, r) => a + (r.rep ?? 0), 0);
+  /* Economia PER SERIE (27/10, Mauro: «si vede immediatamente se l'economia
+     di una nuova serie aggiusta i conti»): premi e reputazione raggruppati
+     stagione+serie, letti dalle stesse colonne vere dei risultati. */
+  const bySeason = {};
+  for (const r of all) {
+    const e = (bySeason[`${r.season}|${r.nodeId}`] ??= { prize: 0, rep: 0, races: 0 });
+    e.prize += r.prize ?? 0;
+    e.rep += r.rep ?? 0;
+    e.races += 1;
+  }
   return {
     totals: {
       races: s.races, wins: s.wins, podiums: s.podiums, fastestLaps: s.fastestLaps,
@@ -628,7 +638,16 @@ export function careerStats(ladder, state) {
       avgGain: gainedN ? Math.round((gained / gainedN) * 10) / 10 : null,
     },
     titles,
-    seasons: seasonsTable.map((x) => ({ ...x, display: ladder.nodes.find((n) => n.nodeId === x.node)?.display ?? x.node })),
+    seasons: seasonsTable.map((x) => {
+      const e = bySeason[`${x.season}|${x.node}`] ?? { prize: 0, rep: 0, races: 0 };
+      return {
+        ...x,
+        display: ladder.nodes.find((n) => n.nodeId === x.node)?.display ?? x.node,
+        races: e.races, prize: e.prize, rep: e.rep,
+        avgPrize: e.races ? Math.round(e.prize / e.races) : null,
+        avgRep: e.races ? Math.round((e.rep / e.races) * 10) / 10 : null,
+      };
+    }),
     bestLaps: Object.entries(s.bestLaps)
       .map(([track, rec]) => ({ track, display: ladder.contentNames?.tracks?.[track] ?? track, ...rec }))
       .sort((a, b) => a.display.localeCompare(b.display)),
