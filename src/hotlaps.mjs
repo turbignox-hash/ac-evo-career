@@ -198,10 +198,17 @@ export function recordHotlaps(ladder, paths, state, { file = null, since = null 
 /* 28/10: il meteo dei vecchi capitoli salvati aveva il nome intero di EVO
  *  (GameModeSelectionWeatherType_CLEAR): lo pulisco QUI così gli storici e i
  *  nuovi si leggono uguale. */
-const wxClean = (w) => String(w ?? '').replace(/^.*WeatherType_/, '') || null;
+const wxClean = (w) => String(w ?? '').replace(/^.*WeatherType_/, '')|| null;
+/* i capitoli del 15/4 salvati col profilo nome=cognome: se il nome scritto è
+ * «X X» si riduce a «X» (nei profili così il nome completo è il cognome solo). */
+const nomeSenzaDoppione = (n) => { const w = String(n ?? '').trim().split(/\s+/); return w.length === 2 && w[0].toLowerCase() === w[1].toLowerCase() ? w[0] : String(n ?? ''); };
 export function hotlapsLog(n = 40) {
   const b = loadBook();
-  const sessions = b.sessions.slice(0, n).map((e) => ({ ...e, weather: wxClean(e.weather) }));
+  const sessions = b.sessions.slice(0, n).map((e) => ({
+    ...e,
+    weather: wxClean(e.weather),
+    sectors: (e.sectors ?? []).map((s) => ({ ...s, bestName: nomeSenzaDoppione(s.bestName) })),
+  }));
   return { sessions, records: b.records ?? [], total: b.sessions.length };
 }
 

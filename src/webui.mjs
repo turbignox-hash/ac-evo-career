@@ -14,7 +14,7 @@ import { homedir } from 'node:os';
 import { resolvePaths, isGameRunning, GAME_EXE, dataDirCandidates, isDir, isFile, launchGame } from './paths.mjs';
 
 import {
-  createCareer, nodeById, disciplineName, gateStatus,
+  createCareer, nodeById, disciplineName, nomeDisciplina, gateStatus,
   standingsFor, difficultyFor, seasonEnd,
   acceptOffer, pushMessage, enterNode, renameDriver, careerStats,
   slotDataDir,
@@ -147,7 +147,7 @@ import { memoOf, registraRound, annotaAdvice, semaforoAdvice } from './allievo.m
 
 // costanti di sessione, ladder e percorsi + appEnv/context stanno in webui-env.mjs;
 // le VISTE (oggetti JSON per la GUI) stanno in webui-views.mjs
-import { PROJECT, DATA_DIR, SAVE_FILE, CONFIG_FILE, GUI_DIR, BACKUP_DIR, SLOT, loadLadder, appEnv, context, writeConfig, requireState, persist } from './webui-env.mjs';
+import { PROJECT, DATA_DIR, SAVE_FILE, CONFIG_FILE, GUI_DIR, BACKUP_DIR, SLOT, loadLadder, appEnv, context, writeConfig, configLang, requireState, persist } from './webui-env.mjs';
 import { viewHeader, viewStatus, viewCalendar, viewStandings, viewMessages, viewCard, viewDifficulty, viewSetup } from './webui-views.mjs';
 
 /* GRIGLIA EVENTO GIÀ IN PIEDI (esito prova 23/10): la griglia a 14 F40 scritta
@@ -306,7 +306,7 @@ const MIME = {
 
 function sendJson(res, code, data) {
   // già risposta (es. il timeout HTTP del guardiano ha già parlato): mai due
-  // scritture sulla stessa risposta — il browser the governa la prima
+  // scritture sulla stessa risposta — il browser segue la prima
   if (res.writableEnded || res.destroyed) return;
   const body = JSON.stringify(data);
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -316,8 +316,16 @@ function sendJson(res, code, data) {
 async function readBody(req) {
   const chunks = [];
   for await (const c of req) chunks.push(c);
-  if (!chunks.length) return {};
-  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { return {}; }
+  let body = {};
+  if (chunks.length) {
+    try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')) ?? {}; }
+    catch { body = {}; }
+  }
+  /* La lingua NON si applica qui: la readBody gira a monte della coda
+     serialize, mentre le richieste intermediarie (polling del browser)
+     sovrascriverebbero setLang prima che la task in fila giri davvero.
+     L'applicazione vive nel dispatcher, dentro la task (28/10). */
+  return body;
 }
 
 /* memo del controllo "il gioco è vivo?": tasklist costa ~200ms, il polling
@@ -1349,7 +1357,7 @@ async function api(context0, _req, res, action, body) {
         maxScelte: MAX_SCELTE_PER_GIORNO,
         scelteOggi: choicesForDay(state, day),
         impegni: impegni(ladder, state),
-        disciplines: ladder.disciplines.map((d) => ({ id: d.id, name: d.name })),
+        disciplines: ladder.disciplines.map((d) => ({ id: d.id, name: nomeDisciplina(d) })),
         strips: calendarStrip(ladder, state, { from: day - 3 < 1 ? 1 : day - 3, days: 21 }),
         gare: griglia.map((g) => ({
           nodeId: g.node.nodeId, display: g.node.display, level: g.node.level ?? 0,
@@ -1453,6 +1461,8 @@ async function api(context0, _req, res, action, body) {
     case 'standings': return sendJson(res, 200, viewStandings(ladder, state));
     case 'messages': return sendJson(res, 200, viewMessages(ladder, state));
     case 'card': {
+      // (28/10) la vista parte dalla lingua GIÀ IMPPOSTATA dal dispatcher:
+      // le lingue per richiesta si dichiarano nel campo 'lingua' del body.
       const card = viewCard(ladder, state, typeof body.car === 'string' ? body.car : null);
       // arricchisci la card col libro delle piste: record di sessione sulla stessa auto + scheda
       try {
@@ -3169,6 +3179,19 @@ const server = createServer(async (req, res) => {
       const t0 = Date.now();
       const out = await Promise.race([
         serialize(() => {
+          /* Lingua dichiarata dal BROWSER in ogni richiesta POST (campo 'lingua',
+             aggiunto in core.js 28/10): si applica QUI dentro la coda, non nella
+             readBody — che gira a monte e si vede sovrascrivere dai polling
+             intermedi prima che la task in fila giri davvero. Ogni richiesta
+             parla con la sua lingua dalla prima all'ultima riga: discipline,
+             box tips e ingegnere seguono la GUI anche se evo.config.json dice
+             altro. POST senza 'lingua' (test, script, uiapp) tornano alla
+             lingua del config; le GET ereditano la corrente (per l'adozione al
+             primo avvio, 24/10, che cammina con /api/lang GET). */
+          if (!hasEnvOverride()) {
+            if (body.lingua === 'en' || body.lingua === 'it') setLang(body.lingua);
+            else { const L = configLang(); if (L) setLang(L); } // default: la lingua del config, SENZA effetti collaterali
+          }
           let context0;
           try { context0 = context(); }
           catch (e) { context0 = { ladder: loadLadder(), paths: null, pathsError: e.message }; }

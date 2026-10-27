@@ -311,6 +311,14 @@ async function drawChampionships(m){
     window.__apriMondo = false;
     if (mondo) { const f = $('#mondo-fold'); if (f) { f.open = true; f.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }
   }
+  /* arrivo dal Cruscotto con la serie cliccata (31/10): apro la scheda della
+     serie indicata e la porto in vista, come fa __apriMondo per il mondiale. */
+  const AO = window.NAV_OPTS?.tab === 'championships' ? window.NAV_OPTS : null;
+  if (AO?.apri) {
+    window.NAV_OPTS = null;
+    const sec = $(`#champ-${CSS.escape(AO.apri)}`);
+    if (sec) { sec.open = true; sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  } else if (AO) window.NAV_OPTS = null;
   // click su una carta: apre il pieghevole della scheda e scende fluido
   $$('.champ-card').forEach(b => { b.onclick = () => {
     const sec = $(`#champ-${CSS.escape(b.dataset.node)}`);
@@ -497,7 +505,7 @@ async function drawGironi(m){
   const sel = $('#hl-file');
   if (!sel) return; /* rerender in corsa: il tab è già sostituito, niente da legare */
   try {
-    const c = await (await fetch(`/api/catalog`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) })).json();
+    const c = await (await fetch(`/api/catalog`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true, lingua: window.LINGUA ?? 'it' }) })).json();
     const rows = (c.archive?.rows ?? []).filter(r => r.session && String(r.session).toLowerCase() !== 'race');
     sel.innerHTML += rows.slice(0, 60).reverse().map(r => `<option value="${esc(r.file)}">${esc(r.file)}</option>`).join('');
   } catch { /* senza archivio il menu resta vuoto: non blocca il tab */ }

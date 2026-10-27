@@ -13,6 +13,7 @@ import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { recordWarning } from './warnings.mjs';
 import { dirname, join, basename } from 'node:path';
 import { findPlayerDriver, penaltyOf, officialPositionOf } from './results.mjs';
+import { nomePilota } from './nome-pilota.mjs';
 
 /* ------------------------------------------------------------------ */
 /* dove vive il server dedicato                                        */
@@ -151,6 +152,35 @@ export function listArchive(paths, { limit = 200, driver = null, afterMs = 0 } =
     }
   }
   entries.sort((a, b) => b.mtime - a.mtime);
+  // QUANDO VERO dalla SESSIONE e non dal mtime (28/10, il "duplicato nell'Archivio"):
+  // le copie/ripristini del disco dimenticano l'ora originale (tutti i file
+  // ricopiati la stessa sera compaiono con lo stesso minuto), quindi l'archivio
+  // raggruppava come «tentativi ×N» gare di GIORNI diversi. La data vera sta nel
+  // nome che EVO dà al file: YYMMDD-HHMMSS o YYMMDD-HHMM. Fallback: mtime.
+  const isoOr = (d, file, mtime) => {
+    // anche un nome AXIS estilo YYMMDD può inventare date inesistenti (2026-02-30
+    // e simili, 28/11): isValidata, altrimenti si scala al fallback mtime/adesso.
+    if (d instanceof Date && Number.isFinite(d.getTime())) return d.toISOString();
+    return sessionMtime(file, mtime);
+  };
+  const sessionMtime = (file, mtime) => {
+    // fallback mtime: mai far esplodere l'archivio per un file che il disco
+    // restituisce con mtime zero o sporco (26/11): si scala all'adesso con avviso.
+    const d = new Date(mtime);
+    if (Number.isFinite(d.getTime())) return d.toISOString();
+    recordWarning('catalog.archive', 'file con data sconosciuta, uso l\'adesso: ' + file, String(mtime));
+    return new Date().toISOString();
+  };
+  const sessionWhen = (file, mtime) => {
+    // il nome è YYMMDD-HHMMSS o YYMMDD-HHMM: il secolo si antepone al testo
+    // («20»+«26» = 2026, senza aritmetica; con «2»+«26» veniva l'anno 226,
+    // data invalida e tutti i file ricaduti nell'ora della copia sul disco).
+    let m = String(file).match(/^(\d{2})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/);
+    if (m) return isoOr(new Date(`20${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}`), file, mtime);
+    m = String(file).match(/^(\d{2})(\d{2})(\d{2})-(\d{2})(\d{2})[^\d]/);
+    if (m) return isoOr(new Date(`20${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:00`), file, mtime);
+    return sessionMtime(file, mtime);
+  };
   const rows = [];
   for (const e of entries.slice(0, limit)) {
     const r = readJsonSafe(join(e.dir, e.file));
@@ -167,14 +197,14 @@ export function listArchive(paths, { limit = 200, driver = null, afterMs = 0 } =
     const session = r.session ?? '?';
     rows.push({
       file: e.file,
-      when: new Date(e.mtime).toISOString(),
+      when: sessionWhen(e.file, e.mtime),
       kind,
       season: r.season ?? '?', event: r.event ?? '?', session,
       track: r.track ?? '?', layout: r.layout ?? '',
       weather: String(r.weather_type ?? '').replace('GameModeSelectionWeatherType_', '').replace('WeatherType_', '') || null,
       hour: r.hour ?? null,
       drivers: drivers.length,
-      winner: winner ? `${String(winner.driver_name ?? '').replace(/^[•\u2022]/, '').trim()} ${winner.driver_surname ?? ''}`.trim() : null,
+      winner: winner ? nomePilota(winner.driver_name, winner.driver_surname) : null,
       me: me ? { position: myPos, bestLap: me.best_lap ?? null, car: `${me.car_brand ?? ''} ${me.car_name ?? ''}`.trim() } : null,
     });
   }
@@ -210,7 +240,7 @@ export function resultDetail(paths, fileName) {
         // la DSQ e i non classificati non hanno posizione ufficiale: resta
         // l'ordine di pista del file (sono già in coda)
         position: off.position ?? pos, rawPos: pos, dsq: !!off.dsq,
-        name: `${String(d.driver_name ?? '').replace(/^[•\u2022]/, '').trim()} ${d.driver_surname ?? ''}`.trim(),
+        name: nomePilota(d.driver_name, d.driver_surname),
         nation: d.driver_nation ?? null, car: `${d.car_brand ?? ''} ${d.car_name ?? ''}`.trim(),
         isAI: /^[•\u2022]/.test(String(d.driver_name ?? '').trim()), me: d.is_current_driver === true,
         laps: d.laps ?? 0, bestLap: d.best_lap ?? null, hasBest: d.has_best_lap === true,

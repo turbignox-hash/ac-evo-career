@@ -23,7 +23,7 @@ import { agendaDay, dateLabel, scheduledDay, racesOnDay } from './agenda.mjs';
 import { raceCard } from './race.mjs';
 import { eventCard } from './events.mjs';
 import { PIANI } from './orario.mjs';
-import { tr } from './lang.mjs';
+import { tr, lang } from './lang.mjs';
 import { mailbox } from './mailbox.mjs';
 import { memoryRoundHint } from './memories.mjs';
 import { tyreClassOf } from './setup.mjs';
@@ -264,6 +264,7 @@ function viewCard(ladder, state, car = null) {
   return {
     agendaDay: schedDay,
     agendaDayLabel: schedDay != null ? dateLabel(schedDay) : null,
+    nodeId: card.node.nodeId,
     nodeDisplay: card.node.display,
     roundIndex: card.roundIndex,
     totalRounds: card.totalRounds,

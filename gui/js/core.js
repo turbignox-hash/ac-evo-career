@@ -10,6 +10,10 @@ const api = (action, call={}) => {
   // alcune viste mandano ancora l'incartatura; il server in realtà vuole il SOLO body
   // (l'azione sta già nell'URL). Lo smaltiamo qui, una volta per tutte le chiamate.
   const body = (call?.body && call.method) ? call.body : call;
+  // una lingua per tutti: il BROWSER dichiara la lingua della pagina a ogni
+  // richiesta (28/10) — discipline, box tips e ingegnere seguono la GUI
+  // anche se evo.config.json è rimasto su un'altra lingua.
+  body.lingua = window.LINGUA ?? 'it';
   return fetch(`/api/${action}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body ?? {})})
     .then(async r => { const d = await r.json(); if (!r.ok) throw Object.assign(new Error(d.error || 'errore'), {data:d}); return d; });
 };
@@ -321,9 +325,11 @@ window.vai = vai;
 window.carLinkHtml = (nome) => nome
   ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda tecnica dell\'auto', en: 'open the car spec sheet' })}" onclick="vai('cars',{search:'${String(nome).replace(/'/g, "\\'")}\'})">${esc(nome)}</span>`
   : '';
-/* HTML di un nome SERIE cliccabile (29/10, stessa regola delle auto): apre Campionati. */
-window.serLinkHtml = (nome) => nome
-  ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri Campionati', en: 'open Championships' })}" onclick="vai('championships')">${esc(nome)}</span>`
+/* HTML di un nome SERIE cliccabile (29/10, stessa regola delle auto): apre Campionati.
+   (31/10) Con { apri: nodeId } il click LANCIA anche l'apertura della scheda della
+   serie (drawChampionships la scorda e la porta in vista), non solo il tab. */
+window.serLinkHtml = (nome, opts = {}) => nome
+  ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda della serie', en: 'open the series card' })}" onclick="${opts.node ? `vai('championships',{apri:'${String(opts.node).replace(/'/g, "\\'")}'})` : `vai('championships')`}">${esc(nome)}</span>`
   : '';
 /* HTML di un nome PISTA cliccabile (29/10): apre la scheda nel libro piste. */
 window.trackLinkHtml = (nome) => nome
@@ -449,7 +455,7 @@ async function refreshBoot(){
   // (tools/bump-versione.mjs) — package.json + hash breve del commit.
   if (boot.versione?.semver && boot.versione.semver !== '?') {
     const sf = $('.side-foot');
-    if (sf) sf.innerHTML = `${tr({ it: 'Assetto Corsa EVO · tool locale', en: 'Assetto Corsa EVO · local tool' })}<br>${tr({ it: 'tutto resta sul tuo PC', en: 'everything stays on your PC' })}<br><span id="build-ver" title="versione della build (si aggiorna a ogni salvataggio del progetto su GitHub)">build ${esc(boot.versione.semver)}${boot.versione.hash ? ` · ${esc(boot.versione.hash)}` : ''}</span>`;
+    if (sf) sf.innerHTML = `${tr({ it: 'Assetto Corsa EVO · tool locale', en: 'Assetto Corsa EVO · local tool' })}<br>${tr({ it: 'tutto resta sul tuo PC', en: 'everything stays on your PC' })}<br><span id="build-ver" title="versione della build (si aggiorna a ogni salvataggio del progetto su GitHub)">build ${esc(boot.versione.semver)}${boot.versione.hash ? ` · ${esc(boot.versione.hash)}` : ''}</span> <button class="mini" id="lang-foot" style="margin-left:6px;font-size:10.5px;padding:2px 7px" title="${esc(tr({ it: "cambia la lingua dell'interfaccia: vale per la GUI, il server in locale e il cruscotto in gioco", en: "switch the interface language: applies to the GUI, the local server and the in-game dashboard" }))}">${window.LINGUA === 'en' ? '🇬🇧 EN' : '🇮🇹 IT'}</button>`;
     // footer: contatto e donazioni (scelta del 21/10: issue GitHub precompilata + Ko-fi).
     // Il SERVER precompila titolo e corpo della segnalazione (versione build, serie in
     // corso, ronda, pista, difficoltà, ultimi errori); l'utente completa e invia.
@@ -460,6 +466,8 @@ async function refreshBoot(){
     if (fl.kofi) sf.innerHTML += `<a class="kofi-banner" href="${esc(fl.kofi)}" target="_blank" rel="noopener" title="${tr({ it: 'Offri un caffè: sostieni lo sviluppo del tool — apre Ko-fi', en: 'Buy me a coffee: support the tool\'s development — opens Ko-fi' })}"><span class="cup">☕</span> ${tr({ it: 'Offrimi un caffè', en: 'Buy me a coffee' })}<span class="muted">${tr({ it: ' · sostieni lo sviluppo', en: ' · support the dev' })}</span></a>`;
     if (fl.issuesUrl) footLinks.push(`<a href="${esc(fl.issuesUrl)}" target="_blank" rel="noopener" title="${tr({ it: 'Apre GitHub con la segnalazione già compilata: leggi, completa il dettaglio e invia', en: 'Opens GitHub with the report already filled in: read, add details and submit' })}">🐞 ${esc(tr({ it: 'Segnala un problema', en: 'Report a problem' }))}</a>`);
     if (footLinks.length) sf.innerHTML += `<div class="foot-links">${footLinks.join('<span class="foot-sep">·</span>')}</div>`;
+    const lf = $('#lang-foot', sf);
+    if (lf) lf.onclick = () => window.impostaLingua(window.LINGUA === 'en' ? 'it' : 'en');
   }
   drawNav();
   if (boot.hasCareer) paintHeader(boot.header);

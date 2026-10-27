@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createWorld, gridFor, finishOrder, evolveWorld, pointsFor, skillToEvoSlider, clamp } from './world.mjs';
 import { recordFlows } from './flows.mjs';
-import { takeLastPair, tr } from './lang.mjs';
+import { takeLastPair, tr, lang } from './lang.mjs';
 import { ensureLife, ensureContract, settleContract, sponsorFor, sigilDefs, checkSigils } from './life.mjs';
 import { assignNextMemory, checkMemoryProgress, raceCrowdFor } from './memories.mjs';
 // BONUS GARA PULITA (28/10): il +10% del premio di Paddock, incassato qui
@@ -105,8 +105,13 @@ export function nodeById(ladder, id) {
   return node;
 }
 
+/** Il nome della disciplina nella lingua dell'interfaccia (nameEn in ladder). */
+export function nomeDisciplina(d) {
+  return lang() === 'en' ? (d?.nameEn ?? d?.name) : (d?.name ?? '?');
+}
+
 export function disciplineName(ladder, id) {
-  return ladder.disciplines.find((d) => d.id === id)?.name ?? id;
+  return nomeDisciplina(ladder.disciplines.find((d) => d.id === id)) ?? id;
 }
 
 export function tierOf(ladder, level) {

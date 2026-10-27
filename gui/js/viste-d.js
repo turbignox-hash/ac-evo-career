@@ -808,7 +808,7 @@ function drawCopilotStrip(){
   const host = document.querySelector('#copilot-strip');
   if (!host) return;
   const on = localStorage.getItem('evo-copilot') !== 'off';
-  host.textContent = on ? '🔊 copilota ON' : '🔈 copilota';
+  host.textContent = on ? (window.tr ? window.tr({ it: '🔊 copilota ON', en: '🔊 copilot ON' }) : '🔊 copilota ON') : (window.tr ? window.tr({ it: '🔈 copilota', en: '🔈 copilot' }) : '🔈 copilota');
   host.className = on ? 'chip gold' : 'chip';
   host.title = tr({
     it: on

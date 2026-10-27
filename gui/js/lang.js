@@ -60,6 +60,22 @@ window.legacyIt = (s) => {
     .replace(/\bsotto la base su ([^:]+): penalità troppo larga, la alleggerisco\b/g, 'under the base at $1: penalty too large, easing it')
     .replace(/\bsulla base\b/g, 'from the base')
     .replace(/\b(dalla base) su\b/g, 'from the base at')
+    /* movimenti di cassa storici (finance/life/race scrivono in italiano):
+       iscrizione, gara pulita, premio contratto e verdetto delle sfide. */
+    .replace(/\biscrizione /g, 'entry fee ')
+    .replace(/\bgara pulita /g, 'clean race ')
+    .replace(/\bpremio contratto\b/g, 'contract bonus')
+    .replace(/\bpremio \b/g, 'prize ')
+    .replace(/\bsfida persa:/g, 'lost duel:')
+    .replace(/\bsfida vinta:/g, 'won duel:')
+    .replace(/\bchiudi davanti a /g, 'finish ahead of ')
+    .replace(/\bchiudi la gara in zona punti senza toccare nulla \(nessun ritiro\)/g, 'finish the race in the points without touching anything (no retirements)')
+    .replace(/\bchiudi almeno terzo\b/g, 'finish at least third')
+    .replace(/\bchiudi almeno (\d+) gare sul podio\b/g, 'finish at least $1 races on the podium')
+    .replace(/\bchiudi almeno (\d+) gare a punti\b/g, 'finish at least $1 races scoring points')
+    .replace(/\btotalizza almeno (\d+) punti in stagione\b/g, 'score at least $1 championship points in the season')
+    .replace(/\bvinci almeno (\d+) gare\b/g, 'win at least $1 races')
+    .replace(/\bnessun ritiro nelle prime (\d+) gare\b/g, 'no retirements in the first $1 races')
     .replace(/\(stagione (\d+|\?)\)/g, '(season $1)')
     /* note di calibrazione generanti dalle gare (annotazione autoBase della griglia): */
     .replace(/\(dal campo ([^,)]+), gara (\d+)\)/g, '(from the field $1, race $2)')

@@ -9,6 +9,7 @@ import { readFileSync, statSync, copyFileSync, mkdirSync } from 'node:fs';
 import { basename, join, dirname } from 'node:path';
 import { listFiles } from './paths.mjs';
 import { matchesAnyTrack } from './tracknames.mjs';
+import { nomePilota } from './nome-pilota.mjs';
 
 export function listResultFiles(paths) {
   const files = [];
@@ -235,7 +236,7 @@ export function describeResult(result) {
     const shown = zeroBased ? Number(d.position) + 1 : Number(d.position);
     const flag = d.is_current_driver ? '  <= PILOTA ATTUALE' : /^[•\u2022]/.test(String(d.driver_name).trim()) ? '' : '  <= senza contrassegno AI';
     const labs = penaltyOf(d).label;
-    lines.push(`  P${shown} ${cleanName(d.driver_name)} ${d.driver_surname} (${d.driver_nation}) ${d.car_name} — giri ${d.laps}, best ${d.best_lap || '-'}${labs ? ` — penalità ${labs}` : ''}${flag}`);
+    lines.push(`  P${shown} ${nomePilota(d.driver_name, d.driver_surname)} (${d.driver_nation}) ${d.car_name} — giri ${d.laps}, best ${d.best_lap || '-'}${labs ? ` — penalità ${labs}` : ''}${flag}`);
   }
   return lines.join('\n');
 }
@@ -296,7 +297,7 @@ export function sectorAnalysis(result, driver) {
     for (const d of drivers) {
       const v = lapToMsL((d.splits ?? [])[i]);
       if (!Number.isFinite(v)) continue;
-      if (v < best) { best = v; bestName = [d.driver_name, d.driver_surname].map((x) => String(x ?? '').replace(/^[•\u2022]\s*/, '').trim()).filter(Boolean).join(' '); }
+      if (v < best) { best = v; bestName = nomePilota(d.driver_name, d.driver_surname); }
     }
     mine = splits[i];
     bestSectors.push({

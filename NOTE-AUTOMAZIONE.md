@@ -1,3 +1,21 @@
+## LINGUA PER RICHIESTA (28/10) — il perché del mutismo EN dei box tips, trovato e risolto
+
+- **Il sintomo**: GUI inglese, ma le CARD dei consigli box uscivano ITALIANE pure a pagina
+  inglese — e in modo casuale: l'agenda alternativa funzionava, la card del box no.
+- **Le due radici, entrambe tolte**:
+  ① il browser ora DICHIARA la lingua in ogni richiesta POST (campo `lingua`, aggiunto in
+  gui/js/core.js) e il dispatcher la applica DENTRO la coda serializzata — NON più in
+  readBody, che gira a monte e veniva sovrascritta dai polling intermedi prima che la
+  task in fila girasse davvero;
+  ② `appEnv()` (webui-env.mjs) chiamava `setLang(cfg.lang)` a OGNI chiamata: la vista card
+  lo invoca a metà assemblaggio dei tips (via `resolvePaths(appEnv())`) e così riportava
+  la lingua al config ('it') DENTRO la richiesta già dichiarata inglese. Ora `appEnv()`
+  NON tocca più la lingua: la impostano solo l'avvio del processo, `/api/lang` e il
+  dispatcher per richiesta (che usa la nuova `configLang()`, lettura senza effetti).
+- **Verificato sul server vero**: `/api/card` con `lingua:'en'` → tips «No stop», ripristino
+  a `lingua:'it'` → «Niente sosta»: zero mescolanze. Suite 230/230 + regressione
+  test/lingua-server.test.mjs 2/2. Probe temporanei (`MOD_TAG`, `__debug*`) tutti rimossi.
+
 ## GARA IN 2 + RESET 88–89 (27/10) — perché siamo partiti in 2, e il trim comandato da Mauro
 
 - **«Partiti in 2»: non un bug del merge — la pista ha letto la griglia VECCHIA**. Il customgrid

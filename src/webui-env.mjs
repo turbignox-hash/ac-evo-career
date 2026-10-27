@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { resolvePaths } from './paths.mjs';
 import { loadState, saveState, savePath, activeSlot, slotDataDir } from './state.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
-import { localizeLadder, setLang, hasEnvOverride } from './lang.mjs';
+import { localizeLadder, lang } from './lang.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const PROJECT = dirname(HERE);
@@ -41,6 +41,12 @@ export function loadLadder() {
   if (!_ladderMemo || _ladderMemo.mtime !== mtime) {
     _ladderMemo = { mtime, ladder: JSON.parse(readFileSync(LADDER_FILE, 'utf8')) };
   }
+  /* Lingua per richiesta (28/10): localizeLadder muta IN PLACE i campi name/
+     description — senza la copia, la prima richiesta EN avrebbe tradotto per
+     sempre il ladder in cache e le richieste IT successive sarebbero partite
+     già «Street & Rally». La base in memo resta la pura del disco; in EN si
+     localizza su una copia usa-e-getta, in IT la base è già italiana. */
+  if (lang() === 'en') return localizeLadder(structuredClone(_ladderMemo.ladder));
   return localizeLadder(_ladderMemo.ladder);
 }
 
@@ -50,9 +56,25 @@ export function appEnv() {
     const cfg = JSON.parse(readFileSync(CONFIG_FILE, 'utf8'));
     if (cfg.dataDir) env.ACE_DATA = cfg.dataDir;
     if (cfg.gameExe) env.ACE_ROOT = dirname(cfg.gameExe);
-    if (!hasEnvOverride() && cfg.lang) setLang(cfg.lang); // UNA lingua per GUI, CLI e server
+    /* NIENTE setLang qui (28/10): appEnv è chiamato A METÀ richiesta da viewCard,
+       wizard e compagni — risettando il config toglieva la lingua dichiarata dal
+       browser e riconduceva i box tips all'italiano a pagina inglese. La lingua
+       la impostano solo l'avvio del processo, /api/lang e il dispatcher per
+       richiesta (che usa configLang() qui sotto). */
   }
   return env;
+}
+
+/** Lingua SAVE nel config, letta SENZA effetti collaterali: la usa il dispatcher
+ *  come default per le richieste POST che non dichiarano 'lingua'. */
+export function configLang() {
+  try {
+    if (existsSync(CONFIG_FILE)) {
+      const cfg = JSON.parse(readFileSync(CONFIG_FILE, 'utf8'));
+      return (cfg.lang === 'en' || cfg.lang === 'it') ? cfg.lang : null;
+    }
+  } catch { /* config illeggibile: resta la lingua corrente */ }
+  return null;
 }
 
 export function context() {

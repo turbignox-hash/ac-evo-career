@@ -14,6 +14,7 @@ import { readFileSync, existsSync } from 'node:fs';
 
 import { join, dirname } from 'node:path';
 import { listResultFiles, readSessionResult, lapToMs } from './results.mjs';
+import { nomePilota } from './nome-pilota.mjs';
 import { normTrack as normTrk, sameTrack } from './tracknames.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -263,7 +264,7 @@ function sessionStatsFromResults(paths, _ladder, driver = null) {
     for (const d of drivers) {
       const ms = msOf(d.best_lap);
       if (!ms) continue;
-      const who = `${d.driver_name ?? ''} ${d.driver_surname ?? ''}`.trim() || 'pilota';
+      const who = nomePilota(d.driver_name, d.driver_surname) || 'pilota';
       const me = flagged === 1
         ? d.is_current_driver === true
         : (myKey ? nameKey(`${d.driver_name ?? ''}${d.driver_surname ?? ''}`) === myKey : false);
