@@ -184,16 +184,21 @@ export function raceCard(ladder, state, { car = null } = {}) {
     : parco.classe != null
       ? [tr({ it: 'Tipo griglia (Grid Type)', en: 'Grid Type' }), tr({ it: 'CUSTOM — lo fissi alla prima gara di questa serie, poi l’app lo riscrive da sola a ogni Prepara.', en: 'CUSTOM — set it at the first race of this series, then the app rewrites it itself every “Get ready”.' })]
       : [tr({ it: 'Tipo griglia (Grid Type)', en: 'Grid Type' }), tr({ it: 'lascialo com’è — per questa serie non serve una posa speciale', en: 'leave it as is — this series needs no special setting' })];
-  // ora d'inizio effettiva delle sessioni: override manuale, altrimenti il calcolo
-  // a ritroso dal round (che con raceStart manuale si sposta tutto insieme). Warm-up:
-  // 15 min prima della gara (10 di pista + 5 di pausa), override manuale possibile.
-  const scale = Math.max(1, profile.timeScale ?? 1);
-  const backFrom = (minsBefore) => raceHour != null
-    ? Math.floor((((raceHour * 60 - scale * minsBefore) % 1440) + 1440) % 1440 / 60)
-    : 12;
-  const practiceStart = practiceStartOv ?? backFrom(profile.practiceMin + 5 + profile.qualifyMin + 15);
-  const qualifyStart = qualifyStartOv ?? backFrom(profile.qualifyMin + 15);
-  const warmupStart = warmupStartOv ?? backFrom(15);
+  // PIANO ORARIO REALISTICO (31/10, richiesta Mauro: «diversifica in maniera più
+  // reale»): il vecchio calcolo a ritroso col moltiplicatore comprimeva tutto
+  // sulla stessa ora (15/15/15/16 — le sessioni erano vicine quanto i MINUTI
+  // che le separavano dalla gara). Il piano nuovo dichiara le ore come un VERO
+  // weekend di gara, sempre nello stesso giorno della ronda:
+  //   prove libere −6h (mattina) · qualifiche −3h (fine mattina/pomeriggio) ·
+  //   warm-up −1h (l'ultima cosa sul tracciato prima della gara) · gara all'ora
+  // della ronda. La scala tempo NON entra più nei default: le ore sono
+  // scritte per sessione nel gamemodesave (setRaceSessions), non ricalcolate a
+  // ritroso. Con ronda di notte (hour bassa) il piano si avvicina verso il
+  // minimo (0) senza girare il giorno: prova 0:00, qualifica, warm-up, gara.
+  const backHour = (h) => raceHour != null ? Math.max(0, raceHour - h) : 12;
+  const practiceStart = practiceStartOv ?? backHour(6);
+  const qualifyStart = qualifyStartOv ?? backHour(3);
+  const warmupStart = warmupStartOv ?? backHour(1);
 
   // REALE, non la stima del ladder (26/10 sera, la scheda dell'Alfa 75 diceva
   // «6 cars» mentre il gamemodesave contava 14): il contatore del ladder era
@@ -356,13 +361,13 @@ function card_weatherHint(level) {
   return target;
 }
 
-/** Durata delle sessioni con ora d'inizio consigliata: nel gioco le ore scorrono in tempo reale
- *  (o più in fretta col moltiplicatore), quindi la sessione va posizionata a ritroso rispetto
- *  all'ora di gara per trovarci all'orario. La stima include pause brevi fra le sessioni.
- *  Con un orario scelto a mano (override) quello vince sul calcolo automatico. baseHour è l'ora
- *  di gara efficace (round > override raceStart, richiesta Mauro 28/10). */
+/** Durata delle sessioni con ora d'inizio consigliata: piano orario REALISTICO
+ *  (31/10) — le sessioni di un vero weekend non si accavallano sul mèro orario
+ *  della gara: prove libere di mattina (gara −6h), qualifiche in prossimità del
+ *  pomeriggio (−3h), warm-up un'ora prima (−1h). Con un orario scelto a mano
+ *  (override) quello vince sul piano automatico. baseHour è l'ora di gara
+ *  efficace (round > override raceStart, richiesta Mauro 28/10). */
 function card_sessionHint(min, round, profile, kind = 'P', overrideHour = null, baseHour = null) {
-  const scale = Math.max(1, profile.timeScale ?? 1);
   const dur = `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
   const h = baseHour ?? round.hour ?? null;
   if (!h) return tr({ it: `${dur} in tempo reale`, en: `${dur} in real time` });
@@ -372,22 +377,15 @@ function card_sessionHint(min, round, profile, kind = 'P', overrideHour = null, 
     hh = String(((Math.round(overrideHour) % 24) + 24) % 24).padStart(2, '0');
     mm = '00';
   } else {
-    // minuti reali che separano l'inizio sessione dalla partenza della gara
-    const realBefore = kind === 'Q'
-      ? profile.qualifyMin + 15
-      : kind === 'W'
-        ? 15 // warm-up: 10 min di pista + 5 di pausa prima della gara
-        : profile.practiceMin + 5 + profile.qualifyMin + 15;
-    const start = Math.round(((h * 60 - scale * realBefore) % 1440 + 1440) % 1440);
+    // lo stesso piano di raceCard (stessi offset del gamemodesave): P −6h, Q −3h, W −1h
+    const beforeMin = kind === 'Q' ? 180 : kind === 'W' ? 60 : 360;
+    const start = Math.max(0, h - Math.round(beforeMin / 60)) * 60;
     hh = String(Math.floor(start / 60)).padStart(2, '0');
     mm = String(start % 60).padStart(2, '0');
   }
-  const when = scale === 1
-    ? tr({ it: `alle ${hh}:${mm}`, en: `at ${hh}:${mm}` })
-    : tr({ it: `alle ${hh}:${mm} (tempo ${scale}x)`, en: `at ${hh}:${mm} (time ${scale}x)` });
   return tr({
-    it: `${dur} in tempo reale · ${when}${chosen ? " — come l'hai impostata tu" : " per arrivare all'ora di gara"}`,
-    en: `${dur} real time · ${when}${chosen ? " — as you set it" : " so you reach the race hour"}`,
+    it: `${dur} in tempo reale · alle ${hh}:${mm}${chosen ? " — come l'hai impostata tu" : ' (piano orario da vero weekend di gara)'}`,
+    en: `${dur} real time · at ${hh}:${mm}${chosen ? " — as you set it" : ' (realistic race-weekend schedule)'}`,
   });
 }
 
