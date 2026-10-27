@@ -59,7 +59,7 @@ real career save (interface set to English):
 | Tab | What you get |
 | --- | --- |
 | ![Dashboard](docs/screenshots/01-dashboard.png) | **Dashboard** — season stats (wins, podiums, points, round chart), the race card with the exact session to set in EVO, and next-race reminder in the header. |
-| ![Race centre](docs/screenshots/02-race-centre.png) | **Race centre** — the seasonal calendar strip, the rounds you can still run, and the checklist for the next race. |
+| ![Race centre](docs/screenshots/02-race-centre.png) | **Race centre** — the seasonal calendar strip, the rounds you can still run, and the next race sheet. |
 | ![Setup](docs/screenshots/03-setup.png) | **Setup** — the Mechanic's advice (pressures → the 4 PSI rule, camber, ride height, bumpstops, brakes, TC, fuel), the **lap chart** with MoTeC telemetry, setup history, telemetry diagnostics per car. |
 | ![Messages](docs/screenshots/04-messages.png) | **Messages** — the agent's mail: contract offers, challenges, urgent races. |
 | ![Championships](docs/screenshots/05-championships.png) | **Championships** — your series, the seasonal gate and progress. |
@@ -91,7 +91,8 @@ node ac-evo-career.mjs import    read the native result and update the career
 ```
 
 With the GUI (`apri-gui.cmd`, or voice **1** in `avvia.cmd`) the cycle is still
-simpler: the race card has a field-by-field checklist, the **import is
+simpler: the **Get everything ready and have fun** button writes hour, laps,
+weather, grid, car and rules into EVO for you, the **import is
 automatic** at race end (watcher), and the header shows the countdown to the
 next race.
 
@@ -114,12 +115,13 @@ next race.
 Highlights of the **0.1.13–0.1.18** line (every save writes a readable
 changelog under [report/](report/), with the real test-suite result inside):
 
-- **The voice copilot speaks your language — and makes sense.** It follows the
-  interface language (English UI → English voice), never repeats a phrase
-  within 12 s, only speaks when a *value* actually changes, and stays silent
-  for the first seconds after a session switch — stale data of the previous
-  session is what once made it announce "finishing lap 1" while leaving the
-  pits.
+- **The copilot always speaks Italian — and makes sense.** From 27/10 the
+  voice is always it-IT even with an English interface (English UI serves
+  Paddock, the voice no longer follows it). At startup it waits a few beats
+  for the browser's asynchronous voice list, only speaks when a *value*
+  actually changes, never repeats a phrase within 20 s and stays silent for
+  the first seconds after a session switch. The **♪ test** chip on the
+  dashboard speaks one line on demand to verify the Italian voice.
 - **Grids now build themselves for every series.** The "harmonic" variant
   system (a unique livery per cell — EVO crashes on schedules with repeated
   cells) applies to **every car** of a series, not a single chosen one. Series
@@ -140,6 +142,15 @@ changelog under [report/](report/), with the real test-suite result inside):
 - **Old closing messages stay readable.** Paddock and grid-calibration notes
   written back when the career ran in Italian are translated on display in
   the English interface — the save file is still never modified.
+- **The in-game «Cruscotto» widget (from 27/10).** The first widget inside the
+  game: it quietly reads the server dashboard and shows your driver, today's
+  races and entered series in the ACEUIAppLoader app — install with
+  `node tools/installa-cruscotto.mjs`, kept fresh by the publisher
+  (`src/uiapp-pub.mjs`).
+- **Paddock and car classes (26–27/10).** The class engine now pairs series
+  with the car park actually on disk: with the right classes per-track ballast
+  has lost its bite (latest races: zero escapes from the base, no penalty
+  above 8%, the 20% cap never reached).
 
 ## Installation
 
@@ -470,7 +481,10 @@ missing and what estimate it falls back to.
 **Two cars of the same class fight in vain.** Same-category grids get ballast
 and penalties from the calibration, not from guesswork: it needs a few real
 races first, then revises with per-track confidence. Check the convergence on
-the **Grid** tab (`griglia-calib` gives the terminal summary).
+the **Grid** tab (`griglia-calib` gives the terminal summary). From 26/10,
+with the Paddock class engine, series are born with the right classes
+already: in the latest races no penalty exceeds 8% and no car escapes from
+the base.
 
 **The GUI shows a browser tab instead of a saved folder.** The picker walks the
 whole disk because browser dialogs don't return chosen paths; keep clicking

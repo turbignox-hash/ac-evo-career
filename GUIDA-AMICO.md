@@ -149,6 +149,13 @@ due schermate nella GUI:
    soldi, rep, punti e copilota fanno il resto. Dalla seconda gara in poi:
    SOLO il bottone giallo, l'auto si sceglie da sola, zero gesti manuali.
 
+🎙️ **La copilota parla sempre italiano** (dal 27/10: anche con l'interfaccia
+in inglese la VOCE resta it-IT). Sul cruscotto della GUI c'è il chip
+**♪ prova**: un click, dice una frase e verifica al volo che copilota e
+voce italiana siano a posto. Se invece parla con l'accento sbagliato,
+guarda Pannello di controllo → Riconoscimento vocale → Proprietà di voce e
+aggiungi una voce italiana di Windows.
+
 ⚠️ **La prima gara MULTICLASSE aggiunge un gesto, UNA SOLA volta:** nel menu
 Race Weekend sposta **Grid Type da AUTOMATIC a CUSTOM** e premi **Applica**,
 poi NON TOCCARE PIÙ il selettore. A installazione nuova EVO nasce AUTOMATIC e
@@ -201,7 +208,8 @@ riconoscimento dei risultati si aggancia a quel nome) e nazione a 3 lettere.
 Da lì il ciclo di una gara è sempre lo stesso:
 
 ```
-scheda gara (checklist) → EVO: l'app imposta già tutto col tasto «Prepara tutto» → corri
+scheda gara → bottone «Prepara tutto e divertiti»: pista, griglia, auto e
+regole finiscono in EVO da soli → corri
 → la guardia (watcher) importa il risultato da sola
 ```
 

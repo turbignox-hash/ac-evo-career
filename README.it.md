@@ -55,7 +55,7 @@ Interfaccia in inglese nei catturi; la lingua si sceglie in Impostazioni
 | Tab | Cosa ti dà |
 | --- | --- |
 | ![Cruscotto](docs/screenshots/01-dashboard.png) | **Cruscotto** — statistiche di stagione (vittorie, podi, punti, grafico round), scheda gara con la sessione esatta da impostare in EVO, countdown alla prossima gara. |
-| ![Centro gare](docs/screenshots/02-race-centre.png) | **Centro gare** — fascia calendario della stagione, round ancora da correre, checklist della prossima gara. |
+| ![Centro gare](docs/screenshots/02-race-centre.png) | **Centro gare** — fascia calendario della stagione, round ancora da correre, scheda della prossima gara. |
 | ![Setup](docs/screenshots/03-setup.png) | **Setup** — i consigli del Meccanico (pressioni → regola dei 4 PSI, camber, altezza, bumpstop, freni, TC, benzina), il grafico giri con telemetria MoTeC, lo storico degli assetti e la diagnostica telemetria per auto. |
 | ![Messaggi](docs/screenshots/04-messages.png) | **Messaggi** — la posta dell'agente: offerte, sfide, gare urgenti. |
 | ![Campionati](docs/screenshots/05-championships.png) | **Campionati** — le tue serie, gate di stagione e progressi. |
@@ -110,12 +110,13 @@ Salienti della fascia **0.1.13–0.1.18** — ogni salvataggio scrive anche la s
 scheda leggibile in [report/](report/), con dentro l'esito vero della suite di
 test:
 
-- **Il copilota parla la tua lingua — e ha senso.** Segue la lingua
-dell'interfaccia (UI inglese → voce inglese), non ripete mai la stessa frase
-entro 12 s, parla solo quando il *valore* cambia davvero, e resta muta i primi
-secondi dopo un cambio di sessione: i dati stanti della sessione prima sono
-quelli che una volta gli facevano dire «sto finendo il giro 1» mentre eri
-ancora in uscita dai box.
+- **La copilota parla SEMPRE italiano — e ha senso.** Dal 27/10 la voce è
+sempre it-IT anche con l'interfaccia in inglese (l'UI inglese serve a
+Paddock, la voce no). All'avvio aspetta l'elenco voci del browser finché
+c'è una voce italiana da usare; parla solo quando un *valore* cambia
+davvero, non ripete mai la stessa frase entro 20 s e resta muta i primi
+secondi dopo un cambio di sessione. Sul cruscotto il chip **♪ prova**
+dice una frase e verifica al volo la voce italiana.
 - **Le griglie si costruiscono da sole per tutte le serie.** Il sistema
   «armonico» delle varianti (una livrea diversa per ogni cella — EVO crasha
   con gli schemi con celle ripetute) vale per **tutte le auto** della serie,
@@ -138,6 +139,15 @@ ancora in uscita dai box.
   calibrazione griglia scritte quando la carriera era in italiano si
   traducono in visualizzazione nell'interfaccia inglese — il save non viene
   comunque mai toccato.
+- **«Cruscotto» in gioco (dal 27/10).** Il primo widget dentro il gioco: legge
+  in silenzio il cruscotto del server e mostra pilota, gare del giorno e serie
+  iscritte nell'app ACEUIAppLoader — si installa con
+  `node tools/installa-cruscotto.mjs` e si tiene aggiornato dal publisher
+  (`src/uiapp-pub.mjs`).
+- **Paddock e classi auto (26–27/10).** Il motore di classi ora accoppia le
+  serie al parco auto davvero presente sul disco: con le classi giuste le
+  zavorre per traccia hanno perso il morso (ultime gare: zero sfori dalla
+  base, nessuna penalità oltre l'8%, cap del 20% mai raggiunto).
 
 ## Installazione
 
@@ -450,7 +460,9 @@ fonte manca e su quale stima ripiega.
 stessa categoria prendono zavorre e penalità dalla calibrazione, non a stima:
 hanno bisogno prima di un po' di gare vere, poi ricalibrano con confidenza per
 pista. La convergenza si segue nel tab **Griglia** (`griglia-calib` è la versione
-da terminale).
+da terminale). Dal 26/10, col motore di classi Paddock, le serie nascono già
+con le classi giuste: nelle ultime gare nessuna penalità supera l'8% e
+nessuna auto sfugge dalla base.
 
 **La GUI mostra "cerca su disco" invece di leggere una cartella.** È voluto:
 i dialoghi del browser non restituiscono i percorsi scelti, quindi il cercatore
