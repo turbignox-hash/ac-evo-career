@@ -98,7 +98,7 @@ function entryFromFile(ladder, f, driverNames) {
     carPretty: cl.car ? prettyCar(ladder, cl.car) : null,
     carNumber: d.car_number ?? null,
     hour: result?.hour ?? null,
-    weather: result?.weather_type ?? null,
+    weather: String(result?.weather_type ?? '').replace(/^.*WeatherType_/, '')|| null,
     lapsCount: Number(d.laps ?? 0),
     lapTimes: laps.slice(-10), // gli ultimi 10 giri come scritti dal gioco
     bestLap: d.best_lap ?? null,
@@ -195,9 +195,14 @@ export function recordHotlaps(ladder, paths, state, { file = null, since = null 
 }
 
 /** Il quaderno per la GUI (le ultime n righe + il libro PB). */
+/* 28/10: il meteo dei vecchi capitoli salvati aveva il nome intero di EVO
+ *  (GameModeSelectionWeatherType_CLEAR): lo pulisco QUI così gli storici e i
+ *  nuovi si leggono uguale. */
+const wxClean = (w) => String(w ?? '').replace(/^.*WeatherType_/, '') || null;
 export function hotlapsLog(n = 40) {
   const b = loadBook();
-  return { sessions: b.sessions.slice(0, n), records: b.records ?? [], total: b.sessions.length };
+  const sessions = b.sessions.slice(0, n).map((e) => ({ ...e, weather: wxClean(e.weather) }));
+  return { sessions, records: b.records ?? [], total: b.sessions.length };
 }
 
 /* ------------------------------------------------------------------ */
