@@ -32,7 +32,7 @@ import { writeJsonAtomic } from './atomic.mjs';
 import { buildGridMessage } from './gridbuilder.mjs';
 import { gridGuardProposal } from './grid-guard.mjs';
 import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
-import { applyBalance, applyAi, pruneBackups } from './grid-apply.mjs';
+import { applyBalance, applyAi, pruneBackups, rebuildGridApply } from './grid-apply.mjs';
 import { calibSummary, calibFile, resetCalib, appuntaConvalida } from './grid-calib.mjs';
 import { gameRunning, GAME_MODES_DIR } from '../tools/evo-grid.mjs';
 import { testModeBanner, testModeOn, testModeOff } from './test-mode.mjs';
@@ -1271,7 +1271,27 @@ async function cmdGriglia(args) {
   const file = join(GAME_MODES_DIR, 'last_grid.customgrid');
   const tplFile = typeof args.flags.template === 'string' ? args.flags.template : file;
 
-  const { buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: tplFile });
+  // MAGAZZINO AUTOMATICO (27/10, col gap visto in prova su R7 Kyalami):
+  // prima la costruzione dal file CURRENT (come sempre), ma se il resto del
+  // mondo ha lasciato sul disco un customgrid di ALTRO (1 cella di prova,
+  // griglia di una serie passata) NON si muore: vale la corsa dei candidati
+  // di rebuildGridApply — template appuntato della serie (magazzino), backup
+  // d'epoca, snapshot, griglia di fabbrica — che in non-dry scrive lei
+  // stessa (backup + store). Solo se quell'errore resta in piedi:
+  // l'errore prima della caduta (noTemplateHint) nel ritoalenti dell'uomo.
+  let buffer = null;
+  let report = null;
+  let scriveIlFalhub = false;
+  try {
+    ({ buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: tplFile }));
+  } catch (e) {
+    if (typeof args.flags.template === 'string') throw e;   // template DICHIARATO: l'utente intendeva QUEL file, non un surrogato
+    const r = rebuildGridApply({ ladder, nodeId, roundIndex, file, force: true, dry: !!args.flags.dry });
+    report = r.report;
+    buffer = r.buffer ?? null;
+    scriveIlFalhub = !args.flags.dry && r.written === true;
+    report.source = `magazzino (via ${r.source ?? 'candidati'}) · ${report.source.split('/').pop()}`;
+  }
   const C_ = C;
   console.log(C_.bold(tr({ it: `\nGriglia della gara del giorno\n`, en: `\nGrid of the race of the day\n` })));
   console.log(`  serie   ${report.serie}`);
@@ -1284,6 +1304,13 @@ async function cmdGriglia(args) {
   for (const [car, line] of Object.entries(byCar)) console.log(`    ${car.padEnd(34)} ${line.split('→ ')[1] ?? ''}`);
   if (args.flags.dry) { console.log(C_.dim(tr({ it: '\nDRY: niente scritto. Lancia senza --dry per scrivere.\n', en: '\nDRY: nothing written. Run without --dry to write.\n' }))); return 0; }
 
+  if (scriveIlFalhub) {
+    // la corsa dei candidati HA GIÀ scritto (backup + magazzino aggiornato):
+    console.log(C_.green(tr({ it: `\nScritto ${file} (da magazzino della serie)`, en: `\nWritten ${file} (from the series' template store)` })));
+    if (args.flags['servo-prepara']) return 0;
+    console.log(C_.dim(tr({ it: `  il template della serie resta in data/grid-templates/ · prossimi passi: apri EVO → menu griglia (SENZA GENERA) → controlla → APPLICA → gara.\n`, en: `  the series' template stays in data/grid-templates/ · next steps: open EVO → grid menu (NO GENERATE) → check → APPLY → race.\n` })));
+    return 0;
+  }
   const bak = `${file}.bak-griglia-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   copySyncGrid(file, bak);
   pruneBackups(file);

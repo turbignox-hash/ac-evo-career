@@ -1,0 +1,35 @@
+<!doctype html>
+<!-- menu.html — la pagina dell'app «Cruscotto» in gioco. Un guscio solo:
+     tutto il lavoro sta in cruscotto.js, che legge i file ui-<slot>.json
+     scritti dal publisher (src/uiapp-pub.mjs) nella STESSA cartella. -->
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin:0; padding:0; background:#0d1117; color:#e6edf3;
+    font-family:'Segoe UI',system-ui,sans-serif; font-size:15px; }
+  #cruscotto { padding:16px 20px; max-width:960px; margin:0 auto; }
+  .testa { background:linear-gradient(135deg,#1b2435,#141a28); border-radius:12px;
+    padding:14px 16px; margin-bottom:14px; border:1px solid #2a3341; }
+  .testa h1 { margin:0 0 4px; font-size:19px; color:#7fb4ff; letter-spacing:.5px; }
+  .testa .sub { color:#9aa7b8; font-size:13px; }
+  .gruppo { margin-bottom:18px; }
+  .gruppo h2 { font-size:14px; text-transform:uppercase; letter-spacing:1.5px;
+    color:#8b98a9; margin:0 0 8px 2px; }
+  .card { background:#161d2b; border:1px solid #2a3341; border-radius:10px;
+    padding:12px 14px; margin-bottom:10px; }
+  .card .titolo { font-weight:600; color:#ffd47f; margin-bottom:4px; }
+  .card .riga { font-size:13px; color:#c3ccd9; line-height:1.6; }
+  .stato { display:inline-block; padding:2px 9px; border-radius:20px;
+    font-size:12px; margin-left:8px; }
+  .iscritto { background:#1c3a24; color:#7bdc8b; }
+  .disponibile { background:#37301a; color:#ffd47f; }
+  .bloccata { background:#3a1c1c; color:#f28b82; }
+  .vuoto { color:#9aa7b8; font-style:italic; padding:8px 2px; }
+</style>
+</head>
+<body>
+<div id="cruscotto"><div class="vuoto">&nbsp;</div></div>
+<script src="cruscotto.js"></script>
+</body>
+</html>

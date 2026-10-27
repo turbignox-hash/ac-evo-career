@@ -21,6 +21,9 @@ import { recordFlows } from './flows.mjs';
 import { takeLastPair, tr } from './lang.mjs';
 import { ensureLife, ensureContract, settleContract, sponsorFor, sigilDefs, checkSigils } from './life.mjs';
 import { assignNextMemory, checkMemoryProgress, raceCrowdFor } from './memories.mjs';
+// BONUS GARA PULITA (28/10): il +10% del premio di Paddock, incassato qui
+// quando l'import registra una ronda senza penalità né ritiro.
+import { cleanRaceBonusOf } from './paddock.mjs';
 import { publishNotice } from './gazzetta.mjs';
 import { recordWarning } from './warnings.mjs';
 
@@ -149,7 +152,7 @@ export function createCareer(ladder, { name, first, last, nation = 'ITA', discip
     agenda: { day: 1 },
     seats: { [startNode.nodeId]: { day: 1, season: 1 } },
     world: createWorld(ladder, seed ?? fullName.trim().toLowerCase()),
-    difficulty: { mode: 'adaptive', base: {}, trim: {}, offClass: {}, offTrack: {}, locked: [], pending: null },
+    difficulty: { mode: 'adaptive', base: {}, trim: {}, offClass: {}, offTrack: {}, locked: [], pending: null, global: 0 },
     paidEntries: {},
     flowSeed: false,
     life: {},
@@ -368,8 +371,14 @@ export function difficultyFor(ladder, state, node, track = null) {
   const trim = d.trim[node.nodeId] ?? 0;
   const offClass = d.offClass[node.discipline] ?? 0;
   const offTrack = track ? (d.offTrack[track] ?? 0) : 0;
-  const total = clamp(base + trim + offClass + offTrack, 70, 120);
-  return { base, trim, offClass, offTrack, total, slider: skillToEvoSlider(total, ladder), locked: d.locked.includes(node.nodeId), mode: d.mode };
+  // MAURO 27/10: i nudge manuale (bottone «aumenta difficoltà» del cruscotto)
+  // contano per le PROSSIME gare simili, non solo per la serie del giorno.
+  // `global` è quel registro: conta su OGNI serie (nuove comprese), come un
+  // trim che si porta dietro. La banda di serie resta master: il global si
+  // somma solo qui, e il pannello Difficoltà lo mostra in cima.
+  const global = d.global ?? 0;
+  const total = clamp(base + trim + offClass + offTrack + global, 70, 120);
+  return { base, trim, offClass, offTrack, global, total, slider: skillToEvoSlider(total, ladder), locked: d.locked.includes(node.nodeId), mode: d.mode };
 }
 
 /** Proposta di correzione del trim, in attesa di conferma. */
@@ -727,6 +736,15 @@ export function applyRaceResult(ladder, state, node, payload) {
     }
   }
 
+  // BONUS GARA PULITA (alla maniera di Paddock, 28/10): una gara chiusa senza
+  // penalità né ritiro incassa in più il 10% del premio della ronda — un
+  // incentivo alla pulizia in pista che prima esisteva solo nell'app esterna.
+  const cleanBonus = !dnf && !fuori && !dsq && !penalty && prize > 0 ? cleanRaceBonusOf(prize) : 0;
+  if (cleanBonus > 0) {
+    state.money += cleanBonus;
+    recordFlows(state, [{ kind: 'bonus', money: cleanBonus, reason: `gara pulita ${node.display} R${round + 1}` }]);
+  }
+
   state.money += prize + sponsorTotal;
   state.rep += rep;
   if (!dnf && !fuori) {   // fuori parco: il bestFinish della scalata non subisce benefici
@@ -750,9 +768,8 @@ export function applyRaceResult(ladder, state, node, payload) {
       ? ` · ${tr({ it: `penalità ${penalty} (da P${rawPos})`, en: `${penalty} penalty (from P${rawPos})` })}`
       : ` · ${tr({ it: `penalità ${penalty}`, en: `${penalty} penalty` })}`)
     : '';
-  pushMessage(state, tr({
-    it: `${node.display} · ${node.calendar[round]?.name ?? 'Round ' + (round + 1)}: ${posText}${penText}${gapText ? ' ' + gapText : ''}${fl && bestLap ? ` · giro veloce ${bestLap}` : ''} · +${prize} premio${iconicRound ? ' (prova iconica)' : ''} (+${sponsorTotal} sponsor) · +${rep} reputazione`,
-    en: `${node.display} · ${node.calendar[round]?.name ?? 'Round ' + (round + 1)}: ${posText}${penText}${gapText ? ' ' + gapText : ''}${fl && bestLap ? ` · fastest lap ${bestLap}` : ''} · +${prize} prize${iconicRound ? ' (iconic race)' : ''} (+${sponsorTotal} sponsor) · +${rep} reputation`,
+  pushMessage(state, tr({        it: `${node.display} · ${node.calendar[round]?.name ?? 'Round ' + (round + 1)}: ${posText}${penText}${gapText ? ' ' + gapText : ''}${fl && bestLap ? ` · giro veloce ${bestLap}` : ''} · +${prize} premio${iconicRound ? ' (prova iconica)' : ''} (+${sponsorTotal} sponsor${cleanBonus?` + ${cleanBonus} gara pulita`:''}) · +${rep} reputazione`,
+    en: `${node.display} · ${node.calendar[round]?.name ?? 'Round ' + (round + 1)}: ${posText}${penText}${gapText ? ' ' + gapText : ''}${fl && bestLap ? ` · fastest lap ${bestLap}` : ''} · +${prize} prize${iconicRound ? ' (iconic race)' : ''} (+${sponsorTotal} sponsor${cleanBonus?` + ${cleanBonus} clean race`:''}) · +${rep} reputation`,
   }), dnf ? 'bad' : position <= 3 ? 'good' : 'info');
   // il comunicato del vigia — la UI non può più fingere di non sapere quale auto ha girato (24/10)
   if (fuori) {
@@ -766,7 +783,7 @@ export function applyRaceResult(ladder, state, node, payload) {
   const proposal = proposeDifficulty(ladder, state, node, dnf ? gridSize : position, gridSize);
   // memoria di famiglia in corso: la gara sta contando per l'impresa dell'antenato?
   try { checkMemoryProgress(ladder, state, { ...entry, nodeId: node.nodeId }); } catch { /* mai bloccare l'import */ }
-  return { entry, proposal, sponsor: sponsorTotal, crowdBonus };
+  return { entry, proposal, sponsor: sponsorTotal, crowdBonus, cleanBonus };
 }
 
 /* ------------------------------------------------------------------ */

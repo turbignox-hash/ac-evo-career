@@ -1,3 +1,116 @@
+## GARA IN 2 + RESET 88–89 (27/10) — perché siamo partiti in 2, e il trim comandato da Mauro
+
+- **«Partiti in 2»: non un bug del merge — la pista ha letto la griglia VECCHIA**. Il customgrid
+  sul disco di gioco è ancora quello di prima delle 23:04 del 26/10: **1 sola cella E30**
+  (l'ultimo Prepara tutto era stato fatto quando il template di fabbrica aveva solo E30). Il
+  merge odierno ha allargato il template del progetto, ma `last_grid.customgrid` in GameModes
+  si riscrive SOLO a un nuovo «Prepara tutto». Rimedio: EVO CHIUSO → Prepara tutto → parte la
+  multiclasse (27 celle, E30+Mercedes+Alfa). Controllo rapido della griglia a disco:
+  `node tools/_stato-griglia.mjs`.
+- **DIFFICOLTÀ: due giri di reset nello stesso pomeriggio del 27/10**. Era 94–95 su TUTTE le 79
+  serie (resto dell'era «tutti a 94»): il default del webui valeva solo per le serie mai
+  impostate — e tutte erano già impostate, quindi non si vedeva mai.
+  ① richiesta «tutti 88–89»: reset di massa a 88–89 (backup `.bak-88-26-10-27`),
+  ② «per qualcuno potrebbe già essere difficile»: secondo reset a **84–85** (backup
+  `.bak-84-26-10-27`). Webui ogni volta fermata, modificata e ripartita (HTTP 200).
+  Default anche nel CODICE portato a 84–85 (webui: serie mai impostate).
+  I trim adattivi esistenti restano (roadster_classic −5, coppa_mazda-rx7-fd +1): il trim
+  segue le scelte di Mauro. La banda arriva al gioco SOLO con un nuovo «Prepara tutto»
+  (setWeekendAi scrive i campi 30/31 del gamemode).
+- **TRIM a passo ±3 (richiesta Mauro 27/10): «aggiungi al trim fino a +3 −3, 1,2,3»**.
+  Fatto: • server `difficulty-nudge` clamp da ±5 a **±3**; • pagina Difficoltà (viste-d):
+  per OGNI riga serie nuovi bottoni −3 −2 −1 / +1 +2 +3 (chiamano `difficulty-action
+  op:trim` col trim corrente ± passo; gli spostano la banda di 1 punto slider per punto di
+  trim, come già sembrava voluto); • le righe evento_* NON hanno i bottoni (banda fissa
+  88–93). Suite 230/230 dopo le modifiche.
+- **Nota Coppa GT86**: nelle note di codice resta la vecchia scelta «GT86 a 99–100»,ma il save l'aveva già a 94–95: ora è tornata a 88–89 come tutte; se la vuole alta di nuovo la
+  segna dal pannello Difficoltà.
+
+## GARAGE + DTM + PADDOCK (26/10 tarda sera) — tre verità rinforzate
+
+> Aggiornamento 27/10: le celle Alfa 75 ESISTEVANO nel backup del progetto
+> del 25/10 su L: (data-progetto/grid-templates/dtm_legends ×6 +
+> coppa_alfa-romeo-75-turbo-evo ×14 + grezze) — perse nell'installazione
+> pulita di Mauro. Il merge _merge-dtm le ripescano: il pool DTM ora è il
+> COMPLETE E30+Mercedes+Alfa (27 celle, 22 byte-uniche). Niente rituale da
+> fare per la 75.
+
+- **GARAGE, il limite del 22/10 fa di nuovo scena**: «Prepara tutto» delle 23:44 ha scritto la Mercedes
+  SU DISCO (il match a token funziona: `findCar('Mercedes 190E Evo II')` → Mercedes-Benz 190E 2.5-16
+  Evo II) ma EVO era GIÀ APERTO (avviato 23:39) e il selettore non rilegge il garage rientrando:
+  usa la copia in memoria caricata all'avvio. Come si vede adesso il disco dice Mercedes e il
+  menu mostra RX-7. RIMEDIO UNICO: chiudere EVO COMPLETAMENTE e riaprire — il garage nasce
+  già sulle celle del disco (conferma del 22/10 con la 75). Il toast «auto non ancora nel dizionario» resta neutro e giusto.
+- **DTM «0 avversari»: doppia radice trovata e dirette entrambe** (serie dtm_legends, E30+Mercedes+Alfa75):
+
+  ① il rebuild del builder legge SOLO il template di fabbrica `dtm_legends.customgrid`, che ha
+
+  sole celle E30 — le celle Mercedes ESISTEVANO nei .bak-apply/-griglia/-bal di Saved Games
+  (mercedes×2, e30×3, il 21-27 e il 22-39) e NON venivano usate; ② le celle Alfa 75 Turbo Evo
+  NON erano in nessuna fonte DELL'INSTALLAZIONE PULITA (scansione con il nuovo
+  `tools/scan-celle.mjs`), ma c'erano nel backup del progetto su L: (vedi aggiornamento sopra).
+  FIX: `tools/_merge-dtm.mjs` (schema _merge-r5, idempotente) raccoglie le celle MERCEDES
+  byte-uniche da tutto il disco e le ALFA dal backup L:, e le appende al template di
+  fabbrica + copia in magazzino (backup `.bak-merge-…`). Al collaudo: pool 27 celle,
+  22 byte-uniche, match completo Alfa×12 · E30×5 · Mercedes×10 — mancanti: NESSUNA.
+- **DIZIONARIO garage NON è auto-mappabile**: l'archivio data/car-guids.json (468 coppie) NON si
+  aggancia ai nomi senza il GUID-manifest per-auto. Verificato sul vivo: outer hash
+  = FNV-1a-64("<carId>_<GUID-manifest>") con GUID DIVERSO per auto (l'Abarth conferma l'algoritmo;
+  la Mercedes col GUID dell'Abarth NON batte 57d66c117761b44d) e il GUID NON è derivabile da
+  carHash+guid2 (provate 4 forme). Cioè: il dizionario si allarga SOLO campionando (cambio auto
+  in garage col sampler O la fine-gara `learnCar` — la via silenziosa già in piedi). La `E30`
+  la mappa learnCar alla sua prima gara come pilota.
+- **PADDOCK dal vivo: funziona**. Il ponte a sola lettura (src/paddock.mjs) legge i journal dell'app
+  in gioco (pd-home/calendar/catalog/…) per mtime: con EVO aperto la sera il main/telemetry si
+  riscrivono al minuto e il server vede TUTTO (home/calendar “Abarth Challenge” 6 ronde ·
+  catalog 71 auto · ledger/teams/history ok). Prova ripetibile: `node tools/_prova-paddock.mjs`.
+- Strumenti nuovi: `tools/scan-celle.mjs <ids…>` (dove stanno le celle di un'auto),
+  `tools/_merge-dtm.mjs` (merge celle nel template fabbrica), `tools/_prova-paddock.mjs` (prova
+  del ponte). Suite 230/230.
+
+## MATCH GRADUALE + SNIFFER (27/10, dal Gufo Paddock, studio dalla stash@{0})
+
+- `src/car-match.mjs` (nuovo): la catena ESATTA → CONTIENE → TUTTE LE PAROLE →
+  ALIAS del `findModel` di Paddock, in versione libreria. Il builder della
+  griglia (`src/gridbuilder.mjs`, branch wantCars) non filtra più con il set
+  esatto: chiama `matchPool(wantCars, cells, labelsOf, aliases)`. Un nome
+  RIVENDICA TUTTE le celle che matcha (primo tentativo ne prendeva una:
+  il template monomarca con 6 varianti della stessa auto restava 1 cella e
+  l'anti-crash spezzava la build — visto nei test del magazzino). I nomi
+  mancanti finiscono in `data/match-auto.log` EARRORE coi NOMI VERI che il
+  template ha sul disco: la fonte dati si sistema in un colpo.
+- SNIFFER: `tools/sniffer-campi.mjs` — fotografia dei campi veri che EVO
+  scrive in GameModeType_RACE_WEEKEND.gamemodesave (per sessione: nome, n
+  avversari, dove sta il flag single-make e il LABIRINTO campo:wire) + celle
+  del customgrid. `--diff` riporta SOLO le differenze di forma con la foto
+  precedente; `--watch` segue il mtime. Su disco in `data/sniffer-campi/`
+  (jsonl giornaliero + `ultimo.json`). SUL VERO SAVE del 27/10: flag nella
+  cella 12 di OGNI blocco sessione (Practice/Qualifying/Warmup/Race), 14
+  avversari, customgrid di guerra 1 cella.
+- SINGLE MAKE (ripensamento del 27/10): il flagDiagnostic `singleMakeOf` in
+  `tools/weekend-laps.mjs` resta (posizione-referente: primo varint 0/1 dopo
+  la lista avversari), ma l'AZIONE delega al canonico
+  `setWeekendGridMode('automatic'|'custom')` di tools/set-track.mjs — niente
+  due scrittori che discostano. CLI: `node tools/weekend-laps.mjs
+  --singlemake on|off` (on = riporta AUTOMATIC / off = CUSTOM con N=13).
+
+## GATE DEL CONTEGGIO: il PRIMO blocco gamemode non è la verità (27/10, DTM Legends «griglia a 2»)
+
+- SINTOMO (27/10, segnalazione Mauro): «Prepara tutto» → in griglia restano 2 vetture (1 cella). Causa:
+  `weekendCarCount` leggeva SOLO il primo blocco 3 del gamemodesave — il blocco Practice, che portava il
+  RESIDUO della ronda rotta (3.10=1, 3.7=1) mentre i blocchi Quali/Gara conservavano la dichiarazione VERA
+  (3.7=15 → 16 celle). Il gate di `rebuildGridApply` restringeva la gridSize della scala al residuo (16 → 1).
+- FIX (due pezzi):
+  1. `tools/set-track.mjs · weekendCarCount`: scansiona TUTTI i blocchi 3 — cars = max voci 3.10,
+     declared = max dei 3.7 presentisul PC di Mauro ora letta { cars:1, declared:15 }.
+  2. `src/grid-apply.mjs · rebuildGridApply`: nel regime CUSTOM (tutte le serie dal 26/10) il bersaglio è
+     declared + 1 (sei tu una cella) con minimo sopra le voci 3.10 native, e l'allineamento è SOLO
+     SOPRA (mai restringere: la lezione 24/10 è «scrivere MENO celle di quante il gioco aspetta = crash»);
+     in AUTOMATIC resta l'allineamento ESATTO alla 24/10.
+- RISULTATO VERIFICATO A DISCO (27/10 ~1:30): cartuccia 16 celle (Turismo Legends, BMW M3 E30), selettore
+  custom/15 riscritto (backup bak-gridmode-2026-10-26T23-31), dry-run: nessun allineamento (align null).
+  Suite griglia 30/30 verde. Il server webui va RIAVVIATO per caricare il codice nuovo prima del prossimo «Prepara tutto».
+
 ## GRID TYPE SCRITTO DA FUORI (26/10 NOTTE, VERDETTO FINALE: CUSTOM PER TUTTE)
 
 - VERDETTO FINALE (26/10 notte, Coppa 75 al Suzuka, confermato IN GIOCO):

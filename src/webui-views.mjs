@@ -307,15 +307,19 @@ function viewCard(ladder, state, car = null) {
     outlook: card.outlook,
     challenge: card.challenge ?? null,
     // il nudge "serie troppo facile" porta nel save la ragione in italiano:
-    // i formati sono fissi (import.mjs), li rimappiamo alla lingua attiva
-    pendingNudge: (() => {
-      const n = state.pendingNudge;
-      if (!n) return null;
-      let reason = n.reason ?? '';
-      const m = String(reason).match(/^vittoria con (\d+)s di margine sulla P2$/);
-      if (m) reason = tr({ it: reason, en: `win with a ${m[1]}s gap on P2` });
-      return { ...n, reason };
-    })(),
+    // i formati sono fissi (import.mjs), li rimappiamo alla lingua attiva.
+    // Dal 27/10vale SOLO sulla serie che l'ha generato: firmata una serie
+    // nuova, la "vecchia" Mazda RX-7 non compare più sulla sua scheda (bug
+    // visto dal vivo 27/10: nudge dell'RX-7 sopra la scheda del NUOVO
+    // campionato). Non si elimina il meccanismo: è la regolazione della
+    // Veteran witnessed difficulty of that series — e qui una volta detta
+    // (Applica +1 o «No, va bene così») sparisce per sempre: è già cosi
+    // (difficulty-nudge / nudge-dismiss la cancellano dal save).
+    pendingNudge: null,   // richiesto Mauro 27/10: banner «serie troppo facile» RIMOSSO
+    // dalla scheda. Resta solo il banner nel debrief a fine gara (viste-c.js),
+    // dove l'offerta del +1 è contestuale e non insegue per giorni la scheda
+    // della serie successivemente iscritta. Il trim adattivo automatico vive
+    // sempre (pagina Difficoltà, «Suggerimento in attesa» qui sotto).
     // il "Suggerimento in attesa" del trim adattivo (pagina Difficoltà) proposto anche qui
     pendingProposal: state.difficulty?.pending ?? null,
     heritageActive: (() => {
@@ -470,6 +474,7 @@ function viewCard(ladder, state, car = null) {
   } catch { /* senza stato/eventi la scheda resta quella delle sole serie */ }
   return {
     mode: state.difficulty?.mode ?? 'adaptive',
+    global: state.difficulty?.global ?? 0,   // registro dei nudge manuali: vale su ogni serie (Mauro 27/10)
     internalRange: { min: 70, max: 120 },
     trimRange: { min: -20, max: 20 },
     sliderRange,

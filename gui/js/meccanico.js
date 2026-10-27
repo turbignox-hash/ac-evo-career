@@ -33,7 +33,12 @@
     const monitor = [];
     const live = s.live === 'in pista' ? tr({ it: 'in pista', en: 'out on track' }) : s.live;
     if (s.live) monitor.push(`<span class="chip ${s.live === 'in pista' ? 'gold' : ''}"><span class="dot ${s.live === 'in pista' ? 'on' : ''}"></span>${live}</span>`);
-    if (s.telem) monitor.push(`<span class="chip">📺 ${tr({ it: 'telem.', en: 'telem.' })} ${s.telem}</span>`);
+    /* TELEM: è un PLUS, non un prerequisito (richiesta del 31/10). EVO scrive
+       il file .ld di telemetria DA SOLO alla chiusura di ogni sessione; il
+       consiglio del box lo legge e diventa più preciso. Il live invece è
+       opzionale: si attiva dal chip GIOCO del cruscotto e serve solo allo
+       strip in pista e all'import istantaneo. Il tooltip lo spiega a voce. */
+    if (s.telem) monitor.push(`<span class="chip" title="${tr({ it: "Telemetria automatica: EVO la scrive a chiusura di ogni sessione (file .ld) e il meccanico la usa per dire pressioni, frenate e consumi. È un plus: senza, il consiglio resta buono ma meno preciso. La versione LIVE in pista è facoltativa — si attiva dal chip GIOCO in alto nel cruscotto.", en: "Automatic telemetry: EVO writes it on every session close (the .ld file) and the mechanic uses it for pressures, braking and consumption. It is a bonus: without it the advice stays good but less precise. The LIVE on-track version is optional — enable it from the GAME chip at the top of the dashboard." })}">📺 ${tr({ it: 'telem.', en: 'telem.' })} ${s.telem}</span>`);
     /* MONITOR TEST: mentre il meccanico lavora (checklist attiva) mostra quante
        aree sta verificando — e quando finisce, che sono tutte a punto. */
     if (Number(s.areas) > 0) monitor.push(tr({

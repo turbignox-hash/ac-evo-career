@@ -232,7 +232,143 @@ function analyzeLdUncached(ldFile) {
     roadTemp: road != null ? Math.round(road * 10) / 10 : null,
     beaconsFromLdx: beacons.length,
     sus, bump, camberProxy, assist, bestLapSec,
+    gas: throttleOf(ld, valid, bestLapSec),
+    // EVOLUZIONI DI PISTA e PARTENZA (30/10): pendenza del tempo di giro nel
+    // tempo della sessione e analisi dello scatto da fermo — due domande che
+    // il pilota si fa ogni volta («la finestra serale mi serve?», «come sto
+    // partendo?»), entrambe dallo stesso .ld a costo zero.
+    evolution: evolutionOf(valid),
+    launch: launchOf(ld, valid),
   };
+}
+
+/**
+ * EVOLUZIONE DI PISTA: la pendenza del tempo di giro nel tempo della sessione.
+ * Minimi quadrati di durationSec vs startSec sui giri validi: si esprime come
+ * secondi PER ORA di sessione — la pista calda o fredda e la gomma che cede
+ * raccontano la stessa cosa dal numero. Il verdetto dice se la finestra serale
+ * (o l'ora del giorno) ti conviene davvero.
+ */
+function evolutionOf(valid) {
+  if (!valid || valid.length < 6) return null;
+  const n = valid.length;
+  const xs = valid.map((l) => l.startSec), ys = valid.map((l) => l.durationSec);
+  const xm = xs.reduce((a, b) => a + b, 0) / n, ym = ys.reduce((a, b) => a + b, 0) / n;
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) { num += (xs[i] - xm) * (ys[i] - ym); den += (xs[i] - xm) ** 2; }
+  if (!(den > 0)) return null;
+  const secPerHour = Math.round((num / den) * 3600 * 100) / 100; // s guadagnati (neg.) o persi (pos.) PER ORA
+  const label = () => `${secPerHour > 0 ? '+' : '−'}${Math.abs(secPerHour).toFixed(1)}s/ora`;
+  const verdict = secPerHour <= -0.6
+    ? tr({ it: `la pista MIGLIORA (${label()}): ogni ora aggiunge grip, il momento migliore è TARDI — programma la qualifica alla fine`, en: `the track is FASTER (${label()}): every hour adds grip, the sweet spot is LATE — schedule qualifying at the end` })
+    : secPerHour >= 0.6
+      ? tr({ it: `la pista PEGGIORA (${label()}): secca o gomma cede, il tempo arriva presto — la finestra serale NON è tua`, en: `the track is SLOWER (${label()}): overheating or tyre fall-off, the time comes early — the evening window is NOT yours` })
+      : tr({ it: 'la pista è STABILE nel tempo della sessione: giri tutti uguali, dipende tutto da te', en: 'the track is STABLE over the session: laps all alike, it is all on you' });
+  return { laps: n, secPerHour, verdict };
+}
+
+/**
+ * LAUNCH CONTROL IN PARTENZA (30/10): nei primi secondi del giro da fermo.
+ * Trova il giro di PARTENZA (primi 3 s sotto i 100 km/h — esclude gli out-lap
+ * del pit, che passano lente), poi misura: gas medio nei primi 3 e 5 s,
+ * quota d'incidenza dello scatto (campini con il piede premuto), slittamento
+ * trazione con il gas premuto e velocità a 5 s. Il verdetto: «gas TROPPO»,
+ * «gas CHIUSO TROPPO presto», «gas timido» o «ok» — con il numero giusto.
+ */
+function launchOf(ld, valid) {
+  const sv = ld.channels.get('SPEED'), th = ld.channels.get('THROTTLE');
+  if (!sv || !th || !valid || !valid.length) return null;
+  const kmh = (c, t) => { const v = ld.dv.getFloat32(c.off + idxAt(c, t) * 4, true); return (c.unit && /m|s/i.test(c.unit) && !/km/i.test(c.unit)) ? v * 3.6 : v; };
+  const norm = (v) => (v <= 1.5 ? Math.max(0, v) : Math.max(0, v) / 100);
+  const lp = valid.find((l) => kmh(sv, l.startSec + 0.3) < 8 && kmh(sv, Math.min(l.endSec, l.startSec + 3)) < 100);
+  if (!lp) return null;
+  const end = Math.min(lp.endSec, lp.startSec + 5);
+  const share = (a, b) => { let n = 0, s = 0, hit = 0; const i0 = idxAt(th, a), i1 = Math.min(th.cnt - 1, idxAt(th, b)); for (let i = i0; i <= i1; i++) { const v = norm(ld.dv.getFloat32(th.off + i * 4, true)); if (!Number.isFinite(v)) continue; s += v; n++; if (v > 0.1) hit++; } return n ? { avg: Math.round((s / n) * 100), onPct: Math.round((hit / n) * 100) } : null; };
+  const slipPct = (a, b) => {
+    const srs = ['WHEEL_SR_LR', 'WHEEL_SR_RR'].map((nm) => ld.channels.get(nm)).filter(Boolean);
+    if (!srs.length) return null;
+    let n = 0, hit = 0;
+    for (const c of srs) { const i0 = idxAt(c, a), i1 = Math.min(c.cnt - 1, idxAt(c, b)); for (let i = i0; i <= i1; i++) { const s = ld.dv.getFloat32(c.off + i * 4, true); if (!Number.isFinite(s)) continue; n++; if (s > 0.15) hit++; } }
+    return n ? Math.round((1000 * hit) / n) / 10 : null;
+  };
+  const th3 = share(lp.startSec, Math.min(lp.endSec, lp.startSec + 3));
+  const th5 = share(lp.startSec, end);
+  const slip = slipPct(lp.startSec, end);
+  const speed5 = kmh(sv, end);
+  const gasAvg = th5?.avg ?? th3?.avg ?? 0;
+  const verdict = (slip ?? 0) > 18 && gasAvg > 78
+    ? tr({ it: `GAS TROPPO in partenza: la trazione slitta (${slip}% del tempo) — cala il piede al 2°/3° cambio, il guadagno è di ~0.3-0.5s`, en: `TOO MUCH gas off the line: wheels spin (${slip}% of the time) — lift on 2nd/3rd gear, worth ~0.3-0.5s` })
+    : (th3?.onPct ?? 100) < 25
+      ? tr({ it: `GAS CHIUSO TROPPO presto: nei primi 3 s il piede resta giù il ${100 - (th3?.onPct ?? 0)}% del tempo — tieni il gas fino alla staccata`, en: `TOO LATE on the gas: over the first 3 s the foot is up ${100 - (th3?.onPct ?? 0)}% of the time — hold throttle to the braking zone` })
+      : gasAvg < 55
+        ? tr({ it: `gas timido: nei primi 5 s usi solo il ${gasAvg}% del piede — la partenza si guadagna tenendo il gas lungo sul rettilineo`, en: `timid launch: only ${gasAvg}% throttle over the first 5 s — a good start keeps the foot down all the way down the straight` })
+        : tr({ it: 'partenza ok: gas e trazione ben dosati, reintorno alla staccata il margine', en: 'clean launch: throttle and traction both well managed, you arrive at the braking zone with margin' });
+  return { lap: lp.lap, throttle3sPct: th3?.avg ?? null, throttle3sOnPct: th3?.onPct ?? null, throttle5sPct: th5?.avg ?? null, slipPct: slip, speed5Kmh: Math.round(speed5), verdict };
+}
+
+/**
+ * COSTANZA IN FRENATA: la «matita tua» giro per giro.
+ * Campiona i giri validi (fino a `laps`) a `points` punti sul tempo dello
+ * stesso file, li particiona in `buckets` fasce di frazione di distanza e per
+ * ciascuna misura:
+ *   - la velocità d'INGRESSO alla staccata (primo pieno di freno > 0.25 nella fascia)
+ *   - la DEVIAZIONE std di quell'ingresso giro per giro: chi non fa mai la
+ *     staccata due volte uguale perde il gap lì, non sul fondo
+ *   - la dispersione del PUNTO di staccata (frazione di distanza)
+ * Serve solo al confronto matita-vs-riferimento e al telemetri del TOP gap:
+ * il gap finisce lì se in una fascia la frenata «cammina».
+ */
+export function brakeConsistency(ldFile, { laps = 10, buckets = 8, points = 96 } = {}) {
+  let ld;
+  try { ld = parseLd(readFileSync(ldFile)); } catch { return null; }
+  if (!ld) return null;
+  const beacons = parseLdx(ldFile.replace(/\.ld$/i, '.ldx'));
+  const bounds = [];
+  if (beacons.length >= 2) for (let g = 0; g < beacons.length; g++) bounds.push([beacons[g], g + 1 < beacons.length ? beacons[g + 1] : ld.duration]);
+  else bounds.push([0, ld.duration]);
+  const valid = bounds.map(([a, b], gi) => ({ startSec: a, endSec: b, lap: gi + 1, durationSec: b - a })).filter((l) => l.durationSec > 15);
+  const chosen = valid.slice(0, Math.max(1, laps));
+  if (chosen.length < 3) return null;
+  const sv = ld.channels.get('SPEED'), br = ld.channels.get('BRAKE');
+  if (!sv || !br) return null;
+  const kmhAt = (i) => { const v = ld.dv.getFloat32(sv.off + idxAt(sv, i) * 4, true); return (sv.unit && /m|s/i.test(sv.unit) && !/km/i.test(sv.unit)) ? v * 3.6 : v; };
+  const b01 = (i) => { const v = ld.dv.getFloat32(br.off + idxAt(br, i) * 4, true); return !Number.isFinite(v) ? 0 : v <= 1.5 ? Math.max(0, v) : Math.max(0, v) / 100; };
+  // stesso campionamento di lapTrace (uniforme sul tempo, integrale della distanza):
+  // qui però si parse UNA volta sola per tutto il file e si campionano TUTTI i giri.
+  const traces = chosen.map((L) => {
+    const n = Math.max(2, points), span = L.endSec - L.startSec;
+    let dist = 0; const xs = [], vs = [], brs = [];
+    for (let k = 0; k < n; k++) {
+      const t = L.startSec + (span * k) / (n - 1);
+      const v = Math.max(0, kmhAt(idxAt(sv, t)));
+      if (k) dist += ((v + vs[k - 1]) / 2) * (span / (n - 1));
+      vs.push(v); brs.push(b01(idxAt(br, t)));
+    }
+    if (dist <= 0) return null;
+    let acc = 0;
+    for (let k = 0; k < n; k++) { if (k) acc += ((vs[k] + vs[k - 1]) / 2) * (span / (n - 1)); xs.push(acc / dist); }
+    return { lap: L.lap, xs, vs, brs };
+  }).filter(Boolean);
+  if (traces.length < 3) return null;
+  const stdev = (vals) => { const v = vals.filter(Number.isFinite); if (v.length < 2) return null; const m = v.reduce((a, b) => a + b, 0) / v.length; return Math.sqrt(v.reduce((a, b) => a + (b - m) * (b - m), 0) / (v.length - 1)); };
+  const avgv = (vals) => { const v = vals.filter(Number.isFinite); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
+  const rows = [];
+  for (let z = 0; z < buckets; z++) {
+    const lo = z / buckets, hi = (z + 1) / buckets;
+    const spd = [], bx = [];
+    for (const t of traces) {
+      for (let k = 0; k < t.xs.length; k++) {
+        if (t.xs[k] >= lo && t.xs[k] < hi && (t.brs[k] ?? 0) > 0.25) { spd.push(t.vs[k]); bx.push(t.xs[k] - lo); break; }
+      }
+    }
+    rows.push({
+      zone: z + 1, n: spd.length, entryKmh: avgv(spd),
+      entrySd: stdev(spd) != null ? Math.round(stdev(spd) * 10) / 10 : null,
+      brakeOnSd: stdev(bx) != null ? Math.round(stdev(bx) * 1000) / 1000 : null,
+    });
+  }
+  const hot = rows.filter((r) => (r.entrySd ?? 0) > 8 || (r.brakeOnSd ?? 0) > 0.02);
+  return { laps: traces.length, buckets: rows, hot };
 }
 
 /* ------------------------------------------------------------------ */
@@ -374,6 +510,41 @@ function bumpOf(ld, name) {
 }
 
 /**
+ * GAS (28/10): quanto gas usi davvero — media del GIRO BEST vs media di TUTTA
+ * la sessione, e quota di campioni a gas pieno in entrambe. La differenza fra
+ * le due medie racconta la costanza: chi gasa tanto ma non chiude il giro ha
+ * usato il piede FUORI dalla trazione (slitta) — e il numero lo dice subito.
+ * I campioni sono 0–1 o già in %: si normalizzano alla maniera di lapTrace.
+ */
+function throttleOf(ld, valid, bestLapSec) {
+  const th = ld.channels.get('THROTTLE'); if (!th || !th.cnt) return null;
+  const norm = (v) => (v <= 1.5 ? Math.max(0, v) : Math.max(0, v) / 100); // 0–1 o già %
+  const inRange = (a, b) => {
+    let n = 0, s = 0, hit = 0;
+    const i0 = a == null ? 0 : idxAt(th, a);
+    const i1 = b == null ? th.cnt - 1 : idxAt(th, b);
+    for (let i = i0; i <= i1 && i < th.cnt; i++) {
+      const v = ld.dv.getFloat32(th.off + i * 4, true);
+      if (!Number.isFinite(v)) continue;
+      const t = norm(v); s += t; n++; if (t >= 0.92) hit++;
+    }
+    return n ? { avg: r1((s / n) * 100), fullGas: r1((100 * hit) / n) } : null;
+  };
+  const best = bestLapSec != null ? (valid ?? []).find((l) => Math.abs(l.durationSec - bestLapSec) < 0.06) ?? null : null;
+  const session = inRange(null, null);
+  const bestLap = best ? inRange(best.startSec, Math.max(best.startSec + 0.2, best.endSec - 0.2)) : null;
+  if (!session && !bestLap) return null;
+  return {
+    bestLapAvgPct: bestLap?.avg ?? null,
+    bestLapFullGasPct: bestLap?.fullGas ?? null,
+    sessionAvgPct: session?.avg ?? null,
+    sessionFullGasPct: session?.fullGas ?? null,
+    // il delta costanza: positivo = il giro best gira PIÙ gas della media (piede sempre premuto)
+    deltaPct: (bestLap?.avg != null && session?.avg != null) ? r1(bestLap.avg - session.avg) : null,
+  };
+}
+
+/**
  * Proxy camber: per ogni ruota, la differenza media tra bordo interno ed esterno
  * della gomma (L−R sulle temperature di superficie) per giro, poi mediata.
  * Non è il camber impostato: è il suo EFFETTO termico in pista.
@@ -501,6 +672,7 @@ export function collectSessions(motecRoot, resultsDir, { car = null, track = nul
       fuelPerLap: a.fuelPerLap, bestLapSec: a.bestLapSec,
       coldPressures: a.coldPressures, hotPressures: a.lastPressures,
       sus: a.sus, bump: a.bump, camberProxy: a.camberProxy, assist: a.assist,
+      gas: a.gas,   // 28/10: % gas giro best vs media di sessione (il piede del pilota)
       airTemp: a.airTemp, roadTemp: a.roadTemp,
       laps: a.laps,
     });

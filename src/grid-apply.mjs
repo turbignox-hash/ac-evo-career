@@ -19,7 +19,7 @@ import { sameTrack } from './tracknames.mjs';
 import { tr } from './lang.mjs';
 import { gameRunning, encodeMsg, gridFileOf } from '../tools/evo-grid.mjs';
 import { balanceCells, dropCells, setAiRange, planFromClass, readCells, DEFAULT_FILE } from '../tools/grid-balance.mjs';
-import { weekendCarCount } from '../tools/set-track.mjs';
+import { weekendCarCount, weekendGridMode } from '../tools/set-track.mjs';
 import { loadClasses, pickClassInfo, buildGridMessage } from './gridbuilder.mjs';
 import { resolvePaths } from './paths.mjs';
 import { scanContentCached, carExists } from './content.mjs';
@@ -232,34 +232,57 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
   // tutte da `ladderUsa`, clonato SOLO se serve correggere il nodo.
   let bridge = null;
   let ladderUsa = ladder;
-  try {
-    const nativo = weekendCarCount();
-    const round = (ladder.nodes ?? []).find((n) => n.nodeId === nodeId)?.calendar?.[roundIndex];
-    // GATE EXTRA (26/10, report Mauro: il fiume «[griglia] conteggio allineato
-    // 12 → 0» in console): 0 vetture native NON È un conteggio credibile — è
-    // la lettura che non ha capito il gamemodesave (pista di prova, EVO chiuso,
-    // file colto a metà scrittura). Allineare la griglia a 0 vetture vorrebbe
-    // dire usarne una VUOTA, giustamente vietato dal commento del gate sopra:
-    // senza un numero sopra lo zero lascio la griglia del save CHIUSO ai livelli
-    // della scala, e il conto resta l'allineamento di quando si capisce davvero.
-    const contabile = Number.isFinite(nativo?.cars) && nativo.cars > 0;
-    if (nativo && round && contabile && nativo.track && sameTrack(nativo.track, round.track)) {
-      const node0 = (ladder.nodes ?? []).find((n) => n.nodeId === nodeId);
-      if (node0 && node0.gridSize !== nativo.cars) {
-        const prima = node0.gridSize;
-        ladderUsa = { ...ladder, nodes: ladder.nodes.map((n) => (n === node0 ? { ...n, gridSize: nativo.cars } : n)) };
-        bridge = { from: prima, to: nativo.cars };
-        // DEDUPLICAZIONE LOG (stesso momento del fiume): l'allineamento è in
-        // MEMORIA per chiamata, quindi il log identico si ripeteva a ogni
-        // ricostruzione. Lo stampo solo quando cambia davvero la coppia
-        // (nodo: prima → dopo) rispetto all'ultimo messaggio emesso.
-        const chiaveLog = `${nodeId}:${prima}→${nativo.cars}`;
-        if (_ultimoAllineamento.get(nodeId) !== chiaveLog) {
-          _ultimoAllineamento.set(nodeId, chiaveLog);
-          console.log(`[griglia] conteggio allineato al gamemodesave: gridSize ${prima} → ${nativo.cars} («${nodeId}», ${nativo.cars} vetture native)`);
+  try {    const nativo = weekendCarCount();
+      const round = (ladder.nodes ?? []).find((n) => n.nodeId === nodeId)?.calendar?.[roundIndex];
+      // GATE EXTRA (26/10, report Mauro: il fiume «[griglia] conteggio allineato
+      // 12 → 0» in console): 0 vetture native NON È un conteggio credibile — è
+      // la lettura che non ha capito il gamemodesave (pista di prova, EVO chiuso,
+      // file colto a metà scrittura). Allineare la griglia a 0 vetture vorrebbe
+      // dire usarne una VUOTA, giustamente vietato dal commento del gate sopra:
+      // senza un numero sopra lo zero lascio la griglia del save CHIUSO ai livelli
+      // della scala, e il conto resta l'allineamento di quando si capisce davvero.
+      const contabile = Number.isFinite(nativo?.cars) && nativo.cars > 0;
+      if (nativo && round && contabile && nativo.track && sameTrack(nativo.track, round.track)) {
+        // LEZIONE 27/10 (DTM Legends, «Prepara tutto» scriveva 1 cella):
+        // nel regime CUSTOM (tutte le serie dal 26/10 notte) il conteggio
+        // SENSO PLENO sta nei blocchi GARA del gamemodesave (3.7=15 → 16 celle,
+        // la tua è la sesta... la sedicesima): il primo blocco (Practice) può
+        // portare solo il RESIDUO di una ronda rotta (1 vettura). Il bersaglio
+        // è dunque la CELLATURA del menu: declared + 1, con il minimo sopra le
+        // voci 3.10 native (weekendCarCount ora scansiona TUTTI i blocchi).
+        // E in CUSTOM NON SI RISTRINGE MAI: solo se l'attesa nativa SCONFGE la
+        // gridSize della scala (12 vs 14, lezione 24/10 = crash 0xC0000005) si
+        // allinea — il restringimento 16 → 1 di stamattina era questa strada
+        // mancante. In AUTOMATIC resta l'allineamento ESATTO della lezione 24/10.
+        let bersaglio, dato;
+        const modo = (() => { try { return weekendGridMode(); } catch { return null; } })();
+        if (modo?.mode === 'custom') {
+          bersaglio = Math.max(nativo.cars, (Number.isFinite(nativo.declared) ? nativo.declared : 0) + 1);
+          dato = `riga 3.7 = ${nativo.declared} (+1: sei tu), voci 3.10 native ${nativo.cars}`;
+        } else {
+          bersaglio = nativo.cars;
+          dato = `vetture native ${nativo.cars}`;
+        }
+        const node0 = (ladder.nodes ?? []).find((n) => n.nodeId === nodeId);
+        // CUSTOM: SOLO SPOSTAMENTO IN ALTO (mai sotto) — la lezione 24/10 dice
+        // «scrivere MENO celle di quante il gioco aspetta = crash»: l'aggiorna-
+        // mento verso l'alto serve, il restringimento (16 → 1 di stamattina) no.
+        const daAllineare = node0 ? (modo?.mode === 'custom' ? bersaglio > node0.gridSize : bersaglio !== node0.gridSize) : false;
+        if (node0 && daAllineare) {
+          const prima = node0.gridSize;
+          ladderUsa = { ...ladder, nodes: ladder.nodes.map((n) => (n === node0 ? { ...n, gridSize: bersaglio } : n)) };
+          bridge = { from: prima, to: bersaglio };
+          // DEDUPLICAZIONE LOG (stesso momento del fiume): l'allineamento è in
+          // MEMORIA per chiamata, quindi il log identico si ripeteva a ogni
+          // ricostruzione. Lo stampo solo quando cambia davvero la coppia
+          // (nodo: prima → dopo) rispetto all'ultimo messaggio emesso.
+          const chiaveLog = `${nodeId}:${prima}→${bersaglio}`;
+          if (_ultimoAllineamento.get(nodeId) !== chiaveLog) {
+            _ultimoAllineamento.set(nodeId, chiaveLog);
+            console.log(`[griglia] conteggio allineato al gamemodesave: gridSize ${prima} → ${bersaglio} («${nodeId}», ${dato})`);
+          }
         }
       }
-    }
   } catch { /* il conteggio non è mai un blocco: se non si legge, si va come prima */ }
   ladder = ladderUsa;
   // il TEMPLATE è il file attuale; su una serie con poolAuto dichiarato il

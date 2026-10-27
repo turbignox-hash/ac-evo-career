@@ -58,7 +58,7 @@ async function drawAgenda(m){
         ? `<button class="btn-cta" data-corri="${esc(g.nodeId)}" data-name="${esc(g.display)}">${tr({ it: 'SCEGLI PER OGGI', en: 'PICK FOR TODAY' })}</button>`
         : '';
     return `
-    <div class="ag-card ${cls}" data-detail="${esc(g.nodeId)}" title="${tr({ it: 'clicca la scheda per il dettaglio della serie', en: 'click the card for the series details' })}">
+    <div class="ag-card ${cls}" data-detail="${esc(g.nodeId)}" title="${tr({ it: 'passa col mouse sopra la scheda per il dettaglio della serie (o clicca)', en: 'hover the card for the series details (or click it)' })}">
       <div class="ag-top">
         <span class="ag-round">R${g.roundIndex+1}<i>/${g.totalRounds}</i></span>
         <span class="ag-disc" title="${esc(dNames.get(g.discipline) ?? g.discipline ?? '')}">${discIcon(dNames.get(g.discipline) ?? g.discipline)}</span>
@@ -156,11 +156,24 @@ async function drawAgenda(m){
     if (gt) gt.insertAdjacentHTML('beforeend', `<span class="tuttecount">${lista.length} ${tr({ it: 'a programma', en: 'on the schedule' })}${nascoste>0?` · ${nascoste} ${tr({ it: 'nascoste', en: 'hidden' })}`:''} · ${tr({ it: 'max ', en: 'max ' })}${a.maxScelte}${tr({ it: '/giornata', en: '/day' })}</span>`);
     if (!lista.length) wrapEl.innerHTML = `<div class="muted">${tr({ it: 'Nessuna gara corrisponde ai filtri in questo giorno. Prova un altro giorno dalla striscia calendario.', en: 'No race matches the filters on this day. Try another day from the calendar strip.' })}</div>`;
     else wrapEl.innerHTML = `<div class="ag-grid">${lista.map(gareCard).join('')}</div>`;
-    // ricola i click (le card sono appena create)
-    $$('.ag-card', wrapEl).forEach(el => { el.onclick = (e) => {
-      if (e.target.closest('button')) return;
-      raceCardModal(el.dataset.detail, a.viewDay);
-    }; });
+    // ricola i click (le card sono appena create) — e DAL 27/10 l'APERTURA
+    // al passaggio del mouse: lo stesso dettaglio che prima voleva il click.
+    // Per non far piovere modali mentre il mouse attraversa la griglia,
+    // l'hover ATTESA 380ms: se svani prima la scheda non apre niente; se
+    // ti fermi (o clicchi) la scheda si apre come prima. Il bottone SCEGLI
+    // e gli altri comandi restano untouched: i click sui button non aprono
+    // la scheda né in hover né al click. */
+    $$('.ag-card', wrapEl).forEach(el => {
+      let hov = 0;
+      const apri = () => raceCardModal(el.dataset.detail, a.viewDay);
+      el.onmouseenter = () => { clearTimeout(hov); hov = setTimeout(apri, 380); };
+      el.onmouseleave = () => clearTimeout(hov);
+      el.onclick = (e) => {
+        if (e.target.closest('button')) return;
+        clearTimeout(hov);
+        apri();
+      };
+    });
     $$('button[data-corri]', wrapEl).forEach(b => { b.onclick = async () => {
       b.disabled = true;
       try {
@@ -216,7 +229,12 @@ async function raceCardModal(nodeId, day){
 
 /* -------- campionati: le serie iscritte coi loro calendari e classifiche -------- */
 async function drawChampionships(m){
-  const v = await api('championships');
+  const [v] = await Promise.all([api('championships')]);
+  /* PANNELLO MONDIALE a pieghevole (30/10): la partenza stagnante della barra
+     (prima scheda 'standings') ora vive QUI, in fondo alla pagina dei
+     campionati — stessa funzione, posto meno in barra e un posto scelto. */
+  let mondo = null;
+  try { mondo = await worldRankingInner(); } catch { /* che la pagina dei campionati resti anche senza mondo */ }
   if (!(v.championships ?? []).length) {
     m.innerHTML = `<div class="panel"><h2>${tr({ it: 'Campionati', en: 'Championships' })}</h2><div class="empty">${tr({ it: 'Nessun campionato iscritto: firma un sedile dal Centro gare quando la giornata ti offre una serie adatta.', en: 'No championship signed up: grab a seat from the Race Centre when the day offers a suitable series.' })}</div></div>`;
     return;
@@ -224,17 +242,30 @@ async function drawChampionships(m){
   // BADGE cliccabili in alto: ogni campionato in corso con auto, pista e prossimo
   // round. Un click porta direttamente alla scheda del campionato, senza sfogliare
   // tutta la pagina quando i campionati sono tanti.
-  const badges = v.championships.map((c) => {
-    const nxt = c.nextRound ? `R${c.nextRound.index + 1} · ${c.nextRound.track}` : tr({ it: 'calendario finito', en: 'calendar over' });
+  /* CARTE SERIE (31/10, richiesta grafica): i badge sottili diventano carte
+     vere — nome, livello, auto, barra di avanzamento della stagione, prossimo
+     round, posizione tua. La scheda completa sta sotto in pieghevole (aperto
+     solo per la serie attiva): la pagina resta leggibile anche con 16 serie. */
+  const cards = v.championships.map((c) => {
     const played = c.calendar.filter(r=>r.played).length;
-    return `<button class="champ-badge ${c.isCurrent ? 'cur' : ''}" data-node="${esc(c.nodeId)}" title="${esc(c.display)} · L${c.level} ${esc(c.discipline)} — ${tr({ it: 'clicca per aprire la scheda completa', en: 'click to open the full card' })}">
-      <b>${esc(c.display)}</b>
-      <span class="muted" style="font-size:11px">${nxt} · ${played}/${c.calendar.length} ${tr({ it: 'gare', en: 'races' })}</span>
-      <span class="muted" style="font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${(c.cars ?? []).map(esc).join(' · ')}</span>
-      ${c.isCurrent ? `<span class="tag gold" style="font-size:9px;padding:0 5px">${tr({ it: 'attiva', en: 'active' })}</span>` : ''}
-    </button>`;
+    const pct = c.calendar.length ? Math.round(played / c.calendar.length * 100) : 0;
+    const nxt = c.nextRound ? `R${c.nextRound.index + 1} · ${c.nextRound.track}` : tr({ it: 'calendario finito', en: 'calendar over' });
+    const me = (c.standings ?? []).find(r=>r.isPlayer);
+    return `<div class="champ-card ${c.isCurrent ? 'cur' : ''}" data-node="${esc(c.nodeId)}" title="${esc(c.display)} — ${tr({ it: 'clicca per la scheda completa', en: 'click for the full card' })}">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+        <b style="font-size:13.5px">${esc(c.display)}</b>
+        ${c.isCurrent ? `<span class="tag gold" style="font-size:9px">${tr({ it: 'attiva', en: 'active' })}</span>` : ''}
+      </div>
+      <div class="muted" style="font-size:11px;margin-top:2px">L${c.level} · ${esc(c.discipline)} · ${(c.cars ?? []).map(esc).join(' · ')}</div>
+      <div class="cc-bar" style="margin-top:8px"><i style="width:${pct}%"></i></div>
+      <div class="muted" style="font-size:11.5px;margin-top:6px">${played}/${c.calendar.length} ${tr({ it: 'gare', en: 'races' })} · ${tr({ it: 'prossima', en: 'next' })}: ${esc(nxt)}${me ? ` · <b style="color:var(--text)">${tr({ it: 'tu P', en: 'you P' })}${me.position}</b> (${me.points} pt)` : ''}</div>
+    </div>`;
   }).join('');
-  m.innerHTML = `<div class="panel" style="padding:10px 14px"><div style="display:flex;gap:8px;flex-wrap:wrap">${badges}</div></div>`
+  m.innerHTML = `<div class="panel" style="padding:14px 16px">
+    <h2 style="margin:0 0 10px">${ICONS.championships} ${tr({ it: 'Campionati', en: 'Championships' })} <span class="h-act">${v.championships.length} ${tr({ it: 'serie firmate', en: 'signed series' })}</span></h2>
+    <div class="champ-grid">${cards}</div>
+    <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'Clicca una carta per scendere alla scheda completa.', en: 'Click a card to jump to its full card below.' })}</div>
+  </div>`
     + v.championships.map((c) => {
     const rounds = c.calendar.map((r) => {
       const mark = r.played ? '✓' : r.current ? '►' : '';
@@ -252,10 +283,12 @@ async function drawChampionships(m){
     const table = c.standings
       ? `<table><thead><tr><th></th><th>${tr({ it: 'Pilota', en: 'Driver' })}</th><th class="right">${tr({ it: 'Punti', en: 'Points' })}</th></tr></thead>
         <tbody>${c.standings.map(r=>`<tr class="${r.isPlayer?'me':''}"><td class="faint">P${r.position}</td><td>${esc(r.name)}${r.isPlayer?` <span class="tag gold">${tr({ it: 'tu', en: 'you' })}</span>`:''}</td><td class="right">${r.points}</td></tr>`).join('')}</tbody></table>`
-      : `<div class="empty">${tr({ it: 'Classifica non disponibile.', en: 'Standings not available.' })}</div>`;
-    return `<div class="panel" id="champ-${esc(c.nodeId)}">
-      <h2>${esc(c.display)} <span class="h-act">${tr({ it: 'stagione ', en: 'season ' })}${c.season}${c.isCurrent?` · <span class="tag gold">${tr({ it: 'serie attuale', en: 'current series' })}</span>`:''}</span></h2>
-      <div class="muted" style="margin:-4px 0 8px">L${c.level} · ${esc(c.discipline)} · ${tr({ it: 'una gara a settimana', en: 'one race a week' })}</div>
+      : `<div class="empty">${tr({ it: 'Classifica non disponibile.', en: 'Standings not available.' })}</div>`;    return `<details class="panel champ-detail" id="champ-${esc(c.nodeId)}" ${c.isCurrent ? 'open' : ''} style="margin-top:12px">
+      <summary style="cursor:pointer">
+        <b>${esc(c.display)}</b> <span class="h-act">${tr({ it: 'stagione ', en: 'season ' })}${c.season}${c.isCurrent ? ` · <span class="tag gold">${tr({ it: 'serie attuale', en: 'current series' })}</span>` : ''}</span>
+        <div class="muted" style="font-size:11px;margin-top:2px">L${c.level} · ${esc(c.discipline)} · ${tr({ it: 'una gara a settimana', en: 'one race a week' })}</div>
+      </summary>
+      <div style="margin-top:10px">
       <div class="grid2">
         <div>
           <div class="muted" style="margin-bottom:4px">${tr({ it: 'Calendario della stagione:', en: 'Season calendar:' })}</div>
@@ -267,36 +300,45 @@ async function drawChampionships(m){
           ${table}
         </div>
       </div>
-    </div>`;
-  }).join('');
-  // un click su un badge = scroll fluido alla sezione del campionato
-  $$('.champ-badge').forEach(b => { b.onclick = () => {
+      </div>
+    </details>`;
+  }).join('')
+    + (mondo ? `<details id="mondo-fold" class="panel" style="margin-top:14px"><summary style="cursor:pointer" title="${tr({ it: 'apri il quadro mondiale: piloti, skill e profili', en: 'open the world view: drivers, skill and profiles' })}"><b>${ICONS.iconic ?? '⭐'} ${tr({ it: 'Classifica Mondiale — prestigio', en: 'World Ranking — prestige' })}</b> <span class="muted">· ${mondo.w.total} ${tr({ it: 'piloti · tu sei P', en: 'drivers · you are P' })}<b>${mondo.w.myPosition}</b></span></summary>${mondo.html}</details>` : '');
+  if (mondo) mondo.wire();
+  // click su una carta: apre il pieghevole della scheda e scende fluido
+  $$('.champ-card').forEach(b => { b.onclick = () => {
     const sec = $(`#champ-${CSS.escape(b.dataset.node)}`);
-    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (sec) { sec.open = true; sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   }; });
 }
 
-/* -------- classifica MONDIALE per prestigio -------- */
-/* icone uniformi con la vista Rivali: avatar a iniziali determinista + bandiera,
-   chip tratti uguali, riga cliccabile identica — un solo viso per i piloti */
-async function drawWorldRanking(m){
+/* il cuore della vista: estratto in builder per essere RICICLATO anche dal
+   pannello piegato dentro Campionati (drawChampionships) — stesso HTML,
+   stesso click scheda, un solo viso per il mondo */
+async function worldRankingInner(){
   const w = await api('world-ranking');
-  m.innerHTML = `<div class="panel">
+  const html = `
   <h2>${ICONS.championships} ${tr({ it: 'Classifica Mondiale — prestigio', en: 'World Ranking — prestige' })} <span class="h-act">${w.total} ${tr({ it: 'piloti · tu sei P', en: 'drivers · you are P' })}${w.myPosition}</span></h2>
   <div class="muted" style="margin:-6px 0 10px">${tr({ it: "I più forti del mondo (le monoposto il vertice): skill innata di ogni pilota. La tua stima cresce passando a serie di livello più alto. <b>Clicca un pilota per la scheda completa.</b>", en: 'The strongest in the world (open-wheelers at the top): every driver\'s innate skill. Your estimate grows as you move up to higher-level series. <b>Click a driver for the full card.</b>' })}</div>
   <table><thead><tr><th class="right">#</th><th>${tr({ it: 'Pilota', en: 'Driver' })}</th><th></th><th class="right">${tr({ it: 'Skill', en: 'Skill' })}</th><th class="right">${tr({ it: 'Età', en: 'Age' })}</th><th>${tr({ it: 'Profilo', en: 'Profile' })}</th><th></th></tr></thead>
-  <tbody>${w.rows.map(r=>`<tr class="${r.isPlayer?'me':''} wr-row" data-k="${esc(String(r.name))}" style="${r.isPlayer?'':'cursor:pointer'}">
+  <tbody>${w.rows.map(r=>`<tr class="${r.isPlayer?'me':''} wr-row" data-k="${esc(String(r.key))}" style="${r.isPlayer?'':'cursor:pointer'}">
     <td class="right pos"><b>P${r.position}</b></td>
     <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.isPlayer?` <span class="tag gold">${tr({ it: 'tu', en: 'you' })}</span>`:''}${r.hot?` <span title="${tr({ it: 'in forma: in griglia alza il ritmo', en: 'in form: raises the pace on the grid' })}">🔥</span>`:''}</span></span></td>
     <td class="faint">${flagOf(r.country)} ${esc(r.country)}</td><td class="right"><b>${r.skill}</b>${r.iconic?` <span title="${tr({ it: 'tra i più forti in circolazione', en: 'among the strongest around' })}">⭐</span>`:''}</td><td class="right">${r.age??'—'}</td>
     <td>${r.traits?.length?r.traits.map(t=>`<span class="chip blue" style="font-size:10px;padding:1px 6px">${esc(t)}</span>`).join(' '):''}</td>
     <td class="muted" style="font-size:11px">${esc(r.archName ?? '')}</td></tr>`).join('')}</tbody>
-  </table></div>`;
-  $$('.wr-row').forEach(tr => { tr.onclick = () => showWorldPilot(tr.dataset.k, w.rows); });
+  </table>`;
+  return { w, html, wire: () => { $$('.wr-row').forEach(t => { t.onclick = () => showWorldPilot(t.dataset.k, w.rows); }); } };
+}
+
+async function drawWorldRanking(m){
+  const mo = await worldRankingInner();
+  m.innerHTML = `<div class="panel">${mo.html}</div>`;
+  mo.wire();
 }
 
 function showWorldPilot(name, rows){
-  const r = rows.find(x => String(x.name) === name);
+  const r = rows.find(x => String(x.key) === String(name) || String(x.realName ?? x.name) === name);
   if (!r) return;
   modal(`${tr({ it: 'Scheda pilota — ', en: 'Driver card — ' })}${r.name}`, `
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">${rivalAvatar(r.name, 46)}
@@ -312,7 +354,7 @@ function showWorldPilot(name, rows){
     <div class="muted" style="margin-bottom:8px"><b>${esc(r.archName ?? 'n/d')}</b> — ${esc(r.archDesc ?? '')}</div>
     <div class="muted" style="font-size:12.5px">${r.isPlayer ? tr({ it: 'Questo sei tu: la skill cresce coi risultati reali (vittorie e podi spingono sopra la banda della serie).', en: 'This is you: skill grows with real results (wins and podiums push you above the series baseline).' }) : r.hot ? tr({ it: '🔥 È in forma: in griglia alza il ritmo, attenzione.', en: '🔥 In form: raises the pace on the grid, be careful.' }) : tr({ it: 'Statista in forma normale: dati in tempo reale aggiornati a ogni import di gara.', en: 'Steady performer in normal form: real-time data refreshed at every race import.' })}</div>
     ${r.iconic ? `<div class="banner info" style="margin-top:8px">⭐ ${tr({ it: 'Pilota <b>iconico</b> del World: il suo livello è tra il vertice in assoluto di questa carriera.', en: 'A <b>world-class</b> driver: skill at the very top level of this career.' })}</div>` : ''}`,
-    [[tr({ it: 'Chiudi', en: 'Close' }), 'ghost',()=>{}]]);
+    [r.isPlayer ? null : [tr({ it: '✏️ Rinomina', en: '✏️ Rename' }), 'ghost', () => { window.rinominaPilota('world', r.key, r.name, r.realName).then(() => { document.querySelector('#modal-root').innerHTML = ''; render(); }); }], [tr({ it: 'Chiudi', en: 'Close' }), 'ghost',()=>{}]].filter(Boolean));
 }
 
 function serieDetail(n){

@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "title": "Cruscotto",
+  "pages": [
+    "menu.html"
+  ],
+  "scripts": [
+    "cruscotto.js"
+  ],
+  "files": []
+}

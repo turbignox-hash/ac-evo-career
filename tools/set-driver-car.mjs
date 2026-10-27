@@ -1,25 +1,29 @@
 // set-driver-car.mjs — CAMBIO AUTO SELEZIONATA a gioco APERTO.
 //
 // Il terzo strumento della famiglia set-track/set-car: il file è
-// ProfileData/<profilo>/OpenData/garage.drivergarage (~25 byte protobuf):
+// ProfileData/<profilo>/OpenData/garage.drivergarage (~24-25 byte protobuf):
 //   campo 4 = { 1: carHash (0x...), 2: guid2 (0x...) }   → auto + assetto
-//   campo 10 = 7                                          → costante osservata
+//   campo 10 = 7 (GARAGE_FLAG)                           → costante osservata
 // La mappa nome→hash si costruisce empiricamente col catturatore
-// (set-car-sample.mjs --map): al 20/10 ha 6 auto etichettate.
+// (set-car-sample.mjs --map): le auto etichettate in fondo al file.
 // La pista e l'auto selezionata insieme = il weekend preparato da un click.
-//
-// uso:
-//   node tools/set-driver-car.mjs --list
-//   node tools/set-driver-car.mjs --car "Audi RS 6 Avant" [--dry] [--force]
 import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { decodeMsg, encodeMsg, gameRunning, openDataDir, GAME_SAVEDIR } from './evo-grid.mjs';
+import { encodeMsg, openDataDir, GAME_SAVEDIR } from './evo-grid.mjs';
 import { decodeGarage, readMap } from './set-car-sample.mjs';
 
 // il profilo attivo si SCOPRE su disco (ProfileData/<guid>/OpenData): la GUID
 // cambia per installazione, il percorso fisso valeva solo sul PC di sviluppo
 export const GARAGE_FILE = join(openDataDir() ?? join(GAME_SAVEDIR, 'ProfileData', '_noprofile', 'OpenData'), 'garage.drivergarage');
 export const GARAGE_FLAG = 7;   // costante osservata su tutti i campioni (20/10/2026)
+
+/** Aggregato minusculo alfanumerico: "Mercedes-Benz 190E 2.5-16 Evo II"
+ *  → "mercedesbenz190e2516evoii" — i segni d'ortografia a caso fra i nomi
+ *  dell'app e quelli reali non devono mangiarsi una scrittura. */
+const normCar = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+/** Parole lunghe ≥ 3 del nome: i token che DEVONO tutti trovarsi nell'altro
+ *  nome («Mercedes 190E Evo II» vs «Mercedes-Benz 190E 2.5-16 Evo II»). */
+const tokenCar = (s) => (String(s ?? '').toLowerCase().match(/[a-z0-9]{3,}/g) ?? []);
 
 export function garageCurrent(file = GARAGE_FILE) {
   const raw = decodeGarage(readFileSync(file));
@@ -43,12 +47,28 @@ export function garageBuf(carHash, guid2) {
   ]);
 }
 
-/** Cerca nel dizionario per nome (substring case-insensitive) → { carHash, guid2, name }. */
+/**
+ * Cerca nel dizionario:
+ *   1) sottostringa secca case-insensitive («Abarth 695» ⊂ «Kunos Abarth
+ *      695 Biposto») — com'era dal 20/10;
+ *   2) a TOKEN (31/10, la lezione della Coppa Mercedes: il ladder chiama
+ *      «Mercedes 190E Evo II», il gioco «Mercedes-Benz 190E 2.5-16 Evo II»
+ *      e l'includes NON trovava niente: il Prepara lasciava in box l'auto
+ *      vecchia). Ogni token (≥3 caratteri) del nome richiesto deve comparire
+ *      nel nome del dizionario, in qualunque ordine e con segni orphaned.
+ * → { carHash, guid2, name } | null.
+ */
 export function findCar(name) {
   const entries = readMap().entries;
-  const want = String(name).toLowerCase();
+  const want = String(name ?? '').toLowerCase().trim();
   for (const [key, label] of Object.entries(entries)) {
-    if (label.toLowerCase().includes(want)) {
+    if (label.toLowerCase().includes(want)) return { name: label, carHash: key.split('|')[0], guid2: key.split('|')[1] };
+  }
+  const tokens = tokenCar(want);
+  if (!tokens.length) return null;
+  for (const [key, label] of Object.entries(entries)) {
+    const haystack = normCar(label);
+    if (tokens.every((t) => haystack.includes(t))) {
       const [carHash, guid2] = key.split('|');
       return { name: label, carHash, guid2 };
     }

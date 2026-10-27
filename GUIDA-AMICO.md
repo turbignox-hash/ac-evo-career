@@ -201,12 +201,12 @@ riconoscimento dei risultati si aggancia a quel nome) e nazione a 3 lettere.
 Da lì il ciclo di una gara è sempre lo stesso:
 
 ```
-scheda gara (checklist) → EVO: imposti i campi e scegli l'auto A MANO → corri
+scheda gara (checklist) → EVO: l'app imposta già tutto col tasto «Prepara tutto» → corri
 → la guardia (watcher) importa il risultato da sola
 ```
 
-L'unico intervento manuale resta la selezione dell'auto: la scheda gara dice
-quale usare.
+L'auto si imposta da sola (e dalle gare dopo apprende le nuove dal garage): se
+una non è nel dizionario, la scheda gara te lo dice e la scegli a mano quella volta.
 
 ### Prima gara multiclasse: Grid Type su CUSTOM, una volta sola
 

@@ -16,9 +16,10 @@ differenza importante e detta subito:
 > impostare (una schermata, due click) e apre il gioco per te. **Tutto il resto è
 > automatico**: il risultato lo legge dai file nativi del gioco.
 >
-> **L'unico intervento che resta in carico a te è selezionare l'auto a mano:** al
-> momento non è possibile impostarla in automatico, quindi la scegli tu
-> nell'interfaccia del gioco — e sulla scheda gara trovi già indicato quale.
+> **L'auto se la sceglie l'app da sola**: «Prepara tutto» la imposta nel
+> weekend di gara (e impara le nuove dal garage a fine gara). Non devi più
+> selezionarla a mano — salvo auto fuori dal dizionario, per cui la scheda gara
+> te lo segnala.
 
 **La carriera è ispirata ad Apex to Zero, l'app di carriera per Automobilista 2,
 ma è sviluppata da zero**: ladder, economia, punti, profili, classi e serie sono
@@ -26,9 +27,8 @@ codice e dati scritti per EVO, non ricostruzioni del progetto d'origine.
 
 ## I quattro appunti da sapere in partenza
 
-1. **L'auto si sceglie a mano, per ora.** Lancio della sessione, calendario,
-   iscrizioni, slider AI, import dei risultati e tutto quanto a valle è
-   automatico; resta manuale solo la scelta dell'auto (la scheda gara dice qual'è).
+1. **Niente più scelte a mano.** Lancio della sessione, auto, calendario,
+   iscrizioni, slider AI, import dei risultati: tutto automatico.
 2. **Il sistema di bilanciamento progressivo impara mentre giri.** I campionati
    multiclasse che insieme girano auto **della stessa categoria** ricevono
    **zavorre (kg) e penalità (%)** calcolate dal tool. Ogni risultato reale viene

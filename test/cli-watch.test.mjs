@@ -87,17 +87,24 @@ test('watchOnce incassa davvero una gara fresca della pista attesa (end-to-end, 
   const ladder = JSON.parse(LADDER);
 
   assert.equal(SAVE_FILE, join(DATA, 'evo-career.save.json'), 'il salvataggio è quello della cartella di prova');
-  const state = createCareer(ladder, { name: 'Test Driver', nation: 'ITA' }); // prima serie: coppa_citta, R1 = Imola
+  const state = createCareer(ladder, { name: 'Test Driver', nation: 'ITA' });
+  // la serie di partenza NON si codifica a mano: l'ordine dei calendari cambia
+  // legittimamente (passata di stile entry, 30/10). La pista attesa si legge
+  // DA LADDER: prima serie, R1, col nome bello di contentNames per evo-fake-result.
+  const entryNode = ladder.nodes[0];
+  const entryTrackId = entryNode.calendar[0].track;
+  const entryTrackName = ladder.contentNames.tracks[entryTrackId] ?? entryTrackId;
+  const entryCarId = entryNode.cars[0]; // deve essere una auto AMMESSA della serie (vigia del parco auto)
+  const entryCarName = ladder.contentNames.cars[entryCarId] ?? entryCarId;
   const JSON_MK = await import('node:fs');
   JSON_MK.writeFileSync(SAVE_FILE, JSON.stringify(state, null, 2) + '\n', 'utf8');
 
   // gara finta in formato EVO (stesso generatore usato per la demo), fresca e sulla pista attesa
   const fake = spawnSync(process.execPath, [join(ROOT, 'tools', 'evo-fake-result.mjs'),
-    '--dir', Results, '--player', 'Test Driver', '--track', 'Imola', '--position', '2', '--cars', '14',
-    // auto AMMESSA della serie (coppa_citta: Abarth 695/Golf GTI/Alfa Junior):
-    // la vigia del parco auto (car-pool.mjs) giudica la car del risultato e la
-    // Ferrari 296 default qui valeva autoFuori → premio ZERO.
-    '--car', 'Abarth 695 Biposto',], { encoding: 'utf8', timeout: 30000 });
+    '--dir', Results, '--player', 'Test Driver', '--track', entryTrackName, '--position', '2', '--cars', '14',
+    // auto AMMESSA della serie presa dal ladder (la vigia del parco auto
+    // (car-pool.mjs) giudica la car del risultato: una estranea → premio ZERO.
+    '--car', entryCarName,], { encoding: 'utf8', timeout: 30000 });
   assert.equal(fake.status, 0, `evo-fake-result exit ${fake.status}: ${(fake.stderr || fake.stdout || '').slice(-300)}`);
 
   const { saveState } = await import('../src/state.mjs?v=e2e');

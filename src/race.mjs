@@ -13,6 +13,7 @@ import { rebuildGridApply } from './grid-apply.mjs';
 import { contractStatus, challengeFor, trackMastery, sponsorFor, ensureContract, refreshContractTexts } from './life.mjs';
 import { raceCrowdFor } from './memories.mjs';
 import { launchGame } from './paths.mjs';
+import { carPaddockSpecsOf } from './paddock.mjs';
 import { loadCatalog } from './catalog.mjs';
 import { rivalsOutlook } from './rivals.mjs';
 import { recordFlows } from './flows.mjs';
@@ -166,6 +167,15 @@ export function raceCard(ladder, state, { car = null } = {}) {
   // riscrive comunque la forma da solo a ogni gara (mono compresa), e se la
   // scrittura da fuori non passa, il toast rosso guida al gesto a mano.
   const multiclasse = node.cars.length > 1;
+  // CONSIGLIO GRID TYPE, SOLO QUANDO SERVE (27/10, richiesta Mauro: prima lo vedevi
+  // anche sulle monomarca e sembrava un coro sincerato). La riga in scheda:
+  //   • multiclasse CON classe dichiarata (zavorre/penalità in grid-classes.json):
+  //     il selettore EVO va su CUSTOM alla prima gara — poi l'app lo riscrive da sola;
+  //   • gli altri casi (monomarce comprese): la riga SPARISCE, l'app imposta da sola.
+  const grigliaRow = !multiclasse ? null
+    : parco.classe != null
+      ? [tr({ it: 'Tipo griglia (Grid Type)', en: 'Grid Type' }), tr({ it: 'CUSTOM — lo fissi alla prima gara di questa serie, poi l’app lo riscrive da sola a ogni Prepara.', en: 'CUSTOM — set it at the first race of this series, then the app rewrites it itself every “Get ready”.' })]
+      : [tr({ it: 'Tipo griglia (Grid Type)', en: 'Grid Type' }), tr({ it: 'lascialo com’è — per questa serie non serve una posa speciale', en: 'leave it as is — this series needs no special setting' })];
   // ora d'inizio effettiva delle sessioni: override manuale, altrimenti il calcolo a ritroso
   const scale = Math.max(1, profile.timeScale ?? 1);
   const backFrom = (minsBefore) => round.hour != null
@@ -201,6 +211,9 @@ export function raceCard(ladder, state, { car = null } = {}) {
     // poolAuto in grid-classes.json, altrimenti le auto della serie del ladder
     carChoices: parcoIDs.map((id) => ({ id, display: carName(id) })),
     carPool: parco,
+    // EXTRA PADDACK (26/10): curva di coppia e versus dell'auto del sedile,
+    // dal catalogo scritto dall'app Paddock (letture pure, nessuna scrittura).
+    paddockSpec: carPaddockSpecsOf(chosenCarName, process.env),
     opponentCars: node.cars.map(carName),
     trackId: round.track,
     trackName: trackName(round.track),
@@ -216,27 +229,23 @@ export function raceCard(ladder, state, { car = null } = {}) {
     carAdvice: advice.list,
     settings: [
       [tr({ it: 'Modalità', en: 'Mode' }), tr({ it: 'Weekend di gara', en: 'Race weekend' })],
-      [tr({ it: 'Tipo griglia (Grid Type)', en: 'Grid Type' }), multiclasse
-        ? tr({ it: 'CUSTOM — alla PRIMA gara multiclasse muovi il selettore Grid Type su CUSTOM una volta sola e poi NON TOCCARLO PIÙ: porta al via le zavorre e le penalità di classe. L’app lo riscrive da solo a ogni Prepara; se non ci riesce, il messaggio rosso ti guida al gesto a mano.', en: 'CUSTOM — at the FIRST multiclass race move the Grid Type selector to CUSTOM once and then NEVER TOUCH IT AGAIN: it brings the class ballast and penalties to the start. The app rewrites it by itself at every Get-ready; if it cannot, the red message walks you through the manual move.' })
-        : tr({ it: 'come lo hai già va bene (serie monomarca: tutti alla pari, zavorre non ne servono — l’app imposta da sola il numero di avversari)', en: 'whatever it already is, it is fine (one-make series: everyone is equal, no ballast needed — the app sets the opponent count by itself)' })],
-      [tr({ it: 'Pista', en: 'Track' }), tr({ it: `${trackDisp} — layout ${layout}`, en: `${trackDisp} — layout ${layout}` })],
-      [tr({ it: 'Auto', en: 'Car' }), tr({ it: `${chosenCarName}${node.cars.length > 1 ? ` (un'auto ammessa della serie: ${parco.ammesse.slice(0, 6).join(', ')})` : ` (serie monomarca: ${chosenCarName})`}`, en: `${chosenCarName}${node.cars.length > 1 ? ` (one of the series' pool cars: ${parco.ammesse.slice(0, 6).join(', ')})` : ` (one-make series: ${chosenCarName})`}` })],
-      [tr({ it: 'Avversari', en: 'Opponents' }), tr({ it: nato ? `${gridsReali - 1} auto (dichiarate dal gioco sul weekend: contatore nativo, non la stima del calendario)` : `${node.gridSize - 1} auto`, en: nato ? `${gridsReali - 1} cars (as declared by the game on this weekend: native counter, not the calendar's estimate)` : `${node.gridSize - 1} cars` })],
-      [tr({ it: 'Auto avversarie', en: 'Opponent cars' }), tr({ it: node.cars.length > 1 ? `tutte della serie: ${node.cars.map(carName).join(', ')}` : `${carName(node.cars[0])} (serie monomarca)`, en: node.cars.length > 1 ? `all from the series: ${node.cars.map(carName).join(', ')}` : `${carName(node.cars[0])} (one-make series)` })],
-      [tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), tr({ it: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%${diffShown.overridden ? ' — scelto a mano' : ''}`, en: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%${diffShown.overridden ? ' — set by hand' : ''}` })],
-      [tr({ it: 'Aggressività AI', en: 'AI aggression' }), tr({ it: `${profile.aggr}% (in EVO è ancora bloccata: lasciala com'è)`, en: `${profile.aggr}% (still locked in EVO: leave it as is)` })],
+      // Grid Type: riga SOLO per le multiclasse (richiesta Mauro 27/10 — vedi su)
+      ...(grigliaRow ? [grigliaRow] : []),
+      [tr({ it: 'Pista', en: 'Track' }), tr({ it: `${trackDisp} — layout ${layout}`, en: `${trackDisp} — ${layout} layout` })],
+      [tr({ it: 'Auto', en: 'Car' }), chosenCarName],
+      [tr({ it: 'Avversari', en: 'Opponents' }), tr({ it: `${gridsReali - 1} auto · ${node.cars.length > 1 ? 'multiclasse: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}`, en: `${gridsReali - 1} cars · ${node.cars.length > 1 ? 'multiclass: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}` })],
+      [tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), tr({ it: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%`, en: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%` })],
       [tr({ it: 'Prove libere', en: 'Practice' }), card_sessionHint(profile.practiceMin, round, profile, 'P', practiceStartOv)],
       [tr({ it: 'Qualifiche', en: 'Qualifying' }), card_sessionHint(profile.qualifyMin, round, profile, 'Q', qualifyStartOv)],
-      [tr({ it: 'Gara', en: 'Race' }), tr({ it: `${laps} giri${round.laps ? ' (tempo reale)' : ''}${distPct !== 100 ? ` — ${distPct}% della distanza piena (${baseLaps} giri)` : ''}`, en: `${laps} laps${round.laps ? ' (real time)' : ''}${distPct !== 100 ? ` — ${distPct}% of the full distance (${baseLaps} laps)` : ''}` })],
-      [tr({ it: 'Formato gara', en: 'Race format' }), round.durationMin
-        ? tr({ it: `a TEMPO: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minuti (distanza piena ${round.durationMin}′) — in EVO scegli "Durata" invece dei giri`, en: `BY TIME: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minutes (full distance ${round.durationMin}′) — in EVO pick "Duration" instead of laps` })
-        : tr({ it: `a GIRI: ${laps} giri${distPct !== 100 ? ` (${distPct}% di ${baseLaps})` : ''}`, en: `BY LAPS: ${laps} laps${distPct !== 100 ? ` (${distPct}% of ${baseLaps})` : ''}` })],
-      [tr({ it: 'Moltiplicatore tempo', en: 'Time multiplier' }), tr({ it: `${profile.timeScale ?? 1}x${round.timeScale ? " — impostato dal piano orario del round" : " — lascialo a 1x: le raccomandazioni d'ora assumono il tempo reale"}`, en: `${profile.timeScale ?? 1}x${round.timeScale ? " — set by the round's time plan" : " — keep it at 1x: the time recommendations assume real time"}` })],
-      [tr({ it: 'Ora del giorno', en: 'Time of day' }), tr({ it: `${String(round.hour).padStart(2, '0')}:00${round.timeScale && round.timeScale > 1 ? `, ${round.timeScale}x: la luce si muove durante la gara` : ' — il sole parte da qui e scende fino alla bandiera a scacchi (col moltiplicatore tempo accelera pure lui)'}`, en: `${String(round.hour).padStart(2, '0')}:00${round.timeScale && round.timeScale > 1 ? `, ${round.timeScale}x: light moves during the race` : ' — the sun starts here and sinks to the checkered flag (it speeds up with the time multiplier too)'}` })],
+      [tr({ it: 'Gara', en: 'Race' }), round.durationMin
+        ? tr({ it: `a TEMPO: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minuti`, en: `BY TIME: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minutes` })
+        : tr({ it: `${laps} giri`, en: `${laps} laps` })],
+      [tr({ it: 'Moltiplicatore tempo', en: 'Time multiplier' }), tr({ it: `${profile.timeScale ?? 1}x`, en: `${profile.timeScale ?? 1}x` })],
+      [tr({ it: 'Ora del giorno', en: 'Time of day' }), tr({ it: `${String(round.hour).padStart(2, '0')}:00`, en: `${String(round.hour).padStart(2, '0')}:00` })],
       [tr({ it: 'Meteo', en: 'Weather' }), card_weatherHint(round.weather)],
-      [tr({ it: 'Partenza', en: 'Start' }), tr({ it: profile.start === 'rolling' ? 'lanciata, se l\'opzione è disponibile' : 'da fermo (griglia)', en: profile.start === 'rolling' ? 'rolling, if the option is available' : 'standing (grid)' })],
+      [tr({ it: 'Partenza', en: 'Start' }), tr({ it: profile.start === 'rolling' ? 'lanciata' : 'da fermo (griglia)', en: profile.start === 'rolling' ? 'rolling' : 'standing (grid)' })],
       [tr({ it: 'Pit obbligatorio', en: 'Mandatory pit' }), tr({ it: profile.pitreq ? 'sì, almeno 1 sosta' : 'no', en: profile.pitreq ? 'yes, at least 1 stop' : 'no' })],
-      [tr({ it: 'Danni', en: 'Damage' }), tr({ it: 'consigliato: leggeri (le serie storiche perdonano meno)', en: 'recommended: light (history series forgive less)' })],
+      [tr({ it: 'Danni', en: 'Damage' }), tr({ it: 'leggeri', en: 'light' })],
     ],
     warnings: buildWarnings(node, round, profile, diffShown, laps),
     gridRitual,

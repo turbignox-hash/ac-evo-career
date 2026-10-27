@@ -94,6 +94,10 @@ async function renderAB(host){
     const d = await api('ab-list');
     list = d.sessions ?? [];
   } catch { /* senza telemetria i select restano vuoti */ }
+  if (!list.length && $('#ab-note', host)) $('#ab-note', host).textContent = tr({
+    it: 'Nessuna sessione MoTeC ancora: il banco si attiva da solo dopo la prima uscita in pista (EVO scrive il file .ld quando chiudi la sessione).',
+    en: 'No MoTeC session yet: the bench fills up by itself after the first track outing (EVO writes the .ld file when you close the session).',
+  });
   const opt = (s) => `<option value="${esc(s.file)}">${esc(s.car)} · ${esc(s.track)} · ${esc(s.when)}</option>`;
   $('#ab-a', host).innerHTML += list.map(opt).join('');
   $('#ab-b', host).innerHTML += list.map(opt).join('');
@@ -116,6 +120,9 @@ async function renderAB(host){
         <table><thead><tr><th>${tr({ it: 'Canale', en: 'Channel' })}</th><th class="right">A</th><th class="right">B</th><th class="right">${tr({ it: 'Δ (B−A)', en: 'Δ (B−A)' })}</th></tr></thead>
         <tbody>${d.rows.map((r) => `<tr><td>${esc(r.k)}</td><td class="right">${r.a ?? '—'}</td><td class="right">${r.b ?? '—'}</td><td class="right ${r.delta == null ? '' : r.k.startsWith('s') && r.delta < 0 ? 'good' : ''}">${r.delta == null ? '—' : sign(r.delta, r.fixed)}</td></tr>`).join('')}</tbody></table>
         <div class="banner" style="margin-top:12px">⏱️ ${esc(d.zonesText)}</div>
+        ${d.brake?.text ? `<div class="banner info" style="margin-top:8px">🎯 ${esc(d.brake.text)}</div>` : ''}
+        ${d.A?.launch?.verdict || d.B?.launch?.verdict ? `<div class="banner" style="margin-top:8px">🚀 ${esc(d.A?.launch?.verdict ?? d.B.launch.verdict)}</div>` : ''}
+        ${d.A?.evolution?.verdict || d.B?.evolution?.verdict ? `<div class="banner" style="margin-top:8px">🌡️ ${esc(d.A?.evolution?.verdict ?? d.B.evolution.verdict)}</div>` : ''}
         <div class="muted" style="margin-top:8px;font-size:12px">${tr({ it: 'Tempo perso: ', en: 'Time lost: ' })}${dec((d.lostS ?? 0).toFixed(2))}s · ${tr({ it: 'tempo guadagnato: ', en: 'time gained: ' })}${dec((d.gainedS ?? 0).toFixed(2))}s</div>`,
         [[tr({ it: 'Chiudi', en: 'Close' }), 'ghost', () => {}]]);
     } catch (e) { toast(e.message, 'err'); }

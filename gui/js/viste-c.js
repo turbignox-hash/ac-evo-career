@@ -67,6 +67,7 @@ async function importCall(body){
       ${r.duel ? `<br>⚔️ ${tr({ it: 'Duello della stagione: ', en: 'Season duel: ' })}${esc(r.duel.name)} — ${tr({ it: 'tu ', en: 'you ' })}${r.duel.myPoints} pt, ${tr({ it: 'lui ', en: 'him ' })}${r.duel.hisPoints} pt.` : ''}
       ${r.news ? `<br>📰 <b>${esc(r.news.title)}</b><br><span class="muted" style="white-space:pre-wrap">${esc(r.news.body)}</span>` : ''}      ${r.seasonDone ? `<br><b>${tr({ it: 'Stagione completata!', en: 'Season complete!' })}</b> ${tr({ it: 'Puoi chiuderla dalla scheda in Cruscotto.', en: 'You can close it from the card on the Dashboard.' })}` : ''}
       ${r.entry?.sectors ? sectorRowsHtml(r.entry.sectors) : ''}
+      ${r.debrief ? debriefHtml(r.debrief) : ''}
     </div>`;
   } catch(e){
     const d = e.data || {};
@@ -75,6 +76,9 @@ async function importCall(body){
     if (d.code === 'TRACK_MISMATCH') extra = `<br>${tr({ it: 'Gara trovata su ', en: 'Race found at ' })}<b>${esc(d.detail?.actual)}</b>, ${tr({ it: 'attesa su ', en: 'expected at ' })}<b>${esc((d.detail?.expected||[]).join(' / '))}</b>.`;
     box.innerHTML = `<div class="banner bad">${esc(e.message)}${extra}</div>`;
   }
+  $('#b-debrief-analisi', box)?.addEventListener('click', () => {
+    document.querySelector('#nav button[data-tab="analisi"]')?.click();
+  });
   $('#b-nudge-accept', box)?.addEventListener('click', async () => {
     try {
       const out = await api('difficulty-nudge', { delta: 1 });
@@ -85,6 +89,25 @@ async function importCall(body){
       await refreshBoot();
     } catch(err){ toast(err.message, 'err'); }
   });
+}
+
+/* -------- debrief di fine gara (30/10) --------
+   La scheda che Paddock appoggia fra i round, qui DENTRO il banner verde
+dell'import: esito scomposto, i numeri che muoiono alla chiusura del gioco
+(benzina rimasta, gomma andata, partenza) e il consiglio del meccanico. */
+function debriefHtml(d){
+  const chips = d.rows.map((r) => `<span class="tag ${r.kind==='bad'?'red':r.kind==='warn'?'amber':'green'}" style="display:inline-block;margin:2px 4px 2px 0">${esc(r.text)}</span>`).join('');
+  const telem = d.telem.map((t) => `<li style="margin:2px 0"><span style="color:${t.kind==='bad'?'var(--bad)':t.kind==='warn'?'var(--warn, #d9a13a)':'var(--ink-faint)'}">●</span> ${esc(t.text)}</li>`).join('');
+  const par = d.pareri.map((p) => `<li style="margin:2px 0">🔧 ${esc(p)}</li>`).join('');
+  return `<div class="panel" style="margin-top:12px;background:rgba(255,255,255,.03)">
+    <h3 style="margin:0 0 6px">🏁 ${tr({ it: 'Debrief della gara', en: 'Race debrief' })} <span class="h-act">${esc(d.node ?? '')}</span></h3>
+    <div style="margin-bottom:6px">${esc(d.headline ?? '')}</div>
+    ${chips ? `<div style="margin:4px 0 8px">${chips}</div>` : ''}
+    ${telem ? `<ul style="margin:6px 0;padding-left:18px;list-style:none">${telem}</ul>` : ''}
+    ${par ? `<ul style="margin:6px 0;padding-left:8px;list-style:none" class="muted">${par}</ul>` : ''}
+    <div class="muted" style="font-size:12px;margin-top:6px">${tr({ it: 'La scomposizione completa del deficit resta in Analisi · Autopsia; i numeri di benzina e gomma qui sopra non si recuperano più: la sessione MoTeC di gara chiusa non si rivede.', en: 'The full deficit breakdown stays in Analysis · Autopsy; the fuel and tyre numbers above are gone forever once the race session closes.' })}</div>
+    <button class="ghost" id="b-debrief-analisi" style="margin-top:8px">${tr({ it: 'Apri Analisi', en: 'Open Analysis' })}</button>
+  </div>`;
 }
 
 function sectorRowsHtml(sec){
@@ -198,7 +221,11 @@ async function drawCars(m){
       ${row(tr({ it: 'Accelerazione', en: 'Acceleration' }), s.acceleration?esc(String(s.acceleration)):null)}
       ${row(tr({ it: 'Anno', en: 'Year' }), s.year??null)}
       ${row(tr({ it: 'Nazione', en: 'Country' }), s.country?esc(s.country):null)}
-      ${curveChart(s)}` : `<div class="muted" style="margin-top:8px;font-size:12px">${tr({ it: 'Scheda tecnica non disponibile per questo modello.', en: 'No tech specs available for this model.' })}</div>`}
+      ${curveChart(s)}
+      ${s.paddockVersus?.length ? `<div style="margin-top:10px">
+        <div class="muted" style="font-size:11px;margin-bottom:4px">📊 ${tr({ it: 'Versus sulla flotta (da Paddock)', en: 'Fleet versus (from Paddock)' })} · <span class="faint">${tr({ it: 'percentile su tutte le auto del catalogo', en: 'percentile across the whole car catalog' })}</span></div>
+        ${s.paddockVersus.map(v => `<div style="display:flex;align-items:center;gap:8px;font-size:11.5px;margin-top:3px"><span style="min-width:118px" class="muted">${esc(v.label)}</span><div style="flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden"><div style="height:100%;width:${Number(v.pos)||0}%;background:var(--acc)"></div></div><b style="min-width:34px;text-align:right">${v.pos}%</b><span class="faint" style="font-size:10px">${tr({ it: 'media ', en: 'avg ' })}${v.avg}%</span></div>`).join('')}
+      </div>` : ''}` : `<div class="muted" style="margin-top:8px;font-size:12px">${tr({ it: 'Scheda tecnica non disponibile per questo modello.', en: 'No tech specs available for this model.' })}</div>`}
       <h3 style="margin:14px 0 2px;font-size:13px">${tr({ it: 'Nella carriera', en: 'In the career' })}</h3>
       ${row(tr({ it: 'Nome nella carriera', en: 'Name in the career' }), r.ladderName ? esc(r.ladderName) : (r.ladderId ? esc(r.ladderId) : null))}
       ${row(tr({ it: 'Prezzo reale indicativo', en: 'Indicative real price' }), r.realPrice != null ? money(r.realPrice) + ' €' : null)}

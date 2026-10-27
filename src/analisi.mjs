@@ -25,7 +25,7 @@
 import { lapToMs } from './results.mjs';
 import { gridFor, pointsFor, ourToSkill, hash32, rng } from './world.mjs';
 import { rivalsStore } from './rivals.mjs';
-import { analyzeLd, sampleLap, sessionMetaOf } from './motec.mjs';
+import { analyzeLd, sampleLap, sessionMetaOf, brakeConsistency } from './motec.mjs';
 import { prizeFor, entryFee, difficultyFor, nodeById, gateStatus } from './state.mjs';
 import { tr, lang } from './lang.mjs';
 
@@ -172,7 +172,7 @@ export function raceAutopsy(ladder, state, { nodeId = state.node } = {}) {
  * stacca), la CONSISTENZA (sdev dei piazzamenti, DNF%) e le piste deboli
  * (dove girare più piiano di te) e le sue piste forti (dove ti prende).
  */
-export function rivalDossier(key) {
+export function rivalDossier(key, state) {
   const store = rivalsStore();
   const rv = store.rivals[key];
   if (!rv) return null;
@@ -224,7 +224,7 @@ export function rivalDossier(key) {
 
   const r1 = (v) => (v == null ? null : Math.round(v * 10) / 10);
   return {
-    key, name: rv.full, team: rv.team ?? null, nation: rv.nation ?? null, car: rv.car ?? null,
+    key, name: (state?.alias?.[key] ?? null) ?? rv.full, realName: rv.full, team: rv.team ?? null, nation: rv.nation ?? null, car: rv.car ?? null,
     since: (rv.since ?? '').slice(0, 10),
     meetingsCount: meetings.length,
     totals: { ...rv.totals },
@@ -292,6 +292,16 @@ export function setupAB(fileA, fileB, { points = 240 } = {}) {
     row(tr({ it: 'TC attiva %', en: 'TC on %' }), a.assist?.tcPct, b.assist?.tcPct),
     row(tr({ it: 'ABS attiva %', en: 'ABS on %' }), a.assist?.absPct, b.assist?.absPct),
     row(tr({ it: 'slittamento trazione %', en: 'traction slip %' }), a.assist?.slipRearPct, b.assist?.slipRearPct),
+    // PARTENZA ed EVOLUZIONE (30/10): lo scatto da fermo visto dal piede e la
+    // pendenza del tempo di giro nello svolgersi della sessione (s guadagnati
+    // o persi PER ORA) — la finestra serale si decide con questo numero.
+    row(tr({ it: 'partenza: gas primi 3 s %', en: 'launch: 3 s gas %' }), a.launch?.throttle3sPct, b.launch?.throttle3sPct),
+    row(tr({ it: 'partenza: slittamento %', en: 'launch: slip %' }), a.launch?.slipPct, b.launch?.slipPct),
+    row(tr({ it: 'evoluzione pista (s/ora)', en: 'track evolution (s/h)' }), a.evolution?.secPerHour, b.evolution?.secPerHour, { fixed: 2 }),
+    // GAS (28/10): % gas e gas-pieno di A vs B, giro best vs media di sessione
+    row(tr({ it: 'gas medio giro best %', en: 'avg gas best lap %' }), a.gas?.bestLapAvgPct, b.gas?.bestLapAvgPct),
+    row(tr({ it: 'a gas pieno giro best %', en: 'full gas best lap %' }), a.gas?.bestLapFullGasPct, b.gas?.bestLapFullGasPct),
+    row(tr({ it: 'gas medio sessione %', en: 'avg gas session %' }), a.gas?.sessionAvgPct, b.gas?.sessionAvgPct),
   ];
 
   // — tempo perso/guadagnato per ZONA
@@ -315,6 +325,31 @@ export function setupAB(fileA, fileB, { points = 240 } = {}) {
       : tr({ it: 'A GAS PIENO (limite trazione/aero)', en: 'AT FULL THROTTLE (traction/aero limit)' }))
     : tr({ it: 'niente dominante: il lap va e issa in varie zone', en: 'nothing dominant: the lap is even all around' });
 
+  // — COSTANZA IN FRENATA (30/10): la «matita tua» vs il riferimento B.
+  // Giro per giro si misura dove la staccata cambia (Δ km/h di ingresso) e
+  // dove il gap finisce davvero: se in una fascia l'ingresso varia ±8 km/h,
+  // il lap va perso lì e non sul fondo. Il B è il RIFERIMENTO (solo best lap):
+  // la staccata «buona» con cui confrontare la tua dispersione.
+  const bcA = brakeConsistency(fileA, { points: 96, buckets: 8 });
+  const bcB = brakeConsistency(fileB, { laps: 1, points: 96, buckets: 8 });
+  const fmtZ = (z) => `${(z - 1) * 12.5}%–${z * 12.5}%`;
+  const brake = (() => {
+    if (!bcA) return null;
+    const hot = (bcA.hot ?? []).slice(0, 3);
+    const list = hot.map((r) => {
+      const ref = bcB?.buckets?.find((x) => x.zone === r.zone) ?? null;
+      const d = (r.entryKmh != null && ref?.entryKmh != null) ? Math.round(r.entryKmh - ref.entryKmh) : null;
+      return tr({
+        it: `zona ${r.zone} (${fmtZ(r.zone)} del giro): ingresso ±${r.entrySd} km/h giro per giro${d != null ? `, ${d >= 0 ? `+${d}` : d} km/h vs riferimento` : ''}`,
+        en: `zone ${r.zone} (${fmtZ(r.zone)} of the lap): entry varies ±${r.entrySd} km/h lap to lap${d != null ? `, ${d >= 0 ? '+' : ''}${d} km/h vs reference` : ''}`,
+      });
+    });
+    const text = list.length
+      ? tr({ it: `Costanza in frenata — la staccata «cambia»: ${list.join(' · ')}. Lì il gap si perde sul giro, non sul fondo.`, en: `Braking consistency — the braking «wanders»: ${list.join(' · ')}. The gap is lost there, not on the straights.` })
+      : tr({ it: 'Costanza in frenata: la staccata è costante giro per giro — il tuo limite in frenata non è la matita.', en: 'Braking consistency: the braking point is consistent lap to lap — your braking limit is not the pencil.' });
+    return { text, hot, laps: bcA.laps };
+  })();
+
   const metaA = sessionMetaOf(String(fileA).split(/[/\\]/).pop());
   const metaB = sessionMetaOf(String(fileB).split(/[/\\]/).pop());
   const deltaBest = A.bestLapSec != null && B.bestLapSec != null ? Math.round((A.bestLapSec - B.bestLapSec) * 100) / 100 : null;
@@ -325,11 +360,12 @@ export function setupAB(fileA, fileB, { points = 240 } = {}) {
 
   return {
     ok: true,
-    A: { file: A.file ?? String(fileA), preset: metaA.preset ?? null, bestLapSec: A.bestLapSec, laps: a.validLaps, fuelPerLap: a.fuelPerLap, cold: a.coldPressures, hot: a.lastPressures, camberProxy: a.camberProxy, assist: a.assist },
-    B: { file: B.file ?? String(fileB), preset: metaB.preset ?? null, bestLapSec: B.bestLapSec, laps: b.validLaps, fuelPerLap: b.fuelPerLap, cold: b.coldPressures, hot: b.lastPressures, camberProxy: b.camberProxy, assist: b.assist },
+    A: { file: A.file ?? String(fileA), preset: metaA.preset ?? null, bestLapSec: A.bestLapSec, laps: a.validLaps, fuelPerLap: a.fuelPerLap, cold: a.coldPressures, hot: a.lastPressures, camberProxy: a.camberProxy, assist: a.assist, launch: a.launch, evolution: a.evolution },
+    B: { file: B.file ?? String(fileB), preset: metaB.preset ?? null, bestLapSec: B.bestLapSec, laps: b.validLaps, fuelPerLap: b.fuelPerLap, cold: b.coldPressures, hot: b.lastPressures, camberProxy: b.camberProxy, assist: b.assist, launch: b.launch, evolution: b.evolution },
     rows,
     lostS: Math.round(lost * 100) / 100, gainedS: Math.round(gained * 100) / 100,
     zones, deltaBest, zonesText,
+    brake,
   };
 }
 
@@ -591,5 +627,76 @@ export function tettoReport(ladder, state) {
       it: 'Il margine = best reale − giro teorico (somma dei tuoi best settori): quanto tempo ogni pista ti è costata a farla in un unico giro.',
       en: 'Margin = real best − theoretical lap (sum of your best sectors): how much time each track cost you to string together.',
     }),
+  };
+}
+
+/* ================================================================== */
+/* 6) DEBRIEF DI FINE GARA (30/10)                                     */
+/* ================================================================== */
+
+/**
+ * Il facciale di fine gara — PRIMA cosa dopo l'import, in stile Paddock:
+ *   - l'esito scomposto in cause (da raceAutopsy, in comune con tab Analisi),
+ *   - i numeri che MORIONO alla chiusura del gioco (benzina rimasta, gomma
+ *     andata, partenza) presi dal MoTeC della sessione, quando c'è,
+ *   - il parere del MECCANICO in una-due righe d'azione.
+ * analysis = risultato di analyzeLd sul .ld di gara (passato dal chiamante,
+ * che ha le paths); senza telemetria la scheda nasce comunque, solo più magra.
+ */
+export function raceDebrief(ladder, state, { nodeId = state.node, analysis = null } = {}) {
+  const auto = raceAutopsy(ladder, state, { nodeId });
+  if (!auto) return null;
+
+  /* — la telemetria che non rivedrai più: presa adesso o mai — */
+  const righe = [];
+  const laps = (analysis?.laps ?? []).filter((l) => l.durationSec > 15);
+  const flp = analysis?.fuelPerLap;
+  if (laps.length && Number.isFinite(flp) && flp > 0) {
+    const endFuel = laps[laps.length - 1].fuelEnd;
+    if (Number.isFinite(endFuel)) {
+      const spare = Math.floor(endFuel / flp);
+      const corto = spare < 1;
+      righe.push({ kind: corto ? 'bad' : spare < 2 ? 'warn' : 'info', text: tr({
+        it: `Benzina: al traguardo restavano ${endFuel.toFixed(1)} L — ${corto ? 'sei arrivato CORTO: i giri extra non si pagano da zero, alza il rifornimento' : `${spare} giro(i) di margine ${spare < 2 ? '(al limite: un giro in più e non arrivi)' : '(in sicurezza)'}`}`,
+        en: `Fuel: ${endFuel.toFixed(1)} L left at the flag — ${corto ? 'you finished SHORT: raise the refill' : `${spare} lap(s) of margin ${spare < 2 ? '(on the edge)' : '(safe)'}`}`,
+      }) });
+    }
+  }
+  /* gomma: escursione termica della superficie dal primo all'ultimo giro pieno */
+  if (laps.length >= 2 && laps[0].surf && laps[laps.length - 1].surf) {
+    const drift = Math.max(...laps[laps.length - 1].surf.flat()) - Math.min(...laps[0].surf.flat());
+    if (Number.isFinite(drift) && drift >= 4) righe.push({ kind: drift >= 12 ? 'warn' : 'info', text: tr({
+      it: `Gomma: la superficie ha camminato di ${Math.round(drift)}°C dal primo all'ultimo giro${drift >= 12 ? ' — la macchina cambia faccia a metà corsa: pressione da rivedere in garage' : ''}`,
+      en: `Tyres: surface moved ${Math.round(drift)}°C from first to last lap${drift >= 12 ? ' — the car changes face mid-race: revisit pressure in the garage' : ''}`,
+    }) });
+  }
+  if (analysis?.launch?.verdict) righe.push({ kind: /partenza ok|clean launch/i.test(analysis.launch.verdict) ? 'info' : 'warn', text: tr({
+    it: `Partenza: ${analysis.launch.verdict}`,
+    en: `Launch: ${analysis.launch.verdict}`,
+  }) });
+
+  /* — il parere del MECCANICO: una-due azioni concrete, non filosofia — */
+  const pareri = [];
+  if (analysis?.launch?.verdict && !/partenza ok|clean launch/i.test(analysis.launch.verdict)) pareri.push(analysis.launch.verdict);
+  if (laps.length >= 2 && laps[0].surf && laps[laps.length - 1].surf) {
+    const drift = Math.max(...laps[laps.length - 1].surf.flat()) - Math.min(...laps[0].surf.flat());
+    if (Number.isFinite(drift) && drift >= 12) pareri.push(tr({
+      it: `Gomma che bolle (+${Math.round(drift)}°C): −0.1/0.2 bar di pressione a freddo, o una di sostegno più morbida — la prova libera lo dirà.`,
+      en: `Tyres boiling (+${Math.round(drift)}°C): 0.1/0.2 bar less cold pressure, or a softer carcass — free practice will tell.`,
+    }));
+  }
+  const endFuelSpare = laps.length && Number.isFinite(flp) && flp > 0 && Number.isFinite(laps[laps.length - 1].fuelEnd)
+    ? Math.floor(laps[laps.length - 1].fuelEnd / flp) : null;
+  if (endFuelSpare != null && endFuelSpare < 1) pareri.push(tr({
+    it: 'Benzina corto un giro: la prossima gara arricchisci il rifornimento del litri mancanti calcolati in meccanico.',
+    en: 'A lap short on fuel: top the refill up by the missing litres next race.',
+  }));
+
+  return {
+    headline: auto.narrative[0],
+    rows: auto.attributions.slice(0, 4).map((a) => ({ title: a.title, text: a.text, kind: a.kind })),
+    telem: righe,
+    pareri: pareri.slice(0, 2),
+    node: auto.node, season: auto.season, round: auto.round,
   };
 }

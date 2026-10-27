@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
 import { sameTrack } from './tracknames.mjs';
 import { tr } from './lang.mjs';
+import { matchPool, logMatch } from './car-match.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);
@@ -273,14 +274,36 @@ export function buildGridMessage(opts) {
       }));
     }
   } else if (wantCars) {
-    const sel = tpl.cells.filter((b) => wantCars.has(carIdOf(b)));
-    if (sel.length) poolCells = sel;
-    else {
+    // MATCH GRADUALE (26/10, dal Gufo Paddock findModel): il vecchio filtro
+    // esatto (wantCars.has(carIdOf(cell))) si srotolava su un preset rinominato
+    // o su un nome con un accento di troppo. La catena esatta → contiene →
+    // tutte le parole → alias trova l'auto comunque, e se davvero manca il
+    // log porta i nomi VERI che il template ha su disco (data/match-auto.log):
+    // la fonte dati si sistema in un colpo, senza indovinare.
+    const labelsOf = (b) => {
+      let carId = null, carName = null;
+      for (const g of decodeMsg(b)) {
+        if (g.field === 3) carId = utf8(g.bytes);
+        else if (g.field === 4) carName = utf8(g.bytes);
+      }
+      return [carId, carName].filter(Boolean);
+    };
+    const aliases = classes.aliases?.cars ?? {};
+    const m = matchPool([...wantCars], tpl.cells, labelsOf, aliases);
+    if (m.mancanti.length) {
+      logMatch(join(PROJECT, 'data'), [
+        `serie "${nodeId}": auto del ladder non trovate nel template: ${m.mancanti.join(', ')} · auto veri del gioco nel template: ${m.reali.join(' | ')}`,
+      ]);
+    }
+    if (m.sel.length) {
+      poolCells = m.sel;
+      poolMultiInfo = m.mancanti.length ? { auto: [...new Set(m.sel.map(carIdOf))].length, celle: m.sel.length } : null;
+    } else {
       // lezione del 20/10 (Donington R3): con il template sbagliato in piedi (es. la
       // calibrazione hyper di sera) il fall-through silenzioso scriveva 12 GT3 RS
       // con il bilancio di un'altra classe. Meglio fermarsi: serve un template con
       // le auto della serie — quello di un'apply/gara precedente combaciante va bene.
-      throw new Error(`il template (last_grid.customgrid) non contiene le auto della serie (${[...wantCars].join(', ')}): ripristina un template combaciante (es. un backup .bak-apply di una gara di questa serie) o rigenera in EVO una griglia con quelle auto`);
+      throw new Error(`il template (last_grid.customgrid) non contiene le auto della serie (${[...wantCars].join(', ')}): auto veri presenti nel template: ${m.reali.join(' | ')}`);
     }
   }
   const poolPresets = [...new Set(poolCells.map(presetOf).filter(Boolean))];
@@ -304,9 +327,23 @@ export function buildGridMessage(opts) {
     ...(matched.cls?.escludiAuto ?? []),
     ...((trkKey ? matched.cls?.perTraccia?.[trkKey]?.escludiAuto ?? [] : [])),
   ]);
-  const poolEscluse = [...excludedPresets].filter((p) => poolPresets.includes(p));
+  // ESCLUSIONI PER FAMIGLIA (27/10, col gap di R7 Kyalami servito in dry):
+  // in grid-classes.json l'ESCLUSA è dichiarata col preset CHE AVEVA la serie
+  // quel giorno (preset_jcs_mech_1) ma i preset del template vengono
+  // RINUMERATI a ogni rilatto (mech_2, mech_3…): il confronto esatto smetteva
+  // di mordere e il Mini/MX-5 (esclusi da Mauro 23/10: +19/+20 s/lap) rientra
+  // in griglia con regole 0kg. Il match retto per famiglia auto — come fa
+  // car-pool.mjs coi token — vale per ogni meccanico della stessa auticella.
+  const senzaMech = (p) => String(p ?? '').toLowerCase().replace(/_mech_\d+/g, '');
+  const listaEscluse = [...excludedPresets].map(senzaMech).filter(Boolean);
+  const escluCella = (p) => {
+    if (p == null || !listaEscluse.length) return false;
+    const q = senzaMech(p);
+    return listaEscluse.some((e) => e === q || q.includes(e) || e.includes(q));
+  };
+  const poolEscluse = [...excludedPresets].filter((e) => poolPresets.some((p) => escluCella(p) && senzaMech(e) === senzaMech(p)));
   if (excludedPresets.size) {
-    const kept = poolCells.filter((b) => !excludedPresets.has(presetOf(b)));
+    const kept = poolCells.filter((b) => !escluCella(presetOf(b)));
     if (kept.length) poolCells = kept;
   }
 

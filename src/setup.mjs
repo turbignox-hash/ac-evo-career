@@ -342,6 +342,22 @@ export function boxChecklist(sessions, { target = null, raceLaps = null } = {}) 
     }));
   }
 
+  /* 6b. GAS (28/10): % gas del giro best vs media di sessione — il piede del
+      pilota. Media giro best ALTA e a gas pieno: costanza giusta. Media giro
+      best molto più alta DELLA MEDIA e ancora non scendi: gasi fuori dalla
+      trazione (riprendi prima di chiudere la curva). */
+  const g = cur.gas ?? null;
+  if (g && g.bestLapAvgPct != null && g.sessionAvgPct != null) {
+    if (g.bestLapFullGasPct != null && g.bestLapFullGasPct < 55) add('gas', 'info', tr({
+      it: `gas al best ${g.bestLapAvgPct}% · pieno ${g.bestLapFullGasPct}% del giro: pista da tenere in rispetto — il gas pieno qui è un vantaggio, non un dovere`,
+      en: `gas on best ${g.bestLapAvgPct}% · full ${g.bestLapFullGasPct}% of the lap: a demanding track — full throttle is a bonus here, not a duty`,
+    }));
+    else add('gas', 'ok', tr({
+      it: `gas al best ${g.bestLapAvgPct}% (media sessione ${g.sessionAvgPct}%${g.deltaPct != null ? `, il best gira ${g.deltaPct > 0 ? '+' : ''}${g.deltaPct}% di gas` : ''}) · a gas pieno ${g.bestLapFullGasPct ?? '—'}% del giro`,
+      en: `gas on best ${g.bestLapAvgPct}% (session avg ${g.sessionAvgPct}%${g.deltaPct != null ? `, best laps ${g.deltaPct > 0 ? '+' : ''}${g.deltaPct}% more throttle` : ''}) · full throttle ${g.bestLapFullGasPct ?? '—'}% of the lap`,
+    }));
+  }
+
   /* 7. CONSISTENZA — la storia del meccanico: esita il tempo sta scendendo */
   const laps = (cur.laps ?? []).filter((l) => l.durationSec > 15 && l.fuelUsed != null && l.fuelUsed >= 0);
   const bestLap = laps.length ? Math.min(...laps.map((l) => l.durationSec)) : null;

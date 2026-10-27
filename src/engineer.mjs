@@ -204,6 +204,9 @@ export function engineerLive(snap, ctx = {}) {
   }
 
   /* ---------- pit / timer ---------- */
+  // FINESTRA PIT ESPLICITA (30/10): la radio la dice COME SI FERMA, non solo «chi»
+  // — giri della finestra, chi la chiede e quanto COSTA la baia in tempo. Così
+  // il pilota in gara non deve indovinare: pit lap, finestra e «pena» li sente.
   if (player.inPit) {
     tips.push({ icon: '🔧', title: tr({ it: 'In pitlane', en: 'In pitlane' }), text: tr({ it: 'limiter on, no throttle — guarda la lavagna gomme prima di uscire', en: 'limiter on, no throttle — check the tyre board before leaving' }), prio: 1 });
   }
@@ -225,5 +228,14 @@ export function engineerLive(snap, ctx = {}) {
   gauges.raceLaps = ctx.raceLaps ?? null;
   gauges.fuelPerLap = Number.isFinite(fuelPerLap) ? fuelPerLap : null;
   const pit = pitWindow(gauges, { inRace, lapsTotal: gauges.lapsTotal });
+  if (pit && Number.isFinite(pit.pitLap) && pit.window) {
+    tips.push({
+      icon: '🛞',
+      title: tr({ it: `Finestra pit: giri ${pit.window[0]}–${pit.window[1]}`, en: `Pit window: laps ${pit.window[0]}–${pit.window[1]}` }),
+      text: tr({ it: `${pit.reason} · la baia costa ≈ ${pit.pitLossSec} s: fermati DENTRO la finestra, ogni giro dopo è tempo perso`, en: `${pit.reason} · the stop costs ≈ ${pit.pitLossSec} s: pit INSIDE the window, every lap after is time lost` }),
+      prio: 1,
+    });
+    tips.sort((a, b) => (a.prio ?? 9) - (b.prio ?? 9));
+  }
   return { ok: true, live: true, tips, gauges, pit };
 }

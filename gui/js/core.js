@@ -40,6 +40,51 @@ function toast(text, kind='', opts) {
   if (!persiste) setTimeout(() => t.remove(), o.ms ?? 4200);
 }
 
+/* CONSOLE DELLA PREPARAZIONE (27/10, richiesta Mauro): «la schermata rossa
+   quando premi prepara tutto sembra disastrosa» — al suo posto un log da
+   terminale: VERDE su NERO, una riga alla volta in tempo reale (scrittura
+   sequenziale), ⚠ esce in ambra, ✖ in rosso. Il pannello resta 15 s o finché
+   non si chiude; il click chiude. */
+function prepConsole(lines) {
+  $('#preplog')?.remove();
+  const box = document.createElement('div');
+  box.id = 'preplog';
+  const list = document.createElement('div');
+  list.className = 'pl-body';
+  const x = document.createElement('button');
+  x.className = 'pl-x';
+  x.setAttribute('aria-label', tr({ it: 'chiudi console di preparazione', en: 'close prep console' }));
+  x.textContent = '✕';
+  x.onclick = (e) => { e.stopPropagation(); box.remove(); };
+  const head = document.createElement('div');
+  head.className = 'pl-head';
+  head.textContent = '› evo-pitwall · prepara tutto';
+  box.append(head, x, list);
+  document.body.appendChild(box);
+  const killTimer = setTimeout(() => box.remove(), (lines.length + 3) * 220 + 9000);
+  const stamp = () => new Date().toLocaleTimeString('it-IT', { hour12: false });
+  let i = 0;
+  const next = () => {
+    if (i >= lines.length) { cursor.parentElement && cursor.remove(); return; }
+    const raw = String(lines[i++] ?? '');
+    const row = document.createElement('div');
+    row.className = 'pl-row' + (raw.startsWith('⚠') ? ' warn' : raw.startsWith('✖') ? ' bad' : '');
+    row.innerHTML = `<span class="pl-stamp">${stamp()}</span><span class="pl-text"></span>`;
+    row.querySelector('.pl-text').textContent = raw;
+    cursor.remove();
+    list.appendChild(row);
+    list.scrollTop = list.scrollHeight;
+    row.appendChild(cursor);
+    setTimeout(next, 220);
+  };
+  const cursor = document.createElement('span');
+  cursor.className = 'pl-cursor';
+  cursor.textContent = '▋';
+  list.appendChild(cursor);
+  box.onclick = () => { clearTimeout(killTimer); box.remove(); };
+  next();
+}
+
 /* ===================== barra aggiornamenti da GitHub =====================
    aparece solo se il remote offsite e' IN AVANTI del disco: "Aggiorna ora"
    porta giu' il codice (fetch + merge --ff-only) e gira i test. Il save
@@ -180,7 +225,6 @@ const TABS = [
   ['messages',       tr({ it: 'Messaggi',       en: 'Messages' })],
   ['championships',  tr({ it: 'Campionati',     en: 'Championships' })],
   ['griglia',        tr({ it: 'Griglia',        en: 'Grid' })],
-  ['standings',      tr({ it: 'Mondiale',       en: 'World' })],
   ['rivals',         tr({ it: 'Rivali',         en: 'Rivals' })],
   ['tracks',         tr({ it: 'Piste',          en: 'Tracks' })],
   ['cars',           tr({ it: 'Auto',           en: 'Cars' })],
@@ -197,6 +241,14 @@ const TABS = [
    live sottostante (src/live.mjs, lettore PS, strip header «In pista»,
    caricamento automatico import) resta: lo usano telemetria e setup.
 /* un colore per ogni sezione: le icone della nav restano riconoscibili a colpo d'occhio */
+/* una sola regola: GARA è ciò che serve IN giornata, Studio è tutto il resto
+   (30/10, sulle orme di Paddock che ragiona a sezioni). La vista MONDIALE non
+   è più scheda da barra: vive DENTRO Campionati come pannello a pieghevole
+   (drawChampionships) — funzione intatta, un posto in meno in barra. */
+const NAV_GROUPS = [
+  { label: { it: 'Gara', en: 'Race' }, ids: ['dashboard', 'agenda', 'setup', 'analisi', 'messages', 'import'] },
+  { label: { it: 'Studio', en: 'Study' }, ids: ['championships', 'griglia', 'rivals', 'tracks', 'cars', 'garage', 'archive', 'gironi', 'stats', 'banca', 'difficulty', 'settings'] },
+];
 const TAB_COLORS = {
   dashboard:'#5da9ff', agenda:'#ff7a45', calendar:'#b48cff', standings:'#ffd166',  rivals:'#ff6b6b',
   analisi:'#a3e433',
@@ -219,7 +271,6 @@ const AIUTO = [
   ['messages', { it: 'Il tavolo delle offerte: contratti, sponsor e mail del paddock da firmare o ignorare.', en: 'The offers table: contracts, sponsors and paddock mail to sign or ignore.' }],
   ['championships', { it: 'Serie e campionati: stagione in corso, classifiche, premi e contratti di ogni trofeo.', en: 'Series and championships: current season, standings, prizes and contracts of every trophy.' }],
   ['griglia', { it: 'Chi parte davanti: la griglia degli avversari della ronda, scritta nel gioco dal tool.', en: 'Who starts ahead: the race-weekend opponent grid, written into the game by the tool.' }],
-  ['standings', { it: 'Il quadro mondiale: piloti, squadre e sfide oltre la tua serie.', en: 'The world view: drivers, teams and rivalries beyond your series.' }],
   ['rivals', { it: 'I tuoi avversari abituali: storico dei duelli e chi devi battere.', en: 'Your regular rivals: duel history and who you still have to beat.' }],
   ['tracks', { it: 'Il libro delle piste: record personali, layout e storie di ogni tracciato.', en: 'The track book: personal records, layouts and stories for every circuit.' }],
   ['cars', { it: 'Le auto: schede tecniche e compatibilità, anche di quelle viste nel content di EVO.', en: 'The cars: spec sheets and compatibility, including cars found in the EVO content.' }],
@@ -245,8 +296,11 @@ function drawAiuto(){
 function drawNav(){
   const offers = boot?.header?.offers?.length || 0;
   const urgent = boot?.mailUrgent || 0;
-  $('#nav').innerHTML = TABS.map(([id,label]) =>
-    `<button data-tab="${id}" class="${tab===id?'on':''}">${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${tr({ it: `${urgent} email urgenti: gare da disputare o conflitti`, en: `${urgent} ${urgent===1?'urgent email':'urgent emails'}: races to run or conflicts` })}">⚠️${urgent}</span>`:''}</button>`).join('') +
+  const bottone = ([id,label]) =>
+    `<button data-tab="${id}" class="${tab===id?'on':''}">${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${tr({ it: `${urgent} email urgenti: gare da disputare o conflitti`, en: `${urgent} ${urgent===1?'urgent email':'urgent emails'}: races to run or conflicts` })}">⚠️${urgent}</span>`:''}</button>`;
+  $('#nav').innerHTML = NAV_GROUPS.map((g) =>
+    `<div class="nav-grp">${tr(g.label)}</div>`
+    + TABS.filter(([id]) => g.ids.includes(id)).map(bottone).join('')).join('') +
     `<button id="b-aiuto" title="${tr({ it: 'Che fa ogni menu', en: 'What each menu does' })}" style="margin-top:auto;border-top:1px solid var(--line,#283046)">❓ ${tr({ it: 'Aiuto', en: 'Help' })}</button>`;
   $('#b-aiuto')?.addEventListener('click', drawAiuto);
   $$('#nav button[data-tab]').forEach(b => { b.onclick = () => { tab = b.dataset.tab; drawNav(); render(); }; });
@@ -456,3 +510,26 @@ function decoratePanels(scope) {
   if (root) new MutationObserver(() => decoratePanels(root)).observe(root, { childList: true, subtree: true });
   run();
 })();
+
+/* Rinomina i piloti (26/10): SITO di chiamata unico per rivali e classifica
+   mondiale. Il soprannome vive nel save (state.alias) e vale SOLO sulle
+   schermate (registro, schede, mondiale): la storia e i record di gara su
+   rivals.json restano coi nomi veri, nulla si perde. Alias vuoto o uguale al
+   nome vero = rimuove il soprannome. */
+async function rinominaPilota(scope, key, attuale, vero){
+  if (!key) return;
+  const label = vero || attuale || '';
+  const testo = window.tr({
+    it: `Soprannome per «${label}» — vuoto o uguale = nome vero:`,
+    en: `Nickname for "${label}" — empty or equal = real name:`,
+  });
+  const v = window.prompt(testo, attuale || '');
+  if (v === null) return;
+  const nv = String(v).trim();
+  if (!nv || nv === label) { if (!attuale || attuale === label) return; }
+  try {
+    await api('alias-set', { scope, key, alias: (!nv || nv === label) ? '' : nv });
+    toast(nv && nv !== label ? window.tr({ it: `Soprannome salvato: ${nv}`, en: `Nickname saved: ${nv}` }) : window.tr({ it: 'Nome vero ripristinato.', en: 'Real name restored.' }), 'ok');
+  } catch (e) { toast(window.tr({ it: 'Non riesco a salvare il soprannome: ', en: 'Cannot save the nickname: ' }) + (e.message ?? e), 'err'); }
+}
+window.rinominaPilota = rinominaPilota;

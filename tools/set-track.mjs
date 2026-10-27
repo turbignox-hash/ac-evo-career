@@ -21,6 +21,32 @@ import { sameTrack } from '../src/tracknames.mjs';
 
 export const WEEKEND_FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 
+/* ---------- lettura robusta del gamemodesave (27/10, Mauro) ----------
+   A EVO APERTO il gioco riscrive il file da solo (weekend avviato, menu in
+   attività): una lettura unica può cadere su file OCCUPATO (EBUSY/EPERM) o
+   scritto a METÀ (forma non decodificabile). Il Prepara allora chiedeva a
+   mano «muovi Grid Type su CUSTOM» per un problema che mezzo secondo dopo
+   non esisteva più — lo stato sul disco era già a posto («controlla
+   paddock»: il selettore c'era già). Si riprova 3× con pausa di 400 ms:
+   la riscrittura del gioco dura pochissimo. */
+const GM_TENTATIVI = 3;
+const GM_PAUSA_MS = 400;
+const pausaMs = (ms) => { try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); } catch { /* pazienza: senza Atomics si va senza pausa */ } };
+
+/** Lettura + decodifica del gamemodesave con tentativi. L'ultimo errore
+ *  arriva al chiamante solo dopo l'ultimo fallito. */
+export function leggiGmFields(file = WEEKEND_FILE) {
+  let ultimo;
+  for (let i = 0; i < GM_TENTATIVI; i++) {
+    if (i > 0) pausaMs(GM_PAUSA_MS);
+    try {
+      const buf = readFileSync(file);
+      return decodeMsg(buf);
+    } catch (e) { ultimo = e; }
+  }
+  throw ultimo;
+}
+
 // nazione ISO a 3 lettere (campo 3.5.1): TRACK_INFO porta il nome in italiano
 export const ISO = {
   Italia: 'ITA', Giappone: 'JPN', Austria: 'AUT', Germania: 'DEU', Francia: 'FRA',
@@ -170,17 +196,26 @@ export function weekendCarCount(file = WEEKEND_FILE) {
   try { buf = readFileSync(file); } catch { return null; }
   let fields;
   try { fields = decodeMsg(buf); } catch { return null; }
-  const f3 = fields.find((f) => f.field === 3 && f.wire === 2);
-  if (!f3) return null;
-  let session;
-  try { session = decodeMsg(f3.bytes); } catch { return null; }
-  const cars = session.filter((s) => s.field === 10 && s.wire === 2);
-  const dec = session.find((s) => s.field === 7 && s.wire === 0);
-  return {
-    cars: cars.length,
-    declared: dec ? Number(dec.varint) : null,
-    track: currentWeekendTrack(file),
-  };
+  // LEZIONE 27/10 (DTM Legends «Prepara tutto» → griglia a 1 cella): il PRIMO
+  // blocco 3 (Practice) può portare il RESIDUO di una vecchia ronda rotta
+  // (cars=1, dichiarato=1) mentre gli ALTRI blocchi (Quali/Gara) conservano la
+  // dichiarazione VERA della ronda (3.7=15 → 16 celle). Letto solo il primo
+  // blocco, il gate del conteggio restringeva la serie al residuo.
+  // Ora si scandiscono TUTTI i blocchi: cars = massino delle voci 3.10,
+  // declared = massimo dei 3.7 presenti (la dichiarazione più alta è quella
+  // che il gioco dovrebbe soddisfare: scrivere SOPRA di lei è ciò che crasha).
+  let cars = 0, declared = null;
+  const blocchi = fields.filter((f) => f.field === 3 && f.wire === 2);
+  if (!blocchi.length) return null;
+  for (const f3 of blocchi) {
+    let session;
+    try { session = decodeMsg(f3.bytes); } catch { continue; }
+    const n = session.filter((s) => s.field === 10 && s.wire === 2).length;
+    if (n > cars) cars = n;
+    const dec = session.find((s) => s.field === 7 && s.wire === 0);
+    if (dec) { const v = Number(dec.varint); if (declared == null || v > declared) declared = v; }
+  }
+  return { cars, declared, track: currentWeekendTrack(file) };
 }
 
 /**
@@ -324,10 +359,8 @@ export function setWeekendAi(min, max, { file = WEEKEND_FILE, dry = false } = {}
  * gamemodesave non c'è / non si legge (PC vergine, EVO mai sul weekend).
  */
 export function weekendGridMode(file = WEEKEND_FILE) {
-  let buf;
-  try { buf = readFileSync(file); } catch { return null; }
   let fields;
-  try { fields = decodeMsg(buf); } catch { return null; }
+  try { fields = leggiGmFields(file); } catch { return null; }
   const f3 = fields.find((f) => f.field === 3 && f.wire === 2);
   if (!f3) return null;
   let session;
@@ -364,43 +397,56 @@ export function weekendGridMode(file = WEEKEND_FILE) {
 export function setWeekendGridMode(mode, count, { file = WEEKEND_FILE, dry = false } = {}) {
   const custom = mode === 'custom';
   const n = Math.max(1, Math.min(127, Math.round(Number(count))));
-  const buf = readFileSync(file);
-  const fields = decodeMsg(buf);
-  const f3 = fields.find((f) => f.field === 3 && f.wire === 2);
-  if (!f3) throw Object.assign(new Error('blocco sessione (campo 3) non trovato nel gamemodesave'), { code: 'NO_SESSION' });
-  const session = decodeMsg(f3.bytes);
-  let i6 = session.findIndex((s) => s.field === 6 && s.wire === 0);
-  const i7 = session.findIndex((s) => s.field === 7 && s.wire === 0);
-  let touched = false;
-  // il 6 = 1 è presente in ENTRAMBE le forme canoniche: se manca (save
-  // strano), lo scrivo in prima posizione tra i campi alti, dopo il 5.
-  if (i6 < 0) {
-    let i = session.findIndex((s) => s.field > 6);
-    session.splice(i >= 0 ? i : session.length, 0, { field: 6, wire: 0, varint: BigInt(1) });
-    i6 = i >= 0 ? i : session.length - 1;
-    touched = true;
+  // TENTATIVI (26/10 notte, Mauro «il log dice di spostare il selettore, perché?»):
+  // a EVO aperto ciò che si legge può essere occupato o scritto a metà, e anche
+  // la scrittura (backup + tmp + rename) può cadere su file tenuto dal gioco.
+  // Si riprova finché il transiente non passa; il gesto a mano resta per il
+  // fallimento VERO (file assente o forma irreparabile), non per il transiente.
+  let ultimo;
+  const tentativi = dry ? 1 : GM_TENTATIVI;
+  for (let tent = 0; tent < tentativi; tent++) {
+    if (tent > 0) pausaMs(GM_PAUSA_MS);
+    try {
+      const buf = readFileSync(file);
+      const fields = decodeMsg(buf);
+      const f3 = fields.find((f) => f.field === 3 && f.wire === 2);
+      if (!f3) throw Object.assign(new Error('blocco sessione (campo 3) non trovato nel gamemodesave'), { code: 'NO_SESSION' });
+      const session = decodeMsg(f3.bytes);
+      let i6 = session.findIndex((s) => s.field === 6 && s.wire === 0);
+      const i7 = session.findIndex((s) => s.field === 7 && s.wire === 0);
+      let touched = false;
+      // il 6 = 1 è presente in ENTRAMBE le forme canoniche: se manca (save
+      // strano), lo scrivo in prima posizione tra i campi alti, dopo il 5.
+      if (i6 < 0) {
+        let i = session.findIndex((s) => s.field > 6);
+        session.splice(i >= 0 ? i : session.length, 0, { field: 6, wire: 0, varint: BigInt(1) });
+        i6 = i >= 0 ? i : session.length - 1;
+        touched = true;
+      }
+      const out = { mode: custom ? 'custom' : 'automatic', count: custom ? n : null };
+      if (custom) {
+        if (i7 >= 0) {
+          if (Number(session[i7].varint) !== n) { session[i7].varint = BigInt(n); touched = true; }
+        } else {
+          // la forma canonica porta il 7 SUBITO DOPO il 6 (ordine del file
+          // scritto dal menu 19:39: 6 poi 7).
+          session.splice(i6 + 1, 0, { field: 7, wire: 0, varint: BigInt(n) });
+          touched = true;
+        }
+      } else if (i7 >= 0) {
+        session.splice(i7, 1);   // torna la forma automatic: 6 solo, 7 via
+        touched = true;
+      }
+      f3.bytes = encodeMsg(session);
+      if (dry || !touched) return { ...out, changed: touched, written: false };
+      const backup = `${file}.bak-gridmode-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+      copyFileSync(file, backup);
+      writeFileSync(`${file}.tmp`, encodeMsg(fields));
+      renameSync(`${file}.tmp`, file);
+      return { ...out, changed: true, written: true, backup };
+    } catch (e) { ultimo = e; }
   }
-  const out = { mode: custom ? 'custom' : 'automatic', count: custom ? n : null };
-  if (custom) {
-    if (i7 >= 0) {
-      if (Number(session[i7].varint) !== n) { session[i7].varint = BigInt(n); touched = true; }
-    } else {
-      // la forma canonica porta il 7 SUBITO DOPO il 6 (ordine del file
-      // scritto dal menu 19:39: 6 poi 7).
-      session.splice(i6 + 1, 0, { field: 7, wire: 0, varint: BigInt(n) });
-      touched = true;
-    }
-  } else if (i7 >= 0) {
-    session.splice(i7, 1);   // torna la forma automatic: 6 solo, 7 via
-    touched = true;
-  }
-  f3.bytes = encodeMsg(session);
-  if (dry || !touched) return { ...out, changed: touched, written: false };
-  const backup = `${file}.bak-gridmode-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
-  copyFileSync(file, backup);
-  writeFileSync(`${file}.tmp`, encodeMsg(fields));
-  renameSync(`${file}.tmp`, file);
-  return { ...out, changed: true, written: true, backup };
+  throw ultimo;
 }
 
 /**

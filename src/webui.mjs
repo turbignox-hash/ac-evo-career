@@ -57,6 +57,10 @@ import { readCells } from '../tools/grid-balance.mjs';
 // GitHub precompilata (versione, serie in corso, errori recenti) e il link
 // Ko-fi dal config. Nessuna rete qui: il POST lo fa il browser.
 import { feedbackLinks } from './report.mjs';
+// paddock.mjs: il ponte con l'app Paddock del gioco (read-only): calendario
+// della stagione con METEO/ORÀ scritti a monte, catalogo auto con curva di
+// coppia e versus, registro contabile. Il cruscotto la pesca in `/api/paddock`.
+import { paddockOverview } from './paddock.mjs';
 import { statoAggiornamentiAsync, installaAggiornamenti } from '../tools/aggiornamenti.mjs';
 
 // check degli aggiornamenti FUORI dal boot (audit freeze 23/10): qui prima
@@ -112,11 +116,14 @@ import { resetNews } from './gazzetta.mjs';
 // griglia: tab bilanciamento (celle, classi, perTraccia) + azioni di scrittura
 import { loadClasses, buildGridMessage } from './gridbuilder.mjs';
 import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, rebuildGridApply, GRID_FILE } from './grid-apply.mjs';
+// app «Cruscotto» in gioco: publisher della vetrina nella cartella del loader
+import { startUiappPublisher } from './uiapp-pub.mjs';
 import { gridFileOf } from '../tools/evo-grid.mjs';
 import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
 // analisi.mjs: i cinque strumenti del pilota (autopsia, dossier rivali, banco
 // A/B, Monte Carlo sedili, tetto teorico) — letture pure, niente scritture.
-import { raceAutopsy, rivalDossier, setupAB, seatMonteCarlo, tettoReport } from './analisi.mjs';
+// 30/10: entra il SESTO, il debrief di fine gara (raceDebrief).
+import { raceAutopsy, raceDebrief, rivalDossier, setupAB, seatMonteCarlo, tettoReport } from './analisi.mjs';
 
 /* TAG GRIGLIA all'iscrizione (richiesta Mauro 21/10: la coppa a un'unica auto
  * non deve più nascondere dietro il nome "Coppa X" cosa troverai in pista):
@@ -397,23 +404,25 @@ async function syncLiveReader() {
 async function api(context0, _req, res, action, body) {
   const { ladder, paths } = context0;
   const hasCareer = () => existsSync(SAVE_FILE);
-  const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'paddock', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-prep', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'event-prize-refresh', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'import-inspect', 'tracks', 'backup', 'grid-apply', 'grid-drop', 'grid-ai', 'mechanic', 'maintenance'];
+  const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'paddock', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'alias-set', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-prep', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'event-prize-refresh', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'import-inspect', 'tracks', 'backup', 'grid-apply', 'grid-drop', 'grid-ai', 'mechanic', 'maintenance'];
   if (needsCareer.includes(action) && !state) {
     return sendJson(res, 400, { error: tr({ it: "Non c'è ancora una carriera: creane una dalla schermata iniziale.", en: 'There is no career yet: create one from the start screen.' }) });
   }
   if (state) {
     ensureFlowsSeeded(state); // carriere nate prima del registro flussi
-    // difficoltà AI diretta per OGNI serie: 88–93% di default, la Coppa GT86 resta
-    // l'unica a 99–100 (scelta di Mauro). Chi ha già un valore lo mantiene; le serie
-    // senza impostazione lo ricevono. I valori restano modificabili col pannello
-    // regole e coi tasti ±1 del cruscotto (difficulty-nudge).
+    // difficoltà AI diretta per OGNI serie: 84–85% di default (richiesta Mauro
+    // 27/10: prima il 88–89, poi «per qualcuno potrebbe già essere difficile»:
+    // si parte TUTTI dalla stessa banda 84–85 e poi comanda il TRIM
+    // adattivo a salire o scendere serie per serie) — la Coppa GT86 resta
+    // un'eccezione della sua scelta se la risegnalata da lui. Chi ha già un
+    // valore lo mantiene; le serie senza impostazione lo ricevono.
     const RS = (state.raceSettings ??= {});
     for (const n of (ladder.nodes ?? [])) {
       const cur = RS[n.nodeId];
-      if (!cur) RS[n.nodeId] = { sliderMin: 88, sliderMax: 93 };
+      if (!cur) RS[n.nodeId] = { sliderMin: 84, sliderMax: 85 };
       else {
-        if (cur.sliderMin == null) cur.sliderMin = 88;
-        if (cur.sliderMax == null) cur.sliderMax = 93;
+        if (cur.sliderMin == null) cur.sliderMin = 84;
+        if (cur.sliderMax == null) cur.sliderMax = 85;
       }
     }
   }
@@ -626,6 +635,10 @@ async function api(context0, _req, res, action, body) {
       });
     }
     case 'status': return sendJson(res, 200, viewStatus(ladder, state));
+    // PADDACK (richiesta Mauro 26/10 "punti correndo"): la scheda della
+    // prossima gara + il calendario + l'economia dell'app Paddock, LETTA dal
+    // disco (nessun avvio richiesto): gli extra sono ready per il cruscotto.
+    case 'paddock': return sendJson(res, 200, paddockOverview(process.env));
     case 'catalog': return sendJson(res, 200, loadCatalog(paths, process.env, { driver: state?.driver ?? null, afterMs: body.all ? 0 : (state?.createdAt ?? 0) }));
     case 'result-detail': return sendJson(res, 200, resultDetail(paths, String(body.file ?? '')) ?? { error: tr({ it: 'File non trovato.', en: 'File not found.' }) });
     case 'watcher':
@@ -752,16 +765,33 @@ async function api(context0, _req, res, action, body) {
       });
     }
     case 'stats': return sendJson(res, 200, careerStats(ladder, state));
+    case 'alias-set': {
+      // Nomi del pilota (26/10): soprannomi per RIVALI e PILOTI DEL MONDO,
+      // salvati nel save (state.alias) così sopravvivono agli aggiornamenti.
+      // scope 'rival' usa la chiave rivals.json, scope 'world' la chiave
+      // world:NOME-COGNOME dell'elenco; alias vuoto = rimuovi il soprannome.
+      const scope = String(body.scope ?? 'rival');
+      const k = String(body.key ?? '').trim();
+      const a = String(body.alias ?? '').trim();
+      if (!k) return sendJson(res, 400, { error: tr({ it: 'Manca il pilota.', en: 'Missing driver.' }) });
+      const key = scope === 'world' ? `world:${k}` : k;
+      state.alias ??= {};
+      if (a) state.alias[key] = a; else delete state.alias[key];
+      persist(state);
+      return sendJson(res, 200, { ok: true });
+    }
     case 'rivals': return sendJson(res, 200, rivalsOverview(ladder, state, { q: typeof body.q === 'string' ? body.q : null }));
     case 'imports': return sendJson(res, 200, { ledger: importedFiles().slice(0, 30), log: importLog(20) });
-    case 'rival-detail': return sendJson(res, 200, rivalDetail(String(body.key ?? '')) ?? { error: tr({ it: 'Rivale non trovato.', en: 'Rival not found.' }) });
-    case 'rival-dossier': return sendJson(res, 200, rivalDossier(String(body.key ?? '')) ?? { error: tr({ it: 'Rivale non trovato.', en: 'Rival not found.' }) });
+    case 'rival-detail': return sendJson(res, 200, rivalDetail(String(body.key ?? ''), state) ?? { error: tr({ it: 'Rivale non trovato.', en: 'Rival not found.' }) });
+    case 'rival-dossier': return sendJson(res, 200, rivalDossier(String(body.key ?? ''), state) ?? { error: tr({ it: 'Rivale non trovato.', en: 'Rival not found.' }) });
     // analisi (tab Analisi): autopsia dell'ultima gara, tetto teorico, banco A/B, Monte Carlo sedili
     case 'autopsy': return sendJson(res, 200, raceAutopsy(ladder, state) ?? { error: tr({ it: 'Nessuna gara ancora: dopo il primo import qui arriva la scomposizione del deficit.', en: 'No race yet: the deficit breakdown lands here after the first import.' }) });
     case 'tetto': return sendJson(res, 200, tettoReport(ladder, state));
     case 'seat-mc': return sendJson(res, 200, seatMonteCarlo(ladder, state, { sims: Number(body.sims) || 400 }));
     case 'ab-list': {
-      const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
+      // primo avvio senza cartelle dati: niente TypeError su join(undefined):
+      // il root è una stringa vuota, listMotecSessions torno un elenco vuoto.
+      const root = join(paths.dataDirs?.[0] ?? paths.dataDirs?.[1] ?? '', 'MoTec');
       const sessions = listMotecSessions(root).slice(0, 40).map((s) => ({
         file: s.name, path: s.file, car: s.car, track: s.track,
         when: new Date(s.mtime).toLocaleString('it-IT'), mtimeMs: s.mtime,
@@ -770,7 +800,7 @@ async function api(context0, _req, res, action, body) {
     }
     case 'ab-setup': {
       try {
-        const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
+        const root = join(paths.dataDirs?.[0] ?? paths.dataDirs?.[1] ?? '', 'MoTec');
         const all = listMotecSessions(root, { afterMs: state.createdAt ?? 0 }); // solo sessioni della SUA carriera (24/10)
         const pick = (name) => all.find((s) => s.name === String(name ?? ''))
           ?? (isFile(String(name ?? '')) ? { file: String(name) } : null);
@@ -805,7 +835,7 @@ async function api(context0, _req, res, action, body) {
       const rows = (world?.drivers ?? [])
         .filter((d) => d.active !== false)
         .map((d) => ({
-          key: d.id ?? `${d.first}-${d.last}`, name: `${d.first} ${d.last}`, country: d.country,
+          key: d.id ?? `${d.first}-${d.last}`, name: state?.alias?.[`world:${d.id ?? `${d.first}-${d.last}`}`] || `${d.first} ${d.last}`, realName: `${d.first} ${d.last}`, country: d.country,
           skill: Number(d.skill) || 0, age: d.age, archetype: d.archetype,
           cons: d.cons, aggr: d.aggr, hot: !!d.hot, iconic: !!d.iconic, seasons: d.seasons ?? 0,
           form: d.hot ? tr({ it: 'in forma', en: 'in form' }) : d.retired ? tr({ it: 'in declino', en: 'in decline' }) : '',
@@ -1092,8 +1122,9 @@ async function api(context0, _req, res, action, body) {
       } catch (e) { return sendJson(res, 400, { error: e.message }); }
     }
     case 'difficulty-nudge': {
-      // trim manuale dal cruscotto: ±1 sulla banda della serie corrente (88–93 → 89–94).
-      // Vale per la serie, quindi per qualsiasi auto di quella serie: la scheda si aggiorna.
+      // trim manuale dal cruscotto: ±1, ±2 o ±3 sulla banda della serie corrente
+      // (Mauro 27/10: «fino a +3 −3, 1,2,3»). Vale per la serie, quindi per
+      // qualsiasi auto di quella serie: la scheda si aggiorna.
       try {
         const node = nodeById(ladder, state.node);
         const RS = (state.raceSettings ??= {});
@@ -1101,9 +1132,16 @@ async function api(context0, _req, res, action, body) {
         const S = (RS[node.nodeId] ??= {});
         S.sliderMin ??= card0.difficulty.rangeMin;
         S.sliderMax ??= card0.difficulty.rangeMax;
-        const delta = Math.max(-5, Math.min(5, Math.round(Number(body.delta) || 0)));
+        const delta = Math.max(-3, Math.min(3, Math.round(Number(body.delta) || 0)));
         S.sliderMin = Math.max(0, Math.min(100, S.sliderMin + delta));
         S.sliderMax = Math.max(S.sliderMin, Math.min(100, S.sliderMax + delta));
+        // MAURO 27/10: il nudge manuale si REGISTRA per le prossime gare
+        // simili — lo stesso delta conta in OGNI serie (registro `global`
+        // in state.difficulty, mostrato in cima al pannello Difficoltà),
+        // così un «+1» sulla serie di oggi è un «+1» anche sul campionato
+        // che iscriverai domani. Simmetrico: il −1 ti riporta giù tutto.
+        state.difficulty ??= {};
+        state.difficulty.global = Math.max(-20, Math.min(20, (state.difficulty.global ?? 0) + delta));
         // anche il nudge arriva al gioco: banda del weekend riscritta per coerenza
         try { setWeekendAi(S.sliderMin, S.sliderMax); } catch { /* scheda valida comunque */ }
         // il suggerimento in sospeso (se c'è) è stato gestito: si chiude
@@ -1700,8 +1738,19 @@ async function api(context0, _req, res, action, body) {
       // menu chiuso → menu nato CUSTOM da solo). Silente se il save manca.
       // La forma è la STESSA (N = celle-1) per mono e multiclasse.
       try {
-        const celle = existsSync(GRID_FILE) ? (readCells(GRID_FILE)?.cells ?? []) : null;
-        if (!celle) throw new Error('nessun customgrid sul disco: ripremi Prepara tutto (il rebuild la ricostruisce) o usa tab Griglia / CLI griglia');
+        // LETTURA CON RESA (27/10, errori 00:06/00:11 «varint oltrefine»): se il
+        // menu griglia di EVO sta riscrivendo il file proprio in quell'istante,
+        // la lettura parte a metà scrittura e il decoder muore con «varint
+        // oltrefine». 3 tentativi a 250 ms: la corsa transitoria passa; se il
+        // file è davvero illeggibile, dopo l'ultimo tentativo resta piano B.
+        let celle = null, letErr = null;
+        for (let t = 0; t < 3 && !celle; t++) {
+          if (t) await new Promise((r) => setTimeout(r, 250));
+          try { celle = existsSync(GRID_FILE) ? (readCells(GRID_FILE)?.cells ?? []) : null; }
+          catch (e) { letErr = e; }
+          if (celle === null) break;   // file assente: un altro tentativo non lo crea
+        }
+        if (!celle) throw letErr ?? new Error('nessun customgrid sul disco: ripremi Prepara tutto (il rebuild la ricostruisce) o usa tab Griglia / CLI griglia');
         // CARTUCCIA a 0 CELLE decodificabili (26/10 notte, il weekend rigenerato
         // di EVO): non settle mai custom/1 — il contatore scende al template
         // in magazzino (la memoria VERA della serie) e solo in ultima analisi
@@ -1720,6 +1769,10 @@ async function api(context0, _req, res, action, body) {
           ? tr({ it: `custom sbloccato (contatore ${contatore})`, en: `custom unlocked (count ${contatore})` })
           : tr({ it: 'griglia custom già in piedi', en: 'custom grid already in place' });
       } catch (e) {
+        // 27/10: il motivo VERO del piano B va nel registro (data/errors.jsonl):
+        // il toast lo mostra in coda, ma sembra una recita e non si capisce il
+        // perché. Così Diagnostica porta la riga con il motivo originale.
+        recordWarning('webui.gridmode', e.message, `node ${state.node} round ${state.round}`);
         /* PIANO B (26/10 notte, richiesta Mauro): se la scrittura del modo non
         passa (file letto a metà scrittura dal gioco, blocco lock su disco,
         forma non decodificabile), l'amico NON resta indietro: il messaggio
@@ -1842,8 +1895,36 @@ async function api(context0, _req, res, action, body) {
         // refresh a mano. Segnamo il ritmo UGUALE a quello del watcher:
         // i duplicati e gli import vuoti NON toccano il contatore (niente
         // ricariche inutili a ogni giro di polling).
+        // DEBRIEF DI FINE GARA (30/10): la scheda che Paddock mostra fra un
+        // round e l'altro, qui costruita con i dati VERI: scomposizione del
+        // deficit (raceAutopsy, in comune con tab Analisi) + benzina/gomma/
+        // partenza dall'ultimo .ld di gara (i numeri che muoiono alla chiusura
+        // del gioco) + il parere del meccanico. Solo sulla gara APPENA
+        // importata: duplicati e vuoti non rigenerano nulla.
         if (!out?.duplicate && (out?.entry ?? out?.updated)) {
           watcher.importSeq = (watcher.importSeq ?? 0) + 1;
+          const entry = out.entry ?? out.updated;
+          try {
+            const dataRoot = paths.dataDirs?.[0] ?? '';
+            // il .ld di gara va cercato RETRODATATO dal momento della corsa,
+            // non dall'ora dell'import: con afterMs = now un .ld di testday
+            // fatto nel frattempo potrebbe scavalcare la gara vera.
+            const atMs = Date.parse(entry?.at ?? entry?.importedAt ?? '') || Date.now();
+            const dataRootMoTec = join(dataRoot, 'MoTec');
+            const dataRootResults = paths.resultsDirs?.[0] ?? join(dataRoot, 'Results');
+            const session = collectSessions(dataRootMoTec, dataRootResults, { limit: 6, afterMs: atMs - 3 * 3600000 })[0] ?? null;
+            let analysis = null;
+            if (session?.file) analysis = analyzeLd(session.file);
+            const d = raceDebrief(ladder, state, { analysis });
+            if (d) {
+              out.debrief = d;
+              // copia nel MERIDIANO: la scheda vive anche in Messaggi, come la
+              // stagione di Paddock che ricorda a fondo round cosa è successo.
+              const breve = [d.headline, d.telem[0]?.text ?? d.rows[0]?.text ?? d.pareri[0]].filter(Boolean).join(' — ');
+              pushMessage(state, `🏁 ${breve}`, 'info');
+              persist(state);
+            }
+          } catch (e) { recordWarning('debrief.post', 'debrief di fine gara fallito', e?.message ?? null); }
         }
         return sendJson(res, 200, { ...out, eventSpawned: spawn ? { id: spawn.id, theme: spawn.theme.name, track: spawn.trackDisplay } : null });
       } catch (e) {
@@ -1973,8 +2054,8 @@ async function api(context0, _req, res, action, body) {
           const RS = (state.raceSettings ??= {});
           const S = (RS[t] ??= {});
           const shift = (val - before) * 1;
-          S.sliderMin = Math.max(0, Math.min(100, (S.sliderMin ?? Math.round((state.raceSettings[t]?.sliderMin ?? 88))) + shift));
-          S.sliderMax = Math.max(S.sliderMin, Math.min(100, (S.sliderMax ?? Math.round((state.raceSettings[t]?.sliderMax ?? 89))) + shift));
+          S.sliderMin = Math.max(0, Math.min(100, (S.sliderMin ?? Math.round((state.raceSettings[t]?.sliderMin ?? 84))) + shift));
+          S.sliderMax = Math.max(S.sliderMin, Math.min(100, (S.sliderMax ?? Math.round((state.raceSettings[t]?.sliderMax ?? 85))) + shift));
         }
         // il trim della serie corrente arriva anche ai cursori del gioco
         try { const cs = state.raceSettings[state.node]; if (cs?.sliderMin != null) setWeekendAi(cs.sliderMin, cs.sliderMax); } catch { /* se manca il file si va avanti */ }
@@ -3140,4 +3221,9 @@ setInterval(watcherTick, 4000);
 // parte dopo 2.5s di server aperto, quando il cruscotto è già dipinto.
 setTimeout(() => maintenanceTick({ force: true }), 2500).unref();
 setInterval(() => maintenanceTick(), 10 * 60 * 1000);
+
+// App «Cruscotto» in gioco (27/10): il publisher scrive la vetrina del giorno
+// nella cartella della mod (loader ACE), stessa aerodinamica del Paddock —
+// file statico JSON nuovo ogni 2.5s, il gioco non deve fare richiesta alcuna.
+startUiappPublisher();
 

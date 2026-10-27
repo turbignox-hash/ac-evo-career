@@ -4,6 +4,10 @@ async function drawDifficulty(m){
   const v = await api('difficulty');
   const rng = v.trimRange ?? {min:-20, max:20};
   const sr = v.sliderRange ?? {min:0, max:120};
+  // MODO ADATTIVO = l'app regola le bande da sola (suggerimento in attesa, accetta/rifiuta):
+  // i comandi a MANO della pagina (trim ± e cursori di banda) sono FERMI fino a che si
+  // torna su «fissa» — chiesto Mauro 27/10: niente doppie leve che si pestano i piedi.
+  const adattivo = v.mode === 'adaptive';
   m.innerHTML = `
   <div class="panel">
     <h2>${tr({ it: 'Difficoltà AI', en: 'AI difficulty' })} <span class="h-act">${tr({ it: 'modalità ', en: 'mode ' })}${v.mode === 'adaptive' ? tr({ it: 'adattiva', en: 'adaptive' }) : tr({ it: 'fissa', en: 'fixed' })}</span></h2>
@@ -12,22 +16,28 @@ async function drawDifficulty(m){
       <button class="mini ${v.mode==='adaptive'?'on':''}" data-mode="adaptive">${tr({ it: 'adattiva', en: 'adaptive' })}</button>
       <button class="mini ${v.mode==='fixed'?'on':''}" data-mode="fixed">${tr({ it: 'fissa', en: 'fixed' })}</button>
       <input type="number" id="i-diffval" min="70" max="120" value="95" style="width:90px" title="${tr({ it: 'valore fisso (70–120)', en: 'fixed value (70–120)' })}">
+      ${adattivo ? `<span class="muted" style="margin-left:10px" title="${tr({ it: 'il modo adattivo regola il trim ed è lui che propone (accetta/rifiuta qui sotto): trim ± e cursori a mano sono fermi — premi «fissa» per riprendere il controllo manuale', en: 'adaptive mode tunes the trim by itself and makes the suggestions (accept/reject below): manual trim ± and drag handles are locked — press fixed to regain manual control' })}">🔒 ${tr({ it: 'adattivo attivo: trim e cursori a mano fermi (passa su «fissa» per regolarli a mano)', en: 'adaptive on: manual trim and handles locked (switch to fixed for manual control)' })}</span>` : ''}
+      ${(v.global ?? 0) !== 0 ? `<span class="muted" style="margin-left:10px" title="${tr({ it: 'somma dei ± che hai premuto sui bottoni «aumenta/diminuisci difficoltà» del cruscotto: vale per le PROSSIME gare in ogni serie', en: 'the sum of the ± you pressed on the dashboard "raise/lower difficulty" buttons: it counts for UPCOMING races in every series' })}">⚡ ${tr({ it: 'adattivo generale ', en: 'general adaptive ' })}<b>${v.global>0?'+':''}${v.global}</b> ${tr({ it: '(registrato dai nudge del cruscotto)', en: '(recorded from the dashboard nudges)' })}</span>` : ''}
     </div>
     ${v.pending ? `<div class="banner ${v.pending.to>=(v.trimRange?.max??20)?'warn':''}">${tr({ it: 'Suggerimento in attesa —', en: 'Pending suggestion —' })} ${esc(v.pendingDisplay)}: ${esc(v.pending.reason)} → trim ${v.pending.to >= 0 ? '+' : ''}${v.pending.to}${v.pending.to>=(v.trimRange?.max??20)?` (${tr({ it: 'massimo raggiunto', en: 'max reached' })})`:''}
       <button class="mini" id="b-acc">${tr({ it: 'accetta', en: 'accept' })}</button> <button class="mini" id="b-rej">${tr({ it: 'rifiuta', en: 'reject' })}</button></div>` : ''}
     <div style="margin-top:10px">
     ${v.rows.map(r=>{
       const atMax = r.trim >= (v.trimRange?.max ?? 20);
-      return `<div class="diff-row" data-id="${esc(r.id)}">
+      return `<div class="diff-row" data-id="${esc(r.id)}" data-trim="${r.trim??0}"${r.id?.startsWith('evento_')?' data-evento="1"':''}>
       <span>${r.current?'◄':''}</span><span class="nm">${esc(r.display)}${r.locked?' 🔒':''}</span>
       <span class="num" title="${tr({ it: 'base della serie + trim', en: 'series base + trim' })}">${tr({ it: 'base', en: 'base' })} ${r.base}</span><span class="num" title="${tr({ it: 'trim adattivo', en: 'adaptive trim' })} (±${rng.max})">${tr({ it: 'trim', en: 'trim' })} ${r.trim>=0?'+':''}${r.trim}${atMax?' ⚠️':''}</span>
+      ${r.id?.startsWith('evento_') ? '' : `<span class="tripunto" style="display:inline-flex;gap:2px" title="${tr({ it: 'trim a mano da +3 a −3 (Mauro 27/10): un punto di trim = un punto di banda AI della serie', en: 'manual trim from +3 to −3 (Mauro 27/10): one trim point = one AI band point of the series' })}${adattivo ? tr({ it: ' · modo adattivo attivo: comandi fermi, l\'app regola da sola — passa su «fissa» per il controllo manuale', en: ' · adaptive mode on: locked, the app tunes by itself — switch to fixed for manual control' }) : ''}">
+        ${[1,2,3].map(d=>`<button class="mini dy" data-d="-${d}" ${r.locked||adattivo?'disabled':''} title="${tr({ it: 'trim −', en: 'trim −' })}${d}">−${d}</button>`).join('')}
+        ${[1,2,3].map(d=>`<button class="mini dy" data-d="+${d}" ${r.locked||adattivo?'disabled':''} title="${tr({ it: 'trim +', en: 'trim +' })}${d}">+${d}</button>`).join('')}
+      </span>`}
       <span class="num" title="${tr({ it: 'correzione classe / pista', en: 'class / track correction' })}">${r.offClass>=0?'+':''}${r.offClass}/${r.offTrack>=0?'+':''}${r.offTrack}</span>
       <span class="sl" title="${tr({ it: 'centro consigliato convertito in slider EVO', en: 'suggested centre converted into the EVO slider' })}">${r.slider}%</span>
       <span class="rangebox">
-        <span class="duo" title="${tr({ it: ' due cursori sulla STESSA barra, come nel gioco: trascina il minimo e il massimo (consiglio: banda di 1 punto). Si scrivono anche sui cursori di EVO, alla prossima apertura del weekend', en: 'two handles on the SAME bar, like in the game: drag the minimum and maximum (suggest: 1-point band). Written to the EVO sliders too, at the next weekend open' })}">
+        <span class="duo" title="${tr({ it: ' due cursori sulla STESSA barra, come nel gioco: trascina il minimo e il massimo (consiglio: banda di 1 punto). Si scrivono anche sui cursori di EVO, alla prossima apertura del weekend', en: 'two handles on the SAME bar, like in the game: drag the minimum and maximum (suggest: 1-point band). Written to the EVO sliders too, at the next weekend open' })}${adattivo ? tr({ it: ' — modo adattivo: fermi, la banda la decide l\'app', en: ' — adaptive mode: locked, the band is decided by the app' }) : ''}">
           <span class="sel" style="left:${Math.min(r.rangeMin,r.rangeMax)}%;right:${100-Math.max(r.rangeMin,r.rangeMax)}%"></span>
-          <input type="range" class="smin" min="0" max="100" step="1" value="${r.rangeMin}" ${r.locked?'disabled':''}>
-          <input type="range" class="smax" min="0" max="100" step="1" value="${r.rangeMax}" ${r.locked?'disabled':''}>
+          <input type="range" class="smin" min="0" max="100" step="1" value="${r.rangeMin}" ${r.locked||adattivo?'disabled':''}>
+          <input type="range" class="smax" min="0" max="100" step="1" value="${r.rangeMax}" ${r.locked||adattivo?'disabled':''}>
         </span>
         <b class="pair">${Math.min(r.rangeMin,r.rangeMax)}–${Math.max(r.rangeMin,r.rangeMax)}%</b>
         <button class="mini rc" title="${tr({ it: 'torna al consiglio: centro ±5', en: 'back to the suggestion: centre ±5' })}" ${r.overridden?'':'style="visibility:hidden"'}>↺</button>
@@ -41,6 +51,18 @@ async function drawDifficulty(m){
   }; });
   $('#b-acc')?.addEventListener('click', async () => { await api('difficulty-action', {op:'accept'}); render(); });
   $('#b-rej')?.addEventListener('click', async () => { await api('difficulty-action', {op:'reject'}); render(); });
+  // trim a mano ±1/±2/±3 per riga (Mauro 27/10, «fino a +3 −3, 1,2,3»): il segno
+  // SUL TRIM della serie (non sulla banda), e la banda slitta insieme: 1 punto
+  // di trim = 1 punto slider. Eventi (righe evento_*) restano a banda fissa.
+  $$('.dy', m).forEach(b => { b.onclick = async () => {
+    try {
+      const row = b.closest('.diff-row');
+      const cur = Number(row?.dataset.trim ?? 0);
+      const next = Math.max(-20, Math.min(20, cur + Number(b.dataset.d)));
+      await api('difficulty-action', { op: 'trim', nodeId: b.closest('.diff-row').dataset.id, value: next });
+      render();
+    } catch(e){ toast(e.message, 'err'); }
+  }; });
   // intervallo min-max di ogni serie, come nel gioco: DUE cursori sulla stessa
   // barra. Al trascinamento si ricollocano a vicenda (il minimo non passa sopra
   // il massimo e viceversa); si salvano solo al rilascio, e il server riscrive
@@ -295,6 +317,10 @@ function drawSettings(m){
         <option value="en">English</option>
       </select>
     </div>
+    <div class="row" style="margin-top:8px;align-items:center">
+      <button class="mini" id="b-prova-voce" type="button">🔊 ${tr({ it: 'Prova la voce', en: 'Test the voice' })}</button>
+      <span id="voce-esito" class="muted" style="font-size:12px"></span>
+    </div>
     <div class="muted" style="margin-top:8px;font-size:12px">${tr({ it: 'La scelta vale per questo browser. Menu e banner aggiornamenti sono già bilingui; le viste si traducono al giro in cui si toccano (regola "pigra", vedi README).', en: 'The choice applies to this browser. Menu and updates banner are already bilingual; views get translated as they are touched (the "lazy" rule, see README).' })}</div>
   </div>
   <div class="grid2">
@@ -371,6 +397,36 @@ function drawSettings(m){
   // lingua: selettore collegato a gui/js/lang.js (tr + impostaLingua)
   const selLingua = $('#i-lingua');
   if (selLingua) { selLingua.value = window.LINGUA; selLingua.onchange = (e) => impostaLingua(e.target.value); }
+  /* PROVA LA VOCE (27/10, Mauro: «copilota sempre inglese»): parla una frase
+     di collaudo con la STESSA scelta che fa in gara la copilota del cruscotto
+     (Italiano SEMPRE) e scrive QUALE voce del sistema è stata usata: se esce
+     «Voce usata: … [it-IT]» il timbro è giusto; se esce una voce [en-US] il
+     sistema è andato in fallback perché la lista voci non era ancora caricata
+     — il bottone riprovato dopo un secondo la prende. */
+  $('#b-prova-voce').onclick = () => {
+    if (!('speechSynthesis' in window)) { $('#voce-esito').textContent = tr({ it: 'Il browser non supporta la voce.', en: 'This browser has no speech support.' }); return; }
+    const esito = $('#voce-esito');
+    const pick = (vs) => {
+      const norm = (s) => String(s ?? '').toLowerCase().replace('_', '-');
+      return vs.find((vv) => norm(vv.lang) === 'it-it')
+        ?? vs.find((vv) => norm(vv.lang).startsWith('it'))
+        ?? vs.find((vv) => /ital/i.test(String(vv.name ?? '') + String(vv.voiceURI ?? '')));
+    };
+    const parla = (tentativo = 0) => {
+      speechSynthesis.cancel();
+      const vs = speechSynthesis.getVoices?.() ?? [];
+      const v = pick(vs);
+      const u = new SpeechSynthesisUtterance('Prova della voce copilota: selezione automatica in italiano, un, due, tre.');
+      u.lang = 'it-IT'; u.rate = 1.1; u.volume = 0.9;
+      if (v) u.voice = v;
+      u.onend = () => { try { esito.textContent = tr({ it: 'Voce usata: ', en: 'Voice used: ' }) + (v ? `${v.name} [${v.lang}]` : tr({ it: 'quella predefinita del sistema', en: 'the system default' })) + ` · ${speechSynthesis.getVoices?.().length ?? 0} ${tr({ it: 'voci totali', en: 'voices total' })}`; } catch {} };
+      speechSynthesis.speak(u);
+      // la lista voci si carica ASINCRONA: se al primo colpo è vuota riprova;
+      // su fallback (voce non italiana) un secondo tentativo la trova.
+      if (!v && tentativo < 2) setTimeout(() => parla(tentativo + 1), 700);
+    };
+    parla();
+  };
   wizardChecklist($('#wz-re'), { sketch: false, onChanged: refreshBoot });
   $('#f-paths').onsubmit = async (e) => {
     e.preventDefault();
@@ -573,7 +629,7 @@ async function drawRivals(m){
   ${rows.length ? `<div class="panel"><h2>${tr({ it: 'Tutti i rivali', en: 'All rivals' })} <span class="h-act">${tr({ it: 'clicca una riga per la scheda completa', en: 'click a row for the full sheet' })}</span></h2>
     <table><thead><tr><th>${tr({ it: 'Rivale', en: 'Rival' })}</th><th>${tr({ it: 'Squadra', en: 'Team' })}</th><th class="right">${tr({ it: 'Gare insieme', en: 'Races together' })}</th><th class="right">${tr({ it: 'Tu–Lui', en: 'You–Him' })}</th><th>${tr({ it: 'Momentum', en: 'Momentum' })}</th><th>${tr({ it: 'Forma (ultime 5)', en: 'Form (last 5)' })}</th><th class="right">${tr({ it: 'Vittorie', en: 'Wins' })}</th><th class="right">${tr({ it: 'Podi', en: 'Podiums' })}</th></tr></thead>
     <tbody>${rows.map(r=>`<tr class="rival-link" data-key="${esc(r.key)}" style="cursor:pointer">
-      <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.nemesis?` <span class="tag red">${tr({ it: 'nemesi', en: 'nemesis' })}</span>`:''}${r.lastSeen?`<div class="faint" style="font-size:11px">${tr({ it: 'visto: ', en: 'seen: ' })}${esc(r.lastSeen.node)} R${r.lastSeen.round}</div>`:''}</span></span></td>
+      <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.nemesis?` <span class="tag red">${tr({ it: 'nemesi', en: 'nemesis' })}</span>`:''}${r.lastSeen?`<div class="faint" style="font-size:11px">${tr({ it: 'visto: ', en: 'seen: ' })}${esc(r.lastSeen.node)} R${r.lastSeen.round}</div>`:''}</span><button class="btn ghost" style="padding:2px 7px;font-size:11px" data-rn="${esc(r.key)}" data-n="${esc(r.name)}" data-v="${esc(r.realName ?? '')}" title="${tr({ it: 'cambia il soprannome del pilota', en: 'change the driver nickname' })}">✏️</button></span></td>
       <td class="muted">${esc(r.team ?? '—')}</td>
       <td class="right">${r.sharedRaces}</td>
       <td class="right">${h2hBadge(r.h2h.beats, r.h2h.losses)}</td>
@@ -584,6 +640,7 @@ async function drawRivals(m){
     </tr>`).join('')}</tbody></table>
   </div>` : ''}`;
   $$('.rival-link', m).forEach((tr)=>{ tr.onclick=()=>showRival(tr.dataset.key); });
+  $$('[data-rn]', m).forEach((b)=>{ b.onclick=(e)=>{ e.stopPropagation(); window.rinominaPilota('rival', b.dataset.rn, b.dataset.n, b.dataset.v).then(()=>render()); }; });
 }
 
 async function showRival(key){
@@ -610,6 +667,7 @@ async function showRival(key){
         ${d.meetings.map(m=>`<tr><td>${esc(m.track)} <span class="faint">S${m.season} R${m.round+1}</span></td><td class="right">${m.dnf?'DNF':m.pos!=null?'P'+m.pos:'—'}</td><td class="right">${m.mePos!=null?'P'+m.mePos:'—'}</td><td class="muted">${esc(m.bestLap??'—')}</td><td>${m.beatMe?`<span class="tag bad">${tr({ it: 'battuto', en: 'beaten' })}</span>`:`<span class="tag good">${tr({ it: 'vinto', en: 'won' })}</span>`}</td></tr>`).join('')}
       </tbody></table></div>`,
       [[tr({ it: '📄 Dossier completo', en: '📄 Full dossier' }), 'acc', () => { openDossier(key); }],
+       [tr({ it: '✏️ Rinomina', en: '✏️ Rename' }), 'ghost', () => { window.rinominaPilota('rival', key, d.name, d.realName).then(() => { document.querySelector('#modal-root').innerHTML = ''; showRival(key); render(); }); }],
        [tr({ it: 'Chiudi', en: 'Close' }), 'ghost', () => {}]]);
     /* DOSSIER COMPLETE del rivale (src/analisi.mjs, module 5): ritmo/delta giro,
    piste dove è più forte, costanza e mappa degli scontri — un pannello insieme
@@ -657,7 +715,8 @@ async function openDossier(key){
       <details><summary class="muted" style="cursor:pointer">${tr({ it: `mappa degli scontri (${d.meetings?.length ?? 0})`, en: `map of the meetings (${d.meetings?.length ?? 0})` })}</summary>
         <div style="margin-top:8px;max-height:240px;overflow:auto"><table><thead><tr><th>${tr({ it: 'Gara', en: 'Race' })}</th><th class="right">${tr({ it: 'Lui', en: 'Him' })}</th><th class="right">${tr({ it: 'Tu', en: 'You' })}</th><th class="right">Δ giro</th><th>${tr({ it: 'Esito', en: 'Outcome' })}</th></tr></thead>
         <tbody>${(d.meetings ?? []).map(m=>`<tr><td>${esc(m.track)} <span class="faint">S${m.season} R${m.round+1}</span></td><td class="right">${m.dnf ? 'DNF' : m.pos != null ? 'P'+m.pos : '—'}</td><td class="right">${m.myPos != null ? 'P'+m.myPos : '—'}</td><td class="muted">${ds(m.himVsMeMs, true)}</td><td>${m.beatMe ? `<span class="tag bad">${tr({ it: 'battuto', en: 'beaten' })}</span>` : `<span class="tag good">${tr({ it: 'vinto', en: 'won' })}</span>`}</td></tr>`).join('')}</tbody></table></div></details>`,
-      [[tr({ it: 'Chiudi', en: 'Close' }), 'ghost', () => {}]]);
+      [[tr({ it: '✏️ Rinomina', en: '✏️ Rename' }), 'ghost', () => { window.rinominaPilota('rival', key, d.name, d.realName).then(() => { document.querySelector('#modal-root').innerHTML = ''; openDossier(key); render(); }); }],
+       [tr({ it: 'Chiudi', en: 'Close' }), 'ghost', () => {}]]);
   } catch(e){ toast(e.message, 'err'); }
 }
 
@@ -678,6 +737,70 @@ async function openDossier(key){
 }
 
 /* ============================== avvio ============================== */
+/* CHIP VOCE del copilota SEMPRE visibile in testa al cruscotto (27/10, Mauro:
+   «sto cercando lo speech per attivarlo ma non lo vedo»): il bottone 🔊 di
+   dentro il pannello «Ingegnere LIVE» nasce e muore con la sessione diretta —
+   fuori diretta l'interruttore non esisteva da nessuna parte. Questo chip vive
+   nella testata (stesso localStorage 'evo-copilot' che la barra legge) e quando
+   lo ACCENDI parla SUBITO: conferma che la voce funziona senza aspettare la
+   sessione. Per progetto la voce è ITALIANA comunque vada l'interfaccia. */
+function drawCopilotStrip(){
+  const host = document.querySelector('#copilot-strip');
+  if (!host) return;
+  const on = localStorage.getItem('evo-copilot') !== 'off';
+  host.textContent = on ? '🔊 copilota ON' : '🔈 copilota';
+  host.className = on ? 'chip gold' : 'chip';
+  host.title = tr({
+    it: on
+      ? 'Copilota vocale ATTIVO: in sessione diretta il cruscotto dice delta, giri compiuti, benzina e metà gara (barra «🎧 Ingegnere LIVE» in fondo alla scheda Cruscotto). Click qui: lo spegni.'
+      : 'Copilota vocale SPENTO. Click qui: lo riaccendi e ti parla subito di prova — in sessione diretta la voce torna a dire delta, giri e benzina. Tutto locale (speechSynthesis del browser): niente rete.',
+    en: on
+      ? 'Voice copilot ON: in a live session the dashboard speaks the delta, laps done, fuel and mid-race bar («🎧 Ingegnere LIVE» panel at the bottom of the Dashboard tab). Click here to turn it off.'
+      : 'Voice copilot OFF. Click here to re-enable it — it speaks a test line right away; in a live session the voice resumes the delta, laps and fuel calls. Fully local (browser speechSynthesis): no network.',
+  });
+}
+document.addEventListener('click', (ev) => {
+  const t = ev.target?.closest?.('#copilot-strip');
+  if (!t) return;
+  const wasOn = localStorage.getItem('evo-copilot') !== 'off';
+  localStorage.setItem('evo-copilot', wasOn ? 'off' : 'on');
+  if (window.__copilot) window.__copilot.on = !wasOn;   // la barra diretta si allinea al giro dopo
+  try { if (wasOn) speechSynthesis.cancel(); } catch { /* niente voce: ok così */ }
+  drawCopilotStrip();
+  if (!wasOn) {
+    try { const u = new SpeechSynthesisUtterance('Copilota attivo.'); speechSynthesis.speak(u); } catch { /* la voce non deve mai rompere la pagina */ }
+  }
+});
+/* PROVA VOCE DAL CRUSCOTTO (27/10, richiesta Mauro): il chip «♪ prova» accanto
+   al copilota parla la stessa frase di collaudo del bottone nelle Impostazioni
+   con la STESSA scelta della copilota di gara (esatta it-it → prefisso it →
+   nome «Italian») e dice in coco QUALE voce ha usato: se è una [it-IT] il
+   lattigguio a coco è giusto; se esce [en-US] il sistema è in fallback (voce
+   italiana assente: Windows → Voce → Aggiungi voci, come dicono le Impostazioni). */
+document.addEventListener('click', (ev) => {
+  const p = ev.target?.closest?.('#copilot-prova');
+  if (!p) return;
+  if (!('speechSynthesis' in window)) { toast(tr({ it: 'Il browser non supporta la voce.', en: 'This browser has no speech support.' }), 'err'); return; }
+  const norm = (s) => String(s ?? '').toLowerCase().replace('_', '-');
+  const pick = (vs) => vs.find((vv) => norm(vv.lang) === 'it-it')
+    ?? vs.find((vv) => norm(vv.lang).startsWith('it'))
+    ?? vs.find((vv) => /ital/i.test(String(vv.name ?? '') + String(vv.voiceURI ?? '')));
+  const parla = (tentativo = 0) => {
+    try { speechSynthesis.cancel(); } catch { /* silente */ }
+    const vs = speechSynthesis.getVoices?.() ?? [];
+    const v = pick(vs);
+    const u = new SpeechSynthesisUtterance('Prova della voce copilota: selezione automatica in italiano, un, due, tre.');
+    u.lang = 'it-IT'; u.rate = 1.1; u.volume = 0.9;
+    if (v) u.voice = v;
+    u.onend = () => { try { toast(tr({ it: 'Voce usata: ', en: 'Voice used: ' }) + (v ? `${v.name} [${v.lang}]` : tr({ it: 'quella predefinita del sistema', en: 'the system default' })), v && norm(v.lang).startsWith('it') ? 'ok' : 'warn'); } catch {} };
+    try { speechSynthesis.speak(u); } catch (e) { toast(String(e?.message ?? 'voce non partita'), 'err'); }
+    // la lista voci arriva ASINCRONA: voce assente al primo colpo = riprova
+    if (!v && tentativo < 2) setTimeout(() => parla(tentativo + 1), 700);
+  };
+  parla();
+});
+drawCopilotStrip();
+
 /* auto-aggiornamento: quando il watcher importa un risultato (o la pagina resta
    in background e i dati cambiano), il cruscotto si ricarica da solo */
 let _watchSeq = null;

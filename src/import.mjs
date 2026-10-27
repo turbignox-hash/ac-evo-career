@@ -26,6 +26,11 @@ import { nextRound } from './race.mjs';
 import { recordRaceGrid, rivalKey, rivalsForNode } from './rivals.mjs';
 import { settleChallenge } from './life.mjs';
 import { raceCrowdFor } from './memories.mjs';
+// BONUS GARA PULITA + AVVISO REP-CAP (28/10): i due extra portati dal sistema
+// di Paddock — l'auto-fix pulito dà un +10% del premio della ronda, il tetto
+// reputazione su una ronda chiusa va ripetuto alla fine come invito alla
+// categoria più alta.
+import { cleanRaceBonusOf, padRepCapNote, paddockNextRace } from './paddock.mjs';
 import { publishRaceNews } from './gazzetta.mjs';
 import { recordFlows } from './flows.mjs';
 import { tr } from './lang.mjs';
@@ -361,7 +366,15 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
   let backupFile = null;
   try { backupFile = backupBeforeImport(); } catch { /* mai bloccare l'import per un backup */ }
 
-  const { entry, proposal, crowdBonus } = applyRaceResult(ladder, state, targetNode, payload);
+  const { entry, proposal, crowdBonus, cleanBonus } = applyRaceResult(ladder, state, targetNode, payload);
+  // AVVISO REP-CAP (28/10): se il journal di Paddock dice "reputazione al
+  // massimo" per questa serie, la ripeti alla carriera dopo l'import — la
+  // serie chiusa non può far crescere la reputazione: il consiglio è l'invito
+  // a salire in una categoria più alta.
+  try {
+    const pn = paddockNextRace();
+    if (pn?.repCapped) pushMessage(state, `📊 ${padRepCapNote()}`, 'info');
+  } catch { /* mai bloccare l'import */ }
 
   // risultati dei rivali di questa serie (per sfida e gazzetta), letti prima di toccare altro
   let beatenNames = [], beatMeNames = [], rivalCards = [];
@@ -500,8 +513,11 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
         const margin = t2 - t1;
         if (margin > 10000) {
           nudgeSuggested = { delta: 1, marginMs: margin, reason: tr({ it: `vittoria con ${Math.round(margin / 1000)}s di margine sulla P2`, en: `win with a ${Math.round(margin / 1000)}s gap on P2` }) };
-          // resta in sospeso sul cruscotto finché non lo applichi o lo scarti
-          state.pendingNudge = { nodeId: targetNode.nodeId, nodeDisplay: targetNode.display, delta: 1, marginMs: margin, reason: nudgeSuggested.reason, at: new Date().toISOString() };
+          // DAL 27/10: niente più nudge persistente nel save — l'offerta del +1
+          // vive SOLO nel debrief di questa gara (banner dell'import). Prima il
+          // consiglio restava appeso alla serie e riusciva a comparire sulla
+          // scheda del campionato DOPO (visto dal vivo: nudge RX-7 sopra la
+          // scheda del campionato nuovo).
         }
       }
     }

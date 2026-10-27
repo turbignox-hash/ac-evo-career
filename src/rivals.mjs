@@ -8,7 +8,7 @@
 
 import { readFileSync, mkdirSync, existsSync, copyFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { lapToMs } from './results.mjs';
+import { lapToMs, officialPositionOf } from './results.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 import { recordWarning } from './warnings.mjs';
 import { slotDataDir } from './state.mjs';
@@ -95,11 +95,20 @@ export function recordRaceGrid(result, playerPayload, { season, round, nodeId, n
     const { first, last, key, full } = driverName(d);
     if (!key) continue;
     const isPlayer = d.is_current_driver === true || key === meKey;
+    /* PUNTI/PODI COERENTI (28/10): la posizione qui sotto NON è più quella
+     * grezza del file (ordine di pista, PRIMA della penalità) ma quella
+     * UFFICIALE come la ricalcola il gioco con total_time + penalità — identica
+     * a quella del pilota della carriera in classify(). Un rivale con +5.0s
+     * che il file segna P1 perde il posto e le statistiche lo vedono davvero:
+     * niente più vittorie/podi incassati dal file grezzo. DSQ → ritiro. */
+    const off = officialPositionOf(result, d);
+    const dnfRow = !d.total_time || Number(d.laps ?? 0) === 0 || off.dsq;
     const row = {
       key, first, last, full, isPlayer,
       team: d.team ?? null, nation: d.driver_nation ?? null,
-      position: toPos(d.position),
-      dnf: !d.total_time || Number(d.laps ?? 0) === 0,
+      position: off.position ?? toPos(d.position),
+      dnf: dnfRow,
+      dsq: !!off.dsq, penalty: off.penalty ?? null,
       laps: Number(d.laps ?? 0) || 0,
       bestLap: d.best_lap || null,
       car: `${d.car_brand ?? ''} ${d.car_name ?? ''}`.trim(),
@@ -130,6 +139,7 @@ export function recordRaceGrid(result, playerPayload, { season, round, nodeId, n
 
     // testa a testa con il giocatore (dalla verità del payload già calcolato)
     const myPos = playerPayload.dnf ? drivers.length + 1 : playerPayload.position;
+    // vite/penalità reali: DSQ o senza giri → fuori classifica come il resto
     const hisPos = row.dnf ? drivers.length + 1 : row.position;
     if (myPos < hisPos) rv.h2h.losses += 1;   // lui sotto di me: ho vinto io
     else if (myPos > hisPos) rv.h2h.beats += 1; // lui sopra di me: ha vinto lui
@@ -145,7 +155,7 @@ export function recordRaceGrid(result, playerPayload, { season, round, nodeId, n
       if (rv.nemesis) { rv.nemesis = false; vendetta.settled.push(rv.full); }
     }
 
-    rv.last5.push({ at: raceRow.at, node: nodeDisplay, round, season, nodeId, track: raceRow.trackDisplay, pos: row.dnf ? null : row.position, dnf: row.dnf, beatMe: myPos < hisPos });
+    rv.last5.push({ at: raceRow.at, node: nodeDisplay, round, season, nodeId, track: raceRow.trackDisplay, pos: row.dnf ? null : row.position, dnf: row.dnf, dsq: row.dsq ?? false, penalty: row.penalty ?? null, beatMe: myPos < hisPos });
     if (rv.last5.length > 5) rv.last5 = rv.last5.slice(-5);
   }
 
@@ -161,19 +171,27 @@ export function recordRaceGrid(result, playerPayload, { season, round, nodeId, n
 /* report pre-gara: chi aspetta alla prossima ronda                    */
 /* ------------------------------------------------------------------ */
 
-/** I rivali già incontrati in questa serie, per la scheda gara. */
-export function rivalsOutlook(_ladder, _state, nodeId) {
+/** I rivali già incontrati in questa serie, per la scheda gara.
+ * Oltre a testa-a-testa e best, porta FORMA (ultime 5 gare) e MOMENTUM
+ * (media ultime 3 vs precedenti), così la riga è leggibile come «voci dal
+ * paddock»: chi va forte, chi crolla, chi ti batte — senza aprire la scheda. */
+export function rivalsOutlook(_ladder, state, nodeId) {
   const store = loadStore();
   const races = store.races.filter((r) => r.nodeId === nodeId);
   const out = [];
   for (const rv of Object.values(store.rivals)) {
     const mine = races.filter((r) => r.grid.some((g) => g.key === rv.key));
     if (!mine.length) continue;
+    const seq = rv.last5.map((x) => (x.dnf ? 99 : x.pos ?? 99));
+    const avg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+    const recent = avg(seq.slice(-3)); const older = avg(seq.slice(0, -3));
     out.push({
-      key: rv.key, name: rv.full, team: rv.team ?? null,
+      key: rv.key, name: (state?.alias?.[rv.key] ?? null) ?? rv.full, realName: rv.full, team: rv.team ?? null,
       inSeries: mine.length,
       h2h: { ...rv.h2h },
       bestPos: Math.min(...mine.flatMap((r) => r.grid.filter((g) => g.key === rv.key).map((g) => (g.dnf ? 99 : g.position)))),
+      form: rv.last5.map((x) => (x.dnf ? 'DNF' : x.pos)),
+      trend: recent == null ? null : older == null ? 0 : Math.round(older - recent),
     });
   }
   return { rivals: out.sort((a, b) => b.inSeries - a.inSeries || a.bestPos - b.bestPos), racesInSeries: races.length };
@@ -202,8 +220,11 @@ export function rivalsForNode(nodeId) {
   return [...byKey.values()];
 }
 
+/* Soprannomi del pilota (26/10): gli alias vivono nel save (state.alias) e
+   toccano SOLO la visualizzazione — i record di gara su rivals.json restano
+   con i nomi veri, così gli storici non si impallano. */
 /** La scheda completa di un rivale: storia, vittorie, dove ti batte. */
-export function rivalDetail(key) {
+export function rivalDetail(key, state) {
   const store = loadStore();
   const rv = store.rivals[key];
   if (!rv) return null;
@@ -220,8 +241,9 @@ export function rivalDetail(key) {
     };
   }).sort((a, b) => String(b.at).localeCompare(String(a.at)));
   const wins = meetings.filter((m) => m.pos === 1);
+  const alias = state?.alias?.[key] ?? null;
   return {
-    key, name: rv.full, team: rv.team ?? null, nation: rv.nation ?? null, car: rv.car ?? null,
+    key, name: alias ?? rv.full, realName: rv.full, team: rv.team ?? null, nation: rv.nation ?? null, car: rv.car ?? null,
     since: (rv.since ?? '').slice(0, 10),
     totals: { ...rv.totals }, h2h: { ...rv.h2h },
     bestPos: meetings.length ? Math.min(...meetings.map((m) => (m.pos ?? 99))) : null,
@@ -240,6 +262,7 @@ export function rivalDetail(key) {
   const meKey = rivalKey(state.driver.first, state.driver.last);
 
   const all = Object.values(store.rivals).map((rv) => {
+    const alias = state?.alias?.[rv.key] ?? null;
     const meets = store.races.filter((r) => r.grid.some((g) => g.key === rv.key));
     const last = rv.last5[rv.last5.length - 1] ?? null;
     // momentum: media delle ultime 3 gare contro la media delle precedenti (dnf = ultima posizione)
@@ -248,7 +271,7 @@ export function rivalDetail(key) {
     const recent = avg(seq.slice(-3)), older = avg(seq.slice(0, -3));
     const trend = recent == null ? null : older == null ? 0 : Math.round(older - recent); // >0 = in salita
     return {
-      key: rv.key, name: rv.full, team: rv.team ?? null, nation: rv.nation ?? null,
+      key: rv.key, name: alias ?? rv.full, realName: rv.full, team: rv.team ?? null, nation: rv.nation ?? null,
       car: rv.car ?? null, since: (rv.since ?? '').slice(0, 10),
       races: rv.totals.races, wins: rv.totals.wins, podiums: rv.totals.podiums, fl: rv.totals.fastestLaps,
       h2h: { ...rv.h2h }, net: rv.h2h.losses - rv.h2h.beats, // >0 = dominato da te
