@@ -286,7 +286,7 @@ const AIUTO = [
 function drawAiuto(){
   const riga = (id) => {
     const d = (AIUTO.find(([k]) => k === id) ?? [])[1] ?? { it: '', en: '' };
-    return `<div style="padding:7px 0;border-bottom:1px solid var(--line,#283046)"><b style="font-size:13px">${esc((TABS.find(([k]) => k === id) ?? [,''])[1])}</b><div class="muted" style="font-size:12px;margin-top:2px">${esc(tr(d))}</div></div>`;
+    return `<div style="padding:7px 0;border-bottom:1px solid var(--line,#283046)"><b style="font-size:13px">${esc((TABS.find(([k]) => k === id) ?? [undefined,''])[1])}</b><div class="muted" style="font-size:12px;margin-top:2px">${esc(tr(d))}</div></div>`;
   };
   modal(tr({ it: 'Che fa ogni menu', en: 'What each menu does' }),
     `<div class="muted" style="font-size:12px;margin-bottom:6px">${tr({ it: 'Due righe per menu, niente da configurare: un riepilogo che gira con te.', en: 'Two lines per menu, nothing to configure: a summary that travels with you.' })}</div>` +

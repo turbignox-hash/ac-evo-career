@@ -62,9 +62,8 @@ real career save (interface set to English):
 | ![Race centre](docs/screenshots/02-race-centre.png) | **Race centre** — the seasonal calendar strip, the rounds you can still run, and the next race sheet. |
 | ![Setup](docs/screenshots/03-setup.png) | **Setup** — the Mechanic's advice (pressures → the 4 PSI rule, camber, ride height, bumpstops, brakes, TC, fuel), the **lap chart** with MoTeC telemetry, setup history, telemetry diagnostics per car. |
 | ![Messages](docs/screenshots/04-messages.png) | **Messages** — the agent's mail: contract offers, challenges, urgent races. |
-| ![Championships](docs/screenshots/05-championships.png) | **Championships** — your series, the seasonal gate and progress. |
+| ![Championships](docs/screenshots/05-championships.png) | **Championships** — your series, the seasonal gate and progress; at the bottom the folded **World Ranking — prestige** panel (the 369 drivers of the world, yours included). |
 | ![Grid](docs/screenshots/06-grid.png) | **Grid** — the progressive balance screen: ballast kg and penalty % per car, per-track proposals, AI range, learned calibration. |
-| ![World](docs/screenshots/07-world.png) | **World** — the global ranking of every driver in the world. |
 | ![Rivals](docs/screenshots/08-rivals.png) | **Rivals** — head-to-head, form, nemesis and rival classifications. |
 | ![Analysis](docs/screenshots/09-analysis.png) | **Analysis** — lap delta autopsies, rival dossiers, the five pilot tools. |
 | ![Tracks](docs/screenshots/10-tracks.png) | **Tracks** — the track book: history, nicknames, mastery level, personal bests. |

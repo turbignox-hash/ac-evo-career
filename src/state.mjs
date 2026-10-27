@@ -608,10 +608,18 @@ export function careerStats(ladder, state) {
     }
     if (!r.dnf && r.position === 1 && r.winnerLaps != null && r.laps != null && r.laps >= r.winnerLaps && r.winnerLaps > 0) ledLaps += 1;
   }
+  /* MEDIE PER GARA (27/10, Mauro: «da vedere a colpo d'occhio»): premio e
+     reputazione MEDI per gara — la bussola del bilanciamento economico della
+     carriera, sommate dalle colonne vere dei risultati importati. */
+  const totPrize = all.reduce((a, r) => a + (r.prize ?? 0), 0);
+  const totRep = all.reduce((a, r) => a + (r.rep ?? 0), 0);
   return {
     totals: {
       races: s.races, wins: s.wins, podiums: s.podiums, fastestLaps: s.fastestLaps,
       laps: s.laps, titles: titles.length, dnf: dnfCount,
+      totPrize, totRep,
+      avgPrize: s.races ? Math.round(totPrize / s.races) : null,
+      avgRep: s.races ? Math.round((totRep / s.races) * 10) / 10 : null,
       podiumRate: s.races ? Math.round(s.podiums / s.races * 100) : 0,
       winRate: s.races ? Math.round(s.wins / s.races * 100) : 0,
       poles: s.poles,

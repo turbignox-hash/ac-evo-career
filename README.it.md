@@ -58,9 +58,8 @@ Interfaccia in inglese nei catturi; la lingua si sceglie in Impostazioni
 | ![Centro gare](docs/screenshots/02-race-centre.png) | **Centro gare** — fascia calendario della stagione, round ancora da correre, scheda della prossima gara. |
 | ![Setup](docs/screenshots/03-setup.png) | **Setup** — i consigli del Meccanico (pressioni → regola dei 4 PSI, camber, altezza, bumpstop, freni, TC, benzina), il grafico giri con telemetria MoTeC, lo storico degli assetti e la diagnostica telemetria per auto. |
 | ![Messaggi](docs/screenshots/04-messages.png) | **Messaggi** — la posta dell'agente: offerte, sfide, gare urgenti. |
-| ![Campionati](docs/screenshots/05-championships.png) | **Campionati** — le tue serie, gate di stagione e progressi. |
+| ![Campionati](docs/screenshots/05-championships.png) | **Campionati** — le tue serie, gate di stagione e progressi; in fondo la **Classifica Mondiale — prestigio** tutta piegata (i 369 piloti del mondo, tu incluso). |
 | ![Griglia](docs/screenshots/06-grid.png) | **Griglia** — il bilanciamento progressivo: zavorre kg e penalità % per auto, proposte per traccia, fascia AI, calibrazione appresa. |
-| ![Mondiale](docs/screenshots/07-world.png) | **Mondiale** — la classifica di tutti i piloti del mondo. |
 | ![Rivali](docs/screenshots/08-rivals.png) | **Rivali** — testa a testa, forma, classificazioni di rivale e nemesi. |
 | ![Analisi](docs/screenshots/09-analysis.png) | **Analisi** — autopsie giri, dossier rivali, i cinque strumenti del pilota. |
 | ![Piste](docs/screenshots/10-tracks.png) | **Piste** — il Libro delle piste: storia, soprannomi, maestria, best personali. |

@@ -1760,9 +1760,10 @@ async function api(context0, _req, res, action, body) {
           const nod = String(state.node).replace(/[^a-zA-Z0-9_.-]/g, '_');
           const tPath = join(slotDataDir(), 'grid-templates', nod + '.customgrid');
           if (!existsSync(tPath)) throw new Error(`customgrid sul disco ma con ${celle.length === 0 ? '0 celle' : 'celle non decodificabili'} e nessun template di serie in magazzino: ripremi Prepara tutto`);
-          const celle = readCells(readFileSync(tPath)).cells.length;
-          if (celle <= 0) throw new Error(`template di serie (${tPath}) non decodificabile: ripremi Prepara tutto`);
-          contatore = celle - 1;
+          let celleTemplate = 0;
+          try { celleTemplate = (readCells(readFileSync(tPath)) ?? {}).cells?.length ?? 0; } catch { celleTemplate = 0; }
+          if (celleTemplate <= 0) throw new Error(`template di serie (${tPath}) non decodificabile: ripremi Prepara tutto`);
+          contatore = celleTemplate - 1;
         } else if (contatore < 1) contatore = 1;
         const gm = setWeekendGridCustom(contatore);
         prep.gridMode = gm?.written

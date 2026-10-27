@@ -581,6 +581,8 @@ async function drawStats(m){
     [tr({ it: 'Pole', en: 'Poles' }), t.poles, t.poles ? 'good' : '', tr({ it: 'partenze davanti a tutti', en: 'starts ahead of everyone' })],
     [tr({ it: 'Giri veloci', en: 'Fastest laps' }), t.fastestLaps, '', tr({ it: 'miglior giro in gara', en: 'best lap in a race' })],
     [tr({ it: 'Giri percorsi', en: 'Laps driven' }), t.laps, '', tr({ it: 'giri completati in totale', en: 'total laps completed' })],
+    [tr({ it: '€ per gara', en: '€ per race' }), t.avgPrize == null ? '—' : money(t.avgPrize), t.avgPrize ? 'acc2' : '', tr({ it: `premio medio per gara (totale ${money(t.totPrize ?? 0)}) — la bussola del bilanciamento`, en: `average prize per race (total ${money(t.totPrize ?? 0)}) — the economy compass` })],
+    [tr({ it: 'rep per gara', en: 'rep per race' }), t.avgRep == null ? '—' : t.avgRep.toFixed(1), t.avgRep ? 'acc' : '', tr({ it: `reputazione media per gara (totale ${t.totRep ?? 0}) — cresce salendo di serie`, en: `average reputation per race (total ${t.totRep ?? 0}) — grows in higher series` })],
     [tr({ it: 'Rimonte', en: 'Comebacks' }), t.comebacks, '', tr({ it: 'piazzamenti migliori della griglia di partenza', en: 'finishes better than grid slot' })],
     [tr({ it: 'Gare in testa', en: 'Led wire-to-wire' }), t.ledAll, '', tr({ it: 'gare intere sempre al comando', en: 'races led from start to finish' })],
     [tr({ it: 'Posiz. guadagnate/gara', en: 'Positions gained/race' }), t.avgGain==null ? '—' : (t.avgGain>0?'+':'') + t.avgGain, '', tr({ it: 'media posizioni guadagnate rispetto alla partenza', en: 'average positions gained versus the start' })],
