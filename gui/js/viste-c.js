@@ -141,11 +141,22 @@ async function drawCars(m){
     </div>
     <div id="cars-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px"></div>
   </div>`;
+  /* FILTRO PER PAROLE (29/10, richiesta Mauro): il nome sul customgrid arriva
+     abbreviato rispetto al render Kunos — «Mercedes 190E 2.5-16 Evo II» contro
+     «Mercedes-AMG 190E 2.5-16 Evolution II» — e l'includes letterale non
+     combacia più e la griglia dva vuota. Con il match a parole invece ogni
+     parola della ricerca entra in una parola del nome: «evo» dentro
+     «evolution», «mercedes» dentro «mercedes-benz», «190e» dentro «190e». */
+  const tok = (s) => String(s).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  const matchCar = (query, r) => {
+    const hay = [...tok(r.name), ...tok(r.ladderName ?? ''), ...(r.variants ?? []).flatMap(tok)];
+    return tok(query).every((t) => hay.some((w) => w.includes(t)));
+  };
   let cat = '';
   const draw = () => {
     const q = $('#cars-q').value.toLowerCase();
     const onlyLadder = $('#cars-ladder').checked;
-    const rows = b.rows.filter(r => (!cat || r.category===cat) && (!onlyLadder || r.ladderId) && (!q || r.name.toLowerCase().includes(q) || (r.ladderName??'').toLowerCase().includes(q)));
+    const rows = b.rows.filter(r => (!cat || r.category===cat) && (!onlyLadder || r.ladderId) && (!q || matchCar(q, r)));
     const piBadge = (pi) => pi==null ? '' : `<span class="tag blue" style="font-size:10px;padding:1px 6px" title="${tr({ it: 'Perf. index dal server dedicato', en: 'Perf. index from the dedicated server' })}">PI ${pi.toFixed(1)}</span>`;
     $('#cars-grid').innerHTML = rows.map((r)=>{
       const eco = r.ladderId ? b.economy?.[r.ladderId] : null;
@@ -245,16 +256,33 @@ async function drawCars(m){
   $('#cars-q').oninput = draw;
   $('#cars-ladder').onchange = draw;
   draw();
-  /* NAVEGZIONE incrociata (28/10, stile Football Manager): se arrivo qui da
-     un nome auto cliccato da un'altra pagina, la ricerca si precompila e se
-     il match è SECCO (una sola auto) la scheda si apre da sé. */
+  /* NAVIGAZIONE incrociata (28/10, stile Football Manager): se arrivo qui da
+     un nome auto cliccato da un'altra pagina, la ricerca si precompila e la
+     scheda si apre da sé sul render combaciante — il migliore se ce n'è più
+     di uno, ad es. quando il ladder abbrevia il nome come «Evo II». */
   const O = window.NAV_OPTS?.tab === 'cars' ? window.NAV_OPTS : null;
   if (O?.search) {
     window.NAV_OPTS = null;
     $('#cars-q').value = O.search;
+    /* l'auto cercata potrebbe non essere del ladder (es. la 190E Evo II è
+       stradale): in quel caso scavalco il filtro «solo ladder», altrimenti
+       la griglia resterebbe vuota sotto la scheda che si è già aperta */
+    if (!b.rows.some((r) => r.ladderId && matchCar(O.search, r))) $('#cars-ladder').checked = false;
     draw();
-    const hits = b.rows.filter(r => r.name.toLowerCase().includes(O.search.toLowerCase()) || (r.ladderName ?? '').toLowerCase().includes(O.search.toLowerCase()));
+    const hits = b.rows.filter(r => matchCar(O.search, r));
     if (hits.length === 1) carDetail(hits[0], b);
+    else if (hits.length > 1) {
+      /* più di un render combacia: apro quello che condivide più parole con
+         la ricerca (es. il ladder chiede la 190E Evo 2, la lista offre più
+         varianti) — ordino per numero di parole incontrate. */
+      const q = tok(O.search);
+      const pun = (r) => {
+        const hay = [...tok(r.name), ...tok(r.ladderName ?? ''), ...(r.variants ?? []).flatMap(tok)];
+        return q.reduce((n, t) => n + (hay.some((w) => w.includes(t)) ? 1 : 0), 0);
+      };
+      const best = [...hits].sort((a, b2) => pun(b2) - pun(a))[0];
+      carDetail(best, b);
+    }
   } else { window.NAV_OPTS = null; }
 }
 
