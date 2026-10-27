@@ -13,9 +13,9 @@
 //   import { changeWeekendTrack, currentWeekendTrack, specFor } from './set-track.mjs';
 // CLI:
 //   node tools/set-track.mjs --track "Red Bull Ring" [--dry] [--file <path>]
-import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, copyFileSync, readdirSync, statSync } from 'node:fs';
 import { decodeMsg, encodeMsg, gameRunning, GAME_MODES_DIR } from './evo-grid.mjs';
-import { join } from 'node:path';
+import { join, dirname, basename } from 'node:path';
 import { TRACK_INFO } from '../src/tracks.mjs';
 import { sameTrack } from '../src/tracknames.mjs';
 
@@ -29,9 +29,29 @@ export const WEEKEND_FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.game
    non esisteva più — lo stato sul disco era già a posto («controlla
    paddock»: il selettore c'era già). Si riprova 3× con pausa di 400 ms:
    la riscrittura del gioco dura pochissimo. */
-const GM_TENTATIVI = 5;   // 31/10: 3 non bastavano col gioco che riscrive in corsa («oltrefine» ripetuto)
+const GM_TENTATIVI = 10;   // 31/10: 3 non bastavano col gioco che riscrive in corsa («oltrefine» ripetuto), 5 pure
 const GM_PAUSA_MS = 400;
 const pausaMs = (ms) => { try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); } catch { /* pazienza: senza Atomics si va senza pausa */ } };
+
+/** Foto di riserva (31/10): quando il file VIVO resta indecodificabile per
+ *  tutta la finestra dei tentativi (raffica lunga del gioco), si prova a
+ *  leggere gli SNAPSHOT .bak-* più recenti dello stesso file — scritti da noi
+ *  e perciò fermi, decodificabili con certezza. Il chiamante ci appone le sue
+ *  modifiche e riscrive con rename: il risultato è lo stesso ora agito.
+ *  Meglio del pian "B" a mano («muovi Grid Type su CUSTOM»).
+ */
+function leggiBackupFermo(file) {
+  try {
+    const dir = dirname(file);
+    const baks = readdirSync(dir)
+      .filter((n) => n.startsWith(basename(file) + '.bak-'))
+      .map((n) => join(dir, n))
+      .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)
+      .slice(0, 3);
+    for (const b of baks) { try { return decodeMsg(readFileSync(b)); } catch { /* backup inutilizzabile */ } }
+  } catch { /* niente snapshot: la punta resta */ }
+  return null;
+}
 
 /** Lettura + decodifica del gamemodesave con tentativi. L'ultimo errore
  *  arriva al chiamante solo dopo l'ultimo fallito. */
@@ -44,6 +64,8 @@ export function leggiGmFields(file = WEEKEND_FILE) {
       return decodeMsg(buf);
     } catch (e) { ultimo = e; }
   }
+  const ripiego = leggiBackupFermo(file);   // via di riserva (vedi sopra)
+  if (ripiego) return ripiego;
   throw ultimo;
 }
 
