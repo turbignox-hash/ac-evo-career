@@ -29,7 +29,7 @@ export const WEEKEND_FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.game
    non esisteva più — lo stato sul disco era già a posto («controlla
    paddock»: il selettore c'era già). Si riprova 3× con pausa di 400 ms:
    la riscrittura del gioco dura pochissimo. */
-const GM_TENTATIVI = 3;
+const GM_TENTATIVI = 5;   // 31/10: 3 non bastavano col gioco che riscrive in corsa («oltrefine» ripetuto)
 const GM_PAUSA_MS = 400;
 const pausaMs = (ms) => { try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); } catch { /* pazienza: senza Atomics si va senza pausa */ } };
 

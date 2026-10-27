@@ -1771,19 +1771,26 @@ async function api(context0, _req, res, action, body) {
       // menu chiuso → menu nato CUSTOM da solo). Silente se il save manca.
       // La forma è la STESSA (N = celle-1) per mono e multiclasse.
       try {
-        // LETTURA CON RESA (27/10, errori 00:06/00:11 «varint oltrefine»): se il
+        // LETTURA CON RESA (27/10, errori 00:06/00:11 «varint oltrefine») se il
         // menu griglia di EVO sta riscrivendo il file proprio in quell'istante,
         // la lettura parte a metà scrittura e il decoder muore con «varint
-        // oltrefine». 3 tentativi a 250 ms: la corsa transitoria passa; se il
+        // oltrefine». 4 tentativi a 250 ms: la corsa transitoria passa; se il
         // file è davvero illeggibile, dopo l'ultimo tentativo resta piano B.
-        let celle = null, letErr = null;
-        for (let t = 0; t < 3 && !celle; t++) {
+        // FIX 31/10: prima dell'errore restava `null` dopo il catch e il
+        // `celle === null → break` usciva al PRIMO fallo: il ritento per errore
+        // non nasceva mai (per quello è risaltato sul vivo, a file sano). Ora
+        // il break solo per file Assente ( uncomment non lo crea), l'errore riprova.
+        let celle, letErr = null;
+        for (let t = 0; t < 4 && !celle; t++) {
           if (t) await new Promise((r) => setTimeout(r, 250));
           try { celle = existsSync(GRID_FILE) ? (readCells(GRID_FILE)?.cells ?? []) : null; }
           catch (e) { letErr = e; }
           if (celle === null) break;   // file assente: un altro tentativo non lo crea
         }
-        if (!celle) throw letErr ?? new Error('nessun customgrid sul disco: ripremi Prepara tutto (il rebuild la ricostruisce) o usa tab Griglia / CLI griglia');
+        if (!celle) {
+          if (letErr) throw new Error(`customgrid non leggibile (${letErr.message}) — se torna ripremi Prepara tutto: le griglia la riscribe intera`);
+          throw new Error('nessun customgrid sul disco: ripremi Prepara tutto (il rebuild la ricostruisce) o usa tab Griglia / CLI griglia');
+        }
         // CARTUCCIA a 0 CELLE decodificabili (26/10 notte, il weekend rigenerato
         // di EVO): non settle mai custom/1 — il contatore scende al template
         // in magazzino (la memoria VERA della serie) e solo in ultima analisi
