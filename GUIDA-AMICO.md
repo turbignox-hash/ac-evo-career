@@ -104,6 +104,11 @@ Doppio click su **`avvia.cmd`**:
    l'icona è quella del programma;
 3. apre l'interfaccia grafica nel browser su `http://127.0.0.1:8642`.
 
+**Tutto è cliccabile** (28/10, stile Football Manager): il nome di un'auto
+apre la sua scheda nel Libro delle auto, il nome di una pista la scheda
+nel Libro delle piste, il nome di una serie porta al tab Campionati, la
+data/soldi/reputazione/stagione del righello saltano al tab giusto.
+
 Alla prima apertura la GUI mostra il **wizard**: trova da solo le cartelle dati
 (`%USERPROFILE%\Saved Games\ACE`), il gioco in Steam (`AssettoCorsaEVO.exe`) e
 fa la scansione dei contenuti. Se qualcosa non viene trovato, si forzano i

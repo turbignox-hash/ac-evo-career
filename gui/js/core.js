@@ -321,6 +321,14 @@ window.vai = vai;
 window.carLinkHtml = (nome) => nome
   ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda tecnica dell\'auto', en: 'open the car spec sheet' })}" onclick="vai('cars',{search:'${String(nome).replace(/'/g, "\\'")}\'})">${esc(nome)}</span>`
   : '';
+/* HTML di un nome SERIE cliccabile (29/10, stessa regola delle auto): apre Campionati. */
+window.serLinkHtml = (nome) => nome
+  ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri Campionati', en: 'open Championships' })}" onclick="vai('championships')">${esc(nome)}</span>`
+  : '';
+/* HTML di un nome PISTA cliccabile (29/10): apre la scheda nel libro piste. */
+window.trackLinkHtml = (nome) => nome
+  ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda della pista', en: 'open the track card' })}" onclick="vai('tracks',{search:'${String(nome).replace(/'/g, "\\'")}\'})">${esc(nome)}</span>`
+  : '';
 
 /* ============================== viste ============================== */
 async function render(){

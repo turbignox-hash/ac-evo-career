@@ -20,6 +20,16 @@ the clean-race bonus and the reputation cap all came from there.
 
 ## Punti di forza da citare nel post — Strengths to mention in the post
 
+- **Tutto è cliccabile, stile Football Manager (dal 29/10)** — Everything is clickable, Football-Manager style. \
+  Il nome di un'auto apre la sua scheda nel Libro delle auto (ricerca per parole: capisce \
+  «Evo II» anche se il render si chiama «Evolution II»), un pilota apre la scheda rivali, \
+  la pista il suo libro, la serie il tab Campionati, data/money/rep/season del righello \
+  saltano al tab giusto. Nomen omen: il cruscotto è un cruscotto — premi e parti. \
+  A car name opens its spec sheet in the Car book (word-based search: it understands «Evo II» \
+  even if the render is called «Evolution II»), a driver opens the rival dossier, a track the \
+  track book, a series the Championships tab, and the ruler's date/money/rep/season jumps to \
+  the right tab.
+
 - **I nomi dei piloti sono editabili** — Driver names are editable. Da qualunque scheda ricorrente — \
   Mondiale in Campionati, dossier rivale — il bottone «✏️ Rinomina» mette il soprannome tuo al posto \
   del nome dell'AI: il save con le storie reali resta intatto, il soprannome vale su tutte le \
@@ -33,8 +43,10 @@ the clean-race bonus and the reputation cap all came from there.
   (even with the UI in English), with the «♪ test» chip on the Dashboard for a quick check.
 
 - **Il widget «Cruscotto» dentro il gioco** — The «Cruscotto» widget inside the game: pilota, \
-  gare del giorno e serie iscritte senza uscire da EVO. \
-  driver, today's races and signed series without leaving EVO.
+  gare del giorno e serie iscritte senza uscire da EVO — e dal 28/10 anche la mini-classifica \
+  della ronda corrente col collegamento al Mondiale della GUI. \
+  driver, today's races and signed series without leaving EVO — and since 28/10 also the \
+  mini-standings of the current round, with the link to the GUI's World Ranking.
 
 - **La griglia che scrive davvero nel gioco** — The grid that really writes into the game. \
   Paddock legge la tua carriera; Pitwall la costruisce: sceglie le AI, le mette in macchina \

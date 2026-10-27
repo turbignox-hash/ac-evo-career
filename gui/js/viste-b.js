@@ -256,7 +256,7 @@ async function drawChampionships(m){
         <b style="font-size:13.5px">${esc(c.display)}</b>
         ${c.isCurrent ? `<span class="tag gold" style="font-size:9px">${tr({ it: 'attiva', en: 'active' })}</span>` : ''}
       </div>
-      <div class="muted" style="font-size:11px;margin-top:2px">L${c.level} · ${esc(c.discipline)} · ${(c.cars ?? []).map(esc).join(' · ')}</div>
+      <div class="muted" style="font-size:11px;margin-top:2px">L${c.level} · ${esc(c.discipline)} · ${(c.cars ?? []).map(window.carLinkHtml).join(' · ')}</div>
       <div class="cc-bar" style="margin-top:8px"><i style="width:${pct}%"></i></div>
       <div class="muted" style="font-size:11.5px;margin-top:6px">${played}/${c.calendar.length} ${tr({ it: 'gare', en: 'races' })} · ${tr({ it: 'prossima', en: 'next' })}: ${esc(nxt)}${me ? ` · <b style="color:var(--text)">${tr({ it: 'tu P', en: 'you P' })}${me.position}</b> (${me.points} pt)` : ''}</div>
     </div>`;
