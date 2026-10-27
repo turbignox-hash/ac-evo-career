@@ -589,6 +589,13 @@ export class LiveReader {
       live: !!g && g.status === 2,
       paused: !!g && g.status === 3,
       session: {
+        /* FIRMA DELLA SESSIONE (28/10): eventId+sessionId+tipo è scritta dal
+           gioco UNA volta per sessione — è l'impronta che il copilota del
+           cruscotto usa per capire che la sessione è cambiata e azzerare la
+           memoria dei narratori (prima di questo la «posizione persa» metteva
+           insieme la posizione della sessione prima con quella della gara
+           nuova durante il caricamento). */
+        id: `${st.eventId ?? ''}:${st.sessionId ?? ''}:${st.sessionType ?? ''}`,
         type: SESSION_T[st.sessionType] ?? 'sconosciuta',
         name: st.sessionName?.trim() || null,
         track: st.track?.trim() || null,

@@ -770,6 +770,9 @@ async function api(context0, _req, res, action, body) {
       return sendJson(res, 200, {
         ...live,
         auto,
+        // impronta della sessione per il copilota (28/10): sessionStorage nova
+        // = memoria dei narratori azzerata senza voci sbagliate all'avvio
+        sessionId: snap.session?.id ?? null,
         telemTrack,
         fuelPerLap: live.gauges?.fuelPerLap ?? null,
         delta: snap.delta ?? null,

@@ -811,6 +811,20 @@ function drawCardInto(el, card){
         cp.at = 0;
         cp.grace = Date.now() + 15000;
       }
+      /* SESSIONE NUOVA ANCHE CON LA LIVE GIÀ ACCESA (28/10, Mauro: finito il
+         caricamento della gara la copilota annunciava «posizione persa»
+         rimettendo insieme la posizione della sessione prima con quella
+         della gara nuova). L'impronta (eventId+sessionId+tipo) la scrive la
+         MMF una volta per sessione: cambia = sessione cambiata → memoria
+         a zero e 20 s di silenzio (i primi istanti del caricamento portano
+         ancora i valori vecchi, poi quelli giusti). */
+      const firmaSess = m.sessionId ?? null;
+      if (firmaSess != null && firmaSess !== cp.firma) {
+        cp.firma = firmaSess;
+        cp.last = {};
+        cp.at = 0;
+        cp.grace = Date.now() + 20000;
+      }
       const wearRow = (m.gauges?.wear || []).length === 4 ? `<span class="muted" style="font-size:11px">${tr({ it: 'gomme', en: 'tyres' })} LF ${m.gauges.wear[0]}% · RF ${m.gauges.wear[1]}% · LR ${m.gauges.wear[2]}% · RR ${m.gauges.wear[3]}%${m.gauges.temp?.every(v=>v>0)?' · core '+m.gauges.temp.map(v=>v+'°C').join('/'):''}</span>` : '';
       /* --- DELTA DI RITMO: il numero grande che oggi non c'era --- */
       const dv = m.delta?.dv ?? m.delta?.hudDv ?? null;   // ms, con il segno
