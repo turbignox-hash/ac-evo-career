@@ -174,6 +174,11 @@ This is the COMPLETE sequence, in the right order — identical on every new
 PC, so «Get everything ready» works at the first press. Four gestures in EVO,
 two screens in the GUI:
 
+**Everything is clickable** (28/10, Football-Manager style): a car name opens
+its spec sheet in the Car book, a track the Track book, a series the
+Championships tab, and the ruler's date/money/reputation/season jumps to the
+right tab — the same navigation in every page of the interface.
+
 1. **installa.cmd** → **avvia.cmd** → wizard: it finds the EVO data folders
    and the Steam game on its own, then creates the career (driver name +
    nation).
