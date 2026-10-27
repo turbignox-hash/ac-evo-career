@@ -514,21 +514,23 @@ export function eventCard(ladder, state) {
   const EVENT_DIFF_RANGE = [88, 93];
   const diffBand = EVENT_DIFF_RANGE;
   const settings = [
-    ['Modalità', 'Gara personalizzata (Custom Race: gara singola)'],
-    ['Pista', `${trackReal} — layout ${layout}`],
-    ['Auto', prizeOrOwnedLabel(ladder, state, a)],
-    ['Avversari', theme?.gridCars?.length
-      ? `${theme.gridSize ?? 14} in griglia — ${Math.max(0, (theme.gridSize ?? 14) - 1)} avversari, tutti ${theme.gridCars.map((id) => names[id] ?? id).join(', ')} (griglia scritta dal tool, tutti alla pari)`
-      : `${a.guests.length + 2} auto (2-3 ospiti d'eccezione)`],
-    ['Difficoltà AI', diffBand ? `${diffBand[0]}–${diffBand[1]} %` : 'usa il consiglio della serie in corso (il tool lo mostra qui sotto)'],
-    ['Aggressività AI', 'lasciala com\'è (bloccata in EVO)'],
-    ['Gara', `${a.laps} giri (tempo reale)`],
-    ['Moltiplicatore tempo', '1x'],
-    ['Ora del giorno', `${String(a.hour).padStart(2, '0')}:00`],
-    ['Meteo', a.weather === 0 ? 'Clear' : a.weather === 1 ? 'Light rain' : 'Cloudy'],
-    ['Partenza', 'da fermo (griglia)'],
-    ['Pit obbligatorio', 'no'],
-    ['Danni', 'leggeri'],
+    /* scheda evento bilingue (31/10): le tuple erano solo-italiane e l'inglese
+       le vedeva nel pannello Eventi; same regola del resto del progetto. */
+    [tr({ it: 'Modalità', en: 'Mode' }), tr({ it: 'Gara personalizzata (Custom Race: gara singola)', en: 'Custom race (one-off race)' })],
+    [tr({ it: 'Pista', en: 'Track' }), `${trackReal} — ${tr({ it: 'layout', en: 'layout' })} ${layout}`],
+    [tr({ it: 'Auto', en: 'Car' }), prizeOrOwnedLabel(ladder, state, a)],
+    [tr({ it: 'Avversari', en: 'Opponents' }), theme?.gridCars?.length
+      ? tr({ it: `${theme.gridSize ?? 14} in griglia — ${Math.max(0, (theme.gridSize ?? 14) - 1)} avversari, tutti ${theme.gridCars.map((id) => names[id] ?? id).join(', ')} (griglia scritta dal tool, tutti alla pari)`, en: `${theme.gridSize ?? 14} on the grid — ${Math.max(0, (theme.gridSize ?? 14) - 1)} opponents, all ${theme.gridCars.map((id) => names[id] ?? id).join(', ')} (grid written by the tool, all equal)` })
+      : tr({ it: `${a.guests.length + 2} auto (2-3 ospiti d'eccezione)`, en: `${a.guests.length + 2} cars (2-3 special guests)` })],
+    [tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), diffBand ? `${diffBand[0]}–${diffBand[1]} %` : tr({ it: "usa il consiglio della serie in corso (il tool lo mostra qui sotto)", en: 'use the current series suggestion (the tool shows it below)' })],
+    [tr({ it: 'Aggressività AI', en: 'AI aggression' }), tr({ it: "lasciala com'è (bloccata in EVO)", en: "leave it as is (locked in EVO)" })],
+    [tr({ it: 'Gara', en: 'Race' }), tr({ it: `${a.laps} giri (tempo reale)`, en: `${a.laps} laps (real time)` })],
+    [tr({ it: 'Moltiplicatore tempo', en: 'Time multiplier' }), '1x'],
+    [tr({ it: 'Ora del giorno', en: 'Time of day' }), `${String(a.hour).padStart(2, '0')}:00`],
+    [tr({ it: 'Meteo', en: 'Weather' }), a.weather === 0 ? 'Clear' : a.weather === 1 ? 'Light rain' : 'Cloudy'],
+    [tr({ it: 'Partenza', en: 'Start' }), tr({ it: 'da fermo (griglia)', en: 'standing start (grid)' })],
+    [tr({ it: 'Pit obbligatorio', en: 'Mandatory pit stop' }), tr({ it: 'no', en: 'no' })],
+    [tr({ it: 'Danni', en: 'Damage' }), tr({ it: 'leggeri', en: 'light' })],
   ];
   return {
     ...a,
