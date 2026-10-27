@@ -315,6 +315,12 @@ function vai(nuovoTab, opts = {}){
   tab = nuovoTab; drawNav(); render();
 }
 window.vai = vai;
+/* HTML di un nome auto CLICCABILE (29/10, stile FM): in qualunque vista basta
+   `window.carLinkHtml(nome)` per far aprire la scheda tecnica nel libro auto.
+   Nome vuoto → stringa vuota: il chiamante sostituisce con n/d. */
+window.carLinkHtml = (nome) => nome
+  ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda tecnica dell\'auto', en: 'open the car spec sheet' })}" onclick="vai('cars',{search:'${String(nome).replace(/'/g, "\\'")}\'})">${esc(nome)}</span>`
+  : '';
 
 /* ============================== viste ============================== */
 async function render(){

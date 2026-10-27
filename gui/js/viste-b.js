@@ -495,12 +495,17 @@ async function drawGironi(m){
   /*  file da registrare a mano: la lista la dà l'archivio (catalog): i risultati
      non-gara sono file come gli altri; filtro via le gare */
   const sel = $('#hl-file');
+  if (!sel) return; /* rerender in corsa: il tab è già sostituito, niente da legare */
   try {
     const c = await (await fetch(`/api/catalog`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) })).json();
     const rows = (c.archive?.rows ?? []).filter(r => r.session && String(r.session).toLowerCase() !== 'race');
     sel.innerHTML += rows.slice(0, 60).reverse().map(r => `<option value="${esc(r.file)}">${esc(r.file)}</option>`).join('');
   } catch { /* senza archivio il menu resta vuoto: non blocca il tab */ }
-  $('#hl-reg').onclick = async () => {
+  /* RERENDER IN CORSA (29/10): se tra l'await e qui una nuova vista ha preso
+     il posto di questa nel DOM, #hl-reg non c'è più e scriverci onclick rompe
+     la tab. Se hai già sostituito guard, un ritorno zitto basta. */
+  const hlReg = $('#hl-reg');
+  if (hlReg) hlReg.onclick = async () => {
     if (!sel.value) return toast(tr({ it: 'Scegli prima un file dal menu.', en: 'Pick a file from the menu first.' }), 'err');
     try {
       const r = await api('hotlaps', { action: 'record-file', file: sel.value });
