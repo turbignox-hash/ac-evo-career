@@ -460,7 +460,10 @@ function cmdSeries(args) {
       const mark = current ? C.green(pad(tr({ it: '◄ attuale', en: '◄ current' }), 12)) : gate.ok ? C.cyan(pad(tr({ it: 'aperta', en: 'open' }), 12)) : C.red(pad(tr({ it: 'bloccata', en: 'locked' }), 12));
       console.log(`   ${pad('L' + node.level, 3)} ${pad(node.display, 26)} ${mark} ${C.dim(`gate: ${req}`)}`);
       if (!gate.ok && (showAll || discipline)) console.log(`       ${C.red(gate.reasons.join('; '))}`);
-      if (showAll) console.log(`       ${C.dim(`${node.gridSize} ${tr({ it: 'auto', en: 'cars' })} · ${node.points} · ${node.econ.model} · ${tr({ it: 'affitto', en: 'rent' })} ${money(node.econ.rent)} · ${tr({ it: 'premio', en: 'prize' })} ${money(node.econ.prize)}`)}`);
+      // griglia TIPICA anche qui (30/10, campo largo): il massimo gridSize di
+      // griglia reale incassato in serie; stima del ladder se non ne esistono
+      const grigliaTipica = grigliaSimEstesa(ladder, state, node).gridSize;
+      if (showAll) console.log(`       ${C.dim(`${grigliaTipica} ${tr({ it: 'auto', en: 'cars' })} · ${node.points} · ${node.econ.model} · ${tr({ it: 'affitto', en: 'rent' })} ${money(node.econ.rent)} · ${tr({ it: 'premio', en: 'prize' })} ${money(node.econ.prize)}`)}`);
     }
     console.log();
   }

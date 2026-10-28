@@ -1067,7 +1067,13 @@ async function api(context0, _req, res, action, body) {
         scheduledDay: g.scheduledDay,
         dateLabel: dateLabel(g.scheduledDay),
         season: g.season,
-        gridSize: node.gridSize ?? null,
+        // CARD DELLA SERIE (30/10, completamento del campo largo): la griglia
+        // mostrata non è più la stima del ladder ma la TIPICA, cioè il massimo
+        // gridSize di griglia reale mai incassato in serie (grigliaSimEstesa):
+        // i display della GUI («Griglia: N auto») combaciano con la classifica e
+        // con la griglia che EVO corre davvero. serie VERGINI (niente risultati)
+        // restano sulla stima del ladder, senza nuovi dati inventati.
+        gridSize: grigliaSimEstesa(ladder, state, node).gridSize ?? null,
         prize: node.econ?.prize ?? null,
         entryFee: node.econ?.rent ?? node.econ?.buy ?? 0,
         repRequired: node.repRequired ?? 0,
@@ -1479,7 +1485,9 @@ async function api(context0, _req, res, action, body) {
           onSchedule: !!g.onSchedule, late: !!g.late, champStarted: !!g.champStarted, stato: g.stato,
           griglia: tipoGriglia(g.node),
           fattibile: g.fattibile, gateReasons: g.gateReasons ?? [], isCurrent: !!g.isCurrent,
-          prize: g.node.econ?.prize ?? null, gridSize: g.node.gridSize ?? null,
+          prize: g.node.econ?.prize ?? null,
+          // CARD AGENDA (30/10): griglia tipica (massimo visto) come nella card serie
+          gridSize: grigliaSimEstesa(ladder, state, g.node).gridSize ?? null,
           carName: (ladder.contentNames?.cars?.[g.node.cars?.[0]] ?? g.node.cars?.[0] ?? null),
         })),
       });
