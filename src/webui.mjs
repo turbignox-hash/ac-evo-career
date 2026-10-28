@@ -42,7 +42,7 @@ import { stileOverview } from './stile-webui.mjs';
 import { maybeSpawnEvent, acceptEvent, declineEvent, finishEvent, eventCard, eventsOverview, expireEvents, ensureEvents, refreshActivePrize, autoFinishEventFromFile, eventTrackReal } from './events.mjs';
 import { seasonReview, reviewableSeasons, exportReview } from './review.mjs';
 import { contractStatus, sponsorOffers, acceptSponsor, declineSponsor, challengeFor, acceptChallenge, sigilDefs, ensureLife, sponsorFor, ensureContract, checkSigils } from './life.mjs';
-import { newsFeed } from './gazzetta.mjs';
+import { newsFeed, seasonPress } from './gazzetta.mjs';
 import { recordTestDay, testDayLog, calibrationSummary } from './testday.mjs';
 import { recordHotlaps, hotlapSweep, hotlapsLog, hotlapsStats, hotlapsProgress } from './hotlaps.mjs';
 import { recordWarning, readWarnings } from './warnings.mjs';
@@ -482,7 +482,7 @@ function durataSessioni(sessi) {
 async function api(context0, _req, res, action, body) {
   const { ladder, paths } = context0;
   const hasCareer = () => existsSync(SAVE_FILE);
-  const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'paddock', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'alias-set', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-prep', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'event-prize-refresh', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'import-inspect', 'tracks', 'backup', 'grid-apply', 'grid-drop', 'grid-ai', 'mechanic', 'maintenance'];
+  const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'paddock', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'alias-set', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'gazzetta-season', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-prep', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'event-prize-refresh', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'import-inspect', 'tracks', 'backup', 'grid-apply', 'grid-drop', 'grid-ai', 'mechanic', 'maintenance'];
   if (needsCareer.includes(action) && !state) {
     return sendJson(res, 400, { error: tr({ it: "Non c'è ancora una carriera: creane una dalla schermata iniziale.", en: 'There is no career yet: create one from the start screen.' }) });
   }
@@ -1137,6 +1137,14 @@ async function api(context0, _req, res, action, body) {
       const wanted = Number.isFinite(Number(body.season)) && Number(body.season) > 0 ? Number(body.season) : seasons[0] ?? state.season;
       if (!seasons.includes(wanted)) return sendJson(res, 400, { error: tr({ it: `Nessuna gara registrata per la stagione ${wanted}.`, en: `No race recorded for season ${wanted}.` }) });
       return sendJson(res, 200, seasonReview(ladder, state, { season: wanted }));
+    }
+    /* LA GAZZETTA DI STAGIONE (28/10): i titoli dell'anno riletti in pagina
+       unica. Stessa guardia della rassegna: senza gare registrate, 400. */
+    case 'gazzetta-season': {
+      const seasons = reviewableSeasons(state);
+      const wanted = Number.isFinite(Number(body.season)) && Number(body.season) > 0 ? Number(body.season) : seasons[0] ?? state.season;
+      if (!seasons.includes(wanted)) return sendJson(res, 400, { error: tr({ it: `Nessuna gara registrata per la stagione ${wanted}.`, en: `No race recorded for season ${wanted}.` }) });
+      return sendJson(res, 200, seasonPress(state, { season: wanted }));
     }
     case 'backup': {
       try {

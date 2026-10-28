@@ -297,6 +297,7 @@ async function drawDashboard(m){
         <h2>${LI.gauge} ${tr({ it: 'Strumenti rapidi', en: 'Quick tools' })}</h2>
         <div class="grid2">
           <button class="qtile" id="b-review">${LI.book}<span><b>${tr({ it: 'Rassegna di fine stagione', en: 'End-of-season review' })}</b><small>${tr({ it: "il bilancio completo dell'anno", en: 'the full year in review' })}</small></span></button>
+          <button class="qtile" id="b-gazzetta">${LI.news}<span><b>${tr({ it: 'Gazzetta di stagione', en: 'Season gazette' })}</b><small>${tr({ it: "i titoli dell'anno, in un foglio solo", en: "the year's headlines, one sheet" })}</small></span></button>
           <button class="qtile" id="b-integrity-quick">${LI.shield}<span><b>${tr({ it: 'Verifica integrità', en: 'Integrity check' })}</b><small>${tr({ it: 'controllo di coerenza della carriera', en: 'career consistency check' })}</small></span></button>
           <button class="qtile" id="b-mondo">${ICONS.iconic ?? '⭐'}<span><b>${tr({ it: 'Classifica Mondiale', en: 'World Ranking' })}</b><small>${tr({ it: 'skill e profili di tutti i piloti del mondo, nel quadro di Campionati', en: 'skill and profiles of every driver, in the Championships panel' })}</small></span></button>
         </div>
@@ -310,6 +311,7 @@ async function drawDashboard(m){
   drawHeritagePanel();
   drawEventsPanel();
   $('#b-review').onclick = () => showReview();
+  $('#b-gazzetta').onclick = () => showGazzetta();
   /* Mondiale più visibile (27/10, Mauro: «resta un poco nascosto»): il tile
      porta DENTRO Campionati con il pieghevole del quadro mondiale già aperto
      (viste-b.js consuma il segnaposto __apriMondo). */
@@ -343,6 +345,35 @@ async function showReview(){
     };
     draw(r);
   } catch(e){ toast(e.message, 'err'); }
+}
+
+/* la gazzetta di stagione (28/10): i titoli scritti gara per gara riletti in
+   pagina unica. Tira dal server il foglio composto (seasonPress) e lo mostra
+   con gli stessi bottoni di stagione della rassegna. */
+async function showGazzetta(){
+  try {
+    const integ = await api('integrity');
+    const seasons = integ.seasons ?? [];
+    if (!seasons.length) return toast(tr({ it: 'Ancora nessuna gara disputata.', en: 'No races run yet.' }), 'warn');
+    const draw = (g) => {
+      const testo = g.heads.map((h) => `${h.title}\n${h.body ?? ''}`).join('\n\n');
+      modal(tr({ it: 'Gazzetta di stagione', en: 'Season gazette' }), `
+        <div style="max-height:60vh;overflow:auto">
+          <div class="muted" style="margin-bottom:10px">${tr({ it: `stagione ${g.season}`, en: `season ${g.season}` })} · ${g.races} ${tr({ it: 'gare', en: 'races' })} · ${g.wins} ${tr({ it: 'vittorie', en: 'wins' })} · ${g.podiums} ${tr({ it: 'podi', en: 'podiums' })}${g.dnf ? ` · ${g.dnf} ${tr({ it: 'ritiri', en: 'DNFs' })}` : ''}</div>
+          ${!g.races ? `<div class="empty">${tr({ it: 'Il registro della stampa per quest\'anno è vuoto: i titoli arrivano con le gare importate.', en: "The season's press registry is empty: headlines arrive with imported races." })}</div>`
+          : g.heads.map((h) => `
+            <div style="border-left:2px solid var(--line,#283046);padding:6px 10px;margin-bottom:8px">
+              <span class="chip ${h.outcome === 'P1' ? 'gold' : h.outcome === 'dnf' ? 'red' : ''}" style="font-size:10px;padding:1px 6px">R${h.round} · ${esc(h.track ?? '')}</span>
+              <b style="font-size:12.5px;display:block;margin-top:3px">${esc(h.title)}</b>
+              <div class="muted" style="font-size:12px;white-space:pre-wrap">${esc(h.body ?? '')}</div>
+            </div>`).join('')}
+        </div>`,
+        [ ...seasons.filter((s) => s !== g.season).slice(0, 2).map((s) => [`${tr({ it: 'Stagione', en: 'Season' })} ${s}`, 'ghost', () => { api('gazzetta-season', { season: s }).then(draw).catch((e) => toast(e.message, 'err')); }]),
+          [tr({ it: 'Copia il foglio', en: 'Copy sheet' }), 'ghost', async () => { try { await navigator.clipboard.writeText(testo); toast(tr({ it: 'Gazzetta copiata.', en: 'Gazette copied.' }), 'ok'); } catch { toast(tr({ it: 'Appunti negati.', en: 'Clipboard denied.' }), 'err'); } }],
+          [tr({ it: 'Chiudi', en: 'Close' }), 'ghost', () => {}]]);
+    };
+    draw(await api('gazzetta-season', { season: seasons[0] }));
+  } catch (e) { toast(e.message, 'err'); }
 }
 
 /* -------- vita fuori pista: contratto, sponsor, sfida, voci -------- */

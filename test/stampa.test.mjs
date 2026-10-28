@@ -13,7 +13,7 @@ import { join } from 'node:path';
 const DATA = mkdtempSync(join(tmpdir(), 'evo-stampa-'));
 process.env.EVO_DATA_DIR = DATA;
 const { seasonReview } = await import('../src/review.mjs');
-const { publishRaceNews, publishNotice, newsFeed, resetNews } = await import('../src/gazzetta.mjs');
+const { publishRaceNews, publishNotice, newsFeed, resetNews, seasonPress } = await import('../src/gazzetta.mjs');
 
 const ladder = {
   disciplines: [],
@@ -145,4 +145,102 @@ test('gazzetta: il foglio si riempie fino a 80 voci, le notice con kind proprio'
   const after = newsFeed(1)[0];
   assert.equal(after.kind, 'contract');
   assert.equal(after.title, 'Contratto firmato');
+});
+
+/* ------------------------------------------------------------------ */
+/* titoli per-round (28/10): lo storico decide, niente dado             */
+/* ------------------------------------------------------------------ */
+
+test('gazzetta: titoli per round — pole buttata e ritiri in serie', () => {
+  resetNews();
+  const p = publishRaceNews(ctx({ round: 1, position: 0, dnf: true, pole: true }));
+  assert.ok(p.title.includes('LA POLE BUTTATA'));
+  // un ritiro non basta per la serie, due di fila sì
+  const st = { season: 1, driver: { first: 'Mauro' }, results: { coppa: [
+    { season: 1, round: 0, dnf: true }, { season: 1, round: 1, dnf: true },
+  ] } };
+  const serie = publishRaceNews(ctx({ round: 2, position: 0, dnf: true }, { state: st }));
+  assert.ok(serie.title.includes('BRUTTA SERIE'));
+  assert.ok(serie.title.includes('3 ritiri consecutivi'));
+  assert.ok(!p.title.includes('BRUTTA SERIE'), 'un ritiro solo resta il titolo semplice');
+});
+
+test('gazzetta: il ritorno dal box e le vittorie di fila', () => {
+  // vittoria subito dopo il ritiro
+  const st1 = { season: 1, driver: { first: 'Mauro' }, results: { coppa: [{ season: 1, round: 0, dnf: true }] } };
+  const back = publishRaceNews(ctx({ round: 1, position: 1, dnf: false }, { state: st1 }));
+  assert.ok(back.title.includes('RITORNO DAL BOX'));
+  // due vittorie di fila
+  const st2 = { season: 1, driver: { first: 'Mauro' }, results: { coppa: [
+    { season: 1, round: 0, dnf: false, position: 1 },
+  ] } };
+  const fila = publishRaceNews(ctx({ round: 1, position: 1, dnf: false }, { state: st2 }));
+  assert.ok(fila.title.includes('DUE DI FILO'));
+});
+
+test('gazzetta: prima vittoria sulla pista e primo gradino della stagione', () => {
+  const st = { season: 1, driver: { first: 'Mauro' }, results: { coppa: [
+    { season: 1, round: 0, dnf: false, position: 3, track: 'monza_a' },
+  ] } };
+  const prima = publishRaceNews(ctx({ round: 4, position: 1, dnf: false, track: 'imola' }, { state: st, trackDisplay: 'Imola' }));
+  assert.ok(prima.title.includes('PRIMA VOLTA A IMOLA'));
+  // no podi prima di oggi: il titolo cambia gradino
+  const st5 = { season: 1, driver: { first: 'Mauro' }, results: { coppa: [
+    { season: 1, round: 0, dnf: false, position: 5, points: 6 },
+  ] } };
+  const first = publishRaceNews(ctx({ round: 1, position: 3, dnf: false }, { state: st5 }));
+  assert.ok(first.title.includes('IL PRIMO GRADINO'));
+});
+
+test('gazzetta: podio a serie e titoli deterministici sul re-runa', () => {
+  const st = { season: 1, driver: { first: 'Mauro' }, results: { coppa: [
+    { season: 1, round: 0, dnf: false, position: 2 },
+    { season: 1, round: 1, dnf: false, position: 2 },
+    { season: 1, round: 2, dnf: false, position: 3 },
+  ] } };
+  const serie = publishRaceNews(ctx({ round: 3, position: 2, dnf: false }, { state: st }));
+  assert.ok(serie.title.includes('PODIO A SERIE'));
+  assert.ok(serie.title.includes('4 podi consecutivi'));
+  // stesso storico, stessa pagina: rifare la ronda non cambia titolo né body
+  resetNews();
+  const a = publishRaceNews(ctx({ round: 1, position: 1, dnf: false }, { state: st1Like() }));
+  resetNews();
+  const b = publishRaceNews(ctx({ round: 1, position: 1, dnf: false }, { state: st1Like() }));
+  assert.equal(b.title, a.title, 'stesso storico, stesso titolo');
+  assert.equal(b.body, a.body);    function st1Like() {
+    return { season: 1, driver: { first: 'Mauro' }, results: { coppa: [{ season: 1, round: 0, dnf: true }] } };
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/* LA GAZZETTA DI STAGIONE: il volume che rilega i titoli dell'anno    */
+/* ------------------------------------------------------------------ */
+
+test('gazzetta di stagione: i titoli del foglio tornano in ordine di round, DETERMINISTICI', () => {
+  resetNews();
+  publishRaceNews(ctx({ round: 0, position: 1, dnf: false, pole: true, fl: true })); // chelem
+  publishRaceNews(ctx({ round: 1, position: 3, dnf: false }));
+  publishRaceNews(ctx({ round: 2, position: 0, dnf: true }));
+  const p = seasonPress({ season: 1 });
+  assert.equal(p.season, 1);
+  assert.equal(p.races, 3, 'le tre gare della stagione entrano nel volume');
+  assert.equal(p.wins, 1, 'una vittoria (il chelem)');
+  assert.equal(p.podiums, 2, 'P1 + P3: due podi');
+  assert.equal(p.dnf, 1, 'un ritiro');
+  // in ordine di round: R0, R1, R2
+  assert.deepEqual(p.heads.map((h) => h.round), [0, 1, 2]);
+  assert.ok(p.heads[0].title.includes('GRANDE CHELEM A MONZA'));
+  assert.ok(p.heads[2].title.includes('ritiro'));
+  // DETERMINISTICO: stessa stampa, stesso titolo, stesso foglio
+  const again = seasonPress({ season: 1 });
+  assert.equal(again.races, p.races);
+  assert.deepEqual(again.heads, p.heads, 'stesso anno, stessa pagina');
+});
+
+test('gazzetta di stagione: senza news il volume esce comunque (silenzioso, non crash)', () => {
+  resetNews();
+  const p = seasonPress({ season: 1 });
+  assert.equal(p.races, 0);
+  assert.deepEqual(p.heads, [], 'nessun titolo, nessuna pagina');
+  assert.deepEqual(p.wins, 0);
 });
