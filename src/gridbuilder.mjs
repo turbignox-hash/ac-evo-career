@@ -17,7 +17,7 @@
 // Flusso di gara serale: chiuso EVO → `node ac-evo-career.mjs griglia [--dry]`
 // → aperto EVO → menu griglia (senza GENERA) → APPLICA → via.
 //
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, copyFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
@@ -43,9 +43,19 @@ const utf8 = (b) => Buffer.from(b).toString('utf8');
 export function classesFile() {
   return process.env.EVO_CLASSES_FILE ?? join(PROJECT, 'data', 'grid-classes.json');
 }
+const FIXTURE_CLASSI = join(PROJECT, 'test', 'fixtures', 'grid-classes-sample.json');
 let _classesMemo = null; // { percorso, mtime, dati }
 export function loadClasses() {
   const F = classesFile();
+  // BOOTSTRAP AMICO (2/11): data/ è lo stato per PC, MA un'installazione
+  // vergine (zip estratta, primo avvio) non ha NESSUNA classe — zero zavorre,
+  // zero miscugli, campionati procedurali vuoti. Al primo accesso copio la
+  // fixture congelata in data/: l'amico parte con lo stesso parco classi e da
+  // lì la calibrazione del SUO PC scrive il SUO file. EVO_CLASSES_FILE non
+  // partecipa: nei test il percorso punta già esplicitamente dove serve.
+  if (!existsSync(F) && existsSync(FIXTURE_CLASSI)) {
+    try { mkdirSync(dirname(F), { recursive: true }); copyFileSync(FIXTURE_CLASSI, F); } catch { /* senza bootstrap la lettura sotto parte vuota */ }
+  }
   const mtime = existsSync(F) ? statSync(F).mtimeMs : 0;
   // il memo PARLA anche del PERCORSO (test con EVO_CLASSES_FILE a cambio file:
   // due fixture scritte nello stesso tick hanno la stessa mtime ma non i dati).

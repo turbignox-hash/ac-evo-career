@@ -1,3 +1,31 @@
+## PACCHETTO AMICO VERDE (2/11) — classe bootstrap + smoke sul vergine: 281/281 NELL'ESTRAZIONE
+
+- **Sintomo**: `npm test` dentro lo zip estratto (prova del pacchetto amico,
+  checklist fase 3 di PUBLICA-CHECKLIST) cadeva su 3 test: (a) `webui-smoke`
+  4-bis — garage `stinti`/`gomme` rispondevano 400; (b)(c) `gridclasses` —
+  `campionato_aperto` / `campionato_sport_moderno` / i cinque `campionato_*`
+  stile «classe presente» fallita.
+- **Due mancanze di consegna, non bug**:
+  1. `/api/garage` è azione needsCareer: nell'installazione SENZA salvataggio
+     (l'amico al primo avvio) il server risponde 400 col messaggio gentile —
+     comportamento GIUSTO che il test non copriva: la sezione 4-bis non aveva
+     la stessa guardia `hasCareer` di status/card. FIX nel test: i check di
+     garage girano solo `if (boot.j.hasCareer)` (test) — il server non si tocca.
+  2. `data/grid-classes.json` è per PC (non tracciato): nell'estrazione le sette
+     classi NUOVE (aperto, sport_moderno, 5 stili generati il 28/10) non
+     esistevano né nel dato né nella fixture del 24/10. FIX a due mani:
+     (i) la fixture `test/fixtures/grid-classes-sample.json` riceve le SETTE
+     classi nuove coi loro `LIMITI_GIOCO` (base restata il contratto dei test
+     di calibrazione — importare TUTTO il parco attuale rompeva `confidenza`
+     e `regole fonte paddock`);
+     (ii) BOOTSTRAP in `loadClasses()` (gridbuilder.mjs): se il file delle
+     classi manca, al primo accesso la fixture copia in `data/grid-classes.json`
+     — l'amico inizia con lo stesso parco classi e da lì la calibrazione del
+     SUO PC scrive il SUO file. Verificato: dopo lo smoke, nella cartella
+     estratta nasce `data/grid-classes.json`.
+- **Esito**: 281/281 sia nel vergine estratto sia sul PC di Mauro. Lo stato per
+  PC resta fuori dal repo: viaggio solo la fixture (tracciata) e il bootstrap.
+
 ## NOTA DOCUMENTAZIONE PUBBLICA (31/10, richiesta Mauro: «aggiungi una nota per scriverla sulla pagina principale di github e sulla pagina della presentazione»)
 
 - **Dove**: README.md (EN), README.it.md (IT) e IDEA-POST-PRESENTAZIONE.md.

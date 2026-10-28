@@ -366,7 +366,10 @@
     },
     "coppa_mazda-rx7-fd": {
       "note": "Griglia MULTI-MARCA 1990-2005 della Coppa RX-7 FD (scelta Mauro 21/10: la monomarca forzata del builder era anti-storica — la serie a un'unica auto deve correre come le altre). poolAuto = i 9 modelli d'epoca vivi nel template (celle vere del GENERA EVO del 21/10 ore 12:34: NSX-R, S2000, RX-7 FD, 205 T16, 190E Evo II, Mini JCS, M3 E30 Evo III, MX-5 NA, Delta HF Evo II). Le regole SONO i valori calibrati della classe strada-brands-9-10 (stesso pool di modelli, gare 19/10 con gap P1 +0,575); eccezione: preset_mx5na_mech_1 non era nel pool calibrato — valore derivato dal PI (mech_2 15% − ΔPI 0,25 punto × 25%/punto ≈ 8,75%). RIFORNITO 23/10 (Mauro, gare RBR 261023-0036 asciutto + 261023-0114 bagnato): RX-7/S2000/NSX sul ritmo (0–3 s/lap), M3/T16/Delta +5–6,5 s/lap dal base → corr. parziale −3 punti; Mini e MX-5 +23–26 s/lap (girate in ENTRAMBE le gare, recupero di ~40 punti restrittore impossibile sotto il cap 20%) → escludiAuto dal pool, stessa leva del Golf 8 R.",
-      "escludiAuto": ["preset_jcs_mech_1", "preset_mx5na_mech_1"],
+      "escludiAuto": [
+        "preset_jcs_mech_1",
+        "preset_mx5na_mech_1"
+      ],
       "escludiPerche": "Mini JCS e MX-5 NA: esclusi su decisione di Mauro 23/10 — gare RBR 261023-0036 (asciutto) e 261023-0114 (bagnato): mediana best-lap +23,1/+22,9 s/lap (Mini, restrittore 10%) e +26,3/+24,1 (MX-5, 8,75%), entrambe GIRATE in gara. Con pendenza ~0,57 s/% servirebbero ~40 punti di SOTTRAZIONE oltre il cap 20%: la vera pace del pool non lo compensa. Le regole resto nel file; se Mauro le riammette, togliere da escludiAuto e valutare 0%.",
       "autoBase": "Mercedes-Benz 190E 2.5-16 Evo II (base della calibrazione: kg 0 / 0%)",
       "poolAuto": [
@@ -385,15 +388,65 @@
         "restrictorMaxPct": 20
       },
       "regole": [
-        { "preset": "preset_rx7fd_mech_1", "auto": "Mazda RX-7 FD Spirit R", "ballastKg": 100, "restrictorPct": 2 },
-        { "preset": "preset_t16_mech_1", "auto": "Peugeot 205 T16", "ballastKg": 100, "restrictorPct": 8, "nota": "23/10 post-RBR (asciutto + bagnato: gap vs base 190E +6,1/+5,4 s/lap a 11% → chiudo ~1,7s scendendo 11 → 8; 22/10 dopo Sebring era 8→11)" },
-        { "preset": "preset_nsxr_mech_1", "auto": "Honda NSX-R 92R", "ballastKg": 100, "restrictorPct": 5 },
-        { "preset": "preset_s2000ap1_mech_1", "auto": "Honda S2000 AP1", "ballastKg": 100, "restrictorPct": 6 },
-        { "preset": "preset_m3evoiii_mech_1", "auto": "BMW M3 E30 Sport Evo (Evolution III)", "ballastKg": 100, "restrictorPct": 0.5, "nota": "23/10 post-RBR (asciutto + bagnato: gap vs base 190E +6,0/+5,2 s/lap a 3,5% → chiudo ~1,7s scendendo 3,5 → 0,5; 22/10 dopo Sebring era 1→3,5)" },
-        { "preset": "preset_jcs_mech_1", "auto": "Mini John Cooper S", "ballastKg": 100, "restrictorPct": 10, "nota": "ESCLUSA dal pool 23/10 (escludiAuto): gare RBR 261023 × 2 girata, +23 s/lap a 10% — regola tenuta per eventuale riammissione" },
-        { "preset": "preset_mx5na_mech_1", "auto": "Mazda MX-5 NA", "ballastKg": 100, "restrictorPct": 8.75, "nota": "ESCLUSA dal pool 23/10 (escludiAuto): gare RBR 261023 × 2 girata, +25 s/lap a 8,75% — regola tenuta per eventuale riammissione (valore derivato dal PI: mech_2 15% − ΔPI 0,25 × 25%/punto ≈ 8,75)" },
-        { "preset": "preset_hfevoii_mech_1", "auto": "Lancia Delta HF integrale Evoluzione II", "ballastKg": 100, "restrictorPct": 3, "nota": "23/10 post-RBR (asciutto + bagnato: gap vs base 190E +6,5/+5,7 s/lap a 6% → chiudo ~1,7s scendendo 6 → 3; 22/10 dopo Sebring era stato alzato a 6)" },
-        { "preset": "preset_190e_mech_1", "auto": "Mercedes-Benz 190E 2.5-16 Evo II", "ballastKg": 0, "restrictorPct": 0 }
+        {
+          "preset": "preset_rx7fd_mech_1",
+          "auto": "Mazda RX-7 FD Spirit R",
+          "ballastKg": 100,
+          "restrictorPct": 2
+        },
+        {
+          "preset": "preset_t16_mech_1",
+          "auto": "Peugeot 205 T16",
+          "ballastKg": 100,
+          "restrictorPct": 8,
+          "nota": "23/10 post-RBR (asciutto + bagnato: gap vs base 190E +6,1/+5,4 s/lap a 11% → chiudo ~1,7s scendendo 11 → 8; 22/10 dopo Sebring era 8→11)"
+        },
+        {
+          "preset": "preset_nsxr_mech_1",
+          "auto": "Honda NSX-R 92R",
+          "ballastKg": 100,
+          "restrictorPct": 5
+        },
+        {
+          "preset": "preset_s2000ap1_mech_1",
+          "auto": "Honda S2000 AP1",
+          "ballastKg": 100,
+          "restrictorPct": 6
+        },
+        {
+          "preset": "preset_m3evoiii_mech_1",
+          "auto": "BMW M3 E30 Sport Evo (Evolution III)",
+          "ballastKg": 100,
+          "restrictorPct": 0.5,
+          "nota": "23/10 post-RBR (asciutto + bagnato: gap vs base 190E +6,0/+5,2 s/lap a 3,5% → chiudo ~1,7s scendendo 3,5 → 0,5; 22/10 dopo Sebring era 1→3,5)"
+        },
+        {
+          "preset": "preset_jcs_mech_1",
+          "auto": "Mini John Cooper S",
+          "ballastKg": 100,
+          "restrictorPct": 10,
+          "nota": "ESCLUSA dal pool 23/10 (escludiAuto): gare RBR 261023 × 2 girata, +23 s/lap a 10% — regola tenuta per eventuale riammissione"
+        },
+        {
+          "preset": "preset_mx5na_mech_1",
+          "auto": "Mazda MX-5 NA",
+          "ballastKg": 100,
+          "restrictorPct": 8.75,
+          "nota": "ESCLUSA dal pool 23/10 (escludiAuto): gare RBR 261023 × 2 girata, +25 s/lap a 8,75% — regola tenuta per eventuale riammissione (valore derivato dal PI: mech_2 15% − ΔPI 0,25 × 25%/punto ≈ 8,75)"
+        },
+        {
+          "preset": "preset_hfevoii_mech_1",
+          "auto": "Lancia Delta HF integrale Evoluzione II",
+          "ballastKg": 100,
+          "restrictorPct": 3,
+          "nota": "23/10 post-RBR (asciutto + bagnato: gap vs base 190E +6,5/+5,7 s/lap a 6% → chiudo ~1,7s scendendo 6 → 3; 22/10 dopo Sebring era stato alzato a 6)"
+        },
+        {
+          "preset": "preset_190e_mech_1",
+          "auto": "Mercedes-Benz 190E 2.5-16 Evo II",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        }
       ],
       "perTraccia": {
         "Paul Ricard": {
@@ -444,14 +497,508 @@
         "restrictorMaxPct": 20
       },
       "regole": [
-        { "preset": "preset_dalexp_mech_1", "auto": "Dallara EXP", "ballastKg": 75, "restrictorPct": 5 },
-        { "preset": "preset_296gt3_mech_1", "auto": "Ferrari 296 GT3", "ballastKg": 0, "restrictorPct": 0 }
+        {
+          "preset": "preset_dalexp_mech_1",
+          "auto": "Dallara EXP",
+          "ballastKg": 75,
+          "restrictorPct": 5
+        },
+        {
+          "preset": "preset_296gt3_mech_1",
+          "auto": "Ferrari 296 GT3",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        }
       ],
       "storia": [
         {
           "data": "2026-10-22",
           "variante": "apertura fase a 50kg/3% (sul dato pratico del 21/10 sera)",
           "esito": "GIUDICATA TROPPO POCA dal Mauro («ancora troppo veloci»): le 7 EXP chiudevano 1:50.42-51.72 con margine solo +0.16/+1.81 dalla sua 296; 0015 (22/10) le prime 4 EXP sotto 1:51.0 già al 1-2° giro. Sezione da convalidare in gara: 75kg/5%"
+        }
+      ]
+    },
+    "campionato_aperto": {
+      "id": "campionato_aperto",
+      "note": "Campionato Aperto (richiesta Mauro 28/10: pool a PI ampio in stile R5+Escort — chi ha più motore vince i pezzi lunghi, e il vantaggio torna nel misto). Finestra PI 7.9–9.3 con base la R5 (PI 8.492). Penali da catalogo con metodo 19/10 (zavorra fissa 100kg, ΔPI dalla base × pendenza 25%/PI, arrotondate a .5); due eccezioni a misura di pista, non di PI: (1) l'Escort PI 8.353 con restrittore all'8% (che il 19/10 a Brands convalida) DOMINAVA di 12-14s/lap su Donington e Oulton (gare 27-28/10, favore 12,6-14,0): parte al cap 20% come già fatto in coppa_strada_80 e gr86-r5-escort. (2) la 75 Turbo è PI 7.958 (sotto la base!) ma sulla base dell'analogia comportamentale porta 100kg/13,5% dal catalogo: sta della prova. PUNTO DI PARTENZA: la prima gara con griglia-calib decide se regge (v. ramo C regola-classe). Niente aiStandard: banda dal ladder (80-90).",
+      "autoBase": "Renault 5 GT Turbo",
+      "piMin": 7.9,
+      "piMax": 9.3,
+      "poolAuto": [
+        "ks_datsun_240z_fairlady",
+        "ks_toyota_ae86_sprinter_trueno",
+        "ks_ford_escort_rs_cosworth",
+        "ks_renault_5_gt_turbo",
+        "ks_alfa_romeo_75_turbo_evo"
+      ],
+      "regole": [
+        {
+          "preset": "preset_75t_mech_1",
+          "auto": "Alfa Romeo 75 Turbo Evoluzione",
+          "ballastKg": 100,
+          "restrictorPct": 13.5
+        },
+        {
+          "preset": "preset_240z_mech_2",
+          "auto": "Datsun 240Z (S30) — Tuned",
+          "ballastKg": 100,
+          "restrictorPct": 10
+        },
+        {
+          "preset": "preset_ae86_mech_1",
+          "auto": "Toyota Sprinter Trueno 1600GT-Apex (AE86) — Zenki",
+          "ballastKg": 100,
+          "restrictorPct": 4
+        },
+        {
+          "preset": "preset_ae86_mech_2",
+          "auto": "Toyota Sprinter Trueno 1600GT-Apex (AE86) — Kouki",
+          "ballastKg": 100,
+          "restrictorPct": 4
+        },
+        {
+          "preset": "preset_ae86_mech_3",
+          "auto": "Toyota Sprinter Trueno 1600GT-Apex (AE86) — Kouki Black Limited",
+          "ballastKg": 100,
+          "restrictorPct": 4
+        },
+        {
+          "preset": "preset_ae86_mech_4",
+          "auto": "Toyota Sprinter Trueno 1600GT-Apex (AE86) — Anime Tribute",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "variante Tribute PI 9.629 (Δ1.137 dalla base, oltre il cap della formula): al cap 20 come l'Escort. Il vigia car-pool la accetta comunque (stesso id ks_ del pool)"
+        },
+        {
+          "preset": "preset_240z_mech_1",
+          "auto": "Datsun 240Z (S30) — Standard",
+          "ballastKg": 0,
+          "restrictorPct": 0,
+          "nota": "variante Standard del pool (PI 7.294, sotto la base): 0/0 da base, ed è la legge giusta. Copertura totale dei preset del pool (lezione 28/10: ogni preset pescato deve avere una regola, anche 0/0)"
+        },
+        {
+          "preset": "preset_escortrs_mech_1",
+          "auto": "Ford Escort RS Cosworth",
+          "ballastKg": 100,
+          "restrictorPct": 20
+        },
+        {
+          "preset": "preset_r5gt_mech_1",
+          "auto": "Renault 5 GT Turbo",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        }
+      ],
+      "LIMITI_GIOCO": {
+        "ballastMaxKg": 100,
+        "restrictorMaxPct": 20
+      },
+      "storia": [
+        {
+          "data": "2026-10-28",
+          "variante": "nascita: proposta da catalogo (grid-tune, ΔPI×25) + lezioni già misurate su R5+Escort",
+          "nota": "prima gara nera (nessun override per pista): 4-5 auto nuove in pool, la calibrazione parte al primo giro. La conferma o la correzione arriva dai risultati con griglia-calib — ramo C regola-classe attivo da subito."
+        }
+      ]
+    },
+    "campionato_sport_moderno": {
+      "id": "campionato_sport_moderno",
+      "note": "Campionato Sport Moderno (richiesta Mauro 28/10: secondo pool a PI ampio, auto recenti — GR86, S2000, RX-7 FD, Mini JCS). Finestra PI 8.8–9.9 con base la GR86 Standard (PI 8.858, la più lenta in pool). Penali di partenza: formula 19/10 ΔPI×25 per le in-finestra + DUE dati misurati in pista il 19/10 nella classe sorella 8–9 (GR86 Edition +5% sopra la Standard). LE AD OLTRE-FINESTRA al cap 20: S2000 (Δ1.033→26%), RX-7 FD (Δ0.954→24%), Mini Tune (Δ1.895→47%) — come l'Escort in coppa_strada_80: se in GARA scappano comunque, prossima leva escludiAuto (mai inventare pene oltre il cap del gioco). PUNTO DI PARTENZA: la prima gara con griglia-calib decide (ramo C regola-classe attivo). Niente aiStandard: banda dal ladder (85–95).",
+      "autoBase": "GR86 Standard",
+      "piMin": 8.8,
+      "piMax": 9.9,
+      "poolAuto": [
+        "ks_toyota_gr86",
+        "ks_mini_jcs_1990",
+        "ks_mazda_rx7_fd",
+        "ks_honda_s2000_ap1"
+      ],
+      "regole": [
+        {
+          "preset": "preset_gr86_mech_2",
+          "auto": "GR86 Trueno Edition",
+          "ballastKg": 100,
+          "restrictorPct": 2
+        },
+        {
+          "preset": "preset_gr86_mech_3",
+          "auto": "GR86 Hakone Edition",
+          "ballastKg": 100,
+          "restrictorPct": 2
+        },
+        {
+          "preset": "preset_jcs_mech_1",
+          "auto": "Mini John Cooper S",
+          "ballastKg": 100,
+          "restrictorPct": 16
+        },
+        {
+          "preset": "preset_rx7fd_mech_1",
+          "auto": "Mazda RX-7 FD Spirit R",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "fuori dalla formula (Δ0.954→24%): al cap 20 come l'Escort; la prima gara decide se regge o escludiAuto"
+        },
+        {
+          "preset": "preset_s2000ap1_mech_1",
+          "auto": "Honda S2000 AP1",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "fuori dalla formula (Δ1.033→26%): al cap 20 come l'Escort; la prima gara decide"
+        },
+        {
+          "preset": "preset_jcs_mech_2",
+          "auto": "Mini John Cooper S (Tune)",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "variante Tune PI 10.753 (Δ1.895→47%, oltre ogni cap): coperta al cap per la regola coverage, ma è auto-ospite — se in griglia esce troppo avanti la via onesta è escludiAuto sul preset"
+        },
+        {
+          "preset": "preset_gr86_mech_1",
+          "auto": "GR86 Standard",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        }
+      ],
+      "LIMITI_GIOCO": {
+        "ballastMaxKg": 100,
+        "restrictorMaxPct": 20
+      },
+      "storia": [
+        {
+          "data": "2026-10-28",
+          "variante": "nascita: proposta da catalogo (ΔPI×25) + misura 19/10 sulle Edition GR86",
+          "nota": "prima gara nera: 7 preset / 4 modelli; il pool moderno ha span ΔPI 1.03 — tre auto al cap della formula: qui la prima gara è VERAMENTE calibrazione, non conferma"
+        }
+      ]
+    },
+    "campionato_epoca": {
+      "id": "campionato_epoca",
+      "note": "Finestra PI 7.2–10.3: pescaggio completamente random di livello L2 — sports stradali, hot hatch, Cup leggere: mono e multiclasse messe alla stanga con la stessa lotteria. Pescaggio a sorte (seed=819802402) su 5 modelli — Renault 5 GT Turbo, Toyota GR86, Mazda MX-5 NA, Hyundai i30 N, Lamborghini Countach. Base=Renault 5 GT Turbo (PI 8.492) span ΔPI 1.077: PUNTO DI PARTENZA, la prima gara con griglia-calib decide (ramo C regola-classe attivo da subito). Copertura completa dei preset del pool (lezione 28/10: ogni preset pescato deve avere una regola). Niente aiStandard: banda dal ladder (80–90).",
+      "autoBase": "Renault 5 GT Turbo",
+      "piMin": 7.2,
+      "piMax": 10.3,
+      "poolAuto": [
+        "ks_renault_5_gt_turbo",
+        "ks_toyota_gr86",
+        "ks_mazda_mx5_na",
+        "ks_hyundai_i30_n_hb",
+        "ks_lamborghini_countach"
+      ],
+      "regole": [
+        {
+          "preset": "preset_i30n_hb_mech_2",
+          "auto": "Hyundai i30 N",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "formula Δ1.077×25=26.9% → cap 20; la prima gara decide"
+        },
+        {
+          "preset": "preset_cntqv_mech_1",
+          "auto": "Lamborghini Countach",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "formula Δ1.019×25=25.5% → cap 20; la prima gara decide"
+        },
+        {
+          "preset": "preset_i30n_hb_mech_1",
+          "auto": "Hyundai i30 N",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "formula Δ0.875×25=21.9% → cap 20; la prima gara decide"
+        },
+        {
+          "preset": "preset_mx5na_mech_2",
+          "auto": "Mazda MX-5 NA",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "formula Δ0.821×25=20.5% → cap 20; la prima gara decide"
+        },
+        {
+          "preset": "preset_mx5na_mech_1",
+          "auto": "Mazda MX-5 NA",
+          "ballastKg": 100,
+          "restrictorPct": 14
+        },
+        {
+          "preset": "preset_gr86_mech_2",
+          "auto": "Toyota GR86",
+          "ballastKg": 100,
+          "restrictorPct": 10
+        },
+        {
+          "preset": "preset_gr86_mech_3",
+          "auto": "Toyota GR86",
+          "ballastKg": 100,
+          "restrictorPct": 10
+        },
+        {
+          "preset": "preset_gr86_mech_1",
+          "auto": "Toyota GR86",
+          "ballastKg": 100,
+          "restrictorPct": 9
+        },
+        {
+          "preset": "preset_r5gt_mech_1",
+          "auto": "Renault 5 GT Turbo",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        }
+      ],
+      "LIMITI_GIOCO": {
+        "ballastMaxKg": 100,
+        "restrictorMaxPct": 20
+      },
+      "storia": [
+        {
+          "data": "2026-10-28",
+          "variante": "nascita: generata da tools/_genera-stili.mjs (miscuglio completamente random, mono+multiclasse, seed=819802402)",
+          "nota": "prima gara nera (nessun override per pista): la calibrazione parte al giro 1."
+        }
+      ]
+    },
+    "campionato_moderno": {
+      "id": "campionato_moderno",
+      "note": "Finestra PI 9.3–11.6: pescaggio random L3 — Cup, GT moderne leggere, sportive d'epoca veloci, tutto insieme: la sorte decide, il bilancio di griglia-calib sistema. Pescaggio a sorte (seed=819802402) su 5 modelli — Mazda MX-5 ND Cup, Toyota Supra MKIV, Abarth 695 Biposto, Alfa Romeo Junior, Ferrari 288 GTO. Base=Mazda MX-5 ND Cup (PI 10.077) span ΔPI 2.949: PUNTO DI PARTENZA, la prima gara con griglia-calib decide (ramo C regola-classe attivo da subito). Copertura completa dei preset del pool (lezione 28/10: ogni preset pescato deve avere una regola). Niente aiStandard: banda dal ladder (85–95).",
+      "autoBase": "Mazda MX-5 ND Cup",
+      "piMin": 9.3,
+      "piMax": 11.6,
+      "poolAuto": [
+        "ks_mazda_mx5_nd_cup",
+        "ks_toyota_supra_mkiv",
+        "ks_abarth_695_biposto",
+        "ks_alfa_romeo_junior",
+        "ks_ferrari_288_gto"
+      ],
+      "regole": [
+        {
+          "preset": "preset_supramkiv_mech_2",
+          "auto": "Toyota Supra MKIV",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "variante fuori dalla finestra del livello (13.026) → cap 20 come l'Escort (lezione 27/10); la prima gara decide"
+        },
+        {
+          "preset": "preset_288gto_mech_1",
+          "auto": "Ferrari 288 GTO",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "formula Δ0.980×25=24.5% → cap 20; la prima gara decide"
+        },
+        {
+          "preset": "preset_mln_mech_1",
+          "auto": "Alfa Romeo Junior",
+          "ballastKg": 100,
+          "restrictorPct": 11
+        },
+        {
+          "preset": "preset_mx5ndcup_mech_2",
+          "auto": "Mazda MX-5 ND Cup",
+          "ballastKg": 100,
+          "restrictorPct": 7.5
+        },
+        {
+          "preset": "preset_695b_mech_1",
+          "auto": "Abarth 695 Biposto",
+          "ballastKg": 100,
+          "restrictorPct": 2.5
+        },
+        {
+          "preset": "preset_supramkiv_mech_1",
+          "auto": "Toyota Supra MKIV",
+          "ballastKg": 0,
+          "restrictorPct": 0,
+          "nota": "variante alla stessa PI della base (10.079): 0/0, la stessa legge giusta della base"
+        },
+        {
+          "preset": "preset_mx5ndcup_mech_1",
+          "auto": "Mazda MX-5 ND Cup",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        }
+      ],
+      "LIMITI_GIOCO": {
+        "ballastMaxKg": 100,
+        "restrictorMaxPct": 20
+      },
+      "storia": [
+        {
+          "data": "2026-10-28",
+          "variante": "nascita: generata da tools/_genera-stili.mjs (miscuglio completamente random, mono+multiclasse, seed=819802402)",
+          "nota": "prima gara nera (nessun override per pista): la calibrazione parte al giro 1."
+        }
+      ]
+    },
+    "campionato_strada": {
+      "id": "campionato_strada",
+      "note": "Finestra PI 11.0–13.5: pescaggio random L4 — omologate, Cup stradali, GT: categoria ignota, PI uguale per tutti. Pescaggio a sorte (seed=819802402) su 6 modelli — BMW M8 Competition, BMW M4 CSL, Alpine A110 S, Chevrolet Camaro ZL1, Porsche 718 Cayman GT4 RS, Alfa Romeo Giulia GTAm. Base=BMW M8 Competition (PI 11.566) span ΔPI 1.200: PUNTO DI PARTENZA, la prima gara con griglia-calib decide (ramo C regola-classe attivo da subito). Copertura completa dei preset del pool (lezione 28/10: ogni preset pescato deve avere una regola). Niente aiStandard: banda dal ladder (87–98).",
+      "autoBase": "BMW M8 Competition",
+      "piMin": 11,
+      "piMax": 13.5,
+      "poolAuto": [
+        "ks_bmw_m8_competition",
+        "ks_bmw_m4_csl",
+        "ks_alpine_a110_s",
+        "ks_chevrolet_camaro_zl1",
+        "ks_porsche_718_cayman_gt4_rs",
+        "ks_alfa_romeo_giulia_gtam"
+      ],
+      "regole": [
+        {
+          "preset": "preset_gtam_mech_1",
+          "auto": "Alfa Romeo Giulia GTAm",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "formula Δ1.200×25=30% → cap 20; la prima gara decide"
+        },
+        {
+          "preset": "preset_718gt4rs_mech_1",
+          "auto": "Porsche 718 Cayman GT4 RS",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "formula Δ1.102×25=27.5% → cap 20; la prima gara decide"
+        },
+        {
+          "preset": "preset_718gt4rs_mech_2",
+          "auto": "Porsche 718 Cayman GT4 RS",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "formula Δ1.102×25=27.5% → cap 20; la prima gara decide"
+        },
+        {
+          "preset": "preset_zl1_mech_2",
+          "auto": "Chevrolet Camaro ZL1",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "formula Δ0.931×25=23.3% → cap 20; la prima gara decide"
+        },
+        {
+          "preset": "preset_zl1_mech_1",
+          "auto": "Chevrolet Camaro ZL1",
+          "ballastKg": 100,
+          "restrictorPct": 19
+        },
+        {
+          "preset": "preset_a110s_mech_1",
+          "auto": "Alpine A110 S",
+          "ballastKg": 100,
+          "restrictorPct": 10.5
+        },
+        {
+          "preset": "preset_m4csl_mech_1",
+          "auto": "BMW M4 CSL",
+          "ballastKg": 100,
+          "restrictorPct": 8
+        },
+        {
+          "preset": "preset_m8c_mech_1",
+          "auto": "BMW M8 Competition",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        }
+      ],
+      "LIMITI_GIOCO": {
+        "ballastMaxKg": 100,
+        "restrictorMaxPct": 20
+      },
+      "storia": [
+        {
+          "data": "2026-10-28",
+          "variante": "nascita: generata da tools/_genera-stili.mjs (miscuglio completamente random, mono+multiclasse, seed=819802402)",
+          "nota": "prima gara nera (nessun override per pista): la calibrazione parte al giro 1."
+        }
+      ]
+    },
+    "campionato_pista": {
+      "id": "campionato_pista",
+      "note": "Finestra PI 12.5–17.1: pescaggio random L5 — trackday, Cup da corsa, GT2: la griglia miscchia tipi, non stili. Pescaggio a sorte (seed=819802402) su 3 modelli — Porsche 718 Cayman GT4 RS, Alfa Romeo Giulia GTAm, Lotus Emira. Base=Porsche 718 Cayman GT4 RS (PI 12.667) span ΔPI 0.609: PUNTO DI PARTENZA, la prima gara con griglia-calib decide (ramo C regola-classe attivo da subito). Copertura completa dei preset del pool (lezione 28/10: ogni preset pescato deve avere una regola). Niente aiStandard: banda dal ladder (89–100).",
+      "autoBase": "Porsche 718 Cayman GT4 RS",
+      "piMin": 12.5,
+      "piMax": 17.1,
+      "poolAuto": [
+        "ks_porsche_718_cayman_gt4_rs",
+        "ks_alfa_romeo_giulia_gtam",
+        "ks_lotus_emira"
+      ],
+      "regole": [
+        {
+          "preset": "preset_emira_mech_2",
+          "auto": "Lotus Emira",
+          "ballastKg": 100,
+          "restrictorPct": 15
+        },
+        {
+          "preset": "preset_emira_mech_1",
+          "auto": "Lotus Emira",
+          "ballastKg": 100,
+          "restrictorPct": 12
+        },
+        {
+          "preset": "preset_gtam_mech_1",
+          "auto": "Alfa Romeo Giulia GTAm",
+          "ballastKg": 100,
+          "restrictorPct": 2.5
+        },
+        {
+          "preset": "preset_718gt4rs_mech_1",
+          "auto": "Porsche 718 Cayman GT4 RS",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        },
+        {
+          "preset": "preset_718gt4rs_mech_2",
+          "auto": "Porsche 718 Cayman GT4 RS",
+          "ballastKg": 0,
+          "restrictorPct": 0,
+          "nota": "variante alla stessa PI della base (12.667): 0/0, la stessa legge giusta della base"
+        }
+      ],
+      "LIMITI_GIOCO": {
+        "ballastMaxKg": 100,
+        "restrictorMaxPct": 20
+      },
+      "storia": [
+        {
+          "data": "2026-10-28",
+          "variante": "nascita: generata da tools/_genera-stili.mjs (miscuglio completamente random, mono+multiclasse, seed=819802402)",
+          "nota": "prima gara nera (nessun override per pista): la calibrazione parte al giro 1."
+        }
+      ]
+    },
+    "campionato_corsa": {
+      "id": "campionato_corsa",
+      "note": "Finestra PI 14.5–21.4: pescaggio random L6 — GT2, GT3, Cup di fabbrica al massimo: il seme di questo tiro è scritto nella classe, a ogni generazione un miscuglio diverso. Pescaggio a sorte (seed=819802402) su 2 modelli — BMW M4 GT3, Ferrari 296 GT3. Base=BMW M4 GT3 (PI 19.956) span ΔPI 1.243: PUNTO DI PARTENZA, la prima gara con griglia-calib decide (ramo C regola-classe attivo da subito). Copertura completa dei preset del pool (lezione 28/10: ogni preset pescato deve avere una regola). Niente aiStandard: banda dal ladder (90–101).",
+      "autoBase": "BMW M4 GT3",
+      "piMin": 14.5,
+      "piMax": 21.4,
+      "poolAuto": [
+        "ks_bmw_m4_gt3",
+        "ks_ferrari_296_gt3"
+      ],
+      "regole": [
+        {
+          "preset": "preset_296gt3_mech_1",
+          "auto": "Ferrari 296 GT3",
+          "ballastKg": 100,
+          "restrictorPct": 20,
+          "nota": "formula Δ1.243×25=31.1% → cap 20; la prima gara decide"
+        },
+        {
+          "preset": "preset_m4gt3_mech_1",
+          "auto": "BMW M4 GT3",
+          "ballastKg": 0,
+          "restrictorPct": 0
+        }
+      ],
+      "LIMITI_GIOCO": {
+        "ballastMaxKg": 100,
+        "restrictorMaxPct": 20
+      },
+      "storia": [
+        {
+          "data": "2026-10-28",
+          "variante": "nascita: generata da tools/_genera-stili.mjs (miscuglio completamente random, mono+multiclasse, seed=819802402)",
+          "nota": "prima gara nera (nessun override per pista): la calibrazione parte al giro 1."
         }
       ]
     }

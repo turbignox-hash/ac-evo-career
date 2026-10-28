@@ -122,6 +122,12 @@ test('il server GUI parte e serve le API chiave (boot, status, card, pagina)', a
     //    rispondono con i dati; senza sessioni ok:false + hint — MAI un 500.
     //    Con ACE_DATA puntata su una cartella TEMP la telemetria vera non c'è,
     //    MA il PC di Mauro ne ha: entrambi i casi restano verificati qui sotto.
+    //    (1/11, lezione del pacchetto vergine) isMultiplayer è un'azione
+    //    needsCareer: in un'installazione SENZA salvataggio (zip estratta, PC
+    //    dell'amico al primo avvio) il server risponde 400 col messaggio
+    //    gentile — comportamento CORRETTO. La guardia è la STESSA di status/card:
+    //    il test valuta la risposta solo quando una carriera può esistere.
+    const garageChecks = async () => {
     for (const action of ['stinti', 'gomme']) {
       const res = await getJson('/api/garage', 'POST', { action, car: null });
       assert.equal(res.code, 200, `garage.action=${action} deve rispondere 200`);
@@ -139,6 +145,8 @@ test('il server GUI parte e serve le API chiave (boot, status, card, pagina)', a
         assert.ok(typeof res.j.hint === 'string' && res.j.hint.length > 0, `senza sessioni ${action} deve dare un hint`);
       }
     }
+    };
+    if (boot.j.hasCareer) await garageChecks();
 
     // 4-ter) ARCHIVIO ONLINE (/api/mp): le sessioni _MP_ dai Results + il libro
     //    dei rivali online. Lettura PURA: anche senza gare online la risposta
