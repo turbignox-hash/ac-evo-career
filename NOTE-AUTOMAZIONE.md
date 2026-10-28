@@ -41,6 +41,13 @@
   rivale più forte, che il campo largo NON cambia (l'ampliamento
   aggiunge solo sedili deboli in fondo).
 
+- **Verifica col campo LARGO (stessa sessione)**: rieseguita la
+  misura di realismo con nodo forzato a gridSize 17 (banda 80-90):
+  vittorie sedili 0-2 96,5% e titoli 47-11-2 a 17 vetture contro
+  48-11-1 a 14 — l'ampiezza adattiva della forma del 28/10 copre
+  anche le griglie larghe, il campionato resta una meritocrazia e
+  l'ampliamento non cambia la dinamica del titolo.
+
 - **Titoli per-round** (gazzetta.mjs): finora il titolo parlava solo della
   gara di oggi; aggiunto lo STORICO VERO (le gare già nel save prima di
   quella corrente, lette da state.results) e il titolo lo decide la storia,
