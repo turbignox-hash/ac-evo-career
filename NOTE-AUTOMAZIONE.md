@@ -32,6 +32,15 @@
   determinismo fra letture. Suite 383/383, lint a 0. Commit d36d31b
   (non spinto).
 
+- **Completamento stessa sessione** (commit 264ae47): portati sul campo
+  largo anche il paddock della CLI e il respiro di metà stagione della
+  GUI — prima enumeravano i rivali sulla griglia corta del ladder e
+  discordanano dalla classifica. Restano lontani DAL BENE: le card
+  rivali (rivals.mjs) raccontano i dati veri incassati e non la sim;
+  challengeFor delude perché il "chiudi davanti a X" guarda al
+  rivale più forte, che il campo largo NON cambia (l'ampliamento
+  aggiunge solo sedili deboli in fondo).
+
 - **Titoli per-round** (gazzetta.mjs): finora il titolo parlava solo della
   gara di oggi; aggiunto lo STORICO VERO (le gare già nel save prima di
   quella corrente, lette da state.results) e il titolo lo decide la storia,
