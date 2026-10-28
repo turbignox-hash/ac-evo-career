@@ -26,7 +26,7 @@ import { lapToMs } from './results.mjs';
 import { gridFor, pointsFor, ourToSkill, hash32, rng } from './world.mjs';
 import { rivalsStore, stagioneDelRivale } from './rivals.mjs';
 import { analyzeLd, sampleLap, sessionMetaOf, brakeConsistency } from './motec.mjs';
-import { prizeFor, entryFee, difficultyFor, nodeById, gateStatus } from './state.mjs';
+import { prizeFor, entryFee, difficultyFor, nodeById, gateStatus, grigliaSimEstesa } from './state.mjs';
 import { tr, lang } from './lang.mjs';
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -436,7 +436,7 @@ export function seatMonteCarlo(ladder, state, { sims = 400 } = {}) {
   for (const offer of candidates) {
     let node;
     try { node = nodeById(ladder, offer.nodeId); } catch { continue; }
-    const grid = gridFor(state.world, ladder, node, state.season);
+    const grid = gridFor(state.world, ladder, grigliaSimEstesa(ladder, state, node), state.season);
     const candidateDiff = clamp(bandCenter(node) + paceOffset, 70, 120);
     const playerSkill = ourToSkill(candidateDiff);
     const rounds = Math.max(1, node.calendar.length);

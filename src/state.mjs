@@ -293,9 +293,38 @@ function playerAsDriver(state) {
   return { driverId: 'player', name: state.driver.name, country: state.driver.nation, carNumber: 1 };
 }
 
+/**
+ * AMPLIAMENTO DELLA GRIGLIA SIM (30/10, richiesta Mauro «Ampliare la griglia
+ * sim»): la stima gridSize del ladder resta sotto la griglia che EVO corre
+ * davvero (misura una-tantum col save di Mauro: Alfa 75 ladder 7 con griglie
+ * reali a 17, Golf Mk8 ladder 14 con reali 17, R5 Turbo 12 con 16). La
+ * classifica simulata, il duello di stagione e il monte-carlo del sedile
+ * girano da qui in su su una griglia LARGA quanto il massimo di gridSize
+ * mai registrato nei risultati reali della serie: la stima corta spremeva
+ * le posizioni vere dentro campi stretti (una P10/17 finiva in un campo da
+ * 7 e la classifica contava 6 rivali), così il campionato simulato sembrava
+ * più affollato di quanto non fosse quello del gioco.
+ *
+ * Regole:
+ *  - il massimo è robusto a file corrotte corte (una griglia letta a metà
+ *    scrittura, es. la 2 della RX-7: col minimo spariamo l'amplamento);
+ *  - senza risultati la stima resta (nessun cambiamento su carriere vergini);
+ *  - il nodo si muta SOLO in copia: il ladder su disco non si tocca mai,
+ *    le schede e i template già raccolti restano quelli;
+ *  - deterministica: i fattori da stato salvato sono stabile tra letture,
+ *    quindi le classifiche salvate restano quelle.
+ */
+export function grigliaSimEstesa(_ladder, state, node) {
+  const reali = (state.results?.[node.nodeId] ?? [])
+    .map((r) => Number(r.gridSize))
+    .filter((n) => Number.isFinite(n) && n >= 3);
+  const max = reali.length ? Math.max(...reali) : node.gridSize;
+  return max > node.gridSize ? { ...node, gridSize: max } : node;
+}
+
 /** Classifica della serie: i punti dei rivali sono simulati con la loro banda, i tuoi sono i tuoi. */
 export function standingsFor(ladder, state, node, season = state.season) {
-  const grid = gridFor(state.world, ladder, node, season);
+  const grid = gridFor(state.world, ladder, grigliaSimEstesa(ladder, state, node), season);
   const totals = new Map();
   const add = (id, pts) => totals.set(id, (totals.get(id) ?? 0) + pts);
   grid.forEach((s) => { totals.set(s.driverId, 0); });
@@ -939,7 +968,7 @@ export function postRaceEffects(ladder, state, node) {
   const myEntry = (state.results[node.nodeId] ?? []).find((r) => r.season === season && r.round === state.round - 1) ?? null;
   const rivalPts = new Map();
   try {
-    const grid = gridFor(state.world, ladder, node, season);
+    const grid = gridFor(state.world, ladder, grigliaSimEstesa(ladder, state, node), season);
     const roundsPlayed = new Set((state.results[node.nodeId] ?? []).filter((r) => r.season === season).map((r) => r.round));
     for (const s of grid) rivalPts.set(s.driverId, { name: s.name, pts: 0 });
     for (const rIdx of roundsPlayed) {
