@@ -1,3 +1,26 @@
+## TAB ONLINE (2/11) — l'archivio multiplayer esce dall'Archivio, guida community nei README
+
+- **Richiesta**: «riprendi» dopo la tomba del pannello MP in fondo ad Archivio
+  (nessuno lo guardava sepolto lì): tab proprio **Online**, guida per la
+  community nei due README.
+- **GUI**: `drawArchive` (viste-b.js) torna SOLO SP — un bottone piccolo
+  «🌐 Le gare multiplayer sono nel loro tab» ci manda (`vai('online')`, non
+  `renderTab` che non esiste). `drawOnline` (stesso file) tiene riga per riga
+  le sessioni _MP_ CLICCABILI (stessa `openResult`: tempi, gap, penalità), il
+  LIBRO DEI RIVALI ONLINE piegato col tooltip communities, e il toggle scope
+  __arcAllPc condiviso. In core.js il tab, l'icona 🌐, il colore
+  `online:'#5eead4'`, il gruppo Studio e l'aiuto nav erano già a posto.
+- **README EN/IT**: riga del tab nella tabella Schermate (il conteggio 19 era
+  già promesso dal titolo, la riga mancava) + sezione «Gare online
+  (community)»: nessun punto/soldo (salvaguardia nel watcher e nell'import),
+  riga = sessione intera col click sulla griglia completa, libro rivali con
+  identity dal driver_id (nome a ripiego, solo griglie con ENTRAMBI), scope
+  per PC col toggle, e la garanzia privacy per chi la propone alla community:
+  tutto locale, zero connessioni in ingresso, legge solo i JSON del gioco.
+- **Lezione**: i pannelli sepolti in fondo alle viste lunghe non esistono per
+  l'utente — un tab costa una riga in TABS e salta fuori; e la documentazione
+  di una feature va scritta  DUE volte (EN/IT) per la community.
+
 ## PACCHETTO AMICO VERDE (2/11) — classe bootstrap + smoke sul vergine: 281/281 NELL'ESTRAZIONE
 
 - **Sintomo**: `npm test` dentro lo zip estratto (prova del pacchetto amico,

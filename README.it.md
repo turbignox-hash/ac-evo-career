@@ -73,6 +73,7 @@ la scheda si apre da sola.
 | ![Garage](docs/screenshots/12-garage.png) | **Garage** — auto possedute o vinte, stime e vendite. |
 | ![Risultati](docs/screenshots/13-results.png) | **Risultati** — import con un click dell'ultima gara compatibile (o inserimento a mano). |
 | ![Archivio](docs/screenshots/14-archive.png) | **Archivio** — ogni sessione scritta da EVO, ricercabile, con classifiche complete. |
+| ![Online](docs/screenshots/14-archive.png) | **Online** — le gare multiplayer (tag `_MP_`) in un tab loro: griglia cliccabile per ogni sessione online e il **libro dei rivali online** (identity stabile dal `driver_id` del gioco). |
 | ![Giri liberi](docs/screenshots/19-free-laps.png) | **Giri liberi** — la modalità pura della giornata di test: scegli PRATICA, pista e auto in EVO e gira; ogni sessione che il gioco scrive si registra da sola nel quaderno, con il libro PB per auto × pista e il giro ideale sommato dai migliori settoriali di sempre. La carriera non si tocca. |
 | ![Statistiche](docs/screenshots/15-stats.png) | **Statistiche** — stanza dei trofei, sigilli, grafici di punti e posizione. |
 | ![Finanze](docs/screenshots/16-finances.png) | **Finanze** — il registro dei flussi: premi, sponsor, iscrizioni. |
@@ -316,6 +317,40 @@ Verificato sull'installazione reale, non per sentito dire:
 Quindi il compromesso: **una schermata da applicare in gioco (la scheda gara),
 tutto il resto automatico.** Se Kunos esporrà un ingresso vero, l'unico pezzo da
 sostituire è `src/race.mjs`.
+
+## Gare online (community): l'archivio che non dimentica niente
+
+Da una certa build in qua EVO scrive i risultati **anche delle gare online**:
+ogni sessione multiplayer chiude il file `_MP_Race.sessionresults.json` nella
+stessa cartella `Results`. Il tab **Online** della GUI le raduna tutte — e le
+tiene lontane dal resto della carriera:
+
+- **Nessun punto, nessun soldo**: il save in `data/` resta intatto
+  (salvaguardia sia nel watcher sia nell'import manuale, dal 31/10). Le gare
+  online NON contribuiscono al campionato della carriera: restano **memoria**.
+- **Ogni riga è la sessione intera**: data/ora, community/server, pista+layout,
+  meteo e ora di gioco, piloti in griglia, il tuo piazzamento col giro veloce,
+  il vincitore. Click sulla riga → classificazione completa con tempi, gap e
+  penalità, come nell'Archivio.
+- **Libro dei rivali online** — il pezzo che le community di server adorano:
+  chi hai incrociato più spesso, quante volte ti ha battuto e dove, l'ultima
+  forma (ultimi incontri col tag verde/rosso), la pista più frequentata, l'auto
+  abituale e l'ultima sessione condivisa. Le identità usano il **driver_id del
+  gioco**: sopravvive a nickname diversi, community diverse e server diversi;
+  a ripiego il nome normalizzato. Solo sessioni in cui eravate ENTRAMBI in
+  griglia, così niente fantasmi.
+- **Scope per PC**: il toggle «mostra tutto il PC» aggiunge le gare nate con
+  ALTRI slot di carriera (Results è una cartella per PC), come nell'archivio.
+
+Per gli amici della community: tutto gira in LOCALE, sul PC di chi guida —
+il tool NON manda niente online, non accetta connessioni dalla rete
+(difesa Origin/Host del server locale) e legge solo i JSON che il gioco
+sta già scrivendo. Il save della carriera resta segregato.
+
+Per gli amici della community: tutto gira in LOCALE, sul PC di chi guida —
+il tool NON manda niente online, non accetta connessioni dalla rete
+(difesa Origin/Host del server locale) e legge solo i JSON che il gioco
+sta già scrivendo. Il save della carriera resta segregato.
 
 ## Comandi
 

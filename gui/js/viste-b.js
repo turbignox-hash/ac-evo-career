@@ -503,47 +503,56 @@ function serieDetail(n){
 
 
 
-/* -------- archivio risultati -------- */
-async function drawArchive(m){
-  // SCOPE CARRIERA (24/10): di default solo i risultati nati con QUESTA carriera
-  // (Results è UNA cartella per PC, condivisa dagli slot); l'interruttore mostra
-  // tutto il disco.
-  // ARCHIVIO ONLINE (31/10): le sessioni _MP_ e il libro dei rivali online
-  // vengono dalla STESSA cartella con lo stesso scope — una chiamata in più,
-  // zero semafori da coordinare a mano.
-  const [c, mp] = await Promise.all([
-    api('catalog', { all: !!window.__arcAllPc }),
-    api('mp', { all: !!window.__arcAllPc }).catch(() => null),
-  ]);
-  const mpHtml = (() => {
-    if (!mp) return '';
-    const P = mp.rows ?? [], R = mp.rivals ?? [];
-    // dalla PISTA all'AUTO: la punta come tooltip sul nome del rivale
-    const tooltipComm = (x) => (x.communities ?? []).join(' · ') || '—';
-    const riga = (x) => `<tr data-file="${esc(x.file)}" class="arc-row" style="cursor:pointer">
-        <td class="muted">${esc(String(x.when).slice(0,16).replace('T',' '))}</td>
-        <td class="muted">${esc(String(x.community ?? '').slice(0, 52))}</td>
-        <td><span class="tag ${x.session === 'Race' ? 'gold' : 'blue'}">${esc(x.session)}</span></td>
-        <td>${esc(x.track)} <span class="faint">${esc(x.layout ?? '')}</span></td>
-        <td class="right">${x.drivers}</td>
-        <td>${x.me ? `<span class="tag ${x.me.position === 1 ? 'gold' : x.me.position <= 3 ? 'green' : ''}">P${x.me.position}</span>${x.me.bestLap ? ` <span class="faint">${esc(x.me.bestLap)}</span>` : ''}` : '—'}</td>
-      </tr>`;
-    const forma = (x) => (x.form ?? []).length
-      ? x.form.map((f) => f.pos != null ? `<span class="tag ${f.beat === true ? 'green' : f.beat === false ? 'red' : ''}">P${f.pos}</span>` : '<span class="faint">·</span>').join(' ')
-      : '—';
-    const incroci = () => `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px"><b>⚔️ ${tr({ it: 'Libro dei rivali online', en: 'Online rivals book' })}</b> <span class="muted" style="font-size:11px">— ${R.length} ${tr({ it: 'incrociati nelle sessioni multiplayer', en: 'met across multiplayer sessions' })}</span></summary>
-      <table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Rivale', en: 'Rival' })}</th><th class="right">${tr({ it: 'Incroci', en: 'Meetings' })}</th><th class="right">${tr({ it: 'Lui davanti', en: 'He finished ahead' })}</th><th class="right">${tr({ it: 'Tu davanti', en: 'You finished ahead' })}</th><th>${tr({ it: 'Ultima forma', en: 'Recent form' })}</th><th>${tr({ it: 'Pista più fitta', en: 'Favoured track' })}</th><th class="muted">${tr({ it: 'Auto abituale', en: 'Usual car' })}</th><th>${tr({ it: 'Ultima volta', en: 'Last seen' })}</th></tr></thead>
-      <tbody>${R.slice(0, 20).map((x) => `<tr><td title="${esc(tooltipComm(x))}">${esc(x.name ?? '?')}</td><td class="right">${x.meetings}</td><td class="right" style="color:${x.beats > x.beaten ? '#ff9b9b' : 'var(--ok,#4ade80)'}">${x.beats}</td><td class="right">${x.beaten}</td><td>${forma(x)}</td><td>${x.favTrack ? `${esc(x.favTrack.track)} <span class="faint">×${x.favTrack.n}${x.favTrack.tu ? `, ${x.favTrack.tu} ${tr({ it: 'tue', en: 'yours' })}` : ''}</span>` : '—'}</td><td class="muted">${esc(x.favCar ?? '—')}</td><td class="muted">${esc(String(x.lastWhen ?? '').slice(0,16).replace('T',' '))}</td></tr>`).join('')}</tbody></table>
-      <div class="muted" style="font-size:11px;margin-top:4px">${tr({ it: "Identità presa dal driver_id del gioco: sopravvive ai nickname diversi e ai server diversi. Solo sessioni in cui eravate entrambi in griglia.", en: "Identity taken from the game's driver_id: it survives different nicknames and different servers. Only sessions where you both started." })}</div></details>`;
-    return `<div class="panel" id="mp-panel" style="margin-top:14px">
+/* -------- tab ARCHIVIO ONLINE (2/11) --------
+   Solo le sessioni _MP_ (griglia dal .json completo) e il libro dei rivali
+   online (identity via driver_id). Righe cliccabili come nel PC evidente:
+   la stessa openResult con tutti i tempi e gap. */
+async function drawOnline(m){
+  const mp = await api('mp', {}).catch(() => null);
+  if (!mp) {
+    m.innerHTML = `<div class="panel"><h2>🌐 ${tr({ it: 'Archivio online', en: 'Online archive' })}</h2><div class="empty">${tr({ it: 'Elenco MP non disponibile: riavvia il webui.', en: 'MP list unavailable: restart the webui.' })}</div></div>`;
+    return;
+  }
+  const P = mp.rows ?? [], R = mp.rivals ?? [];
+  const riga = (x) => `<tr data-file="${esc(x.file)}" class="arc-row" style="cursor:pointer">
+    <td class="muted">${esc(String(x.when).slice(0,16).replace('T',' '))}</td>
+    <td class="muted">${esc(String(x.community ?? '').slice(0, 52))}</td>
+    <td><span class="tag ${x.session === 'Race' ? 'gold' : 'blue'}">${esc(x.session)}</span></td>
+    <td>${esc(x.track)} <span class="faint">${esc(x.layout ?? '')}</span></td>
+    <td class="right">${x.drivers}</td>
+    <td>${x.me ? `<span class="tag ${x.me.position === 1 ? 'gold' : x.me.position <= 3 ? 'green' : ''}">P${x.me.position}</span>${x.me.bestLap ? ` <span class="faint">${esc(x.me.bestLap)}</span>` : ''}` : '—'}</td>
+  </tr>`;
+  const forma = (x) => (x.form ?? []).length
+    ? x.form.map((f) => f.pos != null ? `<span class="tag ${f.beat === true ? 'green' : f.beat === false ? 'red' : ''}">P${f.pos}</span>` : '<span class="faint">·</span>').join(' ')
+    : '—';
+  const tooltipComm = (x) => (x.communities ?? []).join(' · ') || '—';
+  m.innerHTML = `
+  <div class="panel">
     <h2>🌐 ${tr({ it: 'Archivio online', en: 'Online archive' })} <span class="h-act">${mp.total} ${tr({ it: 'sessioni multiplayer nei Results di EVO', en: "multiplayer sessions in EVO's Results" })}</span></h2>
     <div class="muted" style="font-size:11.5px;margin:0 0 8px">${tr({ it: 'Le gare online NON toccano la carriera: nessun punto, nessun soldo — restano qui come memoria, con la griglia cliccabile come tutte le altre sessioni.', en: "Online races NEVER touch the career: no points, no money — they stay here as memory, with a clickable grid like every other session." })}</div>
     ${P.length ? `<table><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Community / server', en: 'Community / server' })}</th><th>${tr({ it: 'Sessione', en: 'Session' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Piloti', en: 'Drivers' })}</th><th>${tr({ it: 'Tu', en: 'You' })}</th></tr></thead>
       <tbody>${P.map(riga).join('')}</tbody></table>`
       : `<div class="empty">${tr({ it: 'Nessuna sessione multiplayer ancora: da ogni gara col server EVO scrive i risultati _MP_ qui, e da allora niente va più perso.', en: 'No multiplayer session yet: from your first server race EVO writes _MP_ results here, and from then on nothing is lost.' })}</div>`}
-    ${R.length ? incroci() : ''}
+    <div class="muted" style="font-size:11.5px;margin-top:10px">${tr({ it: 'Mostra anche le sessioni nate con un altro slot di carriera (scope per PC).', en: 'Also show sessions born under another career slot (PC-wide scope).' })} <button class="mini" id="b-on-all">${!!window.__arcAllPc ? tr({ it: 'Solo carriera', en: 'Career only' }) : tr({ it: 'Mostra tutto il PC', en: 'Show the whole PC' })}</button></div>
+    ${R.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px"><b>⚔️ ${tr({ it: 'Libro dei rivali online', en: 'Online rivals book' })}</b> <span class="muted" style="font-size:11px">— ${R.length} ${tr({ it: 'incrociati nelle sessioni multiplayer', en: 'met across multiplayer sessions' })}</span></summary>
+      <table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Rivale', en: 'Rival' })}</th><th class="right">${tr({ it: 'Incroci', en: 'Meetings' })}</th><th class="right">${tr({ it: 'Lui davanti', en: 'He finished ahead' })}</th><th class="right">${tr({ it: 'Tu davanti', en: 'You finished ahead' })}</th><th>${tr({ it: 'Ultima forma', en: 'Recent form' })}</th><th>${tr({ it: 'Pista più fitta', en: 'Favoured track' })}</th><th class="muted">${tr({ it: 'Auto abituale', en: 'Usual car' })}</th><th>${tr({ it: 'Ultima volta', en: 'Last seen' })}</th></tr></thead>
+      <tbody>${R.slice(0, 20).map((x) => `<tr><td title="${esc(tooltipComm(x))}">${esc(x.name ?? '?')}</td><td class="right">${x.meetings}</td><td class="right" style="color:${x.beats > x.beaten ? '#ff9b9b' : 'var(--ok,#4ade80)'}">${x.beats}</td><td class="right">${x.beaten}</td><td>${forma(x)}</td><td>${x.favTrack ? `${esc(x.favTrack.track)} <span class="faint">×${x.favTrack.n}${x.favTrack.tu ? `, ${x.favTrack.tu} ${tr({ it: 'tue', en: 'yours' })}` : ''}</span>` : '—'}</td><td class="muted">${esc(x.favCar ?? '—')}</td><td class="muted">${esc(String(x.lastWhen ?? '').slice(0,16).replace('T',' '))}</td></tr>`).join('')}</tbody></table>
+      <div class="muted" style="font-size:11px;margin-top:4px">${tr({ it: "Identità presa dal driver_id del gioco: sopravvive ai nickname diversi e ai server diversi. Solo sessioni in cui eravate entrambi in griglia.", en: "Identity taken from the game's driver_id: it survives different nicknames and different servers. Only sessions where you both started." })}</div></details>` : ''}
   </div>`;
-  })();
+  $$('.arc-row', m).forEach((tr) => { tr.onclick = () => openResult(tr.dataset.file); });
+  $('#b-on-all').onclick = () => { window.__arcAllPc = !window.__arcAllPc; render(); };
+}
+
+/* -------- archivio risultati (SP) -------- */
+async function drawArchive(m){
+  // SCOPE CARRIERA (24/10): di default solo i risultati nati con QUESTA carriera
+  // (Results è UNA cartella per PC, condivisa dagli slot); l'interruttore mostra
+  // tutto il disco.
+  // TAB ONLINE (2/11): le sessioni _MP_ e del libro dei rivali NON più qui in
+  // fondo (nessuno le guardava) — hanno la loro scheda, drawOnline(). Qui è
+  // rimasto SOLO l'archivio SP; un rimando piccolo ricorda dove finiscono
+  // quelle gare.
+  const c = await api('catalog', { all: !!window.__arcAllPc });
   m.innerHTML = `
   <div class="panel">
     <h2>${tr({ it: 'Archivio sessioni', en: 'Session archive' })} <span class="h-act">${c.archive.total} ${tr({ it: 'file nei Results di EVO', en: 'files in EVO\'s Results' })}</span></h2>
@@ -551,9 +560,9 @@ async function drawArchive(m){
       ? `${tr({ it: 'Mostrati solo i file nati con QUESTA carriera: Results è una cartella condivisa per PC.', en: 'Showing only files born with THIS career: Results is a PC-wide shared folder.' })} <button class="mini" id="b-arc-all">${tr({ it: 'Mostra tutto il PC', en: 'Show the whole PC' })}</button>`
       : `${tr({ it: 'Mostrato TUTTO il PC: Results è una cartella condivisa dagli slot.', en: 'Showing the WHOLE PC: Results is shared across slots.' })} <button class="mini" id="b-arc-all">${tr({ it: 'Solo carriera', en: 'Career only' })}</button>`}</div>
     <div class="row"><input type="text" id="arc-q" placeholder="${tr({ it: 'Cerca pista, pilota, sessione…', en: 'Search track, driver, session…' })}" style="max-width:280px"></div>
+    <div class="row" style="margin-top:6px"><button class="mini" id="mp-redirect">🌐 ${tr({ it: 'Le gare multiplayer sono nel loro tab: Archivio online', en: "Online races have their own tab: Online archive" })}</button></div>
     <div id="arc-body"></div>
-  </div>
-  ${mpHtml}`;
+  </div>`;
   const all = c.archive.rows;
   const rowHtml = (r, tries) => `<tr data-file="${esc(r.file)}" class="arc-row" style="cursor:pointer">
     <td class="muted">${esc(r.when.slice(0,16).replace('T',' '))}</td>
@@ -587,9 +596,8 @@ async function drawArchive(m){
   const bAll = $('#b-arc-all');
   if (bAll) bAll.onclick = () => { window.__arcAllPc = !window.__arcAllPc; render(); };
   $('#arc-q').oninput = () => paint($('#arc-q').value);
-  // ARCHIVIO ONLINE: righe cliccabili_reads come le altre — la stessa griglia
-  // completa di openResult (tempi, gap, penalità, identity via driver_id).
-  $$('#mp-panel .arc-row', m).forEach(tr => { tr.onclick = () => openResult(tr.dataset.file); });
+  // rimanda al nuovo tab online, così le gare MP restano a un clic anche da qui
+  $('#mp-redirect').onclick = () => vai('online');
 }
 
 /* -------- giri liberi (24/10) --------

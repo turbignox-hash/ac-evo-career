@@ -215,6 +215,9 @@ const ICONS = {
   /* 24/10: l'icona del quaderno giri liberi era scritta sulla chiave `hotlaps`
      ma la nav cerca ICONE[tab] per `gironi`: il tab nasceva SENZA icona (Mauro). */
   gironi:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="9" r="5"/><path d="M8 9V6.2M6.4 1.7h3.2M10.6 5.2l1.4 .4" stroke-linecap="round"/></svg>',
+  /* 2/11: il tab ONLINE (ex pannello in fondo ad Archivio) porta un GLOBO con i
+     meridiani: le sessioni multiplayer sono il mondo fuori dal tuo garage */
+  online:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4M8 1.8c-2.6 3.7-2.6 8.7 0 12.4M8 1.8c2.6 3.7 2.6 8.7 0 12.4"/></svg>',
 };
 /* icone dei pannelli del cruscotto (16x16, stile coerente con la nav) */
 const LI = {
@@ -255,6 +258,7 @@ const TABS = [
   ['garage',         tr({ it: 'Garage',         en: 'Garage' })],
   ['import',         tr({ it: 'Risultati',      en: 'Results' })],
   ['archive',        tr({ it: 'Archivio',       en: 'Archive' })],
+  ['online',         tr({ it: 'Online',         en: 'Online' })],
   ['gironi',         tr({ it: 'Giri liberi',    en: 'Free laps' })],
   ['stats',          tr({ it: 'Statistiche',    en: 'Stats' })],
   ['banca',          tr({ it: 'Finanze',        en: 'Finances' })],
@@ -271,13 +275,13 @@ const TABS = [
    (drawChampionships) — funzione intatta, un posto in meno in barra. */
 const NAV_GROUPS = [
   { label: { it: 'Gara', en: 'Race' }, ids: ['dashboard', 'agenda', 'setup', 'analisi', 'messages', 'import'] },
-  { label: { it: 'Studio', en: 'Study' }, ids: ['championships', 'griglia', 'rivals', 'tracks', 'cars', 'garage', 'archive', 'gironi', 'stats', 'banca', 'difficulty', 'settings'] },
+  { label: { it: 'Studio', en: 'Study' }, ids: ['championships', 'griglia', 'rivals', 'tracks', 'cars', 'garage', 'archive', 'online', 'gironi', 'stats', 'banca', 'difficulty', 'settings'] },
 ];
 const TAB_COLORS = {
   dashboard:'#5da9ff', agenda:'#ff7a45', calendar:'#b48cff', standings:'#ffd166',  rivals:'#ff6b6b',
   analisi:'#a3e433',
   tracks:'#e8c46b', cars:'#74c0fc', garage:'#ffd43b', import:'#63e6e2', griglia:'#82ccdd',
-  setup:'#f78fb3', catalog:'#82ccdd',  archive:'#c9a0ff', stats:'#69db7c',
+  setup:'#f78fb3', catalog:'#82ccdd',  archive:'#c9a0ff', online:'#5eead4', stats:'#69db7c',
   gironi:'#63e6be',
   difficulty:'#5f7cff', messages:'#ffa94d', settings:'#adb5bd', banca:'#ffd43b',
 };
@@ -301,6 +305,7 @@ const AIUTO = [
   ['garage', { it: 'Il tuo box: auto possedute e setup registrati.', en: 'Your garage: owned cars and saved setups.' }],
   ['import', { it: 'Gli incassi: i risultati delle gare di EVO si importano nella carriera (dopo la gara premi qui).', en: 'The bookkeeper: race results are imported from EVO into the career (press it after a race).' }],
   ['archive', { it: 'La memoria di tutto quello che hai corso: risultati storici e statistiche passate.', en: 'Everything you ever raced: historical results and past stats.' }],
+  ['online', { it: 'Le gare multiplayer: ogni sessione online resta qui come memoria (zero punti, zero soldi), col libro di chi hai incrociato online.', en: 'Multiplayer races: every online session stays here as memory (no points, no money), with the book of who you met online.' }],
   ['gironi', { it: 'I giri liberi: scegli pista e auto, gira a piacere — ogni giro è registrato e analizzato (best lap, settori, progresso).', en: 'Free laps: pick track and car, drive freely — each lap is recorded and analysed (best lap, sectors, progress).' }],
   ['stats', { it: 'I numeri della carriera: vittorie, podi, punti e curve di andamento.', en: 'Career numbers: wins, podiums, points and form curves.' }],
   ['banca', { it: 'Le finanze: entrate, spese e bilancio della stagione.', en: 'The finances: income, costs and the seasonal balance.' }],
@@ -387,8 +392,8 @@ async function render(){
     if (tab==='tracks')     return await drawTracks(m);
     if (tab==='cars')       return await drawCars(m);
     if (tab==='garage')     return await drawGarage(m);
-    if (tab==='catalog')    return await drawArchive(m);
     if (tab==='archive')    return await drawArchive(m);
+    if (tab==='online')     return await drawOnline(m);
     if (tab==='gironi')     return await drawGironi(m);
     if (tab==='stats')      return await drawStats(m);
     if (tab==='banca')      return await drawBanca(m);
@@ -538,7 +543,7 @@ const TAB_FALL_ICON = {
   live:'📡', dashboard:'📊', agenda:'🗓️', setup:'🔧', messages:'📨',
   championships:'🏆', griglia:'🏁', standings:'🌐', rivals:'🤝',
   tracks:'🗺️', cars:'🚘', garage:'🏠', import:'📥',
-  archive:'🗃️', stats:'📈', banca:'💰', difficulty:'🎚️', settings:'⚙️', analisi:'🔬',
+  archive:'🗃️', online:'🌐', stats:'📈', banca:'💰', difficulty:'🎚️', settings:'⚙️', analisi:'🔬',
 };
 const HAS_EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]|\u{FE0F}/u;
 function decoratePanels(scope) {

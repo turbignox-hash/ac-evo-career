@@ -77,6 +77,7 @@ match is unique, the sheet opens on its own.
 | ![Garage](docs/screenshots/12-garage.png) | **Garage** — cars you own or won, appraisals and sales. |
 | ![Results](docs/screenshots/13-results.png) | **Results** — one-click import of the last compatible race (or manual entry). |
 | ![Archive](docs/screenshots/14-archive.png) | **Archive** — every session written by EVO, searchable, with full classifications. |
+| ![Online](docs/screenshots/14-archive.png) | **Online** — the multiplayer races (`_MP_` tag) in a tab of their own: a clickable grid for every online session, plus the **online rivals book** (stable identity via the game's `driver_id`). |
 | ![Free laps](docs/screenshots/19-free-laps.png) | **Free laps** — the pure test-day mode: pick PRACTICE, track and car in EVO and just drive; every session the game writes lands in the hotlap book by itself, with the PB book per car × track and the ideal lap built from your best-ever sectors. The career is never touched. |
 | ![Stats](docs/screenshots/15-stats.png) | **Stats** — trophy hall, sigils, points and position charts. |
 | ![Finances](docs/screenshots/16-finances.png) | **Finances** — the flow ledger: prizes, sponsors, entries. |
@@ -341,6 +342,34 @@ Verified on the real install, not hearsay:
 So the compromise is: **one settings screen to apply in the game (the race
 card), everything else automatic.** If Kunos ever expose a real input, the only
 piece to replace is `src/race.mjs`.
+
+## Online races (community): the archive that forgets nothing
+
+Recent builds have EVO writing results **for online races too**: every
+multiplayer session drops an `_MP_Race.sessionresults.json` into the same
+`Results` folder. The **Online** tab of the GUI gathers them all — and keeps
+them apart from the rest of the career:
+
+- **No points, no money**: the save in `data/` stays untouched
+  (safeguarded both in the watcher and in manual import, since 31/10). Online
+  races never count toward the career championship: they stay as **memory**.
+- **Every row is the full session**: date/time, community/server, track+layout,
+  weather and in-game time, drivers on the grid, your finish with best lap,
+  the winner. Click a row → the complete classification with timings, gaps
+  and penalties, like in Archive.
+- **Online rivals book** — the part community servers love: who you met most
+  often, how many times they beat you and where, recent form (last meetings,
+  green/red tags), their favoured track, usual car and the last shared
+  session. Identities come from the game's **driver_id**: it survives
+  different nicknames, communities and servers; the normalized name is the
+  fallback. Only sessions where you were BOTH on the grid, so no ghosts.
+- **PC-wide scope**: the "show the whole PC" toggle adds races born under
+  OTHER career slots (Results is per PC), like in Archive.
+
+For community friends: everything runs LOCALLY, on the driver's PC — the tool
+never sends anything online, accepts no inbound connections (the local
+server's Origin/Host defence) and only reads the JSONs the game is already
+writing. The career save stays segregated.
 
 ## Commands
 
