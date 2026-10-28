@@ -12,6 +12,15 @@
   //   stile funzionante, si legge bene, non si tocca.
   // Tutto il resto resta al livello raccomandato: gli warning di correttezza
   //   restano visibili (noUnused*) e gli errori bloccano.
+  // dist/ e archive/ sono output e storico: non si lintano.
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": ["**", "!dist", "!archive"]
+  },
   "formatter": {
     "enabled": false
   },

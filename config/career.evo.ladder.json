@@ -645,21 +645,21 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 11,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         }
@@ -961,56 +961,56 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 7",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         }
@@ -2644,26 +2644,153 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         }
       ],
       "repRequired": 20
+    },
+    {
+      "nodeId": "campionato_aperto",
+      "display": "Campionato Aperto",
+      "discipline": "strada",
+      "level": 2,
+      "access": "rep",
+      "requires": null,
+      "points": "club",
+      "profile": "sprint",
+      "gridSize": 14,
+      "ai": [
+        80,
+        90
+      ],
+      "econ": {
+        "phase": 2,
+        "disc": "strada",
+        "buy": 42000,
+        "rent": 1400,
+        "entry": 550,
+        "prize": 4300,
+        "champion": 7200,
+        "model": "heritage",
+        "icon": ""
+      },
+      "cars": [
+        "ks_datsun_240z_fairlady",
+        "ks_toyota_ae86_sprinter_trueno",
+        "ks_ford_escort_rs_cosworth",
+        "ks_renault_5_gt_turbo",
+        "ks_alfa_romeo_75_turbo_evo"
+      ],
+      "calendar": [
+        {
+          "track": "monza",
+          "name": "Monza - Round 1",
+          "laps": 3,
+          "hour": 13,
+          "weather": 2
+        },
+        {
+          "track": "donington_park",
+          "name": "Donington Park - Round 2",
+          "laps": 3,
+          "hour": 14,
+          "weather": 1
+        },
+        {
+          "track": "brands_hatch",
+          "name": "Brands Hatch - Round 3",
+          "laps": 3,
+          "hour": 12,
+          "weather": 0
+        },
+        {
+          "track": "oulton_park",
+          "name": "Oulton Park - Finale",
+          "laps": 3,
+          "hour": 15,
+          "weather": 4
+        }
+      ],
+      "repRequired": 90
+    },
+    {
+      "nodeId": "campionato_sport_moderno",
+      "display": "Campionato Sport Moderno",
+      "discipline": "touring",
+      "level": 3,
+      "access": "rep",
+      "requires": null,
+      "points": "club",
+      "profile": "sprint",
+      "gridSize": 14,
+      "ai": [
+        85,
+        95
+      ],
+      "econ": {
+        "phase": 3,
+        "disc": "touring",
+        "buy": 58000,
+        "rent": 2600,
+        "entry": 1100,
+        "prize": 7800,
+        "champion": 12000,
+        "model": "pocket",
+        "icon": ""
+      },
+      "cars": [
+        "ks_toyota_gr86",
+        "ks_mini_jcs_1990",
+        "ks_mazda_rx7_fd",
+        "ks_honda_s2000_ap1"
+      ],
+      "calendar": [
+        {
+          "track": "suzuka",
+          "name": "Suzuka - Round 1",
+          "laps": 3,
+          "hour": 13,
+          "weather": 2
+        },
+        {
+          "track": "redbull_ring",
+          "name": "Red Bull Ring - Round 2",
+          "laps": 3,
+          "hour": 16,
+          "weather": 0
+        },
+        {
+          "track": "laguna_seca",
+          "name": "Laguna Seca - Round 3",
+          "laps": 3,
+          "hour": 13,
+          "weather": 4
+        },
+        {
+          "track": "monza",
+          "name": "Monza - Finale",
+          "laps": 3,
+          "hour": 12,
+          "weather": 2
+        }
+      ],
+      "repRequired": 150
     },
     {
       "nodeId": "gruppo_b",
@@ -3120,49 +3247,49 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 1
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         }
@@ -3282,63 +3409,63 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 7",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 8",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         }
@@ -3377,49 +3504,49 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         }
@@ -3539,56 +3666,56 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 7",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         }
@@ -3722,63 +3849,63 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 7",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 8",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 1
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         }
@@ -3817,49 +3944,49 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         }
@@ -3993,63 +4120,63 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 7",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 8",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         }
@@ -4088,49 +4215,49 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 1
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Round 3",
-          "laps": 8,
+          "laps": 3,
           "hour": 16,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 8,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 8,
+          "laps": 3,
           "hour": 15,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         }
@@ -4940,49 +5067,49 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         }
@@ -6855,63 +6982,63 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Round 3",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 6,
+          "laps": 3,
           "hour": 15,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Round 5",
-          "laps": 6,
+          "laps": 3,
           "hour": 12,
           "weather": 2
         },
         {
           "track": "imola",
           "name": "Imola - Round 6",
-          "laps": 6,
+          "laps": 3,
           "hour": 16,
           "weather": 0
         },
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 7",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 8",
-          "laps": 6,
+          "laps": 3,
           "hour": 13,
           "weather": 1
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 0
         }
@@ -7136,35 +7263,35 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 7,
+          "laps": 3,
           "hour": 11,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 7,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Round 3",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         },
         {
           "track": "kyalami",
           "name": "Kyalami - Round 4",
-          "laps": 7,
+          "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "redbull_ring",
           "name": "Red Bull Ring - Finale",
-          "laps": 8,
+          "laps": 3,
           "hour": 13,
           "weather": 0
         }
@@ -7203,21 +7330,21 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 11,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         }
@@ -7256,21 +7383,21 @@
         {
           "track": "brands_hatch",
           "name": "Brands Hatch - Round 1",
-          "laps": 6,
+          "laps": 3,
           "hour": 11,
           "weather": 0
         },
         {
           "track": "donington_park",
           "name": "Donington Park - Round 2",
-          "laps": 6,
+          "laps": 3,
           "hour": 14,
           "weather": 2
         },
         {
           "track": "oulton_park",
           "name": "Oulton Park - Finale",
-          "laps": 7,
+          "laps": 3,
           "hour": 15,
           "weather": 4
         }
@@ -7335,6 +7462,322 @@
           "weather": 0
         }
       ]
+    },
+    {
+      "nodeId": "campionato_epoca",
+      "display": "Campionato Epoca",
+      "discipline": "strada",
+      "level": 2,
+      "access": "rep",
+      "requires": null,
+      "points": "club",
+      "profile": "historic",
+      "gridSize": 14,
+      "ai": [
+        80,
+        90
+      ],
+      "econ": {
+        "phase": 2,
+        "disc": "strada",
+        "buy": 36000,
+        "rent": 1200,
+        "entry": 450,
+        "prize": 3600,
+        "champion": 6000,
+        "model": "heritage",
+        "icon": ""
+      },
+      "cars": [
+        "ks_renault_5_gt_turbo",
+        "ks_toyota_gr86",
+        "ks_mazda_mx5_na",
+        "ks_hyundai_i30_n_hb",
+        "ks_lamborghini_countach"
+      ],
+      "calendar": [
+        {
+          "track": "brands_hatch",
+          "name": "Brands Hatch - Round 1",
+          "laps": 3,
+          "hour": 12,
+          "weather": 0
+        },
+        {
+          "track": "monza",
+          "name": "Monza - Round 2",
+          "laps": 3,
+          "hour": 13,
+          "weather": 2
+        },
+        {
+          "track": "oulton_park",
+          "name": "Oulton Park - Round 3",
+          "laps": 3,
+          "hour": 14,
+          "weather": 1
+        },
+        {
+          "track": "imola",
+          "name": "Imola - Finale",
+          "laps": 3,
+          "hour": 15,
+          "weather": 4
+        }
+      ],
+      "repRequired": 90
+    },
+    {
+      "nodeId": "campionato_moderno",
+      "display": "Campionato Moderno",
+      "discipline": "touring",
+      "level": 3,
+      "access": "rep",
+      "requires": null,
+      "points": "club",
+      "profile": "sprint",
+      "gridSize": 14,
+      "ai": [
+        85,
+        95
+      ],
+      "econ": {
+        "phase": 3,
+        "disc": "touring",
+        "buy": 50000,
+        "rent": 2400,
+        "entry": 1000,
+        "prize": 7000,
+        "champion": 11000,
+        "model": "pocket",
+        "icon": ""
+      },
+      "cars": [
+        "ks_mazda_mx5_nd_cup",
+        "ks_toyota_supra_mkiv",
+        "ks_abarth_695_biposto",
+        "ks_alfa_romeo_junior",
+        "ks_ferrari_288_gto"
+      ],
+      "calendar": [
+        {
+          "track": "suzuka",
+          "name": "Suzuka - Round 1",
+          "laps": 3,
+          "hour": 12,
+          "weather": 0
+        },
+        {
+          "track": "monza",
+          "name": "Monza - Round 2",
+          "laps": 3,
+          "hour": 13,
+          "weather": 2
+        },
+        {
+          "track": "laguna_seca",
+          "name": "Laguna Seca - Round 3",
+          "laps": 3,
+          "hour": 14,
+          "weather": 1
+        },
+        {
+          "track": "spa",
+          "name": "Circuit de Spa Francorchamps - Finale",
+          "laps": 3,
+          "hour": 15,
+          "weather": 4
+        }
+      ],
+      "repRequired": 150
+    },
+    {
+      "nodeId": "campionato_strada",
+      "display": "Campionato Strada",
+      "discipline": "strada",
+      "level": 4,
+      "access": "rep",
+      "requires": null,
+      "points": "club",
+      "profile": "sprint",
+      "gridSize": 14,
+      "ai": [
+        87,
+        98
+      ],
+      "econ": {
+        "phase": 4,
+        "disc": "strada",
+        "buy": 62000,
+        "rent": 3000,
+        "entry": 1200,
+        "prize": 8000,
+        "champion": 13000,
+        "model": "pocket",
+        "icon": ""
+      },
+      "cars": [
+        "ks_bmw_m8_competition",
+        "ks_bmw_m4_csl",
+        "ks_alpine_a110_s",
+        "ks_chevrolet_camaro_zl1",
+        "ks_porsche_718_cayman_gt4_rs",
+        "ks_alfa_romeo_giulia_gtam"
+      ],
+      "calendar": [
+        {
+          "track": "paul_ricard",
+          "name": "Paul Ricard - Round 1",
+          "laps": 3,
+          "hour": 12,
+          "weather": 0
+        },
+        {
+          "track": "laguna_seca",
+          "name": "Laguna Seca - Round 2",
+          "laps": 3,
+          "hour": 13,
+          "weather": 2
+        },
+        {
+          "track": "monza",
+          "name": "Monza - Round 3",
+          "laps": 3,
+          "hour": 14,
+          "weather": 1
+        },
+        {
+          "track": "road_atlanta",
+          "name": "Road Atlanta - Finale",
+          "laps": 3,
+          "hour": 15,
+          "weather": 4
+        }
+      ],
+      "repRequired": 450
+    },
+    {
+      "nodeId": "campionato_pista",
+      "display": "Campionato Pista",
+      "discipline": "touring",
+      "level": 5,
+      "access": "rep",
+      "requires": null,
+      "points": "club",
+      "profile": "sprint",
+      "gridSize": 14,
+      "ai": [
+        89,
+        100
+      ],
+      "econ": {
+        "phase": 5,
+        "disc": "touring",
+        "buy": 96000,
+        "rent": 4800,
+        "entry": 2400,
+        "prize": 12000,
+        "champion": 20000,
+        "model": "sponsor",
+        "icon": ""
+      },
+      "cars": [
+        "ks_porsche_718_cayman_gt4_rs",
+        "ks_alfa_romeo_giulia_gtam",
+        "ks_lotus_emira"
+      ],
+      "calendar": [
+        {
+          "track": "redbull_ring",
+          "name": "Red Bull Ring - Round 1",
+          "laps": 3,
+          "hour": 12,
+          "weather": 0
+        },
+        {
+          "track": "watkins_glen",
+          "name": "Watkins Glen International - Round 2",
+          "laps": 3,
+          "hour": 13,
+          "weather": 2
+        },
+        {
+          "track": "sebring",
+          "name": "Sebring - Round 3",
+          "laps": 3,
+          "hour": 14,
+          "weather": 1
+        },
+        {
+          "track": "circuit_of_the_americas",
+          "name": "Circuit Of The Americas - Finale",
+          "laps": 3,
+          "hour": 15,
+          "weather": 4
+        }
+      ],
+      "repRequired": 800
+    },
+    {
+      "nodeId": "campionato_corsa",
+      "display": "Campionato Corsa",
+      "discipline": "gt",
+      "level": 6,
+      "access": "rep",
+      "requires": null,
+      "points": "sro_gtwc",
+      "profile": "feature",
+      "gridSize": 14,
+      "ai": [
+        90,
+        101
+      ],
+      "econ": {
+        "phase": 6,
+        "disc": "gt",
+        "buy": 420000,
+        "rent": 34000,
+        "entry": 5000,
+        "prize": 34000,
+        "champion": 100000,
+        "model": "sponsor",
+        "icon": ""
+      },
+      "cars": [
+        "ks_bmw_m4_gt3",
+        "ks_ferrari_296_gt3"
+      ],
+      "calendar": [
+        {
+          "track": "spa",
+          "name": "Circuit de Spa Francorchamps - Round 1",
+          "laps": 3,
+          "hour": 12,
+          "weather": 0
+        },
+        {
+          "track": "kyalami",
+          "name": "Kyalami - Round 2",
+          "laps": 3,
+          "hour": 13,
+          "weather": 2
+        },
+        {
+          "track": "fuji",
+          "name": "Fuji Speedway - Round 3",
+          "laps": 3,
+          "hour": 14,
+          "weather": 1
+        },
+        {
+          "track": "mount_panorama",
+          "name": "Mount Panorama - Finale",
+          "laps": 3,
+          "hour": 15,
+          "weather": 4
+        }
+      ],
+      "repRequired": 1200
     }
   ],
   "_nota_espansione": "Coppa monomarca per ogni auto: access='open' senza requires/rep (access=0), id piste abbreviati ok per il matcher; generati da tools/expand-ladder.py",

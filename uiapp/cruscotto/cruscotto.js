@@ -1,74 +1,217 @@
 // cruscotto.js — l'app «Cruscotto» in gioco (27/10/2026).
 //
-// Stesso schema di paddock.js: un colpo di lettura SOLO se il file è nuovo (slot
-// nuovo, un ui-<slot>.json ogni 2.5s il publisher src/uiapp-pub.mjs lo scrive in
-// questa cartella). Un XHR a un file statico, niente server da richiamare.
-// Il gioco tiene in cache un'URL per nome: name nuovo = colpo rimasto pulito.
+// PATTERN PADDOCK (27/10 18:40): niente pagina del loader. L'app dichiara
+// `pages` solo per dirti SU QUALI pagine gira, ma NON spediamo un menu.html:
+// quel file finiva nel cassetto del loader che misura il pannello dal
+// contenuto — con ~30 gare in lista il pannello cresceva oltre lo schermo e
+// spostava il menu di EVO (27/10 18:17), e metà tentativi di fix via CSS/JS
+// fuori scope hanno stretto la PAGINA DEL GIOCO (27/10 18:30: menu sparito).
+// Lo script quindi SI COSTRUISCE il pannello: position:fixed a dimensioni
+// sue, appeso a document.body (esattamente come fa paddock.js), con scorrere
+// via loader.scroll se il loader lo offre.
+//
+// I dati arrivano come prima: un ui-<fascia>.json ogni 2.5s scritto dal
+// publisher src/uiapp-pub.mjs nella cartella dell'app; il nome file variabile
+// bypassa la cache del gioco. NIENTE query-string nell'XHR (su coui:// le
+// risorse con ?t= falliscono — 27/10 18:11).
 (function () {
   'use strict';
-  const PERIODO_MS = 2500;   // lo stesso del publisher: se lo cambi, cambia là
+  const PERIODO_MS = 2500;        // lo stesso del publisher: se lo cambi, cambia là
   const S = { slot: -1, dati: null };
 
+  const LOADER = window.ACEUIAppLoader;
+  const ME = LOADER ? LOADER.app('cruscotto') : null;
+  const BASE = (ME?.base) || '/ACEUIAppLoader/cruscotto/';
+  const loga = (t) => { try { console.log('[Cruscotto] ' + t); } catch (_e) {} };
+
+  // regola viva: NON toccare document o body styles — la pagina che gira qui
+  // è quella del menu di EVO; le misure restano sugli elementi nostri
+  // ------------------------------------------------------------------ CSS
+  const CSS = `
+.crd-panel { position:fixed; left:12px; top:120px; bottom:100px; width:430px;
+  z-index:100000; box-sizing:border-box; background:rgba(13,17,23,0.96);
+  color:#e6edf3; font-family:'Segoe UI',system-ui,sans-serif; font-size:14px;
+  border:1px solid #2a3341; border-top:3px solid #7fb4ff; border-radius:10px;
+  display:flex; flex-direction:column; overflow:hidden; }
+.crd-top { display:flex; align-items:center; height:40px; padding:0 12px;
+  border-bottom:1px solid #2a3341; flex:none; }
+.crd-top b { color:#7fb4ff; font-size:16px; letter-spacing:.5px; flex:1; }
+.crd-close { color:#8b98a9; cursor:pointer; font-size:18px; padding:2px 8px; }
+.crd-close:hover { color:#fff; }
+.crd-body { position:relative; flex:1; min-height:0; overflow:hidden; }
+.crd-inner { padding:12px 14px; }
+.crd-track { position:absolute; top:6px; bottom:6px; right:3px; width:5px;
+  background:#161b26; }
+.crd-thumb { position:absolute; left:0; width:100%; background:#4a5468; }
+/* il pannello PARTE INVISIBILE (lezione 27/10 18:52): si apre solo con la
+   voce CRUSCOTTO nella barra del menu di EVO, come la voce PADDOCK di
+   paddock.js; niente tab fisso che resta sempre in vista */
+.crd-nascosto { display:none; }
+/* pannellino interno, stile vecchio cruscotto: sempre prefissato .crd-panel */
+.crd-panel .gruppo { margin-bottom:14px; }
+.crd-panel .gruppo h2 { font-size:12px; margin:0 0 8px 2px; color:#8b98a9;
+  letter-spacing:1.5px; text-transform:uppercase; }
+.crd-panel .card { background:#161d2b; border:1px solid #2a3341; border-radius:10px;
+  padding:10px 12px; margin-bottom:8px; overflow:hidden; }
+.crd-panel .card .titolo { font-weight:600; color:#ffd47f; margin-bottom:4px;
+  overflow:hidden; }
+.crd-panel .card .riga { font-size:12px; color:#c3ccd9; line-height:1.55;
+  word-wrap:break-word; overflow-wrap:break-word; overflow:hidden; }
+.crd-panel .stato { display:inline-block; padding:2px 9px; border-radius:20px;
+  font-size:11px; margin-left:8px; }
+.crd-panel .iscritto { background:#1c3a24; color:#7bdc8b; }
+.crd-panel .disponibile { background:#37301a; color:#ffd47f; }
+.crd-panel .bloccata { background:#3a1c1c; color:#f28b82; }
+.crd-panel .vuoto { color:#9aa7b8; font-style:italic; padding:6px 2px; }
+.crd-panel table.tab { width:100%; border-collapse:collapse; font-size:12px;
+  color:#c3ccd9; table-layout:fixed; }
+.crd-panel table.tab td { padding:3px 4px; border-top:1px solid #232b39;
+  word-wrap:break-word; overflow:hidden; }
+.crd-panel table.tab td.pos { width:26px; color:#8b98a9; text-align:right; }
+.crd-panel table.tab td.punti { width:46px; text-align:right; color:#7fb4ff; }
+.crd-panel table.tab tr.tu td { color:#ffd47f; font-weight:600; }
+.crd-panel .tu-tag { background:#1c3a24; color:#7bdc8b; border-radius:9px;
+  padding:0 6px; font-size:9px; font-weight:700; }
+.crd-panel .punti-skill { color:#8b98a9; font-size:11px; font-weight:400; margin-left:6px; }
+.crd-panel .apri-gui { background:#1d2c42; color:#7fb4ff; border:1px solid #2a3d5c;
+  border-radius:8px; padding:4px 10px; font-size:12px; cursor:pointer;
+  display:inline-block; }
+.crd-panel .apri-gui:hover { background:#274060; }
+.crd-panel .nota { color:#9aa7b8; font-size:10px; margin-left:6px;
+  word-wrap:break-word; }
+.crd-panel .mio { color:#ffd47f; font-size:15px; }
+`;
+  const stile = document.createElement('style');
+  stile.textContent = CSS;
+  try { (document.head || document.body).appendChild(stile); } catch (_e) { }
+
+  // ------------------------------------------------------------------ il pannello
+  const panel = document.createElement('div');
+  panel.className = 'crd-panel';
+  const top = document.createElement('div');
+  top.className = 'crd-top';
+  const t1 = document.createElement('b');
+  t1.textContent = 'Cruscotto';
+  panel.appendChild(top);
+  const chiusura = document.createElement('span');
+  chiusura.className = 'crd-close';
+  chiusura.textContent = '×';
+  chiusura.addEventListener('click', function () { apri(false); });
+  top.appendChild(t1);
+  top.appendChild(chiusura);
+  const body = document.createElement('div');
+  body.className = 'crd-body';
+  const inner = document.createElement('div');
+  inner.className = 'crd-inner';
+  inner.innerHTML = '<div class="vuoto">In attesa del cruscotto del server…</div>';
+  body.appendChild(inner);
+  const track = document.createElement('div');
+  track.className = 'crd-track';
+  const thumb = document.createElement('div');
+  thumb.className = 'crd-thumb';
+  track.appendChild(thumb);
+  body.appendChild(track);
+  panel.appendChild(body);
+  document.body.appendChild(panel);
+  let scorri = null;
+  try {
+    if (LOADER?.scroll?.attach) {
+      scorri = LOADER.scroll.attach({ body: body, track: track, thumb: thumb, nofitClass: 'crd-nascosto' });
+    } else { track.style.display = 'none'; }
+  } catch (_e) { track.style.display = 'none'; }
+
+  function apri(on) {
+    try { panel.style.display = on ? 'flex' : 'none'; } catch (_e) { }
+  }
+  apri(false);   // invisibile finché non lo chiede l'utente
+
+  // ------------------------------------- apertura dal DRAWER del loader
+  // (richiesta 27/10 19:05: niente voce nella barra del menu di EVO — solo
+  // il drawer APPS del loader a destra). La riga «Cruscotto» del drawer è un
+  // elemento della pagina: le attacchiamo il click (in cattura, così il
+  // loader non la intercetta prima) e ogni 2s ricontrolliamo, perché il
+  // drawer si ridisegna (la voce è un elemento nuovo ad ogni giro).
+  const same = (t) => String(t || '').replace(/\s+/g, '').toUpperCase() === 'CRUSCOTTO';
+  function agganciaDrawer() {
+    try {
+      const all = document.getElementsByTagName('*');
+      for (let i = 0; i < all.length; i++) {
+        const e = all[i];
+        if (panel.contains(e) || e.__cruscottoB) continue;
+        if (!same(e.textContent)) continue;
+        // solo le foglie del drawer (la riga col nome, non contenitori larghi)
+        if (e.children.length > 1) continue;
+        e.__cruscottoB = true;
+        e.style.cursor = 'pointer';
+        e.addEventListener('click', function (ev) { ev.stopPropagation(); ev.preventDefault(); apri(true); }, true);
+        loga('voce del drawer agganciata: il pannello si apre da lì');
+      }
+    } catch (_err) { }
+  }
+  setInterval(agganciaDrawer, 2000);
+  agganciaDrawer();
+
+  // ------------------------------------------------------------------ lettura fasce
   function leggiJson(nome, cb) {
     try {
       const xhr = new XMLHttpRequest();
-      xhr.open('GET', nome + '?t=' + Date.now(), true); // la coda cache col nome variabile
+      xhr.open('GET', BASE + nome, true); // NIENTE ?t=: su coui:// la query fa fallire la risorsa; nome-file nuovo = cache bypassata
       xhr.onreadystatechange = function () {
         if (xhr.readyState !== 4) return;
-        if (xhr.status !== 200 && xhr.status !== 0) return cb(null); // 404: il publisher non ha ancora scritto l'ora?
-        try { return cb(JSON.parse(xhr.responseText)); } catch (e) { return cb(null); }
+        if (xhr.status !== 200 && xhr.status !== 0) return cb(null);
+        try { return cb(JSON.parse(xhr.responseText)); } catch (_e) { return cb(null); }
       };
       xhr.send(null);
-    } catch (e) { cb(null); }
+    } catch (_e) { cb(null); }
   }
-
-  /** Il file di QUESTA slot; se manca ancora, il publisher scrive il tick
-   *  successivo: prova indietro di una fascia prima di mollare. */
   function prendiSlot(now) {
     const slot = Math.floor(now / PERIODO_MS);
-    if (slot === S.slot) return;              // già letto in questa fascia
+    if (slot === S.slot) return;
     leggiJson('ui-' + slot + '.json', function (main) {
       if (!main && slot > 0) {
         try {
           const xhr = new XMLHttpRequest();
-          xhr.open('GET', 'ui-' + (slot - 1) + '.json?t=' + Date.now(), true);
+          xhr.open('GET', BASE + 'ui-' + (slot - 1) + '.json', true);
           xhr.onreadystatechange = function () {
             if (xhr.readyState !== 4) return;
             let d = null;
-            try { if (xhr.status === 200) d = JSON.parse(xhr.responseText); } catch (e) {}
+            try { if (xhr.status === 200) d = JSON.parse(xhr.responseText); } catch (_e) { }
             adotta(d, slot);
           };
           xhr.send(null);
           return;
-        } catch (e) {}
+        } catch (_e) { }
       }
       adotta(main, slot);
     });
   }
-
   function adotta(dati, slot) {
-    if (dati) { S.slot = slot; try { applicaComando(dati.comando); } catch (e) {} S.dati = dati; disegna(); }
+    if (dati) { S.slot = slot; try { applicaComando(dati.comando); } catch (_e) { } S.dati = dati; disegna(); }
   }
 
-  // ------------------------------------------------------------------
-  // COMANDI IN DIRETTA (28/10): la vetrina può portare un comando, la
-  // prima voce è `setcar` — l'auto della gara del giorno, applicata in
-  // DIRECT dentro il menu di EVO, senza riavvio. Di nuovo il punto è lo
-  // stesso di paddock.js: `window.engine` con gli stessi comandi del menu
-  // Single Player (OnUICommand); se engine non c'è, non si rompe niente:
-  // l'auto resta alla via consueta (scritta a file, buona al prossimo avvio).
+  // ------------------------------------------------------------------ COMANDI IN DIRETTA
   const MODO_SINGLE = 'ClientCommandsMode_SINGLEPLAYER';
   const MODO_RACE_WEEKEND = 'GameModeType_RACE_WEEKEND';
   const OK_RISPOSTA = 'ClientCommandsResponse_OK';
   let ultimoComando = null;
-  // RIPROVA (31/10): un comando FALLITO non muore al primo colpo — il menu
-  // di EVO può stare in riscrittura (caricamento, modello non ancora in
-  // lista). Il prossimo slot (2.5 s) riprova lo stesso id, fino a 8 volte;
-  // riuscito o stancato, si smette. Riuscito: dimenticato (nuova preparazione
-  // = id nuovo = eseguita di nuovo).
-  const falliti = new Map();          // id -> tentativi fatti
-
+  // SOBRIETÀ: UNA sequenza per volta + riprova senza cap (le lezioni 27/10
+  // restano: le risposte si scambiano le mani se due sequenze corrono insieme)
+  const RETRY_MS = 5000;
+  let inCorso = false;
+  let ultimoTentativoAt = 0;
+  const falliti = new Map();          // id -> tentativi fatti (solo per la banda)
   function okTesto(r) { return r && r.response === OK_RISPOSTA ? 'ok' : ((r && (r.response || r.error)) || '?'); }
+
+  function ackComando(c, ok, msg) {
+    // L'ACK INVERSO (come Paddock e il suo paddock.py): il persist del loader
+    // finisce in ui_storage.uistorage, che il server sa leggere — così il
+    // publisher smette di ripubblicare un comando eseguito.
+    try {
+      const l = window.ACEUIAppLoader;
+      if (!l || !l.persist || typeof l.persist.writeStore !== 'function') return;
+      l.persist.writeStore('cruscotto.acks', { commands: [{ id: c.id, ok: ok ? 1 : 0, msg: String(msg || ''), at: Date.now() }] });
+    } catch (e) { loga('ack: ' + e); }
+  }
 
   function giocoComando(tipo, corpo, tempo) {
     return new Promise(function (risolvi) {
@@ -78,16 +221,16 @@
       let chiuso = false;
       const ricevo = function (r) {
         if (chiuso) return; chiuso = true;
-        setTimeout(function () { try { eng.off && eng.off(respName, ricevo); } catch (e) {} risolvi(r); }, 0);
+        setTimeout(function () { try { eng.off?.(respName, ricevo); } catch (_e) { } risolvi(r); }, 0);
       };
-      try { eng.on && eng.on(respName, ricevo); } catch (e) { return risolvi({ error: String(e) }); }
+      try { eng.on?.(respName, ricevo); } catch (e) { return risolvi({ error: String(e) }); }
       const corpo2 = Object.assign({}, corpo || {}, { __Type: tipo });
       setTimeout(function () {
         try { eng.trigger('OnUICommand', tipo, corpo2); } catch (e) { chiuso = true; risolvi({ error: String(e) }); }
       }, 250);
       setTimeout(function () {
         if (chiuso) return; chiuso = true;
-        try { eng.off && eng.off(respName, ricevo); } catch (e) {}
+        try { eng.off?.(respName, ricevo); } catch (_e) { }
         risolvi({ error: 'nessuna risposta a ' + tipo });
       }, tempo || 6000);
     });
@@ -105,7 +248,7 @@
       const dn = chiave(cars[i].display_name);
       if (dn && (dn.indexOf(k) >= 0 || k.indexOf(dn) >= 0)) return cars[i];
     }
-    const parole = String(nome).toLowerCase().split(/\s+/).map(chiave).filter(Boolean);
+    const parole = String(nome).toLowerCase().split(/\\s+/).map(chiave).filter(Boolean);
     let best = null;
     for (let i = 0; i < cars.length; i++) {
       const dn = chiave(cars[i].display_name);
@@ -115,8 +258,7 @@
   }
 
   // la pista nell'elenco del gioco: nome uguale, poi uno contenuto nell'altro;
-  // il layout del libro (TRACK_INFO) conta solo se il comando lo porta e gli
-  // elementi della pista lo dicono («GP» contenuto in «GP Race» = match).
+  // il layout del libro (TRACK_INFO) conta solo se il comando lo porta
   function trovaPista(tracks, nome, layout) {
     const k = chiave(nome); if (!k) return null;
     const kl = chiave(layout);
@@ -124,61 +266,79 @@
     for (let i = 0; i < tracks.length; i++) {
       const tn = chiave(tracks[i].name), tl = chiave(tracks[i].layout);
       if (!tn) continue;
-      if (!(tn === k || tn.indexOf(k) >= 0 || k.indexOf(tn) >= 0)) continue; // altra pista
+      if (!(tn === k || tn.indexOf(k) >= 0 || k.indexOf(tn) >= 0)) continue;
       if (!kl || !tl || tl === kl || tl.indexOf(kl) >= 0 || kl.indexOf(tl) >= 0) return tracks[i];
-      scorta = scorta || tracks[i];   // stessa pista, altro layout: tenuta di riserva
+      scorta = scorta || tracks[i];
     }
     return scorta;
   }
 
-  // La SEQUENZA COMPLETA di Paddock (29/10, «resta la 75» in Coppa Golf):
-  // nel menu di EVO l'auto appartiene al game type CARICATO — prima
-  // SetGameType (RACE_WEEKEND), poi la pista della ronda nell'elenco del
-  // gioco, e SOLO ALLA FINE Models + SetCurrentCar. L'ordine non era una
-  // facoltà: senza il tipo di gara i due comandi auto parlavano col
-  // contesto sbagliato e al weekend restava l'auto vecchia. La pista è
-  // best effort (se il comando la porta): se non matcha si va pure
-  // avanti con l'auto, che nel weekend su disco è quella di «Prepara tutto».
+  // SEQUENZA COMPLETA (gara di carriera): SetGameType → pista → Models → SetCurrentCar
   async function corriSetcar(c) {
     const eng = window.engine;
     if (!eng || typeof eng.trigger !== 'function') { notaComando('engine non disponibile (pagina aperta fuori dal gioco?)'); return false; }
     const r1 = await giocoComando('GameModeSelectionClientRequestSetGameType', { mode: MODO_SINGLE, type: MODO_RACE_WEEKEND }, 8000);
-    if (!r1 || r1.response !== OK_RISPOSTA) { notaComando('Race Weekend: ' + okTesto(r1)); return false; }
+    if (!r1 || r1.response !== OK_RISPOSTA) { notaComando('Race Weekend: ' + okTesto(r1)); loga('SetGameType: ' + okTesto(r1)); return false; }
     if (c.pista) {
       const tl = await giocoComando('GameModeSelectionClientRequestTrackList', { mode: MODO_SINGLE }, 10000);
-      const items = (tl && tl.track_item) || [];
+      const items = (tl?.track_item) || [];
       const pista = trovaPista(items, c.pista, c.layout);
       if (pista) {
         const r2 = await giocoComando('GameModeSelectionClientRequestSetTrack', { mode: MODO_SINGLE, track_item: pista }, 8000);
-        if (!r2 || r2.response !== OK_RISPOSTA) { notaComando('Pista ' + (pista.name || c.pista) + ': ' + okTesto(r2)); return false; }
+        if (!r2 || r2.response !== OK_RISPOSTA) { notaComando('Pista ' + (pista.name || c.pista) + ': ' + okTesto(r2)); loga('SetTrack: ' + okTesto(r2)); return false; }
       }
     }
     const cl = await giocoComando('CarSelectionClientRequestModels', { mode: MODO_SINGLE, brand: '' }, 10000);
-    if (!cl) { notaComando('Models: nessuna risposta dal menu di EVO'); return false; }
+    if (!cl) { notaComando('Models: nessuna risposta dal menu di EVO'); loga('Models: nessuna risposta'); return false; }
     const cars = (cl.car_model) || [];
     const car = trovaAuto(cars, c.nome);
-    if (!car) { notaComando('Auto non trovata nel menu del gioco: ' + c.nome + ' (' + cars.length + ' in lista)'); return false; }
+    if (!car) { notaComando('Auto non trovata nel menu del gioco: ' + c.nome + ' (' + cars.length + ' in lista)'); loga('Auto non trovata: ' + c.nome); return false; }
+    loga('auto trovata: ' + car.display_name);
     const r3 = await giocoComando('CarSelectionClientRequestSetCurrentCar', { mode: MODO_SINGLE, model: car }, 8000);
-    if (!r3 || r3.response !== OK_RISPOSTA) { notaComando(c.nome + ': ' + okTesto(r3)); return false; }
+    if (!r3 || r3.response !== OK_RISPOSTA) { notaComando(c.nome + ': ' + okTesto(r3)); loga('SetCurrentCar: ' + okTesto(r3)); return false; }
     notaComando('✓ ' + car.display_name + ' impostata nel menu di EVO, senza riavvio.');
+    loga('✓ SetCurrentCar ok: ' + car.display_name);
+    return true;
+  }
+
+  // EVENTO SPECIALE (F40 ecc.): SOLO l'auto — la gara personalizzata
+  // dell'evento non si tocca (niente SetGameType, niente SetTrack: sono
+  // campi della ronda di carriera e l'evento vive fuori, lezione 23/10)
+  async function corriEvento(c) {
+    const eng = window.engine;
+    if (!eng || typeof eng.trigger !== 'function') { notaComando('engine non disponibile (pagina aperta fuori dal gioco?)'); return false; }
+    const cl = await giocoComando('CarSelectionClientRequestModels', { mode: MODO_SINGLE, brand: '' }, 10000);
+    if (!cl) { notaComando('Models: nessuna risposta dal menu di EVO'); loga('Models: nessuna risposta'); return false; }
+    const cars = (cl.car_model) || [];
+    const car = trovaAuto(cars, c.nome);
+    if (!car) { notaComando('Auto non trovata nel menu del gioco: ' + c.nome + ' (' + cars.length + ' in lista)'); loga('Auto non trovata: ' + c.nome); return false; }
+    loga('auto evento trovata: ' + car.display_name);
+    const r = await giocoComando('CarSelectionClientRequestSetCurrentCar', { mode: MODO_SINGLE, model: car }, 8000);
+    if (!r || r.response !== OK_RISPOSTA) { notaComando(c.nome + ': ' + okTesto(r)); loga('SetCurrentCar: ' + okTesto(r)); return false; }
+    notaComando('✓ ' + car.display_name + ' pronta per l\'evento (solo auto: pista e gara si impostano dalla scheda).');
+    loga('✓ evento SetCurrentCar ok: ' + car.display_name);
     return true;
   }
 
   function applicaComando(c) {
     if (!c || !c.id || !c.nome) return;
+    if (inCorso) return;
     const tent = falliti.get(c.id) ?? 0;
-    if (c.id === ultimoComando && tent === 0) return;  // già eseguito con successo
-    if (tent >= 8) return;                             // stancato: il Prepara lo riprova con un id nuovo
+    if (c.id === ultimoComando && tent === 0) return;
+    if (Date.now() - ultimoTentativoAt < RETRY_MS) return;
+    ultimoTentativoAt = Date.now();
+    inCorso = true;
     ultimoComando = c.id;
-    Promise.resolve(corriSetcar(c)).then(function (ok) {
-      if (ok) falliti.delete(c.id); else falliti.set(c.id, tent + 1);
+    loga('comando ' + c.id + ' (' + c.nome + (c.pista ? ' @ ' + c.pista : '') + '), tentativo ' + (tent + 1));
+    const lavoro = c.tipo === 'evento' ? corriEvento(c) : corriSetcar(c);
+    Promise.resolve(lavoro).then(function (ok) {
+      inCorso = false;
+      if (ok) { falliti.delete(c.id); ackComando(c, true, 'auto impostata nel menu di EVO'); }
     });
   }
 
-  // il risultato del comando lo VEDI nel menu del gioco: banda in testa alla pagina (31/10)
-  function notaComando(t) {
-    try { window.__cruscottoNota = String(t); } catch (e) {}
-  }
+  // il risultato del comando si VEDI nel pannello: banda in testa
+  function notaComando(t) { try { window.__cruscottoNota = String(t); } catch (_e) { } }
   function strisciaNota() {
     const n = window.__cruscottoNota;
     if (!n) return '';
@@ -194,7 +354,7 @@
     if (!c || !c.righe || !c.righe.length) return '';
     let h = '<div class="gruppo"><h2>Classifica · ' + esc(c.nome) + '</h2>';
     h += '<div class="card"><table class="tab">';
-    for (const r of c.righe) {
+    for (const r of c.righe.slice(0, 6)) {
       h += '<tr class="' + (r.tu ? 'tu' : '') + '"><td class="pos">' + esc(r.pos) + '</td><td>' + esc(r.nome) +
         (r.tu ? ' <span class="tu-tag">tu</span>' : '') + '</td><td class="punti">' + esc(r.punti) + '</td></tr>';
     }
@@ -208,29 +368,25 @@
     h += '<div class="titolo">Posizione <b class="mio">' + esc(m.tuaPosizione) + '</b> di ' + esc(m.totale) +
       ' <span class="punti-skill">skill ' + esc(m.tuaSkill) + '</span></div>';
     h += '<table class="tab">';
-    for (const r of m.top) {
+    for (const r of m.top.slice(0, 5)) {
       h += '<tr class="' + (r.tu ? 'tu' : '') + '"><td class="pos">' + esc(r.pos) + '</td><td>' + esc(r.nome) +
         (r.tu ? ' <span class="tu-tag">tu</span>' : '') + '</td><td class="punti">' + esc(r.skill) + '</td></tr>';
     }
     h += '</table>';
     if (guiUrl) {
-      const u = String(guiUrl);
-      h += '<div class="riga" style="margin-top:8px"><a class="apri-gui" href="javascript:void(0)" data-url="' + esc(u) + '">Mondiale completo ↗</a>' +
-        '<span class="nota"> ' + esc(u) + '</span></div>';
+      h += '<div class="riga" style="margin-top:8px"><a class="apri-gui" href="javascript:void(0)" data-url="' + esc(String(guiUrl)) + '">Mondiale completo ↗</a></div>';
     }
     return h + '</div></div>';
   }
 
-  // Il pulsante «Mondiale completo»: in gioco cohtml può bloccare window.open,
-  // perciò si prova anche external.openURL e comunque l'URL resta leggibile.
   document.addEventListener('click', function (e) {
-    const a = e.target && e.target.closest ? e.target.closest('a.apri-gui') : null;
+    const a = e.target?.closest ? e.target.closest('a.apri-gui') : null;
     if (!a) return;
     e.preventDefault();
-    const url = a.getAttribute('data-url') || (S.dati && S.dati.guiUrl) || null;
+    const url = a.getAttribute('data-url') || (S.dati?.guiUrl) || null;
     if (!url) return;
-    try { window.open(url, '_blank'); } catch (err) {}
-    try { if (window.external && typeof window.external.openURL === 'function') window.external.openURL(url); } catch (err) {}
+    try { window.open(url, '_blank'); } catch (_err) { }
+    try { if (window.external && typeof window.external.openURL === 'function') window.external.openURL(url); } catch (_err) { }
   });
 
   const STATI = {
@@ -243,9 +399,6 @@
     const st = STATI[g.stato] || STATI.bloccata;
     const meta = [
       g.track ? 'Pista: ' + esc(g.track) : null,
-      g.giri != null ? 'Giri: ' + esc(g.giri) : null,
-      g.ora != null ? 'Ore: ' + String(g.ora).padStart(2, '0') + ':00' : null,
-      g.meteo ? 'Meteo: ' + esc(g.meteo) : null,
       g.auto ? 'Auto: ' + esc(g.auto) : null,
       g.ronda ? 'Ronda ' + esc(g.ronda) + '/' + esc(g.totalRonde) : null,
       g.griglia === 'multimarca' ? 'Multiclasse' : 'Monomarca',
@@ -265,28 +418,38 @@
 
   function disegna() {
     const d = S.dati;
-    const host = document.getElementById('cruscotto');
-    if (!d) { host.innerHTML = '<div class="vuoto">In attesa del cruscotto del server…</div>'; return; }
-    let h = '<div class="testa"><h1>Cruscotto</h1><div class="sub">';
-    if (d.pilota && d.pilota.nome) {
+    let h = '<div class="sub" style="color:#9aa7b8;font-size:12px;margin-bottom:10px">';
+    if (d.pilota?.nome) {
       h += esc(d.pilota.nome) + ' · ' + Math.round(d.pilota.saldo ?? 0).toLocaleString('it-IT') + ' cr · ' +
         Math.round(d.pilota.rep ?? 0) + ' rep';
     }
     if (d.giornoLabel) h += '<br>Giorno ' + esc(d.giornoLabel);
-    h += '</div></div>';
+    h += '</div>';
     h += strisciaNota();
 
     h += '<div class="gruppo"><h2>Gare di oggi</h2>';
-    h += (d.gare ?? []).length ? (d.gare ?? []).map(cardGara).join('') : '<div class="vuoto">Nessuna gara in programma oggi.</div>';
+    // la prima gara ISCRITTA viene prima di tutto (se c'è): è quella del comando
+    const gare = (d.gare ?? []).slice();
+    gare.sort(function (a, b) { return (b.isCorrente ? 1 : 0) - (a.isCorrente ? 1 : 0); });
+    const vis = gare.slice(0, 5);
+    if (gare.length) {
+      h += vis.map(cardGara).join('');
+      if (gare.length > 5) h += '<div class="vuoto">… e altre ' + (gare.length - 5) + ' gare oggi (nella GUI del browser)</div>';
+    } else h += '<div class="vuoto">Nessuna gara in programma oggi.</div>';
     h += '</div><div class="gruppo"><h2>Serie iscritta</h2>';
-    h += (d.iscritte ?? []).length ? (d.iscritte ?? []).map(cardIscritta).join('') : '<div class="vuoto">Nessuna serie iscritta.</div>';
+    const iscr = (d.iscritte ?? []).slice(0, 6);
+    if (iscr.length) {
+      h += iscr.map(cardIscritta).join('');
+      if ((d.iscritte ?? []).length > 6) h += '<div class="vuoto">… e altre ' + ((d.iscritte ?? []).length - 6) + ' serie</div>';
+    } else h += '<div class="vuoto">Nessuna serie iscritta.</div>';
     h += '</div>';
-    // niente blocco se la statistica non c'è (schema: nascondi, non mostrare vuoto)
     h += bloccoClassifica(d.classifica);
     h += bloccoMondo(d.mondo, d.guiUrl);
-    host.innerHTML = h;
+    inner.innerHTML = h;
+    if (scorri) { try { scorri.fit?.(); } catch (_e) { } }
   }
 
   setInterval(function () { prendiSlot(Date.now()); }, PERIODO_MS / 2);
   prendiSlot(Date.now());
+  loga('pannello inizializzato (pattern Paddock, niente pagina del loader)');
 })();

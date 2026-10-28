@@ -11,6 +11,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { readFileSync, writeFileSync, existsSync, copyFileSync, renameSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import { dirname, join, extname, basename, relative, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
+import { requestFromLocalBrowser, serveStatic } from './webui-static.mjs';
 import { resolvePaths, isGameRunning, GAME_EXE, dataDirCandidates, isDir, isFile, launchGame } from './paths.mjs';
 
 import {
@@ -19,8 +20,9 @@ import {
   acceptOffer, pushMessage, enterNode, renameDriver, careerStats,
   slotDataDir,
 } from './state.mjs';
-import { ourToSkill, OUR_MIN, OUR_MAX, playerWorldSkill } from './world.mjs';
-import { loadCatalog, resultDetail } from './catalog.mjs';
+import { playerWorldSkill } from './world.mjs';
+import { loadCatalog, resultDetail, onlineArchive } from './catalog.mjs';
+import { rapportoGara } from './rapporto-gara.mjs';
 import { liveReader } from './shmem.mjs';
 import { raceCard, markPending, chargeEntry, launch } from './race.mjs';
 import { applyPianoToCalendar } from './orario.mjs';
@@ -36,6 +38,7 @@ import { rivalsOverview, rivalDetail } from './rivals.mjs';
 import { alreadyImportedHash, importedFiles, importLog, resetImportRegistry } from './import.mjs';
 import { hot } from './hot.mjs';
 import { checkIntegrity, fixIntegrity } from './integrity.mjs';
+import { stileOverview } from './stile-webui.mjs';
 import { maybeSpawnEvent, acceptEvent, declineEvent, finishEvent, eventCard, eventsOverview, expireEvents, ensureEvents, refreshActivePrize, autoFinishEventFromFile, eventTrackReal } from './events.mjs';
 import { seasonReview, reviewableSeasons, exportReview } from './review.mjs';
 import { contractStatus, sponsorOffers, acceptSponsor, declineSponsor, challengeFor, acceptChallenge, sigilDefs, ensureLife, sponsorFor, ensureContract, checkSigils } from './life.mjs';
@@ -45,12 +48,17 @@ import { recordHotlaps, hotlapSweep, hotlapsLog, hotlapsStats, hotlapsProgress }
 import { recordWarning, readWarnings } from './warnings.mjs';
 import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
 import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, telemDiagnostics, lapTrace } from './motec.mjs';
+// stinti.mjs e usura-gomme.mjs leggono la STESSA telemetria MoTeC: stint
+// spezzati dai rifornimenti veri e usura gomme (degrado ritmo + temperature)
+// entrano nel box e da terminale, sempre da file .ld reali (richiesta 28/10).
+import { stintsFromLd } from './stinti.mjs';
+import { tyreWearFromLd } from './usura-gomme.mjs';
 import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
 import { parseSetup, listSetups, writeSetupCopy, brakePlanOf, annotateAllyAdvice } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
-import { carPoolOf, carInPool } from './car-pool.mjs';
+import { carPoolOf, carInPool, poolNodeForLive } from './car-pool.mjs';
 import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, setWeekendGridCustom, WEEKEND_FILE } from '../tools/set-track.mjs';
-import { setRaceTime, currentRaceTime, currentSessionTimes, setRaceSessions } from '../tools/set-racetime.mjs';
+import { currentRaceTime, currentSessionTimes, setRaceSessions } from '../tools/set-racetime.mjs';
 import { setWeekendLaps } from '../tools/weekend-laps.mjs';
 import { readCells } from '../tools/grid-balance.mjs';
 // report.mjs: il bottone "Segnala un problema" costruisce l'URL della issue
@@ -167,6 +175,45 @@ function grigliaEventoGiaInPiede(file, gridSize, poolIds) {
   return ids.length === gridSize
     && ids.every((id) => id && poolIds.includes(id))
     && poolIds.every((id) => ids.includes(id));
+}
+
+/* AVVISO GRIGLIA RONDA SUL PANNELLO EVENTI (28/10, lezione bak-evento del
+ * 27/10 21:40): l'event-prep riscrive last_grid.customgrid e il file della
+ * ronda se ne va nei .bak-evento-*; al round successivo la griglia ronda torna
+ * SOLO col «Prepara tutto» del campionato (rebuildGridApply recupera dai
+ * backup). Il pannello Eventi legge qui lo stato REALE del disco e dice a
+ * Mauro che cosa c'è sul file PRIMA che lo scopra in pista: la lettura non
+ * tocca nulla (nulla di pericoloso anche in fallback). */
+function avvisoGrigliaEvento(eventoAccettato, card) {
+  const out = { presente: false, forma: null, celle: null, backupEvento: null, avviso: null };
+  try {
+    const bakBase = basename(GRID_FILE);
+    for (const f of readdirSync(dirname(GRID_FILE)).filter((x) => x.startsWith(`${bakBase}.bak-evento-`)).sort().reverse()) {
+      out.backupEvento = f.slice(bakBase.length + 1);   // «.bak-evento-2026-10-27T…»
+      break;
+    }
+  } catch { /* niente cartella: nessun backup da mostrare */ }
+  if (!eventoAccettato || !existsSync(GRID_FILE)) return out;
+  try {
+    const g = gridFileOf(readFileSync(GRID_FILE));
+    out.presente = true;
+    out.celle = g.cells.length;
+    const pool = (card?.theme?.gridCars ?? card?.guestCarIds ?? []);
+    const gridSizeEv = card?.theme?.gridSize ?? (pool.length + 2);
+    out.forma = (pool.length && grigliaEventoGiaInPiede(GRID_FILE, gridSizeEv, pool)) ? 'evento' : 'ronda';
+  } catch { out.forma = null; out.presente = false; }   // file a metà/illegibile: il pannello resta in silenzio
+  if (out.forma === 'evento') {
+    out.avviso = tr({
+      it: `sul disco c'è la griglia DELL'EVENTO (${out.celle} celle): il tasto sotto non la tocca${out.backupEvento ? ` — prima di questo evento era qui la griglia di ronda (${out.backupEvento})` : ''}; per la prossima ronda di campionato la riscrive il «Prepara tutto» della carriera`,
+      en: `the EVENT grid is on disk (${out.celle} cells): the button below will not touch it${out.backupEvento ? ` — before this event the round grid sat here (${out.backupEvento})` : ''}; the career's 'Prepare all' rewrites it for the next championship round`,
+    });
+  } else if (out.forma === 'ronda') {
+    out.avviso = tr({
+      it: `sul disco c'è la griglia della RONDA (${out.celle} celle): il tasto sotto la sposta nei backup (.bak-evento-*) e ci rimette la griglia dell'evento — per la prossima gara di campionato ripremi il «Prepara tutto» del pannello Prossima gara`,
+      en: `the ROUND grid is on disk (${out.celle} cells): the button below stashes it into backups (.bak-evento-*) and writes the event grid — hit the Next race panel's 'Prepare all' again before the next championship race`,
+    });
+  }
+  return out;
 }
 
 /* ------------------------------------------------------------------ */
@@ -313,9 +360,19 @@ function sendJson(res, code, data) {
   res.end(body);
 }
 
+// Tetto alla dimensione del body: le API parlano JSON piccolo; oltre questa soglia
+// la richiesta viene rifiutata (413) senza accumulare in memoria.
+const BODY_MAX_BYTES = 1024 * 1024;
+class BodyTooLarge extends Error {}
+
 async function readBody(req) {
   const chunks = [];
-  for await (const c of req) chunks.push(c);
+  let total = 0;
+  for await (const c of req) {
+    total += c.length;
+    if (total > BODY_MAX_BYTES) throw new BodyTooLarge("body troppo grande");
+    chunks.push(c);
+  }
   let body = {};
   if (chunks.length) {
     try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')) ?? {}; }
@@ -412,7 +469,14 @@ async function syncLiveReader() {
 /** Riassunto in una riga delle ore distinte per sessione (Practice 10:00 · …): serve
  *  a card e preperare per dire all'amico COME sono posizionate le sessioni. */
 function orarioSessioni(sessi) {
+  // le durate (f2 in secondi) si mostrano in "NN min" accanto all'ora di inizio
   return Object.entries(sessi ?? {}).map(([k, h]) => `${k} ${String(h).padStart(2, '0')}:00`).join(' · ');
+}
+
+/** Riassunto anche DELLE DURATE per sessione (Practice 20 min · …): richiesta
+ *  Mauro 31/10 — le sessioni seguono la distanza in %, oltre alle ore. */
+function durataSessioni(sessi) {
+  return Object.entries(sessi ?? {}).map(([k, v]) => `${k} ${Math.round(Number(v) / 60)} min`).join(' · ');
 }
 
 async function api(context0, _req, res, action, body) {
@@ -654,7 +718,15 @@ async function api(context0, _req, res, action, body) {
     // disco (nessun avvio richiesto): gli extra sono ready per il cruscotto.
     case 'paddock': return sendJson(res, 200, paddockOverview(process.env));
     case 'catalog': return sendJson(res, 200, loadCatalog(paths, process.env, { driver: state?.driver ?? null, afterMs: body.all ? 0 : (state?.createdAt ?? 0) }));
-    case 'result-detail': return sendJson(res, 200, resultDetail(paths, String(body.file ?? '')) ?? { error: tr({ it: 'File non trovato.', en: 'File not found.' }) });
+    case 'mp':
+      // ARCHIVIO ONLINE (31/10): sessioni _MP_ + libro dei rivali online, dal
+      // stesso scopo carriera del catalog (afterMs = nascita della carriera).
+      return sendJson(res, 200, onlineArchive(paths, { driver: state?.driver ?? null, afterMs: body.all ? 0 : (state?.createdAt ?? 0) }));
+    case 'result-detail': return sendJson(res, 200, resultDetail(paths, String(body.file ?? ''), { driver: state?.driver ?? null }) ?? { error: tr({ it: 'File non trovato.', en: 'File not found.' }) });
+    // RAPPORTO DI GARA (27/10): il dossier PRONTO DA INCOLLARE su Discord —
+    // stessa fonte del resultDetail (resultDetail) + settori dal file nativo;
+    // salva anche il .md in report/gare/ per l'allegato.
+    case 'rapporto-gara': return sendJson(res, 200, paths ? rapportoGara(paths, String(body.file ?? ''), { driver: state?.driver ?? null }) : { error: tr({ it: 'Percorsi dati EVO non configurati: apri il wizard.', en: 'EVO data paths not configured: open the wizard.' }) });
     case 'watcher':
       return sendJson(res, 200, { active: true, armed: watcher.armed, racedEnd: watcher.racedEnd, lastMsg: watcher.lastMsg, events: watcher.events, seq: watcher.importSeq ?? 0 });
     case 'live': {
@@ -753,16 +825,31 @@ async function api(context0, _req, res, action, body) {
       const live = engineerLive(snap, { fuelPerLap, raceLaps });
       // VIGIA DEL PARCO AUTO: mentre giri, copilota e pannello sanno SUBITO se
       // l'auto del sedile è una di quelle ammesse della serie — un'auto fuori
-      // pool all'import vale zero (car-pool.mjs); qui la si annuncia live.
+      // pool all'import vale zero (car-pool.mjs). Il giudizio live però vale
+      // SOLO con la serie giusta (27/10, Mauro: «non fa altro che dire F40
+      // fuori parco» — l'F40 LM ha un SUO parco e il coach lo giudicava col
+      // pool della serie di carriera anche in sessioni d'altro tipo):
+      // poolNodeForLive chiede pista del round (e, senza pending, una Race).
+      // Menu, prove libere, MP e test con altre serie → auto null, la copilota
+      // tace; l'import giudica col file risultato, che è la verità.
       let auto = null;
       try {
-        const parco = carPoolOf(ladder, state.pending?.node ?? state.node);
-        if (parco.ammesse.length) auto = {
-          ok: !snap.player?.car || carInPool(snap.player.car, parco.ammesse),
-          mine: snap.player?.car ?? null,
-          ammesse: parco.ammesse.slice(0, 6),
-          classe: parco.classe,
-        };
+        const nodoLive = poolNodeForLive(ladder, {
+          pending: state.pending ?? null,
+          node: state.node ?? null,
+          round: state.round ?? null,
+          smTrack: snap.session?.track ?? null,
+          smType: snap.session?.type ?? null,
+        });
+        if (nodoLive) {
+          const parco = carPoolOf(ladder, nodoLive);
+          if (parco.ammesse.length) auto = {
+            ok: !snap.player?.car || carInPool(snap.player.car, parco.ammesse),
+            mine: snap.player?.car ?? null,
+            ammesse: parco.ammesse.slice(0, 6),
+            classe: parco.classe,
+          };
+        }
       } catch { /* senza pool la copilota non giudica */ }
       // oltre a benzina/usura/gap, la radio porta dentro anche il DELTA DI RITMO
       // (giro corrente vs best della sessione) e la MAPPA «dove perdo tempo»:
@@ -773,6 +860,10 @@ async function api(context0, _req, res, action, body) {
         // impronta della sessione per il copilota (28/10): sessionStorage nova
         // = memoria dei narratori azzerata senza voci sbagliate all'avvio
         sessionId: snap.session?.id ?? null,
+        // tipo di sessione per il monitor del copilota (28/10): il log
+        // copilot-*.jsonl lo registrava sempre null e non si poteva capire
+        // perché i narratori tacevano; finalmente dalla MMF static
+        sessionType: snap.session?.type ?? null,
         telemTrack,
         fuelPerLap: live.gauges?.fuelPerLap ?? null,
         delta: snap.delta ?? null,
@@ -1074,8 +1165,13 @@ async function api(context0, _req, res, action, body) {
         return sendJson(res, 200, { ...st, forced: op === 'force', lastRun: esito });
       } catch (e) { return sendJson(res, 500, { error: e.message }); }
     }
-    case 'events':
-      return sendJson(res, 200, eventsOverview(ladder, state));
+    case 'events': {
+      // avviso griglia ronda (28/10, lezione bak-evento 27/10): la vetrina porta
+      // con sé lo stato del customgrid come lo leggerà event-prep
+      const ev = eventsOverview(ladder, state);
+      ev.grigliaRonda = avvisoGrigliaEvento(!!ev.active?.acceptedAt, ev.card);
+      return sendJson(res, 200, ev);
+    }
     case 'my-garage': {
       // il garage personale: importa le auto vinte dagli eventi e arricchisce col catalogo
       try {
@@ -1103,6 +1199,11 @@ async function api(context0, _req, res, action, body) {
         return sendJson(res, 200, bp);
       } catch (e) { return sendJson(res, 400, { error: e.message }); }
     }
+    // I CINQUE MISCUGLI in GUI (28/10): schede dei cinque campionati stile anche
+    // quando il sedile non è firmato (il tab Campionati mostra solo le serie
+    // iscritte). Stesso schema di championships: finestra, pool sorteggiato con
+    // seme, regole con cap, calendario, stato della sua iscrizione.
+    case 'stili': return sendJson(res, 200, stileOverview(ladder, state));
     case 'garage-catalog': return sendJson(res, 200, { cars: catalogPicker(ladder, { paths }) });
     case 'garage-add': {
       try {
@@ -1756,7 +1857,7 @@ async function api(context0, _req, res, action, body) {
             } else prep.grid.bilancio = 'ok';
             const ap = aiRangeProposal(GRID_FILE);
             if (ap?.trovato && (ap.trovato[0] !== ap.atteso[0] || ap.trovato[1] !== ap.atteso[1])) {
-              const out = applyAi(ap.atteso, { force: true });
+              const _out = applyAi(ap.atteso, { force: true });
               prep.grid.ai = `riscritto ${ap.atteso[0]}-${ap.atteso[1]} (trovato ${ap.trovato[0]}-${ap.trovato[1]})`; prep.grid.written = true;
             } else prep.grid.ai = ap?.atteso ? `ok (${ap.atteso[0]}-${ap.atteso[1]})` : null;
           }
@@ -1804,7 +1905,7 @@ async function api(context0, _req, res, action, body) {
           const tPath = join(slotDataDir(), 'grid-templates', nod + '.customgrid');
           if (!existsSync(tPath)) throw new Error(`customgrid sul disco ma con ${celle.length === 0 ? '0 celle' : 'celle non decodificabili'} e nessun template di serie in magazzino: ripremi Prepara tutto`);
           let celleTemplate = 0;
-          try { celleTemplate = (readCells(readFileSync(tPath)) ?? {}).cells?.length ?? 0; } catch { celleTemplate = 0; }
+          try { celleTemplate = readCells(readFileSync(tPath))?.cells?.length ?? 0; } catch { celleTemplate = 0; }
           if (celleTemplate <= 0) throw new Error(`template di serie (${tPath}) non decodificabile: ripremi Prepara tutto`);
           contatore = celleTemplate - 1;
         } else if (contatore < 1) contatore = 1;
@@ -1861,23 +1962,32 @@ async function api(context0, _req, res, action, body) {
             : tr({ it: 'gamemodesave non trovato (EVO mai stato sul weekend?): apri il round in EVO una volta, poi premi di nuovo Prepara tutto', en: 'gamemodesave not found (EVO never reached the weekend?): open the round in EVO once, then press Get ready again' });
           else {
             const wantScale = card.timeMultiplier != null ? Math.max(1, Math.min(60, Number(card.timeMultiplier) || 1)) : null;
+            // DURATE AL % (richiesta Mauro 31/10): prova/qualifica/warm-up portano
+            // la durata EFFETTIVA della card (al % della distanza) — il Prepara
+            // la scrive nei f2 dei blocchi, non solo le ore. La Race è fuori:
+            // il suo f2 sono i GIRI (setWeekendLaps li gestisce).
+            const durate = { Practice: card.practiceMinEff, Qualifying: card.qualifyMinEff, Warmup: card.warmupMinEff };
             const sessi = {};
             for (const [k, v] of Object.entries({ Practice: card.practiceStart, Qualifying: card.qualifyStart, Warmup: card.warmupStart, Race: roundHour })) {
-              if (Number.isFinite(Number(v))) sessi[k] = Number(Math.round(Number(v)));
+              const hour = Number.isFinite(Number(v)) ? Math.round(Number(v)) : null;
+              const durMin = k !== 'Race' && Number.isFinite(Number(durate[k])) ? Math.max(5, Math.round(Number(durate[k]))) : null;
+              if (hour != null || durMin != null) sessi[k] = { ...(hour != null ? { hour } : {}), ...(durMin != null ? { durationSec: durMin * 60 } : {}) };
             }
             const ora = currentSessionTimes();
             const tuttoAPosto = ora != null && ora.length > 0 && ora.every((s) => {
               const w = sessi[s.name];
               if (w == null) return true; // sessione senza orario voluto: non si tocca
-              const okOra = Number(s.hour) === w;
+              const okOra = w.hour != null ? Number(s.hour) === w.hour : true;
+              const okDur = w.durationSec != null ? Number(s.durSec) === w.durationSec : true;
               const okScala = wantScale == null || Math.abs(Number(s.scale) - wantScale) < 1e-6;
-              return okOra && okScala;
+              return okOra && okDur && okScala;
             });
             const sommario = ora.filter((s) => sessi[s.name] != null).map((s) => `${s.name} ${String(s.hour ?? '?').padStart(2, '0')}:${String(s.minute ?? 0).padStart(2, '0')}`).join(' · ');
-            if (tuttoAPosto) prep.hour = `già a posto — ${sommario}${wantScale != null ? ` · scala ${wantScale}x` : ''}`;
+            const sommarioDur = durataSessioni(Object.fromEntries(Object.entries(sessi).filter(([, w]) => w.durationSec != null).map(([k, w]) => [k, w.durationSec])));
+            if (tuttoAPosto) prep.hour = `già a posto — ${sommario}${sommarioDur ? ' · ' + sommarioDur : ''}${wantScale != null ? ` · scala ${wantScale}x` : ''}`;
             else {
               const rt = setRaceSessions({ sessions: sessi, scale: wantScale });
-              prep.hour = orarioSessioni(sessi) + (wantScale != null ? ` · scala ${wantScale}x` : '');
+              prep.hour = orarioSessioni(Object.fromEntries(Object.entries(sessi).map(([k, w]) => [k, w.hour ?? '?']))) + ` · ${sommarioDur}` + (wantScale != null ? ` · scala ${wantScale}x` : '');
               prep.hourSessions = sessi;
               prep.hourWritten = rt.written;
               prep.hourToccati = rt.toccati;
@@ -2339,6 +2449,29 @@ async function api(context0, _req, res, action, body) {
             })),
           } : null;
           return sendJson(res, 200, { ok: true, car: carName, track: trackDisplay, sessFile, tipo: adv.tipo, densita: adv.densita, consigli, storie, allievo, bestLap: bestLap != null ? Math.round(bestLap * 1000) / 1000 : null, hasTelem: !!telem });
+        }
+        if (body.action === 'stinti') {
+          // analisi dei stint dalla telemetria REALE: blocco dei rifornimenti,
+          // ritmo e carburante per stint, secondi AL LITRO misurati sui giri
+          // veri (stinti.mjs) — la strategia prima del prossimo pit stop.
+          const board = setupBoard(ladder, state);
+          const carName = body.car ?? (board.rows[0]?.carName ?? null);
+          const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
+          const pick = listMotecSessions(root, { car: carName, track: body.track ?? undefined, afterMs: state.createdAt ?? 0 })[0] ?? null;
+          const out = pick ? stintsFromLd(pick.file, { refillLitri: Number.isFinite(body.refillLitri) ? body.refillLitri : undefined }) : null;
+          if (!out) return sendJson(res, 200, { ok: false, hint: tr({ it: 'Nessuna telemetria MoTeC per questa auto: fai una sessione e EVO la salverà in Saved Games\\ACE\\MoTec.', en: 'No MoTeC telemetry for this car yet: run a session and EVO will save it to Saved Games\\ACE\\MoTec.' }) });
+          return sendJson(res, 200, { ok: true, file: pick.name, car: pick.car, track: pick.track, ...out });
+        }
+        if (body.action === 'gomme') {
+          // usura gomme dallo STESO .ld: degrado del ritmo, trend termico per
+          // ruota, ruota più calda e slittamento di trazione (usura-gomme.mjs).
+          const board = setupBoard(ladder, state);
+          const carName = body.car ?? (board.rows[0]?.carName ?? null);
+          const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
+          const pick = listMotecSessions(root, { car: carName, track: body.track ?? undefined, afterMs: state.createdAt ?? 0 })[0] ?? null;
+          const out = pick ? tyreWearFromLd(pick.file) : null;
+          if (!out) return sendJson(res, 200, { ok: false, hint: tr({ it: 'Nessuna telemetria MoTeC per questa auto: fai una sessione e EVO la salverà in Saved Games\\ACE\\MoTec.', en: 'No MoTeC telemetry for this car yet: run a session and EVO will save it to Saved Games\\ACE\\MoTec.' }) });
+          return sendJson(res, 200, { ok: true, file: pick.name, car: pick.car, track: pick.track, ...out });
         }
         if (body.action === 'laptrace') {
           // grafico del giro: profilo SPEED/THROTTLE/BRAKE di un giro (e la
@@ -3118,61 +3251,11 @@ function serialize(task, label = 'azione') {
   return run;
 }
 
-/** Solo richieste nate dal proprio browser: l'Host è sempre il loopback locale
- *  (chiude il DNS rebinding) e l'Origin, quando il browser lo manda, deve essere
- *  il proprio (chiude il CSRF da qualunque sito aperto nel browser). Nessun
- *  Origin = client locale (curl, CLI, il probe di porta): consentito. */
-function requestFromLocalBrowser(req) {
-  const host = String(req.headers.host ?? '');
-  if (host !== `127.0.0.1:${PORT}` && host !== `localhost:${PORT}` && host !== `[::1]:${PORT}`) return false;
-  const origin = req.headers.origin;
-  if (origin) {
-    try {
-      const u = new URL(String(origin));
-      if (!['127.0.0.1', 'localhost', '[::1]'].includes(u.hostname) || u.port !== String(PORT)) return false;
-    } catch { return false; }
-  }
-  return true;
-}
-
-// cache statica invece della rilettura dal disco a ogni richiesta: i JS/CSS del
-// cruscotto non cambiano finché non li tocchi. L'ETag (mtime+size) rende il
-// revalidate quasi gratuito: browser manda If-None-Match, noi rispondiamo 304
-// SENZA leggere nemmeno il file. index.html resta no-store (punto d'ingresso).
-const STATIC_CACHE_MAX = 40;
-const staticCache = new Map(); // file → { mtimeMs, size, buf }
-function serveStatic(req, res, file, type = 'application/octet-stream') {
-  if (!existsSync(file)) return false;
-  const st = statSync(file);
-  if (!st.isFile()) return false;
-  const isHtml = file.toLowerCase().endsWith('.html');
-  const etag = `W/"${st.size.toString(16)}-${Math.floor(st.mtimeMs).toString(16)}"`;
-  const revalidate = !isHtml; // html sempre fresco: da lì parte tutta l'app
-  if (revalidate && req.headers['if-none-match'] === etag) {
-    res.writeHead(304, { 'Cache-Control': 'no-cache', ETag: etag });
-    res.end();
-    return true;
-  }
-  // NB: niente valori undefined negli header: writeHead rifiuta l'intero messaggio
-  const hit = revalidate ? staticCache.get(file) : null;
-  if (hit && hit.mtimeMs === Math.floor(st.mtimeMs) && hit.size === st.size) {
-    res.writeHead(200, revalidate ? { 'Content-Type': type, 'Cache-Control': 'no-cache', ETag: etag } : { 'Content-Type': type, 'Cache-Control': 'no-store' });
-    return res.end(hit.buf);
-  }
-  const buf = readFileSync(file);
-  if (revalidate) {
-    if (staticCache.size >= STATIC_CACHE_MAX) staticCache.clear();
-    staticCache.set(file, { mtimeMs: Math.floor(st.mtimeMs), size: st.size, buf });
-  }
-  res.writeHead(200, revalidate ? { 'Content-Type': type, 'Cache-Control': 'no-cache', ETag: etag } : { 'Content-Type': type, 'Cache-Control': 'no-store' });
-  return res.end(buf);
-}
-
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
     if (url.pathname.startsWith('/api/')) {
-      if (!requestFromLocalBrowser(req)) {
+      if (!requestFromLocalBrowser(req, PORT)) {
         return sendJson(res, 403, { error: 'Richiesta rifiutata: origine non locale (Host/Origin non riconosciuti).' });
       }
       if (req.method === 'POST') {
@@ -3181,8 +3264,14 @@ const server = createServer(async (req, res) => {
         if (hasBody && !ct.includes('application/json')) {
           return sendJson(res, 415, { error: 'Le API parlano solo application/json.' });
         }
-      }      const action = url.pathname.slice('/api/'.length);
-      const body = req.method === 'POST' ? await readBody(req) : {};
+      }
+      const action = url.pathname.slice('/api/'.length);
+      let body;
+      try { body = req.method === 'POST' ? await readBody(req) : {}; }
+      catch (e) {
+        if (e instanceof BodyTooLarge) return sendJson(res, 413, { error: 'Richiesta troppo grande.' });
+        throw e;
+      }
       // il CONTESTO non fa schioffare il cruscotto: al PRIMO AVVIO senza cartella
       // dati EVO resolvePaths lancia, e sotto ogni API sparisce. In quel caso degradi
       // con paths null — il wizard (/api/wizard) è lì per sistemare il percorso.

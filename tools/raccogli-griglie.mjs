@@ -35,7 +35,7 @@ const FILE = join(GAME_MODES_DIR, 'last_grid.customgrid');
 const GREZZE = join(HERE, '..', 'data', 'griglie-grezz');
 // voci di content/cars/ che NON sono pacchetti auto reali (cartelle tecnica)://
 // il quadro auto le esclude dal «da fotografare».
-const IGNORED_NON_AUTO = new Set(['common_assets', 'common_phsx', 'interns', 'commos', 'commod']);
+const _IGNORED_NON_AUTO = new Set(['common_assets', 'common_phsx', 'interns', 'commos', 'commod']);
 
 const ladder = JSON.parse(readFileSync(LADDER_FILE, 'utf8'));
 const classi = loadClasses().classi ?? {};
@@ -85,7 +85,7 @@ function autoQuadra() {
   try { installate = [...scanContentCached(resolvePaths()).carNames]; } catch { }
   const fotografateNome = new Set([...mappate.values()].map(normId).filter(Boolean));
   console.log('=== AUTO MAPPATE (scatti in fabbrica + magazzino + grezze) ===');
-  if (installate && installate.length) {
+  if (installate?.length) {
     const dentro = installate.filter((n) => fotografateNome.has(n));
     const fuori = installate.filter((n) => !fotografateNome.has(n));
     console.log(`auto fotografate almeno una volta: ${dentro.length} su ${installate.length} installate (catalogo ufficiale)`);

@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, mkdirSync, utimesSync, readFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, utimesSync, readFileSync, renameSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -134,4 +134,73 @@ test('watchOnce incassa davvero una gara fresca della pista attesa (end-to-end, 
   });
   assert.equal(again.imported, null, 'nessun doppio incasso');
   assert.equal(JSON_MK.readFileSync(SAVE_FILE, 'utf8'), savedBefore, 'lo stato non deve cambiare al secondo giro');
+});
+
+test('watchOnce davanti a una gara MULTIPLAYER (_MP_): carriera intonaca, poi la stessa gara SP incassa', async () => {
+  // La gara col server NON deve MAI pagare punti, soldi o rep della carriera.
+  // Qui una gara vera della pista attesa viene rinominata col tag _MP_ del
+  // gioco (stesso formato, nome in stile "260416-2108_MP_Race"): il watcher
+  // la STESSA gara, col nome SP, resta incassabile.
+  const DATA = mkdtempSync(join(tmpdir(), 'evo-watch-mp-'));
+  process.env.EVO_DATA_DIR = DATA;
+  process.env.ACE_DATA = DATA;
+  const Results = join(DATA, 'Results');
+  mkdirSync(Results, { recursive: true });
+
+  const { createCareer, loadState, saveState } = await import('../src/state.mjs?v=mp');
+  const { SAVE_FILE } = await import('../src/import.mjs?v=mp');
+  const { resolvePaths } = await import('../src/paths.mjs?v=mp');
+  const { watchOnce } = await import('../src/watch.mjs?v=mp');
+  const ladder = JSON.parse(LADDER);
+  // Pilota PROPRIO per questo test ("MP Tester"): evo-fake-result è
+  // deterministico, e il registro anti-doppioni lavora per HASH DEL FILE —
+  // una gara Twin-identica a quella del test e2e sopra era "già incassata",
+  // indipendentemente dalla salvaguardia _MP_ che qui si prova.
+  const state = createCareer(ladder, { name: 'MP Tester', nation: 'ITA' });
+  const entryNode = ladder.nodes[0];
+  const entryTrackName = ladder.contentNames.tracks[entryNode.calendar[0].track] ?? entryNode.calendar[0].track;
+  const entryCarName = ladder.contentNames.cars[entryNode.cars[0]] ?? entryNode.cars[0];
+  writeFileSync(SAVE_FILE, JSON.stringify(state, null, 2) + '\n', 'utf8');
+
+  const fake = spawnSync(process.execPath, [join(ROOT, 'tools', 'evo-fake-result.mjs'),
+    '--dir', Results, '--player', 'MP Tester', '--track', entryTrackName, '--position', '2', '--cars', '14',
+    '--car', entryCarName], { encoding: 'utf8', timeout: 30000 });
+  assert.equal(fake.status, 0, `evo-fake-result exit ${fake.status}: ${(fake.stderr || fake.stdout || '').slice(-300)}`);
+
+  // rinomina al formato ONLINE vero del gioco (tag _MP_ nel nome)
+  const sp = (await import('node:fs')).readdirSync(Results).find((f) => f.endsWith('.json'));
+  assert.ok(sp, 'la gara finta deve esistere in Results');
+  const mpName = sp.replace(/_SP_/, '_MP_');
+  const mp = join(Results, mpName);
+  renameSync(join(Results, sp), mp);
+  const now = new Date();
+  utimesSync(mp, now, now); // freschissima: un watcher reale la vedrebbe
+
+  const moneyBefore = state.money;
+  const out = watchOnce(ladder, resolvePaths(), {
+    baselineMs: Date.now() - 5000,
+    stateLoader: () => loadState(SAVE_FILE),
+    persist: (s) => saveState(SAVE_FILE, s),
+  });
+  assert.equal(out.error, null, `watcher in errore: ${out.error?.message ?? ''}`);
+  assert.equal(out.imported, null, 'la gara online NON deve pagare la carriera');
+  assert.ok(out.ignored.some((x) => x.name === mpName && /online|_MP_|multiplayer/i.test(x.reason)),
+    `lo scarto online deve spiegare il perché: ${JSON.stringify(out.ignored)}`);
+  const saved = JSON.parse(readFileSync(SAVE_FILE, 'utf8'));
+  assert.equal(saved.round, 0, 'la ronda non deve avanzare per una gara col server');
+  assert.equal(saved.money, moneyBefore, 'i soldi non devono muoversi per una gara online');
+
+  // La STESSA gara, senza il tag _MP_, resta incassabile: la salvaguardia non
+  // deve mangiare le gare vere — pretende UNICAMENTE il tag del gioco.
+  const spName = join(Results, mpName.replace(/_MP_/, '_SP_'));
+  copyFileSync(mp, spName);
+  utimesSync(spName, now, now);
+  const out2 = watchOnce(ladder, resolvePaths(), {
+    baselineMs: Date.now() - 5000,
+    stateLoader: () => loadState(SAVE_FILE),
+    persist: (s) => saveState(SAVE_FILE, s),
+  });
+  assert.equal(out2.error, null);
+  assert.ok(out2.imported, `la stessa gara SENZA il tag online deve invece incassare: ${JSON.stringify(out2)}`);
+  assert.equal(out2.imported.entry.position, 2);
 });

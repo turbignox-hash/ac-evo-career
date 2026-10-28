@@ -6,9 +6,13 @@
 <head>
 <meta charset="utf-8">
 <style>
-  html, body { margin:0; padding:0; background:#0d1117; color:#e6edf3;
-    font-family:'Segoe UI',system-ui,sans-serif; font-size:15px; }
-  #cruscotto { padding:16px 20px; max-width:960px; margin:0 auto; }
+  /* NIENTE selettori html/body: lo script e il markup dell'app vivono nella
+     STESSA pagina del menu di EVO (27/10 18:30: body a 420px da JS = menu
+     intero sparito). Tutto confinato in #cruscotto. */
+  #cruscotto { padding:14px 16px; width:420px; box-sizing:border-box;
+    background:#0d1117; color:#e6edf3;
+    font-family:'Segoe UI',system-ui,sans-serif; font-size:14px;
+    word-wrap:break-word; overflow:hidden; }
   .testa { background:linear-gradient(135deg,#1b2435,#141a28); border-radius:12px;
     padding:14px 16px; margin-bottom:14px; border:1px solid #2a3341; }
   .testa h1 { margin:0 0 4px; font-size:19px; color:#7fb4ff; letter-spacing:.5px; }
@@ -19,7 +23,8 @@
   .card { background:#161d2b; border:1px solid #2a3341; border-radius:10px;
     padding:12px 14px; margin-bottom:10px; }
   .card .titolo { font-weight:600; color:#ffd47f; margin-bottom:4px; }
-  .card .riga { font-size:13px; color:#c3ccd9; line-height:1.6; }
+  .card .riga { font-size:13px; color:#c3ccd9; line-height:1.6;
+    word-wrap:break-word; overflow:hidden; }
   .stato { display:inline-block; padding:2px 9px; border-radius:20px;
     font-size:12px; margin-left:8px; }
   .iscritto { background:#1c3a24; color:#7bdc8b; }
@@ -27,8 +32,10 @@
   .bloccata { background:#3a1c1c; color:#f28b82; }
   .vuoto { color:#9aa7b8; font-style:italic; padding:8px 2px; }
   /* tabelle di classifica e mondiale (28/10) */
-  table.tab { width:100%; border-collapse:collapse; font-size:13px; color:#c3ccd9; }
-  table.tab td { padding:3px 4px; border-top:1px solid #232b39; }
+  table.tab { width:100%; border-collapse:collapse; font-size:13px;
+    color:#c3ccd9; table-layout:fixed; }
+  table.tab td { padding:3px 4px; border-top:1px solid #232b39;
+    word-wrap:break-word; overflow:hidden; }
   table.tab td.pos { width:28px; color:#8b98a9; text-align:right; padding-right:6px; }
   table.tab td.punti { width:52px; text-align:right; color:#7fb4ff; }
   table.tab tr.tu td { color:#ffd47f; font-weight:600; }
@@ -38,8 +45,12 @@
   .apri-gui { background:#1d2c42; color:#7fb4ff; border:1px solid #2a3d5c; border-radius:8px;
     padding:5px 12px; font-size:13px; cursor:pointer; display:inline-block; }
   .apri-gui:hover { background:#274060; }
-  .nota { color:#9aa7b8; font-size:11px; margin-left:8px; }
+  .nota { color:#9aa7b8; font-size:11px; margin-left:8px;
+    word-wrap:break-word; }
   .mio { color:#ffd47f; font-size:16px; }
+  /* la scritta lunga del cambio auto (impostata nel menu di EVO…) va a capo,
+     non allarga il cassetto */
+  #cruscotto .card div.riga { overflow-wrap:anywhere; }
 </style>
 </head>
 <body>

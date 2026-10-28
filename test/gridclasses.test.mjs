@@ -65,6 +65,98 @@ test('merge perTraccia: supplementi sostituiscono il restrictor (non si sommano)
   assert.equal(patchPerTrack(rules, cls, 'Brands Hatch'), null);
 });
 
+test('campionato_aperto: classe e nodo ladder combaciano, base 0/0 e tutto sotto i LIMITI_GIOCO', () => {
+  const j = JSON.parse(readFileSync(CLASSES, 'utf8'));
+  const cls = j.classi.campionato_aperto;
+  assert.ok(cls, 'classe presente (pool ampio in stile R5+Escort, 28/10)');
+  // nodo ladder omonimo: stessa lista auto della classe (id ks_)
+  const LADDER = JSON.parse(readFileSync(join(HERE, '..', 'config', 'career.evo.ladder.json'), 'utf8'));
+  const node = LADDER.nodes.find((n) => n.nodeId === 'campionato_aperto');
+  assert.ok(node, 'nodo carriera presente');
+  assert.deepEqual([...(node.cars ?? [])].sort(), [...(cls.poolAuto ?? [])].sort(), 'poolAuto della classe = cars del nodo');
+  // base 0/0, tutte le altre dentro i LIMITI_GIOCO del gioco (100kg / 20%)
+  const caps = cls.LIMITI_GIOCO ?? {};
+  const base = cls.regole.find((r) => (r.auto ?? '').includes(cls.autoBase))
+    ?? cls.regole.find((r) => (r.ballastKg ?? 0) === 0 && (r.restrictorPct ?? 0) === 0);
+  assert.ok(base, 'base individabile');
+  assert.equal(base.ballastKg ?? 0, 0, 'base senza zavorra');
+  assert.equal(base.restrictorPct ?? 0, 0, 'base senza restrictor');
+  for (const r of cls.regole) {
+    assert.ok(r.preset || r.auto, 'ogni regola ha preset o auto');
+    if (r === base) continue;
+    assert.ok((r.ballastKg ?? 0) <= (caps.ballastMaxKg ?? 100), `ballast ${r.auto} entro cap`);
+    assert.ok((r.restrictorPct ?? 0) <= (caps.restrictorMaxPct ?? 20), `restrictor ${r.auto} entro cap (lezione 27/10: niente oltre il 20%)`);
+    // non-base senza penalità: solo se documentata (240Z Standard PI sotto base = 0/0 è la sua legge giusta)
+    if ((r.ballastKg ?? 0) === 0 && (r.restrictorPct ?? 0) === 0) {
+      assert.ok(r.nota, `non-base a 0/0 richiede nota di giustificazione: ${r.auto}`);
+    }
+  }
+  // preset unici: due regole che toccano lo stesso preset si sorpassano a vicenda
+  const presets = cls.regole.filter((r) => r.preset).map((r) => r.preset);
+  assert.equal(new Set(presets).size, presets.length, 'preset non duplicati');
+});
+
+test('campionato_sport_moderno: classe e nodo ladder combaciano, base 0/0 e regole sotto i LIMITI_GIOCO', () => {
+  const j = JSON.parse(readFileSync(CLASSES, 'utf8'));
+  const cls = j.classi.campionato_sport_moderno;
+  assert.ok(cls, 'classe presente (pool ampio moderno, 28/10)');
+  const LADDER = JSON.parse(readFileSync(join(HERE, '..', 'config', 'career.evo.ladder.json'), 'utf8'));
+  const node = LADDER.nodes.find((n) => n.nodeId === 'campionato_sport_moderno');
+  assert.ok(node, 'nodo carriera presente');
+  assert.deepEqual([...(node.cars ?? [])].sort(), [...(cls.poolAuto ?? [])].sort(), 'poolAuto della classe = cars del nodo');
+  const caps = cls.LIMITI_GIOCO ?? {};
+  const base = cls.regole.find((r) => r.auto === cls.autoBase);
+  assert.ok(base, `base "${cls.autoBase}" individuabile`);
+  assert.equal(base.ballastKg ?? 0, 0, 'base senza zavorra');
+  assert.equal(base.restrictorPct ?? 0, 0, 'base senza restrictor');
+  for (const r of cls.regole) {
+    assert.ok(r.preset || r.auto, 'ogni regola ha preset o auto');
+    if (r === base) continue;
+    assert.ok((r.ballastKg ?? 0) <= (caps.ballastMaxKg ?? 100), `ballast ${r.auto} entro cap`);
+    assert.ok((r.restrictorPct ?? 0) <= (caps.restrictorMaxPct ?? 20), `restrictor ${r.auto} entro cap (mai oltre il 20% del gioco)`);
+    if ((r.ballastKg ?? 0) === 0 && (r.restrictorPct ?? 0) === 0) {
+      assert.ok(r.nota, `non-base a 0/0 richiede nota di giustificazione: ${r.auto}`);
+    }
+  }
+  const presets = cls.regole.filter((r) => r.preset).map((r) => r.preset);
+  assert.equal(new Set(presets).size, presets.length, 'preset non duplicati');
+});
+
+test('campionati stile (28/10): epoca/moderno/strada/pista/corsa combaciano, base 0/0 e regole entro i LIMITI_GIOCO', () => {
+  const j = JSON.parse(readFileSync(CLASSES, 'utf8'));
+  const LADDER = JSON.parse(readFileSync(join(HERE, '..', 'config', 'career.evo.ladder.json'), 'utf8'));
+  for (const id of ['campionato_epoca', 'campionato_moderno', 'campionato_strada', 'campionato_pista', 'campionato_corsa']) {
+    const cls = j.classi[id];
+    assert.ok(cls, `classe ${id} presente (pool stile, generati da _genera-stili)`);
+    const node = LADDER.nodes.find((n) => n.nodeId === id);
+    assert.ok(node, `nodo carriera ${id} presente`);
+    assert.deepEqual([...(node.cars ?? [])].sort(), [...(cls.poolAuto ?? [])].sort(), `${id}: poolAuto = cars del nodo`);
+    assert.ok(node.calendar.every((r) => LADDER.contentNames.tracks[(r.track)] != null), `${id}: calendario solo con piste del ladder`);
+    const caps = cls.LIMITI_GIOCO ?? {};
+    // base = la regola 0/0 SENZA nota: le varianti alla stessa PI della base
+    // portano sempre nota (miscuglio random 28/10: i modelli multi-preset
+    // possono avere lo stesso auto con PI diverse — il nome non basta).
+    const senzanota = cls.regole.filter((r) => (r.ballastKg ?? 0) === 0 && (r.restrictorPct ?? 0) === 0 && !r.nota);
+    assert.equal(senzanota.length, 1, `${id}: una sola 0/0 senza nota (la base)`);
+    const base = senzanota[0];
+    assert.equal(base.auto, cls.autoBase, `${id}: la base 0/0 è il display "${cls.autoBase}"`);
+    assert.equal(base.ballastKg ?? 0, 0, `${id}: base senza zavorra`);
+    assert.equal(base.restrictorPct ?? 0, 0, `${id}: base senza restrictor`);
+    for (const r of cls.regole) {
+      assert.ok(r.preset || r.auto, `${id}: ogni regola ha preset o auto`);
+      if (r === base) continue;
+      assert.ok((r.ballastKg ?? 0) <= (caps.ballastMaxKg ?? 100), `${id}: ballast ${r.auto} entro cap`);
+      assert.ok((r.restrictorPct ?? 0) <= (caps.restrictorMaxPct ?? 20), `${id}: restrictor ${r.auto} entro cap (mai oltre il 20%)`);
+      assert.ok((r.restrictorPct ?? 0) % 0.5 === 0, `${id}: restrictor ${r.auto} a passi di 0.5%`);
+      if ((r.ballastKg ?? 0) === 0 && (r.restrictorPct ?? 0) === 0) {
+        assert.ok(r.nota, `${id}: non-base a 0/0 richiede nota di giustificazione: ${r.auto}`);
+      }
+    }
+    const presets = cls.regole.filter((r) => r.preset).map((r) => r.preset);
+    assert.equal(new Set(presets).size, presets.length, `${id}: preset non duplicati`);
+  }
+});
+
 test('vigia campo AI: segnala il range perso e zitta quando combacia o senza pin', async () => {
   const { aiRangeProposal } = await import('../src/grid-restore.mjs');
   const j = JSON.parse(readFileSync(CLASSES, 'utf8'));

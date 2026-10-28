@@ -1388,10 +1388,10 @@ function cmdTestMode(args) {
   if (args.flags.on || args.flags.giri) {
     const out = testModeOn({ giri: args.flags.giri ? Number(args.flags.giri) : 3 });
     if (out.already) {
-      console.log(C.yellow(tr({ it: `\nModalità test già attiva a ${out.giri} giri.\n`, en: `\nTest mode already active at ${out.giri} laps.\n` })));
+      console.log(C.yellow(tr({ it: `\nModalità test già attiva a ${out.giri} giri e calendari tutti a posto.\n`, en: `\nTest mode already active at ${out.giri} laps and calendars already set.\n` })));
       return 0;
     }
-    console.log(C.yellow(tr({ it: `\n⚠  MODALITÀ TEST ATTIVATA: tutte le gare della scala a ${out.giri} giri (${out.rond} rond toccate).`, en: `\n⚠  TEST MODE ON: every ladder race at ${out.giri} laps (${out.rond} rounds touched).` })));
+    console.log(C.yellow(tr({ it: `\n⚠  MODALITÀ TEST ${out.rinnovato ? 'RINNOVATA' : 'ATTIVATA'}: tutte le gare della scala a ${out.giri} giri (${out.rond} rond toccate).`, en: `\n⚠  TEST MODE ${out.rinnovato ? 'RENEWED' : 'ON'}: every ladder race at ${out.giri} laps (${out.rond} rounds touched).` })));
     console.log(C.dim(tr({ it: '  Banner in status/next/agenda finché non spegni. Riattiva le distanze vere con: test-mode --off\n', en: '  Banner in status/next/agenda until you switch it off. Restore the real distances with: test-mode --off\n' })));
     try {
       context();
@@ -1438,6 +1438,15 @@ async function cmdGrigliaCalib(args) {
     for (const a of g.perAuto.slice(0, 8)) {
       const mark = a.medSec <= -0.8 ? C.red : a.medSec < 0.8 ? C.green : C.dim;
       console.log(`      ${a.auto.padEnd(34)} ${mark(fmtSec(a.medSec))} ${tr({ it: 'dalla base', en: 'from the base' })}`);
+    }
+    // LE REGOLE PADDOCK SOTTO IL GIUDIZIO DELLE GARE (27/10): le proposte di
+    // classi-da-paddock NON sono garanzie — le gare vere le CONVALIDANO. Esito
+    // dalla misura reale: ✓ confermata, ✗ sballata (la correzione torna
+    // empirica, come dal ripartito), ◌ da corse (niente numero finché non gira).
+    for (const p of (g.paddock ?? [])) {
+      if (p.esito === 'confermata') console.log(`      ${C.green(`✓ ${p.auto}`)}  ${C.dim(`(${p.kg}kg / ${p.pct}%) — confermata dalle gare: ${fmtSec(p.medSec)} dalla base`)}`);
+      else if (p.esito === 'sballata') console.log(`      ${C.red(`✗ ${p.auto}`)}  ${C.red(`(${p.kg}kg / ${p.pct}%) — SBALLATA: ${fmtSec(p.medSec)} dalla base — la correzione torna empirica`)}`);
+      else console.log(`      ${C.dim(`◌ ${p.auto} (${p.kg}kg / ${p.pct}%) — proposta Paddock, in attesa di gare`)}`);
     }
     if (g.ultimaProposta.length) {
       for (const p of g.ultimaProposta) {

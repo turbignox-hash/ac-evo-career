@@ -460,3 +460,19 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .side-foot .foot-links a{color:var(--acc2)}
 .side-foot .foot-links a:hover{text-decoration:underline}
 .side-foot .foot-sep{color:var(--line);margin:0 5px}
+
+/* -------- scheda-gara volante ALL'HOVER (27/10, Centro gare) --------
+   Nata al BODY, non in #modal-root: quel contenitore non-vuoto diventa
+   fondale scuro a tutto schermo e la scheda pulsava ad intermittenza con
+   l'hover. Questa vive da sé: pannello fisso ancorato al cursore (JS la
+   posiziona), si chiude al lascio della card o del pannello stesso. */
+.ag-pop{position:fixed;z-index:70;width:440px;max-width:min(92vw,560px);max-height:min(72vh,560px);overflow:auto;
+  background:#11161d;border:1px solid var(--line,#2a3341);border-radius:10px;box-shadow:0 14px 42px rgba(0,0,0,.6);
+  padding:12px 14px;font-size:13px;color:var(--text,#e6edf3)}
+.ag-pop-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-2px -2px 8px 0;
+  font-weight:700;color:#ffcc66;font-size:13.5px}
+.ag-pop-x{background:none;border:0;color:#8b98a9;font-size:17px;line-height:1;cursor:pointer;padding:0 2px}
+.ag-pop-x:hover{color:#fff}
+.ag-pop table{width:100%;border-collapse:collapse;font-size:12.5px}
+.ag-pop table td{padding:2px 4px;border-top:1px solid var(--line,#232b39)}
+.ag-pop table tr.me td{color:#ffcc66;font-weight:600}

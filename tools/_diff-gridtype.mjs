@@ -19,7 +19,7 @@ for (let i = 1; i < bufs.length; i++) {
   console.log(`${a.f} → ${b.f}: ${diffs.length} byte diversi ${diffs.length < 12 ? '=' + diffs.join(',') : ''}`);
 }
 // se le lunghezze differiscono, segnalalo
-bufs.forEach(({ f, b }) => console.log(`${f}: ${b.length} B`));
+bufs.forEach(({ f, b }) => { console.log(`${f}: ${b.length} B`); });
 
 // struttura: cammina i campi top-level e stampa field/value per ogni snapshot
 const utf8 = (x) => Buffer.from(x).toString('utf8');

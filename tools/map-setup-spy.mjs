@@ -25,7 +25,7 @@ for (const e of lines) {
   for (const [k, d] of Object.entries(e.changed)) {
     if (k === 'primo') continue;
     conta[key][k] = (conta[key][k] ?? 0) + 1;
-    const v = d && d.a;
+    const v = d?.a;
     if (v != null) (valori[k] ??= new Set()).add(JSON.stringify(v).slice(0, 60));
   }
   for (const f of e.files ?? []) {

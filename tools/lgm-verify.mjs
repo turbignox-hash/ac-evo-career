@@ -17,8 +17,8 @@ function floatsOf(bytes) {
 const r = (v) => Math.round(v * 1000) / 1000;
 d.filter((f) => f.field === 3 && f.wire === 2).forEach((sub) => {
   const s = decodeMsg(sub.bytes);
-  const idx = (s.find((x) => x.field === 1) ?? {}).varint ?? 0;
-  const sel = (s.find((x) => x.field === 2) ?? {}).varint === 1 ? ' [SELEZ]' : '';
+  const idx = s.find((x) => x.field === 1)?.varint ?? 0;
+  const sel = s.find((x) => x.field === 2)?.varint === 1 ? ' [SELEZ]' : '';
   const w = s.find((x) => x.field === 3);
   const fl = w ? floatsOf(w.bytes) : {};
   console.log('sub ' + idx + sel + '  rain=' + (fl.f8 != null ? r(fl.f8) : '-') + ' cloud=' + (fl.f11 != null ? r(fl.f11) : '-') + ' fog=' + (fl.f12 != null ? r(fl.f12) : '-') + ' temp=' + (fl.f4 != null ? r(fl.f4) : '-'));

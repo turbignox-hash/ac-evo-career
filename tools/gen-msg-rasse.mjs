@@ -18,7 +18,7 @@ const state = JSON.parse(readFileSync(SAVE, 'utf8'));
 const ladder = JSON.parse(readFileSync(LADDER, 'utf8'));
 
 const nodeOf = (id) => ladder.nodes.find((n) => n.nodeId === id) ?? null;
-const day = (s) => (typeof s === 'string' ? s.slice(0, 10) : '');
+const _day = (s) => (typeof s === 'string' ? s.slice(0, 10) : '');
 
 // flussi sponsor (quota gara / fondo spettatori) scritti nello stesso import —
 // finestra ±120 s ristretta a node+season+round della gara da annunciare

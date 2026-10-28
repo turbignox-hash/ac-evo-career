@@ -29,7 +29,7 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath, } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { dataDirCandidates } from '../src/paths.mjs';
 
@@ -53,7 +53,7 @@ function hasFlag(nome) { return argv.includes(`--${nome}`) || flag(nome) != null
 /** quantità numerica CLI: Number('0') e' falsy e Number(null) = 0 — DUE
  *  BUG presi al vivo 26/10 che qui non cambiano (null = «opzione assente»,
  *  non ZERO). numberOr(flag) la risolve in un punto solo. */
-function numeroOr(raw, def) {
+function numeroOr(raw, _def) {
   if (raw == null) return null;
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : null;

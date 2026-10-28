@@ -96,8 +96,16 @@ export function matchClassByCars(classes, carLabels) {
   if (!labels.length) return null;
   let best = null;
   for (const [id, cls] of Object.entries(classes.classi ?? {})) {
-    const hits = (cls.regole ?? []).filter((r) => r.auto && labels.includes(strip(r.auto))).length;
-    if (hits >= 2 && (!best || hits > best.hits)) best = { id, cls, hits };
+    const rules = (cls.regole ?? []).filter((r) => r.auto);
+    const hits = rules.filter((r) => labels.includes(strip(r.auto))).length;
+    if (hits < 2) continue;
+    const len = rules.length;
+    // a pari hits vince la classe con COPERTURA più piena: la coppia esatta
+    // R5+Escort (2/2) deve battere la classe sorella gr86-r5-escort (2/6, lezione
+    // 27/10: la Coppa Strada era finita sotto le regole della classe sbagliata)
+    const better = !best || hits > best.hits
+      || (hits === best.hits && (hits / len) > (best.hits / best.len));
+    if (better) best = { id, cls, hits, len };
   }
   return best;
 }
@@ -124,7 +132,11 @@ function ruleFor(cls, label, trackRef) {
   if (!r) return null;
   const trk = trackRef ? perTrackKey(cls, trackRef) : null;
   const ov = trk ? cls.perTraccia?.[trk]?.restrictorPct : null;
-  const pct = (ov && r.preset != null && ov[r.preset] != null) ? ov[r.preset] : (r.restrictorPct ?? 0);
+  // l'override vale anche per le regole SENZA preset, con chiave sul NOME auto
+  // (lezione 27/10 Escort: le regole-Cosworth giravano a 8% su tutte le piste perché
+  // la chiave era solo preset e la proposta 20% non veniva MAI letta dall'analisi)
+  const ovPct = ov ? (r.preset != null && ov[r.preset] != null ? ov[r.preset] : ov[r.auto]) : null;
+  const pct = (ovPct != null) ? ovPct : (r.restrictorPct ?? 0);
   const caps = cls?.LIMITI_GIOCO ?? {};
   const capKg = caps.ballastMaxKg ?? 100, capPct = caps.restrictorMaxPct ?? 20;
   return {
@@ -326,9 +338,10 @@ function buildProposte(evento, cls, track) {
     if (!sosta) continue;
     // cap raggiunto e sfugge ANCORA: l'unica leva che resta è l'esclusione (nota di classe 19/10 Sebring)
     if (r.capRaggiunto || r.pct >= capPct) {
+      if ((cls.escludiAuto ?? []).includes(r.preset)) continue;   // esclusione di classe già scritta: nient'altro da dire (28/10)
       if (r.deltaVsBaseSec < -2 && r.preset) prop.push({
-        leva: 'escludi', auto: r.auto, preset: r.preset, da: `${r.kg}kg/${capPct}% (cap)`, a: 'escludi dal pool',
-        perche: tr({ it: `al cap e sfugge ancora: ${fmt(r.deltaVsBaseSec)} dalla base su ${evento.pista ?? '?'}`, en: `already at the cap and still escaping: ${fmt(r.deltaVsBaseSec)} from the base at ${evento.pista ?? '?'}` }),
+        leva: 'escludi', auto: r.auto, preset: r.preset, da: `${r.kg}kg/${capPct}% (cap)`, a: 'escludi dal pool di QUESTA pista',
+        perche: tr({ it: `al cap e sfugge ancora: ${fmt(r.deltaVsBaseSec)} dalla base su ${evento.pista ?? '?'} — prima esclusione SOLO per questa pista; quando ≥2 piste la confermano, l'analisi proporrà l'esclusione di CLASSE`, en: `already at the cap and still escaping: ${fmt(r.deltaVsBaseSec)} from the base at ${evento.pista ?? '?'} — first exclusion ONLY for this track; once ≥2 tracks confirm it, the analysis will propose the CLASS exclusion` }),
         comando: `grid-classes.json → perTraccia["${track}"].escludiAuto += "${r.preset}" · poi nel file: node tools/grid-balance.mjs --drop ${r.preset}`,
       });
       continue;
@@ -352,6 +365,59 @@ function buildProposte(evento, cls, track) {
       leva: 'perTraccia', auto: r.auto, da: `${r.kg}kg/${r.pct}%`, a: `${r.kg}kg/${proposta}%`,
       perche: tr({ it: `${fmt(r.deltaVsBaseSec)} dalla base su ${evento.pista ?? '?'}`, en: `${fmt(r.deltaVsBaseSec)} from the base at ${evento.pista ?? '?'}` }),
       comando: `grid-classes.json → perTraccia["${track}"].restrictorPct["${r.preset ?? r.auto}"] = ${proposta} (ora ${r.pct})`,
+    });
+  }
+
+  // C) REGOLA DI CLASSE: le piste che già portano override per-traccia ALTI
+  // PER LA STESSA auto dimostrano che il default di classe è troppo scarso
+  // (lezione 28/10 Oulton: Donington portava il 20% mentre OGNI altra pista
+  // ripartiva dall'8% — le gare fuori dalla pista calibrata nascono sbilanciate).
+  // Con OBS_ALTA piste confermate sulla STESSA auto sopra la regola di base,
+  // propongo di ZOLARE la regola di classe (le perTraccia restano intatte).
+  for (const r of evento.perAuto) {
+    if (r.base || r.deltaVsBaseSec == null) continue;
+    if (!(r.pct > 0 || r.kg > 0)) continue;
+    if (r.capRaggiunto) continue;           // al cap il ramo B propone già escludi
+    if (r.deltaVsBaseSec > -TOL_SEC) continue; // senza scappamento in QUESTA gara non si estende
+    const basePct = (cls.regole ?? []).find((x) => ruleAutoMatch(x.auto, r.auto))?.restrictorPct ?? 0;
+    const conferme = Object.entries(cls.perTraccia ?? {}) // piste overrideate sopra il default
+      .filter(([k, ov]) => !k.startsWith('_') && ov?.restrictorPct?.[r.preset ?? r.auto] != null
+        && ov.restrictorPct[r.preset ?? r.auto] > basePct);
+    if (conferme.length < OBS_ALTA) continue;
+    const valori = conferme.map(([, ov]) => ov.restrictorPct[r.preset ?? r.auto]);
+    const mediana = valori.sort((a, b) => a - b)[Math.floor((valori.length - 1) / 2)];
+    const valore = Math.min(mediana, capPct);
+    if (valore <= basePct) continue;
+    prop.push({
+      leva: 'regola-classe', auto: r.auto, classe: evento.classe, da: `regola classe ${r.kg}kg/${basePct}%`, a: `${r.kg}kg/${valore}%`,
+      perche: tr({ it: `${conferme.length} piste confermano la stessa carica su ${r.auto} (e.g. ${conferme.slice(0, 2).map(([k]) => k).join(', ')}): il default di classe ${basePct}% lascia l'auto forte OVUNQUE, non solo là dove è stato calibrato`, en: `${conferme.length} tracks confirm the same handicap on ${r.auto}: the class default of ${basePct}% leaves the car strong EVERYWHERE, not only where it was calibrated` }),
+      comando: `node tools/grid-balance.mjs --rule "${r.auto}=${r.kg},${valore}" --apply`,
+    });
+  }
+
+  // C-bis) ESCLUDI DI CLASSE, SOLO SU PROVA (richiesta Mauro 28/10: «si potrebbe
+  // escluderla dal campionato, ma attivabile solo se i dati sono dimostrati»).
+  // L'esclusione per-traccia del ramo B nasce da UNA gara (prima sospetto poi
+  // si chiarisce); quando ≥ OBS_ALTA piste portano GIÀ l'escludiAuto per-traccia
+  // per la STESSA auto (scritto, non proposto) E in questa gara l'auto è al cap
+  // e sfugge ancora, il pool non è più rincorribile: si propone l'esclusione di
+  // CLASSE (escludiAuto esiste già: il vigia car-pool la toglie dal parco →
+  // gara a zero se ci giri, il builder la salta). Nessun presidio oltre: la
+  // proposta nasce SOLO da esclusioni di pista GIÀ APPLICATE, mai dal sospetto.
+  for (const r of evento.perAuto) {
+    if (r.base || !r.preset) continue;
+    if (r.deltaVsBaseSec == null || r.deltaVsBaseSec > -TOL_SEC) continue;  // in pace: non si esclude nessuno
+    if (!(r.capRaggiunto || (r.pct ?? 0) >= capPct)) continue;              // non al cap: prima si zavorra (ramo B/C)
+    if ((cls.escludiAuto ?? []).includes(r.preset)) continue;               // esclusione di classe già scritta
+    const conferme = Object.entries(cls.perTraccia ?? {})                   // piste che HANNO GIÀ escluso l'auto
+      .filter(([k, ov]) => !k.startsWith('_') && (ov?.escludiAuto ?? []).includes(r.preset));
+    if (conferme.length < OBS_ALTA) continue;
+    prop.push({
+      leva: 'escludi-classe', auto: r.auto, preset: r.preset, classe: evento.classe,
+      da: `${r.kg}kg/${capPct}% (cap) · già esclusa su ${conferme.length} piste`,
+      a: 'escludi dal campionato',
+      perche: tr({ it: `${conferme.length} piste hanno già esteso ${r.auto} fuori dal pool (${conferme.slice(0, 2).map(([k]) => k).join(', ')}) e qui al cap sfugge di ${fmt(r.deltaVsBaseSec)}: il cap non basta sulla PROVA — esclusione di classe dimostrata dai dati, non dal sospetto`, en: `${conferme.length} tracks already removed ${r.auto} from their pool and it still escapes at the cap by ${fmt(r.deltaVsBaseSec)}: the cap is proven insufficient — class exclusion backed by data, not suspicion` }),
+      comando: `grid-classes.json → classi["${evento.classe}"].escludiAuto += "${r.preset}" · poi nel file: node tools/grid-balance.mjs --drop ${r.preset} --apply`,
     });
   }
   return prop;
@@ -480,6 +546,20 @@ export function calibSummary(classes = loadClasses()) {
       (perAuto[k] ??= { deltas: [] }).deltas.push(r.deltaVsBaseSec);
     }
     for (const k of Object.keys(perAuto)) perAuto[k].medSec = median(perAuto[k].deltas.map((v) => v));
+    // IL VERIFICATORE DI PADDOCK (27/10): le regole fonte:'paddock' NON le ha
+    // costruite nessuna gara — le gare vere le CONVALIDANO. Per ciascuna regola
+    // paddock della classe si guarda il delta misurato (medSec del perAuto):
+    // entro la tolleranza = CONFERMATA, oltre = SBALLATA (registra la gare e la
+    // correzione torna empirica), senza gare ancora = da corse.
+    const paddock = (cls?.regole ?? []).filter((r) => r.fonte === 'paddock').map((r) => {
+      // perAuto è un oggetto chiave(NOME AUTO MISURATA)→mediana: si matcha sulla CHIAVE
+      const hit = Object.entries(perAuto).find(([k]) => ruleAutoMatch(r.auto, k));
+      const medSec = hit?.[1]?.medSec ?? null;
+      return {
+        auto: r.auto, kg: r.ballastKg ?? 0, pct: r.restrictorPct ?? 0, medSec,
+        esito: medSec == null ? 'da corse' : (Math.abs(medSec) <= TOL_SEC ? 'confermata' : 'sballata'),
+      };
+    });
     const ultValido = evValidi[evValidi.length - 1] ?? null;
     const perTraccia = cls?.perTraccia?.[trkKey];
     out.push({
@@ -488,6 +568,7 @@ export function calibSummary(classes = loadClasses()) {
       convalidatoAdesso: perTraccia?.convalidato === true || (cls?.convalidatoSu ?? []).some((s) => trkKey.toLowerCase()?.includes?.(String(s).toLowerCase())) || false,
       suggerisciConvalida: c.suggerisciConvalida && perTraccia?.convalidato !== true,
       perAuto: Object.entries(perAuto).map(([auto, v]) => ({ auto, medSec: v.medSec })).sort((a, b) => a.medSec - b.medSec),
+      paddock,
       ultimaProposta: ultValido?.segnale?.proposte ?? [],
       ultimoAt: (evValidi[evValidi.length - 1] ?? ev[ev.length - 1])?.at ?? null,
     });

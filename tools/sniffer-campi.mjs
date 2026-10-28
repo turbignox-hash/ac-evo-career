@@ -15,7 +15,7 @@
 //   { t, file, size, sessioni:[{nome, i, campi:[{f,w}...], avversari, singleMakeField, singleMakeValue}] }
 // Con --diff confronta con la fotografia precedente e stampa SOLO le differenze.
 //
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync, statSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, statSync, existsSync, } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 import { decodeMsg, GAME_MODES_DIR } from './evo-grid.mjs';
@@ -33,7 +33,7 @@ export function snapshotGamemode(file = FILE, sizeMax = 40) {
   const size = statSync(file).size;
   const raw = readFileSync(file);
   const sessioni = [];
-  let k = 0;
+  const _k = 0;
   for (const f of decodeMsg(raw)) {
     if (f.field !== 3 || f.wire !== 2) continue;
     const inner = decodeMsg(f.bytes).slice(0, sizeMax);
@@ -122,10 +122,10 @@ if (isMain) {
   let prev = one(snap0);
   if (watch) {
     let last = statSync(FILE).mtimeMs;
-    colonne: while (true) {
+    while (true) {
       execSync('timeout /t 4 /nobreak >nul', { stdio: 'ignore', shell: 'cmd.exe' });
       const now = statSync(FILE).mtimeMs;
-      if (now === last) continue colonne;
+      if (now === last) continue;
       last = now;
       prev = one(prev);
     }

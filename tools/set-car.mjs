@@ -45,7 +45,7 @@ export function findTemplateIn(sourceBuf, carNameOrId) {
   const want = String(carNameOrId).toLowerCase();
   for (const c of cells) {
     const { id, name } = cellIdentity(c.bytes);
-    if ((name && name.toLowerCase().includes(want)) || (id && id.toLowerCase().includes(want))) {
+    if ((name?.toLowerCase().includes(want)) || (id?.toLowerCase().includes(want))) {
       return { bytes: c.bytes, id, name, count: cells.filter((x) => cellIdentity(x.bytes).id === id).length };
     }
   }

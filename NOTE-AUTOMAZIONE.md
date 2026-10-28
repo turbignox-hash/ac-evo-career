@@ -1,3 +1,67 @@
+## NOTA DOCUMENTAZIONE PUBBLICA (31/10, richiesta Mauro: «aggiungi una nota per scriverla sulla pagina principale di github e sulla pagina della presentazione»)
+
+- **Dove**: README.md (EN), README.it.md (IT) e IDEA-POST-PRESENTAZIONE.md.
+- **Sul GitHub pagina principale**: nuovo PRIMO punto in «Novità delle build recenti»/
+  «What's new in the recent builds» — «Campionati interamente procedurali, col bilancio
+  procedurale quanto il pescaggio»: cinque livelli (Epoca → Corsa) da un estrattore con
+  seme riproducibile (`tools/_genera-stili.mjs`), pesca a sorte dal catalogo auto dentro
+  la banda PI — serie mono marca, multiclasse, epoche e GT tirati liberamente insieme
+  («quello che pesca sarà completamente random»); `--seed N` riproduce identico lo stesso
+  tiro. Bilancio procedurale: zavorre e penalità dal ΔPI (pendenza calibrata sui dati
+  veri, cap 20% dichiarato per le fuori formula — la prima gara decide), ricalibri per
+  pista appresi da griglia-calib sui risultati di gara veri; e la sezione GUI con seed,
+  pool e calendario cliccabili visibile anche prima di firmare il sedile.
+- **Sella della presentazione (IDEA-POST-PRESENTAZIONE.md, «Punti di forza da citare nel
+  post»)**: bullet in testa, bilingue come la casa. Testo it + coda EN, formula ispirata
+  alla tesi di Mauro — mono marca, multiclasse e multiclasse con zavorre e penalità
+  automatiche intelligenti procedurali — con l'esempio del seme 819802402 e il pannello
+  GUI «Campionati a miscuglio» a pillola (seed, pool, quadro zavorre col tag cap, calendario).
+- **Verifica**: lettura programmatica dei tre file — le parole chiave (procedural, seed,
+  zavorre/penalità, pescaggio/miscuglio) presenti ovunque. Solo documenti: zero test.
+
+## CINQUE CAMPIONATI PER STILE (28/10) — epoca, moderno, strada, pista, corsa, generati in maniera procedurale
+
+- **Richiesta Mauro**: «campionati style epoca, moderno, strada, corsa, pista», poi la chiave del
+  metodo: «creiamo campionati in maniera procedurale, includi anche questi». Quindi non a mano:
+  **`tools/_genera-stili.mjs`** genera classe + nodo ladder dal catalogo del server dedicato
+  (cars.json) con la stessa formula di grid-tune --propose: base PI minimo del pool, 100kg fisse,
+  ΔPI×25 (pendenza 19/10), arrotondare a .5, cap 20%. Rifiuta sovrascritture, piste/id fuori
+  ladder, e **--dry** stampa il piano prima di scrivere (backup automatico .bak-stile-*).
+- **La traduzione preset→modello** (cars.json parla di preset, il ladder di id ks_) è la mappa
+  `PRESET_MAP` a cima del generatore, verificata a mano: è l'unico dato non derivabile in
+  automatico. Un pooled id senza mappa ferma la generazione con errore, niente pool muti.
+- **I cinque nati**: campionato_epoca (L2, base 240Z Standard, 10 modelli), campionato_moderno
+  (L3, base i30 N Performance), campionato_strada (L4, base RS3), campionato_pista (L5, base
+  718 GT4 RS, con GT3 RS al cap come l'Escort), campionato_corsa (L6 GT3, base Mustang GT3,
+  296 al cap). Calendari 4 rondre con SOLO piste del ladder; gate rep allineati al livello
+  (90/150/450/800/1200); niente aiStandard: banda AI dal nodo ladder.
+- **Difesa**: nuovo test parametrico in gridclasses.test.mjs per i cinque (poolAuto = nodo.cars,
+  base 0/0, regole entro LIMITI_GIOCO, restrictor a passi 0.5%, nota sulle 0/0 non-base,
+  preset non duplicati, calendario solo piste ladder). Suite 281/281.
+
+## CINQUE MISCUGLI IN GUI (31/10, richiesta Mauro: «Porta i cinque stili in GUI»)
+
+- Finora il tab Campionati mostrava SOLE le serie con sedile firmato: il pescaggio
+  dei cinque restava invisibile finché non ti iscrivevi. Ora la GUI ha la sezione
+  dedicata anche PRIMA dell'iscrizione: schede cliccabili (stile Football Manager)
+  con seed, finestra PI, pool sorteggiato, regole zavorre (tag dei casi al cap 20%)
+  e calendario delle quattro piste. I nomi auto/pista aprono le schede dei libri.
+- Fatti: endpoint `/api/stili` (webui.mjs → stile-webui.mjs, fonte dati UNICA =
+  loadClasses(), la STESSA che legge gridbuilder: in GUI vedi esattamente ciò che
+  gira); pannello `stilePannello()` in gui/js/viste-b.js dentro drawChampionships
+  (visibile anche nell'empty-state «nessun campionato iscritto»). conferma live:
+  5 serie, seed 819802402, rep 628 apre Epoca/Moderno/Strada e lascia chiusi
+  Pista/Corsa (richiedono 800/1200);
+
+## CINQUE CAMPIONATI: PESCAGGIO COMPLETAMENTE RANDOM (28/10 sera, richiesta Mauro: «a questi devi mischiare tutto, anche le mono e multiclasse stesso livello, un miscuglio quello che pesca sarà completamente random»)
+
+- **Da stile a sorte**: i cinque (epoca/moderno/strada/pista/corsa) non sono più pool per tema. Il generatore tools/_genera-stili.mjs ora: (1) costruisce la tabella preset→modello SOLA dal cars.json del server dedicato raggruppando i display_name e riscontrandoli nei contentNames del ladder (finito il PRESET_MAP scritto a mano); (2) per ogni livello sorteggia la banda PI ancorata a un modello a sorte (mai nei deserti del catalogo tipo tra Cup e GT3) e pesca a sorte TUTTI i modelli di quella banda — stradali, Cup, GT2/GT3, campioni d'epoca insieme, mono e multiclasse senza preferenza di categoria.
+- **Maniglia GIOCABILE**: la banda sorteggiata è larga ~1.3 PI (BANDA_PI), estendibile a gradini fino a span 2.2 se pescati meno di 4 modelli. Oltre il cap 20% la zavorra non recupera più il divario (lezione R5/Escort): una banda da 5 PI scriverebbe mezza griglia al cap con gare decise dal campionato e non dal pilota.
+- **Seme**: il pescaggio è seminabile — il tiro RISCRITTO ora è seed=819802402, il comando «node tools/_genera-stili.mjs --rigenera --seed 819802402» lo riproduce identico; senza --seed a ogni tiro un miscuglio NUOVO. `--rigenera` sostituisce SOLO le classi possedute dal generatore — mai le classi a mano (campionato_aperto, sport_moderno, hyper_road…).
+- **Base nei test**: il test gridclasses «campionati stile» identificava la base col display_name — nel miscuglio i modelli multi-preset (AE86, Supra, GT4 RS) condividono il nome con PI diverse e la prima regola by-name poteva essere al cap. La base ora è la regola 0/0 SENZA nota (le varianti alla stessa PI portano sempre nota): asserzione robusta e rimane verde.
+- **Che è uscito con seed 819802402** (miscuglio effettivo, esempi): Epoca L2 = R5 base + Escort Cosworth + GR86 + MX-5 NA + Countach + i30 N + AE86 (banda 8.49–9.79, span 1.08); Moderno L3 = 205 T16 base + MX-5 ND Cup + Abarth 695 + Junior + 288 GTO + Supra MKIV (la Supra porterà preset oltre la finestra al cap: prima gara decide); Strada L4 = M8 CsL base + A110 S + 718 GT4 RS + GTAm + ZL1 + M8+RS3; Pista L5 = GT4 RS base + GTAm + Emira; Corsa L6 = M4 GT3 base + 296 GT3 (la cima del catalogo è stretta: solo 2 modelli)
+- La suite completa resta verde (281/281) e il seme PISTA resta in grid-classes.json: a ogni gara la griglia-calib ramo-C stabilisce la verità, ramo C-bis esclude le prove provate.
+
 ## LINGUA PER RICHIESTA (28/10) — il perché del mutismo EN dei box tips, trovato e risolto
 
 - **Il sintomo**: GUI inglese, ma le CARD dei consigli box uscivano ITALIANE pure a pagina
@@ -1698,6 +1762,12 @@ considerare un'etichetta  sul file o una conferma esplicita.
   warn già esistente. Basato sul caso reale del 24/10 (Imposta gara non
   applicata da schermata Inizia sessione). Basta un refresh della pagina:
   la GUI è statica, niente riavvio del server.
+- RIMOSSO 28/10 (richiesta Mauro: «rimuovi questo, non serve»): entrambi i
+  banner (viste-a.js, scheda evento e scheda gara di campionato) non
+  descrivono più un rischio reale — la scrittura di pista e griglia non dipende
+  più dalla schermata in cui si trova il gioco. Ci resta la lezione, non
+  l'avviso: se la scrittura torna a fallire da quella schermata, si reagisce
+  nel codice (riprova/ack), non con un cartello che scavalca l'utente.
 
 ## SCOPE CARRIERA IN SETUP/ARCHIVIO (24/10, sera) — FATTO E PROVATO
 - Segnalazione Mauro: in Impostazioni la diagnostica telemetria mostrava
@@ -1782,3 +1852,207 @@ considerare un'etichetta  sul file o una conferma esplicita.
   istanza») — i test con server vanno SEMPI ripuliti di listener prima
   (netstat/taskkill), altrimenti curl risponde al server VECCHIO.
 - Suite 203/203 ✓ · node --check su webui.mjs, salva-save.mjs, viste-d.js ✓
+
+## CLASSI DA PADDOCK: i buchi del grid-classes.json, riempiti con i dati veri (27/10) — FATTO E COLLAUDATO
+- Ripartito di Mauro (27/10): Paddock diventa la fonte primaria per le CLASSI.
+  grid-classes.json nasce "pronta dal giorno uno" (pacchetto amico su PC
+  vergine) e griglia-calib passa da costruttore a VERIFICATORE: le gare vere
+  convalidano (o correggono), non costruiscono.
+- tools/classi-da-paddock.mjs (import-safe, stessa scuola di grid-balance):
+  dry-run di default, `--apply` scrive con backup in data/backups/,
+  `--serie <id>` filtra, `--json` per GUI/test. Umbre: EVO_CLASSES_FILE,
+  EVO_CARS_JSON, PADDOCK_JOURNAL_DIR.
+- COSA USA (niente dati fittizi — tutti controllati sul dato reale del 27/10):
+  PI da cars.json del DEDICATO (il `perf` di Paddock è rageno: r≈0.71, non si
+  deriva), Δkw/t dal journal pd-catalog (predice le penalità misurate: 10–11
+  [38→0.5, 72→5, 87→6], 9–10 [20→2, 34→5, 45→8] — monotono in ENTRAMBE), pendenza
+  k calibrata per-classe con fit all'origine SUI PUNTI MISURATI (solo restrittore>0
+  e Δkw/t>0); scarto>2.5 punti o una sola misurazione → classe NON derivabile e
+  chiama griglia-calib. Zavorra: convenzione della classe (ballast>0 più fre-
+  quente) scalata per MASSA reale (lezione 19/10: 100kg schiaccia le leggere).
+- RAMO NEGATIVO (Δkw/t<0): PI ≤ base → 0/0 (parità fisica); PI sopra base →
+  vince in presa/grip: NON derivabile (lezione Mini/Delta 21/10), niente numero.
+- SCRITTA: SOLO regole fonte:'paddock' vengono sostituite (idempotente al
+  secondo giro); le 46 regole di Mauro restano byte per byte; backup
+  grid-classes.bak-classi-paddock-*.json prima. Prova reale --apply del
+  27/10: 7 regole scritte (4 nella 10–11: Alfa Junior 100/4.5, Audi Sport
+  quattro 100/4, MX-5 ND Cup ×2 100/2; 3 nella 9–10: Countach 100/8,
+  Delta Evo 3 100/6, Alpine A290 0/0) e il secondo giù dichiara «nessun buco».
+- Suite: test/classi-paddock.test.mjs (10 test, 264/264 verdi), biome ok.
+
+## RAPPORTO GARA CONDIVISIBILE: il dossier da incollare su Discord (27/10) — FATTO E COLLAUDATO
+- src/rapporto-gara.mjs: rapportoGara(paths, file, { driver, salva }) compone
+  il dossier SOLO dai dati scritti dal gioco: griglia ufficiale, podio, giri,
+  gap, penalità, giro veloce, testa a testa MP (resultDetail di catalog.mjs)
+  + settori del tuo giro e giro teorico dal file NATIVO (sectorAnalysis di
+  results.mjs). Output: MD (Discord-ready, classifica in blocco monospazio con
+  colonne allineate — Discord non disegna le tabelle) + HTML d'anteprima. Il
+  .md finisce in report/gare/<base>.rapporto.md (EVO_REPORT_DIR per i test).
+- I doppiati: total_time di chi ha un giro in meno è MINORE del vincitore →
+  gap negativo nel file (dato reale); la riga esce in GIRI dal leader («−2 giri»).
+- Server: POST /api/rapporto-gara (webui.mjs). GUI: bottone «⚡ Rapporto Discord»
+  nel modal Classificazione (viste-b.js) → modal con anteprima + copia (clipboard
+  con fallback textarea) + percorso del file salvato.
+- CLI/VERIFICA PADDOCK: griglia-calib segna ogni regola fonte:'paddock' con
+  l'esito dalla misura reale (medSec del perAuto): ✓ confermata (entro la
+  tolleranza), ✗ sballata (scarto fuori soglia — la correzione torna empìrica),
+  ◌ da corse. Presente nel report console (cli.mjs) e nel pannello calib.
+- Test: test/rapporto-gara.test.mjs — MD/HTML, salvataggio in cartella di test,
+  file assente → errore, gara senza giri → niente settori inventati.
+
+## COACH FUORI PARCO FALSO: il vigia live giudica solo con la serie giusta (27/10) — FATTO E TESTATO
+- Segnalazione Mauro: il copilota «non fa altro che dire Ferrari F40 fuori
+  parco» mentre le sue auto in Coppa Strada erano R5 GT Turbo / Escort Cosworth.
+- CAUSA ve: l'F40 LM HA un suo parco legittimo (Leggende Stradali, Coppa
+  Ferrari F40 LM) e NESSUNA gara sua è stata registrata fuori parco (il save
+  conferma: Coppa Strada R1/R2 con la Renault 5, autoFuori 0). Il tocco live
+  giudicava però il sedile col pool `state.pending?.node ?? state.node` — la
+  serie DI CARRIERA corrente — anche quando la sessione in pista era d'altro
+  tipo o d'altra serie (test griglie armoniche con le F40, MP, prove libere):
+  false allerte ripetute ogni 30 s.
+- FIX: `poolNodeForLive(ladder, { pending, node, round, smTrack, smType })`
+  in car-pool.mjs. Il giudizio live è LEGITTIMO solo se la pista della SM è
+  quella del round di carriera in giudizio: con pending (gara lanciata dal
+  flusso) il nodo del pending; senza pending il nodo di carriera SOLO se la
+  SM è sulla pista della ronda corrente E la sessione è Race (le prove li-
+  bere non possono costare punti). In menu (pista null) o altrove: null →
+  auto=null → la copilota tace e il pannello non mostra il rosso. L'IMPORT
+  resta l'arbitro vero: giudica col file risultato e marca autoFuori a zero.
+- webui.mjs live: usa poolNodeForLive (import aggiornato). Nessun cambio al
+  discorso del copilota in viste-a.js: nell'auto vera fuori dalla SUA gara
+  la dice ora solo quando conta.
+- Test: 4 nuovi in test/car-pool.test.mjs (menu muto, pista/serie sbagliata
+  muto, pending col suo round giudica e resta il vigia, gara a mano sulla
+  ronda in Race giudica i 9/9 del file). Nessuna nuova dipendenza.
+
+## DOSSIER STAGIONALE + CONTO ALLA SOSTA (27/10) — FATTO E TESTATO
+
+### Forma stagionale per pista (dossier del rivale)
+- `stagioneDelRivale(store, key)` in src/rivals.mjs: per ogni pista dove il
+  pilota e tu vi siete incontrati — scontri, vittorie, podi, media/migliore
+  posizione, delta best-lap SUO vs TUO (ms, best-vs-best) e i settori:
+  media per indice del suo splits contro il tuo. settoreForte = dove il suo
+  delta media è più negativo (lì ti batte), settoreDebole = dove perde
+  (lì lo attacchi). DAI SOLI DATI che recordRaceGrid salva (bestLap + splits
+  per ogni pilota): niente numeri inventati; mancano splits → settori vuoti.
+- `rivalDetail().stagione` e `rivalDossier().stagione` la espongono; la GUI
+  (scheda + dossier, viste-d.js) la disegna come tab «forma per pista» con
+  chip per settore (rosso = lui più veloce, verde = tu) e riga forte/debole.
+- NOTA ONESTA: i splits in griglia esistono solo dagli import di oggi —
+  le gare vecchie mostrano il delta best-lap, i settori arrivano dai round
+  che verranno. La qualifica vs gara resta impossibile dall'archivio
+  (nessun file di qualifica salvato, solo race/practice/warmup).
+- Test: 2 nuovi in test/rivals.test.mjs (aggregazione, delta best-vs-best,
+  settori da splits di entrambi, niente inventati senza splits, firma scheda).
+
+### Conto alla rovescia della sosta (copilota, modulo live)
+- Narratore 6b in gui/js/viste-a.js: finché la finestra non si avvicina tace;
+  a N=2 «sosta tra 2 giri», a N=1 «sosta QUESTO GIRO o il prossimo», a N=0
+  «fermarsi adesso, baia costa ~Xs». Con le gomme oltre la prima soglia
+  usura (banda ≥1, 55% dal narratore 4) la frase le nomina: la decisione
+  sosta nasce da gomme+benzina insieme. Una voce per tacca (cpSay min 12 s),
+  slitta la finestra → la tacca si azzera e il conto ridice da capo.
+
+### Rivedi la radio + prova dal vivo (28/10, notte)
+- RIVEDUTA la regola ante-doppioni della radio: narratore 6 (finestra pit)
+  ora SEMINA la tacca del conto 6b quando la finestra arriva già vicina
+  (lapsToWindow < 3 alla prima vista o allo slittamento) — così lo stesso
+  giro non produce SIA «si apre tra 1 giro» SIA «questo giro o il prossimo».
+  6 annuncia UNA volta, 6b conta da lì: tacche 2/1/0, min 12 s, gomme
+  stanche nel discorso se banda usura ≥1.
+- tools/_monitor-copilota.mjs RIALINIAITO alla vista: il delta adesso parla
+  solo se il bucket di 400 ms cambia per davvero (min 20 s tra discorsi —
+  prima ripeteva a valore fermo ogni 12 s: non era più la replica fedelle
+  della copilota) e replica anche il conto alla rovescia 6b.
+- PROVA DAL VIVO: server webui vivo su 8642 (POST /api/ingegnere ok,
+  raceLaps 3 dalla ronda), monitor armato su data/copilot-8642-24-10.jsonl.
+  Col gioco chiuso la radio è muta per DISEGNO (live:false) e il log resta
+  vuoto: niente frasi di prova inventate — la prova vera arriva quando
+  Mauro entra in pista; dopo la sessione il file jsonl dice riga per riga
+  cosa la copilota avrebbe detto e con quali dati crudi accanto.
+
+## AVVISO GRIGLIA RONDA SUL PANNELLO EVENTI (28/10) — FATTO
+- Lezione bak-evento (27/10 21:40): l'event-prep riscrive last_grid.customgrid
+  e il file della RONDA si sposta nei .bak-evento-*; al round successivo la
+  griglia ronda torna SOLO col «Prepara tutto» del campionato (rebuildGridApply
+  recupera dai backup). Prima di oggi il pannello Eventi non diceva niente:
+  Mauro scopre lo scambio solo in pista con la griglia sbagliata (caso reale
+  28/10: rilancio con l'F40 contro la ronda a Escort/R5).
+- webui.mjs: `avvisoGrigliaEvento(eventoAccettato, card)` legge il customgrid
+  su disco ed esita la FORMA (tutte le celle dentro il pool del tema = «evento»,
+  altrimenti = «ronda») + l'ultimo .bak-evento-*. La risposta di POST /api/events
+  porta `grigliaRonda`; lettura sola (nessuna scrittura, fallback silenzioso).
+- viste-a.js: nella vetrina dell'invito accettato un banner 🗂️ pre-WARN con lo
+  stato del disco PRIMA del «Prepara tutto e divertiti».
+- contorno copilota di stanotte (28/10): lapsDone sensibile a doppio sensore
+  (totalLapCount ∨ SessionState.currentLap — nel log 24/10 il graphics
+  rimaneva a 0 per intera gara), isLastLap esposta per «Ultimo giro!»,
+  sessionType nel payload /api/ingegnere, monitor riallineato ai narratori 8
+  + reset per firma sessione.
+
+
+## TUTTO CLICCABILE, SECONDA FILA (28/10) — FATTO E VERIFICATO AL VIVO
+- Seconda fila del progetto "tutto cliccabile": le celle PISTA rimaste statiche
+  nelle tabelle sono passate a window.trackLinkHtml() (helper di core.js,
+  con la lezione di ieri: cerca col NOME DISPLAY, clic → vai('tracks'),
+  la scheda pista si apre da sola col NAV_OPTS.search).
+- Convertite: scheda evento (🏁 pista + premio, viste-a 420), outlook della
+  card gara (trackName, viste-a 605), tabella gare della stagione della serie
+  (viste-a 284) e il banner della serie (viste-a 221), CALENDARIO del
+  campionato (rounds played/current, viste-c 432) e tabella del calendario
+  (viste-b 6 e 451), card campionato (viste-b 245/255/347: la riga «R2 ·
+  <pista>» nel pannello volante e in tabella), scheda rivali (viste-d 723
+  «Ha vinto a», 727+780 incontri, 773 chips perTrack, 777 tabella stagione).
+- NON convertite (a ragion veduta): le righe in cui il testo è la CHIAVE RAW
+  del file risultato/sessione (viste-c ispezione file 21, log telemetria 555,
+  opzioni select 101) — il link non troverebbe la scheda e starebbe morto;
+  e `<option>` di select: per natura non cliccabili.
+- PROVA AL VIVO (cursore VERO nel browser di Codebuff): hover su card →
+  pannello volante appare a ~400 ms ancorato accanto alla card; il cursore che
+  entra nel pannello disarma il timer di chiusura da 100 ms (il caso che
+  sfarfallava col cursore sintetico: gli eventi fake non toccano lo stato
+  :hover del CSS e il guard el.matches(':hover') bocciava la via sintetica);
+  fuori da card/pannello si chiude dopo 100 ms. Lingua portata a it sia nel
+  config server sia nel localStorage del browser (la scelta personale
+  comanda sul server: senza la scelta personale il browser ripartiva ancora
+  in inglese anche col server già impostato in italiano).
+- Lezione di metodo per le edit: le stringhe vecchie vanno COPIATE esatte
+  da un output del tool (search/read), mai riscritte a memoria: una
+  ricostruzione sbagliata o si firma "non trovata" o peggio scrive #{ invece
+  di ${ nei template literal e rompe il file. Giusto corretto; controllo
+  finale `#{` = zero su tutte le viste.
+
+
+## LE ZAVORRE NON PROPAGANO: OULTON PARK A 8% DOPO DONINGTON=20% (28/10) — FATTO, CAUSA E RIMEDIO
+- Gara di stanotte (Oulton Park, Coppa Strada R3): le Escort di nuovo a
+  100kg/8% e −14,0 s per giro dalla base R5 (mediane 1:37.7 vs 1:51.7).
+- LA CAUSA DOPPIA:
+  1) le gare Donington della sera PRIMA (23:23 e 00:33) sono pure uscite a 8%:
+     l'override perTraccia[Donington]=20 era STATO scritto il 27/10, ma la
+     griglia su disco non era stata RICOSTRUITA dopo («Prepara tutto» l'ha
+     ripescata solo se girata DI NUOVO): patchPerTrack si applica al rebuild,
+     non a un file già steso sul disco;
+  2) le proposte dei risultati scrivono SOLO perTraccia[pista_gara]: ogni pista
+     nuova (Oulton, e tutte le prossime) ricade a vita nella regola di BASE
+     della classe (8%). Il default di classe non si estende mai da solo.
+- RIMEDIO (e si applica adesso, con backup grid-classes.bak-zavorra-28-10.json):
+  • regola di classe Escort 8%→20% in AMBEDUE le classi che la coprono
+    (coppa_strada_80 e gr86-r5-escort): 20% è il cap di gioco e la proposta già
+    firmata dal ledger il 27/10 e confermata da Oulton;
+  • perTraccia["Oulton Park"] Escort=20 scritta con la nota della gara
+    (−14,02 s mediana, campo 78-88) — la pista nuova entra nel registro;
+  • la gara di stanotte è REGISTRATA NEL LEDGER PRIMA delle scritture:
+    le regole lette dall'analisi devono essere quelle con cui la gara ha
+    GIRATO (8%), non quelle di domani (20%): la storia resta vera;
+  • il rebuild della GRIGLIA va fatto con «Prepara tutto e divertiti» alla
+    prossima ronda: è quello che riprende i backup (.bak-evento) e applica
+    classe+perTraccia sulle celle vere.
+- RIMEDIO STRUTTURALE nel codice (src/grid-calib.mjs, leva nuova):
+  ramo C «regola-classe»: quando ≥2 piste portano override per-traccia ALTI
+  per la STESSA auto (OBS_ALTA) E la gara corrente dimostra lo scappamento
+  (delta < −TOL) e l'auto non è già al cap, l'analisi firma una PROPOSTA di
+  ALLINEAMENTO della regola di classe con comando pronto:
+  `node tools/grid-balance.mjs --rule "<auto>=kg,pct" --apply`.
+  Guardie del ramo: niente promozione dalla base nuda (delta=0), niente al
+  cap (il ramo B propone già escludi), niente per le auto con una sola pista
+  di prova (confidenza bassa). Test 2-bis in test/grid-calib.test.mjs (12/12).

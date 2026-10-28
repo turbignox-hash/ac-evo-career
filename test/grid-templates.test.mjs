@@ -66,7 +66,7 @@ const LADDER = {
     nodo('serie_rs_3_test', ['ks_audi_rs_3_sportback'], 4),   // serie NUOVA: auto mai state in griglia
   ],
 };
-const GRIGLIA = (buf) => join(TMP, 'griglia-della-ronda.customgrid');
+const GRIGLIA = (_buf) => join(TMP, 'griglia-della-ronda.customgrid');
 const scrivi = (buf) => { const f = GRIGLIA(); writeFileSync(f, buf); return f; };
 const STORE = () => join(TMP, 'grid-templates', 'serie_f40_test.customgrid');
 const FABBRICA = (nodeId = 'serie_rs_3_test') => join(TMP, 'fabbrica', nodeId + '.customgrid');

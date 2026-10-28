@@ -111,7 +111,7 @@ let count = 0;
 for (const id of readdirSync(carsDir)) {
   const file = join(carsDir, id, 'ui', 'ui_car.json');
   if (!existsSync(file)) continue;
-  let ui = readDirtyJson(file);
+  const ui = readDirtyJson(file);
   if (!ui || typeof ui !== 'object') continue;
   const s = ui.specs ?? {};
   const name = String(ui.name ?? id).trim();

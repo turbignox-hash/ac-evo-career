@@ -19,7 +19,7 @@ import {
   readdirSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname, basename } from 'node:path';
+import { join, dirname, } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
@@ -40,7 +40,7 @@ const { WEEKEND_FILE: WEEKEND_FILE2 } = await import('../tools/set-racetime.mjs'
 
 test('sandbox: WEEKEND/GRID/GARAGE vivono dentro ACE_GAME_SAVEDIR, non nel PC vero', () => {
   const GAME_SAVEDIR = process.env.ACE_GAME_SAVEDIR;
-  assert.ok(GAME_SAVEDIR && GAME_SAVEDIR.startsWith(tmpdir()), 'ACE_GAME_SAVEDIR punta in temp');
+  assert.ok(GAME_SAVEDIR?.startsWith(tmpdir()), 'ACE_GAME_SAVEDIR punta in temp');
   for (const [nome, p] of [['WEEKEND_FILE', WEEKEND_FILE], ['WEEKEND_FILE (set-racetime)', WEEKEND_FILE2], ['GRID_FILE', GRID_FILE], ['GARAGE_FILE', GARAGE_FILE]]) {
     assert.ok(p.startsWith(GAME_SANDBOX), `${nome} deve stare nella sandbox di gioco (visto: ${p})`);
     assert.ok(!p.includes('Saved Games'), `${nome} non deve toccare i salvataggi veri (${p})`);

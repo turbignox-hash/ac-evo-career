@@ -1,12 +1,11 @@
 // _decode-full.mjs — parsa il gamemodesave campo per campo, CON offset di
 // ogni tag, e stampa struttura annidata (per capire il campo del gridType).
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, } from 'node:fs';
 import { decodeMsg } from './evo-grid.mjs';
 
 const file = process.argv[2] ?? 'data/samples/gridtype/gt-190933-476.hex';
 
-function walk(buf, path = '') {
+function _walk(buf, path = '') {
   let fields;
   try { fields = decodeMsg(buf); } catch { return; }
   let off = 0;
@@ -15,7 +14,7 @@ function walk(buf, path = '') {
     const p = path ? path + '.' + f.field : String(f.field);
     if (f.wire === 2 && f.bytes.length > 2 && !(f.bytes.every((c) => c >= 32 && c < 127))) {
       console.log(`${p} (w2, len ${f.bytes.length})  @tag ~byte ${off}, ${f.bytes.length}B <${Buffer.from(f.bytes.slice(0, 16)).toString('hex')}>`);
-      walk(f.bytes, p);
+      _walk(f.bytes, p);
     } else if (f.varint != null) {
       console.log(`${p} (w0) = ${f.varint}  @tag byte ${off}`);
     } else {

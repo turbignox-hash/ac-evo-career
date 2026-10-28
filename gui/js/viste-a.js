@@ -212,15 +212,15 @@ async function drawPaddockPanel(){
   if (!pd || !pd.ok || !pd.next)
     { el.style.display = 'none'; return; }
   const n = pd.next;
-  const rounds = (pd.calendar?.rounds ?? []).filter(r => r && r.track);
+  const rounds = (pd.calendar?.rounds ?? []).filter(r => r?.track);
   const stand = (pd.home?.standings ?? pd.calendar?.standings ?? []).slice(0, 5);
   const wetIcon = n.wet ? '🌧️ ' : '';
   el.innerHTML = `
   <h2>${LI.gauge} ${tr({ it: 'Paddock', en: 'Paddock' })} <span class="h-act">${esc(pd.next.series ?? '')} · ${tr({ it: 'gara', en: 'race' })} ${n.round}/${n.total}</span></h2>
   <div class="banner ${n.wet?'warn':'info'}" style="margin-bottom:10px">
-    ${wetIcon}<b>${esc(n.track)}${n.layout ? ` — ${esc(n.layout)}` : ''}</b> · ${n.laps ? `${n.laps} ${tr({ it: 'giri', en: 'laps' })}` : ''}
+    ${wetIcon}<b>${window.trackLinkHtml(n.track)}${n.layout ? ` — ${esc(n.layout)}` : ''}</b> · ${n.laps ? `${n.laps} ${tr({ it: 'giri', en: 'laps' })}` : ''}
     ${n.time ? ` · 🕑 ${esc(n.time)}` : ''}${n.weather ? ` · ${esc(n.weather)}` : ''}
-    ${n.car ? `<br>🚘 ${esc(n.car)}` : ''}
+    ${n.car ? `<br>🚘 ${window.carLinkHtml(n.car)}` : ''}
     ${n.rank != null ? `<br>${tr({ it: 'Sei in classifica: ', en: 'You are standing: ' })}<b>${n.rank ?? '–'}</b> con <b>${n.points ?? '–'}</b> pt (${n.done ?? '–'}/${n.total} gare)` : ''}
   </div>
   ${n.wet ? `<div class="banner warn" style="margin-bottom:10px">🌧️ ${tr({ it: '<b>Gara bagnata in agenda:</b> monta l\'assetto pioggia PRIMA di partire. Pressioni sotto il target a caldo e staccate più lunghe: le condizioni asciutte non fungono.', en: '<b>Wet race scheduled:</b> fit the wet setup BEFORE you start. Pressures under hot target, longer braking: dry conditions settings will not work.' })}</div>` : ''}
@@ -281,7 +281,7 @@ async function drawDashboard(m){
         ${races ? `<div class="barchart">${res.map(r=>`<div class="bar ${r.points?'':'zero'}" style="height:${Math.max(6, r.points/maxPts*100)}%" data-tip="R${r.round} · ${r.dnf?tr({ it: 'ritiro', en: 'DNF' }):'P'+r.position} · ${r.points} pt" title="R${r.round} · ${esc(r.track ?? '')} — ${r.dnf?tr({ it: 'ritiro', en: 'DNF' }):'P'+r.position} · ${r.points} pt"></div>`).join('')}</div>` : ''}
         <div class="muted" style="margin-top:12px">${esc(node.discipline)} · ${tr({ it: 'livello', en: 'level' })} ${node.level} (${node.tier}) · ${esc(node.access==='closed'?tr({ it: 'parco chiuso', en: 'closed grid' }):tr({ it: 'serie aperta', en: 'open series' }))} · ${tr({ it: 'iscrizione', en: 'entry fee' })} ${money(st.econ.entry)} € · ${tr({ it: 'premio', en: 'prize' })} ${money(st.econ.prize)} € · ${fls} ${tr({ it: 'giro veloce', en: 'fastest lap' })}</div>
         ${races ? `<table style="margin-top:12px"><thead><tr><th>${tr({ it: 'Gare della stagione', en: 'Races of the season' })}</th><th class="right">${tr({ it: 'Pos', en: 'Pos' })}</th><th class="right">${tr({ it: 'Punti', en: 'Points' })}</th><th class="right">${tr({ it: 'Premio', en: 'Prize' })}</th></tr></thead>
-          <tbody>${res.map(r=>`<tr${r.dnf?' style="color:var(--bad)"':''}><td>R${r.round} · ${esc(r.track)}${r.fl?` <span class="tag gold">${tr({ it: 'giro veloce', en: 'fastest lap' })}</span>`:''}</td><td class="right">${r.dnf?tr({ it: 'ritiro', en: 'DNF' }):'P'+r.position}</td><td class="right">${r.points}</td><td class="right">${money(r.prize)} €</td></tr>`).join('')}</tbody></table>`
+          <tbody>${res.map(r=>`<tr${r.dnf?' style="color:var(--bad)"':''}><td>R${r.round} · ${window.trackLinkHtml(r.track)}${r.fl?` <span class="tag gold">${tr({ it: 'giro veloce', en: 'fastest lap' })}</span>`:''}</td><td class="right">${r.dnf?tr({ it: 'ritiro', en: 'DNF' }):'P'+r.position}</td><td class="right">${r.points}</td><td class="right">${money(r.prize)} €</td></tr>`).join('')}</tbody></table>`
         : `<div class="empty" style="margin-top:10px">${tr({ it: 'Nessuna gara disputata in questa serie.', en: 'No races run in this series yet.' })}</div>`}
       </div>
       <div class="panel">
@@ -426,8 +426,8 @@ async function drawEventsPanel(){
           <table style="margin-top:6px"><tbody>${c.settings.map((s)=>`<tr><td style="width:130px" class="muted">${esc(s[0])}</td><td>${esc(s[1])}</td></tr>`).join('')}</tbody></table>
           <div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: "Difficoltà AI consigliata per la tua serie: → usa gli slider della scheda gara normale. Se ti serve, guarda il pannello Prossima gara.", en: "Recommended AI difficulty for your series: → use the sliders of the normal race sheet. If needed, see the Next race panel." })}</div>
         </details>
+        ${v.grigliaRonda?.avviso ? `<div class="banner info" style="margin-top:6px">🗂️ <b>${tr({ it: 'Griglia sul disco', en: 'Grid on disk' })}</b> — ${esc(v.grigliaRonda.avviso)}</div>` : ''}
         <button class="act" id="b-ev-prep" style="width:100%;margin-top:8px">${tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' })}</button>
-        <div class="banner warn" style="margin-top:6px">⚠️ <b>${tr({ it: 'Resta nel MENU PRINCIPALE di EVO', en: 'Stay in the EVO MAIN MENU' })}</b> — ${tr({ it: 'non la schermata «Inizia sessione» con piste e auto: da lì pista e griglia si scrivono male e bisogna fare indietro e ripremere.', en: "not the 'Start session' screen with tracks and cars: from there track and grid cannot be written — go back to the menu and press again." })}</div>
         <div class="muted" style="margin-top:6px;font-size:11.5px">${(c.guests ?? a.guests ?? []).length ? tr({ it: "Ora, giri e gli avversari ospiti (2-3) partono da fuori col tasto Prepara, come la gara di campionato: su pista (gamemodesave) e griglia (customgrid) — se un ospite non è in nessuna griglia sul disco, resta a scelta mano in EVO e il tool lo segnala. La barra verifica l'impegno live.", en: 'Hour, laps and the guest rivals (2-3) are set from outside with the Prepare button, like the championship race — onto the track files (gamemodesave) and the grid (customgrid). If a guest car is in no grid on disk, you still pick them by hand in EVO and the tool says so. The bar verifies the setup live.' }) : tr({ it: "Ora, giri e la griglia monomarca partono da fuori col tasto Prepara, come la gara di campionato: su pista (gamemodesave) e griglia (customgrid), scritta dal tool col builder. La barra verifica l'impegno live.", en: 'Hour, laps and the one-make grid are set from outside with the Prepare button, like the championship race — onto the track files (gamemodesave) and the grid (customgrid), built by the tool with its grid builder. The bar verifies the setup live.' })}</div>
         <div class="livebar live-off" id="ev-livebar" style="margin-top:8px"><span class="dot"></span><span class="st">${tr({ it: 'Live evento', en: 'Live event' })}</span><span class="muted">${tr({ it: 'in attesa del gioco…', en: 'waiting for the game…' })}</span></div>
         <details style="margin-top:8px">
@@ -584,7 +584,7 @@ function drawCardInto(el, card){
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${card.boxRadio.tips.map(t=>`<div style="display:flex;gap:10px;align-items:flex-start;background:var(--panel2,#121822);border:1px solid var(--line);border-radius:8px;padding:7px 10px"><span style="flex:none;font-size:15px">${t.icon}</span><div style="font-size:12px;line-height:1.45"><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></div></div>`).join('')}</div></details>` : ''}
     <div id="ingegnere-live" style="margin-top:10px"></div>
     ${card.outlook ? `<div style="margin-top:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2,#151a24)">
-      <div style="font-size:12px;margin-bottom:4px"><b>${tr({ it: 'Obiettivo giro', en: 'Lap target' })}</b> · ${card.outlook.lapTarget ? `${tr({ it: 'il tuo best qui: ', en: 'your best here: ' })}<b style="color:var(--acc)">${esc(card.outlook.lapTarget.time)}</b> <span class="muted">(${esc(card.outlook.lapTarget.car ?? '')}, ${esc((card.outlook.lapTarget.at||'').slice(0,10))})</span>` : `<span class="muted">${tr({ it: 'prima volta su questo tracciato: tutto da scrivere', en: 'first time on this track: everything to write down' })}</span>`}${card.outlook.mastery ? ` · <span class="tag ${card.outlook.mastery.level>=3?'gold':'blue'}" style="font-size:10px;padding:1px 6px">${tr({ it: 'maestria: ', en: 'mastery: ' })}${esc(card.outlook.mastery.name)}</span>` : ''}</div>
+      <div style="font-size:12px;margin-bottom:4px"><b>${tr({ it: 'Obiettivo giro', en: 'Lap target' })}</b> · ${card.outlook.lapTarget ? `${tr({ it: 'il tuo best qui: ', en: 'your best here: ' })}<b style="color:var(--acc)">${esc(card.outlook.lapTarget.time)}</b> <span class="muted">(${window.carLinkHtml(card.outlook.lapTarget.car ?? '')}, ${esc((card.outlook.lapTarget.at||'').slice(0,10))})</span>` : `<span class="muted">${tr({ it: 'prima volta su questo tracciato: tutto da scrivere', en: 'first time on this track: everything to write down' })}</span>`}${card.outlook.mastery ? ` · <span class="tag ${card.outlook.mastery.level>=3?'gold':'blue'}" style="font-size:10px;padding:1px 6px">${tr({ it: 'maestria: ', en: 'mastery: ' })}${esc(card.outlook.mastery.name)}</span>` : ''}</div>
       <div style="font-size:12px;margin-bottom:4px"><b>${tr({ it: 'Stagione', en: 'Season' })}</b> · ${card.outlook.standingPosition?`P${card.outlook.standingPosition} ${tr({ it: 'in classifica · ', en: 'in the standings · ' })}`:''}${card.outlook.racesRun}/${card.outlook.totalRounds} ${tr({ it: 'gare corse', en: 'races run' })} · ${card.outlook.seasonPoints} ${tr({ it: 'punti', en: 'points' })}${card.outlook.duel?` · ⚔️ ${tr({ it: 'duello con <b>', en: 'duel with <b>' })}${esc(card.outlook.duel.name)}</b> ${tr({ it: 'a ', en: 'at ' })}${card.outlook.duel.gap} pt`:''}${card.outlook.crowd?` · <span title="${tr({ it: 'stima spettatori dalla pista', en: 'crowd estimate from the track' })}">🧑‍🤝‍🧑 ${(card.outlook.crowd/1000).toFixed(0)}k ${tr({ it: 'attesi', en: 'expected' })}</span>`:''}</div>
       ${card.outlook.contract?.length ? `<div style="font-size:12px;margin-bottom:4px"><b>${tr({ it: 'Contratto', en: 'Contract' })}</b> · ${card.outlook.contract.map(c=>`<span title="${esc(c.progress)}" style="white-space:nowrap">${c.decided===false?'<span style="color:var(--bad)">✗</span>':c.ok?'<span style="color:var(--good)">✓</span>':'•'} ${esc(c.text.split(' ').slice(0,4).join(' '))}…</span>`).join(' ')}</div>` : ''}
     ${(card.timeMultiplier ?? 1) !== 1 ? `<div style="font-size:12px;margin-bottom:4px"><b>${tr({ it: 'Tempo', en: 'Time' })}</b> · ${tr({ it: 'moltiplicatore consigliato: ', en: 'suggested multiplier: ' })}<b>${card.timeMultiplier}x</b> <span class="muted">(${tr({ it: 'col gioco che corre più in fretta il pomeriggio si comprime: le ore di sessione restano quelle del calendario', en: 'with the game running faster the afternoon compresses: the session hours stay the ones of the calendar' })})</span></div>` : ''}
@@ -603,7 +603,7 @@ function drawCardInto(el, card){
       ${card.outlook.trackInfo.map ? `<img src="${card.outlook.trackInfo.map}" alt="${tr({ it: 'tracciato di ', en: 'track layout of ' })}${esc(card.trackName)}" style="width:180px;height:118px;flex:none;object-fit:contain;background:#000;border-radius:8px;padding:8px${card.outlook.trackInfo.map.endsWith('.svg')?';filter:invert(1);opacity:.92':''}">` : (card.outlook.trackInfo.outline ? `<svg viewBox="0 0 100 64" style="width:170px;height:110px;flex:none;background:#0d1118;border-radius:8px;padding:6px" aria-label="${tr({ it: 'tracciato di ', en: 'track layout of ' })}${esc(card.trackName)}"><path d="${card.outlook.trackInfo.outline}" fill="none" stroke="var(--acc)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/></svg>` : '')}
       <div style="flex:1;min-width:230px">
         <div style="font-size:13px;margin-bottom:5px"><b>${flagOf(card.outlook.trackInfo.country)} ${window.trackLinkHtml(card.trackName)}</b> <span class="muted">· ${esc(tr({ it: card.outlook.trackInfo.nick, en: card.outlook.trackInfo.nickEn }))} · ${esc(tr({ it: card.outlook.trackInfo.country, en: card.outlook.trackInfo.countryEn }))} · ${card.outlook.trackInfo.lengthKm} km, ${card.outlook.trackInfo.corners} ${tr({ it: 'curve', en: 'corners' })}, ${tr({ it: 'dal ', en: 'opened in ' })}${card.outlook.trackInfo.opened}</span></div>
-        ${card.outlook.trackRec ? `<div style="font-size:12.5px"><b>${tr({ it: '🏁 Giro più veloce in pista', en: '🏁 Fastest lap of the track' })}</b> · <b style="color:var(--acc);font-size:15px">${esc(card.outlook.trackRec.time)}</b> — ${esc(card.outlook.trackRec.driver)}${card.outlook.trackRec.mine?` <span class="tag green" style="font-size:10px;padding:1px 6px">${tr({ it: 'tu', en: 'you' })}</span>`:''}<br><span class="muted">${esc(card.outlook.trackRec.car ?? '')}${card.outlook.trackRec.sameCar?'':' · ' + tr({ it: 'altra auto', en: 'another car' })} · ${esc((card.outlook.trackRec.at ?? '').slice(0, 10))}${card.outlook.lapTarget&&card.outlook.lapTarget.time!==card.outlook.trackRec.time?` · ${tr({ it: 'il tuo migliore: ', en: 'your best: ' })}${esc(card.outlook.lapTarget.time)}`:''}</span></div>` : ''}
+        ${card.outlook.trackRec ? `<div style="font-size:12.5px"><b>${tr({ it: '🏁 Giro più veloce in pista', en: '🏁 Fastest lap of the track' })}</b> · <b style="color:var(--acc);font-size:15px">${esc(card.outlook.trackRec.time)}</b> — ${esc(card.outlook.trackRec.driver)}${card.outlook.trackRec.mine?` <span class="tag green" style="font-size:10px;padding:1px 6px">${tr({ it: 'tu', en: 'you' })}</span>`:''}<br><span class="muted">${window.carLinkHtml(card.outlook.trackRec.car ?? '')}${card.outlook.trackRec.sameCar?'':' · ' + tr({ it: 'altra auto', en: 'another car' })} · ${esc((card.outlook.trackRec.at ?? '').slice(0, 10))}${card.outlook.lapTarget&&card.outlook.lapTarget.time!==card.outlook.trackRec.time?` · ${tr({ it: 'il tuo migliore: ', en: 'your best: ' })}${esc(card.outlook.lapTarget.time)}`:''}</span></div>` : ''}
         <details style="margin-top:6px"><summary class="muted" style="cursor:pointer;font-size:12px">📖 ${tr({ it: 'la storia di ', en: 'the history of ' })}${esc(card.trackName)}</summary>
         <div class="muted" style="margin-top:5px;font-size:12px;line-height:1.55">${esc(tr({ it: card.outlook.trackInfo.history, en: card.outlook.trackInfo.historyEn }))}</div>
         <button class="mini" style="margin-top:6px" onclick="document.querySelector('#nav button[data-tab=tracks]').click()">${tr({ it: 'Apri il libro delle piste', en: 'Open the book of tracks' })}</button></details>
@@ -656,7 +656,7 @@ function drawCardInto(el, card){
         ];
       })().map(([k, v]) => `<div style="border:1px solid var(--line,#2a3341);border-radius:8px;padding:8px 10px;background:var(--panel2,#121822)">
         <div class="muted" style="font-size:10.5px;text-transform:uppercase;letter-spacing:1px">${esc(k)}</div>
-        <div style="font-size:13px;font-weight:600;margin-top:2px">${k === 'Auto' && v && v !== '—' ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda tecnica dell\'auto', en: 'open the car spec sheet' })}" onclick="vai('cars',{search:'${String(v).replace(/'/g, "\\'")}\'})">${esc(v)}</span>` : esc(v)}</div>
+        <div style="font-size:13px;font-weight:600;margin-top:2px">${k === 'Auto' && v && v !== '—' ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda tecnica dell\'auto', en: 'open the car spec sheet' })}" onclick="vai('cars',{search:'${String(v).replace(/'/g, "\\'")}'})">${esc(v)}</span>` : esc(v)}</div>
       </div>`).join('')}
     </div>
     <details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:12px">${tr({ it: 'ⓘ Tutte le impostazioni del round', en: 'ⓘ All round settings' })}</summary>
@@ -666,8 +666,7 @@ function drawCardInto(el, card){
     <div class="row" style="margin-top:16px">
       <button class="ghost" id="b-copy">${tr({ it: 'Copia scheda', en: 'Copy sheet' })}</button>
     </div>    <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' })}</button>
-    <div class="banner warn" style="margin-top:8px">⚠️ <b>${tr({ it: 'Resta nel MENU PRINCIPALE di EVO', en: 'Stay in the EVO MAIN MENU' })}</b> — ${tr({ it: 'non aprire la schermata «Inizia sessione» (quella con la lista di piste e auto): da lì lo strumento non riesce a scrivere pista e griglia e il bottone non cambia nulla. Se ci sei già, torna indietro al menu e ripremi il bottone.', en: "don't open the 'Start session' screen (the one listing tracks and cars): from there the tool cannot write track and grid and the button changes nothing. If you are already there, go back to the menu and press the button again." })}</div>
-    <div class="muted" style="margin-top:10px">${tr({ it: 'Tutto qui sopra lo scrive in EVO «Prepara tutto e divertiti»: pista, griglia, auto e regole. Se una riga non torna, ripremi il bottone.', en: 'Everything above gets written into EVO by “Get everything ready and have fun”: track, grid, car and rules. If a row looks off, press the button again.' })}</div>`,
+    <div class="muted" style="margin-top:10px">${tr({ it: 'Tutto qui sopra lo scrive in EVO «Prepara tutto e divertiti»: pista, griglia, auto e regole. Se una riga non torna, ripremi il bottone.', en: 'Everything above gets written into EVO by “Get everything ready and have fun”: track, grid, car and rules. If a row looks off, press the button again.' })}</div>`;
   // RADIO LIVE DELL'INGEGNERE: benzina residua, usura gomme, gap — dati veri
   // della shared memory mentre il gioco gira. Se non c'è gara in corso il
   // pannello resta buio (nessun rumore, il cruscotto non si sporca).
@@ -852,7 +851,7 @@ function drawCardInto(el, card){
         : '';  // in parco: nessun rumore
       ingOut.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:#0d1118">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <div style="font-size:12px"><b>${tr({ it: '🎧 Ingegnere LIVE', en: '🎧 Engineer LIVE' })}</b> <span class="muted" style="font-size:11px">· P${m.gauges.position??'—'}/${m.gauges.drivers??'—'}${m.gauges.lapsTotal!=null?` · ${tr({ it: 'giro ', en: 'lap ' })}${m.gauges.lapsDone+1}/${m.gauges.lapsTotal}`:''}${m.gauges.timeLeft?` · ${tr({ it: 'resta ', en: 'left ' })}${esc(m.gauges.timeLeft)}`:''}${m.gauges.fuel!=null?` · ${tr({ it: 'benzina ', en: 'fuel ' })}${m.gauges.fuel} L`:''}${m.telemTrack?` · ${tr({ it: 'consumo da ', en: 'consumption from ' })}${esc(m.telemTrack)}`:''}</span></div>
+          <div style="font-size:12px"><b>${tr({ it: '🎧 Ingegnere LIVE', en: '🎧 Engineer LIVE' })}</b> <span class="muted" style="font-size:11px">· P${m.gauges.position??'—'}/${m.gauges.drivers??'—'}${m.gauges.lapsTotal!=null?` · ${tr({ it: 'giro ', en: 'lap ' })}${Math.min(m.gauges.lapsTotal, m.gauges.lapsDone+1)}/${m.gauges.lapsTotal}`:''}${m.gauges.timeLeft?` · ${tr({ it: 'resta ', en: 'left ' })}${esc(m.gauges.timeLeft)}`:''}${m.gauges.fuel!=null?` · ${tr({ it: 'benzina ', en: 'fuel ' })}${m.gauges.fuel} L`:''}${m.telemTrack?` · ${tr({ it: 'consumo da ', en: 'consumption from ' })}${esc(m.telemTrack)}`:''}</span></div>
           <button class="mini" id="cp-toggle" type="button" title="${esc(tr({ it: 'Copilota vocale: le stesse info dell\'ingegnere, dette con la voce. Del tutto locale (speechSynthesis del browser): niente servizi, niente rete.', en: 'Voice copilot: the same engineer info, spoken aloud. Fully local (browser speechSynthesis): no services, no network.' }))}" style="margin-left:auto;letter-spacing:0.2px">
             <span style="color:${cp.on ? '#7f7' : 'inherit'}">${cp.on ? tr({ it: '🔊 copilota ON', en: '🔊 copilot ON' }) : tr({ it: '🔈 copilota', en: '🔈 copilot' })}</span></button>
         </div>
@@ -970,7 +969,37 @@ function drawCardInto(el, card){
           cpSpeak(pit.lapsToWindow === 0
             ? cpT({ it: `Sosta: aperta adesso, fermati questo giro`, en: `Pit window open: stop this lap` })
             : cpT({ it: `Sosta: si apre tra ${pit.lapsToWindow} giri, entro il giro ${pit.pitLap + 1}`, en: `Pit window in ${pit.lapsToWindow} laps, by lap ${pit.pitLap + 1}` }));
+          /* se la finestra era GIÀ vicina alla prima vista (o slitta dentro le
+             3 tacche), il conto alla rovescia (6b) parte dalla tacca di adesso:
+             niente fratello doppio nello stesso minuto — 6 annuncia, 6b conta
+             solo da qui in giri. */
+          if (Number.isFinite(pit.lapsToWindow) && pit.lapsToWindow < 3) cp.last.pitN = pit.lapsToWindow;
         }
+        /* 6b) CONTO ALLA SOSTA (27/10, richiesta Mauro: «questo giro o il
+              prossimo?»): quando la finestra si avvicina il copilota conta.
+              Con le gomme stanche lo dice nella frase — la decisione di fermarsi
+              nasce da gomme+benzina insieme, non solo dal serbatoio. Una voce
+              per tacca (2, 1, 0), niente loop; slitta la finestra → tacca si
+              azzera e il nuovo conto ridice da capo. */
+        if (pit?.need && Number.isFinite(pit.lapsToWindow)) {
+          const stanche = (cp.last.wearBand ?? 0) >= 1;   // già oltre la prima soglia usura (55%)
+          const tacca = pit.lapsToWindow >= 3 ? null : pit.lapsToWindow;
+          if (tacca != null && cp.last.pitN !== tacca) {
+            cp.last.pitN = tacca;
+            cpSay('pitcount', cpT({
+              it: tacca === 0
+                ? `Fermarsi adesso: baia costa circa ${pit.pitLossSec} secondi`
+                : tacca === 1
+                  ? `Sosta questo giro o il prossimo${stanche ? ' — gomme stanche' : ''}`
+                  : `Sosta tra ${tacca} giri${stanche ? ' — gomme al limite, contano anche le pressioni' : ''}`,
+              en: tacca === 0
+                ? `Pit now: the stop costs about ${pit.pitLossSec} seconds`
+                : tacca === 1
+                  ? `Pit this lap or the next${stanche ? ' — worn tyres' : ''}`
+                  : `Pit in ${tacca} laps${stanche ? ' — tyres on the limit, pressures matter too' : ''}`,
+            }), 12000);
+          }
+        } else cp.last.pitN = null;
         /* 7) AUTO DEL PARCO (24/10, Mauro): fuori dalla lista ammesse lo dico,
               e lo ripeto ogni 30 s finché il sedile non torna in regola */
         if (auto?.ammesse?.length && !auto.ok) {
@@ -979,10 +1008,15 @@ function drawCardInto(el, card){
             en: `${auto.mine ?? 'This car'} outside the pool: allowed ${auto.ammesse.slice(0, 3).join(', ')}. The race scores nothing.`,
           }), 30000);
         }
-        /* 8) ULTIMO GIRO: lo dico una volta per sessione, poi la bandiera */
+        /* 8) ULTIMO GIRO: lo dico una volta per sessione, poi la bandiera.
+              28/10: la condizione PRIMA si appoggia al sensore isLastLap della
+              MMF grafica, passato nell'ingegnere — nei flussi come la gara del
+              24/10 il contatore rimaneva a 0 per TUTTA la gara e l'annuncio
+              non avveniva MAI: con lapsDone sano la regola del contatore
+              (ld+1 === lt) resta come scorta per i ticket che non lo liberano. */
         const lt = g.lapsTotal, ld = g.lapsDone;
         if (lt != null && ld != null && lt > 0) {
-          if (ld + 1 === lt && !cp.last.ultimo) { cp.last.ultimo = true; cpSpeak(cpT({ it: 'Ultimo giro!', en: 'Final lap!' })); }
+          if ((g.isLastLap || ld + 1 === lt) && !cp.last.ultimo) { cp.last.ultimo = true; cpSpeak(cpT({ it: 'Ultimo giro!', en: 'Final lap!' })); }
           if (ld >= lt && !cp.last.bandiera) { cp.last.bandiera = true; cpSpeak(cpT({ it: 'Bandiera a scacchi!', en: 'Checkered flag!' })); }
           if (ld + 1 < lt) cp.last.ultimo = false;   // sessione nova: riparte il cancellino
         }
@@ -1133,7 +1167,15 @@ const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella
       // al toast CON LA GUIDA intera (menu Race Weekend → Grid Type → CUSTOM
       // → Applica) e rosso 15 s: è l'unico caso in cui l'amico deve toccare il
       // menu di EVO (richiesta Mauro: «dice quello che serve a mano»).
-      else if (p.carWritten) segs.push(tr({ it: `auto ${p.car} pronta al prossimo avvio di EVO`, en: `car ${p.car} ready at EVO's next launch` }));
+      // AUTO E GIOCO APERTO (27/10, chiesta da Mauro dopo «ho ancora la 75»):
+      // il garage si rilegge SOLO AL LANCIO di EVO (lezione 22/10 + 26/10: la
+      // copia in memoria comanda finché il processo vive) — la scrittura del
+      // drivergarage c'è ma con EVO in piedi la voce neutra sembrava un "fatto".
+      // Con il gioco aperto va in ⚠: chiudere EVO del tutto e riaprilo (arriva
+      // da sola) OPPURE scegliere l'auto a mano nel garage del weekend.
+      else if (p.carWritten) segs.push(r.gameRunning
+        ? `⚠ ${tr({ it: `auto ${p.car} scritta sul disco, ma EVO APERTO non rilegge il garage: chiudi EVO del TUTTO e riaprilo (l'auto arriva da sola), o scegli l'auto a mano nel garage del weekend`, en: `car ${p.car} written to disk, but EVO OPEN does not re-read the garage: close EVO completely and relaunch (the car comes up by itself), or pick the car by hand in the weekend garage` })}`
+        : tr({ it: `auto ${p.car} pronta al prossimo avvio di EVO`, en: `car ${p.car} ready at EVO's next launch` }));
       else if (p.carNote) segs.push(p.carNote);   // nota neutra (auto fuori dizionario): senza ⚠
       if (p.hourError) segs.push(`⚠ ${p.hourError}`);
       else if (p.hour != null) segs.push(`${tr({ it: 'ora', en: 'hour' })} ${p.hour}`);

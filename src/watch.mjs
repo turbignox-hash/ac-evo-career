@@ -57,6 +57,12 @@ export function watcherStatus() {
 
 export const WATCH_INTERVAL_MS = 15000;
 
+/** SALVAGUARDIA ONLINE (31/10): una gara MULTIPLAYER ha il tag _MP_ nel nome
+ * file (stesso formato degli SP): punti, soldi e rep di EVO appartengono al
+ * campionato del tool, MAI ai server della community. Restano nell'archivio
+ * online (catalog.mjs onlineArchive) e nel quaderno (le prove MP). */
+const isMpRace = (result, name) => /_MP_/.test(String(name ?? '')) && !!result && !!isRaceSession(result);
+
 /**
  * Un singolo giro di scansione. Non contiene loop né timer: è chiamato dal CLI
  * (cli.mjs, comando watch) e dai test. Ritorna sempre un oggetto riepilogo:
@@ -99,9 +105,15 @@ export function watchOnce(ladder, paths, { baselineMs = 0, stateLoader = () => l
       outcome.ignored.push({ name: f.name, reason: 'file illeggibile' });
       continue;
     }
+    if (isMpRace(result, f.name)) {
+      // gara online: il motivo lo vedono cruscotto e log, così nessuno si
+      // chiede perché la gara col server non ha dato punti.
+      outcome.ignored.push({ name: f.name, reason: 'gara online: non paga la carriera (archivio online)' });
+      continue;
+    }
     if (!isRaceSession(result)) {
       // le sessioni di prove non sparano nel nulla: il quaderno le cattura
-      // (in cima al tick il registro è già capitato bacatamente)
+      // (in cima al tick la registrazione è già passata da lì)
       outcome.ignored.push({ name: f.name, reason: 'non è una gara (nel quaderno giri liberi)' });
       continue;
     }
@@ -117,7 +129,9 @@ export function watchOnce(ladder, paths, { baselineMs = 0, stateLoader = () => l
     try {
       const out = runImport(ladder, paths, state, { force: false, allowAny: false, persist });
       if (out.duplicate) {
-        outcome.ignored.push({ name: f.name, reason: 'già incassata (registro anti-doppioni)' });
+        // il perché del doppione va nel log del cruscotto: "qualifica" e "hash"
+        // sono strade diverse da "_PATCH-"
+        outcome.ignored.push({ name: f.name, reason: `già incassata (${out.reason ?? 'motivo n/d'} — ${out.source ?? ''})` });
         continue;
       }
       outcome.imported = out;

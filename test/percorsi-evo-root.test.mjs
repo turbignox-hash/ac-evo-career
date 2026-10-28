@@ -45,7 +45,7 @@ test('STEAM_ROOT: libreria non convenzionale (tipo Z:/giochi/steam) trova il gio
   delete process.env.ACE_ROOT;
   try {
     const r = findGameExe();
-    assert.ok(r && r.includes(lib), `attesa l'exe dentro ${lib}, ricevo ${r}`);
+    assert.ok(r?.includes(lib), `attesa l'exe dentro ${lib}, ricevo ${r}`);
   } finally {
     if (vera) process.env.STEAM_ROOT = vera; else delete process.env.STEAM_ROOT;
     if (aceVera) process.env.ACE_ROOT = aceVera; else delete process.env.ACE_ROOT;

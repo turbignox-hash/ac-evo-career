@@ -641,7 +641,21 @@ export class LiveReader {
         // consumatori (copilota, cruscotto «giro X/Y», ingegnere col suo
         // lapsLeft e la finestra pit) davano per scontata: un solo punto
         // di verità, niente -1 sparsi nelle viste.
-        lapsDone: Math.max(0, (Number.isFinite(g.totalLapCount) ? g.totalLapCount : 1) - 1),
+        // SENSORI DOPPI, LETTO SENSATO (28/10, registro copilot-8642 24/10): in
+        // una gara INTERA totalLapCount del graphics è rimasto a 0 per TUTTI i
+        // giri, mentre SessionState.currentLap saliva regolarmente 1→2→3→4
+        // (1 alla partenza, +1 a ogni traguardo, 4 sul traguardo finale) —
+        // risultato: lapsDone fermo a 0, mai «Ultimo giro!», mai «Bandiera».
+        // I due campi hanno la STESSA semantica (giro in corso, 1-based):
+        // lapsDone = giri compiuti = max(dei valori sensati) - 1; il max protegge
+        // il caso precedente (quello che salisce per primo vince, l'altro resta 0).
+        lapsDone: (() => {
+          const tot = Number.isFinite(g.totalLapCount) && g.totalLapCount > 0 ? g.totalLapCount : null;
+          const cur = Number.isFinite(g.currentLapNo) && g.currentLapNo > 0 ? g.currentLapNo : null;
+          const inCorso = tot != null && cur != null ? Math.max(tot, cur) : (tot ?? cur);
+          return inCorso != null ? Math.max(0, inCorso - 1) : 0;
+        })(),
+        isLastLap: !!g.isLastLap,
         lapNo: g.currentLapNo ?? null,
         lapsTotal: g.totalLapsSession ?? null,
         bestLap: fmtMs(g.bestLapMs),

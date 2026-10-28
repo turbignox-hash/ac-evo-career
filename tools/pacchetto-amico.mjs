@@ -17,7 +17,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 // tar dichiarato QUI (e non più giù): anche l'iniezione del build-id lo usa
 const TAR = process.env.SystemRoot ? join(process.env.SystemRoot, 'System32', 'tar.exe') : 'tar';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, rmSync, statSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,7 +31,7 @@ function git(args) {
 }
 
 // 1) situazioni che renderebbero lo zip o la consegna sbagliati → le dico e fermo
-const descrive = git(['describe', '--tags', '--always']).replace(/^v/, '');
+const _descrive = git(['describe', '--tags', '--always']).replace(/^v/, '');
 const head = git(['rev-parse', 'HEAD']).slice(0, 7);
 const sporco = git(['status', '--porcelain']);
 const avanti = (() => {
@@ -39,7 +39,7 @@ const avanti = (() => {
   catch { return '-1'; } // remote assente: non fermo, avviso dopo
 })();
 
-let avvisi = [];
+const avvisi = [];
 if (sporco) {
   console.log('⚠ Git ha modifiche NON committate: lo zip esce dal commit HEAD, non dal tuo disco sporco.\n' + sporco);
   avvisi.push('c\'erano file non committati al momento dello zip');

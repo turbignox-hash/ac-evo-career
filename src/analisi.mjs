@@ -24,7 +24,7 @@
 
 import { lapToMs } from './results.mjs';
 import { gridFor, pointsFor, ourToSkill, hash32, rng } from './world.mjs';
-import { rivalsStore } from './rivals.mjs';
+import { rivalsStore, stagioneDelRivale } from './rivals.mjs';
 import { analyzeLd, sampleLap, sessionMetaOf, brakeConsistency } from './motec.mjs';
 import { prizeFor, entryFee, difficultyFor, nodeById, gateStatus } from './state.mjs';
 import { tr, lang } from './lang.mjs';
@@ -254,6 +254,12 @@ export function rivalDossier(key, state) {
       dnfRate: dnfRate != null ? Math.round(dnfRate * 100) : null,
     },
     meetings,
+    /* DOSSIER STAGIONALE (27/10): la forma per pista. Complemento di perTrack:
+     * qui i SETTORI medi (suo − tuo, ms) che dicono DOVE la differenza nasce —
+     * tratto tecnico vs tratto pieno — più scontri/vittorie/best-lap per pista.
+     * Vuoto sulle gare vecchie (i splits in griglia esistono solo da oggi):
+     * i round che verranno la riempiranno. */
+    stagione: stagioneDelRivale(store, key),
   };
 }
 

@@ -10,10 +10,10 @@
 // uso: node tools/grid-mix.mjs --dry  (solo anteprima)
 //      node tools/grid-mix.mjs        (scrive, con backup)
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
+const _HERE = dirname(fileURLToPath(import.meta.url));
 const FILE = 'C:/Users/Mauro/Saved Games/ACE/GameModes/last_grid.customgrid';
 
 // le 9 varianti nei intorni della finestra 15–17 (da cars.json del server dedicato)
@@ -97,7 +97,7 @@ function makeCell(car) {
   ]);
   const f10 = { field: 10, wire: 2, bytes: mech };
   // campo 11 (visual preset): il gioco lo accetta Assente — default in gioco
-  return [f3, f4, f6, f9, f10].sort((a, b) => 0).map(x => x); // ordine = come scritto da EVO (non serve sort)
+  return [f3, f4, f6, f9, f10].sort((_a, _b) => 0).map(x => x); // ordine = come scritto da EVO (non serve sort)
 }
 
 /* ---------- scrivere ---------- */

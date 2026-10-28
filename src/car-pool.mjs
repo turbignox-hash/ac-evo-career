@@ -16,6 +16,7 @@
 // (NULLA viene giudicato: meglio ammettere tutto che bloccare per un passo falso).
 
 import { loadClasses } from './gridbuilder.mjs';
+import { nodeById } from './state.mjs';
 
 const norm = (s) => String(s ?? '')
   .toLowerCase()
@@ -96,4 +97,39 @@ export function carInPool(car, ammesse) {
       && cifre(car).every((d) => cifre(a).includes(d))
       && paroleLunghe(a).some((p) => paroleLunghe(car).includes(p));
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* il giudizio LIVE si fa solo con la serie giusta (27/10, Mauro:       */
+/* «il coach non fa altro che dire F40 fuori parco» — l'F40 LM HA il    */
+/* suo parco in Leggende Stradali e nella sua Coppa, ma il touch live   */
+/* lo giudicava col pool della serie DI CARRIERA corrente anche quando  */
+/* la sessione in pista non era quella: test della griglia, MP, prove   */
+/* libere di un'altra serie → false allerte a ripetizione). Da qui:     */
+/* la copilota giudica solo quando la sessione della SM è SULLA PISTA   */
+/* della gara di carriera in corso. In menu (pista assente) o su una    */
+/* pista che non c'entra: niente giudizio — la copilota tace e QUALE    */
+/* gara vale zero lo decide l'IMPORT, dai dati VERI del file risultato. */
+
+/** Il nodo la cui serie è LEGITTIMA a giudicare questa sessione live, o null.
+ *  Con pending (gara lanciata dal flusso di carriera) → il nodo del pending,
+ *  ma solo se la pista della SM è quella del round del pending (una sessione
+ *  aperta a mano su un'altra pista non è la gara del flusso). Senza pending
+ *  → il nodo di carriera SOLO se la SM è già sulla pista della ronda
+ *  corrente e la sessione è una Race (le prove libere non possono costare
+ *  punti: niente parlarne). */
+export function poolNodeForLive(ladder, { pending = null, node = null, round = null, smTrack = null, smType = null } = {}) {
+  const sm = norm(smTrack);
+  if (!sm) return null;   // in menu / SM muto: niente sedile attendibile
+  const pistaOk = (dotto, r) => {
+    const n = nodeById(ladder, dotto);
+    if (!n) return false;
+    const id = n.calendar?.[r]?.track ?? null;
+    if (id == null) return false;
+    const disp = ladder?.contentNames?.tracks?.[id] ?? id;
+    return [id, disp].some((t) => { const nn = norm(t); return nn && (nn.includes(sm) || sm.includes(nn)); });
+  };
+  if (pending?.node) return pistaOk(pending.node, pending.round) ? pending.node : null;
+  if (node) return (smType === 'Race' && pistaOk(node, round)) ? node : null;
+  return null;
 }

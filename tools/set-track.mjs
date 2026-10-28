@@ -14,7 +14,7 @@
 // CLI:
 //   node tools/set-track.mjs --track "Red Bull Ring" [--dry] [--file <path>]
 import { readFileSync, writeFileSync, renameSync, copyFileSync, readdirSync, statSync } from 'node:fs';
-import { decodeMsg, encodeMsg, gameRunning, GAME_MODES_DIR } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, GAME_MODES_DIR } from './evo-grid.mjs';
 import { join, dirname, basename } from 'node:path';
 import { TRACK_INFO } from '../src/tracks.mjs';
 import { sameTrack } from '../src/tracknames.mjs';
@@ -440,7 +440,7 @@ export function setWeekendGridMode(mode, count, { file = WEEKEND_FILE, dry = fal
       // il 6 = 1 è presente in ENTRAMBE le forme canoniche: se manca (save
       // strano), lo scrivo in prima posizione tra i campi alti, dopo il 5.
       if (i6 < 0) {
-        let i = session.findIndex((s) => s.field > 6);
+        const i = session.findIndex((s) => s.field > 6);
         session.splice(i >= 0 ? i : session.length, 0, { field: 6, wire: 0, varint: BigInt(1) });
         i6 = i >= 0 ? i : session.length - 1;
         touched = true;

@@ -20,16 +20,21 @@
 //   node tools/set-car-sample.mjs --clear
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg, GAME_SAVEDIR } from './evo-grid.mjs';
 
 export const HERE = join(import.meta.dirname);
 const SAMPLES = join(HERE, '..', 'data', 'samples', 'garage');
 const MAP_FILE = join(SAMPLES, 'map.json');
+// l'archivio ufficiale delle 468 coppie (22/10): k1/k2 sono le metà BE della
+// GUID stabile dell'auto, uguali a carHash/guid2 del garage → il legame dai
+// log non tocca mai il gioco: solo lettura/scrittura della mappa nostra.
+const GUIDS_FILE = join(HERE, '..', 'data', 'car-guids.json');
+const LOGS_DIR = join(GAME_SAVEDIR, 'Logs');
 // IL PROFILO NON È FISSO: la GUID cambia per installazione (25/10, installazione
 // pulita di Mauro: 49057b82-… al posto del vecchio 4e119186-…). Il sampler
 // resta sul percorso scoperto a disco (openDataDir di evo-grid): nulla più
 // da ritoccare a ogni PC.
-import { openDataDir, GAME_SAVEDIR } from './evo-grid.mjs';
+import { openDataDir } from './evo-grid.mjs';
 export function currentGarageFile() {
   const od = openDataDir()
     ?? join(GAME_SAVEDIR, 'ProfileData', '_noprofile', 'OpenData');
@@ -51,6 +56,81 @@ export function decodeGarage(buf) {
 /** La mappa hash→nome appresa dai campioni (carKey = carHash+guid2). */
 export function readMap() {
   try { return JSON.parse(readFileSync(MAP_FILE, 'utf8')); } catch { return { entries: {} }; }
+}
+
+const _logLearned = false;
+/**
+ * DIZIONARIO DAI LOG (31/10, richiesta Mauro «paddock riesce, controlla come fa»):
+ * il PC dell'amico non campiona auto a mano, ma i LOG del gioco scrivono da
+ * soli la coppia GUID↔carId ad ogni auto caricata:
+ *   "Loaded car <hex>-<hex> (ks_…)" / "Set new car <guid-dashed> content\cars\<ks_…>"
+ * La GUID stabile dell'auto batte in data/car-guids.json (k1/k2 = le due metà
+ * BIG-ENDIAN ottali della GUID = carHash/guid2 del garage): collega carId →
+ * coppia hash etichettata con il nome leggibile. Scansione dei log STORICI:
+ * ogni auto mai caricata in gioco entra anche senza un cambio manuale.
+ * Ritorna { added, scanned, voci: [...] }. Le voci messe a mano (sample --map)
+ * NON si sovrascrivono.
+ */
+export function learnCarFromLogs({ logsDir = LOGS_DIR, mapFile = MAP_FILE, dry = false } = {}) {
+  const out = { added: 0, scanned: 0, voci: [] };
+  const guids = (() => {
+    try { return JSON.parse(readFileSync(GUIDS_FILE, 'utf8')).cars ?? []; } catch { return []; }
+  })();
+  if (!guids.length) return out;
+  const logFiles = (function () {
+    try { return readdirSync(logsDir).filter((f) => f.startsWith('log-')).sort(); } catch { return []; }
+  })();
+  if (!logFiles.length) return out;
+  const found = new Map(); // carHash|guid2 → label carId
+  for (const f of logFiles) {
+    let s;
+    try { s = readFileSync(join(logsDir, f)).toString('latin1'); } catch { continue; }
+    out.scanned++;
+    // formato 1: "Loaded car 487dcdc569318269-a85ea3bd5fb347b2 (ks_…_id)"
+    for (const m of s.matchAll(/Loaded car ([0-9a-fA-F]{16})-([0-9a-fA-F]{16}) \((ks_[a-z0-9_]+)\)/g)) found.set(`${m[1]}|${m[2]}`, m[3]);
+    // formato 2: "Set new car 487dcdc5-6931-8269-a85e-a3bd5fb347b2 content\cars\<id>…"
+    for (const m of s.matchAll(/Set new car ([0-9a-fA-F]{8})-([0-9a-fA-F]{4})-([0-9a-fA-F]{4})-([0-9a-fA-F]{4})-([0-9a-fA-F]{12})[^\n]{0,200}?ks_([a-z0-9_]+)/gi)) {
+      const a = `${m[1]}${m[2]}${m[3]}`.slice(0, 16), b = `${m[4]}${m[5]}`.replace(/-/g, '');
+      if (a.length === 16 && b.length === 16) found.set(`${a}|${b}`, m[6]);
+    }
+  }
+  if (!found.size) return out;
+  const map = (function () { try { return JSON.parse(readFileSync(mapFile, 'utf8')); } catch { return { entries: {} }; } })();
+  const entries = map.entries ?? {};
+  const byk1 = new Map(guids.map((c) => [String(c.k1), c]));
+  for (const [hexpair, carId] of found) {
+    const [a, b] = hexpair.split('|');
+    let k1, k2;
+    try { k1 = BigInt('0x' + a).toString(); k2 = BigInt('0x' + b).toString(); } catch { continue; }
+    const c = byk1.get(k1);
+    if (!c || String(c.k2) !== k2) continue;   // guid istanza (casuale) o non in tabella: scarta
+    const carHash = '0x' + BigInt(c.k1).toString(16).toUpperCase().padStart(16, '0');
+    const guid2 = '0x' + BigInt(c.k2).toString(16).toUpperCase().padStart(16, '0');
+    const key = `${carHash}|${guid2}`;
+    if (entries[key]) continue;               // già mappata (la manine resta)
+    const label = labelDaCarId(carId);
+    if (dry) { out.voci.push({ label, key }); continue; }
+    entries[key] = label;
+    out.added++; out.voci.push({ label, key });
+  }
+  if (!dry && out.added) {
+    try {
+      map.entries = entries;
+      mkdirSync(SAMPLES, { recursive: true });
+      writeFileSync(mapFile, JSON.stringify(map, null, 1));
+    } catch { out.added = 0; out.errore = 'mappa non scrivibile (data read-only?): cambio auto resta manuale finché non riprova'; }
+  }
+  return out;
+}
+
+/** «ks_alfa_romeo_75_turbo_evo» → «Alfa Romeo 75 Turbo Evo»: solo etichetta,
+ *  il confronto reale è a token (findCar), una scrittura in meno da correggere. */
+export function labelDaCarId(carId) {
+  return String(carId ?? '').replace(/^ks_/, '')
+    .split('_')
+    .filter(Boolean)
+    .map((p) => (/^[\d]+$/.test(p) ? p : p[0].toUpperCase() + p.slice(1)))
+    .join(' ');
 }
 
 /**
@@ -112,7 +192,13 @@ if (isMain) {
     process.exit(0);
   }
 
-  console.log('campiono il garage ogni 700ms — cambia auto in gioco quando vuoi (ctrl+c per fermare):');
+  if (args.includes('--from-logs')) {
+    const res = learnCarFromLogs();
+    for (const v of res.voci) console.log(v);
+    console.log(`imparate ${res.added} coppie da ${res.scanned} log di gioco (storicamente: ogni auto mai caricata entra, anche senza cambi a mano).`);
+    process.exit(0);
+  }
+  console.log('campiono il garage ogni 700ms — cambia auto in gioco quando vuoi (ctrl+c per fermare, oppure --from-logs per imparare dai log di gioco):');
   let last = null;
   const GARAGE_LIVE = currentGarageFile();
   setInterval(() => {

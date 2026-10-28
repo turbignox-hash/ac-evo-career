@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { carPoolOf, carInPool } from '../src/car-pool.mjs';
+import { carPoolOf, carInPool, poolNodeForLive } from '../src/car-pool.mjs';
 
 const TMP = mkdtempSync(join(tmpdir(), 'carpool-'));
 
@@ -99,3 +99,69 @@ test('niente pool (classe né nodo), niente giudizio: carInPool ammette tutto', 
   } finally { ripristina(); }
 });
 const ammi = (parco) => parco.ammesse;
+
+/* ------- il giudizio LIVE si fa solo con la serie giusta (27/10) -------
+   Il caso reale di Mauro: il coach ripeteva «Ferrari F40 LM fuori parco»
+   mentre lui girava con le auto delle SUE serie — l'F40 LM ha il parco suo
+   (Leggende Stradali, Coppa F40 LM) e il touch live lo giudicava col pool
+   della serie di carriera pure quando la sessione non era quella. */
+
+const LADDER_LIVE = {
+  contentNames: {
+    cars: {
+      'ks_r5_gt_turbo': 'Renault 5 GT Turbo',
+      'ks_escort_cosworth': 'Ford Escort RS Cosworth',
+      'ks_ferrari_f40_lm': 'Ferrari F40 LM',
+    },
+    tracks: { 'brands_hatch': 'Brands Hatch', 'donington_park': 'Donington Park' },
+  },
+  nodes: [
+    { nodeId: 'coppa_strada_80', cars: ['ks_r5_gt_turbo', 'ks_escort_cosworth'],
+      calendar: [{ track: 'brands_hatch' }, { track: 'donington_park' }] },
+    { nodeId: 'coppa_ferrari-f40-lm', cars: ['ks_ferrari_f40_lm'],
+      calendar: [{ track: 'donington_park' }] },
+  ],
+};
+
+function giudizioLive({ pending = null, node = 'coppa_strada_80', round = 0, smTrack, smType, car }) {
+  const nodo = poolNodeForLive(LADDER_LIVE, { pending, node, round, smTrack, smType });
+  if (!nodo) return null;
+  const parco = carPoolOf(LADDER_LIVE, nodo);
+  return { nodo, ok: !car || carInPool(car, parco.ammesse), ammesse: parco.ammesse };
+}
+
+test('giudizio live: in menu (pista assente) la copilota NON parla', () => {
+  assert.equal(giudizioLive({ smTrack: null, smType: 'Race', car: 'Ferrari F40 LM' }), null);
+  assert.equal(giudizioLive({ smTrack: '', car: 'Ferrari F40 LM' }), null);
+});
+
+test('sessione su un\'altra pista o non di gara (test griglia, MP di un\'altra serie): tace anche con l\'F40 LM', () => {
+  // senza pending e con SM su Donington (ronda 1: non è la ronda corrente, la 0):
+  // non è una gara della carriera → niente giudizio, niente «fuori parco» a ripetizione
+  assert.equal(giudizioLive({ smTrack: 'Donington Park', smType: 'Race', car: 'Ferrari F40 LM' }), null);
+  // prove/hotstint sulla pista GIUSTA ma senza gara: niente punti in ballo, niente parole
+  assert.equal(giudizioLive({ smTrack: 'Brands Hatch', smType: 'HotStint', car: 'Ferrari F40 LM' }), null);
+});
+
+test('gara lanciata dal flusso (pending): vigia al guinzaglio: il round della serie giudica', () => {
+  const g = giudizioLive({
+    pending: { node: 'coppa_strada_80', round: 0, trackId: 'brands_hatch' },
+    smTrack: 'Brands Hatch', smType: 'Race', car: 'Ferrari F40 LM',
+  });
+  assert.equal(g.nodo, 'coppa_strada_80');
+  assert.equal(g.ok, false, 'F40 nel sedile di una gara Coppa Strada → fuori parco, il vigia resta');
+  assert.equal(carInPool('Renault 5 GT Turbo', g.ammesse ?? []), true, 'la R5 GT Turbo resta ammessa');
+  // il flusso lanciato, ma la SM su un'altra pista (gara diversa): tace
+  assert.equal(giudizioLive({
+    pending: { node: 'coppa_strada_80', round: 0, trackId: 'brands_hatch' },
+    smTrack: 'Donington Park', smType: 'Race', car: 'Ford Escort RS Cosworth',
+  }), null);
+});
+
+test('gara lanciata a mano (senza pending) sulla pista della ronda in Race: il vigia resta', () => {
+  const g = giudizioLive({ smTrack: 'brands_hatch', smType: 'Race', car: 'Ferrari F40 LM' });
+  assert.equal(g.nodo, 'coppa_strada_80');
+  assert.equal(g.ok, false, 'F40 LM in gara Coppa Strada: fuori parco');
+  const ok = giudizioLive({ smTrack: 'Brands Hatch', smType: 'Race', car: 'Renault 5 GT Turbo' });
+  assert.equal(ok.ok, true, 'la R5 GT Turbo nella sua gara non deve sentire nessuna allerta');
+});

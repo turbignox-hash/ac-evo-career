@@ -27,7 +27,7 @@ const stamp = () => {
   const t = new Date();
   return [t.getHours(), t.getMinutes(), t.getSeconds()].map((n) => String(n).padStart(2, '0')).join('') + '-' + String(t.getMilliseconds()).padStart(3, '0');
 };
-let first = true;
+const _first = true;
 setInterval(() => {
   for (const p of walk(GAME_SAVEDIR)) {
     let st;

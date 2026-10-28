@@ -225,6 +225,11 @@ export function engineerLive(snap, ctx = {}) {
   gauges.position = player.position ?? null;
   gauges.drivers = player.drivers ?? null;
   gauges.timeLeft = player.timeLeft ?? null;
+  // SENSORE DIRETTO DELL'ULTIMO GIRO (28/10): il flag isLastLap della MMF
+  // grafica, già parseato in shmem.mjs — arriva ai narratori del copilota
+  // (narratore 8 di viste-a.js, «Ultimo giro!») che prima dipendevano SOLO
+  // dal contatore giri, fermo a 0 per tutta la gara del 24/10.
+  gauges.isLastLap = player.isLastLap ?? null;
   gauges.raceLaps = ctx.raceLaps ?? null;
   gauges.fuelPerLap = Number.isFinite(fuelPerLap) ? fuelPerLap : null;
   const pit = pitWindow(gauges, { inRace, lapsTotal: gauges.lapsTotal });

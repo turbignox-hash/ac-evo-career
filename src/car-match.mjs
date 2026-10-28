@@ -74,7 +74,7 @@ export function carMatch(name, candidates, keyOf, aliases = {}) {
   //    dichiarano (map lower del nome richiesto → alias stringa).
   const alias = aliases[String(name).toLowerCase()];
   if (alias) {
-    const viaAlias = carMatch(alias, candidates.filter((c) => true), keyOf, {});
+    const viaAlias = carMatch(alias, candidates.filter((_c) => true), keyOf, {});
     if (viaAlias) return { ...viaAlias, stage: 'alias' };
   }
   return null;

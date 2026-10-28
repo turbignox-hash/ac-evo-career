@@ -12,11 +12,11 @@ function parse(buf, start, end, out) {
   while (i < end) {
     const tagOff = i; const tag = buf[i++];
     const field = tag >> 3, wire = tag & 7;
-    let valOff = i, len = 0;
-    if (wire === 0) { while (buf[i] & 128) i++; i++; len = 1; }
-    else if (wire === 1) { i += 8; len = 8; }
-    else if (wire === 5) { i += 4; len = 4; }
-    else if (wire === 2) { let l = 0, s = 0; while (true) { const x = buf[i]; l |= (x & 127) << s; s += 7; i++; if (!(x & 128)) break; } valOff = i; len = l; i += l; }
+    let valOff = i, _len = 0;
+    if (wire === 0) { while (buf[i] & 128) i++; i++; _len = 1; }
+    else if (wire === 1) { i += 8; _len = 8; }
+    else if (wire === 5) { i += 4; _len = 4; }
+    else if (wire === 2) { let l = 0, s = 0; while (true) { const x = buf[i]; l |= (x & 127) << s; s += 7; i++; if (!(x & 128)) break; } valOff = i; _len = l; i += l; }
     else break;
     out.push({ field, wire, tagOff, valOff, end: i, start: valOff });
   }

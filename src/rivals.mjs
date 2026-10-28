@@ -111,6 +111,11 @@ export function recordRaceGrid(result, playerPayload, { season, round, nodeId, n
       dsq: !!off.dsq, penalty: off.penalty ?? null,
       laps: Number(d.laps ?? 0) || 0,
       bestLap: d.best_lap || null,
+      /* settori del giro di riferimento, in ms (27/10, dossier stagionale):
+      il gioco li scrive per OGNI pilota in griglia — con essi la forma per
+      pista (settore forte/debole dell'avversario contro i tuoi). No falsi:
+      mancano → lista vuota. */
+      splits: (d.splits ?? []).map((s) => lapToMs(s)).filter(Number.isFinite),
       car: `${d.car_brand ?? ''} ${d.car_name ?? ''}`.trim(),
     };
     raceRow.grid.push(row);
@@ -250,7 +255,83 @@ export function rivalDetail(key, state) {
     winsDetail: wins.map((m) => ({ track: m.track, season: m.season, round: m.round, car: m.car, at: m.at })),
     beatsMeAt: [...new Set(meetings.filter((m) => m.beatMe).map((m) => m.track))],
     meetings,
+    /* DOSSIER STAGIONALE (27/10): la forma per pista — scontroi, vittorie,
+     * best-lap suo vs mio, settori forti/deboli di lui contro i tuoi. */
+    stagione: stagioneDelRivale(store, key),
   };
+}
+
+/* La FORMA per pista (27/10, dossier stagionale): per ogni traccia dove ci
+ * siamo incontrati — quanti scontri, vittorie e podi suoi, il miglior giro
+ * suo contro il mio (delta in ms) e i settori medi: dove LUI è forte e dove
+ * è debole rispetto a te. Dai dati che recordRaceGrid già salva (bestLap +
+ * splits per OGNI pilota in griglia): niente numeri inventati. */
+export function stagioneDelRivale(store, key) {
+  const perTraccia = new Map(); // chiave = track in minuscolo
+  for (const race of store.races) {
+    const g = race.grid.find((x) => x.key === key);
+    if (!g) continue;
+    const me = race.grid.find((x) => x.isPlayer);
+    const tk = String(race.track ?? '').toLowerCase();
+    const t = perTraccia.get(tk) ?? (() => {
+      const nt = {
+        track: race.trackDisplay ?? race.track,
+        scontri: 0, vittorie: 0, podi: 0, pos: [],
+        bestLapSua: null, bestLapMia: null,
+        setSua: new Map(), setMia: new Map(), // indice settore → [ms…]
+      };
+      perTraccia.set(tk, nt);
+      return nt;
+    })();
+    t.scontri += 1;
+    if (!g.dnf) {
+      if (g.position === 1) t.vittorie += 1;
+      if (g.position <= 3) t.podi += 1;
+      if (Number.isFinite(g.position)) t.pos.push(g.position);
+    }
+    const sua = lapToMs(g.bestLap);
+    if (Number.isFinite(sua) && (t.bestLapSua == null || sua < t.bestLapSua)) t.bestLapSua = sua;
+    if (me) {
+      const mia = lapToMs(me.bestLap);
+      if (Number.isFinite(mia) && (t.bestLapMia == null || mia < t.bestLapMia)) t.bestLapMia = mia;
+    }
+    (g.splits ?? []).forEach((s, i) => {
+      if (Number.isFinite(s)) (t.setSua.get(i) ?? t.setSua.set(i, []).get(i)).push(s);
+    });
+    if (me) {
+      (me.splits ?? []).forEach((s, i) => {
+        if (Number.isFinite(s)) (t.setMia.get(i) ?? t.setMia.set(i, []).get(i)).push(s);
+      });
+    }
+  }
+  const media = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
+  return [...perTraccia.values()].map((t) => {
+    const settori = [];
+    for (const i of new Set([...t.setSua.keys(), ...t.setMia.keys()])) {
+      const sua = media(t.setSua.get(i) ?? []), mia = media(t.setMia.get(i) ?? []);
+      if (sua != null && mia != null) {
+        settori.push({ settore: i + 1, mediaSuaMs: Math.round(sua), mediaMiaMs: Math.round(mia), deltaMs: Math.round(sua - mia) });
+      }
+    }
+    // delta NEGATIVO = lui più veloce di te in quel settore → il suo forte;
+    // delta positivo più grande = dove perde tempo → il suo debole (tua occasione)
+    const forte = settori.length ? settori.reduce((a, b) => (b.deltaMs < a.deltaMs ? b : a)) : null;
+    const debole = settori.length ? settori.reduce((a, b) => (b.deltaMs > a.deltaMs ? b : a)) : null;
+    return {
+      track: t.track,
+      scontri: t.scontri,
+      vittorie: t.vittorie,
+      podi: t.podi,
+      posMedia: t.pos.length ? Math.round((t.pos.reduce((a, b) => a + b, 0) / t.pos.length) * 10) / 10 : null,
+      posMigliore: t.pos.length ? Math.min(...t.pos) : null,
+      bestLapSua: t.bestLapSua,
+      bestLapMia: t.bestLapMia,
+      deltaGiroMs: t.bestLapSua != null && t.bestLapMia != null ? Math.round(t.bestLapSua - t.bestLapMia) : null,
+      settori,
+      settoreForte: forte,
+      settoreDebole: debole,
+    };
+  }).sort((a, b) => b.scontri - a.scontri || String(a.track).localeCompare(String(b.track)));
 }
 
 /* ------------------------------------------------------------------ */

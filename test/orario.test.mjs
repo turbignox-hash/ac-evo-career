@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { PIANI, pianoFor, specForRound, applyPianoToCalendar } from '../src/orario.mjs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, } from 'node:fs';
 
 // SANITÀ (lezione 21/10, notte): un test senza --dry HA RISCRITTO IL LADDER VERO
 // del progetto (config/career.evo.ladder.json): il full-suite è arrosto per 6 file

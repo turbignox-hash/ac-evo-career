@@ -120,6 +120,17 @@ next race.
 Highlights of the **0.1.13–0.1.18** line (every save writes a readable
 changelog under [report/](report/), with the real test-suite result inside):
 
+- **Fully procedural championships, with procedural intelligent balancing.**
+  Five tiers (Epoca → Corsa) come out of a seeded draw (`tools/_genera-stili.mjs`):
+  each level draws at random from the car catalog within its PI band — mono-brand
+  series, multiclass, classics and GTs drawn freely together («what it draws
+  will be completely random»), and `--seed N` reproduces the same draw. The
+  balance is procedural too: ballast and restrictor penalties computed from the
+  PI delta (slope calibrated on real data; the 20% game cap declared for
+  out-of-formula cars — the first race decides), then per-track recalibration
+  learned from your real race results by grid-calib. Even before signing a seat,
+  the Championships tab shows the five draw sheets — seed, pool, rules and
+  calendar, all clickable.
 - **The copilot always speaks Italian — and makes sense.** From 27/10 the
   voice is always it-IT even with an English interface (English UI serves
   Paddock, the voice no longer follows it). At startup it waits a few beats

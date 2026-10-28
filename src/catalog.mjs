@@ -12,7 +12,7 @@
 import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { recordWarning } from './warnings.mjs';
 import { dirname, join, basename } from 'node:path';
-import { findPlayerDriver, penaltyOf, officialPositionOf } from './results.mjs';
+import { findPlayerDriver, penaltyOf, officialPositionOf, dedupeDriverDiRiga } from './results.mjs';
 import { nomePilota } from './nome-pilota.mjs';
 
 /* ------------------------------------------------------------------ */
@@ -132,7 +132,38 @@ function readJsonSafe(file) {
       .replace(/,\s*([\]}])/g, '$1');
     return JSON.parse(text);
   } catch { return null; }
-}
+}/* QUANDO VERO dalla SESSIONE e non dal mtime (28/10, i "duplicati
+   nell'Archivio"): le copie/ripristini del disco dimenticano l'ora originale
+   (tutti i file ricopiati la stessa sera compaiono con lo stesso minuto),
+   quindi l'archivio raggruppava come «tentativi ×N» gare di GIORNI diversi.
+   La data vera sta nel nome che EVO dà al file: YYMMDD-HHMMSS o YYMMDD-HHMM.
+   Fallback: mtime. A livello MODULO: serve anche all'archivio online. */
+
+/** Data ISO se la data è valida, altrimenti il fallback mtime/adesso: anche
+ *  un nome YYMMDD può inventare date inesistenti (2026-02-30 e simili, 28/11). */
+const isoOr = (d, file, mtime) => {
+  if (d instanceof Date && Number.isFinite(d.getTime())) return d.toISOString();
+  return sessionMtime(file, mtime);
+};
+
+/** Fallback mtime: mai far esplodere l'archivio per un file che il disco
+ *  restituisce con mtime zero o sporco (26/11): si scala all'adesso con avviso. */
+const sessionMtime = (file, mtime) => {
+  const d = new Date(mtime);
+  if (Number.isFinite(d.getTime())) return d.toISOString();
+  recordWarning('catalog.archive', 'file con data sconosciuta, uso l\'adesso: ' + file, String(mtime));
+  return new Date().toISOString();
+};
+
+/** Quando di una sessione dal NOME del file (il secolo si antepone al testo:
+ *  «20»+«26» = 2026, senza aritmetica; con «2»+«26» veniva l'anno 226). */
+const sessionWhen = (file, mtime) => {
+  let m = String(file).match(/^(\d{2})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/);
+  if (m) return isoOr(new Date(`20${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}`), file, mtime);
+  m = String(file).match(/^(\d{2})(\d{2})(\d{2})-(\d{2})(\d{2})[^\d]/);
+  if (m) return isoOr(new Date(`20${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:00`), file, mtime);
+  return sessionMtime(file, mtime);
+};
 
 export function listArchive(paths, { limit = 200, driver = null, afterMs = 0 } = {}) {
   // afterMs (24/10, slot 3): i Results di EVO sono UNA cartella per PC condivisa
@@ -152,35 +183,6 @@ export function listArchive(paths, { limit = 200, driver = null, afterMs = 0 } =
     }
   }
   entries.sort((a, b) => b.mtime - a.mtime);
-  // QUANDO VERO dalla SESSIONE e non dal mtime (28/10, il "duplicato nell'Archivio"):
-  // le copie/ripristini del disco dimenticano l'ora originale (tutti i file
-  // ricopiati la stessa sera compaiono con lo stesso minuto), quindi l'archivio
-  // raggruppava come «tentativi ×N» gare di GIORNI diversi. La data vera sta nel
-  // nome che EVO dà al file: YYMMDD-HHMMSS o YYMMDD-HHMM. Fallback: mtime.
-  const isoOr = (d, file, mtime) => {
-    // anche un nome AXIS estilo YYMMDD può inventare date inesistenti (2026-02-30
-    // e simili, 28/11): isValidata, altrimenti si scala al fallback mtime/adesso.
-    if (d instanceof Date && Number.isFinite(d.getTime())) return d.toISOString();
-    return sessionMtime(file, mtime);
-  };
-  const sessionMtime = (file, mtime) => {
-    // fallback mtime: mai far esplodere l'archivio per un file che il disco
-    // restituisce con mtime zero o sporco (26/11): si scala all'adesso con avviso.
-    const d = new Date(mtime);
-    if (Number.isFinite(d.getTime())) return d.toISOString();
-    recordWarning('catalog.archive', 'file con data sconosciuta, uso l\'adesso: ' + file, String(mtime));
-    return new Date().toISOString();
-  };
-  const sessionWhen = (file, mtime) => {
-    // il nome è YYMMDD-HHMMSS o YYMMDD-HHMM: il secolo si antepone al testo
-    // («20»+«26» = 2026, senza aritmetica; con «2»+«26» veniva l'anno 226,
-    // data invalida e tutti i file ricaduti nell'ora della copia sul disco).
-    let m = String(file).match(/^(\d{2})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/);
-    if (m) return isoOr(new Date(`20${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}`), file, mtime);
-    m = String(file).match(/^(\d{2})(\d{2})(\d{2})-(\d{2})(\d{2})[^\d]/);
-    if (m) return isoOr(new Date(`20${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:00`), file, mtime);
-    return sessionMtime(file, mtime);
-  };
   const rows = [];
   for (const e of entries.slice(0, limit)) {
     const r = readJsonSafe(join(e.dir, e.file));
@@ -205,14 +207,152 @@ export function listArchive(paths, { limit = 200, driver = null, afterMs = 0 } =
       hour: r.hour ?? null,
       drivers: drivers.length,
       winner: winner ? nomePilota(winner.driver_name, winner.driver_surname) : null,
-      me: me ? { position: myPos, bestLap: me.best_lap ?? null, car: `${me.car_brand ?? ''} ${me.car_name ?? ''}`.trim() } : null,
+      me: me ? { position: myPos, bestLap: me.best_lap ?? null, car: carLabel(me) } : null,
     });
   }
   return { total: entries.length, rows, scoped: !!afterMs };
 }
 
-/** Dettaglio di un file risultato: griglia completa con giri, tempi e gap. */
-export function resultDetail(paths, fileName) {
+/* ------------------------------------------------------------------ */
+/* ARCHIVIO ONLINE (31/10): le gare multiplayer, la memoria che non     */
+/* doveva perdere nessuno                                               */
+/* ------------------------------------------------------------------ */
+
+/** Un file risultato MULTIPLAYER ha il tag _MP_ nel nome (SP = singolo). */
+export const isMpResultFile = (name) => /_MP_/.test(String(name ?? ''));
+
+/** Nome completo del pilota da una riga del risultato. */
+const mpDriverName = (d) => `${String(d?.driver_name ?? '').replace(/^[\u2022\s]+/, '').trim()} ${String(d?.driver_surname ?? '').trim()}`.trim();
+
+/** Identità STABILE nelle gare online: il driver_id del gioco (a|b) sopravvive
+ *  a nickname e community; senza, il nome normalizzato è l'unica chiave. */
+const mpKeyOf = (d) => {
+  const id = d?.driver_id;
+  if (id?.a != null && String(id.a).length > 1) return `id:${id.a}|${id.b ?? ''}`;
+  const nome = mpDriverName(d).toLowerCase();
+  return nome.length > 1 ? `nome:${nome}` : null;
+};
+
+/**
+ * L'ARCHIVIO ONLINE in una sola passata di lettura dai file _MP_ dei Results:
+ *  - `rows`: le sessioni con community/server, pista, meteo, ora, i "TUOI"
+ *    numeri (il flag is_current_driver del gioco, col nome della carriera a
+ *    ripiego) e il vincitore;
+ *  - `rivals`: il LIBRO DEI RIVALI ONLINE — chi incroci più spesso, quante
+ *    volte ti ha battuto, dove, in quale community e l'ultima volta. Identità
+ *    dal driver_id (stabile fra sessioni), a ripiego dal nome.
+ * LETTURA PURA: carriera, soldi e punti MAI toccati (la salvaguardia sta in
+ * results.mjs pickCandidate e watch.mjs). Un file mezzo-scritto il gioco può
+ * lasciare in disco (.json.out) o un JSON rotto: engullito in pace.
+ */
+export function onlineArchive(paths, { limit = 200, driver = null, afterMs = 0 } = {}) {
+  const rows = [];
+  const book = new Map();
+  for (const dir of resultDirs(paths)) {
+    if (!existsSync(dir)) continue;
+    let files = [];
+    try { files = readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.json') && isMpResultFile(f)); } catch { continue; }
+    for (const f of files) {
+      const full = join(dir, f);
+      let st;
+      try { st = statSync(full); } catch { continue; }
+      if (afterMs && st.mtimeMs < afterMs) continue;
+      const r = dedupeDriverDiRiga(readJsonSafe(full));
+      if (!r) continue;
+      const when = sessionWhen(f, st.mtimeMs);
+      const drivers = Array.isArray(r.drivers) ? r.drivers : [];
+      const zeroBased = drivers.some((d) => Number(d.position) === 0);
+      const winner = drivers.find((d) => Number(d.position) === (zeroBased ? 0 : 1));
+      const found = driver ? findPlayerDriver(r, driver) : { driver: drivers.find((d) => d.is_current_driver === true) ?? null };
+      const me = found.driver ?? null;
+      const myPos = me ? Number(me.position) + (zeroBased ? 1 : 0) : null;
+      const community = r.season ?? '?';
+      rows.push({
+        file: f,
+        when,
+        community,
+        event: r.event ?? '?',
+        session: r.session ?? '?',
+        track: r.track ?? '?',
+        layout: r.layout ?? '',
+        weather: String(r.weather_type ?? '').replace('GameModeSelectionWeatherType_', '').replace('WeatherType_', '') || null,
+        hour: r.hour ?? null,
+        drivers: drivers.length,
+        winner: winner ? nomePilota(winner.driver_name, winner.driver_surname) : null,
+        me: me ? { position: myPos, bestLap: me.best_lap ?? null, car: carLabel(me) } : null,
+      });
+      // IL LIBRO DEI RIVALI: solo le gare in cui ti sei davvero incrociato
+      if (me) {
+        for (const d of drivers) {
+          if (d === me) continue;
+          const key = mpKeyOf(d);
+          if (!key || key === mpKeyOf(me)) continue;   // righe riciclate dal gioco: stesso uomo
+          const e = book.get(key) ?? { key, meetings: 0, beats: 0, beaten: 0, communities: [], names: [], lastWhen: null, lastTrack: null, lastMePos: null, hist: [], tracks: {}, cars: {} };
+          e.meetings++;
+          if (e.names.length < 3 && !e.names.includes(mpDriverName(d))) e.names.push(mpDriverName(d));
+          if (e.communities.length < 3 && !e.communities.includes(community)) e.communities.push(community);
+          e.lastWhen = !e.lastWhen || when > e.lastWhen ? when : e.lastWhen;
+          e.lastTrack = r.track ?? null;
+          e.lastMePos = myPos;
+          e.name = e.names[e.names.length - 1] ?? e.name;
+          const rPos = Number(d.position) + (zeroBased ? 1 : 0);
+          if (Number.isFinite(rPos) && rPos > 0) {
+            // IL CONTO PISTE: in quante gare su QUELLA pista vi siete incrociati,
+            // e in quante tu sei arrivato davanti — la «pista preferita» nasce qui.
+            const tk = e.tracks[r.track] ?? (e.tracks[r.track] = { n: 0, tu: 0 });
+            tk.n++;
+            if (myPos != null && rPos > myPos) tk.tu++;
+            const car = carLabel(d);
+            if (car) e.cars[car] = (e.cars[car] ?? 0) + 1;
+            if (myPos != null) {
+              if (rPos > myPos) e.beaten++; else e.beats++;
+              e.hist.push({ when, track: r.track ?? null, pos: myPos, beat: rPos > myPos });
+            }
+          } else if (myPos != null) {
+            // lui classificato a P0 (ritirato/DSQ): la tua posizione vale nella forma,
+            // ma il testa a testa non può dire né «lui» né «tu»
+            e.hist.push({ when, track: r.track ?? null, pos: myPos, beat: null });
+          }
+          book.set(key, e);
+        }
+      }
+    }
+  }
+  rows.sort((a, b) => (b.when > a.when ? 1 : b.when < a.when ? -1 : 0));
+  // DAI CONTI ALLA FORMA: per ogni rivale gli ultimi incroci in ordine di data
+  // (la scansione non è cronologica), la pista più frequente e l'auto abituale.
+  for (const e of book.values()) {
+    e.hist.sort((a, b) => (b.when > a.when ? 1 : b.when < a.when ? -1 : 0)); // la più nuova prima
+    e.form = e.hist.slice(0, 5).map((h) => ({ pos: h.pos ?? null, beat: h.beat }));
+    const top = Object.entries(e.tracks).sort((a, b) => b[1].n - a[1].n)[0] ?? null;
+    e.favTrack = top ? { track: top[0], n: top[1].n, tu: top[1].tu } : null;
+    const topCar = Object.entries(e.cars).sort((a, b) => b[1] - a[1])[0] ?? null;
+    e.favCar = topCar ? topCar[0] : null;
+    delete e.tracks; delete e.cars; delete e.hist;
+  }
+  const rivals = [...book.values()]
+    .sort((a, b) => b.meetings - a.meetings || b.beats - a.beats)
+    .slice(0, limit);
+  return { total: rows.length, rows: rows.slice(0, limit), rivals };
+}
+
+/** Dettaglio di un file risultato: griglia completa con giri, tempi e gap.
+ *  Per le sessioni ONLINE (_MP_) con `driver` noto aggiunge per ogni pilota il
+ *  TESTA A TESTA col libro dei rivali: { incroci, tu, lui } su TUTTE le
+ *  sessioni multiplayer, l'identità riconosciuta dai nickname alternativi. */
+const nomeChiave = (n) => String(n ?? '').toLowerCase().trim();
+
+/** La label auto senza marca raddoppiata: nel file il modello porta spesso
+ *  già il brand («Peugeot 205 T16»), e brand+modello stampava «Peugeot Peugeot…». */
+const carLabel = (d) => {
+  const brand = String(d?.car_brand ?? '').trim();
+  const name = String(d?.car_name ?? '').trim();
+  if (!brand) return name;
+  if (!name) return brand;
+  return RegExp('^' + brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*', 'i').test(name)
+    ? name : `${brand} ${name}`;
+};
+export function resultDetail(paths, fileName, { driver = null } = {}) {
   const safe = basename(String(fileName ?? ''));
   for (const dir of resultDirs(paths)) {
     const full = join(dir, safe);
@@ -227,6 +367,12 @@ export function resultDetail(paths, fileName) {
       return m ? Number(m[1]) * 60000 + Number(m[2]) * 1000 + Number(m[3]) : null;
     };
     const wMs = toMs(winnerTime);
+    // IL TUO POSTO (27/10): flag del gioco se parla solo di te (una fila cabinata
+    // «tutti te» non vale nulla), altrimenti il riconoscimento per nome di
+    // findPlayerDriver — lo stesso identità usata da archivio e import.
+    const meDriver = (driver ? findPlayerDriver(r, driver).driver : null)
+      ?? (drivers.filter((d) => d.is_current_driver === true).length === 1
+        ? drivers.find((d) => d.is_current_driver === true) : null);
     // penalità vere di EVO: high_penalty ('+5.0s' | 'DT' | 'DSQ') — l'array
     // `penalties` è quasi sempre vuoto. La posizione ufficiale la ricalcola
     // officialPositionOf (i secondi il gioco li aggiunge a classificazione fatta,
@@ -241,19 +387,34 @@ export function resultDetail(paths, fileName) {
         // l'ordine di pista del file (sono già in coda)
         position: off.position ?? pos, rawPos: pos, dsq: !!off.dsq,
         name: nomePilota(d.driver_name, d.driver_surname),
-        nation: d.driver_nation ?? null, car: `${d.car_brand ?? ''} ${d.car_name ?? ''}`.trim(),
-        isAI: /^[•\u2022]/.test(String(d.driver_name ?? '').trim()), me: d.is_current_driver === true,
+        nation: d.driver_nation ?? null, car: carLabel(d),
+        isAI: /^[•\u2022]/.test(String(d.driver_name ?? '').trim()), me: d === meDriver,
         laps: d.laps ?? 0, bestLap: d.best_lap ?? null, hasBest: d.has_best_lap === true,
         totalTime: d.total_time ?? null, gap, pits: d.num_pits ?? 0,
         penalty: penaltyOf(d).label,
         offSort: (off.position ?? 0) || (1000 + pos),
       };
     }).sort((a, b) => a.offSort - b.offSort);
+    // TESTA A TESTA (solo sessioni _MP_ con la carriera nota): il libro dei
+    // rivali parlato per NICKNAME — un rivale cambia nickname tra server, va
+    // riconosciuto dai nomi alternativi del libro.
+    const isMp = isMpResultFile(safe);
+    if (isMp && driver) {
+      const arch = onlineArchive(paths, { driver, afterMs: 0 });
+      const perNome = new Map();
+      for (const e of arch.rivals ?? []) {
+        for (const n of e.names) perNome.set(nomeChiave(n), e);
+      }
+      for (const row of rows) {
+        const e = perNome.get(nomeChiave(row.name));
+        row.h2h = e ? { meetings: e.meetings, tu: e.beaten, lui: e.beats } : null;
+      }
+    }
     return {
       file: safe, season: r.season ?? '?', event: r.event ?? '?', session: r.session ?? '?',
       track: r.track ?? '?', layout: r.layout ?? '',
       weather: String(r.weather_type ?? '').replace('GameModeSelectionWeatherType_', '').replace('WeatherType_', '') || null,
-      hour: r.hour ?? null, min: r.min ?? 0, rows,
+      hour: r.hour ?? null, min: r.min ?? 0, rows, is_mp: isMp,
     };
   }
   return null;

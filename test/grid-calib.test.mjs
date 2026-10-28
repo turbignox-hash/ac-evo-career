@@ -13,7 +13,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, copyFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, copyFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -118,6 +118,80 @@ test('Sebring: cap 20% colpito → niente altra penalità ma proposta di ESCLUSI
     'Supra sotto il cap: proposta di penalità aumentata');
 });
 
+/* ------------ 2-bis. regola-classe: le piste convergenti sulla STESSA auto zolano il default di classe ------------ */
+test('regola-classe: perTraccia convergenti (>=2 piste, lezione 28/10) sopra la base proponono il default zollato', () => {
+  // stessa corsia del test 1; la fixture porta GIÀ 3 piste overrideate sopra il default
+  // (Golf: COTA 9%, Sebring 20%, Monza 20% contro la regola di classe a 1%)
+  const race = griglia(
+    carAI('Golf1', ...AUTO.golf, 157.5),
+    carAI('Golf2', ...AUTO.golf, 157.6),
+    carAI('M3a', ...AUTO.m3, 153.0),
+    carAI('Supra1', ...AUTO.supra, 161.48),
+    carAI('Abarth1', ...AUTO.abarth, 161.49),
+  );
+  race.track = 'Pista Di Prova Senza Regole';
+  const { proposte } = calib.analyzeRace(race, { track: race.track });
+  const golf = proposte.find((p) => p.leva === 'regola-classe' && p.auto === 'Volkswagen Golf 8 GTI');
+  assert.ok(golf, `serve la proposta regola-classe per il Golf (3 piste confermanti) — proposte=${JSON.stringify(proposte.map((p) => p.leva + ':' + p.auto))}`);
+  assert.equal(golf.a, '100kg/20%', `il valore zollato al cap: ${golf.a}`);
+  assert.ok(golf.comando.includes('--rule') && golf.comando.includes('Volkswagen Golf 8 GTI'), `comando pronto: ${golf.comando}`);
+  assert.ok(!proposte.some((p) => p.leva === 'regola-classe' && p.auto === 'Toyota Supra MKIV'),
+    'la Supra ha conferme sotto la base/una sola: niente regola-classe');
+  assert.ok(!proposte.some((p) => p.leva === 'regola-classe' && p.auto === 'Abarth 695 Biposto'),
+    'la base nuda non si autopromuove');
+});
+
+/* ------------ 2-ter. escludi-CLASSE: attivata SOLO dai dati già scritti (28/10) ------------ 
+ * richiesta Mauro: «se un'auto è troppo veloce anche con le zavorre al max, si
+ * potrebbe escluderla dal campionato, ma attivabile solo se i dati sono dimostrati».
+ * La dimostrazione sono le esclusioni per-traccia GIÀ APPLICATE (ramo B accetta):
+ * una sola → mai; due piste → proposta; già scritta in classe → silenzio. */
+test('escludi-classe: due piste confermate aprono la proposta, una sola NON basta, già scritta tace', async () => {
+  calib.resetCalib();
+  const PRE = readFileSync(CLASSES_TMP, 'utf8');
+  const raceSebring = () => {
+    const race = griglia(
+      carAI('Golf1', ...AUTO.golf, 156.7),   // al cap (20% di perTraccia Sebring in fixture)
+      carAI('Golf2', ...AUTO.golf, 156.71),
+      carAI('Abarth1', ...AUTO.abarth, 161.5),
+      carAI('Abarth2', ...AUTO.abarth, 161.52),
+    );
+    race.track = 'Sebring International Raceway';
+    return race;
+  };
+  const edit = (fn) => {
+    const j = JSON.parse(readFileSync(CLASSES_TMP, 'utf8'));
+    fn(j.classi['pi-10-11-moderna']);
+    writeFileSync(CLASSES_TMP, JSON.stringify(j, null, 2));
+    return new Promise((r) => setTimeout(r, 15));   // mtime: le scritture nello stesso tick si tengono
+  };
+  try {
+    // (a) zero conferme: il ramo B propone il per-traccia, la classe resta muta
+    const { proposte: p0 } = calib.analyzeRace(raceSebring(), { track: 'Sebring International Raceway' });
+    assert.ok(p0.some((p) => p.leva === 'escludi' && p.auto === 'Volkswagen Golf 8 GTI'), 'al cap e scappante: escludi per-traccia');
+    assert.ok(!p0.some((p) => p.leva === 'escludi-classe'), 'senza conferme scritte: NIENTE esclusione di classe');
+    // (b) UNA sola pista confermante: ancora niente
+    await edit((c) => { c.perTraccia.Monza.escludiAuto = ['preset_mk8gti_mech_1']; });
+    const { proposte: p1 } = calib.analyzeRace(raceSebring(), { track: 'Sebring International Raceway' });
+    assert.ok(p1.some((p) => p.leva === 'escludi' && p.auto === 'Volkswagen Golf 8 GTI'), 'una pista: ancora solo il per-traccia');
+    assert.ok(!p1.some((p) => p.leva === 'escludi-classe'), 'UNA sola esclusione di pista NON dimostra niente');
+    // (c) DUE piste confermanti: qui arrivera la proposta di classe, col comando pronto
+    await edit((c) => { c.perTraccia['Circuit Of The Americas'].escludiAuto = ['preset_mk8gti_mech_1']; });
+    const { proposte: p2, evento } = calib.analyzeRace(raceSebring(), { track: 'Sebring International Raceway' });
+    const cl = p2.find((p) => p.leva === 'escludi-classe' && p.preset === 'preset_mk8gti_mech_1');
+    assert.ok(cl, `due piste che hanno escrio l'esclusione → proposta escludi-classe — proposte=${JSON.stringify(p2.map((p) => p.leva + ':' + (p.auto ?? '')))}`);
+    assert.equal(cl.auto, 'Volkswagen Golf 8 GTI');
+    assert.equal(cl.classe, evento.classe, 'la proposta porta la classe');
+    assert.ok(cl.comando.includes('escludiAuto') && cl.comando.includes('--drop') && cl.comando.includes('preset_mk8gti_mech_1'), `comando pronto: ${cl.comando}`);
+    // (d) già scritta in escludiAuto di classe: silenzio (né doppioni né rumore)
+    await edit((c) => { c.escludiAuto = ['preset_mk8gti_mech_1']; });
+    const { proposte: p3 } = calib.analyzeRace(raceSebring(), { track: 'Sebring International Raceway' });
+    assert.ok(!p3.some((p) => p.leva === 'escludi-classe' || p.leva === 'escludi'), 'esclusione di classe già scritta: zero proposte di esclusione');
+  } finally {
+    writeFileSync(CLASSES_TMP, PRE);   // la fixture torna vergine per i test dopo
+  }
+});
+
 /* ------------ 3. campo-ai in giù: mediana che scappa + battuto in gara ------------ */
 test('campo-ai in giù quando la mediana del campo scappa e ti ha battuto in gara', () => {
   const me = {
@@ -142,8 +216,8 @@ test('campo-ai in giù quando la mediana del campo scappa e ti ha battuto in gar
      proposte=${JSON.stringify(proposte)}
      perAuto=${JSON.stringify(evento.perAuto)}`);
   assert.equal(campo.direzione, 'giù');
-  const [lo, hi] = campo.a.split('-').map(Number);
-  const [oldLo, oldHi] = campo.da.split('-').map(Number);
+  const [_lo, hi] = campo.a.split('-').map(Number);
+  const [_oldLo, oldHi] = campo.da.split('-').map(Number);
   assert.ok(hi < oldHi, `la cima scende (${campo.a} ← ${campo.da})`);
 });
 
@@ -230,7 +304,7 @@ test('autoBase mentita fra parentesi e nomi con suffissi: i delta per-auto esist
   const { evento } = calib.analyzeRace(race, { track: race.track });
   assert.equal(evento.classe, 'coppa_mazda-rx7-fd', 'le auto si matchano comunque');
   const base = evento.perAuto.find((r) => r.base);
-  assert.ok(base && base.auto.includes('190E'), 'la base si riconosce oltre alle annotazioni');
+  assert.ok(base?.auto.includes('190E'), 'la base si riconosce oltre alle annotazioni');
   const nsx = evento.perAuto.find((r) => r.auto.includes('NSX'));
   assert.ok(nsx.deltaVsBaseSec != null && nsx.deltaVsBaseSec < -0.8,
     `NSX sfugge col delta calcolato (non null): ${nsx.deltaVsBaseSec}s`);
@@ -318,4 +392,49 @@ test('classe sconosciuta: nessun evento, nessun rumore', () => {
   assert.equal(evento.classe, null, 'le auto senza classe non inventano una classe');
   const brief = calib.recordRaceFromResult({ result: noto, track: 'X' });
   assert.ok(brief === null || brief.classe == null, 'la classe sconosciuta NON produce proposte');
+});
+
+/* ------------ 7. IL VERIFICATORE DI PADDOCK (27/10): le regole fonte:'paddock'
+ * NON le ha costruite nessuna gara — le gare vere le CONVALIDANO. Nel riepilogo
+ * ogni regola paddock porta l'esito dalle misure reali per-auto:
+ * confermata (entro tolleranza dalla base) / sballata (oltre) / da corse.
+ * Test sul file classi TEMPORANEO del test (come gli altri: mai il data/ vero). */
+test('regole fonte paddock nel riepilogo: confermata, sballata e da corse dall\'esito delle misure', () => {
+  calib.resetCalib();
+  // misura reale: M3 ~8s più veloce della base, Mini a parità (±0.8), nessun T16
+  const race = griglia(
+    carAI('Golf1', ...AUTO.golf, 157.5),
+    carAI('M3a', ...AUTO.m3, 153.0),
+    carAI('M3b', ...AUTO.m3, 153.5),
+    carAI('Mini1', ...AUTO.mini, 161.55),
+    carAI('Abarth1', ...AUTO.abarth, 161.49),
+    carAI('Abarth2', ...AUTO.abarth, 161.51),
+  );
+  race.track = 'Pista Di Prova Senza Regole';
+  calib.recordRaceFromResult({ result: race, track: race.track, sourceFile: 'pad-verifica.json' });
+  // patch del file classi TEMPORANEO: tre regole paddock — due che girano in
+  // pista e una mai corsa. Al termine il file torna la fixture INTATTA (test.after
+  // cancella tutto: gli altri test la richiedono pulita al 24/10).
+  const classes = JSON.parse(readFileSync(CLASSES_TMP, 'utf8'));
+  classes.classi['pi-10-11-moderna'].regole.push(
+    { preset: 'preset_padtest_sballata', auto: 'BMW M3 E46 CSL', ballastKg: 100, restrictorPct: 4, fonte: 'paddock' },
+    { preset: 'preset_padtest_conferma', auto: 'Mini John Cooper S', ballastKg: 100, restrictorPct: 2, fonte: 'paddock' },
+    { preset: 'preset_padtest_dacorse', auto: 'Peugeot 205 T16', ballastKg: 0, restrictorPct: 5, fonte: 'paddock' },
+  );
+  writeFileSync(CLASSES_TMP, JSON.stringify(classes, null, 2));
+  try {
+    const sum = calib.calibSummary();
+    const g = sum.gruppi.find((x) => x.classe === 'pi-10-11-moderna');
+    assert.ok(g?.paddock?.length === 3, `le tre regole paddock sono nel riepilogo: ${JSON.stringify(g?.paddock)}`);
+    const m3 = g.paddock.find((p) => p.auto.includes('M3'));
+    assert.equal(m3.esito, 'sballata', `M3 spalancata a ~8s dalla base: ${JSON.stringify(m3)}`);
+    assert.ok(m3.medSec != null && m3.medSec <= -1, `il delta misurato c'è: ${m3.medSec}s`);
+    const mini = g.paddock.find((p) => p.auto.includes('Mini'));
+    assert.equal(mini.esito, 'confermata', `Mini a parità di base: ${JSON.stringify(mini)}`);
+    const t16 = g.paddock.find((p) => p.auto.includes('T16'));
+    assert.equal(t16.esito, 'da corse', 'T16 mai corsa: in attesa, non una misurazione inventata');
+  } finally {
+    // la fixture torna INTATTA per i test successivi (e il memo invalidato da mtime)
+    copyFileSync(SAMPLE, CLASSES_TMP);
+  }
 });

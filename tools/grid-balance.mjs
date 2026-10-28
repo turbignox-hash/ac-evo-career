@@ -200,7 +200,7 @@ if (isMain) {
 const argv = process.argv.slice(2);
 const getArg = (name) => { const i = argv.indexOf('--' + name); return i >= 0 ? argv[i + 1] : null; };
 const has = (name) => argv.includes('--' + name);
-let FILE = getArg('file') ?? DEFAULT_FILE;
+const FILE = getArg('file') ?? DEFAULT_FILE;
 
 const buf = readFileSync(FILE);
 const dump = () => {
@@ -242,7 +242,7 @@ if (!drops.length && !aiRange && !has('serie') && !argv.includes('--rule')) { co
 const classes = loadClasses();
 let plan = { rules: [] };
 if (getArg('serie')) plan = planFromClass(classes, getArg('serie'), getArg('track'));
-const autoBase = getArg('auto-base');
+const _autoBase = getArg('auto-base');
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] !== '--rule') continue;
   const r = argv[++i];
@@ -256,10 +256,10 @@ for (let i = 0; i < argv.length; i++) {
 
 const dry = has('dry') || !has('apply');
 let fields = decodeMsg(buf);
-let report = [], cleared = 0, unused = [], droppate = [];
+let report = [], _cleared = 0, unused = [], _droppate = [];
 if (plan.rules.length) {
   const res = balanceCells(buf, plan);
-  fields = res.fields; report = res.report; cleared = res.cleared; unused = res.unused;
+  fields = res.fields; report = res.report; _cleared = res.cleared; unused = res.unused;
   console.log(`piano: ${plan.rules.map((r) => `${(r.match.preset ?? r.match.carName)} → ${r.ballastKg ?? 0}kg/${r.restrictorPct ?? 0}%`).join(' · ')}`);
   if (plan.trkMsg) console.log(`  traccia:${plan.trkMsg}`);
   for (const r of report) console.log(`  ${(r.changed ? '→' : '=').trim()}  ${String(r.car).padEnd(52)} ${r.kg}kg ${r.pct}%`);

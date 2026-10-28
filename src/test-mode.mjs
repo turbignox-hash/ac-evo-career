@@ -43,24 +43,38 @@ function caricaLadder() {
   return _ladderCache;
 }
 
-/** Attiva la modalità: riscrive i calendari a N giri, salva gli originali. */
+/**
+ * Attiva (o RINNOVA) la modalità: riscrive i calendari a N giri, salva gli
+ * originali. Rilanciata mentre è attiva NON fa l'early-return cieco di una
+ * volta (lezione 27/10: le serie nate DOPO l'attivazione restavano coi giri
+ * veri — coppa_strada_80 a 7/8 invece di 3, e la gara è partita lunga):
+ * adotta i giri DIVERSI da N che non ha già registrato, così anche le serie
+ * nuove finiscono a N e un rilancio non inventa un ripristino.
+ */
 export function testModeOn({ giri = 3 } = {}) {
   const attuale = testMode();
-  if (attuale) return { already: true, giri: attuale.giri };
-  const n = Math.max(1, Math.min(50, Math.floor(Number(giri) || 3)));
+  const n = Math.max(1, Math.min(50, Math.floor(Number(giri) || attuale?.giri || 3)));
   const ladder = caricaLadder();
-  const salva = {};
+  const salva = attuale?.salva ?? {};
   let rond = 0;
   for (const node of ladder.nodes ?? []) {
     if (!Array.isArray(node.calendar)) continue;
     for (const [i, r] of node.calendar.entries()) {
       if (r?.laps == null) continue;
       if (Number(r.laps) === n) continue;          // già a N: nulla da ricordare/ripristinare
+      // già registrato in un'attivazione precedente: NON sovrascrivo il valore
+      // originale (è l'unico riferimento per il ripristino a --off)
+      if (attuale && salva[node.nodeId]?.[i] != null) {
+        r.laps = n;
+        rond++;
+        continue;
+      }
       (salva[node.nodeId] ??= {})[i] = Number(r.laps);
       r.laps = n;
       rond++;
     }
   }
+  if (attuale && rond === 0) return { already: true, giri: n };
   if (rond) {
     try { mkdirSync(BACKUP_DIR, { recursive: true }); copyFileSync(LADDER_FILE, join(BACKUP_DIR, `career.evo.ladder.bak-testmode-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}.json`)); } catch { /* il backup non deve bloccare */ }
     writeJsonAtomic(LADDER_FILE, ladder);
@@ -71,7 +85,7 @@ export function testModeOn({ giri = 3 } = {}) {
     _readme: 'Modalità test: gare a N giri. Riattiva le distanze vere con: node ac-evo-career.mjs test-mode --off',
   });
   _ladderCache = ladder;
-  return { attivato: true, giri: n, rond };
+  return { attivato: true, giri: n, rond, rinnovato: !!attuale };
 }
 
 /** Disattiva: ripristina i giri originali dal registro di attivazione. */

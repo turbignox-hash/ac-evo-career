@@ -21,7 +21,7 @@ import { join } from 'node:path';
 import { dataDirCandidates } from './paths.mjs';
 import { tr } from './lang.mjs';
 
-let _cache = new Map();      // kind → { file, mtime, val }
+const _cache = new Map();      // kind → { file, mtime, val }
 let _rootCache = null;       // { root, at } — la scansione si ripete al massimo ogni 30s
 
 /** La cartella journal dell'app Paddock (o null: l'app non è installata). */
@@ -211,7 +211,7 @@ function catalogIndex(env = process.env) {
   if (cat.ok) {
     for (const c of cat.cars) {
       if (c && norm(c.name)) idx.set(norm(c.name), c);
-      if (c && c.slug && norm(c.slug)) idx.set(norm(c.slug), c);
+      if (c?.slug && norm(c.slug)) idx.set(norm(c.slug), c);
     }
   }
   _catIdx = { envKey: String(env.PADDOCK_JOURNAL_DIR ?? ''), at: Date.now(), idx };
@@ -267,8 +267,12 @@ export function cleanRaceBonusOf(prize, penalties = 0) {
  */
 export function padRepCapNote() {
   return tr({
-    it: 'Reputazione al massimo per questo campionato: per farla salire corri in una categoria più alta.',
-    en: 'Reputation is maxed out for this championship: run a higher category to grow it further.',
+    // la 📊 sta DENTRO la coppia: il guadra di pushMessage confronta il testo
+    // con tr(){it,en} alla lettera, e un prefisso fuori dalla coppia (lezione
+    // 31/10) rimanda la coppia stantia e stacca l'EN — alla gara dopo l'import
+    // firmava la stessa nota anche in EN e la bacheca la teneva doppia.
+    it: '📊 Reputazione al massimo per questo campionato: per farla salire corri in una categoria più alta.',
+    en: '📊 Reputation is maxed out for this championship: run a higher category to grow it further.',
   });
 }
 
@@ -286,7 +290,7 @@ export function carPaddockCompleteCount(env = process.env) {
   for (const c of cat.cars) {
     if (!c || !c.name) continue;
     const s = carPaddockSpecsOf(c.name, env);
-    if (s && s.torqueCurve && s.torque != null && s.mass != null) count++;
+    if (s?.torqueCurve && s.torque != null && s.mass != null) count++;
     else missing.push(c.name);
   }
   return { count, missing };

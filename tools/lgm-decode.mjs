@@ -24,8 +24,8 @@ for (const n of files) {
   console.log(' top: ' + d.map((f) => f.field + ':' + f.wire + ':' + (f.varint != null ? f.varint : Buffer.from(f.bytes).length)).join('|'));
   d.filter((f) => f.field === 3 && f.wire === 2).forEach((sub) => {
     const s = decodeMsg(sub.bytes);
-    const idx = (s.find((x) => x.field === 1) ?? {}).varint;
-    const f2 = (s.find((x) => x.field === 2) ?? {}).varint ?? '-';
+    const idx = s.find((x) => x.field === 1)?.varint;
+    const f2 = s.find((x) => x.field === 2)?.varint ?? '-';
     const f3 = s.find((x) => x.field === 3);
     const fl = f3 ? floatsOf(f3.bytes) : {};
     console.log('  sub idx=' + idx + ' f2=' + f2 + ' floats: ' + JSON.stringify(Object.fromEntries(Object.entries(fl).map(([k, v]) => [k, r2(v)]))));

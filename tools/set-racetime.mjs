@@ -67,7 +67,14 @@ export function currentSessionTimes(file = WEEKEND_FILE) {
     const hour = dt.find((x) => x.field === 4)?.varint;
     const min = dt.find((x) => x.field === 5)?.varint;
     const scaleF = sess.find((s) => s.field === 7 && s.wire === 5);
-    out.push({ name, hour: hour != null ? Number(hour) : null, minute: min != null ? Number(min) : null, scale: scaleF?.bytes ? Buffer.from(scaleF.bytes).readFloatLE(0) : 1 });
+    // durata DELLA SESSIONE (richiesta Mauro 31/10: dura anche al % bassa):
+    // nel blocco il f2 varint vale secondi per Practice/Qualifying/Warmup e
+    // GIRI per la Race — la distinguo col nome, così l'idempotenza del
+    // Prepara può confrontarle senza toccare i giri della gara.
+    const g2 = sess.find((x) => x.field === 2);
+    const isRace = /^race$/i.test(name);
+    const durSec = g2 && !isRace && g2.varint != null ? Number(g2.varint) : null;
+    out.push({ name, hour: hour != null ? Number(hour) : null, minute: min != null ? Number(min) : null, scale: scaleF?.bytes ? Buffer.from(scaleF.bytes).readFloatLE(0) : 1, durSec });
   }
   return out;
 }
@@ -77,8 +84,10 @@ export function currentSessionTimes(file = WEEKEND_FILE) {
  * warm-up e gara portano ciascuna il proprio orologio nel weekend, non più
  * tutti la stessa ora).
  *   setRaceSessions({ sessions: { Practice: 10, Qualifying: 12, Warmup: 14, Race: 15 } })
- * Anche scala e minuti si passano per sessione (un oggetto { hour, minute, scale });
- * i blocchi non nominati restano com'erano. Idempotente: il blocco già a posto
+ * Anche scala, minuti e DURATA in secondi (durationSec) si passano per sessione
+ * (un oggetto { hour, minute, scale, durationSec }); i blocchi non nominati
+ * restano com'erano. durationSec vale SOLO per le sessioni a tempo libero
+ * (Practice/Qualifying/Warmup): il f2 della Race sono GIRI e non si tocca qui. Idempotente: il blocco già a posto
  * non si tocca; un nome per sessione che non esiste nel file viene ignorato e
  * segnalato in `mancanti`. Ritorna { blocchi, changed, written, backup, toccati }.
  */
@@ -89,8 +98,10 @@ export function setRaceSessions({ sessions = {}, scale = null, file = WEEKEND_FI
     const name = nomeSessione(k);
     if (!name) continue;
     const o = typeof v === 'object' && v != null ? v : { hour: v };
-    if (o.hour == null && o.minute == null && o.scale == null) continue;
-    want.set(name, { hour: o.hour != null ? Math.max(0, Math.min(23, Math.round(Number(o.hour)))) : null, minute: o.minute != null ? Math.max(0, Math.min(59, Math.round(Number(o.minute)))) : null, scale: o.scale != null ? Math.max(1, Math.min(60, Number(o.scale))) : null });
+    if (o.hour == null && o.minute == null && o.scale == null && o.durationSec == null) continue;
+    const dSec = o.durationSec != null ? Math.max(60, Math.min(24 * 3600, Math.round(Number(o.durationSec)))) : null;
+    if (dSec != null && name === 'Race') throw Object.assign(new Error('durationSec vale solo per Practice/Qualifying/Warmup: nel blocco Race il f2 sono GIRI (usa setWeekendLaps)'), { code: 'RACE_NOT_TIMED' });
+    want.set(name, { hour: o.hour != null ? Math.max(0, Math.min(23, Math.round(Number(o.hour)))) : null, minute: o.minute != null ? Math.max(0, Math.min(59, Math.round(Number(o.minute)))) : null, scale: o.scale != null ? Math.max(1, Math.min(60, Number(o.scale))) : null, durationSec: dSec });
   }
   const buf = readFileSync(file);
   const fields = decodeMsg(buf);
@@ -115,6 +126,12 @@ export function setRaceSessions({ sessions = {}, scale = null, file = WEEKEND_FI
       }
       if (touched) f4.bytes = encodeMsg(dt);
     }
+  // durata della sessione in secondi (f2), solo se richiesta e non-Race
+  if (req.durationSec != null) {
+    let g2 = sess.find((x) => x.field === 2);
+    if (!g2) { g2 = { field: 2, wire: 0, varint: null }; sess.push(g2); } // blocco senza durata: il campo lo creiamo
+    if (g2.varint == null || Number(g2.varint) !== req.durationSec) { g2.varint = BigInt(req.durationSec); touched = true; }
+  }
     if (sc != null) {
       const f7 = sess.find((s) => s.field === 7 && s.wire === 5);
       if (f7) {

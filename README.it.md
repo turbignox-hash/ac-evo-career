@@ -115,6 +115,18 @@ Salienti della fascia **0.1.13–0.1.18** — ogni salvataggio scrive anche la s
 scheda leggibile in [report/](report/), con dentro l'esito vero della suite di
 test:
 
+- **Campionati interamente procedurali, col bilancio procedurale quanto il pescaggio.**
+    Cinque livelli (Epoca → Corsa) nascono da un estrattore con seme
+    (`tools/_genera-stili.mjs`): per ogni livello pesca a sorte dal catalogo auto
+    dentro la sua banda PI — serie mono marca, multiclasse, epoche e GT tirati
+    liberamente insieme («quello che pesca sarà completamente random»), e
+    `--seed N` riproduce identico lo stesso tiro. Il bilancio è procedurale:
+    zavorre e penalità calcolate dal ΔPI (pendenza calibrata sui dati veri; il
+    cap 20% del gioco dichiarato per le fuori formula — la prima gara decide),
+    poi la ricalibrazione per pista appresa da griglia-calib sui TUOI risultati
+    di gara veri. Prima ancora di firmare il sedile, il tab Campionati mostra le
+    cinque schede del pescaggio — seed, pool, regole e calendario, tutto
+    cliccabile.
 - **La copilota parla SEMPRE italiano — e ha senso.** Dal 27/10 la voce è
 sempre it-IT anche con l'interfaccia in inglese (l'UI inglese serve a
 Paddock, la voce no). All'avvio aspetta l'elenco voci del browser finché

@@ -48,7 +48,7 @@ test('template ASSENTE: errore chiaro (ENOENT), non uno stack nudo', () => {
 test('template CORROTTO (byte a caso): rifiutato con errore', () => {
   writeFileSync(file('spazzatura.customgrid'), Buffer.from('\x00\x01\x02corrotto-#####'));
   try { costruisce('spazzatura.customgrid'); assert.fail('doveva rifiutare'); }
-  catch (e) { /* errore pulito: l'importante è che NON scriva la griglia */ }
+  catch (_e) { /* errore pulito: l'importante è che NON scriva la griglia */ }
 });
 
 test('template SENZA celle: errore che spiega COSA fare (GENERA + APPLICA)', () => {

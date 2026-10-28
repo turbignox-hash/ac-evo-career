@@ -56,6 +56,10 @@ sessione-*/
 .webui.pid
 _server-log.txt
 _crashlog.ps1
+# pid dei server di sessione (28/10: non sono codice, sono runtime)
+*.pid
+# dump tool di estrazione .exe di passo (non è nostro)
+report/_pyinstxtractor.py
 *.customgrid.bak-20*
 # backup di salvataggi e scarti di curl nella root
 *.bak-20*

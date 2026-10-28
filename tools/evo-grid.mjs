@@ -19,7 +19,7 @@
 //   node tools/evo-grid.mjs --pi 16 17 file   → cambia la finestra PI (con backup)
 //
 import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync, existsSync, readdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, } from 'node:path';
 import { execSync } from 'node:child_process';
 import { savedGamesRoots } from '../src/paths.mjs';
 
@@ -107,7 +107,7 @@ export function encodeMsg(fields) {
     else if (f.wire === 2) chunks.push(encVarintArr(f.bytes.length), f.bytes);  // solo wire 2 ha il prefisso di lunghezza!
     else chunks.push(f.bytes);                                                  // wire 1 (fixed64) e 5 (fixed32): solo i byte
   }
-  let total = chunks.reduce((a, c) => a + c.length, 0);
+  const total = chunks.reduce((a, c) => a + c.length, 0);
   const out = new Uint8Array(total);
   let i = 0;
   for (const c of chunks) { out.set(c, i); i += c.length; }
@@ -139,7 +139,7 @@ export function gridFileOf(buf) {
     } else if (f.field === 2) {
       const inner = decodeMsg(f.bytes);
       const drv = { raw: f.bytes };
-      let k = 0;
+      const _k = 0;
       for (const g of inner) {
         if (g.field === 1) { try { const v = decodeMsg(g.bytes); drv.name = utf8(v[0]?.bytes) || utf8(g.bytes); } catch { drv.name = utf8(g.bytes); } }
         else if (g.field === 2) drv.nation = utf8(g.bytes);
@@ -216,7 +216,7 @@ if (isMain) {
   const argv = process.argv.slice(2);
   const flag = argv[0];
   const DEFAULT = join(GAME_MODES_DIR, 'last_grid.customgrid');
-  const jsonSafe = (k, v) => typeof v === 'bigint' ? Number(v) : (v?.type === 'Buffer' ? Buffer.from(v.data).toString('hex').slice(0, 64) + '…' : v);
+  const jsonSafe = (_k, v) => typeof v === 'bigint' ? Number(v) : (v?.type === 'Buffer' ? Buffer.from(v.data).toString('hex').slice(0, 64) + '…' : v);
   if (flag === '--dump') console.log(JSON.stringify(decodeMsg(readFileSync(argv[1] ?? DEFAULT)), jsonSafe, 1).slice(0, 4000));
   else if (flag === '--verify') { const r = verifyRoundTrip(argv[1] ?? DEFAULT); console.log(r.ok ? `ROUND-TRIP OK (${r.size}/${r.sizeOut} byte)` : `ROUND-TRIP DIVERSO (norm-preserving, non byte) ${JSON.stringify(r)}`); }
   else if (flag === '--pi') {

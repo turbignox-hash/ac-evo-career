@@ -44,8 +44,8 @@ async function waitReady(child, ms = 12000) {
   throw new Error(`il server non ha risposto su ${BASE} entro ${ms}ms`);
 }
 
-async function getJson(path, method = 'GET') {
-  const r = await fetch(`${BASE}${path}`, { method });
+async function getJson(path, method = 'GET', body = null) {
+  const r = await fetch(`${BASE}${path}`, { method, headers: body !== null ? { 'Content-Type': 'application/json' } : undefined, body: body !== null ? JSON.stringify(body) : undefined });
   const text = await r.text();
   let j = null;
   try { j = JSON.parse(text); } catch { }
@@ -62,8 +62,8 @@ test('il server GUI parte e serve le API chiave (boot, status, card, pagina)', a
     env: { ...process.env, ACE_UI_PORT: String(PORT), ACE_DATA: DATA },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  let stderr = '';
-  child.stderr.on('data', (d) => { stderr += d; });
+  let _stderr = '';
+  child.stderr.on('data', (d) => { _stderr += d; });
   try {
     await waitReady(child);
 
@@ -116,6 +116,51 @@ test('il server GUI parte e serve le API chiave (boot, status, card, pagina)', a
       assert.ok(card.j.nodeDisplay, 'card deve avere la serie attiva (nodeDisplay)');
       assert.ok(Array.isArray(card.j.boxRadio?.tips), 'card boxRadio.tips deve essere un elenco (Consigli dal BOX)');
       assert.ok(card.j.tyre, 'card.tyre deve esserci (classe gomme dell’auto)');
+    }
+
+    // 4-bis) stint e gomme dal router garage (lesioni 28/10): con telemetria
+    //    rispondono con i dati; senza sessioni ok:false + hint — MAI un 500.
+    //    Con ACE_DATA puntata su una cartella TEMP la telemetria vera non c'è,
+    //    MA il PC di Mauro ne ha: entrambi i casi restano verificati qui sotto.
+    for (const action of ['stinti', 'gomme']) {
+      const res = await getJson('/api/garage', 'POST', { action, car: null });
+      assert.equal(res.code, 200, `garage.action=${action} deve rispondere 200`);
+      assert.ok(res.j, `garage.action=${action} deve essere JSON`);
+      if (res.j.ok) {
+        if (action === 'stinti') {
+          assert.ok(Array.isArray(res.j.stints), 'stints deve essere un elenco');
+          assert.equal(typeof res.j.nStints, 'number', 'nStints deve essere numerico');
+          assert.ok('fuelPace' in res.j, 'fuelPace deve esserci (anche null)');
+        } else {
+          assert.equal(typeof res.j.laps, 'number', 'laps (gomme) deve essere numerico');
+          assert.ok('temps' in res.j, 'temps deve esserci (anche {})');
+        }
+      } else {
+        assert.ok(typeof res.j.hint === 'string' && res.j.hint.length > 0, `senza sessioni ${action} deve dare un hint`);
+      }
+    }
+
+    // 4-ter) ARCHIVIO ONLINE (/api/mp): le sessioni _MP_ dai Results + il libro
+    //    dei rivali online. Lettura PURA: anche senza gare online la risposta
+    //    deve avere la forma GIUSTA (total numerico, rows e rivals elenchi) —
+    //    mai un 500, e senza toccare carriera né salvataggio.
+    const mp = await getJson('/api/mp', 'POST', { all: true });
+    assert.equal(mp.code, 200, '/api/mp deve rispondere 200');
+    assert.ok(mp.j, '/api/mp deve essere JSON');
+    assert.equal(typeof mp.j.total, 'number', 'mp.total deve essere numerico');
+    assert.ok(Array.isArray(mp.j.rows), 'mp.rows deve essere un elenco');
+    assert.ok(Array.isArray(mp.j.rivals), 'mp.rivals (libro rivali) deve essere un elenco');
+    assert.ok(mp.j.rows.length <= mp.j.total, 'le righe mostrate non superano il totale');
+    for (const row of mp.j.rows.slice(0, 3)) {
+      assert.ok(row.file?.endsWith('.json'), `riga online senza file: ${JSON.stringify(row)}`);
+      assert.ok(typeof row.when === 'string' && row.when.length >= 10, `riga online senza quando: ${JSON.stringify(row)}`);
+      assert.ok(typeof row.session === 'string' && typeof row.track === 'string', `riga online senza sessione/pista: ${JSON.stringify(row)}`);
+      assert.ok(typeof row.drivers === 'number' && row.drivers >= 0, `riga online senza numero piloti: ${JSON.stringify(row)}`);
+    }
+    for (const rv of mp.j.rivals.slice(0, 3)) {
+      assert.equal(typeof rv.meetings, 'number', `rivale senza incroci: ${JSON.stringify(rv)}`);
+      assert.equal(typeof rv.beats, 'number', `rivale senza "lui davanti": ${JSON.stringify(rv)}`);
+      assert.equal(typeof rv.beaten, 'number', `rivale senza "tu davanti": ${JSON.stringify(rv)}`);
     }
 
     // 5) API mannaggia: azione senza carriera deve dare il messaggio gentile, non un crash 500

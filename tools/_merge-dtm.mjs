@@ -30,7 +30,7 @@ const DIRS = [
   join(LBU, 'data-progetto', 'griglie-grezz'),
 ];
 
-const carIdOf = (b) => { for (const g of decodeMsg(b)) if (g.field === 3) return g.bytes.toString('utf8'); return null; };
+const _carIdOf = (b) => { for (const g of decodeMsg(b)) if (g.field === 3) return g.bytes.toString('utf8'); return null; };
 
 // celle byte-uniche delle auto cercate, sparse su ogni fonte (dedup per hex)
 const viste = new Map();   // hex → bytes raw della cella

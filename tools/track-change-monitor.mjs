@@ -4,7 +4,6 @@
 // hash. Scopo: capire DOVE EVO scrive la pista del weekend quando la cambi dal menu.
 import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { createHash } from 'node:crypto';
 
 const root = 'C:/Users/Mauro/Saved Games/ACE';
 const seen = new Map();

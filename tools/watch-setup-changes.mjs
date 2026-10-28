@@ -13,7 +13,7 @@
 //   • tutto in append su data/setup-monitor.jsonl: {at, uiSetup, speed, changed, files}.
 //
 // Uso:  node tools/watch-setup-changes.mjs   (Ctrl+C o kill per fermare)
-import { readdirSync, statSync, appendFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readdirSync, statSync, appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -27,10 +27,10 @@ const paths = resolvePaths({ ...process.env });
 const OUT = join(HERE, '..', 'data', 'setup-monitor.jsonl');
 mkdirSync(join(HERE, '..', 'data'), { recursive: true });
 
-let logLine = 0;
+let _logLine = 0;
 const log = (obj) => {
   try { appendFileSync(OUT, JSON.stringify(obj) + '\n'); } catch {}
-  logLine++;
+  _logLine++;
 };
 
 /* --- decode ELECTRONICS dal raw(128) dentro graphics --- */

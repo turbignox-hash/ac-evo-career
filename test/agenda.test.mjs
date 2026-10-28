@@ -4,7 +4,7 @@ import "./_flows-sandbox.mjs"; // sandbox flussi
 // (GT4 e superiori al riparo CADAUNO a rep basse). Tutto su carriere temporanee.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,10 +19,10 @@ const LADDER = JSON.parse(readFileSync(join(ROOT, 'config', 'career.evo.ladder.j
 
 const { createCareer, loadState, saveState, nodeById, gateStatus, applyRaceResult } = await import('../src/state.mjs');
 const {
-  agendaDay, gareDelGiorno, prossimoGiornoConGara, avanzaGiorno,
-  elencoCompleto, racesOnDay, calendarStrip, dateLabel, realDate,
+  agendaDay, gareDelGiorno, prossimoGiornoConGara,
+  calendarStrip, dateLabel, realDate,
   choicesOf, canChoose, recordChoice, MAX_SCELTE_PER_GIORNO, CADENZA_GIORNI,
-  impegni, shiftSeat, seriesStatus, hasSeat,
+  impegni, shiftSeat, hasSeat,
 } = await import('../src/agenda.mjs');
 
 const DATA = mkdtempSync(join(tmpdir(), 'evo-agenda2-'));

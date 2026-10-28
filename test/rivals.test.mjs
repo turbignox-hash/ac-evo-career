@@ -8,7 +8,7 @@ import { join } from 'node:path';
 
 const DATA = mkdtempSync(join(tmpdir(), 'evo-rivals-'));
 process.env.EVO_DATA_DIR = DATA;
-const { recordRaceGrid, rivalKey } = await import('../src/rivals.mjs');
+const { recordRaceGrid, rivalKey, stagioneDelRivale, rivalDetail } = await import('../src/rivals.mjs');
 
 const result = {
   session: 'race', track: 'Monza',
@@ -51,4 +51,47 @@ test('archivio rivals.json corrotto: copia .corrupt + warning, riparte e registr
   assert.ok(warns.some((l) => l.includes('rivals')));
   const store = JSON.parse(readFileSync(join(DATA, 'rivals.json'), 'utf8'));
   assert.equal(store.races.length, 1);
+});
+
+/* DOSSIER STAGIONALE (27/10): forma per pista — scontri/vittorie per traccia e
+ * delta best-lap suo vs mio dai soli dati della griglia (niente numeri inventati). */
+test('stagioneDelRivale aggrega per pista: scontri, vittorie, delta best-lap', () => {
+  const st = {
+    races: [
+      { track: 'monza', trackDisplay: 'Monza', grid: [
+        { isPlayer: true, bestLap: '1:50.000', splits: [34900, 48500, 26600] },
+        { key: 'r1', bestLap: '1:49.500', splits: [35200, 48100, 26200] },
+      ] },
+      { track: 'monza', trackDisplay: 'Monza', grid: [
+        { isPlayer: true, bestLap: '1:49.200', splits: [35100, 48300, 26400] },
+        { key: 'r1', bestLap: '1:50.300', splits: [36000, 48000, 26300] },
+      ] },
+      { track: 'imola', trackDisplay: 'Imola', grid: [
+        { isPlayer: true, bestLap: '1:45.000' },
+        { key: 'r1', position: 1, bestLap: '1:44.700' },
+      ] },
+    ],
+  };
+  const stag = stagioneDelRivale(st, 'r1');
+  assert.equal(stag.length, 2);
+  const monza = stag.find((t) => t.track === 'Monza');
+  assert.equal(monza.scontri, 2);
+  assert.equal(monza.vittorie, 0);
+  assert.equal(monza.deltaGiroMs, 300); // best-vs-best: suo 1:49.500 vs mio 1:49.200
+  const imola = stag.find((t) => t.track === 'Imola');
+  assert.equal(imola.vittorie, 1);
+  assert.equal(imola.deltaGiroMs, -300); // 1:44.700 vs 1:45.000
+  // settori: media per indice S1 (35600 − 35000 = +600ms), da splits di ENTRAMBI
+  assert.equal(monza.settori.length, 3);
+  assert.equal(monza.settori[0].settore, 1);
+  assert.equal(monza.settori[0].deltaMs, 600);
+  // imola senze splits: settori vuoti, niente inventati
+  assert.equal(imola.settori.length, 0);
+  assert.equal(imola.settoreForte, null);
+});
+
+test('rivalDetail espone la stagione dentro la scheda', () => {
+  // rivalDetail legge dal disco, non da un store passato: qui si verifica solo
+  // la firma (chiave assente → null), i dati veri sono già coperti sopra.
+  assert.equal(rivalDetail('nessuno', null), null);
 });

@@ -23,7 +23,7 @@ import { agendaDay, dateLabel, scheduledDay, racesOnDay } from './agenda.mjs';
 import { raceCard } from './race.mjs';
 import { eventCard } from './events.mjs';
 import { PIANI } from './orario.mjs';
-import { tr, lang } from './lang.mjs';
+import { tr, } from './lang.mjs';
 import { mailbox } from './mailbox.mjs';
 import { memoryRoundHint } from './memories.mjs';
 import { tyreClassOf } from './setup.mjs';
@@ -296,6 +296,11 @@ function viewCard(ladder, state, car = null) {
     practiceStart: card.practiceStart,
     qualifyStart: card.qualifyStart,
     warmupStart: card.warmupStart,
+    // durate DELL'EFFETTIVE (al % della distanza, richiesta Mauro 31/10): le
+    // usa il Prepara tutto per scrivere i f2 dei blocchi sessione
+    practiceMinEff: card.practiceMinEff ?? null,
+    qualifyMinEff: card.qualifyMinEff ?? null,
+    warmupMinEff: card.warmupMinEff ?? null,
     raceHour: card.raceHour,
     settings: card.settings,
     warnings: card.warnings,
@@ -324,7 +329,13 @@ function viewCard(ladder, state, car = null) {
     // della serie successivemente iscritta. Il trim adattivo automatico vive
     // sempre (pagina Difficoltà, «Suggerimento in attesa» qui sotto).
     // il "Suggerimento in attesa" del trim adattivo (pagina Difficoltà) proposto anche qui
-    pendingProposal: state.difficulty?.pending ?? null,
+    // SOLO se appartiene alla serie di QUESTA scheda: nel save vive in un'unica cella
+    // (state.difficulty.pending) — senza questo filtro la proposta nata nella
+    // serie LASCITA accompagnava la scheda del campionato NUOVO (visto dal
+    // vivo 27/10: trim dell'Alfa 75 accanto alla scheda della Coppa Golf).
+    // Nella pagina Difficoltà invece resta visibile per TUTTE, con il nome
+    // della serie che lo ha generato.
+    pendingProposal: state.difficulty?.pending?.nodeId === card.node.nodeId ? state.difficulty.pending : null,
     heritageActive: (() => {
       const mem = state.heritage?.active;
       if (!mem || mem.done) return null;

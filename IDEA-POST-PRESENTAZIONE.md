@@ -20,6 +20,25 @@ the clean-race bonus and the reputation cap all came from there.
 
 ## Punti di forza da citare nel post — Strengths to mention in the post
 
+- **Campionati procedurali, con misuglio totalmente random** — Fully procedural
+  championships. Cinque livelli (Epoca → Corsa) nati da un pescaggio con seme
+  riproducibile dentro il catalogo del gioco: serie **mono marca**, **multiclasse**
+  e multiclasse con **zavorre e penalità automatiche intelligenti, procedurali**
+  (calcolate dal ΔPI, cap 20% dichiarato, ricalibri per pista dal griglia-calib
+  sui risultati veri). Il seme (es. 819802402) riproduce esattamente la stessa
+  tiratura; un random a nuovo tira un miscuglio tutto suo: stradali, Cup, GT e
+  epiche battuti insieme allo stesso livello. In GUI, il pannellino dei cinque
+  «Campionati a miscuglio» si legge a pillola: seed, pool sorteggiato, quadro
+  zavorre col tag cap e calendario — tutto cliccabile,schede auto e piste.
+  In English: five tiers born from a seeded, reproducible draw through the
+  game's catalog — mono-brand series, multiclass, and multiclass with smart,
+  procedural automatic ballast/penalty rules (PI-delta formula, declared 20%
+  cap, per-track recalibration from real results via grid-calib). The seed
+  (e.g. 819802402) reproduces the exact same draw; a new one draws its own mix
+  of road cars, Cup, GT and classics at the same level. The GUI's «Random-mix
+  championships» panel tells it in one glance: seed, drawn pool, ballast table
+  with cap tag and calendar — all clickable.
+
 - **Tutto è cliccabile, stile Football Manager (dal 29/10)** — Everything is clickable, Football-Manager style. \
   Il nome di un'auto apre la sua scheda nel Libro delle auto (ricerca per parole: capisce \
   «Evo II» anche se il render si chiama «Evolution II»), un pilota apre la scheda rivali, \

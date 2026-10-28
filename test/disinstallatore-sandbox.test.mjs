@@ -106,7 +106,7 @@ test('disinstalla: pulita «via tutto», scorciatoia puntata qua → tolta', { s
   assert.equal(r.status, 0, `uscita ${r.status}\n${r.stdout}\n${r.stderr}`);
   assert.ok(!existsSync(TARGET), `la cartella deve andare via:\n${r.stdout}\n${r.stderr}`);
   assert.ok(!existsSync(lnk), `la scorciatoia puntata qua deve andare:\n${r.stdout}`);
-  assert.ok(!existsSync(PORTA), `nessuna copia di data\ inaspettata:\n${r.stdout}\n${r.stderr}`);
+  assert.ok(!existsSync(PORTA), `nessuna copia di data inaspettata:\n${r.stdout}\n${r.stderr}`);
 });
 
 test('disinstalla: scorciatoia di un\'ALTRA installazione → resta', { skip: process.platform !== 'win32' }, async (t) => {

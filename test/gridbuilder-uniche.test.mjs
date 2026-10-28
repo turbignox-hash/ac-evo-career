@@ -65,7 +65,6 @@ const costruisce = (visuals, gridSize) => {
 
 test('griglia al numero esatto delle varianti uniche: 5 uniche → 5 celle DISTINTE', async () => {
   const out = costruisce([1, 2, 3, 4, 5], 5);
-  const { decodeMsg } = g; // il builder non esporta decodeMsg: usiamo evo-grid
   const ev = await import('../tools/evo-grid.mjs');
   const top = ev.decodeMsg(out.buffer);
   const cells = top.filter((f) => f.field === 1).map((f) => Buffer.from(f.bytes).toString('hex'));

@@ -343,7 +343,7 @@ window.vai = vai;
    `window.carLinkHtml(nome)` per far aprire la scheda tecnica nel libro auto.
    Nome vuoto → stringa vuota: il chiamante sostituisce con n/d. */
 window.carLinkHtml = (nome) => nome
-  ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda tecnica dell\'auto', en: 'open the car spec sheet' })}" onclick="vai('cars',{search:'${String(nome).replace(/'/g, "\\'")}\'})">${esc(nome)}</span>`
+  ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda tecnica dell\'auto', en: 'open the car spec sheet' })}" onclick="vai('cars',{search:'${String(nome).replace(/'/g, "\\'")}'})">${esc(nome)}</span>`
   : '';
 /* HTML di un nome SERIE cliccabile (29/10, stessa regola delle auto): apre Campionati.
    (31/10) Con { apri: nodeId } il click LANCIA anche l'apertura della scheda della
@@ -353,7 +353,7 @@ window.serLinkHtml = (nome, opts = {}) => nome
   : '';
 /* HTML di un nome PISTA cliccabile (29/10): apre la scheda nel libro piste. */
 window.trackLinkHtml = (nome) => nome
-  ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda della pista', en: 'open the track card' })}" onclick="vai('tracks',{search:'${String(nome).replace(/'/g, "\\'")}\'})">${esc(nome)}</span>`
+  ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda della pista', en: 'open the track card' })}" onclick="vai('tracks',{search:'${String(nome).replace(/'/g, "\\'")}'})">${esc(nome)}</span>`
   : '';
 
 /* ============================== viste ============================== */

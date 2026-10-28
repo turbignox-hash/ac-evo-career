@@ -25,6 +25,8 @@ import { tr } from './lang.mjs';
 // pista+layout come «Prepara tutto» li ha scritti — in gioco l'applet fa
 // la SEQUENZA COMPLETA di Paddock (tipo di gara → pista → auto) (28/10 PM)
 import { specFor } from '../tools/set-track.mjs';
+import { eventCard } from './events.mjs';
+import { leggiStoreJson } from './uiapp-store.mjs';
 
 export const PERIODO_MS = 2500;          // il ritmo delle fasce: 2.5 secondi esatti
 export const APP_KEY = 'cruscotto';      // il nome della cartella-app nel loader
@@ -103,18 +105,38 @@ export function vetrina(ladder, state) {
  *  con l'impronta del pending (id) per far sì che l'applet la applichi
  *  SOLO UNA volta per preparazione; pista+layout (dal libro TRACK_INFO,
  *  gli stessi che «Prepara tutto» scrive per la ronda); il tutto null
- *  se l'auto non è riconosciuta o non c'è la gara del giorno. */
+ *  se l'auto non è riconosciuta o non c'è la gara del giorno.
+ *  EVENTI SPECIALI (27/10 19:20, F40 rimasta R5 dal vivo): «Prepara e
+ *  divertiti» NON scrive state.pending (l'evento vive in gara
+ *  personalizzata, lezione 23/10) — quindi il comando esce dalla CARD
+ *  dell'evento attivo, tipo `evento`: in gioco l'applet seleziona SOLO
+ *  l'auto (niente tipo gara/pista: la gara personalizzata non si tocca). */
 function comandoAuto(ladder, state) {
   try {
     const p = state?.pending;
-    if (!p || !p.car) return null;
-    const nome = ladder?.contentNames?.cars?.[p.car] ?? null;
-    if (!nome) return null;
-    const spec = p.trackNames?.[0] ? specFor(p.trackNames[0]) : null;
-    return {
-      id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome,
-      pista: spec?.name ?? null, layout: spec?.layout ?? null,
-    };
+    if (p?.car) {
+      const nome = ladder?.contentNames?.cars?.[p.car] ?? null;
+      const idP = `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`;
+      // se quel comando è GIÀ stato eseguito dall'app (ack in ui_storage),
+      // non torna in vetrina: si scende al ramo evento (27/10 19:30: il
+      // pending vecchio confermato copriva per sempre il comando dell'evento
+      // attivo — la F40 non arrivava mai al gioco)
+      if (nome && !confermati.has(idP)) {
+        const spec = p.trackNames?.[0] ? specFor(p.trackNames[0]) : null;
+        return {
+          id: idP, tipo: 'setcar', nome,
+          pista: spec?.name ?? null, layout: spec?.layout ?? null,
+        };
+      }
+    }
+    // evento attivo e accettato, auto nota: comando «evento» (solo auto).
+    // id STABILE per evento (tema+auto), non a per-tick: altrimenti l'app
+    // lo riproverrebbe a ogni fascia; l'ack in ui_storage lo spegne comunque.
+    const card = eventCard(ladder, state);
+    if (card?.acceptedAt && card.carName) {
+      return { id: `evento:${card.theme?.id ?? card.eventId ?? '?'}:${card.carName}`, tipo: 'evento', nome: card.carName, pista: null, layout: null };
+    }
+    return null;
   } catch { return null; }
 }
 
@@ -167,16 +189,51 @@ export function uiappTick(env = process.env) {
   const { ladder } = context();
   const dati = vetrina(ladder, loadState(SAVE_FILE));
   dati.slot = fascia;
+  try { assorbiAck(dati); } catch { /* l'ack è un plus: mai rompere il tick */ }
   dati.validaFino = new Date((fascia + 1) * PERIODO_MS).toISOString();
   writeFileSync(join(dir, `ui-${fascia}.json`), JSON.stringify(dati), 'utf8');
   // la spazzatura va a casa: tengo la fascia scritta e le 2 prima (se il gioco
   // arriva un attimo in ritardo, una fascia indietro resta leggibile)
+  // la spazzatura va a casa: un ack consumato dopo un'ora si dimentica, e le
+  // vecchie fasce si tolgono (il gioco si legge anche una in ritardo)
+  if (confermati.size > 8) {
+    const t = Date.now();
+    for (const [id, at] of confermati) { if (t - at > 3_600_000) confermati.delete(id); }
+  }
   const vecchi = readdirSync(dir).filter((f) => /^ui-\d+\.json$/.test(f) && f !== `ui-${fascia}.json`);
   for (const f of vecchi.slice(0, Math.max(0, vecchi.length - 2))) {
     try { unlinkSync(join(dir, f)); } catch { // di recente presa in lettura dal gioco: arriva al prossimo giro
     }
   }
   return { ok: true, file: `ui-${fascia}.json` };
+}
+
+/** Il percorso dello store del gioco (ack dell'app): null se non c'è. */
+function percorsoStore(env = process.env) {
+  for (const root of savedGamesRoots(env)) {
+    const file = join(root, 'ACE', 'ui_storage.uistorage');
+    if (existsSync(file)) return file;
+  }
+  return null;
+}
+
+// gli id confermati nell'ultima ora (l'app in gioco ha scritto l'ack nel
+// persist del loader): smettiamo di ripubblicare quei comandi — l'auto nel
+// menu di EVO è già quella, riproponendo sarebbe un giro di più per nulla.
+const confermati = new Map();
+function assorbiAck(dati) {
+  const c = dati.comando;
+  if (!c) return;
+  const store = percorsoStore();
+  if (!store) return;
+  const acks = leggiStoreJson(store, 'cruscotto.acks');
+  const colpo = (acks?.commands ?? []).find((a) => a && a.id === c.id);
+  if (!colpo) return;
+  if (colpo.ok && !confermati.has(c.id)) {
+    confermati.set(c.id, Date.now());
+    console.log(`  App Cruscotto in gioco: auto impostata ✓ (${c.nome} — ${colpo.msg || 'ok'})`);
+  }
+  if (colpo.ok) dati.comando = null;      // eseguita: niente ripubblicazione
 }
 
 let timer = null;

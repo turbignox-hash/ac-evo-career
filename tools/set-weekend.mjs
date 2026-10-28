@@ -48,7 +48,7 @@ export function weekendShow(file = WEEKEND_FILE) {
   return out;
 }
 
-const SESSION_NAMES = ['Practice', 'Qualifying', 'Warmup', 'Race'];
+const _SESSION_NAMES = ['Practice', 'Qualifying', 'Warmup', 'Race'];
 
 /**
  * Applica le modifiche ai blocchi sessione.

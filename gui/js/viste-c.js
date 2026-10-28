@@ -18,7 +18,7 @@ async function drawImport(m){
     </div>
     <div id="imp-result"></div>
     <table style="margin-top:14px"><thead><tr><th>${tr({ it: 'File', en: 'File' })}</th><th>${tr({ it: 'Sessione', en: 'Session' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Piloti', en: 'Drivers' })}</th><th>${tr({ it: 'Tu', en: 'You' })}</th></tr></thead>
-    <tbody>${insp.files.map(f=>`<tr><td class="muted">${esc(f.name)}</td><td>${esc(f.session)}</td><td>${esc(f.track)}</td><td class="right">${f.drivers}</td><td>${f.me?`<span class="tag green">P${f.me.position}${f.me.dnf?` ${tr({ it: 'ritiro', en: 'DNF' })}`:''}</span> <span class="muted" title="${tr({ it: 'riconosciuto per: ', en: 'recognized by: ' })}${esc(f.me.how)} — ${tr({ it: 'il tuo nome nel file è quello senza pallino AI', en: 'your name in the file is the one without the AI dot' })}">${tr({ it: 'tu (', en: 'you (' })}${esc(f.me.car ?? '')})</span>`:'<span class="faint">—</span>'}</td></tr>`).join('')}</tbody>
+    <tbody>${insp.files.map(f=>`<tr><td class="muted">${esc(f.name)}</td><td>${esc(f.session)}</td><td>${esc(f.track)}</td><td class="right">${f.drivers}</td><td>${f.me?`<span class="tag green">P${f.me.position}${f.me.dnf?` ${tr({ it: 'ritiro', en: 'DNF' })}`:''}</span> <span class="muted" title="${tr({ it: 'riconosciuto per: ', en: 'recognized by: ' })}${esc(f.me.how)} — ${tr({ it: 'il tuo nome nel file è quello senza pallino AI', en: 'your name in the file is the one without the AI dot' })}">${tr({ it: 'tu (', en: 'you (' })}${window.carLinkHtml(f.me.car ?? '')})</span>`:'<span class="faint">—</span>'}</td></tr>`).join('')}</tbody>
     </table>
     <div class="muted" style="margin-top:12px">${tr({ it: 'Se il gioco non ti riconosce, inserisci la posizione a mano qui sotto (la vedi nella schermata risultati di EVO).', en: "If the game doesn't recognize you, enter the position by hand below (you'll see it on EVO's results screen)." })}</div>
     <form id="f-manual" class="row" style="margin-top:8px">
@@ -431,7 +431,7 @@ async function drawTracks(m){
   const rows = t.rows.map((r) => `<tr>
     <td><b>${flag(r.info?.country)} <span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda della pista', en: 'open the track card' })}" data-hist="${esc(r.id)}">${esc(r.track)}</span></b>${r.id===t.next?.id?` <span class="tag gold" style="font-size:10px;padding:1px 6px">${tr({ it: 'prossima', en: 'next' })}</span>`:''}${r.inLadder?'':` <span class="faint">(${tr({ it: 'fuori ladder', en: 'off ladder' })})</span>`}</td>
     <td class="muted">${r.info?esc(tr({ it: r.info.nick, en: r.info.nickEn })):''}</td>
-    <td class="right"><b>${r.personal?esc(r.personal.time):'—'}</b>${r.personal?`<br><span class="faint" style="font-size:11px">${esc(r.personal.car??'')}</span>`:''}</td>
+    <td class="right"><b>${r.personal?esc(r.personal.time):'—'}</b>${r.personal?`<br><span class="faint" style="font-size:11px">${window.carLinkHtml(r.personal.car??'')}</span>`:''}</td>
     <td class="right">${r.session?`<b>${esc(r.session.time)}</b> <span class="faint">${esc(r.session.driver)}${r.session.mine?` (${tr({ it: 'tu', en: 'you' })})`:''}</span>`:'—'}</td>
     <td class="right">${(() => { const a=lapMs(r.personal?.time), b=lapMs(r.session?.time); return (a&&b)?(b<a?`<span class="tag gold" style="font-size:10px;padding:1px 6px">−${((a-b)/1000).toFixed(3)}</span>`:`<span class="tag green" style="font-size:10px;padding:1px 6px">+${((b-a)/1000).toFixed(3)}</span>`):'—'; })()}</td>
     <td>${r.info?`<button class="mini b-hist" data-hist="${esc(r.id)}">📚 ${tr({ it: 'storia & risultati', en: 'history & results' })}</button>`:''}</td>
@@ -552,7 +552,7 @@ async function drawSetup(m){
       : (adv.ok
         ? `<div class="banner good" style="margin-top:8px"><b>💡 ${tr({ it: 'Pressione consigliata (', en: 'Recommended pressure (' })}${esc(tel.classLabel ?? '')}): ${tr({ it: 'parti da ', en: 'start from ' })}<b>${adv.suggestedStartPsi} PSI</b></b> (${tr({ it: 'finestra ', en: 'window ' })}${adv.range?.[0]}–${adv.range?.[1]} PSI, ${tr({ it: 'target a caldo ', en: 'hot target ' })}${tel.target} PSI)<br><span class="muted">${esc(adv.advice)}</span></div>`
         : (adv.advice ? `<div class="banner info" style="margin-top:8px">${esc(adv.advice)}</div>` : ''));
-    const logRows = (tel.log ?? []).map((e) => `<tr><td class="muted">${esc(String(e.at).replace('T',' ').slice(0,16))}</td><td>${esc(e.car)}</td><td>${esc(e.track)}</td><td class="right"><b>${e.suggestedStartPsi} PSI</b></td><td>${esc(e.basisKindLabel ?? '—')}</td></tr>`).join('');
+    const logRows = (tel.log ?? []).map((e) => `<tr><td class="muted">${esc(String(e.at).replace('T',' ').slice(0,16))}</td><td>${window.carLinkHtml(e.car)}</td><td>${esc(e.track)}</td><td class="right"><b>${e.suggestedStartPsi} PSI</b></td><td>${esc(e.basisKindLabel ?? '—')}</td></tr>`).join('');
     const telLaps = tel.telemetryLaps ?? 10;
     /* LA LISTA COLORATA DEL BOX: lo stato dell'assetto area per area, capibile
        al volo appena esci dal gioco (richiesta 21/10). Quando tutto è verde il
@@ -630,6 +630,7 @@ async function drawSetup(m){
     <table><thead><tr><th>${tr({ it: 'Giro', en: 'Lap' })}</th><th class="right">${tr({ it: 'Durata', en: 'Duration' })}</th><th class="right">${tr({ it: 'Benzina usata', en: 'Fuel used' })}</th><th class="right">${tr({ it: 'PSI LF (fine)', en: 'PSI LF (end)' })}</th><th class="right">${tr({ it: 'Temp gomma LF', en: 'Tyre temp LF' })}</th><th class="right">${tr({ it: 'Max bordo RF', en: 'Max edge RF' })}</th></tr></thead>
     <tbody>${(s.laps ?? []).filter(l=>l.durationSec>15).map(l=>`<tr><td>${l.lap}</td><td class="right">${l.durationSec}s</td><td class="right">${l.fuelUsed!=null?l.fuelUsed+' L':'—'}</td><td class="right">${l.pressures?.LF!=null?Number(l.pressures.LF).toFixed(1):'—'}</td><td class="right">${l.tair?.LF!=null?Number(l.tair.LF).toFixed(0)+'°':'—'}</td><td class="right">${l.surf?.RF?l.surf.RF.map(v=>Number(v).toFixed(0)).join('/'):'—'}°</td></tr>`).join('')}</tbody></table>
     </details>
+    <div id="stinti-out"></div>
     <div class="muted" style="margin-top:6px">${tr({ it: 'Bumpstop = % di tempo con la sospensione a fine corsa (alto → assetto troppo basso o molle troppo morbide) · Δ int/ext = differenza termica interno–esterno della gomma RF (effetto camber in pista) · condizioni ultima sessione: aria ', en: 'Bumpstop = % of time the suspension is at full travel (high → ride height too low or springs too soft) · Δ in/out = inner–outer thermal difference of the RF tyre (camber effect on track) · last session conditions: air ' })}${s.airTemp ?? '—'}° · ${tr({ it: 'pista ', en: 'track ' })}${s.roadTemp ?? '—'}° · ${tr({ it: 'scritta da EVO in Saved Games\\ACE\\MoTec', en: 'written by EVO in Saved Games\\ACE\\MoTec' })}</div>
     ${logRows ? `<details style="margin-top:10px"><summary class="muted">${tr({ it: 'Consigli già dati', en: 'Advice already given' })}</summary><table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Partenza consigliata', en: 'Suggested start' })}</th><th>${tr({ it: 'Base', en: 'Basis' })}</th></tr></thead><tbody>${logRows}</tbody></table></details>` : ''}
     </div>`;
@@ -651,7 +652,7 @@ async function drawSetup(m){
     <h2>${tr({ it: 'Auto della serie — ', en: 'Series car — ' })}${esc(b.trackDisplay ?? tr({ it: 'pista n/d', en: 'track n/a' }))} <span class="muted" style="font-size:12px">${tr({ it: 'note salvate per auto+pista', en: 'notes saved per car+track' })}</span></h2>
     <table><thead><tr><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Classe', en: 'Class' })}</th><th class="right">${tr({ it: 'Target caldo', en: 'Hot target' })}</th><th>${tr({ it: 'Nota di setup', en: 'Setup note' })}</th></tr></thead>
     <tbody>${b.rows.map(r=>`<tr>
-      <td><b>${esc(r.carName)}</b></td><td class="muted">${esc(r.classLabel)}</td><td class="right"><b>${r.target}</b> PSI</td>
+      <td><b>${window.carLinkHtml(r.carName)}</b></td><td class="muted">${esc(r.classLabel)}</td><td class="right"><b>${r.target}</b> PSI</td>
       <td>${r.note ? `<span class="muted">${esc(r.note)}</span> <button class="mini" data-carnote="${esc(r.car)}">${tr({ it: 'modifica', en: 'edit' })}</button>` : `<button class="mini" data-carnote="${esc(r.car)}">+ ${tr({ it: 'nota', en: 'note' })}</button>`}</td>
     </tr>`).join('')}</tbody></table>
   </div>`;
@@ -925,6 +926,51 @@ async function drawSetup(m){
       </div>`;
     } catch { /* il meccanico non deve mai rompere la vista */ }
   };
+  window.__stintiDraw ??= async () => {
+    // STINT + USURA GOMME dalla stessa telemetria: stint spezzati dai
+    // rifornimenti reali e segnali gomma (richiesta 28/10). Due chiamate in
+    // parallelo; se entrambe passano vuote il contenitore resta pulito.
+    const out = document.querySelector('#stinti-out');
+    if (!out) return;
+    try {
+      const [st, go] = await Promise.all([
+        api('garage', { action: 'stinti', car: window.__lcCar ?? null }).catch(() => null),
+        api('garage', { action: 'gomme', car: window.__lcCar ?? null }).catch(() => null),
+      ]);
+      if (!st?.ok && !go?.ok) { out.innerHTML = ''; return; }
+      const sec = (v) => (v == null ? '—' : Number(v).toFixed(2) + 's');
+      const stintRows = (st?.stints ?? []).map((s, i) => `<tr>
+        <td><b>#${i + 1}</b></td>
+        <td class="right muted" style="white-space:nowrap">${s.fromLap}–${s.toLap}</td>
+        <td class="right">${s.nLaps}</td>
+        <td class="right">${sec(s.avgLapSec)}</td>
+        <td class="right">${sec(s.bestLapSec)}</td>
+        <td class="right">${s.fuelPerLap != null ? s.fuelPerLap + ' L' : '—'}</td>
+        <td class="right">${s.degradation ? `<span style="color:${s.degradation.deltaSec > 0.1 ? '#ff9b9b' : 'var(--ok,#7f7)'}">${s.degradation.deltaSec >= 0 ? '+' : ''}${s.degradation.deltaSec.toFixed(2)} s</span>` : '—'}</td>
+      </tr>`).join('');
+      const fp = st?.fuelPace ?? null;
+      const fpHtml = fp ? `<div class="banner info" style="margin-top:8px;padding:8px 10px">⚖️ ${tr({ it: 'Peso del carburante MISURATO sui tuoi giri: ', en: 'Fuel weight MEASURED on your laps: ' })}<b>${fp.secPerLiter >= 0 ? '+' : ''}${fp.secPerLiter.toFixed(3)} ${tr({ it: 's per litro', en: 's per litre' })}</b> <span class="muted" style="font-size:11px">(${fp.n} ${tr({ it: 'giri campionati', en: 'laps sampled' })}, ${tr({ it: 'benzina da ', en: 'fuel from ' })}${fp.fuelSpread} L)</span></div>` : '';
+      const stintHtml = st?.ok ? `
+        <table><thead><tr><th>${tr({ it: 'Stint', en: 'Stint' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'Num. giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'Media', en: 'Average' })}</th><th class="right">${tr({ it: 'Migliore', en: 'Best' })}</th><th class="right">${tr({ it: 'L/giro', en: 'L/lap' })}</th><th class="right">${tr({ it: 'Degrado', en: 'Degradation' })}</th></tr></thead>
+        <tbody>${stintRows || `<tr><td colspan="8" class="muted">${tr({ it: 'Nessuno stint valido nella sessione.', en: 'No valid stint in the session.' })}</td></tr>`}</tbody></table>${fpHtml}` : '';
+      const RUOTE = ['LF', 'RF', 'LR', 'RR'];
+      const ruotaLbl = (w) => ({ LF: tr({ it: 'ant sx', en: 'front left' }), RF: tr({ it: 'ant dx', en: 'front right' }), LR: tr({ it: 'post sx', en: 'rear left' }), RR: tr({ it: 'post dx', en: 'rear right' }) })[w] ?? w;
+      const gommaRows = RUOTE.filter((w) => go?.temps?.[w]).map((w) => {
+        const t = go.temps[w];
+        return `<tr><td><b>${ruotaLbl(w)}</b></td><td class="right">${t.first}°</td><td class="right">${t.last}°</td><td class="right" style="color:${t.deltaC > 0 ? '#ff9b9b' : 'var(--ok,#7f7)'}">${t.deltaC >= 0 ? '+' : ''}${t.deltaC}°</td><td class="right">${t.max}°</td></tr>`;
+      }).join('');
+      const deg = go?.degradation ?? null;
+      const gommaHtml = go?.ok ? `
+        <div style="margin-top:10px"><b>🛞 ${tr({ it: 'Usura gomme', en: 'Tyre wear' })}</b> <span class="muted" style="font-size:11px">· ${go.file}</span></div>
+        ${deg ? `<div class="muted" style="font-size:12px;margin-top:4px">${tr({ it: 'Ritmo dal 1° al {N}° giro: ', en: 'Lap 1 to {N}: ' }).replace('{N}', go.laps)}<b style="color:${deg.deltaSec > 0 ? '#ff9b9b' : 'var(--ok,#7f7)'}">${deg.firstAvg.toFixed(2)}s → ${deg.lastAvg.toFixed(2)}s (${deg.deltaSec >= 0 ? '+' : ''}${deg.deltaSec} s)</b></div>` : `<div class="muted" style="font-size:12px;margin-top:4px">${tr({ it: 'Giri non bastanti per misurare il degrado del ritmo (servono almeno 2).', en: 'Not enough laps to measure pace degradation (need at least 2).' })}</div>`}
+        ${gommaRows ? `<table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Gomma', en: 'Tyre' })}</th><th class="right">${tr({ it: 'Tempo iniziale', en: 'First temp' })}</th><th class="right">${tr({ it: 'Tempo finale', en: 'Last temp' })}</th><th class="right">Δ</th><th class="right">${tr({ it: 'Picco', en: 'Peak' })}</th></tr></thead><tbody>${gommaRows}</tbody></table>
+        <div class="muted" style="font-size:11px;margin-top:4px">${go.hottestWheel ? `🔥 ${tr({ it: 'La gomma che soffre di più: ', en: 'The tyre suffering most: ' })}<b>${ruotaLbl(go.hottestWheel)}</b>.` : ''}${go.slipRearPct != null ? ` ${tr({ it: 'Slittamento trazione posteriore: ', en: 'Rear traction slip: ' })}${go.slipRearPct}%.` : ''}</div>` : `<div class="muted" style="font-size:12px;margin-top:4px">${tr({ it: "Nell'.ld non ci sono canali SURF_TEMP: le temperature gomma non sono state registrate.", en: 'No SURF_TEMP channels in the .ld: tyre temperatures were not recorded.' })}</div>`}
+      ` : '';
+      out.innerHTML = `<div style="margin-top:10px"><b>🏁 ${tr({ it: 'Stint e usura gomme (da telemetria reale)', en: 'Stints and tyre wear (from real telemetry)' })}</b> <span class="muted" style="font-size:11px">· ${esc(st?.file ?? go?.file ?? '')}</span></div>
+        ${st?.ok ? `${stintHtml}` : `<div class="muted" style="font-size:12px;margin-top:4px">${esc(st?.hint ?? '')}</div>`}
+        ${gommaHtml}`;
+    } catch { /* stint e usura non devono mai rompere la vista */ }
+  };
   window.__lcMech();
 
   // diagnostica telemetria: stato dei file .ld scritti da EVO, per auto.
@@ -944,7 +990,7 @@ async function drawSetup(m){
     const health = emptyN === 0
       ? '<span class="tag green" style="font-size:10px;padding:1px 6px">OK</span>'
       : `<span class="tag" style="font-size:10px;padding:1px 6px;background:#3a1d1d;color:#ff9b9b">${emptyN} vuoti</span>`;
-    return `<details style="margin-top:6px" ${c.files.some(f=>!f.valid)?'open':''}><summary style="cursor:pointer;font-size:12.5px"><b>${esc(c.car)}</b> ${health} <span class="muted" style="font-size:11px">· ${c.total} file totali · ultimi ${c.files.length} elencati</span></summary>
+    return `<details style="margin-top:6px" ${c.files.some(f=>!f.valid)?'open':''}><summary style="cursor:pointer;font-size:12.5px"><b>${window.carLinkHtml(c.car)}</b> ${health} <span class="muted" style="font-size:11px">· ${c.total} file totali · ultimi ${c.files.length} elencati</span></summary>
       <table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Dimensione', en: 'Size' })}</th><th>${tr({ it: 'Stato', en: 'State' })}</th><th class="right">${tr({ it: 'Canali con dati', en: 'Channels with data' })}</th></tr></thead><tbody>${files}</tbody></table>
     </details>`;
   }).join('');
@@ -979,7 +1025,7 @@ async function drawSetup(m){
     if (health.stderrTail) healthHtml += `<div class="muted" style="font-size:11px;margin-top:4px">PowerShell stderr: ${esc(health.stderrTail)}</div>`;
     const ld = health.telem?.lastLd;
     if (ld) {
-      healthHtml += `<div style="padding:3px 0;border-bottom:1px solid var(--line,#222)"><b>${tr({ it: 'Ultimo file .ld:', en: 'Last .ld file:' })}</b> ${ld.valid ? `<span class="tag green" style="font-size:10px;padding:1px 6px">${tr({ it: 'dati ok', en: 'data ok' })}</span>` : `<span class="tag" style="font-size:10px;padding:1px 6px;background:#3a1d1d;color:#ff9b9b">${tr({ it: 'VUOTO', en: 'EMPTY' })}</span>`} <span class="muted" style="font-size:11px">${esc(ld.car)} · ${esc(ld.file)} · ${Math.round(ld.size/1024)} KB · ${esc(ld.when)} · ${ld.withData}/${ld.channels} ${tr({ it: 'canali', en: 'channels' })}</span></div>`;
+      healthHtml += `<div style="padding:3px 0;border-bottom:1px solid var(--line,#222)"><b>${tr({ it: 'Ultimo file .ld:', en: 'Last .ld file:' })}</b> ${ld.valid ? `<span class="tag green" style="font-size:10px;padding:1px 6px">${tr({ it: 'dati ok', en: 'data ok' })}</span>` : `<span class="tag" style="font-size:10px;padding:1px 6px;background:#3a1d1d;color:#ff9b9b">${tr({ it: 'VUOTO', en: 'EMPTY' })}</span>`} <span class="muted" style="font-size:11px">${window.carLinkHtml(ld.car)} · ${esc(ld.file)} · ${Math.round(ld.size/1024)} KB · ${esc(ld.when)} · ${ld.withData}/${ld.channels} ${tr({ it: 'canali', en: 'channels' })}</span></div>`;
       if (!ld.valid) healthHtml += `<div class="banner warn" style="margin-top:6px">${tr({ it: "L'ultimo file scritto da EVO è vuoto (solo intestazione): la telemetria non era attiva in EVO (Setup → Elettronica, da impostare PRIMA di avviare la sessione). Finché non scrive dati veri, i consigli del BOX usano la stima.", en: 'The last file written by EVO is empty (header only): telemetry was NOT active in EVO (Setup → Electronics, set BEFORE starting the session). Until it writes real data, the BOX uses estimates.' })}</div>`;
     } else {
       healthHtml += `<div class="muted" style="font-size:11px">${tr({ it: 'Nessun file .ld trovato in', en: 'No .ld file found in' })} ${(health.telem?.dirsChecked ?? []).map((d) => esc(d)).join(', ')}.</div>`;

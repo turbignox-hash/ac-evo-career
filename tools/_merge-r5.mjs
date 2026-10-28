@@ -21,7 +21,7 @@ const DIRS = [
   join(PROJ, 'data', 'slot-3', 'grid-templates'),
   join(PROJ, 'data', 'griglie-grezz'),
 ];
-const carIdOf = (b) => { for (const g of decodeMsg(b)) if (g.field === 3) return g.bytes.toString('utf8'); return null; };
+const _carIdOf = (b) => { for (const g of decodeMsg(b)) if (g.field === 3) return g.bytes.toString('utf8'); return null; };
 
 const uniche = new Map();   // hex → bytes raw della cella
 for (const dir of DIRS) {

@@ -10,7 +10,19 @@
 import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { encodeMsg, openDataDir, GAME_SAVEDIR } from './evo-grid.mjs';
-import { decodeGarage, readMap } from './set-car-sample.mjs';
+import { decodeGarage, readMap, learnCarFromLogs } from './set-car-sample.mjs';
+
+// BOOT DIZIONARIO automatico (31/10): alla PRIMA ricerca auto in un processo
+// proviamo una volta a imparare le coppie dai log di gioco (learnCarFromLogs):
+// così le auto mai campionate (es. la Clio R5 firmata dall'amico) entrano nel
+// dizionario da sole e il Prepara cambia auto senza sampler a mano. Una volta
+// sola per processo: i log crescono, non serve riscandarli a ogni chiamata.
+let _dizionarioBoot = false;
+function dizionarioBoot() {
+  if (_dizionarioBoot) return;
+  _dizionarioBoot = true;
+  try { learnCarFromLogs(); } catch { /* log assenti o illeggibili: si va col dizionario a campioni */ }
+}
 
 // il profilo attivo si SCOPRE su disco (ProfileData/<guid>/OpenData): la GUID
 // cambia per installazione, il percorso fisso valeva solo sul PC di sviluppo
@@ -21,11 +33,23 @@ export const GARAGE_FLAG = 7;   // costante osservata su tutti i campioni (20/10
  *  → "mercedesbenz190e2516evoii" — i segni d'ortografia a caso fra i nomi
  *  dell'app e quelli reali non devono mangiarsi una scrittura. */
 const normCar = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
-/** Parole lunghe ≥ 3 del nome: i token che DEVONO tutti trovarsi nell'altro
- *  nome («Mercedes 190E Evo II» vs «Mercedes-Benz 190E 2.5-16 Evo II»). */
-const tokenCar = (s) => (String(s ?? '').toLowerCase().match(/[a-z0-9]{3,}/g) ?? []);
+/** Parole del nome: i token che DEVONO tutti trovarsi nell'altro nome
+ *  («Mercedes 190E Evo II» vs «Mercedes-Benz 190E 2.5-16 Evo II»). Per i token
+ *  LUNGHI basta il containment, per i CORTI (≤2: «75» dell'Alfa 75, il «R5» della
+ *  Clio, «F40») serve la corrispondenza a PAROLA INTERA — lezione 31/10, Prima
+ *  con l'≥3 il «75» veniva BUTTATO e «Alfa 75» firmava la prima auto con «alfa»
+ *  nel nome (la Giulia GTAm!) invece della 75 vera. */
+function tokenMatching(label, want) {
+  const hay = normCar(label);
+  const words = String(want ?? '').toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  if (!words.length) return false;
+  const hayWords = new Set(String(label ?? '').toLowerCase().match(/[a-z0-9]+/g) ?? []);
+  return words.every((t) => (t.length >= 3 ? hay.includes(t) : hayWords.has(t)));
+}
+const tokenCar = (s) => (String(s ?? '').toLowerCase().match(/[a-z0-9]+/g) ?? []);
 
 export function garageCurrent(file = GARAGE_FILE) {
+  dizionarioBoot();
   const raw = decodeGarage(readFileSync(file));
   const map = readMap().entries;
   const key = raw.carHash + '|' + raw.guid2;
@@ -59,6 +83,7 @@ export function garageBuf(carHash, guid2) {
  * → { carHash, guid2, name } | null.
  */
 export function findCar(name) {
+  dizionarioBoot();
   const entries = readMap().entries;
   const want = String(name ?? '').toLowerCase().trim();
   for (const [key, label] of Object.entries(entries)) {
@@ -67,8 +92,7 @@ export function findCar(name) {
   const tokens = tokenCar(want);
   if (!tokens.length) return null;
   for (const [key, label] of Object.entries(entries)) {
-    const haystack = normCar(label);
-    if (tokens.every((t) => haystack.includes(t))) {
+    if (tokenMatching(label, want)) {
       const [carHash, guid2] = key.split('|');
       return { name: label, carHash, guid2 };
     }

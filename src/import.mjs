@@ -30,7 +30,7 @@ import { raceCrowdFor } from './memories.mjs';
 // di Paddock — l'auto-fix pulito dà un +10% del premio della ronda, il tetto
 // reputazione su una ronda chiusa va ripetuto alla fine come invito alla
 // categoria più alta.
-import { cleanRaceBonusOf, padRepCapNote, paddockNextRace } from './paddock.mjs';
+import { padRepCapNote, paddockNextRace } from './paddock.mjs';
 import { publishRaceNews } from './gazzetta.mjs';
 import { recordFlows } from './flows.mjs';
 import { tr } from './lang.mjs';
@@ -366,14 +366,23 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
   let backupFile = null;
   try { backupFile = backupBeforeImport(); } catch { /* mai bloccare l'import per un backup */ }
 
-  const { entry, proposal, crowdBonus, cleanBonus } = applyRaceResult(ladder, state, targetNode, payload);
+  const { entry, proposal, crowdBonus } = applyRaceResult(ladder, state, targetNode, payload);
   // AVVISO REP-CAP (28/10): se il journal di Paddock dice "reputazione al
   // massimo" per questa serie, la ripeti alla carriera dopo l'import — la
   // serie chiusa non può far crescere la reputazione: il consiglio è l'invito
   // a salire in una categoria più alta.
   try {
     const pn = paddockNextRace();
-    if (pn?.repCapped) pushMessage(state, `📊 ${padRepCapNote()}`, 'info');
+    if (pn?.repCapped) {
+      // ANTI-DOPPIO (31/10, visto dal vivo: nota in IT alle 15:04 e in EN alle
+      // 15:41 niente lo stesso avviso ripetuto): un solo esemplare in bacheca,
+      // indifferentemente dalla lingua in cui arrivò. pushMessage la firma
+      // bilingue da solo (la 📊 è dentro la coppia di padRepCapNote).
+      const dubbia = (t) => typeof t === 'string'
+        && (t.includes('Reputazione al massimo per questo campionato') || t.includes('Reputation is maxed out for this championship'));
+      const giaPresente = state.messages?.some?.((mm) => dubbia(mm.text) || dubbia(mm.textEn));
+      if (!giaPresente) pushMessage(state, padRepCapNote(), 'info');
+    }
   } catch { /* mai bloccare l'import */ }
 
   // risultati dei rivali di questa serie (per sfida e gazzetta), letti prima di toccare altro

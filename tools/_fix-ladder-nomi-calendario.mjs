@@ -30,5 +30,5 @@ console.log(`nomi riallineati: ${fix} · già giusti: ${ok}`);
 const check = JSON.parse(readFileSync(FILE, 'utf8'));
 for (const n of check.nodes.filter((x) => x.level === 1).slice(0, 4)) {
   console.log(`  ${n.nodeId}:`);
-  (n.calendar ?? []).forEach((r, i) => console.log(`    ${i + 1}) ${r.name}  ←  ${r.track}`));
+  (n.calendar ?? []).forEach((r, i) => { console.log(`    ${i + 1}) ${r.name}  ←  ${r.track}`); });
 }

@@ -100,6 +100,15 @@ export function raceCard(ladder, state, { car = null } = {}) {
   const laps = Math.max(2, Math.round(baseLaps * distPct / 100));
   // i premi scalano con la distanza scelta (25% → un quarto del premio pieno)
   const prizeFactor = distPct / 100;
+  // DURATE AL % BASSA (richiesta Mauro 31/10): oltre alle ORE diverse per
+  // sessione, anche le DURATE di prove/qualifiche/warm-up seguono la distanza
+  // scelta in Regole del weekend (25% → sessione un quarto, min 5'); la Race
+  // resta coi GIRI già scalati (o a TEMPO coi minuti scalati). Il Prepara
+  // tutto le scrive nel gamemodesave (f2 dei blocchi, in secondi).
+  const durEff = (m) => Math.max(5, Math.round((Number(m) || 0) * distPct / 100));
+  const practiceMinEff = durEff(profile.practiceMin ?? 45);
+  const qualifyMinEff = durEff(profile.qualifyMin ?? 30);
+  const warmupMinEff = durEff(10);
   const nodeEff = { ...node, econ: { ...node.econ, prize: Math.max(1, Math.round((node.econ.prize ?? 0) * prizeFactor)) } };
   const sliderMinOv = Number.isFinite(Number(ov.sliderMin)) ? Number(ov.sliderMin) : null;
   const sliderMaxOv = Number.isFinite(Number(ov.sliderMax)) ? Number(ov.sliderMax) : null;
@@ -243,6 +252,9 @@ export function raceCard(ladder, state, { car = null } = {}) {
     practiceStart,
     qualifyStart,
     warmupStart,
+    practiceMinEff,
+    qualifyMinEff,
+    warmupMinEff,
     raceHour,
     carAdvice: advice.list,
     settings: [
@@ -253,9 +265,9 @@ export function raceCard(ladder, state, { car = null } = {}) {
       [tr({ it: 'Auto', en: 'Car' }), chosenCarName],
       [tr({ it: 'Avversari', en: 'Opponents' }), tr({ it: `${gridsReali - 1} auto · ${node.cars.length > 1 ? 'multiclasse: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}`, en: `${gridsReali - 1} cars · ${node.cars.length > 1 ? 'multiclass: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}` })],
       [tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), tr({ it: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%`, en: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%` })],
-      [tr({ it: 'Prove libere', en: 'Practice' }), card_sessionHint(profile.practiceMin, round, profile, 'P', practiceStartOv, raceHour)],
-      [tr({ it: 'Qualifiche', en: 'Qualifying' }), card_sessionHint(profile.qualifyMin, round, profile, 'Q', qualifyStartOv, raceHour)],
-      [tr({ it: 'Warm-up', en: 'Warm-up' }), card_sessionHint(10, round, profile, 'W', warmupStartOv, raceHour)],
+      [tr({ it: 'Prove libere', en: 'Practice' }), card_sessionHint(practiceMinEff, round, profile, 'P', practiceStartOv, raceHour)],
+      [tr({ it: 'Qualifiche', en: 'Qualifying' }), card_sessionHint(qualifyMinEff, round, profile, 'Q', qualifyStartOv, raceHour)],
+      [tr({ it: 'Warm-up', en: 'Warm-up' }), card_sessionHint(warmupMinEff, round, profile, 'W', warmupStartOv, raceHour)],
       [tr({ it: 'Gara', en: 'Race' }), round.durationMin
         ? tr({ it: `a TEMPO: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minuti`, en: `BY TIME: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minutes` })
         : tr({ it: `${laps} giri`, en: `${laps} laps` })],
@@ -367,7 +379,7 @@ function card_weatherHint(level) {
  *  pomeriggio (−3h), warm-up un'ora prima (−1h). Con un orario scelto a mano
  *  (override) quello vince sul piano automatico. baseHour è l'ora di gara
  *  efficace (round > override raceStart, richiesta Mauro 28/10). */
-function card_sessionHint(min, round, profile, kind = 'P', overrideHour = null, baseHour = null) {
+function card_sessionHint(min, round, _profile, kind = 'P', overrideHour = null, baseHour = null) {
   const dur = `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}`;
   const h = baseHour ?? round.hour ?? null;
   if (!h) return tr({ it: `${dur} in tempo reale`, en: `${dur} in real time` });

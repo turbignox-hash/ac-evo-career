@@ -10,7 +10,6 @@ import "./_flows-sandbox.mjs"; // sandbox flussi
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mailbox } from '../src/mailbox.mjs';
-import { CADENZA_GIORNI } from '../src/agenda.mjs';
 
 function fakeNode(nodeId, display, rounds = 4) {
   return {
@@ -29,7 +28,7 @@ function fakeLadder(nodes) {
   return { nodes, contentNames: { tracks: {} }, weatherNames: { 1: 'sereno' } };
 }
 
-function fakeState({ day, seats, done, money = 50000, rep = 100, results = {} }) {
+function fakeState({ day, seats, money = 50000, rep = 100, results = {} }) {
   return {
     agenda: { day, startDate: 0 },
     seats,
@@ -43,7 +42,7 @@ function fakeState({ day, seats, done, money = 50000, rep = 100, results = {} })
   };
 }
 
-const TRACKS = { track1: 'BrandsHatch', track2: 'Monza', track3: 'Suzuka', track4: 'Donington' };
+const _TRACKS = { track1: 'BrandsHatch', track2: 'Monza', track3: 'Suzuka', track4: 'Donington' };
 const ladderBase = () => fakeLadder([fakeNode('a', 'Serie A'), fakeNode('b', 'Serie B'), fakeNode('c', 'Serie C')]);
 const seatsABC = { a: { day: 5, season: 1 }, b: { day: 5, season: 1 }, c: { day: 5, season: 1 } };
 
@@ -95,7 +94,7 @@ test('senza ritardi e senza gare entro 7 giorni: nessuna email racing urgente', 
   assert.equal(racingUr.length, 0, `email racing urgenti inattese: ${racingUr.map((x) => x.oggetto)}`);
 });
 
-test('le serie non iscritte non generano posta di gare (no spam \"altrove\")', () => {
+test('le serie non iscritte non generano posta di gare (no spam "altrove")', () => {
   // sedile soolo A; B e C NON hanno sedile → gare "altrove" e nessuna Racing a più di 1 giorno dall'events
   const mails = mailbox(ladderBase(), fakeState({ day: 1, seats: { a: { day: 5, season: 1 } } })).mails;
   const racing = mails.filter((m) => m.kind === 'Racing');

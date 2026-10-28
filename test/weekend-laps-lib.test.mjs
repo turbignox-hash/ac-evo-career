@@ -14,7 +14,7 @@ import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
-import { setWeekendLaps, weekendLaps, sessionsOf, raceBlockIndex } from '../tools/weekend-laps.mjs';
+import { setWeekendLaps, weekendLaps, raceBlockIndex } from '../tools/weekend-laps.mjs';
 
 const SESSIONI = [
   { nome: 'Practice', giri: 3, tipo: 1, ora: 15, min: 30, scala: 2 },

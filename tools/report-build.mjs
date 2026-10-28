@@ -12,7 +12,7 @@
 //   node tools/report-build.mjs          → genera + commit + push
 //   node tools/report-build.mjs --dry    → solo stampa, zero scritture
 //   node tools/report-build.mjs --test   → include l'esito di npm test
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';

@@ -10,7 +10,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const LOG = join(HERE, '..', 'data', 'grid-watch.log');
 const FILE = process.env.GRID_FILE ?? 'C:/Users/Mauro/Saved Games/ACE/GameModes/last_grid.customgrid';
 const tsec = Number(process.argv[2] ?? 3600);
-const t0 = Date.now();
+const _t0 = Date.now();
 
 const snap = () => {
   try {

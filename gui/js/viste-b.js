@@ -3,7 +3,7 @@ async function drawCalendar(m){
   const cal = await api('calendar');
   m.innerHTML = `<div class="panel"><h2>${tr({ it: 'Calendario', en: 'Calendar' })} <span class="h-act">${esc(cal.node)} · ${tr({ it: 'stagione', en: 'season' })} ${cal.season}</span></h2>
   <table><thead><tr><th></th><th>${tr({ it: 'Round', en: 'Round' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Gara', en: 'Race' })}</th><th class="right">${tr({ it: 'Ora', en: 'Time' })}</th><th>${tr({ it: 'Meteo', en: 'Weather' })}</th></tr></thead>
-  <tbody>${cal.rounds.map(r=>`<tr class="${r.current?'cur':''}"><td>${r.played?'✓':r.current?'►':''}</td><td>R${r.index+1} ${esc(r.name)}</td><td>${esc(r.track)}</td><td class="right">${r.durationMin?`${r.durationMin}′ ${tr({ it: 'a tempo', en: 'by time' })}`:`${r.laps} ${tr({ it: 'giri', en: 'laps' })}`}</td><td class="right">${String(r.hour).padStart(2,'0')}:00</td><td class="muted">${esc(r.weather)}</td></tr>`).join('')}</tbody>
+  <tbody>${cal.rounds.map(r=>`<tr class="${r.current?'cur':''}"><td>${r.played?'✓':r.current?'►':''}</td><td>R${r.index+1} ${esc(r.name)}</td><td>${window.trackLinkHtml(r.track)}</td><td class="right">${r.durationMin?`${r.durationMin}′ ${tr({ it: 'a tempo', en: 'by time' })}`:`${r.laps} ${tr({ it: 'giri', en: 'laps' })}`}</td><td class="right">${String(r.hour).padStart(2,'0')}:00</td><td class="muted">${esc(r.weather)}</td></tr>`).join('')}</tbody>
   </table></div>`;
 }
 
@@ -164,22 +164,25 @@ async function drawAgenda(m){
     // e gli altri comandi restano untouched: i click sui button non aprono
     // la scheda né in hover né al click. */
     $$('.ag-card', wrapEl).forEach(el => {
-      let hov = 0;
-      const apri = () => raceCardModal(el.dataset.detail, a.viewDay, el);
-      el.onmouseenter = () => { clearTimeout(hov); hov = setTimeout(apri, 380); };
-      // nel mouseleave arrivano DUE lavori: fermare il timer che ancora non ha
-      // aperto e — se la scheda a HOVER è già aperta — chiuderla da sola
-      // (richiesta Mauro 31/10: «non deve stare aperta, si chiude appena esco
-      // con il mouse dalla card»). La scheda nata da CLICK invece resta fino
-      // alla chiusura esplicita, come sempre.
-      el.onmouseleave = () => {
-        clearTimeout(hov);
-        const pan = $('.modal', $('#modal-root'));
-        if (pan && pan.dataset.hover === '1') $('#modal-root').innerHTML = '';
-      };
+      /* i timer vivono sull'ELEMENTO (el._hov / el._esco) e non in variabili
+         di chiusura: il pannello volante, quando il cursore entra in lui,
+         deve poter cancellare il ritardo di chiusura della card (vedi
+         agPopHover) — a distanza non può toccare le locali. */
+      const apri = () => { agPopChiudi(); raceCardModal(el.dataset.detail, a.viewDay); };
+      el.onmouseenter = () => { clearTimeout(el._hov); clearTimeout(el._esco); clearTimeout(AG_POP_ESC); el._hov = setTimeout(() => agPopHover(el, a.viewDay), 380); };
+      // mousemove si ricorda DOVE sta il cursore: la volante si ancora a LUI
+      el.onmousemove = (e) => { el._mx = e.clientX; el._my = e.clientY; };
+      // al lascio della card: fermare il timer che non ha ancora aperto e
+      // chiudere la volante DOPO 100ms di garanzia — il tempo di passare dalla
+      // card al pannello. Ma se DENTRO 100ms il cursore entra nel pannello,
+      // quello cancella el._esco (vedi sotto) e resta aperto a leggere.
+      // La scheda nata da CLICK resta fino alla chiusura esplicita, come
+      // sempre. (richiesta Mauro 31/10 e 27/10: «non deve stare aperta, si
+      // chiude appena esco dalla card»)
+      el.onmouseleave = () => { clearTimeout(el._hov); clearTimeout(el._esco); el._esco = setTimeout(agPopChiudi, 100); };
       el.onclick = (e) => {
         if (e.target.closest('button')) return;
-        clearTimeout(hov);
+        clearTimeout(el._hov); clearTimeout(el._esco);
         apri();
       };
     });
@@ -194,22 +197,52 @@ async function drawAgenda(m){
   }
 }
 
-/* -------- scheda-gara cliccabile in Agenda -------- */
-async function raceCardModal(nodeId, day, hos = null){
+/* -------- scheda-gara volante ALL'HOVER (27/10, seconda versione) --------
+   Prima (31/10) l'hover apriva la MODALE a tutto schermo come il click: il
+   fondale di quella modale copriva la card, il mouse perdeva l'hover e la
+   scheda pulsava ad intermittenza (chiusa → raiperta → chiusa) — E centrate
+   nello schermo, mai dove stava il cursore («centrata rispetto il mouse»).
+   Ora l'hover costruisce un PANNELLO VOLANTE ancorato al cursore: si chiude
+   al lascio della card (100 ms di garanzia per fare due passi fino a lui) e
+   resta fermo mentre lo leggi. La modale a pieno schermo resta SOLO per il
+   click — che chiude la volante e apre la scheda intera come sempre. */
+let AG_POP = null, AG_POP_ESC = 0;
+function agPopChiudi(){ clearTimeout(AG_POP_ESC); if (AG_POP) { AG_POP.remove(); AG_POP = null; } }
+async function agPopHover(el, day){
   let d;
-  try { d = await api('agenda-detail', { nodeId, day }); }
-  catch(e){ toast(e.message, 'err'); return; }
-  // HOVER (31/10): il dettaglio arriva in ritardo — se il mouse è già
-  // uscito dalla card mentre aspettavamo la risposta, la scheda non
-  // apre affatto: sarebbe una modale orfana senza chi che la tenga.
-  if (hos && !hos.matches(':hover')) return;
+  try { d = await api('agenda-detail', { nodeId: el.dataset.detail, day }); }
+  catch(e){ return; }   /* svani mentre aspettavamo la risposta: niente pannello orfano */
+  if (!el.matches(':hover')) return;   /* uscito dalla card: non apre nulla */
+  const rpos = el.getBoundingClientRect();
+  const mx = el._mx ?? (rpos.left + rpos.width / 2);
+  const my = el._my ?? (rpos.top + rpos.height / 2);
+  agPopChiudi();
+  const pop = document.createElement('div');
+  pop.className = 'ag-pop'; pop._per = el;
+  pop.innerHTML = `<div class="ag-pop-h"><span>${esc(d.display)}${d.roundName ? ' — ' + esc(d.roundName) : ''}</span><span class="ag-pop-x" title="${esc(tr({ it: 'chiudi (o esci dalla card)', en: 'close (or leave the card)' }))}">×</span></div>${raceCardBody(d)}`;
+  /* NOTA: appesa al BODY, non a #modal-root — quel contenitore, quando non
+     vuoto, diventa fondale scuro a tutto schermo con centro forzato (CSS
+     :not(:empty)): la stessa trappola che causava pulsazione e
+     «centrata lontano dal mouse». Nel body la volante vive da sé. */
+  document.body.appendChild(pop);
+  AG_POP = pop;
+  pop.onmouseenter = () => { const p = pop._per; if (p) { clearTimeout(p._esco); clearTimeout(p._hov); } };
+  pop.onmouseleave = () => agPopChiudi();
+  $('.ag-pop-x', pop).onclick = () => agPopChiudi();
+  /* POSIZIONE: centrata orizzontalmente sul cursore, sotto di lui; se in basso
+     manca lo spazio si capovolge SOPRA il cursore. Sbordare dallo schermo: non. */
+  const r = pop.getBoundingClientRect();
+  pop.style.left = Math.min(Math.max(8, mx - r.width / 2), Math.max(8, innerWidth - r.width - 8)) + 'px';
+  pop.style.top = (my + 20 + r.height > innerHeight - 8 ? Math.max(8, my - r.height - 20) : my + 20) + 'px';
+}
+function raceCardBody(d){
   const auto = (d.cars ?? []).join(', ') || '—';
   const cal = (d.calendar ?? []).map((r) => {
     const mark = r.played ? '✓' : r.current ? '►' : '';
     return `<div style="display:flex;gap:8px;align-items:baseline;padding:1px 0">
       <span style="width:16px;color:${r.played?'var(--ok,#7bd88f)':'inherit'}">${mark}</span>
       <span class="faint" style="min-width:38px">R${r.index+1}/${d.calendar.length}</span>
-      <span ${r.current?'style="font-weight:700"':''}>${esc(r.track)}</span>
+      <span ${r.current?'style="font-weight:700"':''}>${window.trackLinkHtml(r.track)}</span>
       <span class="faint">· ${r.laps??'—'} ${tr({ it: 'giri', en: 'laps' })} · ${String(r.hour).padStart(2,'0')}:00</span>
     </div>`;
   }).join('');
@@ -219,13 +252,13 @@ async function raceCardModal(nodeId, day, hos = null){
     : `<div class="muted" style="margin-top:8px">${tr({ it: 'La stagione non è ancora cominciata: nessun punto in palio finora.', en: 'The season has not started yet: no points awarded so far.' })}</div>`;
   const mie = (d.mine ?? []).length
     ? `<div class="muted" style="margin:8px 0 2px">${tr({ it: 'I tuoi risultati in questa stagione:', en: 'Your results this season:' })}</div>
-      ${d.mine.map(r=>`<span class="muted" style="margin-right:12px">R${r.round+1}: <b>${r.position}</b>${r.fl?` · ${tr({ it: 'giro veloce', en: 'fastest lap' })}`:''} · ${r.points} pt · ${esc(r.track)}</span>`).join('')}`
+      ${d.mine.map(r=>`<span class="muted" style="margin-right:12px">R${r.round+1}: <b>${r.position}</b>${r.fl?` · ${tr({ it: 'giro veloce', en: 'fastest lap' })}`:''} · ${r.points} pt · ${window.trackLinkHtml(r.track)}</span>`).join('')}`
     : '';
   const statoTxt = d.stato === 'iscritto'
     ? `<span class="tag gold">★ ${tr({ it: 'tuo campionato', en: 'your championship' })}</span>`
     : d.fattibile ? `<span class="tag blue">${tr({ it: "fattibile: puoi firmare dall'agenda", en: 'pickable: sign up from the Agenda' })}</span>`
     : `<span class="tag gold" title="${esc((d.gateReasons??[]).join(' · '))}">🔒 ${(d.gateReasons??[])[0] ?? tr({ it: 'bloccata', en: 'locked' })}</span>`;
-  const r = modal(`${esc(d.display)}${d.roundName ? ' — ' + esc(d.roundName) : ''}`, `
+  return `
     <div class="row" style="gap:6px;flex-wrap:wrap">${statoTxt}
       <span class="faint">L${d.level} · ${esc(d.discipline)} · ${tr({ it: 'stagione ', en: 'season ' })}${d.season}</span></div>
     <div style="margin:8px 0 2px"><b>${esc(d.roundName ?? '')}</b> — ${esc(d.track)} · ${d.laps??'—'} ${tr({ it: 'giri', en: 'laps' })} · ${tr({ it: 'ore ', en: 'at ' })}${String(d.hour).padStart(2,'0')}:00${d.weather?' · '+esc(d.weather):''}</div>
@@ -234,7 +267,19 @@ async function raceCardModal(nodeId, day, hos = null){
     ${d.joinNote ? `<div class="tag gold" style="margin-top:6px;display:inline-block">⚠️ ${esc(d.joinNote)}</div>` : ''}
     <div class="sig-prev" style="margin-top:8px"><div class="muted" style="margin-bottom:4px">${tr({ it: 'Calendario della stagione:', en: 'Season calendar:' })}</div>${cal}</div>
     ${mie}
-    ${standings}`,
+    ${standings}`;
+}
+
+/* -------- scheda-gara cliccabile in Agenda -------- */
+async function raceCardModal(nodeId, day, hos = null){
+  let d;
+  try { d = await api('agenda-detail', { nodeId, day }); }
+  catch(e){ toast(e.message, 'err'); return; }
+  // HOVER (31/10): il dettaglio arriva in ritardo — se il mouse è già
+  // uscito dalla card mentre aspettavamo la risposta, la scheda non
+  // apre affatto: sarebbe una modale orfana senza chi che la tenga.
+  if (hos && !hos.matches(':hover')) return;
+  const r = modal(`${esc(d.display)}${d.roundName ? ' — ' + esc(d.roundName) : ''}`, raceCardBody(d),
     [[d.stato === 'iscritto' && d.isCurrent ? tr({ it: 'Vai in pista (Cruscotto)', en: 'Go racing (Dashboard)' }) : tr({ it: 'Chiudi', en: 'Close' }), 'act', () => {
       if (d.stato === 'iscritto' && d.isCurrent) { tab='dashboard'; drawNav(); render(); }
     }]]);
@@ -248,16 +293,49 @@ async function raceCardModal(nodeId, day, hos = null){
   }
 }
 
+/* -------- I CINQUE MISCUGLI (28/10, richiesta Mauro: sezione dedicata in GUI) --------
+   Schede dei cinque campionati a pescaggio random, ANCHE quando non hai firmato
+   il sedile: pool sorteggiato con seme, regole (con tag cap), calendario. Ogni
+   nome auto/pista è cliccabile (libro auto/piste), come per le serie firmate. */
+function stilePannello(stili){
+  if (!(stili ?? []).length) return '';
+  const pct = (x) => Number(x ?? 0).toFixed(1).replace(/\.0$/, '') + '%';
+  const stateTag = (s) => s.isCurrent
+    ? `<span class="tag gold">${tr({ it: 'attiva', en: 'active' })}</span>`
+    : s.iscritto ? `<span class="tag green">${tr({ it: 'iscritto', en: 'signed' })}</span>`
+    : s.sbloccato ? `<span class="tag green">${tr({ it: 'sedile aperto', en: 'seat open' })}</span>`
+    : `<span class="tag warn">${tr({ it: 'rep ', en: 'rep ' })}${s.rep}/${s.repRequired}</span>`;
+  const cards = stili.map((s) => {
+    const atCap = (s.regole ?? []).filter((r) => r.cap).length;
+    return `<details style="margin-bottom:10px;border:1px solid var(--line,#333);border-radius:8px;padding:10px">
+      <summary style="cursor:pointer"><b>${esc(s.display)}</b> ${stateTag(s)} <span class="tag blue">L${s.level}</span>
+        <span class="muted" style="font-size:11px"> · ${tr({ it: 'finestra PI ', en: 'PI window ' })}${s.finestra[0] ?? '–'}–${s.finestra[1] ?? '–'}${s.seed ? ` · seed ${esc(s.seed)}` : ''} · ${s.pool.length} ${tr({ it: 'modelli', en: 'models' })}${atCap ? ` · <span class="tag warn">${atCap} ${tr({ it: 'al cap 20%', en: 'at 20% cap' })}</span>` : ''}</span></summary>
+      <div style="margin-top:8px;font-size:12.5px">
+        <div><b>${tr({ it: 'Pool sorteggiato:', en: 'Drawn pool:' })}</b> <span class="muted">${tr({ it: 'miscuglio completamente random: stradali, Cup, GT e epiche battuti insieme allo stesso livello, mono e multiclasse insieme.', en: 'completely random mix: road cars, Cup, GT and classics shuffled together at the same level, mono and multiclass alike.' })}</span></div>
+        <div style="margin-top:4px">${(s.pool ?? []).map(window.carLinkHtml).join(' · ') || '<span class="faint">—</span>'}</div>
+        <div style="margin-top:8px"><b>${tr({ it: 'Calendario:', en: 'Calendar:' })}</b> ${(s.calendario ?? []).map(window.trackLinkHtml).join(' → ') || '<span class="faint">—</span>'}</div>
+        <table style="margin-top:8px"><thead><tr><th>${tr({ it: 'Auto', en: 'Car' })}</th><th class="right">${tr({ it: 'Zavorra / Penalità', en: 'Ballast / Penalty' })}</th></tr></thead>
+        <tbody>${(s.regole ?? []).map((r) => `<tr><td>${window.carLinkHtml(r.auto)}</td><td class="right">${r.kg}kg / ${pct(r.pct)}${r.cap ? ` <span class="tag warn" title="${tr({ it: 'fuori formula (baseline o oltre il cap): la prima gara decide con griglia-calib', en: 'out of formula (baseline or over cap): the first race decides with grid-calib' })}">${tr({ it: 'cap', en: 'cap' })}</span>` : ''}</td></tr>`).join('')}</tbody></table>
+      </div>
+    </details>`;
+  }).join('');
+  return `<div class="panel" style="padding:14px 16px">
+    <h2 style="margin:0 0 8px">${ICONS.championships} ${tr({ it: 'Cinque campionati a miscuglio', en: 'Five random-mix championships' })}</h2>
+    <div class="muted" style="font-size:11.5px;margin-bottom:10px">${tr({ it: 'Pools sorteggiati a sorte dal catalogo. Il seme riproduce la tiratura; ogni ritiro del generatore cambia tutto: node tools/_genera-stili.mjs --rigenera.', en: 'Pools drawn at random from the catalog. The seed reproduces the draw; every new draw changes everything: node tools/_genera-stili.mjs --rigenera.' })}</div>
+    ${cards}
+  </div>`;
+}
+
 /* -------- campionati: le serie iscritte coi loro calendari e classifiche -------- */
 async function drawChampionships(m){
-  const [v] = await Promise.all([api('championships')]);
+  const [v, stiliData] = await Promise.all([api('championships'), api('stili').catch(() => ({ stili: [] }))]);
   /* PANNELLO MONDIALE a pieghevole (30/10): la partenza stagnante della barra
      (prima scheda 'standings') ora vive QUI, in fondo alla pagina dei
      campionati — stessa funzione, posto meno in barra e un posto scelto. */
   let mondo = null;
   try { mondo = await worldRankingInner(); } catch { /* che la pagina dei campionati resti anche senza mondo */ }
   if (!(v.championships ?? []).length) {
-    m.innerHTML = `<div class="panel"><h2>${tr({ it: 'Campionati', en: 'Championships' })}</h2><div class="empty">${tr({ it: 'Nessun campionato iscritto: firma un sedile dal Centro gare quando la giornata ti offre una serie adatta.', en: 'No championship signed up: grab a seat from the Race Centre when the day offers a suitable series.' })}</div></div>`;
+    m.innerHTML = `<div class="panel"><h2>${tr({ it: 'Campionati', en: 'Championships' })}</h2><div class="empty">${tr({ it: 'Nessun campionato iscritto: firma un sedile dal Centro gare quando la giornata ti offre una serie adatta.', en: 'No championship signed up: grab a seat from the Race Centre when the day offers a suitable series.' })}</div></div>` + stilePannello(stiliData.stili ?? []);
     return;
   }
   // BADGE cliccabili in alto: ogni campionato in corso con auto, pista e prossimo
@@ -287,6 +365,7 @@ async function drawChampionships(m){
     <div class="champ-grid">${cards}</div>
     <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'Clicca una carta per scendere alla scheda completa.', en: 'Click a card to jump to its full card below.' })}</div>
   </div>`
+    + stilePannello(stiliData.stili ?? [])
     + v.championships.map((c) => {
     const rounds = c.calendar.map((r) => {
       const mark = r.played ? '✓' : r.current ? '►' : '';
@@ -299,7 +378,7 @@ async function drawChampionships(m){
     }).join('');
     const mine = (c.mine ?? []).length
       ? `<div class="muted" style="margin:6px 0 2px">${tr({ it: 'I tuoi risultati (', en: 'Your results (' })}${c.mine.length} ${tr({ it: 'gare):', en: 'races):' })}</div>
-        ${c.mine.map(r=>`<span class="muted" style="margin-right:12px">R${r.round+1}: <b>${r.position}</b>${r.fl?' · giro veloce':''} · ${r.points} pt · ${esc(r.track)}</span>`).join('')}`
+        ${c.mine.map(r=>`<span class="muted" style="margin-right:12px">R${r.round+1}: <b>${r.position}</b>${r.fl?' · giro veloce':''} · ${r.points} pt · ${window.trackLinkHtml(r.track)}</span>`).join('')}`
       : `<div class="muted" style="margin:6px 0">${tr({ it: 'Ancora nessuna gara corsa in questa stagione.', en: 'No race run yet this season.' })}</div>`;
     const table = c.standings
       ? `<table><thead><tr><th></th><th>${tr({ it: 'Pilota', en: 'Driver' })}</th><th class="right">${tr({ it: 'Punti', en: 'Points' })}</th></tr></thead>
@@ -403,7 +482,7 @@ function serieDetail(n){
       <span style="font-size:11.5px;line-height:1.25">${esc(c.name)}</span>
     </div>`).join('');
   const cal = (n.calendar??[]).map((r,i)=>`<tr>
-    <td class="faint">R${i+1}</td><td>${esc(r.track)}</td><td class="right">${r.durationMin?`${r.durationMin}′ ${tr({ it: 'a tempo', en: 'by time' })}`:`${r.laps} ${tr({ it: 'giri', en: 'laps' })}`}</td>
+    <td class="faint">R${i+1}</td><td>${window.trackLinkHtml(r.track)}</td><td class="right">${r.durationMin?`${r.durationMin}′ ${tr({ it: 'a tempo', en: 'by time' })}`:`${r.laps} ${tr({ it: 'giri', en: 'laps' })}`}</td>
     <td class="right">${String(r.hour).padStart(2,'0')}:00</td><td class="muted">${wxName(r.weather)}</td></tr>`).join('');
   const pts = n.pointsInfo ? `${tr({ it: 'Punti: ', en: 'Points: ' })}${n.pointsInfo.table.join('–')} ${n.pointsInfo.fl?`· +${n.pointsInfo.fl} ${tr({ it: 'giro veloce', en: 'fastest lap' })}`:''} ${n.pointsInfo.pole?`· +${n.pointsInfo.pole} ${tr({ it: 'pole', en: 'pole' })}`:''}` : '';
   const palmares = champ ? `<div style="margin-top:10px"><span class="tag gold">🏆 ${tr({ it: 'campione: stagioni ', en: 'champion: seasons ' })}${n.champSeasons.join(', ')}</span></div>`
@@ -429,7 +508,42 @@ async function drawArchive(m){
   // SCOPE CARRIERA (24/10): di default solo i risultati nati con QUESTA carriera
   // (Results è UNA cartella per PC, condivisa dagli slot); l'interruttore mostra
   // tutto il disco.
-  const c = await api('catalog', { all: !!window.__arcAllPc });
+  // ARCHIVIO ONLINE (31/10): le sessioni _MP_ e il libro dei rivali online
+  // vengono dalla STESSA cartella con lo stesso scope — una chiamata in più,
+  // zero semafori da coordinare a mano.
+  const [c, mp] = await Promise.all([
+    api('catalog', { all: !!window.__arcAllPc }),
+    api('mp', { all: !!window.__arcAllPc }).catch(() => null),
+  ]);
+  const mpHtml = (() => {
+    if (!mp) return '';
+    const P = mp.rows ?? [], R = mp.rivals ?? [];
+    // dalla PISTA all'AUTO: la punta come tooltip sul nome del rivale
+    const tooltipComm = (x) => (x.communities ?? []).join(' · ') || '—';
+    const riga = (x) => `<tr data-file="${esc(x.file)}" class="arc-row" style="cursor:pointer">
+        <td class="muted">${esc(String(x.when).slice(0,16).replace('T',' '))}</td>
+        <td class="muted">${esc(String(x.community ?? '').slice(0, 52))}</td>
+        <td><span class="tag ${x.session === 'Race' ? 'gold' : 'blue'}">${esc(x.session)}</span></td>
+        <td>${esc(x.track)} <span class="faint">${esc(x.layout ?? '')}</span></td>
+        <td class="right">${x.drivers}</td>
+        <td>${x.me ? `<span class="tag ${x.me.position === 1 ? 'gold' : x.me.position <= 3 ? 'green' : ''}">P${x.me.position}</span>${x.me.bestLap ? ` <span class="faint">${esc(x.me.bestLap)}</span>` : ''}` : '—'}</td>
+      </tr>`;
+    const forma = (x) => (x.form ?? []).length
+      ? x.form.map((f) => f.pos != null ? `<span class="tag ${f.beat === true ? 'green' : f.beat === false ? 'red' : ''}">P${f.pos}</span>` : '<span class="faint">·</span>').join(' ')
+      : '—';
+    const incroci = () => `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px"><b>⚔️ ${tr({ it: 'Libro dei rivali online', en: 'Online rivals book' })}</b> <span class="muted" style="font-size:11px">— ${R.length} ${tr({ it: 'incrociati nelle sessioni multiplayer', en: 'met across multiplayer sessions' })}</span></summary>
+      <table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Rivale', en: 'Rival' })}</th><th class="right">${tr({ it: 'Incroci', en: 'Meetings' })}</th><th class="right">${tr({ it: 'Lui davanti', en: 'He finished ahead' })}</th><th class="right">${tr({ it: 'Tu davanti', en: 'You finished ahead' })}</th><th>${tr({ it: 'Ultima forma', en: 'Recent form' })}</th><th>${tr({ it: 'Pista più fitta', en: 'Favoured track' })}</th><th class="muted">${tr({ it: 'Auto abituale', en: 'Usual car' })}</th><th>${tr({ it: 'Ultima volta', en: 'Last seen' })}</th></tr></thead>
+      <tbody>${R.slice(0, 20).map((x) => `<tr><td title="${esc(tooltipComm(x))}">${esc(x.name ?? '?')}</td><td class="right">${x.meetings}</td><td class="right" style="color:${x.beats > x.beaten ? '#ff9b9b' : 'var(--ok,#4ade80)'}">${x.beats}</td><td class="right">${x.beaten}</td><td>${forma(x)}</td><td>${x.favTrack ? `${esc(x.favTrack.track)} <span class="faint">×${x.favTrack.n}${x.favTrack.tu ? `, ${x.favTrack.tu} ${tr({ it: 'tue', en: 'yours' })}` : ''}</span>` : '—'}</td><td class="muted">${esc(x.favCar ?? '—')}</td><td class="muted">${esc(String(x.lastWhen ?? '').slice(0,16).replace('T',' '))}</td></tr>`).join('')}</tbody></table>
+      <div class="muted" style="font-size:11px;margin-top:4px">${tr({ it: "Identità presa dal driver_id del gioco: sopravvive ai nickname diversi e ai server diversi. Solo sessioni in cui eravate entrambi in griglia.", en: "Identity taken from the game's driver_id: it survives different nicknames and different servers. Only sessions where you both started." })}</div></details>`;
+    return `<div class="panel" id="mp-panel" style="margin-top:14px">
+    <h2>🌐 ${tr({ it: 'Archivio online', en: 'Online archive' })} <span class="h-act">${mp.total} ${tr({ it: 'sessioni multiplayer nei Results di EVO', en: "multiplayer sessions in EVO's Results" })}</span></h2>
+    <div class="muted" style="font-size:11.5px;margin:0 0 8px">${tr({ it: 'Le gare online NON toccano la carriera: nessun punto, nessun soldo — restano qui come memoria, con la griglia cliccabile come tutte le altre sessioni.', en: "Online races NEVER touch the career: no points, no money — they stay here as memory, with a clickable grid like every other session." })}</div>
+    ${P.length ? `<table><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Community / server', en: 'Community / server' })}</th><th>${tr({ it: 'Sessione', en: 'Session' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Piloti', en: 'Drivers' })}</th><th>${tr({ it: 'Tu', en: 'You' })}</th></tr></thead>
+      <tbody>${P.map(riga).join('')}</tbody></table>`
+      : `<div class="empty">${tr({ it: 'Nessuna sessione multiplayer ancora: da ogni gara col server EVO scrive i risultati _MP_ qui, e da allora niente va più perso.', en: 'No multiplayer session yet: from your first server race EVO writes _MP_ results here, and from then on nothing is lost.' })}</div>`}
+    ${R.length ? incroci() : ''}
+  </div>`;
+  })();
   m.innerHTML = `
   <div class="panel">
     <h2>${tr({ it: 'Archivio sessioni', en: 'Session archive' })} <span class="h-act">${c.archive.total} ${tr({ it: 'file nei Results di EVO', en: 'files in EVO\'s Results' })}</span></h2>
@@ -438,7 +552,8 @@ async function drawArchive(m){
       : `${tr({ it: 'Mostrato TUTTO il PC: Results è una cartella condivisa dagli slot.', en: 'Showing the WHOLE PC: Results is shared across slots.' })} <button class="mini" id="b-arc-all">${tr({ it: 'Solo carriera', en: 'Career only' })}</button>`}</div>
     <div class="row"><input type="text" id="arc-q" placeholder="${tr({ it: 'Cerca pista, pilota, sessione…', en: 'Search track, driver, session…' })}" style="max-width:280px"></div>
     <div id="arc-body"></div>
-  </div>`;
+  </div>
+  ${mpHtml}`;
   const all = c.archive.rows;
   const rowHtml = (r, tries) => `<tr data-file="${esc(r.file)}" class="arc-row" style="cursor:pointer">
     <td class="muted">${esc(r.when.slice(0,16).replace('T',' '))}</td>
@@ -472,6 +587,9 @@ async function drawArchive(m){
   const bAll = $('#b-arc-all');
   if (bAll) bAll.onclick = () => { window.__arcAllPc = !window.__arcAllPc; render(); };
   $('#arc-q').oninput = () => paint($('#arc-q').value);
+  // ARCHIVIO ONLINE: righe cliccabili_reads come le altre — la stessa griglia
+  // completa di openResult (tempi, gap, penalità, identity via driver_id).
+  $$('#mp-panel .arc-row', m).forEach(tr => { tr.onclick = () => openResult(tr.dataset.file); });
 }
 
 /* -------- giri liberi (24/10) --------
@@ -499,7 +617,7 @@ async function drawGironi(m){
   <div class="panel">
     <h2>${tr({ it: 'Libro PB — auto × pista', en: 'PB book — car × track' })}</h2>
     ${P.length ? `<table><thead><tr><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'PB', en: 'PB' })}</th><th class="right">${tr({ it: 'Giro ideale', en: 'Ideal lap' })}</th><th class="muted">${tr({ it: ' Dal', en: 'Since' })}</th></tr></thead>
-      <tbody>${P.map(r=>`<tr><td>${esc(r.carPretty ?? r.car)}</td><td>${esc(r.trackPretty ?? r.track)}${esc(r.layout ?? '')}</td><td class="right"><b>${esc(r.lap ?? MS(r.lapMs))}</b></td><td class="right ${r.idealLapMs && r.idealLapMs < r.lapMs ? 'good' : 'muted'}">${r.idealLapMs ? MS(r.idealLapMs) : '—'}</td><td class="muted">${esc(String(r.at ?? '').slice(0, 16).replace('T', ' '))}</td></tr>`).join('')}</tbody></table>`
+      <tbody>${P.map(r=>`<tr><td>${window.carLinkHtml(r.carPretty ?? r.car)}</td><td>${esc(r.trackPretty ?? r.track)}${esc(r.layout ?? '')}</td><td class="right"><b>${esc(r.lap ?? MS(r.lapMs))}</b></td><td class="right ${r.idealLapMs && r.idealLapMs < r.lapMs ? 'good' : 'muted'}">${r.idealLapMs ? MS(r.idealLapMs) : '—'}</td><td class="muted">${esc(String(r.at ?? '').slice(0, 16).replace('T', ' '))}</td></tr>`).join('')}</tbody></table>`
       : `<div class="empty">${tr({ it: 'Nessun PB ancora: gira in pratica e il quaderno impara.', en: 'No PB yet: run a practice session and the book will learn.' })}</div>`}
   </div>`;
 
@@ -510,7 +628,7 @@ async function drawGironi(m){
       <tbody>${S.slice(0, 25).map(e => `<tr class="${e.isPB ? 'hl-pb' : ''}">
         <td class="muted">${esc(String(e.at ?? '').slice(0, 16).replace('T', ' '))}</td>
         <td>${esc(e.trackPretty ?? e.track)} ${e.layout ? `<span class="faint">${esc(e.layout)}</span>` : ''}</td>
-        <td>${esc(e.carPretty ?? e.car)}${e.isPB ? ` <span class="tag gold" title="${tr({ it: 'il tuo giro migliore di sempre su questa pista con questa auto', en: 'your all-time best on this track in this car' })}">${tr({ it: 'PB', en: 'PB' })}</span>` : ''}</td>
+        <td>${window.carLinkHtml(e.carPretty ?? e.car)}${e.isPB ? ` <span class="tag gold" title="${tr({ it: 'il tuo giro migliore di sempre su questa pista con questa auto', en: 'your all-time best on this track in this car' })}">${tr({ it: 'PB', en: 'PB' })}</span>` : ''}</td>
         <td class="muted">${esc(e.weather ?? '—')}</td>
         <td class="right">${e.lapsCount}</td>
         <td class="right"><b>${esc(e.bestLap ?? '—')}</b></td>
@@ -547,19 +665,56 @@ async function drawGironi(m){
 async function openResult(file){
   const d = await api('result-detail', { file });
   if (d.error) return toast(d.error, 'err');
+  // TESTA A TESTA (solo MP): colonna ⚔️ col libro dei rivali — sul tooltip il
+  // conto completo (incroci totali, tu davanti, lui davanti).
+  const h2hCol = (r) => !d.is_mp ? '' : `<td class="right" title="${r.h2h ? tr({ it: `${r.h2h.meetings} incroci: tu davanti ${r.h2h.tu}, lui davanti ${r.h2h.lui}`, en: `${r.h2h.meetings} meetings: you ahead ${r.h2h.tu}, him ahead ${r.h2h.lui}` }) : tr({ it: 'primo incrociato: il libro lo impara da qui', en: 'first meeting: the book learns him here' })}">${r.h2h ? `<b style="color:${r.h2h.tu > r.h2h.lui ? 'var(--ok,#4ade80)' : r.h2h.lui > r.h2h.tu ? '#ff9b9b' : 'inherit'}">${r.h2h.tu}–${r.h2h.lui}</b>` : '<span class="faint">·</span>'}</td>`;
+  /* RAPPORTO DI GARA (27/10, richiesta Mauro: «il post-race report è il regalo»):
+     il dossier COMPLETO pronto da incollare su Discord — podio, classifica con
+     penalità, gap, giro veloce e (MP) testa a testa — composto per l'intero
+     resultDetail del server + settori dal file nativo. Il MD finisce anche
+     in report/gare/ come allegato. */
+  const apriRapporto = async () => {
+    try {
+      const rr = await api('rapporto-gara', { file });
+      if (rr.error) return toast(rr.error, 'err');
+      // copie fai-solo: il browser moderno dà il clipboard, il fallback resta
+      // textarea+execCommand per il vecchio EVO webview
+      const copia = () => {
+        try { navigator.clipboard?.writeText(rr.md).then(() => toast(tr({ it: 'Rapporto copiato: incollalo su Discord.', en: 'Report copied: paste it on Discord.' }), 'ok')).catch(() => copiaFallback()); }
+        catch { copiaFallback(); }
+      };
+      const copiaFallback = () => {
+        const ta = document.createElement('textarea');
+        ta.value = rr.md; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch { ok = false; }
+        ta.remove();
+        toast(ok ? tr({ it: 'Rapporto copiato: incollalo su Discord.', en: 'Report copied: paste it on Discord.' }) : tr({ it: 'Copia a mano dalla casella.', en: 'Copy it by hand from the box.' }), ok ? 'ok' : '');
+      };
+      modal(tr({ it: 'Rapporto gara · pronto per Discord', en: 'Race report · ready for Discord' }), `
+        <div class="muted" style="margin-bottom:8px">${rr.md.split('\n').slice(0, 2).map(esc).join('<br>')}</div>
+        <textarea id="rp-md" class="rp-md" readonly style="width:100%;height:340px;font-family:var(--mono,monospace);font-size:12px;white-space:pre;background:var(--bg2,#1b2030);color:var(--fg,#e8eaf0);border:1px solid var(--line,#2b3345);border-radius:6px;padding:10px">${esc(rr.md)}</textarea>
+        ${rr.salvatoMd ? `<div class="muted" style="margin-top:8px;font-size:12px">📄 ${tr({ it: 'salvato anche in', en: 'also saved to' })} <code>${esc(rr.salvatoMd)}</code></div>` : ''}`,
+        [[tr({ it: '⧉ Copia per Discord', en: '⧉ Copy for Discord' }), 'primary', () => { copia(); return false; }],
+         [tr({ it: 'Chiudi', en: 'Close' }), 'ghost', ()=>{}]]);
+    } catch (e) { toast(e.message, 'err'); }
+  };
   modal(`${tr({ it: 'Classificazione · ', en: 'Classification · ' })}${d.track} ${d.layout}`, `
     <div class="muted" style="margin-bottom:10px">${esc(d.session)} · ${esc(d.event)} · ${tr({ it: 'ore ', en: 'at ' })}${d.hour ?? '?'}:${String(d.min ?? 0).padStart(2,'0')} · ${tr({ it: 'meteo ', en: 'weather ' })}${esc(d.weather ?? 'n/d')} · ${d.rows.length} ${tr({ it: 'piloti', en: 'drivers' })}</div>
-    <table><thead><tr><th></th><th>${tr({ it: 'Pilota', en: 'Driver' })}</th><th>${tr({ it: 'Auto', en: 'Car' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'Miglior giro', en: 'Best lap' })}</th><th class="right">${tr({ it: 'Tempo', en: 'Time' })}</th><th class="right">${tr({ it: 'Gap', en: 'Gap' })}</th></tr></thead>
+    <table><thead><tr><th></th><th>${tr({ it: 'Pilota', en: 'Driver' })}</th><th>${tr({ it: 'Auto', en: 'Car' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'Miglior giro', en: 'Best lap' })}</th><th class="right">${tr({ it: 'Tempo', en: 'Time' })}</th><th class="right">${tr({ it: 'Gap', en: 'Gap' })}</th>${d.is_mp ? `<th class="right" title="${tr({ it: 'Testa a testa su tutte le volte che vi siete incrociati online (tu–lui)', en: 'Head-to-head across all your online meetings (you–him)' })}">⚔️</th>` : ''}</tr></thead>
     <tbody>${d.rows.map(r=>`<tr class="${r.me?'me':''}">
       <td class="muted">P${r.position}</td>
-      <td>${esc(r.name)}${r.isAI?'':` <span class="tag gold">${tr({ it: 'tu', en: 'you' })}</span>`}</td>
-      <td class="muted">${esc(r.car)}</td>
+      <td>${esc(r.name)}${(r.me ?? !r.isAI) ? ` <span class="tag gold">${tr({ it: 'tu', en: 'you' })}</span>` : ''}</td>
+      <td>${window.carLinkHtml(r.car)}</td>
       <td class="right">${r.laps}</td>
       <td class="right">${r.hasBest?'<b>'+esc(r.bestLap)+'</b>':esc(r.bestLap||'—')}</td>
       <td class="right">${esc(r.totalTime||'—')}</td>
       <td class="right">${r.gap!=null?fmtGap(r.gap):'—'}</td>
+      ${h2hCol(r)}
     </tr>`).join('')}</tbody></table>`,
-    [[tr({ it: 'Chiudi', en: 'Close' }), 'ghost',()=>{}]]);
+    [[tr({ it: '⚡ Rapporto Discord', en: '⚡ Discord report' }), 'primary', () => { apriRapporto(); return false; }],
+     [tr({ it: 'Chiudi', en: 'Close' }), 'ghost',()=>{}]]);
 }
 
 /* -------- Statistiche — rifatte in stile racing: coppe in vetrina,

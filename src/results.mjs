@@ -10,6 +10,7 @@ import { basename, join, dirname } from 'node:path';
 import { listFiles } from './paths.mjs';
 import { matchesAnyTrack } from './tracknames.mjs';
 import { nomePilota } from './nome-pilota.mjs';
+import { recordWarning } from './warnings.mjs';
 
 export function listResultFiles(paths) {
   const files = [];
@@ -26,7 +27,51 @@ export function listResultFiles(paths) {
 }
 
 export function readSessionResult(file) {
-  return JSON.parse(readFileSync(file, 'utf8'));
+  return dedupeDriverDiRiga(JSON.parse(readFileSync(file, 'utf8')));
+}
+
+/**
+ * DEDUBLICA PILOTI EVO (27/10, Brands Hatch): dentro lo STESSO file risultato
+ * il gioco può scrivere lo stesso pilota (stesso driver_id o stesso nome) su
+ * PIÙ righe a posizioni consecutive — visto vivo: «Adrian Palmer» occupa P0,
+ * P1 e P2 con l'identico driver_id, 18 righe per 13 piloti veri. Non è un
+ * podio magico: sono gli slot di griglia che il gioco ha riempito riciclando
+ * lo stesso personaggio. Qui le righe doppie vengono ripulite
+ * UNA VOLTA PER TUTTE alla lettura, così rivali (testa a testa, podio, forma),
+ * analisi per auto e classifiche non registrano 3 gare in una.
+ * Regola: per identità (driver_id a|b, poi nome+cognome) resta la PRIMA riga
+ * in ordine di posizione — le altre vengono buttate.
+ */
+export function dedupeDriverDiRiga(result) {
+  const drivers = result?.drivers;
+  if (!Array.isArray(drivers) || drivers.length < 2) return result;
+  const chiaveDi = (d) => {
+    const id = d?.driver_id;
+    if (id?.a != null) {
+      const s = `${String(id.a)}|${String(id.b ?? '')}`;
+      return s.length > 1 ? s : null;   // guida stabile del gioco: vale più del nome
+    }
+    // senza driver_id: nome+cognome normalizzato — è l'unica identità disponibile
+    const nome = (String(d?.driver_name ?? '').replace(/^[•\u2022\s]+/, '').trim() + '|' +
+                  String(d?.driver_surname ?? '').trim()).toLowerCase();
+    return nome.length > 1 ? nome : null;
+  };
+  // solo righe in ordine crescente di posizione: la PRIMA per identità è la
+  // migliore (la classificazione del gioco è già ordinata)
+  const ordini = [...drivers].sort((a, b) => (Number(a.position ?? 0) - Number(b.position ?? 0)));
+  const visti = new Map();     // chiave → riga tenuta
+  const doppie = [];
+  for (const d of ordini) {
+    const chiave = chiaveDi(d);
+    if (chiave == null) continue;
+    if (visti.has(chiave)) { doppie.push(d); continue; }
+    visti.set(chiave, d);
+  }
+  if (!doppie.length) return result;   // file pulito: ritorno intatto
+  const tenute = new Set(visti.values());
+  const puliti = drivers.filter((d) => tenute.has(d) || chiaveDi(d) == null);
+  recordWarning('results', `righe pilota duplicate nel file risultato (${doppie.length} doppie): tenute ${puliti.length} di ${drivers.length} (stesso id = stessa persona)`);
+  return { ...result, drivers: puliti, _driverDuplicati: doppie.length };
 }
 
 export function isRaceSession(result) {
@@ -211,6 +256,11 @@ export function pickCandidate(paths, { since = null, trackNames = [], allowAny =
   const usable = [];
   for (const f of files) {
     if (since && f.mtime < since - 5 * 60 * 1000) continue;
+    // SALVAGUARDIA ONLINE (31/10): le gare multiplayer (_MP_, stesso formato di
+    // salvata) NON pagano la carriera MAI — punti, soldi e reputazione di EVO
+    // appartengono al campionato del tool, non ai server della community. Il
+    // at tocca invece ai file delle piste archivio online (catalog.mjs onlineArchive).
+    if (/_MP_/.test(f.name)) continue;
     let result;
     try { result = readSessionResult(f.file); } catch { continue; }
     if (!isRaceSession(result)) continue;

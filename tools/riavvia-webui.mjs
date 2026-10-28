@@ -16,7 +16,7 @@
 // Uso: node tools/riavvia-webui.mjs <pid-vecchio>
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath, } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..');
