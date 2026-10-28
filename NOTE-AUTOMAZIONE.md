@@ -2445,3 +2445,17 @@ considerare un'etichetta  sul file o una conferma esplicita.
   Guardie del ramo: niente promozione dalla base nuda (delta=0), niente al
   cap (il ramo B propone già escludi), niente per le auto con una sola pista
   di prova (confidenza bassa). Test 2-bis in test/grid-calib.test.mjs (12/12).
+
+### 28/10/2026, ore 16:05 — PREPARA ALLE 14:31 SPEDITA DAI SAVE DEL GIOCO (15:32)
+Sequenza (dal garage.drivergarage e dai suoi backup):
+- 14:31 — Prepara scrive la R5 sul garage (bak-2026-10-28T14-31 creato): la
+  scrittura ATTECCHISCE A DISCO ma EVO era già APERTO, quindi non la rilegge
+  (il garage si rilegge SOLO al lancio di EVO, lezione 22/10 + 26/10).
+- 15:32 — il gioco APERTO riscrive garage.drivergarage con la SUA selezione in
+  memoria (Abarth 695 biposto, variante 0x4FA2B07474963CB5|0xC471C393FF68C59A):
+  la scrittura dell'app è SPEDITA non «persa» — l'ordine conta.
+- 16:05 — disco: Abarth 695 (riscrittura di EVO) · card: Renault 5 GT Turbo
+  (ks_renault_5_gt_turbo) · dizionario OK (0x4E295B6676C6E38D|0xFF867FF83E4DC788).
+RIMEDIO: chiudere EVO del TUTTO, ripremere Prepara (riscrive la R5 a gioco
+chiuso), rilanciare EVO: la R5 arriva da sola al garage. Vedi il ⚠ già
+in piedi nel Prepara quando carWritten && gameRunning (viste-a.js).
