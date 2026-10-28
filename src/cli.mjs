@@ -295,9 +295,13 @@ function header(state, ladder) {
   const node = nodeById(ladder, state.node);
   const standing = playerStanding(ladder, state, node);
   const sponsor = sponsorTier(state);
+  // CAMPO LARGO (28/10): il denominatore della classifica segue la stessa griglia
+  // larga che usano la sim e le posizioni (P3/17, non P3/7) — allineato alla
+  // vista della GUI (viewHeader).
+  const campoLargo = grigliaSimEstesa(ladder, state, node);
   return [
     C.bold(`\n${state.driver.name} (${state.driver.nation})`) + C.dim(`   ${tr({ it: 'stagione', en: 'season' })} ${state.season} · ${node.display}`),
-    `  ${C.green(money(state.money))} ${tr({ it: 'in banca', en: 'in the bank' })}   ${C.cyan(state.rep + ' rep')}${sponsor ? C.dim(' (' + sponsor.name + ')') : ''}   ${C.yellow('P' + (standing?.position ?? '?') + '/' + node.gridSize)} ${tr({ it: 'in classifica', en: 'in standings' })}   ${tr({ it: 'round', en: 'round' })} ${Math.min(state.round + 1, node.calendar.length)}/${node.calendar.length}`,
+    `  ${C.green(money(state.money))} ${tr({ it: 'in banca', en: 'in the bank' })}   ${C.cyan(state.rep + ' rep')}${sponsor ? C.dim(' (' + sponsor.name + ')') : ''}   ${C.yellow('P' + (standing?.position ?? '?') + '/' + campoLargo.gridSize)} ${tr({ it: 'in classifica', en: 'in standings' })}   ${tr({ it: 'round', en: 'round' })} ${Math.min(state.round + 1, node.calendar.length)}/${node.calendar.length}`,
   ].join('\n');
 }
 

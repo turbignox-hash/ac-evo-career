@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import {
   nodeById, disciplineName, tierOf, gateStatus,
   standingsFor, playerStanding, difficultyFor, savePath, sponsorTier,
+  grigliaSimEstesa,
 } from './state.mjs';
 import { agendaDay, dateLabel, scheduledDay, racesOnDay } from './agenda.mjs';
 import { raceCard } from './race.mjs';
@@ -77,7 +78,10 @@ export function viewHeader(ladder, state) {
     heritage: { completed: (H.completed ?? []).length, activeDone: !!activeMem?.done },
     node: { id: node.nodeId, display: node.display, discipline: disciplineName(ladder, node.discipline), level: node.level, tier: tierOf(ladder, node.level) },
     position: standing?.position ?? null,
-    gridSize: node.gridSize,
+    // CAMPO LARGO (28/10): il denominatore P{n}/m segue la griglia larga della
+    // sim (la veste della classifica per playerStanding), non la stima corta
+    // del ladder che spremeva il numero in un campo da 7 con griglie vere a 17.
+    gridSize: grigliaSimEstesa(ladder, state, node).gridSize,
     round: Math.min(state.round, node.calendar.length),
     rounds: node.calendar.length,
     season: state.season,
@@ -116,7 +120,9 @@ function seriesNodeView(ladder, state, node) {
   const prof = ladder.profiles?.[node.profile] ?? null;
   return {
     id: node.nodeId, display: node.display, level: node.level,
-    gridSize: node.gridSize, points: node.points, econ: node.econ,
+    // campo largo come la classifica (28/10): la scheda serie racconta la
+    // griglia che EVO corre davvero quando c'è storia incassata
+    gridSize: grigliaSimEstesa(ladder, state, node).gridSize, points: node.points, econ: node.econ,
     access: node.access, cars: node.cars.map((c) => carName(ladder, c)),
     carImages: node.cars.map((c) => { const name = carName(ladder, c); return { name, image: carImageOf(name) ?? carImageOf(c) ?? null }; }),
     calendar: node.calendar.map((r) => ({ name: r.name, track: trackName(ladder, r.track), laps: r.laps, hour: r.hour, weather: ladder.weatherNames?.[String(r.weather)] ?? null })),

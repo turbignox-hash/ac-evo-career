@@ -161,6 +161,40 @@ test('challengeFor/accept/settle: vinta ONORE il reward, persa TOGLIE rep; non v
   assert.equal(st.life.challengeLostRep, ch.penalty);
 });
 
+/* CAMPO LARGO anche nella vita di pit-lane (28/10): le sfide per ronda e le
+   card rivali devono leggere la STESSA griglia della classifica simulata.
+   La sfida è firmata alla ronda PRECEDENTE; il settore punti è quello in cui
+   già gareggi: la media del ladder QUI pesa su results del nodo, così al
+   settle la zona punti segue la griglia vera LARGA se c'è. */
+test('settleChallenge: la zona punti segue il campo largo, non la stima del ladder', () => {
+  const ladder = mkLadder();
+  const st = mkState();
+  // resultList: stima ladder 10, corse vere a 17 → campo largo 17 → zona = max(3, round(17*0.4)) = 7
+  st.results.coppa = [
+    { season: 1, round: 0, position: 4, gridSize: 17, dnf: false, points: 12, prize: 1000, rep: 5 },
+  ];
+  life.ensureLife(st);
+  st.life.challenge = { season: 1, nodeId: 'coppa', round: 0, kind: 'nopit', target: '1', text: 'zona punti', reward: 100, penalty: 5, accepted: true, verdict: null };
+  const out = life.settleChallenge(ladder, st, { round: 0, position: 6, dnf: false, nodeId: 'coppa' }, noFlows);
+  assert.equal(out.won, true, 'P6 su griglia vera 17 è zona punti (7) — non va rispremuto nel campo corto da 10');
+
+  // senza griglia vera: stima ladder (10) → zona 4 → P6 persa
+  const st2 = mkState();
+  life.ensureLife(st2);
+  st2.life.challenge = { season: 1, nodeId: 'coppa', round: 0, kind: 'nopit', target: '1', text: 'zona punti', reward: 100, penalty: 5, accepted: true, verdict: null };
+  const out2 = life.settleChallenge(ladder, st2, { round: 0, position: 6, dnf: false, nodeId: 'coppa' }, noFlows);
+  assert.equal(out2.won, false, 'senza griglia vera il nodo resta la stima (10): zona 4, P6 fuori');
+});
+
+test('challengeFor: la lista rivali è quella del CAMPO LARGO (stessa fonte della classifica)', () => {
+  const ladder = mkLadder();
+  const st = mkState();
+  st.results.coppa = [{ season: 1, round: 0, position: 4, gridSize: 17, dnf: false, points: 12, prize: 1000, rep: 5 }];
+  const ch = life.challengeFor(ladder, st);
+  assert.ok(ch, 'sfida disponibile col campo largo');
+  assert.deepEqual(life.challengeFor(ladder, st), ch, 'due letture, stessa sfida (deterministica sul campo largo)');
+});
+
 test('checkSigils: sfide personali assegnate UNA volta, la stagione pulita a 3+ gare senza ritiri', () => {
   const ladder = mkLadder();
   const st = mkState();

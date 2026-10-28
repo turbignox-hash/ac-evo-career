@@ -14,7 +14,7 @@
 // Ogni serie ha la SUA numerazione di stagione: cambiare sedile e tornare non
 // riparte da zero (le ronde corse restano corse).
 
-import { nodeById, gateStatus } from './state.mjs';
+import { nodeById, gateStatus, grigliaSimEstesa } from './state.mjs';
 import { lang } from './lang.mjs';
 
 export const CADENZA_GIORNI = 7;         // una ronda a SETTIMANA per le serie iscritte (scelta Mauro)
@@ -478,7 +478,9 @@ export function elencoCompleto(ladder, state, { fattibili = false } = {}) {
       display: node.display,
       discipline: node.discipline,
       level: node.level ?? 0,
-      gridSize: node.gridSize ?? null,
+      // CAMPO LARGO (28/10): la scheda serie mostra la griglia che EVO corre
+      // davvero quando c'è storia incassata, come la classifica e la sim
+      gridSize: grigliaSimEstesa(ladder, state, node).gridSize ?? null,
       prize: node.econ?.prize ?? null,
       entryFee: node.econ?.rent ?? node.econ?.buy ?? 0,
       repRequired: node.repRequired ?? 0,

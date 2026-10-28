@@ -5,7 +5,7 @@
 // Tutto deterministico dove conta (i payout vengono registrati anche nei FLOWS
 // per il dottore) e tutto opzionale: senza questi dati la carriera funziona come prima.
 
-import { nodeById, playerStanding } from './state.mjs';
+import { nodeById, playerStanding, grigliaSimEstesa } from './state.mjs';
 import { gridFor } from './world.mjs';
 import { tr } from './lang.mjs';
 
@@ -84,7 +84,9 @@ function clausePoolFor(node) {
 export function refreshContractTexts(_ladder, state, node) {
   const c = ensureLife(state).contract;
   if (!c) return;
-  const pool = clausePoolFor(node);
+  // CAMPO LARGO (28/10): i testi/numeri correnti delle clausole seguono la
+  // griglia larga come la classifica (soglie di «podio» e «top» sul campo vero)
+  const pool = clausePoolFor(grigliaSimEstesa(_ladder, state, node));
   for (const cl of c.clauses) {
     const fresh = pool.find((p) => p.id === cl.id);
     // migrazione una-tanto-via dei testi: la frase cambia, target/metrica no
@@ -101,7 +103,9 @@ export function ensureContract(ladder, state, node) {
 
 /** Firmato il sedile, il contratto porta 3 clausole deterministiche per stagione+serie. */
 export function assignContract(_ladder, state, node) {
-  const pool = clausePoolFor(node);
+  // CAMPO LARGO (28/10): le clausole si firmano sul campo largo (la griglia
+  // che EVO corre davvero quando c'è storia), come la classifica e le sfide
+  const pool = clausePoolFor(grigliaSimEstesa(_ladder, state, node));
   const seedStr = `${node.nodeId}|${state.season}|contract`;
   let h = 2166136261 >>> 0;
   for (let i = 0; i < seedStr.length; i++) { h ^= seedStr.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
@@ -151,7 +155,8 @@ export function contractStatus(ladder, state) {
   const c = ensureLife(state).contract;
   if (!c || c.season !== state.season) return null;
   const m = seasonMetrics(ladder, state);
-  const pool = clausePoolFor(m.node); // testi correnti per lingua (per id)
+  // testi correnti per id sul campo largo (28/10), come alla firma
+  const pool = clausePoolFor(grigliaSimEstesa(ladder, state, m.node));
   const rows = c.clauses.map((cl) => {
     const [cur, target] = clauseProgress(cl, m);
     const fresh = pool.find((p) => p.id === cl.id);
@@ -264,7 +269,14 @@ export function challengeFor(ladder, state) {
   const node = nodeById(ladder, state.node);
   if (state.round >= node.calendar.length) return null;
   if (L.challenge && L.challenge.season === state.season && L.challenge.nodeId === node.nodeId && L.challenge.round === state.round) return L.challenge;
-  const rivals = gridFor(state.world, ladder, node, state.season);
+  // CAMPO LARGO (28/10): la sfida vede lo stesso campo che vede la classifica —
+  // largo quanto il massimo gridSize incassato nei risultati reali. Il
+  // «chiudi davanti a X» resta al rivale PIÙ forte (l'ampliamento aggiunge
+  // solo sedili deboli in fondo, quindi il bersaglio non cambia né per il
+  // nemico dato né per le sfide già salvate): cambia solo la COERENZA — la
+  // lista rivali è la stessa della sim, non la stima corta del ladder.
+  const campoLargo = grigliaSimEstesa(ladder, state, node);
+  const rivals = gridFor(state.world, ladder, campoLargo, state.season);
   const seed = `${node.nodeId}|${state.season}|${state.round}|challenge`;
   let h = 2166136261 >>> 0;
   for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
@@ -300,10 +312,16 @@ export function settleChallenge(ladder, state, entry, { pushMessage, recordFlows
   if (entry.round != null && entry.round !== c.round) return null; // la sfida vale per la sua ronda
   const node = nodeById(ladder, c.nodeId);
   if (entry.nodeId && entry.nodeId !== c.nodeId) return null;
+  // ZONA PUNTI sul campo largo (28/10): la soglia della sfida «in zona punti»
+  // segue la griglia CHE LA CLASSIFICA mostra (larga quanto il massimo
+  // incassato), non la stima corta del ladder che spremeva il 40% in un campo
+  // da 7 quando la gara vera correva a 17.
+  const campoLargo = grigliaSimEstesa(ladder, state, node);
+  const zona = Math.max(3, Math.round(campoLargo.gridSize * 0.4));
   const won = c.kind === 'beat'
     ? (!entry.dnf && entry.beatenNames?.includes(c.target))
     : c.kind === 'top3' ? (!entry.dnf && entry.position <= 3)
-    : (!entry.dnf && entry.position <= Math.max(3, Math.round(node.gridSize * 0.4)));
+    : (!entry.dnf && entry.position <= zona);
   c.verdict = won ? 'won' : 'lost';
   L.challengeStats.taken += 1;
   if (won) {

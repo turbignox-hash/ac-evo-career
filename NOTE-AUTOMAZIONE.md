@@ -1,4 +1,33 @@
-## GRIGLIA SIM ALLARGATA: LA CLASSIFICA CORRE LARGA QUANTO IL GIOCO (30/10)
+## CAMPO LARGO OVUNQUE (28/10, mandato Mauro «Controlla card rivali e sfide per round»)
+
+- **Il restauro**: la classe sim (standingsFor, duello, banco, paddock) già
+  girava larga dal tempo precedente; questo restava corto IL RESTO — le
+  usanze che mostrano numeri alla GUI/CLI senza correre la sim:
+  header (P{n}/{node.gridSize}: posizione larga, denominatore corto),
+  scheda serie (seriesNodeView), elenco completo delle serie (elencoCompleto
+  in agenda.mjs), header CLI, e le clausole del contratto (clausePoolFor:
+  le soglie «podio»/«top» calcolate sulla stima corta mentre la classifica
+  conta il campo largo).
+
+- **La cura** (4 file, nessuna firma nuova): viewHeader e seriesNodeView
+  (webui-views.mjs), header (cli.mjs), elencoCompleto (agenda.mjs) e i tre
+  chiamanti di clausePoolFor (life.mjs: assignContract,
+  refreshContractTexts, contractStatus) ora passano da
+  grigliaSimEstesa come tutte le viste della sim. Niente giuramento:
+  senza stora nel save il valore resta la stima del ladder (carriere
+  vergini intatte).
+
+- **Card rivali**: rivalsOverview/rivalDetail (rivals.mjs) NON usavo
+  gridSize di stima — raccontano i dati VERI incassati (gridSize:
+  drivers.length per ogni gara storica nel rivals.json), quindi erano
+  già largo per costruzione: nulla da allineare lì.
+
+- **Sfide per round**: challengeFor e settleChallenge (life.mjs) girano
+  sul campo largo da oggi: la «zona punti» di settle segue la griglia
+  larga (max(3, round(grid*0.4))), non la stima corta che — con griglie
+  vere a 17 firmate dalla stima a 10 — spremeva la zona da 7 a 4.
+  2 test nuovi in test/life.test.mjs: la zona punti larga (P6/17 passa)
+  e quella corta senza stora (P6/10 non passa).
 
 - **Mandato Mauro**: «Ampliare la griglia sim». Risotto col filo del
   realismo del 28/10: quella volta si era curato il CHI vince nella
