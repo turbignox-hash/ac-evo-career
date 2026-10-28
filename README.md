@@ -302,6 +302,15 @@ Endurance, Road and Rally**.
   mandatory pit.
 - **Living world.** 240 AI drivers with skill, aggression, consistency, character
   archetype, aging and retirements, hot form and legendary row.
+- **Realistic simulated standings.** Standings for the rounds you skip are no
+  longer a formality: every seat carries a deterministic **seasonal form**
+  (series+season+driver hash) whose amplitude scales with the skill gap between
+  the top two seats (×1.6, capped at 0.10), so any grid size still leaves room
+  for upsets. Reference measurement (`node tools/_misure-realismo.mjs`): seat 1
+  wins ~61% of the races in the GT4 Cup and ~63% in Formula Elite, and titles
+  are shared across the top three seats — before the fix it was 100% to the
+  nose seat. The rounds you do drive remain reality: standings use YOUR true
+  result.
 - **Layered difficulty.** `total = base + trim + offClass + offTrack`, clamped
   70–120 and mapped to the game's AI slider; adaptive trim adapts to you, and
   anomalies wait for your accept/reject instead of applying silently.

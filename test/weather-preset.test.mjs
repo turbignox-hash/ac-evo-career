@@ -61,6 +61,13 @@ test('presetFor: per key, per label, per NUMERO 0-7, per nomi in gioco ("heavy",
   assert.equal(presetFor(null), null);
   assert.equal(presetFor('nebbiosa'), null);      // preset che EVO NON ha
   assert.equal(presetFor(3.2), null);             // non intero: non un preset
+  // verifica percorsi EN (28/10): le etichette SECHE del menu azzeccavano null
+  // → BAD_WEATHER (passavano solo le bagnate); 'Few clouds' era buco in codue matcher
+  for (const [e, want] of [['Clear', 0], ['Scattered clouds', 1], ['Few clouds', 1], ['Overcast', 2], ['Cloudy', 2]]) {
+    assert.equal(presetFor(e), want, `presetFor EN ${e}`);
+    assert.equal(presetForLabel(e), want, `presetForLabel EN ${e}`);
+  }
+  assert.equal(presetFor('custom'), 7);
 });
 
 /* ------------------------------------------------ */
@@ -80,6 +87,7 @@ test('presetForLabel: le etichette ladder vanno al preset GIUSTO (le due numeraz
   assert.equal(presetForLabel(null), null);
   assert.equal(presetForLabel('   '), null);
   assert.equal(presetForLabel('vento cans'), null);
+  assert.equal(presetForLabel('custom'), 7);   // 28/10: il selettore può chiamare per il preset 7
 });
 
 /* ------------------------------------------------ */

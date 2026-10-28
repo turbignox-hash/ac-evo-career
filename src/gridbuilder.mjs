@@ -9,9 +9,9 @@
 //     meteo/ora DAL CALENDARIO del round (i byte f5 raw del template se il
 //     round non specifica — conservano gomme/ora scelte da Mauro);
 //   • il bilanciamento: la classe in grid-classes.json (regole per preset o per
-//     nome auto) se esiste, altrimenti la PROPOSTA da PI (base = preset col PI
-//     più basso della serie, base a 0, le altre 100kg + ΔPI×25%, pendenza
-//     calibrata il 19/10 sulla classe 8–9);
+//     nome auto) se esiste; SENZA classe nota la griglia esce a 0 — la vecchia
+//     «proposta da PI» (ΔPI×25% «calibrata il 19/10») NON ESISTE PIÙ nel codice:
+//     da 24/10 il bilancio vero lo costruisce griglia-calib dai risultati reali;
 //   • monomarca forzata se la serie ha un'unica auto nel ladder.
 //
 // Flusso di gara serale: chiuso EVO → `node ac-evo-career.mjs griglia [--dry]`
@@ -84,7 +84,7 @@ function carPiByPreset() {
     try {
       const j = JSON.parse(readFileSync(CARS_JSON, 'utf8'));
       for (const c of j.cars) _carsCache[c.name] = c.performance_indicator;
-    } catch { /* server dedicato non installato: proposta da PI disabilitata */ }
+    } catch { /* server dedicato non installato: PI del pool non disponibile (la finestra PI esce dai fallback del ladder) */ }
   }
   return _carsCache;
 }
@@ -203,7 +203,7 @@ function applyRulesToCell(cellBytes, rules) {
 }
 
 /* ---------- ARMONICA ---------- */
-const PASSO_ARMONICO = 0.0003;   // ±2‰·k: invisibile in gara, unica la firma in byte
+const PASSO_ARMONICO = 0.0003;   // ±0,3‰·k (MENZOGNA riparata 28/10: il commento diceva ±2‰): invisibile in gara, unica la firma in byte
 /** Il primo float DI PRIMO LIVELLO della cella è il bersaglio del ritocco:
  *  nella CSL è il f42 (valore 10.0xxxx), campo “di tuning” senza fisica attaccata.
  *  Ritorno { index, valore } o null (niente float utile → niente armonica). */
@@ -318,8 +318,8 @@ export function buildGridMessage(opts) {
   }
   const poolPresets = [...new Set(poolCells.map(presetOf).filter(Boolean))];
   // riscala l'ABILITÀ dei piloti: priorità al campo AI PER-TRACCIA della classe
-  // matchata (es. Sebring 97-98), poi all'aiStandard della classe (99-100, stan,
-  // poi alla serie sul ladder, poi nessuna riscala (restano le skill del template).
+  // matchata (es. Sebring 97-98), poi all'aiStandard della classe, poi alla serie
+  // sul ladder, poi nessuna riscala (restano le skill del template).
   // opts.aiBand: banda RICHIESTA (eventi speciali, tasto Prepara): la griglia
   // dell'evento deve fare la banda fissa dell'invito (88-93), NON quella di una
   // classe di campionato combaciata per caso con le auto ospiti.

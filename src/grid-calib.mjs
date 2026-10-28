@@ -1,26 +1,26 @@
 // grid-calib.mjs — la CALIBRAZIONE che si paga da sola, dai risultati reali.
 //
-// Lezione del 19/10/2026: ogni supplemento per-traccia e ogni campo AI escrito
-// a mano è stato dedotto da gare GIÀ CORSO (perTraccia COTA da 1629+1701,
+// Lezione del 19/10/2026: ogni supplemento per-traccia e ogni campo AI scritto
+// a mano è stato dedotto da gare GIÀ CORSE (perTraccia COTA da 1629+1701,
 // Sebring da 1755, aiStandard da 1558 a Brands). Ma la deduzione era a mano:
-// filter gap, mediana best, caloletta pendenza, apporne su grid-classes.json.
-// Questo modulo automatizza LESSONEDELLE gare:
+// filtro dei gap, mediana del best, calcolo della pendenza, appunti su grid-classes.json.
+// Questo modulo automatizza la lezione delle gare:
 //
-//   A ogni import riuscito (runImport → recordRaceFromResult) il risultati grezzo
+//   A ogni import riuscito (runImport → recordRaceFromResult) il risultato grezzo
 //   viene ANALIZZATO e APPESO a data/grid-calibrazione.json:
 //     • per-auto: mediana del best-lap di ogni modello contro l'auto BASE della
 //       classe + giri completati (il delta negativo = il modello sfugge);
-//     • campo AI: quante AI davanti/dietro, la tua media contro la campo, il
+//     • campo AI: quante AI davanti/dietro, la tua media contro il campo, il
 //       margine sulla P2 quando vinchi.
 //   e PROPONE:
 //     • aggiustamenti del campo AI della classe (interval 21/22, base o
 //       per-traccia, da cls.aiStandard / perTraccia[...] aiStandard);
-//     • supplementi per-traccia immanito alla horizon: anche limiti __cap
-//       del gioco, la proposta NON es conclude nulla ma è scritta nel evento;
-//     • CONVALIDA: cere onde consistenti sulla STESSA pista alzano il
+//     • supplementi per-traccia fino ai limiti del gioco (LIMITI_GIOCO):
+//       es. 100 kg / 20% di restrictor: la proposta NON scrive nulla da sola, resta in attesa;
+//     • CONVALIDA: due onde consistenti sulla STESSA pista alzano il
 //       punteggio di confidenza → `griglia-calib --convalida` imposta la
 //       corrispondente perTraccia.convalidato = true (una sola leva,
-//       sotto il tuo comando: nulla viene stampo a disturbo).
+//       sotto il tuo comando: nulla viene scritto a tua insaputa).
 //
 // Il file calibrazione è SOLO APPEND + letture: tocca né carriera né customgrid.
 // Le proposte restano proposte finché tu non esegui il comando che portano.

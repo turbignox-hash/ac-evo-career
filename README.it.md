@@ -274,6 +274,15 @@ Endurance, Strada e Rally**.
   il profilo della serie decide prove, qualifiche, partenza e pit obbligatorio.
 - **Mondo vivo.** 240 piloti AI con skill, aggressione, costanza, archetipo di
   carattere, età, ritiri, forma calda e fila dei leggendari.
+- **Classifiche simulate realistiche.** La classifica dei round che non corri
+  non è più una formalità: ogni pilota porta una **forma stagionale**
+  deterministica (hash serie+stagione+pilota) e la sua ampiezza scala con lo
+  scatto di skill tra i primi due sedili (×1,6, cap 0,10), così qualsiasi taglia
+  di griglia lascia spazio ai colpi di scena. Misura di riferimento
+  (`node tools/_misure-realismo.mjs`): il sedile 1 vince ~61% delle gare nella
+  Coppa GT4 e ~63% nella Formula Elite e i titoli si spartiscono fra i primi
+  tre sedili — prima del fix era 100% al sedile di testa. I round che tu corri
+  restano però realtà: la classifica usa il TUO risultato vero.
 - **Difficoltà a strati.** `totale = base + trim + offClass + offTrack`, clamp
   70–120 e conversione nello slider AI del gioco; il trim adattivo si adegua a te
   e le anomalie restano in attesa di accettazione o rifiuto.

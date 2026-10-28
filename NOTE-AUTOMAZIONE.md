@@ -1,3 +1,39 @@
+## REALISMO SIM SU TUTTE LE GRIGLIE: FORMA STAGIONALE A AMPIEZZA ADATTIVA (28/10)
+
+- **La fila di Mauro**: «verifica realismo griglia simulata · caccia ai
+  commenti mentitori · documenta il fix nei README». Verifica fatta a 60
+  stagioni per serie con `node tools/_misure-realismo.mjs`, poi estesa a
+  mano su tutte le griglie GRANDI (18-20 sedili: Touring Pro, Formula 2004,
+  GT Elite, GT3 Endurance, Endurance Elite).
+
+- **Il fermo immagine**: prima del fix il sedile 1 di Formula Elite vincava
+  il 91% delle gare e portava 59 titoli su 60 — il campionato simulato era
+  una formalità perché lo scatto di skill per sedile valeva più del rumore
+  di gara, e si ripeteva identico ogni round.
+
+- **Fix in world.mjs**: ogni pilota porta una FORMA stagionale fissa
+  (hash serie+stagione+driver) e la sua ampiezza ADATTIVA scala con lo
+  scatto di skill tra i primi due sedili (×1,6, min 0,02, cap 0,10) — così
+  qualsiasi taglia di griglia lascia spazio ai colpi di scena senza
+  regalare il titolo ai deboli.
+
+- **Misura DOPO (60 stagioni x serie)**: Coppa GT4 (14 sedili) sedile 1
+  61% vittorie / 41 titoli, sedile 2 147 vittorie / 17 titoli; Formula
+  Elite (6) 63% / 44 titoli, sedile 2 184 vittorie / 22 titoli; GT Elite
+  (20) 53% / 38 e 15 (titolo arrivato fino al sedile 4); Touring Pro (18)
+  46% e titoli 30/24/6.
+  Ogni grandezza di griglia sta nei confini realistici: nessun ritocco
+  aggiuntivo necessario. Suite 372/372 (con il nuovo test di realismo che
+  blocca le regressioni), lint a 0.
+
+- **Caccia ai commenti mentitori**: triple bugie trovate e sistemate —
+  world.mjs diceva «cap 0,07» col codice che usa 0,10; grid-calib.mjs
+  (corrotto: "LESSONEDELLE gare", "immanito alla horizon", "limiti __cap",
+  "cere onde consistenti"); l'«al cap 20%» della GUI resta l'unica versione
+  vera. README IT/EN con il nuovo bullet "Classifiche simulate
+  realistiche" / "Realistic simulated standings" (e la stessa misura
+  catturata come riferimento per il futuro).
+
 ## LA SUITE HA ARRESTATO UNA BANDA RIBALTATA (28/10) — world.mjs, la classe dei simulati ora corre nel verso giusto
 
 - **Mandato Mauro**: «fai quello che vuoi, autorizzato a modificare se

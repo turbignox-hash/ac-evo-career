@@ -148,6 +148,31 @@ test('gridFor: gli ICONICI della SERIE stanno nei PRIMI DUE SEDILI — non del p
   assert.ok('worldIconic' in seats[0]);
 });
 
+test('REALISMO peso della griglia simulata (28/10): la cima vince ma NON domina', () => {
+  const ladder = mkLadder();
+  const w = world.createWorld(ladder, 'realismo', 240);
+  const node = nodeOf(ladder, 0);   // griglia 14, banda ±8/50 = passo sedile ~0.012
+  const stagioni = 20;
+  let gare = 0, vittorieCima = 0; const titoli = new Set();
+  for (let season = 1; season <= stagioni; season++) {
+    const grid = world.gridFor(w, ladder, node, season);
+    const pts = new Map(grid.map((s) => [s.driverId, 0]));
+    for (let r = 0; r < node.calendar.length; r++) {
+      for (const e of world.finishOrder(grid, node, season, r, null, ladder, null)) {
+        if (e.dnf) continue;
+        pts.set(e.driverId, pts.get(e.driverId) + (ladder.pointsSystems[node.points]?.table?.[e.position - 1] ?? 0));
+        if (e.position === 1) { gare++; if (e.driverId === grid[0].driverId) vittorieCima++; }
+      }
+    }
+    titoli.add([...pts.entries()].sort((a, b) => b[1] - a[1])[0][0]);
+  }
+  // prima della forma stagionale: i sedili 0-2 vincevano il 100% delle gare e il
+  // dato 1 portava il titolo 59/60 stagioni con griglia corta. Non più: la cima
+  // comanda ma il campo resta in gara fino al fondo.
+  assert.ok(vittorieCima / gare < 0.85, `il sedile 1 vince il ${Math.round(vittorieCima / gare * 100)}% delle gare: dominio troppo netto`);
+  assert.ok(titoli.size >= 2, `in ${stagioni} stagioni i titoli vanno tutti allo stesso conducente`);
+});
+
 test('finishOrder: il giocatore entra alla posizione REALE, gli altri scalano; DNF = ultimo', () => {
   const ladder = mkLadder();
   const node = nodeOf(ladder, 0);

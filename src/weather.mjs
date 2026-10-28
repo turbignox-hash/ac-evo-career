@@ -69,6 +69,13 @@ export function presetFor(nameOrIndex) {
     ['heavy', 'intense', 'heavyrain', 'pioggiintensa', 'pioggiaintensa'], ['rain', 'pioggia'],
     ['drizzle', 'light', 'lightrain', 'pioggialeggera'],
   ];
+  // Etichette EN del menu/preset (verifica 28/10): le bagnate passavano per le
+  // bande sopra, quelle SECCHE azzeccavano null → BAD_WEATHER. Stessa semantica
+  // di presetForLabel: clear→0, scattered/few clouds→1, overcast/cloudy→2, custom→7.
+  if (/clear|sunny/.test(s)) return 0;
+  if (/scattered|few[ _]?clouds/.test(s)) return 1;
+  if (/overcast|cloudy/.test(s)) return 2;
+  if (/^custom$/.test(s)) return 7;
   // banda drizzle PRIMA della banda rain (2/11, dal test): 'light rain' — il
   // nome ESATTO del menu inglese di EVO — contiene 'rain' e con l'ordine 6-5-4
   // cadeva nel preset 5 (pioggia secca) invece del 4: al posto della drizzle si
@@ -90,13 +97,14 @@ export function presetForLabel(label) {
   const s = String(label).trim().toLowerCase();
   if (!s) return null;
   if (/clear|sole|sereno|sunny/.test(s)) return 0;
-  if (/scattered/.test(s)) return 1;
+  if (/scattered|few[ _]?clouds/.test(s)) return 1;
   if (/overcast|nuvol/.test(s)) return 2;
   if (/cloudy/.test(s)) return 2;
   if (/heavy/.test(s)) return 6;
   if (/light (rain|drizzle)/.test(s)) return 4;
   if (/drizzle/.test(s)) return 4;
   if (/rain|pioggia/.test(s)) return 5;
+  if (/custom/.test(s)) return 7;   // il selettore può chiedere il preset 7 (timeline float)
   return null;
 }
 

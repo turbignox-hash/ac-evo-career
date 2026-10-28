@@ -236,14 +236,35 @@ export function gridFor(world, ladder, node, season) {
  * RUBBER-BAND (stile del modello originario): quando il giocatore è in striscia vincente,
  * i rivali "in forma" (hot) alzano il ritmo — il campionato non si regala.
  */
+/* FORMA STAGIONALE (28/10, dalla misura di realismo tools/_misure-realismo.mjs):
+ * nella simulazione il campionato era una FORMALITÀ: il sedile 1 porta il titolo
+ * 59 volte su 60 (Formula Elite) e i sedili 0-2 si spartiscono il 100% delle
+ * vittorie — nessuna battaglia, nessun colpo di scena. Causa: lo scatto di skill
+ * per sedile (banda ÷ sedili) pesa più del rumore di gara e si verifica ogni
+ * round. Ogni conducente ora ha una FORMA fissa per stagione, dal hash di
+ * nodo+stagione+driver: il campione si decide nel parco, non col
+ * biglietto del sedile. Deterministico: le classifiche del save restano quelle
+ * a ogni rilettura.
+ *
+ * AMPIEZZA ADATTIVA (28/10, seconda misura): con griglie CORTE (Formula Elite, 6
+ * vetture) lo scarto tra sedili è grosso e la forma fissa ±0,035 non bastava:
+ * il sedile 1 vincava ancora il 91% delle gare. L'ampiezza ora scala con lo
+ * scatto di skill tra il sedile 1 e il 2 (×1,6, min 0,02, cap 0,10): con qualsiasi
+ * taglia di griglia il dominio di cima arriva al ~60–70% e il campionato resta
+ * in gioco fino a fine stagione.
+ */
 export function finishOrder(grid, node, season, roundIndex, player = null, ladder = null, history = null) {
   const rand = rng(`${node.nodeId}|${season}|round|${roundIndex}`);
+  // ampiezza della forma proporzionale allo scatto per sedile (commento in testa)
+  const passoCima = grid.length > 1 ? Math.abs((grid[0].skill ?? 0) - (grid[1].skill ?? 0)) : 0.03;
+  const FORMA_AMP = Math.min(0.1, Math.max(0.02, passoCima * 1.6));
   const entries = grid.map((s) => {
+    const forma = (((hash32(`${node.nodeId}|${season}|forma|${s.driverId}`) % 2000) - 1000) / 1000) * FORMA_AMP;
     const noise = (rand() - 0.5) * (0.035 + (1 - s.cons) * 0.07);
     const trackOffset = ((hash32(`${node.calendar[roundIndex]?.track ?? 'x'}|${s.archetype}`) % 100) / 100 - 0.5) * 0.02;
     const dnfRoll = rand();
     const dnfChance = 0.006 + (1 - s.cons) * 0.03;
-    return { ...s, score: s.skill + noise + trackOffset, dnf: dnfRoll < dnfChance };
+    return { ...s, score: s.skill + forma + noise + trackOffset, dnf: dnfRoll < dnfChance };
   });
   // elastico sulla forma del giocatore: +0..0.018 (≈ fino a 1,8% di ritmo, dalla
   // terza vittoria di fila in poi) per i piloti marcanti "hot" della serie
