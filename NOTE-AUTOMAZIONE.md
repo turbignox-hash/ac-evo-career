@@ -1,3 +1,21 @@
+## FLAKY SMONTATO: IL TEST DELLA GAZZETTA SCRIVEVA NEL FOGLIO VERO (28/10)
+
+- **Come è riaperto**: un fallito una volta sola su 372 (verde al re-run)
+  è un test flaky, non un caso: rilanciata la suite in loop 6 volte e
+  emerso UN solo colpevole, «gazzetta: il foglio si riempie fino a
+  80 voci» — l'unico test che copriva la gazzetta.
+
+- **Causa vera**: gazzetta.mjs scriveva `data/news.json` FISSO del
+  progetto invece di rispettare `EVO_DATA_DIR` (la regola di 35 altri
+  luoghi della suite). Il test del foglio stampava 85 notices nel
+  foglio VERO: se il launcher nel frattempo pubblica una notizia della
+  tua carriera, il feed del test vede 81 voci o un kind sbagliato.
+
+- **La cura**: NEWS_FILE segue process.env.EVO_DATA_DIR; della cura la
+  prova sono 5 corrida consecutive verdi (372/372) e lint a 0.
+  Commit a4fe251.
+
+
 ## REALISMO SIM SU TUTTE LE GRIGLIE: FORMA STAGIONALE A AMPIEZZA ADATTIVA (28/10)
 
 - **La fila di Mauro**: «verifica realismo griglia simulata · caccia ai
@@ -277,7 +295,7 @@
 - **Verifica**: lettura programmatica dei tre file — le parole chiave (procedural, seed,
   zavorre/penalità, pescaggio/miscuglio) presenti ovunque. Solo documenti: zero test.
 
-## CINQUE CAMPIONATI PER STILE (28/10) — epoca, moderno, strada, pista, corsa, generati in maniera procedurale
+## CINQUE CAMPIONATI PER STILE (28/10) — epoca, moderno, strada, pista, corsa, generati in maniera procedurale
 
 - **Richiesta Mauro**: «campionati style epoca, moderno, strada, corsa, pista», poi la chiave del
   metodo: «creiamo campionati in maniera procedurale, includi anche questi». Quindi non a mano:
