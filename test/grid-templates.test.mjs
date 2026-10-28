@@ -15,7 +15,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, existsSync, mkdirSync, rmSync, readFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, existsSync, mkdirSync, rmSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -67,6 +67,20 @@ const LADDER = {
   ],
 };
 const GRIGLIA = (_buf) => join(TMP, 'griglia-della-ronda.customgrid');
+// ADOCCHIATO IL FLAKY (31/10): i tre test della FABBRICA puliscono grid-templates/
+// ma non i .bak-apply-* di griglia-della-ronda.customgrid lasciati dai test
+// di prima. Finché ogni ronda sta DENTRO lo stesso minuto i bak si sovrascrivono
+// a vicenda (bak-apply-<AAAA-MM-GG-hh-mm>: stesso nome, niente pila) e la
+// corsa dei candidati parte pulita. Al cambio di minuto il bak d'epoca F40
+// sopravvive: la build riesce COL BAK invece della fabbrica → niente
+// NO_TEMPLATE/CAR_MISSING. Stessa lezione del commento del test 1, lato bak.
+const pulisciBak = () => {
+  for (const n of readdirSync(TMP)) {
+    if (n.startsWith('griglia-della-ronda.customgrid') && n.includes('.bak-')) {
+      try { rmSync(join(TMP, n)); } catch { /* occupato: non blocca */ }
+    }
+  }
+};
 const scrivi = (buf) => { const f = GRIGLIA(); writeFileSync(f, buf); return f; };
 const STORE = () => join(TMP, 'grid-templates', 'serie_f40_test.customgrid');
 const FABBRICA = (nodeId = 'serie_rs_3_test') => join(TMP, 'fabbrica', nodeId + '.customgrid');
@@ -123,6 +137,7 @@ test('serie mai messa in griglia da nessuna parte: errore col RITUALE (NO_TEMPLA
 /* ---------- griglie di fabbrica (distribuzione, 24/10) ---------- */
 test('macchina vergine, nessun template sul disco: la GRIGLIA DI FABBRICA copre la serie (ultimo ripiego)', () => {
   rmSync(join(TMP, 'grid-templates'), { recursive: true, force: true });
+  pulisciBak();
   mkdirSync(join(TMP, 'fabbrica'), { recursive: true });
   writeFileSync(FABBRICA('serie_rs_3_test'), templateF40(4, 'ks_audi_rs_3_sportback'));
   // installazione giudicabile: la RS 3 c'è → il gate lascia passare
@@ -136,8 +151,10 @@ test('macchina vergine, nessun template sul disco: la GRIGLIA DI FABBRICA copre 
 test("griglia di fabbrica con auto ASSENTE dall'installazione: rifiuto chiaro (CAR_MISSING)", () => {
   // il magazzino parte VUOTO: con un template della F40 ancora in piedi dai test
   // precedenti la costruzione si sarebbe fermata al template, mai alla fabbrica
-  // (flake di ordine, 24/10)
+  // (flake di ordine, 24/10) — e da 31/10 anche i .bak-apply del minutato
+  // precedente se ne vanno con pulisciBak()
   rmSync(join(TMP, 'grid-templates'), { recursive: true, force: true });
+  pulisciBak();
   ga.setInstallSnapshot({ cars: new Set(), carNames: new Set(['audi rs 3 sportback']) });   // la F40 no
   writeFileSync(FABBRICA('serie_f40_test'), templateF40(4, 'ks_f40_lm'));
   const file = scrivi(templateF40(4, 'ks_mazda_mx5_nd'));
@@ -153,6 +170,7 @@ test("griglia di fabbrica con auto ASSENTE dall'installazione: rifiuto chiaro (C
 test('installazione non giudicabile (catalogo vuoto): nessun blocco, la corsa dei candidati decide', () => {
   ga.setInstallSnapshot({ cars: new Set(), carNames: new Set() });
   rmSync(join(TMP, 'grid-templates'), { recursive: true, force: true });
+  pulisciBak();
   writeFileSync(FABBRICA('serie_rs_3_test'), templateF40(4, 'ks_audi_rs_3_sportback'));
   const file = scrivi(templateF40(4, 'ks_mazda_mx5_nd'));
   const out = ga.rebuildGridApply({ ladder: LADDER, nodeId: 'serie_rs_3_test', roundIndex: 0, file, force: true, dry: true });
