@@ -69,7 +69,11 @@ export function presetFor(nameOrIndex) {
     ['heavy', 'intense', 'heavyrain', 'pioggiintensa', 'pioggiaintensa'], ['rain', 'pioggia'],
     ['drizzle', 'light', 'lightrain', 'pioggialeggera'],
   ];
-  for (const [id, names] of [[6, alt[0]], [5, alt[1]], [4, alt[2]]]) if (names.some((x) => s.includes(x))) return id;
+  // banda drizzle PRIMA della banda rain (2/11, dal test): 'light rain' — il
+  // nome ESATTO del menu inglese di EVO — contiene 'rain' e con l'ordine 6-5-4
+  // cadeva nel preset 5 (pioggia secca) invece del 4: al posto della drizzle si
+  // partiva bagnato pesante. heavy resta il primo ('pioggia intensa' contiene 'pioggia').
+  for (const [id, names] of [[6, alt[0]], [4, alt[2]], [5, alt[1]]]) if (names.some((x) => s.includes(x))) return id;
   return null;
 }
 

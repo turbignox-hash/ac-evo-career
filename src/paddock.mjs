@@ -29,7 +29,13 @@ export function paddockRoot(env = process.env) {
   const now = Date.now();
   if (_rootCache && now - _rootCache.at < 30000) return _rootCache.root;
   let root = null;
-  if (env.PADDOCK_JOURNAL_DIR && existsSync(env.PADDOCK_JOURNAL_DIR)) root = env.PADDOCK_JOURNAL_DIR;
+  if (env.PADDOCK_JOURNAL_DIR) {
+    // override esplicito: se la cartella NON esiste è un errore di configurazione
+    // — meglio NIENTE paddock che un ritorno silenzioso ai journal veri di gioco,
+    // che il chiamante leggerrebbe senza accorgersene (lezione dai test del 2/11:
+    // la suite del ponte leggeva Suzuka dell'installazione reale per un typo del nido)
+    root = existsSync(env.PADDOCK_JOURNAL_DIR) ? env.PADDOCK_JOURNAL_DIR : null;
+  }
   else {
     // l'app vive dentro uiresources di EVO, SOTTO la cartella dati del gioco
     // (<Saved Games>\ACE\mods\uiresources\…): la lista delle cartelle dati la

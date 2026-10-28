@@ -24,12 +24,17 @@ const MAX_PER_MODULE = 50; // voci restituite per modulo dalla lettura
 
 let lastLine = null; // anti-rumore: la stessa identica voce di fila non si ripete
 
-function appendLine(line) {
+function appendLine(line, identita) {
   try {
-    if (line === lastLine) return;
+    // 2/11 (life.test): l'anti-rumore confrontava la RIGA INTERA, che porta "at"
+    // al millisecondo: due voci identiche in millisecondi diversi passavano
+    // comunque, e il filtro non filtrava niente. Compara l'IDENTITÀ della voce
+    // (modulo+messaggio+extra, senza tempo): la stessa identica voce di fila
+    // non si ripete, come scrive il design qui sopra.
+    if (identita === lastLine) return;
     mkdirSync(dirname(ERRORS_FILE), { recursive: true });
     appendFileSync(ERRORS_FILE, line + '\n', 'utf8');
-    lastLine = line;
+    lastLine = identita;
     // rotazione semplice: oltre MAX_TOTAL righe si riparte da un file pulito
     // (teniamo solo il conteggio: sono diagnostica, non contabilità)
     if ((count += 1) > MAX_TOTAL) reset();
@@ -51,7 +56,8 @@ export function recordWarning(module, message, extra = null) {
     message: String(message ?? '').slice(0, 300),
   };
   if (extra != null) entry.extra = String(extra).slice(0, 200);
-  appendLine(JSON.stringify(entry));
+  const identita = `${entry.module}|${entry.message}|${entry.extra ?? ''}`;
+  appendLine(JSON.stringify(entry), identita);
 }
 
 /**

@@ -1,3 +1,174 @@
+## LA SUITE HA ARRESTATO UNA BANDA RIBALTATA (28/10) — world.mjs, la classe dei simulati ora corre nel verso giusto
+
+- **Mandato Mauro**: «fai quello che vuoi, autorizzato a modificare se
+  opportuno per migliorare la suite» — seguendo il laccio della suite
+  è finito nel posto giusto: la conferma col ladder VERO mostrava che il
+  bug era NEL MODULO, non nel test.
+
+- **Il fermo immagine**: `sedile 2 (pilota più forte del parco) → simSkill
+  0.16, sedile 12 → 0.36`. La forza simulata era INVERTITA: i più deboli
+  in cima griglia, i fenomeni in fondo. Il ladder vero dichiara `ai:
+  [78, 88]` ASCENDENTE (lo, hi) ma `gridFor` leggeva `[hi, lo]` al
+  contrario — col commento originale «rank 0 = hi» che diceva il resto,
+  in contraddizione con il formato del ladder.
+
+- **Fix alla radice in world.mjs**: `bandValue` normalizza lo/hi, seat 2
+  = cima banda, l'ordine dei sedili segue la forza. `standingsFor` e
+  `finishOrder` dei rivali ereditano. Test riportati al nuovo contratto
+  con due capisaldi veri: carriera vergine = base −6 (quota media scende,
+  quirk documentata) e DNF non scende SOTTO il mai-gareggiato (pavimento
+  condiviso, asserzione `<=` invece di `<`). Suite COMPLETA 371/371.
+
+## L'ARCHIVIO ONLINE HA LA SUA SUITE (2/11) — e i test battono un bug vero del «cognome vuoto»
+
+- **Mandato Mauro**: «fai quello che vuoi, autorizzato a modificare se
+  opportuno per migliorare la suite» — col tab online appena fatto, la prima
+  firma mancante era la SUA VERIFICA: il modulo di catalog ora ha la suite
+  unit sui dati FINTI in una tmpdir, zero I/O del gioco (la data arriva dal
+  NOME del file, mai dal mtime, grafia identica ai veri file di EVO).
+
+- **`test/archivio-online.test.mjs`, 9 domande** a `onlineArchive` e
+  `resultDetail` (catalog.mjs): lo SP separato (guardia `_MP_`), data VERA
+  dal nome del file, io-in-gara (flag del gioco quando parla solo per me,
+  riconoscimento per nome quando la fila è «tutti te»), identità dal
+  driver_id che sopravvive al cambiamento nickname (TOINE e Antoine Laisne
+  = una persona sola), il nome normalizzato per chi NON ha id (case e spazi
+  fuori gioco), le righe doppie dei server contate UNA volta, la Forma col
+  posto MIO, e il testa a testa del dettaglio per NICKNAME alternativo
+  (tu = beaten, lui = beats, i due conti NON confusi).
+
+- **IL BUG VERO TROVATO**: in una gara col flag `is_current_driver` generico
+  (nei file _MP_ EVO lo marca spesso su più piloti), un nickname SENZA
+  cognome («TOINE» — cognome vuoto, come nel file reale di Bremskiller)
+  matchava il PRIMO nome cercato: in `findPlayerDriver` (results.mjs) la
+  clausola `wantedLast.startsWith(last)` con `last = ''` vale TRUE, quindi
+  ogni riga con cognome vuoto attaccava qualunque ricerca — io veniva letto
+  come il primo della griglia e sta te stesso finiva nel libro rivali.
+  Fix alla radice in results.mjs: un pezzo vuoto NON prova niente, si passa
+  oltre. Trovare un bug di produzione con una suite nuova è esattamente il
+  senso di «migliorare la suite».
+
+- **SECONDA SUITE STESSA FILA** — `test/identita-pilota.test.mjs`, 10 domande:
+  l'identità del pilota NON aveva test unit diretti (tanto indiretto in
+  archivio e import). Contratto di results.mjs: flag quando parla solo per
+  te, «tutti te» risolto per nome, regresso del cognome vuoto, accenti/MAIUS-
+  COLE, nome di una parola sola, righe AI escluse, driver null col pool, e
+  DUE capisaldi che nessun test julie: `dedupeDriverDiRiga` (una riga per
+  identità, tenuta la migliore, file pulito INTATTO per riferimento) e
+  `officialPositionOf` (la penalità a tempo RICALCOLA la classifica: 15:04
+  +8s perde contro il 15:10 del terzo, DSQ senza posizione). 300/300.
+
+- **TERZA SUITE, ANCHE IL GUARDIANO** — `test/grid-guard.test.mjs`, 7 domande:
+  il guardiano delle classi non aveva nemmeno un test. Contratto: `misureDaGara` (mediana
+  best per modello, min 3 righe con zavorra, min 2 set DIFFERENTI — la gara di
+  calibrazione non misura niente), `matchClasse` (più hit vince, <2 null),
+  `statoConvalida` (silenzio su pista convalidata, parlante fuori — e la
+  messaggistica dipende da cosa manca: nessuna convalida ≠ supplemento per-
+  traccia da confermare), e `gridGuardProposal` end-to-end su file finto con
+  il doc classes fornito via opts (mai toccato grid-classes.json reale): proposta
+  col perché, gap dal centro mediano (2.4s mediana Cortina − Imp), silenzio
+  totale su pista già convalidata, e file rotto/senza pista/senza classe → null
+  senza ambiente. 307/307.
+
+- **QUARTA FILA: LA VITA FUORI DALLA PISTA** — `test/life.test.mjs`, 11 domande
+  su life.mjs (contratti, sponsor, sfide, sigilli, maestria, piano di carriera),
+  nome-pilota.mjs e warnings.mjs. Il mondo di test ricrea il minimo che le
+  firme leggono: parco di 30 piloti attivi per gridFor, il sistema punti per
+  pointsSystems, state.driver per la fanfara della classifica. Cosa prova:
+  `settleContract` paga SOLO a contratto completo (verdetto 'failed' e zero €
+  altrimenti), la sfida persa TOGLIE rep e registra il flow per il dottore,
+  i sigilli NON si riassegnano, trackMastery 0–3 in 4 gare, careerPlanner
+  blocca per best-finish, rep o affitto. **SECONDO BUG VERO**: l'anti-rumore
+  di `recordWarning`
+  (warnings.mjs) comparaba la RIGA INTERA del JSON, che porta "at" al
+  millisecondo: due voci identiche in ms diversi passavano comunque e il
+  filtro non filtrava niente. Fix: si compara l'IDENTITÀ della voce
+  (modulo|messaggio|extra, senza tempo). 318/318.
+
+- **QUINTA FILA: LA STAMPA DEL PADDOCK** — `test/stampa.test.mjs`, 6 domande
+  su review.mjs (la rassegna di fine stagione) e gazzetta.mjs (titoli e citazioni
+  in bacheca), entrambi SENZA nessun test unit. Entrambi i moduli leggono/
+  scrivono SOLO dentro EVO_DATA_DIR: la suita lo ridirige a tmpdir all'import
+  (stesso schema di rivals.test) e i dati veri del progetto non vengono mai
+  toccati. Cosa prova: i conti di stagione di `seasonReview` (vittorie, podi,
+  pole, finanziari, punti, premi), il DUELLO dell'anno calcolato dal registro
+  rivali (più scontri = Antoine Laisne 1-1), la gara sparata (gap <2s) nel testo,
+  silenzio e NON crash senza registro rivali, `exportReview` che scrive
+  data/journal/stagione-N.md e la rassegna successiva che lo RIPRENDE senza
+  riusarlo. Sul fronte gazzetta: il grand chelem e il ritiro hanno titoli
+  propri, il FEED sta in ordine di round, refare il round con gli stessi dati →
+  STESSA pulsante (la gazzetta è dichiarata deterministica, ora è provato),
+  chi mi taglia il traguardo ottiene la voce «conto in sospeso», e la rivista
+  scarta le voci oltre la 80ª in ordine di arrivo. NESSUN BUG VERO qui — ma la
+  suite dei costruttori di testi è quella che regge i toni del gioco: ora anche
+  la stampa ha le sue garanzie. 324/324.
+
+- **SESTA FILA: IL PONTE CON PADDOCK** — `test/paddock-bridge.test.mjs`, 11
+  domande su src/paddock.mjs (344 righe), il modulo che legge i journal
+  JSON dell'app Paddock dentro EVO: ZERO test unit prima di oggi. Il nido
+  isolabile è PADDOCK_JOURNAL_DIR con journal finti in tmpdir e
+  paddockCacheClear() a ogni cambio — i journal VERI del gioco non vengono mai
+  toccati (e il primo giro lo ha provato su se stesso: un typo nel nido faceva
+  leggere Suzuka dell'installazione reale). Cosa prova: `paddockWet`
+  (pioggia/rain/scrosci in qualunque lingua-caso, sereno no),
+  `cleanRaceBonusOf` (10% del premio arrotondato, ZERO con penalità o premio
+  nullo), `paddockNextRace` (la home vince; senza home il calendario pesca la
+  ronda con state:"next"; pioggia → tips d'assetto bagnato; partenza serale →
+  tip di raffreddamento; niente journal → niente scheda), `carPaddockSpecsOf`
+  (scheda completa del 962, null per il fantasma, matching SENZA accenti —
+  nurburgring contro Nürburgring — e per slug), il journal PIÙ RECENTE per
+  mtime che vince a ogni hash con il dato che resta stabile, `paddockStats`
+  (solo curve valide, la curva a 1 punto non è una curva) e `paddockLedger`.
+  **MIGLIORAMENTO VERO QUI**: `paddockRoot`, con PADDOCK_JOURNAL_DIR che
+  punta a una cartella inesistente, cadeva SILENZIOSAMENTE sui journal veri
+  del gioco: il chiamante avrebbe letto i dati reali senza accorgersene di un
+  errore di configurazione. Fix: cartella mancante → null (niente paddock,
+  meglio che dati sbagliati). 335/335.
+
+- **SETTIMA FILA: IL METEO SENZA EVO** — `test/weather-preset.test.mjs`, 10
+  domande su src/weather.mjs (202 righe), il modulo che legge e PATCHA IN-PLACE
+  il preset meteo in gamemode.lastgamemode: ZERO test unit. I file fixture
+  sono costruiti con lo STESSO codec del tool (encodeMsg/decodeMsg, schema
+  protobuf condiviso) e ACE_GAME_SAVEDIR/lessi lgmFile espliciti tengono
+  TUTTO in tmpdir: il LGM vero del gioco non viene toccato. Cosa prova: gli
+  8 preset in ordine, `presetFor` (per key/label/numero/varianti heavy-intense
+  e drizzle), `presetForLabel` — la lezione del 20/10 tradotta in test
+  (ladder 3 "Light rain" ≠ preset EVO 3 "Coperto": si traduce PER NOME,
+  ma il numero sta ZERRO), `currentWeatherPreset` (assente = sereno proto3,
+  file missing/vuoto = null), `setWeatherPreset` (dry non tocca niente, il
+  write vero crea il backup con il registro ORIGINALE dentro, campo 2 assente
+  → INSERTS prima della timeline e 9 step intatti, BAD_WEATHER
+  su preset inesistente), `setWeatherCustom` (27 float patchati su 9 step,
+  clamp 1.8→1.0 e -0.3→0.0, SOLO il parametro dato patcha gli ALTRI restano,
+  NO_VALUES/NO_FILE/dry). **TERZO BUG VERO IN DUE GIORNI**: `presetFor('light
+  rain')` — il nome ESATTO del menu inglese di EVO — rispondeva preset 5
+  (pioggia SECCA) invece di 4: le bande alt-match si controllavano in ordine
+  6-5-4 e 'light rain'.includes('rain') beccava la banda 5 prima della 4. Fix:
+  ordine 6-4-5 (drizzle PRIMA della secca). Chi imposta il meteo in EN
+  otteneva il doppio bagnato senza saperlo. 344/344.
+
+- **OTTAVA FILA: LA SCHEDA GARA** — `test/race-card.test.mjs`, 10 domande su
+  src/race.mjs (459 righe), l'ULTIMO modulo grosso senza unit (6ª e 7ª fila
+  avevano coperto tutto il resto). Doppio nido: `ACE_GAME_SAVEDIR` via
+  _game-sandbox per i file di gioco, `EVO_DATA_DIR` per la carriera,
+  `PADDOCK_JOURNAL_DIR` in tmpdir (le specs Paddock della scheda non devono
+  guardare il disco vero). Cosa prova: la card della ronda 0 (pista
+  tradotta, auto, giri, griglia reale −1), la riga Grid Type SOLO sulle
+  multiclasse (lezione 27/10 della Berline Moderne: «CUSTOM lo fissi una
+  volta sola, poi l'app lo riscrive»), la DISTANZA 25% che scala giri/
+  durate/premio col minimo 5', il piano orario REALISTICO P−6h/Q−3h/W−1h
+  (lezione 31/10: niente più sessioni impastate sull'ora di gara) con le due
+  eccezioni guardiane — ronda di NOTTE chi durerebbe col discard senza
+  salire di giorno, override raceStart che vince, la banda STRETTA di
+  difficoltà 1 punto ± override cursori, l'auto FUORI PARCO gridata prima
+  che partisca (l'import le da 0 punti ma la scheda la svela SUBITO),
+  l'outlook con obiettivo pista/punti stagione, chargeEntry UNA VOLTA per
+  ronda (ricevuta in `paidEntries`, ronda nuova si ripaga, soldi corti →
+  throw che NOMINA prezzo e saldo), markPending per il flusso di gara, e i
+  layout REALI di EVO: Paul Ricard «Layout 1C-V2», Oulton «International»,
+  Nürburgring «Gp Strecke», default GP ovunque la tabella non dice.
+  355/355.
+
 ## TAB ONLINE (2/11) — l'archivio multiplayer esce dall'Archivio, guida community nei README
 
 - **Richiesta**: «riprendi» dopo la tomba del pannello MP in fondo ad Archivio

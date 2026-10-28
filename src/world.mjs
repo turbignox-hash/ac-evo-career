@@ -186,12 +186,21 @@ export function gridFor(world, ladder, node, season) {
     .slice(0, node.gridSize - 1)
     .map((x) => x.d);
 
-  const [hi, lo] = node.ai;
+  const [a0, a1] = node.ai;
+  // BANDA NORMALIZZATA (19ª lezione: il ladder VERO scrie ai ASC [lo, hi] — la
+  // Coppa Città [78,88] — ma il vecchio codice destrutturava [hi, lo] e INVERTIVA
+  // la forza: col parco vero il straniero più forte (seat 2) correva a 0.16 e
+  // l'ultimo della serie a 0.36 — chi era più forte in ingresso risulava più
+  // LENTO in classifica. Il commento qui sotto diceva già l'intendimento:
+  // rank 0 = cima della banda, ultimo = base. Con min/max vale per iscritto
+  // qualsiasi ordine nel JSON (per-traccia, eventi con aiBand [88,93]…).
+  const hi = Math.max(Number(a0), Number(a1));
+  const lo = Math.min(Number(a0), Number(a1));
   const n = ranked.length;
   const seats = [];
   for (let i = 0; i < n; i++) {
     const t = n === 1 ? 0 : i / (n - 1);
-    const bandValue = hi + (lo - hi) * t;             // rank 0 = hi, ultimo = lo
+    const bandValue = hi - (hi - lo) * t;             // rank 0 = hi, ultimo = lo
     const d = ranked[i];
     seats.push({
       driverId: d.id,

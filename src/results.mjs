@@ -109,8 +109,13 @@ export function findPlayerDriver(result, driver) {
     if (full === wantedFull) return true;
     if (singleWord) return first === wantedFirst || (!!wantedFirst && first.startsWith(wantedFirst));
     if (!wantedLast) return false;
-    return last === wantedLast || last.startsWith(wantedLast) || wantedLast.startsWith(last)
-      || (last === wantedLast && first === wantedFirst);
+    // 2/11 (archivio-online.test): i nickname dei server MP arrivano spesso SEMZA
+    // cognome («TOINE», come in Bremskiller). Un cognome vuoto matchava QUALUNQUE
+    // nome cercato per via di `'turbigno'.startsWith('')` (che è true): il primo
+    // pilota con la fila vaga diventava «me» a posto dell'ista, io risultavo un
+    // rivale di me stesso. Un piece vuoto NON prova niente, si passa oltre.
+    if (!last) return false;
+    return last === wantedLast || last.startsWith(wantedLast) || wantedLast.startsWith(last);
   });
   if (match) return { driver: match, how: flagged.length > 1 ? 'nome pilota (il flag del gioco era generico)' : 'nome pilota' };
   if (notAI.length === 1) return { driver: notAI[0], how: 'unico pilota senza contrassegno AI' };
