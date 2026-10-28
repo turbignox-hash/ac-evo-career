@@ -18,7 +18,7 @@ import {
   createCareer, nodeById, disciplineName, nomeDisciplina, gateStatus,
   standingsFor, difficultyFor, seasonEnd,
   acceptOffer, pushMessage, enterNode, renameDriver, careerStats,
-  slotDataDir,
+  slotDataDir, grigliaSimEstesa,
 } from './state.mjs';
 import { playerWorldSkill } from './world.mjs';
 import { loadCatalog, resultDetail, onlineArchive } from './catalog.mjs';
@@ -2273,7 +2273,7 @@ async function api(context0, _req, res, action, body) {
       const backfill = ensureContract(ladder, state, node);
       const newSigils = checkSigils(ladder, state);
       if (backfill || newSigils.length) persist(state);
-      const pulse = midSeasonPulse(state.world, ladder, node, state.season, Math.min(state.round, node.calendar.length - 1));
+      const pulse = midSeasonPulse(state.world, ladder, grigliaSimEstesa(ladder, state, node), state.season, Math.min(state.round, node.calendar.length - 1));
       const contr = contractStatus(ladder, state);
       return sendJson(res, 200, {
         contract: contr ? { display: contr.contract.display, season: contr.contract.season, payout: contr.contract.payout, rows: contr.rows, metrics: contr.metrics } : null,

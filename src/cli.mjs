@@ -11,7 +11,7 @@ import {
   createCareer, loadState, saveState, nodeById, disciplineName, tierOf, gateStatus,
   standingsFor, playerStanding, difficultyFor, seasonEnd,
   acceptOffer, pushMessage, sponsorTier, enterNode, renameDriver,
-  savePath, activeSlot, slotDataDir,
+  savePath, activeSlot, slotDataDir, grigliaSimEstesa,
 } from './state.mjs';
 import { paddock } from './world.mjs';
 import { raceCard, markPending, chargeEntry, launch } from './race.mjs';
@@ -502,7 +502,7 @@ function cmdPaddock(args) {
   const { ladder } = context();
   const state = requireState();
   const node = nodeById(ladder, state.node);
-  const rows = paddock(state.world, ladder, node, state.season);
+  const rows = paddock(state.world, ladder, grigliaSimEstesa(ladder, state, node), state.season);
   const limit = args.flags.all ? rows.length : 12;
   console.log(C.bold(tr({ it: '\nPaddock {D} — {N} rivali (i primi {L})\n', en: '\nPaddock {D} — {N} rivals (first {L})\n' }).replace('{D}', node.display).replace('{N}', rows.length).replace('{L}', limit)));
   for (const r of rows.slice(0, limit)) {
