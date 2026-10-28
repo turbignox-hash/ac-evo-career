@@ -1,8 +1,36 @@
-## GAZZETTA IN RECITA: TITOLI PER-ROUND DALLO STORICO + GAZZETTA DI STAGIONE (28/10)
+## GRIGLIA SIM ALLARGATA: LA CLASSIFICA CORRE LARGA QUANTO IL GIOCO (30/10)
 
-- **Mandato Mauro**: «Fai i titoli per round · Progetta la gazzetta di
-  stagione». Due lavori con un solo filo: la stampa del paddock impara a
-  ricordare.
+- **Mandato Mauro**: «Ampliare la griglia sim». Risotto col filo del
+  realismo del 28/10: quella volta si era curato il CHI vince nella
+  sim (forma stagionale a ampiezza adattiva); stavolta il problema era
+  il QUANTI correvano.
+
+- **La misura che decide** (una-tantum col save vero, contati i
+  gridSize nei risultati incassati): le griglie reali di EVO sono quasi
+  sempre PIÙ ampie della stima del ladder — Alfa 75 ladder 7 con griglie
+  reali 17, Golf Mk8 ladder 14 con reali 17, R5 Turbo 12 con 16. Mai il
+  contrario in modo sistematico: la stima è sghemba in basso.
+
+- **Cosa rompeva la stima corta**: la classifica simulata
+  (standingsFor), il duello di stagione (postRaceEffects) e il
+  monte-carlo del sedile giravano su griglie di node.gridSize: una
+  P10/17 vera finiva spremuta dentro un campo da 7, i punti dei rivali
+  venivano sottostimati e il campionato simulato sembrava meno
+  affollato di quello del gioco.
+
+- **La cura** (grigliaSimEstesa in state.mjs, una funzione, tre
+  call-sites): la sim gira larga quanto il MASSIMO gridSize mai
+  registrato per la serie nei risultati del save. Il massimo è robusto
+  a file corrotte corte (la 2 della RX-7, letta a metà scrittura: col
+  minimo spariva l'ampliamento); senza risultati resta la stima
+  (niente cambi su carriere vergini); il nodo si muta SOLO in copia — il
+  ladder su disco e i template già raccolti non si toccano.
+
+- **Conti**: 5 test nuovi (test/griglia-sim.test.mjs): stima invariata
+  senza history, allargamento al massimo visto e ladder intatto,
+  corrotta corta filtrata, classifica a 17 righe col campo largo,
+  determinismo fra letture. Suite 383/383, lint a 0. Commit d36d31b
+  (non spinto).
 
 - **Titoli per-round** (gazzetta.mjs): finora il titolo parlava solo della
   gara di oggi; aggiunto lo STORICO VERO (le gare già nel save prima di
