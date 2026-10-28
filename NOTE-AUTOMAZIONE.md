@@ -1,3 +1,43 @@
+## GAZZETTA IN RECITA: TITOLI PER-ROUND DALLO STORICO + GAZZETTA DI STAGIONE (28/10)
+
+- **Mandato Mauro**: «Fai i titoli per round · Progetta la gazzetta di
+  stagione». Due lavori con un solo filo: la stampa del paddock impara a
+  ricordare.
+
+- **Titoli per-round** (gazzetta.mjs): finora il titolo parlava solo della
+  gara di oggi; aggiunto lo STORICO VERO (le gare già nel save prima di
+  quella corrente, lette da state.results) e il titolo lo decide la storia,
+  con priorità dal fatto più raro: GRANDE CHELEM · LA POLE BUTTATA (pole
+  e zero punti) · BRUTTA SERIE (ritiri consecutivi: nel titolo il numero,
+  «3 ritiri consecutivi») · RITORNO DAL BOX (vittoria subito dopo il
+  ritiro) e RITORNO SUL PODIO · DUE/TRE/QUATTRO DI FILO (vittorie di fila:
+  la parola giusta) · PRIMA VOLTA A X (vittoria su pista mai vinta,
+  stagioni comprese) · IL PRIMO GRADINO (primo podio della stagione) ·
+  PODIO A SERIE (podi consecutivi). DETERMINISTICI: stesso storico,
+  stesso titolo — test dedicato con re-run.
+
+- **La gazzetta di stagione** (seasonPress, medesimo modulo): il volume
+  che rilega i titoli dell'anno in pagina unica — sommario in testa (gare,
+  vittorie, podi, ritiri) e ogni masthead in ordine di round. LEGGE
+  news.json e non tocca altro: è la rilettura, non una nuova scrittura.
+  Via d'ingresso solo la GUI per ora: da CLI non c'è ancora il comando.
+
+- **GUI**: quarta tile nel cruscotto «Gazzetta di stagione», accanto alla
+  rassegna: modal con targhetta R{round} · {track} colorata per esito
+  (oro P1, rosso ritiro), cambio stagione e copia del foglio. Endpoint
+  `gazzetta-season` con la stessa guardia di `season-review`.
+
+- **Insegnamento di officina**: il primo giro di test ha fatto CADERE
+  TUTTI i casi con storico — colpevole un `i++` dove serviva `i--` nel
+  contatore delle serie (prevStreak), che usciva dall'array a metà
+  lettura: diagnosticato con log passo-passo, non dedotto.
+
+- **Conti**: suite 378/378 (6 test nuovi: 4 per-round, 2 del volume di
+  stagione), lint a 0 sui 4 file toccati. Commit 04b05cd (non ancora
+  spinto). I titoli scritti PRIMA del commit restano con la formula
+  vecchia: il volume rilegge comunque tutto, ma i titoli speciali escono
+  solo sulle gare da oggi in poi.
+
 ## FLAKY SMONTATO: IL TEST DELLA GAZZETTA SCRIVEVA NEL FOGLIO VERO (28/10)
 
 - **Come è riaperto**: un fallito una volta sola su 372 (verde al re-run)
