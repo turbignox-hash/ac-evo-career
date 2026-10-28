@@ -82,4 +82,33 @@ Tutte le detriti risultati correttamente **fuori da Git** (`git check-ignore`
    slot-3, griglie-grezz, bak del 23/10 — ~11 MB recuperati, zero rischi
    (sono copie di guardia di interventi chiusi).
 
-Nessuno di questi interventi tocca `evo-career.save.json` né va a Git.
+## 5. Riflessi degli interventi (28/10 sera)
+
+Messa in atto dopo l'audit, misurata sul vero:
+
+- **A1 — FATTO**. `tools/salva-save.mjs` zippa ora con cinque esclusioni
+  (`ESCLUSIONI_SAVE`: MoTec, Replay, crashdumps, Logs, mods — nessuna è
+  dato di salvataggio). Attenzione trovata sul vivo: i tar POSIXLY-stili
+  smettono di leggere opzioni al primo operando, gli `--exclude` dopo il
+  `.` diventavano PATH da zippare — vanno PRIMA del `.`. Zip di prova
+  18:48: **1,1 MB** (da 746 MB), lista contenuto verificata: le cinque
+  cartelle sono assenti (0 righe in `tar -tf | grep`), ProfileData/
+  GameModes/Results/setups presenti.
+  **Incognita rimasta**: `2026.ld` (1,1 GB non compresso, 202 file) resta
+  nel zip — schiacciato a pochi MB dal deflate, ma se il gioco lo
+  rigenera da solo potrebbe uscire anche lui. Verifica proposta:
+  simula il restore senza `2026.ld` su copia di sandbox prima di
+  aggiungerlo alle esclusioni.
+  Nota: lo slot-2 del 27/10 (746 MB, formato vecchio) resta l'unica
+  copia che contiene Replay/crashdumps/MoTec originali; la rotazione
+  MAX_ZIP=4 lo scarterà da sola ai successivi cicli di backup.
+- **A3 (bak di ripara-rivali) — FATTO**. `tools/ripara-rivali.mjs` porta
+  ora potatura per-tag: i `.bak-ripara-*` restano i 3 più freschi (la
+  leva `pruneBackups` della griglia non li matchava: filtra solo bak
+  col primo pezzo del nome numerico) e lo stamp passa al secondo
+  (stesso standard del bak al secondo). Dry-run certificato: idempotente
+  (griglie ripulite 0). La pila attuale (6 file, ~2,7 MB con doppi
+  riporti `ls`) si potera al primo giro di riparazione reale.
+- **A2 + resto di A3 — NON FATTO** (slot-1 arido da 158 B, bak d'epoca
+  del 23/10, griglie-grezz, slot-3): spazzata manuale fuori da questi
+  tre interventi; quando fatta, stornare le voci dell'inventario qui sopra.

@@ -118,9 +118,22 @@ next race.
 
 ## What's new in the recent builds
 
-Highlights of the **0.1.13–0.1.18** line (every save writes a readable
+Highlights of the **0.1.13–0.1.41** line (every save writes a readable
 changelog under [report/](report/), with the real test-suite result inside):
 
+- Prize exclusion counts the TOOL garage + showcase only (28/10). The older
+  `SavedCars` disk scan (`.carfinalstatewithconsumable` files) turned out to be
+  wrong for ownership: the files survive car SALES (the F40 LM Mauro sold) and
+  RENTALS from the car pool, while truly owned cars can miss their file (the
+  Countach had none). It fed 13 phantom owned cars into prize choice. The scan
+  `gameOwnedCarIds()` remains as a read-only diagnostic; a car known only to the
+  game is declared by hand from the Garage menu. Test: `test/game-owned.test.mjs`.
+- **Per-second baks and slim backup (28/10, audit).** Grid templates and the
+  customgrid write their `.bak` with the SECOND in the name (two nearby
+  writes no longer overwrite each other, `-r2`/`-r3` suffix; regression test
+  in `test/grid-templates.test.mjs`), `.bak-ripara-*` files prune themselves
+  (the 3 freshest stay), and the save backup excludes
+  MoTec/replay/crashdumps/Logs/mods: zip from 746 MB to 1.1 MB.
 - **Season press, headlines that remember (28/10).** After every race the
   paddock press writes a headline tailored to your true story, not just
   today's race — rarest first: GRAND CHELEM, THE WASTED POLE, ROUGH STREAK
@@ -159,7 +172,10 @@ changelog under [report/](report/), with the real test-suite result inside):
   for the browser's asynchronous voice list, only speaks when a *value*
   actually changes, never repeats a phrase within 20 s and stays silent for
   the first seconds after a session switch. The **♪ test** chip on the
-  dashboard speaks one line on demand to verify the Italian voice.
+  dashboard speaks one line on demand to verify the Italian voice. Since
+  28/10 it also keeps discipline: no more looping the mid-race report
+  ("litres, fuel and laps"), and the last-lap messages arrive on time,
+  positions lost and gained included.
 - **Grids now build themselves for every series.** The "harmonic" variant
   system (a unique livery per cell — EVO crashes on schedules with repeated
   cells) applies to **every car** of a series, not a single chosen one. Series
@@ -188,7 +204,15 @@ changelog under [report/](report/), with the real test-suite result inside):
   current series and the world-skill panel, plus a button that opens the full
   Mondiale in the browser GUI — all computed with the same server formulas
   (`standingsFor`, `playerWorldSkill`) so the numbers can never diverge.
-- **Paddock and car classes (26–27/10).** The class engine now pairs series
+- **The Cruscotto also kicks the round off (28/10 evening).** A prepared and
+  confirmed round → once the car in EVO's menu is already yours (the
+  `ui_storage` ack of the setcar), the applet presses **«Start session» by
+  itself** — the same command the Paddock uses. The **special event never
+  gets an automatic launch** (its settings are set by hand from the card,
+  lesson of 23/10); a fresh round outranks the event (a pending round
+  expires after ONE day and yields the field), and the car in EVO's menu no
+  longer flips back to the event's car by surprise ("the Ferrari steps
+  back").- **Paddock and car classes (26–27/10).** The class engine now pairs series
   with the car park actually on disk: with the right classes per-track ballast
   has lost its bite (latest races: zero escapes from the base, no penalty
   above 8%, the 20% cap never reached).
@@ -221,10 +245,12 @@ node tools/salva-save.mjs --check  # exit 0 = fresh, exit 1 = stale/missing
 node tools/salva-save.mjs --force  # backup ALWAYS
 ```
 
-Note: the zip covers the whole `Saved Games\ACE` folder (MoTec, replays,
-logs and mods included) — the 28/10 audit measures it and the exclusions to
-save-only content are the first open remedy, see
-[report/audit-dati-2026-10-28.md](report/audit-dati-2026-10-28.md).
+Note (updated 28/10): the zip NO LONGER carries MoTec, replays, crashdumps,
+logs or mods — the `ESCLUSIONI_SAVE` list targets save-only content (test
+zip: 746 MB → 1.1 MB). The `2026.ld` unknown remains in the zip (it packs
+to a few MB under deflate; the decision awaits a sandboxed restore test).
+Details in [report/audit-dati-2026-10-28.md](report/audit-dati-2026-10-28.md),
+§5.
 
 ```bash
 node ac-evo-career.mjs setup
@@ -647,10 +673,12 @@ Summary:
   it.
 - **The automatic save backup lives in `data/salva-save/`**: rotated
   slot-1/slot-2 zips (max 4 kept), written by `tools/salva-save.mjs` when the
-  last one is older than 36 hours. Known caveat (audit A1): the zip covers
-  the WHOLE `Saved Games\ACE` folder (MoTec, replays, logs, mods), so a
-  backup can weigh hundreds of MB; trimming it to save-only content is the
-  first open recommendation.
+  last one is older than 36 hours. Closed (28/10, audit A1): the zip now
+  excludes MoTec/replay/crashdumps/Logs/mods — save-only content, typically
+  ~1 MB instead of hundreds of MB.
+- One-shot `.bak-*` files in `data/` are guard copies of finished repair
+  jobs; they are safe to delete once the tool change is verified. Since
+  28/10 `.bak-ripara-*` files prune themselves (the 3 freshest stay).
 - One-shot `.bak-*` files in `data/` are guard copies of finished repair
   jobs; they are safe to delete once the tool change is verified.
 

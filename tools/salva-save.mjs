@@ -40,6 +40,16 @@ export const STALE_ORE_DEFAULT = 36;   // backup ogni ~girone e mezzo, massimo 3
 export const MAX_ZIP = 4;              // su TUTTI gli slot: vecchi si cancellano SOLI
 export const NOMI_SLOT = ['slot-1', 'slot-2'];
 
+// Esclusioni del backup (28/10, audit A1): NESSUNA è dato di salvataggio —
+// MoTec (telemetrie), replay (176 MB), crashdumps (130 MB), mods UI (82 MB) e
+// logs (8 MB) pesano tanto e si ricavano da soli. Il resto del save (ProfileData,
+// GameModes, Results, setups, impostazioni) resta TUTTO nel zip. QUESITO CHIUSO 28/10
+// (test restore in sandbox): nessun «2026.ld» monolitico esiste — i *.ld sono
+// SOLO log MoTec (già esclusi) e il restore dell'ultimo zip tira su 701 file col save completo.
+export const ESCLUSIONI_SAVE = ['MoTec', 'Replay', 'crashdumps', 'Logs', 'mods'];
+// pattern per bsdtar: i membri del zip portano il prefisso ./ (tar -C dir .)
+const argEsclusioniSave = ESCLUSIONI_SAVE.flatMap((n) => [`--exclude=./${n}`, `--exclude=./${n}/*`]);
+
 // ————— parsing opzioni: solo se siamo la prima di comando —————
 const argv = process.argv.slice(2);
 function flag(nome) {
@@ -120,7 +130,10 @@ export function forzaBackup({ force = true, staleHours = null, data = null } = {
   mkdirSync(join(DEST_BASE, slot), { recursive: true });
 
   const tar = process.env.WINDIR ? join(process.env.WINDIR, 'System32', 'tar.exe') : 'tar.exe';
-  const esito = spawnSync(tar, ['-caf', file, '-C', dir, '.'], { windowsHide: true, timeout: 10 * 60_000 });
+  // ORDINE (28/10 al vivo): i tar POSIXLY_STRICT smettano di leggere opzioni al
+  // primo operando — gli --exclude DOPO il '.' diventavano PATH da zippare
+  // (errore «Couldn't visit directory»). Esclusioni prima del '.'.
+  const esito = spawnSync(tar, ['-caf', file, '-C', dir, ...argEsclusioniSave, '.'], { windowsHide: true, timeout: 10 * 60_000 });
   if (esito.error || esito.status !== 0) {
     const chi = esito.error?.message ?? String(esito.stderr ?? '').slice(-400);
     rmSync(file, { force: true }); // il zip mezzo va tolto: e' promessa non tenuta

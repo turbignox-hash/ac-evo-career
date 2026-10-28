@@ -8,7 +8,7 @@
 //   2. apre il gioco per te.
 // Il resto, cioe' la lettura del risultato, e' automatico: lo fa il file nativo del gioco.
 
-import { difficultyFor, entryFee, pushMessage, nodeById, playerStanding, isClosedNode, senzaVincoli } from './state.mjs';
+import { difficultyFor, entryFee, pushMessage, nodeById, playerStanding, isClosedNode, senzaVincoli, grigliaSimEstesa } from './state.mjs';
 import { rebuildGridApply } from './grid-apply.mjs';
 import { contractStatus, challengeFor, trackMastery, sponsorFor, ensureContract, refreshContractTexts } from './life.mjs';
 import { raceCrowdFor } from './memories.mjs';
@@ -224,6 +224,13 @@ export function raceCard(ladder, state, { car = null } = {}) {
     } catch { return null; }
   })();
   const gridsReali = nato ? nato.cars : node.gridSize;
+  // GRIGLIA TIPICA nella card (28/10, «la card vede il campo largo come la
+  // classifica»): il massimo gridSize di griglia reale incassato in SERIE
+  // (grigliaSimEstesa, la stessa cifra delle card serie e dell'agenda). Il
+  // gamemodesave di QUESTA ronda può essere più piccolo: la riga quando
+  // diverge avvisa, così in EVO non sembra che manchino avversari.
+  const tipica = grigliaSimEstesa(ladder, state, node);
+  const gridsTipica = Math.max(tipica?.gridSize ?? 0, node.gridSize);
 
   const base = {
     node,
@@ -263,7 +270,7 @@ export function raceCard(ladder, state, { car = null } = {}) {
       ...(grigliaRow ? [grigliaRow] : []),
       [tr({ it: 'Pista', en: 'Track' }), tr({ it: `${trackDisp} — layout ${layout}`, en: `${trackDisp} — ${layout} layout` })],
       [tr({ it: 'Auto', en: 'Car' }), chosenCarName],
-      [tr({ it: 'Avversari', en: 'Opponents' }), tr({ it: `${gridsReali - 1} auto · ${node.cars.length > 1 ? 'multiclasse: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}`, en: `${gridsReali - 1} cars · ${node.cars.length > 1 ? 'multiclass: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}` })],
+      [tr({ it: 'Avversari', en: 'Opponents' }), tr({ it: `${gridsReali - 1} auto · ${node.cars.length > 1 ? 'multiclasse: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}${gridsTipica > gridsReali ? ` — griglia tipica di serie: ${gridsTipica}` : ''}`, en: `${gridsReali - 1} cars · ${node.cars.length > 1 ? 'multiclass: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}${gridsTipica > gridsReali ? ` — series typical grid: ${gridsTipica}` : ''}` })],
       [tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), tr({ it: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%`, en: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%` })],
       [tr({ it: 'Prove libere', en: 'Practice' }), card_sessionHint(practiceMinEff, round, profile, 'P', practiceStartOv, raceHour)],
       [tr({ it: 'Qualifiche', en: 'Qualifying' }), card_sessionHint(qualifyMinEff, round, profile, 'Q', qualifyStartOv, raceHour)],

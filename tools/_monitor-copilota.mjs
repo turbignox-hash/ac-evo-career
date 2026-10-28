@@ -18,7 +18,11 @@ const LOG = (port) => join(HERE, '..', 'data', `copilot-${port}-24-10.jsonl`);
 for (const p of PORTS) { const f = LOG(p); if (!existsSync(f)) writeFileSync(f, ''); }
 
 // stato per porta: replica window.__copilot (last.*, at) del client
-const slots = new Map(PORTS.map((p) => [p, { last: {}, at: 0, sawLive: false, firma: null, start: Date.now() }]));
+const slots = new Map(PORTS.map((p) => [p, { last: {}, at: 0, said: {}, sawLive: false, firma: null, start: Date.now() }]));
+
+/* 28/10 pomeriggio: SOGA-ANTI-RIPETIZIONE identica a viste-a.js cpDettoRecente.
+   Lo stesso testo dentro i 70 s NON torna in frasi[] (guarda il campo detto:
+   true = zittito gastrointestinalmente). */
 
 const campi = (m) => ({
   sessionType: m.sessionType ?? null,
@@ -54,7 +58,7 @@ async function poll(port, slot) {
     return;
   }
   if (!slot.sawLive) {
-    slot.sawLive = true;
+    slot.sawLive = true; slot.said = {};
     appendFileSync(LOG(port), JSON.stringify({ t: Date.now(), up, evento: 'SESSIONE VIVA (live=true) — last del copilota ereditati dalla sessione precedente', dati: campi(m) }) + '\n');
   }
   /* allineato al client 28/10: la FIRMA della sessione (eventId+sessionId+tipo,
@@ -64,6 +68,7 @@ async function poll(port, slot) {
     if (slot.firma != null) appendFileSync(LOG(port), JSON.stringify({ t: Date.now(), up, evento: 'SESSIONE NUOVA (firma cambiata) — last dei narratori azzerati come in vista' }) + '\n');
     slot.firma = firma;
     slot.last = {};
+    slot.said = {};
   }
   const parla = [];
   /* replica narratori — viste-a.js, logica allineata 27/10: il delta parla SOLO
@@ -93,7 +98,9 @@ async function poll(port, slot) {
   if (compiuto != null && g.lapsTotal != null && g.lapsTotal > 0 && compiuto > g.lapsTotal) compiuto = g.lapsTotal;
   if (compiuto != null && slot.last.giro != null && compiuto < slot.last.giro) { slot.last.giro = compiuto; slot.last.lastLapTxt = lastLapTxt; slot.last.meta = false; }
   // ⚠ replica FEDELLE: qui sotto le condizioni restano IDENTICHE alla vista
-  if (g.lapsDone != null && g.lapsDone <= 1) slot.last.meta = false;
+  // 28/10 pomeriggio: RIMOSSO il vecchio reset «lapsDone <= 1 → meta ricomincia»,
+  // nocivo su gare CORTE: da 3 giri meta = 2 e lapsDone resta 1 per tutto il
+  // secondo giro → annuncio, reset, annuncio … in loop, come in viste-a.js.
   if (compiuto != null && slot.last.giro != null && compiuto > slot.last.giro && lastLapTxt && lastLapTxt !== slot.last.lastLapTxt) {
     parla.push(m.delta?.bestLapNo === compiuto
       ? { chi: 'giroFatto', it: `Giro ${compiuto} fatto in ${lastLapTxt} — nuovo best` }
@@ -163,7 +170,18 @@ async function poll(port, slot) {
       }
     }
   } else slot.last.pitN = null;
-  appendFileSync(LOG(port), JSON.stringify({ t: Date.now(), up, frasi: parla, dati: campi(m) }) + '\n');
+  // 28/10 pomeriggio: guardia anti-ripetizioni identica alla vista (cpDettoRecente):
+  // stesso testo già detto dentro i 70 s NON entra nel log con voce vera —
+  // appare con detto:true così si vede che è stato giustamente zittito.
+  const frasi = [];
+  for (const p of parla) {
+    const testo = p.it ?? '';
+    const last = slot.said[testo];
+    if (last && Date.now() - last < 70000) { frasi.push({ ...p, detto: true }); continue; }
+    slot.said[testo] = Date.now();
+    frasi.push(p);
+  }
+  appendFileSync(LOG(port), JSON.stringify({ t: Date.now(), up, frasi, dati: campi(m) }) + '\n');
 }
 
 console.log('≫ monitor copilota su porte', PORTS.join(', '), '— log in data/copilot-*-24-10.jsonl (CTRL-C ferma)');

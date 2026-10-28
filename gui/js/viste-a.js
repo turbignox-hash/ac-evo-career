@@ -732,6 +732,21 @@ function drawCardInto(el, card){
      lingua dell'interfaccia, identica esatta → prefisso → default. Se la
      lingua attiva non ha NESSUNA voce installata lo dICO una volta sola. */
   cp.voci = cp.voci ?? { lista: null, avvisata: {} };
+  /* LIMITE DI TEMPO, STESSA FRASE (28/10, pomeriggio, Mauro): con last a zero
+     dopo la firma (o un buco live=false) la voce può ripartire a borda:
+     «Meta gara» già parlata nel turno prima e REANNUnciata 10 volte di fila
+     mentre lapsOnFuel slitta di centesimi a ogni tick (2:42 vs 2:30Mehr).
+     cpSay ha già il suo slock, ma questo qui vale per TUTTI i discorsi
+     (metaBenzina usa cpSpeak diretto): niente ripetizioni IDENTICHE prima
+     di 70 secondi — duello in pista, un giro di respirazione e lo dico
+     di nuovo se serve davvero. */
+  cp.detti ??= {};
+  const cpDettoRecente = (text) => {
+    const last = cp.detti[text];
+    if (last && Date.now() - last < 70000) return true;
+    cp.detti[text] = Date.now();
+    return false;
+  };
   const voiceRelod = () => { cp.voci.lista = null; };
   const vociDi = () => {
     const vs = speechSynthesis.getVoices?.() ?? [];
@@ -773,6 +788,14 @@ function drawCardInto(el, card){
         cp.voci.attesa = (cp.voci.attesa ?? 0) + 1;
         if (cp.voci.attesa <= 4) { setTimeout(() => cpSpeak(text), 420); return; }
       } else cp.voci.attesa = 0;
+      /* la GUARDIA sul testo sta QUI, non in testa (28/10 sera): i retry
+         dell'attesa voci (setTimeout 420 ms) ripasavano dalla stessa
+         funzione e la guardia — che registra l'istante ANCHE quando ritorna
+         falso — li inghiottiva: la voce di sistema parlava SOLO al primo
+         tentativo (lista ancora vuota) e tutti i successivi tacevano per
+         «stessa frase di 70 s». Ora la frase è registrata solo quando la
+         voce esce davvero. */
+      if (cpDettoRecente(text)) return;   // stessa frase già detta da poco: tace
       const u = new SpeechSynthesisUtterance(text);
       u.lang = 'it-IT'; u.rate = 1.1; u.volume = 0.9;
       if (v) u.voice = v;
@@ -783,6 +806,17 @@ function drawCardInto(el, card){
           en: `Copilot voice: NO Italian voice on this system (voices seen: ${vs.slice(0, 6).map((x) => `${x.name} [${x.lang}]`).join(' · ')}). The text stays Italian, but the timbre may sound English. Windows Settings → Speech → Add voices: Italian, then reopen the app.`,
         }), 'warn');
       }
+      /* RETTORE DI CODA (28/10 sera, Mauro: «ultimo giro» e le posizioni in
+         ritardo): la coda di speechSynthesis NON si svuota da sola quando
+         gli annunci si accodano più di quanto duri la voce — anche con il
+         loop della meta già tolto restava un ritardo se un giro accidentato
+         incrociava gomme+benzina+gap in fila. Oltre i 2 discorsi in coda,
+         i VECCHI cedono il posto: la voce resta sul presente. */
+      cp.coda ??= 0;
+      if (cp.coda >= 2) { speechSynthesis.cancel(); cp.coda = 0; }
+      cp.coda++;
+      u.onend = () => { cp.coda = Math.max(0, cp.coda - 1); };
+      u.onerror = u.onend;
       speechSynthesis.speak(u);
     } catch { /* la voce non deve mai rompere la vista */ }
   };
@@ -838,6 +872,7 @@ function drawCardInto(el, card){
       if (!cp.seenLive) {
         cp.seenLive = true;
         cp.last = {};
+        cp.detti = {};
         cp.at = 0;
         cp.grace = Date.now() + 15000;
       }
@@ -852,6 +887,7 @@ function drawCardInto(el, card){
       if (firmaSess != null && firmaSess !== cp.firma) {
         cp.firma = firmaSess;
         cp.last = {};
+        cp.detti = {};   // sessione vera nuova: le frasi possono ridirsi da capo
         cp.at = 0;
         cp.grace = Date.now() + 20000;
       }
@@ -950,7 +986,14 @@ function drawCardInto(el, card){
            registro copilota: solo «Giro 3» sopra la gara, mai «Giro 4». */
         if (compiuto != null && Number.isFinite(g.lapsTotal) && g.lapsTotal > 0 && compiuto > g.lapsTotal) compiuto = g.lapsTotal;
         if (compiuto != null && cp.last.giro != null && compiuto < cp.last.giro) { cp.last.giro = compiuto; cp.last.lastLapTxt = lastLapTxt; cp.last.meta = false; }
-        if (g.lapsDone != null && g.lapsDone <= 1) cp.last.meta = false;   // nuova sessione: la meta gara ricomincia
+        /* 28/10 pomeriggio (il loop di Mauro): il vecchio reset
+        «lapsDone <= 1 → la meta ricomincia» andava in CONTRASTO con
+        l’annuncio su gare CORTE: su una da 3 giri meta = 2 e lapsDone
+        resta proprio 1 per TUTTO il secondo giro — parlava, il flag
+        tornava falso, riparlava … 15 volte di fila, e la coda della voce
+        ritardava tutto ciò che veniva dopo (Ultimo giro!, posizioni).
+        Le sessioni nuove ora le vede la FIRMA (sopra): questo reset non
+        serve più e fa solo danni. */
         if (compiuto != null && cp.last.giro != null && compiuto > cp.last.giro && lastLapTxt && lastLapTxt !== cp.last.lastLapTxt) {
           const nuova = cpT({ it: `Giro ${compiuto} fatto in ${lastLapTxt}`, en: `Lap ${compiuto} in ${lastLapTxt}` });
           if (m.delta?.bestLapNo === compiuto) cpSpeak(nuova + ' ' + cpT({ it: 'nuovo best della sessione!', en: "that's a new session best!" }));

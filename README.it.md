@@ -125,17 +125,33 @@ node tools/salva-save.mjs --check  # exit 0 = fresco, exit 1 = stantio/mancante
 node tools/salva-save.mjs --force  # backup SEMPRE
 ```
 
-Nota: lo zip copre l'intera cartella `Saved Games\ACE` (quindi MoTec, replay,
-log e mods compresi) — l'audit del 28/10 lo misura e le esclusioni al solo
-contenuto di salvataggio sono la prima cura incocciata in
-[report/audit-dati-2026-10-28.md](report/audit-dati-2026-10-28.md).
+Nota (aggiornata 28/10): lo zip NON porta più MoTec, replay, crashdump, log e
+mods — le esclusioni `ESCLUSIONI_SAVE` mirano al solo contenuto di
+salvataggio (zip di prova: da 746 MB a 1,1 MB). Resta nel zip l'incognita
+`2026.ld` (si schiaccia a pochi MB col deflate; si decide dopo un test di
+restore in sandbox). Dettaglio in
+[report/audit-dati-2026-10-28.md](report/audit-dati-2026-10-28.md), §5.
 
 ## Novità delle build recenti
 
-Salienti della fascia **0.1.13–0.1.18** — ogni salvataggio scrive anche la sua
+Salienti della fascia **0.1.13–0.1.41** — ogni salvataggio scrive anche la sua
 scheda leggibile in [report/](report/), con dentro l'esito vero della suite di
 test:
 
+- **Esclusione dai premi: garage del tool + vetrina, e basta (28/10).** Lo scan
+  disco del garage «reale» si è rivelato fuffa per il possesso: i file
+  `.carfinalstatewithconsumable` restano pure per auto VENDUTE (la F40 LM di
+  Mauro) e per i NOLEGGI del car-pool, mentre un'auto davvero in garage può
+  non avere il file (la Countach non ce l'aveva). Falsi 13 «già tua» spinti
+  nella scelta premio. Lo scan `gameOwnedCarIds()` resta solo lettura di
+  diagnosi; un'auto conosciuta solo dal gioco si dichiara a mano dal menu
+  Garage. Test: `test/game-owned.test.mjs`.
+- **Bak al secondo e backup snello (28/10, audit).** I bak di griglia si
+  scrivono col SECONDO nel nome (due scritture ravvicinate non si
+  sovrascrivono più, suffisso `-r2`/`-r3`; test anti-regressione in
+  `test/grid-templates.test.mjs`), i `.bak-ripara-*` si potano da soli
+  (restano i 3 più freschi) e il backup del save esclude
+  MoTec/replay/crashdumps/Logs/mods: zip da 746 MB a 1,1 MB.
 - **Gazzetta di stagione, i titoli che ricordano (28/10).** Dopo ogni gara la
   stampa del paddock scrive un titolo su misura: non guardano solo la gara
   del giorno, ma lo STORICO vero del save — dal più raro in giù: GRANDE
@@ -176,7 +192,10 @@ Paddock, la voce no). All'avvio aspetta l'elenco voci del browser finché
 c'è una voce italiana da usare; parla solo quando un *valore* cambia
 davvero, non ripete mai la stessa frase entro 20 s e resta muta i primi
 secondi dopo un cambio di sessione. Sul cruscotto il chip **♪ prova**
-dice una frase e verifica al volo la voce italiana.
+dice una frase e verifica al volo la voce italiana. Dal 28/10 suona anche
+a rigore: niente più loop del resoconto di metà gara («litri, benzina e
+giri») e i messaggi dell'ultimo giro arrivano puntuale, posizioni perse e
+guadagnate incluse.
 - **Le griglie si costruiscono da sole per tutte le serie.** Il sistema
   «armonico» delle varianti (una livrea diversa per ogni cella — EVO crasha
   con gli schemi con celle ripetute) vale per **tutte le auto** della serie,
@@ -208,6 +227,14 @@ dice una frase e verifica al volo la voce italiana.
   che apre il Mondiale completo nella GUI del browser — tutto calcolato con le
   stesse formule del server (`standingsFor`, `playerWorldSkill`): i numeri non
   possono divergere.
+- **Il Cruscotto carica anche la gara (28/10 sera).** Ronda preparata e
+  confermata → quando l'auto nel menu di EVO è già la tua (riscontro del
+  setcar in `ui_storage`) l'applet preme **«Avvia sessione» da sola**, lo
+  stesso comando del Paddock. L'**evento speciale non riceve mai un avvio
+  automatico** (impostazioni a mano dalla scheda, lezione 23/10); la ronda
+  comanda sull'evento finché è fresca (un pending scade dopo UN giorno e
+  lascia il campo) e l'auto del menu di EVO non torna più a sorpresa quella
+  dell'evento («la Ferrari rientra»).
 - **Paddock e classi auto (26–27/10).** Il motore di classi ora accoppia le
   serie al parco auto davvero presente sul disco: con le classi giuste le
   zavorre per traccia hanno perso il morso (ultime gare: zero sfori dalla
@@ -637,13 +664,13 @@ In breve:
   toccano, come promesso.
 - **Il backup automatico del save sta in `data/salva-save/`**: zip in
   rotazione slot-1/slot-2 (ne restano al massimo 4), scritti da
-  `tools/salva-save.mjs` quando l'ultimo è più vecchio di 36 ore. Nota nota
-  (audit A1): lo zip copre l'INTERA cartella `Saved Games\ACE` (MoTec,
-  replay, log, mods), quindi un backup può pesare centinaia di MB; tagliarlo
-  al solo contenuto di salvataggio è la prima raccomandazione aperta.
+  `tools/salva-save.mjs` quando l'ultimo è più vecchio di 36 ore. Chiuso
+  (28/10, audit A1): il zip esclude MoTec/replay/crashdumps/Logs/mods —
+  solo contenuto di salvataggio, tipico ~1 MB invece che centinaia di MB.
 - I file `.bak-*` one-shot in `data/` sono copie di guardia di interventi
   di riparazione conclusi: si possono cancellare senza rischi una volta
-  verificata la modifica del tool.
+  verificata la modifica del tool. Da 28/10 i `.bak-ripara-*` si potano
+  da soli (restano i 3 più freschi).
 
 ## Riferimenti
 

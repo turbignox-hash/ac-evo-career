@@ -34,7 +34,13 @@ import { listResultFiles, readSessionResult, isRaceSession, findPlayerDriver, cl
  * CHOOSER del premio (richesta Mauro 23/10: "un'auto diversa che non ho
  * già in garage per questi eventi"). Regole:
  *  - le auto già possedute NON tornano come premio: possedute = vetrina
- *    eventi (state.events.showCase) + garage (state.garage.cars);
+ *    eventi (state.events.showCase) + garage (state.garage.cars — un'auto
+ *    conosciuta solo dal gioco si dichiara a mano dal menu Garage).
+ *    NOTA 28/10: lo scan disco (.carfinalstate) è uscito dal calcolo — quei
+ *    file restano pure per auto VENDUTE e NOLEGGIATE (i noleggi del car-pool
+ *    li scrivono e non si cancellano), e nel garage vero di Mauro manca pure
+ *    la Countach che invece ci è. Contavano 13 falsi posseduti: gli inviti
+ *    scartavano premi per auto che non sono in garage.
  *  - se la prima scelta del tema è già tua si passa alle riserve AUTO del
  *    tema (altPrizes, in ordine, con un po' di caso);
  *  - se TUTTE sono in tuo possesso scatta l'unico caso legacy: liquidità
@@ -44,12 +50,9 @@ import { listResultFiles, readSessionResult, isRaceSession, findPlayerDriver, cl
  */
 export function choosePrize(_ladder, state, theme, { seed = 1 } = {}) {
   ensureEvents(state);
-  const owned = new Set([
-    ...(state.events.showCase ?? []).map((c) => c.carId),
-    ...(state.garage?.cars ?? []).map((c) => c.carId),
-  ]);
+  const owned = ownedIds(state);
   const list = [theme.prizeCar, ...(theme.altPrizes ?? [])];
-  const free = list.filter((p) => !owned.has(p.id));
+  const free = list.filter((p) => !owned.has(normId(p.id)));
   if (!free.length) {
     // tutte possedute (o tema senza riserve e premi già in garage):
     // resta il comportamento storico, liquidità extra
@@ -210,6 +213,18 @@ export function ensureEvents(state) {
 
 const pick = (arr, seed) => arr[Math.abs(seed) % arr.length];
 
+/** Unifica gli id auto: il ladder (contenuto) ha i prefissi ks_*, i temi no. */
+const normId = (s) => String(s ?? '').toLowerCase().trim().replace(/^ks_/, '');
+
+/** I 2 fonti del «già tua»: vetrina e garage del tool (lezione 28/10:
+ *  lo scan disco dei .carfinalstate non è il garage — vedi choosePrize). */
+function ownedIds(state) {
+  return new Set([
+    ...(state.events.showCase ?? []).map((c) => normId(c.carId)),
+    ...(state.garage?.cars ?? []).map((c) => normId(c.carId)),
+  ]);
+}
+
 /** True se l'auto esiste nel contenuto del gioco (lista nomi/ids nota al tool). */
 function carKnown(ladder, id) {
   const names = ladder.contentNames?.cars ?? {};
@@ -278,8 +293,7 @@ export function refreshActivePrize(ladder, state) {
   const theme = THEMES.find((t) => t.id === a.theme.id);
   if (!theme) return { changed: false, prize: null, reason: 'theme-not-found', message: tr({ it: `Tema non nel catalogo: ${a.theme.id}`, en: `Theme not in the catalog: ${a.theme.id}` }) };
   const chosen = choosePrize(ladder, state, theme, { seed: Math.floor(Math.random() * 997) + state.season });
-  const owned = (ev.showCase ?? []).some((c) => c.carId === a.prize.carId) ||
-    (state.garage?.cars ?? []).some((c) => c.carId === a.prize.carId);
+  const owned = ownedIds(state).has(normId(a.prize.carId));
   // il premio attuale NON è posseduto: nessuna sostituzione (idempotente),
   // anche se il ripcalcolo casuale sceglierebbe un'altra riserva — l'invito
   // già nato resta quello che è

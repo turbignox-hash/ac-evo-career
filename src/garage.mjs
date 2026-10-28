@@ -11,6 +11,9 @@
 // Tutto vive in state.garage = { cars: [{ carId, carName, how, since, note }],
 // importedFromShowcase: [carId...] } e viene salvato col save normale.
 
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { dataDirCandidates } from './paths.mjs';
 import { loadCatalog } from './catalog.mjs';
 import { carImageOf, carPriceOf } from './cars.mjs';
 import { pushMessage } from './state.mjs';
@@ -54,6 +57,59 @@ export function ensureGarage(state) {
   state.garage.cars ??= [];
   state.garage.importedFromShowcase ??= [];
   return state.garage;
+}
+
+/* ------------------------------------------------------------------ */
+/* garage REALE del gioco: le auto che EVO possiede davvero            */
+/* ------------------------------------------------------------------ */
+
+// richieste Mauro 26/10: la F40 vinta in gioco non è nota al garage del tool
+// (che legge solo save.json) e il premio eventi poteva riproporla. Il gioco però
+// lascia una traccia leggibile: per ogni auto "istituzionalizzata" (posseduta,
+// con livery/preset salvati) una cartella OpenData/SavedCars contiene un file
+// .carfinalstatewithconsumable col nome che inizia con l'ID DEL CONTENUTO:
+//   ks_abarth_695_biposto_43502bc3-1ccd-ad8d-d2f7-33ca8d009983.carfinalstate...
+// Quell'id è ESATTAMENTE una chiave di ladder.contentNames.cars → il tool può
+// riconoscere il parco reale SOLO LEGGENDO (nessun file di gioco toccato).
+// Limiti dichiarati: un'auto posseduta MAI aperta in garage del gioco può non
+// avere ancora il file — è un segnale aggiuntivo, non un censimento garantito.
+
+const CAR_FILE_RE = /^(.+)_?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.carfinalstatewithconsumable$/i;
+
+/** Unifica gli id: il ladder (contenuto) usa i prefissi ks_*, i temi evento no. */
+export const normOwnedId = (s) => String(s ?? '').toLowerCase().trim().replace(/^ks_/, '');
+
+/**
+ * Auto possedute nel GIOCO, lette da ProfileData/<guid>/OpenData/SavedCars.
+ * Restituisce gli id del ladder (con prefisso ks_ anche se il nome file lo ha
+ * già: nessuna trasformazione dolosa), filtrati sulle auto NOTE al ladder
+ * (contentNames.cars) così spazzatura o mod locali sconosciute non entrano.
+ * Mai lanciato: { } — profili assenti o non avviati → lista vuota.
+ */
+export function gameOwnedCarIds({ env = process.env, ladder = null } = {}) {
+  const known = ladder?.contentNames?.cars
+    ? new Set(Object.keys(ladder.contentNames.cars).map((k) => k.toLowerCase()))
+    : null;
+  const found = [];
+  for (const ace of dataDirCandidates(env)) {
+    let profiles;
+    try { profiles = readdirSync(join(ace, 'ProfileData'), { withFileTypes: true }); } catch { continue; }
+    for (const p of profiles) {
+      if (!p.isDirectory()) continue;
+      const dir = join(ace, 'ProfileData', p.name, 'OpenData', 'SavedCars');
+      if (!existsSync(dir)) continue;
+      let files;
+      try { files = readdirSync(dir); } catch { continue; }
+      for (const f of files) {
+        const m = CAR_FILE_RE.exec(f);
+        if (!m) continue;
+        const id = m[1].replace(/_+$/, '');
+        if (known && !known.has(id.toLowerCase())) continue;
+        if (!found.includes(id)) found.push(id);
+      }
+    }
+  }
+  return found;
 }
 
 /** Porta in garage le auto vinte negli eventi speciali e non ancora importate. */

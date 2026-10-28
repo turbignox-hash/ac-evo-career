@@ -14,7 +14,7 @@
 //
 // Il niente-fastestLap-ottimo: il flag has_best_lap del file non è salvato
 // nella raceRow — ricostruiamo il giro più veloce da bestLap (pari ai pari).
-import { readFileSync, copyFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, copyFileSync, mkdirSync, existsSync, readdirSync, statSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rivalKey } from '../src/rivals.mjs';
@@ -121,8 +121,20 @@ if (process.argv.includes('--dry')) {
   console.log('dry: niente scritto (check su backup file).'); process.exit(0);
 }
 mkdirSync(join(HERE, '..', 'data'), { recursive: true });
-const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
-if (existsSync(storeFile)) copyFileSync(storeFile, `${storeFile}.bak-ripara-${stamp}`);
+const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);   // al secondo: due riparazioni ravvicinate non si sovrappongono
+if (existsSync(storeFile)) {
+  const bak = `${storeFile}.bak-ripara-${stamp}`;
+  copyFileSync(storeFile, bak);
+  // potatura per-tag (28/10, audit A3): la leva pruneBackups non matcha i .bak-ripara-*,
+  // e la pila cresce a ogni riparazione. Qui ne restano i BAK_RIPARA_KEEP più freschi.
+  const KEEP = 3;
+  try {
+    const pila = readdirSync(dirname(storeFile))
+      .filter((n) => n.startsWith(`${storeFile.split(/[\\/]/).pop()}.bak-ripara-`))
+      .sort((a, b) => (statSync(join(dirname(storeFile), b)).mtimeMs - statSync(join(dirname(storeFile), a)).mtimeMs) || (a < b ? 1 : -1));
+    for (const vecchio of pila.slice(KEEP)) { try { rmSync(join(dirname(storeFile), vecchio)); } catch { /* occupato: al prossimo giro */ } }
+  } catch { /* la potatura non deve bloccare la riparazione */ }
+}
 writeJsonAtomic(storeFile, store);
 console.log(`scritto ${storeFile} · backup ${storeFile}.bak-ripara-${stamp}`);
 recordWarning('rivals', `ripara-rivali: griglie ripulite ${gareToccate}, righe doppie scartate ${doppieTotali}, rivali ricostruiti ${dopo}`);

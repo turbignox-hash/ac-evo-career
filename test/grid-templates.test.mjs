@@ -178,3 +178,24 @@ test('installazione non giudicabile (catalogo vuoto): nessun blocco, la corsa de
   assert.ok(String(out.source).includes('griglia di fabbrica'), 'catalogo vuoto = gate silenzioso');
   ga.setInstallSnapshot(null);
 });
+
+/* ---------- BAK AL SECONDO (anti-regressione 28/10) ---------- */
+// Il bak del template portava solo MINUTI nel nome (bak-<AAAA-MM-GG-hh-mm>):
+// due riscritture dello stesso magazzino nello stesso minuto si SOVRASCRIVEVANO
+// a vicenda e la pila dei bak perdeva le versioni precedenti (la corsa dei
+// candidati resta corta). Regressione: le riscritture ravvicinate DEVONO
+// restare tutte, in ordine d'arrivo.
+test('BAK AL SECONDO: tre riscritture ravvicinate dello stesso template restano in pila, niente sovrascritture', () => {
+  rmSync(join(TMP, 'grid-templates'), { recursive: true, force: true });
+  ga.storeTemplate('serie_f40_test', templateF40(6));
+  ga.storeTemplate('serie_f40_test', templateF40(8));   // bak del 6
+  ga.storeTemplate('serie_f40_test', templateF40(4));   // bak dell'8, nello stesso secondo
+  const dir = join(TMP, 'grid-templates');
+  const baks = readdirSync(dir).filter((n) => n.startsWith('serie_f40_test.customgrid.bak-')).sort();
+  assert.equal(baks.length, 2, `i bak restano in pila (attesi 2, trovati ${baks.length}): collisione al nome; ${baks.join(', ')}`);
+  // .equals e NON deepEqual: encodeMsg reustituisce Uint8Array, readFileSync un
+  // Buffer — prototipi diversi a byte uguali (il runner lo becca come fallback).
+  assert.ok(readFileSync(join(dir, baks[0])).equals(templateF40(6)), 'il bak più vecchio contiene il template a 6');
+  assert.ok(readFileSync(join(dir, baks[1])).equals(templateF40(8)), 'il bak più recente contiene il template a 8');
+  assert.ok(readFileSync(join(dir, 'serie_f40_test.customgrid')).equals(templateF40(4)), 'il magazzino porta la versione corrente');
+});

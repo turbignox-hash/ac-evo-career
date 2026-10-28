@@ -13,7 +13,7 @@
 // (ladder + stato, in processo) la vetrina di oggi e la scrive sul disco.
 // Se la cartella del loader manca (mod non installata) resta zitto.
 
-import { writeFileSync, readdirSync, unlinkSync, existsSync } from 'node:fs';
+import { writeFileSync, readdirSync, unlinkSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { savedGamesRoots } from './paths.mjs';
 import { agendaDay, racesOnDay, dateLabel, prossimoGiornoConGara, impegni } from './agenda.mjs';
@@ -111,9 +111,12 @@ export function vetrina(ladder, state) {
  *  personalizzata, lezione 23/10) — quindi il comando esce dalla CARD
  *  dell'evento attivo, tipo `evento`: in gioco l'applet seleziona SOLO
  *  l'auto (niente tipo gara/pista: la gara personalizzata non si tocca). */
-function comandoAuto(ladder, state) {
+export function comandoAuto(ladder, state) {
   try {
     const p = state?.pending;
+    // SCADENZA DEL pending (lezione 27/10 19:30): un giorno e la ronda
+    // non preparata più fresca lascia il campo all'evento attivo.
+    const PENDING_SCADENZA_MS = 24 * 3600 * 1000;
     if (p?.car) {
       const nome = ladder?.contentNames?.cars?.[p.car] ?? null;
       const idP = `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`;
@@ -123,16 +126,54 @@ function comandoAuto(ladder, state) {
       // attivo — la F40 non arrivava mai al gioco)
       if (nome && !confermati.has(idP)) {
         const spec = p.trackNames?.[0] ? specFor(p.trackNames[0]) : null;
-        return {
+        const rondaComando = {
           id: idP, tipo: 'setcar', nome,
           pista: spec?.name ?? null, layout: spec?.layout ?? null,
         };
+        // SCADENZA anche qui (lezione 27/10, la stessa dei ramoscelli più
+        // sotto): il pending NON ancora confermato, se ha più di un giorno,
+        // lascia il campo all'evento attivo; fresco = la ronda comanda e via.
+        if ((Date.now() - Number(p.startedAt ?? 0)) < PENDING_SCADENZA_MS) return rondaComando;
+        const cardEv = eventCard(ladder, state);
+        if (cardEv?.acceptedAt && cardEv.carName) {
+          return { id: `evento:${cardEv.theme?.id ?? cardEv.eventId ?? '?'}:${cardEv.carName}`, tipo: 'evento', nome: cardEv.carName, pista: null, layout: null };
+        }
+        return rondaComando;
       }
     }
     // evento attivo e accettato, auto nota: comando «evento» (solo auto).
     // id STABILE per evento (tema+auto), non a per-tick: altrimenti l'app
     // lo riproverrebbe a ogni fascia; l'ack in ui_storage lo spegne comunque.
-    const card = eventCard(ladder, state);
+    // PRIORITÀ ALLA RONDA (28/10 pomeriggio, "la Ferrari rientra"): mentre c'è
+    // una ronda preparata (state.pending) l'evento NON riparte — chi sta per
+    // correre la ronda trovava l'auto dell'evento impostata a sorpresa nel
+    // menu (la Ferrari al posto dell'R5): il pend dei comandi confermati
+    // lasciava scendere il ramo evento a ogni fascia. L'evento torna in
+    // vetrina solo a ronda consumata (pending a null dall'import risultato).
+    // MA LA RONDA NON IMMORTALE (lezione 27/10 19:30): un pending di risultati
+    // mai importati (il pending muore SOLO al suo import) non deve seppellire
+    // l'evento per sempre — scade dopo un giorno e lascia il campo al ramo
+    // evento. Al «Prepara» nuovissimo invece torna la priorità della ronda
+    // (il nuovo pending ha un nuovo startedAt e comanda).
+    const rondaViva = state?.pending &&
+      (Date.now() - Number(state.pending.startedAt ?? 0)) < PENDING_SCADENZA_MS;
+    // LANCIO AUTOMATICO (28/10 sera, richiesta Mauro): se la ronda è viva MA
+    // il suo comando setcar FU GIÀ CONFERMATO dall'app (ack in ui_storage —
+    // l'auto nel menu di EVO è già quella), al posto del vecchio silenzio
+    // esce il comando «avvia»: l'applet preme «Avvia sessione» da sola, lo
+    // stesso comando del Paddock. Con l'ack dell'avvia già scritto si
+    // torna al silenzio. L'EVENTO non riceve alcun avvia: lì le impostazioni
+    // si mettono a mano dalla scheda — un avvio automatico partirebbe con
+    // AI/ora/giri sbagliati (lezione 23/10). Solo ronda FRESCA: un pending
+    // oltre la scadenza non deve mai riavviare una sessione da solo.
+    if (rondaViva && p?.car) {
+      const nomeAvvia = ladder?.contentNames?.cars?.[p.car] ?? null;
+      const idAvvia = `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}:avvia`;
+      if (nomeAvvia && confermati.has(idAvvia.replace(/:avvia$/, '')) && !confermati.has(idAvvia)) {
+        return { id: idAvvia, tipo: 'avvia', nome: nomeAvvia, pista: null, layout: null };
+      }
+    }
+    const card = rondaViva ? null : eventCard(ladder, state);
     if (card?.acceptedAt && card.carName) {
       return { id: `evento:${card.theme?.id ?? card.eventId ?? '?'}:${card.carName}`, tipo: 'evento', nome: card.carName, pista: null, layout: null };
     }
@@ -181,10 +222,49 @@ function pannelloMondo(ladder, state) {
   } catch { return null; }
 }
 
+// ------------------------------------------------------------------ antifurto
+// GUARDIA ANTI-DOPPIO-PUBLISHER (28/10 pomeriggio, due server in pista):
+// accanto al webui vero sulla 8642 viveva un secondo webui (porta 8645,
+// avviato alla mattina) che riscriveva le STESSE fasce: ora col comando,
+// ora senza — e l'app in gioco beccava la fascia del doppione (o la fascia
+// col comando riscritta a null). Il lock CARDINALE: il file `.publisher.pid`
+// nella cartella dell'app tiene il PID del detentore; chi lo trova vivo TACE
+// (e lo dice UNA volta), chi lo trova morto lo riprende. Un lock lascato
+// lì da un crash non ostacola nessuno: il PID non c'è più, si riprende
+// da solo al primo tick.
+const PID_LOCK_FILE = '.publisher.pid';
+let avvisatoDoppione = false;    // l'avviso al doppione: una volta sola, non ogni 2,5s
+
+/** PID vivo? (signal 0: nessun colpo, solo un ping. EPERM = esiste, è vivo.) */
+function pidVivo(pid) {
+  try { process.kill(pid, 0); return true; }
+  catch (e) { return e.code === 'EPERM'; }
+}
+
+/** true = posso pubblicare (lock tenuto o ripreso). false = un altro sta
+ *  già facendo il lavoro: non toccare le fasce (niente scritture, niente
+ *  ripuliture: il comando resta quello che il detentore pubblica). */
+export function prendiLock(dir) {
+  let det = 0;
+  try { det = Number(String(readFileSync(join(dir, PID_LOCK_FILE), 'utf8')).trim()); } catch { /* assente o illeggibile: contenderemo da noi */ }
+  if (det && det !== process.pid && pidVivo(det)) {
+    if (!avvisatoDoppione) {
+      avvisatoDoppione = true;
+      console.log(`  App «Cruscotto» in gioco: un altro server (pid ${det}) sta già pubblicando le fasce — qui restiamo zitti per non battersci sopra.`);
+    }
+    return false;
+  }
+  if (det !== process.pid) {
+    try { writeFileSync(join(dir, PID_LOCK_FILE), String(process.pid), 'utf8'); } catch { /* disco momentaneo: si ritocca al prossimo giro */ }
+  }
+  return true;
+}
+
 /** Un giro del publisher: scrive la fascia corrente e pulisce le vecchie. */
 export function uiappTick(env = process.env) {
   const dir = cartellaApp(env);
   if (!dir || !existsSync(SAVE_FILE)) return { ok: false, motivo: 'no app o no carriera' };
+  if (!prendiLock(dir)) return { ok: false, motivo: 'altro publisher attivo (stesse fasce)' };
   const fascia = Math.floor(Date.now() / PERIODO_MS);
   const { ladder } = context();
   const dati = vetrina(ladder, loadState(SAVE_FILE));
@@ -221,6 +301,9 @@ function percorsoStore(env = process.env) {
 // persist del loader): smettiamo di ripubblicare quei comandi — l'auto nel
 // menu di EVO è già quella, riproponendo sarebbe un giro di più per nulla.
 const confermati = new Map();
+// porticina SOLO per i test: simulare un ack già scritto (l'ack vero arriva
+// dall'app in gioco via ui_storage). Nessun uso di produzione.
+export function confermaAck(id, { at = Date.now() } = {}) { confermati.set(String(id), at); }
 function assorbiAck(dati) {
   const c = dati.comando;
   if (!c) return;
@@ -231,7 +314,14 @@ function assorbiAck(dati) {
   if (!colpo) return;
   if (colpo.ok && !confermati.has(c.id)) {
     confermati.set(c.id, Date.now());
-    console.log(`  App Cruscotto in gioco: auto impostata ✓ (${c.nome} — ${colpo.msg || 'ok'})`);
+    // LOG DELL'ACK (28/10 sera, «rendere inquieto il log dell'ack»): la
+    // conferma non è più la riga fondata `auto impostata ✓` — è la radio
+    // del muro che conferma e non spiega. Le informazioni RESTANO tutte
+    // (tipo comando, auto, messaggio dell'app) — cambia solo la voce.
+    let voce = "l'auto è già nel menu: chi la passa non resta a guardare";
+    if (c.tipo === 'avvia') voce = 'il via è toccato — nessuno torna indietro dal via';
+    else if (c.tipo === 'evento') voce = 'l\'evento si è scelto da solo — tu lo guardi solo';
+    console.log(`  Cruscotto in gioco — ${(c.tipo ?? 'setcar').toUpperCase()} ✓ ${c.nome} (${colpo.msg || 'ok'}) — ${voce}.`);
   }
   if (colpo.ok) dati.comando = null;      // eseguita: niente ripubblicazione
 }

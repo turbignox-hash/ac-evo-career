@@ -2471,3 +2471,338 @@ in piedi nel Prepara quando carWritten && gameRunning (viste-a.js).
   fonti diverse, stessa larghezza: nessuna divergenza.
 - Suite girata 2/10 p.m.: race-card + life + rivals + agenda = 36/36,
   Biome a 0. Niente da modificare nel codice rivali.
+
+### 28/10/2026, ore 17:10 — «LA FERRARI RIENTRA»: PRIORITÀ ALLA RONDA + GUARDIA ANTI-DOPPIO-PUBLISHER
+Mentre Mauro andava a correre la ronda (R5 preparata) il comando dell'evento
+attivo (F40 LM accettata) ripartiva a ogni fascia: l'auto nel menu di EVO
+ballava R5/F40 e tornava la Ferrari dopo l'aveva rimpiazzata, da ieri sera.
+Due radici, due cure:
+- RADICE 1 — priorità ronda/evento (src/uiapp-pub.mjs, comandoAuto): mentre
+  il pending è VIVO il ramo evento non esce più. Ronda SCADUTA (>1 giorno
+  da startedAt, lezione 27/10 19:30) cede il campo all'evento attivo e
+  accettato; senza evento attivo la ronda preparata resta comunque il
+  comando (non si silenzia nulla). Cambio netto dal 27/10: anche il pending
+  NON ANCORA confermato, se scaduto, lascia il campo all'evento.
+- RADICE 2 — doppio publisher: due server vivi riscrivevano le stesse fasce
+  e un null cancellava il comando dell'altro mid-gara. Cure GUARD a PID
+  (.publisher.pid nella cartella app), prendiLock: chi lo tiene vivo tace,
+  chi lo trova morto lo riprende; uiappTick risponde «altro publisher
+  attivo» e non tocca le fasce altrui.
+- APPLET (uiapp/cruscotto/cruscotto.js): ack come STORIA, non solo voto
+  ultimo — ackSessione (10 voci) scritta intera sul persist a ogni ack.
+TEST: test/uiapp-pub-guard.test.mjs (4/4: lock libero/detentore vivo/PID
+morto/lock proprio) + test/uiapp-pub-priorita.test.mjs (5/5: fresco=scelto
+la ronda, scaduto=evento, scaduto senza evento=ronda, invito da accettare
+= null, auto ignota=stessa scadenza). Suite intera 17:00: 394/394.
+VERIFICA LIVE (17:06): server 12208 sul 8642 partito 17:04 col codice
+nuovo (:.publisher.pid presente e suo), applet reinstallata (installa-
+cruscotto.mjs, md5 uguale alla sorgente), fascia attiva con comando:null:
+R5 marcata 15:49 (19 min prima) ed ESECUZIONE già confermata dall'app
+→ null giusto, la F40 non tocca il menu finché la ronda è preparata.
+«Prepara e divertiti» evento speciale: non scrive pending (lezione 23/10)
+quindi il tasto prepara griglia e meteo ma NON tocca il menu di EVO finché
+la ronda preparata è fresca e qui è il comportamento voluto: la scheda
+evento rimane nel Prepara della GUI e l'auto dell'evento arriverà al menu
+solo a ronda consumata (import risultato o scadenza).
+
+### 28/10/2026, ore 17:25 — LANCIO AUTOMATICO: il Cruscotto preme «Avvia sessione» (richiesta Mauro)
+Mauro: «il lancio ora si fa a mano con avvia sessione, si potrebbe implementare anche questo?» — fatto.
+Si usa lo stesso comando del Paddock per le sue gare (GameModeSelectionClientRequestStart,
+paddock.js:636). La catena completa ora è:
+  Prepara tutto (GUI) → EVO si apre → applet imposta l'auto (setcar, ack) →
+  il publisher pubblica «avvia» (id <pending>:avvia) → l'applet, dopo
+  1200ms di assestamento del menu, manda GameModeSelectionClientRequestStart
+  con mode ClientCommandsMode_SINGLEPLAYER (15s di attesa; il caricamento
+  risponde lento). Poi l'ack riportato nel persist spegne il comando.
+DECISIONI (perché così, e non altrimenti):
+- Solo la RONDA di carriera riceve avvia. L'EVENTO NO, mai: i suoi giri,
+  AI, ora si impostano a mano dalla scheda (lezione 23/10) — un avvio
+  automatico partirebbe male.
+- Solo pending FRESCO: un pending oltre la scadenza di un giorno non è mai
+  autolanciato (la scadenza resta la leva del 27/10 19:30, priorità evento).
+- Le sessioni si distribuiscono con il flusso già noto: setcar ack → avvia
+  al tick dopo; se RequestStart fallisce (pagina sbagliata, crash flaky 23/10),
+  l'applet RIPROVA senza cap (falliti incrementato d'ora in poi: prima il
+  contatore non cresceva MAI, un comando fallito restava morto) — 5s fra i
+  tentativi, e l'ack restito dal loader ferma tutto a presto.
+TEST: priorita.test.mjs allargato a 8 (2 nuovi: setcar ack→avvia; avvia
+ack→silenzio; stale→evento, mai avvia). Suite intera 397/397.
+Biome pulito su uiapp-pub e cruscotto.js (node --check applet OK).
+VERIFICA LIVE 17:22: server ripartito 17:25 (PID 20804, lock .publisher.pid
+nuovo per le fasce), applet reinstallata (md5 uguale alla sorgente). Slot
+vivo è il 2 (salva-save: active 2): senza pending e senza evento attivo,
+comando null — giusto, niente di automatico senza un «Prepara». Il vecchio
+save slot-1 (R5/F40) è storia: la carriera vive sullo slot 2.
+Nota pratica: se EVO era APERTO durante la install dell'applet, la pagina
+del menu tiene la VECCHIA app in memoria: riapro (o ricarichi il menu) per
+avere l'avvio automatico nella sessione corrente.
+
+### 28/10/2026, ore 20:10 — COPILOTA IN LOOP A METÀ GARA: la «Meta gara» parlata in loop (richiesta Mauro)
+Mauro in pista: «a metà gara si impalla in loop dicendo metà gara litri
+benzina e giri, poi è in ritardo anche per ultimo giro, posizioni perse
+e guadagnate». Letto il registro copilot-8642 (gara 3 giri di stanotte,
+lapsTotal 3 codificata come TimeAttack): il narratore metaBenzina (viste-a.js
+3b) ripeteva l'annuncio fino a 15 volte DI FILA — e la coda di
+speechSynthesis intasata rendeva in ritardo tutto ciò che veniva dopo
+(«Ultimo giro!», le posizioni). CAUSA VERA, nel LOG: il vecchio reset
+«lapsDone <= 1 → la meta ricomincia» entrava in conflitto con
+l'annuncio stesso su gare CORTE — da 3 giri meta = 2 e lapsDone resta
+proprio 1 per TUTTO il secondo giro: parlava, il flag tornava falso,
+riparlava ….
+FIX DOPPIO:
+1) il reset «lapsDone <= 1» è RIMOSSO (viste-a.js e monitor): le
+   sessioni nuove ora le vede la FIRMA (28/10) e la prima live viva —
+   il contatore corto non fa più riaccendere la meta in loop;
+2) guardia anti-ripetizioni in cpSpeak come sicurezza: lo STESSO testo
+   non riparte prima di 70 s (cp.detti, testo→istante; lapsOnFuel
+   cammina di centesimi a ogni tick e ogni frase diversa era un altro
+   annuncio). Il registro azzerato su firma nuova e prima live, quindi
+   le frasi giuste in una sessione NUOVA si ridicono da capo; i
+   discorsi di RITMO (gap, pitcount, autofuori) passano per cpSay con
+   il loro slock, non cambiano.
+Allineato anche il monitor (_monitor-copilota.mjs): frasi zittite nel
+log con detto:true, così ritrovi nel registro cosa è stato tacito per
+non intasare il microfono.
+
+VERIFICA: node --check su viste-a.js e _monitor-copilota.mjs, Biome pulito
+su entrambi, test ingegnere+car-pool 21/21 (la parte server non toccata:
+il loop nasceva SOLO nel client). Il monitor del durante-gara vale la
+prova del 9: alla prossima ronda se resta un doppio parlato lo vedi nel
+log con detto:true.
+
+SECONDO INTERVENTO, STESSA SERA (il «ritardo» che restava): due correzioni
+ulteriori dopo una rilettura a mente fredda di cpSpeak:
+1) la guardia anti-ripetizioni stava in TESTA alla funzione — ma i retry
+   dell'attesa voci (setTimeout 420 ms, quando la lista del browser non
+   è ancora arrivata) ripassano dalla stessa funzione e la guardia
+   registra l'istante ANCHE quando torna falso: il primo messaggio in
+   avvio poteva restare PER SEMPRE nella lista vuota e mai più uscire.
+   La guardia ora sta alla fine del percorso, subito prima di parlarsi:
+   l'istante si registra solo quando la voce esce davvero.
+2) RETTORE DI CODA in cpSpeak: la coda di speechSynthesis non si svuota
+   da sola — anche senza loop, un giro bruciato di annunci (gomme+
+   benzina+gap in fila) riportava «Ultimo giro!» del minuto in ritardo.
+   Oltre i 2 discorsi in fila i VECCHI cedono il posto (cancel + zero,
+   contatore cp.coda, onend/onerror lo rabbassano): la voce resta sul
+   presente, non trasmette in ritardo giri.
+VERIFICA: node --check + Biome su viste-a.js; test ingegnere+car-pool
+21/21 (server non toccato).
+
+### 28/10/2026, sera — VERIFICA GARA FORD vs R5 + SIMULAZIONE VITTORIA F40 (richiesta Mauro)
+
+1) GARA OGGI (Coppa Strada S10 R0, Brands Hatch GP, 20 piloti, 3 giri):
+   importata PULITA — riconosciuto per «nome pilota» (Mauro Turbigno,
+   senza il «•» AI), P3, 15 punti, 1765 €, nessuna penalità. I quattro
+   «•Adrian Palmer» Ford sono piloti AI con lo stesso cognome: il
+   riconoscimento usa il «•» davanti al nome (src/results.mjs), quindi
+   nessun falso «io contro me».
+2) BILANCIAMENTO FORD/R5 NEL FILE: le Ford portano ballast 100 (massimo)
+   + restrictor 0,2, le R5 a zero — e il Ford resta comunque più veloce
+   di ~0,4 secondi sul giro (1:58.5 contro 1:59.1). Con la zavorra a
+   tappo non si bilancia più: d'accordo con te, la strada giusta sono
+   LE PISTE CORTE. In ladder la serie «Coppa Turbo 80» ha calendario
+   Monza/Imola/Nürburgring — tutte piste LUNGHE, dove la potenza del
+   Ford pesa. Qui nulla di codice nuovo: le ronde si cambiano a mano
+   dal menu di EVO (set-track) scegliendo tra le piste più brevi del
+   gioco — Laguna Seca 3,6 km/11 curve e Brands Hatch 3,9 km/12 curve
+   sono le due più corte del pacchetto (sotto i 3,6 km non c'è niente).
+3) SIMULAZIONE VITTORIA F40 («Il Gran Finale dei Campioni», in sandbox
+   su copia del save vero con ACE_DATA=data/test-sim-f40, poi rimossa):
+   - vittoria con il premio scritto nell'invito: 15.000 € + 15 rep,
+     F40 in vetrina con tema e anno, messaggio «🏆 Auto vinta» a posto;
+   - PUNTO A CUORE: il garage del TOOL non vede il garage DEL GIOCO —
+     e per refreshActivePrize la F40 non è «posseduta» finché non c'è
+     in vetrina/garage del tool. Se quindi vinci con la F40 già tua in
+     gioco il tool la registra di nuovo in vetrina (doppio record),
+     MA nessun danno: soldi e rep pagati una sola volta e la copia
+     entra nel garage tool da importShowcase come vinta. Se vuoi
+     evitare il doppio, prima della gara premi «refresh premio» nel
+     tool DOPO aver segnato la F40 tua nel garage del tool: la
+     sostituisce con una riserva (provato in sandbox: F40 →
+     Dallara Stradale).
+VERIFICA: test unit 39/39 (ingegnere, car-pool, rapporto-gara, usura,
+strategia). Pista del weekend in EVO letta dal disco: Brands Hatch.
+Nessun file di gioco toccato: la simulazione è girata tutta in sandbox.
+
+## 28/10 — Garage reale del gioco: la scansione SavedCars (comando libero: «fai quello che vuoi»)
+
+**Problema**: il premio degli eventi speciali non vedeva le auto possedute
+**in gioco** (il garage del tool vive solo in save.json) e poteva riproporle.
+
+**Scoperta**:EVO scrive per ogni auto con uno slot garage/livery salvato un file in
+`ProfileData/<guid>/OpenData/SavedCars/<id_contenuto>_<uuid>.carfinalstatewithconsumable`
+— l'id nel nome è ESATTAMENTE una chiave di ladder.contentNames.cars.
+Solo lettura: nessun file di gioco toccato.
+
+**Fatto**:
+- `src/garage.mjs`: `gameOwnedCarIds({ env, ladder })` scansiona i profili
+  (dataDirCandidates + ProfileData/*/OpenData/SavedCars), filtra sulle auto
+  note al ladder, restituisce gli id `ks_*`; `normOwnedId` unifica le due
+  forme (con/senza prefisso `ks_`).
+- `src/events.mjs`: `choosePrize`, `refreshActivePrize` e `maybeSpawnEvent`
+  accettano `ownedExtra` — terzo fonte del «già tua» accanto a vetrina e garage.
+- `src/webui.mjs`: refresh premio, inviti di stagione e invito finale passano
+  tutti `ownedExtra` (lancio gratis, ogni chiamata rilegge il disco).
+- Test: `test/game-owned.test.mjs` (6 casi), suite completa 403/403 verdi,
+  Biome ok.
+
+**Limiti dichiarati**: un'auto mai aperta nel garage del gioco può non avere
+il file (heuristica, non censimento garantito). Sul PC di Mauro rilevate 13
+auto. La F40 LM in palio all'evento attivo NON è riconoscibile così (la
+F40 da strada che possiede è un modello diverso e non ha il file): quella
+resta correggibile a mano col «refresh premio» + aggiunta manuale in garage.
+
+## 28/10 (segu) — Card con la griglia tipica · rilancio misure realismo · titolo in gazzetta
+
+- **Griglia tipica nella card** (src/race.mjs): la riga «Avversari» della scheda
+  gara ora aggiunge «— griglia tipica di serie: N» quando il gamemodesave della
+  ronda conta meno auto del campo largo (grigliaSimEstesa, la stessa cifra delle
+  card serie/agenzia). In EVO non sembra più che manchino avversari: la card e
+  la classifica raccontano lo stesso campo.
+- **Relaunch misure realismo** (tools/_misure-realismo.mjs): confermato il
+  livello dichiarato — sedili 0-2 su ~99% vittorie/titoli attesi, ma titoli
+  sparsi 41/17/2 su 60 stagioni (nessun dominio di un solo nome) e DNF
+  0,95–1,45%. Nessun Tweaks: il sim sta sulla riga di bilancio voluta.
+- **Pubblica sui titoli**: notizia in data/news.json (kind notice, stagione 10)
+  con l'esito delle misure, così la stampa del paddock porta la cifra nella
+  pagina Gazzetta del cruscotto.
+
+Verifiche: node --check, race-card + griglia-sim 15/15 verdi, Biome pulito.
+
+## 28/10 sera — Audit in atto: esclusioni del backup del save + potatura bak di ripara-rivali (richiesta Mauro)
+
+**Due interventi dell'audit del mattino messi in atto:**
+
+1. `tools/salva-save.mjs`: zippa ora con `ESCLUSIONI_SAVE` = MoTec, Replay,
+   crashdumps, Logs, mods (nessuna è dato di salvataggio). ZIP DI PROVA:
+   **1,1 MB** (da 746 MB). Lezione presa sul vivo: i tar POSIXLY-stili
+   smettono di leggere opzioni al primo operando — gli `--exclude` messi
+   DOPO il `.` diventavano PATH da zippare («Couldn't visit directory»);
+   vanno PRIMA. Lista del zip controllata: le 5 cartelle assenti,
+   ProfileData/GameModes/Results/setups dentro. Incognita: 2026.ld (1,1 GB
+   non compresso) resta nel zip e si schiaccia a pochi MB col deflate —
+   se il gioco lo rigenera da solo, prossima leva: verifica di restore
+   su sandbox e poi via anche lui. Lo slot-2 del 27/10 (746 MB vecchio
+   formato) resta l'ultima copia con i Replay originali; la rotazione
+   lo scarta da sola.
+2. `tools/ripara-rivali.mjs`: potatura per-tag dei `.bak-ripara-*` (gli
+   ultimi 3), perché la leva pruneBackups della griglia non li matcha
+   (filtra solo bak col primo pezzo del nome numerico) e lo stamp passa
+   al secondo, come il bak al secondo. Dry-run: idempotente (griglie
+   ripulite 0, 58 rivali).
+
+**Verifiche**: node --check su entrambi i tool, Biome pulito, suite
+npm 404/404. Riflessi appuntati nel rapporto (§5 di
+report/audit-dati-2026-10-28.md): slot-1 arido e bak d'epoca del 23/10
+restano da spazzare a mano.
+
+## 28/10 sera — Bak al secondo: la collisione del minutato (test anti-regressione)
+
+**Il difetto**: il bak del template del magazzino (storeTemplate) e il
+bak-apply portavano nel nome solo l'ORA AL MINUTO
+(`.bak-2026-10-28T17-37`). Due riscritture dello stesso file nello stesso
+minuto — poll del watch e gara ravvicinata — si SOVRASCRIVEVANO a vicenda:
+la prima versione spariva dalla pila e la corsa dei candidati poteva
+partire dalla versione sbagliata. Il tie-break del pruneBackups non
+vedeva nemmeno il problema: il file sovrascritto non esisteva più.
+
+**Fatto** (src/grid-apply.mjs):
+- helper `bakName(file, tag)`: il nome del bak porta i SECONDI
+  (`.bak-2026-10-28T17-37-11`) e se nello stesso secondo ne esce un altro
+  si aggiunge `-r2`, `-r3`: niente collisioni, la pila resta in ordine
+  d'arrivo e il tie-break col nome desc del pruneBackups torna pieno.
+- `storeTemplate` e `writeSafe` (bak-apply) passano entrambe dallo stesso
+  helper; `storeTemplate` ora è esportata per il test.
+- test anti-regressione in test/grid-templates.test.mjs: «BAK AL
+  SECONDO» — tre riscritture ravvicinate dello stesso template devono
+  restare in pila (2 bak, il più vecchio col primo contenuto). Falliva
+  prima del fix (1 solo bak, content sovrascritto).
+
+**Nota sul test**: i confronti vanno fatti con `.equals()` e NON
+deepEqual — `encodeMsg` rende Uint8Array, `readFileSync` un Buffer:
+prototipi diversi a byte uguali e deepStrictEqual li dà per diversi.
+Verifiche: node --check, grid-templates 8/8 verdi, Biome pulito.
+
+## 28/10 sera — README allineati IT/EN + luci di coerenza + report build di sessione
+
+- **Allineamento novità** (README.it.md / README.md): la sezione «Novità delle
+  build recenti» sale alla fascia **0.1.13–0.1.41** con in cima le due voci di
+  oggi in entrambe le lingue: il garage REALE del gioco nei premi
+  (`gameOwnedCarIds()`, non si riproponono più auto già tue) e bak al secondo
+  + backup snello (`-r2`/`-r3`, potatura `.bak-ripara-*`, zip 746 MB → 1,1 MB).
+- **Luci di coerenza**: la nota del backup di `salva-save.mjs` e la voce
+  «backup automatico» nell'elenco di `data/` raccontano lo stato POST-audit
+  (esclusioni FATTE, A1 chiusa, zip ~1 MB, incognita `2026.ld` rinviata al
+  test di restore su sandbox) — prima dicevano «prima cura da fare», ormai
+  mentivano. I bak one-shot di `data/` mentionano la potatura automatica.
+- **Report build di sessione**: `report/build-0.1.42-sessione-2026-10-28.md`
+  nello formato delle schede di build: sommario della giornata (gazzetta che
+  ricorda, campo largo ovunque, garage nei premi, bak al secondo, guardie
+  UIApp, copilota senza loop) + esiti reali: suite 404/404, Biome 75 file
+  0 diagnostica. Verso la v0.1.42 (lo fa salire `sincronizza-git.cmd` col
+  commit; package.json e ultimo-report.json NON toccati — puntatore resta a
+  fccd9dd/v0.1.41, così report-build genererà pure la sua scheda al giro
+  prossimo).
+
+## 28/10 sera — Guardia anti-doppio server + test del canale comando
+
+**Il buco**: la guardia del publisher (lock `.publisher.pid`) fermava il
+doppione dal battaglio di fasce, ma chi lo GENERAVA restava il buco del
+webui: all'EADDRINUSE, quando `/api/watcher` non rispondeva ok (build
+vecchia o endpoint assente), il catch scivolava in silenzio sulla porta
+di riserva — è proprio così che il doppione della mattina nacque sulla
+8645 e nessuno vide la partenza.
+
+**Fatto** (src/webui.mjs, `server.on('error')`):
+- angolo 1: `/api/watcher` ok → build attuale viva: aggancio (browser)
+  ed exit, come prima;
+- angolo 2: endpoint presente ma NON-ok (404/405…) → chiedo la radice e
+  se porta il marchio «EVO Pitwall» (build precedente) esci — MAI
+  occupare un'altra porta;
+- angolo 3: il fetch solleva (reset, socket chiuso) → stessa verifica
+  alla radice prima di dichiararla porta di stratola;
+- angolo 4: davvero niente di nostro (radice straniera) → la porta di
+  riserva, ora CON IL MESSAGGIO a console («Porta N occupata da un
+  altro programma: provo la N+1»), prima in silenzio.
+
+**Test sul canale comando**: lock 4/4 (prendiLock: canale libero,
+doppione vivo tace, PID morto recuperato, lock proprio), priorità 8/8
+(ronda fresca comanda, scaduta cede all'evento, no silenzio senza
+evento, evento non accettato niente comando, auto ignota, avvia dopo
+ack setcar, ack doppio silenzio, scaduta mai avvia) — 12/12 verdi.
+Fumello HTTP del webui 1/1 (il server parte e serve le API con la
+nuova guardia). Biome 75 file, 0 diagnostica; node --check ok.
+
+## 28/10 tardo sera — Lo scan disco non è un garage: premio torna garage del tool
+
+**La causa (dettaglio da cross-check su disco)**: Mauro dichiara in verifica
+che il garage reale in EVO ha solo le DUE possedute:
+Countach e la 205 T16 (più una F40 LM POSSI E VENDUTA in passato — «avevo pure
+la f40 LM»). Lo scan del 26/10: `gameOwnedCarIds()` leggeva
+`ProfileData/<guid>/OpenData/SavedCars/*.carfinalstatewithconsumable`,
+e dava 13 id falsi posseduti: i file NON si cancellano alla vendita
+(la F40 LM venduta ha lasciato il suo file) né a fine noleggio (i noleggi del
+car-pool scrivono di frequente), e al contrario UN'auto davvero in garage
+può non avere il file (la Countach non ce l'aveva).
+`garage.drivergarage` (25 byte, protobuf) non dichiara id leggibili.
+
+**Il danno**: gli inviti scartavano auto premio «già tua» per auto che
+Mauro non possiede (noleggiate): la scelta premio si restringeva
+a torto, e le possedute nel solo gioco (F40 LM) restavano invisibili.
+Il possesso reale e lo scan contavano storie diverse.
+
+**Curato (28/10 tardo)**:
+- `src/events.mjs`: `ownedIds` torna a 2 fonti (vetrina + garage del tool).
+  Il parametro `ownedExtra` è eliminato dal contratto di `choosePrize`,
+  `refreshActivePrize`, `buildInvite` e `maybeSpawnEvent`.
+- `src/webui.mjs`: i 3 punti (refresh premio, spawn post-gara, spawn finale)
+  NON passano più `gameOwnedCarIds`; import tolto.
+- `src/garage.mjs`: `gameOwnedCarIds()` resta exportato — lettura di
+  DIAGNOSI (quello che il gioco ricorda su disco) ed è testata, ma non
+  entra più nel giudizio d'inviti.
+- `test/game-owned.test.mjs`: i 3 test del vecchio contratto diventano: un
+  `choosePrize` con auto nota solo su disco NON l'esclude; un
+  `refreshActivePrize` con ownedExtra nello storico NON lo considera
+  (changed=false, already-ok); un test NUOVO col premio nel garage del tool
+  è sostituito come prima.
+- README / README.it capoverso riscritto; test suite 405/405, Biome 0.

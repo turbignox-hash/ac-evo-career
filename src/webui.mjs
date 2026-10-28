@@ -1426,6 +1426,9 @@ async function api(context0, _req, res, action, body) {
       // posseduta e il tema ha riserve, sostituisce il premio (richiesta Mauro
       // 23/10: "un'auto diversa che non ho già in garage"). Idempotente e scritta
       // subito su disco (persist), come gli altri comandi evento.
+      // giudizio del possesso: SOLO garage del tool + vetrina (28/10). Lo scan
+      // disco è uscito: i .carfinalstate restano anche per auto vendute e
+      // noleggiate, e spingevano 13 falsi «già tua» nella scelta premio.
       try { const out = refreshActivePrize(ladder, state); persist(state); return sendJson(res, 200, { ok: true, ...out, events: eventsOverview(ladder, state) }); }
       catch (e) { return sendJson(res, 400, { ok: false, error: String(e.message ?? e) }); }
     }
@@ -3344,26 +3347,58 @@ const server = createServer(async (req, res) => {
 
 server.on('error', async (e) => {
   if (e.code === 'EADDRINUSE') {
-    // qualcosa gira già su questa porta: se è un'altra istanza di questo tool,
-    // niente doppioni (due watcher importerebbero due volte) — aggancia ed esci
+    // GUARDIA ANTI-DOPPIO SERVER (28/10 sera — il doppione della mattina
+    // finì sulla 8645): riconoscere il server NOSTRO anche quando l'API
+    // non risponde ok. Quattro casi:
+    //   1. /api/watcher ok → build attuale viva: aggancio (browser) ed esci;
+    //   2. /api/watcher NON-ok (404/405…) → HTTP c'è ma l'endpoint no:
+    //      chiedo la radice e se porta il nostro marchio («EVO Pitwall»,
+    //      build precedente) esci — MAI occupare un'altra porta;
+    //   3. il fetch solleva (reset, socket chiuso) → stessa verifica alla
+    //      radice prima di dichiararla porta di stratola;
+    //   4. niente di nostro (echo di radice straniero) → la porta di
+    //      riserva, ora COL MESSAGGIO: prima scivolava in silenzio ed era
+    //      proprio la nascita silenziosa del doppione.
+    const radice = async () => {
+      try { const g = await fetch(`http://127.0.0.1:${PORT}/`); return g.ok ? (await g.text()) : ''; }
+      catch { return ''; }
+    };
     try {
       const r = await fetch(`http://127.0.0.1:${PORT}/api/watcher`, { method: 'POST' });
-      if (r.ok) {
-        const addr = `http://127.0.0.1:${PORT}`;
-        console.log(`\n  Il tool è già aperto su ${addr}.`);
-        console.log(`  Apro solo il browser — nessuna seconda istanza (il watcher è unico).\n`);
-        if (OPEN) {
-          const { spawn } = await import('node:child_process');
-          // URL senza spazi: start lo esegue come command e apre il browser — niente titolo
-          if (process.platform === 'win32') spawn('cmd', ['/c', 'start', addr], { detached: true, stdio: 'ignore' }).unref();
-          else spawn('xdg-open', [addr], { detached: true, stdio: 'ignore' }).unref();
-        }
-        process.exit(0);
+      if (!r.ok) {
+        const html = await radice();
+        if (!html.includes('EVO Pitwall')) throw new Error('porta di altro software');
       }
-    } catch { /* nessun altro server su questa porta: procediamo normali */ }
-    // porta occupata da altro software: prova la successiva
-    if (PORT < 8642) { PORT += 1; server.listen(PORT, '127.0.0.1'); return; }
-    if (PORT < 8655) { PORT += 1; server.listen(PORT, '127.0.0.1'); return; }
+      const addr = `http://127.0.0.1:${PORT}`;
+      console.log(`\n  Il tool è già aperto su ${addr}.`);
+      console.log(`  Apro solo il browser — nessuna seconda istanza (il watcher è unico).\n`);
+      if (OPEN) {
+        const { spawn } = await import('node:child_process');
+        // URL senza spazi: start lo esegue come command e apre il browser — niente titolo
+        if (process.platform === 'win32') spawn('cmd', ['/c', 'start', addr], { detached: true, stdio: 'ignore' }).unref();
+        else spawn('xdg-open', [addr], { detached: true, stdio: 'ignore' }).unref();
+      }
+      process.exit(0);
+    } catch {
+      try {
+        const html = await radice();
+        if (html.includes('EVO Pitwall')) {
+          console.log(`\n  Il tool (build precedente) è già aperto su http://127.0.0.1:${PORT}.`);
+          console.log(`  Apro quello e chiudo qui — nessun doppione sul canale comando.\n`);
+          if (OPEN) {
+            const { spawn } = await import('node:child_process');
+            if (process.platform === 'win32') spawn('cmd', ['/c', 'start', `http://127.0.0.1:${PORT}`], { detached: true, stdio: 'ignore' }).unref();
+            else spawn('xdg-open', [`http://127.0.0.1:${PORT}`], { detached: true, stdio: 'ignore' }).unref();
+          }
+          process.exit(0);
+        }
+      } catch { /* niente radice leggibile: si segue sulla via di riserva */ }
+      // porta occupata da altro software: prova la successiva — a voce, non
+      // in silenzio (il doppione della 8645 nacque proprio qui zitto)
+      console.log(`  Porta ${PORT} occupata da un altro programma: provo la ${PORT + 1}.`);
+      if (PORT < 8642) { PORT += 1; server.listen(PORT, '127.0.0.1'); return; }
+      if (PORT < 8655) { PORT += 1; server.listen(PORT, '127.0.0.1'); return; }
+    }
   }
   console.error(`\n  Impossibile avviare l'interfaccia: ${e.message}`);
   console.error(`  Se un'altra finestra del tool è già aperta, usa quella.`);

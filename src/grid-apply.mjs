@@ -51,15 +51,30 @@ const FACTORY_DIR = process.env.EVO_FACTORY_DIR ?? join(dirname(HERE_DIR), 'conf
 const templatePathOf = (nodeId) => join(TEMPLATES_DIR, String(nodeId).replace(/[^a-zA-Z0-9_.-]/g, '_') + '.customgrid');
 const factoryFileOf = (nodeId) => join(FACTORY_DIR, basename(templatePathOf(nodeId)));
 
+/* ---------- BAK AL SECONDO (28/10) ---------- */
+// Il nome del bak portava solo MINUTI (slice(0,16)): due scritture dello
+// stesso file nello stesso minuto (poll + gara ravvicinate) si SOVRASCRIVEVANO
+// a vicenda e la pila dei bak perdeva le versioni precedenti (il test
+// grid-templates lo ha beccato: 2 attese, 1 trovata). Il nome ora porta i
+// SECONDI e se lo stesso secondo ne esce un altro si aggiunge -r2/-r3:
+// niente collisioni, la pila resta in ordine d'arrivo.
+function bakName(file, tag = '') {
+  const quando = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  let p = `${file}.bak-${tag}${quando}`;
+  for (let i = 2; existsSync(p); i++) p = `${file}.bak-${tag}${quando}-r${i}`;
+  return p;
+}
+
 /** Appunta il buffer come template della serie. riscritture successive con byte
- *  identici non toccano nulla (a ogni giro di poll il file non cambia). */
-function storeTemplate(nodeId, buf) {
+ *  identici non toccano nulla (a ogni giro di poll il file non cambia).
+ *  Esportata SOLO per il test anti-regressione dei bak. */
+export function storeTemplate(nodeId, buf) {
   try {
     mkdirSync(TEMPLATES_DIR, { recursive: true });
     const f = templatePathOf(nodeId);
     const nuovo = Buffer.from(buf);
     if (existsSync(f) && Buffer.compare(readFileSync(f), nuovo) === 0) return f;
-    if (existsSync(f)) { copyFileSync(f, `${f}.bak-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`); pruneBackups(f, { keep: 10 }); }
+    if (existsSync(f)) { copyFileSync(f, bakName(f)); pruneBackups(f, { keep: 10 }); }
     writeFileSync(f, nuovo);
     return f;
   } catch { return null; }
@@ -144,7 +159,7 @@ const writeSafe = (buf2, file = GRID_FILE, { force = false } = {}) => {
   if (gameRunning() && !force) throw Object.assign(new Error('EVO è APERTO: chiudi il gioco prima di scrivere la griglia.'), { code: 'GAME_RUNNING' });
   // lezione vergine (24/10): senza file non c'è cosa da backuppare — prima gara
   // della vita sul PC nuovo: la griglia nasce da zero (fabbrica), non da un resto.
-  const backup = `${file}.bak-apply-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+  const backup = bakName(file, 'apply-');
   if (existsSync(file)) { copyFileSync(file, backup); pruneBackups(file); }
   writeFileSync(`${file}.tmp`, buf2);
   renameSync(`${file}.tmp`, file);

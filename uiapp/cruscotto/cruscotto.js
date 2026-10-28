@@ -202,14 +202,25 @@
   const falliti = new Map();          // id -> tentativi fatti (solo per la banda)
   function okTesto(r) { return r && r.response === OK_RISPOSTA ? 'ok' : ((r && (r.response || r.error)) || '?'); }
 
+  // STORICO ack (28/10 pomeriggio, la F40 rientrata): ogni writeStore
+  // rimpiazzava il valore con UNA riga sola — l'ack della ronda cancellava
+  // quello dell'evento (e viceversa), e al primo riavvio del server il
+  // comando già confermato ripartiva e l'evento toglieva l'auto alla ronda.
+  // Il limp: creo la lista in sessione (eterna finché il menu vive) e la
+  // sposto interamente sul persist a ogni ack. La lista in sessione parte
+  // VUOTA, ma il server ripubblicando un comando già fatto lo vede e lo
+  // spegne prima ancora che noi lo ritocchiamo.
+  let ackSessione = [];
   function ackComando(c, ok, msg) {
     // L'ACK INVERSO (come Paddock e il suo paddock.py): il persist del loader
     // finisce in ui_storage.uistorage, che il server sa leggere — così il
     // publisher smette di ripubblicare un comando eseguito.
+    const voce = { id: c.id, ok: ok ? 1 : 0, msg: String(msg || ''), at: Date.now() };
+    ackSessione = [voce, ...ackSessione.filter(function (a) { return a && a.id !== c.id; })].slice(0, 10);
     try {
       const l = window.ACEUIAppLoader;
       if (!l || !l.persist || typeof l.persist.writeStore !== 'function') return;
-      l.persist.writeStore('cruscotto.acks', { commands: [{ id: c.id, ok: ok ? 1 : 0, msg: String(msg || ''), at: Date.now() }] });
+      l.persist.writeStore('cruscotto.acks', { commands: ackSessione });
     } catch (e) { loga('ack: ' + e); }
   }
 
@@ -320,6 +331,28 @@
     return true;
   }
 
+  // LANCIO AUTOMATICO (28/10 sera, richiesta Mauro): quando la ronda è già
+  // state impostata nel menu (setcar confermato), il Cruscotto preme «Avvia
+  // sessione» DA SOLO — lo stesso comando che Paddock usa per le sue gare
+  // (GameModeSelectionClientRequestStart, 15s di attesa: la risposta del
+  // caricamento arriva lenta). SOLO la ronda di carriera: per l'EVENTO NO —
+  // lì pista/AI/ora/giri si impostano a mano dalla scheda (lezione 23/10) e
+  // un avvio automatico partirebbe con le impostazioni sbagliate. Pausa di
+  // 1200ms prima della richiesta: il menu si deve ancora sistemare dopo la
+  // scelta dell'auto (lo stesso respiro dei 300ms del Paddock, più largo).
+  async function corriAvvia() {
+    const eng = window.engine;
+    if (!eng || typeof eng.trigger !== 'function') { notaComando('engine non disponibile (pagina aperta fuori dal gioco?)'); return false; }
+    await new Promise(function (dai) { window.setTimeout(dai, 1200); });
+    const r = await giocoComando('GameModeSelectionClientRequestStart', { mode: MODO_SINGLE }, 15000);
+    if (!r || r.response !== OK_RISPOSTA) {
+      notaComando('Avvia sessione: ' + okTesto(r)); loga('RequestStart: ' + okTesto(r)); return false;
+    }
+    notaComando('✓ Gara avviata dal Cruscotto («Avvia sessione» premuto).');
+    loga('✓ RequestStart ok: sessione avviata');
+    return true;
+  }
+
   function applicaComando(c) {
     if (!c || !c.id || !c.nome) return;
     if (inCorso) return;
@@ -330,10 +363,11 @@
     inCorso = true;
     ultimoComando = c.id;
     loga('comando ' + c.id + ' (' + c.nome + (c.pista ? ' @ ' + c.pista : '') + '), tentativo ' + (tent + 1));
-    const lavoro = c.tipo === 'evento' ? corriEvento(c) : corriSetcar(c);
+    const lavoro = c.tipo === 'evento' ? corriEvento(c) : (c.tipo === 'avvia' ? corriAvvia() : corriSetcar(c));
     Promise.resolve(lavoro).then(function (ok) {
       inCorso = false;
-      if (ok) { falliti.delete(c.id); ackComando(c, true, 'auto impostata nel menu di EVO'); }
+      if (ok) { falliti.delete(c.id); ackComando(c, true, c.tipo === 'avvia' ? 'avvia sessione premuto' : 'auto impostata nel menu di EVO'); }
+      else { falliti.set(c.id, tent + 1); /* riprova senza cap: il mock del contatore era mancante e un comando fallito non riprovava mai — RETRY_MS ammorbidisce il giro */ }
     });
   }
 
