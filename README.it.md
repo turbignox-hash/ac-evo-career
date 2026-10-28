@@ -581,6 +581,27 @@ controllo aggiornamenti; `sincronizza-git.cmd` è la copia off-site **e** fa
 salire la versione della build. Ogni zip completo contiene
 COME-RIPRISTINARE.txt (passi di ripristino).
 
+### La cartella `data/`: cosa vive dentro, cosa va a Git (audit 28/10)
+
+Inventario misurato in [report/audit-dati-2026-10-28.md](report/audit-dati-2026-10-28.md).
+In breve:
+
+- **Git porta solo i cataloghi statici dell'auto** (`car-images.json`,
+  `car-specs*.json`, `car-prices.json`, `car-guids.json`) e
+  `samples/garage/map.json` — 7 file, verificato con `git ls-files data`.
+  Tutto il resto di `data/` (carriera, backup, log di calibrazione,
+  istantanee) resta locale: aggiornamenti e installazioni dell'amico non lo
+  toccano, come promesso.
+- **Il backup automatico del save sta in `data/salva-save/`**: zip in
+  rotazione slot-1/slot-2 (ne restano al massimo 4), scritti da
+  `tools/salva-save.mjs` quando l'ultimo è più vecchio di 36 ore. Nota nota
+  (audit A1): lo zip copre l'INTERA cartella `Saved Games\ACE` (MoTec,
+  replay, log, mods), quindi un backup può pesare centinaia di MB; tagliarlo
+  al solo contenuto di salvataggio è la prima raccomandazione aperta.
+- I file `.bak-*` one-shot in `data/` sono copie di guardia di interventi
+  di riparazione conclusi: si possono cancellare senza rischi una volta
+  verificata la modifica del tool.
+
 ## Riferimenti
 
 - **Apex to Zero**, il progetto di carriera per Automobilista 2 da cui nasce

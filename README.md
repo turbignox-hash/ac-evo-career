@@ -591,6 +591,26 @@ needed) and `content --validate` to confirm the ladder still matches.
 check; `sincronizza-git.cmd` is the off-site copy **and** the build-version
 bumper. Each full zip contains COME-RIPRISTINARE.txt (restore steps).
 
+### The `data/` folder: what lives there, what goes to Git (audit 28/10)
+
+Measured inventory in [report/audit-dati-2026-10-28.md](report/audit-dati-2026-10-28.md).
+Summary:
+
+- **Git carries only the static car catalogs** (`car-images.json`,
+  `car-specs*.json`, `car-prices.json`, `car-guids.json`) and
+  `samples/garage/map.json` — 7 files, verified with `git ls-files data`.
+  Everything else in `data/` (career save, backups, calibration logs,
+  snapshots) stays local by design: updates and friend installs never touch
+  it.
+- **The automatic save backup lives in `data/salva-save/`**: rotated
+  slot-1/slot-2 zips (max 4 kept), written by `tools/salva-save.mjs` when the
+  last one is older than 36 hours. Known caveat (audit A1): the zip covers
+  the WHOLE `Saved Games\ACE` folder (MoTec, replays, logs, mods), so a
+  backup can weigh hundreds of MB; trimming it to save-only content is the
+  first open recommendation.
+- One-shot `.bak-*` files in `data/` are guard copies of finished repair
+  jobs; they are safe to delete once the tool change is verified.
+
 ## References
 
 - **Apex to Zero**, the Automobilista 2 career app the idea comes from
