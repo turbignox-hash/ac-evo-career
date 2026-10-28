@@ -110,12 +110,54 @@ Detto breve: **l'amico → un solo file `installa.cmd`**; **sviluppatore sincero
 (Vie storiche, ancora valide: il **pacchetto-amico zip** di `tools/pacchetto-amico.mjs`
 e il **Download ZIP dal sito** — entrambi si auto-regolano al primo avvio.)
 
+### Il backup automatico del save (dal 25/10)
+
+`tools/salva-save.mjs` zippa le cartelle dati di EVO in rotazione
+slot-1/slot-2 su `data/salva-save/` (restando al massimo 4 zip), e gira da
+solo agli avvii del launcher: se l'ultimo backup è più vecchio di **36 ore**
+fa il nuovo in silenzio, se è fresco non fa una piega (avvii in serie non
+fanno IO senza motivo). Sta anche in-process per la GUI (`statoBackup()` /
+`forzaBackup()`, sezione «Backup del save di EVO» nelle impostazioni) e da CLI:
+
+```bash
+node tools/salva-save.mjs          # backup SOLO se l'ultimo è stantio
+node tools/salva-save.mjs --check  # exit 0 = fresco, exit 1 = stantio/mancante
+node tools/salva-save.mjs --force  # backup SEMPRE
+```
+
+Nota: lo zip copre l'intera cartella `Saved Games\ACE` (quindi MoTec, replay,
+log e mods compresi) — l'audit del 28/10 lo misura e le esclusioni al solo
+contenuto di salvataggio sono la prima cura incocciata in
+[report/audit-dati-2026-10-28.md](report/audit-dati-2026-10-28.md).
+
 ## Novità delle build recenti
 
 Salienti della fascia **0.1.13–0.1.18** — ogni salvataggio scrive anche la sua
 scheda leggibile in [report/](report/), con dentro l'esito vero della suite di
 test:
 
+- **Gazzetta di stagione, i titoli che ricordano (28/10).** Dopo ogni gara la
+  stampa del paddock scrive un titolo su misura: non guardano solo la gara
+  del giorno, ma lo STORICO vero del save — dal più raro in giù: GRANDE
+  CHELEM, LA POLE BUTTATA, BRUTTA SERIE («3 ritiri consecutivi»), RITORNO
+  DAL BOX / RITORNO SUL PODIO, DUE/TRE/QUATTRO DI FILO, PRIMA VOLTA A X,
+  IL PRIMO GRADINO, PODIO A SERIE. E il tutto rilegato nel foglio di stagione:
+  pagina unica nel cruscotto col sommario (gare, vittorie, podi, ritiri) e
+  ogni masthead in ordine di round, cambio stagione e copia del foglio. Tutti
+  i titoli sono deterministici: stesso storico, stesso titolo.
+- **Il campo largo della classifica simulata (28/10).** Le griglie reali di
+  EVO sono quasi sempre PIÙ ampie della stima del ladder (Alfa 75: ladder 7,
+  reali 17; Golf Mk8: 14 contro 17; R5: 12 contro 16) — e prima la classifica
+  sim, il duello della stagione e il monte-carlo del sedile giravano sulla
+  griglia CORTA: una P10/17 finiva spremuta in un campo da 7 e i punti delle
+  rivali venivano sommariati in corto. Ora la sim corre LARGA QUANTO IL
+  MASSIMO visto nelle griglie reali (`grigliaSimEstesa`): classifica,
+  paddock, respiro di metà stagione e schede delle serie raccontano il
+  campionato quando è davvero affollato. Deterministica e robusta a file
+  corrotte, senza toccare il ladder su disco (mutato SOLO in copia); su
+  carriere vergini resta la stima del ladder. Verifica col campo allargato:
+  vittorie dei primi tre sedili ~97% e titoli 47-11-2 a 17 vetture contro
+  48-11-1 a 14 — il campionato resta una meritocrazia anche a campo largo.
 - **Campionati interamente procedurali, col bilancio procedurale quanto il pescaggio.**
     Cinque livelli (Epoca → Corsa) nascono da un estrattore con seme
     (`tools/_genera-stili.mjs`): per ogni livello pesca a sorte dal catalogo auto
@@ -573,6 +615,7 @@ la scala combaci ancora.
 | OneDrive | zip completo (codice, git, save personali, mappe) e portatile | cartelle OneDrive |
 | magazzino su L: | le stesse due zip, con impronte SHA-256 | L:\CarrieraEVO |
 | off-site (configurata) | la sola storia git | repository privato su GitHub (`ac-evo-career`) |
+| **backup automatico del save** | zip delle cartelle dati di EVO in rotazione (36 ore di soglia) | `data/salva-save/` |
 
 `AggiornaMagazzino.cmd` (su L:) rinfresca le zip e le impronte;
 `controlla-magazzino.cmd` avvisa dopo 21 giorni o commit non coperti;

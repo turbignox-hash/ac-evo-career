@@ -121,6 +121,27 @@ next race.
 Highlights of the **0.1.13–0.1.18** line (every save writes a readable
 changelog under [report/](report/), with the real test-suite result inside):
 
+- **Season press, headlines that remember (28/10).** After every race the
+  paddock press writes a headline tailored to your true story, not just
+  today's race — rarest first: GRAND CHELEM, THE WASTED POLE, ROUGH STREAK
+  ("3 retirements in a row"), BACK FROM THE BOX / BACK ON THE PODIUM,
+  TWO/THREE/FOUR IN A ROW, FIRST TIME AT X, THE FIRST STEP, PODIUM STREAK.
+  And the whole year is bound into the **season press sheet**: a single
+  dashboard page with the summary up top (races, wins, podiums, DNFs) and
+  each masthead in round order, season picker and sheet copy. All headlines
+  are deterministic: same history, same headline.
+- **The simulated standings now race on the wide field (28/10).** EVO's real
+  grids are almost always WIDER than the ladder estimate (Alfa 75: ladder 7,
+  real 17; Golf Mk8: 14 vs 17; R5: 12 vs 16) — and the simulated standings,
+  season duel and seat monte-carlo used to run on the SHORT grid: a real
+  P10/17 got squeezed into a 7-car field and rival points were undersummed.
+  The sim now races as WIDE AS THE MAXIMUM ever seen in real grids
+  (`grigliaSimEstesa`): standings, paddock, mid-season pulse and series cards
+  tell a championship as crowded as it really is. Deterministic, robust to
+  corrupt truncated files, and the ladder on disk is never touched (the node
+  is mutated IN COPY only); on virgin careers the estimate stays.
+  Checked on the widened field: top-three seats win ~97% and titles split
+  47-11-2 at 17 cars vs 48-11-1 at 14 — the championship stays a meritocracy.
 - **Fully procedural championships, with procedural intelligent balancing.**
   Five tiers (Epoca → Corsa) come out of a seeded draw (`tools/_genera-stili.mjs`):
   each level draws at random from the car catalog within its PI band — mono-brand
@@ -183,6 +204,27 @@ and first-launch wizard are all handled, and `disinstalla.cmd` undoes the
 whole thing later. For the way via clone or ZIP-from-GitHub, **Node.js 18+** is
 the only prerequisite. Either way: Assetto Corsa EVO installed and started
 at least once (so its data folders exist).
+
+### The automatic save backup (since 25/10)
+
+`tools/salva-save.mjs` zips EVO's data folders on a slot-1/slot-2 rotation
+into `data/salva-save/` (at most 4 zips kept), and runs by itself at every
+launcher start: if the last backup is older than **36 hours** it quietly
+makes a new one, if it is fresh it does nothing at all (launches in a row
+never do I/O for nothing). It also runs in-process for the GUI
+(`statoBackup()` / `forzaBackup()`, the "EVO save backup" section in
+Settings) and from the CLI:
+
+```bash
+node tools/salva-save.mjs          # backup ONLY if the last one is stale
+node tools/salva-save.mjs --check  # exit 0 = fresh, exit 1 = stale/missing
+node tools/salva-save.mjs --force  # backup ALWAYS
+```
+
+Note: the zip covers the whole `Saved Games\ACE` folder (MoTec, replays,
+logs and mods included) — the 28/10 audit measures it and the exclusions to
+save-only content are the first open remedy, see
+[report/audit-dati-2026-10-28.md](report/audit-dati-2026-10-28.md).
 
 ```bash
 node ac-evo-career.mjs setup
@@ -584,6 +626,7 @@ needed) and `content --validate` to confirm the ladder still matches.
 | OneDrive | full zip (code, git, personal saves, maps) and portable | OneDrive folders |
 | warehouse on L: | the same two zips with SHA-256 fingerprints | L:\CarrieraEVO |
 | off-site (configured) | git history only | private repo on GitHub (`ac-evo-career`) |
+| **automatic save backup** | zips of EVO's data folders in rotation (36-hour threshold) | `data/salva-save/` |
 
 `AggiornaMagazzino.cmd` (on L:) refreshes the zips and fingerprints;
 `controlla-magazzino.cmd` warns after 21 days or uncovered commits;
