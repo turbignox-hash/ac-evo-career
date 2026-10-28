@@ -9,7 +9,14 @@ import { fileURLToPath } from 'node:url';
 import { writeJsonAtomic } from './atomic.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const NEWS_FILE = join(HERE, '..', 'data', 'news.json');
+// Stessa regola di import.mjs/flows.mjs: EVO_DATA_DIR (solo per i test) ridirige
+// il foglio in una cartella temporanea — prima la news andava sempre in data/
+// del progetto e la suite scriveva col launcher vero sullo stesso file (fonte
+// del flaky del test 80 voci: la prova leggeva il foglio mischiato alle notizie
+// vere dell'utente).
+const NEWS_FILE = process.env.EVO_DATA_DIR
+  ? join(process.env.EVO_DATA_DIR, 'news.json')
+  : join(HERE, '..', 'data', 'news.json');
 
 function loadNews() {
   try { return JSON.parse(readFileSync(NEWS_FILE, 'utf8')); } catch { return { items: [] }; }
