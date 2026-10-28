@@ -2459,3 +2459,15 @@ Sequenza (dal garage.drivergarage e dai suoi backup):
 RIMEDIO: chiudere EVO del TUTTO, ripremere Prepara (riscrive la R5 a gioco
 chiuso), rilanciare EVO: la R5 arriva da sola al garage. Vedi il ⚠ già
 in piedi nel Prepara quando carWritten && gameRunning (viste-a.js).
+
+### 28/10/2026, ore 16:15 — COERENZA CARD RIVALI (campo largo, verificata di nuovo)
+- rivalsOverview / rivalDetail / rivalsOutlook / rivalsForNode (rivals.mjs)
+  girano tutta sui DATI VERI delle gare importate (grid di ogni file risultato,
+  accolte con gridSize: drivers.length alla riga 89): nessuna stima corta del
+  ladder entra nelle card rivali. Posizioni, scontri, forma e h2h restano
+  coerenti col campo largo delle griglie firmate.
+- Il «chiudi davanti a X» della sfida (challengeFor in life.mjs) enumera dal
+  campo largo (test di ieri); i nomi dei rivali li porta rivalsForNode — due
+  fonti diverse, stessa larghezza: nessuna divergenza.
+- Suite girata 2/10 p.m.: race-card + life + rivals + agenda = 36/36,
+  Biome a 0. Niente da modificare nel codice rivali.
