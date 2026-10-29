@@ -47,8 +47,8 @@ griglia sul save 3 di questo PC. Spuntare a mano mentre si va.
 - [ ] avvia un campionato **senza template**: deve comparire l'instruzione
       «GENERA → APPLICA una-tappa» su quella serie (il rituale noto)
 - [ ] import del risultato: la gara appare nell'archivio, flussi e rep calcolati
-- [ ] copilota: parla nella LINGUA della UI (uk = UI inglese), non parla due volte
-      lo stesso messaggio entro 12 s
+- [ ] copilota: VOCE sempre it-IT anche con la UI in inglese (dal 27/10), non
+      parla due volte lo stesso messaggio entro 12 s
 - [ ] telemetria: il .ld è pieno (62 canali), MoTec e setups leggono
 
 ### Autoaggiornamento

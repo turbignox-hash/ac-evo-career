@@ -167,6 +167,18 @@ is missing, the red message walks you through it at the right moment. From
 the next race on the yellow button rewrites the grid, ballast and penalties
 by itself.
 
+🎙️ **The copilot always speaks Italian** (since 27/10 the voice is it-IT even
+with the interface in English). The dashboard has the **♪ prova** chip:
+one click says a line and checks copilot + Italian voice on the spot. If
+the accent is wrong, add an Italian voice in Windows: Control Panel →
+Speech Recognition → Text to Speech.
+
+🎚️ **The copilot's radio has three levels** — switch from the «radio»
+dropdown on the «🎧 Engineer LIVE» bar (or in Settings): essential (pit,
+fuel, flags, penalties, race end), normal (+ half race, tyres, positions),
+full (+ pace deltas and gap to the car ahead). In single-player races the
+gap stays silent anyway: EVO leaves those fields empty.
+
 ## 4. Create your career
 
 From item **3** of the `avvia.cmd` menu, or right in the browser
