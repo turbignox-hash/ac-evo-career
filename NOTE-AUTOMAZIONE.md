@@ -382,3 +382,24 @@
   la finestra parla, chiudiamo; se parlasse Race pure in prova, aggiungo
   la guardia. Prossimo test combinato: gara SP con griglia di rivalsa
   (Mauro 15°) per bandiera blu E finestra sosta insieme.
+
+## 29/10 tardi — INVENTARIO CHIUSO: i GAP della MMF sono MORTI in SP (misurato)
+- **SEGNALE (richiesta Mauro, «in full dovrebbe dire anche i gap»)**:
+  rianalisi l'intero registro copilota (2096 tick con gauges): in 1455
+  tick FUORI dal 1° posto (posizione 2→21) sia gapAheadRaw sia
+  gapBehindRaw restano 0.0 per TUTTI i tick — mai un movimento. I raw
+  erano stati aggiunti proprio per concedere o togliere il sospetto del
+  filtro: tolgono.
+- **CONSEGUENZA**: il narratore «Chi ti sta davanti: X secondi» è
+  corretto (parla con 0 < gapAhead < 1.5 e guardia 20 s) ma in SP la
+  fonte non esiste: EVO non popolala gap_ahead/gap_behind del graphics
+  block (wrapper, righe 840-842) nelle gare single-player. NON è un bug
+  del copilota: nessun fix possibile a monte finché il gioco non scrive.
+- **DA TENERE**: (1) se in MP i campi muovono, il narratore parte da
+  solo, nessuna modifica serve; (2) il registro continua a portare i raw
+  — la prossima gara MP è la verifica che chiude o riapre il caso;
+  (3) alternative fantasiose (gap stimato da carCoordinates o da
+  classifica del results a fine gara) restano ìdea non pervenute: la
+  distanza live in tempo reale non si ricostruire da coordinate senza
+  l'ordine di percorrenza dei rivali, e a gara finita il gap si legge
+  dalla classifica del sessionresults, non serve a voce DURante la gara.
