@@ -277,4 +277,4 @@
   gemella, viste-a.js); tetto anti-spuzzatura |dv| > 90 s (nel registro il
   HUD dava ±300 s a frame alterni in perdita di riferimento: spazzatura,
   non la si dice e non tocca la memoria). Test nuovo in copilota-narratori
-  (ok 20), suite 464 pass. Commit 5a51d154.
+  (ok 20), suite 464 pass. Commit 575bf22.
