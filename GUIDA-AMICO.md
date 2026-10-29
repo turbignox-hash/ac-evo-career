@@ -161,6 +161,15 @@ voce italiana siano a posto. Se invece parla con l'accento sbagliato,
 guarda Pannello di controllo → Riconoscimento vocale → Proprietà di voce e
 aggiungi una voce italiana di Windows.
 
+🎚️ **La radio del copilota ha tre livelli**: essenziale, normale e full. Si
+cambiano dalla tendina «radio» nella barra «🎧 Ingegnere LIVE» del
+cruscotto (o da Impostazioni). **essenziale** = box, benzina, bandiere,
+penalità, fine gara; **normale** aggiunge metà gara, gomme e posizioni
+perse/recuperate; **full** aggiunge anche delta di ritmo e distanza da
+chi ti sta davanti. Nelle gare SP i delta/gap non parlano comunque:
+EVO non scrive quei campi nelle gare single-player (silenzio atteso,
+non difetto).
+
 ⚠️ **La prima gara MULTICLASSE aggiunge un gesto, UNA SOLA volta:** nel menu
 Race Weekend sposta **Grid Type da AUTOMATIC a CUSTOM** e premi **Applica**,
 poi NON TOCCARE PIÙ il selettore. A installazione nuova EVO nasce AUTOMATIC e

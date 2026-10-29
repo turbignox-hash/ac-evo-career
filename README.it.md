@@ -196,6 +196,15 @@ dice una frase e verifica al volo la voce italiana. Dal 28/10 suona anche
 a rigore: niente più loop del resoconto di metà gara («litri, benzina e
 giri») e i messaggi dell'ultimo giro arrivano puntuale, posizioni perse e
 guadagnate incluse.
+**Tre livelli di radio** si scelgono dalla tendina «radio» nella barra
+«🎧 Ingegnere LIVE» (o da Impostazioni): **essenziale** (box, benzina,
+bandiere, penalità, ultimo giro, bandiera a scacchi e — nelle gare a
+tempo — il conto alla rovescia «Ultimo minuto!»/«Trenta secondi!»),
+**normale** (+ giro fatto, metà gara, gomme, posizione persa/recuperata)
+e **full** (anche delta di ritmo e distanza da chi ti sta davanti).
+Nelle gare SP i delta/gap restano un lusso del full e i gap a voce
+tacciono comunque: EVO non popola i campi gap delle gare single-player
+(29/10, misurato nel NOTE), quindi il silenzio lì è attesa, non difetto.
 - **Le griglie si costruiscono da sole per tutte le serie.** Il sistema
   «armonico» delle varianti (una livrea diversa per ogni cella — EVO crasha
   con gli schemi con celle ripetute) vale per **tutte le auto** della serie,
