@@ -274,7 +274,7 @@
   dvBucket sempre uguale al corrente, l'else-if mai. Muto dal 27/10, invisible
   ai test (tutti con dv: 0 del quale il bucket non cambia mai).
 - **FIX**: semina solo alla PRIMA lettura della memoria (narratore e vista
-  gemella, viste-a.js); tetto anti-spuzzatura |dv| > 90 s (nel registro il
+  gemella, viste-a.js); tetto anti-spazzatura |dv| > 90 s (nel registro il
   HUD dava ±300 s a frame alterni in perdita di riferimento: spazzatura,
   non la si dice e non tocca la memoria). Test nuovo in copilota-narratori
   (ok 20), suite 464 pass. Commit 575bf22.
