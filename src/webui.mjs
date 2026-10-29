@@ -1121,6 +1121,25 @@ async function api(context0, _req, res, action, body) {
       }
       return sendJson(res, 200, { ok: true, on: voceServerAttiva(), livello: voceServerLivello() });
     }
+    case 'voce-prova': {
+      // 31/10, «fai quello che vuoi»: PROVA DELLA RADIO VERA — la voce che
+      // parla in gara è la Windows del Pitwall (voceSrv), non quella del
+      // browser (che il bottone «Prova la voce» collauda da 27/10). Qui si
+      // sente il repertorio DEL LIVELLO SCELTO senza correre una gara:
+      // essenziale → box/benzina/bandiere; normale → anche giro, posizione,
+      // gomme, meta; full → anche le due voci extra (gap e delta di ritmo).
+      // Spenta: 400 con il motivo, niente frase sepolta in una voce muta.
+      const lv = voceServerLivello();
+      if (lv === 'off') return sendJson(res, 400, { error: tr({ it: 'Copilota spenta: accendi prima il copilota, poi prova la radio.', en: 'Copilot is off: turn it on before testing the radio.' }) });
+      const PROVA = {
+        essenziale: 'Prova della radio, livello essenziale. Box aperto: in pitlane — limiter on, niente gas. Sosta questo giro o il prossimo. Penalità tagli: 1.3 secondi. Ultimo giro! Bandiera a scacchi!',
+        normale: 'Prova della radio, livello normale. Giro 3 fatto in 1:42.576 — nuovo best! P14, posizione recuperata. Metà gara: benzina 26 litri, per 8 giri. Gomme al 66 percento. Ultimo giro! Bandiera a scacchi!',
+        full: 'Prova della radio, livello full. Chi ti sta davanti: 0.8 secondi. Sei più lento del best di 0.6. Ultimo giro! Bandiera a scacchi!',
+      };
+      const testo = PROVA[lv] ?? PROVA.normale;
+      voceSrv.parla(testo);   // stessa coda delle frasi reali: ordine rispettato
+      return sendJson(res, 200, { ok: true, on: voceServerAttiva(), livello: lv, prova: testo });
+    }
     case 'ingegnere':
       // l'ingegnere di gara LIVE (29/10): il payload lo costruisce payloadIngegnere()
       // — la STESSA funzione alimenta anche la voce della copilota dentro il

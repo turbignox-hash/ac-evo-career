@@ -253,3 +253,13 @@
   (crocetta al tick, contatore a +4 s) e ordine giroFatto < bandiera.
 - Le chips di coda (benzina, meta ecc.) non toccate: solo i 3 punti bandiera
   usano bandParla(); le stringhe restano uguali, la guardia 70 s pure.
+
+## 31/10 tardo — PROVA LA RADIO (Impostazioni): la voce vera si sente senza correre una gara
+- Mauro aveva il bottone «🔊 Prova la voce» (27/10) che collaudava SOLO la
+  voce del browser: quella che parla in gara è l'ALTRA (lo speaker Windows
+  del Pitwall, Cosimo). Non c'era modo di sentirla senza lanciare una gara.
+- Nuovo: bottone «📻 Prova la radio» accanto al selettore di livello →
+  /api/voce-prova → la voce del Pitwall recita un briciolo di repertorio
+  DEL LIVELLO SCELTO (essenziale/normale/full; off → 400 con il motivo).
+  Stessa coda delle frasi reali, ordine rispettato. Server riavviato con
+  il codice di oggi: anche la bandiera-dopo-il-giro (8d) è ORA in esercizio.

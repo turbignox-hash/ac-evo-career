@@ -329,6 +329,7 @@ function drawSettings(m){
         <option value="full">${tr({ it: 'Tutto — anche delta di ritmo e distanza', en: 'Everything — also pace delta and gap' })}</option>
         <option value="off">${tr({ it: 'Spenta — la copilota tace', en: 'Off — the copilot is silent' })}</option>
       </select>
+        <button class="mini" id="b-prova-radio" type="button" title="${esc(tr({ it: 'Parla la voce vera in gara: lo speaker Windows del Pitwall', en: 'The real race voice: the Pitwall Windows speaker' }))}">📻 ${tr({ it: 'Prova la radio', en: 'Test the radio' })}</button>
       <span id="voce-livello-esito" class="muted" style="font-size:12px"></span>
     </div>
     <div class="muted" style="margin-top:8px;font-size:12px">${tr({ it: 'Il livello vale SEPREM (anche fuori gara) e vale per la voce del Pitwall — quella che parla col gioco aperto e la GUI chiusa. Il selettore in Ingegnere LIVE (in pista) e questo qui cambiano la stessa impostazione.', en: 'The level always applies (even outside a race) and it drives the Pitwall voice — the one that speaks with the game open and the GUI closed. The selector in Engineer LIVE (on track) and this one change the same setting.' })}</div>
@@ -429,6 +430,19 @@ function drawSettings(m){
       } catch (err) { if (esito) esito.textContent = err.message; }
     };
   }
+  /* PROVA LA RADIO (31/10, «fai quello che vuoi»): il bottone accanto al
+     selettore chiede al server di far parlare la voce VERA in gara (lo
+     speaker Windows del Pitwall) con un briciolo di repertorio DEL LIVELLO
+     SCELTO: così si sente se la radio è viva e cosa dice il livello senza
+     lanciare una gara. Copilota spenta: il server risponde 400 con il
+     motivo e l'esito appare in rosso-grigio qui accanto. */
+  $('#b-prova-radio')?.addEventListener?.('click', async () => {
+    const esito = $('#voce-livello-esito');
+    try {
+      const r = await api('voce-prova', {});
+      if (esito) esito.textContent = tr({ it: 'In coda alla voce del Pitwall — livello: ', en: 'Queued on the Pitwall voice — level: ' }) + r.livello;
+    } catch (err) { if (esito) esito.textContent = err.message; }
+  });
   /* PROVA LA VOCE (27/10, Mauro: «copilota sempre inglese»): parla una frase
      di collaudo con la STESSA scelta che fa in gara la copilota del cruscotto
      (Italiano SEMPRE) e scrive QUALE voce del sistema è stata usata: se esce
