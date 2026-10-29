@@ -191,7 +191,7 @@
     });
   }
   function adotta(dati, slot) {
-    if (dati) { S.slot = slot; try { applicaComando(dati.comando); } catch (_e) { } S.dati = dati; disegna(); }
+    if (dati) { S.slot = slot; try { applicaComando(dati.comando); } catch (_e) { } S.dati = dati; fasciaTs = Date.now(); disegna(); }
   }
 
   // ------------------------------------------------------------------ COMANDI IN DIRETTA
@@ -371,6 +371,7 @@
   // automatico tace per lo stesso gesto, nessun ping-pong con il garage.
   const azioni = () => (S.dati?.azioni) || {};
   const bottoneTs = {};          // az -> ultimo tentativo (finestra anti doppio-clic = RETRY_MS)
+  let fasciaTs = 0;              // quando è arrivata l'ultima fascia: per un conteggio vivo tra le fasce
 
   async function bottoneCorri(_k, cmd) {
     if (cmd.tipo !== 'setcar') return corriEvento(cmd);
@@ -425,6 +426,9 @@
       if (m < 60) return m + ' m';
       return Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + (m % 60) + ' m' : '');
     };
+    // CONTEGGIO VIVO (4/11): la finestra scorre ANCHE tra le fasce — scadeIn
+    // arriva con la fascia e qui si sottrae il tempo passato da allora.
+    const resto = (a) => Math.max(0, Number(a.scadeIn) - (Date.now() - (fasciaTs || Date.now())));
     const pezzi = (a) => {
       const p = [];
       const i = a.istantanea;
@@ -435,7 +439,7 @@
       if (a.giri != null) p.push(a.giri + ' giri');
       if (a.ora != null) p.push('ore ' + String(a.ora).padStart(2, '0') + ':00');
       if (a.banda && !i) p.push('AI ' + a.banda);
-      if (a.scadeIn != null) p.push('finestra ' + fmtRimasto(a.scadeIn));
+      if (a.scadeIn != null) p.push('finestra ' + fmtRimasto(resto(a)));
       return p.filter(Boolean).join(' · ');
     };
     const scheda = (k) => {
@@ -453,9 +457,12 @@
         ? 'Ronda preparata' + (a.serie ? ' · ' + a.serie : '')
         : (k === 'demo' ? 'Gara al volo armata' : 'Evento speciale' + (a.tema ? ' · ' + a.tema : ''));
       const dett = pezzi(a);
+      // A SPREVIO (4/11): finestra sotto le 2 ore = dett in arancione, non
+      // più nel grigio che non dice niente. Sopra, resta sobrio.
+      const urgente = a.scadeIn != null && resto(a) < 2 * 60 * 60 * 1000;
       return '<div class="card"><div class="titolo">' + esc(titolo) + '</div><div class="riga">' + esc(a.nome) +
         (a.tipo === 'setcar' && a.pista ? ' @ ' + esc(a.pista) : '') + ' — ' + esc(se) + '</div>' +
-        (dett ? '<div class="nota">' + esc(dett) + '</div>' : '') +
+        (dett ? '<div class="nota"' + (urgente ? ' style="color:#ffb347"' : '') + '>' + esc(dett) + '</div>' : '') +
         '<button class="crd-btn" data-az="' + k + '" style="margin-top:8px;width:100%">' + etico + '</button></div>';
     };
     const h2 = scheda('ronda') + scheda('evento') + scheda('demo');
@@ -599,6 +606,15 @@
     inner.innerHTML = h;
     if (scorri) { try { scorri.fit?.(); } catch (_e) { } }
   }
+
+  // CONTO VIVO (4/11): tra le fasce la finestra continua a scorrere — un
+  // ridisegno leggero ogni 30 s SOLO se esiste una preparazione viva (ronda
+  // o gara al volo con finestra fresca): piste ferme non girano il ciclo.
+  setInterval(function () {
+    const az = azioni();
+    const viva = (Number(az.ronda?.scadeIn) > 0) || (Number(az.demo?.scadeIn) > 0);
+    if (viva) disegna();
+  }, 30 * 1000);
 
   setInterval(function () { prendiSlot(Date.now()); }, PERIODO_MS / 2);
   prendiSlot(Date.now());
