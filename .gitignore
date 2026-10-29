@@ -45,6 +45,7 @@ track-monitor.log
 # script e backup di sessione (usa/riesegui ma non versionare)
 *.tmp.ps1
 *.tmp.mjs
+tmp/
 .webui-log.txt
 .backup-*/
 .setup-backup/
