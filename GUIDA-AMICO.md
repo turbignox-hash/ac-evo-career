@@ -218,6 +218,13 @@ missing, the red message walks you through it at the right moment. From the
 next race on the yellow button rewrites the grid, ballast and penalties by
 itself.
 
+🎚️ **The copilot's radio has three levels**: essential, normal and full —
+switch them from the «radio» dropdown on the «🎧 Engineer LIVE» bar (or in
+Settings). Essentials: pit stops, fuel, flags, penalties, race end;
+normal adds half-race, tyre wear and positions; full adds pace deltas
+and gap to the car ahead (gap stays silent in SP races anyway: EVO leaves
+those fields empty in single-player).
+
 ## 4. Crea la tua carriera
 
 Dalla voce **3** del menu `avvia.cmd`, o direttamente nel browser (schermata

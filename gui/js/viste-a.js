@@ -967,7 +967,7 @@ function drawCardInto(el, card){
             : tr({ it: 'Copilota vocale: le stesse info dell\'ingegnere, dette con la voce. Click: lo accendi lato Pitwall (parla anche con la GUI chiusa).', en: 'Voice copilot: the same engineer info, spoken aloud. Click to enable it on the Pitwall side — it speaks even with the GUI closed.' }))}" style="margin-left:auto;letter-spacing:0.2px">
             <span style="color:${(voceServer || cp.on) ? '#7f7' : 'inherit'}">${voceServer ? tr({ it: '🔊 copilota (server)', en: '🔊 copilot (server)' }) : cp.on ? tr({ it: '🔊 copilota ON', en: '🔊 copilot ON' }) : tr({ it: '🔈 copilota', en: '🔈 copilot' })}</span></button>
           <select class="mini" id="cp-livello" title="${esc(tr({ it: 'Quanto parla il copilota: essenziale (box, benzina, bandiere, penalità) · normale (e giro, posizione, gomme) · full (anche delta e distanza)', en: 'How much the copilot speaks: essential / normal / full' }))}" style="margin-left:4px;letter-spacing:0.2px">
-            ${['essenziale','normale','full'].map((lv) => `<option value="${lv}" ${(m.voceLevel ?? 'normale') === lv ? 'selected' : ''}>${lv === 'essenziale' ? tr({ it: 'radio: essenziale', en: 'radio: essential' }) : lv === 'normale' ? tr({ it: 'radio: normale', en: 'radio: normal' }) : tr({ it: 'radio: tutto', en: 'radio: everything' })}</option>`).join('')}
+            ${['essenziale','normale','full','off'].map((lv) => `<option value="${lv}" ${(m.voceLevel ?? 'normale') === lv ? 'selected' : ''}>${lv === 'essenziale' ? tr({ it: 'radio: essenziale', en: 'radio: essential' }) : lv === 'normale' ? tr({ it: 'radio: normale', en: 'radio: normal' }) : lv === 'full' ? tr({ it: 'radio: tutto', en: 'radio: everything' }) : tr({ it: 'radio: spenta', en: 'radio: off' })}</option>`).join('')}
           </select>
         </div>
         <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-top:8px">
@@ -1004,7 +1004,21 @@ function drawCardInto(el, card){
       $('#cp-livello', ingOut)?.addEventListener('change', async (ev) => {
         const lv = String(ev.target.value ?? '');
         try { await api('voce-server', { livello: lv }); } catch { /* la pagina refresha comunque */ }
-        if (lv !== 'off') { localStorage.setItem('evo-copilot', 'on'); }
+        /* 29/10 ronda: la tendina ora decide ANCHE l'accensione. Prima il
+           livello cambiava ma la radio restava spenta (o restava accesa
+           scegliendo «spenta»): si doveva spostare il chip, due gesti con
+           il medesimo risultato. Col livello spento si ad OPRE la radio;
+           col livello acceso (se era spenta) si RIaccende. */
+        if (lv === 'off') {
+          if (voceServer || cp.on) { try { await api('voce-server', { on: false }); } catch {} }
+          cp.on = false;
+          localStorage.setItem('evo-copilot', 'off');
+          try { speechSynthesis.cancel(); } catch {}
+        } else {
+          localStorage.setItem('evo-copilot', 'on');
+          if (!voceServer && !cp.on) { try { await api('voce-server', { on: true }); } catch {} }
+          cp.on = true;
+        }
         ingDraw();
         drawCopilotStrip?.();
       });
