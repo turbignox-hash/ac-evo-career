@@ -104,3 +104,37 @@ test('IL VIA LIBERA (verde) parla a tutti i livelli: essenziale, normale e full'
   assert.ok(passo('normale').includes('Bandiera verde: via libera.'), 'normale: il via libera si sente');
   assert.ok(passo('full').includes('Bandiera verde: via libera.'), 'full: il via libera si sente');
 });
+
+/* 29/10 tardi: nelle gare a TEMPO il conto alla rovescia («Ultimo minuto!»,
+   «Trenta secondi!») porta chi='minuto' che le liste NON ammettevano: alla
+   copilota al minimo la gara a tempo chiudeva in silenzio. La fonte esiste
+   SOLO quando lo static dice timedRace (timeLeft stringa dell'HUD) — nelle
+   gare a giri nulla nasce e il livello è indifferente. Come il verde (ordine
+   di partire), è roba da sentire a QUALUNQUE livello: chi guida deve sapere
+   che la gara chiude. */
+test('IL CONTO ALLA ROVESCIA (minuto) parla a tutti i livelli', () => {
+  const passo = (livello) => {
+    const v = voceFinta();
+    const slot = nuovoSlotVoce();
+    giroVoce(M(true, { gauges: G({ timeLeft: '1:10' }) }), slot, v, { graziaMs: 0, ora: 1000, livello });   // semina (70 s: tace)
+    giroVoce(M(true, { gauges: G({ timeLeft: '0:55' }) }), slot, v, { graziaMs: 0, ora: 2000, livello });   // ≤60: «Ultimo minuto!»
+    giroVoce(M(true, { gauges: G({ timeLeft: '0:25' }) }), slot, v, { graziaMs: 0, ora: 3000, livello });   // ≤30: «Trenta secondi!»
+    return v.items;
+  };
+  for (const livello of ['essenziale', 'normale', 'full']) {
+    const items = passo(livello);
+    assert.ok(items.includes('Ultimo minuto!'), `${livello}: l'ultimo minuto si sente`);
+    assert.ok(items.includes('Trenta secondi!'), `${livello}: trenta secondi si sentono`);
+  }
+  // e senza timeLeft (gara a giri) le frasi NON nascono, a qualunque livello:
+  // se parlassero pure lì il test colpirebbe il narratore, non il filtro.
+  const senza = (livello) => {
+    const v = voceFinta();
+    const slot = nuovoSlotVoce();
+    giroVoce(M(true, { gauges: G({ timeLeft: null }) }), slot, v, { graziaMs: 0, ora: 1000, livello });
+    giroVoce(M(true, { gauges: G({ timeLeft: null }) }), slot, v, { graziaMs: 0, ora: 2000, livello });
+    return v.items;
+  };
+  assert.deepEqual(senza('essenziale'), [], 'gara a giri (senza timeLeft): niente conto alla rovescia');
+  assert.deepEqual(senza('full'), [], 'gara a giri (senza timeLeft): niente conto alla rovescia nemmeno in full');
+});
