@@ -108,6 +108,12 @@ vicine denunciate con `⚠ RIPETUTA dopo Ns`, bilancio finale in fondo
 «nessuna anomalia», la questione copilota è chiusa per iscritta
 e va applicata pure alla nota nel diario (NOTE-AUTOMAZIONE.md).
 
+Dal 31/10 sera il verdetto è ANCHE silenzioso sul rumore: le righe di
+servizio del registro voce (STATO/SILENZIO/TICK, il tick gira anche a
+gioco spento) NON si stampano più in apertura — si contano e si citano
+in fondo a UNA riga, coi MOTIVI dei silenzi visti in lista unica.
+Funziona allo stesso modo su entrambi i registri (monitor 8642 e voce).
+
 ## 4. Se qualcosa spuria ancora
 
 1. Copia e incolla le righe del log che circondano la frase (con `dati:` se

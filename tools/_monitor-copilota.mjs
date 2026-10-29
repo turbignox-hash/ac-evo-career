@@ -386,13 +386,26 @@ export function narratore(m, slot, ora = Date.now()) {
 /* statRiepilogo(righe): la contabilità del riepilogo, FUNZIONE PURA (31/10):
    prima viveva in linea nella CLI e nessun test poteva proteggerla — e
    proprio lì era finito il difetto che attribuiva alla radio i doppi
-   dell'eco. Torna: { meta, ultimo, bandiera, zittite, sbalzi, ecoFrasi,
-   gapMax, viste, radio }. `radio` è la lista delle parole vere con
-   ripetutaDopoMs (null se unica, ms se ripetuta entro i 70 s, per l'avviso
-   della riga); `viste` contiene SOLO anomalie reali (ripetizioni, meta >1,
-   bandiera >1 su radio reale — mai sull'eco). */
+   dell'eco.   Torna: { meta, ultimo, bandiera, zittite, sbalzi, ecoFrasi, gapMax, viste, radio }.
+   `radio` è la lista delle parole vere con ripetutaDopoMs (null se unica, ms se
+   ripetuta entro i 70 s, per l'avviso della riga); `viste` contiene SOLO anomalie
+   reali (ripetizioni, meta >1, bandiera >1 su radio reale — mai sull'eco). */
 export function statRiepilogo(righe) {
   const viste = [];
+  /* 31/10 sera (prova sul registro voce): nel file del Pitwall si accanmoncan
+     centinaia di righe di servizio (STATO ogni 60 s, SILENZIO con il suo motivo,
+     TICK di avvio — fino a gioco SPENTO il tick continua a girare) e la CLI
+     del riepilogo le stampava TUTTE prima degli eventi veri: il verdetto della
+     gara era neutrizzato nel rumore. Da qui il filtro live È nel pure:
+     - `servizio`: SOLO gli eventi che raccontano qualcosa (SESSIONE, AVVIO,
+       SERVER, ERRORE, PAYLOAD…) in ordine di arrivo — li stampa l'apertura;
+     - `nascosti`: contatore del rumore STATO/SILENZIO/TICK, citato in FONDO
+       con UNA riga (la diagnostica del motivo resta a chi la cerca nel RAW);
+     - `motiviSilenzio`: i motivi SILENZIO distinti visti (arrivo UNA volta
+       sola, senza i 3 giri di minuti minutantia). */
+  const servizio = [];
+  const nascosti = {};
+  const motiviSilenzio = [];
   let meta = 0, ultimo = 0, bandiera = 0, zittite = 0, sbalzi = 0, ecoFrasi = 0;
   const detti = new Map();   // testo → ultimo t prima
   /* 31/10 (diagnosi gara 14:24): nel registro convivono DUE sorgenti di frasi
@@ -408,11 +421,22 @@ export function statRiepilogo(righe) {
      statistica a parte e come fonte dei dati (dati→gapMax). */
   const gapMax = { davanti: 0, dietro: 0, lette: 0 };
   const radio = [];
+  const cellaAt = (chiave) => { nascosti[chiave] = (nascosti[chiave] ?? 0) + 1; };
   for (const r of righe) {
     if (r.evento) {
       // gli sbalzi live (SESSIONE FUORI/VIVA) sono normali fra le sessioni:
       // li CONTANO, non sono anomalie — solo se tornano ogni 4 s è un fulmine
-      if (r.evento.startsWith('SESSIONE')) sbalzi++;
+      if (r.evento.startsWith('SESSIONE')) { sbalzi++; servizio.push({ t: r.t, evento: r.evento }); continue; }
+      /* il rumore (STATO/SILENZIO/TICK: la mina del tick sotto): conta e tace.
+         TUTTO L'ALTRO (AVVIO, SERVER, ERRORE, PAYLOAD…) apre il riepilogo. */
+      if (r.evento.startsWith('TICK')) { cellaAt('TICK'); continue; }
+      if (r.evento.startsWith('STATO')) { cellaAt('STATO'); continue; }
+      if (r.evento.startsWith('SILENZIO')) {
+        cellaAt('SILENZIO');
+        if (r.motivi && !motiviSilenzio.includes(r.motivi)) motiviSilenzio.push(r.motivi);
+        continue;
+      }
+      servizio.push({ t: r.t, evento: r.evento });
       continue;
     }
     if (r.dati) {
@@ -457,7 +481,7 @@ export function statRiepilogo(righe) {
     const nBand = gara.filter((r) => r.chi === 'bandiera').length;
     if (nBand > 1) viste.push(`bandiera ×${nBand} in una gara`);
   }
-  return { meta, ultimo, bandiera, gare: Math.max(1, segmenti.length), zittite, sbalzi, ecoFrasi, gapMax, viste, radio };
+  return { meta, ultimo, bandiera, gare: Math.max(1, segmenti.length), zittite, sbalzi, ecoFrasi, gapMax, viste, radio, servizio, nascosti, motiviSilenzio };
 }
 
 /* ------------------------------------------------------------------ */
@@ -479,9 +503,11 @@ if (REP) {
   console.log('≫ riepilogo copilota:', file, `(${righe.length} righe)`);
   const st = statRiepilogo(righe);
   const primoT = righe[0]?.t ?? 0;
-  // prima gli eventi di servizio (AVVIO, SESSIONE, ERRORE…), come sempre:
-  for (const r of righe) {
-    if (r.evento) console.log(`  +${((r.t - primoT) / 1000).toFixed(0)}s · ${r.evento.slice(0, 60)}`);
+  // prima gli eventi di servizio che raccontano qualcosa (SESSIONE, AVVIO,
+  // SERVER, ERRORE…); STATO/SILENZIO/TICK restano fuori e si citano in fondo:
+  // sul registro voce erano centinaia e seppellivano il verdetto (31/10).
+  for (const r of st.servizio) {
+    console.log(`  +${((r.t - primoT) / 1000).toFixed(0)}s · ${r.evento.slice(0, 60)}`);
   }
   // poi la radio reale riga per riga, con l'avviso se ripetuta entro 70 s:
   for (const v of st.radio) {
@@ -492,6 +518,13 @@ if (REP) {
   console.log(`≫ eco monitor (calcolo, non radio): ${st.ecoFrasi} frasi simulate · ${st.zittite} zittite dalla guardia 70s · sbalzi live ×${st.sbalzi}`);
   if (st.gapMax.lette) {
     console.log(`≫ gap: max davanti ${st.gapMax.davanti.toFixed(1)} s · max dietro ${st.gapMax.dietro.toFixed(1)} s · su ${st.gapMax.lette} letture${st.gapMax.davanti === 0 && st.gapMax.dietro === 0 ? ' — MAI scritti dal gioco in questo registro: la voce dei gap tace per costruzione (controlla che in EVO sia attivo il display gap davanti/dietro e riferisci la prossima gara)' : ''}`);
+  }
+  /* il rumore di servizio si CITA in fondo: contatore per chiave e, se c'erano
+     silenzi con un motivo ripetuto, la lista UNICA dei motivi. */
+  const zittoSum = Object.entries(st.nascosti ?? {}).map(([k, n]) => `${k} ×${n}`).join(' · ');
+  if (zittoSum) {
+    console.log(`\n≫ rumore di servizio zittito nel riepilogo: ${zittoSum}`);
+    if (st.motiviSilenzio?.length) console.log(`≫ motivi dei silenzi (${st.motiviSilenzio.length} distinti): ${st.motiviSilenzio.join(' | ')}`);
   }
   if (st.viste.length) console.log(`\n≫ ⚠ ANOMALIE (${st.viste.length}):\n   - ${st.viste.join('\n   - ')}`);
   else console.log('\n≫ nessuna anomalia: metà gara, ultimo giro e bandiera una volta sola, niente ripetizioni vicine.');

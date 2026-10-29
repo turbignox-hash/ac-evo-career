@@ -95,3 +95,43 @@ test('i gap arrivano SOLO dalle righe con dati, mai dalla radio', () => {
   assert.equal(st.gapMax.dietro, 2.25);
   assert.equal(st.zittite, 1);      // la frase eco zittita della guardia conta solo là
 });
+
+/* 31/10 sera: il registro della VOCE si riempie di righe di servizio ogni 60 s
+   (STATO/SILENZIO/TICK — il tick continua anche a gioco SPENTO) e la CLI del
+   riepilogo le stampava TUTTE prima degli eventi veri: centinaia di righe che
+   seppellivano il verdetto. Qui il filtro è sancito: il rumore ESCE dal
+   riepilogo (contato in `nascosti`), gli eventi che raccontano restano in
+   `servizio` nell'ordine di arrivo, e i MOTIVI dei silenzi tornano UNA volta
+   sola (senza minuta di minuti minuta). */
+test('il rumore di servizio (STATO/SILENZIO/TICK) esce dal riepilogo e resta contato', () => {
+  const righe = [
+    { t: T0, evento: 'TICK', n: 1 },
+    { t: T0 + 500, evento: 'SESSIONE VIVA (live=true, radio in pista)' },
+    { t: T0 + 1000, chi: 'bandiera', it: 'Bandiera a scacchi!', livello: 'normale' },
+    { t: T0 + 2000, evento: 'STATO', tickEtaMs: 3.5, tickN: 100 },
+    { t: T0 + 3000, evento: 'SILENZIO', motivi: 'gioco non è vivo nello snapshot' },
+    { t: T0 + 4000, evento: 'ERRORE TICK VOCE', err: 'body null' },
+    { t: T0 + 5000, evento: 'TICK', n: 3 },
+    { t: T0 + 6000, evento: 'SILENZIO', motivi: 'gioco non è vivo nello snapshot' },   // motivo già visto: NON si ripete
+  ];
+  const st = statRiepilogo(righe);
+  // il rumore NON è nell'apertura...
+  assert.ok(!st.servizio.some((s) => s.evento.startsWith('TICK') || s.evento.startsWith('STATO') || s.evento.startsWith('SILENZIO')));
+  // ...è CONTATO e i motivi tornano UNA volta sola...
+  assert.deepEqual(st.nascosti, { TICK: 2, STATO: 1, SILENZIO: 2 });
+  assert.deepEqual(st.motiviSilenzio, ['gioco non è vivo nello snapshot']);
+  // ...e gli eventi che raccontano restano in ordine, senza perdere niente:
+  assert.deepEqual(st.servizio.map((s) => s.evento.split(' ')[0]), ['SESSIONE', 'ERRORE']);
+});
+
+test('un registro già pulito (ricalcolo monito) non mette righe di rumore né motivi fatti a mano', () => {
+  const righe = [
+    { t: T0, evento: 'AVVIO MONITOR (v. campi+contemporary — 1 porta/e)' },
+    { t: T0 + 1000, chi: 'ultimoGiro', it: 'Ultimo giro!', livello: 'normale' },
+  ];
+  const st = statRiepilogo(righe);
+  assert.deepEqual(st.nascosti, {});
+  assert.deepEqual(st.motiviSilenzio, []);
+  assert.deepEqual(st.servizio.map((s) => s.evento.slice(0, 5)), ['AVVIO']);
+  assert.equal(st.ultimo, 1);
+});
