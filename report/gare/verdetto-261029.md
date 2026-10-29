@@ -1,6 +1,6 @@
 # Verdetto di giornata — prefix 261029
 
-Gare 20 · 11 vittorie · 14 podi · posizione media 4.5 · giro migliore 01:28.719 (Monza (GP Race))
+Gare 19 · 11 vittorie · 14 podi · posizione media 4.5 · giro migliore 01:28.719 (Monza (GP Race))
 
 | Ora | Pista | Posto | Gap | Tuo giro |
 |---|---|---|---|---|
@@ -22,5 +22,10 @@ Gare 20 · 11 vittorie · 14 podi · posizione media 4.5 · giro migliore 01:28.
 | 15:11 | Monza (GP Race) | 1/15 | +0.0s | 01:31.425 |
 | 15:36 | Monza (GP Race) | 1/15 | +0.0s | 01:30.144 |
 | 15:58 | Monza (GP Race) | 1/15 | +0.0s | 01:28.719 |
-| 23:03 | Brands Hatch (GP Time Attack) | 3/13 | +1.6s |  |
-| 23:11 | Brands Hatch (GP Race) | 4/17 | +5.2s | 01:58.554 |
+| 23:11 | Brands Hatch (GP Race) | 3/13 | +5.2s | 01:58.554 |
+
+Practice della giornata (non conta nel verdetto) (1):
+
+| Ora | Sessione | Pista | Tuo giro |
+|---|---|---|---|
+| 23:03 | Practice | Brands Hatch (GP Time Attack) |  |

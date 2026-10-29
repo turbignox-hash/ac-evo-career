@@ -125,6 +125,29 @@ test('giornata di sole practice: messaggio gentile + note, mai un crash', () => 
   rmSync(dir, { recursive: true, force: true });
 });
 
+test('QUALI IN SEZIONE A PARTE (30/10): la griglia non si mescola alle practice', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'verdetto-'));
+  // la quali della mattina: i tempi che poi fanno la griglia della gara
+  scriviGara(dir, '261029-1000_SP_Qualifying.sessionresults.json', [
+    fila(driver_name, 'Turbigno', 0, { best: '01:29.900', me: true }),
+    fila('Adrian', 'Palmer', 1, { best: '01:30.400' }),
+  ], { session: 'Qualifying' });
+  // la practice del pomeriggio: un altro giro, MAI nello stesso blocco
+  scriviGara(dir, '261029-1200_SP_Practice.sessionresults.json', [
+    fila(driver_name, 'Turbigno', 0, { best: '01:31.200', me: true }),
+  ], { session: 'Practice' });
+  const v = verdettoGiornata({ paths: { resultsDirs: [dir] }, driver: DRIVER, prefix: '261029' });
+  assert.equal(v.gare.length, 0, 'né quali né practice nell’aggregato');
+  const re = new RegExp([
+    'Qualifiche della giornata, sezione a parte \\(la griglia, non il verdetto\\) \\(1\\):',
+    '\\| 10:00 \\| Qualifying \\| Monza \\(GP\\) \\| 01:29\\.900 \\|',
+    'Practice della giornata \\(non conta nel verdetto\\) \\(1\\)',
+    '\\| 12:00 \\| Practice \\| Monza \\(GP\\) \\| 01:31\\.200 \\|',
+  ].join('[\\s\\S]*?'), 's');
+  assert.match(v.md, re, 'due sezioni separate, nel giusto ordine');
+  rmSync(dir, { recursive: true, force: true });
+});
+
 test('righe doppie nel file (persona riciclata su due slot): il verdetto conta UNA volta, come l’import', () => {
   const dir = mkdtempSync(join(tmpdir(), 'verdetto-'));
   // Adrian Palmer ricicla il SUO slot della griglia: due righe, STESSO driver_id,

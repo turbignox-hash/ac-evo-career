@@ -325,6 +325,16 @@ async function drawDashboard(m){
           <button class="qtile" id="b-mondo">${ICONS.iconic ?? '⭐'}<span><b>${tr({ it: 'Classifica Mondiale', en: 'World Ranking' })}</b><small>${tr({ it: 'skill e profili di tutti i piloti del mondo, nel quadro di Campionati', en: 'skill and profiles of every driver, in the Championships panel' })}</small></span></button>
         </div>
       </div>
+      <!-- VERDETTO DI GIORNATA anche nel cruscotto (30/10, «verdetto anche
+           nel webui»): lo stesso aggregato della scheda e del cruscotto in
+           gioco (endpoint /api/verdetto, UNA fonte sola). Si calcola da solo
+           al disegno della vista — è la giornata appena chiusa, merita prima
+           visione — col bottone per ricalcolo dopo un'altra gara. -->
+      <div class="panel">
+        <h2>${LI.recipe ?? '📊'} ${tr({ it: 'Verdetto di giornata', en: 'Day verdict' })}</h2>
+        <div id="verdetto-dash"><div class="muted">…</div></div>
+        <div class="row" style="margin-top:8px"><button class="mini" id="verdetto-dash-ric">↻ ${tr({ it: 'Ricalcola', en: 'Recompute' })}</button></div>
+      </div>
     </div>
     <div class="racecard panel" id="card-panel"></div>
   </div>`;
@@ -365,6 +375,20 @@ async function drawDashboard(m){
   };
   $('#gv-dry')?.addEventListener('click', () => gvEsegui(true));
   $('#gv-go')?.addEventListener('click', () => gvEsegui(false));
+  /* IL VERDETTO nel cruscotto (30/10): parte da solo al disegno della vista
+     (la giornata di oggi si legge subito), il bottone ricalcola dopo
+     un'altra gara. Lo stesso disegno della scheda: helper unico verdettoHtml. */
+  const caricaVerdettoDash = async () => {
+    const zona = $('#verdetto-dash'); if (!zona) return;
+    try {
+      const v = await api('verdetto', {});
+      if (v.error) { zona.innerHTML = `<div class="empty">${esc(v.error)}</div>`; return; }
+      if (!v.gare.length) { zona.innerHTML = `<div class="muted">${esc(tr({ it: 'Oggi ancora nessuna gara: il verdetto si riempie quando ne finisce una.', en: 'No races today yet: the verdict fills in when one ends.' }))}</div>`; return; }
+      zona.innerHTML = verdettoHtml(v);
+    } catch { zona.innerHTML = `<div class="empty">${esc(tr({ it: 'Server fuori: riprova col bottone.', en: 'Server away: retry with the button.' }))}</div>`; }
+  };
+  caricaVerdettoDash();
+  $('#verdetto-dash-ric')?.addEventListener('click', caricaVerdettoDash);
   /* RIEPILOGO VIVO dell'istantanea (4/11): la STESSA fonte del cruscotto in
      gioco (statoIstantanea via /api/istantanea): durata · pista · banda AI
      come sono DENTRO il file, non come le ha lasciate l'ultimo tasto. Si
@@ -661,6 +685,25 @@ const note = r.gameRunning ? tr({ it: 'EVO è già aperto', en: 'EVO is already 
     };
     pollEv();
   } catch { el.innerHTML = `<h2>${tr({ it: 'Eventi speciali', en: 'Special events' })}</h2><div class="empty">${tr({ it: 'Non disponibile', en: 'Not available' })}.</div>`; }
+}
+
+/* IL VERDETTO DI GIORNATA (30/10, «verdetto anche nel webui»): l'HTML del
+   verdetto in un helper SOLO — lo beve la scheda di gara (da 29/10) e il
+   cruscotto (nuovo oggi): un aggregato, un disegno, mai due formule.
+   `v` è la risposta dell'endpoint /api/verdetto (md, gare, aggregato). */
+function verdettoHtml(v) {
+  const agg = v.aggregato ?? {};
+  const fmtGrial = (g) => (g.posto != null ? `P${g.posto}/${g.partecipanti}` : (g.dsq ? 'DSQ' : '—'));
+  const fmtGap = (ms) => ms == null ? '—' : (ms < 0 ? '-' : '+') + Math.abs(Number(ms) / 1000).toFixed(1) + 's';
+  const fmtGiroTop = (g) => g ? `${Math.floor(g.ms / 60000)}:${String((g.ms % 60000) / 1000).toFixed(3).padStart(6, '0')} (${g.pista ?? ''})` : null;
+  const riepilogo = tr({
+    it: `Gare ${v.gare.length} · ${agg.vittorie ?? 0} vittorie · ${agg.podi ?? 0} podi${agg.mediaPos != null ? ` · posizione media ${agg.mediaPos.toFixed(1)}` : ''}${fmtGiroTop(agg.giroTop) ? ` · giro migliore ${fmtGiroTop(agg.giroTop)}` : ''}`,
+    en: `Races ${v.gare.length} · ${agg.vittorie ?? 0} wins · ${agg.podi ?? 0} podiums${agg.mediaPos != null ? ` · average position ${agg.mediaPos.toFixed(1)}` : ''}${fmtGiroTop(agg.giroTop) ? ` · best lap ${fmtGiroTop(agg.giroTop)}` : ''}`,
+  });
+  return `<div class="muted" style="margin-bottom:6px">${esc(riepilogo)}</div>
+    ${v.gare.length ? `<table><thead><tr><th>${tr({ it: 'Ora', en: 'Time' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Posto', en: 'Pos' })}</th><th class="right">${tr({ it: 'Gap', en: 'Gap' })}</th><th class="right">${tr({ it: 'Tuo giro', en: 'Your lap' })}</th></tr></thead>
+      <tbody>${v.gare.map((g) => `<tr><td>${esc(g.ora || '—')}</td><td>${esc(g.pista ?? '—')}</td><td class="right">${fmtGrial(g)}</td><td class="right">${fmtGap(g.gap)}</td><td class="right">${g.mioGiro ? esc(g.mioGiro) + (g.penalita ? ` <span class="tag bad">${esc(g.penalita)}</span>` : '') : '—'}</td></tr>`).join('')}</tbody></table>`
+      : ''}`;
 }
 
 function msgRow(m){
@@ -1614,20 +1657,7 @@ const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella
     try {
       const v = await api('verdetto', {});
       if (v.error) { zona.innerHTML = `<div class="empty">${esc(v.error)}</div>`; return; }
-      const agg = v.aggregato ?? {};
-      const fmtGrial = (g) => (g.posto != null ? `P${g.posto}/${g.partecipanti}` : (g.dsq ? 'DSQ' : '—'));
-      const fmtGap = (ms) => ms == null ? '—' : (ms < 0 ? '-' : '+') + Math.abs(Number(ms) / 1000).toFixed(1) + 's';
-      // il giro migliore in formato m:ss.mmm (ms del tool → testo)
-      const fmtGiroTop = (g) => g ? `${Math.floor(g.ms / 60000)}:${String((g.ms % 60000) / 1000).toFixed(3).padStart(6, '0')} (${g.pista ?? ''})` : null;
-      const riepilogo = tr({
-        it: `Gare ${v.gare.length} · ${agg.vittorie ?? 0} vittorie · ${agg.podi ?? 0} podi${agg.mediaPos != null ? ` · posizione media ${agg.mediaPos.toFixed(1)}` : ''}${fmtGiroTop(agg.giroTop) ? ` · giro migliore ${fmtGiroTop(agg.giroTop)}` : ''}`,
-        en: `Races ${v.gare.length} · ${agg.vittorie ?? 0} wins · ${agg.podi ?? 0} podiums${agg.mediaPos != null ? ` · average position ${agg.mediaPos.toFixed(1)}` : ''}${fmtGiroTop(agg.giroTop) ? ` · best lap ${fmtGiroTop(agg.giroTop)}` : ''}`,
-      });
-      zona.innerHTML =
-        `<div class="muted" style="margin-bottom:6px">${esc(riepilogo)}</div>
-         ${v.gare.length ? `<table><thead><tr><th>${tr({ it: 'Ora', en: 'Time' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Posto', en: 'Pos' })}</th><th class="right">${tr({ it: 'Gap', en: 'Gap' })}</th><th class="right">${tr({ it: 'Tuo giro', en: 'Your lap' })}</th></tr></thead>
-           <tbody>${v.gare.map((g) => `<tr><td>${esc(g.ora || '—')}</td><td>${esc(g.pista ?? '—')}</td><td class="right">${fmtGrial(g)}</td><td class="right">${fmtGap(g.gap)}</td><td class="right">${g.mioGiro ? esc(g.mioGiro) + (g.penalita ? ` <span class="tag bad">${esc(g.penalita)}</span>` : '') : '—'}</td></tr>`).join('')}</tbody></table>`
-           : ''}`;
+      zona.innerHTML = verdettoHtml(v);   // 30/10: stesso disegno del cruscotto (helper unico, «verdetto anche nel webui»)
     } catch (e) {
       zona.innerHTML = `<div class="empty">✖ ${esc(e.message ?? String(e))}</div>`;
       if (btn) { btn.disabled = false; btn.textContent = tr({ it: 'Riprova', en: 'Retry' }); }
