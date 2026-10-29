@@ -18,12 +18,17 @@ const { encodeMsg, GAME_MODES_DIR } = await import('../tools/evo-grid.mjs');
 const { garaVeloce } = await import('../tools/_gara-veloce.mjs');
 const { currentInstantRace, INSTANT_FILE } = await import('../tools/set-instantrace.mjs');
 
-const mkInstant = (giri = 7, mode = 2, aiMin = 60, aiMax = 90) => {
+const mkInstant = (giri = 7, mode = 2, aiMin = 60, aiMax = 90, { conPista = false } = {}) => {
   const race = encodeMsg([
     { field: 1, wire: 2, bytes: Buffer.from('Race', 'utf8') },
     { field: 2, wire: 0, varint: BigInt(giri) },
     { field: 3, wire: 0, varint: BigInt(mode) },
     { field: 4, wire: 2, bytes: Buffer.from('0123456789abcd', 'utf8') },
+    ...(conPista ? [{ field: 5, wire: 2, bytes: encodeMsg([
+      { field: 1, wire: 2, bytes: Buffer.from('ITA', 'utf8') },
+      { field: 2, wire: 2, bytes: Buffer.from('Foo', 'utf8') },
+      { field: 3, wire: 2, bytes: Buffer.from('GP', 'utf8') },
+    ]) }] : []),
     { field: 30, wire: 0, varint: BigInt(aiMin) },
     { field: 31, wire: 0, varint: BigInt(aiMax) },
     { field: 32, wire: 0, varint: BigInt(1) },
@@ -78,4 +83,55 @@ test('sedile con auto fuori libro: passo KO dichiarato, gli altri passi proseguo
   assert.ok(s && !s.ok && /NON nel libro/.test(s.esito), JSON.stringify(s));
   assert.ok(out.passi.find((p) => p.nome === 'durata gara'), 'gli altri passi ci sono');
   assert.ok(!existsSync(join(GAME_MODES_DIR, 'last_grid.customgrid')), 'niente griglia scritta se non chiesta');
+});
+
+/* --- pista (3/11, prova pilota): il blocco 3.5 dell'istantanea --- */
+
+const pistaIst = () => {
+  const f3 = decodeMsg(readFileSync(INSTANT_FILE)).find((x) => x.field === 3 && x.wire === 2);
+  const sess = decodeMsg(f3.bytes);
+  const trk = sess.find((x) => x.field === 5);
+  const sub = decodeMsg(trk.bytes);
+  return sub.find((x) => x.field === 2) ? Buffer.from(sub.find((x) => x.field === 2).bytes).toString('utf8') : null;
+};
+
+const { decodeMsg } = await import('../tools/evo-grid.mjs');
+
+test('pista in dry: esito «dry:», nessun byte toccato', () => {
+  mkInstant(7, 2, 60, 90, { conPista: true });
+  const prima = readFileSync(INSTANT_FILE);
+  const out = garaVeloce({ giri: 5, pista: 'Monza', dry: true, force: true });
+  const p = out.passi.find((x) => x.nome === 'pista (istantanea)');
+  assert.ok(p?.ok && /dry: scriveresti Monza/.test(p.esito), JSON.stringify(p));
+  assert.ok(readFileSync(INSTANT_FILE).equals(prima), 'dry pista: nessun byte toccato');
+});
+
+test('pista vera: scritta nel blocco 3.5 e confermata dalla rilettura', () => {
+  mkInstant(7, 2, 60, 90, { conPista: true });
+  const out = garaVeloce({ giri: 5, pista: 'Monza', force: true });
+  const p = out.passi.find((x) => x.nome === 'pista (istantanea)');
+  assert.ok(p?.ok && /scritta/.test(p.esito), JSON.stringify(p));
+  assert.equal(pistaIst(), 'Monza');
+  // idempotente: seconda chiamata sulla medesima pista, niente scritto
+  const out2 = garaVeloce({ giri: 5, pista: 'Monza', force: true });
+  const p2 = out2.passi.find((x) => x.nome === 'pista (istantanea)');
+  assert.ok(p2?.ok && /idempotente/.test(p2.esito), JSON.stringify(p2));
+});
+
+test('pista fuori dal libro: passo KO senza toccare la pista', () => {
+  mkInstant(7, 2, 60, 90, { conPista: true });
+  const prima = readFileSync(INSTANT_FILE);
+  const out = garaVeloce({ giri: 7, aiMin: 60, aiMax: 90, pista: 'pista_che_non_esiste', force: true });
+  const p = out.passi.find((x) => x.nome === 'pista (istantanea)');
+  assert.ok(p && !p.ok && /non nel libro TRACK_INFO/.test(p.esito), JSON.stringify(p));
+  assert.equal(pistaIst(), 'Foo', 'pista KO: il blocco 3.5 resta com\'era');
+  assert.ok(readFileSync(INSTANT_FILE).equals(prima), 'pista KO: nessun byte toccato');
+});
+
+test('istantanea senza blocco pista: passo KO chiaro, senza crash', () => {
+  mkInstant();
+  const out = garaVeloce({ giri: 5, pista: 'Monza', force: true });
+  const p = out.passi.find((x) => x.nome === 'pista (istantanea)');
+  assert.ok(p && !p.ok && /blocco pista/.test(p.esito), JSON.stringify(p));
+  assert.ok(out.passi.find((x) => x.nome === 'durata gara'), 'gli altri passi ci sono');
 });

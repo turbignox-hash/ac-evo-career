@@ -861,6 +861,7 @@ async function api(context0, _req, res, action, body) {
           aiMax: body.aiMax != null && body.aiMax !== '' ? Number(body.aiMax) : 93,
           auto: body.auto ? String(body.auto) : null,
           pool: body.pool ? String(body.pool) : null,
+          pista: body.pista ? String(body.pista) : null,   // 3/11: anche la pista dell'istantanea (blocco 3.5)
           dry: !!body.dry,
           force: true,
         });
