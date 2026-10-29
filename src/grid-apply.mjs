@@ -24,6 +24,7 @@ import { loadClasses, pickClassInfo, buildGridMessage } from './gridbuilder.mjs'
 import { resolvePaths } from './paths.mjs';
 import { scanContentCached, carExists } from './content.mjs';
 import { slotDataDir } from './state.mjs';
+import { syncRoster, celleDiGrid } from './weekend-roster.mjs';
 
 export const GRID_FILE = DEFAULT_FILE;
 
@@ -232,6 +233,25 @@ export function dropCellsApply(matchers, { file = GRID_FILE, force = false, dry 
  * fuori ladder / senza pool: il throw ha un messaggio già pronto come
  * commando per l'utente).
  */
+/* ---------- TRAPIANTO DEL ROSTER (29/10, le Caterham di Mauro) ---------- */
+// Riscrivere il customgrid non basta: la ronda spawna gli avversari dal SUO
+// gamemodesave (weekend-roster.mjs). Questo wrapper chiama syncRoster con le
+// celle appena scritte ed è SILENTE: un errore non deve MAI bloccare la
+// preparazione della griglia — il report porta la nota di cosa è successo.
+function trapiantaRoster(buffer, { force, dry }) {
+  try {
+    const celle = celleDiGrid(buffer);
+    if (!celle.length) return 'celle non leggibili dal buffer: roster non toccato';
+    const r = syncRoster(celle, { force, dry });
+    const primo = r.blocchi?.[0];
+    return r.written
+      ? `roster weekend scritto: ${primo?.slot ?? '?'} slot su «${primo?.nome ?? '?'}» → ${[...new Set(primo?.carId ?? [])].join(', ')}${r.backup ? ` · backup ${basename(r.backup)}` : ''}`
+      : `roster weekend: ${r.nota ?? 'già allineato'}`;
+  } catch (e) {
+    return `roster weekend non sincronizzato (${e.message})`;
+  }
+}
+
 export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE, force = false, dry = false } = {}) {
   if (!ladder || !nodeId || roundIndex == null) throw Object.assign(new Error('rebuildGridApply: servono ladder, nodeId e roundIndex'), { code: 'NO_ARGS' });
   // GATE DEL CONTEGGIO (24/10 15:50, Coppa 500): la carriera EVO si aspetta
@@ -246,6 +266,7 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
   // vergine, round diverso). Le tre strade di scrittura qui sotto parla
   // tutte da `ladderUsa`, clonato SOLO se serve correggere il nodo.
   let bridge = null;
+  let rosterVale = false;   // il gate di pista (sotto) abilita anche il TRAPIANTO delle celle nel weekend (weekend-roster 29/10)
   let ladderUsa = ladder;
   try {    const nativo = weekendCarCount();
       const round = (ladder.nodes ?? []).find((n) => n.nodeId === nodeId)?.calendar?.[roundIndex];
@@ -258,6 +279,7 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
       // della scala, e il conto resta l'allineamento di quando si capisce davvero.
       const contabile = Number.isFinite(nativo?.cars) && nativo.cars > 0;
       if (nativo && round && contabile && nativo.track && sameTrack(nativo.track, round.track)) {
+        rosterVale = true;   // siamo davvero nella ronda (questa pista nel weekend): le celle del roster possono seguire il pool
         // LEZIONE 27/10 (DTM Legends, «Prepara tutto» scriveva 1 cella):
         // nel regime CUSTOM (tutte le serie dal 26/10 notte) il conteggio
         // SENSO PLENO sta nei blocchi GARA del gamemodesave (3.7=15 → 16 celle,
@@ -315,6 +337,7 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
     if (dry) return { report: first.report, written: false };
     const backup = writeSafe(first.buffer, file, { force });
     storeTemplate(nodeId, first.buffer);   // la griglia riuscita resta la memoria della serie
+    if (rosterVale) first.report.roster = trapiantaRoster(first.buffer, { force, dry });
     return { report: first.report, written: true, backup, countAlign: bridge };
   } catch (firstErr) {
     // lezione vergine (24/10, collaudo prova-vergine): sul PC di un player
@@ -371,6 +394,7 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
           if (dry) return { report, written: false, source: label };
           const backup = writeSafe(buffer, file, { force });
           storeTemplate(nodeId, buffer);
+          if (rosterVale) report.roster = trapiantaRoster(buffer, { force, dry });
           return { report, written: true, backup, source: label, countAlign: bridge };
         } catch (e) { lastErr = e; }
       }
