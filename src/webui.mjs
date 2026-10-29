@@ -589,7 +589,8 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
     };
   }
   try {
-    const card = raceCard(ladder, state, { car: typeof (body ?? {})?.car === 'string' ? body.car : null });
+    const carRichiesta = typeof body?.car === 'string' ? body.car : null;
+    const card = raceCard(ladder, state, { car: carRichiesta });
     raceLaps = card.round?.laps ?? card.baseLaps ?? null;
   } catch { /* senza scheda gara i consigli restano solo-live */ }
   if (snap.player?.car) {
