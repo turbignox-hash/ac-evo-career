@@ -413,6 +413,31 @@
 
   function bloccoBottoni() {
     const az = azioni();
+    // DETTAGLIO delle card (4/11): il publisher spedice i FATTI del sistema
+    // (4/11 in uiapp-pub): la finestra di frescheza (scadeIn), per l'evento
+    // pista/giri/ora/banda, per la gara al volo lo stato REALE dell'istan-
+    // tanea (durata · pista · banda AI) letto a ogni fascia. Niente promesse.
+    const fmtRimasto = (ms) => {
+      const s = Math.round(Number(ms) / 1000);
+      if (!Number.isFinite(s) || s <= 0) return 'scaduta';
+      if (s < 60) return 'meno di 1 m';
+      const m = Math.floor(s / 60);
+      if (m < 60) return m + ' m';
+      return Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + (m % 60) + ' m' : '');
+    };
+    const pezzi = (a) => {
+      const p = [];
+      const i = a.istantanea;
+      if (i?.durata) p.push(i.durata.giri != null ? i.durata.giri + ' giri' : (i.durata.min != null ? i.durata.min + ' min a tempo' : null));
+      if (i?.pista) p.push('pista ' + i.pista);
+      if (i?.banda) p.push('AI ' + i.banda);
+      if (a.pista) p.push('pista ' + a.pista);
+      if (a.giri != null) p.push(a.giri + ' giri');
+      if (a.ora != null) p.push('ore ' + String(a.ora).padStart(2, '0') + ':00');
+      if (a.banda && !i) p.push('AI ' + a.banda);
+      if (a.scadeIn != null) p.push('finestra ' + fmtRimasto(a.scadeIn));
+      return p.filter(Boolean).join(' · ');
+    };
     const scheda = (k) => {
       const a = az[k];
       if (!a || !a.id || !a.nome) return '';
@@ -427,8 +452,10 @@
       const titolo = k === 'ronda'
         ? 'Ronda preparata' + (a.serie ? ' · ' + a.serie : '')
         : (k === 'demo' ? 'Gara al volo armata' : 'Evento speciale' + (a.tema ? ' · ' + a.tema : ''));
+      const dett = pezzi(a);
       return '<div class="card"><div class="titolo">' + esc(titolo) + '</div><div class="riga">' + esc(a.nome) +
         (a.tipo === 'setcar' && a.pista ? ' @ ' + esc(a.pista) : '') + ' — ' + esc(se) + '</div>' +
+        (dett ? '<div class="nota">' + esc(dett) + '</div>' : '') +
         '<button class="crd-btn" data-az="' + k + '" style="margin-top:8px;width:100%">' + etico + '</button></div>';
     };
     const h2 = scheda('ronda') + scheda('evento') + scheda('demo');

@@ -10,8 +10,10 @@
 // il comando (un circolo mai silente per posta da resultados periduti).
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
-import { comandoAuto, confermaAck, azioniPulsanti } from '../src/uiapp-pub.mjs';
+import { comandoAuto, confermaAck, azioniPulsanti, statoIstantanea } from '../src/uiapp-pub.mjs';
 
 // fixture in stile events-card.test.mjs: un'auto nota nel libro lader e
 // un evento attivo e accettato (premio un'auto diversa da quella della ronda).
@@ -207,4 +209,37 @@ test('azioni: finestra demo scaduta → il bottone demo scompare e quello evento
   const az = azioniPulsanti(mkLadderDemo(), mkState({ vetrinaCustom: { car: 'ks_ferrari_296_gt3', startedAt: Date.now() - 25 * 3600 * 1000 } }));
   assert.equal(az.demo, undefined);
   assert.equal(az.evento?.nome, 'F40 Leggenda');
+});
+
+// ------------------------------------------------------------------
+// I FATTI NELLE CARD (4/11): la card porta anche scadenza della finestra,
+// e per l'evento pista/giri/ora/banda dalla scheda; per la gara al volo
+// lo stato REALE dell'istantanea (letto con currentInstantRace: sola
+// lettura, mai un'eccezione che ammazza la fascia).
+// ------------------------------------------------------------------
+test('azioni: la card dell evento porta pista/giri/ora/banda della scheda', () => {
+  const az = azioniPulsanti(mkLadder(), mkState({}));
+  assert.equal(az.evento?.giri, 10, 'giri = laps dell evento');
+  assert.equal(az.evento?.ora, 17, 'ora = hour dell evento');
+  assert.equal(az.evento?.banda, '88–93', 'banda AI fissa degli eventi');
+  assert.equal(typeof az.evento?.pista, 'string', 'pista = trackName della scheda');
+  assert.ok(az.evento?.pista);
+});
+
+test('azioni: la card della ronda porta la finestra rimasta (~24h per un pending da un minuto)', () => {
+  const az = azioniPulsanti(mkLadder(), mkState({ pending: pendingMonza }));
+  assert.ok(Number(az.ronda?.scadeIn) > 23 * 3600 * 1000, 'finestra di freschezza: ms rimasti');
+});
+
+test('azioni: la card della gara al volo porta la finestra e lo stato DELL ISTANTANEA reale', () => {
+  const az = azioniPulsanti(mkLadderDemo(), mkState({ vetrinaCustom: { car: 'ks_ferrari_296_gt3', startedAt: Date.now() - 30_000 } }));
+  assert.ok(Number(az.demo?.scadeIn) > 23 * 3600 * 1000, 'finestra demo: ms rimasti');
+  const i = az.demo?.istantanea;
+  if (i == null) return; // PC senza alcuna gara custom aperta: il campo resta null e la card non esplode
+  assert.ok(i.durata && (i.durata.giri != null || i.durata.min != null), 'durata dell istantanea: giri o minuti');
+  if (i.banda != null) assert.match(i.banda, /^\d+–\d+$/, 'banda AI in forma LO–HI');
+});
+
+test('statoIstantanea: file assente = null, mai un eccezione (la fascia sopravvive)', () => {
+  assert.equal(statoIstantanea(join(tmpdir(), 'istantanea-che-non-esiste', 'GameModeType_INSTANT_RACE.gamemodesave')), null);
 });

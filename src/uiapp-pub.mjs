@@ -24,7 +24,11 @@ import { tr } from './lang.mjs';
 // il libro delle piste (TRACK_INFO): il comando di cambio auto porta anche
 // pista+layout come «Prepara tutto» li ha scritti — in gioco l'applet fa
 // la SEQUENZA COMPLETA di Paddock (tipo di gara → pista → auto) (28/10 PM)
-import { specFor } from '../tools/set-track.mjs';
+import { specFor, currentWeekendTrack } from '../tools/set-track.mjs';
+// l'istantanea della gara al volo: la LETTURA del blocco Race è sempre
+// innocua (anche a gioco aperto) e vale alla card del cruscotto i FATTI
+// veri (durata, banda AI, pista) invece dei soli promé.
+import { currentInstantRace, INSTANT_FILE } from '../tools/set-instantrace.mjs';
 import { eventCard } from './events.mjs';
 import { leggiStoreJson } from './uiapp-store.mjs';
 
@@ -240,7 +244,35 @@ export function comandoAuto(ladder, state) {
  *    scritte sul disco e il menu del gioco le adotta). Con la finestra
  *    demo viva il bottone evento SI NASCONDE: resta un'ALTRA sola auto
  *    nel menu, mai due che si scambiano il sedile per ogni fascia.
+ *
+ *  4/11: le card porta anche i FATTI che girano nel sistema — la finestra
+ *  di freschezza (scadeIn, ms rimasti sulla finestra di 24h), per l'evento
+ *  pista/giri/ora/banda della scheda, per la gara al volo lo stato REALE
+ *  dell'istantanea (durata, banda, pista) letto con currentInstantRace:
+ *  sola lettura, sicura anche a gioco aperto.
  */
+
+/** Ms rimasti sulla finestra di 24h di un «fresco» (pending o demo). */
+const scadeIn = (da) => Math.max(0, PENDING_SCADENZA_MS - (Date.now() - Number(da ?? 0)));
+
+/** Stato REALE della gara al volo, letto DALL'ISTANTANEA ({ durata:{giri|min},
+ *  banda, pista }). null se il file manca (PC dove una gara custom non è mai
+ *  stata aperta) o non si legge: mai un'eccezione che ammazza la fascia. */
+export function statoIstantanea(file = INSTANT_FILE) {
+  let cur = null;
+  try { cur = currentInstantRace(file); } catch { cur = null; }
+  if (!cur) return null;
+  let pista = null;
+  try { pista = currentWeekendTrack(file) ?? null; } catch { pista = null; }
+  return {
+    durata: cur.mode === 1
+      ? { min: Math.round(Number(cur.durata ?? 0) / 60) || null }
+      : { giri: Number(cur.durata) || null },
+    banda: cur.aiMin != null && cur.aiMax != null ? `${cur.aiMin}–${cur.aiMax}` : null,
+    pista,
+  };
+}
+
 export function azioniPulsanti(ladder, state) {
   try {
     const az = {};
@@ -248,7 +280,7 @@ export function azioniPulsanti(ladder, state) {
     if (demo?.car) {
       const nomeDemo = ladder?.contentNames?.cars?.[demo.car] ?? null;
       if ((Date.now() - Number(demo.startedAt ?? 0)) < PENDING_SCADENZA_MS) {
-        if (nomeDemo) az.demo = { id: `demo:${demo.startedAt ?? 0}:${demo.car}`, tipo: 'evento', nome: nomeDemo };
+        if (nomeDemo) az.demo = { id: `demo:${demo.startedAt ?? 0}:${demo.car}`, tipo: 'evento', nome: nomeDemo, scadeIn: scadeIn(demo.startedAt), istantanea: statoIstantanea() };
       }
     }
     const p = state?.pending;
@@ -256,13 +288,13 @@ export function azioniPulsanti(ladder, state) {
       const nome = ladder?.contentNames?.cars?.[p.car] ?? null;
       if (nome && (Date.now() - Number(p.startedAt ?? 0)) < PENDING_SCADENZA_MS) {
         const spec = p.trackNames?.[0] ? specFor(p.trackNames[0]) : null;
-        az.ronda = { id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome, pista: spec?.name ?? null, layout: spec?.layout ?? null, serie: p.node ?? null };
+        az.ronda = { id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome, pista: spec?.name ?? null, layout: spec?.layout ?? null, serie: p.node ?? null, scadeIn: scadeIn(p.startedAt) };
       }
     }
     if (!az.demo) {
       const card = eventCard(ladder, state);
       if (card?.acceptedAt && card.carName) {
-        az.evento = { id: `evento:${card.theme?.id ?? card.eventId ?? '?'}:${card.carName}`, tipo: 'evento', nome: card.carName, tema: card.theme?.name ?? null };
+        az.evento = { id: `evento:${card.theme?.id ?? card.eventId ?? '?'}:${card.carName}`, tipo: 'evento', nome: card.carName, tema: card.theme?.name ?? null, pista: card.trackName ?? null, giri: card.laps ?? null, ora: card.hour ?? null, banda: card.diffMin != null && card.diffMax != null ? `${card.diffMin}–${card.diffMax}` : null };
       }
     }
     return az;
