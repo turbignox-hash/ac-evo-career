@@ -263,3 +263,18 @@
   DEL LIVELLO SCELTO (essenziale/normale/full; off → 400 con il motivo).
   Stessa coda delle frasi reali, ordine rispettato. Server riavviato con
   il codice di oggi: anche la bandiera-dopo-il-giro (8d) è ORA in esercizio.
+
+## 31/10, tardo — IL DELTA DI RITMO TORNA A PARLARE (era muto dalla nascita)
+- **SEGNALE**: Mauro in full sente tutto tranne il delta di ritmo. Il
+  registro 8642 (28-29/10): 394 letture di dv, ZERO frasi chi 'delta' —
+  neanche nell'eco del monitor: non era filtro né trasporto, era il narratore.
+- **CAUSA**: la semina del bucket portava `|| slot.at === 0` → vicolo cieco:
+  at resta 0 finché il delta non parla, ma parlare serve un bucket diverso
+  dal seme, e il seme a ogni frame era riseminato col valore corrente →
+  dvBucket sempre uguale al corrente, l'else-if mai. Muto dal 27/10, invisible
+  ai test (tutti con dv: 0 del quale il bucket non cambia mai).
+- **FIX**: semina solo alla PRIMA lettura della memoria (narratore e vista
+  gemella, viste-a.js); tetto anti-spuzzatura |dv| > 90 s (nel registro il
+  HUD dava ±300 s a frame alterni in perdita di riferimento: spazzatura,
+  non la si dice e non tocca la memoria). Test nuovo in copilota-narratori
+  (ok 20), suite 464 pass. Commit 5a51d154.
