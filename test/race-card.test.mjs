@@ -97,6 +97,29 @@ test('raceCard con DISTANZA 25%: giri, durate sessioni e premio scalano, il mini
   assert.equal(c.effectiveNode.econ.prize, 1250);   // il flusso premi usa il nodo scalato
 });
 
+test('raceCard RONDA A TEMPO (1/11, serie endurance): niente giri inventati, la durata esposta e scalata', () => {
+  const calTempo = { calendar: [
+    { track: 'track_monza', hour: 15, weather: 0, durationMin: 40 },
+    { track: 'track_imola', hour: 16, weather: 4, durationMin: 30 },
+  ] };
+  const { ladder, state } = mk({ node: calTempo });
+  const c = race.raceCard(ladder, state);
+  assert.equal(c.durationMin, 40);            // la piena della ronda
+  assert.equal(c.durationEff, 40);            // al 100% coincide
+  assert.equal(c.laps, null);                 // PRIMA fabbricava 8 giri fatti
+  assert.equal(c.baseLaps, null);             // adesso onesta: a tempo non si contano giri
+  // al 25% la durata scala come le durate delle sessioni: 40′ → 10′ (min 5)
+  const { ladder: l2, state: s2 } = mk({ node: calTempo, state: { raceSettings: { coppa: { distPct: 25 } } } });
+  const c2 = race.raceCard(l2, s2);
+  assert.equal(c2.durationEff, 10);
+  assert.equal(c2.durationMin, 40);
+  // la riga «Gara» della scheda dice «a TEMPO», mai «giri»
+  const gara = c.settings.find(([k]) => /gara|race/i.test(texto(k)));
+  assert.ok(gara, 'riga Gara presente');
+  assert.ok(/a TEMPO|BY TIME/i.test(texto(gara[1])), `vale: ${texto(gara[1])}`);
+  assert.ok(!/giri|laps/i.test(texto(gara[1])), 'niente giri sulla ronda a tempo');
+});
+
 test('raceCard: piano ORARIO realistico — P −6h, Q −3h, W −1h dalla gara, senza girare il giorno', () => {
   // ronda ore 15: P 09, Q 12, W 14, gara 15
   const { ladder, state } = mk();

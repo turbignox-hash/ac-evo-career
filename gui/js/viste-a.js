@@ -666,8 +666,10 @@ function drawCardInto(el, card){
             ${Object.entries(card.piani||{}).map(([id,p])=>`<option value="${id}" ${card.pianoCurrent===id?'selected':''}>${esc(p.label)}</option>`).join('')}
           </select>
         </div>
-        <div class="field"><label>${tr({ it: 'Distanza gara', en: 'Race distance' })} <span class="faint">(${tr({ it: 'piena: ', en: 'full: ' })}${card.baseLaps ?? card.round.laps} ${tr({ it: 'giri · premio ', en: 'laps · prize ' })}${money(card.prizeFull ?? card.round.econ?.prize)} €)</span></label>
-          <select id="rs-dist">${[100,75,50,25].map(p=>`<option value="${p}" ${p===(card.distPct??100)?'selected':''}>${p}% — ${Math.max(2,Math.round((card.baseLaps ?? card.round.laps)*p/100))} ${tr({ it: 'giri · premio fino a ', en: 'laps · prize up to ' })}${money(Math.round((card.prizeFull ?? 0)*p/100))} €</option>`).join('')}</select>
+        <div class="field"><label>${tr({ it: 'Distanza gara', en: 'Race distance' })} <span class="faint">(${card.round?.durationMin ? `a TEMPO: piena ${card.round?.durationMin ?? '—'}′` : `piena: ${card.baseLaps ?? card.round.laps} giri`} · premio pieno ${money(card.prizeFull ?? card.round.econ?.prize)} €)</span></label>
+          <select id="rs-dist">${[100,75,50,25].map(p=>card.round?.durationMin
+            ? `<option value="${p}" ${p===(card.distPct??100)?'selected':''}>${p}% — ${Math.max(5,Math.round((card.round?.durationMin ?? 0)*p/100))} ${tr({ it: 'min · premio fino a ', en: 'min · prize up to ' })}${money(Math.round((card.prizeFull ?? 0)*p/100))} €</option>`
+            : `<option value="${p}" ${p===(card.distPct??100)?'selected':''}>${p}% — ${Math.max(2,Math.round((card.baseLaps ?? card.round.laps)*p/100))} ${tr({ it: 'giri · premio fino a ', en: 'laps · prize up to ' })}${money(Math.round((card.prizeFull ?? 0)*p/100))} €</option>`).join('')}</select>
         </div>
         <div class="row" style="align-items:end"><button class="mini" id="rs-save">${tr({ it: 'Salva regole', en: 'Save rules' })}</button><button class="mini" id="rs-reset">${tr({ it: 'Torna ai consigli', en: 'Back to suggestions' })}</button></div>
       </div>

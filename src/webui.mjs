@@ -2314,18 +2314,29 @@ async function api(context0, _req, res, action, body) {
       try {
         // GIRI della gara (f2 varint del blocco Race, come l'evento e il CLI
         // weekend-laps): la DISTANZA scelta nel pannello regole è già dentro
-        // card.laps (25% → un quarto dei giri pieni della ronda). Le ronde a
-        // TEMPO restano fuori: lì la durata si imposta col campo Durata di EVO,
-        // non coi giri. Idempotente, con verifica di round-trip byte-identica
-        // e backup datato (lezione 19/10).
+        // card.laps (25% → un quarto dei giri pieni della ronda). Idempotente,
+        // con verifica di round-trip byte-identica e backup datato (lezione 19/10).
         if (card.laps != null && card.round?.durationMin == null) {
           const r = setWeekendLaps(card.laps);
           prep.laps = r.already ? `già ${r.giri} giri` : `${r.giri} giri (blocco "${r.block}")`;
           prep.lapsWritten = r.written;
+        } else if (card.round?.durationMin != null) {
+          // RONDE A TEMPO (1/11, serie endurance): prima la durata si lasciava
+          // a mano in EVO col campo Durata — niente più: la scriviamo qui, bit a
+          // bit come i giri (setWeekendTimed: f3=1, f2 = minuti×60). La cifra è
+          // durationEff della card, GIÀ scalata al % di distanza del pannello
+          // regole (25% su 40′ → 10′). Idempotente: stessa cifra → written:false.
+          if (!Number.isFinite(Number(card.durationEff)) || Number(card.durationEff) <= 0) throw new Error(`durata gara non calcolabile (round.durationMin=${card.round.durationMin}): niente scrittura`);
+          const r = setWeekendTimed(Number(card.durationEff));
+          prep.laps = r.already
+            ? tr({ it: `già a TEMPO per ${Math.round(r.durata / 60)} minuti`, en: `already BY TIME at ${Math.round(r.durata / 60)} minutes` })
+            : tr({ it: `a TEMPO per ${Math.round(r.durata / 60)} minuti scritti (blocco "${r.block}")`, en: `BY TIME at ${Math.round(r.durata / 60)} minutes written (block "${r.block}")` });
+          prep.lapsWritten = r.written;
+          if (r.backup) prep.lapsBackup = r.backup.split(/[\\/]/).pop();
         }
       } catch (e) {
         prep.lapsError = (e.code === 'NO_RACE' || /ENOENT/.test(String(e.message ?? String(e))))
-          ? tr({ it: "l'EVO non ha ancora il weekend di carriera: entra in EVO nel weekend del round (basta la schermata), poi premi di nuovo Prepara tutto — i giri si scrivono da soli", en: "EVO has no career weekend yet: enter the round's weekend in EVO once (the weekend screen is enough), then press Get ready again — laps are written automatically" })
+          ? tr({ it: "l'EVO non ha ancora il weekend di carriera: entra in EVO nel weekend del round (basta la schermata), poi premi di nuovo Prepara tutto — la durata/i giri si scrivono da soli", en: "EVO has no career weekend yet: enter the round's weekend in EVO once (the weekend screen is enough), then press Get ready again — the race duration/laps are written automatically" })
           : e.message;
       }
       try {

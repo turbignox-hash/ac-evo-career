@@ -96,10 +96,18 @@ export function raceCard(ladder, state, { car = null } = {}) {
   // distanza gara in %). L'aggressività AI in EVO è ancora bloccata (grigia): solo consiglio.
   const ov = state.raceSettings?.[node.nodeId] ?? {};
   const distPct = [25, 50, 75, 100].includes(Number(ov.distPct)) ? Number(ov.distPct) : 100;
-  const baseLaps = Math.max(1, Number(round.laps) || 8);
-  const laps = Math.max(2, Math.round(baseLaps * distPct / 100));
+  const aTempo = Number(round.durationMin) > 0;
+  const durationEff = aTempo ? Math.max(5, Math.round(Number(round.durationMin) * distPct / 100)) : null;
+  const baseLaps = aTempo ? null : Math.max(1, Number(round.laps) || 8);
+  const laps = aTempo ? null : Math.max(2, Math.round(baseLaps * distPct / 100));
   // i premi scalano con la distanza scelta (25% → un quarto del premio pieno)
   const prizeFactor = distPct / 100;
+  // RONDE A TEMPO (1/11, le serie endurance): la distanza chiave è la DURATA in
+  // minuti — niente giri inventati (prima la card diceva «piena: 8 giri» pur
+  // dicendo «a TEMPO: 45 minuti» a tre righe di distanza). laps/baseLaps nascono
+  // SOLO per le ronde a giri; durationMin (piena) e durationEff (al % scelto)
+  // raccontano la ronda a tempo e il Prepara tutto usa durationEff per scrivere
+  // la gara bit a bit (setWeekendTimed), come già fa coi giri.
   // DURATE AL % BASSA (richiesta Mauro 31/10): oltre alle ORE diverse per
   // sessione, anche le DURATE di prove/qualifiche/warm-up seguono la distanza
   // scelta in Regole del weekend (25% → sessione un quarto, min 5'); la Race
@@ -275,8 +283,8 @@ export function raceCard(ladder, state, { car = null } = {}) {
       [tr({ it: 'Prove libere', en: 'Practice' }), card_sessionHint(practiceMinEff, round, profile, 'P', practiceStartOv, raceHour)],
       [tr({ it: 'Qualifiche', en: 'Qualifying' }), card_sessionHint(qualifyMinEff, round, profile, 'Q', qualifyStartOv, raceHour)],
       [tr({ it: 'Warm-up', en: 'Warm-up' }), card_sessionHint(warmupMinEff, round, profile, 'W', warmupStartOv, raceHour)],
-      [tr({ it: 'Gara', en: 'Race' }), round.durationMin
-        ? tr({ it: `a TEMPO: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minuti`, en: `BY TIME: ${distPct === 100 ? round.durationMin : Math.max(5, Math.round(round.durationMin * distPct / 100))} minutes` })
+      [tr({ it: 'Gara', en: 'Race' }), aTempo
+        ? tr({ it: `a TEMPO: ${durationEff} minuti${distPct !== 100 ? ` (piena: ${round.durationMin}′)` : ''}`, en: `BY TIME: ${durationEff} minutes${distPct !== 100 ? ` (full: ${round.durationMin}′)` : ''}` })
         : tr({ it: `${laps} giri`, en: `${laps} laps` })],
       [tr({ it: 'Moltiplicatore tempo', en: 'Time multiplier' }), tr({ it: `${profile.timeScale ?? 1}x`, en: `${profile.timeScale ?? 1}x` })],
       [tr({ it: 'Ora del giorno', en: 'Time of day' }), tr({ it: `${String(raceHour).padStart(2, '0')}:00${raceStartOv != null ? ' — orario di gara scelto a mano in Regole del weekend' : ''}`, en: `${String(raceHour).padStart(2, '0')}:00${raceStartOv != null ? ' — race time set by hand in Weekend rules' : ''}` })],
@@ -326,6 +334,8 @@ export function raceCard(ladder, state, { car = null } = {}) {
     distPct,
     baseLaps,
     laps,
+    durationMin: aTempo ? Number(round.durationMin) : null,
+    durationEff,
     prizeFull: node.econ.prize,
     prizeEff: nodeEff.econ.prize,
     // il flusso premi/rep della stagione usa il nodo col premio già scalato
@@ -414,7 +424,7 @@ function buildWarnings(node, round, profile, diff, laps = null) {
   if (profile.start === 'rolling') out.push(tr({ it: "La partenza lanciata dipende dalla modalità scelta nel gioco: se non c'è, la griglia da fermo vale lo stesso.", en: 'The rolling start depends on the mode picked in the game: if it is missing, the standing grid works just the same.' }));
   if (diff.trim !== 0) out.push(tr({ it: `Difficoltà adattata di ${diff.trim > 0 ? '+' : ''}${diff.trim} rispetto al centro della serie ("difficulty" per i dettagli).`, en: `Difficulty adapted by ${diff.trim > 0 ? '+' : ''}${diff.trim} from the series center ("difficulty" for details).` }));
   if (isClosedNode(node)) out.push(tr({ it: 'Serie a parco chiuso: si corre solo per contratto ufficiale, niente affitto né acquisto del sedile — la vettura la mette a disposizione il team.', en: 'Closed-grid series: you can race only via an official contract, no rent or seat purchase — the team provides the car.' }));
-  if (round.durationMin) out.push(tr({ it: `Ronda a tempo (${round.durationMin} minuti alla distanza piena): in EVO imposta la DURATA della gara, non il numero di giri.`, en: `Timed round (${round.durationMin} minutes at full distance): in EVO set the race DURATION, not the number of laps.` }));
+  if (round.durationMin) out.push(tr({ it: `Ronda a tempo (${round.durationMin} minuti alla distanza piena): la durata della gara la scrive il Prepara tutto (in EVO controlla solo che la schermata gara dica quei minuti).`, en: `Timed round (${round.durationMin} minutes at full distance): the race duration is written by "Get ready" (in EVO just check the race screen shows those minutes).` }));
   if ((laps ?? round.laps) >= 15) out.push(tr({ it: 'Gara lunga: prepara gomme e benzina per la distanza, e valuta la sosta.', en: 'Long race: prepare tyres and fuel for the distance, and consider the pit stop.' }));
   return out;
 }
@@ -450,7 +460,7 @@ export function markPending(_ladder, state, card) {
     trackId: card.trackId,
     trackNames: [card.trackName, card.trackId],
     hour: card.round.hour,
-    laps: card.laps ?? card.round.laps,
+    laps: card.laps ?? card.round.laps ?? null,
     car: card.car,
     gridSize: card.gridSize,
     startedAt: Date.now(),
