@@ -330,6 +330,66 @@ export function narratore(m, slot, ora = Date.now()) {
   return frasi;
 }
 
+/* statRiepilogo(righe): la contabilità del riepilogo, FUNZIONE PURA (31/10):
+   prima viveva in linea nella CLI e nessun test poteva proteggerla — e
+   proprio lì era finito il difetto che attribuiva alla radio i doppi
+   dell'eco. Torna: { meta, ultimo, bandiera, zittite, sbalzi, ecoFrasi,
+   gapMax, viste, radio }. `radio` è la lista delle parole vere con
+   ripetutaDopoMs (null se unica, ms se ripetuta entro i 70 s, per l'avviso
+   della riga); `viste` contiene SOLO anomalie reali (ripetizioni, meta >1,
+   bandiera >1 su radio reale — mai sull'eco). */
+export function statRiepilogo(righe) {
+  const viste = [];
+  let meta = 0, ultimo = 0, bandiera = 0, zittite = 0, sbalzi = 0, ecoFrasi = 0;
+  const detti = new Map();   // testo → ultimo t prima
+  /* 31/10 (diagnosi gara 14:24): nel registro convivono DUE sorgenti di frasi
+     e il riepilogo le mescolava come se fossero la stessa radio:
+     - righe piatte {t, chi, it, livello}): le parole VERE dette dal Pitwall
+       (logaVoce della webui) — quello che Mauro ha sentito davvero;
+     - righe {t, dati, frasi:[…]}): l'ECO del monitor, il calcolo del narratore
+       diagnostico — MAI fuori dagli altoparlanti, e ogni AVVIO MONITOR riparte
+       con lo slot fresco (nuova istanza = meta re-inserita). Sul registro
+       28-29/10 produceva «Meta ×3» e «RIPETUTA dopo 32s» che non corrispondono
+       a nessun doppio udito in gara: artifact diagnostico, non difetto radio.
+     Da qui: bilancio e anomalie SOLO sulla radio reale; l'eco resta come
+     statistica a parte e come fonte dei dati (dati→gapMax). */
+  const gapMax = { davanti: 0, dietro: 0, lette: 0 };
+  const radio = [];
+  for (const r of righe) {
+    if (r.evento) {
+      // gli sbalzi live (SESSIONE FUORI/VIVA) sono normali fra le sessioni:
+      // li CONTANO, non sono anomalie — solo se tornano ogni 4 s è un fulmine
+      if (r.evento.startsWith('SESSIONE')) sbalzi++;
+      continue;
+    }
+    if (r.dati) {
+      gapMax.davanti = Math.max(gapMax.davanti, Number(r.dati?.gauges?.gapAhead) || 0);
+      gapMax.dietro = Math.max(gapMax.dietro, Number(r.dati?.gauges?.gapBehind) || 0);
+      gapMax.lette++;
+    }
+    if (typeof r.chi === 'string' && r.it) {
+      // RADIO REALE: le frasi davvero uscite dagli altoparlanti
+      const prima = detti.get(r.it);
+      const dt = prima != null ? (r.t - prima) / 1000 : null;
+      const entro70 = dt != null && dt < 70;
+      radio.push({ t: r.t, chi: r.chi, it: r.it, livello: r.livello ?? null, ripetutaDopoMs: entro70 ? Math.round(dt * 1000) : null });
+      if (entro70) viste.push(`RIPETUTA ${r.it.slice(0, 50)} dopo ${dt.toFixed(0)}s`);
+      detti.set(r.it, r.t);
+      if (r.chi === 'metaBenzina') meta++;
+      if (r.chi === 'ultimoGiro') ultimo++;
+      if (r.chi === 'bandiera') bandiera++;
+      continue;
+    }
+    for (const f of r.frasi ?? []) {
+      if (f.detto) { zittite++; continue; }
+      ecoFrasi++;
+    }
+  }
+  if (meta > 1) viste.push(`metà gara annunciata ×${meta} — flag riaperto (vecchio difetto contatore)`);
+  if (bandiera > 1) viste.push(`bandiera ×${bandiera}`);
+  return { meta, ultimo, bandiera, zittite, sbalzi, ecoFrasi, gapMax, viste, radio };
+}
+
 /* ------------------------------------------------------------------ */
 /* CLI (solo quando è lo script prunicipale)                            */
 /* ------------------------------------------------------------------ */
@@ -347,62 +407,23 @@ if (REP) {
   const righe = readFileSync(file, 'utf8').split('\n').filter(Boolean)
     .map((r) => { try { return JSON.parse(r); } catch { return null; } }).filter(Boolean);
   console.log('≫ riepilogo copilota:', file, `(${righe.length} righe)`);
+  const st = statRiepilogo(righe);
   const primoT = righe[0]?.t ?? 0;
-  const viste = [];
-  let meta = 0, ultimo = 0, bandiera = 0, zittite = 0, sbalzi = 0, ecoFrasi = 0;
-  const detti = new Map();   // testo → ultimo t prima
-  /* 31/10 (diagnosi gara 14:24): nel registro convivono DUE sorgenti di frasi
-     e il riepilogo le mescolava come se fossero la stessa radio:
-     - righe piatte {t, chi, it, livello}): le parole VERE dette dal Pitwall
-       (logaVoce della webui) — quello che Mauro ha sentito davvero;
-     - righe {t, dati, frasi:[…]}): l'ECO del monitor, il calcolo del narratore
-       diagnostico — MAI fuori dagli altoparlanti, e ogni AVVIO MONITOR riparte
-       con lo slot fresco (nuova istanza = meta re-inserita). Sul registro
-       28-29/10 produceva «Meta ×3» e «RIPETUTA dopo 32s» che non corrispondono
-       a nessun doppio udito in gara: artifact diagnostico, non difetto radio.
-     Da qui: bilancio e anomalie SOLO sulla radio reale; l'eco resta come
-     statistica a parte e come fonte dei dati (dati→gapMax). */
-  const gapMax = { davanti: 0, dietro: 0, lette: 0 };
+  // prima gli eventi di servizio (AVVIO, SESSIONE, ERRORE…), come sempre:
   for (const r of righe) {
-    const t = r.t - primoT;
-    if (r.evento) {
-      // gli sbalzi live (SESSIONE FUORI/VIVA) sono normali fra le sessioni:
-      // li CONTANO, non sono anomalie — solo se tornano ogni 4 s è un fulmine
-      if (r.evento.startsWith('SESSIONE')) sbalzi++;
-      console.log(`  +${(t / 1000).toFixed(0)}s · ${r.evento.slice(0, 60)}`);
-      continue;
-    }
-    if (r.dati) {
-      gapMax.davanti = Math.max(gapMax.davanti, Number(r.dati?.gauges?.gapAhead) || 0);
-      gapMax.dietro = Math.max(gapMax.dietro, Number(r.dati?.gauges?.gapBehind) || 0);
-      gapMax.lette++;
-    }
-    if (typeof r.chi === 'string' && r.it) {
-      // RADIO REALE: le frasi davvero uscite dagli altoparlanti
-      const prima = detti.get(r.it);
-      const dt = prima != null ? (r.t - prima) / 1000 : null;
-      const avviso = dt != null && dt < 70 ? `  ⚠ RIPETUTA dopo ${dt.toFixed(0)}s` : '';
-      console.log(`  +${(t / 1000).toFixed(0)}s (${r.livello ?? '?'}) [${r.chi}] ${r.it}${avviso}`);
-      if (avviso) viste.push(`RIPETUTA ${r.it.slice(0, 50)} dopo ${dt.toFixed(0)}s`);
-      detti.set(r.it, r.t);
-      if (r.chi === 'metaBenzina') meta++;
-      if (r.chi === 'ultimoGiro') ultimo++;
-      if (r.chi === 'bandiera') bandiera++;
-      continue;
-    }
-    for (const f of r.frasi ?? []) {
-      if (f.detto) { zittite++; continue; }
-      ecoFrasi++;
-    }
+    if (r.evento) console.log(`  +${((r.t - primoT) / 1000).toFixed(0)}s · ${r.evento.slice(0, 60)}`);
   }
-  console.log(`\n≫ bilancio RADIO REALE (quello sentito dal Pitwall): metà gara ×${meta} · ultimo giro ×${ultimo} · bandiera ×${bandiera}`);
-  console.log(`≫ eco monitor (calcolo, non radio): ${ecoFrasi} frasi simulate · ${zittite} zittite dalla guardia 70s · sbalzi live ×${sbalzi}`);
-  if (gapMax.lette) {
-    console.log(`≫ gap: max davanti ${gapMax.davanti.toFixed(1)} s · max dietro ${gapMax.dietro.toFixed(1)} s · su ${gapMax.lette} letture${gapMax.davanti === 0 && gapMax.dietro === 0 ? ' — MAI scritti dal gioco in questo registro: la voce dei gap tace per costruzione (controlla che in EVO sia attivo il display gap davanti/dietro e riferisci la prossima gara)' : ''}`);
+  // poi la radio reale riga per riga, con l'avviso se ripetuta entro 70 s:
+  for (const v of st.radio) {
+    const avviso = v.ripetutaDopoMs != null ? `  ⚠ RIPETUTA dopo ${(v.ripetutaDopoMs / 1000).toFixed(0)}s` : '';
+    console.log(`  +${((v.t - primoT) / 1000).toFixed(0)}s (${v.livello ?? '?'}) [${v.chi}] ${v.it}${avviso}`);
   }
-  if (meta > 1) viste.push(`metà gara annunciata ×${meta} — flag riaperto (vecchio difetto contatore)`);
-  if (bandiera > 1) viste.push(`bandiera ×${bandiera}`);
-  if (viste.length) console.log(`\n≫ ⚠ ANOMALIE (${viste.length}):\n   - ${viste.join('\n   - ')}`);
+  console.log(`\n≫ bilancio RADIO REALE (quello sentito dal Pitwall): metà gara ×${st.meta} · ultimo giro ×${st.ultimo} · bandiera ×${st.bandiera}`);
+  console.log(`≫ eco monitor (calcolo, non radio): ${st.ecoFrasi} frasi simulate · ${st.zittite} zittite dalla guardia 70s · sbalzi live ×${st.sbalzi}`);
+  if (st.gapMax.lette) {
+    console.log(`≫ gap: max davanti ${st.gapMax.davanti.toFixed(1)} s · max dietro ${st.gapMax.dietro.toFixed(1)} s · su ${st.gapMax.lette} letture${st.gapMax.davanti === 0 && st.gapMax.dietro === 0 ? ' — MAI scritti dal gioco in questo registro: la voce dei gap tace per costruzione (controlla che in EVO sia attivo il display gap davanti/dietro e riferisci la prossima gara)' : ''}`);
+  }
+  if (st.viste.length) console.log(`\n≫ ⚠ ANOMALIE (${st.viste.length}):\n   - ${st.viste.join('\n   - ')}`);
   else console.log('\n≫ nessuna anomalia: metà gara, ultimo giro e bandiera una volta sola, niente ripetizioni vicine.');
   process.exit(0);
 }
