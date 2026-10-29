@@ -14,6 +14,13 @@ tornava indietro. Prova a riprodurre: quella famiglia di loop è morta.
 
 1. **WebUI acceso** — se il browser Pitwall su `127.0.0.1:8642` risponde, ok;
    altrimenti doppio click su `avvia.cmd` (o `node src/webui.mjs`).
+
+   ⚡ UN COMANDO TUTTO (dal 31/10): doppioclick `prova.cmd` — controlla webui,
+   liveMode (off = zitta di proposito) e livello della radio (data/evo.config.json
+   voceCopilota: regola identica al server, test tiene tenuta insieme), apre
+   le due finestre di monitor e ascolto live, e stampa la scaletta di ciò che
+   resta a mano. Fare un passo di qui sotto diventa solo la verifica che
+   quelle finestre siano nate.
 2. **Monitor acceso** in un terminale della cartella progetto:
        node tools/_monitor-copilota.mjs 8642
    Scrive ogni frase candidata in `data/copilot-8642-24-10.jsonl`.
