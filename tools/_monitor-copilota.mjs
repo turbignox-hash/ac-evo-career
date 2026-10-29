@@ -397,9 +397,26 @@ export function statRiepilogo(righe) {
       ecoFrasi++;
     }
   }
-  if (meta > 1) viste.push(`metà gara annunciata ×${meta} — flag riaperto (vecchio difetto contatore)`);
-  if (bandiera > 1) viste.push(`bandiera ×${bandiera}`);
-  return { meta, ultimo, bandiera, zittite, sbalzi, ecoFrasi, gapMax, viste, radio };
+  /* 11/02 (dopo la gara del 31/10 15:04): il file contiene PIÙ GARE e il
+     verdetto «bandiera ×2» contava la bandiera di gare diverse: unica anomalia
+     falsa, io per gara la colomba è regolare. Da qui le anomalie di banda si
+     calcolano PER GARA: le parole vere si tagliano in gare con una fermera
+     > 10 min (radio zitta = cambio gara). Un ripetito nella STESSA gara resta
+     anomalía vera (vecchio difetto contatore); una per ogni gara è il giro
+     normale. */
+  const segmenti = [];
+  for (const r of radio) {
+    const ultimo = segmenti[segmenti.length - 1];
+    if (ultimo != null && r.t - ultimo[ultimo.length - 1].t <= 600000) ultimo.push(r);
+    else segmenti.push([r]);
+  }
+  for (const gara of segmenti) {
+    const nMeta = gara.filter((r) => r.chi === 'metaBenzina').length;
+    if (nMeta > 1) viste.push(`metà gara annunciata ×${nMeta} in una gara — flag riaperto (vecchio difetto contatore)`);
+    const nBand = gara.filter((r) => r.chi === 'bandiera').length;
+    if (nBand > 1) viste.push(`bandiera ×${nBand} in una gara`);
+  }
+  return { meta, ultimo, bandiera, gare: Math.max(1, segmenti.length), zittite, sbalzi, ecoFrasi, gapMax, viste, radio };
 }
 
 /* ------------------------------------------------------------------ */
@@ -430,7 +447,7 @@ if (REP) {
     const avviso = v.ripetutaDopoMs != null ? `  ⚠ RIPETUTA dopo ${(v.ripetutaDopoMs / 1000).toFixed(0)}s` : '';
     console.log(`  +${((v.t - primoT) / 1000).toFixed(0)}s (${v.livello ?? '?'}) [${v.chi}] ${v.it}${avviso}`);
   }
-  console.log(`\n≫ bilancio RADIO REALE (quello sentito dal Pitwall): metà gara ×${st.meta} · ultimo giro ×${st.ultimo} · bandiera ×${st.bandiera}`);
+  console.log(`\n≫ bilancio RADIO REALE (quello sentito dal Pitwall): metà gara ×${st.meta} · ultimo giro ×${st.ultimo} · bandiera ×${st.bandiera}  — su ${st.gare} gara/e in questo file`);
   console.log(`≫ eco monitor (calcolo, non radio): ${st.ecoFrasi} frasi simulate · ${st.zittite} zittite dalla guardia 70s · sbalzi live ×${st.sbalzi}`);
   if (st.gapMax.lette) {
     console.log(`≫ gap: max davanti ${st.gapMax.davanti.toFixed(1)} s · max dietro ${st.gapMax.dietro.toFixed(1)} s · su ${st.gapMax.lette} letture${st.gapMax.davanti === 0 && st.gapMax.dietro === 0 ? ' — MAI scritti dal gioco in questo registro: la voce dei gap tace per costruzione (controlla che in EVO sia attivo il display gap davanti/dietro e riferisci la prossima gara)' : ''}`);
