@@ -1032,10 +1032,10 @@ function drawCardInto(el, card){
               ogni 12 s era rumore (24/10, Mauro in pista). Il primo numero
               si SEMINA in silenzio: i primi tick possono portare i dati
               bruciati della sessione prima. */
-        if (dv != null && Math.abs(dv) <= 90000) {   // 31/10: oltre 90 s il HUD è in spazzatura, non si parla
+        if (dv != null && Math.abs(dv) <= 15000) {   // 31/10 pomeriggio: oltre ±15 s il HUD raffronta con il best di un'altra sessione (gara 15:29: «56.9/36.9/16.9» a raffica) — non ritmo, tace
           const bucket = Math.round(dv / 400);
           if (cp.last.dvBucket == null) cp.last.dvBucket = bucket;   // semina senza voce  (31/10: niente risemina a at===0 — quella faceva restare la voce delta muta per sempre)
-          else if (bucket !== cp.last.dvBucket && Date.now() - (cp.at ?? 0) > 20000) {
+          else if (bucket !== cp.last.dvBucket && Date.now() - (cp.at ?? 0) > 45000) {   // 31/10 pomeriggio: 20 s parlava a raffica col best che scivola — al più ogni 45 s
             cp.last.dvBucket = bucket; cp.at = Date.now();
             cpSpeak(dv < 0
               ? cpT({ it: `Sei più veloce del best di ${(Math.abs(dv)/1000).toFixed(1)}`, en: `You are ${(Math.abs(dv)/1000).toFixed(1)} quicker than best` })

@@ -1145,7 +1145,14 @@ async function api(context0, _req, res, action, body) {
       // — la STESSA funzione alimenta anche la voce della copilota dentro il
       // Pitwall (voce-copilota.mjs), così radio parlata e pannello non possono
       // andare fuori passo: un solo costruttore per tutti i consumatori.
-      return sendJson(res, 200, await payloadIngegnere(context0, state, body));
+      // LEGGERO su richiesta (31/10 pomeriggio): il monitor del copilota chiede
+      // body { leggero: true } e RICEVE il payload senza raceCard né albero
+      // MoTeC (la stessa variante del tick della voce). Nella gara 15:29 il
+      // monitor a payload INTERO ha preso timeout al minuto PER TUTTA LA
+      // GARA: il costruttore intero impiega più dei suoi 2,5 s di fetch sul
+      // disco lento e il registro è rimasto senza dati flag/gap raw.
+      // Il pannello della GUI passa il body di sua e resta intero.
+      return sendJson(res, 200, await payloadIngegnere(context0, state, body, { leggero: body?.leggero === true }));
     case 'voce-pagina': {
       // 29/10 sera, seconda cura: SOLO una pagina col codice VIVO dichiara qui
       // chi tiene la radio parlata (on:true, chip ON) o il silenzio

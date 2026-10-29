@@ -292,3 +292,26 @@
   distingue da solo: raw sempre 0.0 = campo morto in SP (come totalLapCount
   della 500, braccia incrociate); raw sensati = campo vivo e la frase chi
   'gap' può finalmente parlarsi; raw volanti = offset in fumo.
+
+## 29/10, gara delle 15:29 — IL DELTA PARLAVA A RAFFICA E IL MONITOR È RESTATO SENZA DATI
+- **SEGNALE 1 (voce)**: in full «sei più veloce/lento del best di 56.9 … 36.9 …
+  16.9 … 5.8» uno ogni 20 s: il HUD raffronta con il BEST e mentre il valore
+  scivola ogni bucket (400 ms) è nuovo. I valori grossi erano raffronti col
+  best di un'altra sessione, non ritmo.
+- **FATTO 1**: finestra di leggibilità ±15 s (era 90 s) + cadenza minima 45 s
+  (era 20 s), nel narratore E nella vista gemella. Il livello-voci manda
+  'delta' SOLO al full (voce-copilota.mjs FRASI_LIVELLO lo aveva già così,
+  nessuna lista lo nomina) — ora esiste il test che lo sancisce
+  (voce-copilota.test.mjs, «IL DELTA DI RITMO parla SOLO col livello full»).
+  Richiesta di Mauro: «lascia i delta per la full e rimuovili per la normal
+  ed essenzial» — confermata, non cambia codice ma ora non può rientrare.
+- **SEGNALE 2 (diagnosi)**: il monitor ha preso «SERVER NON RISPONDE» A
+  RAFFICA per tutta la gara (timeout al minuto): chiedeva il payload INTERO
+  dell'endpoint con un fetch da 2,5 s e in gara il costruttore (raceCard +
+  albero MoTeC su disco lento) impiega di più → niente flag code, niente
+  gap raw, niente viste dati TUTTA ST'ULTIMA GARA.
+- **FATTO 2**: la rotta /api/ingegnere ora onora body.leggero (stessa
+  variante del tick della voce, webui.mjs case 'ingegnere') e il monitor la
+  chiede con { leggero: true }: misurata 53-64 ms contro 161 ms dell'intero
+  a server fermo (e secondi dell'intero mentre gira). IN GARA i numeri veri
+  di flag/gap li darà la PROSSIMA gara col monitor finalmente saturo-no.

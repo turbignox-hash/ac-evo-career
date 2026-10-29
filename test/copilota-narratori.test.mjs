@@ -404,33 +404,34 @@ test("LA BANDIERA DOPO IL GIRO (8d, gara delle 14:24): la crocetta arriva 4 s pr
   assert.ok(iB >= 0 && iB > iG, 'la bandiera esce DOPO il "Giro 3 fatto" (non più prima)');
 });
 
-/* 31/10 — IL DELTA DI RITMO TORNA A PARLARE: la semina del bucket portava
-   `|| slot.at === 0`, un vicolo cieco che la teneva muta dal 27/10 (i test
-   passavano perché usati con dv: 0 fisso, il bucket non cambiava mai e il
-   difetto restava invisibile). Gare reali del registro 28-29/10: 394 letture
-   dv, ZERO frasi delta. Da qui il repertorio:
+/* 31/10 — IL DELTA DI RITMO, DOPO LA GARA DELLE 15:29: la semina del bucket
+   `|| slot.at === 0` era il vicolo cieco del 27/10 (394 letture dv, zero frasi
+   delta nel registro 28-29/10) — ma col tetto 90 s e la cadenza a 20 s il full
+   ha ripreso a parlare con RAFFICHE inutili: «più veloce del best di
+   56.9 … 36.9 … 16.9 … lento di 5.8» mentre il HUD scivola col raffronto col
+   best. Da ora il repertorio del narratore:
    1) la prima lettura si semina in silenzio;
-   2) dopo il primo cambio di bucket (oltre i 20 s) parla e nomina i secondi;
-   3) minimo 20 s tra i discorsi: un nuovo bucket vicino tace;
-   4) al cambio ancora dopo 20 s ridice, senza ripetere l'identico;
-   5) fuori scala (|dv| > 90 s — nel registro ±300 s a frame alterni) il HUD
-      è in spazzatura: non lo si dice e non tocca la memoria. */
-test("il delta di ritmo parla (31/10: la semina a at===0 lo teneva muto dal 27/10)", () => {
+   2) fuori dalla finestra ±15 s tace (56.9/36.9 erano raffronti col best di
+      un'altra sessione, non ritmo vero;
+   3) parla al primo cambio di bucket oltre i 45 s, nominando i secondi;
+   4) minimo 45 s tra i discorsi: lo scivolone parla al più ogni 45 s;
+   5) il fuori finestra non tocca la memoria: al rientro legittimo ridice. */
+test("delta di ritmo: finestra ±15 s e cadenza 45 s — niente raffiche (gara 15:29 del 31/10)", () => {
   const slot = { last: {}, at: 0, said: {}, firma: 'sess-delta' };
   const passo = (t, dv) => narratore(
     MMF(t, { gauges: { lapsDone: 1, lapsTotal: 3, fuel: 26.0, lapsOnFuel: 8.6, lapsLeft: 2 }, delta: { lapNo: 1, dv } }),
     slot, t,
   ).filter((f) => f.chi === 'delta');
   assert.equal(passo(0, -1200).length, 0, 'la prima lettura si semina senza voce');
-  assert.equal(passo(4000, -2400).length, 0, 'prima dei 20 s resta in silenzio');
-  const a = passo(21000, -3600);   // cambio bucket + ora > 20 s: finalmente parla
+  assert.equal(passo(4000, -2400).length, 0, 'prima dei 45 s resta in silenzio');
+  const a = passo(46000, -3600);   // cambio bucket + ora > 45 s: finalmente parla
   assert.equal(a.length, 1, 'al primo cambio vero fuori ingresso parla');
   assert.ok(a[0].it.includes('più veloce del best di 3.6'), `frase corretta: ${a[0].it}`);
-  assert.equal(passo(23000, -1200).length, 0, 'a 2 s dal discorso precedente torna in silenzio (minimo 20 s)');
-  const b = passo(46000, 4400);    // cambia segno e bucket, oltre i 20 s: parla di nuovo
+  assert.equal(passo(48000, -1200).length, 0, 'a 2 s dal discorso precedente torna in silenzio (minimo 45 s)');
+  const b = passo(92000, 4400);    // cambia segno e bucket, oltre i 45 s: parla di nuovo
   assert.equal(b.length, 1, 'secondo discorso legittimo');
   assert.ok(b[0].it.includes('più lento del best di 4.4'), `frase lato lento: ${b[0].it}`);
-  assert.equal(passo(50000, 300000).length, 0, 'fuori scala: il HUD scrive spazzatura, non lo si dice');
-  const c = passo(80000, -2400);   // bucket diverso dall'ultimo pulito (-9) e oltre i 20 s: ridice
-  assert.equal(c.length, 1, 'dopo la spazzatura la radio torna sul legittimo');
+  assert.equal(passo(140000, 20000).length, 0, 'a 20 s dal best: oltre la finestra ±15 s tace ANCHE a cadenza libera (48000 > 45000) e NON tocca la memoria');
+  const c = passo(190000, -2400);  // bucket -6 diverso dall'ultimo pulito (+11): il rientro legittimo ridice
+  assert.equal(c.length, 1, 'la finestra persa non ha toccato la memoria: al rientro la radio ridice');
 });

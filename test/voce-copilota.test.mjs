@@ -71,3 +71,20 @@ test('live=false: la voce segue la sessione; il ritorno live risemina in silenzi
   giroVoce(M(true, { gauges: G({ lapsDone: 3 }) }), slot, v, { log: dove, graziaMs: 15000, ora: ora0 + 2000 });
   assert.deepEqual(v.items, [], 'il ritorno live si semina di nuovo in silenzio');
 });
+
+/* 31/10 pomeriggio, richiesta di Mauro dopo la gara delle 15:29: «i delta
+   solo in full, via da normale e essenziale». La mappa FRASI_LIVELLO non ha
+   MAI nominato 'delta' nelle liste, ma senza test il costo poteva rientrare
+   con un refuso futuro: qui lo si sancisce a voce. */
+test('IL DELTA DI RITMO parla SOLO col livello full: essenziale e normale tacciono', () => {
+  const passo = (livello) => {
+    const v = voceFinta();
+    const slot = nuovoSlotVoce();
+    giroVoce(M(true, { delta: { dv: -3000, lapNo: 1, source: 'hud' } }), slot, v, { graziaMs: 0, ora: 1000, livello });   // semina bucket -8
+    giroVoce(M(true, { delta: { dv: -6400, lapNo: 1, source: 'hud' } }), slot, v, { graziaMs: 0, ora: 62000, livello });  // bucket -16, oltre i 45 s
+    return v.items;
+  };
+  assert.deepEqual(passo('essenziale'), [], 'essenziale: niente delta');
+  assert.deepEqual(passo('normale'), [], 'normale: niente delta');
+  assert.ok(passo('full').some((t) => t.includes('più veloce del best di')), 'full: il delta parla');
+});

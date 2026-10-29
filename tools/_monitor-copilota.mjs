@@ -90,15 +90,22 @@ export function narratore(m, slot, ora = Date.now()) {
      MAI uscita, né qui né in vista, dal 27/10 (registro 28-29/10: 394
      letture dv, zero frasi delta — trovato rigiocolando i dati reali nel
      narratore odierno). Ora si semina solo alla PRIMA lettura della
-     memoria; in cambio, tetto anti-spazzatura: fuori scala |dv| > 90 s
-     il HUD scrive spazzatura (nel registro ±300 s a frame alterni): non
-     la si dice e non tocca la memoria, l'ultimo bucket pulito resta il
-     riferimento. */
+     memoria; in cambio, DUE tensioni del 31/10 pomeriggio (gara delle
+     15:29, livello full): nel HUD il delta raffronta con il BEST, e mentre
+     il valore scivola ogni bucket è nuovo — parlava a RAFFICA, «più veloce
+     del best di 56.9 … 36.9 … 16.9 … lento di 5.8» uno ogni 20 s. Da qui:
+     - finestra di LEGGIBILITÀ ±15 s: i 56.9/36.9 erano raffronti col best
+       di un'altra sessione (fuori piste/giri pieni), non ritmo vero — oltre
+       la finestra tace (il vecchio tetto 90 s era una finestra spazzatura);
+     - minima CADENZA 45 s (prima 20): lo scivolone parla al più ogni 45 s,
+       il ritmo che conta lo dice lo stesso. Il livello-voci manda 'delta'
+       SOLO al full (voce-copilota.mjs FRASI_LIVELLO), normale ed essenziale
+       non lo nominano mai. */
   const dv = m.delta?.dv ?? m.delta?.hudDv ?? null;
-  if (dv != null && Math.abs(dv) <= 90000) {
+  if (dv != null && Math.abs(dv) <= 15000) {
     const bucket = Math.round(dv / 400);
     if (slot.last.dvBucket == null) slot.last.dvBucket = bucket;   // semina senza voce
-    else if (bucket !== slot.last.dvBucket && ora - (slot.at ?? 0) > 20000) {
+    else if (bucket !== slot.last.dvBucket && ora - (slot.at ?? 0) > 45000) {
       slot.last.dvBucket = bucket; slot.at = ora;
       parla.push(dv < 0
         ? { chi: 'delta', it: `sei più veloce del best di ${(Math.abs(dv) / 1000).toFixed(1)}` }
@@ -512,8 +519,14 @@ async function poll(port, slot) {
   // a morire.
   let m = null;
   try {
+    // LEGGERO (31/10 pomeriggio): il payload INTERO impiega più dei 2,5 s di
+    // fetch qui dentro (scansioni MoTeC su disco lento) — nella gara delle
+    // 15:29 il falimento del fetch è uscito al minuto PER TUTTA LA GARA e il
+    // registro è rimasto senza dati (niente flag, niente gap raw). La rotta
+    // ora onora body.leggero (stessa variante del tick della voce): con il
+    // payload leggero la risposta è fulminea e i dati non si perdono più.
     const r = await fetch(`http://127.0.0.1:${port}/api/ingegnere`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ leggero: true }),
       signal: AbortSignal.timeout(2500),
     });
     if (!r.ok) throw new Error('http ' + r.status);
