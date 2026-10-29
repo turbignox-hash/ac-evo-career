@@ -403,3 +403,34 @@ test("LA BANDIERA DOPO IL GIRO (8d, gara delle 14:24): la crocetta arriva 4 s pr
   assert.ok(iG >= 0, 'il traguardo annuncia il giro fatto');
   assert.ok(iB >= 0 && iB > iG, 'la bandiera esce DOPO il "Giro 3 fatto" (non più prima)');
 });
+
+/* 31/10 — IL DELTA DI RITMO TORNA A PARLARE: la semina del bucket portava
+   `|| slot.at === 0`, un vicolo cieco che la teneva muta dal 27/10 (i test
+   passavano perché usati con dv: 0 fisso, il bucket non cambiava mai e il
+   difetto restava invisibile). Gare reali del registro 28-29/10: 394 letture
+   dv, ZERO frasi delta. Da qui il repertorio:
+   1) la prima lettura si semina in silenzio;
+   2) dopo il primo cambio di bucket (oltre i 20 s) parla e nomina i secondi;
+   3) minimo 20 s tra i discorsi: un nuovo bucket vicino tace;
+   4) al cambio ancora dopo 20 s ridice, senza ripetere l'identico;
+   5) fuori scala (|dv| > 90 s — nel registro ±300 s a frame alterni) il HUD
+      è in spazzatura: non lo si dice e non tocca la memoria. */
+test("il delta di ritmo parla (31/10: la semina a at===0 lo teneva muto dal 27/10)", () => {
+  const slot = { last: {}, at: 0, said: {}, firma: 'sess-delta' };
+  const passo = (t, dv) => narratore(
+    MMF(t, { gauges: { lapsDone: 1, lapsTotal: 3, fuel: 26.0, lapsOnFuel: 8.6, lapsLeft: 2 }, delta: { lapNo: 1, dv } }),
+    slot, t,
+  ).filter((f) => f.chi === 'delta');
+  assert.equal(passo(0, -1200).length, 0, 'la prima lettura si semina senza voce');
+  assert.equal(passo(4000, -2400).length, 0, 'prima dei 20 s resta in silenzio');
+  const a = passo(21000, -3600);   // cambio bucket + ora > 20 s: finalmente parla
+  assert.equal(a.length, 1, 'al primo cambio vero fuori ingresso parla');
+  assert.ok(a[0].it.includes('più veloce del best di 3.6'), `frase corretta: ${a[0].it}`);
+  assert.equal(passo(23000, -1200).length, 0, 'a 2 s dal discorso precedente torna in silenzio (minimo 20 s)');
+  const b = passo(46000, 4400);    // cambia segno e bucket, oltre i 20 s: parla di nuovo
+  assert.equal(b.length, 1, 'secondo discorso legittimo');
+  assert.ok(b[0].it.includes('più lento del best di 4.4'), `frase lato lento: ${b[0].it}`);
+  assert.equal(passo(50000, 300000).length, 0, 'fuori scala: il HUD scrive spazzatura, non lo si dice');
+  const c = passo(80000, -2400);   // bucket diverso dall'ultimo pulito (-9) e oltre i 20 s: ridice
+  assert.equal(c.length, 1, 'dopo la spazzatura la radio torna sul legittimo');
+});

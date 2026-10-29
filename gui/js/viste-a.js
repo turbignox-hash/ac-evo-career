@@ -1032,9 +1032,9 @@ function drawCardInto(el, card){
               ogni 12 s era rumore (24/10, Mauro in pista). Il primo numero
               si SEMINA in silenzio: i primi tick possono portare i dati
               bruciati della sessione prima. */
-        if (dv != null) {
+        if (dv != null && Math.abs(dv) <= 90000) {   // 31/10: oltre 90 s il HUD è in spazzatura, non si parla
           const bucket = Math.round(dv / 400);
-          if (cp.last.dvBucket == null || cp.at === 0) cp.last.dvBucket = bucket;   // semina senza voce
+          if (cp.last.dvBucket == null) cp.last.dvBucket = bucket;   // semina senza voce  (31/10: niente risemina a at===0 — quella faceva restare la voce delta muta per sempre)
           else if (bucket !== cp.last.dvBucket && Date.now() - (cp.at ?? 0) > 20000) {
             cp.last.dvBucket = bucket; cp.at = Date.now();
             cpSpeak(dv < 0

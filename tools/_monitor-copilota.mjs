@@ -75,11 +75,23 @@ export function narratore(m, slot, ora = Date.now()) {
   };
   /* replicato dei narratori — viste-a.js: il delta parla SOLO se il bucket
      di 400 ms cambia davvero, minimo 20 s tra discorsi (prima ripeteva a
-     valore fermo ogni 12 s). */
+     valore fermo ogni 12 s).
+     31/10 FIX DEL DELTA MUTO: la semina portava `|| slot.at === 0` e
+     formava un vicolo cieco — at resta 0 finché il delta non parla, ma
+     per parlare serve un bucket diverso dal seme, e il seme a ogni frame
+     era riseminato col valore corrente (dvBucket finiva sempre uguale a
+     quello corrente): l'else-if non può mai scattare. La voce delta non è
+     MAI uscita, né qui né in vista, dal 27/10 (registro 28-29/10: 394
+     letture dv, zero frasi delta — trovato rigiocolando i dati reali nel
+     narratore odierno). Ora si semina solo alla PRIMA lettura della
+     memoria; in cambio, tetto anti-spazzatura: fuori scala |dv| > 90 s
+     il HUD scrive spazzatura (nel registro ±300 s a frame alterni): non
+     la si dice e non tocca la memoria, l'ultimo bucket pulito resta il
+     riferimento. */
   const dv = m.delta?.dv ?? m.delta?.hudDv ?? null;
-  if (dv != null) {
+  if (dv != null && Math.abs(dv) <= 90000) {
     const bucket = Math.round(dv / 400);
-    if (slot.last.dvBucket == null || slot.at === 0) slot.last.dvBucket = bucket;   // semina senza voce
+    if (slot.last.dvBucket == null) slot.last.dvBucket = bucket;   // semina senza voce
     else if (bucket !== slot.last.dvBucket && ora - (slot.at ?? 0) > 20000) {
       slot.last.dvBucket = bucket; slot.at = ora;
       parla.push(dv < 0
