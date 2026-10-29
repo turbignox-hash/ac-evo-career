@@ -32,6 +32,38 @@ const voce = (dette, chi) => dette.filter((f) => !f.detto && f.chi === chi).leng
 
 const MMF = (t, over = {}) => ({ t, live: true, sessionId: 'sess-1', ...over });
 
+/* 29/10 tarde sera, registro della gara delle 15:51: la MMF mostrava
+   «verde (code 2)» al rientro in pista e il narratore la mangiava senza
+   voce; e gridava «P15, posizione persa» mentre eri ancora in pitlane,
+   dove la classifica vale zero. Le due gare qui sotto le sanciscono. */
+test("bandiera verde: via libera sul PASSAGGIO a verde, non a ogni tick", () => {
+  const frames = [
+    [1000,  MMF(1000,  { gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.8, lapsOnFuel: 9.2, lapsLeft: 3, flagCode: 0, flag: 'nessuna' }, delta: { lapNo: 0, dv: 0 } })],   // semina
+    [3000,  MMF(3000,  { gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.8, lapsOnFuel: 9.2, lapsLeft: 3, flagCode: 2, flag: 'verde' }, delta: { lapNo: 0, dv: 0 } })],     // via libera!
+    [4000,  MMF(4000,  { gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.7, lapsOnFuel: 9.1, lapsLeft: 3, flagCode: 2, flag: 'verde' }, delta: { lapNo: 0, dv: 0 } })],     // resta verde: tace
+    [50000, MMF(50000, { gauges: { lapsDone: 2, lapsTotal: 3, fuel: 25.2, lapsOnFuel: 8.1, lapsLeft: 1, flagCode: 0, flag: 'nessuna' }, delta: { lapNo: 2, dv: 0 } })],    // torna nessuna: semina
+    // ridice DOPO i 70 s della guardia anti-ripetizione: la stessa frase dentro
+    // i 70 s resta zittita (regola globale, niente eccezioni per il verde)
+    [74000, MMF(74000, { gauges: { lapsDone: 2, lapsTotal: 3, fuel: 25.1, lapsOnFuel: 8.0, lapsLeft: 1, flagCode: 2, flag: 'verde' }, delta: { lapNo: 2, dv: 0 } })],
+  ];
+  const dette = gara(frames);
+  assert.equal(voce(dette, 'verde'), 2, 'una frase per ogni passaggio a verde, mai a ogni tick');
+  assert.ok(dette.some((f) => f.chi === 'verde' && f.it.includes('via libera')), 'la frase parla alla pista');
+});
+
+test("posizione nel pitlane e nei 12 s dopo l'uscita: niente falsi «P15 posizione persa»", () => {
+  const frames = [
+    [0,     MMF(0,     { gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.8, lapsOnFuel: 9.2, lapsLeft: 3, position: 5, inPit: false }, delta: { lapNo: 0, dv: 0 } })],                           // semina
+    [5000,  MMF(5000,  { gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.8, lapsOnFuel: 9.2, lapsLeft: 3, position: 15, inPit: true }, delta: { lapNo: 0, dv: 0 } })],                              // in pit: P15? classifica ZERO
+    [8000,  MMF(8000,  { gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.7, lapsOnFuel: 9.1, lapsLeft: 3, position: 8, inPit: true }, delta: { lapNo: 0, dv: 0 } })],                                // ancora pit: tace
+    [10000, MMF(10000, { gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.6, lapsOnFuel: 9.0, lapsLeft: 3, position: 3, inPit: false }, delta: { lapNo: 0, dv: 0 } })],                               // uscito 2 s fa: ARENA tace
+    [30000, MMF(30000, { gauges: { lapsDone: 1, lapsTotal: 3, fuel: 26.0, lapsOnFuel: 8.6, lapsLeft: 2, position: 2, inPit: false }, delta: { lapNo: 1, dv: 0 }, timing: { lastLap: '1:31.000' } })],  // 20 s dopo l'uscita: PARLA
+  ];
+  const dette = gara(frames);
+  assert.equal(voce(dette, 'postalk'), 1, "un solo annuncio di posizione, il legittimo a pista pulita");
+  assert.ok(dette.every((f) => !(f.chi === 'postalk' && f.it.includes('persa'))), 'mai «persa» mentre la classifica non esisteva ancora');
+});
+
 test("gara da 3 pulita: metà gara una volta, mai «Giro 4», bandiera una volta", () => {
   const frames = [
     [0,  MMF(0,  { gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.8, lapsOnFuel: 9.2, lapsLeft: 3 }, delta: { lapNo: 0, dv: 0 } })],

@@ -1254,8 +1254,21 @@ function drawCardInto(el, card){
             else if (secUlt <= 30 && !cp.last.minutoSegn) { cp.last.minutoSegn = true; cpSpeak(cpT({ it: 'Trenta secondi!', en: 'Thirty seconds!' })); }
           }
         }
-        /* 9) POSIZIONE: cambia sedile in classifica → una voce (ma non a ogni tick) */
-        if (g.position != null && cp.last.pos != null && g.position !== cp.last.pos) {
+        /* 9-ter) VIA LIBERA (29/10, gemello del Pitwall): bandiera VERDE di
+           rientro (flagCode 2) mai annunciata nel registro della gara delle
+           15:51 — si parla sul PASSAGGIO a verde, distanziello 30 s e semina
+           in silenzio alla prima lettura. */
+        if (g.flagCode != null) {
+          if (cp.last.verde == null) cp.last.verde = g.flagCode;
+          else if (g.flagCode === 2 && cp.last.verde !== 2) cpSay('verde', cpT({ it: 'Bandiera verde: via libera.', en: 'Green flag: GO GO GO.' }), 30000);
+          cp.last.verde = g.flagCode;
+        }
+        /* 9) POSIZIONE: cambia sedile in classifica → una voce (ma non a ogni tick).
+           29/10 gemello del Pitwall: nel pitlane la classifica vale zero — niente
+           annunci in pit e nei 12 s dopo l'uscita (il falso «P15, posizione persa»). */
+        if (g.inPit === true) cp.last.inPitOra = Date.now();
+        const pitScena = g.inPit === true || (cp.last.inPitOra != null && Date.now() - cp.last.inPitOra <= 12000);
+        if (g.position != null && !pitScena && cp.last.pos != null && g.position !== cp.last.pos) {
           const verso = g.position < cp.last.pos ? cpT({ it: 'recuperata', en: 'gained' }) : cpT({ it: 'persa', en: 'lost' });
           cpSay('postalk', cpT({ it: `P${g.position}, posizione ${verso}.`, en: `P${g.position}, position ${verso}.` }), 30000);   // 27/10: 15→30 s, parlava a ogni sorpasso
         }

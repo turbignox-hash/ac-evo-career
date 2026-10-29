@@ -97,8 +97,11 @@ const loga = (log, riga) => { if (!log) return; try { appendFileSync(log.file, J
    'off' non entra nel filtro giroVoce: lo legge la webui e non chiama la voce. */
 export const VOCE_LIVELLI = ['essenziale', 'normale', 'full'];
 const FRASI_LIVELLO = {
-  essenziale: 'boxclose boxopen blu ultimoGiro bandiera benzina pit pitcount penalia'.split(' '),
-  normale: 'boxclose boxopen blu ultimoGiro bandiera benzina pit pitcount penalia giroFatto metaBenzina gomme postalk'.split(' '),
+  // 29/10: + «verde» — la bandiera verde di via libera si sente in pista a
+  // qualunque livello (essenziale incluso): è l'ordine di partire, non un
+  // dettaglio di ricchezza.
+  essenziale: 'boxclose boxopen blu ultimoGiro bandiera verde benzina pit pitcount penalia'.split(' '),
+  normale: 'boxclose boxopen blu ultimoGiro bandiera verde benzina pit pitcount penalia giroFatto metaBenzina gomme postalk'.split(' '),
   full: null,   // null = nessun filtro: anche delta e gap parlano
 };
 const chePuoiDire = (livello) => {

@@ -315,3 +315,20 @@
   chiede con { leggero: true }: misurata 53-64 ms contro 161 ms dell'intero
   a server fermo (e secondi dell'intero mentre gira). IN GARA i numeri veri
   di flag/gap li darà la PROSSIMA gara col monitor finalmente saturo-no.
+
+## 29/10 sera — DUE MODIFICHE DAL REGISTRO DELLA GARA DELLE 15:51
+- **VIA LIBERA (narratore 9-ter, Pitwall + vista gemella)**: la bandiera VERDE
+  di rientro (flagCode 2) non aveva MAI voce — il registro mostrava «verde
+  (code 2)» alle 15:52:19 e nessuna frase. Ora si parla sul PASSAGGIO a verde
+  (nessuna→verde al via, gialla→verde dopo l'incidente), «Bandiera verde:
+  via libera.», distanziello 30 s, semina in silenzio alla prima lettura.
+  Nella FRASI_LIVELLO 'verde' entra in essenziale E normale: l'ordine di
+  partire si sente a qualunque livello (il test lo sancisce in tutti e tre).
+- **POSIZIONE ZITTA NEL PIT (narratore 9, Pitwall + vista gemella)**: all'uscita
+  dei box gridava «P15, posizione persa» mentre l'ordine vero non esisteva
+  ancora. Ora gli annunci di posizione tacciono mentre inPit è vero e nei
+  12 s dopo l' ultima lettura in pit; la semina di slot.last.pos resta e il
+  legittimo annuncio dopo esce come prima.
+- La guardia anti-ripetizione di 70 s resta GLOBALE anche per il verde: una
+  seconda partenza a flag verde entro 70 s tace (test ritoccato a 74 s).
+- Suite: 468/468 verdegli (prima 465, +3 test).

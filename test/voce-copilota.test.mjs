@@ -88,3 +88,19 @@ test('IL DELTA DI RITMO parla SOLO col livello full: essenziale e normale taccio
   assert.deepEqual(passo('normale'), [], 'normale: niente delta');
   assert.ok(passo('full').some((t) => t.includes('più veloce del best di')), 'full: il delta parla');
 });
+
+/* 29/10, aggiunta del narratore 9-ter: la bandiera VERDE di via libera è
+   l'ordine di partire — in pista si sente a QUALUNQUE livello (essenziale
+   incluso), è il contrario del delta che resta di lusso del full. */
+test('IL VIA LIBERA (verde) parla a tutti i livelli: essenziale, normale e full', () => {
+  const passo = (livello) => {
+    const v = voceFinta();
+    const slot = nuovoSlotVoce();
+    giroVoce(M(true, { gauges: G({ flagCode: 0 }) }), slot, v, { graziaMs: 0, ora: 1000, livello });        // semina
+    giroVoce(M(true, { gauges: G({ flagCode: 2, flag: 'verde' }) }), slot, v, { graziaMs: 0, ora: 16000, livello });
+    return v.items;
+  };
+  assert.ok(passo('essenziale').includes('Bandiera verde: via libera.'), 'essenziale: il via libera si sente');
+  assert.ok(passo('normale').includes('Bandiera verde: via libera.'), 'normale: il via libera si sente');
+  assert.ok(passo('full').includes('Bandiera verde: via libera.'), 'full: il via libera si sente');
+});

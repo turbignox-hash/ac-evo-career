@@ -305,6 +305,22 @@ export function narratore(m, slot, ora = Date.now()) {
       else if (secUlt <= 30 && !slot.last.minutoSegn) { slot.last.minutoSegn = true; parla.push({ chi: 'minuto', it: 'Trenta secondi!' }); }
     }
   }
+  /* 9-ter) VIA LIBERA (29/10, gara delle 15:51): la bandiera VERDE di rientro
+     in pista (flagCode 2) non ha MAI una voce — laMMF la scrive e il
+     narratore la mangiava: nel registro della gara esce «verde (code 2)»
+     alle 15:52:19 e nessuna frase. Si parla sul PASSAGGIO a verde:
+     nessuna→verde al via, gialla→verde dopo l'incidente. Distanziello 30 s
+     contro i cambi a raffica e semina in silenzio alla prima lettura. */
+  const fc = m.gauges?.flagCode ?? null;
+  if (fc != null) {
+    if (slot.last.verde == null) slot.last.verde = fc;     // semina
+    else if (fc === 2 && slot.last.verde !== 2
+             && (slot.last.verdeOra == null || ora - slot.last.verdeOra >= 30000)) {
+      slot.last.verdeOra = ora;
+      parla.push({ chi: 'verde', it: 'Bandiera verde: via libera.' });
+    }
+    slot.last.verde = fc;
+  }
   /* 9) POSIZIONE (30/10, la gara del mezzogiorno): gli annunci di posizione
      esistevano SOLO nella pagina (viste-a.js narratore 9, chi 'postalk');
      con la radio unica sul Pitwall la pagina tace di proposito e la
@@ -313,7 +329,13 @@ export function narratore(m, slot, ora = Date.now()) {
      vista si SEMINA in silenzio, distanziello 30 s per chiave (cpSay della
      vista). In solista (TimeAttack) la posizione resta 1: mai un annuncio. */
   if (g.position != null) {
-    if (slot.last.pos != null && g.position !== slot.last.pos
+    /* 29/10 (gara delle 15:51): nel pitlane la classifica vale ZERO — all'uscita
+       dei box gridava «P15, posizione persa» mentre l'ordine vero non esisteva
+       ancora. Si annuncia solo fuori dal pit E oltre i 12 s dall'ultima lettura
+       in pit: la classifica rientra un istante DOPO il pitlane etichetta. */
+    if (g.inPit === true) slot.last.inPitOra = ora;
+    const pitScena = g.inPit === true || (slot.last.inPitOra != null && ora - slot.last.inPitOra <= 12000);
+    if (!pitScena && slot.last.pos != null && g.position !== slot.last.pos
         && (slot.last.postalk == null || ora - slot.last.postalk >= 30000)) {
       slot.last.postalk = ora;
       parla.push({
