@@ -12,8 +12,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 
-import { comandoAuto, confermaAck, azioniPulsanti, statoIstantanea } from '../src/uiapp-pub.mjs';
+import { comandoAuto, confermaAck, azioniPulsanti, statoIstantanea, verdettoFascia, preparaFascia } from '../src/uiapp-pub.mjs';
 
 // fixture in stile events-card.test.mjs: un'auto nota nel libro lader e
 // un evento attivo e accettato (premio un'auto diversa da quella della ronda).
@@ -82,7 +83,9 @@ test('pending con auto NON nota nel ladder: scade in 1 giorno come gli altri', (
 test('setcar confermato con ronda viva: esce il comando tipo avvia (stesso pending)', () => {
   const t = Date.now() - 120_000;                                   // fresco, distinto
   confermaAck(`${t}:r5_touring:coppa_rx7`);                          // l'app ha impostato la R5
-  const state = mkState({ pending: { car: 'r5_touring', node: 'coppa_rx7', trackNames: ['cota', 'cota'], startedAt: t } });
+  // FINESTRA ARMATA (29/10, «riparte la stessa gara: solo da Prepara e
+  // Divertiti»): il preparato scrive avviaFino — senza, niente via auto.
+  const state = mkState({ pending: { car: 'r5_touring', node: 'coppa_rx7', trackNames: ['cota', 'cota'], startedAt: t, avviaFino: Date.now() + 10 * 60_000 } });
   const cmd = comandoAuto(mkLadder(), state);
   assert.equal(cmd?.tipo, 'avvia', 'dopo l\'ack della setcar tocca all\'avvia');
   assert.equal(cmd?.id, `${t}:r5_touring:coppa_rx7:avvia`, 'id stabile legato al pending');
@@ -98,6 +101,24 @@ test('avvia già confermata: silenzio, niente riparto', () => {
   const cmd = comandoAuto(mkLadder(), state);
   // la ronda è viva e confermata, l'avvia pure: niente comando (e niente evento)
   assert.equal(cmd, null);
+});
+
+test('pending SENZA finestra (nato prima dello stampio): MAI un auto-via', () => {
+  const t3 = Date.now() - 180_000;                                   // distinto dagli altri
+  confermaAck(`${t3}:r5_touring:coppa_rx7`);
+  const state = mkState({ pending: { car: 'r5_touring', node: 'coppa_rx7', trackNames: ['cota', 'cota'], startedAt: t3 } });
+  const cmd = comandoAuto(mkLadder(), state);
+  assert.notEqual(cmd?.tipo, 'avvia', 'senza avviaFino non preme mai «Avvia sessione» da solo');
+  assert.equal(cmd, null, 'ronda viva senza finestra: il campo torna nullo, resta la card a mano');
+});
+
+test('finestra PASSATA (pending fresco ma 30 min fa): niente avvia', () => {
+  const t4 = Date.now() - 40 * 60_000;                               // ancora «fresco» (<24h) ma fuori finestra
+  confermaAck(`${t4}:r5_touring:coppa_rx7`);
+  const state = mkState({ pending: { car: 'r5_touring', node: 'coppa_rx7', trackNames: ['cota', 'cota'], startedAt: t4, avviaFino: t4 + 60_000 } });
+  const cmd = comandoAuto(mkLadder(), state);
+  assert.notEqual(cmd?.tipo, 'avvia', 'finestra chiusa: niente «Avvia sessione» premuto da solo');
+  assert.equal(cmd, null, 'finestra chiusa: il campo resta nullo, la card del pannello decide');
 });
 
 test('ronda scaduta NON produce avvia: il campo va all\'evento (mai auto-avvio con pending vecchio)', () => {
@@ -242,4 +263,119 @@ test('azioni: la card della gara al volo porta la finestra e lo stato DELL ISTAN
 
 test('statoIstantanea: file assente = null, mai un eccezione (la fascia sopravvive)', () => {
   assert.equal(statoIstantanea(join(tmpdir(), 'istantanea-che-non-esiste', 'GameModeType_INSTANT_RACE.gamemodesave')), null);
+});
+
+// ------------------------------------------------------------------
+// IL VERDETTO DI GIORNATA NELLE FASCE (29/10, «bottone verdetto sul
+// cruscotto»): payload piatto per la card in gioco, cache sui file di
+// oggi, mai un'eccezione per un file del Results illeggibile.
+// ------------------------------------------------------------------
+const DRV = { first: 'Mauro', last: 'Turbigno', name: 'Mauro Turbigno', nation: 'ITA' };
+const fila = (cognome, pos, { me = false } = {}) => ({
+  driver_id: { a: String(9000 + pos), b: String(10000 + pos) },
+  is_current_driver: me,
+  position: pos, driver_name: me ? 'Mauro' : 'Adrian', driver_surname: cognome,
+  driver_nation: 'ITA', team: '', car_brand: 'Ferrari', car_name: 'F2004', car_number: pos,
+  laps: 4, splits: ['00:30.000', '00:29.500'], best_lap: '01:30.000', total_time: '05:00.000',
+  diff_first: '', diff_previous: '', num_pits: 0, penalties: [], high_penalty: '',
+  ballast: 0, restrictor: 0, has_best_lap: true,
+});
+const scriviGara = (dir, nome) => writeFileSync(join(dir, 'Results', nome), JSON.stringify({
+  season: 11, event: 'Prova', session: 'Race', track: 'Monza', layout: 'GP',
+  weather_type: 'GameModeSelectionWeatherType_CLEAR', hour: 15, min: 20,
+  drivers: [fila('Turbigno', 0, { me: true }), fila('Palmer', 1)],
+}, null, 2));
+
+// il prefisso dei nomi dei Results è aammgg: la STESSA regola del tool CLI
+const oggiPrefisso = () => {
+  const o = new Date(); const due = (n) => String(n).padStart(2, '0');
+  return `${String(o.getFullYear()).slice(2)}${due(o.getMonth() + 1)}${due(o.getDate())}`;
+};
+
+test('verdettoFascia: senza driver (no carriera) esce null e non esplode', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'verdetto-fascia-'));
+  mkdirSync(join(dir, 'Results'), { recursive: true });   // resolvePaths mappa solo <ACE_DATA>/Results
+  const env = { ACE_DATA: dir };
+  assert.equal(verdettoFascia({ driver: null }, env), null);
+  assert.equal(verdettoFascia({}, env), null);
+});
+
+test('verdettoFascia: una gara di oggi esce come card piatta (gare/vittorie/righe)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'verdetto-fascia-'));
+  mkdirSync(join(dir, 'Results'), { recursive: true });   // il file va in <ACE_DATA>/Results
+  scriviGara(dir, `${oggiPrefisso()}-1200_SP_Race.sessionresults.json`);
+  const v = verdettoFascia({ driver: DRV }, { ACE_DATA: dir });
+  assert.ok(v, 'con una gara di oggi la card esiste');
+  assert.equal(v.gare, 1);
+  assert.equal(v.vittorie, 1, 'la gara è una vittoria (pos 0)');
+  assert.ok(Array.isArray(v.righe) && v.righe.length === 1, 'una riga per la card');
+  assert.equal(v.righe[0].ora, '12:00', 'ora presa dopo il trattino del nome file');
+  assert.match(v.righe[0].giro, /^01:30\.000$/, 'il giro esce così com è nel file');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('verdettoFascia: la CACHE gira dietro ai file — una gara nuova la fascia la conta al giro dopo', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'verdetto-fascia-'));
+  mkdirSync(join(dir, 'Results'), { recursive: true });   // il file va in <ACE_DATA>/Results
+  const env = { ACE_DATA: dir };
+  scriviGara(dir, `${oggiPrefisso()}-1400_SP_Race.sessionresults.json`);
+  const prima = verdettoFascia({ driver: DRV }, env);
+  assert.equal(prima.gare, 1, 'stato iniziale: una gara');
+  scriviGara(dir, `${oggiPrefisso()}-1830_SP_Race.sessionresults.json`);
+  const dopo = verdettoFascia({ driver: DRV }, env);
+  assert.equal(dopo.gare, 2, 'la nuova gara cambia la chiave: il successivo giro la pesca');
+  // VALIDAZIONE della cache: due giri senza cambiamenti non ricalcolano (stessa chiave, stesso payload)
+  const ancora = verdettoFascia({ driver: DRV }, env);
+  assert.equal(ancora, dopo, 'stessa chiave = stesso payload (niente ricalcolo)');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+// ------------------------------------------------------------------
+// IL SEMAFORO CHE SA ANCHE «PREPARA E DIVERTITI» (29/10, «arricchisci il
+// semaforo»): il campo `prepara` della fascia porta l'armata LA RONDA con
+// la FINESTRA del via automatico (avviaFino) o la GARA AL VOLO; vecchi e
+// vuoti parlano chiari. Una riga del tooltip, non un colore: la connessione
+// resta una cosa sola.
+// ------------------------------------------------------------------
+test('preparaFascia: ronda armata esce con arming, finestra del via e scadenza', () => {
+  const t = Date.now() - 120_000;
+  const state = mkState({ pending: { car: 'r5_touring', node: 'coppa_rx7', trackNames: ['cota', 'cota'], startedAt: t, avviaFino: Date.now() + 10 * 60_000 } });
+  const pr = preparaFascia(state);
+  assert.ok(pr, 'con una ronda preparata il dato esiste');
+  assert.equal(pr.tipo, 'ronda');
+  assert.equal(pr.auto, 'r5_touring');
+  assert.equal(pr.armataAlle, t, 'l\'arming è lo startedAt del preparato');
+  assert.ok(pr.viaFino > Date.now(), 'la finestra del via è armata');
+  assert.ok(pr.scadeIn > 0, 'la ronda è ancora valida (finestra 24h)');
+});
+
+test('preparaFascia: ronda SENZA finestra (nato prima dello stampio) esce con viaFino 0 — via solo a mano', () => {
+  const state = mkState({ pending: { car: 'r5_touring', node: 'coppa_rx7', trackNames: ['cota', 'cota'], startedAt: Date.now() - 60_000 } });
+  const pr = preparaFascia(state);
+  assert.ok(pr, 'la ronda c\'è');
+  assert.equal(pr.viaFino, 0, 'senza avviaFino il tooltip non promette un via automatico');
+});
+
+test('preparaFascia: gara al volo nella sua finestra esce come demo, mai con via automatico', () => {
+  const state = mkState({ vetrinaCustom: { car: 'r5_touring', startedAt: Date.now() - 30_000 } });
+  const pr = preparaFascia(state);
+  assert.ok(pr, 'la demo c\'è');
+  assert.equal(pr.tipo, 'gara al volo');
+  assert.equal(pr.viaFino, 0, 'la demo non preme mai «Avvia sessione» da sola');
+  assert.ok(pr.scadeIn > 0);
+});
+
+test('preparaFascia: pending SCADUTO e campi vuoti = null (mai espedienti)', () => {
+  assert.equal(preparaFascia(mkState({ pending: { car: 'r5_touring', startedAt: Date.now() - 25 * 3600 * 1000 } })), null, 'oltre le 24h la ronda non si mostra più armata');
+  assert.equal(preparaFascia(mkState({})), null, 'niente di niente: null, non un oggetto finto');
+  assert.equal(preparaFascia(null), null, 'senza stato: null, la fascia continua');
+});
+
+test('verdettoFascia: fino al file illeggibile non ammazza la fascia (giornata vuota = null)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'verdetto-fascia-'));
+  mkdirSync(join(dir, 'Results'), { recursive: true });   // il file va in <ACE_DATA>/Results
+  writeFileSync(join(dir, 'Results', `${oggiPrefisso()}-0900_SP_Race.sessionresults.json`), 'questo non è json');
+  const v = verdettoFascia({ driver: DRV }, { ACE_DATA: dir });
+  assert.equal(v, null, 'file che non si legge: card assente, la fascia continua');
+  rmSync(dir, { recursive: true, force: true });
 });

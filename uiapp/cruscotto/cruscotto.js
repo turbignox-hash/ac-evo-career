@@ -36,6 +36,8 @@
 .crd-top { display:flex; align-items:center; height:40px; padding:0 12px;
   border-bottom:1px solid #2a3341; flex:none; }
 .crd-top b { color:#7fb4ff; font-size:16px; letter-spacing:.5px; flex:1; }
+.crd-conn { flex:none; font-size:12px; margin-right:8px; cursor:default;
+  user-select:none; opacity:.92; }
 .crd-close { color:#8b98a9; cursor:pointer; font-size:18px; padding:2px 8px; }
 .crd-close:hover { color:#fff; }
 .crd-body { position:relative; flex:1; min-height:0; overflow:hidden; }
@@ -98,11 +100,16 @@
   const t1 = document.createElement('b');
   t1.textContent = 'Cruscotto';
   panel.appendChild(top);
+  // IL PALLINO DELLA CONNESSIONE: aggiornato da aggiornaConn() più sotto
+  const conn = document.createElement('span');
+  conn.className = 'crd-conn';
+  conn.textContent = '⚪';
   const chiusura = document.createElement('span');
   chiusura.className = 'crd-close';
   chiusura.textContent = '×';
   chiusura.addEventListener('click', function () { apri(false); });
   top.appendChild(t1);
+  top.appendChild(conn);
   top.appendChild(chiusura);
   const body = document.createElement('div');
   body.className = 'crd-body';
@@ -387,6 +394,15 @@
   }
 
   document.addEventListener('click', function (e) {
+    // il TOGGLE del verdetto (29/10): apre/chiude la tabella della giornata
+    // — nessun canale verso il server, il dato è già nella fascia
+    const v = e.target?.closest ? e.target.closest('button.crd-btn[data-verdetto]') : null;
+    if (v && panel.contains(v)) {
+      e.preventDefault();
+      verdettoAperto = !verdettoAperto;
+      disegna();
+      return;
+    }
     const b = e.target?.closest ? e.target.closest('button.crd-btn[data-az]') : null;
     if (!b || !panel.contains(b)) return;
     e.preventDefault();
@@ -414,8 +430,8 @@
 
   function bloccoBottoni() {
     const az = azioni();
-    // DETTAGLIO delle card (4/11): il publisher spedice i FATTI del sistema
-    // (4/11 in uiapp-pub): la finestra di frescheza (scadeIn), per l'evento
+    // DETTAGLIO delle card (4/11): il publisher spedisce i FATTI del sistema
+    // (4/11 in uiapp-pub): la finestra di freschezza (scadeIn), per l'evento
     // pista/giri/ora/banda, per la gara al volo lo stato REALE dell'istan-
     // tanea (durata · pista · banda AI) letto a ogni fascia. Niente promesse.
     const fmtRimasto = (ms) => {
@@ -439,6 +455,12 @@
       if (a.giri != null) p.push(a.giri + ' giri');
       if (a.ora != null) p.push('ore ' + String(a.ora).padStart(2, '0') + ':00');
       if (a.banda && !i) p.push('AI ' + a.banda);
+      // CARD ARRICHITE (4/11 in uiapp-pub): la demo porta anche l'ULTIMA
+      // scrittura del registro della durata («5 giri · AI 88–93 · 14:32»),
+      // l'evento porta il PREMIO in palio (auto + soldi). Null = nessuna riga:
+      // la card resta come prima, senza righe vuote.
+      if (a.registro) p.push('scritto ' + a.registro);
+      if (a.premio) p.push('premio ' + a.premio);
       if (a.scadeIn != null) p.push('finestra ' + fmtRimasto(resto(a)));
       return p.filter(Boolean).join(' · ');
     };
@@ -468,6 +490,53 @@
     const h2 = scheda('ronda') + scheda('evento') + scheda('demo');
     if (!h2) return '';
     return '<div class="gruppo"><h2>Prepara e diverti</h2>' + h2 + '</div>';
+  }
+
+  // AVVISI DI SERVIZIO (4/11 sera): se le fasce smettono di arrivare il
+  // pannello resta FERMO e i conteggi vivi degli scadeIn diventano un inganno.
+  // Fascia ferma da oltre 15 s = avviso visibile: età in secondi e la via
+  // di sblocco (riavvia-webui). Fasce in salita: nessuna riga, come prima.
+  function bloccoAvvisi() {
+    if (!fasciaTs) return '';   // mai niente ricevuto: la striscia di attesa già parla
+    const eta = Date.now() - fasciaTs;
+    if (eta < 15 * 1000) return '';
+    return '<div class="nota" style="color:#ffb347;margin-top:4px">⏸ Fasce ferme da ' + Math.round(eta / 1000) + " s: il server del Cruscotto è fermo (da GUI: riavvia il server, o 'node tools/riavvia-webui.mjs').</div>";
+  }
+
+  // VERDETTO DI GIORNATA (29/10, «bottone verdetto sul cruscotto»): il
+  // publisher spedisce a ogni fascia il riepilogo di oggi (S.dati.verdetto,
+  // stesso aggregato del tool CLI e dell'endpoint della GUI). Qui un sola
+  // card: i quattro numeri sempre, la tabella SOLO quando aperta (toggle
+  // che sopravvive ai ridisegni — la variabile vive fuori da disegna()).
+  let verdettoAperto = false;
+  function bloccoVerdetto() {
+    const v = S.dati?.verdetto;
+    if (!v || !v.gare) return '';
+    const fmtGap = (ms) => (ms == null ? '—' : (ms < 0 ? '-' : '+') + Math.abs(Number(ms) / 1000).toFixed(1) + 's');
+    const fmtGiro = (g) => {
+      if (!g) return '—';
+      const min = Math.floor(g.ms / 60000), resto = (g.ms % 60000) / 1000;
+      return min + ':' + resto.toFixed(3).padStart(6, '0') + (g.pista ? ' @ ' + g.pista : '');
+    };
+    const sommario = 'Gare ' + esc(v.gare) + ' · ' + esc(v.vittorie ?? 0) + ' vittorie · ' + esc(v.podi ?? 0) + ' podi' +
+      (v.mediaPos != null ? ' · media P' + esc(Number(v.mediaPos).toFixed(1)) : '') +
+      (v.giroTop ? ' · giro ' + esc(fmtGiro(v.giroTop)) : '');
+    let h = '<div class="gruppo"><h2>Verdetto di giornata</h2><div class="card">';
+    h += '<div class="riga">' + sommario + '</div>';
+    h += '<button class="crd-btn" data-verdetto="1" style="margin-top:8px;width:100%">' +
+      (verdettoAperto ? '▲ Nascondi le gare di oggi' : '▼ Tutte le gare di oggi (' + esc(v.gare) + ')') + '</button>';
+    if (verdettoAperto) {
+      h += '<table class="tab" style="margin-top:6px">';
+      h += '<tr><td class="pos">Ora</td><td>Posto</td><td>Gap</td><td>Tuo giro</td></tr>';
+      h += (v.righe ?? []).map(function (r) {
+        const posto = r.dsq ? 'DSQ' : (r.posto != null ? r.posto + '/' + r.partecipanti : '—');
+        const giro = r.giro ? r.giro + (r.penalita ? ' (' + r.penalita + ')' : '') : '—';
+        return '<tr><td class="pos">' + esc(r.ora || '—') + '</td><td>' + esc(posto) + '</td><td>' + esc(fmtGap(r.gap)) + '</td><td>' + esc(giro) + '</td></tr>';
+      }).join('');
+      h += '</table><div class="nota" style="margin-top:4px">Penalità nelle celle del giro. Il riepilogo torna vuoto a cambio giorno.</div>';
+    }
+    h += '</div></div>';
+    return h;
   }
 
   function applicaComando(c) {
@@ -577,13 +646,16 @@
     if (d.giornoLabel) h += '<br>Giorno ' + esc(d.giornoLabel);
     h += '</div>';
     h += strisciaNota();
+    h += bloccoAvvisi();
 
     // BOTTONI «Prepara e divertiti» (3/11): sopra tutto, la PRIMA cosa che
     // l'amico vede sul panello — ronda preparata, evento accettato (o la
     // gara al volo armata) quando lo sono. Ogni card è la STESSA sequenza
     // che il canale automatico fa da solo: il bottone è la via manuale,
-    // per ripeterla o tirarla quando automatico non ha totalmente esito.
+    // per ripeterla o tirarla quando automatico non ha totale esito.
     h += bloccoBottoni();
+
+    h += bloccoVerdetto();
 
     h += '<div class="gruppo"><h2>Gare di oggi</h2>';
     // la prima gara ISCRITTA viene prima di tutto (se c'è): è quella del comando
@@ -605,6 +677,59 @@
     h += bloccoMondo(d.mondo, d.guiUrl);
     inner.innerHTML = h;
     if (scorri) { try { scorri.fit?.(); } catch (_e) { } }
+    aggiornaConn();
+  }
+
+  // ICONA CONNESSIONE (29/10 sera): il pallino in testa al pannello dice se
+  // la corda server → loader → gioco è viva. Verde: tutto agganciato
+  // (applet nel loader, persist del gioco raggiungibile per gli ack, motore
+  // comandi presente, fascia fresca). Arancione: applet viva ma un anello
+  // molle (il più comune: fasce ferme, il server webui non risponde). Rosso:
+  // l'applet gira FUORI dal menu di EVO — non è nel loader. Il dettaglio si
+  // legge nel tooltip fermandoci sopra (le righe, l'una per anello).
+  function statoConnessione() {
+    if (!LOADER) {
+      return { emoji: '🔴', righe: ["L'applet gira FUORI dal menu di EVO: non è nel loader.", 'Le fasce e i comandi al gioco non partono da qui. Ricarica l\'app dal menu di EVO (drawer APPS → Cruscotto).'] };
+    }
+    const righe = ['Applet nel loader ✓'];
+    let molli = 0;
+    let storeOk = false;
+    try { storeOk = !!(LOADER.persist && typeof LOADER.persist.storeLoaded === 'function' && LOADER.persist.storeLoaded()); } catch (_e) { }
+    righe.push(storeOk ? 'persist del gioco ✓ (gli ack viaggiano)' : 'persist del gioco ✗ (gli ack non tornano: i comandi rischiano di ripartire)');
+    if (!storeOk) molli++;
+    const engineOk = !!(window.engine && typeof window.engine.trigger === 'function');
+    righe.push(engineOk ? 'comandi al gioco ✓' : 'motore comandi ✗ (in pista: i comandi funzionano nel menu di EVO)');
+    if (!engineOk) molli++;
+    const eta = fasciaTs ? Date.now() - fasciaTs : -1;
+    if (eta < 0) { righe.push('server: nessuna fascia ricevuta ancora'); molli++; }
+    else if (eta >= 15 * 1000) {
+      righe.push('server ✗ fasce ferme da ' + Math.round(eta / 1000) + " s — da GUI riavvia il server, o 'node tools/riavvia-webui.mjs'");
+      molli++;
+    } else righe.push('server ✓ (fascia di ' + Math.round(eta / 1000) + ' s fa)');
+    // LA SINCRONIZZAZIONE (29/10 «arricchisci il semaforo»): la fascia porta
+    // anche il dato «Prepara e Divertiti» visto dal server (cui campo
+    // `prepara`, uiapp-pub) — ronda armata con la finestra del via o gara
+    // al volo — insieme alla riga «nessuna» quando il campo è vuoto. La
+    // sincro è una RIGA del tooltip, non un colore: la connessione resta
+    // quella, la sincro dice se il server e la ronda viaggiano insieme.
+    const pr = S.dati?.prepara;
+    const hhmm = (ms) => { const d = new Date(Number(ms || 0)); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+    const resti = (ms) => Math.max(0, Math.round(Number(ms || 0) / 60000)) + ' min';
+    if (pr) {
+      righe.push(pr.tipo === 'ronda'
+        ? ('sincro «Prepara e Divertiti» ✓ — ronda armata alle ' + hhmm(pr.armataAlle) +
+          (Number(pr.viaFino) > Date.now() ? ', via automatico fino alle ' + hhmm(pr.viaFino) : ' (via automatico finito: resta il bottone del pannello)') +
+          ' · ronda ancora valida ' + resti(pr.scadeIn))
+        : ('sincro «Prepara e Divertiti» ✓ — gara al volo armata alle ' + hhmm(pr.armataAlle) + ' · ancora valida ' + resti(pr.scadeIn)));
+    } else if (fasciaTs) righe.push('sincro «Prepara e Divertiti»: nessuna preparazione ora');
+    return { emoji: molli ? '🟠' : '🟢', righe: righe };
+  }
+  function aggiornaConn() {
+    try {
+      const s = statoConnessione();
+      conn.textContent = s.emoji;
+      conn.setAttribute('title', s.righe.join('\n'));
+    } catch (_e) { }
   }
 
   // CONTO VIVO (4/11): tra le fasce la finestra continua a scorrere — un
@@ -614,8 +739,15 @@
     const az = azioni();
     const viva = (Number(az.ronda?.scadeIn) > 0) || (Number(az.demo?.scadeIn) > 0);
     if (viva) disegna();
+    // AVVISO fascia ferma (4/11): anche a schede quiete il ridisegno va
+    // avanti FINCHÉ l'avviso è in cruscotto — così l'età delle fasce scala
+    // a secondi invece di piantarsi al primo superamento.
+    if (!viva && fasciaTs && Date.now() - fasciaTs >= 15 * 1000) disegna();
   }, 30 * 1000);
 
+  // IL PALLINO ETÀ VIVA: 1 s = l'età della fascia scala a secondi anche a
+  // stagger quieti, e se appena qualcosa si spegne il colore cambia in fretta.
+  setInterval(aggiornaConn, 1000);
   setInterval(function () { prendiSlot(Date.now()); }, PERIODO_MS / 2);
   prendiSlot(Date.now());
   loga('pannello inizializzato (pattern Paddock, niente pagina del loader)');

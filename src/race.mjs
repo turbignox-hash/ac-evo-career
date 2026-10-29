@@ -453,6 +453,15 @@ export function chargeEntry(ladder, state, node) {
   return fee;
 }
 
+/** Finestra dell'AVVIO AUTOMATICO (29/10, «appena esco da una gara, sul menu
+ *  riparte la stessa gara»): l'app Cruscotto preme «Avvia sessione» da sola
+ *  SOLO NEI 30 MINUTI che seguono «Prepara tutto» (comandoAuto in uiapp-pub
+ *  legge lo stampio). Un pending dimenticato NON potrà mai riavviare una
+ *  gara da solo: resta la card del pannello in gioco, che è il gesto a mano.
+ *  Mezz'ora copre il caricamento del gioco e un avvio tranquillo; dopo, la
+ *  ronda vive anche nel canale dell'auto (24 h) ma il VIA resta a mano. */
+export const FINESTRA_AVVIA_MS = 30 * 60 * 1000;
+
 export function markPending(_ladder, state, card) {
   state.pending = {
     node: card.node.nodeId,
@@ -464,6 +473,7 @@ export function markPending(_ladder, state, card) {
     car: card.car,
     gridSize: card.gridSize,
     startedAt: Date.now(),
+    avviaFino: Date.now() + FINESTRA_AVVIA_MS,
   };
   return state.pending;
 }

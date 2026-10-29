@@ -15,7 +15,7 @@
 
 import { writeFileSync, readdirSync, unlinkSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { savedGamesRoots } from './paths.mjs';
+import { savedGamesRoots, resolvePaths } from './paths.mjs';
 import { agendaDay, racesOnDay, dateLabel, prossimoGiornoConGara, impegni } from './agenda.mjs';
 import { context, SAVE_FILE } from './webui-env.mjs';
 import { loadState, nodeById, standingsFor, playerStanding } from './state.mjs';
@@ -29,8 +29,16 @@ import { specFor, currentWeekendTrack } from '../tools/set-track.mjs';
 // innocua (anche a gioco aperto) e vale alla card del cruscotto i FATTI
 // veri (durata, banda AI, pista) invece dei soli promé.
 import { currentInstantRace, INSTANT_FILE } from '../tools/set-instantrace.mjs';
+// IL REGISTRO DELLA DURATA (4/11, card arricchite): l'ultima scrittura vera
+// del bottone «Gara al volo» arriva anche alla card demo del Cruscotto — la
+// STESSA fonte della GUI (endpoint gara-veloce-registro), un solo formatter.
+import { leggiRegistro, formattaRigaRegistro } from '../tools/_gara-veloce.mjs';
 import { eventCard } from './events.mjs';
 import { leggiStoreJson } from './uiapp-store.mjs';
+// il VERDETTO DI GIORNATA (29/10, «bottone verdetto sul cruscotto»): la
+// STESSA fonte della CLI e dell'endpoint GUI — un aggregato, nessuna
+// formula da duplicare. La LETTURA dei Results è sola lettura.
+import { verdettoGiornata } from '../tools/verdetto-giornata.mjs';
 
 export const PERIODO_MS = 2500;          // il ritmo delle fasce: 2.5 secondi esatti
 export const APP_KEY = 'cruscotto';      // il nome della cartella-app nel loader
@@ -120,6 +128,15 @@ export function vetrina(ladder, state) {
     // chiuse), l'amico preme il bottone e riparte la STESSA sequenza dal
     // pannello — con gli STESSI id, così l'ack fissa le ripubblicazioni.
     azioni: azioniPulsanti(ladder, state),
+    // IL VERDETTO DI GIORNATA (29/10): riepilogo compatto di oggi per il
+    // pannello in gioco (bottone «Verdetto di giornata»). null = giornata
+    // senza gare (o senza carriera): il pannello resta nascosto, non ruvido.
+    verdetto: verdettoFascia(state),
+    // LA SINCRONIZZAZIONE «PREPARA E DIVERTITI» (29/10, «arricchisci il
+    // semaforo»): il pallino della connessione in punta al pannello la legge
+    // (cruscotto.js) e dice se il server è allineato con la preparazione
+    // corrente — ronda armata con la sua finestra del via, o gara al volo.
+    prepara: preparaFascia(state),
     guiUrl: guiBaseUrl ?? (typeof process !== 'undefined' ? process.env.PITWALL_GUI_URL : null) ?? null,
   };
 }
@@ -212,6 +229,13 @@ export function comandoAuto(ladder, state) {
     // AI/ora/giri sbagliati (lezione 23/10). Solo ronda FRESCA: un pending
     // oltre la scadenza non deve mai riavviare una sessione da solo.
     if (rondaViva && p?.car) {
+      // FINESTRA DELL'AVVIO (29/10, «appena esco da una gara, sul menu riparte
+      // la stessa gara: non deve essere così, solo quando lancio da Prepara e
+      // Divertiti»): il comando esce SOLO dentro la finestra armata da
+      // markPending (FINESTRA_AVVIA_MS in race.mjs, 30 min). Pending nato
+      // prima dello stampio o con la finestra chiusa: MAI un auto-via — le
+      // tracce restano nella card del pannello, la si ripreme a mano.
+      if (Date.now() > Number(p.avviaFino ?? 0)) return null;
       const nomeAvvia = ladder?.contentNames?.cars?.[p.car] ?? null;
       const idAvvia = `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}:avvia`;
       if (nomeAvvia && confermati.has(idAvvia.replace(/:avvia$/, '')) && !confermati.has(idAvvia)) {
@@ -223,6 +247,55 @@ export function comandoAuto(ladder, state) {
       return { id: `evento:${card.theme?.id ?? card.eventId ?? '?'}:${card.carName}`, tipo: 'evento', nome: card.carName, pista: null, layout: null };
     }
     return null;
+  } catch { return null; }
+}
+
+/** I DATI del VERDETTO DI GIORNATA per le fasce dell'app in gioco (29/10,
+ *  richiesta Mauro: «bottone verdetto sul cruscotto»). Rispetto ai campi del
+ *  tool CLI (md/gare/aggregato) spedisce una forma PIATTA e piccola per il
+ *  pannello in gioco: prefisso, i quattro numeri e le righe già formattate.
+ *
+ *  Il calcolo pesa (scandisce tutti i Results del prefisso di oggi), quindi
+ *  NON gira a ogni fascia: cache interna ricalcolata quando cambia la CHIAVE
+ *  (prefisso + elenco dei file di oggi — una gara che finisce = chiave nuova
+ *  = ricalcolo alla prossima fascia). Niente errore che ammazza la fascia:
+ *  ogni tangente in try.
+ */
+const verdettoCache = { chiave: '', payload: null };
+export function verdettoFascia(state, env = process.env) {
+  try {
+    const driver = state?.driver ?? null;
+    if (!driver) return null;
+    const oggi = new Date(); const due = (n) => String(n).padStart(2, '0');
+    // IL PREFISSO è aammgg (261029), lo stesso ordine dei nomi dei file Results
+    const prefisso = `${String(oggi.getFullYear()).slice(2)}${due(oggi.getMonth() + 1)}${due(oggi.getDate())}`;
+    let chiave = prefisso;
+    try {
+      const dirs = resolvePaths(env).resultsDirs;
+      // la chiave porta ANCHE le cartelle: due ambienti (test) con gli stessi
+      // nomi file rimangono cache separate, non si prestano il riepilogo
+      chiave += '|' + dirs.join(';') + '|' + dirs
+        .flatMap((d) => { try { return readdirSync(d).filter((f) => f.startsWith(prefisso)); } catch { return []; } })
+        .sort().join(',');
+    } catch { /* cartella non letta: il prefisso da solo basta come chiave */ }
+    if (verdettoCache.payload && verdettoCache.chiave === chiave) return verdettoCache.payload;
+    const v = verdettoGiornata({ paths: resolvePaths(env), driver, prefix: prefisso });
+    verdettoCache.chiave = chiave;
+    verdettoCache.payload = v?.gare?.length
+      ? {
+        prefisso,
+        gare: v.aggregato.gare,
+        vittorie: v.aggregato.vittorie,
+        podi: v.aggregato.podi,
+        mediaPos: v.aggregato.mediaPos,
+        giroTop: v.aggregato.giroTop,
+        righe: v.gare.map((g) => ({
+          ora: g.ora, pista: g.pista, posto: g.posto, partecipanti: g.partecipanti,
+          gap: g.gap, giro: g.mioGiro, penalita: g.penalita, dsq: g.dsq ?? false,
+        })),
+      }
+      : null;
+    return verdettoCache.payload;
   } catch { return null; }
 }
 
@@ -244,8 +317,7 @@ export function comandoAuto(ladder, state) {
  *    scritte sul disco e il menu del gioco le adotta). Con la finestra
  *    demo viva il bottone evento SI NASCONDE: resta un'ALTRA sola auto
  *    nel menu, mai due che si scambiano il sedile per ogni fascia.
- *
- *  4/11: le card porta anche i FATTI che girano nel sistema — la finestra
+ *  *  4/11: le card portano anche i FATTI che girano nel sistema — la finestra
  *  di freschezza (scadeIn, ms rimasti sulla finestra di 24h), per l'evento
  *  pista/giri/ora/banda della scheda, per la gara al volo lo stato REALE
  *  dell'istantanea (durata, banda, pista) letto con currentInstantRace:
@@ -254,6 +326,33 @@ export function comandoAuto(ladder, state) {
 
 /** Ms rimasti sulla finestra di 24h di un «fresco» (pending o demo). */
 const scadeIn = (da) => Math.max(0, PENDING_SCADENZA_MS - (Date.now() - Number(da ?? 0)));
+
+/** IL DATO DEL «PREPARA E DIVERTITI» per la sincro del semaforo (29/10,
+ *  richiesta Mauro: «arricchisci il semaforo» — il pallino della connessione
+ *  dice anche SE il server è allineato con la preparazione corrente). In
+ *  fascia (cui campo `prepara`):
+ *  - ronda: il pending armato da «Prepara tutto», con l'ora di arming e
+ *    la FINESTRA del via automatico (avviaFino, race.mjs) — niente
+ *    avviaFino (pending nato prima dello stampio) = via solo a mano;
+ *  - gara al volo: la vetrinaCustom nella sua finestra (il via NON è
+ *    automatico qui, resta il bottone del pannello).
+ *  null = nessuna preparazione viva: la riga «nessuna» lo dice, e il
+ *  colore del pallino resta quello della connessione (la sincro manca,
+ *  non la corda server → loader → gioco).
+ */
+export function preparaFascia(state) {
+  try {
+    const p = state?.pending;
+    if (p?.car && (Date.now() - Number(p.startedAt ?? 0)) < PENDING_SCADENZA_MS) {
+      return { tipo: 'ronda', auto: p.car, armataAlle: Number(p.startedAt ?? 0), viaFino: Number(p.avviaFino ?? 0), scadeIn: scadeIn(p.startedAt) };
+    }
+    const demo = state?.vetrinaCustom;
+    if (demo?.car && (Date.now() - Number(demo.startedAt ?? 0)) < PENDING_SCADENZA_MS) {
+      return { tipo: 'gara al volo', auto: demo.car, armataAlle: Number(demo.startedAt ?? 0), viaFino: 0, scadeIn: scadeIn(demo.startedAt) };
+    }
+    return null;
+  } catch { return null; }
+}
 
 /** Stato REALE della gara al volo, letto DALL'ISTANTANEA ({ durata:{giri|min},
  *  banda, pista }). null se il file manca (PC dove una gara custom non è mai
@@ -273,6 +372,14 @@ export function statoIstantanea(file = INSTANT_FILE) {
   };
 }
 
+/* LA RIGA DEL REGISTRO per la card demo (4/11): l'ultima scrittura vera
+   della durata (gara-veloce.jsonl) già formattata per una persona — la STESSA
+   riga che la GUI mostra nel riepilogo «Gara al volo» (endpoint
+   gara-veloce-registro). null se mai scritto: la card dice solo l'istantanea. */
+function rigaRegistro() {
+  try { return formattaRigaRegistro(leggiRegistro(1)[0]) ?? null; } catch { return null; }
+}
+
 export function azioniPulsanti(ladder, state) {
   try {
     const az = {};
@@ -280,7 +387,7 @@ export function azioniPulsanti(ladder, state) {
     if (demo?.car) {
       const nomeDemo = ladder?.contentNames?.cars?.[demo.car] ?? null;
       if ((Date.now() - Number(demo.startedAt ?? 0)) < PENDING_SCADENZA_MS) {
-        if (nomeDemo) az.demo = { id: `demo:${demo.startedAt ?? 0}:${demo.car}`, tipo: 'evento', nome: nomeDemo, scadeIn: scadeIn(demo.startedAt), istantanea: statoIstantanea() };
+        if (nomeDemo) az.demo = { id: `demo:${demo.startedAt ?? 0}:${demo.car}`, tipo: 'evento', nome: nomeDemo, scadeIn: scadeIn(demo.startedAt), istantanea: statoIstantanea(), registro: rigaRegistro() };
       }
     }
     const p = state?.pending;
@@ -288,13 +395,28 @@ export function azioniPulsanti(ladder, state) {
       const nome = ladder?.contentNames?.cars?.[p.car] ?? null;
       if (nome && (Date.now() - Number(p.startedAt ?? 0)) < PENDING_SCADENZA_MS) {
         const spec = p.trackNames?.[0] ? specFor(p.trackNames[0]) : null;
-        az.ronda = { id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome, pista: spec?.name ?? null, layout: spec?.layout ?? null, serie: p.node ?? null, scadeIn: scadeIn(p.startedAt) };
+        // BANDA della serie (4/11, card arricchite): gli override dei cursori
+        // (state.raceSettings[node].sliderMin/sliderMax) quando ci sono — la
+        // STESSA fonte di raceCard (rangeMin/rangeMax), quindi lo stesso numero
+        // che la GUI del browser consiglia. null = nessun override: la card
+        // non inventa una banda a caso.
+        const ov = state?.raceSettings?.[p.node] ?? {};
+        const banda = [ov?.sliderMin, ov?.sliderMax].every((x) => Number.isFinite(Number(x))) ? `${Number(ov.sliderMin)}–${Number(ov.sliderMax)}` : null;
+        az.ronda = { id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome, pista: spec?.name ?? null, layout: spec?.layout ?? null, serie: p.node ?? null, scadeIn: scadeIn(p.startedAt), banda };
       }
     }
     if (!az.demo) {
       const card = eventCard(ladder, state);
       if (card?.acceptedAt && card.carName) {
-        az.evento = { id: `evento:${card.theme?.id ?? card.eventId ?? '?'}:${card.carName}`, tipo: 'evento', nome: card.carName, tema: card.theme?.name ?? null, pista: card.trackName ?? null, giri: card.laps ?? null, ora: card.hour ?? null, banda: card.diffMin != null && card.diffMax != null ? `${card.diffMin}–${card.diffMax}` : null };
+        // PREMIO in palio (4/11, card arricchite): auto della vittoria + soldi,
+        // presi dalla card evento (che porta il prize dell'evento attivo via
+        // ...a). null quando l'evento non ha premio: mai una card che scrive
+        // «undefined» nel gioco.
+        const pr = card?.prize ?? null;
+        const premio = pr?.carName
+          ? (pr.money != null ? `${pr.carName} + €${Number(pr.money).toLocaleString('it-IT')}` : pr.carName)
+          : null;
+        az.evento = { id: `evento:${card.theme?.id ?? card.eventId ?? '?'}:${card.carName}`, tipo: 'evento', nome: card.carName, tema: card.theme?.name ?? null, pista: card.trackName ?? null, giri: card.laps ?? null, ora: card.hour ?? null, banda: card.diffMin != null && card.diffMax != null ? `${card.diffMin}–${card.diffMax}` : null, premio };
       }
     }
     return az;
@@ -430,6 +552,14 @@ function assorbiAck(dati) {
   const store = percorsoStore();
   if (!store) return;
   const acks = leggiStoreJson(store, 'cruscotto.acks');
+  // LETTURA AMBIGUA (store occupato dal gioco o troncato a metà scrittura —
+  // 29/10, «appena esco da una gara riparte la stessa gara»): per l'AVVIA non
+  // si rischia il riparto su un insieme che non abbiamo letto. Il comando
+  // tace per QUESTA fascia; la rilettura del prossimo giro decide serena.
+  if (acks === undefined) {
+    if (c.tipo === 'avvia') dati.comando = null;
+    return;
+  }
   const colpo = (acks?.commands ?? []).find((a) => a && a.id === c.id);
   if (!colpo) return;
   if (colpo.ok && !confermati.has(c.id)) {
