@@ -33,16 +33,50 @@
 // A EVO APERTO le scritture dell'istantanea passano solo con --force; senza,
 // il comando rifiuta (lezione: il menu può riscrivere il file nel frattempo).
 
-import { existsSync, readdirSync, copyFileSync, writeFileSync, renameSync } from 'node:fs';
+import { existsSync, readdirSync, copyFileSync, writeFileSync, renameSync, appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 
-import { GAME_MODES_DIR } from './evo-grid.mjs';
+import { GAME_MODES_DIR, gameRunning } from './evo-grid.mjs';
 import { timedRace, setInstantAi, currentInstantRace, INSTANT_FILE } from './set-instantrace.mjs';
 import { specFor, changeWeekendTrack, currentWeekendTrack } from './set-track.mjs';
-import { gameRunning } from './evo-grid.mjs';
+import { fileURLToPath } from 'node:url';
 import { loadState, saveState } from '../src/state.mjs';
 import { loadLadder, SAVE_FILE } from '../src/webui-env.mjs';
 import { buildGridMessage } from '../src/gridbuilder.mjs';
+
+// IL REGISTRO DELLA DURATA (1/11): ogni scrittura ARRIVA qui, un JSONL con
+// una riga per tasto — la stessa rete dei registri voce (data/copilot-*.jsonl).
+// Il posto è la sandbox dei flussi (EVO_FLOWS_DIR, test/_flows-sandbox.mjs):
+// nei test e sul PC reale lo stesso env imposta la cartella, e le righe non
+// sostituiscono i backup che già gli scrittori lasciano sui file veri.
+export const REGISTRO_FILE = join(process.env.EVO_FLOWS_DIR ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'gara-veloce.jsonl');
+function registra(voci) {
+  try {
+    mkdirSync(dirname(REGISTRO_FILE), { recursive: true });
+    appendFileSync(REGISTRO_FILE, JSON.stringify({ at: new Date().toISOString(), ...voci }, null, 0) + '\n');
+  } catch { /* registro pieno o read-only: la scrittura NON ha modo di fermarsi per lui */ }
+}
+export function leggiRegistro(limit = 20) {
+  try {
+    const righe = readFileSync(REGISTRO_FILE, 'utf8').trim().split('\n').filter(Boolean);
+    return righe.slice(-limit).reverse().map((r) => { try { return JSON.parse(r); } catch { return { raw: r }; } });
+  } catch { return []; }
+}
+
+/** UNA riga del registro per UNA persona: «5 giri · AI 88–93 · Monza · 14:32».
+ *  Giri e tempo a tempo si escludono (li scrive garaVeloce); l'ora è quella
+ *  della scrittura (locale). Riga illeggibile → null: mai un'eccezione per
+ *  un riepilogo (i rami che la mostrano stanno in Fascia e in GUI). */
+export function formattaRigaRegistro(r) {
+  try {
+    const when = r?.at ? new Date(r.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
+    const dur = r?.giri != null ? `${Number(r.giri)} giri`
+      : (r?.tempo != null ? `${Number(r.tempo)} min a tempo` : null);
+    const banda = r?.aiMin != null && r?.aiMax != null ? `AI ${Number(r.aiMin)}–${Number(r.aiMax)}` : null;
+    const pista = r?.pista ? String(r.pista) : null;
+    return [dur, banda, pista, when].filter(Boolean).join(' · ') || null;
+  } catch { return null; }
+}
 
 /** La ricetta completa della gara al volo. RAISE per input sani (400:
  * NO_RECIPE / NO_ENTRAMBI / BANDA-formato), 409 se l'INSTANT_RACE non esiste.
@@ -73,6 +107,11 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
   if (typeof pool === 'string') pool = pool.split(',').map((c) => c.trim()).filter(Boolean);
 
   const passi = [];
+  // Le scritture vere si DICHIARANO, non si indovinano dal testo del riepilogo:
+  // prima il registro si comandava con una regex su «scritt» negli esiti —
+  // un falso positivo nelle righe tipo «... niente scritto» contava una
+  // scrittura che non c'era stata. Ora i passi che scrivono lo dichiarano.
+  let scrittoQualcosa = false;
   const step = (nome, fn) => {
     try { passi.push({ nome, esito: fn(), ok: true }); }
     catch (e) { passi.push({ nome, esito: String(e?.message ?? e), ok: false }); }
@@ -83,6 +122,7 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
   // 1) DURATA/MODALITÀ della gara (blocco Race dell'INSTANT_RACE)
   step('durata gara', () => {
     const r = timedRace({ laps: giri, minutes: tempo, dry, force });
+    if (!dry && r.written) scrittoQualcosa = true;
     const descr = giri != null ? `${giri} giri` : `${dopoTempoDescr(r.durata)} a tempo`;
     if (r.written) return `${descr} scritti${r.backup ? ` (backup ${basename(r.backup)})` : ''}`;
     if (r.dry) return `dry: scriveresti ${descr}`;
@@ -94,6 +134,7 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     const cur = currentInstantRace();
     if (!dry && cur && cur.aiMin === aiMin && cur.aiMax === aiMax) return `già ${aiMin}–${aiMax} (niente da scrivere)`;
     const r = setInstantAi(aiMin, aiMax, { dry, force });
+    if (!dry && r.written) scrittoQualcosa = true;
     if (r.written) return `${aiMin}–${aiMax} scritta (era ${cur && cur.aiMin != null ? `${cur.aiMin}–${cur.aiMax}` : '—'})${r.backup ? ` (backup ${basename(r.backup)})` : ''}`;
     if (r.dry) return `dry: scriveresti ${aiMin}–${aiMax}`;
     return r.nota ?? `già ${aiMin}–${aiMax}`;
@@ -112,6 +153,7 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     const prima = currentWeekendTrack(INSTANT_FILE);   // stesso reader del weekend: f3 → 3.5.2 (uz juris il nome)
     if (!prima) throw new Error('blocco pista (3.5) assente nell\'istantanea: apri una volta una gara custom in EVO, poi ripremi');
     const r = changeWeekendTrack(pista, { file: INSTANT_FILE, dry });
+    if (!dry && r.written) scrittoQualcosa = true;
     const descr = `${spec.name} (tag ${spec.tag ?? '—'} · layout ${spec.layout ?? '—'} · ${spec.lengthM ?? '?'} m)`;
     if (dry) return `dry: scriveresti ${descr} (ora c'è "${prima}")`;
     if (!r.written) return r.changed === 0 ? `${descr}: già sotto (idempotente, niente scritto)` : `nessun blocco pista toccato`;
@@ -155,24 +197,38 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     copyFileSync(GRID_FILE, backup);
     writeFileSync(`${GRID_FILE}.tmp`, built.buffer);
     renameSync(`${GRID_FILE}.tmp`, GRID_FILE);
+    scrittoQualcosa = true;
     return `riscritta: ${built.report.gridSize} celle${built.report.sintesi?.length ? ` · celle sintetizzate per le TUE mai in griglia: ${built.report.sintesi.join(', ')} — la prima APPLICA in gioco è la verifica` : ''} · AI ${built.report.ai ?? `${aiMin}-${aiMax}`} (${pool.join(', ')})`;
   });
+
+  // IL REGISTRO DELLA DURATA: in asciutto niente riga (la prova senza scrivere
+  // non si scrive PURE) e idempotente = nulla scritto = niente riga: il
+  // registro conta SOLE le scritture vere, con i parametri che le hanno
+  // comandate — così la LETTURA del registro è la storia di ciò che è stato
+  // scritto davvero, non un elenco di tentativi.
+  if (!dry && scrittoQualcosa) {
+    registra({ giri, tempo, aiMin, aiMax, pista: pista ?? null, auto: auto ?? null, pool: pool ?? null });
+  }
 
   // il verdetto finale: lo stato dell'istantanea come lo vedrà EVO al menu
   let stato = null;
   try { stato = currentInstantRace(); } catch { stato = null; }
 
+  // I PASSI MANUALI (3/11 revisione: la pista SI scrive con --pista, il sedile
+  // con --auto; resta a mano solo ciò che l'app proprio non clicca per te:
+  // APPLICA nel menu griglia — solo se ci fu il pool — e la partenza).
   const restaAte = pista != null
     ? [
-      `pista già scritta (${pista}): nel menu gara controlla SOLO il LAYOUT se ne ha più di uno`,
-      'nel menu griglia premi APPLICA: le celle scritte qui si montano',
-      'parti. Durata e banda nel menu sono quelle scritte qui sopra.',
+      `pista già scritta nell'istantanea (${pista}): nel menu gara controlla SOLO il LAYOUT se ne ha più di uno`,
+      'parti. Durata, banda (e sedile col --auto) nel menu sono quelli scritti qui sopra.',
     ]
     : [
-      'apri EVO → Gara personalizzata: scegli PISTA, LAYOUT e AUTO',
-      'nel menu griglia premi APPLICA: le celle scritte qui si montano',
+      'apri EVO → Gara personalizzata: scegli la PISTA (o ripassala in qua con --pista al prossimo giro)',
       'parti. Durata e banda nel menu sono quelle scritte qui sopra.',
     ];
+  // stesso punto nelle DUE varianti (prima di «parti»): il ternario qui
+  // sotto scriveva 1 in entrambi i rami — semplificato a 1 e basta.
+  if (pool?.length) restaAte.splice(1, 0, 'nel menu griglia premi APPLICA: le celle scritte qui si montano');
 
   return {
     titolo,
@@ -197,8 +253,9 @@ if (isMain) {
     if (!m) { console.error('banda: formato LO-HI (es. --banda 88-93)'); process.exit(2); }
     aiMin = Number(m[1]); aiMax = Number(m[2]);
   }
-  const giri = val('giri') != null ? Number(val('giri')) : null;
-  const tempo = val('tempo') != null ? Number(val('tempo')) : null;
+  const giriArg = val('giri'), tempoArg = val('tempo');
+  const giri = giriArg != null ? Number(giriArg) : null;
+  const tempo = tempoArg != null ? Number(tempoArg) : null;
   let out;
   try {
     out = garaVeloce({ giri, tempo, aiMin, aiMax, auto: val('auto'), pool: val('griglia-pool'), pista: val('pista'), dry: argv.includes('--dry'), force: argv.includes('--force') });

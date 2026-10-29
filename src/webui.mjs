@@ -23,6 +23,9 @@ import {
 import { playerWorldSkill } from './world.mjs';
 import { loadCatalog, resultDetail, onlineArchive } from './catalog.mjs';
 import { rapportoGara } from './rapporto-gara.mjs';
+// IL VERDETTO DI GIORNATA (29/10, «verdetto nella GUI»): stesso aggregato del
+// tool CLI e dei fasce del cruscotto in gioco — UNA fonte sola.
+import { verdettoGiornata } from '../tools/verdetto-giornata.mjs';
 import { liveReader } from './shmem.mjs';
 import { creaVoceCopilota, nuovoSlotVoce, giroVoce, VOCE_LIVELLI } from './voce-copilota.mjs';
 import { raceCard, markPending, chargeEntry, launch } from './race.mjs';
@@ -73,7 +76,7 @@ import { paddockOverview } from './paddock.mjs';
 // il bridge della gara custom a tempo (POST /api/instantrace): lettura +
 // scrittura dell'INSTANT_RACE a gioco APERTO (force), come il ponte griglia
 import { timedRace, currentInstantRace } from '../tools/set-instantrace.mjs';
-import { garaVeloce } from '../tools/_gara-veloce.mjs';
+import { garaVeloce, leggiRegistro, formattaRigaRegistro } from '../tools/_gara-veloce.mjs';
 import { statoAggiornamentiAsync, installaAggiornamenti } from '../tools/aggiornamenti.mjs';
 
 // check degli aggiornamenti FUORI dal boot (audit freeze 23/10): qui prima
@@ -674,7 +677,7 @@ let _voceTickN = 0;
 let _voceTickAt = 0;      // 29/10 sera: quando l'ULTIMO tick è finito DAVVERO
 async function copilotaServerTick() {
   const n = ++_voceTickN;
-  // diagnostica 29/10: i primi 3 tick di ogni partenza del serverスクivono che
+  // diagnostica 29/10: i primi 3 tick di ogni partenza del server scrivono che
   // stato vedono — se qui mancano righe, è il tick che non parte affatto
   if (n <= 3) logaVoce({ evento: 'TICK', n, ora: new Date().toISOString() });
   try { await copilotaServerTickInterno(); }
@@ -852,6 +855,18 @@ async function api(context0, _req, res, action, body) {
       // mai un'eccezione (la vista browser mostra il suo consiglio).
       return sendJson(res, 200, { ok: true, istantanea: statoIstantanea() ?? null });
     }
+    case 'gara-veloce-registro': {
+      // LE ULTIME SCRITTURE DEL REGISTRO DELLA DURATA nel riepilogo «Gara al
+      // volo» della GUI (4/11): così il riepilogo non dice solo COM'È l'
+      // istantanea ADESSO, ma anche COSA ha scritto l'ultimo gesto (giri/tempo,
+      // banda, pista, ora) — la STESSA fonte del bottone demo del Cruscotto
+      // (rigaRegistro in uiapp-pub.mjs). Sola LETTURA: file assente = righe []
+      // e l'ultima null — la vista resta col suo consiglio, niente Modalitate.
+      // leggiRegistro ritorna le righe PIÙ NUOVE per prime (reverse). 5 righe:
+      // la storia recente di una vista browser, non un elenco infinito.
+      const righe = leggiRegistro(5).map(formattaRigaRegistro).filter(Boolean);
+      return sendJson(res, 200, { ok: true, ultima: righe[0] ?? null, righe });
+    }
     case 'gara-veloce': {
       // LA GARA AL VOLO DALLA GUI (1/11): giri o tempo + banda AI
       // dell'istantanea + opzionali sedile (vetrina custom) e griglia dal
@@ -1019,6 +1034,20 @@ async function api(context0, _req, res, action, body) {
       }
       catch (e) { return sendJson(res, 200, { ok: false, messaggio: String(e.message ?? e) }); }
     }
+    case 'riavvia': {
+      // IL RIENTRO A MANO (5/11): il gesto che finora era solo un effetto di
+      // «Aggiorna ora» ora lo comanda il click del bottone di servizio nella
+      // GUI (il server Node non ricarica da solo: codice nuovo a disco +
+      // server che gira = resta il codice VECCHIO in processo). Stesso helper
+      // staccato di agg-install: ammazza questo processo, aspetta la porta e
+      // riparte con node src/webui.mjs. La risposta esce SUBITO; il poll di
+      // agg-info del filbar riporta la GUI sul server nuovo.
+      const { spawn } = await import('node:child_process');
+      spawn(process.execPath, [join('tools', 'riavvia-webui.mjs'), String(process.pid)], {
+        cwd: PROJECT, detached: true, stdio: 'ignore',
+      }).unref();
+      return sendJson(res, 200, { ok: true, messaggio: 'rientro in attivo: la GUI torna da sola (poll agg-info)' });
+    }
     case 'agenda-sign-preview': {
       // ANTICIPO CONFLITTI alla firma: come cadrebbe il calendario della nuova serie
       // e le collisioni con le serie già iscritte (prima di spendere soldi/reputazione)
@@ -1079,6 +1108,12 @@ async function api(context0, _req, res, action, body) {
     // stessa fonte del resultDetail (resultDetail) + settori dal file nativo;
     // salva anche il .md in report/gare/ per l'allegato.
     case 'rapporto-gara': return sendJson(res, 200, paths ? rapportoGara(paths, String(body.file ?? ''), { driver: state?.driver ?? null }) : { error: tr({ it: 'Percorsi dati EVO non configurati: apri il wizard.', en: 'EVO data paths not configured: open the wizard.' }) });
+    // VERDETTO DI GIORNATA (29/10): le gare del prefisso (default: aammgg di
+    // oggi) aggregate in un colpo solo — righe + numeri. body.prefix facoltà:
+    // una giornata passata si rilegge con le QUATTRO cifre aammgg.
+    case 'verdetto': return sendJson(res, 200, paths
+      ? verdettoGiornata({ paths, driver: state?.driver ?? null, prefix: body.prefix ? String(body.prefix).slice(0, 6).replace(/\D/g, '') : undefined })
+      : { error: tr({ it: 'Percorsi dati EVO non configurati: apri il wizard.', en: 'EVO data paths not configured: open the wizard.' }) });
     case 'watcher':
       return sendJson(res, 200, { active: true, armed: watcher.armed, racedEnd: watcher.racedEnd, lastMsg: watcher.lastMsg, events: watcher.events, seq: watcher.importSeq ?? 0 });
     case 'live': {

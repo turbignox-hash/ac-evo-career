@@ -116,6 +116,17 @@ test('il server GUI parte e serve le API chiave (boot, status, card, pagina)', a
       assert.ok(card.j.nodeDisplay, 'card deve avere la serie attiva (nodeDisplay)');
       assert.ok(Array.isArray(card.j.boxRadio?.tips), 'card boxRadio.tips deve essere un elenco (Consigli dal BOX)');
       assert.ok(card.j.tyre, 'card.tyre deve esserci (classe gomme dell’auto)');
+
+      // 5-bis) VERDETTO DI GIORNATA (/api/verdetto, 29/10): stesso aggregato
+      //    del tool CLI e delle fasce del cruscotto. Con ACE_DATA temporanea
+      //    NON ci sono gare oggi: md gentile «Nessuna gara» e gare [], MAI
+      //    un 500. Anche il prefisso esplicito (body.prefix) risponde uguale.
+      const verd = await getJson('/api/verdetto', 'POST', {});
+      assert.equal(verd.code, 200, 'verdetto deve rispondere 200 (anche senza gare oggi)');
+      assert.ok(verd.j, 'verdetto deve essere JSON');
+      assert.equal(typeof verd.j.md, 'string', 'verdetto.md deve esserci (anche con «Nessuna gara»)');
+      assert.equal(verd.j.gare.length, 0, 'cartella dati temporanea: nessuna gara di oggi');
+      assert.match(verd.j.md, /Nessuna gara/);
     }
 
     // 4-bis) stint e gomme dal router garage (lesioni 28/10): con telemetria

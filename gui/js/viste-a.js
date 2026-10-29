@@ -305,6 +305,7 @@ async function drawDashboard(m){
             </div>
           </div>
           <div class="field"><label>${tr({ it: 'Sedile (id auto, opz.)', en: 'Seat (car id, opt.)' })}</label><input type="text" id="gv-auto" placeholder="ks_ferrari_296_gt3"></div>
+          <div class="field"><label>${tr({ it: 'Pista (nome in EVO, opz.)', en: 'Track (name in EVO, opt.)' })}</label><input type="text" id="gv-pista" placeholder="Monza"></div>
           <div class="field" style="grid-column:1/-1"><label>${tr({ it: 'Griglia dal pool (id auto, opz.)', en: 'Grid from pool (car ids, opt.)' })}</label><input type="text" id="gv-pool" placeholder="ks_f40_lm, ks_ferrari_296_gt3"></div>
           <div class="row" style="align-items:end">
             <button class="mini" id="gv-dry">${tr({ it: 'Prova senza scrivere', en: 'Dry run' })}</button>
@@ -313,7 +314,7 @@ async function drawDashboard(m){
         </div>
         <div id="gv-out" style="display:none;margin-top:8px"></div>
         <div id="gv-stato" class="muted" style="margin-top:8px;font-size:12px">…</div>
-        <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'Resta a te: apri EVO → Gara personalizzata, scegli pista/layout/auto e premi APPLICA nel menu griglia. Durata e banda li scriverà il tasto.', en: 'Left to you: open EVO → Custom race, pick track/layout/car and press APPLY in the grid menu. Length and band are written by the button.' })}</div>
+        <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'La pista è un campo qui sopra: scritta nel file, resta solo APPLICA nel menu griglia e VIA. Durata, banda e sedile li scrive il tasto.', en: 'Track is a field above: written into the file, only APPLY in the grid menu is left. Length, band and seat are written by the button.' })}</div>
       </div>
       <div class="panel">
         <h2>${LI.gauge} ${tr({ it: 'Strumenti rapidi', en: 'Quick tools' })}</h2>
@@ -347,6 +348,7 @@ async function drawDashboard(m){
         aiMin: $('#gv-aimin')?.value,
         aiMax: $('#gv-aimax')?.value,
         auto: $('#gv-auto')?.value.trim() || null,
+        pista: $('#gv-pista')?.value.trim() || null,
         pool: $('#gv-pool')?.value.trim() || null,
         dry,
       });
@@ -369,16 +371,26 @@ async function drawDashboard(m){
      aggiorna ogni 15 s finché la vista resta a schermo, il timer muore da
      solo quando l'elemento della vista non c'è più. */
   const gvStato = $('#gv-stato');
+  /* IL REGISTRO nel riepilogo (4/11): COM'È adesso + COSA ha scritto l'ultimo
+     gesto (endpoint gara-veloce-registro, la fonte stessa del bottone demo
+     del Cruscotto). Due righe, nessun nuovo pannello: il riepilogo resta
+     piccolo e dice subito «che cosa ho premuto, che cosa è in EVO». */
+  let gvUltima = null;                                       // riga del registro (riusata a ogni tick)
   const gvStatoScrive = (i) => {
     if (!gvStato) return;
-    gvStato.textContent = !i
-      ? tr({ it: "Nessuna gara custom aperta in EVO ancora: aprane una UNA volta e il riepilogo parte (durata · pista · AI).", en: "No custom race opened in EVO yet: open one ONCE and the summary starts (length · track · AI)." })
+    gvStato.textContent = (!i ? tr({ it: "Nessuna gara custom aperta in EVO ancora: aprane una UNA volta e il riepilogo parte (durata · pista · AI).", en: "No custom race opened in EVO yet: open one ONCE and the summary starts (length · track · AI)." })
       : tr({ it: "L'istantanea in EVO adesso: ", en: "Instant race now in EVO: " }) +
         (i.durata?.giri != null ? `${i.durata.giri} giri` : `${i.durata?.min ?? '?'} min a tempo`) +
-        (i.pista ? ` · ${i.pista}` : '') + (i.banda ? ` · AI ${i.banda}` : '');
+        (i.pista ? ` · ${i.pista}` : '') + (i.banda ? ` · AI ${i.banda}` : '')) +
+      (gvUltima ? `\n${tr({ it: 'Ultimo gesto scritto: ', en: 'Last written change: ' })}${gvUltima}` : '');
   };
   const gvStatoAggiorna = async () => {
-    try { gvStatoScrive((await api('istantanea')).istantanea); } catch { /* server fuori: gli altri canali lo dicono già */ }
+    try {
+      const i = (await api('istantanea')).istantanea;
+      try { gvUltima = (await api('gara-veloce-registro')).ultima ?? null; }
+      catch { gvUltima = null; }                                     // registro mai scritto: solo la riga com'è
+      gvStatoScrive(i);
+    } catch { /* server fuori: gli altri canali lo dicono già */ }
   };
   gvStatoAggiorna();
   const gvStatoTimer = setInterval(() => {
@@ -775,7 +787,11 @@ function drawCardInto(el, card){
     <div class="row" style="margin-top:16px">
       <button class="ghost" id="b-copy">${tr({ it: 'Copia scheda', en: 'Copy sheet' })}</button>
     </div>    <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' })}</button>
-    <div class="muted" style="margin-top:10px">${tr({ it: 'Tutto qui sopra lo scrive in EVO «Prepara tutto e divertiti»: pista, griglia, auto e regole. Se una riga non torna, ripremi il bottone.', en: 'Everything above gets written into EVO by “Get everything ready and have fun”: track, grid, car and rules. If a row looks off, press the button again.' })}</div>`;
+    <div class="muted" style="margin-top:10px">${tr({ it: 'Tutto qui sopra lo scrive in EVO «Prepara tutto e divertiti»: pista, griglia, auto e regole. Se una riga non torna, ripremi il bottone.', en: 'Everything above gets written into EVO by “Get everything ready and have fun”: track, grid, car and rules. If a row looks off, press the button again.' })}</div>
+    <div class="panel" style="margin-top:12px" id="verdetto-panel">
+      <h2 style="margin:0 0 8px">📊 ${tr({ it: 'Verdetto di giornata', en: 'Day verdict' })}</h2>
+      <div id="verdetto-out"><div class="row"><button class="mini" id="verdetto-carica">${tr({ it: 'Calcola il verdetto di oggi', en: 'Compute today’s verdict' })}</button></div></div>
+    </div>`;
   // RADIO LIVE DELL'INGEGNERE: benzina residua, usura gomme, gap — dati veri
   // della shared memory mentre il gioco gira. Se non c'è gara in corso il
   // pannello resta buio (nessun rumore, il cruscotto non si sporca).
@@ -1124,14 +1140,20 @@ function drawCardInto(el, card){
               ogni 12 s era rumore (24/10, Mauro in pista). Il primo numero
               si SEMINA in silenzio: i primi tick possono portare i dati
               bruciati della sessione prima. */
-        if (dv != null && Math.abs(dv) <= 15000) {   // 31/10 pomeriggio: oltre ±15 s il HUD raffronta con il best di un'altra sessione (gara 15:29: «56.9/36.9/16.9» a raffica) — non ritmo, tace
-          const bucket = Math.round(dv / 400);
+        /* 31/10 SERA (norma del narratore unico, tools/_monitor-copilota.mjs):
+              la voce delta esce SOLO da fonte 'tracked' — l'HUD raffronta col
+              best che vuole il gioco (in R5 il best della Time Attack di
+              prima: falsi 11-14 s in radio). L'HUD resta nel numero grande
+              qui sopra, mai in voce; senza fonte tace pure. */
+        const dvVoce = m.delta?.source === 'tracked' ? (m.delta?.dv ?? null) : null;
+        if (dvVoce != null && Math.abs(dvVoce) <= 15000) {   // 31/10 pomeriggio: oltre ±15 s non ritmo vero — tace
+          const bucket = Math.round(dvVoce / 400);
           if (cp.last.dvBucket == null) cp.last.dvBucket = bucket;   // semina senza voce  (31/10: niente risemina a at===0 — quella faceva restare la voce delta muta per sempre)
           else if (bucket !== cp.last.dvBucket && Date.now() - (cp.at ?? 0) > 45000) {   // 31/10 pomeriggio: 20 s parlava a raffica col best che scivola — al più ogni 45 s
             cp.last.dvBucket = bucket; cp.at = Date.now();
-            cpSpeak(dv < 0
-              ? cpT({ it: `Sei più veloce del best di ${(Math.abs(dv)/1000).toFixed(1)}`, en: `You are ${(Math.abs(dv)/1000).toFixed(1)} quicker than best` })
-              : cpT({ it: `Sei più lento del best di ${(dv/1000).toFixed(1)}`, en: `You are ${(dv/1000).toFixed(1)} slower than best` }));
+            cpSpeak(dvVoce < 0
+              ? cpT({ it: `Sei più veloce del best di ${(Math.abs(dvVoce)/1000).toFixed(1)}`, en: `You are ${(Math.abs(dvVoce)/1000).toFixed(1)} quicker than best` })
+              : cpT({ it: `Sei più lento del best di ${(dvVoce/1000).toFixed(1)}`, en: `You are ${(dvVoce/1000).toFixed(1)} slower than best` }));
           }
         }
         /* 2) TEMPO SUL TRAGUARDO (25/10, Mauro: «vorrei che dicesse il tempo
@@ -1351,6 +1373,9 @@ function drawCardInto(el, card){
            15:51 — si parla sul PASSAGGIO a verde, distanziello 30 s e semina
            in silenzio alla prima lettura. */
         if (g.flagCode != null) {
+          /* 31/10 SERA: la verde è pure il segno del VIA per il postalk qui
+             sotto (gemello del narratore unico, tools/_monitor-copilota.mjs). */
+          if (g.flagCode === 2) cp.last.verdeVisto = true;
           if (cp.last.verde == null) cp.last.verde = g.flagCode;
           else if (g.flagCode === 2 && cp.last.verde !== 2) cpSay('verde', cpT({ it: 'Bandiera verde: via libera.', en: 'Green flag: GO GO GO.' }), 30000);
           cp.last.verde = g.flagCode;
@@ -1358,9 +1383,13 @@ function drawCardInto(el, card){
         /* 9) POSIZIONE: cambia sedile in classifica → una voce (ma non a ogni tick).
            29/10 gemello del Pitwall: nel pitlane la classifica vale zero — niente
            annunci in pit e nei 12 s dopo l'uscita (il falso «P15, posizione persa»). */
+        /* 31/10 SERA: in Race il postalk aspetta la VERDE (gemello del narratore
+           unico): prima del via la griglia si forma, l'ordine non è il campionato. */
+        const cpInGara = /race/i.test(String(m.phase ?? m.sessionType ?? ''));
+        const cpViaVisto = cp.last.verdeVisto === true;
         if (g.inPit === true) cp.last.inPitOra = Date.now();
         const pitScena = g.inPit === true || (cp.last.inPitOra != null && Date.now() - cp.last.inPitOra <= 12000);
-        if (g.position != null && !pitScena && cp.last.pos != null && g.position !== cp.last.pos) {
+        if (g.position != null && !pitScena && (!cpInGara || cpViaVisto) && cp.last.pos != null && g.position !== cp.last.pos) {
           const verso = g.position < cp.last.pos ? cpT({ it: 'recuperata', en: 'gained' }) : cpT({ it: 'persa', en: 'lost' });
           cpSay('postalk', cpT({ it: `P${g.position}, posizione ${verso}.`, en: `P${g.position}, position ${verso}.` }), 30000);   // 27/10: 15→30 s, parlava a ogni sorpasso
         }
@@ -1573,6 +1602,36 @@ const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella
        in fondo — prima creditava tutto e l'amico perdeva cosa il tool
        aveva fatto. */
     } catch(e){ prepConsoleLine(`✖ ${e.message}`); btn.disabled=false; btn.textContent = tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' }); }
+  };
+  /* VERDETTO DI GIORNATA nella scheda (29/10, «verdetto nella GUI»): lo
+     stesso aggregato del tool CLI e del cruscotto in gioco (endpoint
+     /api/verdetto, UNA fonte sola). Su richiesta, non autopoll: la scheda
+     viene ridisegnata spesso e i Results non cambiano ogni mezzo secondo. */
+  $('#verdetto-carica', el).onclick = async () => {
+    const zona = $('#verdetto-out', el); if (!zona) return;
+    const btn = $('#verdetto-carica', el);
+    if (btn) { btn.disabled = true; btn.textContent = tr({ it: 'calcolo…', en: 'computing…' }); }
+    try {
+      const v = await api('verdetto', {});
+      if (v.error) { zona.innerHTML = `<div class="empty">${esc(v.error)}</div>`; return; }
+      const agg = v.aggregato ?? {};
+      const fmtGrial = (g) => (g.posto != null ? `P${g.posto}/${g.partecipanti}` : (g.dsq ? 'DSQ' : '—'));
+      const fmtGap = (ms) => ms == null ? '—' : (ms < 0 ? '-' : '+') + Math.abs(Number(ms) / 1000).toFixed(1) + 's';
+      // il giro migliore in formato m:ss.mmm (ms del tool → testo)
+      const fmtGiroTop = (g) => g ? `${Math.floor(g.ms / 60000)}:${String((g.ms % 60000) / 1000).toFixed(3).padStart(6, '0')} (${g.pista ?? ''})` : null;
+      const riepilogo = tr({
+        it: `Gare ${v.gare.length} · ${agg.vittorie ?? 0} vittorie · ${agg.podi ?? 0} podi${agg.mediaPos != null ? ` · posizione media ${agg.mediaPos.toFixed(1)}` : ''}${fmtGiroTop(agg.giroTop) ? ` · giro migliore ${fmtGiroTop(agg.giroTop)}` : ''}`,
+        en: `Races ${v.gare.length} · ${agg.vittorie ?? 0} wins · ${agg.podi ?? 0} podiums${agg.mediaPos != null ? ` · average position ${agg.mediaPos.toFixed(1)}` : ''}${fmtGiroTop(agg.giroTop) ? ` · best lap ${fmtGiroTop(agg.giroTop)}` : ''}`,
+      });
+      zona.innerHTML =
+        `<div class="muted" style="margin-bottom:6px">${esc(riepilogo)}</div>
+         ${v.gare.length ? `<table><thead><tr><th>${tr({ it: 'Ora', en: 'Time' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Posto', en: 'Pos' })}</th><th class="right">${tr({ it: 'Gap', en: 'Gap' })}</th><th class="right">${tr({ it: 'Tuo giro', en: 'Your lap' })}</th></tr></thead>
+           <tbody>${v.gare.map((g) => `<tr><td>${esc(g.ora || '—')}</td><td>${esc(g.pista ?? '—')}</td><td class="right">${fmtGrial(g)}</td><td class="right">${fmtGap(g.gap)}</td><td class="right">${g.mioGiro ? esc(g.mioGiro) + (g.penalita ? ` <span class="tag bad">${esc(g.penalita)}</span>` : '') : '—'}</td></tr>`).join('')}</tbody></table>`
+           : ''}`;
+    } catch (e) {
+      zona.innerHTML = `<div class="empty">✖ ${esc(e.message ?? String(e))}</div>`;
+      if (btn) { btn.disabled = false; btn.textContent = tr({ it: 'Riprova', en: 'Retry' }); }
+    }
   };
 }
 
