@@ -31,6 +31,12 @@ import { leggiStoreJson } from './uiapp-store.mjs';
 export const PERIODO_MS = 2500;          // il ritmo delle fasce: 2.5 secondi esatti
 export const APP_KEY = 'cruscotto';      // il nome della cartella-app nel loader
 
+// la scadenza di un «fresco»: il pending della ronda e la finestra della
+// demo (vetrinaCustom = gara al volo) valgono UNO STESSO giorno — la
+// costante era dentro comandoAuto; da qui la usa anche azioniPulsanti
+// (i dati dei bottoni) per restare allineati senza copie da tenere in pari.
+const PENDING_SCADENZA_MS = 24 * 3600 * 1000;
+
 /** La cartella dell'app dentro il loader, o null se la mod non c'è:
  *  si prende il primo base «Saved Games» che ha l'App Loader installato
  *  (funziona pure con la cartella di sistema ricollocata). */
@@ -96,6 +102,20 @@ export function vetrina(ladder, state) {
     // preparata col suo nome auto completo, il cruscotto in gioco la
     // imposta nel menu di EVO col canale menu (niente riavvio).
     comando: comandoAuto(ladder, state),
+    // I BOTTONI «Prepara e divertiti» IN GIOCO (3/11, «implementalo sul
+    // cruscotto per i bottoni prepara e divertiti di entrambi, anche eventi
+    // speciali»): il SISTEMA immediato c'è già — il ponte comandi del
+    // Cruscotto è lo stesso di Paddock installato sul PC (corriSetcar →
+    // corriEvento → corriAvvia in cruscotto.js) e un comando AUTO esce
+    // a ogni tick automaticamente (comandoAuto sopra). Le azioni sono l'ALTRA
+    // metà, la MANUALE: i DATI per i due bottoni del pannello, uno per la
+    // ronda preparata (sequenza completa: tipo gara → pista → auto → avvia,
+    // come Paddock) e uno per l'evento speciale accettato (SOLO auto, il
+    // weekend non si tocca). Il canale automatico resta VIVO: se la
+    // presa automatica del comando manca (silenzio dall'ack, finestre
+    // chiuse), l'amico preme il bottone e riparte la STESSA sequenza dal
+    // pannello — con gli STESSI id, così l'ack fissa le ripubblicazioni.
+    azioni: azioniPulsanti(ladder, state),
     guiUrl: guiBaseUrl ?? (typeof process !== 'undefined' ? process.env.PITWALL_GUI_URL : null) ?? null,
   };
 }
@@ -114,9 +134,8 @@ export function vetrina(ladder, state) {
 export function comandoAuto(ladder, state) {
   try {
     const p = state?.pending;
-    // SCADENZA DEL pending (lezione 27/10 19:30): un giorno e la ronda
-    // non preparata più fresca lascia il campo all'evento attivo.
-    const PENDING_SCADENZA_MS = 24 * 3600 * 1000;
+    // la scadenza del pending (lezione 27/10 19:30) vive in testa al modulo:
+    // azioniPulsanti (i bottoni) la condivide, nessuna coppia da tenere in pari.
     // VETRINA CUSTOM (28/10 sera, «deve farlo in automatico come paddock»):
     // una gara personalizzata (la demo endurance multi-classe) vive fuori
     // dalla carriera: la griglia la scrive il tool DIRETTAMENTE sul disco e
@@ -201,6 +220,53 @@ export function comandoAuto(ladder, state) {
     }
     return null;
   } catch { return null; }
+}
+
+/** I DATI dei bottoni «Prepara e divertiti» del pannello in gioco (3/11,
+ *  richiesta Mauro: «implementalo sul cruscotto per i bottoni prepara e
+ *  divertiti di entrambi, anche eventi speciali»). Il ponte comandi è lo
+ *  stesso di Paddock, già dentro cruscotto.js: qui (lato server) escono
+ *  SOLO LE IMPRONTE dei gesti, con gli STESSI id di comandoAuto così le
+ *  azioni del bottone si *coordinano* via ack: premere il bottone mette
+ *  anch'essa un ack e il canale automatico tace per lo stesso gesto. Il bottone
+ *  resta vivo anche con il comando già ackato (è il RIFUGIO del canale
+ *  automatico), e ogni slot porta il suo gesto:
+ *  - azioni.ronda: la ronda preparata (state.pending fresco con auto nota)
+ *    → sequenza COMPLETA da bottone (tipo gara → pista → auto → avvia);
+ *  - azioni.evento: l'evento speciale accettato → SOLO auto (lezione 23/10:
+ *    pista/AI/ora/giri restano a mano dalla scheda);
+ *  - azioni.demo: la gara al volo (vetrinaCustom) mentre la sua finestra
+ *    è viva — anche lei SOLO auto (la griglia e l'istantanea sono già
+ *    scritte sul disco e il menu del gioco le adotta). Con la finestra
+ *    demo viva il bottone evento SI NASCONDE: resta un'ALTRA sola auto
+ *    nel menu, mai due che si scambiano il sedile per ogni fascia.
+ */
+export function azioniPulsanti(ladder, state) {
+  try {
+    const az = {};
+    const demo = state?.vetrinaCustom;
+    if (demo?.car) {
+      const nomeDemo = ladder?.contentNames?.cars?.[demo.car] ?? null;
+      if ((Date.now() - Number(demo.startedAt ?? 0)) < PENDING_SCADENZA_MS) {
+        if (nomeDemo) az.demo = { id: `demo:${demo.startedAt ?? 0}:${demo.car}`, tipo: 'evento', nome: nomeDemo };
+      }
+    }
+    const p = state?.pending;
+    if (p?.car) {
+      const nome = ladder?.contentNames?.cars?.[p.car] ?? null;
+      if (nome && (Date.now() - Number(p.startedAt ?? 0)) < PENDING_SCADENZA_MS) {
+        const spec = p.trackNames?.[0] ? specFor(p.trackNames[0]) : null;
+        az.ronda = { id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome, pista: spec?.name ?? null, layout: spec?.layout ?? null, serie: p.node ?? null };
+      }
+    }
+    if (!az.demo) {
+      const card = eventCard(ladder, state);
+      if (card?.acceptedAt && card.carName) {
+        az.evento = { id: `evento:${card.theme?.id ?? card.eventId ?? '?'}:${card.carName}`, tipo: 'evento', nome: card.carName, tema: card.theme?.name ?? null };
+      }
+    }
+    return az;
+  } catch { return {}; }
 }
 
 /** Classifica della serie CORRENTE del pilota (node), fino a 6 righe + la tua:

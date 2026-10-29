@@ -77,6 +77,11 @@
   border-radius:8px; padding:4px 10px; font-size:12px; cursor:pointer;
   display:inline-block; }
 .crd-panel .apri-gui:hover { background:#274060; }
+.crd-panel .crd-btn { background:#1d2c42; color:#7fb4ff; border:1px solid #2a3d5c;
+  border-radius:8px; padding:7px 12px; font-size:13px; font-weight:600; cursor:pointer;
+  display:block; letter-spacing:.2px; }
+.crd-panel .crd-btn:hover { background:#274060; color:#cfe3ff; }
+.crd-panel .crd-btn:disabled { opacity:.45; cursor:default; }
 .crd-panel .nota { color:#9aa7b8; font-size:10px; margin-left:6px;
   word-wrap:break-word; }
 .crd-panel .mio { color:#ffd47f; font-size:15px; }
@@ -353,6 +358,84 @@
     return true;
   }
 
+  // ---------------------------------------------------- BOTTONI «Prepara e divertiti»
+  // (3/11, «implementalo sul cruscotto per i bottoni prepara e divertiti di
+  // entrambi, anche eventi speciali»): il publisher spedisce le azioni in
+  // azioni {} NELLO stesso fascio delle facce (src/uiapp-pub.mjs). Ciascun
+  // bottone riESCE la STESSA sequenza del canale automatico — ronda: SetGameType
+  // → pista → auto → «Avvia sessione» (la STESSA di Paddock installato sul
+  // PC); evento/demo: SOLO auto in gara personalizzata, perché la scheda la
+  // scrive «Prepara tutto» dalla GUI (pista/griglia/AI/ora/giri, lezione 23/10).
+  // Gli ID sono gli STESSI (azioniPulsanti li deriva dagli stessi imprint),
+  // così l'ack del bottone sincronizza le ASSETS di lato: il canale
+  // automatico tace per lo stesso gesto, nessun ping-pong con il garage.
+  const azioni = () => (S.dati?.azioni) || {};
+  const bottoneTs = {};          // az -> ultimo tentativo (finestra anti doppio-clic = RETRY_MS)
+
+  async function bottoneCorri(_k, cmd) {
+    if (cmd.tipo !== 'setcar') return corriEvento(cmd);
+    const ok = await corriSetcar(cmd);
+    if (!ok) return false;
+    ackComando(cmd, true, 'ronda pronta dal bottone (tipo gara/pista/auto)');
+    const okVia = await corriAvvia();
+    if (okVia) ackComando(Object.assign({}, cmd, { id: cmd.id + ':avvia', tipo: 'avvia', pista: null, layout: null }), true, 'avvia dal bottone: sessione lanciata');
+    // «Avvia» non riuscita: NESSUN ack del :avvia — il canale automatico
+    // ripropone il comando la fascia dopo (l'applicazione self-service che
+    // ha già garantito la rip roar). L'auto impartita dal bottone resta.
+    return true;
+  }
+
+  document.addEventListener('click', function (e) {
+    const b = e.target?.closest ? e.target.closest('button.crd-btn[data-az]') : null;
+    if (!b || !panel.contains(b)) return;
+    e.preventDefault();
+    const k = b.getAttribute('data-az');
+    const a = azioni()[k];
+    if (!a || !a.id || !a.nome) { notaComando('La preparazione ' + k + ' non è più fresca: attenda la prossima fascia.'); return; }
+    if (inCorso) { notaComando('Sequenza già in corso: si riparte quando finisce.'); return; }
+    if (Date.now() - (bottoneTs[k] ?? 0) < RETRY_MS) return;   // la stessa finestra del canale automatico
+    bottoneTs[k] = Date.now();
+    inCorso = true;
+    ultimoTentativoAt = Date.now();   // anche il canale automatico si aspetta durante il bottone
+    try { b.disabled = true; } catch (_e) { }
+    loga('bottone ' + k + ': sequenza del ponte (' + a.id + ')');
+    const cmd = { id: a.id, tipo: a.tipo, nome: a.nome, pista: a.pista ?? null, layout: a.layout ?? null };
+    Promise.resolve(bottoneCorri(k, cmd)).then(function (ok) {
+      inCorso = false;
+      if (ok) falliti.delete(cmd.id);   // riuscito: le risposte del canale automatico ripubblicano da sole
+      disegna();
+    }).catch(function (err) {
+      inCorso = false;
+      notaComando('Bottone «' + k + '»: ' + String(err?.message ?? err));
+      disegna();
+    });
+  });
+
+  function bloccoBottoni() {
+    const az = azioni();
+    const scheda = (k) => {
+      const a = az[k];
+      if (!a || !a.id || !a.nome) return '';
+      const se = a.tipo === 'setcar'
+        ? (a.pista ? 'tipo gara, pista ' + a.pista + ' e auto nel menu di EVO, poi avvia' : 'tipo gara e auto nel menu di EVO, poi avvia')
+        : 'SOLO auto nel menu di EVO: pista/griglia/AI/ora/giri restano sulla scheda da GUI';
+      const etico = k === 'ronda'
+        ? '🏁 Prepara e divertiti'
+        : (k === 'demo'
+          ? '🏁 Prepara e divertiti (gara al volo)'
+          : '⭐ Prepara e divertiti (evento)');
+      const titolo = k === 'ronda'
+        ? 'Ronda preparata' + (a.serie ? ' · ' + a.serie : '')
+        : (k === 'demo' ? 'Gara al volo armata' : 'Evento speciale' + (a.tema ? ' · ' + a.tema : ''));
+      return '<div class="card"><div class="titolo">' + esc(titolo) + '</div><div class="riga">' + esc(a.nome) +
+        (a.tipo === 'setcar' && a.pista ? ' @ ' + esc(a.pista) : '') + ' — ' + esc(se) + '</div>' +
+        '<button class="crd-btn" data-az="' + k + '" style="margin-top:8px;width:100%">' + etico + '</button></div>';
+    };
+    const h2 = scheda('ronda') + scheda('evento') + scheda('demo');
+    if (!h2) return '';
+    return '<div class="gruppo"><h2>Prepara e diverti</h2>' + h2 + '</div>';
+  }
+
   function applicaComando(c) {
     if (!c || !c.id || !c.nome) return;
     if (inCorso) return;
@@ -460,6 +543,13 @@
     if (d.giornoLabel) h += '<br>Giorno ' + esc(d.giornoLabel);
     h += '</div>';
     h += strisciaNota();
+
+    // BOTTONI «Prepara e divertiti» (3/11): sopra tutto, la PRIMA cosa che
+    // l'amico vede sul panello — ronda preparata, evento accettato (o la
+    // gara al volo armata) quando lo sono. Ogni card è la STESSA sequenza
+    // che il canale automatico fa da solo: il bottone è la via manuale,
+    // per ripeterla o tirarla quando automatico non ha totalmente esito.
+    h += bloccoBottoni();
 
     h += '<div class="gruppo"><h2>Gare di oggi</h2>';
     // la prima gara ISCRITTA viene prima di tutto (se c'è): è quella del comando

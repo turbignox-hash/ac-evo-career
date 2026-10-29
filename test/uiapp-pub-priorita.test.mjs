@@ -11,7 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { comandoAuto, confermaAck } from '../src/uiapp-pub.mjs';
+import { comandoAuto, confermaAck, azioniPulsanti } from '../src/uiapp-pub.mjs';
 
 // fixture in stile events-card.test.mjs: un'auto nota nel libro lader e
 // un evento attivo e accettato (premio un'auto diversa da quella della ronda).
@@ -147,4 +147,64 @@ test('vetrina custom con auto NON nel libro: il campo passa alle priorità stori
   // l'auto ignota non comanda niente (il tool rifiuta comunque armi del genere,
   // tools/vetrina-custom.mjs): il ramo demo cade sulle priorità storiche
   assert.equal(cmd?.tipo, 'evento', 'auto ignota: il ramo demo non comanda, le storie riprendono il campo');
+});
+
+// ------------------------------------------------------------------
+// I BOTTONI «Prepara e divertiti» IN GIOCO (3/11, «implementalo sul
+// cruscotto per i bottoni prepara e divertiti di entrambi, anche eventi
+// speciali»): azioniPulsanti spedisce al pannello I DATI dei due gesti
+// con gli STESSI id di comandoAuto (così un ack del bottone sincronizza
+// anche il canale automatico), e i bottoni RESTANO a premere anche DOPO
+// l'ack: sono il RIFUGIO dell'amico quando la presa automatica non parte.
+// ------------------------------------------------------------------
+const pendingMonza = { car: 'r5_touring', node: 'coppa_rx7', trackNames: ['Monza'], startedAt: Date.now() - 60_000 };
+
+test('azioni: ronda fresca espone il bottone CON la pista del libro (Monza → GP Race), evento pure', () => {
+  const az = azioniPulsanti(mkLadder(), mkState({ pending: pendingMonza }));
+  assert.equal(az.ronda?.tipo, 'setcar', 'bottone ronda: sequenza COMPLETA di Paddock, tipo setcar');
+  assert.equal(az.ronda?.nome, 'R5 Touring');
+  assert.equal(az.ronda?.pista, 'Monza', 'la pista arriva dal libro TRACK_INFO, non resta null');
+  assert.equal(az.ronda?.layout, 'GP Race');
+  assert.ok(az.ronda?.id, 'id presente: ack di bottone e canale automatico puntano allo stesso imprint');
+  assert.equal(az.evento?.nome, 'F40 Leggenda', 'ENTRAMBI i bottoni escono insieme: ronda e evento non si contendono nulla da qui');
+});
+
+test('azioni: gli id dei bottoni coincidono con gli id dei comandi automatici (ack unico)', () => {
+  const state = mkState({ pending: pendingMonza });
+  const az = azioniPulsanti(mkLadder(), state);
+  const cmd = comandoAuto(mkLadder(), state);
+  assert.equal(cmd?.id, az.ronda?.id, "stesso imprint: l'ack del bottone tace anche il canale automatico");
+});
+
+test('azioni: evento NON accettato = niente bottone evento (serve il SI a maestro)', () => {
+  const invito = { ...EVENTO, acceptedAt: null };
+  const az = azioniPulsanti(mkLadder(), mkState({ events: { active: invito, history: [], showCase: [], lastRoundChecked: null } }));
+  assert.equal(az.evento, undefined);
+});
+
+test('azioni: ronda con auto IGNOTA nel libro rimane FUORI (comando non replicabile)', () => {
+  const az = azioniPulsanti(mkLadder(), mkState({ pending: { car: 'auto_used_ignota', startedAt: Date.now() - 60_000 } }));
+  assert.equal(az.ronda, undefined, 'senza nome auto nota il bottone uscirebbe sbagliato: non esce, il canale automatico pure lo salta');
+});
+
+test('azioni: bottone ronda NON muore con il pending ackato (è il RIFUGIO del canale automatico)', () => {
+  const state = mkState({ pending: pendingMonza });
+  confermaAck(`${pendingMonza.startedAt}:r5_touring:coppa_rx7`);
+  const az = azioniPulsanti(mkLadder(), state);
+  assert.equal(az.ronda?.nome, 'R5 Touring', 'ackato: il canale automatico tace, MA il bottone resta premibile');
+});
+
+test('azioni: la finestra demo (gara al volo) esce come terzo bottone e NASCONDE quello evento', () => {
+  const demoTs = Date.now() - 30_000;
+  const az = azioniPulsanti(mkLadderDemo(), mkState({ vetrinaCustom: { car: 'ks_ferrari_296_gt3', startedAt: demoTs } }));
+  assert.equal(az.demo?.tipo, 'evento', "la gara al volo comanda SOLO auto, stessa azione dell'evento");
+  assert.equal(az.demo?.nome, 'Ferrari 296 GT3');
+  assert.equal(az.demo?.id, `demo:${demoTs}:ks_ferrari_296_gt3`, 'id demo = id del canale automatico (stesso ack)');
+  assert.equal(az.evento, undefined, "con la finestra demo viva un secondo bottone evento prenderebbe l'auto");
+});
+
+test('azioni: finestra demo scaduta → il bottone demo scompare e quello evento torna', () => {
+  const az = azioniPulsanti(mkLadderDemo(), mkState({ vetrinaCustom: { car: 'ks_ferrari_296_gt3', startedAt: Date.now() - 25 * 3600 * 1000 } }));
+  assert.equal(az.demo, undefined);
+  assert.equal(az.evento?.nome, 'F40 Leggenda');
 });
