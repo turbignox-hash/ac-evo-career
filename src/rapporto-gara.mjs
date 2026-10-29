@@ -13,19 +13,45 @@
 // Niente dati fittizi: ogni numero esce da resultDetail (catalog.mjs) o da
 // sectorAnalysis (results.mjs) sul file nativo di EVO.
 
-import { writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resultDetail } from './catalog.mjs';
+import { resultDetail, resultDirs } from './catalog.mjs';
 import { readSessionResult, findPlayerDriver, sectorAnalysis, lapToMs } from './results.mjs';
+import { riepilogoPerClasse } from './classi-gt.mjs';
 import { sameTrack } from './tracknames.mjs';
 import { buildVersion } from './report.mjs';
 import { tr } from './lang.mjs';
+import { listMotecSessions, analyzeLd } from './motec.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RADICE = dirname(HERE);
 // EVO_REPORT_DIR: solo per i test — redirige i .md della prova in una temporanea
 const OUT_DIR = process.env.EVO_REPORT_DIR ?? join(RADICE, 'report', 'gare');
+
+/**
+ * Il best lap dal MoTeC quando il file di gioco scrive best_lap VUOTO
+ * (28/10 Oulton nella pioggia: has_best_lap true, stringa vuota, splits []).
+ * La sessione MoTeC giusta è quella .ld più vicina nel tempo al file dei
+ * risultati (max 30 min), sola auto+pista combaciante; best = giro minimo.
+ * Ritorna 'm:ss.mmm' o null — mai un numero inventato.
+ */
+function bestLapDaMotec(paths, me, trackRef, resultMtime) {
+  try {
+    const root = paths?.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : null;
+    if (!root || !me?.car) return null;
+    const s = listMotecSessions(root, { car: me.car, track: trackRef })
+      .map((f) => ({ ...f, dt: Math.abs(f.mtime - resultMtime) }))
+      .filter((f) => f.dt <= 30 * 60 * 1000)
+      .sort((a, b) => a.dt - b.dt)[0];
+    if (!s) return null;
+    const best = Math.min(...(analyzeLd(s.file)?.laps ?? [])
+      .map((l) => l.durationSec).filter(Number.isFinite));
+    if (!Number.isFinite(best)) return null;
+    const min = Math.floor(best / 60);
+    return `${min}:${(best - min * 60).toFixed(3).padStart(6, '0')}`;
+  } catch { return null; }
+}
 
 const g = (s) => String(s ?? '').trim();
 
@@ -66,6 +92,58 @@ const giroVeloce = (rows) => {
 /** Il podio ufficiale: i primi tre classificati (le DSQ escono già dal conto). */
 export function podioDi(rows) {
   return rows.filter((r) => !r.dsq).slice(0, 3);
+}
+
+/* -------------------------------------------------------------- LE MANS */
+/**
+ * La CLASSIFICA PER CLASSE, stile 24h Le Mans (richiesta Mauro 28/10):
+ * gare endurance con GT1/GT2/GT3 dove il gioco scrive una classifica sola.
+ * Il gruppo esce da classi-gt.mjs (raggruppa per pezzo del nome auto) e qui
+ * si compone la sezione: per ogni classe, podio della classe + righe in
+ * blocco monospazio come il bianco. Con meno di due classi vere ritorna
+ * null e NESSUN byte toccato nel resto del rapporto.
+ * Le etichette portano la posizione di CLASSE (posClasse) accanto a quella
+ * di gara, così «GT2 · P1 (P5 ass.)» resta leggibile insieme alla gara vera.
+ */
+export function sezioneClassi(rows, { larghezzaVuota = null } = {}) {
+  const L = locale();
+  const res = riepilogoPerClasse(rows);
+  if (!res) return null;
+  const limAutoC = larghezzaVuota ?? Math.max(8, ...res.gruppi.flatMap((gr) => gr.righe.map((r) => g(r.car).length)));
+  const limPilotaC = Math.max(8, ...res.gruppi.flatMap((gr) => gr.righe.map((r) => g(r.name).length)));
+  const padC = (s, w) => { s = g(s); return s.length > w ? s.slice(0, w - 1) + '…' : s.padEnd(w); };
+  const nomeEtichetta = (c) => (c === '-' ? tr({ it: 'Diversi', en: 'Various' }) : c);
+  const blocchi = res.gruppi.map((gr) => {
+    const testa = [
+      `${nomeEtichetta(gr.classe).slice(0, 12).padEnd(12)}`,
+      tr({ it: 'Pilota', en: 'Driver' }).padEnd(limPilotaC),
+      L.auto.padEnd(limAutoC),
+      L.giri.padStart(4),
+      L.miglior.padEnd(10),
+      tr({ it: 'Pos', en: 'Pos' }).padStart(8),
+    ].join(' | ');
+    const riga = (r) => [
+      `P${r.posClasse}`.padStart(12),
+      padC(r.name, limPilotaC),
+      padC(r.car, limAutoC),
+      String(r.laps ?? 0).padStart(4),
+      padC(r.bestLap || '—', 10),
+      `P${r.position}`.padStart(8),
+    ].join(' | ');
+    return [testa, ...gr.righe.map(riga)].join('\n');
+  });
+  // podio per classe: una riga di premiazione ciascuna, gold-silver-bronze
+  const premi = res.gruppi
+    .filter((gr) => gr.righe.some((r) => !r.dsq))
+    .map((gr) => {
+      const primo = gr.righe.find((r) => !r.dsq);
+      return `${MEDAGLIE[0]} ${nomeEtichetta(gr.classe)} — **${g(primo?.name).slice(0, 30)}** (${g(primo?.car)})`;
+    });
+  return {
+    titolo: tr({ it: 'CLASSIFICA PER CLASSE · stile 24h Le Mans', en: 'CLASS STANDINGS · 24h Le Mans style' }),
+    blocchi,
+    premi: premi.join(' · '),
+  };
 }
 
 /** Legge il file nativo (per i settori del tuo giro: resultDetail non porta gli splits). */
@@ -178,6 +256,14 @@ export function mdCompose(d, { me = null, fl = null, sect = null, prev = null, b
     .map((r, i) => `${MEDAGLIE[i]} **P${r.position}** ${r.name}${r.penalty ? ` _${r.penalty}_` : ''} — ${r.car}`)
     .join('\n');
 
+  // CLASSIFICA PER CLASSE (stile 24h Le Mans): solo con ≥2 classi vere.
+  const classiS = sezioneClassi(d.rows);
+  const capoClassi = classiS ? [
+    `\n🏁 **${classiS.titolo}**`,
+    classiS.premi,
+    ...classiS.blocchi.map((b) => `\`\`\`\n${b}\n\`\``),
+  ] : [];
+
   const capo = [
     `🏁 **${L.titolo}${d.track}${d.layout ? ` — ${d.layout}` : ''}**`,
     [
@@ -229,6 +315,7 @@ export function mdCompose(d, { me = null, fl = null, sect = null, prev = null, b
   return [
     capo,
     podio || null,
+    ...capoClassi,
     `\`\`\`\n${blocco}\n\`\`\``,
     ...tue,
     veloce,
@@ -257,6 +344,14 @@ export function htmlCompose(d, { md = '' } = {}) {
   const podio = podioDi(d.rows)
     .map((r, i) => `${MEDAGLIE[i]} <b>P${r.position}</b> ${esc(r.name)} — ${esc(r.car)}${r.penalty ? ` <i>${esc(r.penalty)}</i>` : ''}`)
     .join(' · ');
+  // CLASSIFICA PER CLASSE (stile 24h Le Mans): solo con ≥2 classi vere.
+  const classiS = sezioneClassi(d.rows);
+  const etichettaClasse = (c) => (c === '-' ? tr({ it: 'Diversi', en: 'Various' }) : c);
+  const tabClassi = classiS ? `<div class="podio"><b>${esc(classiS.titolo)}</b><br>${esc(classiS.premi)}</div>
+<table class="tab"><thead><tr><th>${esc(tr({ it: 'Classe', en: 'Class' }))}</th><th>P</th><th>${esc(L.pilota)}</th><th>${esc(L.auto)}</th><th class="r">${esc(L.giri)}</th><th class="r">${esc(L.miglior)}</th><th class="r">${esc(L.gap)}</th></tr></thead>
+<tbody>${classiS.gruppi.map((gr) => gr.righe
+    .map((r) => `<tr><td>${esc(etichettaClasse(gr.classe))}</td><td>P${r.posClasse}</td><td>${esc(r.name)}${r.me ? ' ⭐' : ''}</td><td>${esc(r.car)}</td><td class="r">${r.laps}</td><td class="r">${esc(r.bestLap || '—')}</td><td class="r">${esc(gapTesto(r, d.rows))}</td></tr>`)
+    .join('')).join('')}</tbody></table>` : '';
   return `<!doctype html>
 <html lang="it"><head><meta charset="utf-8">
 <title>${esc(d.track)} — ${esc(d.event)}</title>
@@ -275,6 +370,7 @@ export function htmlCompose(d, { md = '' } = {}) {
 <h1>🏁 ${esc(d.track)}${d.layout ? ` — ${esc(d.layout)}` : ''}</h1>
 <div class="meta">${esc(d.session)} · ${esc(d.event)} · ${tr({ it: 'ore ', en: 'at ' })}${esc(d.hour ?? '?')}:${String(d.min ?? 0).padStart(2, '0')} · ☁️ ${esc(d.weather || 'n/d')} · ${d.rows.length} ${esc(L.piloti)}${dataDi(d.file) ? ` · ${esc(dataDi(d.file))}` : ''}</div>
 ${podio ? `<div class="podio">${podio}</div>` : ''}
+${tabClassi}
 <table class="tab"><thead><tr><th>P</th><th>${esc(L.pilota)}</th><th>${esc(L.auto)}</th><th class="r">${esc(L.giri)}</th><th class="r">${esc(L.miglior)}</th><th class="r">${esc(L.tempo)}</th><th class="r">${esc(L.gap)}</th><th class="r">${esc(L.pen)}</th><th class="r">⚔️</th></tr></thead>
 <tbody>${righe}</tbody></table>
 <pre class="md">${esc(md)}</pre>
@@ -309,6 +405,16 @@ export function rapportoGara(paths, fileName, { driver = null, salva = true } = 
   } catch { /* senza splits il rapporto resta completo senza la sezione settori */ }
 
   const me = d.rows.find((r) => r.me) ?? null;
+  // ripiego MoTeC: il gioco CHIscrive il best vuoto non deve lasciare «—»
+  // nel rapporto quando la telemetria della sessione ha i giri veri.
+  try {
+    const vuoto = me && !String(me.bestLap ?? '').trim();
+    if (vuoto) {
+      const dir = (resultDirs(paths) ?? []).find((x) => existsSync(join(x, safe)));
+      const b = dir ? bestLapDaMotec(paths, me, d.track, statSync(join(dir, safe)).mtimeMs) : null;
+      if (b) { me.bestLap = b; me.hasBest = true; }
+    }
+  } catch { /* senza MoTeC il rapporto resta con «—», com'era */ }
   const fl = giroVeloce(d.rows);
   let build = null;
   try { build = buildVersion(); } catch { /* senza git il semver basta */ }

@@ -2,8 +2,9 @@
 // customgrid (solo celle/piloti/config/meteo): stanno nel salvataggio del
 // Game Mode, GameModeType_RACE_WEEKEND.gamemodesave, come protobuf a 4+ blocchi
 // (Practice/Qualifying/Warmup/Race) con per blocco:
-//   f1 = nome sessione (stringa)   f2 = giri o durata (varint)
-//   f3 = tipo sessione (1 pratica/qualifica, 2 race)
+//   f1 = nome sessione (stringa)   f2 = durata (dipende dalla modalità)
+//   f3 = MODALITÀ della sessione (mappa del 28/10, confermata su 4 file):
+//        1 = a TEMPO (f2 = SECONDI), 2 = a GIRI (f2 = GIRI)
 //   f30/f31 = AI min/max, f32 = aggressività
 //
 // uso:
@@ -27,7 +28,12 @@ import { setWeekendGridMode } from './set-track.mjs';
 const FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 const gameIsRunning = () => /AssettoCorsaEVO/i.test(execSync('tasklist', { encoding: 'utf8' }) ?? '');
 
-/** Elenca le sessioni del gamemodesave: [{ i, nome, giri, tipo }] (letture pure). */
+/** Elenca le sessioni del gamemodesave: [{ i, nome, giri, tipo, aTempo,
+ *  durataSec, mode }] (letture pure). `tipo` resta il f3 con la vecchia
+ *  lettura «1 pratica/qualifica, 2 race»; da quando sappiamo che f3 è la
+ *  MODALITÀ (28/10) le riscritture leggono `aTempo`: 1 = a tempo (f2 secondi),
+ *  2 = a giri (f2 giri) — per le sessioni CON nome è la stessa cosa in pratica,
+ *  ma per la gara cambiano le regole di scrittura. */
 export function sessionsOf(buf) {
   const blocks = decodeMsg(buf).filter((f) => f.field === 3 && f.wire === 2);
   return blocks.map((b, i) => {
@@ -36,8 +42,11 @@ export function sessionsOf(buf) {
     const nome = get(1)?.wire === 2 ? asText(get(1).bytes) : '?';
     const giri = get(2)?.wire === 0 ? Number(get(2).varint) : null;
     const tipo = get(3)?.wire === 0 ? Number(get(3).varint) : null;
+    const mode = tipo ?? 1;               // f3 assente → a tempo (default osservato)
+    const aTempo = mode === 1;
+    const durataSec = aTempo ? giri : null;   // con f3=1 il f2 SONO secondi
     const sm = singleMakeOf(inner);
-    return { i, nome, giri, tipo, avversari: inner.filter((g) => g.field === 11 && g.wire === 2).length, singleMake: sm?.valore ?? null, singleMakeField: sm?.field ?? null };
+    return { i, nome, giri, tipo, mode, aTempo, durataSec, avversari: inner.filter((g) => g.field === 11 && g.wire === 2).length, singleMake: sm?.valore ?? null, singleMakeField: sm?.field ?? null };
   });
 }
 
@@ -71,21 +80,31 @@ const roundTripOk = (buf) => {
   return { ok: Buffer.compare(buf, Buffer.from(out)) === 0, size: buf.length, sizeOut: out.length };
 };
 
-/** patch del varint giri sul blocco sel: MODIFICA MINIMA sui byte decodificati. */
-function patchLaps(fields, sel, laps) {
+/** patch del blocco sel: MODIFICA MINIMA sui byte decodificati. Da 28/10 il
+ * blocco Race può stare a TEMPO (f3=1, f2 = SECONDI): patchRace({ laps }) scrive
+ * giri e riporta f3=2; patchRace({ seconds }) scrive f2 = secondi e f3=1. */
+function patchRace(fields, sel, { laps = null, seconds = null } = {}) {
+  const mode = laps != null ? 2 : 1;
+  const durata = laps != null ? laps : seconds;
   let k = 0;
   for (const f of fields) {
     if (f.field !== 3 || f.wire !== 2) continue;
     if (k++ !== sel) continue;
     const inner = decodeMsg(f.bytes);
     const j = inner.findIndex((g) => g.field === 2 && g.wire === 0);
-    if (j < 0) throw new Error(`blocco ${sel} senza campo giri (f2 varint): niente scrittura`);
-    inner[j] = { ...inner[j], varint: BigInt(laps) };
+    if (j < 0) throw new Error(`blocco ${sel} senza campo durata (f2 varint): niente scrittura`);
+    inner[j] = { ...inner[j], varint: BigInt(durata) };
+    const m = inner.findIndex((g) => g.field === 3 && g.wire === 0);
+    if (m >= 0) inner[m] = { ...inner[m], varint: BigInt(mode) };
+    else inner.push({ field: 3, wire: 0, varint: BigInt(mode) });   // f3 assente = a tempo: scriviamolo ESPLICITO
     f.bytes = encodeMsg(inner);          // encodeMsg gestisce tag/lunghezze
     return;
   }
   throw new Error(`blocco sessione ${sel} non trovato`);
 }
+
+/** giri = patchRace di prima (chiama wrap): MODIFICA MINIMA sui byte decodificati. */
+function patchLaps(fields, sel, laps) { patchRace(fields, sel, { laps }); }
 
 /** qual è il blocco GARA (nome race/gara o tipo 2) — stessa scelta del CLI. */
 export function raceBlockIndex(ses) {
@@ -135,13 +154,17 @@ export function setSingleMake(on, { file = FILE, dry = false, opponents = SINGLE
  * Idempotente: se il blocco dice già quei giri, non tocca niente (written:false).
  * opts: { file }. Ritorna { already, written, block, giri, backup }.
  */
-export function setWeekendLaps(laps, { file = FILE } = {}) {
+export function setWeekendLaps(laps, { file = FILE, force = false } = {}) {
   if (!Number.isInteger(laps) || laps <= 0) throw Object.assign(new Error(`giri deve essere un intero > 0, ricevo ${laps}`), { code: 'BAD_LAPS' });
   const buf = readFileSync(file);
   const ses = sessionsOf(buf);
   const which = raceBlockIndex(ses);
   if (which < 0) throw Object.assign(new Error('blocco gara non trovato nel gamemodesave'), { code: 'NO_RACE' });
-  if (ses[which].giri === laps) return { already: true, written: false, block: ses[which].nome, giri: laps, backup: null };
+  // 28/10 (fatto a mano da Mauro dopo «devi essere in grado di farlo pure tu»):
+  // la gara può essere rimasta a TEMPO da una prova (f3=1): invece di rifugiarsi
+  // nell'errore, il «Prepara tutto» TORNA A GIRI (f3=2 + f2=laps) come#ifule più.
+  if (ses[which].aTempo && !force) return setWeekendTimed(null, { file, laps });
+  if (ses[which].giri === laps && !ses[which].aTempo) return { already: true, written: false, block: ses[which].nome, giri: laps, backup: null };
   const fields = decodeMsg(buf);
   patchLaps(fields, which, laps);
   const out = Buffer.from(encodeMsg(fields));
@@ -156,6 +179,38 @@ export function setWeekendLaps(laps, { file = FILE } = {}) {
   return { already: false, written: true, block: ses[which].nome, giri: laps, backup };
 }
 
+/**
+ * Mette la GARA del weekend a TEMPO (28/10, il doppione del gesto che Mauro ha
+ * fatto a mano nel menu e «applicato»): f3=1, f2 = minuti × 60 secondi.
+ *   setWeekendTimed(5)      → Race a 5 minuti a tempo
+ *   setWeekendTimed(null, { laps: N }) → torna a giri (f3=2, f2=N) — il ripristino
+ * Idempotente, round-trip byte-identico, backup datato (`.bak-tempo-`).
+ * opts: { file } o { laps } per il ripristino. */
+export function setWeekendTimed(minutes, { file = FILE, laps = null } = {}) {
+  if (minutes == null && laps == null) throw Object.assign(new Error('serve --tempo N (minuti) o { laps: N } per tornare a giri'), { code: 'NO_VALUES' });
+  if (minutes != null && (laps != null || !Number.isFinite(minutes) || minutes <= 0)) throw Object.assign(new Error(`tempo: minuti > 0 richiesti, ricevo ${minutes}`), { code: 'BAD_TEMP' });
+  const backToLaps = minutes == null;
+  const durata = backToLaps ? laps : Math.max(60, Math.min(24 * 3600, Math.round(minutes) * 60));
+  const buf = readFileSync(file);
+  const ses = sessionsOf(buf);
+  const which = raceBlockIndex(ses);
+  if (which < 0) throw Object.assign(new Error('blocco gara non trovato nel gamemodesave'), { code: 'NO_RACE' });
+  if (!backToLaps && ses[which].aTempo && ses[which].durataSec === durata) return { already: true, written: false, block: ses[which].nome, durata, backup: null };
+  if (backToLaps && !ses[which].aTempo && ses[which].giri === laps) return { already: true, written: false, block: ses[which].nome, durata, backup: null };
+  const fields = decodeMsg(buf);
+  patchRace(fields, which, backToLaps ? { laps } : { seconds: durata });
+  const out = Buffer.from(encodeMsg(fields));
+  const probe = sessionsOf(out)[which];
+  if (backToLaps ? probe.aTempo || probe.giri !== laps : !probe.aTempo || probe.durataSec !== durata) throw new Error(`verifica fallita: rileggo ${JSON.stringify(probe)}`);
+  const rt = roundTripOk(out);
+  if (!rt.ok) throw new Error(`round-trip NON byte-identico: ${JSON.stringify(rt)}`);
+  const backup = `${file}.${backToLaps ? 'bak-laps' : 'bak-tempo'}-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+  copyFileSync(file, backup);
+  writeFileSync(`${file}.tmp`, out);
+  renameSync(`${file}.tmp`, file);
+  return { already: false, written: true, block: ses[which].nome, durata, backup };
+}
+
 /* ---------- CLI (solo se eseguito direttamente, non importato) ---------- */
 const isMain = process.argv[1] && import.meta.url === new URL(`file:///${process.argv[1].replace(/\\/g, '/')}`).href;
 
@@ -165,7 +220,7 @@ const getArg = (name) => { const i = argv.indexOf('--' + name); return i >= 0 ? 
 
 const buf = readFileSync(FILE);
 const ses = sessionsOf(buf);
-const label = (s) => `  blocco ${s.i}: "${s.nome || '(senza nome)'}"  giri=${s.giri ?? '(f2 assente)'}  tipo=${s.tipo ?? '?'}`;
+const label = (s) => `  blocco ${s.i}: "${s.nome || '(senza nome)'}"  giri=${s.giri ?? '(f2 assente)'}  tipo=${s.tipo ?? '?'}${s.aTempo ? `  · a tempo (${Math.round((s.durataSec ?? 0) / 60)} min)` : ''}`;
 console.log(`${FILE} — ${ses.length} sessioni:`);
 for (const s of ses) console.log(label(s));
 
@@ -179,7 +234,24 @@ if (smArg === 'on' || smArg === 'off') {
 }
 
 const lapsArg = getArg('race') ?? getArg('session');
-if (lapsArg == null) { console.log('\nniente da scrivere: usa --race N oppure --session "<nome parziale>" N'); process.exit(0); }
+const tempoArg = getArg('tempo');
+if (lapsArg == null && tempoArg == null) { console.log('\nniente da scrivere: usa --race N · --session "<nome parziale>" N · --tempo N (gara a N minuti)'); process.exit(0); }
+
+if (tempoArg != null) {
+  // gara a tempo nel WEEKEND: la stessa cosa del menu «prenuta» di Mauro —
+  // --giri N dopo ripristina a giri (alias di --race N sul ciclo a tempo).
+  if (gameIsRunning()) { console.error('\nEVO è APERTO: chiudi il gioco prima di scrivere (il menu riscrive il file).'); process.exit(1); }
+  const minuti = Number(tempoArg);
+  const ritornoGiri = getArg('giri');
+  const backToLaps = minuti <= 0;
+  const res = backToLaps
+    ? setWeekendTimed(null, { file: FILE, laps: Number(ritornoGiri) })
+    : setWeekendTimed(minuti, { file: FILE });
+  if (res.already) console.log(`\nil blocco "${res.block}" è già a ${Math.round(res.durata / 60)} min a tempo: niente scrittura.`);
+  else console.log(`\nscritto: ${backToLaps ? `ritorno a giri=${res.durata}` : `gara a ${Math.round(res.durata / 60)} min a tempo`} sul blocco "${res.block}"${res.backup ? ` · backup: ${res.backup.split('/').pop()}` : ''}`);
+  for (const s of sessionsOf(readFileSync(FILE))) console.log(label(s));
+  process.exit(0);
+}
 const laps = Number(lapsArg);
 if (!Number.isInteger(laps) || laps <= 0) { console.error('giri deve essere un intero > 0'); process.exit(1); }
 

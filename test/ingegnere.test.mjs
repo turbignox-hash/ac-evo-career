@@ -146,14 +146,29 @@ test('pitWindow: tutto in salute → nessuna sosta; fuori gara → null', () => 
 });
 
 test('engineerLive: in gara restituisce live + pit; fuori resta silenzioso', () => {
-  const snapIn = { live: true, session: { type: 'Race' }, player: { fuel: 40, tyreWear: [0.4, 0.55, 0.38, 0.42], lapsTotal: 20, lapsDone: 10, lapsPossible: 4, gapAhead: 1.2, gapBehind: 3, position: 3, drivers: 20 } };
+  const snapIn = { live: true, session: { type: 'Race' }, player: { fuel: 40, tyreWear: [0.4, 0.55, 0.38, 0.42], lapsTotal: 20, lapsDone: 10, lapsPossible: 4, gapAhead: 1.2, gapBehind: 3, position: 3, drivers: 20, inPit: true } };
   const live = engineerLive(snapIn, {});
   assert.ok(live.live && live.pit, 'manca pit nella risposta live');
   assert.ok(live.pit.need === 'fuel', `pit.need = ${live.pit?.need}`);
   assert.ok(live.tips.some((t) => t.icon === '🏁'), 'manca il tip di gap davanti');
+  assert.equal(live.gauges.inPit, true, 'il sensore pitlane viene fuori nei gauges (narratore dei box)');
   const snapOut = { live: true, session: { type: 'Practice' }, player: snapIn.player };
   const quiet = engineerLive(snapOut, {});
   assert.ok(!quiet.live && quiet.pit === null, 'fuori gara l\u2019ingegnere deve tacere');
+});
+
+test('engineerLive: il contratto inPit è null/falso, MAI undefined (narratori dei box)', () => {
+  // 28/10 tardissimo, gara muto del copilota: nel registro MONITOR il campo
+  // inPit leggeva undefined — ma a sorgente shmem.mjs lo scrive SEMPRE
+  // (player.inPit = carLocation===1) e engineer lo passa con ?? null: il
+  // narratore 6c splende solo col valore null (g.inPit != null). Il test
+  // bluxa il contratto BOTH directions: senza foto del gioco, gauges.inPit
+  // DEVE uscire null, e con il campo false DEVE uscire false.
+  const base = { fuel: 40, tyreWear: [0.4, 0.55, 0.38, 0.42], lapsTotal: 20, lapsDone: 10, lapsPossible: 4, gapAhead: 1.2, gapBehind: 3, position: 3, drivers: 20 };
+  const senza = engineerLive({ live: true, session: { type: 'Race' }, player: { ...base } }, {});
+  assert.equal(senza.gauges.inPit, null, 'senza il campo: null, non undefined (i narratori devono poter distinguere)');
+  const falso = engineerLive({ live: true, session: { type: 'Race' }, player: { ...base, inPit: false } }, {});
+  assert.equal(falso.gauges.inPit, false, 'inPit false resta false: fuori dal pitlane, e il narratore 6c lo semina');
 });
 
 test('engineerLive: nelle PROVE (TimeAttack di EVO) la radio vive ma la finestra pit no', () => {
@@ -164,4 +179,45 @@ test('engineerLive: nelle PROVE (TimeAttack di EVO) la radio vive ma la finestra
   const snapOut = { live: true, session: { type: 'Practice' }, player: snapTA.player };
   const quiet = engineerLive(snapOut, {});
   assert.ok(!quiet.live && quiet.pit === null, 'type non riconosciuto → la radio tace');
+});
+
+test('engineerLive: BANDIERA BLU (28/10 notte, endurance) — tip in cima e flag nei gauges, contratto null', () => {
+  // richiesta Mauro: «le bandiere blu non segnano corrette sulle endurance —
+  // copilota muto + cruscotto senza bandiera». La sorgente (player.flag,
+  // shmem FLAG[4]='blu') c'era da sempre; qui si bissa il contratto:
+  // flag 'blu' → tip 🔵 CON prio 0 (in cima alla radio) e gauges.flag='blu';
+  // flag assente → gauges.flag NULL, mai undefined (stesso patto di inPit).
+  const base = { fuel: 40, tyreWear: [0.4, 0.55, 0.38, 0.42], lapsTotal: 20, lapsDone: 10, lapsPossible: 4, gapAhead: 1.2, gapBehind: 3, position: 3, drivers: 20 };
+  const doppio = engineerLive({ live: true, session: { type: 'Race' }, player: { ...base, flag: 'blu' } }, {});
+  const tip = doppio.tips.find((t) => t.icon === '🔵');
+  assert.ok(tip, 'manca il tip della bandiera blu');
+  assert.equal(tip.prio, 0, 'la bandiera blu comanda la radio (prio 0)');
+  assert.equal(doppio.gauges.flag, 'blu', 'il flag non arriva ai gauges (i narratori lo consumano)');
+  const libero = engineerLive({ live: true, session: { type: 'Race' }, player: { ...base, flag: 'nessuna' } }, {});
+  assert.ok(!libero.tips.some((t) => t.icon === '🔵'), 'flag non blu: nessun tip');
+  assert.equal(libero.gauges.flag, 'nessuna', 'flag libero passa nei gauges');
+  const senza = engineerLive({ live: true, session: { type: 'Race' }, player: { ...base } }, {});
+  assert.equal(senza.gauges.flag, null, 'senza il campo: null, non undefined (contratto narratori)');
+  assert.ok(!senza.tips.some((t) => t.icon === '🔵'), 'senza il campo nessun falso tip blu');
+});
+
+test('engineerLive: CODICE GREZZO del flag (28/10 notte, endurance) — passa ai gauges, contratto null', () => {
+  // richiesta continua: «le bandiere blu non segnano giusto nelle
+  // endurance». Ma con la parola SOLO non si distingue «campo assente» da
+  // «valore fuori mappa» (es. una endurance che scrive un codice nuovo di
+  // EVO: FLAG[?] è null e nessuno saprebbe perché). shmem ora porta anche
+  // la cifra (flagCode/globalFlagCode) e l'ingegnere la passa: il monitor
+  // copilota la mette nel registro, la prossima endurance chiude ogni
+  // dubbio di mappatura da sola.
+  const base = { fuel: 40, lapsTotal: 20, lapsDone: 10, position: 3, drivers: 20 };
+  const blu = engineerLive({ live: true, session: { type: 'Race' }, player: { ...base, flag: 'blu', flagCode: 4, globalFlag: 'verde', globalFlagCode: 2 } }, {});
+  assert.equal(blu.gauges.flagCode, 4, 'il codice grezzo del flag per auto non passa ai gauges');
+  assert.equal(blu.gauges.globalFlagCode, 2, 'il codice grezzo del flag globale non passa ai gauges');
+  // fuori mappa: parola null MA codice visibile — la coppia è la diagnosi
+  const fuori = engineerLive({ live: true, session: { type: 'Race' }, player: { ...base, flag: null, flagCode: 11 } }, {});
+  assert.equal(fuori.gauges.flag, null, 'valore fuori mappa: parola null');
+  assert.equal(fuori.gauges.flagCode, 11, 'valore fuori mappa: il codice resta leggibile (11 esiste da un lato? eccolo)');
+  const senza = engineerLive({ live: true, session: { type: 'Race' }, player: { ...base } }, {});
+  assert.equal(senza.gauges.flagCode, null, 'senza codice: null, mai undefined (contratto monitor)');
+  assert.equal(senza.gauges.globalFlagCode, null, 'senza codice globale: null, mai undefined');
 });

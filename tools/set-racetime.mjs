@@ -47,7 +47,9 @@ export function currentRaceTime(file = WEEKEND_FILE, blockName = 'Race') {
   const min = dt.find((x) => x.field === 5)?.varint;
   const scaleF = sess.find((s) => s.field === 7 && s.wire === 5);
   const scale = scaleF?.bytes ? Buffer.from(scaleF.bytes).readFloatLE(0) : 1;
-  return { hour: hour != null ? Number(hour) : null, minute: min != null ? Number(min) : null, scale, block: i + 1, blocchi: blkl(blk) };
+  const modeN = sess.find((s) => s.field === 3 && s.wire === 0);
+  const mode = modeN ? Number(modeN.varint) : 1;   // f3 assente → a tempo (default osservato)
+  return { hour: hour != null ? Number(hour) : null, minute: min != null ? Number(min) : null, scale, mode, aTempo: mode === 1, block: i + 1, blocchi: blkl(blk) };
 }
 
 /** Per-sessione: ora/min/scala di OGNI blocco con nome. Il cruscotto del
@@ -67,14 +69,16 @@ export function currentSessionTimes(file = WEEKEND_FILE) {
     const hour = dt.find((x) => x.field === 4)?.varint;
     const min = dt.find((x) => x.field === 5)?.varint;
     const scaleF = sess.find((s) => s.field === 7 && s.wire === 5);
-    // durata DELLA SESSIONE (richiesta Mauro 31/10: dura anche al % bassa):
-    // nel blocco il f2 varint vale secondi per Practice/Qualifying/Warmup e
-    // GIRI per la Race — la distinguo col nome, così l'idempotenza del
-    // Prepara può confrontarle senza toccare i giri della gara.
+    // durata DELLA SESSIONE (richiesta Mauro 31/10: dura anche al % bassa)
+    // letta col campo MODALITÀ (scoperta 28/10: f3=1 → a tempo, f2 = SECONDI;
+    // f3=2 → a giri, f2 = GIRI). Prima la distinguevo col nome della sessione:
+    // funziona finché la Race è a giri, ma sbaglia su una gara a tempo.
     const g2 = sess.find((x) => x.field === 2);
-    const isRace = /^race$/i.test(name);
-    const durSec = g2 && !isRace && g2.varint != null ? Number(g2.varint) : null;
-    out.push({ name, hour: hour != null ? Number(hour) : null, minute: min != null ? Number(min) : null, scale: scaleF?.bytes ? Buffer.from(scaleF.bytes).readFloatLE(0) : 1, durSec });
+    const modeN = sess.find((x) => x.field === 3 && x.wire === 0);
+    const mode = modeN ? Number(modeN.varint) : 1;
+    const aTempo = mode === 1;
+    const durSec = g2 && g2.varint != null && aTempo ? Number(g2.varint) : null;
+    out.push({ name, hour: hour != null ? Number(hour) : null, minute: min != null ? Number(min) : null, scale: scaleF?.bytes ? Buffer.from(scaleF.bytes).readFloatLE(0) : 1, mode, aTempo, durSec });
   }
   return out;
 }
@@ -100,7 +104,7 @@ export function setRaceSessions({ sessions = {}, scale = null, file = WEEKEND_FI
     const o = typeof v === 'object' && v != null ? v : { hour: v };
     if (o.hour == null && o.minute == null && o.scale == null && o.durationSec == null) continue;
     const dSec = o.durationSec != null ? Math.max(60, Math.min(24 * 3600, Math.round(Number(o.durationSec)))) : null;
-    if (dSec != null && name === 'Race') throw Object.assign(new Error('durationSec vale solo per Practice/Qualifying/Warmup: nel blocco Race il f2 sono GIRI (usa setWeekendLaps)'), { code: 'RACE_NOT_TIMED' });
+    if (dSec != null && name === 'Race') throw Object.assign(new Error('durationSec nella Race lo fa il tool della GARA CUSTOM a tempo (tools/set-instantrace.mjs --tempo N): qui i giri restano quelli del weekend'), { code: 'RACE_NOT_TIMED' });
     want.set(name, { hour: o.hour != null ? Math.max(0, Math.min(23, Math.round(Number(o.hour)))) : null, minute: o.minute != null ? Math.max(0, Math.min(59, Math.round(Number(o.minute)))) : null, scale: o.scale != null ? Math.max(1, Math.min(60, Number(o.scale))) : null, durationSec: dSec });
   }
   const buf = readFileSync(file);

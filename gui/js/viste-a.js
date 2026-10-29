@@ -772,7 +772,13 @@ function drawCardInto(el, card){
       // `v` inesistente → ReferenceError dentro il try → catch tace →
       // speechSynthesis.speak() MAI chiamato: la copilota muta senza errori.
       // Sceglie come la prova voce: esatta it-it → prefisso it → nome «Italian».
-      const v = vs.find((vv) => norm(vv.lang) === 'it-it')
+      // (29/10, Mauro: «rimetti la voce dell'uomo»): prima la it-it MASCHILE
+      // (Cosimo/Roberto/Marco, quelle che c'entrano con la copilota di sempre),
+      // Elsa resta solo come ripiego.
+      const eMaschile = (vv) => /cosimo|roberto|marco/i.test(String(vv.name ?? '') + ' ' + String(vv.voiceURI ?? ''));
+      const v = vs.find((vv) => norm(vv.lang) === 'it-it' && eMaschile(vv))
+        ?? vs.find((vv) => norm(vv.lang) === 'it-it')
+        ?? vs.find((vv) => norm(vv.lang).startsWith('it') && eMaschile(vv))
         ?? vs.find((vv) => norm(vv.lang).startsWith('it'))
         ?? vs.find((vv) => /ital/i.test(String(vv.name ?? '') + String(vv.voiceURI ?? '')));
       /* 27/10 SERA (la voce continuava a uscire in inglese): la lista delle
@@ -828,6 +834,19 @@ function drawCardInto(el, card){
     cp.last[k] = now;
     cpSpeak(text);
   };
+  /* 8d) GEMELLO DEL PITWALL (31/10, gara delle 14:24): la bandiera a scacchi
+     NON grida mai PRIMA del «Giro X fatto»: nel gioco la crocetta raggiunge
+     la MMF un istante prima che il contatore giri salga, così la bandiera
+     parlava 4 s in anticipo. Se in questo tick è appena stato annunciato un
+     giro (entro 4,5 s: la pagina ticca ogni 4 s) esce subito DOPO,
+     altrimenti va in coda e parla al primo giro annunciato in un tick
+     successivo — soccorso 10 s se il giro non arriva mai. */
+  const bandParla = () => {
+    const adesso = Date.now();
+    if (Number.isFinite(cp.last.giroFattoOra) && adesso - cp.last.giroFattoOra < 4500) {
+      cpSpeak(cpT({ it: 'Bandiera a scacchi!', en: 'Checkered flag!' }));
+    } else cp.last.bandieraP = adesso;
+  };
   const fmtDelta = (ms) => (ms == null || !Number.isFinite(ms) ? '—' : (ms < 0 ? '−' : '+') + (Math.abs(ms) / 1000).toFixed(2) + ' s');
   /* la MAPPA «dove perdo tempo»: il contorno del best lap con sopra le fette
      colorate del delta (verde = guadagni, rosso = perdi) e il punto dell'auto */
@@ -865,12 +884,13 @@ function drawCardInto(el, card){
     try {
       const m = await api('ingegnere', {});
       if (!document.body.contains(ingOut)) return;
-      if (!m?.live) { ingOut.innerHTML = ''; return; }
+      if (!m?.live) { ingOut.innerHTML = ''; cp.prevLive = false; return; }
       /* sessione NUOVA (era morta o strtotime avvio pagina): memoria dei
          narratori a zero e 15 s di silenzio — le MMF del gioco portano i
          valori della sessione PRECEDENTE nei primi istanti */
       if (!cp.seenLive) {
         cp.seenLive = true;
+        cp.prevLive = true;
         cp.last = {};
         cp.detti = {};
         cp.at = 0;
@@ -890,6 +910,22 @@ function drawCardInto(el, card){
         cp.detti = {};   // sessione vera nuova: le frasi possono ridirsi da capo
         cp.at = 0;
         cp.grace = Date.now() + 20000;
+      }
+      /* RESET A GARA NUOVA (28/10 tardissimo, Mauro: «copilota muto» nella
+         gara DOPO la gara): tra due gare sulla STESSA pista la firma resta
+         identica — in SP la sessionId della SM non cambia (0, e l'L di
+         eventId anche) — e le last della gara prima SOFFOCAVANO i narratori
+         della gara dopo: il contatore giri monotono si fermava al giro 4
+         vecchio, «Ultimo giro!» risultava già detto, la benzina era
+         seminata. Il ritorno visibile live=false→true = gara nuova di
+         riflesso: memoria a zero e 15 s di grazia (l'attesa carica i primi
+         istanti coi valori TRASCINATI della sessione prima). */
+      if (cp.prevLive === false) {
+        cp.prevLive = true;
+        cp.last = {};
+        cp.detti = {};
+        cp.at = 0;
+        cp.grace = Date.now() + 15000;
       }
       const wearRow = (m.gauges?.wear || []).length === 4 ? `<span class="muted" style="font-size:11px">${tr({ it: 'gomme', en: 'tyres' })} LF ${m.gauges.wear[0]}% · RF ${m.gauges.wear[1]}% · LR ${m.gauges.wear[2]}% · RR ${m.gauges.wear[3]}%${m.gauges.temp?.every(v=>v>0)?' · core '+m.gauges.temp.map(v=>v+'°C').join('/'):''}</span>` : '';
       /* --- DELTA DI RITMO: il numero grande che oggi non c'era --- */
@@ -913,14 +949,26 @@ function drawCardInto(el, card){
          quelle ammesse della serie, il pannello lo dice SUBITO — in rosso —
          perché all'import quella gara vale zero (0 punti, 0 premio). */
       const auto = m.auto ?? null;
+      /* VOCE LATO PITWALL (29/10): da oggi la voce non vive più SOLO qui in
+         pagina — il server parla da solo (voce-copilota.mjs, relatore di
+         Windows): in gara con la GUI chiusa o su un'altra scheda la copilota
+         taceva del tutto — è LA CAUSA della serata muta del 28/10. Quando
+         il server ha la voce la pagina NON ripete i narratori in locale
+         (niente doppia radio) e il chip comanda il Pitwall via POST. */
+      const voceServer = !!m.voceServer;
       const autoHtml = auto?.ammesse?.length && !auto.ok
         ? `<div class="banner warn" style="margin-top:8px;padding:8px 10px;border-color:#c33"><b>🚫 ${tr({ it: 'Auto fuori dal parco della serie', en: 'Car outside the series pool' })}</b> — ${esc(auto.mine ?? '?')} · ${tr({ it: 'ammesse: ', en: 'allowed: ' })}${esc(auto.ammesse.join(', '))} · <b>${tr({ it: 'all\'import vale 0 punti e 0 premio', en: 'scores 0 points and 0 prize at import' })}</b></div>`
         : '';  // in parco: nessun rumore
       ingOut.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:#0d1118">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <div style="font-size:12px"><b>${tr({ it: '🎧 Ingegnere LIVE', en: '🎧 Engineer LIVE' })}</b> <span class="muted" style="font-size:11px">· P${m.gauges.position??'—'}/${m.gauges.drivers??'—'}${m.gauges.lapsTotal!=null?` · ${tr({ it: 'giro ', en: 'lap ' })}${Math.min(m.gauges.lapsTotal, m.gauges.lapsDone+1)}/${m.gauges.lapsTotal}`:''}${m.gauges.timeLeft?` · ${tr({ it: 'resta ', en: 'left ' })}${esc(m.gauges.timeLeft)}`:''}${m.gauges.fuel!=null?` · ${tr({ it: 'benzina ', en: 'fuel ' })}${m.gauges.fuel} L`:''}${m.telemTrack?` · ${tr({ it: 'consumo da ', en: 'consumption from ' })}${esc(m.telemTrack)}`:''}</span></div>
-          <button class="mini" id="cp-toggle" type="button" title="${esc(tr({ it: 'Copilota vocale: le stesse info dell\'ingegnere, dette con la voce. Del tutto locale (speechSynthesis del browser): niente servizi, niente rete.', en: 'Voice copilot: the same engineer info, spoken aloud. Fully local (browser speechSynthesis): no services, no network.' }))}" style="margin-left:auto;letter-spacing:0.2px">
-            <span style="color:${cp.on ? '#7f7' : 'inherit'}">${cp.on ? tr({ it: '🔊 copilota ON', en: '🔊 copilot ON' }) : tr({ it: '🔈 copilota', en: '🔈 copilot' })}</span></button>
+          <button class="mini" id="cp-toggle" type="button" title="${esc(voceServer
+            ? tr({ it: 'La voce la fa il PITWALL (server, Cosimo: parla anche con la GUI chiusa, in gara). Click: spegni tutto — copilota muta.', en: 'The voice comes from the server PITWALL (Cosimo: it speaks even with the GUI closed). Click to mute everything.' })
+            : tr({ it: 'Copilota vocale: le stesse info dell\'ingegnere, dette con la voce. Click: lo accendi lato Pitwall (parla anche con la GUI chiusa).', en: 'Voice copilot: the same engineer info, spoken aloud. Click to enable it on the Pitwall side — it speaks even with the GUI closed.' }))}" style="margin-left:auto;letter-spacing:0.2px">
+            <span style="color:${(voceServer || cp.on) ? '#7f7' : 'inherit'}">${voceServer ? tr({ it: '🔊 copilota (server)', en: '🔊 copilot (server)' }) : cp.on ? tr({ it: '🔊 copilota ON', en: '🔊 copilot ON' }) : tr({ it: '🔈 copilota', en: '🔈 copilot' })}</span></button>
+          <select class="mini" id="cp-livello" title="${esc(tr({ it: 'Quanto parla il copilota: essenziale (box, benzina, bandiere, penalità) · normale (e giro, posizione, gomme) · full (anche delta e distanza)', en: 'How much the copilot speaks: essential / normal / full' }))}" style="margin-left:4px;letter-spacing:0.2px">
+            ${['essenziale','normale','full'].map((lv) => `<option value="${lv}" ${(m.voceLevel ?? 'normale') === lv ? 'selected' : ''}>${lv === 'essenziale' ? tr({ it: 'radio: essenziale', en: 'radio: essential' }) : lv === 'normale' ? tr({ it: 'radio: normale', en: 'radio: normal' }) : tr({ it: 'radio: tutto', en: 'radio: everything' })}</option>`).join('')}
+          </select>
         </div>
         <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-top:8px">
           ${dvHtml}
@@ -931,16 +979,52 @@ function drawCardInto(el, card){
         ${pitHtml}
         ${autoHtml}
       </div>`;
-      $('#cp-toggle', ingOut)?.addEventListener('click', () => {
-        cp.on = !cp.on;
-        localStorage.setItem('evo-copilot', cp.on ? 'on' : 'off');
-        if (!cp.on) { try { speechSynthesis.cancel(); } catch {} }
-        else cpSpeak(cpT({ it: 'Copilota attivo.', en: 'Copilot on.' }));
+      $('#cp-toggle', ingOut)?.addEventListener('click', async () => {
+        if (voceServer) {
+          // voce del PITWALL: il chip la spegne via POST — e MUTE anche la
+          // radio locale (localStorage), così resta parlarne da una sola sorgente
+          try { await api('voce-server', { on: false }); } catch { /* la pagina refresha comunque */ }
+          cp.on = false;
+          localStorage.setItem('evo-copilot', 'off');
+          try { speechSynthesis.cancel(); } catch {}
+        } else {
+          cp.on = true;
+          localStorage.setItem('evo-copilot', 'on');
+          try { await api('voce-server', { on: true }); } catch { /* resta la locale */ }
+          try { speechSynthesis.cancel(); } catch {}
+        }
         ingDraw();
-        drawCopilotStrip?.();   // 27/10: il chip fisso in testata segue lo spegnimento fatto QUI
+        drawCopilotStrip?.();   // il chip in testa segue sempre il cambio
       });
-      /* --- i NARRATORI del copilota: parlano quando la cosa CAMBIA, non in loop --- */
-      if (cp.on && Date.now() > (cp.grace ?? 0)) {   // la grazia copre l'avvio: niente voci sballate
+      /* SELETTORE LIVELLO (30/10, Mauro: «minimo indispensabile, normale o
+         full»): persiste nel config (voceCopilota: livello) via POST, il
+         tick del Pitwall il prossimo giro filtra le frasi col livello. Il
+         livello 'essenziale' spegne gli annunci «di bravo narratore» (giro
+         fatto, posizione, gomme, meta) tenendo SOLO ciò che serve in pista. */
+      $('#cp-livello', ingOut)?.addEventListener('change', async (ev) => {
+        const lv = String(ev.target.value ?? '');
+        try { await api('voce-server', { livello: lv }); } catch { /* la pagina refresha comunque */ }
+        if (lv !== 'off') { localStorage.setItem('evo-copilot', 'on'); }
+        ingDraw();
+        drawCopilotStrip?.();
+      });
+      /* PING della radio (29/10 sera): ogni 10 s dice al server lo stato del
+         chip. 3ª cura (gara TimeAttack muta COL ping attivo): solo un ping
+         con on:false tace il server (chip OFF = silenzio voluto); con chip
+         ON la radio è SOLO il server (Cosimo, System.Speech — già sentito
+         vivo ieri sera), la pagina NON ripete nulla (le sue voci da browser
+         hanno già taciuto due gare anche col ping acceso: cache, attese,
+         autoplay — irrispettabili). */
+      try {
+        if (Date.now() - (cp.ping ?? 0) > 10000) {
+          cp.ping = Date.now();
+          api('voce-pagina', { on: cp.on }).catch(() => {});   // fire-and-forget: mai in fila col polling live
+        }
+      } catch { /* il ping non deve rompere il pannello */ }
+      /* --- i NARRATORI del copilota (LOCALI — zitti quando parla il server):
+            oggi servono solo come scelta di riserva con voceCopilota OFF nel
+            config (chip mostra la sua condizione senza «server») --- */
+      if (cp.on && !voceServer && Date.now() > (cp.grace ?? 0)) {   // 3ª cura 29/10: il server è la radio; la pagina ripete solo se la voce server è OFF
         const g = m.gauges ?? {};
         /* 1) delta live: 20 s MINIMI fra discorsi (27/10: prima 12, parlava
               troppo), ma SOLO se il valore cambia
@@ -985,23 +1069,29 @@ function drawCardInto(el, card){
            (Giro 2 sul traguardo del 1°). L'ho stickato nel replay del
            registro copilota: solo «Giro 3» sopra la gara, mai «Giro 4». */
         if (compiuto != null && Number.isFinite(g.lapsTotal) && g.lapsTotal > 0 && compiuto > g.lapsTotal) compiuto = g.lapsTotal;
-        if (compiuto != null && cp.last.giro != null && compiuto < cp.last.giro) { cp.last.giro = compiuto; cp.last.lastLapTxt = lastLapTxt; cp.last.meta = false; }
-        /* 28/10 pomeriggio (il loop di Mauro): il vecchio reset
-        «lapsDone <= 1 → la meta ricomincia» andava in CONTRASTO con
-        l’annuncio su gare CORTE: su una da 3 giri meta = 2 e lapsDone
-        resta proprio 1 per TUTTO il secondo giro — parlava, il flag
-        tornava falso, riparlava … 15 volte di fila, e la coda della voce
-        ritardava tutto ciò che veniva dopo (Ultimo giro!, posizioni).
-        Le sessioni nuove ora le vede la FIRMA (sopra): questo reset non
-        serve più e fa solo danni. */
+        /* 28/10 tardo (Mauro: «ancora metà gara in loop»): dentro la STESSA
+           sessione il contatore giri non torna MAI indietro. La scorta
+           lapNo del delta e lapsDone dell’HUD a volte contraddicono
+           (l’HUD fallisce un istante e il fallback riparte più basso):
+           il vecchio reset «compiuto < giro → meta da capo» trasformava
+           quel singolo istante in una RIPETIZIONE diretta (flag a false,
+           annuncio 3b ripartiva) e con la guardia 70 s le ripetizioni
+           si sentivano a catena tutto il giro. Ora i contatori si
+           armonizzano in SILenzio e solo la FIRMA (sessione vera nuova,
+           sopra) azzera la memoria. */
+        if (compiuto != null && cp.last.giro != null && compiuto < cp.last.giro) compiuto = cp.last.giro;
         if (compiuto != null && cp.last.giro != null && compiuto > cp.last.giro && lastLapTxt && lastLapTxt !== cp.last.lastLapTxt) {
           const nuova = cpT({ it: `Giro ${compiuto} fatto in ${lastLapTxt}`, en: `Lap ${compiuto} in ${lastLapTxt}` });
           if (m.delta?.bestLapNo === compiuto) cpSpeak(nuova + ' ' + cpT({ it: 'nuovo best della sessione!', en: "that's a new session best!" }));
           else cpSay('lapdone', nuova);
+          cp.last.giroFattoOra = Date.now();   // 8d: la bandiera aspetta QUESTO momento
         }
         // il contatore si avanza SOLO con un tempo nuovo: se il traguardo arriva
         // un attimo prima che l'HUD aggiorni lastLapMs, il giro prossimo si
         // annuncia al tick successivo (4 s) con il tempo giusto, non si perde
+        // CROCE FINALE (30/10, gara a tempo): nuovo lastLap = traguardo appena
+        // attraversato — calcolato PRIMA che la memoria aggiorni il lastLap.
+        const croceFinale = compiuto != null && lastLapTxt != null && lastLapTxt !== cp.last.lastLapTxt;
         if (compiuto != null && lastLapTxt && lastLapTxt !== cp.last.lastLapTxt) cp.last.giro = compiuto;
         if (lastLapTxt != null) cp.last.lastLapTxt = lastLapTxt;
         if (lapNo != null) cp.last.lapNo = lapNo;   // serve per il confronto best di sessione
@@ -1014,10 +1104,12 @@ function drawCardInto(el, card){
         if (g.lapsOnFuel != null) cp.last.fuel = g.lapsOnFuel;
         /* 3b) BENZINA ALLA META GARA (25/10, Mauro): al primo giro della seconda
               metà una voce con litri e giri copribili una sola volta per
-              sessione — in mezzo alla gara non si guarda l'HUD. */
-        if (g.lapsTotal != null && g.lapsTotal > 0 && g.lapsDone != null && !cp.last.meta) {
+              sessione — in mezzo alla gara non si guarda l'HUD. 28/10 tardo:
+              la soglia si legge da compiuto (contatore filtrato), non da
+              g.lapsDone diretto — se l'HUD resta a 0 è la scorta a parlare. */
+        if (g.lapsTotal != null && g.lapsTotal > 0 && compiuto != null && !cp.last.meta) {
           const meta = Math.ceil(g.lapsTotal / 2);
-          if (g.lapsDone + 1 >= meta) {
+          if (compiuto + 1 >= meta) {
             cp.last.meta = true;
             cpSpeak(cpT({
               it: `Meta gara: ${g.fuel != null ? g.fuel + ' litri' : 'benzina sconosciuta'}, per ${g.lapsOnFuel ?? '?'} giri.`,
@@ -1074,6 +1166,26 @@ function drawCardInto(el, card){
             }), 12000);
           }
         } else cp.last.pitN = null;
+        /* 6c) I BOX SI APRONO E CHIUDONO (28/10 sera, richiesta Mauro: «per il
+              copilot implementa la voce quando apre/chiude i box»): il sensore
+              inPit della MMF grafica, da questa sera NEI GAUGES dell'ingegnere
+              (stessa strada di isLastLap — il tip «In pitlane» c'era da tempo,
+              la voce della stessa cosa no). VOCE all'INGRESSO nel pitlane (limiter
+              acceso: «box aperto») e all'USCITA («box chiuso», gomme in
+              temperatura al primo giro). Si parla sul CAMBIO, mai in loop: il
+              primissimo valore si SEMINA in silenzio (come il contatore giri),
+              e la coda cpSay tiene 10 s minimo fra due discorsi baia (anche
+              alternati, che i presupposti flapping non facciano le scale); i
+              reset di sessione li tiene già la firma qui sopra. */
+        if (g.inPit != null) {
+          const sosta = cp.last.inPit;
+          if (sosta != null && sosta !== g.inPit) {
+            cpSay('box', cpT(g.inPit
+              ? { it: 'Box aperto: in pitlane — limiter on, niente gas.', en: 'Pit lane open: in the pitlane — limiter on, no throttle.' }
+              : { it: 'Box chiuso: fuori dal pitlane — gomme in temperatura al primo giro.', en: 'Pit lane closed: out of the pitlane — warm the tyres on the first lap.' }), 10000);
+          }
+          cp.last.inPit = g.inPit;
+        }
         /* 7) AUTO DEL PARCO (24/10, Mauro): fuori dalla lista ammesse lo dico,
               e lo ripeto ogni 30 s finché il sedile non torna in regola */
         if (auto?.ammesse?.length && !auto.ok) {
@@ -1086,13 +1198,61 @@ function drawCardInto(el, card){
               28/10: la condizione PRIMA si appoggia al sensore isLastLap della
               MMF grafica, passato nell'ingegnere — nei flussi come la gara del
               24/10 il contatore rimaneva a 0 per TUTTA la gara e l'annuncio
-              non avveniva MAI: con lapsDone sano la regola del contatore
-              (ld+1 === lt) resta come scorta per i ticket che non lo liberano. */
-        const lt = g.lapsTotal, ld = g.lapsDone;
-        if (lt != null && ld != null && lt > 0) {
-          if ((g.isLastLap || ld + 1 === lt) && !cp.last.ultimo) { cp.last.ultimo = true; cpSpeak(cpT({ it: 'Ultimo giro!', en: 'Final lap!' })); }
-          if (ld >= lt && !cp.last.bandiera) { cp.last.bandiera = true; cpSpeak(cpT({ it: 'Bandiera a scacchi!', en: 'Checkered flag!' })); }
-          if (ld + 1 < lt) cp.last.ultimo = false;   // sessione nova: riparte il cancellino
+              non avveniva MAI. 28/10 tardo: la scorta ora legge compiuto
+              (contatore filtrato lasso su) anziché g.lapsDone diretto —
+              se l'HUD si blocca su 0 il fallback parla LUI. */
+        const lt = g.lapsTotal, ld = compiuto;
+        /* 30/10 GARA A TEMPO (gara dei 5 min, Mauro): con gara a tempo il gioco
+           NON scrive un totale di giri e l'intero ramo era ghiacciato dietro
+           lt > 0 — nemmeno isLastLap, il sensore che il gioco dà SÉ in gara
+           a tempo, poteva parlare: fine gara in silenzio. Come il narratore
+           del Pitwall: «Ultimo giro!» da isLastLap anche senza totale; la
+           bandiera senza totale arriva al TRAGUARDO dopo l'ultimo giro
+           (nuovo lastLap con ultimo=true). */
+        const ltOk = Number.isFinite(lt) && lt > 0;
+        if (Number.isFinite(ld)) {
+          if ((g.isLastLap || (ltOk && ld + 1 === lt)) && !cp.last.ultimo) { cp.last.ultimo = true; cp.last.ultimoGiro = ld; cpSpeak(cpT({ it: 'Ultimo giro!', en: 'Final lap!' })); }
+          if (ltOk && ld >= lt && !cp.last.bandiera) { cp.last.bandiera = true; bandParla(); }
+          else if (!ltOk && cp.last.ultimo && croceFinale && !cp.last.bandiera && Number.isFinite(cp.last.ultimoGiro) && ld > cp.last.ultimoGiro) { cp.last.bandiera = true; bandParla(); }
+          if (ltOk && ld + 1 < lt) cp.last.ultimo = false;   // sessione nova: riparte il cancellino
+        }
+        /* 8c) BANDIERA DI FONDO (30/10 pomeriggio, gemello del Pitwall): la
+           gara di Monza ha visto lapsTotal=0, isLastLap=false e timeLeft=null
+           per TUTTA la sessione — nessuna delle tre fonti era viva e la fine
+           giunse muta. L'unica cosa certa scritta dal gioco: il CAMBIO DI
+           BANDIERA a scacchi al traguardo finale (flagCode 8). Con almeno un
+           giro compiuto: «Bandiera a scacchi!» una volta sola anche se le
+           altre fonti non sono mai arrivate. Bandiera già a scacchi al primo
+           tick (entrare a gara finita): si SEMINA in silenzio. */
+        if (!ltOk && !cp.last.bandiera) {
+          if (cp.last.flagF === undefined) cp.last.flagF = g.flag;
+          else if (cp.last.flagF !== 'a scacchi' && g.flag === 'a scacchi' && Number.isFinite(ld) && ld >= 1) {
+            cp.last.bandiera = true;
+            bandParla();
+          }
+          if (g.flag != null) cp.last.flagF = g.flag;
+        }
+        /* 8d) SVUOTAMENTO della coda (gemello del Pitwall): la bandiera in coda
+           esce quando un giro viene annunciato (giroFattoOra DOPO la richiesta)
+           o al soccorso di 10 s — mai prima di un giro annunciato. */
+        if (cp.last.bandieraP != null) {
+          const adesso = Date.now();
+          if ((Number.isFinite(cp.last.giroFattoOra) && cp.last.giroFattoOra >= cp.last.bandieraP) || adesso - cp.last.bandieraP >= 10000) {
+            cp.last.bandieraP = null;
+            cpSpeak(cpT({ it: 'Bandiera a scacchi!', en: 'Checkered flag!' }));
+          }
+        }
+        /* 8b) CONTO ALLA ROVESCIA (30/10, gare a tempo): ≤60 s «Ultimo minuto!»,
+           ≤30 s «Trenta secondi!», una volta ciascuna per sessione. Il parsing
+           tollerante (m:ss, h:mm:ss) e i flag sono gli STESSI del narratore
+           del Pitwall (gemello). Con la stringa che non si capisce: ziti. */
+        if (g.timeLeft != null) {
+          const mta = String(g.timeLeft).match(/(?:(\d+):)?(\d{1,2}):(\d{1,2})/);
+          const secUlt = mta ? (mta[1] ? Number(mta[1]) * 3600 : 0) + Number(mta[2]) * 60 + Number(mta[3]) : null;
+          if (secUlt != null) {
+            if (secUlt <= 60 && !cp.last.minuto) { cp.last.minuto = true; cpSpeak(cpT({ it: 'Ultimo minuto!', en: 'Last minute!' })); }
+            else if (secUlt <= 30 && !cp.last.minutoSegn) { cp.last.minutoSegn = true; cpSpeak(cpT({ it: 'Trenta secondi!', en: 'Thirty seconds!' })); }
+          }
         }
         /* 9) POSIZIONE: cambia sedile in classifica → una voce (ma non a ogni tick) */
         if (g.position != null && cp.last.pos != null && g.position !== cp.last.pos) {
@@ -1100,6 +1260,29 @@ function drawCardInto(el, card){
           cpSay('postalk', cpT({ it: `P${g.position}, posizione ${verso}.`, en: `P${g.position}, position ${verso}.` }), 30000);   // 27/10: 15→30 s, parlava a ogni sorpasso
         }
         if (g.position != null) cp.last.pos = g.position;
+        /* 10) BANDIERA BLU (28/10 notte, richiesta Mauro: «le bandiere blu non
+              segnano corrette sulle endurance — copilota muto + cruscotto
+              senza bandiera»): il flag PER AUTO della MMF grafica (shmem,
+              FLAG[4]='blu') era nella snapshot da sempre e nessuno lo
+              consumava: nelle gare multi-classe voce e pannello tacevano
+              proprio quando ti doppiano. Si parla sul CAMBIO a blu (la
+              primissima vista si SEMINA in silenzio, come i box del 6c):
+              30 s di distanziello, e con il flag torna 'nessuna' la prossima
+              doppietta ridice. Il tip nel pannello arriva dall'ingegnere
+              (prio 0: in cima alla radio). */
+        if (g.flag != null) {
+          if (cp.last.bluf == null) { cp.last.bluf = g.flag; }   // semina senza voce
+          else if (g.flag !== cp.last.bluf) {
+            const eraBlu = cp.last.bluf === 'blu';
+            if (!eraBlu && g.flag === 'blu') {
+              cpSay('blu', cpT({
+                it: 'Bandiera blu: chi ti doppietta ti sta sotto — lascia la linea al rettilineo.',
+                en: 'Blue flag: you are being lapped — give up the line on the straight.',
+              }), 30000);
+            }
+            cp.last.bluf = g.flag;
+          }
+        }
       }
     } catch { /* il live non deve mai rompere la vista */ }
   };

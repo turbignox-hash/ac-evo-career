@@ -123,8 +123,8 @@ const LADDER_LIVE = {
   ],
 };
 
-function giudizioLive({ pending = null, node = 'coppa_strada_80', round = 0, smTrack, smType, car }) {
-  const nodo = poolNodeForLive(LADDER_LIVE, { pending, node, round, smTrack, smType });
+function giudizioLive({ pending = null, node = 'coppa_strada_80', round = 0, smTrack, smType, car, demo = null }) {
+  const nodo = poolNodeForLive(LADDER_LIVE, { pending, node, round, smTrack, smType, demo });
   if (!nodo) return null;
   const parco = carPoolOf(LADDER_LIVE, nodo);
   return { nodo, ok: !car || carInPool(car, parco.ammesse), ammesse: parco.ammesse };
@@ -156,6 +156,25 @@ test('gara lanciata dal flusso (pending): vigia al guinzaglio: il round della se
     pending: { node: 'coppa_strada_80', round: 0, trackId: 'brands_hatch' },
     smTrack: 'Donington Park', smType: 'Race', car: 'Ford Escort RS Cosworth',
   }), null);
+});
+
+test('demo della vetrina custom viva: NESSUNO giudica (la ronda pendente non parla per la demo)', () => {
+  // 28/10 sera: demo endurance con la 296 nel sedile, ma la ronda Coppa
+  // Strada pendente aveva ancora la sua finestra 24h e il vigia babbeo
+  // «fuori parco: ammesse Renault 5, Ford Escort RS Cosworth» ogni 30 s.
+  const demoViva = { car: 'ks_ferrari_296_gt3', startedAt: Date.now() - 10000 };
+  const gram = giudizioLive({
+    pending: { node: 'coppa_strada_80', round: 0, trackId: 'brands_hatch' },
+    smTrack: 'Brands Hatch', smType: 'Race', car: 'Ferrari 296 GT3', demo: demoViva,
+  });
+  assert.equal(gram, null, 'demo viva → il vigia della ronda tace, nessuno giudica la demo');
+  // demo scaduta (oltre 24h): le priorità storiche tornano, il vigia di nuovo al suo posto
+  const demoVecchia = { car: 'ks_ferrari_296_gt3', startedAt: Date.now() - 25 * 3600 * 1000 };
+  const g2 = giudizioLive({
+    pending: { node: 'coppa_strada_80', round: 0, trackId: 'brands_hatch' },
+    smTrack: 'Brands Hatch', smType: 'Race', car: 'Ferrari 296 GT3', demo: demoVecchia,
+  });
+  assert.ok(g2 && g2.ok === false, 'demo scaduta → il vigia della ronda ridice la sua');
 });
 
 test('gara lanciata a mano (senza pending) sulla pista della ronda in Race: il vigia resta', () => {

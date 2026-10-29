@@ -117,6 +117,28 @@ export function comandoAuto(ladder, state) {
     // SCADENZA DEL pending (lezione 27/10 19:30): un giorno e la ronda
     // non preparata più fresca lascia il campo all'evento attivo.
     const PENDING_SCADENZA_MS = 24 * 3600 * 1000;
+    // VETRINA CUSTOM (28/10 sera, «deve farlo in automatico come paddock»):
+    // una gara personalizzata (la demo endurance multi-classe) vive fuori
+    // dalla carriera: la griglia la scrive il tool DIRETTAMENTE sul disco e
+    // NIENTE passa da state.pending — che resta della ronda e comandava
+    // sempre la SUA auto (R5 otto che si chiedeva la 296 GT3). Il campo
+    // `vetrinaCustom` (car + startedAt, scritto da tools/vetrina-custom.mjs)
+    // ha la PRIORITÀ su tutto per la SUA finestra (24h come il pending): il
+    // comando esce tipo «evento» — SOLO SetCurrentCar, niente SetGameType/
+    // SetTrack del weekend (la gara personalizzata adotta pista+griglia da
+    // disco da solo). ACKato il comando il ramo TACE finché la finestra è
+    // viva: senza il silenzio la ronda pendente riprimerebbe la SUA auto a
+    // ogni fascia (ping-pong garage). Passata la finestra, le priorità
+    // storiche (ronda → evento) tornano quelle.
+    const demo = state?.vetrinaCustom;
+    if (demo?.car) {
+      const nomeDemo = ladder?.contentNames?.cars?.[demo.car] ?? null;
+      if ((Date.now() - Number(demo.startedAt ?? 0)) < PENDING_SCADENZA_MS) {
+        const idDemo = `demo:${demo.startedAt ?? 0}:${demo.car}`;
+        if (confermati.has(idDemo)) return null;   // già nel menu di EVO: silenzio per tutta la finestra
+        if (nomeDemo) return { id: idDemo, tipo: 'evento', nome: nomeDemo, pista: null, layout: null };
+      }
+    }
     if (p?.car) {
       const nome = ladder?.contentNames?.cars?.[p.car] ?? null;
       const idP = `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`;

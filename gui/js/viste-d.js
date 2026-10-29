@@ -321,6 +321,17 @@ function drawSettings(m){
       <button class="mini" id="b-prova-voce" type="button">🔊 ${tr({ it: 'Prova la voce', en: 'Test the voice' })}</button>
       <span id="voce-esito" class="muted" style="font-size:12px"></span>
     </div>
+    <div class="row" style="margin-top:10px;align-items:center">
+      <label class="muted" for="i-voce-livello">${tr({ it: 'Quanto parla il copilota', en: 'How much the copilot speaks' })}</label>
+      <select id="i-voce-livello" style="min-width:180px">
+        <option value="essenziale">${tr({ it: 'Essenziale — box, benzina, bandiere, penalità', en: 'Essential — pits, fuel, flags, penalties' })}</option>
+        <option value="normale">${tr({ it: 'Normale — e anche giro, posizione, gomme', en: 'Normal — plus lap, position, tyres' })}</option>
+        <option value="full">${tr({ it: 'Tutto — anche delta di ritmo e distanza', en: 'Everything — also pace delta and gap' })}</option>
+        <option value="off">${tr({ it: 'Spenta — la copilota tace', en: 'Off — the copilot is silent' })}</option>
+      </select>
+      <span id="voce-livello-esito" class="muted" style="font-size:12px"></span>
+    </div>
+    <div class="muted" style="margin-top:8px;font-size:12px">${tr({ it: 'Il livello vale SEPREM (anche fuori gara) e vale per la voce del Pitwall — quella che parla col gioco aperto e la GUI chiusa. Il selettore in Ingegnere LIVE (in pista) e questo qui cambiano la stessa impostazione.', en: 'The level always applies (even outside a race) and it drives the Pitwall voice — the one that speaks with the game open and the GUI closed. The selector in Engineer LIVE (on track) and this one change the same setting.' })}</div>
     <div class="muted" style="margin-top:8px;font-size:12px">${tr({ it: 'La scelta vale per questo browser. Menu e banner aggiornamenti sono già bilingui; le viste si traducono al giro in cui si toccano (regola "pigra", vedi README).', en: 'The choice applies to this browser. Menu and updates banner are already bilingual; views get translated as they are touched (the "lazy" rule, see README).' })}</div>
   </div>
   <div class="grid2">
@@ -397,6 +408,27 @@ function drawSettings(m){
   // lingua: selettore collegato a gui/js/lang.js (tr + impostaLingua)
   const selLingua = $('#i-lingua');
   if (selLingua) { selLingua.value = window.LINGUA; selLingua.onchange = (e) => impostaLingua(e.target.value); }
+  /* LIVELLO VOCE del copilota (30/10, Mauro: «minimo indispensabile, normale o
+     full»): il SELETTORE nelle Impostazioni — legato alla STESSA impostazione
+     del selettore in Ingegnere LIVE (voceCopilota in evo.config.json, via
+     /api/voce-server). Il tick del Pitwall passa il livello su ogni giro:
+     il cambio vale a caldo, senza riavviare niente. */
+  const selLiv = $('#i-voce-livello');
+  if (selLiv) {
+    api('voce-server')?.then?.((r) => { if (r?.livello) selLiv.value = r.livello; })
+      .catch(() => { /* resta la selezione: il server risponde comunque */ });
+    selLiv.onchange = async (ev) => {
+      const lv = String(ev.target.value ?? '');
+      const esito = $('#voce-livello-esito');
+      try {
+        await api('voce-server', { method: 'POST', body: { livello: lv } });
+        if (esito) esito.textContent = lv === 'off'
+          ? tr({ it: 'Copilota spenta.', en: 'Copilot muted.' })
+          : tr({ it: 'Livello salvato: ', en: 'Level saved: ' }) + lv;
+        drawCopilotStrip?.();   // il chip in testa si riuniforma (off = grigio)
+      } catch (err) { if (esito) esito.textContent = err.message; }
+    };
+  }
   /* PROVA LA VOCE (27/10, Mauro: «copilota sempre inglese»): parla una frase
      di collaudo con la STESSA scelta che fa in gara la copilota del cruscotto
      (Italiano SEMPRE) e scrive QUALE voce del sistema è stata usata: se esce
@@ -408,7 +440,12 @@ function drawSettings(m){
     const esito = $('#voce-esito');
     const pick = (vs) => {
       const norm = (s) => String(s ?? '').toLowerCase().replace('_', '-');
-      return vs.find((vv) => norm(vv.lang) === 'it-it')
+      // 29/10, Mauro: «rimetti la voce dell'uomo» — prima la it-it MASCHILE
+      // (Cosimo/Roberto/Marco), Elsa resta solo come ripiego.
+      const eMaschile = (vv) => /cosimo|roberto|marco/i.test(String(vv.name ?? '') + ' ' + String(vv.voiceURI ?? ''));
+      return vs.find((vv) => norm(vv.lang) === 'it-it' && eMaschile(vv))
+        ?? vs.find((vv) => norm(vv.lang) === 'it-it')
+        ?? vs.find((vv) => norm(vv.lang).startsWith('it') && eMaschile(vv))
         ?? vs.find((vv) => norm(vv.lang).startsWith('it'))
         ?? vs.find((vv) => /ital/i.test(String(vv.name ?? '') + String(vv.voiceURI ?? '')));
     };

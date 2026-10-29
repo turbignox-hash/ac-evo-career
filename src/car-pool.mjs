@@ -118,9 +118,19 @@ export function carInPool(car, ammesse) {
  *  → il nodo di carriera SOLO se la SM è già sulla pista della ronda
  *  corrente e la sessione è una Race (le prove libere non possono costare
  *  punti: niente parlarne). */
-export function poolNodeForLive(ladder, { pending = null, node = null, round = null, smTrack = null, smType = null } = {}) {
+export function poolNodeForLive(ladder, { pending = null, node = null, round = null, smTrack = null, smType = null, demo = null } = {}) {
   const sm = norm(smTrack);
   if (!sm) return null;   // in menu / SM muto: niente sedile attendibile
+  // VETRINA CUSTOM (28/10 sera, Mauro a fine demo: «dice il nome dell'auto e
+  // ci sta, ma poi subito dopo avere la ronda: Renault 5, Ford Cosworth…»):
+  // la gara personalizzata armata col tool (state.vetrinaCustom, finestra
+  // 24 h COME il pending — stessa scadenza di comandoAuto in uiapp-pub.mjs)
+  // vive FUORI dalla carriera, ma la ronda pendente resta nella SUA finestra
+  // e il vigia leggeva il parco di quella (R5/Escort) mentre il sedile porta
+  // l'auto della demo (296 GT3): allerte «fuori parco» a ripetizione, tutte
+  // sbagliate. Demo viva → NESSUNO giudica la sessione live: la griglia è
+  // scritta dal tool e il discorso «vale zero all'import» qui.non c'entra.
+  if (demo?.car && (Date.now() - Number(demo.startedAt ?? 0)) < 24 * 3600 * 1000) return null;
   const pistaOk = (dotto, r) => {
     const n = nodeById(ladder, dotto);
     if (!n) return false;

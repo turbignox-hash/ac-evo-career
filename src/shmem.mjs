@@ -327,6 +327,15 @@ export function parseGraphics(buf) {
       return out;
     })(),
     carLocation: i32(GFX.carLocation),    // 1 pitlane, 4 track
+    // PENALITÀ TAGLI PISTA (30/10, richiesta Mauro: «penalità a voce»):
+    // race_cut_gained_time_ms = tempo CUmulativo guadagnato tagliando
+    // (l'header lo chiama «penalità da tagli»), distance_to_deadline =
+    // metri da percorrere PRIMA che il taglio scali, race_cut_current_delta
+    // = il taglio in muro quest'istante. Nel layout da SEMPRE ma mai
+    // letti qui: i tagli di pista non facevano MAI parlare il copilota.
+    raceCutGainedMs: i32(GFX.raceCutGainedMs),
+    raceCutDelta: f32(GFX.raceCutCurrentDelta),
+    cutDeadline: i32(GFX.distanceToDeadline),
     driverName: str(GFX.driverName),
     driverSurname: str(GFX.driverSurname),
     carModel: str(GFX.carModel),
@@ -666,8 +675,22 @@ export class LiveReader {
         location: LOCATION[g.carLocation] ?? null,
         flag: FLAG[g.flag] ?? null,
         globalFlag: FLAG[g.globalFlag] ?? null,
+        // CODICE GREZZO DEL FLAG (28/10 notte, «le bandiere blu non segnano
+        // giusto nelle endurance»): accanto alla PAROLA la cifra scritta dal
+        // gioco (0 nessuna … 4 blu … 10 sdrucciolevole, mappa).
+        // flagCode/globaleFlagCode in ingegnere.mjs e campi() del monitor:
+        // se una endurance scrivesse un valore FUORI mappa la parola esce
+        // null e la diagnosi non distingue «campo assente» da «valore
+        // nuovo di EVO»: col grezzo il registro della gara lo dice da solo.
+        flagCode: Number.isFinite(g.flag) ? g.flag : null,
+        globalFlagCode: Number.isFinite(g.globalFlag) ? g.globalFlag : null,
         wrongWay: !!g.wrongWay,
         lapInvalid: !!g.timing?.invalid,
+        // PENALITÀ TAGLI (30/10, «penalità a voce»): il ms cumulativi
+        // GUADAGNATI tagliando — il gioco li scala dal tuo tempo finale.
+        // 0 o assente = nessun taglio contabilizzato (non è un errore:
+        // qualifiche e TimeAttack li lasciano a zero).
+        cutPenaltyMs: Number.isFinite(g.raceCutGainedMs) ? g.raceCutGainedMs : null,
         currentLapText: g.timing?.currentLap ?? null,
         deltaText: g.timing?.delta ?? null,
         idealLapText: g.timing?.idealLap ?? null,

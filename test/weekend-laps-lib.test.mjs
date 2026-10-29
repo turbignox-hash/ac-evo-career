@@ -14,7 +14,7 @@ import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
-import { setWeekendLaps, weekendLaps, raceBlockIndex } from '../tools/weekend-laps.mjs';
+import { setWeekendLaps, setWeekendTimed, weekendLaps, raceBlockIndex } from '../tools/weekend-laps.mjs';
 
 const SESSIONI = [
   { nome: 'Practice', giri: 3, tipo: 1, ora: 15, min: 30, scala: 2 },
@@ -31,6 +31,22 @@ function fixture() {
     { field: 7, wire: 5, bytes: (() => { const b = Buffer.alloc(4); b.writeFloatLE(s.scala, 0); return b; })() },
   ]));
   return encodeMsg(blocks.map((bytes) => ({ field: 3, wire: 2, bytes })));
+}
+
+function fixtureTimedRace() {
+  // Race a TEMPO (f3=1, f2=300 s): la mappa del 28/10 — giri NON si scrivono
+  const race = [
+    { field: 1, wire: 2, bytes: Buffer.from('Race', 'utf8') },
+    { field: 2, wire: 0, varint: BigInt(300) },
+    { field: 3, wire: 0, varint: BigInt(1) },
+    { field: 7, wire: 5, bytes: (() => { const b = Buffer.alloc(4); b.writeFloatLE(1, 0); return b; })() },
+  ];
+  const practice = [
+    { field: 1, wire: 2, bytes: Buffer.from('Practice', 'utf8') },
+    { field: 2, wire: 0, varint: BigInt(900) },
+    { field: 3, wire: 0, varint: BigInt(1) },
+  ];
+  return encodeMsg([encodeMsg(practice), encodeMsg(race)].map((bytes) => ({ field: 3, wire: 2, bytes })));
 }
 
 const TMP = mkdtempSync(join(tmpdir(), 'evo-laps-'));
@@ -68,6 +84,70 @@ test('setWeekendLaps è idempotente: stessa cifra → written:false, nessun nuov
   assert.equal(first.written, true);
   const second = setWeekendLaps(9, { file });
   assert.deepEqual({ already: second.already, written: second.written, block: second.block, giri: second.giri, backup: second.backup }, { already: true, written: false, block: 'Race', giri: 9, backup: null });
+});
+
+test('sessionsOf espone la modalità del f3 (aTempo/durataSec, mappa 28/10)', () => {
+  const file = join(TMP, `timed-${Math.random().toString(36).slice(2)}.gamemodesave`);
+  writeFileSync(file, fixtureTimedRace());
+  const ses = weekendLaps(file);
+  assert.deepEqual(ses.map((s) => s.nome), ['Practice', 'Race']);
+  // a tempo: f2 sono SECONDI (900" pratica e 5 min gara), non giri
+  for (const s of ses) { assert.equal(s.aTempo, true); assert.equal(s.mode, 1); }
+  assert.deepEqual(ses.map((s) => s.durataSec), [900, 300]);
+  // la vecchia lettura «giri» resta per compat, ma NON va usata con aTempo
+  assert.deepEqual(ses.map((s) => s.giri), [900, 300]);
+});
+
+test('setWeekendLaps CONVERTE una gara a TEMPO (f3=1) torna a giri, non solo rifiuta', () => {
+  // comportamento 28/10 tardi (Mauro ha fatto a mano «--tempo» sul weekend e
+  // applicato): se la prova resta a tempo, il Prepara tutto DEVE poter tornare
+  // a giri — niente più scampo dell'errore RACE_IS_TIMED.
+  const file = join(TMP, `timed3-${Math.random().toString(36).slice(2)}.gamemodesave`);
+  writeFileSync(file, fixtureTimedRace());
+  const before = readFileSync(file);
+  const r = setWeekendLaps(5, { file });
+  assert.equal(r.written, true);
+  assert.ok(r.backup?.includes('bak-laps-'), 'backup datato');
+  const ses = weekendLaps(file);
+  assert.equal(ses[1].aTempo, false);
+  assert.deepEqual([ses[1].giri, ses[1].mode], [5, 2]);
+  assert.equal(decodeMsg(readFileSync(file)).length, decodeMsg(before).length);
+  // la conversione è idempotente: seconda chiamata → written:false
+  const second = setWeekendLaps(5, { file });
+  assert.deepEqual({ already: second.already, written: second.written }, { already: true, written: false });
+});
+
+test('setWeekendTimed mette la GARA a tempo (f3=1, f2=secondi) con round-trip e backup', () => {
+  const file = mkFile();                       // parte a giri (f3=2)
+  const r = setWeekendTimed(5, { file });
+  assert.equal(r.written, true);
+  assert.ok(r.backup?.includes('bak-tempo-'), 'backup datato scritto');
+  const ses = weekendLaps(file);
+  assert.deepEqual([ses[2].aTempo, ses[2].durataSec], [true, 300]);
+  assert.deepEqual([ses[0].giri, ses[0].mode], [3, 1], 'la pratica a tempo NON toccata');
+});
+
+test('setWeekendTimed è idempotente e torna a giri con { laps }', () => {
+  const file = mkFile();
+  const first = setWeekendTimed(7, { file });
+  assert.equal(first.written, true);
+  const second = setWeekendTimed(7, { file });
+  assert.deepEqual({ already: second.already, written: second.written, durata: second.durata }, { already: true, written: false, durata: 420 });
+  const back = setWeekendTimed(null, { file, laps: 7 });
+  assert.equal(back.written, true);
+  const ses = weekendLaps(file);
+  assert.deepEqual([ses[2].aTempo, ses[2].giri], [false, 7]);
+});
+
+test('setWeekendTimed rifiuta valori assurdi senza toccare il file', () => {
+  const file = mkFile();
+  const before = readFileSync(file);
+  assert.throws(() => setWeekendTimed(0, { file }), /minuti > 0/);
+  assert.throws(() => setWeekendTimed(-2, { file }), /minuti > 0/);
+  assert.throws(() => setWeekendTimed(NaN, { file }), /minuti > 0/);
+  assert.throws(() => setWeekendTimed(5, { file, laps: 3 }), /minuti > 0/);
+  assert.throws(() => setWeekendTimed(null, { file }), /--tempo/);
+  assert.deepEqual(readFileSync(file), before, 'file intatto');
 });
 
 test('setWeekendLaps rifiuta valori assurdi senza toccare il file', () => {

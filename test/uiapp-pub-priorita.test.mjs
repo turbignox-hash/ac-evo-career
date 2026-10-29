@@ -105,3 +105,46 @@ test('ronda scaduta NON produce avvia: il campo va all\'evento (mai auto-avvio c
   const cmd = comandoAuto(mkLadder(), state);
   assert.equal(cmd?.tipo, 'evento', 'scaduto: la priorità resta all\'evento, non all\'avvia');
 });
+
+// ------------------------------------------------------------------
+// VETRINA CUSTOM (28/10 sera, «deve farlo in automatico come paddock»):
+// una gara personalizzata preparata col tool ha la PRIORITÀ per la SUA
+// finestra: comanda l'AUTO della demo (tipo «evento»: solo SetCurrentCar,
+// niente sequenza del weekend) e dopo l'ack TACE (la ronda pendente
+// riprimerebbe la SUA auto a ogni fascia: ping-pong col garage).
+// ------------------------------------------------------------------
+const mkLadderDemo = () => ({
+  nodes: [],
+  contentNames: { cars: { r5_touring: 'R5 Touring', ks_ferrari_296_gt3: 'Ferrari 296 GT3' } },
+});
+const pendingRondaFresca = () => ({ ...pendingRonda, startedAt: Date.now() - 60_000 });
+
+test('vetrina custom armata fresca: comanda l\'AUTO DELLA DEMO, sopra ronda e evento', () => {
+  const state = mkState({ pending: pendingRondaFresca(), vetrinaCustom: { car: 'ks_ferrari_296_gt3', startedAt: Date.now() - 10_000 } });
+  const cmd = comandoAuto(mkLadderDemo(), state);
+  assert.equal(cmd?.tipo, 'evento', 'la demo esce tipo «evento»: SOLO SetCurrentCar, il weekend non si tocca');
+  assert.equal(cmd?.nome, 'Ferrari 296 GT3', 'comanda la 296, non l\'R5 della ronda né l\'F40 dell\'evento');
+});
+
+test('vetrina custom ACKata: silenzio per tutta la finestra (niente ronda che riprinia l\'R5)', () => {
+  const demoTs = Date.now() - 30_000;
+  const state = mkState({ pending: pendingRondaFresca(), vetrinaCustom: { car: 'ks_ferrari_296_gt3', startedAt: demoTs } });
+  confermaAck(`demo:${demoTs}:ks_ferrari_296_gt3`);
+  const cmd = comandoAuto(mkLadderDemo(), state);
+  assert.equal(cmd, null, 'ackato: la finestra demo intero tace, la ronda non rientra nel ping-pong');
+});
+
+test('vetrina custom scaduta (>1 giorno): le priorità storiche tornano (ronda fresca)', () => {
+  const state = mkState({ pending: pendingRondaFresca(), vetrinaCustom: { car: 'ks_ferrari_296_gt3', startedAt: Date.now() - 25 * 3600 * 1000 } });
+  const cmd = comandoAuto(mkLadderDemo(), state);
+  assert.equal(cmd?.tipo, 'setcar', 'finestra chiusa: la ronda preparata comanda di nuovo');
+  assert.equal(cmd?.nome, 'R5 Touring');
+});
+
+test('vetrina custom con auto NON nel libro: il campo passa alle priorità storiche (evento)', () => {
+  const state = mkState({ vetrinaCustom: { car: 'auto_ignota_demo', startedAt: Date.now() } });
+  const cmd = comandoAuto(mkLadderDemo(), state);
+  // l'auto ignota non comanda niente (il tool rifiuta comunque armi del genere,
+  // tools/vetrina-custom.mjs): il ramo demo cade sulle priorità storiche
+  assert.equal(cmd?.tipo, 'evento', 'auto ignota: il ramo demo non comanda, le storie riprendono il campo');
+});

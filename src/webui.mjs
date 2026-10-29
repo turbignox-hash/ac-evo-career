@@ -8,7 +8,7 @@
 import { createServer } from 'node:http';
 import { execFileSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { readFileSync, writeFileSync, existsSync, copyFileSync, renameSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, existsSync, copyFileSync, renameSync, readdirSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import { dirname, join, extname, basename, relative, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { requestFromLocalBrowser, serveStatic } from './webui-static.mjs';
@@ -24,6 +24,7 @@ import { playerWorldSkill } from './world.mjs';
 import { loadCatalog, resultDetail, onlineArchive } from './catalog.mjs';
 import { rapportoGara } from './rapporto-gara.mjs';
 import { liveReader } from './shmem.mjs';
+import { creaVoceCopilota, nuovoSlotVoce, giroVoce, VOCE_LIVELLI } from './voce-copilota.mjs';
 import { raceCard, markPending, chargeEntry, launch } from './race.mjs';
 import { applyPianoToCalendar } from './orario.mjs';
 import {
@@ -59,7 +60,7 @@ import { engineerLive } from './engineer.mjs';
 import { carPoolOf, carInPool, poolNodeForLive } from './car-pool.mjs';
 import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, setWeekendGridCustom, WEEKEND_FILE } from '../tools/set-track.mjs';
 import { currentRaceTime, currentSessionTimes, setRaceSessions } from '../tools/set-racetime.mjs';
-import { setWeekendLaps } from '../tools/weekend-laps.mjs';
+import { setWeekendLaps, setWeekendTimed, weekendLaps, raceBlockIndex } from '../tools/weekend-laps.mjs';
 import { readCells } from '../tools/grid-balance.mjs';
 // report.mjs: il bottone "Segnala un problema" costruisce l'URL della issue
 // GitHub precompilata (versione, serie in corso, errori recenti) e il link
@@ -69,6 +70,9 @@ import { feedbackLinks } from './report.mjs';
 // della stagione con METEO/ORÀ scritti a monte, catalogo auto con curva di
 // coppia e versus, registro contabile. Il cruscotto la pesca in `/api/paddock`.
 import { paddockOverview } from './paddock.mjs';
+// il bridge della gara custom a tempo (POST /api/instantrace): lettura +
+// scrittura dell'INSTANT_RACE a gioco APERTO (force), come il ponte griglia
+import { timedRace, currentInstantRace } from '../tools/set-instantrace.mjs';
 import { statoAggiornamentiAsync, installaAggiornamenti } from '../tools/aggiornamenti.mjs';
 
 // check degli aggiornamenti FUORI dal boot (audit freeze 23/10): qui prima
@@ -466,6 +470,256 @@ async function syncLiveReader() {
   return mode;
 }
 
+/* VIGIA DEL LETTORE SORDO (29/10, la serata del ripasso a manina): il lettore
+ * PowerShell può restare VIVO e «attaccato» alla memoria di un processo di
+ * gioco GÀ morto (o a MMF orfane):binarya game=true nel processo ma la sessione
+ * vale «sconosciuta» (static vuoto, sessionType -1) e nessun dato fluisce — il
+ * copilota mUTO anche in pista. La cura è nota da stanza (taskkill del PS e
+ * il server lo rigenera, `restarts`+1): da questa sera la fa DA SOLO — se la
+ * condizione persiste >15 s (con il processo del gioco morto «vivo»), il
+ * vigia ferma e riparte il lettore al primo uso di /api/live o /api/ingegnere.
+ * Niente ricicli nei test/sandbox e JIT quando non c'è sofferte/niente.
+ */
+let SORDO_AT = 0;
+async function vigiaSordo(r, snap) {
+  if (process.env.EVO_DATA_DIR || process.env.EVO_FLOWS_DIR) return false;   // test: niente azioni
+  const sordo = !!snap?.game
+    && (snap.session?.type ?? 'sconosciuta') === 'sconosciuta'
+    && !snap.session?.track;
+  // Orfano = LETTORE stantio (30/10, la gara muto del 29/10 12:06): snapshot()
+  // con stale:true torna { game:false, stale:true } (dati freddi dal 20 s) — la
+  // condizione vecchia (stale && game) NON scattava MAI e il lettore appeso a
+  // una MMF morta restava lì per tutta la gara, con il tick che vedeva «gioco
+  // non vivo» per sempre. Ora lo stale DA SOLO è il segnale di riparto: il
+  // guardavalino sotto (gameRunningMemo) umano che il riciclo avvenga solo
+  // davvero con il gioco PROCEDENTE — se invece il gioco è chiuso, il sync
+  // giusto ferma il lettore e qui non si tocca nulla.
+  const orfano = !!snap?.stale;
+  if (!sordo && !orfano) { SORDO_AT = 0; return false; }
+  if (!(await gameRunningMemo())) { SORDO_AT = 0; return false; }  // gioco fuori: il sync lo ferma già
+  if (!SORDO_AT) { SORDO_AT = Date.now(); return false; }          // primo avvistamento: solo accosta
+  if (Date.now() - SORDO_AT < 15000) return false;                 // il gioco peut avviarsi: grattile
+  SORDO_AT = 0;
+  r.stop();
+  await sleep(400);
+  r.start();
+  return true;
+}
+
+/* ================= COPILOTA VOCE LATO PITWALL (29/10) =================
+ * Prima la voce esisteva SOLO nella pagina «🎧 Ingegnere LIVE» della GUI:
+ * in gara con la GUI chiusa o non sul cruscotto la copilota taceva del tutto
+ * (la serata muta del 28/10). Da qui il Pitwall parla da solo: un relatore
+ * PowerShell (voce-copilota.mjs) alimentato dall'UNICO narratore che già
+ * replica 1:1 la vista e che il test guida. La chiave 'voceCopilota' nel
+ * config la spegne (default ON); in test/sandbox NON parte mai. */
+const voceSrv = creaVoceCopilota();
+const slotVoceServo = nuovoSlotVoce();
+const LOGUE_VOCE = { file: join(DATA_DIR, 'copilot-voce-24-10.jsonl') };
+/* 29/10 sera — PING VOCE PAGINA: «the page interrogates» NON è «the page
+   speaks». La prova (gara delle 11:36): il tick vivo per tutta la gara
+   (STATO ogni 60 s, zero riparti), una pagina che interroga ogni 1–2 s
+   e NESSUNA GARE parlata — la tecnica di questa mattina su un'IACETA vecchia
+   (JS in cache con la soppressione) taceva e intanto mi faceva tacere il
+   server. Da qui solo una pagina col codice VIVO discrive QUI (narratori
+   della vista Vecchia che girano). Il tick guarda il PING, non il poll:
+   vecchia scheda senza ping → la voce del server riparte. */
+let _pingVocePagina = { at: 0, on: false };
+/* Registro degli errori del tick voce: una riga al più al minuto per errore
+   ripetuto (il tick gira ogni 4 s, un errore sistematico non deve riempire
+   il file). Prima del 29/10 il catch era BIANCO: il difetto del body null
+   restava invisibile con la copilota muta senza errori. */
+let _voceErrSig = null, _voceErrAt = 0;
+function logaVoce(dati) { try { appendFileSync(LOGUE_VOCE.file, JSON.stringify({ t: Date.now(), ...dati }) + '\n'); } catch { /* il log non è essenziale */ } }
+function logaVoceErr(e, fresh = false) {
+  try {
+    const msg = String(e?.message ?? e);
+    const sig = `${e?.stack?.split('\n')[1] ?? ''}|${msg}`;
+    const ora = Date.now();
+    if (sig === _voceErrSig && !fresh && ora - _voceErrAt < 60000) return;
+    _voceErrSig = sig; _voceErrAt = ora;
+        appendFileSync(LOGUE_VOCE.file, JSON.stringify({ t: ora, evento: 'ERRORE TICK VOCE', err: msg, at: e?.stack?.split('\n')[1]?.trim() ?? null }) + '\n');
+  } catch { /* anche il log non deve rompere niente */ }
+}
+function voceServerAttiva() { // usata anche dalla guardia del ping qui sopra
+  return voceServerLivello() !== 'off';
+}
+/** LIVELLO VOCE (30/10, richiesta Mauro: "minimo indispensabile, normale o
+ *  full"): legge evo.config.json.voceCopilota — true/false dei giorni scorsi
+ *  (true=normale, false=off) e i nuovi 'essenziale'|'normale'|'full'. Il
+ *  default è 'normale', che è esattamente la copilota che girava finora. */
+function voceServerLivello() {
+  try {
+    const raw = JSON.parse(readFileSync(CONFIG_FILE, 'utf8')).voceCopilota;
+    if (raw === false) return 'off';
+    if (raw === true || raw == null) return 'normale';
+    return ['off', ...VOCE_LIVELLI].includes(String(raw)) ? String(raw) : 'normale';
+  } catch { return 'normale'; }
+}
+/** Il payload della radio dell'ingegnere, UNO per tutti: la risposta di
+ *  /api/ingegnere (pannello + copilota del browser) e il tick della voce del
+ *  Pitwall usano lo stesso costruttore — segue la firma del pegno 29/10:
+ *  «un solo costruttore per tutti i consumatori» e niente vuoi-qui-vuoi-là. */
+async function payloadIngegnere(context0, state, body, { leggero = false } = {}) {
+  const { ladder, paths } = context0;
+  const r = liveReader();
+  await syncLiveReader();
+  let snap = r.snapshot();
+  // vigia del lettore sordo (29/10): live ma «sconosciuta» → riciclo al 15 s
+  if (await vigiaSordo(r, snap)) snap = r.snapshot();  let raceLaps = null, fuelPerLap = null, telemTrack = null;
+  /* LEGGERO (29/10 sera): quando serve SOLO la voce del Pitwall, niente raceCard
+     né albero MoTeC — su disco lento valgono decine di secondi per richiesta e
+     il tick in gara restava appeso a spaccare (il 28/10 muta). L'HUD says già
+     lapsTotal e lapsOnFuel: delle estimate il narratore li già usa. */
+  if (leggero) {
+    const live0 = engineerLive(snap, { fuelPerLap: null, raceLaps: null });
+    return {
+      ...live0, auto: null,
+      sessionId: snap.session?.id ?? null,
+      sessionType: snap.session?.type ?? null,
+      delta: snap.delta ?? null,
+      timing: snap.player ? { currentLap: snap.player.currentLapText, lastLap: snap.player.lastLap, bestLap: snap.player.bestLap } : null,
+      voceServer: voceServerAttiva(),
+    };
+  }
+  try {
+    const card = raceCard(ladder, state, { car: typeof (body ?? {})?.car === 'string' ? body.car : null });
+    raceLaps = card.round?.laps ?? card.baseLaps ?? null;
+  } catch { /* senza scheda gara i consigli restano solo-live */ }
+  if (snap.player?.car) {
+    try {
+      const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
+      const resultsDir = paths.resultsDirs?.[0] ?? join(root, '..', 'Results');
+      // MEMO 30s per auto (26/10, PC 2): l'albero MoTec su un disco lento
+      // valgono decine di secondi per richiesta, e l'ingegnere parte ogni
+      // ~2s dal cruscotto: una scansione appesa TRATTENE l'intera fila
+      // delle API (è il circuito del flood «[coda] ferma da 20s»).
+      if (!(_engSess?.car === snap.player.car && Date.now() - _engSessAt < 30000)) {
+        const sess = collectSessions(root, resultsDir, { car: snap.player.car, limit: 1, afterMs: state.createdAt ?? 0 })[0] ?? null;
+        _engSess = sess; _engSessAt = Date.now();
+      }
+      const sess = _engSess;
+      if (sess && Number.isFinite(sess.fuelPerLap) && sess.fuelPerLap > 0) { fuelPerLap = sess.fuelPerLap; telemTrack = sess.track ?? null; }
+    } catch { /* senza telemetria si stima dal HUD del gioco */ }
+  }
+  const live = engineerLive(snap, { fuelPerLap, raceLaps });
+  // VIGIA DEL PARCO AUTO: mentre giri, copilota e pannello sanno SUBITO se
+  // l'auto del sedile è una di quelle ammesse della serie — un'auto fuori
+  // pool all'import vale zero (car-pool.mjs). Il giudizio live però vale
+  // SOLO con la serie giusta (27/10, Mauro: «non fa altro che dire F40
+  // fuori parco» — l'F40 LM ha un SUO parco e il coach lo giudicava col
+  // pool della serie di carriera anche in sessioni d'altro tipo):
+  // poolNodeForLive chiede pista del round (e, senza pending, una Race).
+  // Menu, prove libere, MP e test con altre serie → auto null, la copilota
+  // tace; l'import giudica col file risultato, che è la verità.
+  let auto = null;
+  try {
+    const nodoLive = poolNodeForLive(ladder, {
+      pending: state.pending ?? null,
+      node: state.node ?? null,
+      round: state.round ?? null,
+      smTrack: snap.session?.track ?? null,
+      smType: snap.session?.type ?? null,
+      // vetrina custom viva (demo endurance ecc.): nessuno giudica il parco
+      // con il pool della ronda pendente, è la lezione del 28/10 sera
+      demo: state.vetrinaCustom ?? null,
+    });
+    if (nodoLive) {
+      const parco = carPoolOf(ladder, nodoLive);
+      if (parco.ammesse.length) auto = {
+        ok: !snap.player?.car || carInPool(snap.player.car, parco.ammesse),
+        mine: snap.player?.car ?? null,
+        ammesse: parco.ammesse.slice(0, 6),
+        classe: parco.classe,
+      };
+    }
+  } catch { /* senza pool la copilota non giudica */ }
+  return {
+    ...live,
+    auto,
+    // impronta della sessione per il copilota (28/10): sessione nova
+    // = memoria dei narratori azzerata senza voci sbagliate all'avvio
+    sessionId: snap.session?.id ?? null,
+    // tipo di sessione per il monitor del copilota (28/10): il log
+    // copilot-*.jsonl lo registrava sempre null e non si poteva capire
+    // perché i narratori tacevano; finalmente dalla MMF static
+    sessionType: snap.session?.type ?? null,
+    telemTrack,
+    fuelPerLap: live.gauges?.fuelPerLap ?? null,
+    delta: snap.delta ?? null,
+    mapTrack: snap.map?.best ?? null,
+    carPos: snap.map?.cur ?? null,
+    timing: snap.player ? { currentLap: snap.player.currentLapText, lastLap: snap.player.lastLap, bestLap: snap.player.bestLap } : null,
+    // voce della copilota gestita dal PITWALL (29/10): se vera, la barra del
+    // browser NON replica i narratori in locale (niente doppia radio) e il
+    // chip la comanda via POST /api (voce-server).
+    voceServer: voceServerAttiva(),
+    voceLevel: voceServerLivello(),
+  };
+}
+/* UNO TICK della voce: parte dopo il listen (aggiunto giù, vicino a watcherTick).
+   Fuori gara esce PRIMA del ciclo pesante: il payload costruito SOLO in pista.
+   Ogni motivo di silenzio va sul log UNA volta al minuto (diagnostiche 29/10:
+   senza motive scritti la muta non si poteva distinguere dal tick morto). */
+let _voceSilAt = 0;
+let _voceTickN = 0;
+let _voceTickAt = 0;      // 29/10 sera: quando l'ULTIMO tick è finito DAVVERO
+async function copilotaServerTick() {
+  const n = ++_voceTickN;
+  // diagnostica 29/10: i primi 3 tick di ogni partenza del serverスクivono che
+  // stato vedono — se qui mancano righe, è il tick che non parte affatto
+  if (n <= 3) logaVoce({ evento: 'TICK', n, ora: new Date().toISOString() });
+  try { await copilotaServerTickInterno(); }
+  catch (e) { logaVoceErr(e); }   // un async dentro setInterval non urla da solo: viaggio nel registro
+  finally { _voceTickAt = Date.now(); }   // un tick APPESO non aggiorna MAI questa (è il segnale del vigilante)
+}
+async function copilotaServerTickInterno() {
+  const PERCHE = [];
+  const tacchio = () => {
+    const ora = Date.now();
+    if (PERCHE.length && ora - _voceSilAt > 60000) { _voceSilAt = ora; logaVoce({ evento: 'SILENZIO', motivi: PERCHE.join(' + ') }); }
+  };
+  if (!voceServerAttiva()) { PERCHE.push('voce config OFF'); tacchio(); return; }
+  if (liveMode() === 'off') { PERCHE.push('liveMode off'); tacchio(); voceSrv.silenzio(); return; }
+  /* GUARDIA del PING (29/10 sera, 3ª cura — gara TimeAttack muta col ping):
+     la pagina AVEVA i narratori accesi (ping on:true ogni 10 s), giri tagliati
+     e ritmo regolare, e NIENTE era uscito: la voce da browser resta
+     irrispettabile (cache, attese, voci, autoplay) e fissarla è impossibile
+     da fuori. DECISIONE: la radio vive SOLO qui (System.Speech, Cosimo —
+     già sentito vivo ieri sera). Il ping serve SOLO a dichiara il silenzio
+     VOLUTO: chip OFF → on:false → il server tace. Chip ON → pagina muta
+     (panello) e il SERVER che parla, sempre, anche con la GUI chiusa. */
+  if (_pingVocePagina.at && Date.now() - _pingVocePagina.at < 20000 && !_pingVocePagina.on) {
+    PERCHE.push('la pagina ha la copilota OFF (ping)'); tacchio(); return;
+  }
+  /* Il tick è la voce SENZA browser: non può fidarsi della cache del lettore
+     (la GUI con le sue richieste ogni 2 s non c'è a sinronizzarla). Sync e
+     vigia del sordo qui dentro (29/10): con la GUI chiusa il lettore può
+     restare «sordo» per sempre e la voce tacava alla festa. */
+  const rd = liveReader();
+  await syncLiveReader();
+  let snap0 = rd.snapshot();
+  if (await vigiaSordo(rd, snap0)) snap0 = rd.snapshot();
+  // 30/10: lo stale (MMF fredda >20 s) merita la SUA riga di registro, così la
+  // gara muto del 29/10 si leggeva subito invece di apparire «gioco non vivo».
+  if (snap0?.stale) { PERCHE.push('lettore stantio: la memoria condivisa non aggiorna da >20 s'); tacchio(); return; }
+  if (!snap0?.game) { PERCHE.push('gioco non è vivo nello snapshot'); tacchio(); return; }
+  if (!snap0?.live) { PERCHE.push('sessione non in pista (live=false)'); tacchio(); return; }
+  try {
+    const state0 = existsSync(SAVE_FILE) ? requireState() : null;
+    const m = await payloadIngegnere(context(), state0, null, { leggero: true });
+    if (!m?.live) logaVoce({ evento: 'PAYLOAD NON VIVO', type: m?.sessionType ?? null, snapLiveOk: true });      // 30/10 BUG: qui il 4° argomento era LOGUE_VOCE gettona ({file}); giroVoce
+      // lo scarta ({log} default null) e il registro dei narratori NON riceveva
+      // le SESSIONE VIVA né le righe chi/it: una gara parlata uguale a una muta
+      // era Indistinguibile sul carta. Adesso passa { log } e il registro giunge.
+      giroVoce(m, slotVoceServo, voceSrv, { log: LOGUE_VOCE, livello: voceServerLivello() });
+  } catch (e) {
+    // la voce non deve MAI rompere il server, ma l'errore non deve sparire
+    // nel niente (29/10: il catch bianco nascondeva il TypeError del body null
+    // e la copilota restava «muta senza errori»): errore nel registro della voce.
+    logaVoceErr(e);
+  }
+}
 /** Riassunto in una riga delle ore distinte per sessione (Practice 10:00 · …): serve
  *  a card e preperare per dire all'amico COME sono posizionate le sessioni. */
 function orarioSessioni(sessi) {
@@ -534,6 +788,53 @@ async function api(context0, _req, res, action, body) {
       if (!hasEnvOverride()) setLang(v);
       writeConfig({ lang: v });
       return sendJson(res, 200, { ok: true, lang: lang() });
+    }
+    case 'weekendrace': {
+      // LA GARA DEL WEEKEND VIA BRIDGE (28/10 tardissimo, «tramite loader non
+      // riesci a dare il commando diretto?»: Mauro ha fatto a mano «5 muti»
+      // + Applica nel menu e il file del save lo dice chiarissimo — f3=1,
+      // f2=300). Stesso gesto dell'istantrace, ma sul gamemodesave del
+      // weekend: LETTURA senza body ({sessioni}), scrittura con laps:
+      // {laps} a giri (o converte una gara rimasta a tempo) / {tempo}
+      // minuti a tempo. force è cosciente qui: via bridge si scrive a
+      // gioco aperto come la griglia.
+      try {
+        const haGiri = body.laps != null;
+        const haTempo = body.tempo != null;
+        if (!haGiri && !haTempo) return sendJson(res, 200, { ok: true, sessioni: weekendLaps() });
+        const r = haGiri
+          ? setWeekendLaps(Number(body.laps), { force: true })
+          : setWeekendTimed(Number(body.tempo));
+        const dopo = weekendLaps();
+        const quale = raceBlockIndex(dopo);
+        return sendJson(res, 200, { ok: true, ...r, gara: quale >= 0 ? dopo[quale] : null, sessioni: dopo });
+      } catch (e) {
+        const h409 = ['NO_VALUES', 'BAD_LAPS', 'BAD_TEMP'].includes(e.code);
+        return sendJson(res, h409 ? 409 : 500, { error: e.message });
+      }
+    }
+    case 'instantrace': {
+      // GARA CUSTOM A TEMPO, VIA BRIDGE (28/10 tardissimo, «siamo connessi
+      // tramite loader, dovresti riuscire»): lettura e scrittura dell'
+      // INSTANT_RACE come AZIONE API, così la modalità/durata si sistema
+      // a gioco APERTO, come la griglia del ponte. Il gioco non rilegge il
+      // file che all'avvio della sessione: la scrittura va fatta PRIMA di
+      // premere «parti» nel menu. force:true è cosciente qui (il CLI senza
+      // force rifiuta «EVO è APERTO»: via bridge la scelta è esplicita).
+      // LETTURA (GET / body vuoto): solo lo stato, niente scritture.
+      // Scrittura: minutes → a tempo; laps → a giri (ripristino).
+      try {
+        if (!('minutes' in body) && !('laps' in body)) {
+          const cur = currentInstantRace();
+          if (!cur) return sendJson(res, 200, { ok: true, presente: false });
+          return sendJson(res, 200, { ok: true, presente: true, ...cur });
+        }
+        const r = timedRace({ minutes: body.minutes != null ? Number(body.minutes) : null, laps: body.laps != null ? Number(body.laps) : null, force: true });
+        return sendJson(res, 200, { ok: true, ...r });
+      } catch (e) {
+        const h409 = ['AMBIGUOUS', 'BAD_DURATA', 'NO_VALUES'].includes(e.code);
+        return sendJson(res, h409 ? 409 : 500, { error: e.message });
+      }
     }
     case 'wizard': {
       // WIZARD del primo avvio (Mauro 22/10 stile «spunta verde»): stato del
@@ -742,6 +1043,9 @@ async function api(context0, _req, res, action, body) {
         r.start();
         snap = r.snapshot();
       }
+      // RECUPERO SORDO (29/10): vivo ma senza dati (sessione sconosciuta,stale)
+      // per più di 15 s col gioco avviato → stesso riciclo, automatico.
+      if (await vigiaSordo(r, snap)) snap = r.snapshot();
       // verifica della configurazione: confronta la sessione live con la scheda gara attesa
       let check = null;
       if (snap.game && state) {
@@ -794,83 +1098,43 @@ async function api(context0, _req, res, action, body) {
       await syncLiveReader();
       return sendJson(res, 200, { ok: true, liveMode: liveMode() });
     }
-    case 'ingegnere': {
-      // l'ingegnere di gara LIVE: benzina residua, usura gomme per ruota, gap
-      // avanti/dietro — dalla shared memory (giro dopo giro) + consumo per giro
-      // e giri della ronda dalla telemetria recente / ladder
-      const r = liveReader();
-      await syncLiveReader();
-      const snap = r.snapshot();
-      let raceLaps = null, fuelPerLap = null, telemTrack = null;
-      try {
-        const card = raceCard(ladder, state, { car: typeof body.car === 'string' ? body.car : null });
-        raceLaps = card.round?.laps ?? card.baseLaps ?? null;
-      } catch { /* senza scheda gara i consigli restano solo-live */ }
-      if (snap.player?.car) {
-        try {
-          const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
-          const resultsDir = paths.resultsDirs?.[0] ?? join(root, '..', 'Results');
-          // MEMO 30s per auto (26/10, PC 2): l'albero MoTec su un disco lento
-          // valgono decine di secondi per richiesta, e l'ingegnere parte ogni
-          // ~2s dal cruscotto: una scansione appesa TRATTENE l'intera fila
-          // delle API (è il circuito del flood «[coda] ferma da 20s»).
-          if (!(_engSess?.car === snap.player.car && Date.now() - _engSessAt < 30000)) {
-            const sess = collectSessions(root, resultsDir, { car: snap.player.car, limit: 1, afterMs: state.createdAt ?? 0 })[0] ?? null;
-            _engSess = sess; _engSessAt = Date.now();
-          }
-          const sess = _engSess;
-          if (sess && Number.isFinite(sess.fuelPerLap) && sess.fuelPerLap > 0) { fuelPerLap = sess.fuelPerLap; telemTrack = sess.track ?? null; }
-        } catch { /* senza telemetria si stima dal HUD del gioco */ }
+    case 'voce-server': {
+      // il chip della copilota comanda la voce del PITWALL (29/10): ACCENDI/
+      // SPEGNI persistono in evo.config.json (voceCopilota) e sopravvivono al
+      // riavvio. Spegninga = la coda del parlante si svuota al volo.
+      // 30/10: oltre a on:true/false accetta body.livello (essenziale|normale|
+      // full|off) dal selettore delle impostazioni — lo persiste in chiaro e
+      // svuota la coda se il livello è off.
+      if (body.on != null) {
+        const cur = voceServerAttiva();
+        const want = !!body.on;
+        if (want !== cur) writeConfig({ voceCopilota: want });
+        if (!want) voceSrv.silenzio();
       }
-      const live = engineerLive(snap, { fuelPerLap, raceLaps });
-      // VIGIA DEL PARCO AUTO: mentre giri, copilota e pannello sanno SUBITO se
-      // l'auto del sedile è una di quelle ammesse della serie — un'auto fuori
-      // pool all'import vale zero (car-pool.mjs). Il giudizio live però vale
-      // SOLO con la serie giusta (27/10, Mauro: «non fa altro che dire F40
-      // fuori parco» — l'F40 LM ha un SUO parco e il coach lo giudicava col
-      // pool della serie di carriera anche in sessioni d'altro tipo):
-      // poolNodeForLive chiede pista del round (e, senza pending, una Race).
-      // Menu, prove libere, MP e test con altre serie → auto null, la copilota
-      // tace; l'import giudica col file risultato, che è la verità.
-      let auto = null;
-      try {
-        const nodoLive = poolNodeForLive(ladder, {
-          pending: state.pending ?? null,
-          node: state.node ?? null,
-          round: state.round ?? null,
-          smTrack: snap.session?.track ?? null,
-          smType: snap.session?.type ?? null,
-        });
-        if (nodoLive) {
-          const parco = carPoolOf(ladder, nodoLive);
-          if (parco.ammesse.length) auto = {
-            ok: !snap.player?.car || carInPool(snap.player.car, parco.ammesse),
-            mine: snap.player?.car ?? null,
-            ammesse: parco.ammesse.slice(0, 6),
-            classe: parco.classe,
-          };
+      if (body.livello != null) {
+        const want = String(body.livello).toLowerCase();
+        if (!['off', ...VOCE_LIVELLI].includes(want)) {
+          return sendJson(res, 400, { error: tr({ it: 'Livello voce non valido: ', en: 'Invalid voice level: ' }) + ['off', ...VOCE_LIVELLI].join('|') + '.' });
         }
-      } catch { /* senza pool la copilota non giudica */ }
-      // oltre a benzina/usura/gap, la radio porta dentro anche il DELTA DI RITMO
-      // (giro corrente vs best della sessione) e la MAPPA «dove perdo tempo»:
-      // la traccia del best + i tagli per fascia + il punto auto, già pronti per l'SVG.
-      return sendJson(res, 200, {
-        ...live,
-        auto,
-        // impronta della sessione per il copilota (28/10): sessionStorage nova
-        // = memoria dei narratori azzerata senza voci sbagliate all'avvio
-        sessionId: snap.session?.id ?? null,
-        // tipo di sessione per il monitor del copilota (28/10): il log
-        // copilot-*.jsonl lo registrava sempre null e non si poteva capire
-        // perché i narratori tacevano; finalmente dalla MMF static
-        sessionType: snap.session?.type ?? null,
-        telemTrack,
-        fuelPerLap: live.gauges?.fuelPerLap ?? null,
-        delta: snap.delta ?? null,
-        mapTrack: snap.map?.best ?? null,
-        carPos: snap.map?.cur ?? null,
-        timing: snap.player ? { currentLap: snap.player.currentLapText, lastLap: snap.player.lastLap, bestLap: snap.player.bestLap } : null,
-      });
+        if (want !== voceServerLivello()) writeConfig({ voceCopilota: want });
+        if (want === 'off') voceSrv.silenzio();
+      }
+      return sendJson(res, 200, { ok: true, on: voceServerAttiva(), livello: voceServerLivello() });
+    }
+    case 'ingegnere':
+      // l'ingegnere di gara LIVE (29/10): il payload lo costruisce payloadIngegnere()
+      // — la STESSA funzione alimenta anche la voce della copilota dentro il
+      // Pitwall (voce-copilota.mjs), così radio parlata e pannello non possono
+      // andare fuori passo: un solo costruttore per tutti i consumatori.
+      return sendJson(res, 200, await payloadIngegnere(context0, state, body));
+    case 'voce-pagina': {
+      // 29/10 sera, seconda cura: SOLO una pagina col codice VIVO dichiara qui
+      // chi tiene la radio parlata (on:true, chip ON) o il silenzio
+      // (on:false, chip OFF). Una scheda vecchia (JS in cache) NON pinga MAI:
+      // il Pitwall torna a parlare lui — è la gara muta delle 11:36 chiusa
+      // per sempre (poll interroga ≠ pagina parla).
+      _pingVocePagina = { at: Date.now(), on: !!body.on };
+      return sendJson(res, 200, { ok: true });
     }
     case 'stats': return sendJson(res, 200, careerStats(ladder, state));
     case 'alias-set': {
@@ -3422,6 +3686,51 @@ server.listen(PORT, '127.0.0.1', () => {
 // il watcher parte solo quando il server è davvero in ascolto (prima il primo
 // tick poteva scattare prima del listen)
 setInterval(watcherTick, 4000);
+// la VOCE DEL PITWALL parte da qui: primo giro dopo il listen (prima il
+// payload poteva scattare mentre il server era ancora tenuto in gola), ogni
+// 4 s — stesso battito del monitor e del cruscotto. MAI senza "unfref" dal
+// 29/10 sera: un interval unref può restare AFFAMATO nel loop (la prova:
+// 57 minuti di server vivo, zero scatti in log, mentre il tick qui accanto
+// a watcherTick non unref'ed t batteva regolarmente) — e con la radio che
+// tace proprio quando serve.
+// BATTITO DI AVVIO della voce (29/10, diagnostica della muta): una riga
+// nel registro al boot dice CHE CODICE gira davvero e da chi è parlato
+// (senza questo, server vecchio + codice nuovo su disco si confondevano
+// con «muta senza errori»).
+logaVoce({ evento: 'SERVER VOCE PRONTO', pid: process.pid, build: 'voce-ge 29/10' });
+/* VIGILANTE DEL TICK VOCE (29/10 sera, la gara muta delle 10:47): il registro
+   mostra un tick vivo all'avvio e poi NULLA per l'intera gara mentre il server
+   rispondeva regolarmente (il loop vivо somministrava le API) — il tick era
+   APPESO da qualche parte (primo await sospetto) e non si sa dove. Il vigilante
+   non serve saperlo: se il tick non finisce per 15 s riparte da solo e lo
+   scrive; ogni 60 s una riga STATO col quadro completo (età del tick, snapshot,
+   riparti) — la prossara gara muta non sarà più indovinare. */
+let _voceInterval = null;
+let _voceLastRiparto = 0, _voceLastStato = 0, _voceRipartiN = 0;
+function avviaTickVoce() {
+  clearInterval(_voceInterval);
+  _voceInterval = setInterval(copilotaServerTick, 4000);
+}
+setTimeout(() => { copilotaServerTick(); avviaTickVoce(); }, 4000);   // interval REFED: la voce non resta mai affamata
+setInterval(() => {                                                  // vigilante: REFED anche lui
+  if (!voceServerAttiva() || !_voceTickAt) return;
+  const ora = Date.now();
+  const bloccatoDaMs = ora - _voceTickAt;
+  if (bloccatoDaMs > 15000 && ora - _voceLastRiparto > 60000) {
+    _voceLastRiparto = ora; ++_voceRipartiN;
+    logaVoce({ evento: 'TICK BLOCCATO — ripartito', bloccatoDaMs, ripartiN: _voceRipartiN });
+    avviaTickVoce();
+  }
+  if (ora - _voceLastStato > 60000) {
+    _voceLastStato = ora;
+    try {
+      const s = liveReader().snapshot();
+      logaVoce({ evento: 'STATO', tickEtaMs: bloccatoDaMs, tickN: _voceTickN, ripartiN: _voceRipartiN,
+        paginaPingMs: _pingVocePagina.at ? ora - _pingVocePagina.at : null, paginaPingOn: _pingVocePagina.at ? _pingVocePagina.on : null,
+        game: s?.game ?? null, live: s?.live ?? null, sessionType: s?.session?.type ?? null });
+    } catch { /* il vigilante non deve rompere il server */ }
+  }
+}, 5000);
 // Auto-riparazione: un giro del dottore all'avvio e poi ogni 10 minuti (con la
 // cache delle scansioni, e solo se la carriera esiste e l'auto-riparazione è ON
 // — si può spegnere da Impostazioni → Manutenzione). Silence se è tutto pulito.

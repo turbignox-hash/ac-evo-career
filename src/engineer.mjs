@@ -214,6 +214,21 @@ export function engineerLive(snap, ctx = {}) {
     tips.push({ icon: '⏱️', title: tr({ it: `Timer gara: ${player.timeLeft}`, en: `Race timer: ${player.timeLeft}` }), text: tr({ it: 'gara a tempo: finisce al taglio del giro corrente, il risparmio benzina conta fino a lì', en: 'timed race: it ends when the current lap is crossed, fuel saving counts until then' }), prio: 2 });
   }
 
+  /* ---------- bandiera blu (28/10 notte, endurance multi-classe) ---------- */
+  // Il flag PER AUTO della MMF grafica (shmem FLAG[4]='blu') è nella
+  // snapshot da sempre, ma NESSUNA vista lo consumava: nelle endurance il
+  // copilota e il pannello restavano muti proprio quando ti doppiano. Il
+  // tip va in cima (prio 0): è l'istruzione più urgente del giro — lascia
+  // passare chi ti doppietta.
+  if (player.flag === 'blu') {
+    tips.push({
+      icon: '🔵',
+      title: tr({ it: 'Bandiera blu', en: 'Blue flag' }),
+      text: tr({ it: 'sei in doppiata: lascia la linea al rettilineo, chi ti doppietta passa', en: 'you are being lapped: give up the line on the straight, let them past' }),
+      prio: 0,
+    });
+  }
+
   tips.sort((a, b) => (a.prio ?? 9) - (b.prio ?? 9));
   gauges.lapsDone = player.lapsDone ?? null;
   gauges.lapsTotal = player.lapsTotal ?? null;
@@ -230,7 +245,36 @@ export function engineerLive(snap, ctx = {}) {
   // (narratore 8 di viste-a.js, «Ultimo giro!») che prima dipendevano SOLO
   // dal contatore giri, fermo a 0 per tutta la gara del 24/10.
   gauges.isLastLap = player.isLastLap ?? null;
+  // SENSORE BOX (28/10 sera, richiesta Mauro: «per il copilot implementa la
+  // voce quando apre/chiude i box»): il flag pitlane della MMF (carLocation 1,
+  // già arrivato in player.inPit dalla SM) passa nei gauges come isLastLap:
+  // i narratori del copilota lo usano per parlare l'INGRESSO in pitlane
+  // (limiter acceso) e l'USCITA dalla baia. Prima non usciva: il tip «In
+  // pitlane» c'era, la voce della stessa cosa no.
+  gauges.inPit = player.inPit ?? null;
+  // BANDIERA NEI GAUGES (28/10 notte, same road as inPit/isLastLap): il flag
+  // per auto e quello globale della MMF grafica passano ai narratori del
+  // copilota (narratore 10: «Bandiera blu»). Contratto identico a inPit:
+  // null senza il campo, MAI undefined — il narratore distingue sul null.
+  gauges.flag = player.flag ?? null;
+  gauges.globalFlag = player.globalFlag ?? null;
+  // IL GREZZO ACCANTO ALLA PAROLA (28/10 notte, «bandiere blu non segnano
+  // giusto nelle endurance»): shmem ora porta anche il codice numerico
+  // scritto dal gioco (flagCode/globalFlagCode). Il consumatore è diagnos-
+  // tico (il monitor copilota lo mette nel registro): se una endurance
+  // scrivesse un valore fuori dalla mappa FLAG la parola sarebbe null e
+  // nessuno saprebbe perché — col grezzo il registro lo denuncia da solo.
+  gauges.flagCode = player.flagCode ?? null;
+  gauges.globalFlagCode = player.globalFlagCode ?? null;
   gauges.raceLaps = ctx.raceLaps ?? null;
+  // PENALITÀ TAGLI NEI GAUGES (30/10, «penalità a voce» richiesta da Mauro):
+  // i ms cumulativi guadagnati tagliando (shmem player.cutPenaltyMs) in
+  // secondi a una virgola: il narratore del copilota parla quando sale,
+  // il monitor lo copia nel registro. A zero/assente lo lascia null:
+  // niente «penalità 0» a ogni tick.
+  gauges.cutSec = player.cutPenaltyMs != null && player.cutPenaltyMs > 0
+    ? Math.round(player.cutPenaltyMs / 100) / 10
+    : null;
   gauges.fuelPerLap = Number.isFinite(fuelPerLap) ? fuelPerLap : null;
   const pit = pitWindow(gauges, { inRace, lapsTotal: gauges.lapsTotal });
   if (pit && Number.isFinite(pit.pitLap) && pit.window) {
