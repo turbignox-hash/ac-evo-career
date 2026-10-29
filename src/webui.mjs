@@ -73,6 +73,7 @@ import { paddockOverview } from './paddock.mjs';
 // il bridge della gara custom a tempo (POST /api/instantrace): lettura +
 // scrittura dell'INSTANT_RACE a gioco APERTO (force), come il ponte griglia
 import { timedRace, currentInstantRace } from '../tools/set-instantrace.mjs';
+import { garaVeloce } from '../tools/_gara-veloce.mjs';
 import { statoAggiornamentiAsync, installaAggiornamenti } from '../tools/aggiornamenti.mjs';
 
 // check degli aggiornamenti FUORI dal boot (audit freeze 23/10): qui prima
@@ -841,6 +842,40 @@ async function api(context0, _req, res, action, body) {
       } catch (e) {
         const h409 = ['AMBIGUOUS', 'BAD_DURATA', 'NO_VALUES'].includes(e.code);
         return sendJson(res, h409 ? 409 : 500, { error: e.message });
+      }
+    }
+    case 'gara-veloce': {
+      // LA GARA AL VOLO DALLA GUI (1/11): giri o tempo + banda AI
+      // dell'istantanea + opzionali sedile (vetrina custom) e griglia dal
+      // pool — TUTTO con la funzione del CLI tools/_gara-veloce.mjs
+      // (garaVeloce): un solo codice per i due fronti. VIA BRIDGE le
+      // scritture passano a gioco aperto con force:true (stesso gesto di
+      // 'instantrace'); body.dry = prova senza scrivere. Il pool accetta
+      // auto MAI state in griglia: le celle si sintetizzano dal donatore
+      // (opts.celleNuove del builder) e il report lo dichiara.
+      try {
+        const via = garaVeloce({
+          giri: body.giri != null && body.giri !== '' ? Number(body.giri) : null,
+          tempo: body.tempo != null && body.tempo !== '' ? Number(body.tempo) : null,
+          aiMin: body.aiMin != null && body.aiMin !== '' ? Number(body.aiMin) : 88,
+          aiMax: body.aiMax != null && body.aiMax !== '' ? Number(body.aiMax) : 93,
+          auto: body.auto ? String(body.auto) : null,
+          pool: body.pool ? String(body.pool) : null,
+          dry: !!body.dry,
+          force: true,
+        });
+        return sendJson(res, 200, { ok: true, ...via });
+      } catch (e) {
+        const cod = e?.code ?? '';
+        const mappa = {
+          NO_RECIPE: [400, tr({ it: 'Scegli i giri o i minuti a tempo: senza una durata la gara al volo non parte.', en: 'Pick laps or timed minutes: without a length there is no instant race.' })],
+          NO_ENTRAMBI: [400, tr({ it: 'O giri o minuti a tempo, non entrambi.', en: 'Either laps or timed minutes, not both.' })],
+          BAD_DURATA: [400, tr({ it: 'Durata: un intero maggiore di 0.', en: 'Length: an integer greater than 0.' })],
+          BAD_BANDA: [400, tr({ it: 'Banda AI: due interi fra 0 e 100.', en: 'AI band: two integers between 0 and 100.' })],
+        };
+        if (mappa[cod]) return sendJson(res, mappa[cod][0], { error: mappa[cod][1] });
+        if (cod === 'NO_INSTANT') return sendJson(res, 409, { error: tr({ it: 'INSTANT_RACE non esiste ancora: apri UNA volta una Gara personalizzata in EVO, poi ripremi.', en: 'INSTANT_RACE does not exist yet: open a Custom race ONCE in EVO, then press again.' }) });
+        return sendJson(res, 500, { error: e.message });
       }
     }
     case 'wizard': {

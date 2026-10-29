@@ -293,6 +293,27 @@ async function drawDashboard(m){
       <div class="panel" id="p-life"><h2>${tr({ it: 'Vita fuori pista', en: 'Life off track' })}</h2><div class="empty">…</div></div>
       <div class="panel" id="p-heritage"><h2>${tr({ it: '📜 Eredità di famiglia', en: '📜 Family heritage' })}</h2><div class="empty">…</div></div>
       <div class="panel" id="p-events"><h2>${tr({ it: 'Eventi speciali', en: 'Special events' })}</h2><div class="empty">…</div></div>
+      <div class="panel" id="p-veloce">
+        <h2>${LI.flag} ${tr({ it: '🏁 Gara personalizzata al volo', en: '🏁 Instant custom race' })}</h2>
+        <div class="rs-grid">
+          <div class="field"><label>${tr({ it: 'Giri', en: 'Laps' })}</label><input type="number" id="gv-giri" min="1" max="500" placeholder="5"></div>
+          <div class="field"><label>${tr({ it: 'oppure a tempo (min)', en: 'or timed (min)' })}</label><input type="number" id="gv-tempo" min="1" max="1440" placeholder="30"></div>
+          <div class="field"><label>${tr({ it: 'Banda AI % (min–max)', en: 'AI band % (min–max)' })}</label>
+            <div style="display:flex;gap:6px">
+              <input type="number" id="gv-aimin" min="0" max="100" value="88">
+              <input type="number" id="gv-aimax" min="0" max="100" value="93">
+            </div>
+          </div>
+          <div class="field"><label>${tr({ it: 'Sedile (id auto, opz.)', en: 'Seat (car id, opt.)' })}</label><input type="text" id="gv-auto" placeholder="ks_ferrari_296_gt3"></div>
+          <div class="field" style="grid-column:1/-1"><label>${tr({ it: 'Griglia dal pool (id auto, opz.)', en: 'Grid from pool (car ids, opt.)' })}</label><input type="text" id="gv-pool" placeholder="ks_f40_lm, ks_ferrari_296_gt3"></div>
+          <div class="row" style="align-items:end">
+            <button class="mini" id="gv-dry">${tr({ it: 'Prova senza scrivere', en: 'Dry run' })}</button>
+            <button class="mini" id="gv-go">${tr({ it: 'Imposta in EVO', en: 'Write to EVO' })}</button>
+          </div>
+        </div>
+        <div id="gv-out" style="display:none;margin-top:8px"></div>
+        <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'Resta a te: apri EVO → Gara personalizzata, scegli pista/layout/auto e premi APPLICA nel menu griglia. Durata e banda li scriverà il tasto.', en: 'Left to you: open EVO → Custom race, pick track/layout/car and press APPLY in the grid menu. Length and band are written by the button.' })}</div>
+      </div>
       <div class="panel">
         <h2>${LI.gauge} ${tr({ it: 'Strumenti rapidi', en: 'Quick tools' })}</h2>
         <div class="grid2">
@@ -310,6 +331,36 @@ async function drawDashboard(m){
   drawLifePanel();
   drawHeritagePanel();
   drawEventsPanel();
+  /* GARA AL VOLO (1/11): giri o tempo + banda AI + opzionali sedile e
+     griglia dal pool — stessa funzione del CLI (garaVeloce via server). Il
+     dry-run prima: vedi cosa si scriverebbe senza toccare i file. */
+  const gvEsegui = async (dry) => {
+    const giri = $('#gv-giri')?.value ? Number($('#gv-giri').value) : null;
+    const tempo = $('#gv-tempo')?.value ? Number($('#gv-tempo').value) : null;
+    if (!giri && !tempo) return toast(tr({ it: 'Scegli i giri o i minuti a tempo.', en: 'Pick laps or timed minutes.' }), 'warn');
+    if (giri && tempo) return toast(tr({ it: 'O giri o minuti, non entrambi.', en: 'Either laps or minutes, not both.' }), 'warn');
+    try {
+      const out = await api('gara-veloce', {
+        giri,
+        tempo,
+        aiMin: $('#gv-aimin')?.value,
+        aiMax: $('#gv-aimax')?.value,
+        auto: $('#gv-auto')?.value.trim() || null,
+        pool: $('#gv-pool')?.value.trim() || null,
+        dry,
+      });
+      const zone = $('#gv-out');
+      if (zone) {
+        zone.style.display = '';
+        zone.innerHTML =
+          `<b>${esc(out.titolo)}</b><ul style="margin:6px 0 0 18px">${out.passi.map((p) => `<li>${p.ok ? '✓' : '✗'} <b>${esc(p.nome)}</b>: ${esc(p.esito)}</li>`).join('')}</ul>` +
+          (out.stato ? `<div class="muted" style="margin-top:6px">${tr({ it: 'Stato istantaneo: ', en: 'Instant-race state: ' })}${out.stato.modeTxt === 'a tempo' ? `${Math.round((out.stato.durata ?? 0) / 60)} min a tempo` : `${out.stato.durata} giri`} · AI ${out.stato.aiMin ?? '?'}–${out.stato.aiMax ?? '?'}</div>` : '');
+      }
+      toast(dry ? tr({ it: 'Prova a secco fatta: guarda l\'esito qui sotto.', en: 'Dry run done: see the result below.' }) : tr({ it: 'Scritto: guarda l\'esito qui sotto.', en: 'Written: see the result below.' }), 'ok');
+    } catch (e) { toast(e.message, 'err'); }
+  };
+  $('#gv-dry')?.addEventListener('click', () => gvEsegui(true));
+  $('#gv-go')?.addEventListener('click', () => gvEsegui(false));
   $('#b-review').onclick = () => showReview();
   $('#b-gazzetta').onclick = () => showGazzetta();
   /* Mondiale più visibile (27/10, Mauro: «resta un poco nascosto»): il tile

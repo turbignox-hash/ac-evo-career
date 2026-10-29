@@ -138,6 +138,32 @@ function splitTemplate(buf) {
   return { cells, drivers, config, weather, other };
 }
 
+/* ---------- CELLE SINTETICHE (1/11: auto mai state in griglia) ---------- */
+// «Le auto le prendi anche se non sono state mai usate» (1/11, Mauro: paddock
+// + loader collegati al gioco). In una cella protobuf di customgrid l'identità
+// dell'auto è SOLO testo: carId (f3), nome di scheda (f4), preset (f10,
+// sotto-messaggio con f1). Trapiantando quei tre su una CELLA DONATRICE reale
+// del template (struttura, visual e float di tuning restano quelli del gioco:
+// «zero cella inventata» regge) diventa POSSIBILE una griglia di un pool di
+// auto mai state in NESSUNA griglia precedente — fino ad oggi il pool dava il
+// rifiuto «rigenera in EVO una griglia con quelle auto una volta». OPT-IN
+// (celleNuove:true nel buildGridMessage) e dichiarato nel report: la PRIMA
+// APPLICA in gioco resta la verifica della sintesi (come per il builder
+// tutto-fotocopia lo è stata il suo primo Applied 23/10).
+function cellaSintetica(donore, carId) {
+  const B = (s) => Buffer.from(s, 'utf8');
+  const preset = encodeMsg([{ field: 1, wire: 2, bytes: B(`preset_${carId}`) }]);
+  const out = decodeMsg(donore).map((g) => ({ ...g }));
+  let conPreset = false;
+  for (const g of out) {
+    if (g.field === 3) g.bytes = B(carId);
+    else if (g.field === 4) g.bytes = B(carId);
+    else if (g.field === 10) { g.bytes = preset; conPreset = true; }
+  }
+  if (!conPreset) out.push({ field: 10, wire: 2, bytes: preset });   // donatore senza preset (file atipico): la cella sintetica NON nasce anonima
+  return encodeMsg(out);
+}
+
 /* ---------- bilanciamento ---------- */
 function pickClass(classes, serieId, presetList) {
   // match AUTOMATICO: prima per id serie, poi per OVERLAP dei preset (la classe
@@ -271,6 +297,7 @@ export function buildGridMessage(opts) {
   const poolMulti = Array.isArray(declared?.poolAuto) && declared.poolAuto.length >= 2 ? new Set(declared.poolAuto) : null;
   const wantCars = Array.isArray(node.cars) && node.cars.length ? new Set(node.cars) : null;
   let poolCells = tpl.cells;
+  const reportSintesi = [];   // auto mai in griglia, montate con celle sintetiche (1/11)
   if (poolMulti) {
     const sel = tpl.cells.filter((b) => poolMulti.has(carIdOf(b)));
     const distinte = [...new Set(sel.map(carIdOf).filter(Boolean))];
@@ -305,7 +332,17 @@ export function buildGridMessage(opts) {
         `serie "${nodeId}": auto del ladder non trovate nel template: ${m.mancanti.join(', ')} · auto veri del gioco nel template: ${m.reali.join(' | ')}`,
       ]);
     }
-    if (m.sel.length) {
+    if (m.mancanti.length && opts.celleNuove) {
+      // SINTESI (opt-in opts.celleNuove, gara al volo): le auto del pool NON
+      // nel template NON bloccano più — le celle si fabbricano dal donatore
+      // (la prima cella matched, o comunque la prima reale del template).
+      // Le presenti restano fotocopiate e il report dichiara le sintetiche.
+      const selected = [...m.sel];
+      const donore = selected.length ? selected[0] : tpl.cells[0];
+      for (const id of m.mancanti) { selected.push(cellaSintetica(donore, id)); reportSintesi.push(id); }
+      poolCells = selected;
+      poolMultiInfo = { auto: [...new Set(selected.map(carIdOf))].length, celle: selected.length };
+    } else if (m.sel.length) {
       poolCells = m.sel;
       poolMultiInfo = m.mancanti.length ? { auto: [...new Set(m.sel.map(carIdOf))].length, celle: m.sel.length } : null;
     } else {
@@ -375,8 +412,27 @@ export function buildGridMessage(opts) {
   for (const b of poolCells) {
     const k = Buffer.from(b).toString('hex');
     if (!vistiCella.has(k)) { vistiCella.add(k); cellsUniche.push(b); }
+  }  let cloniArmonici = 0;
+  // ROUND-ROBIN PER MODELLO (1/11, con le celle sintetiche): il ciclo i%len
+  // con un pool disomogeneo (es. 4 varianti della stessa auto + la cella
+  // sintetica di un'altra) può TAGLIARE interi modelli fuori dalla griglia:
+  // il ciclo scava solo le prime N celle. Ordinando le uniche una-per-modello
+  // prima delle varianti extra, OGNI auto del pool compare ALMENO una volta
+  // quando target ≥ numero di modelli (monomarca resta identica: un solo
+  // modello, ordine invariato). Già falsificato dal test della RS 3.
+  const perModello = new Map();
+  for (const b of cellsUniche) {
+    const k = carIdOf(b) ?? Buffer.from(b).toString('hex');
+    if (!perModello.has(k)) perModello.set(k, []);
+    perModello.get(k).push(b);
   }
-  let cloniArmonici = 0;
+  const ordinate = [];
+  const lista = [...perModello.values()];
+  while (lista.some((a) => a.length)) for (const a of lista) { if (a.length) ordinate.push(a.shift()); }
+  if (ordinate.length !== cellsUniche.length) throw new Error('riordinamento per modello: ho perso celle, copertura della griglia non garantita');
+  cellsUniche.length = 0;
+  cellsUniche.push(...ordinate);
+
   if (cellsUniche.length < target) {
     // ARMONICA (24/10, doppio passo Mauro «Test harmonic CSL»): le varianti
     // REALI della CSL sul disco sono 3-5, ma la ronda nativa chiede 14 — e il
@@ -528,6 +584,7 @@ export function buildGridMessage(opts) {
     origine,
     ai: aiEff?.length === 2 ? `${aiEff[0]}-${aiEff[1]} (${aiFrom})` : null,
     escluse: poolEscluse,
+    sintesi: reportSintesi.length ? reportSintesi : null,
     celle: bilanciate.map((b) => `${b.car} → ${b.kg}kg/${b.pct}%`),
   };
   return { buffer: encodeMsg(fields), report };

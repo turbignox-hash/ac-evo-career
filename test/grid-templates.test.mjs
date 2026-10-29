@@ -134,6 +134,40 @@ test('serie mai messa in griglia da nessuna parte: errore col RITUALE (NO_TEMPLA
   assert.match(err.message, /APPLICA/, 'dice il GESTO preciso (GENERA+APPLICA in EVO)');
 });
 
+/* ---------- CELLE SINTETICHE (1/11, gara al volo) ---------- */
+test('celle NUOVE con opt-in: la RS 3 mai in griglia entra nel pool F40 (sintesi dal donatore + round-robin per modello)', async () => {
+  const bg = await import('../src/gridbuilder.mjs');
+  const ev = await import('../tools/evo-grid.mjs');
+  // nodo MIXTO (caso reale del pool della gara al volo): F40 (sul disco,
+  // 4 varianti byte-uniche) + RS 3 (mai state in NESSUNA griglia)
+  LADDER.nodes.push({
+    nodeId: 'serie_mista_test', display: 'Serie mista di prova', gridSize: 4,
+    cars: ['ks_f40_lm', 'ks_audi_rs_3_sportback'],
+    calendar: [{ name: 'Prova', track: 'Red Bull Ring', weather: 0, laps: 3 }],
+  });
+  const file = scrivi(templateF40(4));              // sul disco SOLO F40: la RS 3 non c'è da NESSUNA parte
+  // senza opt-in, pool PARZIALE nel template: comportamento storico — le
+  // presenti restano fotocopiate, la mancante NON entra (solo il log dei mancanti)
+  const senzaOpt = bg.buildGridMessage({ ladder: LADDER, nodeId: 'serie_mista_test', roundIndex: 0, file, aiBand: [88, 93], noBalance: true });
+  assert.equal(Buffer.from(senzaOpt.buffer).toString('latin1').includes('ks_audi_rs_3_sportback'), false, 'senza opt-in la RS 3 non entra');
+  assert.equal(senzaOpt.report.sintesi, null, 'senza opt-in il report non dichiara sintesi');
+  // senza opt-in e pool totalmente assente dal template: rifiuto storico
+  assert.throws(() => bg.buildGridMessage({ ladder: LADDER, nodeId: 'serie_rs_3_test', roundIndex: 0, file, aiBand: [88, 93], noBalance: true }),
+    /non contiene le auto/, 'senza opt-in e senza presenze il rifiuto resta');
+  // con opt-in: la RS 3 entra trapiantata su una cella donatrice, e
+  // round-robin per modello la fa entrare DENTRO la griglia (non tagliata)
+  const out = bg.buildGridMessage({ ladder: LADDER, nodeId: 'serie_mista_test', roundIndex: 0, file, aiBand: [88, 93], noBalance: true, celleNuove: true });
+  const stiff = ev.decodeMsg(out.buffer);
+  const celleOut = stiff.filter((f) => f.field === 1);
+  const celleTxt = celleOut.map((f) => Buffer.from(f.bytes).toString('latin1'));
+  assert.equal(celleOut.length, 4, '4 celle come gridSize');
+  assert.equal(celleTxt.filter((t) => t.includes('ks_f40_lm')).length, 3, '3 celle F40');
+  assert.ok(celleTxt.some((t) => t.includes('ks_audi_rs_3_sportback')), 'la RS 3 entra in griglia (round-robin per modello)');
+  assert.ok(celleTxt.some((t) => t.includes('preset_ks_audi_rs_3_sportback')), 'preset synth dichiarato nella cella');
+  assert.equal(new Set(celleOut.map((f) => Buffer.from(f.bytes).toString('hex'))).size, 4, 'tutte byte-uniche (lezione anti-crash)');
+  assert.deepEqual(out.report.sintesi, ['ks_audi_rs_3_sportback'], 'il report dichiara le sintetizzate');
+});
+
 /* ---------- griglie di fabbrica (distribuzione, 24/10) ---------- */
 test('macchina vergine, nessun template sul disco: la GRIGLIA DI FABBRICA copre la serie (ultimo ripiego)', () => {
   rmSync(join(TMP, 'grid-templates'), { recursive: true, force: true });
