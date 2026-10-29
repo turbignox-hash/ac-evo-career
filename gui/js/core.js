@@ -15,8 +15,63 @@ const api = (action, call={}) => {
   // anche se evo.config.json è rimasto su un'altra lingua.
   body.lingua = window.LINGUA ?? 'it';
   return fetch(`/api/${action}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body ?? {})})
-    .then(async r => { const d = await r.json(); if (!r.ok) throw Object.assign(new Error(d.error || 'errore'), {data:d}); return d; });
+    .then(async r => {
+      // filOK/filKO (5/11): la risposta con body, anche un 4xx, dice che il
+      // server è VIVO (errore di tasto, non di server); solo il fallimento
+      // di rete (connessione al vento) alimenta il filbar.
+      let d = null;
+      try { d = await r.json(); } catch { throw Object.assign(new Error('risposta illeggibile'), { serverGiu: true }); }
+      if (!r.ok) throw Object.assign(new Error(d.error || 'errore'), { data: d, risposto: true });
+      filOK();
+      return d;
+    })
+    .catch(e => { if (!e?.risposto) filKO(); throw e; });
 };
+
+/* FILBAR DI SERVIZIO (5/11): il server è un NODE vivo, non ricarica da solo —
+   quando smette di rispondere (o gira col codice vecchio) la pagina dice la
+   verità invece di scaricarlo tutto nel toast. api() conta i fallimenti DI
+   RETE (due di fila): il banner porta l'età in secondi e il bottone di rientro
+   (endpoint riavvia, lo stesso gesto dell'«Aggiorna ora»); mentre il banner
+   è visibile un poll su agg-info lo toglie da solo quando il server torna.
+   Un errore del server CHE RISPONDE non conta: quello è fisiologia dei tasti. */
+let filFail = 0, filDa = 0, filTimer = null;
+function filKO() {
+  filFail += 1;
+  if (filFail < 2 || filDa) return;
+  filDa = Date.now();
+  const b = $('#filbar');
+  if (!b) return;
+  b.hidden = false;
+  b.innerHTML = `<div class="banner warn" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <span>⚠ ${esc(tr({ it: 'Il server del Pitwall non risponde', en: 'The Pitwall server is not responding' }))} (<span id="fil-age">0</span> s) — ${esc(tr({ it: 'le viste restano ferme: riparte col codice nuovo.', en: 'views are frozen: restart with the new code.' }))}</span>
+    <button id="fil-restart" style="margin-left:auto;border:1px solid #e8a23a40;background:#e8a23a12;color:#f0dcb8;border-radius:8px;padding:6px 12px;font:inherit;font-weight:700;cursor:pointer">↻ ${esc(tr({ it: 'Riavvia il server', en: 'Restart the server' }))}</button>
+  </div>`;
+  $('#fil-restart').onclick = async () => {
+    try {
+      await api('riavvia', {});
+      toast(tr({ it: 'Rientro avviato: la barra sparisce quando il server torna.', en: 'Restart started: the banner goes away when the server is back.' }), 'ok');
+    } catch {
+      toast(tr({ it: 'Server giù del tutto: da console parti da avvia.cmd (o node src/webui.mjs).', en: 'Server fully down: start avvia.cmd from a console (or node src/webui.mjs).' }), 'err');
+    }
+  };
+  filTimer = setInterval(async () => {
+    const v = $('#fil-age');
+    if (v) v.textContent = String(Math.round((Date.now() - filDa) / 1000));
+    try { const r = await fetch('/api/agg-info', { signal: AbortSignal.timeout(1500) }); if (r.ok) filOK(); }
+    catch { /* ancora giù: la barra resta */ }
+    if (!filDa && filTimer) { clearInterval(filTimer); filTimer = null; }
+  }, 4000);
+}
+function filOK() {
+  filFail = 0;
+  if (!filDa) return;
+  filDa = 0;
+  if (filTimer) { clearInterval(filTimer); filTimer = null; }
+  const b = $('#filbar');
+  if (b) { b.hidden = true; b.innerHTML = ''; }
+  toast(tr({ it: '🟢 Server tornato in pista.', en: '🟢 Server back up.' }), 'ok');
+}
 
 function toast(text, kind='', opts) {
   // Messaggio che CHIEDE UN'AZIONE all'utente (27/10, richiesta Mauro:

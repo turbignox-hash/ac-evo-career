@@ -47,6 +47,10 @@
     </div>
   </header>
   <div id="aggbar" style="padding:0 14px"></div>
+  <!-- FILBAR DI SERVIZIO (5/11): serve quando il server webui non risponde o
+       gira con il codice vecchio (Node non ricarica da solo). Nato nascosto:
+       lo gestisce core.js (api che fallisce → visibile, server tornato → via). -->
+  <div id="filbar" hidden style="padding:8px 14px"></div>
   <main id="main"></main>
 </div>
 
