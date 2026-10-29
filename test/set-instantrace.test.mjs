@@ -14,7 +14,7 @@ import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
-import { currentInstantRace, timedRace } from '../tools/set-instantrace.mjs';
+import { currentInstantRace, setInstantAi, timedRace } from '../tools/set-instantrace.mjs';
 
 const TMP = mkdtempSync(join(tmpdir(), 'evo-instant-'));
 const mkFile = (giri = 7, mode = 2) => {
@@ -89,5 +89,42 @@ test('timedRace rifiuta valori ambigui o assenti senza toccare il file', () => {
   assert.throws(() => timedRace({ file, force: true }), /serve --tempo/);
   assert.throws(() => timedRace({ minutes: 5, laps: 7, file, force: true }), /o a tempo o a giri/);
   assert.throws(() => timedRace({ minutes: 0, file, force: true }), /intero > 0/); // durata minima 60 s
+  assert.deepEqual(readFileSync(file), before, 'file intatto');
+});
+
+/* ---------- setInstantAi (1/11, la gara AL VOLO) ---------- */
+
+test('setInstantAi scrive la banda AI (f30/f31) nel blocco Race e si rilegge uguale', () => {
+  const file = mkFile();                                   // fixture: AI 88–93
+  const r = setInstantAi(95, 96, { file, force: true });
+  assert.equal(r.written, true);
+  assert.deepEqual([r.aiMin, r.aiMax], [95, 96]);
+  assert.ok(r.backup?.includes('bak-instantai-'), 'backup datato scritto');
+  const cur = currentInstantRace(file);
+  assert.deepEqual([cur.aiMin, cur.aiMax], [95, 96]);
+  // gli altri campi non toccati: la gara resta a 7 giri, partenza 1
+  assert.deepEqual([cur.durata, cur.mode, cur.partenza], [7, 2, 1]);
+});
+
+test('setInstantAi è idempotente: già uguale → written:false, nessun backup nuovo', () => {
+  const file = mkFile();                                   // già 88–93
+  const r = setInstantAi(88, 93, { file, force: true });
+  assert.equal(r.written, false);
+  assert.ok(r.nota?.includes('idempotente'));
+});
+
+test('setInstantAi consolida la banda invertita invece di rifiutarla', () => {
+  const file = mkFile();
+  const r = setInstantAi(96, 95, { file, force: true });   // lo-hi scrivuto
+  assert.deepEqual([r.aiMin, r.aiMax], [95, 96]);
+  const cur = currentInstantRace(file);
+  assert.deepEqual([cur.aiMin, cur.aiMax], [95, 96]);
+});
+
+test('setInstantAi rifiuta banda fuori scala senza toccare il file', () => {
+  const file = mkFile();
+  const before = readFileSync(file);
+  assert.throws(() => setInstantAi(95, 999, { file, force: true }), /0 e 100/);
+  assert.throws(() => setInstantAi(undefined, 95, { file, force: true }), /0 e 100/);
   assert.deepEqual(readFileSync(file), before, 'file intatto');
 });

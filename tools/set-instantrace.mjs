@@ -91,6 +91,67 @@ export function timedRace({ minutes = null, laps = null, file = INSTANT_FILE, dr
   return { written: true, mode, durata, backup };
 }
 
+/**
+ * Banda AI della gara custom (1/11, «al volo»): campi f30/f31 del blocco Race
+ * dell'INSTANT_RACE — gli stessi cursori che il menu mostra quando apri
+ * Gara personalizzata. La LETTURA ce l'ha già currentInstantRace; questo è
+ * il SCRITTORE mancante (setWeekendAi appartiene al weekend, non all'istantanea).
+ *
+ * setInstantAi(88, 93) → cursori 88–93 nel blocco Race
+ * Stessa rete del timedRace: idempotente (banda già uguale → written:false),
+ * dry-run, backup datato, scrittura atomica, guard a gioco aperto (--force).
+ */
+export function setInstantAi(min, max, { file = INSTANT_FILE, dry = false, force = false } = {}) {
+  const lo = Math.round(Number(min)), hi = Math.round(Number(max));
+  if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo < 0 || hi > 100) throw Object.assign(new Error('banda AI: due interi fra 0 e 100'), { code: 'BAD_BANDA' });
+  const [aiMin, aiMax] = lo <= hi ? [lo, hi] : [hi, lo];   // invertita? si ordina, non si rifiuta
+  const buf = readFileSync(file);
+  const fields = decodeMsg(buf);
+  const f3s = fields.filter((f) => f.field === 3 && f.wire === 2);
+  let changed = false, bloccoTrovato = false;
+  for (const f3 of f3s) {
+    const sess = decodeMsg(f3.bytes);
+    const n = sess.find((x) => x.field === 1);
+    if (!n || Buffer.from(n.bytes).toString('utf8') !== 'Race') continue;
+    bloccoTrovato = true;
+    const g30 = sess.find((x) => x.field === 30);
+    const g31 = sess.find((x) => x.field === 31);
+    if ((g30 == null || Number(g30.varint) !== aiMin) || (g31 == null || Number(g31.varint) !== aiMax)) {
+      if (g30) g30.varint = BigInt(aiMin); else sess.push({ field: 30, wire: 0, varint: BigInt(aiMin) });
+      if (g31) g31.varint = BigInt(aiMax); else sess.push({ field: 31, wire: 0, varint: BigInt(aiMax) });
+      f3.bytes = encodeMsg(sess);
+      changed = true;
+    }
+  }
+  if (!bloccoTrovato) throw Object.assign(new Error('blocco Race non trovato nell\'INSTANT_RACE (mai aperta una gara custom?): aprine una volta in EVO e prennl'), { code: 'NO_RACE' });
+  if (!changed) return { written: false, aiMin, aiMax, nota: 'banda già a posto (idempotente)' };
+  if (dry) return { written: false, dry: true, aiMin, aiMax };
+  if (gameRunning() && !force) throw new Error('EVO è APERTO: chiudi il gioco prima di scrivere (o usa --force sapendolo).');
+  // verifica di rilettura prima di toccare il file: la banda FUORI dai byte
+  // finali deve coincidere, o niente scrittura
+  const out = encodeMsg(fields);
+  const probe = currentInstantRaceProbe(out, file);
+  if (probe.aiMin !== aiMin || probe.aiMax !== aiMax) throw new Error(`verifica fallita: rileggo AI ${probe.aiMin ?? '?'}–${probe.aiMax ?? '?'}`);
+  const backup = `${file}.bak-instantai-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+  copyFileSync(file, backup);
+  writeFileSync(`${file}.tmp`, out);
+  renameSync(`${file}.tmp`, file);
+  return { written: true, aiMin, aiMax, backup };
+}
+
+/** currentInstantRace su un BUFFER (per la pre-verifica senza riscrivere il file). */
+function currentInstantRaceProbe(buf) {
+  const f3s = decodeMsg(buf).filter((f) => f.field === 3 && f.wire === 2);
+  for (const f3 of f3s) {
+    const sess = decodeMsg(f3.bytes);
+    const n = sess.find((x) => x.field === 1);
+    if (!n || Buffer.from(n.bytes).toString('utf8') !== 'Race') continue;
+    const g = (k) => sess.find((x) => x.field === k);
+    return { aiMin: g(30) ? Number(g(30).varint) : null, aiMax: g(31) ? Number(g(31).varint) : null };
+  }
+  return {};
+}
+
 /* ---------- CLI ---------- */
 const isMain = process.argv[1] && import.meta.url === new URL(`file:///${process.argv[1].replace(/\\/g, '/')}`).href;
 if (isMain) {
