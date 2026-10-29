@@ -358,3 +358,27 @@
 - **TICK SENZA flagCode**: 6 tick della gara con flagCode assente (il resto
   del payload ok): il narratore li salta da solo (`fc != null`), nessuna
   azione. Se salgono di frequente, spaca un'ispezione del blocco graphics.
+
+## 29/10 pomeriggio — FIX ATTUATO: il gate riparato sulla FASE del GRAPHICS
+- **LA SCOPERTA CHE CHIUDE IL CERCHIO**: non servono il launcher o il
+  gamemodesave — la fase VERA della sessione (SMEvoSessionState.phase_name,
+  es. 'Race'/'Qualify') esiste nel blocco GRAPHICS della MMF ed è già nel
+  player del reader da sempre (shmem.mjs: `sessionPhase`, riga 710). È una
+  fonte indipendente dal blocco STATIC (quello che mente con
+  «TimeAttack» nelle gare SP).
+- **cosa è stato toccato**: (1) engineer.mjs — il gate `inRace` ora accetta
+  `sessionType === 'Race'` O fase del gioco `/race/i`: gare SP riparate a
+  costo zero; le hotlap libere restano MUTE perché lì la fase dice altro
+  (nessun falso «Sosta tra N giri»). (2) gauges.sessionPhase con contratto
+  null (mai undefined). (3) payload leggero del webui porta `phase` e il
+  monitor lo registra nel log copilota: la prossima gara ci dice da sola
+  cosa scrive la fase in gara e in prova. Se in prova libera comparisse
+  pure 'Race', il gate si chiuderebbe con una guardia ulteriore — il
+  registro lo rivela senza alcun MegaProbe.
+- **IL VALORE REALE DELLA FASE NON È ANCORA OSSERVATO IN GARA SP**: la
+  regola si fonda sulla struttura del wrapper e sui test, NON su un tick
+  reale già visto. La prossima gara SP (o una prova libera) è la
+  verifica: cercare `phase:` nel log del monitor. Se la fase dice Race e
+  la finestra parla, chiudiamo; se parlasse Race pure in prova, aggiungo
+  la guardia. Prossimo test combinato: gara SP con griglia di rivalsa
+  (Mauro 15°) per bandiera blu E finestra sosta insieme.

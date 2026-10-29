@@ -575,9 +575,15 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
     const live0 = engineerLive(snap, { fuelPerLap: null, raceLaps: null });
     return {
       ...live0, auto: null,
-      sessionId: snap.session?.id ?? null,
-      sessionType: snap.session?.type ?? null,
-      delta: snap.delta ?? null,
+    sessionId: snap.session?.id ?? null,
+    sessionType: snap.session?.type ?? null,
+    // 29/10: la FASE VERA della sessione (SMEvoSessionState.phase_name, es.
+    // 'Race'/'Qualify') arriva al monitor nel payload leggero: il blocco STATIC
+    // mente nelle gare SP («TimeAttack») e senza la fase nel registro non si
+    // può dire se il gate inRace dell'ingegnere ià parlato giusto o tace per
+    // il tipo sbagliato. Diagnosi: NOTE-AUTOMAZIONE.md (sezione TimeAttack).
+    phase: live0.gauges?.sessionPhase ?? null,
+    delta: snap.delta ?? null,
       timing: snap.player ? { currentLap: snap.player.currentLapText, lastLap: snap.player.lastLap, bestLap: snap.player.bestLap } : null,
       voceServer: voceServerAttiva(),
     };

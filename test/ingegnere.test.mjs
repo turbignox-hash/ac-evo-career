@@ -221,3 +221,25 @@ test('engineerLive: CODICE GREZZO del flag (28/10 notte, endurance) — passa ai
   assert.equal(senza.gauges.flagCode, null, 'senza codice: null, mai undefined (contratto monitor)');
   assert.equal(senza.gauges.globalFlagCode, null, 'senza codice globale: null, mai undefined');
 });
+
+test('engineerLive: LA FASE dice Race pur col tipo sbagliato «TimeAttack» — gare SP (29/10)', () => {
+  // Patologia riparata: nelle gare single-player il blocco STATIC scrive
+  // sessionType 0 («TimeAttack») per tutta la gara (178/178 in due gare
+  // reali) e la finestra sosta zittisce. La fase VERA del GRAPHICS
+  // (SMEvoSessionState.phase_name, nel player del reader da sempre)
+  // dichiara 'Race': col gate inRace su fase==Race la finestra parla pure
+  // lì. E la fase arriva nei gauges (contratto null), quindi nel registro
+  // del monitor il valore reale si legge da solo nella prossima gara.
+  const base = { fuel: 40, tyreWear: [0.4, 0.55, 0.38, 0.42], lapsTotal: 20, lapsDone: 10, lapsPossible: 4, gapAhead: 1.2, gapBehind: 3, position: 3, drivers: 20 };
+  const sp = engineerLive({ live: true, session: { type: 'TimeAttack' }, player: { ...base, sessionPhase: 'Race' } }, {});
+  assert.ok(sp.live && sp.pit != null, 'fase Race: la finestra sosta parla anche col tipo «TimeAttack» (gara SP)');
+  assert.equal(sp.gauges.sessionPhase, 'Race', 'la fase del gioco non arriva ai gauges: senza di lei il registro non dice perch\u00e8');
+  // fase che dice altro (prova libera): col tipo TimeAttack la finestra resta muta —
+  // nessun falso «Sosta tra N giri» durante le hotlap (i falsi positivi qui
+  // costano il doppio: voci sbagliate pure quando giri per piacere)
+  const prova = engineerLive({ live: true, session: { type: 'TimeAttack' }, player: { ...base, lapsTotal: 0, lapsDone: 0, sessionPhase: 'Hotlap' } }, {});
+  assert.ok(prova.live && prova.pit === null, 'fase diversa da Race: la finestra resta muta anche se il tipo è TimeAttack');
+  const muto = engineerLive({ live: true, session: { type: 'TimeAttack' }, player: { ...base, lapsTotal: 0, lapsDone: 0 } }, {});
+  assert.ok(muto.live && muto.pit === null, 'fase assente: contratto null nei gauges E la finestra resta chiusa');
+  assert.equal(muto.gauges.sessionPhase, null, 'senza fase: null, non undefined (contratto monitor)');
+});

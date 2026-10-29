@@ -30,6 +30,12 @@ const LOG = (port) => join(HERE, '..', 'data', `copilot-${port}-24-10.jsonl`);
 
 const campi = (m) => ({
   sessionType: m.sessionType ?? null,
+  // 29/10: la FASE del gioco (phaseName del GRAPHICS, es. 'Race') accanto al
+  // tipo del blocco STATIC — nelle gare SP il tipo mente («TimeAttack»), la
+  // fase è la verità che apre il gate inRace dell'ingegnere (finestra sosta
+  // nelle gare SP). Se in prova libera scrivesse Race pure lì, il registro
+  // lo denuncia nella prossima gara e il gate si chiude con un'altra guardia.
+  phase: m.phase ?? null,
   gauges: {
     lapsDone: m.gauges?.lapsDone ?? null, lapsTotal: m.gauges?.lapsTotal ?? null,
     isLastLap: m.gauges?.isLastLap ?? null,

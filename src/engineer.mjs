@@ -129,7 +129,19 @@ export function engineerLive(snap, ctx = {}) {
   // Race-only il pannello delta/resta spento proprio nei giri di prova dove
   // serve). La FINESTRA PIT resta invece una cosa da soltanto gara.
   const inSession = !!snap?.live && ['Race', 'HotStint', 'TimeAttack'].includes(sessionType) && !!player;
-  const inRace = sessionType === 'Race';
+  /* 29/10: La FINESTRA PIT resta una cosa da soltanto gara — ma il tipo del
+     blocco STATIC mente nelle gare SP (il gioco le etichetta «TimeAttack»,
+     178 tick su 178 nelle due gare reali di stanotte) e così i narratori
+     sosta («Finestra pit», «Sosta tra N giri») zittiscono per tutta la gara.
+     La FASE VERA della sessione esiste però nel blocco GRAPHICS:
+     SMEvoSessionState.phase_name (es. 'Race'/'Qualify') — è nel player del
+     reader da sempre (sessionPhase). Regola prudente: è gara anche quando il
+     tipo sbaglia, se e solo se la FASE dichiara Race. Il payload leggero del
+     monitor adesso registra la fase (campo phase) così la prossima gara
+     conferma i valori reali in gara e in prova libera. Diagnosi completa:
+     NOTE-AUTOMAZIONE.md (sezione TimeAttack). */
+  const faseGioco = String(player.sessionPhase ?? '').trim();
+  const inRace = sessionType === 'Race' || /race/i.test(faseGioco);
   const gauges = {
     lapsDone: null, lapsTotal: null, fuel: null, lapsOnFuel: null, lapsLeft: null,
     wear: null, temp: null, gapAhead: null, gapBehind: null,
@@ -271,6 +283,11 @@ export function engineerLive(snap, ctx = {}) {
   // nessuno saprebbe perché — col grezzo il registro lo denuncia da solo.
   gauges.flagCode = player.flagCode ?? null;
   gauges.globalFlagCode = player.globalFlagCode ?? null;
+  // LA FASE del gioco (GRAPHICS.phaseName, es. 'Race'/'Qualify'): contratto
+  // null (29/10). Alimenta il gate inRace (il tipo STATIC mente nelle SP)
+  // e il monitor nel payload leggero: la prossima gara registra i valori
+  // reali in gara e in prova libera senza un secondo MegaProbe.
+  gauges.sessionPhase = player.sessionPhase ?? null;
   gauges.raceLaps = ctx.raceLaps ?? null;
   // PENALITÀ TAGLI NEI GAUGES (30/10, «penalità a voce» richiesta da Mauro):
   // i ms cumulativi guadagnati tagliando (shmem player.cutPenaltyMs) in
