@@ -349,13 +349,19 @@ if (REP) {
   console.log('≫ riepilogo copilota:', file, `(${righe.length} righe)`);
   const primoT = righe[0]?.t ?? 0;
   const viste = [];
-  let meta = 0, ultimo = 0, bandiera = 0, zittite = 0, sbalzi = 0;
+  let meta = 0, ultimo = 0, bandiera = 0, zittite = 0, sbalzi = 0, ecoFrasi = 0;
   const detti = new Map();   // testo → ultimo t prima
-  /* 30/10 (mauro: «in full dovrebbe dire anche i gap»): il narratore 'gap'
-     può parlare SOLO se EVO scrive gapAhead/gapBehind — nei bootstrap la
-     fonte arriva 0 e zitti in silenzio per costruzione. Nel verdetto la
-     statistica dei gap dell'intero registro: se il max resta 0, il perché
-     del silenzio è la fonte (gioco), non la radio. */
+  /* 31/10 (diagnosi gara 14:24): nel registro convivono DUE sorgenti di frasi
+     e il riepilogo le mescolava come se fossero la stessa radio:
+     - righe piatte {t, chi, it, livello}): le parole VERE dette dal Pitwall
+       (logaVoce della webui) — quello che Mauro ha sentito davvero;
+     - righe {t, dati, frasi:[…]}): l'ECO del monitor, il calcolo del narratore
+       diagnostico — MAI fuori dagli altoparlanti, e ogni AVVIO MONITOR riparte
+       con lo slot fresco (nuova istanza = meta re-inserita). Sul registro
+       28-29/10 produceva «Meta ×3» e «RIPETUTA dopo 32s» che non corrispondono
+       a nessun doppio udito in gara: artifact diagnostico, non difetto radio.
+     Da qui: bilancio e anomalie SOLO sulla radio reale; l'eco resta come
+     statistica a parte e come fonte dei dati (dati→gapMax). */
   const gapMax = { davanti: 0, dietro: 0, lette: 0 };
   for (const r of righe) {
     const t = r.t - primoT;
@@ -366,23 +372,31 @@ if (REP) {
       console.log(`  +${(t / 1000).toFixed(0)}s · ${r.evento.slice(0, 60)}`);
       continue;
     }
-    gapMax.davanti = Math.max(gapMax.davanti, Number(r.dati?.gauges?.gapAhead) || 0);
-    gapMax.dietro = Math.max(gapMax.dietro, Number(r.dati?.gauges?.gapBehind) || 0);
-    gapMax.lette++;
-    for (const f of r.frasi ?? []) {
-      if (f.detto) { zittite++; continue; }
-      const prima = detti.get(f.it);
+    if (r.dati) {
+      gapMax.davanti = Math.max(gapMax.davanti, Number(r.dati?.gauges?.gapAhead) || 0);
+      gapMax.dietro = Math.max(gapMax.dietro, Number(r.dati?.gauges?.gapBehind) || 0);
+      gapMax.lette++;
+    }
+    if (typeof r.chi === 'string' && r.it) {
+      // RADIO REALE: le frasi davvero uscite dagli altoparlanti
+      const prima = detti.get(r.it);
       const dt = prima != null ? (r.t - prima) / 1000 : null;
       const avviso = dt != null && dt < 70 ? `  ⚠ RIPETUTA dopo ${dt.toFixed(0)}s` : '';
-      console.log(`  +${(t / 1000).toFixed(0)}s [${f.chi}] ${f.it}${avviso}`);
-      if (avviso) viste.push(`RIPETUTA ${f.it.slice(0, 50)} dopo ${dt.toFixed(0)}s`);
-      detti.set(f.it, r.t);
-      if (f.chi === 'metaBenzina') meta++;
-      if (f.chi === 'ultimoGiro') ultimo++;
-      if (f.chi === 'bandiera') bandiera++;
+      console.log(`  +${(t / 1000).toFixed(0)}s (${r.livello ?? '?'}) [${r.chi}] ${r.it}${avviso}`);
+      if (avviso) viste.push(`RIPETUTA ${r.it.slice(0, 50)} dopo ${dt.toFixed(0)}s`);
+      detti.set(r.it, r.t);
+      if (r.chi === 'metaBenzina') meta++;
+      if (r.chi === 'ultimoGiro') ultimo++;
+      if (r.chi === 'bandiera') bandiera++;
+      continue;
+    }
+    for (const f of r.frasi ?? []) {
+      if (f.detto) { zittite++; continue; }
+      ecoFrasi++;
     }
   }
-  console.log(`\n≫ bilancio: metà gara ×${meta} · ultimo giro ×${ultimo} · bandiera ×${bandiera} · zittite dalla guardia 70s ×${zittite} · sbalzi live ×${sbalzi}`);
+  console.log(`\n≫ bilancio RADIO REALE (quello sentito dal Pitwall): metà gara ×${meta} · ultimo giro ×${ultimo} · bandiera ×${bandiera}`);
+  console.log(`≫ eco monitor (calcolo, non radio): ${ecoFrasi} frasi simulate · ${zittite} zittite dalla guardia 70s · sbalzi live ×${sbalzi}`);
   if (gapMax.lette) {
     console.log(`≫ gap: max davanti ${gapMax.davanti.toFixed(1)} s · max dietro ${gapMax.dietro.toFixed(1)} s · su ${gapMax.lette} letture${gapMax.davanti === 0 && gapMax.dietro === 0 ? ' — MAI scritti dal gioco in questo registro: la voce dei gap tace per costruzione (controlla che in EVO sia attivo il display gap davanti/dietro e riferisci la prossima gara)' : ''}`);
   }
