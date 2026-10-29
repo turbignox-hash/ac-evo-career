@@ -133,6 +133,9 @@ export function engineerLive(snap, ctx = {}) {
   const gauges = {
     lapsDone: null, lapsTotal: null, fuel: null, lapsOnFuel: null, lapsLeft: null,
     wear: null, temp: null, gapAhead: null, gapBehind: null,
+    // GREZZI dei gap (31/10): passano il valore del gioco SENZA filtro — la
+    // diagnosi «campo morto in SP vs offset sbagliato» sta nei raw (shmem.mjs)
+    gapAheadRaw: null, gapBehindRaw: null,
     position: null, drivers: null, timeLeft: null,
     raceLaps: ctx.raceLaps ?? null, fuelPerLap: ctx.fuelPerLap ?? null,
   };
@@ -237,6 +240,8 @@ export function engineerLive(snap, ctx = {}) {
   gauges.lapsLeft = lapsLeft;
   gauges.gapAhead = Number.isFinite(gapAhead) ? r1(gapAhead) : null;
   gauges.gapBehind = Number.isFinite(gapBehind) ? r1(gapBehind) : null;
+  gauges.gapAheadRaw = Number.isFinite(Number(player.gapAheadRaw)) ? Number(player.gapAheadRaw) : null;
+  gauges.gapBehindRaw = Number.isFinite(Number(player.gapBehindRaw)) ? Number(player.gapBehindRaw) : null;
   gauges.position = player.position ?? null;
   gauges.drivers = player.drivers ?? null;
   gauges.timeLeft = player.timeLeft ?? null;

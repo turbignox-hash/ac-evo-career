@@ -671,6 +671,19 @@ export class LiveReader {
         lastLap: fmtMs(g.lastLapMs),
         gapAhead: Number.isFinite(g.gapAhead) && g.gapAhead > 0 ? g.gapAhead : null,
         gapBehind: Number.isFinite(g.gapBehind) && g.gapBehind > 0 ? g.gapBehind : null,
+        // GREZZI (31/10 pomeriggio, carta bianca): il valore scritto dal gioco
+        // SENZA il filtro >0 sopra. Nei 1890 tick dei log delle gare registrate
+        // gapAhead/gapBehind non sono mai arrivati filtrati e NON si riusciva a
+        // distinguere «il gioco non scrive il campo (già uphill il valore resta
+        // 0 di default)» da «offset sbagliato / spazzatura». Con i grezzi il
+        // registro della PROSSIMA gara lo dice da solo: sempre 0.0 = campo morto
+        // in SP, valori volanti = offset in fumo, valori sensati = il campo
+        // esiste e radio e GUI possono parlarlo. Layout verificato a mano:
+        // gap_behind finisce a 3852 B come la nota del bridge
+        // (docs/acevo-wrapper.hpp:842, tools/acevo-live.ps1:47) — non è un
+        // problema di offset.
+        gapAheadRaw: Number.isFinite(g.gapAhead) ? g.gapAhead : null,
+        gapBehindRaw: Number.isFinite(g.gapBehind) ? g.gapBehind : null,
         inPit: g.carLocation === 1,
         location: LOCATION[g.carLocation] ?? null,
         flag: FLAG[g.flag] ?? null,

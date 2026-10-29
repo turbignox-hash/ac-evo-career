@@ -278,3 +278,17 @@
   HUD dava ±300 s a frame alterni in perdita di riferimento: spazzatura,
   non la si dice e non tocca la memoria). Test nuovo in copilota-narratori
   (ok 20), suite 464 pass. Commit 575bf22.
+
+## 31/10 pomeriggio — I GAP NON ARRIVANO: diagnosi chiusa a metà, la prova la fa la prossima gara
+- **SEGNALE**: in full dovrebbero parlarsi i gap (frase chi 'gap' del narratore,
+  test §gap) ma nelle 1890 tick registrate delle gare del giorno 31 gapAhead/
+  gapBehind filtrati NON sono mai arrivati una volta sola.
+- **CAUSA ESCLUSA**: il layout. gapAhead/gapBehind esistono nell'header
+  ufficiale (docs/acevo-wrapper.hpp:842) e i loro offset calcolati in Node
+  (shmem.mjs, GFX) finiscono PROPRIO a 3852 B come la nota del bridge
+  (tools/acevo-live.ps1:47): nessun offset sbagliato.
+- **FATTO**: campi GREZZI gapAheadRaw/gapBehindRaw nel flusso (shmem →
+  engineer.mjs gauges → monitor campi()). Alla prossima gara il registro
+  distingue da solo: raw sempre 0.0 = campo morto in SP (come totalLapCount
+  della 500, braccia incrociate); raw sensati = campo vivo e la frase chi
+  'gap' può finalmente parlarsi; raw volanti = offset in fumo.
