@@ -19,7 +19,7 @@ const DRIVER = { first: 'Mauro', last: 'Turbigno', name: 'Mauro Turbigno', natio
 /** Una fila di gara come la scrive EVO (0-based, AI con il pallino). */
 const fila = (nome, cognome, pos, { best = '01:30.000', total = '05:00.000', penalty = '', me = false, car = ['Ferrari', 'F2004'] } = {}) => ({
   driver_id: { a: String(9000 + pos), b: String(10000 + pos) },
-  is_current_driver: me ? true : false,
+  is_current_driver: !!me,
   position: pos,
   driver_name: me ? driver_name : nome,
   driver_surname: cognome,
@@ -86,6 +86,58 @@ test('file illeggibile col prefisso: passa in silenzio, la giornata delle buone 
   ]);
   const v = verdettoGiornata({ paths: { resultsDirs: [dir] }, driver: DRIVER, prefix: '261029' });
   assert.equal(v.gare.length, 1, 'il file guasto esce, il buono resta');
+  assert.equal(v.gare[0].posto, 1);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('LA PRACTICE NON PAGA (2/11, una sola verità col carriera): gli aggregati vedono solo le gare', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'verdetto-'));
+  // practice di mezzogiorno: primo posto in pista NON è una vittoria del verdetto
+  scriviGara(dir, '261029-1200_SP_Practice.sessionresults.json', [
+    fila(driver_name, 'Turbigno', 0, { best: '01:44.500', total: '03:00.000', me: true }),
+    fila('Adrian', 'Palmer', 1),
+  ], { session: 'Practice' });
+  // la gara del pomeriggio: solo terzo posto in pista — i tempi NON unisoni:
+  // con lo stesso total_time la classificazione ufficiale mette alla pari
+  scriviGara(dir, '261029-1500_SP_Race.sessionresults.json', [
+    fila('Adrian', 'Palmer', 0, { total: '06:00.000' }),
+    fila('Ryan', 'Coleman', 1, { total: '06:05.000' }),
+    fila(driver_name, 'Turbigno', 2, { total: '06:10.000', me: true }),
+  ]);
+  const v = verdettoGiornata({ paths: { resultsDirs: [dir] }, driver: DRIVER, prefix: '261029' });
+  assert.equal(v.gare.length, 1, 'solo la gara entra nell’aggregato');
+  assert.deepEqual(v.aggregato, { gare: 1, vittorie: 0, podi: 1, mediaPos: 3, giroTop: { ms: 90000, pista: 'Monza (GP)' } }, 'la practice P0 non sporca né vittoria né media (3, non 1.5) né giro (1:30.000, non 1:44.500)');
+  assert.match(v.md, /Practice/s, 'la practice resta come NOTE, non sparisce');
+  assert.match(v.md, /01:44\.500/s, 'il giro della practice nella nota, fuori dal conto');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('giornata di sole practice: messaggio gentile + note, mai un crash', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'verdetto-'));
+  scriviGara(dir, '261029-0900_SP_Practice.sessionresults.json', [
+    fila(driver_name, 'Turbigno', 0, { best: '01:45.000', me: true }),
+  ], { session: 'Practice' });
+  const v = verdettoGiornata({ paths: { resultsDirs: [dir] }, driver: DRIVER, prefix: '261029' });
+  assert.equal(v.gare.length, 0);
+  assert.match(v.md, /Nessuna gara/, 'nessuna gara, ma la giornata non era vuota');
+  assert.match(v.md, /Practice/, 'la practice resta nella nota, non sparisce');
+  assert.match(v.md, /01:45\.000/, 'il giro della practice nella nota');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('righe doppie nel file (persona riciclata su due slot): il verdetto conta UNA volta, come l’import', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'verdetto-'));
+  // Adrian Palmer ricicla il SUO slot della griglia: due righe, STESSO driver_id,
+  // posizioni 1 e 2 — come la griglia doppia di Brand Hatch: 3 righe, 2 persone.
+  const adrian = fila('Adrian', 'Palmer', 1);
+  scriviGara(dir, '261029-2050_SP_Race.sessionresults.json', [
+    fila(driver_name, 'Turbigno', 0, { me: true }),
+    adrian,
+    { ...adrian, position: 2 },
+  ]);
+  const v = verdettoGiornata({ paths: { resultsDirs: [dir] }, driver: DRIVER, prefix: '261029' });
+  assert.equal(v.gare.length, 1);
+  assert.equal(v.gare[0].partecipanti, 2, 'due PERSONE, non tre righe: la stessa deduplica di carriera e archivio');
   assert.equal(v.gare[0].posto, 1);
   rmSync(dir, { recursive: true, force: true });
 });

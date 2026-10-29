@@ -150,7 +150,10 @@ test('resultDetail _MP_: griglia completa col testa a testa per NICKNAME alterna
   const det = resultDetail(paths, '260417-1936_MP_Race.sessionresults.json', { driver: DRIVER });
   assert.ok(det);
   assert.equal(det.is_mp, true, 'il file _MP_ è marcato online');
-  assert.equal(det.rows.length, 4, 'il dettaglio tiene le righe GREZZE (nessuna deduplica qui)');
+  // UNA SOLA VERITÀ (2/11): anche qui le righe doppie (TOINE e Antoine
+  // Laisne, STESSO driver_id r9) contano UNA volta, come nell'archivio
+  // e come nell'import — la griglia è delle persone vere, non degli slot.
+  assert.equal(det.rows.length, 3, 'la riga doppia (stesso driver_id) è fuori: 3 persone vere');
   const toine = det.rows.find((r) => r.name === 'TOINE');
   const meRow = det.rows.find((r) => r.me);
   assert.equal(toine.position, 1, 'posizione ufficiale: TOINE vince (nessuna penalità in gioco)');

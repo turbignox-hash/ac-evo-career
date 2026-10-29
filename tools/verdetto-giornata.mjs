@@ -12,13 +12,17 @@
 // file nativi di EVO; il pilota è quello del save di carriera (stesso
 // riconoscimento findPlayerDriver). I file illeggibili passano in silenzio
 // (il catalogo li ha già sanificati), la giornata senza gare non crasha.
+// UNA SOLA VERITÀ (2/11): qui contano SOLO le gare (isRaceSession, la stessa
+// regola dell'import di carriera) e sulla STESSA deduplica del catalogo —
+// una practice doppiata non paga né il posto né il giro. Practice e quali
+// NON pagano il verdetto (come in carriera): restano NOTE sotto le gare.
 
 import { writeFileSync, mkdirSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolvePaths } from '../src/paths.mjs';
 import { resultDetail, resultDirs } from '../src/catalog.mjs';
-import { lapToMs } from '../src/results.mjs';
+import { lapToMs, isRaceSession } from '../src/results.mjs';
 import { tr } from '../src/lang.mjs';
 
 const PROJECT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -39,26 +43,43 @@ export function verdettoGiornata({ paths, driver, prefix, files = null } = {}) {
     return readdirSync(d).filter((f) => f.startsWith(prefix) && f.endsWith('.sessionresults.json')).sort();
   });
   const gare = [];
+  const altre = [];   // practice/quali della giornata: note, non verdetto
   for (const f of lista) {
     const det = resultDetail(paths, f, { driver });
     if (!det) continue;
     const me = det.rows.find((r) => r.me);
-    gare.push({
+    const base = {
       file: f,
       ora: dalNome(f),
       pista: det.track + (det.layout ? ` (${det.layout})` : ''),
-      meteo: det.weather,
-      posto: me?.position ?? null,
-      dsq: me?.dsq ?? false,
-      penalita: me?.penalty ?? null,
-      partecipanti: det.rows.length,
-      gap: me?.gap ?? null,
-      mioGiro: me?.bestLap ?? null,
       sessione: det.session ?? '?',
-    });
+      mioGiro: me?.bestLap ?? null,
+    };
+    // SOLO le gare entrano nell'aggregato (isRaceSession sulla sessione del
+    // dettaglio, la stessa regola dell'import); il resto è la nota.
+    if (isRaceSession(det)) {
+      gare.push({ ...base, meteo: det.weather, posto: me?.position ?? null, dsq: me?.dsq ?? false,
+        penalita: me?.penalty ?? null, partecipanti: det.rows.length, gap: me?.gap ?? null });
+    } else {
+      altre.push(base);
+    }
   }
+  const noteAltre = (testoIntestazione) => {
+    if (!altre.length) return [];
+    return [
+      '',
+      `${testoIntestazione} (${altre.length}):`,
+      '',
+      `| ${tr({ it: 'Ora', en: 'Time' })} | ${tr({ it: 'Sessione', en: 'Session' })} | ${tr({ it: 'Pista', en: 'Track' })} | ${tr({ it: 'Tuo giro', en: 'Your lap' })} |`,
+      '|---|---|---|---|',
+      ...altre.map((a) => `| ${a.ora || '—'} | ${a.sessione} | ${a.pista} | ${a.mioGiro ?? '—'} |`),
+    ];
+  };
   if (!gare.length) {
-    return { md: `**${tr({ it: 'Nessuna gara', en: 'No races' })} ${prefix}: ${tr({ it: 'nessun file risultato con quel prefisso.', en: 'no result file with that prefix.' })}**`, gare: [] };
+    const testo = altre.length
+      ? `${tr({ it: 'Nessuna gara', en: 'No races' })} ${prefix}: ${tr({ it: 'ma la giornata non era vuota — practice e quali qui sotto, non pagano il verdetto.', en: 'but the day was not empty — practice and quali below, they do not count.' })}`
+      : `${tr({ it: 'Nessuna gara', en: 'No races' })} ${prefix}: ${tr({ it: 'nessun file risultato con quel prefisso.', en: 'no result file with that prefix.' })}`;
+    return { md: `**${testo}**\n${noteAltre(tr({ it: 'Altre sessioni della giornata, fuori dal verdetto', en: 'Other sessions of the day, not in the verdict' })).join('\n')}\n`, gare: [] };
   }
   const giriValidi = gare.filter((g) => g.mioGiro).map((g) => ({ g, ms: lapToMs(g.mioGiro) })).filter((x) => Number.isFinite(x.ms)).sort((a, b) => a.ms - b.ms);
   const giroTop = giriValidi[0] ?? null;
@@ -91,6 +112,7 @@ export function verdettoGiornata({ paths, driver, prefix, files = null } = {}) {
     `| ${tr({ it: 'Ora', en: 'Time' })} | ${tr({ it: 'Pista', en: 'Track' })} | ${tr({ it: 'Posto', en: 'Pos' })} | ${tr({ it: 'Gap', en: 'Gap' })} | ${tr({ it: 'Tuo giro', en: 'Your lap' })} |`,
     '|---|---|---|---|---|',
     ...righe,
+    ...noteAltre(tr({ it: 'Altre sessioni della giornata (non contano nel verdetto)', en: 'Other sessions of the day (not counted)' })),
   ].join('\n') + '\n';
   return {
     md,

@@ -337,6 +337,10 @@ export function onlineArchive(paths, { limit = 200, driver = null, afterMs = 0 }
 }
 
 /** Dettaglio di un file risultato: griglia completa con giri, tempi e gap.
+ *  UNA SOLA VERITÀ (2/11): le righe del file qui sotto passano dalla stessa
+ *  deduplica dell'archivio (dedupeDriverDiRiga, regola driver_id poi nome):
+ *  verdetto di giornata, rapporto di gara e scheda webui non contano
+ *  MAI una persona due volte — come già fa l'import di carriera.
  *  Per le sessioni ONLINE (_MP_) con `driver` noto aggiunge per ogni pilota il
  *  TESTA A TESTA col libro dei rivali: { incroci, tu, lui } su TUTTE le
  *  sessioni multiplayer, l'identità riconosciuta dai nickname alternativi. */
@@ -357,7 +361,7 @@ export function resultDetail(paths, fileName, { driver = null } = {}) {
   for (const dir of resultDirs(paths)) {
     const full = join(dir, safe);
     if (!existsSync(full)) continue;
-    const r = readJsonSafe(full);
+    const r = dedupeDriverDiRiga(readJsonSafe(full));
     if (!r) return null;
     const drivers = Array.isArray(r.drivers) ? r.drivers : [];
     const zeroBased = drivers.length ? Math.min(...drivers.map((d) => Number(d.position))) === 0 : true;
