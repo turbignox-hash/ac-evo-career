@@ -17,7 +17,14 @@ tornava indietro. Prova a riprodurre: quella famiglia di loop è morta.
 2. **Monitor acceso** in un terminale della cartella progetto:
        node tools/_monitor-copilota.mjs 8642
    Scrive ogni frase candidata in `data/copilot-8642-24-10.jsonl`.
-   Copia le righe qui sotto quando something appare strano.
+   Copia le righe qui sotto quando qualcosa appare strano.
+
+   In più (29/10) l'ascolto live stampa a schermo le righe nuove:
+       node tools/_ascolta-copilota.mjs
+   dice la FASE del gioco quando cambia (riga `FASE: …` — in gara SP
+   è la verità che decide la finestra sosta, il tipo STATIC mente
+   «TimeAttack») e le frasi una a una con il livello; e il kit ha
+   anche il riepilogo a fine gara (§3).
 
    ⚠ AUTODIFESA (28/10 notte): se a schermo esce «il codice è cambiato su
    disco da quando sono partito», il monitor è appena uscito da solo —
@@ -49,10 +56,27 @@ Che cosa DEVE sentire, in ordine e una volta sola:
 - **Bandiera a scacchi!** UNA volta al taglio del giro finale;
 - posizioni perse/guadagnate: al massimo una ogni 30 s.
 
-- su una gara A TEMPO (il HUD mostra i secondi che restano): inoltre
-  **«1 minuto!»** a T-1:00 e **«10 secondi!»** a T-0:10, una volta sola
-  ciascuna — tacche snelle che non spostano ordine al resto; se il
-  display resta a zero si sente «Tempo scaduto!» (30/10 sera).
+- su una gara A TEMPO (l'HUD mostra i secondi che restano): inoltre
+  **«Ultimo minuto!»** a T-60 e **«Trenta secondi!»** a T-30, UNA volta
+  ciascuna — le tacche vere del narratore 8b (contatore su timeLeft,
+  formato tollerante m:ss / h:mm:ss: la stringa che non si capisce tace).
+  Si sentono a QUALUNQUE livello (29/10 tardi: `minuto` ammesso in
+  essenziale e normale, come la bandiera verde); nelle gare a GIRI le
+  tacche NON nascono (timeLeft arriva solo con timedRace).
+
+- su una gara SP: la finestra sosta («Sosta tra N giri», «Sosta: aperta
+  adesso…») ora È attesa anche lì (29/10: il tipo STATIC mente
+  «TimeAttack», il gate legge la FASE del GRAPHICS). Se invece
+  zittisse, il registro dice il perché da solo: la riga del tick porta
+  la FASE reale (`phase:` nel log) — se non scrive «Race» il gioco non
+  l'ha ancora data e si attende la prossima gara con dati.
+
+- i GAP a voce partono SOLO in livelli full e in SP restano ZITTI per
+  costruzione del GIOCO (29/10, misurato): gapAheadRaw/gapBehindRaw
+  fermi a 0.0 su 1455 tick fuori dal 1° posto — EVO non popola
+  gap_ahead/gap_behind del blocco graphics nelle gare single-player.
+  Il silenzio dei gap in SP è ATTESA, non difetto: la prossima gara MP
+  è la verifica (i raw restano nel log in attesa).
 
 - su una gara ENDURANCE (multi-classe, griglia mista): al primo
   doppietto, **Bandiera blu: chi ti doppietta ti sta sotto…** UNA volta
@@ -87,7 +111,8 @@ e va applicata pure alla nota nel diario (NOTE-AUTOMAZIONE.md).
 ## 4. Se qualcosa spuria ancora
 
 1. Copia e incolla le righe del log che circondano la frase (con `dati:` se
-   c'è): contengono lapsDone / lapsTotal / fuel del frame esatto.
+   c'è): contengono lapsDone / lapsTotal / fuel del frame esatto, più la
+   FASE del gioco (`phase`, 29/10) e i GREZZI dei gap / del flag.
 2. NON ri-scrivere la logica a mano: la vista e il monitor sono gemelli
    (stesso narratore) e il test li tiene uniti — cambiare uno spezza l'altro
    (test/copilota-narratori.test.mjs nelle 6 gare sintetiche).
