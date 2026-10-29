@@ -215,6 +215,11 @@ test('markPending: la ronda corrente della scheda va in state.pending per il flu
   assert.equal(p.car, 'car_a');
   assert.equal(p.laps, 8);
   assert.ok(Number.isFinite(p.startedAt));
+  // FINESTRA DELL'AVVIO (29/10, «riparte la stessa gara: solo da Prepara e
+  // Divertiti»): il preparato arma la finestra — un'ora di via automatiz-
+  // zabile che termina per tempo (30 min segnano la cremiera del via).
+  assert.ok(Number.isFinite(p.avviaFino) && p.avviaFino > Date.now(), 'la finestra del via è armata dal preparato');
+  assert.ok(p.avviaFino - p.startedAt <= 31 * 60 * 1000, 'la finestra è corta, non una giornata');
 });
 
 /* ------- i layout REALE di EVO: la tabella TRACK_LAYOUTS vince sul default ------- */
