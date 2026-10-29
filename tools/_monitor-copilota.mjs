@@ -107,7 +107,18 @@ export function narratore(m, slot, ora = Date.now()) {
        il ritmo che conta lo dice lo stesso. Il livello-voci manda 'delta'
        SOLO al full (voce-copilota.mjs FRASI_LIVELLO), normale ed essenziale
        non lo nominano mai. */
-  const dv = m.delta?.dv ?? m.delta?.hudDv ?? null;
+  /* 31/10 SERA (R5, i falsi 11-14 s): la scelta del dv NON è più «il numero
+     che arriva, qualunque sia il raffronto» — la fonte dice CHI paragona:
+     source 'hud' = il delta HUD del gioco, che ancora DOVE vuole lui (stasera
+     il best della Time Attack di prima: «11.2 … 13.8» in gara — non ritmo,
+     il best di un'altra sessione); source 'tracked' = il delta della SIESTA
+     COPILOTA, calcolato sulla traccia del best di QUESTA sessione (shmem
+     bestTrack). VOCE solo da 'tracked': l'HUD può restare nel numero grande
+     della pagina, non entra in radio — e un payload SENZA la fonte (payload
+     antichi) tace pure: da oggi la copilota raffronta SOLO col best che HA
+     tracciato lei. La finestra ±15 s e la cadenza 45 s restano le guardie
+     di legno sopra la norma. */
+  const dv = m.delta?.source === 'tracked' ? (m.delta?.dv ?? null) : null;
   if (dv != null && Math.abs(dv) <= 15000) {
     const bucket = Math.round(dv / 400);
     if (slot.last.dvBucket == null) slot.last.dvBucket = bucket;   // semina senza voce
@@ -319,6 +330,12 @@ export function narratore(m, slot, ora = Date.now()) {
      contro i cambi a raffica e semina in silenzio alla prima lettura. */
   const fc = m.gauges?.flagCode ?? null;
   if (fc != null) {
+    /* 31/10 SERA (R5 di sera): la VERDE è pure il segno del VIA per il
+       narratore di posizione («postalk» più sotto): l'annuncio aspetta che
+       la bandiera verde sia passata, o che fosse già verde alla prima
+       lettura (partenza vista in ritardo): la griglia che si forma non può
+       gridare «P10, posizione persa» PRIMA del via. */
+    if (fc === 2) slot.last.verdeVisto = true;
     if (slot.last.verde == null) slot.last.verde = fc;     // semina
     else if (fc === 2 && slot.last.verde !== 2
              && (slot.last.verdeOra == null || ora - slot.last.verdeOra >= 30000)) {
@@ -339,9 +356,16 @@ export function narratore(m, slot, ora = Date.now()) {
        dei box gridava «P15, posizione persa» mentre l'ordine vero non esisteva
        ancora. Si annuncia solo fuori dal pit E oltre i 12 s dall'ultima lettura
        in pit: la classifica rientra un istante DOPO il pitlane etichetta. */
+    /* 31/10 SERA: in GARA («Race») il postalk aspetta la VERDE — prima del
+       via la griglia si forma e l'ordine non è il campionato: gli annunci di
+       sedile aspettano il via libera visto (o una prima lettura già verde).
+       Fuori gara (quali, TimeAttack, sessione ignota) resta il comportamento
+       di sempre: lì l'ordine conta subito. */
+    const inGara = /race/i.test(String(m.phase ?? m.sessionType ?? ''));
+    const viaVisto = slot.last.verdeVisto === true;
     if (g.inPit === true) slot.last.inPitOra = ora;
     const pitScena = g.inPit === true || (slot.last.inPitOra != null && ora - slot.last.inPitOra <= 12000);
-    if (!pitScena && slot.last.pos != null && g.position !== slot.last.pos
+    if (!pitScena && (!inGara || viaVisto) && slot.last.pos != null && g.position !== slot.last.pos
         && (slot.last.postalk == null || ora - slot.last.postalk >= 30000)) {
       slot.last.postalk = ora;
       parla.push({
@@ -484,6 +508,49 @@ export function statRiepilogo(righe) {
   return { meta, ultimo, bandiera, gare: Math.max(1, segmenti.length), zittite, sbalzi, ecoFrasi, gapMax, viste, radio, servizio, nascosti, motiviSilenzio };
 }
 
+/* trascrizione(righe): la RADIO in formato leggibile, gara per gara (31/10).
+   Il riepilogo fa la contabilità, questo riproduce il discorso vero: righe
+   «+mm:ss · [chiave] frase» tagliate in gare al silenzio ≥ 10 min (lo stesso
+   fermo della contabilità), con i ripetuti entro 70 s segnati «⚠ ripetuta».
+   Fonte: le frasi radio REALI del Pitwall (logaVoce). Su un registro del
+   monitor usano le frasi ECO (calcolo, mai altoparlanti) SOLO dichiarate con
+   il tag «(eco)»: la trascrizione non deve fingere una radio che non c'era. */
+export function trascrizione(righe) {
+  const st = statRiepilogo(righe);
+  const primoT = righe[0]?.t ?? 0;
+  const fmt = (ms) => {
+    const s = Math.max(0, Math.round(ms / 1000));
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  };
+  let frasi = st.radio.map((r) => ({ t: r.t, chi: r.chi, it: r.it, ripetuta: r.ripetutaDopoMs, eco: false }));
+  const eco = !frasi.length;
+  if (eco) {
+    frasi = [];
+    for (const r of righe) {
+      for (const f of r.frasi ?? []) {
+        if (!f.detto && f.chi && f.it) frasi.push({ t: r.t, chi: f.chi, it: f.it, ripetuta: null, eco: true });
+      }
+    }
+  }
+  const segmenti = [];
+  for (const r of frasi) {
+    const seg = segmenti[segmenti.length - 1];
+    if (seg != null && r.t - seg[seg.length - 1].t <= 600000) seg.push(r);
+    else segmenti.push([r]);
+  }
+  const fonteTag = eco ? 'ECO del monitor (calcolo, non altoparlanti)' : 'radio reale del Pitwall';
+  const out = [`Trascrizione copilota — ${segmenti.length} gara/e · ${frasi.length} frasi · ${fonteTag}`];
+  segmenti.forEach((seg, i) => {
+    out.push(`── Gara ${i + 1} (da +${fmt(seg[0].t - primoT)} a +${fmt(seg[seg.length - 1].t - primoT)}) ──`);
+    for (const r of seg) {
+      const rip = r.ripetuta != null ? ` ⚠ ripetuta dopo ${(r.ripetuta / 1000).toFixed(0)}s` : '';
+      out.push(`  +${fmt(r.t - primoT)} · [${r.chi}] ${r.it}${r.eco ? ' (eco)' : ''}${rip}`);
+    }
+  });
+  if (!frasi.length) out.push('  (nessuna frase nel registro: la copilota è rimasta muta o il file porta solo rumore di servizio)');
+  return out.join('\n');
+}
+
 /* ------------------------------------------------------------------ */
 /* CLI (solo quando è lo script prunicipale)                            */
 /* ------------------------------------------------------------------ */
@@ -531,7 +598,26 @@ if (REP) {
   process.exit(0);
 }
 
-if (!PORTS.length) { console.error('uso: node tools/_monitor-copilota.mjs <porta> [porta2 …]  (oppure --riepilogo <file.jsonl>)'); process.exit(1); }
+/* --trascrizione (31/10): il discorso della copilota leggibile dall'uomo,
+   gara per gara. Stesso parser tollerante del riepilogo; secondo argomento
+   opzionale = path di un file .txt dove salvare il testo oltre a stamparlo. */
+const TRA = JSX.includes('--trascrizione');
+if (TRA) {
+  const file = JSX[JSX.indexOf('--trascrizione') + 1];
+  if (!file) { console.error('uso: node tools/_monitor-copilota.mjs --trascrizione <file.jsonl> [file-out.txt]'); process.exit(1); }
+  const righe = readFileSync(file, 'utf8').split('\n').filter(Boolean)
+    .map((r) => { try { return JSON.parse(r); } catch { return null; } }).filter(Boolean);
+  const testo = trascrizione(righe);
+  console.log(testo);
+  const dest = JSX[JSX.indexOf('--trascrizione') + 2];
+  if (dest && !/^\d+$/.test(dest) && !dest.startsWith('--')) {
+    writeFileSync(dest, testo + '\n');
+    console.log(`\n≫ trascrizione scritta in ${dest}`);
+  }
+  process.exit(0);
+}
+
+if (!PORTS.length) { console.error('uso: node tools/_monitor-copilota.mjs <porta> [porta2 …]  (oppure --riepilogo / --trascrizione <file.jsonl> [out.txt])'); process.exit(1); }
 for (const p of PORTS) { const f = LOG(p); if (!existsSync(f)) writeFileSync(f, ''); }
 
 /* AUTODIFESA DA CODICE VECCHIO (28/10 notte, lezione della gara muto):

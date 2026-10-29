@@ -18,7 +18,7 @@
 // monotono dentro la sessione (solo la FIRMA la azzera).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { narratore } from '../tools/_monitor-copilota.mjs';
+import { narratore, trascrizione } from '../tools/_monitor-copilota.mjs';
 
 /** guida una sequenza di frame: [[t, frame], …] → tutte le frasi (anche zittite) */
 function gara(frames) {
@@ -62,6 +62,33 @@ test("posizione nel pitlane e nei 12 s dopo l'uscita: niente falsi «P15 posizio
   const dette = gara(frames);
   assert.equal(voce(dette, 'postalk'), 1, "un solo annuncio di posizione, il legittimo a pista pulita");
   assert.ok(dette.every((f) => !(f.chi === 'postalk' && f.it.includes('persa'))), 'mai «persa» mentre la classifica non esisteva ancora');
+});
+
+/* 31/10 SERA (R5 di sera): in Race il postalk aspetta la VERDE — prima del
+   via la griglia si forma e il contatore non è il campionato; gli annunci di
+   sedile aspettano il via libera visto (o una prima lettura già verde, per
+   le partenze viste in ritardo). Fuori gara resta il comportamento di
+   sempre: lì l'ordine conta subito. */
+test("in Race il postalk aspetta la verde: la griglia prima del via non gridisce", () => {
+  const base = { lapsDone: 0, lapsTotal: 3, fuel: 26.8, lapsOnFuel: 9.2, lapsLeft: 3 };
+  const inGara = (t, pos, fc, flag) => MMF(t, { sessionType: 'Race', phase: 'Race', gauges: { ...base, position: pos, flagCode: fc, flag }, delta: { lapNo: 0, dv: 0 } });
+  const frames = [
+    [0,     inGara(0,     5,  0, 'nessuna')],   // semina posizione e bandiera, silenzio
+    [4000,  inGara(4000,  10, 0, 'nessuna')],   // la griglia balla: P10? pre-via non è il campionato
+    [8000,  inGara(8000,  7,  1, 'gialla')],    // cortina: ancora pre-via, tace
+    [12000, inGara(12000, 7,  2, 'verde')],     // VIA LIBERA (il postalk resta muto: sedile invariato)
+    [20000, inGara(20000, 4,  2, 'verde')],     // P7→P4 dopo il via: l'annuncio legittimo esce
+  ];
+  const dette = gara(frames);
+  assert.equal(voce(dette, 'postalk'), 1, 'pre-via: silenzio sui sedili; post-via: un solo annuncio legittimo');
+  assert.ok(dette.some((f) => f.it.includes('P4')), 'la frase post-via nomina il sedile giusto');
+
+  // partenza vista in ritardo: verde già alla prima lettura → la radio di posizione riparte da subito
+  const frames2 = [
+    [0,    inGara(0,    9, 2, 'verde')],        // semina tutto in silenzio
+    [6000, inGara(6000, 5, 2, 'verde')],        // P9→P5 con la verde già passata: parla
+  ];
+  assert.equal(voce(gara(frames2), 'postalk'), 1, 'verde già a spunto (partenza vista in ritardo): il postalk funziona da subito');
 });
 
 test("gara da 3 pulita: metà gara una volta, mai «Giro 4», bandiera una volta", () => {
@@ -451,7 +478,7 @@ test("LA BANDIERA DOPO IL GIRO (8d, gara delle 14:24): la crocetta arriva 4 s pr
 test("delta di ritmo: finestra ±15 s e cadenza 45 s — niente raffiche (gara 15:29 del 31/10)", () => {
   const slot = { last: {}, at: 0, said: {}, firma: 'sess-delta' };
   const passo = (t, dv) => narratore(
-    MMF(t, { gauges: { lapsDone: 1, lapsTotal: 3, fuel: 26.0, lapsOnFuel: 8.6, lapsLeft: 2 }, delta: { lapNo: 1, dv } }),
+    MMF(t, { gauges: { lapsDone: 1, lapsTotal: 3, fuel: 26.0, lapsOnFuel: 8.6, lapsLeft: 2 }, delta: { lapNo: 1, dv, source: 'tracked' } }),
     slot, t,
   ).filter((f) => f.chi === 'delta');
   assert.equal(passo(0, -1200).length, 0, 'la prima lettura si semina senza voce');
@@ -466,4 +493,52 @@ test("delta di ritmo: finestra ±15 s e cadenza 45 s — niente raffiche (gara 1
   assert.equal(passo(140000, 20000).length, 0, 'a 20 s dal best: oltre la finestra ±15 s tace ANCHE a cadenza libera (48000 > 45000) e NON tocca la memoria');
   const c = passo(190000, -2400);  // bucket -6 diverso dall'ultimo pulito (+11): il rientro legittimo ridice
   assert.equal(c.length, 1, 'la finestra persa non ha toccato la memoria: al rientro la radio ridice');
+});
+
+/* 31/10 SERA (R5, i falsi 11-14 s): il narratore sceglieva `m.delta?.dv ??
+   m.delta?.hudDv` — e in source 'hud' quel dv è il delta HUD del gioco, che
+   raffronta col best CHE VUOLE LUI (stasera il best della Time Attack di
+   prima): a raffica «più veloce del best di 11.2 … 13.8» in gara. Norma:
+   la voce delta esce SOLO da source 'tracked' (il best tracciato dalla
+   copilota). L'HUD resta nel numero grande della pagina, mai in radio — e
+   senza fonte (payload antichi) taca pure. */
+test("delta di ritmo: l'HUD non entra in radio, solo il 'tracked' della copilota (R5 del 31/10 sera)", () => {
+  const slot = { last: {}, at: 0, said: {}, firma: 'sess-delta-hud' };
+  const passo = (t, source, dv) => narratore(
+    MMF(t, { gauges: { lapsDone: 1, lapsTotal: 3, fuel: 26.0, lapsOnFuel: 8.6, lapsLeft: 2 }, delta: { lapNo: 1, dv, source } }),
+    slot, t,
+  ).filter((f) => f.chi === 'delta');
+  assert.equal(passo(0, 'hud', -11400).length, 0, "delta 'hud' di −11.4 s: tace (norma tracked-only)");
+  assert.equal(passo(50000, 'hud', -13800).length, 0, "'hud' oltre la cadenza 45 s: ANCORA tace — l'HUD non parla mai, quali che siano i falsi 11-14 s di R5");
+  assert.equal(passo(52000, 'tracked', -11400).length, 0, "primo 'tracked': si semina in silenzio, come da repertorio delta");
+  const a = passo(61000, 'tracked', -12500);   // bucket −31 ≠ −28, cadenza 9 s… ma slot.at resta 0: oltre i 45 s
+  assert.equal(a.length, 1, "'tracked' cambia bucket oltre la cadenza: parla");
+  assert.ok(a[0].it.includes('più veloce del best di 12.5'), `frase con i secondi del best tracciato: ${a[0].it}`);
+});
+
+/* 31/10 — TRASCRIZIONE DA CLI (--trascrizione): il discorso della copilota
+   leggibile dall'uomo, gara per gara (tagli al silenzio ≥ 10 min), ripetuti
+   entro 70 s segnati; su un registro di monitor solo l'eco, dichiarato. */
+test("trascrizione: radio reale per gara con i ripetuti segnati, eco dichiarata, nulla di inventato", () => {
+  const t0 = 1_800_000_000_000;
+  const righe = [
+    { t: t0, evento: 'STATO ogni 60s' },                          // rumore: NON entra nella trascrizione
+    { t: t0 + 5000, chi: 'minuto', it: 'Ultimo minuto!', livello: 'normale' },
+    { t: t0 + 30000, chi: 'minuto', it: 'Ultimo minuto!', livello: 'normale' },   // ripetuta entro 70 s
+    { t: t0 + 300_000, chi: 'bandiera', it: 'Bandiera a scacchi!', livello: 'normale' },   // +5 min: ancora gara 1 (il taglio è al SILENZIO ≥ 10 min, non alla distanza dal via)
+    { t: t0 + 1_600_000, chi: 'verde', it: 'Bandiera verde: via libera.', livello: 'essenziale' },   // +26,6 min dal primo segno, silenzio ≥ 10 min: GARA 2
+  ];
+  const testo = trascrizione(righe);
+  assert.ok(testo.includes('2 gara/e'), `conteggio gare nel titolo: prima riga → ${testo.split('\n')[0]}`);
+  assert.ok(testo.includes('radio reale'), 'la fonte dichiarata è la radio reale');
+  assert.ok(!testo.includes('STATO'), 'il rumore di servizio resta fuori');
+  assert.ok(testo.includes('── Gara 1'), 'prima gara titolata');
+  assert.ok(testo.includes('── Gara 2'), 'la pausa lunga taglia la gara 2');
+  assert.ok(/\+00:05 · \[minuto\] Ultimo minuto!/.test(testo), 'tempo relativo formattato mm:ss');
+  assert.ok(testo.includes('⚠ ripetuta dopo 25s'), 'la frase ripetuta entro 70 s porta la segnalazione');
+  // registro di MONITOR (frasi eco, niente radio): il tag lo dice senza fingere la radio
+  const ecoTesto = trascrizione([{ t: t0, frasi: [{ chi: 'gomme', it: 'Gomme al 60 percento' }] }]);
+  assert.ok(ecoTesto.includes('ECO del monitor'), 'l\'eco è dichiarata nel titolo');
+  assert.ok(ecoTesto.includes('[gomme] Gomme al 60 percento (eco)'), 'la frase eco porta il tag in coda');
+  assert.ok(!ecoTesto.includes('radio reale'), 'l\'eco NON si traveste da radio');
 });

@@ -76,17 +76,21 @@ test('live=false: la voce segue la sessione; il ritorno live risemina in silenzi
    solo in full, via da normale e essenziale». La mappa FRASI_LIVELLO non ha
    MAI nominato 'delta' nelle liste, ma senza test il costo poteva rientrare
    con un refuso futuro: qui lo si sancisce a voce. */
-test('IL DELTA DI RITMO parla SOLO col livello full: essenziale e normale tacciono', () => {
-  const passo = (livello) => {
+test('IL DELTA DI RITMO parla SOLO col livello full e SOLO dalla fonte tracked', () => {
+  const passo = (livello, source = 'tracked') => {
     const v = voceFinta();
     const slot = nuovoSlotVoce();
-    giroVoce(M(true, { delta: { dv: -3000, lapNo: 1, source: 'hud' } }), slot, v, { graziaMs: 0, ora: 1000, livello });   // semina bucket -8
-    giroVoce(M(true, { delta: { dv: -6400, lapNo: 1, source: 'hud' } }), slot, v, { graziaMs: 0, ora: 62000, livello });  // bucket -16, oltre i 45 s
+    giroVoce(M(true, { delta: { dv: -3000, lapNo: 1, source } }), slot, v, { graziaMs: 0, ora: 1000, livello });   // semina bucket -8
+    giroVoce(M(true, { delta: { dv: -6400, lapNo: 1, source } }), slot, v, { graziaMs: 0, ora: 62000, livello });  // bucket -16, oltre i 45 s
     return v.items;
   };
   assert.deepEqual(passo('essenziale'), [], 'essenziale: niente delta');
   assert.deepEqual(passo('normale'), [], 'normale: niente delta');
-  assert.ok(passo('full').some((t) => t.includes('più veloce del best di')), 'full: il delta parla');
+  assert.ok(passo('full').some((t) => t.includes('più veloce del best di')), 'full (tracked): il delta parla');
+  /* 31/10 SERA (R5, i falsi 11-14 s): il delta HUD del gioco raffronta col
+     best chi vuole lui (stasera il best della Time Attack) — non entra in
+     voce nemmeno a full: la norma tracked-only vale al livello più alto. */
+  assert.deepEqual(passo('full', 'hud'), [], "full con fonte 'hud': l'HUD non parla mai in radio");
 });
 
 /* 29/10, aggiunta del narratore 9-ter: la bandiera VERDE di via libera è
