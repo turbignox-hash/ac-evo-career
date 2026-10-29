@@ -130,7 +130,7 @@ import { resetNews } from './gazzetta.mjs';
 import { loadClasses, buildGridMessage } from './gridbuilder.mjs';
 import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, rebuildGridApply, GRID_FILE } from './grid-apply.mjs';
 // app «Cruscotto» in gioco: publisher della vetrina nella cartella del loader
-import { startUiappPublisher } from './uiapp-pub.mjs';
+import { startUiappPublisher, statoIstantanea } from './uiapp-pub.mjs';
 import { gridFileOf } from '../tools/evo-grid.mjs';
 import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
 // analisi.mjs: i cinque strumenti del pilota (autopsia, dossier rivali, banco
@@ -843,6 +843,14 @@ async function api(context0, _req, res, action, body) {
         const h409 = ['AMBIGUOUS', 'BAD_DURATA', 'NO_VALUES'].includes(e.code);
         return sendJson(res, h409 ? 409 : 500, { error: e.message });
       }
+    }
+    case 'istantanea': {
+      // RIEPILOGO VIVO DELL'ISTANTANEA nella GUI (4/11): la STESSA fonte del
+      // cruscotto in gioco (statoIstantanea in uiapp-pub.mjs) — durata, pista
+      // e banda AI lette dal file INSTANT_RACE, a ogni chiamata. Sola
+      // LETTURA: null quando una gara custom non è mai stata aperta in EVO,
+      // mai un'eccezione (la vista browser mostra il suo consiglio).
+      return sendJson(res, 200, { ok: true, istantanea: statoIstantanea() ?? null });
     }
     case 'gara-veloce': {
       // LA GARA AL VOLO DALLA GUI (1/11): giri o tempo + banda AI

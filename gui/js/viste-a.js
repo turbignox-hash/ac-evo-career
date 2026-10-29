@@ -312,6 +312,7 @@ async function drawDashboard(m){
           </div>
         </div>
         <div id="gv-out" style="display:none;margin-top:8px"></div>
+        <div id="gv-stato" class="muted" style="margin-top:8px;font-size:12px">…</div>
         <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'Resta a te: apri EVO → Gara personalizzata, scegli pista/layout/auto e premi APPLICA nel menu griglia. Durata e banda li scriverà il tasto.', en: 'Left to you: open EVO → Custom race, pick track/layout/car and press APPLY in the grid menu. Length and band are written by the button.' })}</div>
       </div>
       <div class="panel">
@@ -356,11 +357,35 @@ async function drawDashboard(m){
           `<b>${esc(out.titolo)}</b><ul style="margin:6px 0 0 18px">${out.passi.map((p) => `<li>${p.ok ? '✓' : '✗'} <b>${esc(p.nome)}</b>: ${esc(p.esito)}</li>`).join('')}</ul>` +
           (out.stato ? `<div class="muted" style="margin-top:6px">${tr({ it: 'Stato istantaneo: ', en: 'Instant-race state: ' })}${out.stato.modeTxt === 'a tempo' ? `${Math.round((out.stato.durata ?? 0) / 60)} min a tempo` : `${out.stato.durata} giri`} · AI ${out.stato.aiMin ?? '?'}–${out.stato.aiMax ?? '?'}</div>` : '');
       }
+      if (!dry) gvStatoAggiorna();     // il riepilogo sotto legge lo stato NUOVO, non quello di 15 s prima
       toast(dry ? tr({ it: 'Prova a secco fatta: guarda l\'esito qui sotto.', en: 'Dry run done: see the result below.' }) : tr({ it: 'Scritto: guarda l\'esito qui sotto.', en: 'Written: see the result below.' }), 'ok');
     } catch (e) { toast(e.message, 'err'); }
   };
   $('#gv-dry')?.addEventListener('click', () => gvEsegui(true));
   $('#gv-go')?.addEventListener('click', () => gvEsegui(false));
+  /* RIEPILOGO VIVO dell'istantanea (4/11): la STESSA fonte del cruscotto in
+     gioco (statoIstantanea via /api/istantanea): durata · pista · banda AI
+     come sono DENTRO il file, non come le ha lasciate l'ultimo tasto. Si
+     aggiorna ogni 15 s finché la vista resta a schermo, il timer muore da
+     solo quando l'elemento della vista non c'è più. */
+  const gvStato = $('#gv-stato');
+  const gvStatoScrive = (i) => {
+    if (!gvStato) return;
+    gvStato.textContent = !i
+      ? tr({ it: "Nessuna gara custom aperta in EVO ancora: aprane una UNA volta e il riepilogo parte (durata · pista · AI).", en: "No custom race opened in EVO yet: open one ONCE and the summary starts (length · track · AI)." })
+      : tr({ it: "L'istantanea in EVO adesso: ", en: "Instant race now in EVO: " }) +
+        (i.durata?.giri != null ? `${i.durata.giri} giri` : `${i.durata?.min ?? '?'} min a tempo`) +
+        (i.pista ? ` · ${i.pista}` : '') + (i.banda ? ` · AI ${i.banda}` : '');
+  };
+  const gvStatoAggiorna = async () => {
+    try { gvStatoScrive((await api('istantanea')).istantanea); } catch { /* server fuori: gli altri canali lo dicono già */ }
+  };
+  gvStatoAggiorna();
+  const gvStatoTimer = setInterval(() => {
+    if ($('#gv-stato') !== gvStato) return clearInterval(gvStatoTimer);
+    gvStatoAggiorna();
+  }, 15 * 1000);
+
   $('#b-review').onclick = () => showReview();
   $('#b-gazzetta').onclick = () => showGazzetta();
   /* Mondiale più visibile (27/10, Mauro: «resta un poco nascosto»): il tile
