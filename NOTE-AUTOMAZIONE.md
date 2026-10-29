@@ -332,3 +332,29 @@
 - La guardia anti-ripetizione di 70 s resta GLOBALE anche per il verde: una
   seconda partenza a flag verde entro 70 s tace (test ritoccato a 74 s).
 - Suite: 468/468 verdegli (prima 465, +3 test).
+
+## 29/10 tarde sera — DIAGNOSI DEMORATA: LA GARA SP È ETICHETTATA «TimeAttack»
+- **SEGNALE**: nella gara SP vera (15:31 e 15:51), 178 tick su 178 portano
+  `sessionType: "TimeAttack"`. È il riflesso inverso della lezione del 23/10
+  (EVO codifica le PROVE come TimeAttack): ora il gioco chiama TimeAttack
+  anche una GARA con avversari e bandiere.
+- **CONSEGUENZA (misurata)**: engineer.mjs apre la finestra sosta solo con
+  `sessionType === 'Race'` → in tutte le gare SP `pit` è null e i narratori
+  «Sosta tra N giri», «boxcount» restano MUTI per tutta la gara. Fuori
+  service nel registro delle 15:51: nessuna frase pitcount.
+- **VIETATO IL FIX A SANGUE FREDDO**: i discriminanti nel payload del gioco
+  NON distinguono gara SP da hotlap libero — lapsTotal 0 e timeLeft null in
+  ENTRAMBE, position 1 pure nelle gare vinte, e nel flusso monitor
+  `drivers` e `sessionId` non existono (None). Un'apertura su TimeAttack
+  generico parlerebbe «Sosta tra N giri» pure durante le hotlap libere.
+- **LA VIA GIUSTA (prossima gara)**: la verità dal LAUNCHER. Di due: (a)
+  quando set-weekend/set-racetime preparano la ronda, marcare in state la
+  sessione come GARA (dal launch in poi) e passare quel flag a engineerLive
+  come ctx; (b) oppure leggere il gameMode dal salvataggio del weekend
+  (tools/decode-gamemode.mjs, RACE_WEEKEND.gamemodesave) e imparare il campo
+  che dice «gara» — se il gioco lo scrive anche live, è la fonte perfetta.
+  Al postom: una prova con GRIGLIA di rivalsa (Mauro parte 15°) dà anche
+  bandiera blu e doppiaggi: stessa sessione dimostra entrambe le fonti.
+- **TICK SENZA flagCode**: 6 tick della gara con flagCode assente (il resto
+  del payload ok): il narratore li salta da solo (`fc != null`), nessuna
+  azione. Se salgono di frequente, spaca un'ispezione del blocco graphics.
