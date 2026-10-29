@@ -42,6 +42,12 @@ const campi = (m) => ({
     position: m.gauges?.position ?? null, fuel: m.gauges?.fuel ?? null,
     lapsOnFuel: m.gauges?.lapsOnFuel ?? null, lapsLeft: m.gauges?.lapsLeft ?? null,
     gapAhead: m.gauges?.gapAhead ?? null, gapBehind: m.gauges?.gapBehind ?? null,
+    // GREZZI (31/10 pomeriggio): il gioco scrive DAVVERO il campo? se i raw
+    // restano sempre 0.0 in gara il gap è un campo morto in SP (come
+    // totalLapCount della 500) — se muovono è un offset in fumo. Il filtro
+    // >0 sopra nascondeva la differenza; così la prossima gara lo dice da
+    // sola nel registro.
+    gapAheadRaw: m.gauges?.gapAheadRaw ?? null, gapBehindRaw: m.gauges?.gapBehindRaw ?? null,
     cutSec: m.gauges?.cutSec ?? null,   // 30/10: penalità tagli in secondi (9b)
     timeLeft: m.gauges?.timeLeft ?? null,
   },
