@@ -469,6 +469,20 @@ function paintHeader(h){
   $('#t-sub').textContent = `${h.nation ?? ''} · ${h.sponsor ?? tr({ it: 'pilota privato', en: 'private driver' })} · ${h.node.display}`;
   $('#t-money').textContent = money(h.money) + ' €';
   $('#t-rep').textContent = String(h.rep);
+  // TESSERA LIVELLO (31/10): Paddock la calcola VERO; se non c'è, la GUI la
+  // nasconde — niente doppia verità. «~» = stima dai journal.
+  const lvlEl = $('#hstat-level');
+  const lvl = h.levelBadge ?? null;
+  if (lvl?.name) {
+    lvlEl.style.display = '';
+    const le = $('#t-level');
+    le.textContent = `${lvl.source === 'stima' ? '~' : ''}${lvl.name}`;
+    le.style.color = lvl.color || '';
+    lvlEl.title = lvl.source === 'paddock'
+      ? tr({ it: 'Livello pilota da Paddock (app installata): reputazione del profilo del gioco', en: 'Driver level from Paddock: the game profile reputation' })
+      : tr({ it: 'Stima: livello pilota dedotto dalla reputazione della carriera (Paddock non parla) — la soglia 490 è quella osservata sul vivo', en: 'Estimate: driver level inferred from the career reputation (Paddock silent) — the 490 threshold is the one observed live' });
+    lvlEl.onclick = () => vai('stats');
+  } else { lvlEl.style.display = 'none'; }
   $('#t-date').textContent = h.todayLabel ? `${tr({ it: 'OGGI', en: 'TODAY' })} ${h.todayLabel}` : `${tr({ it: 'giorno', en: 'day' })} ${h.day ?? 1}`;
   $('#t-season').textContent = `S${h.season} · R${h.round}/${h.rounds}`;
   // le statistiche chiave diventano scorciatoie: Data → Centro gare, Rep → Statistiche, Finanze → Finanze, Stagione → Campionati
@@ -557,6 +571,7 @@ async function refreshBoot(){
     'Data': tr({ it: 'Data', en: 'Date' }),
     'Finanze': tr({ it: 'Finanze', en: 'Finances' }),
     'Reputazione': tr({ it: 'Reputazione', en: 'Reputation' }),
+    'Livello': tr({ it: 'Livello', en: 'Level' }),
     'Stagione': tr({ it: 'Stagione', en: 'Season' }),
     'Eredità': tr({ it: 'Eredità', en: 'Heritage' }),
     'Prossima gara': tr({ it: 'Prossima gara', en: 'Next race' }),

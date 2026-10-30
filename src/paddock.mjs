@@ -1,4 +1,4 @@
-// paddock.mjs — il ponte CON L'APP PADDACK del gioco (quella che gira dentro
+// paddock.mjs — il ponte CON L'APP PADDOCK del gioco (quella che gira dentro
 // EVO come app UI "Pitwall/Paddock"). Paddock scrive i suoi dati come journal
 // JSON `pd-<vista>-<hash>.json` nella sua cartella uiresource; qui li
 // LEGGIAMO in sola lettura:
@@ -310,6 +310,36 @@ export function paddockStats(env = process.env) {
   const withCurve = cars.filter((c) => Array.isArray(c.curve) && c.curve.length > 1).length;
   const complete = carPaddockCompleteCount(env);
   return { ok: true, cars: cars.length, withCurve, complete: complete.count };
+}
+
+/* ------------------------------------------------------------------ */
+/* la tessera del livello: VERA col ponte, STIMA altrimenti            */
+/* ------------------------------------------------------------------ */
+
+// L'unico paio (livello, soglia) OSSERVATO sul vivo nel journal (31/10):
+// Ace/Fuoriclasse — floor 490 rep, colore #f5c542 (il giallo "Ace" delle
+// note di release 1.0.2). Ogni altra soglia NON esiste ancora per noi:
+// inventarla sarebbe la seconda verità.
+export const PADDOCK_LEVEL_FLOOR_ACE = 490;
+export const PADDOCK_LEVEL_COLOR_ACE = '#f5c542';
+
+/**
+ * La tessera del livello pilota, secondo «una sola verità»:
+ *   • Paddock installato  → { name, color, source:'paddock' } dal journal
+ *     pd-home (profile.level, la 1.0.2 la scrive insieme al colore);
+ *   • Paddock assente     → SOLO la stima difendibile: reputazione della
+ *     NOSTRA carriera ≥ 490 (la soglia osservata) → Fuoriclasse giallo,
+ *     source:'stima'. Sotto la soglia: null — niente chip, niente buffo.
+ */
+export function paddockLevelBadge(rep, env = process.env) {
+  const home = paddockHome(env);
+  const lvl = home.ok ? home.profile?.level ?? null : null;
+  if (lvl?.name && lvl?.color)
+    return { name: String(lvl.name), color: String(lvl.color), source: 'paddock', pct: lvl.pct ?? null };
+  const r = Number(rep) || 0;
+  if (r >= PADDOCK_LEVEL_FLOOR_ACE)
+    return { name: tr({ it: 'Fuoriclasse', en: 'Ace' }), color: PADDOCK_LEVEL_COLOR_ACE, source: 'stima', pct: null };
+  return null;
 }
 
 export function paddockOverview(env = process.env) {

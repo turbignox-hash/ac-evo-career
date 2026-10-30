@@ -33,6 +33,7 @@ import { listMotecSessions, collectSessions, racePressureAdvice } from './motec.
 import { resolvePaths, STEAM_APP_ID } from './paths.mjs';
 import { scanContentCached, validateLadder } from './content.mjs';
 import { appEnv, context, DATA_DIR, SLOT, CONFIG_FILE } from './webui-env.mjs';
+import { paddockLevelBadge } from './paddock.mjs';
 
 const money = (n) => Number(n ?? 0).toLocaleString('it-IT');
 const trackName = (ladder, id) => ladder.contentNames?.tracks?.[id] ?? id;
@@ -74,6 +75,9 @@ export function viewHeader(ladder, state) {
     money: state.money,
     moneyText: money(state.money),
     rep: state.rep,
+    // TESSERA LIVELLO (31/10): reale quando Paddock parla, stimato dalla
+    // reputazione NOSTRA quando manca — stessa funzione del ponte, niente doppia verità.
+    levelBadge: paddockLevelBadge(state.rep),
     sponsor: sponsor ? sponsor.name : null,
     heritage: { completed: (H.completed ?? []).length, activeDone: !!activeMem?.done },
     node: { id: node.nodeId, display: node.display, discipline: disciplineName(ladder, node.discipline), level: node.level, tier: tierOf(ladder, node.level) },

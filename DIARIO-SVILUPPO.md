@@ -92,6 +92,18 @@ Creato il 31/10 su proposta Buffy, accettato da Mauro.
 
 ## Registro del diario
 
+### 31/10/2026 sera — La tessera del livello anche nell'intestazione della GUI
+La tessera che la card Paddock disegna da solo nell'app del gioco arriva ANCHE
+nell'intestazione della GUI web (campo «Livello» accanto a Reputazione): VERA col
+ponte (pd-home profile.level, nome+colore+pct del gioco), STIMA marcata «~» dalla
+reputazione della NOSTRA carriera quando Paddock non parla — e sotto la soglia
+osservata 490 niente chip: niente inventate. Clic → Statistiche.
+Pezzi: `paddockLevelBadge(rep)` in [src/paddock.mjs](src/paddock.mjs), campo
+`levelBadge` nell'header server ([src/webui-views.mjs](src/webui-views.mjs)), chip in
+[gui/index.html](gui/index.html) + [gui/js/core.js](gui/js/core.js) con le stesse
+regole di traduzione statica. 2 test nuovi nel ponte (13/13): reale dal journal,
+soglia ferma a 490, stima sopra/sotto. **Suite 556/556, lint pulita.**
+
 ### 31/10/2026 — Paddock 1.0.2 e la tessera del livello
 Paddock aggiornato alla **1.0.2** (l'estrazione richiedeva la chiusura dalla tray:
 le carriere restano in Saved Games, l'app in gioco si è aggiornata da sola al primo

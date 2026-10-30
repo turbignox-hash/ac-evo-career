@@ -15,6 +15,7 @@ import { join } from 'node:path';
 
 const { paddockWet, cleanRaceBonusOf, carPaddockSpecsOf, paddockNextRace,
   paddockStats, paddockRoot, paddockCacheClear, paddockHome, paddockLedger,
+  paddockLevelBadge, PADDOCK_LEVEL_FLOOR_ACE, PADDOCK_LEVEL_COLOR_ACE,
 } = await import('../src/paddock.mjs');
 
 const NIDO = mkdtempSync(join(tmpdir(), 'evo-paddock-'));
@@ -213,5 +214,41 @@ test('paddockRoot: la variabile ambiente sposta la root, la cartella inesistente
   process.env.PADDOCK_JOURNAL_DIR = NIDO;
   paddockCacheClear();
   assert.equal(paddockRoot(), NIDO);
+});
+
+/* ---------------------------------------------- */
+/*   la tessera del LIVELLO (31/10): VERA col ponte,  */
+/*   stima dalla reputazione in assenza di Paddock    */
+/* ---------------------------------------------- */
+
+test('paddockLevelBadge: col journal level reale → name/color/pct con source paddock', () => {
+  jr('home', 'lvl1', {
+    profile: { level: { name: 'Fuoriclasse', color: '#f5c542', floor: 490, rep: 1000, next_floor: null, pct: 100 } },
+  }, Date.now() + 5000);   // il mtime più recente vince su tutti i home precedenti
+  paddockCacheClear();
+  const b = paddockLevelBadge(0);
+  assert.equal(b.source, 'paddock');
+  assert.equal(b.name, 'Fuoriclasse');
+  assert.equal(b.color, '#f5c542');
+  assert.equal(b.pct, 100);
+});
+
+test('paddockLevelBadge: senza Paddock la stima parte SOLO sopra la soglia osservata', () => {
+  // nido vuoto: Paddock non parla
+  const NIDO2 = mkdtempSync(join(tmpdir(), 'evo-paddock-lvl-'));
+  process.env.PADDOCK_JOURNAL_DIR = NIDO2;
+  paddockCacheClear();
+  // la soglia è QUELLA osservata sul vivo (journal reale 31/10): Se la cambia
+  // fuori dal controllo, il test lo ferma — niente soglia inventata.
+  assert.equal(PADDOCK_LEVEL_FLOOR_ACE, 490);
+  // 489: sotto la soglia — niente chip
+  assert.equal(paddockLevelBadge(489), null);
+  // 490: il floor OSSERVATO nel journal reale — Fuoriclasse giallo, segnata come stima
+  const b = paddockLevelBadge(490);
+  assert.equal(b.source, 'stima');
+  assert.equal(b.name, 'Fuoriclasse');
+  assert.equal(b.color, PADDOCK_LEVEL_COLOR_ACE);
+  process.env.PADDOCK_JOURNAL_DIR = NIDO;   // ripristino
+  paddockCacheClear();
 });
 
