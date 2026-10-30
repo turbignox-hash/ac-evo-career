@@ -64,8 +64,29 @@ sono verdi: il pacchetto è il pezzo che va agli amici
 
 ### DA-8 — Rilegge IDEA-POST-PRESENTAZIONE e raccoglie le idee vive · STATO: DA FARE
 [IDEA-POST-PRESENTAZIONE.md](IDEA-POST-PRESENTAZIONE.md) resta nel cassetto: rileggerlo,
-decidere per ciascuna idea viva/morta/e in sospeso, e spostare quelle vive in questa
+decidere per ciascuna idea viva/morta/in sospeso, e spostare quelle vive in questa
 lista con ID nuovo. Il resto va chiuso con la data.
+
+### DA-9 — Stint-plan endurance: finestre di sosta e stint calcolate prima della gara · STATO: DA FARE
+
+Oggi benzina e gomme le dice l'ingegnere DAL VIVO durante la sessione
+(`engineer.mjs` + `usura-gomme.mjs`), ma la stint-plan di endurance NON ESISTE.
+
+Dalle SERIE A TEMPO (durationMin 30–60, ronde a tempo in race.mjs) servono le
+FINESTRE DI SOSTA calcolate prima del via. Ingredienti:
+
+1. consumo stimato del sedile (dall'analisi delle gare passate del sedile);
+2. capacità benzina dell'auto;
+3. numero di stint e litri per sosta.
+
+Deliverable:
+
+- la raceCard di gara porta la riga «Sostituzioni: stint da ~X min (litri Y)»;
+- il copilota annuncia l'ingresso in finestra («Finestra box entro 2 giri»);
+- nel webui un pannello mostra il piano prima della gara, aggiornato con i
+  dati veri di usura.
+
+Creato il 31/10 su proposta Buffy, accettato da Mauro.
 
 ---
 
