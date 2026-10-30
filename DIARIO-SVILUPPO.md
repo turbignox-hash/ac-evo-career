@@ -17,7 +17,7 @@ affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo
 
 ## Cose da fare o da rivedere
 
-### DA-1 — Prova in pista del copilota: bandiere + tagli · STATO: IN ATTESA DELLA PROVA
+### DA-1 — Prova in pista del copilota: bandiere + tagli · STATO: APPUNTAMENTO 1/11 (richiesta Mauro: «ricordamelo domani»)
 La rossa/nera e i tagli veri ≤ ~2 s sono verificati SOLO in sandbox (`copilota-narratori.test.mjs`).
 Il protocollo è scritto in [PROVA-COPILOTA.md §5](PROVA-COPILOTA.md): tre sequenze in
 pista (restart con rossa a schermo, tagli veri a caccia del penalità del gioco, marcia
@@ -67,8 +67,7 @@ sono verdi: il pacchetto è il pezzo che va agli amici
 decidere per ciascuna idea viva/morta/in sospeso, e spostare quelle vive in questa
 lista con ID nuovo. Il resto va chiuso con la data.
 
-### DA-9 — Stint-plan endurance: finestre di sosta e stint calcolate prima della gara · STATO: DA FARE
-
+### DA-9 — Stint-plan endurance: finestre di sosta e stint calcolate prima della gara · STATO: PRIMA FETTA VIVA (31/10 sera) — resta: annuncio «Finestra box entro 2 giri» del copilota e pannello webui
 Oggi benzina e gomme le dice l'ingegnere DAL VIVO durante la sessione
 (`engineer.mjs` + `usura-gomme.mjs`), ma la stint-plan di endurance NON ESISTE.
 
@@ -87,10 +86,30 @@ Deliverable:
   dati veri di usura.
 
 Creato il 31/10 su proposta Buffy, accettato da Mauro.
+**Prima fetta 31/10 sera**: [src/stint-plan.mjs](src/stint-plan.mjs) puro —
+`seatStintInputs` estrae consumo, ritmo e serbatoio OSSERVATO dalle uscite
+MoTeC del sedile; `stintPlanOf` stima giri, stint, litri per sosta e le
+FINESTRE di sosta (per ciascuna: da a fino a). Poi la riga «Piano stint»
+nella raceCard delle ronde a tempo: il webui la calcola dal sedile con memo
+120 s (chiave auto|durata: cambiare la durata ricalcola subito). Prova a vista
+su un nodo a tempo vero del ladder (`node endurance_gt4`, sonda in tmp FUORI
+dal pacchetto): riga leggibile, finestra di sosta centrata al giro giusto.
+Test 6/6 in [test/stint-plan.test.mjs](test/stint-plan.test.mjs). Suite 562/562.
+Restano: l'annuncio «Finestra box entro 2 giri» del copilota e il pannello
+webui col piano aggiornato coi dati veri di usura.
 
 ---
 
 ## Registro del diario
+
+### 31/10/2026 sera — La stima provata a ponte spento (e la tessera committata)
+La tessera dell'header committata (d859430, dopo riepilogo suite 556/556 e lint
+pulita su 278 file). Poi la prova DELLA STIMA CHE NON ESISTERA: il webui rientrato
+con `PADDOCK_JOURNAL_DIR="C:/no-such-paddock-dir"` (la root inesistente → il ponte
+silenzia per progettazione, NON cade sui journal veri) — console e GUI dicono lo
+stesso: API `source:"stima"`, chip «~Fuoriclasse» giallo col tooltip della stima
+(rep 632 ≥ 490). Rientro pulito subito dopo: `source:"paddock", pct:100` di nuovo.
+Domani (1/11): appuntamento in pista per la DA-1.
 
 ### 31/10/2026 sera — La tessera del livello anche nell'intestazione della GUI
 La tessera che la card Paddock disegna da solo nell'app del gioco arriva ANCHE

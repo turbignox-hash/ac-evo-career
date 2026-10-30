@@ -89,7 +89,7 @@ export function nextRound(ladder, state, node = null) {
   return { node: n, roundIndex, round: n.calendar[roundIndex], totalRounds: n.calendar.length };
 }
 
-export function raceCard(ladder, state, { car = null } = {}) {
+export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
   const { node, roundIndex, round } = nextRound(ladder, state);
   const profile = { ...(ladder.profiles[node.profile] ?? {}) };
   // override manuali per questa serie (intervallo slider AI, orari, moltiplicatore tempo,
@@ -286,6 +286,12 @@ export function raceCard(ladder, state, { car = null } = {}) {
       [tr({ it: 'Gara', en: 'Race' }), aTempo
         ? tr({ it: `a TEMPO: ${durationEff} minuti${distPct !== 100 ? ` (piena: ${round.durationMin}′)` : ''}`, en: `BY TIME: ${durationEff} minutes${distPct !== 100 ? ` (full: ${round.durationMin}′)` : ''}` })
         : tr({ it: `${laps} giri`, en: `${laps} laps` })],
+      // PIANO STINT (DA-9, prima fetta): riga SOLO per le ronde a tempo e SOLO
+      // se il piano ha tutti i dati veri (consumo/ritmo dal sedile, serbatoio
+      // osservato). Le note arrivano già risolte nella lingua corrente.
+      ...(aTempo && stintPlan?.ok
+        ? [[tr({ it: 'Piano stint', en: 'Stint plan' }), stintPlan.notes.join(' · ')]]
+        : []),
       [tr({ it: 'Moltiplicatore tempo', en: 'Time multiplier' }), tr({ it: `${profile.timeScale ?? 1}x`, en: `${profile.timeScale ?? 1}x` })],
       [tr({ it: 'Ora del giorno', en: 'Time of day' }), tr({ it: `${String(raceHour).padStart(2, '0')}:00${raceStartOv != null ? ' — orario di gara scelto a mano in Regole del weekend' : ''}`, en: `${String(raceHour).padStart(2, '0')}:00${raceStartOv != null ? ' — race time set by hand in Weekend rules' : ''}` })],
       [tr({ it: 'Meteo', en: 'Weather' }), card_weatherHint(round.weather)],
@@ -340,6 +346,8 @@ export function raceCard(ladder, state, { car = null } = {}) {
     prizeEff: nodeEff.econ.prize,
     // il flusso premi/rep della stagione usa il nodo col premio già scalato
     effectiveNode: nodeEff,
+    // il piano per il copilota (prossima fetta: «Finestra box entro 2 giri»)
+    stintPlan: aTempo ? stintPlan : null,
   };
 }
 

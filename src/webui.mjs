@@ -56,6 +56,7 @@ import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice
 // spezzati dai rifornimenti veri e usura gomme (degrado ritmo + temperature)
 // entrano nel box e da terminale, sempre da file .ld reali (richiesta 28/10).
 import { stintsFromLd } from './stinti.mjs';
+import { seatStintInputs, stintPlanOf } from './stint-plan.mjs';
 import { tyreWearFromLd } from './usura-gomme.mjs';
 import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
 import { parseSetup, listSetups, writeSetupCopy, brakePlanOf, annotateAllyAdvice } from './carsetup.mjs';
@@ -401,6 +402,9 @@ async function readBody(req) {
 let _grAt = 0, _grVal = false, _grMs = 0;
 // sessione telemetrica dell'ingegnere LIVE: memo 30s per auto (vedi case 'ingegnere')
 let _engSess = null, _engSessAt = 0;
+// memo del piano stint (DA-9): chiave «auto|durata», TTL 120 s — le letture
+// MoTeC pesano e la vista card è il percorso caldo della GUI.
+const _stintPlanCache = new Map();
 async function gameRunningMemo() {
   const finestra = _grMs > 3000 ? 30000 : 10000;
   if (Date.now() - _grAt < finestra) return _grVal;
@@ -1971,6 +1975,29 @@ async function api(context0, _req, res, action, body) {
       // (28/10) la vista parte dalla lingua GIÀ IMPPOSTATA dal dispatcher:
       // le lingue per richiesta si dichiarano nel campo 'lingua' del body.
       const card = viewCard(ladder, state, typeof body.car === 'string' ? body.car : null);
+      // PIANO STINT (DA-9, prima fetta): SOLO per le ronde a tempo. Le letture
+      // MoTeC pesano, quindi memo di 2 min per (auto, durata): cambiare la
+      // durata in Regole del weekend cambia la chiave e ricalcola subito.
+      // Il piano è quello del sedile VERO: consumo e ritmo dai .ld dell'auto,
+      // serbatoio dal massimo benzina osservato a inizio giro.
+      try {
+        const dur = card.round?.durationMin ?? null;
+        if (Number(dur) > 0) {
+          const auto = typeof body.car === 'string' ? body.car : (card.carName ?? null);
+          const chiave = `${auto ?? '?'}|${dur}`;
+          const ora = Date.now();
+          const hit = _stintPlanCache.get(chiave);
+          if (hit && ora - hit.at < 120000) card.stintPlan = hit.plan;
+          else {
+            const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
+            const resultsDir = paths.resultsDirs?.[0] ?? join(root, '..', 'Results');
+            const sorg = seatStintInputs(collectSessions(root, resultsDir, { car: auto, limit: 6, afterMs: state.createdAt ?? 0 }));
+            const piano = sorg ? stintPlanOf({ raceMin: dur, ...sorg }) : null;
+            card.stintPlan = piano;
+            _stintPlanCache.set(chiave, { at: ora, plan: piano });
+          }
+        }
+      } catch { /* il piano non deve mai rompere la card */ }
       // arricchisci la card col libro delle piste: record di sessione sulla stessa auto + scheda
       try {
         if (card.outlook) {
