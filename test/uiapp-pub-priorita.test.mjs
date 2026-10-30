@@ -44,11 +44,28 @@ test('ronda preparata fresca: il comando è l\'auto DELLA ROUND, mai l\'evento',
   assert.equal(cmd?.nome, 'R5 Touring');
 });
 
-test('ronda scaduta (>1 giorno): cede il campo all\'evento attivo e accettato', () => {
-  const state = mkState({ pending: { ...pendingRonda, startedAt: Date.now() - 25 * 3600 * 1000 } });
+test('ronda scaduta + evento PREPARATO (<24h): cede il campo all\'evento, con armatura', () => {
+  // 30/10: la legge della finestra. «eventoPreparato» è il click su
+  // «Prepara tutto e divertiti» dell'evento (event-prep in webui.mjs):
+  // entro 24 h da Lì l'auto comando può uscire; voglio IL SI dato tanto lì.
+  const state = mkState({ pending: { ...pendingRonda, startedAt: Date.now() - 25 * 3600 * 1000 }, eventoPreparato: Date.now() - 60_000 });
   const cmd = comandoAuto(mkLadder(), state);
   assert.equal(cmd?.tipo, 'evento');
   assert.equal(cmd?.nome, 'F40 Leggenda');
+});
+
+test('evento accettato MAI preparato: NIENTE auto montata a sorpresa (la F40 spuntata a fine gara)', () => {
+  // 30/10, Mauro torna al menu dopo una gara e trova l'F40 del premio
+  // dell'evento — accettato SETTE giorni prima, mai preparato: il canale
+  // stallava da una settimana l'auto comando. Senza armatura: silentio.
+  const state = mkState({ pending: null });
+  const cmd = comandoAuto(mkLadder(), state);
+  assert.equal(cmd, null, 'accettato senza preparare ≠ autorizzato');
+});
+
+test('evento preparato FIN dalla notte (>24h): la finestra è chiusa, di nuovo silenzio', () => {
+  const state = mkState({ pending: null, eventoPreparato: Date.now() - 25 * 3600 * 1000 });
+  assert.equal(comandoAuto(mkLadder(), state), null);
 });
 
 test('ronda scaduta SENZA evento attivo: la ronda resta il comando (no silenzio)', () => {
@@ -66,7 +83,10 @@ test('evento attivo ma NON accettato: niente comando evento (serve il SI a maest
 });
 
 test('pending con auto NON nota nel ladder: scade in 1 giorno come gli altri', () => {
-  const scaduta = mkState({ pending: { car: 'auto_used_ignota', startedAt: Date.now() - 25 * 3600 * 1000 } });
+  // (evento preparato: senza armatura il caso scaduta ora glieto null
+  //  — 30/10, la legge della finestra dell'evento — e qui il ramo dunque
+  //  STRAORDINARIO dell'auto nota obsoleta, che fa tornare evento con SI dato)
+  const scaduta = mkState({ pending: { car: 'auto_used_ignota', startedAt: Date.now() - 25 * 3600 * 1000 }, eventoPreparato: Date.now() - 60_000 });
   const cmdScaduta = comandoAuto(mkLadder(), scaduta);
   assert.equal(cmdScaduta?.tipo, 'evento', 'l\'evento torna senza pending-non-preciso');
   const fresca = mkState({ pending: { car: 'auto_used_ignota', startedAt: Date.now() - 60_000 } });
@@ -124,7 +144,7 @@ test('finestra PASSATA (pending fresco ma 30 min fa): niente avvia', () => {
 test('ronda scaduta NON produce avvia: il campo va all\'evento (mai auto-avvio con pending vecchio)', () => {
   const tooOld = Date.now() - 25 * 3600 * 1000;
   confermaAck(`${tooOld}:r5_touring:coppa_rx7`);
-  const state = mkState({ pending: { car: 'r5_touring', node: 'coppa_rx7', trackNames: ['cota', 'cota'], startedAt: tooOld } });
+  const state = mkState({ pending: { car: 'r5_touring', node: 'coppa_rx7', trackNames: ['cota', 'cota'], startedAt: tooOld }, eventoPreparato: Date.now() - 60_000 });
   const cmd = comandoAuto(mkLadder(), state);
   assert.equal(cmd?.tipo, 'evento', 'scaduto: la priorità resta all\'evento, non all\'avvia');
 });
@@ -164,11 +184,12 @@ test('vetrina custom scaduta (>1 giorno): le priorità storiche tornano (ronda f
   assert.equal(cmd?.nome, 'R5 Touring');
 });
 
-test('vetrina custom con auto NON nel libro: il campo passa alle priorità storiche (evento)', () => {
-  const state = mkState({ vetrinaCustom: { car: 'auto_ignota_demo', startedAt: Date.now() } });
+test('vetrina custom con auto NON nel libro: il campo passa alle priorità storiche (evento armato)', () => {
+  const state = mkState({ vetrinaCustom: { car: 'auto_ignota_demo', startedAt: Date.now() }, eventoPreparato: Date.now() - 60_000 });
   const cmd = comandoAuto(mkLadderDemo(), state);
   // l'auto ignota non comanda niente (il tool rifiuta comunque armi del genere,
-  // tools/vetrina-custom.mjs): il ramo demo cade sulle priorità storiche
+  // tools/vetrina-custom.mjs): il ramo demo cade sulle priorità storiche,
+  // che con la finestra dell'evento APERTA portano l'evento (30/10)
   assert.equal(cmd?.tipo, 'evento', 'auto ignota: il ramo demo non comanda, le storie riprendono il campo');
 });
 

@@ -402,6 +402,39 @@ test("penalita' tagli pista (9b, 30/10): parla sul salto >= 0,5 s del totale cum
   assert.ok(g.some((f) => f.chi === 'penalia' && !f.detto && (f.it ?? '').includes('2.7')), "salto successivo oltre i 0,5 s parla col totale aggiornato");
 });
 
+test("bandiera ROSSA e NERA del RESTART (31/10 notte): stessa fontana del verde, si dicono sul passaggio, distanziello 15 s", () => {
+  const slot = { last: {}, at: 0, said: {}, firma: 'sess-flag' };
+  const giri = { lapsDone: 2, lapsTotal: 10, fuel: 40, lapsOnFuel: 8, lapsLeft: 8 };
+  let t = 1000;
+  const passo = (flagCode, dt = 4000) => { t += dt; return narratore(MMF(t, { gauges: { ...giri, flagCode } }), slot, t); };
+  const a = passo(3);
+  assert.equal(a.filter((f) => f.chi === 'rossa').length, 0, 'prima lettura: semina zitta');
+  const b = passo(0, 5000);
+  assert.equal(b.filter((f) => f.chi === 'rossa').length, 0, 'uscita dalla rossa tace');
+  const c = passo(3, 20000);
+  assert.ok(c.some((f) => f.chi === 'rossa' && !f.detto), 'il passaggio a rossa dopo la prima volta PARLA («Bandiera rossa!»)');
+  const d = passo(6, 4000);
+  assert.equal(d.filter((f) => f.chi === 'nera').length, 0, 'nera dentro i 15 s dalla rossa resta zitta: distanziello condiviso');
+  const d2 = passo(0, 4000);
+  assert.equal(d2.filter((f) => f.chi === 'nera').length, 0, 'uscita dalla rossa tace');
+  const e = passo(6, 20000);
+  assert.ok(e.some((f) => f.chi === 'nera' && !f.detto), 'la nera fuori dal distanziello parla (squalifica)');
+});
+
+test("penalia la 150-secondi del RESTART (31/10 notte, gara Mauro): il salto assurdo si semina zitto e non si annuncia, poi si riparte piani", () => {
+  const slot = { last: {}, at: 0, said: {}, firma: 'sess-restart' };
+  const giri = { lapsDone: 0, lapsTotal: 0, fuel: 40, lapsOnFuel: 8, lapsLeft: null };
+  let t = 1000;
+  const passo = (cutSec, dt = 4000) => { t += dt; return narratore(MMF(t, { gauges: { ...giri, cutSec } }), slot, t); };
+  // il RESTART porta via il contatore NON azzerato: da 0 (o semina) a 150 in
+  // un campione solo — nessun taglio di pista vero fa un salto del genere.
+  const a = passo(150.0);
+  assert.equal(a.filter((f) => f.chi === 'penalia' && !f.detto).length, 0, 'il salto assurdo ≥ 30 s non parla');
+  // il valore è SEMINATO: un piccolo salto vero che arriv sotto riparte piani
+  const b = passo(150.6, 6000);
+  assert.ok(b.some((f) => f.chi === 'penalia' && !f.detto && (f.it ?? '').includes('150.6')), 'dopo la semina un salto piccolo vero parla piani');
+});
+
 test("chi ti sta davanti (gap, 30/10): distanza senza nome (niente driver avversari nella MMF), guardia 20 s", () => {
   const slot = { last: {}, at: 0, said: {}, firma: 'sess-gap' };
   const giri = { lapsDone: 3, lapsTotal: 10, fuel: 40, lapsOnFuel: 8, lapsLeft: 8 };

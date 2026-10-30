@@ -46,8 +46,23 @@ export const APP_KEY = 'cruscotto';      // il nome della cartella-app nel loade
 // la scadenza di un «fresco»: il pending della ronda e la finestra della
 // demo (vetrinaCustom = gara al volo) valgono UNO STESSO giorno — la
 // costante era dentro comandoAuto; da qui la usa anche azioniPulsanti
-// (i dati dei bottoni) per restare allineati senza copie da tenere in pari.
+// (i dati dei bottoni) e la finestra dell'evento per restare allineati
+// senza copie da tenere in pari.
 const PENDING_SCADENZA_MS = 24 * 3600 * 1000;
+
+// LA FINESTRA DELL'EVENTO (30/10, fine gara R5 e torna la F40 a sorpresa):
+// lo STESSO taglio della ronda del 29/10 («appena esco da una gara, sul menu
+// riparte la stessa gara: non deve essere così, solo quando lancio da
+// Prepara e Divertiti») applicato all'evento speciale. Prima il comando auto
+// «evento» era a STALLO: un invito accettato (nel save: dal 23/10!) montava
+// la SUA auto nel menu OGNI volta che il pending moriva — esci da una gara
+// con l'R5 e al ritorno trovi l'F40 del premio che non hai ancora chiesto.
+// Ora l'auto comando evento esce SOLO dentro la finestra armata da
+// «Prepara tutto e divertiti» dell'evento (event-prep in webui.mjs scrive
+// state.eventoPreparato = l'ora del click): come la ronda, 24 ore di
+// validità, poi il canale torna muto e il pannello in gioco (bottone)
+// resta la via a mano.
+const EVENTO_FIDUCIA_MS = PENDING_SCADENZA_MS;   // 24 h, la stessa della ronda
 
 /** La cartella dell'app dentro il loader, o null se la mod non c'è:
  *  si prende il primo base «Saved Games» che ha l'App Loader installato
@@ -196,8 +211,15 @@ export function comandoAuto(ladder, state) {
         // sotto): il pending NON ancora confermato, se ha più di un giorno,
         // lascia il campo all'evento attivo; fresco = la ronda comanda e via.
         if ((Date.now() - Number(p.startedAt ?? 0)) < PENDING_SCADENZA_MS) return rondaComando;
+        // L'EVENTO NON MONTA PIÙ A STALLO (30/10, la F40 spuntata a fine gara):
+        // serve l'armatura di «Prepara tutto e divertiti» dell'evento — solo
+        // il click su quel tasto apre la finestra di 24 h. Senza, il ramo
+        // evento esce e la ronda scaduta AUTO-NOTA torna SOPPRESSA (test 27/10:
+        // «no silenzio» — gli id servono per l'ack); l'auto del premio si
+        // mette a mano col bottone del pannello quando davvero la vuoi.
         const cardEv = eventCard(ladder, state);
         if (cardEv?.acceptedAt && cardEv.carName) {
+          if (!eventoArmato(state)) return rondaComando;
           return { id: `evento:${cardEv.theme?.id ?? cardEv.eventId ?? '?'}:${cardEv.carName}`, tipo: 'evento', nome: cardEv.carName, pista: null, layout: null };
         }
         return rondaComando;
@@ -243,11 +265,23 @@ export function comandoAuto(ladder, state) {
       }
     }
     const card = rondaViva ? null : eventCard(ladder, state);
-    if (card?.acceptedAt && card.carName) {
+    if (card?.acceptedAt && card.carName && eventoArmato(state)) {
+      // stessa legge della scadenza: senza armatura il canale evento è MUTO
+      // (la scheda evento sta nella GUI, l'auto del premio si mette a mano)
       return { id: `evento:${card.theme?.id ?? card.eventId ?? '?'}:${card.carName}`, tipo: 'evento', nome: card.carName, pista: null, layout: null };
     }
     return null;
   } catch { return null; }
+}
+
+// L'ARMATURA dell'evento: «Prepara tutto e divertiti» dell'evento (event-prep
+// in webui.mjs) scrive state.eventoPreparato = l'ora del click. Dentro la
+// finestra (24 h) il canale auto può montare l'auto dell'evento nel menu;
+// fuori, MAI: un invito accettato e ancora non preparato è attesa paziente,
+// non una mano che ti cambia il sedile (30/10, la F40 spuntata a fine gara).
+function eventoArmato(state) {
+  const at = Number(state?.eventoPreparato ?? 0);
+  return Number.isFinite(at) && at > 0 && (Date.now() - at) < EVENTO_FIDUCIA_MS;
 }
 
 /** I DATI del VERDETTO DI GIORNATA per le fasce dell'app in gioco (29/10,

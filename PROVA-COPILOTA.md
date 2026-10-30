@@ -129,3 +129,33 @@ Funziona allo stesso modo su entrambi i registri (monitor 8642 e voce).
 2. NON ri-scrivere la logica a mano: la vista e il monitor sono gemelli
    (stesso narratore) e il test li tiene uniti — cambiare uno spezza l'altro
    (test/copilota-narratori.test.mjs nelle 6 gare sintetiche).
+
+## 5. PROVA DI DOMANI (31/10): bandiere, tagli e anti-marcia
+
+Richiesta di Mauro (30/10 notte): «forse la bandiera rossa non risulta da
+nessuna parte perché mai uscita [dal registro], così come la nera — se il
+verde alle partenze si vede, la rossa/nera ci deve essere». Da stanotte il
+narratore parla sul PASSAGGIO a rossa (flagCode 3, «Bandiera rossa!») e a
+nera (6, «Bandiera nera: il gioco ti squalifica.»), stessa fontana del verde,
+distanziello 15 s condiviso; a qualunque livello radio (essenziale incluso).
+
+Sequenze in pista (una sessione basta, con monitor + ascolto attivi):
+
+1. **Restart con rossa a schermo** — riavvia una gara in corsa: lo schermo
+   deve mostrare la rossa. Poi in firma:
+       grep -o 'flagCode":[0-9]*' data/copilot-8642-24-10.jsonl | sort | uniq -c
+   → se compare `"flagCode":3`, il sensore la vede e la voce la dice:
+     QUESTIONE CHIUSA.
+   → se NON compare mai mentre a schermo c'è la rossa, il gioco NON la
+     scrive nella MMF: la voce non può dirla per costruzione, e lo
+     annotiamo qui come limite del sensore (non del copilota).
+2. **Tagli veri** (il contrario della 150-secondi): taglia ripetutamente al
+   limite in un tratto largo → attese frasi «Penalità tagli: X secondi» a
+   salto ≤ ~2 s per violazione. Se un salto ≥ 30 s appare di nuovo senza
+   restart, la soglia va ritoccata (mi dici e alza un caso test).
+3. **Anti-marcia** — vai all'indietro / contromarcia finché il gioco reagisce:
+   aspettiamo la NERA (squalifica) su flagCode 6. Se invece il gioco usa un
+   altro codice (7 = nera col numero, 9 = cerchio arancio), il GREZZO nel
+   frame lo registra: il grep del punto 1 lo smaschera.
+
+Verdetto a fine prova (§3) come sempre: --riepilogo su entrambi i registri.

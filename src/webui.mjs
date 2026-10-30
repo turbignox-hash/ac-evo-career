@@ -1794,6 +1794,14 @@ async function api(context0, _req, res, action, body) {
           try { launched = await launch(paths, { force: !!body.forceLaunch }); }
           catch (e) { launched = { error: e.message }; }
         }
+        // L'ARMATURA DEL CANALE EVENTO (30/10, la F40 spuntata a fine gara):
+        // il click qui è IL GESTO che apre la finestra di 24 h. Solo dopo
+        // un «Prepara tutto e divertiti» dell'evento l'app Cruscotto può
+        // montare l'auto del premio nel menu da sola; senza, un invito
+        // accettato e non ancora preparato resta attesa — non una mano che
+        // ti cambia il sedile quando esci da una gara qualunque.
+        state.eventoPreparato = Date.now();
+        persist(state);
         return sendJson(res, 200, { ok: true, prep, gameRunning: running, launched, events: eventsOverview(ladder, state) });
       } catch (e) { return sendJson(res, 500, { error: e.message }); }
     }

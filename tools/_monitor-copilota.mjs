@@ -198,11 +198,19 @@ export function narratore(m, slot, ora = Date.now()) {
      GUADAGNATI tagliando che il gioco scala dal tuo tempo finale. Parla
      quando il TOTALE sale di almeno 0,5 s — «Penalità tagli: X secondi»
      (cumulativo, è quello che alla fine pesa alla classifica). In
-     qualifica e TimeAttack resta 0 di proposito: mai un annuncio. */
+     qualifica e TimeAttack resta 0 di proposito: mai un annuncio.
+     31/10 notte, la 150-SECONDI: il gioco NON azzera il contatore quando
+     la sessione si riavvia (e sembra contare anche il tempo che l'auto
+     ferma passa fuori pista dopo l'incidente): al primo tutto, il totale
+     parte da un valore assurdo. NESSUN taglio di pista vero guadagna
+     decine di secondi in un colpo solo (ogni violazione vale ~1-2 s),
+     quindi un salto singolo ≥ 30 S NON si annuncia: si semina zitte
+     (i salti veri dopo, piani e piccoli, riprendono a parlare). */
   const cutSec = Number.isFinite(g.cutSec) ? g.cutSec : null;
   if (cutSec != null) {
     const prev = slot.last.cut == null ? 0 : slot.last.cut;
-    if (cutSec - prev >= 0.5)      parla.push({ chi: 'penalia', it: `Penalità tagli: ${cutSec.toFixed(1)} secondi.` });
+    const passo = cutSec - prev;
+    if (passo >= 0.5 && passo < 30) parla.push({ chi: 'penalia', it: `Penalità tagli: ${cutSec.toFixed(1)} secondi.` });
     slot.last.cut = cutSec;
   }
   const pit = m.pit;
@@ -327,7 +335,16 @@ export function narratore(m, slot, ora = Date.now()) {
      narratore la mangiava: nel registro della gara esce «verde (code 2)»
      alle 15:52:19 e nessuna frase. Si parla sul PASSAGGIO a verde:
      nessuna→verde al via, gialla→verde dopo l'incidente. Distanziello 30 s
-     contro i cambi a raffica e semina in silenzio alla prima lettura. */
+     contro i cambi a raffica e semina in silenzio alla prima lettura.
+     31/10 NOTTE, LA ROSSA-INVISIBILITA': il RESTART di Stanotte (gara R5)
+     aveva la ROSSA a schermo (procedura di riassestamento griglia) e il
+     registro non la Sapeva da nessuna parte: se il VERDE (code 2) si
+     legge dalla STESSA fontana, la ROSSA (3) e la NERA (6) si leggono
+     allo stesso modo — e da oggi si dicono sul passaggio, semina alla
+     prima lettura, distanziello 15 s (due RESTART vicini non scaricano
+     la radio). Per la prova di domani: tagli e anti-marcia su pista.
+     Condividono il semaforo «area»: rossa e nera dentro i 15 s parlano
+     UNA sola volta. */
   const fc = m.gauges?.flagCode ?? null;
   if (fc != null) {
     /* 31/10 SERA (R5 di sera): la VERDE è pure il segno del VIA per il
@@ -343,6 +360,16 @@ export function narratore(m, slot, ora = Date.now()) {
       parla.push({ chi: 'verde', it: 'Bandiera verde: via libera.' });
     }
     slot.last.verde = fc;
+    if (slot.last.rede == null) slot.last.rede = fc;       // semina rossa/nera
+    else if (fc !== slot.last.rede
+             && (fc === 3 || fc === 6)
+             && (slot.last.redeOra == null || ora - slot.last.redeOra >= 15000)) {
+      slot.last.redeOra = ora;
+      parla.push(fc === 3
+        ? { chi: 'rossa', it: 'Bandiera rossa!' }
+        : { chi: 'nera', it: 'Bandiera nera: il gioco ti squalifica.' });
+    }
+    slot.last.rede = fc;
   }
   /* 9) POSIZIONE (30/10, la gara del mezzogiorno): gli annunci di posizione
      esistevano SOLO nella pagina (viste-a.js narratore 9, chi 'postalk');

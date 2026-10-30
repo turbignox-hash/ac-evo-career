@@ -100,13 +100,16 @@ const FRASI_LIVELLO = {
   // 29/10: + «verde» — la bandiera verde di via libera si sente in pista a
   // qualunque livello (essenziale incluso): è l'ordine di partire, non un
   // dettaglio di ricchezza.
+  // 31/10 notte: + «rossa» e «nera» — stessa fontana del verde (flagCode 3
+  // e 6): la rossa del restart e la nera della squalifica sono ordini di
+  // pista, non dettagli di ricchezza, e devono potersi SENTIRE e REGISTRARE.
   // 29/10 tardi: + «minuto» nelle gare a TEMPO («Ultimo minuto!», «Trenta
   // secondi!») — chi guida deve sapere che la gara chiude, e la fonte
   // esiste SOLO nelle gare a tempo (timeLeft arriva quando lo static dice
   // timedRace): nelle gare a giri la frase non nasce mai, il livello non
   // cambia nulla. Opposto del delta di ritmo, che resta di lusso del full.
-  essenziale: 'boxclose boxopen blu ultimoGiro bandiera minuto verde benzina pit pitcount penalia'.split(' '),
-  normale: 'boxclose boxopen blu ultimoGiro bandiera minuto verde benzina pit pitcount penalia giroFatto metaBenzina gomme postalk'.split(' '),
+  essenziale: 'boxclose boxopen blu ultimoGiro bandiera minuto verde rossa nera benzina pit pitcount penalia'.split(' '),
+  normale: 'boxclose boxopen blu ultimoGiro bandiera minuto verde rossa nera benzina pit pitcount penalia giroFatto metaBenzina gomme postalk'.split(' '),
   full: null,   // null = nessun filtro: anche delta e gap parlano
 };
 const chePuoiDire = (livello) => {
