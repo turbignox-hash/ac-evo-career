@@ -102,6 +102,31 @@ webui col piano aggiornato coi dati veri di usura.
 
 ## Registro del diario
 
+### 31/10/2026 tarda sera — La finestra stint entra nella radio e nella vista (DA-9 seconda fetta)
+Il piano stint esce dall'attesa: ora annuncia la finestra VIVA in gara.
+Collegato:
+- payload aggiornato di [src/webui.mjs](src/webui.mjs): `stintPlan` (piano intero)
+  e `stintAlert` (prima sosta ANCORA raggiungibile con `lapsTo`, 0 = questo
+  giro è la scadenza) dentro la variante pesante e leggera. Il leggero prende
+  SOLO dal cache CALDO (`caldo:true`): il freddo vale le letture MoTeC, il
+  tick radio non deve piombarci su (disco lento, lezione 26/10) — chi scalda
+  la cache è il pannello (/api/ingegnere intero e /api/card).
+- narratore «finestra» (n. 11) in [tools/_monitor-copilota.mjs](tools/_monitor-copilota.mjs):
+  «Finestra sosta k: box entro N giri» e alla scadenza «Box entro QUESTO
+  giro» (UNA frase per finestra, semina su slot.last.finestraK). «finestra»
+  entra nei livelli essenziale/normale di [src/voce-copilota.mjs](src/voce-copilota.mjs).
+- pannello nel panneau ingegnere della GUI ([gui/js/viste-a.js](gui/js/viste-a.js)):
+  piano (giri, stint, litri, finestre) + banner della finestra alla mano.
+  Fuori gara a tempo o senza dati del sedile NON esce — niente pannelli
+  fantasmi: la stessa onestà di card e copilota.
+- BUG FONDAMENTALE preso dai test: `stintPlanOf` usava `tr` SENZA importarlo
+  → ogni piano cadeva in ReferenceError: il piano non era mai nato davvero.
+  Aggiunto `import { tr }` in [src/stint-plan.mjs](src/stint-plan.mjs) e guardia
+  «giri compiuti == null → null» in `stintStopAlert`.
+Test: +3 in [test/stint-plan.test.mjs](test/stint-plan.test.mjs) (alert vivi e scaduti, null
+  per input brutti), +3 in [test/copilota-narratori.test.mjs](test/copilota-narratori.test.mjs)
+  (primo annuncio, apertura dopo la sosta, si tace senza piano). **Suite 568/568.**
+
 ### 31/10/2026 sera — La stima provata a ponte spento (e la tessera committata)
 La tessera dell'header committata (d859430, dopo riepilogo suite 556/556 e lint
 pulita su 278 file). Poi la prova DELLA STIMA CHE NON ESISTERA: il webui rientrato
