@@ -549,6 +549,48 @@ test("delta di ritmo: l'HUD non entra in radio, solo il 'tracked' della copilota
   assert.ok(a[0].it.includes('più veloce del best di 12.5'), `frase con i secondi del best tracciato: ${a[0].it}`);
 });
 
+/* 31/10 (DA-9): il narratore «finestra» del piano stint pre-gara. La finestra
+   VIVA arriva SEMINATA nel payload (m.stintAlert = stintStopAlert del server,
+   che sa già saltare le finestre scadute): alla prima vista la copilota dice
+   «Box entro N giri», alla scadenza «Box entro QUESTO giro» UNA volta. Senza
+   piano nel payload (gara a giri, dati del sedile insufficienti) tace — la
+   stessa onestà del piano: nessuna finestra che i dati non buttano fuori. */
+test("finestra stint: «Box entro N giri» alla prima vista della finestra, non a ogni tick", () => {
+  const fin1 = (k, lapsTo) => ({ k, earliest: 15, latest: 18, mid: 16, lapsTo });
+  const frames = [
+    [0,    MMF(0,    { gauges: { lapsDone: 8,  lapsTotal: 35 }, stintAlert: fin1(1, 7) })],   // prima vista: parla
+    [1000, MMF(1000, { gauges: { lapsDone: 9,  lapsTotal: 35 }, stintAlert: fin1(1, 6) })],   // stessa finestra: tace
+    [2000, MMF(2000, { gauges: { lapsDone: 10, lapsTotal: 35 }, stintAlert: fin1(1, 5) })],   // tace ancora
+    [3000, MMF(3000, { gauges: { lapsDone: 17, lapsTotal: 35 }, stintAlert: fin1(1, 0) })],   // scadenza: «entro QUESTO giro»
+    [4000, MMF(4000, { gauges: { lapsDone: 17, lapsTotal: 35 }, stintAlert: fin1(1, 0) })],   // già detto: tace
+  ];
+  const dette = gara(frames);
+  const fin = dette.filter((f) => f.chi === 'finestra' && !f.detto);
+  assert.equal(fin.length, 2, 'un annuncio per la finestra + uno per la scadenza');
+  assert.ok(fin[0].it.includes('box entro 7 giri'), `annuncio con i giri mancanti: ${fin[0].it}`);
+  assert.ok(fin[1].it.includes('QUESTO giro'), `scadenza data da vestale: ${fin[1].it}`);
+});
+
+test("finestra stint: la sosta fatta riapre la radio alla finestra seguente", () => {
+  const frames = [
+    [0,   MMF(0,   { gauges: { lapsDone: 14, lapsTotal: 35 }, stintAlert: { k: 1, earliest: 15, latest: 18, mid: 16, lapsTo: 0 } })],
+    [100, MMF(100, { gauges: { lapsDone: 20, lapsTotal: 35 }, stintAlert: null })],   // sosta fatta: la finestra esce dal payload
+    [200, MMF(200, { gauges: { lapsDone: 26, lapsTotal: 35 }, stintAlert: { k: 2, earliest: 28, latest: 30, mid: 29, lapsTo: 3 } })],   // la k=2 ridice da capo
+  ];
+  const dette = gara(frames);
+  const fin = dette.filter((f) => f.chi === 'finestra' && !f.detto);
+  assert.equal(fin.length, 2, 'la k=1 parlò prima, la k=2 prende il turno');
+  assert.ok(fin.some((f) => f.it.includes('sosta 2')), `la nuova finestra porta il Sue numero: ${fin.map((f) => f.it).join(' | ')}`);
+});
+
+test("senza piano nel payload (gara a giri / sedile muto): la finestra tace", () => {
+  const frames = [
+    [0,    MMF(0,    { gauges: { lapsDone: 5, lapsTotal: 35 } })],
+    [1000, MMF(1000, { gauges: { lapsDone: 6, lapsTotal: 35 } })],
+  ];
+  assert.equal(voce(gara(frames), 'finestra'), 0, 'niente annuncio: il piano non parlò, nessun dato');
+});
+
 /* 31/10 — TRASCRIZIONE DA CLI (--trascrizione): il discorso della copilota
    leggibile dall'uomo, gara per gara (tagli al silenzio ≥ 10 min), ripetuti
    entro 70 s segnati; su un registro di monitor solo l'eco, dichiarato. */

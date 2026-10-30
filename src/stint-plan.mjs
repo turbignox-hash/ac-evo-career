@@ -16,10 +16,10 @@
 // Esporta:
 //   seatStintInputs(sessions)                          → { fuelPerLap, lapSec, tankMax, n } | null
 //   stintPlanOf({ raceMin, lapSec, fuelPerLap, tankMax }) → piano | null
-
-import { tr } from './lang.mjs';
+//   stintStopAlert(plan, lapsDone)                     → alert da dire con voce vivissima | null
 
 const r1 = (v) => Math.round(v * 10) / 10;
+import { tr } from './lang.mjs';
 
 /** Margine sul consumo: il piano non parte mai da zero di benzina in fondo. */
 export const DEFAULT_FUEL_MARGIN = 0.05;
@@ -135,3 +135,27 @@ export function stintPlanOf({ raceMin, lapSec, fuelPerLap, tankMax, fuelMarginPc
     notes,
   };
 }
+
+/**
+ * LA FINESTRA VIVA del piano, dal contatore giri del vivo (DA-9 seconda fetta):
+ * entra il piano e i GIRI COMPIUTI del sedile (lapsDone dell'HUD o la scorta
+ * lapNo del delta — i narratori hanno già il loro contatore filtrato), esce la
+ * PRIMA sosta la cui finestra è ancora raggiungibile (latest >= compiuto+1)
+ * con `lapsTo` = quanti giri mancano all'ULTIMO giro utile (0 = QUESTO giro è
+ * la scadenza del piano). Finestre già scadute si saltano: il piano non torna
+ * indietro. Ferma un piano stoppato, senza finestre o con contatore assente →
+ * null: i narratori gridano solo `'box entro N giri'` quando il piano ne
+ * contiene davvero uno. CONSUMATORE: il narratore unico del copilota
+ * (tools/_monitor-copilota.mjs) e il pannello dell'ingegnere (viste-a.js).
+ */
+export function stintStopAlert(plan, lapsDone) {
+  if (!plan || plan.ok !== true || !Array.isArray(plan.windows)) return null;
+  const done = Number(lapsDone);
+  // null/undefined NON è 0: senza contatore (HUD muto) non si annuncia nulla —
+  // «a quanti giri dal box» con il contatore finto è la stringa che mente
+  if (lapsDone == null || !Number.isFinite(done) || done < 0) return null;
+  const w = plan.windows.find((x) => x != null && Number.isFinite(x.latest) && x.latest >= done + 1);
+  if (!w) return null;
+  return { ...w, lapsTo: Math.max(0, w.latest - (done + 1)) };
+}
+

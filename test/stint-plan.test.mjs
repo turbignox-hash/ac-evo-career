@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { seatStintInputs, stintPlanOf } = await import('../src/stint-plan.mjs');
+const { seatStintInputs, stintPlanOf, stintStopAlert } = await import('../src/stint-plan.mjs');
 
 const say = (t) => typeof t === 'string' ? t : (t?.it || t?.en || '');
 
@@ -75,4 +75,35 @@ test('stintPlanOf: il margine è VISIBILE nel piano (chi lo vede sa che lo c\u00
   const p = P();
   assert.equal(p.marginPct, 0.05);
   assert.ok(p.totalFuel >= p.estLaps * p.fuelPerLap, 'il netto è sotto il margine');
+});
+
+/* DA-9 seconda fetta (31/10): la FINESTRA VIVA — entra il piano e i giri
+   compiuti del vivo, esce la prima sosta ANCORA raggiungibile con i girI
+   mancanti (lapsTo 0 = QUESTO giro è la scadenza). Consumatori: il narratore
+   «Box entro N giri» del copilota e il pannello della vista ingegnere. */
+test('stintStopAlert: la finestra VIVA parte dalla prima sosta raggiungibile', () => {
+  const p = P();   // finestre: k1 10–15, k2 25–30
+  const a = stintStopAlert(p, 12);
+  assert.equal(a.k, 1);
+  assert.equal(a.latest, 15);
+  assert.equal(a.lapsTo, 2, '15 − (12+1) = 2: mancano 2 giri alla scadenza della finestra');
+  const z = stintStopAlert(p, 14);
+  assert.equal(z.lapsTo, 0, 'a 14 compiuti QUESTO giro (il 15) è la scadenza: fine chiara');
+});
+
+test('stintStopAlert: le finestre scadute si saltano, il piano non torna indietro', () => {
+  const p = P();
+  const a = stintStopAlert(p, 16);   // la k1 (10–15) è gia DIETRO: la k2 prende il turno
+  assert.equal(a.k, 2);
+  assert.equal(a.latest, 30);
+  assert.equal(a.lapsTo, 13);
+  assert.equal(stintStopAlert(p, 31), null, 'gara oltre l\'ultima finestra: nessun annuncio fantasma');
+});
+
+test('stintStopAlert: input brutto → null (dai narratori solo ciò che il piano porta)', () => {
+  assert.equal(stintStopAlert(null, 12), null);
+  assert.equal(stintStopAlert({ ok: false, reason: 'ritmo' }, 12), null);
+  assert.equal(stintStopAlert(P(), null), null);
+  assert.equal(stintStopAlert(P(), 'x'), null);
+  assert.equal(stintStopAlert(P(), -3), null);
 });

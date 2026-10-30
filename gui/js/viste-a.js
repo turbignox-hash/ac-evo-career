@@ -1085,7 +1085,7 @@ function drawCardInto(el, card){
       const pitHtml = pit?.need
         ? `<div class="banner warn" style="margin-top:8px;padding:8px 10px"><b>🔧 ${tr({ it: 'Finestra pit', en: 'Pit window' })}</b> — ${esc(pit.reason)}. ${tr({ it: 'Fermarsi al giro ', en: 'Pit on lap ' })}<b>${pit.pitLap + 1}</b> ${pit.lapsToWindow === 0 ? tr({ it: '(aperta adesso)', en: '(open now)' }) : `· ${tr({ it: 'si apre tra ', en: 'opens in ' })}<b>${pit.lapsToWindow}</b> ${tr({ it: 'giri', en: 'laps' })}`} · <span class="muted">${tr({ it: 'fermarsi dopo perdere ~', en: 'staying out costs ~' })}${pit.pitLossSec}s</span></div>`
         : (pit && pit.need === null ? `<div class="muted" style="font-size:11px;margin-top:6px">🔧 ${esc(pit.reason)}</div>` : '');
-      const mapHtml = deltaMapSvg(m.mapTrack, m.delta?.segments, m.carPos);
+      const mapHtml = deltaMapSvg(m.mapTrack, m.delta?.segments, m.carPos);      /* PIANO STINT (31/10, DA-9): le finestre calcolate PRIMA della gara dai         dati del sedile + la finestra VIVA (quanti giri mancano alla sosta         col contatore HUD). Si mostra SOLO col piano ok nel payload: in gara         a giri o senza dati il banner non esce — niente finestre fantasma,         la stessa onestà di card e copilota. */      const piano = m.stintPlan?.ok ? m.stintPlan : null;      const fin = m.stintAlert ?? null;      const stintHtml = !piano ? '' : `<div class="banner" ${fin ? 'style="margin-top:8px;padding:8px 10px;border-color:#e0a030"' : 'style="margin-top:8px;padding:8px 10px"'}>        <b>⛽ ${tr({ it: 'Piano stint', en: 'Stint plan' })}</b> — ${esc(tr(piano.notes[0] ?? { it: '', en: '' }))} · <span class="muted" style="font-size:11.5px">${esc(tr(piano.notes[1] ?? { it: '', en: '' }))}</span>        <span class="muted" style="font-size:11px">${piano.windows?.length ? ` · ${tr({ it: 'finestre giri ', en: 'window laps ' })}${piano.windows.map((w) => `${w.earliest}–${w.latest}`).join(' / ')}` : ''}</span>        ${fin ? `<div style="margin-top:4px;font-size:12.5px"><b>🔧 ${fin.lapsTo === 0 ? tr({ it: 'Box entro QUESTO giro', en: 'Pit within THIS lap' }) : tr({ it: `Box entro ${fin.lapsTo} giri`, en: `Pit within ${fin.lapsTo} laps` })}</b> — ${tr({ it: `finestra sosta ${fin.k} (giri ${fin.earliest}–${fin.latest})`, en: `stop ${fin.k} window (laps ${fin.earliest}–${fin.latest})` })}</div>` : ''}      </div>`;
       /* VIGIA DEL PARCO AUTO (24/10, Mauro): se l'auto del sedile non è una di
          quelle ammesse della serie, il pannello lo dice SUBITO — in rosso —
          perché all'import quella gara vale zero (0 punti, 0 premio). */
@@ -1116,9 +1116,7 @@ function drawCardInto(el, card){
           ${mapHtml ? `<div style="flex:none">${mapHtml}<div class="muted" style="font-size:10.5px;margin-top:4px;max-width:290px"><span style="color:#7f7">■ ${tr({ it: 'guadagni', en: 'gain' })}</span> · <span style="color:#f66">■ ${tr({ it: 'perdi', en: 'lose' })}</span> · ${tr({ it: 'passa il mouse sulle fette per il decimo esatto', en: 'hover the slices for the exact tenth' })}</div></div>` : ''}
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">${(m.tips||[]).map(t=>`<div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.4"><span style="flex:none">${t.icon}</span><span><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></span></div>`).join('')}</div>
-        ${wearRow ? `<div style="margin-top:6px">${wearRow}</div>` : ''}
-        ${pitHtml}
-        ${autoHtml}
+        ${wearRow ? `<div style="margin-top:6px">${wearRow}</div>` : ''}        ${pitHtml}        ${stintHtml}        ${autoHtml}
       </div>`;
       $('#cp-toggle', ingOut)?.addEventListener('click', async () => {
         if (voceServer) {

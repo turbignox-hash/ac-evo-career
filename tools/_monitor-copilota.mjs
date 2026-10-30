@@ -60,6 +60,11 @@ const campi = (m) => ({
   timing: m.timing ?? null,
   delta: m.delta ? { dv: m.delta.dv ?? m.delta.hudDv ?? null, lapNo: m.delta.lapNo ?? null, source: m.delta.source ?? null, bestLapNo: m.delta.bestLapNo ?? null } : null,
   pit: m.pit ? { need: m.pit.need, pitLap: m.pit.pitLap, lapsToWindow: m.pit.lapsToWindow, pitLossSec: m.pit.pitLossSec ?? 30 } : null,
+  // 31/10 (DA-9): la finestra VIVA del piano stint del server (stintStopAlert
+  // di stint-plan.mjs dentro il payload /api/ingegnere): alimenta il narratore
+  // «Box entro N giri» e il registro — il campo null fuori gara è il CONTRATTO,
+  // come in pit: senza il piano nel payload la voce tace, non mente.
+  stintAlert: m.stintAlert ? { k: m.stintAlert.k, earliest: m.stintAlert.earliest, latest: m.stintAlert.latest, mid: m.stintAlert.mid, lapsTo: m.stintAlert.lapsTo } : null,
 });
 
 /**
@@ -212,6 +217,30 @@ export function narratore(m, slot, ora = Date.now()) {
     const passo = cutSec - prev;
     if (passo >= 0.5 && passo < 30) parla.push({ chi: 'penalia', it: `Penalità tagli: ${cutSec.toFixed(1)} secondi.` });
     slot.last.cut = cutSec;
+  }
+  /* 11) FINESTRA STINT DEL PIANO (31/10, DA-9 seconda fetta — richiesta
+     Mauro: «copilota annuncia la finestra»): il piano pre-gara dice le
+     FINESTRE di sosta; quando il contatore giri entra nell'ultima finestra
+     ancora raggiungibile la copilota dice «Box entro N giri», e a scadenza
+     «Box entro QUESTO giro». Si parla UNA volta per finestra (semenna su
+     slot.last.finestraK) e UNA volta la scadenza (finestraZero); se il
+     piano non è nel payload (gara a giri, dati del sedile insufficienti)
+     il narratore tace — niente finestre che i dati non buttano fuori. */
+  const fin = m.stintAlert ?? null;
+  if (fin && Number.isFinite(fin.k)) {
+    if (slot.last.finestraK !== fin.k) {
+      slot.last.finestraK = fin.k;
+      slot.last.finestraZero = false;
+      parla.push(fin.lapsTo === 0
+        ? { chi: 'finestra', it: `Benzina del piano: al box entro QUESTO giro — scadenza della sosta ${fin.k}.` }
+        : { chi: 'finestra', it: `Finestra sosta ${fin.k}: box entro ${fin.lapsTo} giri (${fin.earliest}–${fin.latest}).` });
+    } else if (fin.lapsTo === 0 && !slot.last.finestraZero) {
+      slot.last.finestraZero = true;
+      parla.push({ chi: 'finestra', it: `Box entro QUESTO giro: è la scadenza della sosta ${fin.k}.` });
+    }
+  } else {
+    slot.last.finestraK = null;   // piano uscito (fine gara / dati bruciati): la prossima finestra ridice
+    slot.last.finestraZero = null;
   }
   const pit = m.pit;
   if (pit?.need && pit.pitLap != null && slot.last.pit !== pit.pitLap) {

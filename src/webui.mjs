@@ -28,7 +28,7 @@ import { rapportoGara } from './rapporto-gara.mjs';
 import { verdettoGiornata } from '../tools/verdetto-giornata.mjs';
 import { liveReader } from './shmem.mjs';
 import { creaVoceCopilota, nuovoSlotVoce, giroVoce, VOCE_LIVELLI } from './voce-copilota.mjs';
-import { raceCard, markPending, chargeEntry, launch } from './race.mjs';
+import { raceCard, markPending, chargeEntry, launch, nextRound } from './race.mjs';
 import { applyPianoToCalendar } from './orario.mjs';
 import {
   listResultFiles, readSessionResult, isRaceSession, findPlayerDriver, classify,
@@ -56,7 +56,7 @@ import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice
 // spezzati dai rifornimenti veri e usura gomme (degrado ritmo + temperature)
 // entrano nel box e da terminale, sempre da file .ld reali (richiesta 28/10).
 import { stintsFromLd } from './stinti.mjs';
-import { seatStintInputs, stintPlanOf } from './stint-plan.mjs';
+import { seatStintInputs, stintPlanOf, stintStopAlert } from './stint-plan.mjs';
 import { tyreWearFromLd } from './usura-gomme.mjs';
 import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
 import { parseSetup, listSetups, writeSetupCopy, brakePlanOf, annotateAllyAdvice } from './carsetup.mjs';
@@ -402,9 +402,53 @@ async function readBody(req) {
 let _grAt = 0, _grVal = false, _grMs = 0;
 // sessione telemetrica dell'ingegnere LIVE: memo 30s per auto (vedi case 'ingegnere')
 let _engSess = null, _engSessAt = 0;
-// memo del piano stint (DA-9): chiave «auto|durata», TTL 120 s — le letture
-// MoTeC pesano e la vista card è il percorso caldo della GUI.
 const _stintPlanCache = new Map();
+/* MEMO DEL PIANO STINT (DA-9, prima fetta + seconda): chiave «auto|durata»,
+   TTL 120 s — le letture MoTeC pesano (albero su disco lento = decine di
+   secondi, lezione 26/10) e il piano serve a TUTTI i consumatori: la card
+   della GUI (case 'card'), il payload dell'ingegnere (pannello live della
+   vista) e il tick leggero della voce del copilota. La durata è la DURATA
+   EFFETTIVA della ronda (durationMin scalata al distPct di Regole del
+   weekend, lo STESSO calcolo di raceCard): cambiare la distanza cambia la
+   chiave e ricalcola. */
+// Durata EFFETTIVA della ronda corrente SOLO se è a tempo (durationMin>0):
+// nextRound è puro ed economico, niente raceCard né I/O per il tick voce.
+function stintDurEff(ladder, state) {
+  try {
+    const { node, round } = nextRound(ladder, state);
+    const aTempo = Number(round?.durationMin) > 0;
+    if (!aTempo || !node?.nodeId) return null;
+    const ov = state?.raceSettings?.[node.nodeId] ?? {};
+    const distPct = [25, 50, 75, 100].includes(Number(ov.distPct)) ? Number(ov.distPct) : 100;
+    return Math.max(5, Math.round(Number(round.durationMin) * distPct / 100));
+  } catch { return null; }
+}
+/* Il piano su misura: MoTeC del sedile solo se il cache è freddo, poi
+   stintPlanOf. Senza auto o durata, o senza dati: null — la vista e il
+   copilota tacciono: non è un errore, è l'onestà del piano. Stesso calcolo
+   del case 'card': una sola verità anche qui. */
+function stintPlanFor(ladder, state, { car = null, durEff = null, paths = null, caldo = false } = {}) {
+  if (!Number.isFinite(Number(durEff)) || Number(durEff) <= 0) return null;
+  const auto = typeof car === 'string' && car.trim() ? car.trim() : null;
+  if (!auto) return null;
+  const chiave = `${auto}|${Math.round(Number(durEff))}`;
+  const ora = Date.now();
+  const hit = _stintPlanCache.get(chiave);
+  if (hit && ora - hit.at < 120000) return hit.plan;
+  // CALDO (tick della voce): il piano esce SOLO dal cache memo — le MoTeC
+  // a freddo valgono decine di secondi su disco lento (lezione 26/10) e il
+  // tick radio non può piombare su quei letture. Chi scalda il freddo è il
+  // PANNELLO (case 'card' e /api/ingegnere intero); la voce serve.
+  if (caldo) return null;
+  try {
+    const root = paths?.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths?.dataDirs?.[1] ?? '', 'MoTec');
+    const resultsDir = paths?.resultsDirs?.[0] ?? join(root, '..', 'Results');
+    const sorg = seatStintInputs(collectSessions(root, resultsDir, { car: auto, limit: 6, afterMs: state?.createdAt ?? 0 }));
+    const piano = sorg ? stintPlanOf({ raceMin: Number(durEff), ...sorg }) : null;
+    _stintPlanCache.set(chiave, { at: ora, plan: piano });
+    return piano;
+  } catch { return null; }
+}
 async function gameRunningMemo() {
   const finestra = _grMs > 3000 ? 30000 : 10000;
   if (Date.now() - _grAt < finestra) return _grVal;
@@ -581,8 +625,18 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
      lapsTotal e lapsOnFuel: delle estimate il narratore li già usa. */
   if (leggero) {
     const live0 = engineerLive(snap, { fuelPerLap: null, raceLaps: null });
+    /* FINESTRA STINT nel tick (DA-9 seconda fetta): SOLO l'alert, SOLO dal
+       cache caldo — il piano a freddo costa decine di secondi di MoTeC e il
+       tick della radio non può piombare (chi scalda è il pannello intero).
+       Niente alert se la gara non è a tempo o il piano non ha finestre: la
+       voce non inventa una sosta che il piano non contiene. */
+    let stintAlert = null;
+    try {
+      const piano = stintPlanFor(ladder, state, { car: snap.player?.car ?? null, durEff: stintDurEff(ladder, state), paths, caldo: true });
+      if (piano?.ok && Number.isFinite(Number(live0.gauges?.lapsDone))) stintAlert = stintStopAlert(piano, live0.gauges.lapsDone);
+    } catch { /* senza piano il narratore tace, non è un errore */ }
     return {
-      ...live0, auto: null,
+      ...live0, auto: null, stintAlert,
     sessionId: snap.session?.id ?? null,
     sessionType: snap.session?.type ?? null,
     // 29/10: la FASE VERA della sessione (SMEvoSessionState.phase_name, es.
@@ -649,9 +703,24 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
       };
     }
   } catch { /* senza pool la copilota non giudica */ }
+  /* PIANO STINT nel payload intero (DA-9): la vista dell'ingegnere mostra le
+     finestre del piano pre-gara e la FINESTRA VIVA (giri mancanti alla sosta
+     dalla parte del contatore HUD). Un solo costruttore anche qui: il piano
+     esce dal MEMO condiviso — la card della GUI lo vede uguale. */
+  let stintPlan = null, stintAlert = null;
+  try {
+    const durEff = stintDurEff(ladder, state);
+    const piano = stintPlanFor(ladder, state, { car: snap.player?.car ?? null, durEff, paths });
+    if (piano?.ok) {
+      stintPlan = piano;
+      if (Number.isFinite(Number(live.gauges?.lapsDone))) stintAlert = stintStopAlert(piano, live.gauges.lapsDone);
+    }
+  } catch { /* senza piano la vista e la voce tacciono */ }
   return {
     ...live,
     auto,
+    stintPlan,
+    stintAlert,
     // impronta della sessione per il copilota (28/10): sessione nova
     // = memoria dei narratori azzerata senza voci sbagliate all'avvio
     sessionId: snap.session?.id ?? null,
