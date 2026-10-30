@@ -15,8 +15,16 @@
 // uso:
 //   node tools/raccogli-griglie.mjs          → vigilanza (Ctrl+C per uscire)
 //   node tools/raccogli-griglie.mjs --stampa → solo il quadro coperte/da raccogliere
+//
+// FABBRICA AUTOMATICA (31/10, nota in DA-13 nel diario): ogni foto NUOVA non rimane
+// sola — il guardiano RILANCIA da solo tools/_genera-multi.mjs, così il
+// materiale appena fotografato allatta subito le multiclasse ancora \u2740.
+// Sequenza della fabbrica senza il passaggio manuale: raccogli in EVO → la
+// foto parte → il generatore riprova le serie scoperte. --no-multi disattiva
+// solo quel rilancio (il guardiano resta puro fotografo).
 import { readFileSync, writeFileSync, copyFileSync, existsSync, statSync, mkdirSync, readdirSync } from 'node:fs';
 import { basename } from 'node:path';
+import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GAME_MODES_DIR, gridFileOf } from './evo-grid.mjs';
@@ -177,6 +185,7 @@ function fotografia(buf) {
   // + copia per la serie scelta: righe indipendenti per magazzino e fabbrica
   const bersagli = [s.prima, ...s.gemelle];
   const copie = [];
+  let attecchita = Boolean(notaFissa);   // griglia fissata = ladder è davvero cambiato
   for (const b of bersagli) {
     for (const dir of [MAGAZZINO, FABBRICA]) {
       const dest = join(dir, nodeIdSan(b.nodeId) + '.customgrid');
@@ -184,15 +193,30 @@ function fotografia(buf) {
       if (vecchio && Buffer.compare(vecchio, buf) === 0) { copie.push(dest + ' (byte uguali, invariato)'); continue; }
       if (vecchio) copyFileSync(dest, dest + '.bak-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16));
       writeFileSync(dest, buf);
+      attecchita = true;
       copie.push(dest);
     }
   }
   const gemellaNota = s.gemelle.length ? `\n   (gemelle a pool identico: ${s.gemelle.map((x) => x.display).join(', ')} — la foto
    va a tutte)` : '';
-  return { stampa: `${notaFissa}✅ ${s.prima.display} fotografata: ${g.cells.length} celle (${ids.length} modelli, ${uniq} uniche) →\n   ${copie.join('\n   ')}${gemellaNota}${s.altri.length ? `\n   (nota: le auto combaciano anche per ${s.altri.map((x) => x.display).join(', ')} — se la serie è un'altra, dimmelo)` : ''}` };
+  return { attecchita, stampa: `${notaFissa}✅ ${s.prima.display} fotografata: ${g.cells.length} celle (${ids.length} modelli, ${uniq} uniche) →\n   ${copie.join('\n   ')}${gemellaNota}${s.altri.length ? `\n   (nota: le auto combaciano anche per ${s.altri.map((x) => x.display).join(', ')} — se la serie è un'altra, dimmelo)` : ''}` };
 }
 
 if (process.argv.includes('--stampa')) { quadra(); process.exit(0); }
+
+// Fabbrica automatica: da una NUOVA foto il generatore delle multiclasse
+// riesce le serie ancora scoperte, col materiale appena fotografato.
+// --no-multi lo disattiva (il guardiano resta puro fotografo).
+const NO_MULTI = process.argv.includes('--no-multi');
+function rilanciaGeneratore() {
+  if (NO_MULTI) return;
+  console.log('\n⚙ fabbrica: rilancio _genera-multi sulle fonti aggiornate…');
+  const p = spawn(process.execPath, [join(HERE, '_genera-multi.mjs')], { stdio: 'inherit' });
+  p.on('exit', (code) => {
+    if (code === 0) console.log('⚙ fabbrica: generatore finito.');
+    else console.log(`⚙ fabbrica: generatore finito con code ${code} (le serie restan tentate alla prossima foto).`);
+  });
+}
 
 quadra();
 let ultimo = null, ultimoMtime = 0;
@@ -208,6 +232,11 @@ setInterval(() => {
     if (ultimo && Buffer.compare(ultimo, buf) === 0) return;   // scrittura a byte uguali
     ultimo = buf;
     console.log('\n— cambio griglia sul disco (' + new Date().toLocaleTimeString() + ') —');
-    console.log(fotografia(buf).stampa);
+    const esito = fotografia(buf);
+    console.log(esito.stampa);
+    // rilancio del generatore SOLO su foto che sono realmente attecchite:
+    // le griglie rifiutate o non riconosciute non cambiano le coperture e
+    // forzarlo a vuoto ogni volta dorme il disco per un «nessun bersaglio».
+    if (esito.attecchita) rilanciaGeneratore();
   } catch (e) { console.log('vigilanza: errore (continuo):', String(e.message).split('\n')[0]); }
 }, 3000);

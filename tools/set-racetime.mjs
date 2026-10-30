@@ -20,8 +20,9 @@
 //   node tools/set-racetime.mjs --hour 21 --scale 48   // tramonto -> alba
 //   node tools/set-racetime.mjs --hour 2 --scale 2 --dry
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
-import { decodeMsg, encodeMsg, GAME_MODES_DIR } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, GAME_MODES_DIR, pruneBackups } from './evo-grid.mjs';
 import { join } from 'node:path';
+import { cancelloOrario } from '../src/test-mode.mjs';
 
 export const WEEKEND_FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 
@@ -95,7 +96,10 @@ export function currentSessionTimes(file = WEEKEND_FILE) {
  * non si tocca; un nome per sessione che non esiste nel file viene ignorato e
  * segnalato in `mancanti`. Ritorna { blocchi, changed, written, backup, toccati }.
  */
-export function setRaceSessions({ sessions = {}, scale = null, file = WEEKEND_FILE, dry = false } = {}) {
+export function setRaceSessions({ sessions = {}, scale = null, file = WEEKEND_FILE, dry = false, previsto = false } = {}) {
+  // CANCELLO ANTI-CHEAT (31/10): fuori modalità test solo il preparatutto
+  // (previsto:true) e le prove `dry` scrivono l'orario del weekend.
+  cancelloOrario({ dry, previsto });
   if (!sessions || !Object.keys(sessions).length) throw Object.assign(new Error('serve almeno una sessione (Practice/Qualifying/Warmup/Race)'), { code: 'NO_VALUES' });
   const want = new Map();
   for (const [k, v] of Object.entries(sessions)) {
@@ -153,6 +157,7 @@ export function setRaceSessions({ sessions = {}, scale = null, file = WEEKEND_FI
   if (dry || changed === 0) return { blocchi: f3s.length, toccati, mancanti: [...mancanti], changed, written: false, spec: Object.fromEntries(want) };
   const backup = `${file}.bak-racetime-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   copyFileSync(file, backup);
+  pruneBackups(file);   // rotazione bak automatica (tetto 25, comune 31/10)
   writeFileSync(`${file}.tmp`, encodeMsg(fields));
   renameSync(`${file}.tmp`, file);
   return { blocchi: f3s.length, toccati, mancanti: [...mancanti], changed, written: true, backup, spec: Object.fromEntries(want) };
@@ -171,7 +176,8 @@ function blkl(blk) {
  * flusso "le sessioni precedenti si calcolano a ritroso" del cruscotto).
  * Ritorna { blocchi, changed, written, backup }.
  */
-export function setRaceTime({ hour = null, minute = null, scale = null, file = WEEKEND_FILE, dry = false } = {}) {
+export function setRaceTime({ hour = null, minute = null, scale = null, file = WEEKEND_FILE, dry = false, previsto = false } = {}) {
+  cancelloOrario({ dry, previsto });
   if (hour == null && scale == null && minute == null) throw Object.assign(new Error('serve almeno un valore (hour/minute/scale)'), { code: 'NO_VALUES' });
   const h = hour != null ? Math.max(0, Math.min(23, Math.round(Number(hour)))) : null;
   const m = minute != null ? Math.max(0, Math.min(59, Math.round(Number(minute)))) : null;
@@ -212,6 +218,7 @@ export function setRaceTime({ hour = null, minute = null, scale = null, file = W
   if (dry || changed === 0) return { blocchi, changed, written: false, spec: { hour: h, minute: m, scale: sc } };
   const backup = `${file}.bak-racetime-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   copyFileSync(file, backup);
+  pruneBackups(file);   // rotazione bak automatica (tetto 25, comune 31/10)
   writeFileSync(`${file}.tmp`, encodeMsg(fields));
   renameSync(`${file}.tmp`, file);
   return { blocchi, changed, written: true, backup, spec: { hour: h, minute: m, scale: sc } };

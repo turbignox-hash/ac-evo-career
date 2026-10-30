@@ -17,7 +17,7 @@ import { writeFileSync, readdirSync, unlinkSync, existsSync, readFileSync } from
 import { join } from 'node:path';
 import { savedGamesRoots, resolvePaths } from './paths.mjs';
 import { agendaDay, racesOnDay, dateLabel, prossimoGiornoConGara, impegni } from './agenda.mjs';
-import { context, SAVE_FILE } from './webui-env.mjs';
+import { context, SAVE_FILE, PROJECT } from './webui-env.mjs';
 import { loadState, nodeById, standingsFor, playerStanding } from './state.mjs';
 import { playerWorldSkill } from './world.mjs';
 import { tr } from './lang.mjs';
@@ -35,10 +35,28 @@ import { currentInstantRace, INSTANT_FILE } from '../tools/set-instantrace.mjs';
 import { leggiRegistro, formattaRigaRegistro } from '../tools/_gara-veloce.mjs';
 import { eventCard } from './events.mjs';
 import { leggiStoreJson } from './uiapp-store.mjs';
+// I CONSIGLI IN GIOCO (30/10, «consiglio anche in gioco»): la radio
+// dell'ingegnere esce nel payload della vetrina. liveReader è il
+// SINGOLETTO di shmem e il publisher gira NEL processo del webui
+// (startUiappPublisher al boot): lo snapshot è già caldo, il costo per
+// fascia è solo il calcolo puro di engineerLive (leggero, come il tick
+// della voce). Un'altra lettura MMF? NESSUNA: stessa fonte, zero doppioni.
+import { liveReader } from './shmem.mjs';
+import { engineerLive } from './engineer.mjs';
+// LA RADIO DEL COPILOTA («Pitwall con la radio», 31/10): le ultime frasi
+// pronunciate dal narratore (già sul disco nel registro della voce) escono
+// NELLA PITWALL in gioco — pannello che ascolta. File e lettura UNICI, da
+// voce-copilota.mjs; il memo sotto evita una rilettura per fascia.
+import { leggiRadioVoce, LOG_VOCE_FILE } from './voce-copilota.mjs';
+import { statSync } from 'node:fs';
 // il VERDETTO DI GIORNATA (29/10, «bottone verdetto sul cruscotto»): la
 // STESSA fonte della CLI e dell'endpoint GUI — un aggregato, nessuna
 // formula da duplicare. La LETTURA dei Results è sola lettura.
 import { verdettoGiornata } from '../tools/verdetto-giornata.mjs';
+// LA LINGUA DEI MESSAGGI (31/10, «integra maggiormente il cruscotto»): il
+// traduttore dei messaggi vecchi (testo IT di nascita) è QUELLO della GUI —
+// un solo libro di traduzione, niente copie da tenere in pari.
+import { legacyMessageEn } from './webui-views.mjs';
 
 export const PERIODO_MS = 2500;          // il ritmo delle fasce: 2.5 secondi esatti
 export const APP_KEY = 'cruscotto';      // il nome della cartella-app nel loader
@@ -67,9 +85,9 @@ const EVENTO_FIDUCIA_MS = PENDING_SCADENZA_MS;   // 24 h, la stessa della ronda
 /** La cartella dell'app dentro il loader, o null se la mod non c'è:
  *  si prende il primo base «Saved Games» che ha l'App Loader installato
  *  (funziona pure con la cartella di sistema ricollocata). */
-export function cartellaApp(env = process.env) {
+export function cartellaApp(env = process.env, appKey = APP_KEY) {
   for (const root of savedGamesRoots(env)) {
-    const dir = join(root, 'ACE', 'mods', 'uiresources', 'ACEUIAppLoader', APP_KEY);
+    const dir = join(root, 'ACE', 'mods', 'uiresources', 'ACEUIAppLoader', appKey);
     if (existsSync(dir)) return dir;
   }
   return null;
@@ -116,6 +134,13 @@ export function vetrina(ladder, state) {
     ok: 1, quando: new Date().toISOString(),
     giorno, giornoLabel: dateLabel(giorno),
     prossimo: prossimoGiornoConGara(ladder, state),
+    // INTEGRAZIONE 31/10 («integra maggiormente il cruscotto con il
+    // server»): ciò che il server vede e il pannello NON mostrava — la
+    // scheda della PROSSIMA ronda (stessa fonte di agenda: racesOnDay) e i
+    // MESSAGGI DEL TEAM (stesso traduttore della GUI). Ogni blocco in try:
+    // la vetrina non si rompe mai per un pezzo nuovo.
+    prossimoApp: prossimoAppuntamento(ladder, state),
+    messaggi: messaggiFascia(state),
     pilota: { nome: state?.driver?.name ?? '', saldo: state?.money ?? 0, rep: state?.rep ?? 0 },
     iscritte, gare,
     // MINI-CLASSIFICA della serie del giorno e PANNELLO mondiale (richieste
@@ -142,6 +167,10 @@ export function vetrina(ladder, state) {
     // presa automatica del comando manca (silenzio dall'ack, finestre
     // chiuse), l'amico preme il bottone e riparte la STESSA sequenza dal
     // pannello — con gli STESSI id, così l'ack fissa le ripubblicazioni.
+    // LA STORIA DEL COMANDO nel tooltip («storia del comando nel tooltip»,
+    // 31/10 notte): i righe di memoria dei comandi — scheda aperta = che
+    // cosa è passata per il menu dell'auto, inviata e/o confermata.
+    storia: storiaComandoFascia(),
     azioni: azioniPulsanti(ladder, state),
     // IL VERDETTO DI GIORNATA (29/10): riepilogo compatto di oggi per il
     // pannello in gioco (bottone «Verdetto di giornata»). null = giornata
@@ -152,6 +181,10 @@ export function vetrina(ladder, state) {
     // (cruscotto.js) e dice se il server è allineato con la preparazione
     // corrente — ronda armata con la sua finestra del via, o gara al volo.
     prepara: preparaFascia(state),
+    // I CONSIGLI IN GIOCO (30/10): la radio dell'ingegnere, STESSA del
+    // pannello GUI («Consigli dal BOX») e del copilota, in una firma leggera.
+    // Tips vuoto a schermo spento: il gruppo in gioco è solo quando c'è.
+    consigli: consigliFascia(),
     guiUrl: guiBaseUrl ?? (typeof process !== 'undefined' ? process.env.PITWALL_GUI_URL : null) ?? null,
   };
 }
@@ -167,6 +200,45 @@ export function vetrina(ladder, state) {
  *  personalizzata, lezione 23/10) — quindi il comando esce dalla CARD
  *  dell'evento attivo, tipo `evento`: in gioco l'applet seleziona SOLO
  *  l'auto (niente tipo gara/pista: la gara personalizzata non si tocca). */
+/** LA PROSSIMA RONDA COME CARD (31/10, «integra maggiormente il cruscotto
+ *  con il server»): lo slot del calendario GIÀ calcolato (prossimoGiornoConGara)
+ *  diventa una scheda pronta per il pannello: quando, e le prime gare con
+ *  pista/giri/ora/meteo/auto — gli STESSI campi delle card «gare di oggi»
+ *  (vetrina), così il pannello li disegna con lo stesso formatter. null se
+ *  non c'è nessuna ronda futura (o carriera assente). */
+export function prossimoAppuntamento(ladder, state) {
+  try {
+    const giorno = prossimoGiornoConGara(ladder, state);
+    if (giorno == null) return null;
+    const gare = (racesOnDay(ladder, state, giorno) ?? []).slice(0, 3).map((g) => {
+      const cars = Array.isArray(g.node?.cars) ? g.node.cars : [];
+      return {
+        nome: g.node?.display ?? '', ronda: (g.index ?? 0) + 1,
+        track: g.track ?? null, giri: g.laps ?? null, ora: g.hour ?? null,
+        meteo: ladder?.weatherNames?.[String(g.weather)] ?? null,
+        auto: cars.length ? (ladder?.contentNames?.cars?.[cars[0]] ?? cars[0]) : null,
+      };
+    });
+    return { giorno, quando: dateLabel(giorno), quante: gare.length, gare };
+  } catch { return null; }
+}
+
+/** I MESSAGGI DEL TEAM (31/10): le ultime poste della bacheca della
+ *  carriera (state.messages, lo stesso archivio che la GUI legge in
+ *  /api/messages) nella LINGUA attiva — stesso traduttore della GUI
+ *  (legacyMessageEn): i messaggi con textEn o con frase leggata si traducono
+ *  una sola volta, qui e là identici. Come tutto il resto della vetrina:
+ *  il try restituisce [] e il gruppo nel pannello non si vede. */
+export function messaggiFascia(state, n = 4) {
+  try {
+    return (state?.messages ?? []).slice(-n).reverse().map((m) => {
+      const it = typeof m?.text === 'string' ? m.text : '';
+      const en = m?.textEn ?? legacyMessageEn(it) ?? null;
+      return { testo: en ? tr({ it, en }) : it, at: m?.at ?? null, kind: m?.kind ?? 'info' };
+    });
+  } catch { return []; }
+}
+
 export function comandoAuto(ladder, state) {
   try {
     const p = state?.pending;
@@ -185,8 +257,20 @@ export function comandoAuto(ladder, state) {
     // viva: senza il silenzio la ronda pendente riprimerebbe la SUA auto a
     // ogni fascia (ping-pong garage). Passata la finestra, le priorità
     // storiche (ronda → evento) tornano quelle.
+    // LA PRIORITÀ DEL PREPARA NUOVISSIMO vale anche qui (30/10 sera, «no
+    // c'è ancora la Ferrari»): una ronda nata DOPO l'armatura della demo
+    // (pending.startedAt ≥ vetrinaCustom.startedAt) riprende la mano —
+    // il ramo demo tace e il setcar della ronda esce lo stesso, ANCHE se
+    // l'ack della demo è già nello store: la 296 GT3 armata prima del
+    // «Prepara tutto» riportava la FERRARI a ogni fascia e, una volta
+    // ackata, lasciava la ronda MUTA fino a scadenza (24 h). Demo armata
+    // DOPO la ronda: la priorità resta alla demo (il gesto a mano vince,
+    // com'era il 28/10). Nessun ping-pong col garage: la cura vive SOLO
+    // nell'ordine di nascita.
     const demo = state?.vetrinaCustom;
-    if (demo?.car) {
+    const rondaPiuFresca = (Date.now() - Number(p?.startedAt ?? 0)) < PENDING_SCADENZA_MS &&
+      Number(p?.startedAt ?? 0) >= Number(demo?.startedAt ?? 0);
+    if (demo?.car && !rondaPiuFresca) {
       const nomeDemo = ladder?.contentNames?.cars?.[demo.car] ?? null;
       if ((Date.now() - Number(demo.startedAt ?? 0)) < PENDING_SCADENZA_MS) {
         const idDemo = `demo:${demo.startedAt ?? 0}:${demo.car}`;
@@ -296,6 +380,30 @@ function eventoArmato(state) {
  *  ogni tangente in try.
  */
 const verdettoCache = { chiave: '', payload: null };
+
+/** La MINI-PITWALL (31/10): il payload della seconda app, il pannello che
+ *  ascolta. Solo i CAMPI alla mano (quando · slot · prepara · verdetto ·
+ *  consigli · radio) e la radio presa dal memo (leggi il MEMO qui sotto):
+ *  funzione PURA perché il test la collauda senza il gioco. */
+export function miniPitwall(dati, fascia) {
+  return { quando: dati?.quando ?? null, slot: fascia, prepara: dati?.prepara ?? null, verdetto: dati?.verdetto ?? null, consigli: dati?.consigli ?? null, radio: radioFascia() };
+}
+
+// IL MEMO della radio (31/10): il log del copilota cresce riga per riga, ma
+// riga per riga NON cresce ogni fascia — si rilegge SOLO quando la sua
+// dimensione cambia (statSync è l'unica lettura a tick). Il file assente è
+// un memo vuoto, non un errore: il pannello senza radio resta un pannello.
+const memoRadio = { size: -1, frasi: [] };
+function radioFascia() {
+  try {
+    const size = statSync(LOG_VOCE_FILE).size;
+    if (size !== memoRadio.size) {
+      memoRadio.size = size;
+      memoRadio.frasi = leggiRadioVoce({ last: 6 });
+    }
+  } catch { if (memoRadio.size !== -1) { memoRadio.size = -1; memoRadio.frasi = []; } }
+  return memoRadio.frasi;
+}
 export function verdettoFascia(state, env = process.env) {
   try {
     const driver = state?.driver ?? null;
@@ -386,6 +494,24 @@ export function preparaFascia(state) {
     }
     return null;
   } catch { return null; }
+}
+
+/** I CONSIGLI IN GIOCO (30/10, «consiglio anche in gioco»): STESSI tips del
+ *  pannello GUI e del copilota del browser (richiesta del själv costruttore,
+ *  engineerLive) e firma LEGGERA (fuelPerLap/raceLaps null, come il tick
+ *  della voce): la telemetria MoTeC resta nella GUI, qui l'HUD del gioco
+ *  guida le stime. Vuoto (tips []) col gioco chiuso o fuori sessione: il
+ *  gruppo si nasconde da solo, mai un'eccezione che ammazza la fascia. */
+export function consigliFascia() {
+  try {
+    const live = engineerLive(liveReader().snapshot(), { fuelPerLap: null, raceLaps: null });
+    return {
+      live: !!live.live,
+      tips: (live.tips ?? []).slice(0, 5).map((t) => ({
+        icon: t.icon ?? '🔧', title: t.title ?? '', text: t.text ?? '', prio: t.prio ?? 3,
+      })),
+    };
+  } catch { return { live: false, tips: [] }; }
 }
 
 /** Stato REALE della gara al volo, letto DALL'ISTANTANEA ({ durata:{giri|min},
@@ -509,6 +635,46 @@ function pannelloMondo(ladder, state) {
 // lì da un crash non ostacola nessuno: il PID non c'è più, si riprende
 // da solo al primo tick.
 const PID_LOCK_FILE = '.publisher.pid';
+
+// LA STORIA DEL COMANDO («storia del comando nel tooltip», 31/10 notte):
+// il vantaggio di essere in gioco con il menu APERTO restava mutolo: il
+// cambio auto avveniva, il console.log restava alla GUI e il pannello non
+// diceva NIENTE di quello che era appena passato. Da qui una memoria
+// piccola e persistente (data/cruscotto-storia.json, regola EVO_DATA_DIR
+// della casa): ogni comando che esce in fascia (setcar · evento · avvia)
+// e ogni ACK che torna dall'app finiscono qua, il pannello li scandisce
+// nel TOOLTIP del pallino connessione. Un plus sempre in try: se il file
+// non si apre, la fascia non sente niente.
+const fileStoria = () => join(process.env.EVO_DATA_DIR ?? join(PROJECT, 'data'), 'cruscotto-storia.json');
+const storiaMem = { fileLetto: null, righe: [] };
+function storiaLeggi() {
+  const file = fileStoria();
+  if (storiaMem.fileLetto !== file) {
+    try {
+      const doc = JSON.parse(readFileSync(file, 'utf8'));
+      storiaMem.righe = Array.isArray(doc?.righe) ? doc.righe : [];
+    } catch { storiaMem.righe = []; }
+    storiaMem.fileLetto = file;
+  }
+  return storiaMem.righe;
+}
+/** Un giro nella storia (più recente in CODA; la fascia rovescia). each in try: mai un ammazzatick. */
+export function storiaAggiungi(riga, { ora = Date.now() } = {}) {
+  const righe = storiaLeggi();
+  righe.push({ t: ora, ...riga });
+  while (righe.length > 12) righe.shift();   // le ultime 12: il tooltip legge le ultime
+  try { writeFileSync(fileStoria(), JSON.stringify({ righe, quando: new Date(ora).toISOString() }), 'utf8'); } catch { /* la storia è un plus */ }
+  return righe;
+}
+/** Reset SOLO dei test: svuota la cache (il file lo tocca la sandbox). */
+export function storiaReset() { storiaMem.fileLetto = null; storiaMem.righe = []; }
+/** Le ultime N voci, la più recente PRIMA: il formato del tooltip. */
+export function storiaComandoFascia({ last = 5 } = {}) {
+  return storiaLeggi().slice(-last).reverse();
+}
+// i comandi GIÀ loggati come «inviato» in quest'ora: il comando vive
+// diverse fasce finché non arriva l'ack — la storia lo registra UNA volta.
+const storiaInviata = new Map();
 let avvisatoDoppione = false;    // l'avviso al doppione: una volta sola, non ogni 2,5s
 
 /** PID vivo? (signal 0: nessun colpo, solo un ping. EPERM = esiste, è vivo.) */
@@ -546,6 +712,17 @@ export function uiappTick(env = process.env) {
   const dati = vetrina(ladder, loadState(SAVE_FILE));
   dati.slot = fascia;
   try { assorbiAck(dati); } catch { /* l'ack è un plus: mai rompere il tick */ }
+  // STORIA (31/10 notte): il comando che esce ORA in fascia va in memoria UNA
+  // sola volta per id (il comando vive più fasce finché l'ack non lo spegne).
+  try {
+    const cc = dati.comando;
+    if (cc && !storiaInviata.has(cc.id)) {
+      storiaInviata.set(cc.id, Date.now());
+      storiaAggiungi({ stato: 'inviato', tipo: cc.tipo ?? 'setcar', nome: cc.nome ?? null, id: cc.id });
+    }
+    const oraT = Date.now();
+    for (const [id2, at] of storiaInviata) { if (oraT - at > 3_600_000) storiaInviata.delete(id2); }
+  } catch { /* la storia è un plus: mai rompere il tick */ }
   dati.validaFino = new Date((fascia + 1) * PERIODO_MS).toISOString();
   writeFileSync(join(dir, `ui-${fascia}.json`), JSON.stringify(dati), 'utf8');
   // la spazzatura va a casa: tengo la fascia scritta e le 2 prima (se il gioco
@@ -561,6 +738,21 @@ export function uiappTick(env = process.env) {
     try { unlinkSync(join(dir, f)); } catch { // di recente presa in lettura dal gioco: arriva al prossimo giro
     }
   }
+  // LA PITWALL (ricostruzione 31/10): seconda app in gioco, pannello SOLO-IN
+  // FORMAZIONI. Stessa fascia, mini-payload (consigli · verdetto · lasincro
+  // «Prepare e Divertiti») in CARTELLA SUA: installata con
+  // tools/installa-pitwall.mjs, qui si scrive SOLO se la cartella esiste —
+  // senza la mod il tick resta quello di sempre. La scrittura è tutta in
+  // try: la Pitwall è un plus, mai un ammazzatick.
+  try {
+    const dirP = cartellaApp(env, 'pitwall');
+    if (dirP) {
+      const pw = miniPitwall(dati, fascia);
+      writeFileSync(join(dirP, `ui-${fascia}.json`), JSON.stringify(pw), 'utf8');
+      const vecchiP = readdirSync(dirP).filter((f) => /^ui-\d+\.json$/.test(f) && f !== `ui-${fascia}.json`);
+      for (const f of vecchiP.slice(0, Math.max(0, vecchiP.length - 2))) { try { unlinkSync(join(dirP, f)); } catch { } }
+    }
+  } catch { /* fasce Pitwall saltate: la principale non deve attese per niente */ }
   return { ok: true, file: `ui-${fascia}.json` };
 }
 
@@ -598,6 +790,11 @@ function assorbiAck(dati) {
   if (!colpo) return;
   if (colpo.ok && !confermati.has(c.id)) {
     confermati.set(c.id, Date.now());
+    // (storia, 31/10 notte): la conferma entra ANCHE nella memoria del
+    // pannello — il tooltip la racconta, la console resta la copia per te.
+    try {
+      storiaAggiungi({ stato: 'confermato', tipo: c.tipo ?? 'setcar', nome: c.nome ?? null, id: c.id, msg: colpo.msg || 'ok' });
+    } catch { /* la storia è un plus */ }
     // LOG DELL'ACK (28/10 sera, «rendere inquieto il log dell'ack»): la
     // conferma non è più la riga fondata `auto impostata ✓` — è la radio
     // del muro che conferma e non spiega. Le informazioni RESTANO tutte

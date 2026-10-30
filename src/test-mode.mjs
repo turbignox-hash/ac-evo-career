@@ -24,9 +24,57 @@ import { tr } from './lang.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);
-export const TEST_FILE = () => join(PROJECT, 'data', 'mode-test-3giri.json');
+// EVO_TEST_MODE_FILE: solo per i test — stesso schema di EVO_DATA_DIR/EVO_CLASSES_FILE:
+// il registro della modalità punta dove dice l'ambiente, così la guardia del meteo
+// si collauda a OFF e a ON senza toccare la carriera vera.
+export const TEST_FILE = () => process.env.EVO_TEST_MODE_FILE ?? join(PROJECT, 'data', 'mode-test-3giri.json');
 const LADDER_FILE = join(PROJECT, 'config', 'career.evo.ladder.json');
 const BACKUP_DIR = join(PROJECT, 'data', 'backups');
+
+/**
+ * La GUARDIA del meteo (2/11, richiesta Mauro «la scorciatoia potrebbero
+ * prenderla tutti, si deve evitare, anche le gare sul bagnato si devono
+ * fare»): mettono mano al meteo di una gara scritta dal preparatutto NE VEDE
+ * SOLO la modalità test. Fuori (per Mauro come per gli amici) le gare si
+ * corrono col meteo del calendario — le bagnate pure; l'unica scrittura
+ * libera è quella del meteo PREVISTO (il preparatutto passa `previsto`).
+ */
+export function meteoLibero() { return testMode()?.attivo === true; }
+
+/**
+ * IL CANCELLO ANTI-CHEAT (31/10, richiesta Mauro «estendi l'anti-cheat»):
+ * lo stesso cancello del meteo, val anche per gli altri canali che si barano
+ * DOPO il via: l'ORARIO delle sessioni (ore/scala) e la DISTANZA della gara
+ * (giri o minuti). Modello identico a guardedMeteo di weather.mjs:
+ *   • `dry` passa (solo lettura/prova inline)
+ *   • `previsto: true` passa — le scritture del preparatutto (i valori DEL
+ *     CALENDARIO) dichiarano di essere il previsto
+ *   • in modalità TEST (guardie spente) passa sempre: lì le gare servono
+ *     a provare
+ * Fuori test ogni via manuale (CLI o bridge GUI) va in RIFIUTO esplicito,
+ * come per il meteo: il calendario decide, non la mano.
+ */
+function cancellaCanale(messaggio) {
+  throw Object.assign(new Error(messaggio), { code: 'GUARDIA_ATTIVA' });
+}
+
+/** Cancello per l'orario delle sessioni (setRaceSessions / setRaceTime). */
+export function cancelloOrario(opts = {}) {
+  if (opts?.dry || opts?.previsto || meteoLibero()) return;
+  cancellaCanale(tr({
+    it: "Orario/scala della gara bloccati fuori dalla modalità test: le sessioni corrono quando dice il calendario. Per provare orari a piacere attiva la modalità test: node ac-evo-career.mjs test-mode --on",
+    en: "Race time/pace locked outside test mode: sessions run when the calendar says. Enable test mode to experiment freely: node ac-evo-career.mjs test-mode --on",
+  }));
+}
+
+/** Cancello per la distanza della gara (setWeekendLaps / setWeekendTimed). */
+export function cancelloDistanza(opts = {}) {
+  if (opts?.dry || opts?.previsto || meteoLibero()) return;
+  cancellaCanale(tr({
+    it: "Giri/durata della gara bloccati fuori dalla modalità test: la distanza è quella del calendario. Per provare distanze a piacere attiva la modalità test: node ac-evo-career.mjs test-mode --on",
+    en: "Race laps/duration locked outside test mode: the distance is the calendar's. Enable test mode to experiment freely: node ac-evo-career.mjs test-mode --on",
+  }));
+}
 
 /** Stato della modalità: { attivo, dal, giri, salva: {nodeId: {roundIdx: laps}}} o null. */
 export function testMode() {

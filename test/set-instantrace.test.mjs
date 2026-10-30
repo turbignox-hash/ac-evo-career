@@ -10,14 +10,14 @@
 //   6. rifiuta valori ambigui/assenti senza toccare il file
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, basename } from 'node:path';
 import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
 import { currentInstantRace, setInstantAi, timedRace } from '../tools/set-instantrace.mjs';
 
 const TMP = mkdtempSync(join(tmpdir(), 'evo-instant-'));
-const mkFile = (giri = 7, mode = 2) => {
+const mkBuf = (giri = 7, mode = 2) => {
   const race = encodeMsg([
     { field: 1, wire: 2, bytes: Buffer.from('Race', 'utf8') },
     { field: 2, wire: 0, varint: BigInt(giri) },
@@ -27,8 +27,11 @@ const mkFile = (giri = 7, mode = 2) => {
     { field: 31, wire: 0, varint: BigInt(93) },
     { field: 32, wire: 0, varint: BigInt(1) }, // partenza da fermo
   ]);
+  return encodeMsg([{ field: 2, wire: 0, varint: BigInt(3) }, { field: 3, wire: 2, bytes: race }]);
+};
+const mkFile = (giri = 7, mode = 2) => {
   const file = join(TMP, `instant-${giri}-${mode}-${Math.random().toString(36).slice(2)}.gamemodesave`);
-  writeFileSync(file, encodeMsg([{ field: 2, wire: 0, varint: BigInt(3) }, { field: 3, wire: 2, bytes: race }]));
+  writeFileSync(file, mkBuf(giri, mode));
   return file;
 };
 
@@ -119,6 +122,29 @@ test('setInstantAi consolida la banda invertita invece di rifiutarla', () => {
   assert.deepEqual([r.aiMin, r.aiMax], [95, 96]);
   const cur = currentInstantRace(file);
   assert.deepEqual([cur.aiMin, cur.aiMax], [95, 96]);
+});
+
+/* ---------- BAK AL SECONDO (31/10, lezione 28/10 di grid-apply estesa qui):
+   i backup nomati al MINUTO si sovrascrivevano a vicenda (due scritture del
+   file nello stesso minuto = una versione della pila perduta). Con i SECONDI
+   (+ suffisso -rN sul pareggio di secondo) due scritture ravvicinate devono
+   lasciare DUE bak: la pila resta in ordine d'arrivo. ---------- */
+test('due scritture ravvicinate di timedRace lasciano DUE bak (anti-collisione)', () => {
+  const file = mkFile(7, 2);
+  assert.equal(timedRace({ minutes: 5, file, force: true }).written, true);   // bak n.1
+  writeFileSync(file, mkBuf(7, 2));                                          // risporco il file: torna com'era
+  assert.equal(timedRace({ minutes: 10, file, force: true }).written, true);  // bak n.2
+  const baks = readdirSync(TMP).filter((n) => n.startsWith(basename(file) + '.bak-temprace-'));
+  assert.equal(baks.length, 2, `attesi 2 bak, trovati: ${baks.join(', ')}`);
+});
+
+test('due scritture ravvicinate di setInstantAi lasciano DUE bak-instantai (anti-collisione)', () => {
+  const file = mkFile();
+  assert.equal(setInstantAi(95, 96, { file, force: true }).written, true);   // bak n.1
+  writeFileSync(file, mkBuf());                                              // risporco: torniamo 88–93
+  assert.equal(setInstantAi(97, 99, { file, force: true }).written, true);   // bak n.2
+  const baks = readdirSync(TMP).filter((n) => n.startsWith(basename(file) + '.bak-instantai-'));
+  assert.equal(baks.length, 2, `attesi 2 bak, trovati: ${baks.join(', ')}`);
 });
 
 test('setInstantAi rifiuta banda fuori scala senza toccare il file', () => {

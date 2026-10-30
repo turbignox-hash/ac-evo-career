@@ -15,6 +15,12 @@ import { encodeMsg, decodeMsg } from '../tools/evo-grid.mjs';
 
 const GAME = mkdtempSync(join(tmpdir(), 'evo-wx-game-'));
 process.env.ACE_GAME_SAVEDIR = GAME;          // prima dell'import: niente LGM reale
+// LA GUARDIA DEL METEO (2/11) è deterministicamente A ON qui: i test sotto
+// collaudano il meccanismo di scrittura = la scena "test-mode attiva". La
+// scena "fuori test" (WX_LOCKED) ha i SUOI casi in fondo, col file commutato.
+const TESTMODE = join(GAME, 'mode-test.json');
+process.env.EVO_TEST_MODE_FILE = TESTMODE;
+writeFileSync(TESTMODE, JSON.stringify({ attivo: true }));
 const { currentWeatherPreset, setWeatherPreset, setWeatherCustom, presetFor, presetForLabel, PRESETS } = await import('../src/weather.mjs');
 
 const f32 = (v) => { const b = Buffer.alloc(4); b.writeFloatLE(v, 0); return new Uint8Array(b); };
@@ -205,4 +211,37 @@ test('setWeatherCustom: senza valori → NO_VALUES, file missing → NO_FILE, dr
   assert.equal(r.written, false);
   assert.equal(r.patched, 9);
   assert.equal(currentWeatherPreset(f), 0);        // dry: com'era
+});
+
+/* ---------- LA GUARDIA (2/11, richiesta Mauro «per non barare») ----------
+ * Il cambio meteo a mano della gara è la scorciatoia che salta la pista
+ * bagnata: fuori modalità test → WX_LOCKED. Passano solo: il meteo
+ * PREVISTO (previsto:true, il canale del preparatutto), la prova asciutta
+ * (dry: niente su disco) e qualunque meteo con test-mode attiva. */
+test('guardia: FUORI test-mode il cambio meteo a mano si RIFIUTA (WX_LOCKED), dry e previsto passano', () => {
+  writeFileSync(TESTMODE, JSON.stringify({ attivo: false }));   // la modalità è SPENTA
+  const f = writeLgm('wx-guard-off', 0);
+  assert.throws(() => setWeatherPreset('sereno', { lgmFile: f }), (e) => e.code === 'WX_LOCKED');
+  assert.throws(() => setWeatherCustom({ rain: 0.4, lgmFile: f }), (e) => e.code === 'WX_LOCKED');
+  assert.equal(currentWeatherPreset(f), 0, 'il rifiuto non tocca il file');
+  // file del registro ASSENTE = fuori test (primo avvio vergine): stesso rifiuto
+  const senza = join(GAME, 'mode-test-virgine.json');
+  process.env.EVO_TEST_MODE_FILE = senza;
+  try { assert.throws(() => setWeatherPreset('sereno', { lgmFile: f }), (e) => e.code === 'WX_LOCKED'); }
+  finally { process.env.EVO_TEST_MODE_FILE = TESTMODE; }
+  // la prova ASCIUTTA non tocca disco e non ha bisogno del cancello
+  const rDry = setWeatherPreset('sereno', { lgmFile: f, dry: true });
+  assert.equal(rDry.written, false);
+  // il canale del PREPARATUTTO (meteo previsto della ronda) passa anche spento
+  const rPrev = setWeatherPreset('sereno', { lgmFile: f, previsto: true });
+  assert.equal(rPrev.written, true);
+  assert.equal(currentWeatherPreset(f), 0);
+});
+
+test('guardia: con test-mode ATTIVA qualunque meteo è libero (la sessione di collaudo)', () => {
+  writeFileSync(TESTMODE, JSON.stringify({ attivo: true }));    // riattiva per i test che seguono
+  const f = writeLgm('wx-guard-on', 0);
+  const r = setWeatherPreset('heavy', { lgmFile: f });          // cambio a MANO, senza previsto
+  assert.equal(r.written, true);
+  assert.equal(currentWeatherPreset(f), 6);
 });

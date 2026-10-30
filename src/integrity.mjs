@@ -60,7 +60,9 @@ export function checkIntegrity(ladder, state) {
     const node = ladder.nodes.find((x) => x.nodeId === r.nodeId);
     const label = `${node?.display ?? r.nodeId} · ${node?.calendar?.[r.round]?.name ?? 'R' + (r.round + 1)}`;
     if (r.dnf && r.position === 1) issues.push({ severity: 'medium', text: `${label}: ritiro ma posizione 1 — dati contraddittori.` });
-    if (r.bestLap && !lapMs(r.bestLap)) issues.push({ severity: 'low', text: `${label}: miglior giro "${r.bestLap}" in formato strano.` });
+    // il giro malformato fa uscire Infinity da lapMs (30/10: la brancha era
+    // morta, !Infinity è falso — testata in test/integrity.test.mjs)
+    if (r.bestLap && !Number.isFinite(lapMs(r.bestLap))) issues.push({ severity: 'low', text: `${label}: miglior giro "${r.bestLap}" in formato strano.` });
     const roundName = node?.calendar?.[r.round]?.name ?? `Round ${r.round + 1}`;
     /* il calendario della ladder è l'attuale: per le stagioni passate la pista
        della stessa round può essere cambiata (calendari riscritti), quindi il

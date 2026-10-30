@@ -129,6 +129,9 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
   const qualifyStartOv = Number.isFinite(Number(ov.qualifyStart)) ? Number(ov.qualifyStart) : null;
   const warmupStartOv = Number.isFinite(Number(ov.warmupStart)) ? Number(ov.warmupStart) : null;
   const raceStartOv = Number.isFinite(Number(ov.raceStart)) ? Number(ov.raceStart) : null;
+  // TEMPERATURA ARIA (bottone GUI 30/10): l'override della serie arriva dalla
+  // scheda Regole weekend (°C); senza, l'aria resta quella del round/gioco.
+  const airTempOv = Number.isFinite(Number(ov.airTemp)) ? Number(ov.airTemp) : null;
   // ORE DISTINTE per sessione (richiesta Mauro 28/10): prove, qualifiche, warm-up
   // e gara portano ciascuna il proprio orologio (default: calcolo a ritroso dal
   // round, con il warm-up 15 min prima della gara). Con il moltiplicatore>1 il
@@ -271,6 +274,7 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
     qualifyMinEff,
     warmupMinEff,
     raceHour,
+    airTemp: airTempOv,
     carAdvice: advice.list,
     settings: [
       [tr({ it: 'Modalità', en: 'Mode' }), tr({ it: 'Weekend di gara', en: 'Race weekend' })],

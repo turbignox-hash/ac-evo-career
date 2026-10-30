@@ -150,6 +150,25 @@ test('pruneBackups su file ASSENTE o dir assente: silenzioso, mai un crash', asy
   assert.ok(true, 'nessuna eccezione: la pulizia non deve mai bloccare la gara');
 });
 
+test('pruneBackups: i bak CON TAG (bak-veloce-2026-…) adesso vengono contati e POTATI (lezione 31/10)', async () => {
+  const { pruneBackups } = await import('../src/grid-apply.mjs');
+  const TMPT = mkdtempSync(join(tmpdir(), 'corrupt-prune-tag-'));
+  const F = join(TMPT, 'instant-custom.gamemodesave');
+  writeFileSync(F, 'istantanea');
+  // il vecchio formato SENZA tag prima (mtime più vecchio: la pila ragiona per
+  // tempo, non per nome) + 5 bak col TAG e la data DOPO il tag + 1 nome senza data
+  writeFileSync(join(TMPT, 'instant-custom.gamemodesave.bak-2024-06-06-10-00'), 'vecchio formato senza tag');
+  for (let i = 1; i <= 5; i++) writeFileSync(join(TMPT, `instant-custom.gamemodesave.bak-temprace-2025-01-01-0${i}`), `t${i}`);
+  writeFileSync(join(TMPT, 'instant-custom.gamemodesave.bak_strano'), 'senza data: fuori dalla regola');
+  pruneBackups(F, { keep: 4 });
+  const baks = readdirSync(TMPT).filter((f) => f.includes('.bak-'));
+  assert.equal(baks.length, 4, `datati e taggati in un'UNICA pila: restano 4, trovati: ${baks.join(', ')}`);
+  assert.ok(!baks.some((b) => b.includes('temprace-2025-01-01-01')), 'il più vecchio TAGGED esce');
+  assert.ok(!baks.some((b) => b.includes('bak-2024-')), 'il più vecchio SENZA tag esce');
+  assert.equal(existsSync(join(TMPT, 'instant-custom.gamemodesave.bak_strano')), true, 'nomi senza data restano fuori dalla pila');
+  assert.equal(existsSync(F), true, 'il file vero NON viene tagliato');
+});
+
 test('niente file .tmp/.bak lascati dai difetti sopra (il builder non scrive se rifiuta)', () => {
   const spie = readdirSync(TMP).filter((f) => f.endsWith('.tmp') || /\.customgrid\.bak/.test(f));
   assert.deepEqual(spie, [], spie.join(', '));

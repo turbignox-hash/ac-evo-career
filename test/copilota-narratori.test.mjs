@@ -402,6 +402,42 @@ test("penalita' tagli pista (9b, 30/10): parla sul salto >= 0,5 s del totale cum
   assert.ok(g.some((f) => f.chi === 'penalia' && !f.detto && (f.it ?? '').includes('2.7')), "salto successivo oltre i 0,5 s parla col totale aggiornato");
 });
 
+/* 31/10 (DA-5 del diario, «sessioni non-gara davanti ai conteggi vivi»):
+   practice e testday NON avevano NESSUN test dedicato: l'ingegnere li aveva
+   (test/ingegnere.test.mjs: radio viva, finestra sosta muta), ma il narratore
+   unico mai. Le regole deono restare honeste fuori da una gara:
+     - il gap della prova è il campo morto della SP (gapAhead 0.0):
+       MAI un «Chi ti sta davanti»;
+     - il cambio di sedile parla ANCHE senza verde (fuori gara l'ordine
+       conta subito, regola del 31/10 nel nucleo del postalk);
+     - nel pitlane del testday la classifica vale ZERO come in gara:
+       niente annuncio di posizione finché l'uscita (12 s) non è passata. */
+test("sessioni non-gara (practice/testday): radio onesta — gap morto tace, sedile parla senza verde, pitlane zittisce", () => {
+  const slot = { last: {}, at: 0, said: {}, firma: 'sess-non-gara' };
+  const giri = { lapsDone: 3, lapsTotal: 10, fuel: 40, lapsOnFuel: 8, lapsLeft: 8 };
+  let t = 1000;
+  const passo = (ga, dt = 4000) => { t += dt; return narratore(MMF(t, { sessionType: 'Practice', gauges: { ...giri, ...ga } }), slot, t); };
+
+  const a = passo({ position: 5, gapAhead: 0.0 });
+  assert.equal(a.filter((f) => f.chi === 'postalk' || f.chi === 'gap').length, 0, "la prima vista practice si semina in silenzio");
+
+  const b = passo({ position: 5, gapAhead: 0.0 });
+  assert.equal(b.filter((f) => f.chi === 'gap').length, 0, 'gapAhead 0.0 (campo morto della prova libera): mai un «Chi ti sta davanti»');
+
+  const c = passo({ position: 6, gapAhead: 0.0 });
+  assert.ok(c.some((f) => f.chi === 'postalk' && !f.detto && (f.it ?? '').includes('persa')), "il cambio sedile in practice parla ANCHE senza verde: l'ordine conta subito fuori gara");
+
+  // il pitlane del testday: la classifica vale zero anche fuori da una gara
+  const d = passo({ position: 9, gapAhead: 0.0, inPit: true });
+  assert.equal(d.filter((f) => f.chi === 'postalk').length, 0, 'dentro il pitlane del testday: niente annuncio di posizione');
+
+  const e = passo({ position: 2, gapAhead: 0.0, inPit: false }, 3000);
+  assert.equal(e.filter((f) => f.chi === 'postalk').length, 0, 'appena usciti dal pitlane (12 s non passati): ancora zitto, l\'uscita copre');
+
+  const f = passo({ position: 2, gapAhead: 0.0 }, 13000);
+  assert.equal(f.filter((f) => f.chi === 'postalk').length, 0, 'fuori dall\'ombra del pitlane la guardia 30 s del postalk non ridice la stessa franchigia');
+});
+
 test("bandiera ROSSA e NERA del RESTART (31/10 notte): stessa fontana del verde, si dicono sul passaggio, distanziello 15 s", () => {
   const slot = { last: {}, at: 0, said: {}, firma: 'sess-flag' };
   const giri = { lapsDone: 2, lapsTotal: 10, fuel: 40, lapsOnFuel: 8, lapsLeft: 8 };

@@ -273,6 +273,50 @@ export function hotlapsProgress() {
  * sono nati file non-gara dai risultati e li accetta (deduplicati). Economica:
  * NIENTE letture se mtime non sopra l'acqua alta precedente.
  */
+/* ------------------------------------------------------------------ */
+/* DURATA CONSIGLIATA per pista (30/10, Mauro): il pannello «Gara al   */
+/* volo» dice quanto girare PRIMA di scegli — la cifra nascosta è il   */
+/* giro di riferimento della pista nel quaderno (qualunque auto: il    */
+/* tempo è / della pista, non dell'auto che ci ho sopra IL POOL).      */
+/* ------------------------------------------------------------------ */
+
+const chiaviTrack = () => Object.entries(TRACK_INFO).flatMap(([k, x]) => [k, x?.name]).filter(Boolean);
+const msFmt = (ms) => {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}.${String(Math.round(ms % 1000)).padStart(3, '0')}`;
+};
+
+/** Il giro di riferimento di UNA pista (e, se nota, dell'AUTO scelta):
+ *  tra le righe del quaderno (prove e libere, MAI gara) quelle della
+ *  pista matchata col libro TRACK_INFO; il giro è il migliore visto —
+ *  con auto chiesta: il PB di QUELLA auto (e se non ha giri in pista,
+ *  il PB di pista prende il suo posto, marcato perCar:false). null se la
+ *  pista non è nel libro o il quaderno non la conosce: il pannello resta
+ *  in silenzio, niente inventati. */
+export function hotlapsPistaGiro(trackName, car = null) {
+  const want = matchTrackName(String(trackName ?? ''), chiaviTrack());
+  if (!want) return null;
+  const stessaPista = (t) => t != null && matchTrackName(String(t), chiaviTrack()) === want;
+  const lib = loadBook();
+  const tutte = [...(lib.sessions ?? []), ...(lib.records ?? [])].filter((e) => e.bestLapMs && stessaPista(e.track));
+  if (!tutte.length) return null;
+  // l'auto richiesta si matcha col nome o con l'id (sameCar); se non ha giri
+  // in questa pista, il PB di pista prende il suo posto (perCar:false).
+  let perCar = false;
+  if (car != null) {
+    const own = tutte.filter((e) => sameCar(car, e.car ?? '') || sameCar(car, e.carPretty ?? ''));
+    if (own.length) { perCar = true; tutte.splice(0, tutte.length, ...own); }
+  }
+  tutte.sort((a, b) => a.bestLapMs - b.bestLapMs);
+  const best = tutte[0];
+  return {
+    lapMs: Math.round(best.bestLapMs), lapText: msFmt(best.bestLapMs),
+    carPretty: best.carPretty ?? best.car ?? null,
+    pista: best.trackPretty ?? best.track ?? null,
+    at: best.at ?? null, perCar,
+  };
+}
+
 export function hotlapSweep(ladder, paths, state, { since = 0 } = {}) {
   const fresh = listResultFiles(paths).filter((f) => f.mtime > since);
   if (!fresh.length) return { registered: [], skipped: [] };

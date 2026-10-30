@@ -14,7 +14,9 @@
 // il trasporto (righe → voce) e la fase di sessione (firma/grazia/live),
 // nessuna logica di radio duplicata.
 import { spawn } from 'node:child_process';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { narratore } from '../tools/_monitor-copilota.mjs';
 
 /* Lo script del relatore: riga per riga da stdin.
@@ -124,6 +126,33 @@ const chePuoiDire = (livello) => {
    segue la fase (live fuori/viva, firma sessione = memoria a zero, 15 s di
    grazie) e alimenta l'único narratore; le frasi NUOVE (non zittite dalla
    guardia dei 70 s) vanno alla voce del Pitwall e in coda al registro. */
+/* Il FILE DELLA RADIO (31/10, «Pitwall con la radio»): l'UNICO log dove
+   tutte le frasi del copilota finiscono — lo scrive il server (webui passa
+   {log: {file}}) e lo LEGGE la fascia Pitwall (uiapp-pub.mjs) e i prossimi
+   osservatori. UNA definizione del percorso (stessa regola EVO_DATA_DIR
+   della casa: solo i test lo ridirigono); webui.mjs riceve il suo file da
+   QUI, così un cambio di nome resta un cambio solo. */
+export const LOG_VOCE_FILE = process.env.EVO_DATA_DIR
+  ? join(process.env.EVO_DATA_DIR, 'copilot-voce-24-10.jsonl')
+  : join(dirname(dirname(fileURLToPath(import.meta.url))), 'data', 'copilot-voce-24-10.jsonl');
+
+/* leggiRadioVoce ({last}): le ultime FRASI del copilota (quelle con testo,
+   non gli eventi di sessione) dal più recente, per la radio del Pitwall
+   e per ogni altro orecchio del progetto. File assente o riga a metà
+   scrittura: si returna [] / si salta — la radio è un plus, mai un errore. */
+export function leggiRadioVoce({ last = 6, file = LOG_VOCE_FILE } = {}) {
+  let righe = [];
+  try { righe = readFileSync(file, 'utf8').split('\n').filter(Boolean); } catch { return []; }
+  const ultime = [];
+  for (let i = righe.length - 1; i >= 0 && ultime.length < last; i--) {
+    try {
+      const r = JSON.parse(righe[i]);
+      if (r?.it) ultime.push({ t: r.t ?? null, chi: r.chi ?? null, it: r.it });
+    } catch { /* riga a metà scrittura o corrotta: si prosegue a quella prima */ }
+  }
+  return ultime;
+}
+
 export function giroVoce(m, slot, voce, { log = null, ora = Date.now(), graziaMs = 15000, livello = 'normale' } = {}) {
   if (!m?.live) {
     if (slot.sawLive) {

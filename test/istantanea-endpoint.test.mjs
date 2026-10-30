@@ -73,9 +73,13 @@ test('/api/istantanea: sola lettura, 200 sempre, istantanea null NELLA SANDBOX v
   }
 });
 
-test('il riepilogo in GUI vive in viste-a.js (gv-stato) e vive di /api/istantanea', async () => {
+test('il riepilogo in GUI vive nella vista Giri liberi (viste-b.js, gv-stato) e vive di /api/istantanea', async () => {
   const { readFileSync } = await import('node:fs');
-  const src = readFileSync(join(ROOT, 'gui', 'js', 'viste-a.js'), 'utf8');
+  /* la vista è GIỂ in Giri liberi (viste-b.js) da «gara al volo» nel
+     Cruscotto: il pannello «Gara personalizzata al volo» con il suo
+     riepilogo è nel tab Giri liberi, il Cruscotto resta solo il quadro
+     del campionato. */
+  const src = readFileSync(join(ROOT, 'gui', 'js', 'viste-b.js'), 'utf8');
   assert.ok(src.includes("api('istantanea')"), 'la vista chiama /api/istantanea (la stessa fonte del cruscotto)');
   assert.ok(src.includes('id="gv-stato"'), 'la vista ha il div del riepilogo');
   assert.ok(src.includes('15 * 1000'), 'il riepilogo si aggiorna da solo (timer 15 s)');

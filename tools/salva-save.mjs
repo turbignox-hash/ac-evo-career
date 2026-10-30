@@ -7,7 +7,10 @@
 //     7-zip, niente PowerShell, niente dipendenze;
 //   - slot-1 / slot-2 in ROTAZIONE (ogni backup va zo slot alternata, la
 //     conta vive in data/salva-save/salva-save.json → campo next);
-//   - taglio automatico ai MAX_ZIP=4 zip PIÙ RECENTI su TUTTI gli slot;
+//   - taglio automatico ai MAX_ZIP=2 zip PIÙ RECENTI su TUTTI gli slot
+//     (30/10: da 4 a 2 — gli zip FULL pesano ~750 MB l'uno e con 4 slot la
+//      pila arrivava a 1,5 GB; con 2.slot il peso resta ~750 MB e il vecchio
+//      FULL esce alla PRIMA rotazione, non dopo 2 cicli vuoti)
 //   - CLIENT a boot: se l'ultimo backup e' più fresco di 36 ore non fa
 //     nulla (silenzioso, exit 0): gli avvii del launcher in serie non
 //     fanno IO di tia senza motivo.
@@ -37,7 +40,7 @@ const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DEST_BASE = join(RADICE, 'data', 'salva-save');
 
 export const STALE_ORE_DEFAULT = 36;   // backup ogni ~girone e mezzo, massimo 3 avvii gratis
-export const MAX_ZIP = 4;              // su TUTTI gli slot: vecchi si cancellano SOLI
+export const MAX_ZIP = 2;              // su TUTTI gli slot: vecchi si cancellano SOLI
 export const NOMI_SLOT = ['slot-1', 'slot-2'];
 
 // Esclusioni del backup (28/10, audit A1): NESSUNA è dato di salvataggio —

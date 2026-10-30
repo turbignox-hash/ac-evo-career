@@ -20,7 +20,7 @@
 //   node tools/set-weekend.mjs --date 2025-05-12               (data del weekend)
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { decodeMsg, encodeMsg, gameRunning, GAME_MODES_DIR } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, gameRunning, GAME_MODES_DIR, pruneBackups } from './evo-grid.mjs';
 
 export const WEEKEND_FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 
@@ -113,6 +113,23 @@ export function prepareWeekend(rules, { file = WEEKEND_FILE } = {}) {
   const out = encodeMsg(res.fields);
   const backup = `${file}.bak-weekend-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   copyFileSync(file, backup);
+  pruneBackups(file);   // rotazione bak automatica (tetto 25, comune 31/10)
+  writeFileSync(`${file}.tmp`, out);
+  renameSync(`${file}.tmp`, file);
+  return { changed: res.changed, backup };
+}
+
+/** Solo la temperatura aerea (f17 di ogni blocco sessione): il gesto del
+ *  bottone GUI «Temperatura aria». Idempotente: se i blocchi combaciano già
+ *  cambia NIENTE (changed 0, nessun backup nuovo). Scrittura atomica con
+ *  backup, esattamente come prepareWeekend. */
+export function setWeekendAirTemp(temp, { file = WEEKEND_FILE } = {}) {
+  const res = setWeekend(readFileSync(file), { airTemp: Number(temp) });
+  const out = encodeMsg(res.fields);
+  if (out.equals(readFileSync(file))) return { changed: 0, backup: null };
+  const backup = `${file}.bak-weekend-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+  copyFileSync(file, backup);
+  pruneBackups(file);   // rotazione bak automatica (tetto 25, comune 31/10)
   writeFileSync(`${file}.tmp`, out);
   renameSync(`${file}.tmp`, file);
   return { changed: res.changed, backup };
@@ -152,6 +169,7 @@ if (isMain) {
     if (has('--dry')) { console.log('DRY (nessuna scritta: ops non applicate su file)'); process.exit(0); }
     const backup = `${FILE}.bak-weekend-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
     copyFileSync(FILE, backup);
+    pruneBackups(FILE);   // rotazione bak automatica (tetto 25, comune 31/10)
     const out = encodeMsg(r.fields);
     writeFileSync(`${FILE}.tmp`, out);
     renameSync(`${FILE}.tmp`, FILE);

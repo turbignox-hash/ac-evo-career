@@ -3,7 +3,7 @@
 // È la fonte verità del dottore (integrity.mjs): cassa e rep attese si ricostruiscono
 // sommando questi flussi al capitale iniziale, invece di fare regex sulla bacheca.
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,6 +30,22 @@ function flowsFile() {
 function debugFile() {
   const env = process.env.EVO_FLOW_DEBUG ? String(process.env.EVO_FLOW_DEBUG) : null;
   return env && /[\\/]/.test(env) ? env : join(HERE, '..', 'data', 'flows-debug.jsonl');
+}
+
+/**
+ * Potatura keep-last del log watchdog (audit 28/10 punto A3, eseguito 30/10):
+ * se flows-debug.jsonl supera MAX_DEBUG_BYTES si riscrive tenendo le ultime
+ * KEEP_DEBUG_LINES righe. Restano sempre le scritture più recenti. MAI throw:
+ * il watchdog non deve mai fermare l'import.
+ */
+const MAX_DEBUG_BYTES = 512 * 1024;
+const KEEP_DEBUG_LINES = 600;
+function potaNews(file) {
+  try {
+    if (statSync(file).size <= MAX_DEBUG_BYTES) return;
+    const righe = readFileSync(file, 'utf8').split('\n').filter(Boolean).slice(-KEEP_DEBUG_LINES);
+    writeFileSync(file, righe.join('\n') + (righe.length ? '\n' : ''), 'utf8');
+  } catch { /* il watchdog non deve mai fermare l'import */ }
 }
 
 let logFile = null; // il percorso a cui si riferisce la cache `log`
@@ -70,7 +86,8 @@ export function recordFlows(state, entries) {
   // senza che l'import avesse visto un file nuovo. Ogni scrittura lascia una
   // riga laterale con pid/argv di chi ha scritto — così il colpevole non scappa.
   try {
-    appendFileSync(debugFile(), JSON.stringify({ at: rows[0].at, pid: process.pid, cmd: process.argv.slice(0, 4).join(' '), ppid: process.ppid, first: rows[0] }) + '\n', 'utf8');
+    const dbg = debugFile(); potaNews(dbg);
+    appendFileSync(dbg, JSON.stringify({ at: rows[0].at, pid: process.pid, cmd: process.argv.slice(0, 4).join(' '), ppid: process.ppid, first: rows[0] }) + '\n', 'utf8');
   } catch { /* il watchdog non deve mai fermare l'import */ }
   const file = flowsFile();
   append(file, rows);

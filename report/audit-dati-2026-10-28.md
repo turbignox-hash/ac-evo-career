@@ -109,6 +109,23 @@ Messa in atto dopo l'audit, misurata sul vero:
   (stesso standard del bak al secondo). Dry-run certificato: idempotente
   (griglie ripulite 0). La pila attuale (6 file, ~2,7 MB con doppi
   riporti `ls`) si potera al primo giro di riparazione reale.
-- **A2 + resto di A3 — NON FATTO** (slot-1 arido da 158 B, bak d'epoca
-  del 23/10, griglie-grezz, slot-3): spazzata manuale fuori da questi
-  tre interventi; quando fatta, stornare le voci dell'inventario qui sopra.
+- **A2 + resto di A3 — FATTO (30/10)**: spazzata eseguita sul vivo, con
+  correzioni rispetto alle ipotesi di questo inventario (28/10):
+  `griglie-grezz/` NON era vuota: 434 file, 5,3 MB di customgrid grezzi
+  del 23/24-10, unico referente nel codice `tools/_merge-r5.mjs` (operazione
+  R5 chiusa, celle già fuse nel template del 25/10) → cancellata tutto;
+  zip arido `slot-1/save-2026-10-25T21-19-30.zip` (158 B) → cancellato;
+  2 `grid-classes.json.bak-stile-*` da `data/` + 3 `career.evo.ladder.json
+  .bak-{cal-,stile-*}` da `config/` (copie di guardia di generazioni stile
+  chiuse, zero riferimenti nel codice) + `grid-classes.bak-zavorra-28-10
+  .json` → cancellati. INVECE dell'ipotesi: `slot-3/` RESTA (nido registri
+  per-slot vero, non fantasma) e i 9 bak del customgrid in data/grid-templates
+  RESTANO (rotazione legittima: potatura unica `pruneBackups` con keep=25,
+  31/10). I due zip FULL in rotazione (slot-1 770 MB del 28/10, slot-2 782 MB
+  del 27/10) RESTANO: sono l'unica copia di sicurezza completa dell'era
+  30-slot; la rotazione MAX_ZIP=4 li scarterà da sola. Magazzino liberi:
+  ~5,4 MB e 439 file; GM `match-auto.log` (19,9 MB) e `flows-debug.jsonl
+  (1,4 MB)`: le due cavità di append sono state ristrette nel codice con
+  potatura keep-last (600 righe oltre 512 KB, mai throw) in `car-match.mjs
+  e `flows.mjs` — i due attuali grossi si sgronno da soli alla prima
+  preparazione/import.

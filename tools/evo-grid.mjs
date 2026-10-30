@@ -18,8 +18,8 @@
 //   node tools/evo-grid.mjs --verify file     → round-trip: decode→encode byte-identico
 //   node tools/evo-grid.mjs --pi 16 17 file   → cambia la finestra PI (con backup)
 //
-import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync, existsSync, readdirSync } from 'node:fs';
-import { join, } from 'node:path';
+import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync, existsSync, readdirSync, rmSync } from 'node:fs';
+import { join, dirname, basename } from 'node:path';
 import { execSync } from 'node:child_process';
 import { savedGamesRoots } from '../src/paths.mjs';
 
@@ -49,6 +49,44 @@ export function openDataDir(root = GAME_SAVEDIR) {
     }
   } catch { /* niente ProfileData: profilo mai avviato sul PC */ }
   return null;
+}
+
+/* NOME DEL BACKUP AL SECONDO (lezione 28/10 di grid-apply, condivisa qui):
+   i nomi al MINUTO si sovrascrivevano a vicenda (due scritture dello stesso
+   file nello stesso minuto = una versione della pila perduta). Il nome ora
+   porta i SECONDI e se lo stesso secondo ne esce un altro si aggiunge -r2/-r3:
+   niente collisioni, la pila resta in ordine d'arrivo. */
+export function bakName(file, tag = '') {
+  const quando = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  let p = `${file}.bak-${tag}${quando}`;
+  for (let i = 2; existsSync(p); i++) p = `${file}.bak-${tag}${quando}-r${i}`;
+  return p;
+}
+
+/* POTATURA DELLA PILA (da grid-apply, una fonte per tutti): ogni nuovo backup
+   spazza via i più vecchi DELLO STESSO file, tenendone una pila recente.
+   FALLITO in debug 24/10: il solo mtime basta? NO — su Windows il clock dei
+   file ha granularità turbolenta e backup scritti nello stesso tick escono con
+   la STESSA mtime: l'ordine di taglio diventava imprevedibile. Tie-break:
+   nome desc — il nome contiene la data del backup, quindi nel pareggio
+   l'ordine alfabetico discendente è il più recente in fila. La pulizia non
+   deve MAI far fallire una scrittura: ignora tutto ciò che non riesce a
+   togliere. */
+export function pruneBackups(file, { keep = 25 } = {}) {
+  try {
+    const dir = dirname(file), base = basename(file);
+    // IL FILTRO VISTA LA LEZIONE 31/10: contava solo i bak col NUMERO subito
+    // dopo .bak- (bak-2026-…, quelli antichi di grid-apply senza tag) — i bak
+    // moderni col TAG (bak-veloce-2026-…, bak-temprace-…, bak-roster-…) uscivano
+    // con NaN e la potatura non li vedeva MAI (audit 28/10, punto A3: era la
+    // stessa diagnosi fatta per bak-ripara-*). Ora conta il bak di famiglia se
+    // porta una DATA (4 cifre consecutive) in qualunque posizione dopo .bak-:
+    // tag o no, i nomi senza data restano fuori.
+    const pila = readdirSync(dir)
+      .filter((n) => n.startsWith(base + '.bak-') && /\d{4}/.test(n.slice(n.lastIndexOf('.bak-') + 5)))
+      .sort((a, b) => (statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs) || (a < b ? 1 : a > b ? -1 : 0));
+    for (const vecchio of pila.slice(keep)) { try { rmSync(join(dir, vecchio)); } catch { /* occupato: si rimuove la prossima gara */ } }
+  } catch { /* niente da potare */ }
 }
 
 /* guardia: la scrittura è pericolosa con il gioco aperto (il menu calpesta

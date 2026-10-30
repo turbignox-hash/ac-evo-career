@@ -593,6 +593,7 @@ async function drawArchive(m){
     $$('.arc-row', body).forEach(tr => { tr.onclick = () => openResult(tr.dataset.file); });
   };
   paint();
+
   const bAll = $('#b-arc-all');
   if (bAll) bAll.onclick = () => { window.__arcAllPc = !window.__arcAllPc; render(); };
   $('#arc-q').oninput = () => paint($('#arc-q').value);
@@ -614,6 +615,62 @@ async function drawGironi(m){
   const S = log.sessions ?? [], P = log.records ?? [];
   m.innerHTML = `
   <div class="panel">
+        <h2>${LI.flag} ${tr({ it: '🏁 Gara personalizzata al volo', en: '🏁 Instant custom race' })}</h2>
+        <!-- ▶ PARTE SUBITO (30/10, «sarebbe una noia impostare ogni volta»):
+             un bottone in cima al pannello che ri-esegue l'ULTIMA RICETTA
+             scritta (registro della durata) — la stessa dei campi qui
+             sotto; l'anteprima con la ricetta sta a destra del bottone. -->
+        <div class="row" style="align-items:center">
+          <button class="mini" id="gv-subito" style="font-weight:700">▶ ${tr({ it: 'PARTE SUBITO', en: 'GO NOW' })}</button>
+          <span class="muted" id="gv-subito-nota" style="font-size:12px">…</span>
+        </div>
+        <div class="rs-grid" style="margin-top:8px">
+          <div class="field"><label>${tr({ it: 'Giri', en: 'Laps' })}</label><input type="number" id="gv-giri" min="1" max="500" placeholder="5"></div>
+          <div class="field"><label>${tr({ it: 'oppure a tempo (min)', en: 'or timed (min)' })}</label><input type="number" id="gv-tempo" min="1" max="1440" placeholder="30"></div>
+          <div class="field"><label>${tr({ it: 'Banda AI % (min–max)', en: 'AI band % (min–max)' })}</label>
+            <div style="display:flex;gap:6px">
+              <input type="number" id="gv-aimin" min="0" max="100" value="88">
+              <input type="number" id="gv-aimax" min="0" max="100" value="93">
+            </div>
+          </div>
+          <div class="field"><label>${tr({ it: 'Sedile (auto)', en: 'Seat (car)' })}</label><select id="gv-auto"><option value="">— ${tr({ it: 'nessuna', en: 'none' })} —</option></select></div>
+          <div class="field"><label>${tr({ it: 'Pista', en: 'Track' })}</label><select id="gv-pista"><option value="">— ${tr({ it: 'non cambia', en: 'no change' })} —</option></select></div>
+          <div class="field" style="grid-column:1/-1">
+            <label>${tr({ it: 'Griglia', en: 'Grid' })}</label>
+            <!-- IL PRESET DI GRIGLIA (30/10, «mono o multiclasse nel menu»):
+                 la scelta riempie il POOL a fianco (editable: puoi togliere o
+                 mettere un Id dal datalist); il menu resta «personalizzata»
+                 se poi modificarà il pool a mano. -->
+            <div style="display:flex;gap:6px;align-items:center">
+              <select id="gv-griglia" style="flex:0 0 auto;min-width:230px"><option value="">— ${tr({ it: 'personalizzata (pool a mano)', en: 'custom (hand-written pool)' })} —</option></select>
+              <input type="text" id="gv-pool" placeholder="ks_f40_lm, ks_ferrari_296_gt3" list="dl-gv-auto" style="flex:1;min-width:0">
+            </div>
+          </div>
+          <div class="field" style="grid-column:1/-1">
+            <label>${tr({ it: 'Preset della ricetta (con la tua auto)', en: 'Recipe presets (with your own car)' })}</label>
+            <!-- I PRESET with NOME (30/10, «preset con la mia auto»): la
+                 ricetta COMPLETA salvata con nome — giri O tempo, banda,
+                 pista, SEDILE (la mia auto) e pool. Il «PARTE SUBITO» tiene
+                 UNA ricetta sola: qui ne tieni quante vuoi. La scelta
+                 riempie i campi (che restano editabili, il pool resta la
+                 fonte). -->
+            <div style="display:flex;gap:6px;align-items:center">
+              <select id="gv-preset" style="flex:0 0 auto;min-width:230px"><option value="">— ${tr({ it: 'nessuno (usa i campi qui sotto)', en: 'none (use the fields below)' })} —</option></select>
+              <button class="mini" id="gv-preset-salva" style="flex:0 0 auto">💾 ${tr({ it: 'Salva col nome', en: 'Save by name' })}</button>
+              <button class="mini" id="gv-preset-canc" style="flex:0 0 auto" title="${esc(tr({ it: 'cancella il preset scelto', en: 'delete the selected preset' }))}">🗑</button>
+            </div>
+            <div id="gv-suggeri" class="muted" style="font-size:11.5px;margin-top:6px"></div>
+          </div>
+          <div class="row" style="align-items:end">
+            <button class="mini" id="gv-dry">${tr({ it: 'Prova senza scrivere', en: 'Dry run' })}</button>
+            <button class="mini" id="gv-go">${tr({ it: 'Imposta in EVO', en: 'Write to EVO' })}</button>
+          </div>
+        </div>
+        <div id="gv-out" style="display:none;margin-top:8px"></div>
+        <div id="gv-stato" class="muted" style="margin-top:8px;font-size:12px">…</div>
+        <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'La pista è un campo qui sopra: scritta nel file, resta solo APPLICA nel menu griglia e VIA. Durata, banda e sedile li scrive il tasto.', en: 'Track is a field above: written into the file, only APPLY in the grid menu is left. Length, band and seat are written by the button.' })}</div>
+      </div>
+  <div class="panel">
     <h2>${tr({ it: 'Giri liberi', en: 'Free laps' })} <span class="h-act">${log.total} ${tr({ it: 'sessioni in quaderno', en: 'sessions in the book' })}</span></h2>
     <div class="muted" style="font-size:11.5px;margin:0 0 8px">${tr({ it: 'Scegli PRATICA in EVO, pista e auto e gira: ogni sessione che il gioco scrive si registra da sola qui. La carriera non si tocca: soldi, punti e rep restano a 0.', en: 'Pick PRACTICE in EVO, pick track and car and run: every session the game writes lands here by itself. Career untouched: money, points and rep stay at 0.' })}</div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
@@ -622,6 +679,9 @@ async function drawGironi(m){
     </div>
     <div id="hl-body"></div>
   </div>
+        <div class="panel" id="p-events"><h2>${tr({ it: 'Eventi speciali', en: 'Special events' })}</h2><div class="empty">…</div></div>
+
+
   <div class="panel">
     <h2>${tr({ it: 'Libro PB — auto × pista', en: 'PB book — car × track' })}</h2>
     ${P.length ? `<table><thead><tr><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'PB', en: 'PB' })}</th><th class="right">${tr({ it: 'Giro ideale', en: 'Ideal lap' })}</th><th class="muted">${tr({ it: ' Dal', en: 'Since' })}</th></tr></thead>
@@ -646,6 +706,261 @@ async function drawGironi(m){
       : `<div class="empty">${tr({ it: 'Nessuna sessione di prove in quaderno: gira in PRATICA e il tool fa il resto.', en: 'No practice session in the book: run a PRACTICE session and the tool does the rest.' })}</div>`;
   };
   paint();
+/* GARA AL VOLO (1/11): giri o tempo + banda AI + opzionali sedile e
+     griglia dal pool — stessa funzione del CLI (garaVeloce via server). Il
+     dry-run prima: vedi cosa si scriverebbe senza toccare i file. */
+  const gvEsegui = async (dry) => {
+    const giri = $('#gv-giri')?.value ? Number($('#gv-giri').value) : null;
+    const tempo = $('#gv-tempo')?.value ? Number($('#gv-tempo').value) : null;
+    if (!giri && !tempo) return toast(tr({ it: 'Scegli i giri o i minuti a tempo.', en: 'Pick laps or timed minutes.' }), 'warn');
+    if (giri && tempo) return toast(tr({ it: 'O giri o minuti, non entrambi.', en: 'Either laps or minutes, not both.' }), 'warn');
+    try {
+      const out = await api('gara-veloce', {
+        giri,
+        tempo,
+        aiMin: $('#gv-aimin')?.value,
+        aiMax: $('#gv-aimax')?.value,
+        auto: $('#gv-auto')?.value.trim() || null,
+        pista: $('#gv-pista')?.value.trim() || null,
+        pool: $('#gv-pool')?.value.trim() || null,
+        dry,
+      });
+      gvMostra(out, dry ? tr({ it: 'Prova a secco fatta: guarda l\'esito qui sotto.', en: 'Dry run done: see the result below.' }) : tr({ it: 'Scritto: guarda l\'esito qui sotto.', en: 'Written: see the result below.' }));
+    } catch (e) { toast(e.message, 'err'); }
+  };
+  /* IL RISULTATO all'esito, UNA sola approssimazione per i DUE tasti e per
+     «PARTE SUBITO» (30/10): esito dei passi + stato istantaneo riletto +
+     riepilogo aggiornato dai campi in fondo per la parte vera
+     (gvStatoAggiorna legge anche l'anteprima del bottone). */
+  const gvMostra = (out, okMsg) => {
+    const zone = $('#gv-out');
+    if (zone) {
+      zone.style.display = '';
+      zone.innerHTML =
+        `<b>${esc(out.titolo)}</b><ul style="margin:6px 0 0 18px">${out.passi.map((p) => `<li>${p.ok ? '✓' : '✗'} <b>${esc(p.nome)}</b>: ${esc(p.esito)}</li>`).join('')}</ul>` +
+        (out.stato ? `<div class="muted" style="margin-top:6px">${tr({ it: 'Stato istantaneo: ', en: 'Instant-race state: ' })}${out.stato.modeTxt === 'a tempo' ? `${Math.round((out.stato.durata ?? 0) / 60)} min a tempo` : `${out.stato.durata ?? '?'} giri`} · AI ${out.stato.aiMin ?? '?'}–${out.stato.aiMax ?? '?'}</div>` : '');
+    }
+    gvStatoAggiorna();
+    /* SEGNASTATO ONESTO (31/10): il server risponde 200 anche con passi KO
+       (la lista ✓/✗ resta visibile qui sotto), quindi il toast non più
+       sempre verde: se un passo è fallito la chiamata è un warn col punto
+       che guida all'esito, non un falso «Scritto». */
+    const falliti = (out.passi ?? []).filter((p) => !p.ok).length;
+    toast(falliti
+      ? tr({ it: `⚠ ${falliti} passo${falliti === 1 ? '' : ' i'} KO: guarda i ✗ nell'esito qui sotto.`, en: `⚠ ${falliti} step${falliti === 1 ? '' : 's'} failed: see the ✗ in the result below.` })
+      : okMsg, falliti ? 'warn' : 'ok');
+  };
+  $('#gv-dry')?.addEventListener('click', () => gvEsegui(true));
+  $('#gv-go')?.addEventListener('click', () => gvEsegui(false));
+  /* ▶ PARTE SUBITO (30/10): ri-esegue l'ULTIMA RICETTA dal registro della
+     durata (endpoint parti-subito); la stessa del pannello, esausta di
+     dettagli premuti ieri. Idempotente per costruzione: se tutto è torna
+     a posto, non scrive un byte. */
+  $('#gv-subito')?.addEventListener('click', async () => {
+    try {
+      const out = await api('parti-subito', {});
+      gvMostra(out, tr({ it: 'Ricetta riapplicata: guarda l\'esito qui sotto, in alto è l\'anteprima della ricetta.', en: 'Recipe reapplied: result below, recipe preview above.' }));
+    } catch (e) { toast(e.message, 'err'); }
+  });
+
+  /* RIEPILOGO VIVO dell'istantanea (4/11): la STESSA fonte del cruscotto in
+     gioco (statoIstantanea via /api/istantanea): durata · pista · banda AI
+     come sono DENTRO il file, non come le ha lasciate l'ultimo tasto. Si
+     aggiorna ogni 15 s finché la vista resta a schermo, il timer muore da
+     solo quando l'elemento della vista non c'è più. */
+  const gvStato = $('#gv-stato');
+  /* IL REGISTRO nel riepilogo (4/11): COM'È adesso + COSA ha scritto l'ultimo
+     gesto (endpoint gara-veloce-registro, la fonte stessa del bottone demo
+     del Cruscotto). Due righe, nessun nuovo pannello: il riepilogo resta
+     piccolo e dice subito «che cosa ho premuto, che cosa è in EVO».
+     Da 30/10 lo stesso endpoint porta anche l'ULTIMA RICETTA RAW
+     (gv-ricetta): l'anteprima di «PARTE SUBITO» e il prefill dei campi. */
+  let gvUltima = null;                                       // riga del registro (riusata a ogni tick)
+  let gvRicetta = null;                                      // L'ULTIMA RICETTA (id + tempo/banda/pista/sedile/pool)
+  /* LA RIGA-RICETTA (30/10): «10 min a tempo · Monza · AI 88–93 · pool: …»
+     o il suggerimento a compila una volta (nessuna ricetta nel registro). */
+  const gvRicettaRiga = () => (gvRicetta
+    ? [gvRicetta.giri != null ? `${gvRicetta.giri} giri` : `${gvRicetta.tempo ?? '?'} min a tempo`, gvRicetta.pista ? String(gvRicetta.pista) : null, gvRicetta.aiMin != null && gvRicetta.aiMax != null ? `AI ${gvRicetta.aiMin}–${gvRicetta.aiMax}` : null, Array.isArray(gvRicetta.pool) && gvRicetta.pool.length ? `pool: ${gvRicetta.pool.join(', ')}` : null].filter(Boolean).join(' · ')
+    : tr({ it: 'nessuna ricetta in canna: compila i campi e premi «Imposta in EVO» una volta', en: 'no recipe stored yet: fill the fields and press «Write to EVO» once' }));
+  const gvStatoScrive = (i) => {
+    if (!gvStato) return;
+    gvStato.textContent = (!i ? tr({ it: "Nessuna gara custom aperta in EVO ancora: aprane una UNA volta e il riepilogo parte (durata · pista · AI).", en: "No custom race opened in EVO yet: open one ONCE and the summary starts (length · track · AI)." })
+      : tr({ it: "L'istantanea in EVO adesso: ", en: "Instant race now in EVO: " }) +
+        (i.durata?.giri != null ? `${i.durata.giri} giri` : `${i.durata?.min ?? '?'} min a tempo`) +
+        (i.pista ? ` · ${i.pista}` : '') + (i.banda ? ` · AI ${i.banda}` : '')) +
+      (gvUltima ? `\n${tr({ it: 'Ultimo gesto scritto: ', en: 'Last written change: ' })}${gvUltima}` : '');
+    /* L'ANTEPRIMA del bottone ▶ (30/10): la STESSA riga-ricetta in cima al
+       pannello, una sola formula (gvRicettaRiga) per il riepilogo e per la
+       nota: nessun testo che può divergere. */
+    const nota = $('#gv-subito-nota');
+    if (nota) nota.textContent = gvRicettaRiga();
+  };
+  /* IL PREFILL dai campi col record (30/10): la prima lettura del registro
+     riempie SOLO i campi VUOTI con l'ultima ricetta — per toccare un
+     dettaglio senza ri-battere tutto. UNA sola volta: i valori che hai
+     battuto a mano restano, e al tick di 15 s non tocca più niente.
+     I SELECT aspettano le opzioni di gv-liste (gvListeOk): il menu si
+     precompila con ciò che il menu CONOSCE, e un valore fuori menù si
+     aggiunge marcato, mai rimpiazzato. */
+  let gvPrefix = false;
+  const gvPrefill = () => {
+    if (gvPrefix || !gvListeOk || !gvRicetta) return;
+    gvPrefix = true;
+    for (const [sel, v] of Object.entries({ '#gv-giri': gvRicetta.giri, '#gv-tempo': gvRicetta.tempo, '#gv-aimin': gvRicetta.aiMin, '#gv-aimax': gvRicetta.aiMax, '#gv-auto': gvRicetta.auto, '#gv-pista': gvRicetta.pista })) {
+      if (v == null || v === '') continue;
+      const el = $(sel);
+      if (!el) continue;
+      if (el.tagName === 'SELECT') {
+        if ([...el.options].some((o) => o.value === String(v))) el.value = String(v);
+        else {                                                        // ricetta vecchia col nome battuto a mano: entra marcata
+          const o = document.createElement('option');
+          o.value = String(v); o.textContent = `${String(v)} (fuori menu)`;
+          el.appendChild(o); el.value = String(v);
+        }
+      } else if (!el.value) el.value = String(v);
+    }
+    if (Array.isArray(gvRicetta.pool) && gvRicetta.pool.length) {
+      const el = $('#gv-pool'); if (el && !el.value) el.value = gvRicetta.pool.join(', ');
+    }
+  };
+  /* I MENU A TENDINA (30/10, dopo il datalist): AUTO del libro ladder
+     (SEDILE), PISTE del libro TRACK_INFO e PRESET di griglia mono/multi-
+     classe (la STESSA classificazione stile 24 Le Mans del rapporto di
+     gara) — endpoint gv-liste. Il preset scelto riempie il POOL a fianco;
+     il datalist resta per il pool A MANO; server fuori o libro vuoto =
+     menu poveri e campi a mano, come prima. */
+  let gvListeOk = false;                       // il prefill dei menu aspetta QUESTE opzioni
+  (async () => {
+    try {
+      const d = await api('gv-liste');
+      const metti = (id, voci) => {
+        let dl = $(`#${id}`);
+        if (!dl) { dl = document.createElement('datalist'); dl.id = id; document.body.appendChild(dl); }
+        dl.innerHTML = (voci ?? []).map((v) => `<option value="${esc(v.v)}">${esc(v.t ?? '')}</option>`).join('');
+      };
+      metti('dl-gv-auto', (d.cars ?? []).map((c) => ({ v: c.id, t: c.nome })));
+      const gvSel = (id, tutto, v) => {
+        const el = $(`#${id}`);
+        if (!el) return;
+        el.innerHTML = `<option value="">${esc(tutto)}</option>` + (v ?? []).map((o) => `<option value="${esc(o.v)}">${esc(o.t)}</option>`).join('');
+      };
+      gvSel('gv-auto', tr({ it: '— nessuna —', en: '— none —' }), (d.cars ?? []).sort((a, b) => String(a.nome).localeCompare(String(b.nome))).map((c) => ({ v: c.id, t: c.nome })));
+      gvSel('gv-pista', tr({ it: '— non cambia —', en: '— no change —' }), (d.piste ?? []).map((p) => ({ v: p, t: p })));
+      gvSel('gv-griglia', tr({ it: '— personalizzata (pool a mano) —', en: '— custom (hand pool) —' }), (d.griglie ?? []).map((g) => ({ v: (g.pool ?? []).join(', '), t: g.nome })));
+      gvSel('gv-preset', tr({ it: '— nessuno (usa i campi qui sotto) —', en: '— none (use the fields below) —' }), (d.preset ?? []).map((p) => ({ v: p.nome, t: p.nome + (p.riga ? ` — ${p.riga}` : '') })));
+      gvListeOk = true;
+      gvPrefill();      // se l'ULTIMA RICETTA è già letta: i menu si arredata DA SOLI (effetto post-liste)
+    } catch { /* server fuori: i menu restano quelli scritti a mano nel markup */ }
+  })();
+  /* IL PRESET → POOL: la scelta scrive il pool nel campo (puoi poi togliere
+     o aggiungere un id dal datalist); se il pool si toccato a mano, il menu
+     torna «personalizzata» — la font della griglia è SEMPRE il campo. */
+  $('#gv-griglia')?.addEventListener('change', () => {
+    const v = $('#gv-griglia')?.value;
+    if (v) { const el = $('#gv-pool'); if (el) el.value = v; }
+  });
+  $('#gv-pool')?.addEventListener('input', () => { const s = $('#gv-griglia'); if (s?.value) s.value = ''; });
+  /* I PRESET with NOME (30/10): la scelta riempie I CAMPI della ricetta
+     (non li esegue: la gara la lanci con «Imposta in EVO» o «PARTE SUBITO»
+     dopo); salva con nome e cancella. Il server fa la maglia pesante
+     (endpoint gv-preset), qui solo form + refresh del menu. */
+  const gvPresetRigenera = (elenco, seleziona = null) => {
+    const sel = $('#gv-preset'); if (!sel) return;
+    const tenuto = seleziona ?? sel.value;
+    sel.innerHTML = `<option value="">— ${esc(tr({ it: 'nessuno (usa i campi qui sotto)', en: 'none (use the fields below)' }))} —</option>` +
+      (elenco ?? []).map((p) => `<option value="${esc(p.nome)}" ${p.nome === tenuto ? 'selected' : ''}>${esc(p.nome)}${p.riga ? ` — ${esc(p.riga)}` : ''}</option>`).join('');
+  };
+  $('#gv-preset')?.addEventListener('change', async () => {
+    const nome = $('#gv-preset')?.value;
+    if (!nome) return;
+    try {
+      const r = await api('gv-preset', { action: 'leggi', nome });
+      const scrivi = (id, v) => { const el = $(id); if (el) el.value = v ?? ''; };
+      scrivi('#gv-giri', r.giri ?? ''); scrivi('#gv-tempo', r.tempo ?? '');
+      scrivi('#gv-aimin', r.aiMin ?? 88); scrivi('#gv-aimax', r.aiMax ?? 93);
+      scrivi('#gv-auto', r.auto ?? ''); scrivi('#gv-pista', r.pista ?? '');
+      scrivi('#gv-pool', r.pool?.length ? r.pool.join(', ') : ''); scrivi('#gv-griglia', '');
+      toast(tr({ it: `Preset "${nome}" caricato nei campi: premi «Imposta in EVO» per scriverlo.`, en: `Preset "${nome}" loaded into the fields: press «Write to EVO» to apply it.` }), 'ok');
+      if ($('#gv-pista')?.value) $('#gv-pista').dispatchEvent(new Event('change'));
+    } catch (e) { toast(e.message, 'err'); }
+  });
+  const gvPresetForm = () => ({
+    giri: $('#gv-giri')?.value || null,
+    tempo: $('#gv-tempo')?.value || null,
+    aiMin: $('#gv-aimin')?.value || 88,
+    aiMax: $('#gv-aimax')?.value || 93,
+    auto: $('#gv-auto')?.value.trim() || null,
+    pista: $('#gv-pista')?.value.trim() || null,
+    pool: $('#gv-pool')?.value.trim() || null,
+  });
+  $('#gv-preset-salva')?.addEventListener('click', async () => {
+    const form = gvPresetForm();
+    const durata = form.giri != null ? `${form.giri} giri` : form.tempo != null ? `${form.tempo} min` : tr({ it: 'gara', en: 'race' });
+    const nome = prompt(tr({ it: "Nome del preset (la mia auto entra se scelta nel sedile):", en: 'Preset name (your car rides along if chosen in the seat):' }), form.pista ? `${durata} · ${form.pista}` : durata);
+    if (!nome || !nome.trim()) return;
+    try {
+      const r = await api('gv-preset', { action: 'salva', nome: nome.trim(), ...gvPresetForm() });
+      gvPresetRigenera(r.preset, r.nome);
+      toast(tr({ it: `Preset "${r.nome}" salvato: te lo ritrovi nel menu, auto compresa.`, en: `Preset "${r.nome}" saved: back in the menu, car included.` }), 'ok');
+    } catch (e) { toast(e.message, 'err'); }
+  });
+  $('#gv-preset-canc')?.addEventListener('click', async () => {
+    const nome = $('#gv-preset')?.value;
+    if (!nome) return toast(tr({ it: 'Scegli prima il preset da cancellare nel menu.', en: 'Pick the preset to delete in the menu first.' }), 'warn');
+    if (!confirm(tr({ it: `Cancello il preset "${nome}"?`, en: `Delete the preset "${nome}"?` }))) return;
+    try { const r = await api('gv-preset', { action: 'cancella', nome }); gvPresetRigenera(r.preset); toast(tr({ it: 'Preset cancellato.', en: 'Preset deleted.' }), 'ok'); }
+    catch (e) { toast(e.message, 'err'); }
+  });
+  /* DURATA CONSIGLIATA per pista (30/10): la pista scelta chiede al quaderno
+     prove il suo giro di riferimento (PB di pista, o del SEDILE scelto) e
+     le due conversioni — 30′ ≈ N giri · 10 giri ≈ M min — stanno lì per
+     essere USATE coi tasti, non scritte a furtive: i campi restano in mano
+     tua. Quaderno vuoto sulla pista = nessun suggerito, niente inventati. */
+  const gvSuggerisci = async () => {
+    const zona = $('#gv-suggeri'); if (!zona) return;
+    const pista = $('#gv-pista')?.value.trim();
+    const auto = $('#gv-auto')?.value.trim() || null;
+    if (!pista) { zona.textContent = ''; return; }
+    try {
+      const r = await api('gv-suggeri', { pista, auto });
+      if (!r.giro) { zona.textContent = tr({ it: `Nessun giro in quaderno su ${pista}: la durata resta in mano tua.`, en: `No lap in the notebook for ${pista}: the length stays in your hands.` }); return; }
+      const sec = r.giro.lapMs / 1000;
+      const giri30 = Math.max(1, Math.round((30 * 60) / sec));
+      const min10 = Math.round(((10 * sec) / 60) * 10) / 10;
+      zona.innerHTML =
+        `${tr({ it: 'Su', en: 'On' })} <b>${esc(pista)}</b> — ${r.giro.perCar ? tr({ it: 'il tuo giro', en: 'your lap' }) : tr({ it: 'giro di', en: 'lap of' })} <b>${esc(r.giro.lapText)}</b>${r.giro.carPretty ? esc(` · ${r.giro.carPretty}`) : ''} : ` +
+        `<button class="mini" data-val="giri:${giri30}">${esc(tr({ it: "30′ ≈ ", en: "30′ ≈ " }))}${giri30} ${esc(tr({ it: 'giri', en: 'laps' }))}</button> ` +
+        `<button class="mini" data-val="tempo:${min10}">${esc(tr({ it: "10 giri ≈ ", en: "10 laps ≈ " }))}${min10} ${esc(tr({ it: 'min', en: 'min' }))}</button>`;
+    } catch { zona.textContent = ''; }
+  };
+  $('#gv-suggeri')?.addEventListener('click', (e) => {
+    const b = e.target?.closest?.('button'); if (!b || !b.dataset?.val) return;
+    const [campo, n] = String(b.dataset.val).split(':');
+    const el = $(campo === 'giri' ? '#gv-giri' : '#gv-tempo');
+    if (el) el.value = n;
+    const altro = $(campo === 'giri' ? '#gv-tempo' : '#gv-giri');
+    if (altro) altro.value = '';   // giri e tempo si escludono (come l'eseguita)
+  });
+  $('#gv-pista')?.addEventListener('change', gvSuggerisci);
+  $('#gv-auto')?.addEventListener('change', gvSuggerisci);
+  const gvStatoAggiorna = async () => {
+    try {
+      const i = (await api('istantanea')).istantanea;
+      try {
+        const rg = await api('gara-veloce-registro');
+        gvUltima = rg.ultima ?? null;
+        gvRicetta = rg.ricetta ?? null;                            // null se mai scritto: la nota in alto resta col suggerimento
+      } catch { gvUltima = null; gvRicetta = null; }               // registro mai scritto: solo la riga com'è
+      gvPrefill();
+      gvStatoScrive(i);
+    } catch { /* server fuori: gli altri canali lo dicono già */ }
+  };
+  gvStatoAggiorna();
+  const gvStatoTimer = setInterval(() => {
+    if ($('#gv-stato') !== gvStato) return clearInterval(gvStatoTimer);
+    gvStatoAggiorna();
+  }, 15 * 1000);
+
 
   /*  file da registrare a mano: la lista la dà l'archivio (catalog): i risultati
      non-gara sono file come gli altri; filtro via le gare */

@@ -9,7 +9,7 @@
 // La pista e l'auto selezionata insieme = il weekend preparato da un click.
 import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { encodeMsg, openDataDir, GAME_SAVEDIR } from './evo-grid.mjs';
+import { encodeMsg, openDataDir, GAME_SAVEDIR, pruneBackups } from './evo-grid.mjs';
 import { decodeGarage, readMap, learnCarFromLogs } from './set-car-sample.mjs';
 
 // BOOT DIZIONARIO automatico (31/10): alla PRIMA ricerca auto in un processo
@@ -111,6 +111,7 @@ export function setDriverCar(name, { file = GARAGE_FILE, dry = false } = {}) {
   if (dry) return { ...car, written: false };
   const backup = `${file}.bak-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   copyFileSync(file, backup);
+  pruneBackups(file);   // rotazione bak automatica (tetto 25, comune 31/10)
   writeFileSync(`${file}.tmp`, out);
   renameSync(`${file}.tmp`, file);
   return { ...car, written: true, backup };

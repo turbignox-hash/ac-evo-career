@@ -8,7 +8,7 @@
 import { createServer } from 'node:http';
 import { execFileSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { readFileSync, writeFileSync, appendFileSync, existsSync, copyFileSync, renameSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, existsSync, copyFileSync, renameSync, statSync } from 'node:fs';
 import { dirname, join, extname, basename, relative, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { telemScanLocale } from './webui-telem.mjs';
@@ -19,7 +19,7 @@ import {
   createCareer, nodeById, disciplineName, nomeDisciplina, gateStatus,
   standingsFor, difficultyFor, seasonEnd,
   acceptOffer, pushMessage, enterNode, renameDriver, careerStats,
-  slotDataDir, grigliaSimEstesa,
+  slotDataDir, grigliaSimEstesa, seasonJustClosed,
 } from './state.mjs';
 import { playerWorldSkill } from './world.mjs';
 import { loadCatalog, resultDetail, onlineArchive } from './catalog.mjs';
@@ -28,7 +28,7 @@ import { rapportoGara } from './rapporto-gara.mjs';
 // tool CLI e dei fasce del cruscotto in gioco — UNA fonte sola.
 import { verdettoGiornata } from '../tools/verdetto-giornata.mjs';
 import { liveReader } from './shmem.mjs';
-import { creaVoceCopilota, nuovoSlotVoce, giroVoce, VOCE_LIVELLI } from './voce-copilota.mjs';
+import { creaVoceCopilota, nuovoSlotVoce, giroVoce, VOCE_LIVELLI, LOG_VOCE_FILE } from './voce-copilota.mjs';
 import { raceCard, markPending, chargeEntry, launch, nextRound } from './race.mjs';
 import { applyPianoToCalendar } from './orario.mjs';
 import {
@@ -49,7 +49,7 @@ import { seasonReview, reviewableSeasons, exportReview } from './review.mjs';
 import { contractStatus, sponsorOffers, acceptSponsor, declineSponsor, challengeFor, acceptChallenge, sigilDefs, ensureLife, sponsorFor, ensureContract, checkSigils } from './life.mjs';
 import { newsFeed, seasonPress } from './gazzetta.mjs';
 import { recordTestDay, testDayLog, calibrationSummary } from './testday.mjs';
-import { recordHotlaps, hotlapSweep, hotlapsLog, hotlapsStats, hotlapsProgress } from './hotlaps.mjs';
+import { recordHotlaps, hotlapSweep, hotlapsLog, hotlapsStats, hotlapsProgress, hotlapsPistaGiro } from './hotlaps.mjs';
 import { recordWarning, readWarnings } from './warnings.mjs';
 import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
 import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, telemDiagnostics, lapTrace } from './motec.mjs';
@@ -65,6 +65,7 @@ import { engineerLive } from './engineer.mjs';
 import { carPoolOf, carInPool, poolNodeForLive } from './car-pool.mjs';
 import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, setWeekendGridCustom, WEEKEND_FILE } from '../tools/set-track.mjs';
 import { currentRaceTime, currentSessionTimes, setRaceSessions } from '../tools/set-racetime.mjs';
+import { setWeekendAirTemp } from '../tools/set-weekend.mjs';
 import { setWeekendLaps, setWeekendTimed, weekendLaps, raceBlockIndex } from '../tools/weekend-laps.mjs';
 import { readCells } from '../tools/grid-balance.mjs';
 // report.mjs: il bottone "Segnala un problema" costruisce l'URL della issue
@@ -78,7 +79,8 @@ import { paddockOverview } from './paddock.mjs';
 // il bridge della gara custom a tempo (POST /api/instantrace): lettura +
 // scrittura dell'INSTANT_RACE a gioco APERTO (force), come il ponte griglia
 import { timedRace, currentInstantRace } from '../tools/set-instantrace.mjs';
-import { garaVeloce, leggiRegistro, formattaRigaRegistro } from '../tools/_gara-veloce.mjs';
+import { garaVeloce, leggiRegistro, formattaRigaRegistro, ultimaRicetta, salvaPreset, elencoPreset, leggiPreset, cancellaPreset } from '../tools/_gara-veloce.mjs';
+import { classeAuto, griglieConClassiVive } from './classi-gt.mjs';
 import { statoAggiornamentiAsync, installaAggiornamenti } from '../tools/aggiornamenti.mjs';
 
 // check degli aggiornamenti FUORI dal boot (audit freeze 23/10): qui prima
@@ -133,9 +135,12 @@ import { heritageOverview, claimMemory } from './memories.mjs';
 import { resetNews } from './gazzetta.mjs';
 // griglia: tab bilanciamento (celle, classi, perTraccia) + azioni di scrittura
 import { loadClasses, buildGridMessage } from './gridbuilder.mjs';
-import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, rebuildGridApply, GRID_FILE } from './grid-apply.mjs';
+import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, rebuildGridApply, GRID_FILE, pruneBackups } from './grid-apply.mjs';
 // app «Cruscotto» in gioco: publisher della vetrina nella cartella del loader
-import { startUiappPublisher, statoIstantanea } from './uiapp-pub.mjs';
+import { startUiappPublisher, statoIstantanea, consigliFascia } from './uiapp-pub.mjs';
+// I CONSIGLI ANCHE NEL PADDOCK (31/10): la card Paddock della GUI mostra il
+// medesimo bussollino dell'ingegnere (consigliFascia) — STESSA fonte del
+// cruscotto in fascia, un solo calcolo, nessuna doppia lettura MMF.
 import { gridFileOf } from '../tools/evo-grid.mjs';
 import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
 // analisi.mjs: i cinque strumenti del pilota (autopsia, dossier rivali, banco
@@ -512,15 +517,16 @@ async function vigiaSordo(r, snap) {
  * config la spegne (default ON); in test/sandbox NON parte mai. */
 const voceSrv = creaVoceCopilota();
 const slotVoceServo = nuovoSlotVoce();
-const LOGUE_VOCE = { file: join(DATA_DIR, 'copilot-voce-24-10.jsonl') };
-/* 29/10 sera — PING VOCE PAGINA: «the page interrogates» NON è «the page
-   speaks». La prova (gara delle 11:36): il tick vivo per tutta la gara
-   (STATO ogni 60 s, zero riparti), una pagina che interroga ogni 1–2 s
-   e NESSUNA GARE parlata — la tecnica di questa mattina su un'IACETA vecchia
-   (JS in cache con la soppressione) taceva e intanto mi faceva tacere il
-   server. Da qui solo una pagina col codice VIVO discrive QUI (narratori
-   della vista Vecchia che girano). Il tick guarda il PING, non il poll:
-   vecchia scheda senza ping → la voce del server riparte. */
+// 31/10 «Pitwall con la radio»: il percorso del log NON SI DEFINISCE più qui:
+// è quello di voce-copilota.mjs (LOG_VOCE_FILE, stessa regola EVO_DATA_DIR),
+// lo stesso file che la fascia Pitwall rilegge — un cambio di nome resta un
+// cambio solo.
+const LOGUE_VOCE = { file: LOG_VOCE_FILE };
+/* 29/10 sera — PING VOCE PAGINA: nato per far dichiarare alla pagina il
+   silenzio VOLUTO, il 30/10 è stato RITIRATO dal tick (vedi copilotaServerTick
+   «GUARDIA del PING RITIRATA»): una scheda col chip spento ammutoliva Cosimo
+   IN PISTA. Ora il ping resta SOLO per il registro STATO (paginaPingOn):
+   la diagnostica dice chi pinga e quando, il tick comanda SOLO il config. */
 let _pingVocePagina = { at: 0, on: false };
 /* Registro degli errori del tick voce: una riga al più al minuto per errore
    ripetuto (il tick gira ogni 4 s, un errore sistematico non deve riempire
@@ -711,17 +717,17 @@ async function copilotaServerTickInterno() {
   };
   if (!voceServerAttiva()) { PERCHE.push('voce config OFF'); tacchio(); return; }
   if (liveMode() === 'off') { PERCHE.push('liveMode off'); tacchio(); voceSrv.silenzio(); return; }
-  /* GUARDIA del PING (29/10 sera, 3ª cura — gara TimeAttack muta col ping):
-     la pagina AVEVA i narratori accesi (ping on:true ogni 10 s), giri tagliati
-     e ritmo regolare, e NIENTE era uscito: la voce da browser resta
-     irrispettabile (cache, attese, voci, autoplay) e fissarla è impossibile
-     da fuori. DECISIONE: la radio vive SOLO qui (System.Speech, Cosimo —
-     già sentito vivo ieri sera). Il ping serve SOLO a dichiara il silenzio
-     VOLUTO: chip OFF → on:false → il server tace. Chip ON → pagina muta
-     (panello) e il SERVER che parla, sempre, anche con la GUI chiusa. */
-  if (_pingVocePagina.at && Date.now() - _pingVocePagina.at < 20000 && !_pingVocePagina.on) {
-    PERCHE.push('la pagina ha la copilota OFF (ping)'); tacchio(); return;
-  }
+  /* GUARDIA del PING RITIRATA (30/10, Mauro: «in gioco non va, sul browser sì»):
+     la 3ª cura del 29/10 (chip OFF nel browser → ping on:false → il server tace)
+     si è girata contro: il chip della BARRA (drawCopilotStrip, localStorage
+     'evo-copilot') e il chip del pannello sono DUE comandi sfasati — la barra
+     spenta in una scheda GUI lasciata APERTA in secondo piano pingava on:false
+     ogni 10 s, la finestra di 20 s NON scadeva mai, e Cosimo restava MUTO IN
+     PISTA per tutta la sessione. Nel registro la prova: SESSIONE VIVA e poi,
+     a 3'25", «la pagina ha la copilota OFF (ping)» fino a fine gara. La radio
+     vive SOLO qui (31/10, decisione confermata): la COMANDA il SOLO config
+     (voceCopilota, via POST voce-server o Impostazioni). Il ping resta SOLO
+     diagnostica (riga STATO): chi è l'autore della muta si legge, non si patisce. */
   /* Il tick è la voce SENZA browser: non può fidarsi della cache del lettore
      (la GUI con le sue richieste ogni 2 s non c'è a sinronizzarla). Sync e
      vigia del sordo qui dentro (29/10): con la GUI chiusa il lettore può
@@ -829,6 +835,8 @@ async function api(context0, _req, res, action, body) {
         const haGiri = body.laps != null;
         const haTempo = body.tempo != null;
         if (!haGiri && !haTempo) return sendJson(res, 200, { ok: true, sessioni: weekendLaps() });
+        // niente previsto qui: è il BOTTONCINO manuale del bridge, fuori
+        // test-mode il cancello della distanza lo rifiuta (GUARDIA_DISTANZA)
         const r = haGiri
           ? setWeekendLaps(Number(body.laps), { force: true })
           : setWeekendTimed(Number(body.tempo));
@@ -836,7 +844,10 @@ async function api(context0, _req, res, action, body) {
         const quale = raceBlockIndex(dopo);
         return sendJson(res, 200, { ok: true, ...r, gara: quale >= 0 ? dopo[quale] : null, sessioni: dopo });
       } catch (e) {
-        const h409 = ['NO_VALUES', 'BAD_LAPS', 'BAD_TEMP'].includes(e.code);
+        // GUARDIA_DISTANZA (31/10): fuori modalità test il bottone manuale
+        // giri/tempo del bridge è chiuso, come il meteo — 409 con il messaggio
+        // del cancello — il ritocco legittimo se lo fa il «Prepara tutto» col previsto.
+        const h409 = ['NO_VALUES', 'BAD_LAPS', 'BAD_TEMP', 'GUARDIA_DISTANZA'].includes(e.code);
         return sendJson(res, h409 ? 409 : 500, { error: e.message });
       }
     }
@@ -881,7 +892,9 @@ async function api(context0, _req, res, action, body) {
       // leggiRegistro ritorna le righe PIÙ NUOVE per prime (reverse). 5 righe:
       // la storia recente di una vista browser, non un elenco infinito.
       const righe = leggiRegistro(5).map(formattaRigaRegistro).filter(Boolean);
-      return sendJson(res, 200, { ok: true, ultima: righe[0] ?? null, righe });
+      // la RICETTA RAW dell'ultima scrittura vera (30/10): serve all'anteprima
+      // del bottone «PARTI SUBITO» e al precompilato dei campi della vista.
+      return sendJson(res, 200, { ok: true, ultima: righe[0] ?? null, righe, ricetta: ultimaRicetta() });
     }
     case 'gara-veloce': {
       // LA GARA AL VOLO DALLA GUI (1/11): giri o tempo + banda AI
@@ -917,6 +930,105 @@ async function api(context0, _req, res, action, body) {
         if (cod === 'NO_INSTANT') return sendJson(res, 409, { error: tr({ it: 'INSTANT_RACE non esiste ancora: apri UNA volta una Gara personalizzata in EVO, poi ripremi.', en: 'INSTANT_RACE does not exist yet: open a Custom race ONCE in EVO, then press again.' }) });
         return sendJson(res, 500, { error: e.message });
       }
+    }
+    case 'parti-subito': {
+      // ▶ PARTE SUBITO (30/10): re-esegue l'ULTIMA RICETTA registrata dal
+      // registro della durata (ultimaRicetta in _gara-veloce.mjs) — giri o
+      // tempo, banda, pista, sedile e pool; idempotente per costruzione:
+      // la stessa ricetta due volte riscrive SOLO ciò che il menu di EVO ha
+      // cambiato nel frattempo, e se tutto è torna a posto non scrive un
+      // byte. Senza ricetta in canna → 409 col suggerimento (compila e
+      // premi «Imposta» una volta). body.dry = prova senza scrivere.
+      try {
+        const ricetta = ultimaRicetta();
+        if (!ricetta) return sendJson(res, 409, { error: tr({ it: 'Nessuna ricetta in canna: compila i campi qui sotto e premi «Imposta in EVO» una volta, dalla prossima volta basterà «PARTI SUBITO».', en: 'No recipe stored yet: fill the fields below and press «Write to EVO» once; from next time «GO NOW» will do it.' }) });
+        const out = garaVeloce({ ...ricetta, dry: !!body.dry, force: true });
+        return sendJson(res, 200, { ok: true, ...out });
+      } catch (e) {
+        const cod = e?.code ?? '';
+        if (cod === 'NO_INSTANT') return sendJson(res, 409, { error: tr({ it: 'INSTANT_RACE non esiste ancora: apri UNA volta una Gara personalizzata in EVO, poi ripremi.', en: 'INSTANT_RACE does not exist yet: open a Custom race ONCE in EVO, then press again.' }) });
+        return sendJson(res, 500, { error: e.message });
+      }
+    }
+    case 'gv-liste': {
+      // I MENU A TENDINA della vista «Gara al volo» (30/10): gli ID auto del
+      // libro ladder (value = id, label = nome leggibile) e i NOMI piste del
+      // libro TRACK_INFO (gli input si appoggiano a due datalist, nessun
+      // ramo male: senza libro i campi restano a testo libero). Sola lettura.
+      try {
+        const ladder = loadLadder();
+        const cars = Object.entries(ladder?.contentNames?.cars ?? {}).map(([id, nome]) => ({ id, nome }));
+        const piste = [...new Set(Object.values(TRACK_INFO ?? {}).map((t) => t?.name).filter(Boolean))].sort();
+        // I PRESET with NOME (30/10) ARRIVANO con l'elenco: UN same endpoint
+        // riempie i menu (auto, piste, griglie) e il menu dei preset — un seul
+        // round-trip al disegno della vista.
+        const preset = elencoPreset();
+        // I PRESET DI GRIGLIA (30/10, «dammi mono o multiclasse nel menu»):
+        // ogni auto del libro entra in classe per NOME (classeAuto, la STESSA
+        // classificazione stile 24 Le Mans del rapporto di gara) e i preset
+        // combinano le classi: monoclasse per classe con almeno 1 auto, e
+        // multiclasse su coppie/triple attese (GT3+GT4, Hypercar+…). Senza
+        // auto in classe: preset omesso, nessun ramo nel menu.
+        const perClasse = new Map();
+        for (const c of cars) {
+          const cl = classeAuto(c.nome);
+          if (!cl || cl === '-') continue;
+          if (!perClasse.has(cl)) perClasse.set(cl, []);
+          perClasse.get(cl).push(c.id);
+        }
+        // LE CLASSI VIVE (31/10, «menu con classi vive»): il menu NON è più
+        // un elenco tappo (GT3+GT4 e le tre endurance scritte a mano): è il
+        // GENERATORE di classi-gt.mjs — una riga per classe con almeno un'auto
+        // del libro OGGI e una multiclasse per OGNI combinazione di 2–4
+        // classi vive (con oltre 4, l'endurance intera in coda). Con il
+        // ladder che cresce o cambia, il menu cresce e cambia con lui.
+        const griglie = griglieConClassiVive(perClasse);
+        return sendJson(res, 200, { ok: true, cars, piste, griglie, preset });
+      } catch { return sendJson(res, 200, { ok: true, cars: [], piste: [], griglie: [], preset: [] }); }
+    }
+    case 'gv-preset': {
+      // I PRESET with NOME della gara al volo (30/10, «preset con la mia
+      // auto»): la ricetta COMPLETA — giri o tempo, banda AI, pista, SEDILE
+      // (la mia auto) e pool — salvata con nome e ri-caricata a piacere;
+      // diversa da «PARTE SUBITO», che tiene una ricetta SOLA (l'ultima
+      // scritta). LETTURA (GET senza body.action): l'elenco; 'salva'
+      // { nome, campi della ricetta } (stessa DNS di garaVeloce: una
+      // ricetta salvata è GIUSTA come una eseguita); 'cancella' { nome }.
+      try {
+        const nome = typeof body.nome === 'string' ? body.nome.trim() : null;
+        if (body.action === 'salva') {
+          if (!nome) throw Object.assign(new Error("il preset ha bisogno di un nome"), { code: 'NO_NOME' });
+          const r = salvaPreset(nome, { giri: body.giri, tempo: body.tempo, aiMin: body.aiMin, aiMax: body.aiMax, auto: body.auto, pista: body.pista, pool: body.pool });
+          return sendJson(res, 200, { ok: true, ...r, preset: elencoPreset() });
+        }
+        if (body.action === 'cancella') {
+          const r = cancellaPreset(nome);
+          if (!r) return sendJson(res, 404, { error: `preset "${nome ?? '?'}" già assente` });
+          return sendJson(res, 200, { ok: true, preset: elencoPreset() });
+        }
+        if (body.action === 'leggi') {
+          const p = leggiPreset(nome);
+          if (!p) return sendJson(res, 404, { error: `preset "${nome ?? '?'}" non trovato` });
+          return sendJson(res, 200, { ok: true, ...p });
+        }
+        return sendJson(res, 200, { ok: true, preset: elencoPreset() });
+      } catch (e) {
+        const h409 = ['NO_NOME', 'NO_ENTRAMBI', 'BAD_DURATA', 'BAD_BANDA'].includes(e.code);
+        return sendJson(res, h409 ? 409 : 500, { error: e.message });
+      }
+    }
+    case 'gv-suggeri': {
+      // DURATA CONSIGLIATA per pista (30/10): il giro di riferimento della
+      // pista nel quaderno prove (PB di pista; col sedile noto, il SUO PB) e
+      // le due conversioni giri↔minuti che il pannello mostra. nulla in
+      // canna → giro:null (la GUI tace, niente suggeriti inventati).
+      try {
+        const pista = typeof body.pista === 'string' ? body.pista.trim() : null;
+        const auto = typeof body.auto === 'string' && body.auto.trim() ? body.auto.trim() : null;
+        if (!pista) return sendJson(res, 400, { error: tr({ it: 'dimmi la pista (nome del libro TRACK_INFO).', en: 'tell me the track (TRACK_INFO name).' }) });
+        const giro = hotlapsPistaGiro(pista, auto);
+        return sendJson(res, 200, { ok: true, pista, auto, giro });
+      } catch (e) { return sendJson(res, 500, { error: e.message }); }
     }
     case 'wizard': {
       // WIZARD del primo avvio (Mauro 22/10 stile «spunta verde»): stato del
@@ -1113,7 +1225,16 @@ async function api(context0, _req, res, action, body) {
     // PADDACK (richiesta Mauro 26/10 "punti correndo"): la scheda della
     // prossima gara + il calendario + l'economia dell'app Paddock, LETTA dal
     // disco (nessun avvio richiesto): gli extra sono ready per il cruscotto.
-    case 'paddock': return sendJson(res, 200, paddockOverview(process.env));
+    // 31/10 «consigli anche nel Paddock»: al bridge va ATTACCATO il pacchetto
+    // consigli { live, tips[] } di consigliFascia (il pacchetto del cruscotto
+    // in fascia): il payload resta un unico JSON, la vista lo nasconde da
+    // sola col gioco fermo. paddockOverview non importa il publisher: la
+    // composizione sta QUI, al confine tra i due moduli (una sola riga).
+    case 'paddock': {
+      const pd = paddockOverview(process.env);
+      pd.consigli = consigliFascia();
+      return sendJson(res, 200, pd);
+    }
     case 'catalog': return sendJson(res, 200, loadCatalog(paths, process.env, { driver: state?.driver ?? null, afterMs: body.all ? 0 : (state?.createdAt ?? 0) }));
     case 'mp':
       // ARCHIVIO ONLINE (31/10): sessioni _MP_ + libro dei rivali online, dal
@@ -1715,7 +1836,10 @@ async function api(context0, _req, res, action, body) {
           // di setWeatherPreset solleva un file di backup, non la cumulare a ogni click
           const cur = currentWeatherPreset();
           if (card.weather != null && cur !== card.weather) {
-            const wx = setWeatherPreset(card.weather);
+            // previsto:true — il cancello della guardia si apre SOLO per il meteo
+            // DEL CALENDARIO (2/11: il cambio a mano con il preset diverso è la
+            // scorciatoia del bagnato e fuori test-mode si rifiuta, WX_LOCKED).
+            const wx = setWeatherPreset(card.weather, { previsto: true });
             prep.weather = `${wx.preset.label} (era: ${PRESETS[wx.from]?.label ?? wx.from ?? '?'})`;
             prep.weatherWritten = wx.written;
           } else prep.weather = PRESETS[cur ?? card.weather]?.label ?? null;
@@ -1792,6 +1916,7 @@ async function api(context0, _req, res, action, body) {
             if (!built) throw errorePriore ?? ultimoErrore ?? new Error(`nessuna auto del pool dell'evento (${ospitiPool.join(', ')}) nel customgrid né nei suoi backup (${candidati.length} file provati): rigenera in EVO una griglia personalizzata con quelle auto e premi APPLICA (serve una volta sola)`);
             const backup = `${GRID_FILE}.bak-evento-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
             copyFileSync(GRID_FILE, backup);          // il file di prima è il template della prossima ronda di campionato: rebuildGridApply lo recupera dai .bak-*
+            pruneBackups(GRID_FILE);   // rotazione bak automatica (tetto 25, comune 31/10)
             writeFileSync(`${GRID_FILE}.tmp`, built.buffer);
             renameSync(`${GRID_FILE}.tmp`, GRID_FILE);  // scrittura atomica come i tool
             prep.guests = `griglia riscritta: ${built.report.gridSize} celle${built.report.poolMulti ? ` · ${built.report.poolMulti}` : ''}${built.report.ai ? ` · AI ${built.report.ai}` : ''}${sourceFile !== GRID_FILE ? ` · template ${basename(sourceFile)}` : ''}`;
@@ -2061,6 +2186,20 @@ async function api(context0, _req, res, action, body) {
       if (body.raceStart != null) { cancella('raceStart', body.raceStart); const v = oraFor(body.raceStart); if (v != null) S.raceStart = v; }
       if (body.timeScale != null) S.timeScale = Math.max(1, Math.min(60, Number(body.timeScale) || 1));
       if (body.distPct != null) S.distPct = [25, 50, 75, 100].includes(Number(body.distPct)) ? Number(body.distPct) : null;
+      // TEMPERATURA ARIA (bottone GUI 30/10): un solo campo f17 per sessione,
+      // come il meteo del round ma SOVRASCRIVIBILE a mano. '' = cancella
+      // l'override e torna l'aria del round; numero = clamp 0-60 °C.
+      if (body.airTemp != null) {
+        cancella('airTemp', body.airTemp);
+        const at = Number(body.airTemp);
+        if (String(body.airTemp) !== '' && Number.isFinite(at)) S.airTemp = Math.max(0, Math.min(60, Math.round(at)));
+      }
+      // scritta SUBITO sul gamemodesave (come le ore): idempotente, backup
+      // automatico; se il file non c'è ancora si limita a salvare l'override —
+      // il Prepara tutto lo riapplica appena il weekend nasce.
+      try {
+        if (S.airTemp != null && existsSync(WEEKEND_FILE)) setWeekendAirTemp(S.airTemp);
+      } catch { /* gamemodesave assente o a metà scrittura col menu aperto: la card resta valida comunque */ }
       // le ore PER SESSIONE vanno anche sul gamemodesave del weekend, se esiste:
       // scrittura idempotente con backup, e se il file manca si va avanti (il
       // Prepara tutto le scrive appena il weekend nasce).
@@ -2383,7 +2522,9 @@ async function api(context0, _req, res, action, body) {
           const wantIdx = presetForLabel(String(wxLabel));
           const cur = currentWeatherPreset();
           if (wantIdx != null && cur !== wantIdx) {
-            const w = setWeatherPreset(wantIdx);
+            // previsto:true — STESSO cancello di event-prep: la scrittura porta il
+            // meteo dichiarato dalla RONDA (verificato qui sopra), non una scelta.
+            const w = setWeatherPreset(wantIdx, { previsto: true });
             prep.weather = `${w.preset.label} (era: ${PRESETS[cur]?.label ?? cur ?? '?'} — round vuole: ${wxLabel})`; prep.weatherWritten = w.written;
           } else prep.weather = PRESETS[cur ?? wantIdx]?.label ?? null;
         }
@@ -2428,7 +2569,9 @@ async function api(context0, _req, res, action, body) {
             const sommarioDur = durataSessioni(Object.fromEntries(Object.entries(sessi).filter(([, w]) => w.durationSec != null).map(([k, w]) => [k, w.durationSec])));
             if (tuttoAPosto) prep.hour = `già a posto — ${sommario}${sommarioDur ? ' · ' + sommarioDur : ''}${wantScale != null ? ` · scala ${wantScale}x` : ''}`;
             else {
-              const rt = setRaceSessions({ sessions: sessi, scale: wantScale });
+              // previsto:true — preparatutto: ora e durata DEL CALENDARIO (già
+              // scalate al % distanza del pannello): il cancello si apre SOLO per qui
+              const rt = setRaceSessions({ sessions: sessi, scale: wantScale, previsto: true });
               prep.hour = orarioSessioni(Object.fromEntries(Object.entries(sessi).map(([k, w]) => [k, w.hour ?? '?']))) + ` · ${sommarioDur}` + (wantScale != null ? ` · scala ${wantScale}x` : '');
               prep.hourSessions = sessi;
               prep.hourWritten = rt.written;
@@ -2437,13 +2580,25 @@ async function api(context0, _req, res, action, body) {
           }
         }
       } catch (e) { prep.hourError = e.message; }
+      // TEMPERATURA ARIA (bottone GUI 30/10): su race-settings la scrittura è
+      // immediata; qui la riapplichiamo al Prepara per il caso «il weekend
+      // nasce DOPO l'override» (l'ora fa lo stesso con le sue sessioni).
+      try {
+        const at = state.raceSettings?.[node.nodeId]?.airTemp;
+        if (Number.isFinite(Number(at)) && existsSync(WEEKEND_FILE)) {
+          const wr = setWeekendAirTemp(at);
+          if (wr.changed) prep.airTemp = `aria ${at}°C scritta (f17)`;
+          else prep.airTemp = `aria ${at}°C già a posto`;
+          prep.airTempWritten = wr.changed > 0;
+        }
+      } catch (e) { prep.airTempError = e.message; }
       try {
         // GIRI della gara (f2 varint del blocco Race, come l'evento e il CLI
         // weekend-laps): la DISTANZA scelta nel pannello regole è già dentro
         // card.laps (25% → un quarto dei giri pieni della ronda). Idempotente,
         // con verifica di round-trip byte-identica e backup datato (lezione 19/10).
         if (card.laps != null && card.round?.durationMin == null) {
-          const r = setWeekendLaps(card.laps);
+          const r = setWeekendLaps(card.laps, { previsto: true });   // giri CALENDARIO: il cancello apre per qui
           prep.laps = r.already ? `già ${r.giri} giri` : `${r.giri} giri (blocco "${r.block}")`;
           prep.lapsWritten = r.written;
         } else if (card.round?.durationMin != null) {
@@ -2453,7 +2608,7 @@ async function api(context0, _req, res, action, body) {
           // durationEff della card, GIÀ scalata al % di distanza del pannello
           // regole (25% su 40′ → 10′). Idempotente: stessa cifra → written:false.
           if (!Number.isFinite(Number(card.durationEff)) || Number(card.durationEff) <= 0) throw new Error(`durata gara non calcolabile (round.durationMin=${card.round.durationMin}): niente scrittura`);
-          const r = setWeekendTimed(Number(card.durationEff));
+          const r = setWeekendTimed(Number(card.durationEff), { previsto: true });   // durata SERIE A TEMPO: cancello aperto per il preparatutto
           prep.laps = r.already
             ? tr({ it: `già a TEMPO per ${Math.round(r.durata / 60)} minuti`, en: `already BY TIME at ${Math.round(r.durata / 60)} minutes` })
             : tr({ it: `a TEMPO per ${Math.round(r.durata / 60)} minuti scritti (blocco "${r.block}")`, en: `BY TIME at ${Math.round(r.durata / 60)} minutes written (block "${r.block}")` });
@@ -3288,6 +3443,13 @@ async function api(context0, _req, res, action, body) {
     case 'season-end': {
       const node = nodeById(ladder, state.node);
       const played = (state.results[node.nodeId] ?? []).filter((r) => r.season === state.season).length;
+      // DOPPIO CHIUDI (30/10, MacOS di massa: card stantia + secondo click):
+      // dopo una chiusura riuscita la stagione NUOVA ha 0 gare e un «chiudi
+      // comunque» la svuoterebbe nell'annuario. Qui la vediamo e la rimandiamo
+      // col codice che il client traduce in «già chiusa», non in «conferma».
+      if (seasonJustClosed(state, node)) {
+        return sendJson(res, 409, { error: tr({ it: `La stagione ${state.season - 1} in ${node.display} è già stata chiusa: questa è la stagione ${state.season} (0/${node.calendar.length} gare disputate). Non devi chiudere nulla.`, en: `Season ${state.season - 1} in ${node.display} is already closed: this is season ${state.season} (0/${node.calendar.length} races run). Nothing to close.` }), code: 'SEASON_ALREADY_CLOSED' });
+      }
       if (played < node.calendar.length && !body.force) {
         return sendJson(res, 409, { error: tr({ it: `Stagione incompleta: ${played}/${node.calendar.length} gare disputate. Conferma per chiudere comunque.`, en: `Season incomplete: ${played}/${node.calendar.length} races run. Confirm to close anyway.` }), code: 'SEASON_INCOMPLETE' });
       }

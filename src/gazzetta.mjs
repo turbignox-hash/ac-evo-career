@@ -117,46 +117,50 @@ export function publishRaceNews(ctx) {
   };
 
   let title, body;
+  // TITOLI AGGRESSIVI (richiesta Mauro 31/10: «più aggressive, tipo Moderne VS Epoca!!!»):
+  // le testate restaNO identiche ai test (GRANDE CHELEM A TRACK, BRUTTA SERIE, ...)
+  // ma i titoli prendono il malloppo d'esclamazioni e il verdetto col rivale, scritto grande.
+  const vsDuel = beaten.length ? ` ${shortName(beaten[0])}${beaten.length > 1 ? ` e altri ${beaten.length - 1}` : ''} MANDATO ALLA CASA` : '';
   if (win && pole && fl) {
-    title = `GRANDE CHELEM A ${track.toUpperCase()}: ${fame(me)} fattura pole, vittoria e giro veloce`;
+    title = `GRANDE CHELEM A ${track.toUpperCase()}!!! ${fame(me)} SCHIACCIA TUTTI: pole, vittoria e giro veloce`;
     body = `Weekend perfetto: il pubblico in piedi e il box che urla. «La macchina era un sogno», sbotta il vincitore.`;
   } else if (pos == null && pole) {
-    title = `LA POLE BUTTATA A ${track.toUpperCase()}: ${fame(me)} parte davanti e finisce fuori`;
+    title = `LA POLE BUTTATA A ${track.toUpperCase()}!!! ${fame(me)} parte davanti e finisce fuori`;
     body = `Griglia numero uno, zero punti: il giro in qualifica resta l'unica foto da ricordare.`;
   } else if (pos == null && pastDnfStreak >= 1) {
-    title = `BRUTTA SERIE A ${track.toUpperCase()}: ${pastDnfStreak + 1} ritiri consecutivi per ${fame(me)}`;
+    title = `BRUTTA SERIE A ${track.toUpperCase()}!!! ${fame(me)}: ${pastDnfStreak + 1} ritiri consecutivi`;
     body = `Serie nera in pieno campionato: “ci risiamo” scarabocchiato sul registro del box.`;
   } else if (win && pastDnfStreak >= 1) {
-    title = `RITORNO DAL BOX A ${track.toUpperCase()}: ${fame(me)} vince subito dopo il ritiro`;
+    title = `RITORNO DAL BOX A ${track.toUpperCase()}!!! ${fame(me)} punisce il ritiro: vince immediatamente dopo`;
     body = `Sette giorni di silenzio, poi la risposta più netta possibile: la griglia torna a guardarsi le spalle.`;
   } else if (win && pastWinStreak >= 1) {
-    title = `${DUE_DI_FILO[Math.min(pastWinStreak + 1, 5)]} A ${track.toUpperCase()}: ${fame(me)} firma la serie`;
+    title = `${DUE_DI_FILO[Math.min(pastWinStreak + 1, 5)]} A ${track.toUpperCase()}!!! ${fame(me)} firma la serie`;
     body = `La seggiolina si ripete: ${fame(me)} sta prendendo la mano sul resto della griglia.`;
   } else if (win && trackWins === 0) {
-    title = `PRIMA VOLTA A ${track.toUpperCase()}: ${fame(me)} trionfa su questa pista`;
+    title = `PRIMA VOLTA A ${track.toUpperCase()}!!! ${fame(me)} spiana la pista col trofeo nuovo`;
     body = `Il trofeo va a una pista nuova per lui: la ricetta finisce nel taccuino del box.`;
   } else if (win) {
-    title = `${fame(me)} trionfa a ${track}${fl ? ' con anche il giro veloce' : ''}`;
+    title = `${fame(me)} SI IMPONE A ${track.toUpperCase()}${fl ? ' E SI PRENDE ANCHE IL GIRO VELOCE' : ''}!!!${vsDuel}`;
     body = `Primo al traguardo${entry.gapMs ? ` con ${(entry.gapMs / 1000).toFixed(1)}" di margine` : ''}: il campionato si colora di giallo.`;
   } else if (podium && seasonPodiums === 0) {
-    title = `IL PRIMO GRADINO: ${fame(me)} sale sul podio a ${track} (P${pos})`;
+    title = `IL PRIMO GRADINO!!! ${fame(me)} sale sul podio a ${track} (P${pos})`;
     body = `La stagione arriva sul podio per la prima volta: la classifica comincia a guardare in cima.`;
   } else if (podium && pastDnfStreak >= 1) {
-    title = `RITORNO SUL PODIO A ${track.toUpperCase()}: ${fame(me)} si riscatta dal ritiro`;
+    title = `RITORNO SUL PODIO A ${track.toUpperCase()}!!! ${fame(me)} si riscatta dal ritiro`;
     body = `Dopo il buco nero, un gradino: la costanza è tornata in griglia.`;
   } else if (podium && pastPodiumStreak >= 2) {
-    title = `PODIO A SERIE: ${pastPodiumStreak + 1} podi consecutivi a ${track}`;
+    title = `PODIO A SERIE A ${track.toUpperCase()}!!! ${fame(me)}: ${pastPodiumStreak + 1} podi consecutivi`;
     body = `Firma di costanza: ${fame(me)} sta appiattendo il campionato sul suo gradino.`;
   } else if (podium) {
-    title = `${track}: podio per ${fame(me)} (P${pos})${fl ? ' e giro veloce' : ''}`;
+    title = `PODIO A ${track.toUpperCase()} PER ${fame(me)} (P${pos})${fl ? ' + GIRO VELOCE' : ''}!!!${vsDuel}`;
     body = `Il boato del box esplode al traguardo. Il passo c'è, adesso serve il gradino più alto.`;
   } else if (pos != null) {
-    title = `Gara di carattere a ${track}: P${pos} per ${fame(me)}${fl ? ' col giro veloce' : ''}`;
+    title = `${track.toUpperCase()} — ${fame(me)} RESISTE A TUTTI A P${pos}${fl ? ' CON GIRO VELOCE IN REGALO' : ''}!!!`;
     body = pos <= 6
       ? `Punti importanti e ritmo crescente: la curva di forma è in salita.`
       : `Gara di gestione, punti salvati: la classifica resta aperta.`;
   } else {
-    title = `Brutta giornata a ${track}: ritiro per ${fame(me)}`;
+    title = `BRUTTA SORPRESA A ${track.toUpperCase()}!!! ritiro per ${fame(me)}`;
     body = `Un fine settimana da dimenticare. «Ci risiamo al prossimo round», promette il box.`;
   }
   if (beatMe.length) body += ` ${shortName(beatMe[0])} chiude davanti: conto in sospeso.`;

@@ -876,6 +876,23 @@ export function applyRaceResult(ladder, state, node, payload) {
 /* fine stagione e mercato                                             */
 /* ------------------------------------------------------------------ */
 
+/** LA STAGIONE È APPENA NATA E LA SERIE È STATA CHIUSA SUBITO PRIMA (lezione
+ *  del 30/10, «perché dice stagione completata e poi stagione incompleta?»):
+ *  il primo «chiudi la stagione» è andato a buon fine (dopo, il modale chiuso
+ *  con la ✕ o il click su una card non ancora ridisegnata può lasciare sul
+ *  video la vecchio card «calendario completato») e un secondo click ricade
+ *  sulla stagione NUOVA con 0 gare: senza guardia «chiudi comunque» svuoterebbe
+ *  nell'annuario una stagione mai corsa. Il riconoscere la situazione qui è
+ *  puro (nessun ladder, nessun disco): prova a banco senza salire la webui.
+ */
+export function seasonJustClosed(state, node) {
+  if (!node?.nodeId) return false;
+  const played = (state.results?.[node.nodeId] ?? []).filter((r) => r.season === state.season).length;
+  if (played > 0) return false;
+  const last = (state.seasons ?? []).filter((s) => s.node === node.nodeId).at(-1);
+  return !!last && last.season === state.season - 1;
+}
+
 export function seasonEnd(ladder, state) {
   const node = nodeById(ladder, state.node);
   const table = standingsFor(ladder, state, node, state.season);

@@ -395,6 +395,16 @@ Endurance, Road and Rally**.
   `data/flows.jsonl`; the checker reconstructs money and reputation from it.
 - **Journal.** Season review exports to `data/journal/stagione-N.md`.
 
+## The co-driver voice: one nucleus, one radio
+
+The co-driver always speaks Italian — and her lines come from a single source of truth.
+
+- **One nucleus only:** `gui/js/narratore-unito.js`. The page loads it as a classic `<script>` (backed by `globalThis.__EVO_NARRATORE`), the server reads the same function, and the tests in `test/copilota-narratori.test.mjs` run on the SAME synthetic races: one fix to the tests covers everything that speaks.
+- **The radio lives in the server** (Pitwall voice, Windows System.Speech: no browser needed, no overlapping lines). During a race the dashboard page does NOT repeat anything while the server radio is on (no double voice); with the radio off and the co-pilot chip on, the page speaks again via the browser's speechSynthesis.
+- **What she says:** the bucketed delta, lap completed, falling fuel, tire wear climbing a step, the gap, the pit window countdown, "Last lap!" and "Chequered flag!" at the cut, position lost/gained, the multi-class blue flag, a car out of the park and — in endurance — the stint window: "Box within N laps".
+- **Rules the tests reprove every race:** an identical line never repeats within 70 seconds (spoken once; the log marks it "said"); the lap counter is monotonic within a session (no more double "half race"); the flag is never shouted before the lap it belongs to; the stint announcement only appears when the plan is in the payload (no ghost windows).
+- **You choose the volume:** the header chip or the Engineer panel dropdown sets `off / essential / normal / full` — persisted in `data/evo.config.json` (`voceCopilota`); "essential" silences the "good narrator" extras, keeping only what matters on track. Test without driving: the `♪ prova` chip in the header.
+
 ## Schedule: day and weather per round
 
 The scheduler (tab **Race centre**, CLI `piano`) suggests when to sign, rent and

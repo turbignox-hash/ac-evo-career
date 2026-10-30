@@ -539,6 +539,23 @@
     return h;
   }
 
+  // I CONSIGLI IN GIOCO (30/10, «consiglio anche in gioco»): la radio
+  // dell'ingegnere arriva nel payload della vetrina (d.consigli,
+  // STESSA del pannello GUI e del copilota — un solo costruttore lato
+  // server, engineerLive). Il gruppo SUOLI ESISTERE con tips veri:
+  // gioco chiuso o fuori sessione = niente card, non una vacca vana.
+  function bloccoConsigli() {
+    const c = S.dati?.consigli;
+    const tips = Array.isArray(c?.tips) ? c.tips : [];
+    if (!tips.length) return '';
+    let h = '<div class="gruppo"><h2>Consigli dal BOX' + (c.live ? '' : ' · in attesa') + '</h2>';
+    h += tips.map((t) => '<div class="card" style="border-color:' + (t.prio === 1 ? '#5d4a2f' : '#2a3341') + '">' +
+      '<div class="titolo">' + esc(t.icon ?? '🔧') + ' ' + esc(t.title ?? '') + '</div>' +
+      '<div class="riga">' + esc(t.text ?? '') + '</div></div>').join('');
+    h += '</div>';
+    return h;
+  }
+
   function applicaComando(c) {
     if (!c || !c.id || !c.nome) return;
     if (inCorso) return;
@@ -615,6 +632,26 @@
     bloccata: ['bloccata', 'Bloccata'],
   };
 
+  // LA STORIA VISIBILE (31/10, «storia visibile in gioco»): il tooltip già la
+  // racconta, ma solo a chi si ferma col mouse sul pallino. In una GARA il mouse
+  // non si guarda: le mosse del cambio auto — comando uscito in fascia e la sua
+  // conferma — si scandiscono ANCHE in una piccola lista del pannello (ultime
+  // 4, la più recente prima). Memoria vuota = niente blocco: mai buchi fantasma.
+  function bloccoStoria() {
+    const storia = Array.isArray(S.dati?.storia) ? S.dati.storia : [];
+    if (!storia.length) return '';
+    const hhmm = (t) => { const d = new Date(Number(t || 0)); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+    let h = '<div class="gruppo"><h2>Cambio auto: il registro</h2><div class="card">';
+    for (const ev of storia.slice(0, 4)) {
+      h += '<div class="riga">' + (ev.stato === 'confermato' ? '✓ ' : '⏳ ')
+        + esc(hhmm(ev.t)) + ' · ' + esc(String(ev.tipo || 'setcar').toUpperCase())
+        + ' ' + esc(ev.nome || '?')
+        + (ev.stato === 'confermato' ? ' — ' + esc(ev.msg || 'confermata') : ' — inviata, caccia alla conferma')
+        + '</div>';
+    }
+    return h + '</div></div>';
+  }
+
   function cardGara(g) {
     const st = STATI[g.stato] || STATI.bloccata;
     const meta = [
@@ -636,6 +673,36 @@
       ].filter(Boolean).join(' · ') + '</div></div>';
   }
 
+  // LE NUOVE FONTI DEL SERVER (31/10, «integra maggiormente il cruscotto»):
+  // la PROSSIMA ronda (prossimoApp, stesso campo delle card «gare di oggi»)
+  // e la BACHECA del team (messaggi, tradotti dal server come la GUI).
+  // Niente dati = niente gruppo: il pannello resta quello, mai un buco.
+  function gruppoProssimo(p) {
+    if (!p) return '';
+    let h = '<div class="gruppo"><h2>Prossimo appuntamento</h2><div class="card">' +
+      '<div class="titolo">Giorno ' + esc(p.giorno) + (p.quando ? ' — ' + esc(p.quando) : '') + '</div>';
+    const piccole = (p.gare ?? []).map(function (g) {
+      const meta = [
+        g.track ? 'Pista: ' + esc(g.track) : null,
+        g.auto ? 'Auto: ' + esc(g.auto) : null,
+        g.giri ? esc(g.giri) + ' giri' : null,
+        g.ora ? 'ore ' + esc(g.ora) : null,
+        g.meteo ? esc(g.meteo) : null,
+      ].filter(Boolean).join(' · ');
+      return '<div class="riga">' + esc(g.nome) + (g.ronda ? ' — ronda ' + esc(g.ronda) : '') + (meta ? '<br>' + meta : '') + '</div>';
+    }).join('');
+    h += piccole || '<div class="riga">Nessuna gara in agenda.</div>';
+    return h + '</div></div>';
+  }
+  function bloccoMessaggi(msg) {
+    if (!msg || !msg.length) return '';
+    const data = (at) => { const d = new Date(String(at || '')); return Number.isNaN(d.getTime()) ? '' : ' — ' + String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0'); };
+    return '<div class="gruppo"><h2>Dal team</h2>' +
+      '<div class="card">' + msg.map(function (m) {
+        return '<div class="riga">✉️ ' + esc(String(m.testo ?? '').slice(0, 140)) + esc(data(m.at)) + '</div>';
+      }).join('') + '</div></div>';
+  }
+
   function disegna() {
     const d = S.dati;
     let h = '<div class="sub" style="color:#9aa7b8;font-size:12px;margin-bottom:10px">';
@@ -646,6 +713,14 @@
     if (d.giornoLabel) h += '<br>Giorno ' + esc(d.giornoLabel);
     h += '</div>';
     h += strisciaNota();
+    // LA STORIA DEI COMANDI (31/10 «storia visibile in gioco»): sotto la
+    // striscia nota — comandi e conferme del cambio auto, che il tooltip
+    // diceva solo al pallino. Prima dei consigli: le alte sono i fatti
+    // appena passati, i consigli il lavoro in corso.
+    h += bloccoStoria();
+    // I CONSIGLI (30/10): subito sotto la striscia nota — la cosa che in
+    // gara serve ADESSO, prima delle card di carriera e dei bottoni.
+    h += bloccoConsigli();
     h += bloccoAvvisi();
 
     // BOTTONI «Prepara e divertiti» (3/11): sopra tutto, la PRIMA cosa che
@@ -666,13 +741,14 @@
       h += vis.map(cardGara).join('');
       if (gare.length > 5) h += '<div class="vuoto">… e altre ' + (gare.length - 5) + ' gare oggi (nella GUI del browser)</div>';
     } else h += '<div class="vuoto">Nessuna gara in programma oggi.</div>';
-    h += '</div><div class="gruppo"><h2>Serie iscritta</h2>';
+    h += '</div>' + gruppoProssimo(d.prossimoApp) + '<div class="gruppo"><h2>Serie iscritta</h2>';
     const iscr = (d.iscritte ?? []).slice(0, 6);
     if (iscr.length) {
       h += iscr.map(cardIscritta).join('');
       if ((d.iscritte ?? []).length > 6) h += '<div class="vuoto">… e altre ' + ((d.iscritte ?? []).length - 6) + ' serie</div>';
     } else h += '<div class="vuoto">Nessuna serie iscritta.</div>';
     h += '</div>';
+    h += bloccoMessaggi(d.messaggi);
     h += bloccoClassifica(d.classifica);
     h += bloccoMondo(d.mondo, d.guiUrl);
     inner.innerHTML = h;
@@ -722,6 +798,15 @@
           ' · ronda ancora valida ' + resti(pr.scadeIn))
         : ('sincro «Prepara e Divertiti» ✓ — gara al volo armata alle ' + hhmm(pr.armataAlle) + ' · ancora valida ' + resti(pr.scadeIn)));
     } else if (fasciaTs) righe.push('sincro «Prepara e Divertiti»: nessuna preparazione ora');
+    // LA STORIA DEL COMANDO (31/10 «storia del comando nel tooltip»): ciò
+    // che è passato per il menu dell'auto — comando uscito in fascia e/o
+    // conferma tornata dal gioco — UNA riga a voce, più recente prima.
+    // Memoria vuota = niente righe: il tooltip resta sereno.
+    const storia = Array.isArray(S.dati?.storia) ? S.dati.storia : [];
+    for (const ev of storia.slice(0, 4)) {
+      righe.push('comando ' + hhmm(ev.t) + ' · ' + String(ev.tipo || 'setcar').toUpperCase() + ' ' + (ev.nome || '?') +
+        (ev.stato === 'confermato' ? ' — ✓ ' + (ev.msg || 'confermata') : ' — inviata, caccia alla conferma'));
+    }
     return { emoji: molli ? '🟠' : '🟢', righe: righe };
   }
   function aggiornaConn() {

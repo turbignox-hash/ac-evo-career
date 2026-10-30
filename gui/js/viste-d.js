@@ -370,7 +370,7 @@ function drawSettings(m){
       <div class="muted" id="backup-list" style="margin-top:6px;font-size:12px">${tr({ it: 'Crea una copia di sicurezza del salvataggio: soldi, risultati, rivali e statistiche restano intatti anche se qualcosa va storto.', en: 'Makes a safety copy of the save: money, results, rivals and stats stay intact even if something goes wrong.' })}</div>
       ${s.issues.length ? `<div class="banner warn" style="margin-top:16px">${tr({ it: `${s.issues.length} riferimenti della scala non trovati nell'installazione`, en: `${s.issues.length} ladder references not found in the installation` })}: ${esc(s.issues.slice(0,4).map(i=>i.id).join(', '))}${s.issues.length>4?'…':''}</div>` : `<div class="banner good" style="margin-top:16px">${tr({ it: 'La scala carriera combacia con il contenuto installato.', en: 'The career ladder matches the installed content.' })}</div>`}
       <h2 style="margin-top:22px">${tr({ it: 'Backup del save di EVO', en: 'EVO save backup' })}</h2>
-      <div class="muted" style="font-size:12px">${tr({ it: "All'avvio del launcher il save del GIOCO (Saved Games\\ACE) viene zippato da solo, ma solo se l'ultimo backup ha più di 36 ore: due slot in rotazione, sempre i 4 zip più recenti. Qui vedi com'è messo e puoi forzarlo a mano in qualunque momento (anche con EVO aperto: non si spezza niente).", en: "At launcher start the GAME save (Saved Games\\ACE) is zipped automatically, but only if the last backup is older than 36 hours: two rotating slots, always the 4 newest zips. Here you can see where it stands and force it by hand at any time (even with EVO open: nothing breaks)." })}</div>
+      <div class="muted" style="font-size:12px">${tr({ it: "All'avvio del launcher il save del GIOCO (Saved Games\\ACE) viene zippato da solo, ma solo se l'ultimo backup ha più di 36 ore: due slot in rotazione, sempre i 2 zip più recenti. Qui vedi com'è messo e puoi forzarlo a mano in qualunque momento (anche con EVO aperto: non si spezza niente).", en: "At launcher start the GAME save (Saved Games\\ACE) is zipped automatically, but only if the last backup is older than 36 hours: two rotating slots, always the 4 newest zips. Here you can see where it stands and force it by hand at any time (even with EVO open: nothing breaks)." })}</div>
       <div id="savebk-out" style="margin-top:8px;font-size:13px">…</div>
       <div class="row" style="margin-top:10px"><button class="ghost" id="b-savebk">${tr({ it: 'Forza il backup del save ora', en: 'Force the save backup now' })}</button></div>
       <h2 style="margin-top:22px">${tr({ it: 'Verifica integrità', en: 'Integrity check' })}</h2>
@@ -636,6 +636,16 @@ async function seasonEndFlow(force){
       catch(e){ toast(e.message,'err'); }
     }; });
   } catch(e){
+    // STAGIONE GIÀ CHIUSA (30/10, MacOS di massa): il primo click è riuscito,
+    // il secondo ricadeva sulla stagione nova con 0 gare. Qui il server dà
+    // 409 con codice suo: niente «chiudi comunque», un solo tasto e la card
+    // dietro si ridisegna (render) così smette di dire «calendario completato».
+    if (e.data?.code === 'SEASON_ALREADY_CLOSED') {
+      modal(tr({ it: 'Stagione già chiusa', en: 'Season already closed' }),
+        `<p>${esc(e.message)}</p>`,
+        [[tr({ it: 'Ho capito', en: 'Got it' }), 'ghost', () => { render(); }]]);
+      return;
+    }
     if (e.data?.code === 'SEASON_INCOMPLETE') {
       modal(tr({ it: 'Stagione incompleta', en: 'Incomplete season' }), `<p>${esc(e.message)}</p><p class="muted" style="margin-top:8px">${tr({ it: 'Puoi chiuderla comunque: le gare mancanti restano senza punti.', en: 'You can close it anyway: missing races stay scoreless.' })}</p>`,
         [[tr({ it: 'Annulla', en: 'Cancel' }), 'ghost', () => {}], [tr({ it: 'Chiudi comunque', en: 'Close anyway' }), 'ghost danger', () => { seasonEndFlow(true); }]]);
@@ -855,34 +865,77 @@ async function openDossier(key){
    «sto cercando lo speech per attivarlo ma non lo vedo»): il bottone 🔊 di
    dentro il pannello «Ingegnere LIVE» nasce e muore con la sessione diretta —
    fuori diretta l'interruttore non esisteva da nessuna parte. Questo chip vive
-   nella testata (stesso localStorage 'evo-copilot' che la barra legge) e quando
-   lo ACCENDI parla SUBITO: conferma che la voce funziona senza aspettare la
-   sessione. Per progetto la voce è ITALIANA comunque vada l'interfaccia. */
+   in testata e quando lo ACCENDI la radio prova SUBITO la voce, senza aspettare
+   la sessione.
+   UNIFICAZIONE DEI CHIP (31/10 tardissimo): fin qui questo chip viveva di
+   SOLO localStorage 'evo-copilot' mentre il chip dentro «Ingegnere LIVE»
+   (#cp-toggle) e il selettore di Impostazioni comandano la RADIO DEL SERVER
+   via POST voce-server (decisione 31/10: la radio la comanda il SOLO config).
+   Era un terzo canale sfasato: poteva dire «copilota ON» in oro con la radio
+   reale (Cosimo) spenta, e lo spegni non comandava la voce che in gara si
+   sente. Da oggi legge e comanda la STESSA sorgente: stato via GET
+   (voce-server), click via POST { on } come il chip del pannello; l'accensione
+   prova la radio vera (/api voce-prova, lo stesso repertorio del ♪ prova e
+   del bottone delle Impostazioni). Con il server irraggiungibile resta il
+   canale locale (localStorage + speechSynthesis «Copilota attivo.»): il chip
+   lavora comunque. La ALLINEAMENTO porta lo stato reale a risposta ricevuta
+   (una GET alla volta, guardia _voceSrvChiedo) e RIDISEGNA solo se cambia
+   davvero. Per progetto la voce è ITALIANA comunque vada l'interfaccia. */
 function drawCopilotStrip(){
   const host = document.querySelector('#copilot-strip');
   if (!host) return;
-  const on = localStorage.getItem('evo-copilot') !== 'off';
+  const on = _voceSrvOn != null ? _voceSrvOn : (localStorage.getItem('evo-copilot') !== 'off');
   host.textContent = on ? (window.tr ? window.tr({ it: '🔊 copilota ON', en: '🔊 copilot ON' }) : '🔊 copilota ON') : (window.tr ? window.tr({ it: '🔈 copilota', en: '🔈 copilot' }) : '🔈 copilota');
   host.className = on ? 'chip gold' : 'chip';
   host.title = tr({
     it: on
-      ? 'Copilota vocale ATTIVO: in sessione diretta il cruscotto dice delta, giri compiuti, benzina e metà gara (barra «🎧 Ingegnere LIVE» in fondo alla scheda Cruscotto). Click qui: lo spegni.'
-      : 'Copilota vocale SPENTO. Click qui: lo riaccendi e ti parla subito di prova — in sessione diretta la voce torna a dire delta, giri e benzina. Tutto locale (speechSynthesis del browser): niente rete.',
+      ? 'Copilota ATTIVO: la radio la fa il PITWALL (Cosimo parla anche con la GUI chiusa). Stesso comando del chip «🔊 copilota» dentro Ingegnere LIVE e del selettore di Impostazioni. Click: lo spegni.'
+      : 'Copilota SPENTO. Click: lo accendi e la radio del Pitwall prova subito la voce (lo stesso repertorio delle Impostazioni). Se il server non risponde resta la voce locale del browser con la frase di collaudo.',
     en: on
-      ? 'Voice copilot ON: in a live session the dashboard speaks the delta, laps done, fuel and mid-race bar («🎧 Ingegnere LIVE» panel at the bottom of the Dashboard tab). Click here to turn it off.'
-      : 'Voice copilot OFF. Click here to re-enable it — it speaks a test line right away; in a live session the voice resumes the delta, laps and fuel calls. Fully local (browser speechSynthesis): no network.',
+      ? 'Voice copilot ACTIVE: the voice is the server PITWALL (Cosimo speaks even with the GUI closed). Same command as the chip in Engineer LIVE and the Settings selector. Click to mute it.'
+      : 'Voice copilot OFF. Click to enable it — the Pitwall radio speaks a test line right away (the same repertoire as Settings). If the server is unreachable the browser local test voice remains.',
   });
+  // ALLINEAMENTO col vero stato del server: il testo esce già con lo stato
+  // ottimista/localStorage, la GET rettifica a risposta ricevuta (e NON
+  // ridisegna se non cambia davvero — niente loop di GET).
+  if (!_voceSrvChiedo) {
+    _voceSrvChiedo = true;
+    try {
+      Promise.resolve(api('voce-server')).then((r) => {
+        _voceSrvChiedo = false;
+        if (r && typeof r.on === 'boolean') {
+          const cambiato = r.on !== _voceSrvOn;
+          _voceSrvOn = r.on;
+          if (cambiato && r.on !== on) drawCopilotStrip();
+        }
+      }).catch(() => { _voceSrvChiedo = false; });
+    } catch { _voceSrvChiedo = false; }
+  }
 }
-document.addEventListener('click', (ev) => {
+/* l'ultimo stato VERO della radio visto dal server (null = non ancora
+   letto): al primo render il chip parte da localStorage, la prima GET di
+   drawCopilotStrip lo porta al valore reale (come #cp-toggle lo mostra). */
+let _voceSrvOn = null;
+let _voceSrvChiedo = false;   // guardia: una GET alla volta
+document.addEventListener('click', async (ev) => {
   const t = ev.target?.closest?.('#copilot-strip');
   if (!t) return;
-  const wasOn = localStorage.getItem('evo-copilot') !== 'off';
-  localStorage.setItem('evo-copilot', wasOn ? 'off' : 'on');
-  if (window.__copilot) window.__copilot.on = !wasOn;   // la barra diretta si allinea al giro dopo
+  const wasOn = _voceSrvOn != null ? _voceSrvOn : (localStorage.getItem('evo-copilot') !== 'off');
+  const onNuovo = !wasOn;
+  localStorage.setItem('evo-copilot', onNuovo ? 'on' : 'off');   // canale locale coerente (residuo: da questa sera il comando vero è il POST sotto)
+  if (window.__copilot) window.__copilot.on = onNuovo;   // la barra diretta si allinea al giro dopo
   try { if (wasOn) speechSynthesis.cancel(); } catch { /* niente voce: ok così */ }
+  _voceSrvOn = onNuovo;   // ottimista: il POST qui sotto o la GET conferma/rettifica
   drawCopilotStrip();
-  if (!wasOn) {
-    try { const u = new SpeechSynthesisUtterance('Copilota attivo.'); speechSynthesis.speak(u); } catch { /* la voce non deve mai rompere la pagina */ }
+  // STESSO COMANDO del chip di Ingegnere LIVE: la radio la comanda il config
+  try { await api('voce-server', { on: onNuovo }); } catch { /* senza server resta la locale */ }
+  drawCopilotStrip();   // il POST ha già messo lo stato vero: la GET vive nella draw
+  if (onNuovo) {
+    // PARLA SUBITO (come da nascita del chip, 27/10): prova la radio VERA
+    // del Pitwall — stesso timbro e stessa coda della gara. Se il server
+    // la rifiuta o non c'è, torna la frase della voce del browser.
+    try { await api('voce-prova', {}); }
+    catch { try { const u = new SpeechSynthesisUtterance('Copilota attivo.'); speechSynthesis.speak(u); } catch { /* la voce non deve mai rompere la pagina */ } }
   }
 });
 /* PROVA VOCE DAL CRUSCOTTO (27/10, richiesta Mauro): il chip «♪ prova» accanto
@@ -891,9 +944,16 @@ document.addEventListener('click', (ev) => {
    nome «Italian») e dice in coco QUALE voce ha usato: se è una [it-IT] il
    lattigguio a coco è giusto; se esce [en-US] il sistema è in fallback (voce
    italiana assente: Windows → Voce → Aggiungi voci, come dicono le Impostazioni). */
+  /* (30/10) COLLAUDO ONESTO delle due voci: il chip prova PRIMA la radio VERA
+     della gara (voceSrv/Cosimo, endpoint /api/voce-prova: lo stesso del bottone
+     «prova la radio» delle Impostazioni) — così ascolti il timbro del Pitwall
+     che parla davvero in gara, non un altro. Se la radio non è viva (copilota
+     spenta -> 400, o server offline) torna la prova classica del browser,
+     identica a prima. */
 document.addEventListener('click', (ev) => {
   const p = ev.target?.closest?.('#copilot-prova');
   if (!p) return;
+  const provaBrowser = () => {
   if (!('speechSynthesis' in window)) { toast(tr({ it: 'Il browser non supporta la voce.', en: 'This browser has no speech support.' }), 'err'); return; }
   const norm = (s) => String(s ?? '').toLowerCase().replace('_', '-');
   const pick = (vs) => vs.find((vv) => norm(vv.lang) === 'it-it')
@@ -912,6 +972,12 @@ document.addEventListener('click', (ev) => {
     if (!v && tentativo < 2) setTimeout(() => parla(tentativo + 1), 700);
   };
   parla();
+  };
+  try {
+    api('voce-prova', {}).then((r) => {
+      toast(tr({ it: 'In coda alla voce del Pitwall — livello: ', en: 'Queued on the Pitwall voice — level: ' }) + r.livello, 'ok');
+    }).catch(() => provaBrowser());
+  } catch { provaBrowser(); }
 });
 drawCopilotStrip();
 

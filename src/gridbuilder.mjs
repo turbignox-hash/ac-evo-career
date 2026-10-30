@@ -278,6 +278,20 @@ export function buildGridMessage(opts) {
     for (const g of decodeMsg(b)) if (g.field === 10) return decodeMsg(g.bytes).filter((x) => x.field === 1).map((x) => utf8(x.bytes))[0] ?? null;
     return null;
   };
+  // LA TINTA di una cella: campo 11 (preset visuale), stessa estrazione di
+  // evo-grid.gridFileOf (il preset sta nel primo segmento dopo \x12, "F40 LM
+  // Visual 4" dopo \x18 non va letto). Assente = il gioco usa il default:
+  // per il conteggio le misuro come UNA livrea propria ('default').
+  const visualOf = (b) => {
+    for (const g of decodeMsg(b)) {
+      if (g.field !== 11) continue;
+      const t = Buffer.from(g.bytes).toString('utf8');
+      const k = t.indexOf('\x12');
+      const v = k >= 0 ? t.slice(k + 1).split('\x18')[0] : (t || null);
+      return v || '(default)';
+    }
+    return '(default)';
+  };
 
   // pool: se il ladder dice node.cars, prendo dal template SOLO quelle auto;
   // altrimenti tutto il pool (serie mista). Il MATCH della classe avviene sui
@@ -542,6 +556,24 @@ export function buildGridMessage(opts) {
     : rulesFor(classes, nodeId, presets, matched.cls, matched.id, round.track);
   const bilanciate = newCells.map((b) => applyRulesToCell(b, rules));
 
+  // TINTE RIVALI (DA-10, «avversari monocolore»): quante LIVERIE DISTINTE
+  // per modello finiscono nella griglia scritta. Il template è la sorgente
+  // delle celle (zero rischio crash): se un modello esce con più vetture e
+  // UNA sola tinta, il report lo dice — la varietà è il gesto «più LIVERIES
+  // + APPLICA» in EVO, non un'invenzione del builder.
+  const perAutoTinta = new Map();
+  for (const b of bilanciate) {
+    const raw = b.bytes;   // applyRulesToCell torna un oggetto { bytes, kg, pct, car }
+    const id = carIdOf(raw) ?? '?';
+    const e = perAutoTinta.get(id) ?? { istanze: 0, tinte: new Set() };
+    e.istanze++; e.tinte.add(visualOf(raw));
+    perAutoTinta.set(id, e);
+  }
+  const tinte = [...perAutoTinta.entries()].map(([id, e]) => {
+    const mono = e.istanze > 1 && e.tinte.size === 1;
+    return `${id} ×${e.istanze} · ${e.tinte.size} ${e.tinte.size === 1 ? 'tinta' : 'tinte'}${mono ? ' (MONOCOLORE: più liveries in EVO + APPLICA per le varianti)' : ''}`;
+  });
+
   // config campo 3: partiamo dai raw del template e patchiamo ciò che cambia
   const cfgInner = decodeMsg(tpl.config.bytes);
   const cfgNew = cfgInner.map((g) => ({ ...g }));
@@ -583,6 +615,7 @@ export function buildGridMessage(opts) {
     poolMulti: poolMultiInfo ? `multi-marca: ${poolMultiInfo.auto} auto diverse (${poolMultiInfo.celle} celle nel template)` : null,
     origine,
     ai: aiEff?.length === 2 ? `${aiEff[0]}-${aiEff[1]} (${aiFrom})` : null,
+    tinte,
     escluse: poolEscluse,
     sintesi: reportSintesi.length ? reportSintesi : null,
     celle: bilanciate.map((b) => `${b.car} → ${b.kg}kg/${b.pct}%`),

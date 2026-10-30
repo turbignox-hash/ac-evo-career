@@ -1,0 +1,11 @@
+{
+  "version": "0.1.0",
+  "title": "Pitwall",
+  "pages": [
+    "menu.html"
+  ],
+  "scripts": [
+    "pitwall.js"
+  ],
+  "files": []
+}

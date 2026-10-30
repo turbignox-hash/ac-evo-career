@@ -20,6 +20,8 @@
 //     [--auto ks_ferrari_296_gt3]  arma il sedile nel Cruscotto (vetrina custom)
 //     [--griglia-pool id1,id2,...] riscrive la griglia col pool dato (builder,
 //                            fallback sui backup .bak-* come l'event-prep)
+//     [--preset nome]        ricetta SALVATA: i flag mancanti arrivano da lei
+//     [--preset-salva nome]  salva la ricetta corrente con nome (sedile incluso)
 //     [--dry] [--force]
 //
 // Il CRUSCOTTO oltre al CLI: src/webui.mjs chiama garaVeloce() con gli stessi
@@ -32,24 +34,110 @@
 //   3) parti. Durata e banda nel menu sono quelle scritte qui.
 // A EVO APERTO le scritture dell'istantanea passano solo con --force; senza,
 // il comando rifiuta (lezione: il menu può riscrivere il file nel frattempo).
+//
+// ---------- L'ULTIMA RICETTA «PARTI SUBITO» (30/10) ----------
+// Ogni CHIAMATA VERA di garaVeloce registra TUTTI i parametri che l'hanno
+// comandata (giri o tempo, banda, pista, sedile, pool): la funzione
+// ultimaRicetta() la rilegge, e il webui espone il bottone «PARTI SUBITO»
+// che la ri-esegue IDENTICA. Idempotente per costruzione: rilanciare la
+// stessa ricetta riscrive solo ciò che il menu di EVO ha cambiato nel
+// frattempo (e se tutto è già a posto non scrive un byte — lezione 30/10
+// «stessa ricetta due volte, niente scritture»).
 
 import { existsSync, readdirSync, copyFileSync, writeFileSync, renameSync, appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 
-import { GAME_MODES_DIR, gameRunning } from './evo-grid.mjs';
+import { GAME_MODES_DIR, gameRunning, bakName, pruneBackups } from './evo-grid.mjs';
 import { timedRace, setInstantAi, currentInstantRace, INSTANT_FILE } from './set-instantrace.mjs';
 import { specFor, changeWeekendTrack, currentWeekendTrack } from './set-track.mjs';
 import { fileURLToPath } from 'node:url';
 import { loadState, saveState } from '../src/state.mjs';
 import { loadLadder, SAVE_FILE } from '../src/webui-env.mjs';
 import { buildGridMessage } from '../src/gridbuilder.mjs';
+import { writeJsonAtomic } from '../src/atomic.mjs';
 
 // IL REGISTRO DELLA DURATA (1/11): ogni scrittura ARRIVA qui, un JSONL con
 // una riga per tasto — la stessa rete dei registri voce (data/copilot-*.jsonl).
 // Il posto è la sandbox dei flussi (EVO_FLOWS_DIR, test/_flows-sandbox.mjs):
 // nei test e sul PC reale lo stesso env imposta la cartella, e le righe non
 // sostituiscono i backup che già gli scrittori lasciano sui file veri.
-export const REGISTRO_FILE = join(process.env.EVO_FLOWS_DIR ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'gara-veloce.jsonl');
+const BASE_FLUSSI = process.env.EVO_FLOWS_DIR ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'data');
+export const REGISTRO_FILE = join(BASE_FLUSSI, 'gara-veloce.jsonl');
+// I PRESET with NOME (30/10, «preset con la mia auto»): la ricetta COMPLETA
+// salvata A UTENT — giri o tempo, banda, pista, sedile (la MIA auto) e pool —
+// in un file JSON ATOMICO accanto al registro. La stessa casa del registro:
+// nei test la cartella è la sandbox dei flussi (EVO_FLOWS_DIR), sul PC
+// reale quella di data/.
+export const PRESET_FILE = join(BASE_FLUSSI, 'preset-gara-veloce.json');
+
+/** La STESSA normalizzazione di garaVeloce, estratta per i PRESET: una
+ *  ricetta salvata dev'essere GIUSTA come una eseguita (altrimenti il
+ *  «carica e parti» fallisce su un preset che non sarebbe mai partito).
+ *  RAISE con gli stessi codici di garaVeloce. */
+export function ricettaNetta({ giri = null, tempo = null, aiMin = 88, aiMax = 93, auto = null, pista = null, pool = null } = {}) {
+  if (giri == null && tempo == null) throw Object.assign(new Error('la ricetta ha bisogno di UNA durata: giri o tempo'), { code: 'NO_RECIPE' });
+  if (giri != null && tempo != null) throw Object.assign(new Error('o a giri o a tempo, non entrambi'), { code: 'NO_ENTRAMBI' });
+  giri = giri != null ? Number(giri) : null;
+  tempo = tempo != null ? Number(tempo) : null;
+  if ((giri != null && (!Number.isFinite(giri) || giri <= 0)) || (tempo != null && (!Number.isFinite(tempo) || tempo <= 0))) {
+    throw Object.assign(new Error('durata: intero > 0 richiesto'), { code: 'BAD_DURATA' });
+  }
+  if (giri != null) giri = Math.round(giri);
+  if (tempo != null) tempo = Math.round(tempo);
+  aiMin = Math.round(Number(aiMin ?? 88)); aiMax = Math.round(Number(aiMax ?? 93));
+  if (!Number.isFinite(aiMin) || !Number.isFinite(aiMax) || aiMin < 0 || aiMax < 0 || aiMin > 100 || aiMax > 100) {
+    throw Object.assign(new Error('banda AI: due interi fra 0 e 100'), { code: 'BAD_BANDA' });
+  }
+  auto = auto != null ? String(auto).trim() || null : null;
+  pista = pista != null ? String(pista).trim() || null : null;
+  const pl = typeof pool === 'string' ? pool.split(',').map((c) => c.trim()).filter(Boolean) : (Array.isArray(pool) ? pool.map((c) => String(c).trim()).filter(Boolean) : null);
+  return { giri, tempo, aiMin, aiMax, auto, pista, pool: pl?.length ? pl : null };
+}
+
+function leggiPresetFile() {
+  try { const b = JSON.parse(readFileSync(PRESET_FILE, 'utf8')); if (b && typeof b === 'object' && b.presets && typeof b.presets === 'object') return b.presets; }
+  catch { /* primo avvio: nessun preset */ }
+  return {};
+}
+
+/** Nome → per UN preset: la ricetta salvata (normalizzata) + quando. null se
+ *  il nome manca (nessuna eccezione: il menu può chiedere un preset sparito). */
+export function leggiPreset(nome) {
+  const p = leggiPresetFile()[String(nome ?? '').trim()];
+  return p ? { nome: String(nome).trim(), giri: p.giri ?? null, tempo: p.tempo ?? null, aiMin: p.aiMin ?? 88, aiMax: p.aiMax ?? 93, auto: p.auto ?? null, pista: p.pista ?? null, pool: Array.isArray(p.pool) ? p.pool : null, at: p.at ?? null } : null;
+}
+
+/** L'elenco per il menu della GUI: i preset col loro riepilogo (la STESSA
+ *  riga di formattaRigaRegistro, senza riscrivere la formula). Sola lettura. */
+export function elencoPreset() {
+  return Object.entries(leggiPresetFile())
+    .map(([nome, p]) => ({ nome, ...leggiPreset(nome), riga: formattaRigaRegistro({ at: p.at, giri: p.giri, tempo: p.tempo, aiMin: p.aiMin, aiMax: p.aiMax, pista: p.pista }) }))
+    .sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')) || a.nome.localeCompare(b.nome));
+}
+
+/** Salva CON NOME e sovrascrive in silenzio (ri-salvare un preset è la cura,
+ *  non un errore): arriva il form della GUI O una ricetta smontata da
+ *  ultimaRicetta(). L'auto del sedile entra COME TUTTO il resto: un preset
+ *  «con la mia auto» è la ricetta con auto riempita. */
+export function salvaPreset(nome, ricetta = {}) {
+  const nom = String(nome ?? '').trim();
+  if (!nom) throw Object.assign(new Error('nome del preset mancante'), { code: 'NO_NOME' });
+  const preset = ricettaNetta(ricetta);
+  const tutti = leggiPresetFile();
+  tutti[nom] = { ...preset, at: new Date().toISOString() };
+  writeJsonAtomic(PRESET_FILE, { presets: tutti });
+  return { nome: nom, ...preset, at: tutti[nom].at };
+}
+
+/** Cancella per nome: true se c'era, false se già assente (idempotente). */
+export function cancellaPreset(nome) {
+  const nom = String(nome ?? '').trim();
+  const tutti = leggiPresetFile();
+  if (!(nom in tutti)) return false;
+  delete tutti[nom];
+  writeJsonAtomic(PRESET_FILE, { presets: tutti });
+  return true;
+}
 function registra(voci) {
   try {
     mkdirSync(dirname(REGISTRO_FILE), { recursive: true });
@@ -66,7 +154,7 @@ export function leggiRegistro(limit = 20) {
 /** UNA riga del registro per UNA persona: «5 giri · AI 88–93 · Monza · 14:32».
  *  Giri e tempo a tempo si escludono (li scrive garaVeloce); l'ora è quella
  *  della scrittura (locale). Riga illeggibile → null: mai un'eccezione per
- *  un riepilogo (i rami che la mostrano stanno in Fascia e in GUI). */
+ *  un riepilogo (i rami che la mostrano stanno in GUI e in uiapp-pub). */
 export function formattaRigaRegistro(r) {
   try {
     const when = r?.at ? new Date(r.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
@@ -76,6 +164,21 @@ export function formattaRigaRegistro(r) {
     const pista = r?.pista ? String(r.pista) : null;
     return [dur, banda, pista, when].filter(Boolean).join(' · ') || null;
   } catch { return null; }
+}
+
+/** L'ULTIMA RICETTA «PARTI SUBITO» (30/10): l'ultima riga con UNA durata
+ *  (giri o tempo) nel registro delle scritture vere. Al volo (chi la chiama
+ *  nel webui per il bottone): null se il registro è vuoto o manca, MAI
+ *  un'eccezione per un riepilogo; una riga illeggibile si salta.
+ *  L'idempotenza è della stessa garaVeloce: rilanciarla riscrive SOLO ciò
+ *  che il menu EVO ha toccato nel frattempo. */
+export function ultimaRicetta() {
+  for (const r of leggiRegistro(50)) {
+    if (r?.raw) continue;                        // riga non data: si salta
+    if (r.giri == null && r.tempo == null) continue;  // senza durata NON è una gara
+    return { giri: r.giri ?? null, tempo: r.tempo ?? null, aiMin: r.aiMin ?? 88, aiMax: r.aiMax ?? 93, auto: r.auto ?? null, pista: r.pista ?? null, pool: Array.isArray(r.pool) ? r.pool : (r.pool ? String(r.pool).split(',').filter(Boolean) : null) };
+  }
+  return null;
 }
 
 /** La ricetta completa della gara al volo. RAISE per input sani (400:
@@ -175,7 +278,6 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
 
   // 5) GRIGLIA dal POOL (opzionale): stessa rete dell'event-prep — template =
   // customgrid corrente + i .bak-* più recenti, celle del pool, banda dei rivali
-
   if (pool?.length) step('griglia dal pool', () => {
     const GRID_FILE = join(GAME_MODES_DIR, 'last_grid.customgrid');
     if (!existsSync(GRID_FILE)) throw new Error('manca last_grid.customgrid: genera una griglia qualsiasi in EVO una volta, poi ripremi');
@@ -193,8 +295,18 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     }
     if (!built) throw new Error(`griglia NON riscritta: ${String(errore?.message ?? errore)}`);
     if (dry) return `dry: costruirei ${built.report.gridSize} celle dal pool (${pool.join(', ')})`;
-    const backup = `${GRID_FILE}.bak-veloce-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+    // IDEMPOTENZA DELLA GRIGLIA (lezione 30/10, gara 30′): ripetere la STESSA
+    // ricetta col pool NON deve riscrivere ("Prova senza scrivere" e le celle
+    // ricollate di nuovo еди condizione). Se i byte risultanti sono UGUALI ai
+    // byte sul disco, il pool si considera già montato: niente scritture.
+    try {
+      if (readFileSync(GRID_FILE).equals(built.buffer)) return `${built.report.gridSize} celle già identiche sul disco (idempotente, niente scritto)`;
+    } catch { /* disco bersaglio della scrittura: il flusso continua */ }
+    // bak al SECONDO (lezione 28/10 condivisa in evo-grid.bakName): due
+    // scritture ravvicinate della griglia non si cancellano più a vicenda.
+    const backup = bakName(GRID_FILE, 'veloce-');
     copyFileSync(GRID_FILE, backup);
+    pruneBackups(GRID_FILE);   // la pila dei bak-veloce non cresce senza freno (tetto 25, come grid-apply)
     writeFileSync(`${GRID_FILE}.tmp`, built.buffer);
     renameSync(`${GRID_FILE}.tmp`, GRID_FILE);
     scrittoQualcosa = true;
@@ -206,8 +318,12 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
   // registro conta SOLE le scritture vere, con i parametri che le hanno
   // comandate — così la LETTURA del registro è la storia di ciò che è stato
   // scritto davvero, non un elenco di tentativi.
+  // Le righe del REGISTRO sono da 30/10 anche la RICETTA «PARTI SUBITO»:
+  // garaVeloce le tiene COMPLETE (giri o tempo, banda, pista, sedile, pool)
+  // e ultimaRicetta() rilegge l'ultima. Uno step KO NON annulla il
+  // registro: riscriversi è la cura, non un problema.
   if (!dry && scrittoQualcosa) {
-    registra({ giri, tempo, aiMin, aiMax, pista: pista ?? null, auto: auto ?? null, pool: pool ?? null });
+    registra({ giri, tempo, aiMin, aiMax, pista: pista ?? null, auto: auto ?? null, pool: Array.isArray(pool) ? pool : null });
   }
 
   // il verdetto finale: lo stato dell'istantanea come lo vedrà EVO al menu
@@ -254,8 +370,34 @@ if (isMain) {
     aiMin = Number(m[1]); aiMax = Number(m[2]);
   }
   const giriArg = val('giri'), tempoArg = val('tempo');
-  const giri = giriArg != null ? Number(giriArg) : null;
-  const tempo = tempoArg != null ? Number(tempoArg) : null;
+  let giri = giriArg != null ? Number(giriArg) : null;
+  let tempo = tempoArg != null ? Number(tempoArg) : null;
+  const autoArg = val('auto'), pistaArg = val('pista'), poolArg = val('griglia-pool');
+  // --preset nome: la ricetta SALVATA riempie i campi che il CLI non ha
+  // battuto a mano — cambi un dettaglio, il resto resta il preset (i flag
+  // espliciti vincono SEMPRE, di fila con l'eseguita). argv si spinge come
+  // i flag veri: val() la rilegge sotto nel famoso «garaVeloce({...})».
+  const presetNome = val('preset');
+  if (presetNome) {
+    const p = leggiPreset(presetNome);
+    if (!p) { console.error(`preset "${presetNome}" non trovato: guardali in ${PRESET_FILE}`); process.exit(2); }
+    if (giriArg == null && p.giri != null) argv.push('--giri', String(p.giri));
+    if (tempoArg == null && p.tempo != null) argv.push('--tempo', String(p.tempo));
+    if (bandaArg == null && (p.aiMin != null || p.aiMax != null)) argv.push('--banda', `${p.aiMin ?? aiMin}-${p.aiMax ?? aiMax}`);
+    if (autoArg == null && p.auto != null) argv.push('--auto', p.auto);
+    if (pistaArg == null && p.pista != null) argv.push('--pista', p.pista);
+    if (poolArg == null && p.pool != null) argv.push('--griglia-pool', p.pool.join(','));
+    giri = val('giri') != null ? Number(val('giri')) : null;
+    tempo = val('tempo') != null ? Number(val('tempo')) : null;
+  }
+  // --preset-salva nome: la ricetta CORRENTE (flag battuti) con il nome dato
+  // nel file JSON. Salva e basta: un collaudo a secco diventa ricetta futura.
+  const salvaNome = val('preset-salva');
+  if (salvaNome) {
+    const r = salvaPreset(salvaNome, { giri, tempo, aiMin, aiMax, auto: autoArg, pista: pistaArg, pool: poolArg });
+    console.log(`preset "${r.nome}" salvato${giri != null ? ` · ${giri} giri` : ''}${tempo != null ? ` · ${tempo} min` : ''} · AI ${r.aiMin}–${r.aiMax}${r.auto ? ` · sedile ${r.auto}` : ''}${r.pista ? ` · pista ${r.pista}` : ''}${r.pool ? ` · pool: ${r.pool.length} auto` : ''}`);
+    process.exit(0);
+  }
   let out;
   try {
     out = garaVeloce({ giri, tempo, aiMin, aiMax, auto: val('auto'), pool: val('griglia-pool'), pista: val('pista'), dry: argv.includes('--dry'), force: argv.includes('--force') });
@@ -264,7 +406,7 @@ if (isMain) {
   }
   console.log(`== ${out.titolo} ==\n`);
   for (const p of out.passi) console.log(`  ${p.ok ? '✓' : '✗'} ${p.nome}: ${p.esito}`);
-  if (out.stato) console.log(`\nStato istantaneo: ${out.stato.modeTxt === 'a tempo' ? `${Math.round((out.stato.durata ?? 0) / 60)} min a tempo` : `${out.stato.durata} giri`} · AI ${out.stato.aiMin ?? '?'}–${out.stato.aiMax ?? '?'}`);
+  if (out.stato) console.log(`\nStato istantaneo: ${out.stato.modeTxt === 'a tempo' ? `${Math.round((out.stato.durata ?? 0) / 60)} min a tempo` : `${out.stato.durata ?? '?'} giri`} · AI ${out.stato.aiMin ?? '?'}–${out.stato.aiMax ?? '?'}`);
   try { const p = currentWeekendTrack(INSTANT_FILE); if (p) console.log(`   pista: ${p}`); } catch { /* resto: il blocco pista manca */ }
   if (out.dry) console.log('   (dry-run: nessun file toccato)');
   console.log('\n>> RESTA A TE (l\'app non clicca l\'interfaccia di EVO):');

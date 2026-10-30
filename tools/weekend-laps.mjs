@@ -22,8 +22,9 @@
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
-import { decodeMsg, encodeMsg, GAME_MODES_DIR } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg, GAME_MODES_DIR, pruneBackups } from '../tools/evo-grid.mjs';
 import { setWeekendGridMode } from './set-track.mjs';
+import { cancelloDistanza } from '../src/test-mode.mjs';
 
 const FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 const gameIsRunning = () => /AssettoCorsaEVO/i.test(execSync('tasklist', { encoding: 'utf8' }) ?? '');
@@ -154,7 +155,10 @@ export function setSingleMake(on, { file = FILE, dry = false, opponents = SINGLE
  * Idempotente: se il blocco dice già quei giri, non tocca niente (written:false).
  * opts: { file }. Ritorna { already, written, block, giri, backup }.
  */
-export function setWeekendLaps(laps, { file = FILE, force = false } = {}) {
+export function setWeekendLaps(laps, { file = FILE, force = false, previsto = false } = {}) {
+  // CANCELLO ANTI-CHEAT (31/10): fuori modalità test solo il preparatutto
+  // (previsto:true) scrive i giri — la distanza resta quella del calendario.
+  cancelloDistanza({ previsto });
   if (!Number.isInteger(laps) || laps <= 0) throw Object.assign(new Error(`giri deve essere un intero > 0, ricevo ${laps}`), { code: 'BAD_LAPS' });
   const buf = readFileSync(file);
   const ses = sessionsOf(buf);
@@ -163,7 +167,7 @@ export function setWeekendLaps(laps, { file = FILE, force = false } = {}) {
   // 28/10 (fatto a mano da Mauro dopo «devi essere in grado di farlo pure tu»):
   // la gara può essere rimasta a TEMPO da una prova (f3=1): invece di rifugiarsi
   // nell'errore, il «Prepara tutto» TORNA A GIRI (f3=2 + f2=laps) come#ifule più.
-  if (ses[which].aTempo && !force) return setWeekendTimed(null, { file, laps });
+  if (ses[which].aTempo && !force) return setWeekendTimed(null, { file, laps, previsto });
   if (ses[which].giri === laps && !ses[which].aTempo) return { already: true, written: false, block: ses[which].nome, giri: laps, backup: null };
   const fields = decodeMsg(buf);
   patchLaps(fields, which, laps);
@@ -174,6 +178,7 @@ export function setWeekendLaps(laps, { file = FILE, force = false } = {}) {
   if (!rt.ok) throw new Error(`round-trip NON byte-identico: ${JSON.stringify(rt)}`);
   const backup = `${file}.bak-laps-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   copyFileSync(file, backup);
+  pruneBackups(file);   // rotazione bak automatica (tetto 25, comune 31/10)
   writeFileSync(`${file}.tmp`, out);
   renameSync(`${file}.tmp`, file);
   return { already: false, written: true, block: ses[which].nome, giri: laps, backup };
@@ -186,7 +191,8 @@ export function setWeekendLaps(laps, { file = FILE, force = false } = {}) {
  *   setWeekendTimed(null, { laps: N }) → torna a giri (f3=2, f2=N) — il ripristino
  * Idempotente, round-trip byte-identico, backup datato (`.bak-tempo-`).
  * opts: { file } o { laps } per il ripristino. */
-export function setWeekendTimed(minutes, { file = FILE, laps = null } = {}) {
+export function setWeekendTimed(minutes, { file = FILE, laps = null, previsto = false } = {}) {
+  cancelloDistanza({ previsto });
   if (minutes == null && laps == null) throw Object.assign(new Error('serve --tempo N (minuti) o { laps: N } per tornare a giri'), { code: 'NO_VALUES' });
   if (minutes != null && (laps != null || !Number.isFinite(minutes) || minutes <= 0)) throw Object.assign(new Error(`tempo: minuti > 0 richiesti, ricevo ${minutes}`), { code: 'BAD_TEMP' });
   const backToLaps = minutes == null;

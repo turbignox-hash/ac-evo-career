@@ -121,6 +121,47 @@ export function classiGT(rows, regole = null) {
   return { classi: gruppi.map((g) => g.classe), gruppi };
 }
 
+/* ---------- le GRIGLIE del menu «Gara al volo» (31/10, «classi vive») ---------- */
+
+/**
+ * Il menu della griglia costruito dalle classi DAVVERO vive: entra il
+ * raggruppamento delle auto del libro ladder `perClasse` (Map o oggetto
+ * { classe: [id, …] }), esce la lista dei preset di griglia:
+ *   • UNA riga monoclasse per ogni classe con almeno un'auto;
+ *   • UNA multiclasse per OGNI combinazione di 2–4 classi vive
+ *     (coppie, triple, quadruple — né hardcoded né morti: scendono e salgono
+ *     col libro ladder del giorno);
+ *   • con più di 4 classi vive, l'endurance INTERA (tutte le classi) in
+ *     coda, che la misura a 4 non entra più nei loop.
+ * Le classi escono in ordine stile 24 Le Mans (ORDINE_CLASSI; eventuali
+ * classi personalizzate di data/classi-gt.json in coda, alfabetiche).
+ * Nessun ramo male: perClasse vuoto o assente → [] (menu «personalizzata» soltanto).
+ */
+export function griglieConClassiVive(perClasse) {
+  if (!perClasse) return [];
+  const isMap = perClasse instanceof Map;
+  const get = (cl) => [...(isMap ? (perClasse.get(cl) ?? []) : (perClasse[cl] ?? []))].filter(Boolean);
+  const n = (cl) => get(cl).length;
+  const vive = [
+    ...ORDINE_CLASSI.filter((cl) => n(cl) > 0),
+    ...(isMap ? [...perClasse.keys()] : Object.keys(perClasse))
+      .filter((cl) => !ORDINE_CLASSI.includes(cl) && n(cl) > 0)
+      .sort((a, b) => a.localeCompare(b)),
+  ];
+  const conti = (cls) => cls.map((cl) => n(cl)).join('+');
+  const comb = (cls) => ({ nome: `${cls.join(' + ')} — multiclasse (${conti(cls)})`, pool: cls.flatMap((cl) => get(cl)) });
+  const griglie = vive.map((cl) => ({ nome: `${cl} monoclasse (${n(cl)} auto)`, pool: get(cl) }));
+  for (let size = 2; size <= Math.min(vive.length, 4); size++) {
+    const cammina = (start, presi) => {
+      if (presi.length === size) { griglie.push(comb(presi)); return; }
+      for (let i = start; i < vive.length; i++) cammina(i + 1, [...presi, vive[i]]);
+    };
+    cammina(0, []);
+  }
+  if (vive.length > 4) griglie.push(comb(vive));       // l'endurance TUTTA, sempre in menu
+  return griglie;
+}
+
 /**
  * Il riepilogo che il RAPPORTO mostra: serve ≥2 classi vere (non '-') per
  * valere lo spazio in pagina; altrimenti null e la sezione non esiste.

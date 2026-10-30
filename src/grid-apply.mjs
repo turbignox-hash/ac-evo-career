@@ -12,12 +12,15 @@
 //   const out = applyBalance({ track: 'Sebring International Raceway' });  // classe auto-matchata
 //   const out = applyAi([94, 99]);
 //   const out = dropCellsApply(['preset_mk8gti_mech_1', 'BMW M3 E46 CSL']);
-import { readFileSync, writeFileSync, renameSync, copyFileSync, existsSync, readdirSync, statSync, mkdirSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, copyFileSync, existsSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import { dirname, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sameTrack } from './tracknames.mjs';
 import { tr } from './lang.mjs';
-import { gameRunning, encodeMsg, gridFileOf } from '../tools/evo-grid.mjs';
+import { gameRunning, encodeMsg, gridFileOf, bakName, pruneBackups } from '../tools/evo-grid.mjs';
+// compat: cli.mjs e corrupt-inputs.test mordono pruneBackups da qua — ma la
+// fonte è UNA (evo-grid, 31/10): re-export e NULLA si duplica più.
+export { pruneBackups };
 import { balanceCells, dropCells, setAiRange, planFromClass, readCells, DEFAULT_FILE } from '../tools/grid-balance.mjs';
 import { weekendCarCount, weekendGridMode } from '../tools/set-track.mjs';
 import { loadClasses, pickClassInfo, buildGridMessage } from './gridbuilder.mjs';
@@ -52,19 +55,9 @@ const FACTORY_DIR = process.env.EVO_FACTORY_DIR ?? join(dirname(HERE_DIR), 'conf
 const templatePathOf = (nodeId) => join(TEMPLATES_DIR, String(nodeId).replace(/[^a-zA-Z0-9_.-]/g, '_') + '.customgrid');
 const factoryFileOf = (nodeId) => join(FACTORY_DIR, basename(templatePathOf(nodeId)));
 
-/* ---------- BAK AL SECONDO (28/10) ---------- */
-// Il nome del bak portava solo MINUTI (slice(0,16)): due scritture dello
-// stesso file nello stesso minuto (poll + gara ravvicinate) si SOVRASCRIVEVANO
-// a vicenda e la pila dei bak perdeva le versioni precedenti (il test
-// grid-templates lo ha beccato: 2 attese, 1 trovata). Il nome ora porta i
-// SECONDI e se lo stesso secondo ne esce un altro si aggiunge -r2/-r3:
-// niente collisioni, la pila resta in ordine d'arrivo.
-function bakName(file, tag = '') {
-  const quando = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  let p = `${file}.bak-${tag}${quando}`;
-  for (let i = 2; existsSync(p); i++) p = `${file}.bak-${tag}${quando}-r${i}`;
-  return p;
-}
+/* bak e POTATURA: stessa ferrea memoria della lezione 28/10, ma la fonte è
+ * UNA da 31/10 — tools/evo-grid.mjs (bakName + pruneBackups importati sopra).
+ * Tutto il vecchio commento resta là col codice. */
 
 /** Appunta il buffer come template della serie. riscritture successive con byte
  *  identici non toccano nulla (a ogni giro di poll il file non cambia).
@@ -81,27 +74,10 @@ export function storeTemplate(nodeId, buf) {
   } catch { return null; }
 }
 
-/* ---------- DISCARICA DEI BACKUP (ottimizzazione 24/10) ---------- */
-// I .bak-<file>-<data> crescono a ogni gara senza freno (28 nello stesso
-// turno): qua ogni nuovo backup spazza via i più vecchi DELLO STESSO file,
-// tenendone una pila recente (i backup restano una fonte della corsa dei
-// candidati: tetto ALTissimo, non un minimo). La pulizia non deve MAI far
-// fallire una gara: ignora tutto ciò che non riesce a togliere.
-// FALLITO in debug 24/10: il solo mtime basta? NO — su Windows il clock dei
-// file ha granularità turbolenta e backup scritti nello stesso tick escono con
-// la STESSA mtime: l'ordine di taglio diventava imprevedibile (il test
-// corrupt-inputs lo ha beccato: restava il secondo-vecchio, usciva un altro).
-// Tie-break: nome desc — il nome contiene la data del backup, quindi nel
-// pareggio l'ordine alfabetico discendente è il più recente in fila.
-export function pruneBackups(file, { keep = 25 } = {}) {
-  try {
-    const dir = dirname(file), base = basename(file);
-    const pila = readdirSync(dir)
-      .filter((n) => { const dot = n.lastIndexOf('.bak-'); return n.startsWith(base + '.bak-') && Number.isFinite(Number(n.slice(dot + 5).split('-')[0])); })
-      .sort((a, b) => (statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs) || (a < b ? 1 : a > b ? -1 : 0));
-    for (const vecchio of pila.slice(keep)) { try { rmSync(join(dir, vecchio)); } catch { /* occupato: si rimuove la prossima gara */ } }
-  } catch { /* niente da potare */ }
-}
+/* ---------- DISCARICA DEI BACKUP ---------- */
+// La potatura della pila dei bak è in tools/evo-grid.mjs (pruneBackups,
+// importato e re-exportato in cima quì: UNA fonte per tutti dal 31/10). Il suo
+// commento-calla di lezione resta là col codice.
 
 /* ---------- GRIGLIE DI FABBRICA ---------- */
 // DISTRIBUZIONE (24/10, domanda Mauro: «chi lo installa al primo cambio di

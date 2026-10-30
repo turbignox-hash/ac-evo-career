@@ -27,7 +27,7 @@
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { decodeMsg, encodeMsg, gridFileOf, gameRunning, GAME_MODES_DIR } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, gridFileOf, gameRunning, GAME_MODES_DIR, pruneBackups } from './evo-grid.mjs';
 import { patchPerTrack } from '../src/gridbuilder.mjs';   // supplementi per-traccia della classe (cls.perTraccia)
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -280,6 +280,7 @@ if (dry) { console.log('DRY: niente scritto. Aggiungi --apply per scrivere.'); p
 if (gameRunning() && !has('force')) throw new Error('EVO è APERTO: chiudi il gioco prima di scrivere (o --force sapendolo).');
 const backup = `${FILE}.bak-bal-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
 copyFileSync(FILE, backup);
+pruneBackups(FILE);   // rotazione bak automatica (tetto 25, comune 31/10)
 writeFileSync(`${FILE}.tmp`, encodeMsg(fields));
 renameSync(`${FILE}.tmp`, FILE);
 console.log(`scritto. Backup: ${backup}`);

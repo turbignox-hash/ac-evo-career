@@ -7498,28 +7498,28 @@
       "calendar": [
         {
           "track": "brands_hatch",
-          "name": "Brands Hatch - Round 1",
+          "name": "Brands Hatch — MODERNE VS EPOCA!!!",
           "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "monza",
-          "name": "Monza - Round 2",
+          "name": "Monza — IL RETTILINEO NON PERDONA!!!",
           "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "oulton_park",
-          "name": "Oulton Park - Round 3",
+          "name": "Oulton Park — CHI ESITA È PERDUTO!!!",
           "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "imola",
-          "name": "Imola - Finale",
+          "name": "Imola — FINALE A COLTELLO!!!",
           "laps": 3,
           "hour": 15,
           "weather": 4
@@ -7562,28 +7562,28 @@
       "calendar": [
         {
           "track": "suzuka",
-          "name": "Suzuka - Round 1",
+          "name": "Suzuka — TALENTO VS SORTE!!!",
           "laps": 3,
           "hour": 12,
           "weather": 0
         },
         {
           "track": "monza",
-          "name": "Monza - Round 2",
+          "name": "Monza — CHI HA PIÙ MOTORE SPARA!!!",
           "laps": 3,
           "hour": 13,
           "weather": 2
         },
         {
           "track": "laguna_seca",
-          "name": "Laguna Seca - Round 3",
+          "name": "Laguna Seca — IL CURBONE NON PERDONA!!!",
           "laps": 3,
           "hour": 14,
           "weather": 1
         },
         {
           "track": "spa",
-          "name": "Circuit de Spa Francorchamps - Finale",
+          "name": "Spa — FINALE SOTTO LA PIOGGIA!!!",
           "laps": 3,
           "hour": 15,
           "weather": 4

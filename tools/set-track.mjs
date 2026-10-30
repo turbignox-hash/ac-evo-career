@@ -14,7 +14,7 @@
 // CLI:
 //   node tools/set-track.mjs --track "Red Bull Ring" [--dry] [--file <path>]
 import { readFileSync, writeFileSync, renameSync, copyFileSync, readdirSync, statSync } from 'node:fs';
-import { decodeMsg, encodeMsg, GAME_MODES_DIR } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, GAME_MODES_DIR, pruneBackups } from './evo-grid.mjs';
 import { join, dirname, basename } from 'node:path';
 import { TRACK_INFO } from '../src/tracks.mjs';
 import { sameTrack } from '../src/tracknames.mjs';
@@ -94,6 +94,40 @@ export const ISO = {
  * dal paese) per ogni pista del libro: SPECIALS solo per le piste con layout
  * propri.
  */
+/**
+ * Campo 3.5.5 del blocco pista: il MAX PIT SLOT del layout, dal catalogo degli
+ * eventi del server dedicato (events_race_weekend.json, 31/10). NON un id di
+ * pista, e NON il campo contatore griglia: è un dato del layout che il gioco
+ * tiene nel blocco pista e che serve a EVO per risolvere l'evento del layout —
+ * LEZIONE 31/10 sera (foto pista VUOTA + crash 0xC0000005 al lancio della
+ * gara): cambiando pista Il tool riscrive nome/nazione/tag/layout/continente/
+ * lunghezza ma ereditava il 3.5.5 del file precedente. Monza→Oulton Park è
+ * uscito "Oulton Park" con pit slot 30 (di Monza): la finestra pista resta
+ * VUOTA e il LANCIO di una sessione in quelle condizioni spiana il gioco.
+ * Verifica campione-per-campione: Monza sana = 30, Oulton Park sana = 16
+ * (riscritta DA SOLI dal gioco a pick manuale a 18:31) — esatti due
+ * max_pit_slot del catalogo (Monza GP=30, Oulton International=16).
+ * Chiave = l'id del libro TRACK_INFO (src/tracks.mjs). Ogni pista porta il
+ * slot del layout CHE NOI USIAMO (il GP / il più lungo: Oulton International,
+ * niente ovali/short).
+ */
+export const PIT_SLOTS = {
+  imola: 29, monza: 30, fuji: 34, redbull_ring: 28, suzuka: 25,
+  mount_panorama: 35, nurburgring: 30, sebring: 45, spa: 36,
+  brands_hatch: 32, circuit_of_the_americas: 34, donington_park: 19,
+  kyalami: 20, laguna_seca: 24, oulton_park: 16, road_atlanta: 28,
+  watkins_glen: 40, paul_ricard: 34,
+};
+
+/** slot pit per una pista nominata: l'id del libro riconosciuto da sameTrack. */
+export function pitSlotFor(trackName, info) {
+  for (const id of Object.keys(TRACK_INFO)) {
+    const t = TRACK_INFO[id];
+    if (t === info || sameTrack(t.name, trackName) || sameTrack(t.fullName ?? '', trackName)) return PIT_SLOTS[id];
+  }
+  return null;
+}
+
 export const TRACK_SPECIALS = {
   nurburgring: { name: 'Nurburgring', tag: 'Gp Strecke', layout: 'Gp Strecke Race', continent: 'Europe' },
   // Paul Ricard: 4 layout propri ( Nicola opzione 21/10 ore 15:53 — window
@@ -120,6 +154,19 @@ export const TRACK_SPECIALS = {
   // dal book: sebring è l'unico tracciato USA il cui name EVO NON è il name
   // del book.
   sebring: { name: 'Sebring International Raceway', lengthM: 5954, tag: 'GP', layout: 'GP Race', continent: 'North America' },
+  // Oulton 30/10 notte (foto pista ANCORA vuota col pit slot RIPARATO a 16):
+  // il default "GP"/"GP Race" non basta. Oulton NON è mono-layout: il file che
+  // EVO ha riscritto DA SOLO al pick manuale alle 18:31 (backup
+  // bak-track-2026-10-30T18-31, campione per campione su tutti e 4 i blocchi
+  // sessione) porta tag "International" e layout "International Race" — gli
+  // STESSI valori del grid cell "Oulton Park International" delle gare vere
+  // (28/10). Le riscritture del tool alle 19:05/19:46 con i default
+  // "GP"/"GP Race" hanno cancellato quei valori e la finestra pista è tornata
+  // VUOTA al riavvio: il pit slot era giusto, il TAG è quello che EVO usa per
+  // il percorso risorsa della tessera (stessa fontana del Paul Ricard sopra).
+  // Chiuso qui dentro il layout RACCOLTO dal campo: altre volte che si
+  // riscrive Oulton i valori veri NON si perdono più.
+  oulton_park: { name: 'Oulton Park', tag: 'International', layout: 'International Race', continent: 'Europe' },
 };
 
 // continente (campo 3.5.8) per paese: usato per NON ereditare il continente
@@ -164,6 +211,10 @@ export function specFor(trackName, over = {}) {
     nation: over.nation ?? ISO[info.country],
     name: info.name,
     lengthM: over.lengthM ?? (info.lengthKm != null ? Math.round(info.lengthKm * 1000) : undefined),
+    // 3.5.5 max_pit_slot del layout: da NON ereditare (lezione 31/10: Oulton
+    // Park col pit slot di Monza = foto pista vuota e crash). Si
+    // scrive SOLO se noto: le piste fuori dalla tabella restano col campo
+    // del file (e il warning che arriva a chi legge la spec).
     // VALORI ASSOLUTI, non ereditati dal file (lezione 22/10 notte: Laguna Seca
     // ereditata col kit COMPLETO del Nürburgring — tag "Gp Strecke", layout
     // "Gp Strecke Race", continente Europe — e la schermata piste si svuota):
@@ -180,6 +231,8 @@ export function specFor(trackName, over = {}) {
   if (spec.continent == null) delete spec.continent;
   // piste con nome asset/tag/layout propri: i valori SPECIALS sostituiscono
   // i default qui sopra
+  const pit = pitSlotFor(trackName, info);
+  if (pit != null) spec.pitSlots = over.pitSlots ?? pit;
   const key = specialKeyFor(trackName, info);
   if (key) Object.assign(spec, TRACK_SPECIALS[key]);
   return spec;
@@ -266,6 +319,7 @@ export function setTrack(buf, spec) {
       tag: spec.tag ?? str(orig.tag), layout: spec.layout ?? str(orig.layout),
       continent: spec.continent ?? str(orig.continent),
       lengthM: spec.lengthM ?? (orig.lengthM != null ? Number(orig.lengthM) : undefined),
+      pitSlots: spec.pitSlots ?? undefined,
     };
     let touched = false;
     for (const s of sub) {
@@ -276,6 +330,7 @@ export function setTrack(buf, spec) {
       else if (s.field === 6 && want.layout !== str(orig.layout)) u(want.layout);
       else if (s.field === 8 && want.continent !== str(orig.continent)) u(want.continent);
       else if (s.field === 9 && want.lengthM != null && Number(s.varint) !== want.lengthM) { s.varint = BigInt(want.lengthM); touched = true; }
+      else if (s.field === 5 && want.pitSlots != null && Number(s.varint) !== want.pitSlots) { s.varint = BigInt(want.pitSlots); touched = true; }
     }
     if (touched) changed++;
     trkField.bytes = encodeMsg(sub);
@@ -299,6 +354,7 @@ export function changeWeekendTrack(trackName, { file = WEEKEND_FILE, dry = false
   if (dry || res.changed === 0) return { spec, blocchi: res.blocchi, changed: res.changed, written: false };
   const backup = `${file}.bak-track-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   copyFileSync(file, backup);
+  pruneBackups(file);   // la pila dei bak non cresce senza freno (tetto 25, comune 31/10)
   const out = encodeMsg(res.fields);
   writeFileSync(`${file}.tmp`, out);
   renameSync(`${file}.tmp`, file);
@@ -350,6 +406,7 @@ export function setWeekendAi(min, max, { file = WEEKEND_FILE, dry = false } = {}
   if (dry || !touched) return { ai: [lo, hi], changed: touched, written: false };
   const backup = `${file}.bak-ai-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   copyFileSync(file, backup);
+  pruneBackups(file);   // rotazione bak automatica (tetto 25, comune 31/10)
   writeFileSync(`${file}.tmp`, encodeMsg(fields));
   renameSync(`${file}.tmp`, file);
   return { ai: [lo, hi], changed: true, written: true, backup };

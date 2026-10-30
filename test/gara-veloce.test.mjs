@@ -7,11 +7,15 @@
 //   3. scrittura vera: giri + banda confermati dalla rilettura
 //   4. griglia dal pool senza customgrid sul disco → passo KO ma senza crash
 //   5. sedile con auto fuori dal libro ladder → passo KO non blocca gli altri
+//   6. griglia dal pool: la 2ª chiamata identica trova i byte uguali sul disco
+//      («già identiche», idempotenza 30/10) e NON crea bak; scritture ravvicinate
+//      col disco cambiato lasciano DUE bak-veloce (bak al secondo, lezione 28/10
+//      estesa a set-instantrace e gara-veloce via evo-grid.bakName)
 import './_game-sandbox.mjs';
 import './_flows-sandbox.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, rmSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const { encodeMsg, GAME_MODES_DIR } = await import('../tools/evo-grid.mjs');
@@ -142,6 +146,33 @@ const { REGISTRO_FILE, leggiRegistro } = await import('../tools/_gara-veloce.mjs
 const svuotaRegistro = () => { try { rmSync(REGISTRO_FILE, { force: true }); } catch { /* già assente */ } };
 const righe = () => leggiRegistro(50);
 
+/* --- L'ULTIMA RICETTA «PARTE SUBITO» (30/10): l'ultima riga con UNA durata
+   del registro è la ricetta che il webui ri-esegue col bottone ▶: giri o
+   tempo, banda, pista, sedile e pool, TUTTO quello che il pannello GUI
+   precompila. Il registro qui sotto è lo stesso file sandbox dei test della
+   sezione registro (svuoto da questo file una riga, alla fine la lascio). --- */
+const { ultimaRicetta } = await import('../tools/_gara-veloce.mjs');
+
+test('ultimaRicetta: null a registro vuoto, poi l\'ultima riga con UNA durata vale come ricetta', () => {
+  rmSync(REGISTRO_FILE, { force: true });       // sandbox flussi: parto da registro pulito
+  assert.equal(ultimaRicetta(), null, 'senza registro: null, mai un\'eccezione');
+  garaVeloce({ tempo: 30, aiMin: 88, aiMax: 93, pista: 'Monza', auto: 'ks_ferrari_296_gt3', pool: 'ks_f40_lm,ks_ferrari_296_gt3', force: true });
+  const r = ultimaRicetta();
+  assert.equal(r?.tempo, 30, 'i minuti a tempo del registro diventano la durata della ricetta');
+  assert.equal(r?.pista, 'Monza');
+  assert.equal(r?.auto, 'ks_ferrari_296_gt3');
+  assert.deepEqual(r?.pool, ['ks_f40_lm', 'ks_ferrari_296_gt3'], 'la stringa-del-pannello del pool si spacca in lista');
+  assert.equal(r?.aiMin, 88);
+  assert.equal(r?.aiMax, 93);
+  // la ricetta riletta SI RIAPLICA: garaVeloce la accetta così com'è (proprio
+  // ciò che fa l'endpoint parti-subito) — la durata torna 30 (qui già a
+  // posto: l'istantanea della sandbox era a tempo), idempotenza confermata.
+  const out2 = garaVeloce({ ...r, force: true });
+  assert.ok(out2.passi.find((p) => p.nome === 'durata gara' && /(30 min|già a posto)/.test(p.esito)), JSON.stringify(out2.passi));
+  // e RIRILETTA riusa come ricetta (due letture consecutive, stessa ricetta)
+  assert.deepEqual(ultimaRicetta()?.tempo, 30);
+});
+
 /* --- DURATA A TEMPO end-to-end (1/11, le serie endurance): mkInstant è solo
    a giri — per A TEMPO serve mode=1 e la varint in SECONDI (30 min = 1800,
    come la scrive EVO e come la rilegge timedRace). Regola end-to-end:
@@ -198,5 +229,66 @@ test('registro della durata: scrittura vera = riga; dry e idempotente = niente r
   const ultime = righe();
   assert.equal(ultime.length, 2);
   assert.equal(ultime[0].giri, 5, 'l\'ultima riga è la piu recente');
+});
+
+/* ---------- GRIGLIA DAL POOL: idempotenza + bak anti-collisione (31/10) ----------
+   Con un customgrid minimo sul disco (2 celle F40 byte-distinte + 2 driver con
+   skill + config), la STESSA ricetta col pool due volte: la 2ª deve trovare i
+   byte identici sul disco («già identiche», idempotenza 30/10) e NON creare
+   bak-veloce; e se il disco cambia fra due scritture ravvicinate (il menu EVO
+   l'ha toccato nel frattempo) i bak al SECONDO restano in pila, come faceva
+   già grid-apply dalla lezione 28/10 — non più i nomi al minuto che si
+   sovrascrivevano a vicenda. ---------- */
+const B40 = (s) => Buffer.from(String(s), 'utf8');
+const cellaF40 = (i) => encodeMsg([
+  { field: 3, wire: 2, bytes: B40('ks_f40_lm') },
+  { field: 4, wire: 2, bytes: B40('Auto di prova') },
+  { field: 7, wire: 0, varint: BigInt(i + 1) },
+]);
+const driverGv = (skill) => {
+  const f = Buffer.alloc(4); f.writeFloatLE(skill, 0);
+  return encodeMsg([{ field: 4, wire: 5, bytes: f }]);
+};
+const GRID_GV = () => join(GAME_MODES_DIR, 'last_grid.customgrid');
+const scriviGridGv = () => writeFileSync(GRID_GV(), encodeMsg([
+  { field: 1, wire: 2, bytes: cellaF40(0) },
+  { field: 1, wire: 2, bytes: cellaF40(1) },
+  { field: 2, wire: 2, bytes: driverGv(0.6) },
+  { field: 2, wire: 2, bytes: driverGv(0.8) },
+  { field: 3, wire: 2, bytes: encodeMsg([{ field: 1, wire: 0, varint: BigInt(2) }]) },
+]));
+const bakVeloce = () => {
+  try { return readdirSync(GAME_MODES_DIR).filter((n) => n.startsWith('last_grid.customgrid.bak-veloce-')); }
+  catch { return []; }
+};
+
+test('griglia dal pool scritta 2 volte: la seconda è già identica sul disco (zero bak)', () => {
+  mkInstant();
+  rmSync(GRID_GV(), { force: true });
+  scriviGridGv();
+  assert.equal(bakVeloce().length, 0);
+  const out1 = garaVeloce({ giri: 5, pool: 'ks_f40_lm', force: true });
+  const g1 = out1.passi.find((p) => p.nome === 'griglia dal pool');
+  assert.ok(g1?.ok && /riscritta/.test(g1.esito), JSON.stringify(g1));
+  const nBak = bakVeloce().length;
+  assert.ok(nBak >= 1, 'la prima scrittura lascia il suo bak');
+  const out2 = garaVeloce({ giri: 5, pool: 'ks_f40_lm', force: true });
+  const g2 = out2.passi.find((p) => p.nome === 'griglia dal pool');
+  assert.ok(g2?.ok && /già identiche/.test(g2.esito), `idempotenza attesa: ${JSON.stringify(g2)}`);
+  assert.equal(bakVeloce().length, nBak, 'la seconda chiamata NON crea bak: sul disco c\'è già il risultato');
+});
+
+test('griglia dal pool col disco cambiato fra le scritture: DUE bak-veloce in pila (anti-collisione)', () => {
+  mkInstant();
+  const prima = bakVeloce().length;                       // i bak dei test prima restano: contano dal loro numero
+  scriviGridGv();
+  const out1 = garaVeloce({ giri: 5, pool: 'ks_f40_lm', force: true });
+  assert.ok(out1.passi.find((p) => p.nome === 'griglia dal pool')?.ok, JSON.stringify(out1.passi));
+  scriviGridGv();   // risporco la griglia rozza sul disco: la prossima scrittura DTIVA un bak nuovo
+  const out2 = garaVeloce({ giri: 5, pool: 'ks_f40_lm', force: true });
+  const g2 = out2.passi.find((p) => p.nome === 'griglia dal pool');
+  assert.ok(g2?.ok && !/già identiche/.test(g2.esito), JSON.stringify(g2));
+  const dopo = bakVeloce().length;
+  assert.ok(dopo >= prima + 2, `attesi almeno ${prima + 2} bak dopo due scritture, trovati ${dopo}`);
 });
 

@@ -27,9 +27,29 @@
 //   node src/weather.mjs --custom 0.35 0.45 0.1   // preset 7 + float timeline
 import { readFileSync, writeFileSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { decodeMsg, encodeMsg, GAME_MODES_DIR } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg, GAME_MODES_DIR, pruneBackups } from '../tools/evo-grid.mjs';
+import { meteoLibero } from './test-mode.mjs';
+import { tr } from './lang.mjs';
 
 const LGM = join(GAME_MODES_DIR, 'gamemode.lastgamemode');
+
+/**
+ * LA GUARDIA DEL METEO (2/11, richiesta Mauro: «quando lancio la gara dal
+ * preparatutto, poi posso cambiare es il tempo — dobbiamo evitarlo, per non
+ * barare»). Il cambio meteo a mano di una gara è la scorciatoia che salta
+ * la pista bagnata: fuori dalla MODALITÀ TEST si rifiuta. Passa il cancello:
+ *   • la scrittura del meteo PREVISTO (preparatutto ronda/evento: opts.previsto —
+ *     e il chiamante ha già verificato che il preset combaci col calendario);
+ *   • qualunque prova asciutta (dry: niente su disco);
+ *   • qualunque meteo con test-mode attiva (sessione di collaudo libera).
+ */
+function guardedMeteo(opts) {                // opts = { dry, previsto }
+  if (opts?.dry || opts?.previsto || meteoLibero()) return;
+  throw Object.assign(new Error(tr({
+    it: 'Meteo della gara bloccato fuori dalla modalità test: le gare si corrono col meteo previsto (le bagnate pure). Per provare il meteo libera la gara in test-mode: node ac-evo-career.mjs test-mode --on',
+    en: 'Race weather is locked outside test mode: races run with the planned weather (wet ones included). To experiment freely, turn test mode on: node ac-evo-career.mjs test-mode --on',
+  })), { code: 'WX_LOCKED' });
+}
 
 export const PRESETS = [
   { id: 0, key: 'sereno', label: 'Sereno' },
@@ -113,9 +133,10 @@ export function presetForLabel(label) {
  * (il varint è 1 byte per valori 0-7: niente re-encode). Backup datato accanto
  * al file. Ritorna { from, to, written, backup }.
  */
-export function setWeatherPreset(preset, { lgmFile = LGM, dry = false } = {}) {
+export function setWeatherPreset(preset, { lgmFile = LGM, dry = false, previsto = false } = {}) {
   const idx = presetFor(preset);
   if (idx == null) throw Object.assign(new Error(`preset meteo "${preset}" non riconosciuto (0-7 o nome)`), { code: 'BAD_WEATHER' });
+  guardedMeteo({ dry, previsto });
   let buf;
   try { buf = readFileSync(lgmFile); } catch (e) { throw Object.assign(new Error('gamemode.lastgamemode non leggibile: ' + e.message), { code: 'NO_FILE' }); }
   const fields = decodeMsg(buf);
@@ -124,6 +145,7 @@ export function setWeatherPreset(preset, { lgmFile = LGM, dry = false } = {}) {
   const backup = `${lgmFile}.bak-wx-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   if (!dry) {
     copyFileSync(lgmFile, backup);
+    pruneBackups(lgmFile);   // rotazione bak automatica (tetto 25, comune 31/10)
     // campo 2 PRESENTE: si aggiorna; ASSENTE (proto3: sereno omesso): si INSERTISCE
     // prima del primo blocco 3, come lo scrive il gioco quando il preset è non-zero
     if (p) p.varint = BigInt(idx);
@@ -148,8 +170,9 @@ export function setWeatherPreset(preset, { lgmFile = LGM, dry = false } = {}) {
  * f12=nebbia, tutti 0-1). Patch in-place a stessa lunghezza: solo i campi float
  * presenti in ogni step vengono sovrascritti. Ritorna { patched, preset: 7, written }.
  */
-export function setWeatherCustom({ rain = null, cloud = null, fog = null, lgmFile = LGM, dry = false } = {}) {
+export function setWeatherCustom({ rain = null, cloud = null, fog = null, lgmFile = LGM, dry = false, previsto = false } = {}) {
   if (rain == null && cloud == null && fog == null) throw Object.assign(new Error('serve almeno un valore (rain/cloud/fog)'), { code: 'NO_VALUES' });
+  guardedMeteo({ dry, previsto });
   const clamp = (v) => Math.max(0, Math.min(1, Number(v)));
   let buf;
   try { buf = readFileSync(lgmFile); } catch (e) { throw Object.assign(new Error('gamemode.lastgamemode non leggibile: ' + e.message), { code: 'NO_FILE' }); }
@@ -190,6 +213,7 @@ export function setWeatherCustom({ rain = null, cloud = null, fog = null, lgmFil
   const backup = `${lgmFile}.bak-wx-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   if (!dry) {
     copyFileSync(lgmFile, backup);
+    pruneBackups(lgmFile);   // rotazione bak automatica (tetto 25, comune 31/10)
     writeFileSync(lgmFile, encodeMsg(fields));
   }
   return { from, to: 7, patched, written: !dry, backup };

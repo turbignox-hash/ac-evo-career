@@ -16,6 +16,14 @@ import { join } from 'node:path';
 import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
 import { setWeekendLaps, setWeekendTimed, weekendLaps, raceBlockIndex } from '../tools/weekend-laps.mjs';
 
+// 31/10: i cancelli anti-cheat (orario + distanza) presidiano anche queste
+// scritture. I test girano in MODO TEST isolato (registro della modalità
+// in tmp, mai quello vero della macchina: stesso schema EVO_TEST_MODE_FILE
+// di EVO_DATA_DIR), così le guardie accese non fermano le prove di casa.
+const REGISTRO = join(mkdtempSync(join(tmpdir(), 'evo-testmode-')), 'mode-test-3giri.json');
+process.env.EVO_TEST_MODE_FILE = REGISTRO;
+writeFileSync(REGISTRO, JSON.stringify({ attivo: true, dal: '2026-10-31T20:00:00.000Z', giri: 3, rond: 0, salva: {} }));
+
 const SESSIONI = [
   { nome: 'Practice', giri: 3, tipo: 1, ora: 15, min: 30, scala: 2 },
   { nome: 'Qualifying', giri: 2, tipo: 1, ora: 16, min: 10, scala: 2 },

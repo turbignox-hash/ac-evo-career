@@ -11,7 +11,7 @@
 //   node tools/set-car.mjs --list                              (celle correnti + template disponibili nel sorgente)
 //   node tools/set-car.mjs --cell 0 --car "Ferrari Daytona SP3" [--dry]
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
-import { decodeMsg, encodeMsg, gameRunning, GAME_MODES_DIR } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, gameRunning, GAME_MODES_DIR, pruneBackups } from './evo-grid.mjs';
 import { join } from 'node:path';
 
 export const GRID_FILE = join(GAME_MODES_DIR, 'last_grid.customgrid');
@@ -110,6 +110,7 @@ if (isMain) {
   if (gameRunning() && !has('--force')) { console.error('EVO è APERTO: passa --force sapendolo (per il test a gioco aperto si scrive igual).'); process.exit(2); }
   const backup = `${FILE}.bak-car-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   copyFileSync(FILE, backup);
+  pruneBackups(FILE);   // rotazione bak automatica (tetto 25, comune 31/10)
   writeFileSync(`${FILE}.tmp`, out);
   renameSync(`${FILE}.tmp`, FILE);
   console.log(`scritto ${FILE} (${out.length}B) · backup ${backup}`);

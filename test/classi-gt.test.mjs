@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classeAuto, classiGT, riepilogoPerClasse, regoleClear } from '../src/classi-gt.mjs';
+import { classeAuto, classiGT, riepilogoPerClasse, regoleClear, griglieConClassiVive, ORDINE_CLASSI } from '../src/classi-gt.mjs';
 import { sezioneClassi, mdCompose } from '../src/rapporto-gara.mjs';
 
 // righe come le compone resultDetail (campi usati dal rapporto): già
@@ -84,6 +84,39 @@ test('riepilogoPerClasse: griglia a classe UNICA → null (il rapporto non mostr
   assert.equal(riepilogoPerClasse([riga({ nome: 'C', car: 'Renault 5' })]), null);
 });
 
+test('griglieConClassiVive (31/10, «menu con classi vive»): mono per classe viva e TUTTE le miscele 2–4', () => {
+  const perClasse = new Map([
+    ['GT3', ['auto_a', 'auto_b', 'auto_c']],
+    ['GT4', ['auto_d', 'auto_e']],
+    ['Coppa', ['auto_f']],                    // classe VIVA fuori da ORDINE_CLASSI: in coda, alfabetiche
+  ]);
+  const g = griglieConClassiVive(perClasse);
+  // mono: GT3, GT4 (ordine 24 Le Mans) e la Coppa viva in coda
+  const mono = g.slice(0, 3).map((x) => x.nome);
+  assert.deepEqual(mono, ['GT3 monoclasse (3 auto)', 'GT4 monoclasse (2 auto)', 'Coppa monoclasse (1 auto)']);
+  assert.deepEqual(g[0].pool, ['auto_a', 'auto_b', 'auto_c']);
+  // tutte le miscele: coppie 3 + l'intera (la UNICA triple, 3 classi vive)
+  assert.equal(g.length, 3 + 3 + 1);
+  const gt3gt4 = g.find((x) => x.nome === 'GT3 + GT4 — multiclasse (3+2)');
+  assert.ok(gt3gt4, 'la multiclasse nota c\'è ancora, ma dal generatore');
+  assert.deepEqual(gt3gt4.pool, ['auto_a', 'auto_b', 'auto_c', 'auto_d', 'auto_e']);
+  assert.ok(g.some((x) => x.nome.startsWith('GT3 + GT4 + Coppa')), 'un\'endurance col aggiunta della classe viva in coda c\'è');
+  assert.ok(g.filter((x) => x.nome.includes('multiclasse')).every((x) => x.pool.length >= 2), 'ogni combinazione ha un pool d\'almeno due auto');
+  // nessuna classe viva e perClasse assente: menu povero, nessun ramo
+  assert.deepEqual(griglieConClassiVive(new Map()), []);
+  assert.deepEqual(griglieConClassiVive(null), []);
+});
+
+test('griglieConClassiVive: più di 4 classi vive → miscele fino a 4 + l\'endurance INTERA in coda', () => {
+  const perClasse = new Map(ORDINE_CLASSI.map((cl) => [cl, [`id_${cl}`]]));
+  const g = griglieConClassiVive(perClasse);
+  // miscele fino a 4 classi: 15 coppie + 20 triple + 15 quadruple; poi l'intera
+  assert.equal(g.length, 6 + 15 + 20 + 15 + 1, '6 mono + tutte le miscele 2–4 + l\'endurance intera');
+  const tutta = g[g.length - 1];
+  assert.equal(tutta.nome, 'Hypercar + LMP2 + GT1 + GT2 + GT3 + GT4 — multiclasse (1+1+1+1+1+1)');
+  assert.equal(tutta.pool.length, 6);
+});
+
 test('sezioneClassi → mdCompose: blocco classi dentro il MD, podio per classe, niente sezione a classe unica', () => {
   const rows = [
     riga({ p: 1, nome: 'Cavaliere', car: 'Ferrari 296 GT3', me: true, gap: 0, tt: '1:40:00.000' }),
@@ -99,6 +132,9 @@ test('sezioneClassi → mdCompose: blocco classi dentro il MD, podio per classe,
   assert.ok(sec, 'con due classi serve la sezione');
   assert.match(sec.titolo, /CLASSIFICA PER CLASSE/);
   assert.match(sec.premi, /GT1 — \*\*Longo\*\* \(Ferrari F40 LM\)/);
+  // 31/10 notte: l'anteprima HTML legge .gruppi (con posClasse) — un tempo
+  // mancava e il rapporto HTML moriva lì (giornata 261030, fermo a Donington).
+  assert.ok(Array.isArray(sec.gruppi) && sec.gruppi.length, 'i gruppi esistono per la tabella HTML');
   const md = mdCompose(d, { me: rows[0], fl: rows[0], sect: null, prev: null, build: null });
   assert.match(md, /CLASSIFICA PER CLASSE · stile 24h Le Mans/);
   assert.match(md, /🥇 GT1 — \*\*Longo\*\*/);

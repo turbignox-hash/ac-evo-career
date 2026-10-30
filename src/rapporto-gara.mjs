@@ -143,6 +143,11 @@ export function sezioneClassi(rows, { larghezzaVuota = null } = {}) {
     titolo: tr({ it: 'CLASSIFICA PER CLASSE · stile 24h Le Mans', en: 'CLASS STANDINGS · 24h Le Mans style' }),
     blocchi,
     premi: premi.join(' · '),
+    // 31/10 notte: anche i GRUPPI nudi (con posClasse), per la tabella HTML
+    // di htmlCompose — prima l'unico consumatore del blocchi in MD fungeva,
+    // ma l'anteprima HTML leggeva .gruppi che NON esisteva e il rapporto
+    // bilingue moriva lì (giornata 261030, fermo a Donington).
+    gruppi: res.gruppi,
   };
 }
 

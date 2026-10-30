@@ -22,26 +22,12 @@
 //   • IDEMPOTENTE: celle già uguali → written:false, nessun backup nuovo.
 //   • i blocchi SENZA celle (Race oggi: 0 slot, il gioco se le fabbrica da
 //     solo) non si toccano.
-import { readFileSync, writeFileSync, renameSync, copyFileSync, existsSync, readdirSync, statSync, rmSync } from 'node:fs';
-import { dirname, join, basename } from 'node:path';
-import { decodeMsg, encodeMsg, gameRunning } from '../tools/evo-grid.mjs';
-
-/* ---------- backup al secondo + potatura (stesso pattern di grid-apply) ---------- */
-function bakName(file, tag = '') {
-  const quando = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  let p = `${file}.bak-${tag}${quando}`;
-  for (let i = 2; existsSync(p); i++) p = `${file}.bak-${tag}${quando}-r${i}`;
-  return p;
-}
-function potatura(file, { keep = 25 } = {}) {
-  try {
-    const dir = dirname(file), base = basename(file);
-    const pila = readdirSync(dir)
-      .filter((n) => { const dot = n.lastIndexOf('.bak-'); return n.startsWith(base + '.bak-') && Number.isFinite(Number(n.slice(dot + 5).split('-')[0])); })
-      .sort((a, b) => (statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs) || (a < b ? 1 : a > b ? -1 : 0));
-    for (const vecchio of pila.slice(keep)) { try { rmSync(join(dir, vecchio)); } catch { /* occupato: la prossima gara */ } }
-  } catch { /* niente da potare */ }
-}
+import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
+import { decodeMsg, encodeMsg, gameRunning, bakName, pruneBackups } from '../tools/evo-grid.mjs';
+// bak al secondo + potatura: UNA fonte da 31/10 (evo-grid), niente più copie
+// "stesso pattern": le due qui sotto erano la terza e la quarta rivisita del
+// codice di grid-apply. La potatura interna resta chiamata allo stesso modo
+// (pruneBackups, il nome condiviso); potatura() se ne va.
 
 /* ---------- letture ---------- */
 const carIdOf = (cello) => {
@@ -123,7 +109,7 @@ export function syncRoster(cells, { file, force = false, dry = false } = {}) {
   if (!tocco || dry) return { written: false, blocchi: report, nota: tocco ? 'dry' : 'già allineato (idempotente)' };
   const backup = bakName(file, 'roster-');
   copyFileSync(file, backup);
-  potatura(file);
+  pruneBackups(file);
   writeFileSync(`${file}.tmp`, encodeMsg(out));
   renameSync(`${file}.tmp`, file);
   // verifica di lettura: gli STESSI blocchi-celle con il MEDesimo numero di slot

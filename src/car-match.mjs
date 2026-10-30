@@ -16,7 +16,7 @@
 // nell'archivio, celle customgrid nel builder) e la chiave si decide col
 // chiamante via keyOf.
 
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const normKey = (s) => String(s ?? '')
@@ -128,9 +128,27 @@ export function logMatch(dataDir, righe) {
   const lista = Array.isArray(righe) ? righe : [righe];
   if (!lista.length) return true;
   try {
-    appendFileSync(join(dataDir, 'match-auto.log'),
+    const file = join(dataDir, 'match-auto.log');
+    potaLog(file);                    // audit 28/10 punto A3 (eseguito 30/10): l'append era senza freno
+    appendFileSync(file,
       lista.map((r) => `[${new Date().toISOString().replace('T', ' ').slice(0, 16)}] ${r}`).join('\n') + '\n',
       'utf8');
     return true;
   } catch { return false; }
+}
+
+/**
+ * Potatura keep-last di un log di crescita libera: se supera MAX_LOG_BYTES si
+ * riscrive tenendo solo le ultime KEEP_LOG_LINES righe. Il log resta utile
+ * (sempre le righe più recenti) e mai fuori controllo. MAI throw: un log non
+ * deve fermare la preparazione di una gara.
+ */
+const MAX_LOG_BYTES = 512 * 1024;   // mezzomegabyte: anni di preparazioni
+const KEEP_LOG_LINES = 600;
+function potaLog(file) {
+  try {
+    if (statSync(file).size <= MAX_LOG_BYTES) return;
+    const righe = readFileSync(file, 'utf8').split('\n').filter(Boolean).slice(-KEEP_LOG_LINES);
+    writeFileSync(file, righe.join('\n') + (righe.length ? '\n' : ''), 'utf8');
+  } catch { /* un log non deve bloccare */ }
 }

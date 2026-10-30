@@ -113,7 +113,7 @@ e il **Download ZIP dal sito** — entrambi si auto-regolano al primo avvio.)
 ### Il backup automatico del save (dal 25/10)
 
 `tools/salva-save.mjs` zippa le cartelle dati di EVO in rotazione
-slot-1/slot-2 su `data/salva-save/` (restando al massimo 4 zip), e gira da
+slot-1/slot-2 su `data/salva-save/` (restando al massimo 2 zip), e gira da
 solo agli avvii del launcher: se l'ultimo backup è più vecchio di **36 ore**
 fa il nuovo in silenzio, se è fresco non fa una piega (avvii in serie non
 fanno IO senza motivo). Sta anche in-process per la GUI (`statoBackup()` /
@@ -377,6 +377,16 @@ Endurance, Strada e Rally**.
   `data/flows.jsonl`; il revisore ricostruisce cassa e reputazione da lì.
 - **Journal.** La rassegna di fine stagione si esporta in
   `data/journal/stagione-N.md`.
+
+## La voce della copilota: un nucleo, una radio
+
+La copilota parla in italiano, sempre, e le sue frasi nascono da UNA sola fonte di verità.
+
+- **Il nucleo è uno solo:** `gui/js/narratore-unito.js`. La pagina lo carica come `<script>` classico (si appoggia a `globalThis.__EVO_NARRATORE`), il server lo legge dalla stessa funzione e i test di `test/copilota-narratori.test.mjs` girano le STESE gare sintetiche: una cura ai test vale per tutto quello che parla.
+- **La radio vive nel server** (voce Pitwall, System.Speech di Windows: nessun browser richiesto, niente frasi sovrapposte). In gara la pagina del cruscotto NON ripete nulla quando la radio del server è accesa, per non fare doppie voci; con la radio spenta e il chip copilota su ON torna a parlare lei, con speechSynthesis del browser.
+- **Cosa dice:** il delta a bucket, il giro fatto, la benzina che cala, le gomme che salgono la scala di usura, il gap, la finestra pit col conto alla rovescia, «Ultimo giro!» e «Bandiera a scacchi!» al taglio, la posizione persa/recuperata, la bandiera blu multi-classe, l'auto fuori dal parco e — nelle endurance — la finestra stint: «Box entro N giri».
+- **Regole che i test riprovano a ogni gara:** una frase identica non si ripete entro 70 secondi (in voce esce una volta sola; il registro la segna «detto»); il contatore giri è monotono nella sessione (mai più doppio «metà gara»); la bandiera non gridata prima del giro che la merita; l'annuncio stint esce SOLO se il piano è nel payload (niente finestre fantasma).
+- **Il volume lo scegli tu:** il chip in testa o la tendina del pannello Ingegnere portano il livello `off / essenziale / normale / full` — persiste in `data/evo.config.json` (`voceCopilota`), e «essenziale» zittisce gli annunci «da bravo narratore» tenendo ciò che serve in pista. La prova senza correre una gara: chip `♪ prova` in testa.
 
 ## Programmazione: giorno e meteo per round
 
@@ -672,7 +682,7 @@ In breve:
   istantanee) resta locale: aggiornamenti e installazioni dell'amico non lo
   toccano, come promesso.
 - **Il backup automatico del save sta in `data/salva-save/`**: zip in
-  rotazione slot-1/slot-2 (ne restano al massimo 4), scritti da
+  rotazione slot-1/slot-2 (ne restano al massimo 2), scritti da
   `tools/salva-save.mjs` quando l'ultimo è più vecchio di 36 ore. Chiuso
   (28/10, audit A1): il zip esclude MoTec/replay/crashdumps/Logs/mods —
   solo contenuto di salvataggio, tipico ~1 MB invece che centinaia di MB.

@@ -17,7 +17,7 @@
 //   (+ --force per scrivere col gioco aperto, sapendolo)
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { decodeMsg, encodeMsg, GAME_MODES_DIR, gameRunning } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, GAME_MODES_DIR, gameRunning, bakName, pruneBackups } from './evo-grid.mjs';
 
 export const INSTANT_FILE = join(GAME_MODES_DIR, 'GameModeType_INSTANT_RACE.gamemodesave');
 
@@ -84,8 +84,11 @@ export function timedRace({ minutes = null, laps = null, file = INSTANT_FILE, dr
   if (!changed) return { written: false, mode, durata, nota: 'blocco Race già a posto (idempotente)' };
   if (dry) return { written: false, dry: true, mode, durata };
   if (gameRunning() && !force) throw new Error('EVO è APERTO: chiudi il gioco prima di scrivere (o usa --force sapendolo).');
-  const backup = `${file}.bak-temprace-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+  // bak al SECONDO (lezione 28/10 condivisa in evo-grid.bakName): due
+  // scritture dello stesso file nello stesso minuto non si sovrascrivono più.
+  const backup = bakName(file, 'temprace-');
   copyFileSync(file, backup);
+  pruneBackups(file);   // la pila dei bak cresceva senza freno: terreno comune 25, come grid-apply (31/10)
   writeFileSync(`${file}.tmp`, encodeMsg(fields));
   renameSync(`${file}.tmp`, file);
   return { written: true, mode, durata, backup };
@@ -132,8 +135,9 @@ export function setInstantAi(min, max, { file = INSTANT_FILE, dry = false, force
   const out = encodeMsg(fields);
   const probe = currentInstantRaceProbe(out, file);
   if (probe.aiMin !== aiMin || probe.aiMax !== aiMax) throw new Error(`verifica fallita: rileggo AI ${probe.aiMin ?? '?'}–${probe.aiMax ?? '?'}`);
-  const backup = `${file}.bak-instantai-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+  const backup = bakName(file, 'instantai-');
   copyFileSync(file, backup);
+  pruneBackups(file);   // stesso tetto: la pila dei bak della banda AI era senza freno
   writeFileSync(`${file}.tmp`, out);
   renameSync(`${file}.tmp`, file);
   return { written: true, aiMin, aiMax, backup };
@@ -161,7 +165,7 @@ if (isMain) {
   const force = args.includes('--force');
   if (args.includes('--tempo') || args.includes('--giri')) {
     const r = timedRace({ minutes: val('--tempo'), laps: val('--giri'), dry, force });
-    const descr = r.mode === 1 ? `${durataTxt(r.durata)} a tempo` : `${r.durata} giri`;
+    const descr = r.mode === 1 ? `${durataTxt(r.durata)} a tempo` : `${r.durata ?? '?'} giri`;
     console.log(`${dry ? '[dry] ' : ''}Race custom → ${descr}${r.written ? ` · backup ${r.backup}` : r.nota ? ` · ${r.nota}` : ' (nessuna scrittura)'}`);
   } else {
     const cur = currentInstantRace();
