@@ -102,6 +102,38 @@ webui col piano aggiornato coi dati veri di usura.
 
 ## Registro del diario
 
+### 31/10/2026 notte — I narratori UNIFICATI (una sola copia) e la scansione MoTeC estratta dal webui
+Presi i tre compiti del momento: unificare i narratori, far girare la suite,
+refactoring mirato. I duplicati erano veri, con un motivo di nascere: il nucleo
+testato `narratore(m, slot, ora)` viveva in [tools/_monitor-copilota.mjs](tools/_monitor-copilota.mjs)
+(e lo usano [src/voce-copilota.mjs](src/voce-copilota.mjs) e il test) mentre la
+cruscotto ne teneva le GEMELLE manuali narratore per narratore in
+[gui/js/viste-a.js](gui/js/viste-a.js) — ogni cura (bandiera prima del giro,
+postalk gate a verde, delta solo da «tracked») andava applicata DUE volte.
+
+- **Nucleo UNICO**: il narratore muove in [gui/js/narratore-unito.js](gui/js/narratore-unito.js)
+  (23 KB, caricato come script classico → attacca `globalThis.__EVO_NARRATORE`,
+  importato dal monitor come facciata Node → [voce-copilota.mjs](src/voce-copilota.mjs)
+  e il test cambiano ZERO voci). Le frasi restano {chi, it}: la copilota parla
+  sempre italiano (cpT).
+- **viste-a.js**: ~320 righe di gemelli fuori (1 delta, 2 giro, 3/3b benzina,
+  4 gomme, 5 gap, 6/6b/6c pit-box, 7 autofuori, 8/8b/8c/8d ultimogiro+bandiera,
+  9/9-ter posizione+verde, 10 blu); resta la pagina SOLO le decisioni di
+  visibilità (chip, radio server, grazia) e la chiamata al nucleo con lo slot
+  `cp` (cp.said = alias rinfrescato di cp.detti). cpSay e bandParla orfani fuori.
+- **autofuori**: il narratore 7 (auto fuori parco, 30 s) entra anch'esso nel
+  nucleo — nel Pitwall resta zitto finché `m.auto` non arriva nel payload da
+  lì, nella pagina parla come prima.
+- **Refactoring mirato**: la scansione MoTeC del pannello di salute muove fuori
+  da [src/webui.mjs](src/webui.mjs) (quasi 4000 righe) in [src/webui-telem.mjs](src/webui-telem.mjs):
+  memo dei 10 s e lettura byte del `.ld` IDENTICHE — lancio a prova lo
+  `systemHealth` continua a tornare gli stessi campi. nel server resta solo
+  l'import
+- **Niente riavvio del server** per questo giro: i file della GUI parte da
+  disco a ogni request (revalidate via ETag) e il nucleo del server è lo stesso
+  codice di prima, solo più in fondo in facciata.
+
+**Suite 575/575, lint su 270 file pulita.**
 ### 31/10/2026 notte — L'area debole #2: analisi.mjs senza test (e frasi corrette anche nei TESTI)
 Misurato con dati: lint pulita su 267 file e la scansione «chi importa cosa»
 nei test ha pescato i moduli senza copertura. Il peggiore: [src/analisi.mjs](src/analisi.mjs)
