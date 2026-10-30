@@ -396,9 +396,10 @@ async function readBody(req) {
 
 /* memo del controllo "il gioco è vivo?": tasklist costa ~200ms, il polling
    LIVE gira a ~1.2s — nella cache 10s il costo diventa trascurabile.
-   26/10 (PC 2): tasklist può assisterarsi (WMI lento, antivirus) e ogni
-   sondaggio appeso finisce IN CODA seria del server: se un sondaggio costa
-   più di 3s la finestra cresce a 30s — meno tasklist, fila più libera. */
+   26/10 (PC 2): tasklist può appiccicarsi (WMI lento, antivirus) e ogni
+   sondaggio inceppato resta in coda alle richieste del server: se un
+   sondaggio costa più di 3s la finestra cresce a 30s — meno tasklist,
+   fila più libera. */
 let _grAt = 0, _grVal = false, _grMs = 0;
 // sessione telemetrica dell'ingegnere LIVE: memo 30s per auto (vedi case 'ingegnere')
 let _engSess = null, _engSessAt = 0;
@@ -427,7 +428,7 @@ function stintDurEff(ladder, state) {
    stintPlanOf. Senza auto o durata, o senza dati: null — la vista e il
    copilota tacciono: non è un errore, è l'onestà del piano. Stesso calcolo
    del case 'card': una sola verità anche qui. */
-function stintPlanFor(ladder, state, { car = null, durEff = null, paths = null, caldo = false } = {}) {
+function stintPlanFor(state, { car = null, durEff = null, paths = null, caldo = false } = {}) {
   if (!Number.isFinite(Number(durEff)) || Number(durEff) <= 0) return null;
   const auto = typeof car === 'string' && car.trim() ? car.trim() : null;
   if (!auto) return null;
@@ -621,8 +622,9 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
   if (await vigiaSordo(r, snap)) snap = r.snapshot();  let raceLaps = null, fuelPerLap = null, telemTrack = null;
   /* LEGGERO (29/10 sera): quando serve SOLO la voce del Pitwall, niente raceCard
      né albero MoTeC — su disco lento valgono decine di secondi per richiesta e
-     il tick in gara restava appeso a spaccare (il 28/10 muta). L'HUD says già
-     lapsTotal e lapsOnFuel: delle estimate il narratore li già usa. */
+     il tick radio in gara si incartava dietro la spazzata (così il 28/10 la
+     voce mutava). L'HUD calcola già lapsTotal e lapsOnFuel: il narratore
+     consuma proprio quelle stime. */
   if (leggero) {
     const live0 = engineerLive(snap, { fuelPerLap: null, raceLaps: null });
     /* FINESTRA STINT nel tick (DA-9 seconda fetta): SOLO l'alert, SOLO dal
@@ -632,7 +634,7 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
        voce non inventa una sosta che il piano non contiene. */
     let stintAlert = null;
     try {
-      const piano = stintPlanFor(ladder, state, { car: snap.player?.car ?? null, durEff: stintDurEff(ladder, state), paths, caldo: true });
+      const piano = stintPlanFor(state, { car: snap.player?.car ?? null, durEff: stintDurEff(ladder, state), paths, caldo: true });
       if (piano?.ok && Number.isFinite(Number(live0.gauges?.lapsDone))) stintAlert = stintStopAlert(piano, live0.gauges.lapsDone);
     } catch { /* senza piano il narratore tace, non è un errore */ }
     return {
@@ -710,7 +712,7 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
   let stintPlan = null, stintAlert = null;
   try {
     const durEff = stintDurEff(ladder, state);
-    const piano = stintPlanFor(ladder, state, { car: snap.player?.car ?? null, durEff, paths });
+    const piano = stintPlanFor(state, { car: snap.player?.car ?? null, durEff, paths });
     if (piano?.ok) {
       stintPlan = piano;
       if (Number.isFinite(Number(live.gauges?.lapsDone))) stintAlert = stintStopAlert(piano, live.gauges.lapsDone);
@@ -792,10 +794,7 @@ async function copilotaServerTickInterno() {
   try {
     const state0 = existsSync(SAVE_FILE) ? requireState() : null;
     const m = await payloadIngegnere(context(), state0, null, { leggero: true });
-    if (!m?.live) logaVoce({ evento: 'PAYLOAD NON VIVO', type: m?.sessionType ?? null, snapLiveOk: true });      // 30/10 BUG: qui il 4° argomento era LOGUE_VOCE gettona ({file}); giroVoce
-      // lo scarta ({log} default null) e il registro dei narratori NON riceveva
-      // le SESSIONE VIVA né le righe chi/it: una gara parlata uguale a una muta
-      // era Indistinguibile sul carta. Adesso passa { log } e il registro giunge.
+    if (!m?.live) logaVoce({ evento: "PAYLOAD NON VIVO", type: m?.sessionType ?? null, snapLiveOk: true });      // 30/10 BUG visto qui: prima il 4° argomento di giroVoce era il FILE di registro passato fuori posto (l'opzione {log} non c'era): giroVoce lo scartava ({log} restava a default null) e il registro dei narratori NON riceveva né SESSIONE VIVA né le righe voce/it — una gara parlata restava indistinguibile da una muta nel diario. Adesso passa { log } e il registro arriva.
       giroVoce(m, slotVoceServo, voceSrv, { log: LOGUE_VOCE, livello: voceServerLivello() });
   } catch (e) {
     // la voce non deve MAI rompere il server, ma l'errore non deve sparire
@@ -3915,11 +3914,11 @@ server.listen(PORT, '127.0.0.1', () => {
 setInterval(watcherTick, 4000);
 // la VOCE DEL PITWALL parte da qui: primo giro dopo il listen (prima il
 // payload poteva scattare mentre il server era ancora tenuto in gola), ogni
-// 4 s — stesso battito del monitor e del cruscotto. MAI senza "unfref" dal
-// 29/10 sera: un interval unref può restare AFFAMATO nel loop (la prova:
-// 57 minuti di server vivo, zero scatti in log, mentre il tick qui accanto
-// a watcherTick non unref'ed t batteva regolarmente) — e con la radio che
-// tace proprio quando serve.
+// 4 s — stesso battito del monitor e del cruscotto. MAI con `unref` dal
+// 29/10 sera: un interval unref puo' smettere di battere senza che il server
+// sembri caduto (la prova: 57 minuti di server vivo, zero scatti in log,
+// mentre il tick qui accanto a watcherTick, non unref'ed, batteva
+// regolarmente) — e la radio taceva proprio quando serve.
 // BATTITO DI AVVIO della voce (29/10, diagnostica della muta): una riga
 // nel registro al boot dice CHE CODICE gira davvero e da chi è parlato
 // (senza questo, server vecchio + codice nuovo su disco si confondevano

@@ -102,6 +102,25 @@ webui col piano aggiornato coi dati veri di usura.
 
 ## Registro del diario
 
+### 31/10/2026 tarda sera — L'area debole del giorno: i commenti corrotti del webui
+Chiesta «un'area debole da migliorare», scelta con dati e non a naso: suite verde,
+lint quasi pulita (1 solo warning vero) e zero CJK residui — ma restavano nei
+COMMENTI di [src/webui.mjs](src/webui.mjs) frasi Italinglish nate dalle sessioni
+passate, fuorvianti per chi rilegge il codice. Scrivate in italiano vero:
+- memo gameRunningMemo (26/10, PC 2): l'idea era «tasklist può appiccicarsi / un
+  sondaggio inceppato resta in coda alle richieste del server».
+- LEGGERO della voce (29/10): «il tick radio in gara si incartava dietro la
+  spazzata (così il 28/10 la voce mutava)».
+- battito voce→server (30/10): prima il 4° argomento di giroVoce era il FILE di
+  registro passato fuori posto (l'opzione {log} non c'era), per questo una gara
+  parlata restava indistinguibile da una muta nel diario.
+- battito di avvio (29/10, MAI unref): l'interval unref smetteva di battere senza
+  che il server sembrasse caduto (la prova dei 57 minuti) e la radio taceva
+  proprio quando serve.
+Insieme: tolto l'ultimo warning di lint — `stintPlanFor` non riceve più `ladder`
+inutilizzato (firma e due call-site aggiornati). **Suite 568/568, lint su 68 file
+pulita, node --check ok.**
+
 ### 31/10/2026 tarda sera — La finestra stint entra nella radio e nella vista (DA-9 seconda fetta)
 Il piano stint esce dall'attesa: ora annuncia la finestra VIVA in gara.
 Collegato:
