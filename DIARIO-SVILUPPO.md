@@ -92,6 +92,21 @@ Creato il 31/10 su proposta Buffy, accettato da Mauro.
 
 ## Registro del diario
 
+### 31/10/2026 — Paddock 1.0.2 e la tessera del livello
+Paddock aggiornato alla **1.0.2** (l'estrazione richiedeva la chiusura dalla tray:
+le carriere restano in Saved Games, l'app in gioco si è aggiornata da sola al primo
+avvio; backup della 1.0.1 in Desktop\Paddock-1.0.1-bak-31-10). Verificato dal vivo:
+la versione in app.json e i **12 journal riscritti** al primo giro.
+Miglioria presa dalle novità: i journal ora portano `profile.level` con i NUOVI
+colori dei driver level — la card Paddock del cruscotto mostra la tessera
+(nome + livello col COLORE esatto del gioco, Fuoriclasse #f5c542 per Mauro).
+Tessera in [src/paddock.mjs](src/paddock.mjs) (paddockOverview passa profile →
+api/paddock) e [gui/js/viste-a.js](gui/js/viste-a.js).
+La prova del vuoto: **Paddock NON installato non crea problemi** — piccolo
+[test/paddock-assenza.test.mjs](test/paddock-assenza.test.mjs) (7/7) che replica
+l'assenza col PADDOCK_JOURNAL_DIR impossibile: endpoint 200 col JSON ok:false,
+niente card, import resta zitto, bonus gara pulita integra (è matematica pura),
+schede auto perdono SOLO l'extra tecnico. **Suite 554/554**.
 ### 31/10/2026 — Le bandiere entrano nella storia (DA-2 chiusa)
 Committ 41e6633: le 7 bandiere (30/10 notte) committate in un commit uno, tutto il resto
 pulito; poi 5fbeca0 il diario. Mauro scarica Paddock 1.0.2 da OverTake (chiuso dalla tray,

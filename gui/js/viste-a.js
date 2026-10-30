@@ -202,8 +202,8 @@ function drawOnboarding(m){
 }
 
 /* -------- cruscotto -------- */
-/* La CARDC PADDACK del cruscotto: la prossima gara scritta dall'app Paddock,
- * con il meteo/orário già deciso a monte (gara bagnataistra gialla), la
+/* La CARD PADDOCK del cruscotto: la prossima gara scritta dall'app Paddock,
+ * con il meteo/orario già deciso a monte (gara bagnata = icona pioggia), la
  * classifica Paddock, il messaggio dell'ingegnere (a fondo % gas) e tutte le
  * ronde con esito. Nascosta se Paddock non gira o non ha dati. */
 async function drawPaddockPanel(){
@@ -215,8 +215,12 @@ async function drawPaddockPanel(){
   const rounds = (pd.calendar?.rounds ?? []).filter(r => r?.track);
   const stand = (pd.home?.standings ?? pd.calendar?.standings ?? []).slice(0, 5);
   const wetIcon = n.wet ? '🌧️ ' : '';
+  // TESSERA PROFILO (1.0.2): pd-home porta profile.level.name/color — i
+  // NUOVI colori dei driver level (rosso/lime/giallo); se assente, niente riga.
+  const prof = pd.home?.profile ?? null;
+  const lvl = prof?.level ?? null;
   el.innerHTML = `
-  <h2>${LI.gauge} ${tr({ it: 'Paddock', en: 'Paddock' })} <span class="h-act">${esc(pd.next.series ?? '')} · ${tr({ it: 'gara', en: 'race' })} ${n.round}/${n.total}</span></h2>
+  <h2>${LI.gauge} ${tr({ it: 'Paddock', en: 'Paddock' })} <span class="h-act">${esc(pd.next.series ?? '')} · ${tr({ it: 'gara', en: 'race' })} ${n.round}/${n.total}</span>${prof?.name ? ` <span class="h-act" title="${tr({ it: 'Livello pilota (da Paddock)', en: 'Driver level (from Paddock)' })}" style="color:${esc(lvl?.color ?? 'var(--dim,#8fa3bd)')}">◆ ${esc(lvl?.name ?? '')}</span>` : ''}</h2>
   <div class="banner ${n.wet?'warn':'info'}" style="margin-bottom:10px">
     ${wetIcon}<b>${window.trackLinkHtml(n.track)}${n.layout ? ` — ${esc(n.layout)}` : ''}</b> · ${n.laps ? `${n.laps} ${tr({ it: 'giri', en: 'laps' })}` : ''}
     ${n.time ? ` · 🕑 ${esc(n.time)}` : ''}${n.weather ? ` · ${esc(n.weather)}` : ''}

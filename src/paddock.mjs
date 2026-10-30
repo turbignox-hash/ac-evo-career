@@ -327,6 +327,10 @@ export function paddockOverview(env = process.env) {
     next,   // la scheda della prossima gara (wet → tips)
     stats: paddockStats(env),
     home: home.ok ? {
+      // TESSERA PROFILO (1.0.2): name + level con i NUEVI colori driver
+      // (Expert rosso, Professional lime, Ace giallo) scritti dall'app direttamente
+      // nel journal pd-home; name/level.name arrivano nella LINGUA DELL'APP.
+      profile: home.profile ?? null,
       season: home.season ?? null,
       standings: home.standings ?? cal.standings ?? [],
       recent: home.recent ?? [],
