@@ -315,13 +315,18 @@ export function buildGridMessage(opts) {
   if (poolMulti) {
     const sel = tpl.cells.filter((b) => poolMulti.has(carIdOf(b)));
     const distinte = [...new Set(sel.map(carIdOf).filter(Boolean))];
-    if (sel.length >= 3 && distinte.length >= 3) {
+    // IL POOL INTERO (1/11, Campionato Corsa): la soglia dei 3 modelli è
+    // giusta per i pool lti (l'invenzione di una terza vettura oltre quelle
+    // dichiarate); ma un pool dichiarato con DUE sole vetture (il pescaggio a
+    // sorte del Corsa) non può fornirne tre, per costruzione — quando le
+    // distinte coprono TUTTO il pool dichiarato vale la griglia anche con 2.
+    if (sel.length >= 3 && (distinte.length >= 3 || distinte.length === poolMulti.size)) {
       poolCells = sel;
       poolMultiInfo = { auto: distinte.length, celle: sel.length };
     } else {
       throw new Error(tr({
-        it: `il template non contiene la griglia MULTI-MARCA della serie (${distinte.length} auto del pool presenti, servono ≥3 modelli): ripristina un template d'epoca col pool dichiarato in grid-classes.json (es. un .bak-apply che ce le abbia) o rigenera in EVO una griglia personalizzata con le auto del pool`,
-        en: `the template does not contain the series' MULTI-MAKE grid (${distinte.length} pool cars present, ≥3 models needed): restore a vintage template carrying the pool declared in grid-classes.json (e.g. a .bak-apply that has them) or regenerate a custom grid in EVO with the pool cars`,
+        it: `il template non contiene la griglia MULTI-MARCA della serie (${distinte.length} auto del pool presenti su ${poolMulti.size} dichiarate, servono ≥3 modelli o il pool intero): ripristina un template d'epoca col pool dichiarato in grid-classes.json (es. un .bak-apply che ce le abbia) o rigenera in EVO una griglia personalizzata con le auto del pool`,
+        en: `the template does not contain the series' MULTI-MAKE grid (${distinte.length} pool cars present out of ${poolMulti.size} declared, ≥3 models or the whole pool needed): restore a vintage template carrying the pool declared in grid-classes.json (e.g. a .bak-apply that has them) or regenerate a custom grid in EVO with the pool cars`,
       }));
     }
   } else if (wantCars) {
