@@ -102,6 +102,31 @@ webui col piano aggiornato coi dati veri di usura.
 
 ## Registro del diario
 
+### 31/10/2026 notte — L'area debole #2: analisi.mjs senza test (e frasi corrette anche nei TESTI)
+Misurato con dati: lint pulita su 267 file e la scansione «chi importa cosa»
+nei test ha pescato i moduli senza copertura. Il peggiore: [src/analisi.mjs](src/analisi.mjs)
+(708 righe dal 23/10 — autopsia, dossier rivale, banco A/B, Monte Carlo, tetto)
+non era importato da NESSUN test. E dentro, oltre ai commenti, venivano fuori
+FRASI CORROTTE VENDUTE ALL'UTENTE:
+- headline del ritiro EN «Race handed in» → «Race abandoned»;
+- caveat della Monte Carlo IT «Servono per serietà numeriche, e si comanda con
+  i reali» → «Prendi l'ordine di GRANDEZZA, non una promessa: il verdetto vero
+  lo danno le gare reali»;
+- tetto vuoto «l'import li collecchia» → «li raccoglie»;
+- banco A/B «il lap va e issa in varie zone» → «il lap è bilanciato nelle
+  varie zone»; più «presupuesto», «più piiano» e «i ona peggiori» nei testi di
+  commento.
+Il primo test dedicato: [test/analisi.test.mjs](test/analisi.test.mjs), 7 casi:
+- raceAutopsy: null onesto senza risultati, l'autopsia IT completa (partenza
+  P5→P2 «perse 3 posizioni», ritmo secco 2° di griglia a 0,40 s dal campo con
+  giudizio «good», il racconto che apre con la headline), e il ritiro con la
+  headline EN/IT — la frase corrotta non torna;
+- tettoReport: aggregazione per pista (margine best − teorico, e su due campioni vale la MEDIANA BASSA → il peggiore è S1), vuoto onesto con hint;
+- rivalDossier: due gare in archivio → h2h 2 sconfitte, mediana −0,4 s «PIÙ
+  VELOCE», trend stabile, consistenza media P2/sdev 0; sconosciuto → null.
+Prossima fetta: setupAB (fixture MoTeC) e seatMonteCarlo (fixture world).
+**Suite 575/575, lint su 268 file pulita.**
+
 ### 31/10/2026 tarda sera — L'area debole del giorno: i commenti corrotti del webui
 Chiesta «un'area debole da migliorare», scelta con dati e non a naso: suite verde,
 lint quasi pulita (1 solo warning vero) e zero CJK residui — ma restavano nei

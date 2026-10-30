@@ -8,7 +8,7 @@
 //                       (best-lap contro te, media e per pista), tendenza nel
 //                       tempo, consistenza di piazzamento, piste deboli/forti.
 //   3) setupAB        — il BANCO A/B dei setup: confronto fra due sessioni
-//                       MoTeC (presupuesto: preset diversi = assetto diverso),
+//                       MoTeC (punto fisso del confronto: preset diversi = assetto diverso),
 //                       col diff dei canali chiave e il tempo perso/guadagnato
 //                       sul giro best ripartito per ZONA (in frenata / in
 //                       uscita / a gas) — non solo il delta: il perché.
@@ -141,7 +141,7 @@ export function raceAutopsy(ladder, state, { nodeId = state.node } = {}) {
   if (entry.pole && !entry.dnf) push(tr({ it: 'Bonus', en: 'Bonus' }), tr({ it: 'Pole position: firmata in qualifica.', en: 'Pole position: set in qualifying.' }), 'good');
 
   const headline = entry.dnf
-    ? tr({ it: 'Gara abbandonata: ecco cosa è successo, punto per punto.', en: 'Race handed in: here is what happened, point by point.' })
+    ? tr({ it: 'Gara abbandonata: ecco cosa è successo, punto per punto.', en: 'Race abandoned: here is what happened, point by point.' })
     : entry.position === 1
       ? tr({ it: `Vittoria con +${entry.points ?? 0} punti — ecco COME è arrivata:`, en: `WIN with +${entry.points ?? 0} points — here is HOW it came:` })
       : tr({ it: `P${entry.position} su ${entry.gridSize} · +${entry.points ?? 0} punti — ecco dove è stata persa:`, en: `P${entry.position} of ${entry.gridSize} · +${entry.points ?? 0} points — here is where it was lost:` });
@@ -170,7 +170,7 @@ export function raceAutopsy(ladder, state, { nodeId = state.node } = {}) {
  * Lo scouting di un rivale: oltre a chi è e come è andata, il RITMO —
  * i suoi best-lap contro i tuoi (mediana), l'evoluzione (si avvicina o si
  * stacca), la CONSISTENZA (sdev dei piazzamenti, DNF%) e le piste deboli
- * (dove girare più piiano di te) e le sue piste forti (dove ti prende).
+ * (dove girare più piano di te) e le sue piste forti (dove ti prende).
  */
 export function rivalDossier(key, state) {
   const store = rivalsStore();
@@ -329,7 +329,7 @@ export function setupAB(fileA, fileB, { points = 240 } = {}) {
     ? (biggest[0] === 'frenata' ? tr({ it: 'IN FRENATA', en: 'ON THE BRAKES' })
       : biggest[0] === 'uscita' ? tr({ it: 'IN USCITA (applicazione gas dopo la curva)', en: 'ON THE EXITS (throttle application)' })
       : tr({ it: 'A GAS PIENO (limite trazione/aero)', en: 'AT FULL THROTTLE (traction/aero limit)' }))
-    : tr({ it: 'niente dominante: il lap va e issa in varie zone', en: 'nothing dominant: the lap is even all around' });
+    : tr({ it: 'niente dominante: il lap è bilanciato nelle varie zone', en: 'nothing dominant: the lap is even all around' });
 
   // — COSTANZA IN FRENATA (30/10): la «matita tua» vs il riferimento B.
   // Giro per giro si misura dove la staccata cambia (Δ km/h di ingresso) e
@@ -539,7 +539,7 @@ export function seatMonteCarlo(ladder, state, { sims = 400 } = {}) {
       fromOffers: Array.isArray(state.offers) && state.offers.length > 0,
     },
     caveat: tr({
-      it: 'Stima: la tua variazione di passo vale per la nuova serie senza aggiustamenti per-disciplina/pista e il campo usa lo stesso motore delle gare simulate in classifica. Servono per serietà numeriche, e si comanda con i reali.',
+      it: 'Stima: la tua variazione di passo vale per la nuova serie senza aggiustamenti per-disciplina/pista e il campo usa lo stesso motore delle gare simulate in classifica. Prendi l\'ordine di GRANDEZZA, non una promessa: il verdetto vero lo danno le gare reali.',
       en: 'Estimate: your pace set carries to the new series without per-discipline/track trims and the field uses the same engine as standings simulation. Best used as a magnitude, not a promise.',
     }),
     seats: seatRows,
@@ -578,7 +578,7 @@ export function tettoReport(ladder, state) {
   }
   if (!rows.length) {
     return { ok: true, perTrack: [], worstSectors: [], hint: tr({
-      it: 'Niente settori incassati: EVO scrive gli S1/S2/S3 nel file risultato e l\'import li collecchia a ogni gara. Dopo la prossima gara qui spuntano i numeri.',
+      it: 'Niente settori incassati: EVO scrive gli S1/S2/S3 nel file risultato e l\'import li raccoglie a ogni gara. Dopo la prossima gara qui spuntano i numeri.',
       en: 'No sectors archived yet: EVO writes S1/S2/S3 in the result file and the import collects them at each race. They will appear here after the next race.',
     }) };
   }
@@ -616,7 +616,7 @@ export function tettoReport(ladder, state) {
     };
   }).sort((a, b) => b.sessions - a.sessions || (b.worstSectorDeltaMs ?? 0) - (a.worstSectorDeltaMs ?? 0));
 
-  // i ona peggiori settori della carriera: raggruppare per pista + settore
+  // i peggiori settori della carriera: raggruppare per pista + settore
   const worst = [];
   for (const row of rows) for (const sd of row.sectorDeltas) {
     if (sd.deltaMs == null || sd.deltaMs <= 0) continue;
