@@ -314,6 +314,20 @@ Verificato in casa: `test/gridbuilder-tinte.test.mjs` 5/5 (famiglia:
    celle byte-uniche) — suite completa **656/656**, lint 0. Restano: il
    collaudo a vista sul via con un template RICCO di livree e un'altra
    serie col flag tintePrestate.
+### La vetrina delle tinte (1/11, autorizzazione migliorie): tinte/prestate alla vista
+
+Il report del builder porta le livree per modello e le PRESTATE, ma nessuna
+vetrina le mostrava: quando si lavora da finestrino la riga restava sepolta
+nel JSON del report. Ora:
+- **CLI `griglia`** ([src/cli.mjs](src/cli.mjs)) stampa una riga `tinte   ...`
+  per modello (con il grido MONOCOLORE quando serve) e `prestate ...` quando
+  il parco dona celle; DRY incluso: la lettura di una --dry porta pure la riga.
+- **WebUI prep** ([src/webui.mjs](src/webui.mjs)): il messaggio dell'evento
+  (`prep.guests`) e la riscrittura di livello (`prep.grid.rebuild`) dicono
+  `N tinte prestate dal parco` e, se un modello esce monocolore, l'avviso
+  completo col gesto «più LIVERIES + APPLICA» — niente decodifiche a mano.
+
+Verificato: `--check` webui/cli, suite 656/656, biome sui due file 0.
 
 ---
 

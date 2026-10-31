@@ -39,7 +39,12 @@
   - File: [src/gridbuilder.mjs](src/gridbuilder.mjs) + test nuove in
     [test/gridbuilder-tinte.test.mjs](test/gridbuilder-tinte.test.mjs)
     (5/5 nel file, suite completa 656/656, lint 0).
-- **2 warning Biome risanati** (autorizzazione alle migliororie): import
+- **Vetrina delle tinte** (miglioria sopra la DA-10): le righe `tinte` e le
+  prestate arrivano alla vista — nel CLI `griglia` (riga per modello,
+  DRY incluso) e nei messaggi prep della WebUI (`prep.guests` /
+  `prep.grid.rebuild`, con avviso MONOCOLORE e gesto «più LIVERIES +
+  APPLICA»). Suite 656/656, biome 0.
+- **2 warning Biome risanati** (autorizzazione alle migliorie): import
   inutili via da `src/webui.mjs` e `tools/_collaudo-amico.mjs` — lint
   ora **0 diagnostica**.
 
@@ -51,6 +56,8 @@
 - `package.json` (solo un script nuovo: `check`)
 - `README.it.md`, `README.md` (suite + manuale della radio)
 - `src/gridbuilder.mjs`, `test/gridbuilder-tinte.test.mjs` (DA-10 seconda fetta)
+- `src/cli.mjs`, `src/webui.mjs` (vetrina delle tinte, DA-10 terza fetta)
+- `DIARIO-SVILUPPO.md` (voce 31/10 tinta+vetrina)
 - `src/webui.mjs`, `tools/_collaudo-amico.mjs` (solo gli import inutili via)
 - `test/garage-buy.test.mjs`, `test/agenda.test.mjs`, `test/lingua-server.test.mjs`,
   `DIARIO-SVILUPPO.md` (committati: 2406ee7 e i commit della fase 2)
