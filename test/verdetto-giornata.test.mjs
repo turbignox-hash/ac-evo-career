@@ -164,3 +164,22 @@ test('righe doppie nel file (persona riciclata su due slot): il verdetto conta U
   assert.equal(v.gare[0].posto, 1);
   rmSync(dir, { recursive: true, force: true });
 });
+
+test('SENZA prefisso il verdetto prende OGGI, mai la stringa "undefined" (31/10, «verdetto webui Gare 0»)', () => {
+  // La GUI chiama /api/verdetto senza prefisso: l'endpoint passava
+  // `prefix: undefined` e la scansione cercava il NOME FILE letterale
+  // «undefined…» → «Gare 0 · 0 vittorie · 0 podi» su una giornata piena.
+  // Adesso il default aammgg di oggi vive DENTRO la funzione.
+  const dir = mkdtempSync(join(tmpdir(), 'verdetto-'));
+  const oggi = new Date(); const due = (n) => String(n).padStart(2, '0');
+  const prefisso = `${String(oggi.getFullYear()).slice(2)}${due(oggi.getMonth() + 1)}${due(oggi.getDate())}`;
+  scriviGara(dir, `${prefisso}-1010_SP_Race.sessionresults.json`, [
+    fila(driver_name, 'Turbigno', 0, { me: true }),
+    fila('Adrian', 'Palmer', 1),
+  ]);
+  const v = verdettoGiornata({ paths: { resultsDirs: [dir] }, driver: DRIVER });   // NESSUN prefix
+  assert.equal(v.gare.length, 1, 'una gara di OGGI deve contare anche senza prefisso');
+  assert.ok(v.aggregato, 'l’aggregato esce (Gare 1 · 1 vittoria · 1 podio)');
+  assert.equal(v.aggregato.vittorie, 1);
+  rmSync(dir, { recursive: true, force: true });
+});

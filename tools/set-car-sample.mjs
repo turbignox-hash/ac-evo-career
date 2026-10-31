@@ -82,6 +82,7 @@ export function learnCarFromLogs({ logsDir = LOGS_DIR, mapFile = MAP_FILE, dry =
   })();
   if (!logFiles.length) return out;
   const found = new Map(); // carHash|guid2 → label carId
+  const playerKeys = new Set(); // coppie dichiarate allo SPAWN del player (formato 3)
   for (const f of logFiles) {
     let s;
     try { s = readFileSync(join(logsDir, f)).toString('latin1'); } catch { continue; }
@@ -93,19 +94,34 @@ export function learnCarFromLogs({ logsDir = LOGS_DIR, mapFile = MAP_FILE, dry =
       const a = `${m[1]}${m[2]}${m[3]}`.slice(0, 16), b = `${m[4]}${m[5]}`.replace(/-/g, '');
       if (a.length === 16 && b.length === 16) found.set(`${a}|${b}`, m[6]);
     }
+    // formato 3 (31/10, «mi rimette sempre il porsche»): lo SPAWN del pilota
+    // dichiara la coppia del garage: "[ServerVehicleSystem][carHash-guid2]
+    // Creating Car (Mauro Turbigno\t…)". La stessa coppia sale anche su
+    // "Loaded car <coppia> (ks_…)": la lego al carId e NON passa dalla
+    // tabella ufficiale (car-guids): è la coppia reale del pilota, che lì
+    // spesso manca (Mini, 911 GT3…).
+    for (const m of s.matchAll(/\[ServerVehicleSystem\]\[([0-9a-fA-F]{16})-([0-9a-fA-F]{16})\] Creating Car \(Mauro/g)) {
+      const pair = `${m[1].toUpperCase()}|${m[2].toUpperCase()}`;
+      playerKeys.add(pair);
+      if (found.get(pair)) continue; // già risolta da format 1/2
+      const cm = s.match(new RegExp(`Loaded car ${m[1]}-${m[2]} \\((ks_[a-z0-9_]+)\\)`));
+      found.set(pair, cm ? cm[1] : null); // serve per appendere la label
+    }
   }
   if (!found.size) return out;
   const map = (function () { try { return JSON.parse(readFileSync(mapFile, 'utf8')); } catch { return { entries: {} }; } })();
   const entries = map.entries ?? {};
   const byk1 = new Map(guids.map((c) => [String(c.k1), c]));
   for (const [hexpair, carId] of found) {
+    if (!carId) continue;                     // spawn del player senza "Loaded car" nello stesso log: niente label
     const [a, b] = hexpair.split('|');
     let k1, k2;
     try { k1 = BigInt('0x' + a).toString(); k2 = BigInt('0x' + b).toString(); } catch { continue; }
     const c = byk1.get(k1);
-    if (!c || String(c.k2) !== k2) continue;   // guid istanza (casuale) o non in tabella: scarta
-    const carHash = '0x' + BigInt(c.k1).toString(16).toUpperCase().padStart(16, '0');
-    const guid2 = '0x' + BigInt(c.k2).toString(16).toUpperCase().padStart(16, '0');
+    if (!playerKeys.has(hexpair) && (!c || String(c.k2) !== k2)) continue; // guid istanza o non in tabella: scarta
+    try { k1 = BigInt('0x' + a).toString(); k2 = BigInt('0x' + b).toString(); } catch { continue; }
+    const carHash = '0x' + BigInt('0x' + a).toString(16).toUpperCase().padStart(16, '0');
+    const guid2 = '0x' + BigInt('0x' + b).toString(16).toUpperCase().padStart(16, '0');
     const key = `${carHash}|${guid2}`;
     if (entries[key]) continue;               // già mappata (la manine resta)
     const label = labelDaCarId(carId);

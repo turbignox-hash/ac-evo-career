@@ -264,6 +264,53 @@ Esito: **danza completa, 21 verifiche verdi zero KO**.
 
 ⚠ di confine, come sempre: il server finto e le cartelle TMP stanno al posto di GitHub e del PC vero; il collaudo prova la catena del pacchetto, non il click umano.
 
+### DA-16 — Le rotte di scrittura del server rispondono SOLO al POST · STATO: fatto (1/11) · lezione dell'incidente sonda 1/11 (vedi SESSION_REPORT)
+La dispatcher muniisce GET e POST nello stesso switch e molte scritture hanno
+fallback a corpo vuoto: una GET «a lettura» poteva mutare il salvataggio:
+- la sonda API del 1/11 mattina lo provò in pieno (iscrizione −450, sfida
+  accettata, nodo attivo spostato, sponsor riassegnato sul save VERO —
+  restauro idempotente in `tools/_ripara-sonda.mjs`, server riavviato con
+  `riavvia-webui.mjs`, `/api/status` di nuovo 536.037);
+- il dir: [src/webui.mjs](src/webui.mjs) `SOLO_POST` (43 rotte) + guardia 405
+  PRIMA di leggere il corpo; le rotte miste restano GET-abili dove la
+  scrittura richiede il campo del corpo (`wizard`, `weekend-track`); la GUI
+  non è toccata (api() in core.js parla già tutto POST). Provino
+  `tmp/_difesa-probe.mjs`: 7 GET-mutanti → 405, 5 GET-lettura → 200, POST
+  regolare 400 gentile. Suite **660/660**, biome 0;
+- onesta: il provino della difesa ha a sua volta ritoccato il save vero
+  (POST race su tmp → carriera reale, −450 alle 12:30) — steso da
+  `_ripara-sonda.mjs` e server riavviato di nuovo. Da ora ogni prova di
+  server si fa col pattern `game-sandbox` o vergine copia.
+
+### DA-17 — Verdetto webui «Gare 0»: il prefisso di default vive nella funzione · STATO: fatto (31/10 pomeriggio) · richiesta Mauro 31/10 («verdetto di gara oggi non va: Gare 0 · 0 vittorie · 0 podi»)
+La GUI chiama /api/verdetto SENZA prefisso, l'endpoint passava `prefix: undefined`
+in verdettoGiornata e la scansione dei Results cercava il NOME FILE letterale
+«undefined…» (`f.startsWith(undefined)` non esplode: ToRegExp su undefined è falso,
+e l'argomento diventa la STRINGA "undefined" → nessun match): 0 file → «Nessuna gara undefined» →
+la scheda stampava l'aggregato a zero su una giornata PIENA. Il CLI era a posto
+perché il default di oggi lo calcolava solo lui. Cura UNICA: [tools/verdetto-giornata.mjs](tools/verdetto-giornata.mjs)
+— il default aammgg di oggi vive DENTRO verdettoGiornata (una sola fonte, chi
+chiamava senza prefisso la riceve). Test di regressione in
+[test/verdetto-giornata.test.mjs](test/verdetto-giornata.test.mjs) (chiamata
+SENZA prefisso conta la gara di oggi): **8/8**; smoke webui 1/1; dal vivo
+`/api/verdetto` dopo riavvio: **Gare 4 · 3 vittorie · 4 podi** (00:08 Brands
+Hatch P1/15 · 00:19 Monza P1/15 · 13:55 Oulton Park P2/16 · 14:20 Imola P1/17,
+giro migliore 01:47.934 Brands Hatch).
+
+### DA-18 — MX-5 NA del pool «epoca» azzerata: da penalità doppia a zero · STATO: fatto (31/10 tarda mattinata) · richiesta Mauro 31/10 («il 14% è proprio la penalità, dovrebbe stare a 0 dato che è l'auto meno veloce»)
+Nella classe `campionato_epoca` di [data/grid-classes.json](data/grid-classes.json)
+(il pool 1990-2005: R5 GT Turbo base a 0, GR86 ~10, i30 N ~20, Countach cap 20)
+il restrictor della `preset_mx5na_mech_1` era un 14% e il `mech_2` un 20% —
+stime a tabula con la formula ΔPI×25, mai confermate in pista. Il punto di Mauro:
+in pista la MX-5 è già l'auto MENO veloce del pool, il restrictor era una
+penalità SOPRA (lezione già vista: 23/10 a RBR la MX-5 con 8,75% girava +26 s/lap).
+Le due regole MX-5 ora sono a **restrictor 0** (zavorra 100 kg invariata, UNA leva
+per volta come da metodo: se resta indietro, la leva successiva è la zavorra);
+voce di storia [data/grid-classes.json](data/grid-classes.json) `campionato_epoca`
+2026-10-31 con la motivazione. Verifica: `node --test test/gridclasses.test.mjs`
+**7/7**, JSON valido. Attenzione pratica: le scritte vanno rigenerate dal menu
+GENERAZIONE GRIGLIA di EVO (APPLICA a schermo) per vedere lo 0 nella finestra.
+
 ### DA-10 — Sistema le tinte nel builder · STATO: prima fetta (31/10 sera) · richiesta Mauro 30/10 («tienine nota nel diario»)
 Il builder della griglia lascia gli avversari **monocolore**: in gara le auto
 avversarie escono tutte con la STESSA livrea del pool, no varianti — già
@@ -356,6 +403,13 @@ file in attesa:
 ---
 
 ## Registro del diario
+
+### 1/11 — Difesa POST-only sulle API di scrittura (lezione sonda) — DA-16
+Colpo e restauro raccontati in [SESSION_REPORT.md](SESSION_REPORT.md) §Incidente;
+la lezione applicata è il set `SOLO_POST` + 405 in [src/webui.mjs](src/webui.mjs):
+qualsiasi GET su una rotta che scrive non muta più lo stato. Verifiche:
+provino `tmp/_difesa-probe.mjs` (7×405, letture intatte, POST regolare),
+suite **660/660** exit 0, biome 0, smoke key teste verdi.
 
 ### 1/11/2026 — Release 0.1.44 preparata: le tinte intere, la palestra e i contatori al passo
 

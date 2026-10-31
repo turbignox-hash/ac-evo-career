@@ -37,6 +37,17 @@ function dalNome(file) {
 /** Il core: gare del giorno (prefisso), righe compatte e aggregato.
  *  `opts.files` (solo per i test) sostituisce la scansione dei Results. */
 export function verdettoGiornata({ paths, driver, prefix, files = null } = {}) {
+  // IL PREFISSO di default è aammgg di OGGI — MAI la stringa "undefined":
+  // (31/10, richiesta Mauro: «verdetto di gara oggi non va»): la GUI chiamava
+  // /api/verdetto SENZA prefisso, l'endpoint passava `prefix: undefined` e la
+  // scansione cercava il NOME FILE letterale «undefined…» — il verdetto del
+  // webui diceva «Gare 0» su qualsiasi giornata piena (il CLI era a posto,
+  // perché il default di oggi lo calcolava solo lui). Adesso il default vive
+  // DENTRO la funzione: una sola fonte, chi la chiama senza prefisso la riceve.
+  if (!prefix) {
+    const oggi = new Date(); const due = (n) => String(n).padStart(2, '0');
+    prefix = `${String(oggi.getFullYear()).slice(2)}${due(oggi.getMonth() + 1)}${due(oggi.getDate())}`;
+  }
   const dirs = paths?.resultsDirs?.length ? paths.resultsDirs : resultDirs(paths ?? {});
   const lista = files ?? dirs.flatMap((d) => {
     if (!existsSync(d)) return [];

@@ -3913,6 +3913,32 @@ function serialize(task, label = 'azione') {
   return run;
 }
 
+/* DIFESA IN PROFONDITÀ (31/10, lezione dell'incidente della sonda): le rotte
+   che SCRIVONO (salvataggio, file di gioco, evo.config, backup) accettano SOLO
+   POST con corpo JSON. La dispatcher tratta GET e POST nello stesso switch e
+   molte scritture hanno fallback col corpo vuoto: una GET «a lettura» poteva
+   mutare lo stato col default — è così che la sonda del 31/10 (tmp/_colpo-api
+   .mjs) ha pagato un'iscrizione −450, accettato una sfida e spostato il nodo
+   attivo sul save VERO. Chi le API le analizza in GET (probe, script) da ora
+   riceve 405 invece del danno. La GUI non è toccata: api() in gui/js/core.js
+   parla già TUTTO con POST; le sole GET dirette della GUI sono /api/lang e
+   /api/agg-info (letture, fuori dal set). Rotte MISTE che restano GET-abili
+   perché la scrittura richiede il campo esplicito del corpo: wizard (check in
+   GET dal smoke test), weekend-track (riscrive solo con body.track). */
+const SOLO_POST = new Set([
+  'agg-install', 'riavvia', 'live-toggle', 'voce-server', 'voce-prova',
+  'new-career', 'rename', 'enter', 'accept', 'race', 'import', 'alias-set', 'ab-setup',
+  'agenda-advance', 'agenda-skip-to-next', 'agenda-shift', 'agenda-hour', 'agenda-choose',
+  'event-accept', 'event-prep', 'event-prize-refresh', 'event-decline', 'event-finish', 'event-abandon',
+  'garage-add', 'garage-remove', 'garage-note', 'garage-sell',
+  'difficulty-nudge', 'nudge-dismiss', 'difficulty-action',
+  'grid-apply', 'grid-drop', 'grid-ai', 'race-settings',
+  'setup-apply', 'setup-save', 'slot-launch',
+  'challenge-accept', 'sponsor-accept', 'sponsor-decline',
+  'review-export', 'integrity-fix', 'save-backup', 'backup',
+  'gara-veloce', 'parti-subito', 'maintenance', 'gv-preset',
+]);
+
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
@@ -3928,6 +3954,12 @@ const server = createServer(async (req, res) => {
         }
       }
       const action = url.pathname.slice('/api/'.length);
+      // la stessa difesa: una GET su una rotta di scrittura è un 405 ASCIUTTO,
+      // prima ancora di leggere il corpo (niente fallback con vuoto = niente
+      // default che mutano il salvataggio)
+      if (SOLO_POST.has(action) && req.method !== 'POST') {
+        return sendJson(res, 405, { error: tr({ it: 'Azione di scrittura: serve POST con corpo JSON (la GET non scrive più, lezione della sonda 31/10).', en: 'Write action: POST with a JSON body is required (GET no longer writes, lesson from the 10/31 probe).' }) });
+      }
       let body;
       try { body = req.method === 'POST' ? await readBody(req) : {}; }
       catch (e) {

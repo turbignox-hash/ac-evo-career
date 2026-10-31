@@ -8,7 +8,7 @@ import { writeFileSync, mkdtempSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { garageBuf } from '../tools/set-driver-car.mjs';
-import { decodeGarage, learnCar } from '../tools/set-car-sample.mjs';
+import { decodeGarage, learnCar, learnCarFromLogs } from '../tools/set-car-sample.mjs';
 
 function casa() {
   const dir = mkdtempSync(join(tmpdir(), 'learn-car-'));
@@ -52,4 +52,23 @@ test('learnCar: nome mancante → nulla da mappare', () => {
   assert.equal(learnCar(null, { garage, mapFile: map }), null);
   assert.equal(learnCar('', { garage, mapFile: map }), null);
   assert.equal(learnCar('', { garage, mapFile: map }), null);
+});
+
+// 31/10 — formato 3: lo spawn del player dichiara la coppia del garage
+// ("[ServerVehicleSystem][coppia] Creating Car (Mauro …") e la stessa coppia
+// sale su "Loaded car <coppia> (ks_…)": deve impararla anche se la coppia NON
+// è in data/car-guids.json (le uniche Mini/911 del gioco non ci sono mai state).
+test('learnCarFromLogs: spawn player viene dimenticata anche se fuori tabella ufficiale', () => {
+  const { map } = casa();
+  const dir = mkdtempSync(join(tmpdir(), 'learn-logs-'));
+  writeFileSync(join(dir, 'log-prova.txt'),
+    '[2026-10-31 16:00:00.000] [server] [info] [C:1|G:0] [ServerVehicleSystem][deadbeefcafe0001-feedface12340001] Creating Car (Mauro Turbigno\t76561198040513102)\r\n' +
+    '[2026-10-31 16:00:01.000] [dataUtils] [info] Loaded car deadbeefcafe0001-feedface12340001 (ks_mini_jcs_1990)\r\n');
+  const out = learnCarFromLogs({ logsDir: dir, mapFile: map });
+  assert.equal(out.added, 1);
+  assert.deepEqual(out.voci, [{ label: 'Mini Jcs 1990', key: '0xDEADBEEFCAFE0001|0xFEEDFACE12340001' }]);
+  const entries = JSON.parse(readFileSync(map, 'utf8')).entries;
+  assert.equal(entries['0xDEADBEEFCAFE0001|0xFEEDFACE12340001'], 'Mini Jcs 1990');
+  // idempotente: secondo giro non aggiunge nulla
+  assert.equal(learnCarFromLogs({ logsDir: dir, mapFile: map }).added, 0);
 });
