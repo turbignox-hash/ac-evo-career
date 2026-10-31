@@ -243,3 +243,19 @@ test('engineerLive: LA FASE dice Race pur col tipo sbagliato «TimeAttack» — 
   assert.ok(muto.live && muto.pit === null, 'fase assente: contratto null nei gauges E la finestra resta chiusa');
   assert.equal(muto.gauges.sessionPhase, null, 'senza fase: null, non undefined (contratto monitor)');
 });
+
+test('engineerLive: EVO CHIUSO (niente shared memory) — il poll dell\u2019ingegnere NON rompe (31/10 notte, collaudo vergine)', () => {
+  // Patologia presa sul PC amico in prova di installazione: con il gioco
+  // chiuso liveReader().snapshot() NON ha NESSUN blocco player (undefined),
+  // ma il cruscotto e la radio chiedono /api/ingegnere a ogni tick:
+  // «Cannot read properties of null (reading 'sessionPhase')» — un 500 a
+  // ogni poll (12 in un minuto qui). Il player null deve dare la risposta
+  // onesta { ok, live:false }, MAI un' eccezione.
+  const spento = engineerLive({ live: false, session: null, player: null }, {});
+  assert.ok(spento.ok === true && spento.live === false, 'senza player: live:false, non un errore');
+  assert.ok(spento.gauges != null && Array.isArray(spento.tips) && spento.tips.length === 0, 'gauges vuoti e nessun consiglio inventato a gioco spento');
+  // ancora peggio: lo snapshot CON block session ma senza player (session
+  // resta, player no) — stesso contratto.
+  const mezzo = engineerLive({ live: true, session: { type: 'Race' }, player: null }, {});
+  assert.ok(mezzo.ok === true && mezzo.live === false, 'sessione c\u00e8 ma player no: live:false senza eccezioni');
+});

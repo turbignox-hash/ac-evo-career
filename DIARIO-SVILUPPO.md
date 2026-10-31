@@ -249,6 +249,41 @@ template RICCO di livree della stessa auto.
 
 ## Registro del diario
 
+### 31/10/2026 notte — Ripasso del giro schede sul vergine: la TERZA zona era fuori schermo (poll /api/ingegnere)
+
+Su richiesta («avvia la GUI della sandbox su 8799 e ripassa le schede
+senza cartelle dati: rivali, campionati, garage, segnala le zone piegate»)
+il banco vergine è tornato in piedi (sandbox %TEMP%\evo-giro SENZA ACE,
+carriera falsa «GiroSchede» in Coppa 500, webui su 8799) e le 19 schede
+girate di nuovo:
+
+- **Le zone di ieri confermano le cure**: Rivali onesto («nessun rivale
+  ancora»), Campionati pieno (carte serie + calendario + classifica),
+  Garage col catalogo e contatori a zero, Risultati/Piste/system-health
+  come ieri — tutto in 200, nessun crollo da nessuna parte.
+- **La TROVATA nuova**: 12× 500 nel console del browser, tutte sulla
+  STESSA rotta che la pagina chiede in loop:
+  `/api/ingegnere` → 500 «Cannot read properties of null (reading
+  'sessionPhase')» a ogni tick del Cruscotto con EVO CHIUSO. Causa:
+  [engineer.mjs:143](src%2Fengineer.mjs) `engineerLive()` legge
+  `player.sessionPhase` PRIMA della guardia `if (!player || !inSession)`:
+  senza shared memory lo snapshot non ha player e la funzione scoppia
+  ANZICHÉ rispondere «tace». Cura minima: `const faseGioco = player ?
+  String(player.sessionPhase ?? '').trim() : ''` — player null = fase
+  vuota e payload onesto `{ ok, live:false }`.
+- **Controprova dal vivo** (file curato + server riavviato + pagina
+  fresca sul Cruscotto): 12 secondi di poll TUTTI 200 (`/api/ingegnere`
+  compreso, che ora vive nel flusso regolarmente),
+  `performance.getEntriesByType` senza NESSUNA risposta ≥ 400, console
+  MUTA. Suite intera 646/646 con il test nuovo
+  (test/ingegnere.test.mjs: player null non rompe, col e SENZA blocco
+  session); Biome pulita sui 2 file toccati.
+- **Nota di classe**: è il SECONDO difetto del genere di poll — un API
+  che si interroga a ogni tick e esplode solo quando la SORGENTE non
+  c'è: ieri `/api/system-health` con path null, stanotte
+  `/api/ingegnere` con shared memory spenta. Nei PROSSIMI collaudi
+  vergine il giro console lo prende di default, non a campione.
+
 ### 31/10/2026 notte — Giro completo delle schede sul vergine: DUE zone piegate prese e curate
 
 Il collaudo libero prosegue su richiesta di Mauro: sfoglia TUTTE le 19

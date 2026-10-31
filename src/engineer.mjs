@@ -140,7 +140,11 @@ export function engineerLive(snap, ctx = {}) {
      monitor adesso registra la fase (campo phase) così la prossima gara
      conferma i valori reali in gara e in prova libera. Diagnosi completa:
      NOTE-AUTOMAZIONE.md (sezione TimeAttack). */
-  const faseGioco = String(player.sessionPhase ?? '').trim();
+  // EVO CHIUSO / poll ingegnere (31/10 notte, collaudo vergine): con la shared
+  // memory spenta lo snapshot non ha NESSUN blocco player — la fase si legge
+  // SOLO se il pilota c'è; con null la fase resta una stringa vuota (risposta
+  // onesta { live:false }) e né pannello né radio tirano un 500 a ogni tick.
+  const faseGioco = player ? String(player.sessionPhase ?? '').trim() : '';
   const inRace = sessionType === 'Race' || /race/i.test(faseGioco);
   const gauges = {
     lapsDone: null, lapsTotal: null, fuel: null, lapsOnFuel: null, lapsLeft: null,
