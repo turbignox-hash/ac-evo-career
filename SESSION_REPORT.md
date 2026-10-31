@@ -53,6 +53,14 @@
 - **2 warning Biome risanati** (autorizzazione alle migliorie): import
   inutili via da `src/webui.mjs` e `tools/_collaudo-amico.mjs` — lint
   ora **0 diagnostica**.
+- **Palestra sazio** (`tools/_collaudo-sazio.mjs`, top-10 −8): il tool
+  REPORT-only ufficializza la tecnica dei campioni. Copia il repo in
+  `tmp/` (nel .gitignore), gira la suite baseline in sandbox, poi muta
+  UNA copia alla volta e confema che ogni test rinforzato CADE:
+  baseline **660/0**, mutazioni **3/3 cadute** (`garage` soglia 0.85→0.80,
+  `agenda` hash %8→%1, `lang` DISPLAY_EN spenta), exit 0. Per il giro
+  corto dopo un cambio c'è `--niente-baseline` (la baseline si dà per
+  passante).
 
 ## File modificati / creati
 
@@ -67,6 +75,7 @@
 - `src/webui.mjs`, `tools/_collaudo-amico.mjs` (solo gli import inutili via)
 - `test/garage-buy.test.mjs`, `test/agenda.test.mjs`, `test/lingua-server.test.mjs`,
   `DIARIO-SVILUPPO.md` (committati: 2406ee7 e i commit della fase 2)
+- `tools/_collaudo-sazio.mjs` (creato, committato: c545101)
 
 ## Test eseguiti
 
@@ -78,6 +87,11 @@
   default OFF immutato; ON con 2 prestate e 3 celle byte-uniche).
 - Probe di rottura a mano con revert sui tre rinforzi: fonte smontata → il
   test CADE; fonti ripristinate.
+- `node tools/_collaudo-sazio.mjs` completo (copia in tmp + baseline + 3
+  mutazioni): baseline **660/0**, **3/3 CADE** come voluto, exit 0.
+- `node tools/_collaudo-sazio.mjs --niente-baseline`: 3/3 CADE, exit 0
+  (giro corto, ~un minuto invece di ~tre).
+- `npx biome check tools/_collaudo-sazio.mjs`: 0 diagnostica.
 
 ## Problemi aperti
 
@@ -92,6 +106,6 @@
 Girare la prova DA-10 in gara (l'unico criterio di chiusura che un test
 non può raggiungere da solo: avversari con livree diverse a vista), poi
 **release 0.1.44** via `RELEASE_CHECKLIST.md` (`npm run bump` + report
-build + crea-release con zip asset). Restano per dopo le fette della
-top-10: `-8` collaudo REPORT-only a mano in `tools/_collaudo-sazio.mjs`
-dove serve.
+build + crea-release con zip asset). La top-10 −8 (palestra sazio) è
+casalinga: `node tools/_collaudo-sazio.mjs` quando si aggiunge un altro
+modulo casuale ai campioni.
