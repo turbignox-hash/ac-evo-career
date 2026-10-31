@@ -17,8 +17,8 @@
 // Flusso di gara serale: chiuso EVO → `node ac-evo-career.mjs griglia [--dry]`
 // → aperto EVO → menu griglia (senza GENERA) → APPLICA → via.
 //
-import { readFileSync, existsSync, statSync, copyFileSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readFileSync, existsSync, statSync, copyFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { dirname, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
 import { sameTrack } from './tracknames.mjs';
@@ -32,6 +32,66 @@ const CARS_JSON = 'E:/SteamLibrary/steamapps/common/Assetto Corsa EVO Dedicated 
 const f32 = (b) => (b && b.length >= 4) ? Buffer.from(b.slice?.() ?? b).readFloatLE(0) : null;
 const setF32 = (v) => { const b = Buffer.alloc(4); b.writeFloatLE(v, 0); return b; };
 const utf8 = (b) => Buffer.from(b).toString('utf8');
+/* LA TINTA di una cella: campo 11 (preset visuale), stessa estrazione di
+   evo-grid.gridFileOf (il preset visuale sta nel primo segmento del campo:
+   "F40 LM Visual 4" dopo \x18 non va letto). Smecherata dal builder al
+   livello superiore (31/10): il PRESTARE di tinte la usa identica. Assente
+   = il gioco usa il default: per il conteggio le misuro come UNA livrea
+   propria ('default'). */
+const tintaDi = (b) => {
+  for (const g of decodeMsg(b)) {
+    if (g.field !== 11) continue;
+    const t = Buffer.from(g.bytes).toString('utf8');
+    const k = t.indexOf('\x12');
+    const v = k >= 0 ? t.slice(k + 1).split('\x18')[0] : (t || null);
+    return v || '(default)';
+  }
+  return '(default)';
+};
+
+/* ---------- TINTE PRESTATE (DA-10, secondo passo 31/10 — default SPENTO) ---------- */
+/** CELLE REALI (byte interi, scritte dal gioco) degli ALTRI template sulla STESSA
+ *  cartella (addirittura il dirname del template corrente: data/grid-templates/)
+ *  per UN dato modello (carId): sono le TINTE (campo 11) che il pool corrent
+ *  può NON avere — è la risposta al report «MONOCOLORE»: prima del gesto
+ *  manuale «più LIVERIES + APPLICA» in EVO si prova la leva del parco verò.
+ *  Zero celle inventate: ogni cella si fotocopia INTERA da un file template
+ *  sul disco, byte per byte. Ordinamento deterministico: file per NOME, cap
+ *  a 20 file: i più tardi NON si esplorano. Scarto i file corrotti, senza
+ *  ripeterli: le celle byte-identiche tra template diversi si filtrano con
+ *  l'HEX. Una cella SENZA tinta (niente campo 11) non c'entra: non presta.
+ */
+function prestaTinte(fileCorrente, carId) {
+  const dir = dirname(fileCorrente);
+  const già = new Set();   // HEX delle celle già viste (dedup inter-file)
+  const fuori = [];
+  let voci = [];
+  try { voci = readdirSync(dir).filter((f) => f.endsWith('.customgrid') && f !== basename(fileCorrente)).sort(); } catch { return []; }
+  for (const nome of voci.slice(0, 20)) {
+    const path = join(dir, nome);
+    try {
+      const tpl = splitTemplate(readFileSync(path));
+      for (const b of tpl.cells) {
+        const bytes = Buffer.from(b).toString('hex');
+        const id = carIdDi(b);
+        if (id !== carId || già.has(bytes)) continue;
+        già.add(bytes); fuori.push(b);
+      }
+    } catch { }   // file illeggibile: salto, il parco continua
+  }
+  return fuori;
+}
+/* l'ID-MODELLO di una cella: campo 3 (carId), stessa estrazione del carIdOf
+   interno del builder (31/10: hoistato per servire anche prestaTinte). */
+const carIdDi = (b) => { for (const g of decodeMsg(b)) if (g.field === 3) return utf8(g.bytes); return null; };
+
+/* FAMIGLIA di un preset: il confronto che ha già morduto le esclusioni
+   27/10 vale per TUTTO il match del bilancio — i preset del template
+   vengono RINUMERATI a ogni variante mecca (mech_2, mech_3...), il
+   confronto esatto smetteva di mordere e una regola col preset "mech_1"
+   lasciava a 0 kg tutte le varianti successive della STESSA auto.
+   'preset_jcs_mech_3' → 'preset_jcs'. Preset/carName assenti: null → null. */
+const withoutMech = (p) => (p == null ? null : String(p).toLowerCase().replace(/_mech_\d+/g, ''));
 
 // grid-classes.json è richiesto più volte per ogni import/analisi (grid-calib
 // lo legge in analyzeRace E in recordEvent): si ri-parsa solo se il mtime cambia.
@@ -218,6 +278,12 @@ function applyRulesToCell(cellBytes, rules) {
     else if (g.field === 10) cell.preset = decodeMsg(g.bytes).filter((x) => x.field === 1).map((x) => utf8(x.bytes))[0] ?? null;
   }
   const rl = rules.find((r) => r.rule.preset != null && r.rule.preset === cell.preset)
+    // FAMIGLIA (lezione 27/10 riusata 31/10): i preset del template vengono
+    // RINUMERATI a ogni variante mech (mech_2, mech_3...) — il match esatto
+    // perdeva le varianti successive: stessa auto, 0 kg a giro. La medesima
+    // semantica: la regola del preset mech_1 pesa le SUE varianti mech_n.
+    ?? rules.find((r) => r.rule.preset != null && cell.preset != null
+      && withoutMech(r.rule.preset) === withoutMech(cell.preset))
     ?? rules.find((r) => r.rule.carName != null && r.rule.carName === cell.carName);
   const out = inner.filter((g) => g.field !== 24 && g.field !== 25);
   if (rl) {
@@ -278,26 +344,15 @@ export function buildGridMessage(opts) {
     for (const g of decodeMsg(b)) if (g.field === 10) return decodeMsg(g.bytes).filter((x) => x.field === 1).map((x) => utf8(x.bytes))[0] ?? null;
     return null;
   };
-  // LA TINTA di una cella: campo 11 (preset visuale), stessa estrazione di
-  // evo-grid.gridFileOf (il preset sta nel primo segmento dopo \x12, "F40 LM
-  // Visual 4" dopo \x18 non va letto). Assente = il gioco usa il default:
-  // per il conteggio le misuro come UNA livrea propria ('default').
-  const visualOf = (b) => {
-    for (const g of decodeMsg(b)) {
-      if (g.field !== 11) continue;
-      const t = Buffer.from(g.bytes).toString('utf8');
-      const k = t.indexOf('\x12');
-      const v = k >= 0 ? t.slice(k + 1).split('\x18')[0] : (t || null);
-      return v || '(default)';
-    }
-    return '(default)';
-  };
+  // LA TINTA di una cella: hoistata al livello superiore (31/10, tintaDi) per
+  // servire identica anche il PRESTARE di tinte: niente doppia estrazione.
+  const visualOf = tintaDi;
 
   // pool: se il ladder dice node.cars, prendo dal template SOLO quelle auto;
   // altrimenti tutto il pool (serie mista). Il MATCH della classe avviene sui
   // preset del POOL (non del template intero!): una monomarca non deve ereditare
   // la classe di una serie mista.
-  const carIdOf = (b) => { for (const g of decodeMsg(b)) if (g.field === 3) return utf8(g.bytes); return null; };
+  const carIdOf = carIdDi;
   // poolMulti: una serie con UNA sola auto nel ladder PUÒ dichiarare in
   // grid-classes.json un pool MULTI-MARCA (richiesta Mauro 21/10 per la Coppa
   // RX-7 FD: la monomarca forzata dal builder era anti-storica). Le celle
@@ -372,6 +427,32 @@ export function buildGridMessage(opts) {
       throw new Error(`il template (last_grid.customgrid) non contiene le auto della serie (${[...wantCars].join(', ')}): auto veri presenti nel template: ${m.reali.join(' | ')}`);
     }
   }
+  // TINTE PRESTATE (DA-10, secondo passo 31/10 — default SPENTO): se il
+  // pool ha un modello con UNA SOLA tinta, le altre si possono PRESTARE
+  // dagli ALTRI template sul disco (stessa cartella, data/grid-templates/):
+  // si ragiona sul REPORT «MONOCOLORE» — prima del gesto manuale «più
+  // LIVERIES + APPLICA» si prova il parco dei template VERI. Le celle
+  // NON si inventano: si fotocopiano INTERE da un altro template del
+  // PARCO, e restano vere (la classe non è ITA+fotocopia). Con tinte
+  // per serie in grid-classes.json (classi."<serie>".tintePrestate = true).
+  // il match è CAR-ID e le ESCLUSIONI per preset le filtrano da sole perché
+  // esegono DOPO l'innesto.
+  let tintePrestate = 0;
+  const tintePrestateOn = declared?.tintePrestate === true;
+  if (tintePrestateOn && file) {
+    const giàTinte = new Map();   // carId → set tinte già nel pool
+    for (const b of poolCells) {
+      const id = carIdOf(b); if (!id) continue;
+      const s = giàTinte.get(id) ?? new Set(); s.add(tintaDi(b)); giàTinte.set(id, s);
+    }
+    for (const id of [...giàTinte.keys()]) {
+      for (const c of prestaTinte(file, id)) {
+        if (giàTinte.get(id).has(tintaDi(c))) continue;   // tinta già in casa
+        giàTinte.get(id).add(tintaDi(c)); poolCells.push(c); tintePrestate++;
+      }
+    }
+  }
+
   const poolPresets = [...new Set(poolCells.map(presetOf).filter(Boolean))];
   // riscala l'ABILITÀ dei piloti: priorità al campo AI PER-TRACCIA della classe
   // matchata (es. Sebring 97-98), poi all'aiStandard della classe, poi alla serie
@@ -623,6 +704,7 @@ export function buildGridMessage(opts) {
     tinte,
     escluse: poolEscluse,
     sintesi: reportSintesi.length ? reportSintesi : null,
+    tintePrestate: tintePrestate || null,   // celle fotocopiate da ALTRI template (DA-10 secondo passo)
     celle: bilanciate.map((b) => `${b.car} → ${b.kg}kg/${b.pct}%`),
   };
   return { buffer: encodeMsg(fields), report };

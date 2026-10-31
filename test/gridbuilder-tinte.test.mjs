@@ -10,13 +10,13 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const g = await import('../src/gridbuilder.mjs');
 const ev = await import('../tools/evo-grid.mjs');
-const { encodeMsg } = ev;
+const { encodeMsg, decodeMsg } = ev;
 
 const TMP = mkdtempSync(join(tmpdir(), 'grid-tinte-test-'));
 const B = (s) => Buffer.from(String(s), 'utf8');
@@ -100,3 +100,76 @@ test('1 sola livery nel template, 3 vetture → il report GRIDA monocolore col g
   const riga = out.report.tinte.find((s) => s.includes('ks_f40_lm'));
   assert.match(riga, /×3 · 1 tinta \(MONOCOLORE: più liveries in EVO \+ APPLICA per le varianti\)/);
 });
+
+/* ---- DA-10 secondo passo: TINTE PRESTATE + BILANCIO PER FAMIGLIA (31/10) ---- */
+
+/** kg e % restrictor scritti su OGNI cella del buffer (f24 varint, f25 float):
+ *  la lente per provare che le regole mordano anche le varianti mech_2/3 del
+ *  match per FAMIGLIA (27/10 esteso 31/10). */
+const bilanciScritte = (buffer) => [...decodeMsg(buffer)]
+  .filter((f) => f.field === 1)
+  .map((f) => {
+    const b = { kg: 0, pct: 0 };
+    for (const g of decodeMsg(f.bytes)) {
+      if (g.field === 24) b.kg = Number(g.varint);
+      else if (g.field === 25 && g.bytes?.length >= 4) b.pct = Math.round(Buffer.from(g.bytes).readFloatLE(0) * 100);
+    }
+    return b;
+  });
+
+/** build senza noBalance: le regole della classe scritta in CO mordono le celle. */
+const buildFamiglia = (celle, gridSize) => {
+  const file = join(TMP, `tpl-fam-${celle.length}.customgrid`);
+  writeFileSync(file, templateOf(celle));
+  return g.buildGridMessage({ ladder: { nodes: [nodo(gridSize)] }, nodeId: 'evento_tinta', roundIndex: 0, file });
+};
+
+/** build con DIR dedicata (prestate): i template che PRESTATO i modelli */
+const buildPrestate = (file) => g.buildGridMessage({ ladder: { nodes: [nodo(3)] }, nodeId: 'evento_tinta', roundIndex: 0, file, noBalance: true });
+
+test('BILANCIO PER FAMIGLIA: regola del preset mech_1 pesa anche mech_2 (lezione 27/10 estesa al match)', () => {
+  writeFileSync(CO, JSON.stringify({ classi: { evento_tinta: { regole: [{ preset: 'preset_f40lm_mech_1', ballastKg: 50 }] } } }));
+  // il template porta DUE varianti meccaniche della STESSA auto: quando il
+  // template si RINUMERA (mech_2 dopo un'era di mech_1), il match esatto per
+  // preset smetteva di mordere e la variante usciva a 0 kg.
+  const out = buildFamiglia([
+    cella('ks_f40_lm', 'Ferrari F40 LM', 'preset_f40lm_mech_1', 'preset_f40lm_visual_v1'),
+    cella('ks_f40_lm', 'Ferrari F40 LM', 'preset_f40lm_mech_2', 'preset_f40lm_visual_v2'),
+  ], 2);
+  const b = bilanciScritte(out.buffer);
+  assert.equal(b.length, 2);
+  assert.deepEqual(b, [{ kg: 50, pct: 0 }, { kg: 50, pct: 0 }], 'ENTRAMBE le varianti portano il ballast della regola mech_1');
+});
+
+test('TINTE PRESTATE: senza il flag per serie il builder NON cambia un passo (default SPENTO)', () => {
+  writeFileSync(CO, JSON.stringify({ classi: {} }));
+  const dir = join(TMP, 'prestate-off');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'tpl-main.customgrid'), templateOf([f40('v1')]));
+  writeFileSync(join(dir, 'tpl-alt.customgrid'), templateOf([f40('v2'), f40('v3')]));
+  const out = buildPrestate(join(dir, 'tpl-main.customgrid'));
+  const scritte = tinteScritte(out.buffer);
+  assert.equal(new Set(scritte).size, 1, 'off: il pool resta monocolore');
+  assert.equal(out.report.tintePrestate ?? null, null, 'off: il report NON dichiara prestate');
+});
+
+test('TINTE PRESTATE: con tintePrestate=true il pool prende le celle VERE degli altri template', () => {
+  const dir = join(TMP, 'prestate-on');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'tpl-main.customgrid'), templateOf([f40('v1')]));
+  writeFileSync(join(dir, 'tpl-alt.customgrid'), templateOf([f40('v2'), f40('v3')]));
+  writeFileSync(CO, JSON.stringify({ classi: { evento_tinta: { tintePrestate: true } } }));
+  const out = buildPrestate(join(dir, 'tpl-main.customgrid'));
+  const scritte = tinteScritte(out.buffer);
+  assert.equal(scritte.length, 3, '3 vetture a giro: le prestate allargano il pool');
+  const netto = [...new Set(scritte)].map((v) => (/preset_f40lm_visual_(v\d)$/.exec(v)?.[1])).sort();
+  assert.deepEqual(netto, ['v1', 'v2', 'v3'], 'le tinte PRESTATE sono le CELLE VERE del parco — zero inventate');
+  assert.equal(out.report.tintePrestate, 2, '2 celle prestate dichiarate nel report');
+  // nessuna cella scritta DUPLICATA: la lezione zero-crash resta intatta
+  const hexScritte = new Set();
+  for (const f of decodeMsg(out.buffer)) {
+    if (f.field === 1) hexScritte.add(Buffer.from(f.bytes).toString('hex'));
+  }
+  assert.equal(hexScritte.size, 3, '3 CELLE byte-unche: la lezione 20/10 (zero crash) regge anche coi prestate');
+});
+

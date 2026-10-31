@@ -287,8 +287,33 @@ inventa tinte (zero rischio crash): se un modello esce monocolore è il
 report a dirlo, col gesto. Verificato in casa:
 `test/gridbuilder-tinte.test.mjs` 2/2 (3 livree nel template → 3 tinte
 in griglia; 1 sola → MONOCOLORE gridato), suite vicine verdi (uniche,
-templates, calib: 27/27). Restano: il collaudo a vista sul via con un
-template RICCO di livree della stessa auto.
+templates, calib: 27/27).
+
+**Seconda fetta (1/11, autorizzazione «migliorie» di Mauro)**: due leve
+aggiuntive nel builder.
+
+1. **Bilancio per FAMIGLIA**: il match del bilancio recita la lezione del
+   27/10 (già in esclusioni): le regole col preset `mech_1` pesano ANCHE le
+   varianti `mech_2`/`mech_3` della STESSA auto (`withoutMech` al livello
+   modulo, `applyRulesToCell` matcha per famiglia). Il template RINUMERATO a
+   mano (un'era di mech_1, poi mech_2/3) non fa più uscire una variante a
+   0 kg: la regola segue l'auto, non il numero del preset.
+2. **TINTE PRESTATE** — default SPENTO per serie, opt-in con
+   `classi."<serie>".tintePrestate = true` in `grid-classes.json`: quando
+   il pool ha un modello MONOCOLORE, il builder pesca le celle vere degli
+   ALTRI template sulla stessa cartella (`data/grid-templates/`) e le
+   fotocopia INTERE (byte a byte: zero inventate, cap 20 file in ordine
+   alfabetico, dedup HEX, il filtro ESCLUSIONI per preset e la lezione
+   zero-crash byte-unica restano intatte). Il report dichiara
+   `tintePrestate: <n celle>` solo quando le usa; l'idempotente (celle
+   identiche sul disco) non cambia un passo.
+
+Verificato in casa: `test/gridbuilder-tinte.test.mjs` 5/5 (famiglia:
+   regola del mech_1 pesa il mech_2; default OFF: la griglia resta
+   monocolore e il report tace; ON: 3 tinte con 2 celle prestate e 3
+   celle byte-uniche) — suite completa **656/656**, lint 0. Restano: il
+   collaudo a vista sul via con un template RICCO di livree e un'altra
+   serie col flag tintePrestate.
 
 ---
 
