@@ -1314,6 +1314,12 @@ async function cmdGriglia(args) {
   const byCar = {};
   for (const c of report.celle) byCar[c.split(' →')[0]] = byCar[c.split(' →')[0]] ?? c;
   for (const [car, line] of Object.entries(byCar)) console.log(`    ${car.padEnd(34)} ${line.split('→ ')[1] ?? ''}`);
+  // TINTE A VISTA (DA-10): il report del builder porta le livree per modello —
+  // se un modello esce MONOCOLORE la riga grida già il gesto «più LIVERIES +
+  // APPLICA», e le celle PRESTATE (tintePrestate, opt-in per serie) si dicono:
+  // il CLI è la vetrina quando si lavora da finestrino.
+  for (const line of report.tinte ?? []) console.log(`  tinte   ${line}`);
+  if (report.tintePrestate) console.log(tr({ it: `  prestate ${report.tintePrestate} celle fotocopiate dagli altri template (tintePrestate)`, en: `  borrowed ${report.tintePrestate} cells copied from the other templates (tintePrestate)` }));
   if (args.flags.dry) { console.log(C_.dim(tr({ it: '\nDRY: niente scritto. Lancia senza --dry per scrivere.\n', en: '\nDRY: nothing written. Run without --dry to write.\n' }))); return 0; }
 
   if (scriveIlFalhub) {
