@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
 import { sameTrack } from './tracknames.mjs';
 import { tr } from './lang.mjs';
-import { matchPool, logMatch } from './car-match.mjs';
+import { matchPool, logMatch, normKey } from './car-match.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);
@@ -210,17 +210,113 @@ function splitTemplate(buf) {
 // (celleNuove:true nel buildGridMessage) e dichiarato nel report: la PRIMA
 // APPLICA in gioco resta la verifica della sintesi (come per il builder
 // tutto-fotocopia lo è stata il suo primo Applied 23/10).
-function cellaSintetica(donore, carId) {
+// 31/10: il PRESET INNESTATO non è più il token inventato `preset_<carId>`: è
+// quello VERO del server, come fa Paddock (il catalogo dichiara l'auto, la
+// variante «Standard» è la zero — niente meccanica sorpresa). Il pernio
+// carId→preset NON sta nel cars.json del server (le voci sono solo
+// preset→display→PI): si MINA dalle CELLE REALI già in giro (f3 ↔ f10.f1, la
+// traccia f3↔f10.1 che il builder usa da sempre). Variante preferita mech_1
+// (Standard); senza, la meno pesante (numero più basso). Fallback token
+// inventato per l'auto assente ANCHE dal parco (test RS 3): meglio un token
+// che un rifiuto; la prima APPLICA resta la verifica.
+
+// Il preset VERO di UN modello: mina una mappa carId→identità dalle CELLE REALI
+// di un template (parametro cells). Preferisce mech_1 (la Standard); a parità,
+// vince la prima incontrata.
+function minaPreset(cells, pi) {
+  const mappa = new Map();  // normKey(carId) e normKey(nome scheda) → { preset, display, variante, pi, carName }
+  for (const b of cells) {
+    let carId = null, carName = null;
+    for (const g of decodeMsg(b)) {
+      if (g.field === 3) carId = utf8(g.bytes);
+      else if (g.field === 4) carName = utf8(g.bytes);
+    }
+    let p1 = null, p2 = null, p4 = null;
+    for (const g of decodeMsg(b)) {
+      if (g.field !== 10) continue;
+      try {
+        const sub = decodeMsg(g.bytes);
+        p1 = sub.find((s) => s.field === 1); p2 = sub.find((s) => s.field === 2); p4 = sub.find((s) => s.field === 4);
+      } catch { }
+    }
+    const preset = p1 ? utf8(p1.bytes) : null;
+    if (!preset || !carId) continue;
+    let fpi = null;
+    for (const g of decodeMsg(b)) if (g.field === 42 && g.wire === 5 && g.bytes?.length >= 4) fpi = f32(g.bytes);
+    const voce = { preset, display: p2 ? utf8(p2.bytes) : preset, variante: p4 ? utf8(p4.bytes) : '', pi: pi[preset] ?? fpi ?? null, carName: carName ?? carId };
+    for (const k of [normKey(carId), normKey(voce.carName)]) if (k) mappa.set(k, miglioreVoce(mappa.get(k), voce));
+  }
+  return mappa;
+}
+
+// Il parco COMPLETO delle identità: prima le celle del template corrente, poi
+// gli ALTRI template della STESSA cartella (come tinte prestate: cap 20 file,
+// ordine per nome) e infine le griglie di fabbrica. Memoizzato per percorso.
+const __mineParco = new Map();  // 'dir|firma-mtime' → Map: l'FTA cambiano i file (nuova APPLICA, cura a mano) → la firma cambia e mina di nuovo
+const firmaDir = (d) => {
+  let somma = 0;
+  try {
+    for (const f of readdirSync(d)) if (f.endsWith('.customgrid')) try { somma += statSync(join(d, f)).mtimeMs; } catch { }
+  } catch { }
+  return somma;
+};
+function parcoPreset(fileCorrente, tplCells, pi) {
+  const dir = dirname(fileCorrente);
+  const fabbrica = process.env.EVO_FACTORY_DIR ?? join(PROJECT, 'config', 'griglie-fabbrica');   // stessa redirezione del grid-apply (sabbia nei test)
+  const dirs = [dir, ...(dir !== fabbrica ? [fabbrica] : [])];
+  const risultato = minaPreset(tplCells, pi);
+  for (const d of dirs) {
+    const firma = `${d}|${firmaDir(d).toFixed(0)}`;
+    if (!__mineParco.has(firma)) {
+      let voci = [];
+      try { voci = readdirSync(d).filter((f) => f.endsWith('.customgrid')).sort().slice(0, 20); } catch { }
+      const celle = [];
+      for (const f of voci) {
+        try { for (const g of decodeMsg(readFileSync(join(d, f)))) if (g.field === 1 && g.wire === 2) celle.push(g.bytes); } catch { }
+      }
+      __mineParco.set(firma, minaPreset(celle, pi));
+    }
+    for (const [k, v] of __mineParco.get(firma)) risultato.set(k, miglioreVoce(risultato.get(k), v));
+  }
+  return risultato;
+}
+const senzaMechN = (p) => (/_mech_(\d+)$/.exec(String(p))?.[1] ?? '9');
+function miglioreVoce(a, b) {
+  if (!a) return b;
+  const am = /_mech_1$/.test(a.preset), bm = /_mech_1$/.test(b.preset);
+  if (am !== bm) return am ? a : b;
+  if (senzaMechN(a.preset) !== senzaMechN(b.preset)) return Number(senzaMechN(a.preset)) < Number(senzaMechN(b.preset)) ? a : b;
+  return a;
+}
+
+function cellaSintetica(donore, carId, vero = null) {
   const B = (s) => Buffer.from(s, 'utf8');
-  const preset = encodeMsg([{ field: 1, wire: 2, bytes: B(`preset_${carId}`) }]);
+  // preset VERO del catalogo quando il parco lo recupera: preset Standard del
+  // modello, nome completo ("Mini John Cooper S - Standard"), variante, PI.
+  const presetB = vero
+    ? encodeMsg([
+      { field: 1, wire: 2, bytes: B(vero.preset) },
+      { field: 2, wire: 2, bytes: B(vero.display) },
+      { field: 3, wire: 0, varint: 1n },
+      { field: 4, wire: 2, bytes: B(vero.variante || 'Standard') },
+    ])
+    : encodeMsg([{ field: 1, wire: 2, bytes: B(`preset_${carId}`) }]);
   const out = decodeMsg(donore).map((g) => ({ ...g }));
   let conPreset = false;
-  for (const g of out) {
+  for (let i = 0; i < out.length; i++) {
+    const g = out[i];
     if (g.field === 3) g.bytes = B(carId);
-    else if (g.field === 4) g.bytes = B(carId);
-    else if (g.field === 10) { g.bytes = preset; conPreset = true; }
+    else if (g.field === 4) g.bytes = B(vero?.carName ?? carId);
+    else if (g.field === 10) { out[i] = { ...g, bytes: presetB }; conPreset = true; }
+    else if (g.field === 42 && g.wire === 5 && vero?.pi != null) out[i] = { ...g, bytes: setF32(vero.pi) };
   }
-  if (!conPreset) out.push({ field: 10, wire: 2, bytes: preset });   // donatore senza preset (file atipico): la cella sintetica NON nasce anonima
+  if (!conPreset) out.push({ field: 10, wire: 2, bytes: presetB });   // donatore senza preset (file atipico): la cella sintetica NON nasce anonima
+  // PI DEL CATALOGO al posto di quello del donatore (che appartiene a un'altra
+  // vettura): come la cura Mini (f42). Con preset vero lo SCRIVO ANCHE se il
+  // donatore non porta f42 — è il float che le celle del gioco si portano
+  // sempre, e la cella dichiara la variante Standard con il PI giusto.
+  if (vero?.pi != null && !out.some((g) => g.field === 42))
+    out.push({ field: 42, wire: 5, bytes: setF32(vero.pi) });   // in coda: i protobuf tollerano campi non ordinati
   return encodeMsg(out);
 }
 
@@ -413,7 +509,12 @@ export function buildGridMessage(opts) {
       // Le presenti restano fotocopiate e il report dichiara le sintetiche.
       const selected = [...m.sel];
       const donore = selected.length ? selected[0] : tpl.cells[0];
-      for (const id of m.mancanti) { selected.push(cellaSintetica(donore, id)); reportSintesi.push(id); }
+      const parco = parcoPreset(file, tpl.cells, carPiByPreset());
+      for (const id of m.mancanti) {
+        const vero = parco.get(normKey(id)) ?? null;
+        selected.push(cellaSintetica(donore, id, vero));
+        reportSintesi.push(vero ? `${id} → ${vero.preset} (Standard, PI ${vero.pi != null ? vero.pi.toFixed(3) : '—'})` : id);
+      }
       poolCells = selected;
       poolMultiInfo = { auto: [...new Set(selected.map(carIdOf))].length, celle: selected.length };
     } else if (m.sel.length) {

@@ -252,11 +252,24 @@ async function agPopHover(el, day){
   pop.onmouseenter = () => { const p = pop._per; if (p) { clearTimeout(p._esco); clearTimeout(p._hov); } };
   pop.onmouseleave = () => agPopChiudi();
   $('.ag-pop-x', pop).onclick = () => agPopChiudi();
-  /* POSIZIONE: centrata orizzontalmente sul cursore, sotto di lui; se in basso
-     manca lo spazio si capovolge SOPRA il cursore. Sbordare dallo schermo: non. */
+  /* POSIZIONE (1/11, Mauro): la volante NON va più sotto il cursore — lì
+     copriva il bottone «scegli per oggi» della card e non era più cliccabile
+     (stesso pedofare che il 31/10 causava la modale a tutto schermo). Si
+     APPICCA ESTERNA alla card: a destra dove c'è spazio, altrimenti a
+     sinistra; solo se mancano entrambi i lati ricade sotto il cursore.
+     Verticale: allineata alla card e clampata nel viewport. */
   const r = pop.getBoundingClientRect();
-  pop.style.left = Math.min(Math.max(8, mx - r.width / 2), Math.max(8, innerWidth - r.width - 8)) + 'px';
-  pop.style.top = (my + 20 + r.height > innerHeight - 8 ? Math.max(8, my - r.height - 20) : my + 20) + 'px';
+  const VERT = Math.min(Math.max(8, rpos.top), Math.max(8, innerHeight - r.height - 8));
+  const FIANCO = Math.min(r.width + 8, 300);   // serve pane laterale: a seconda dello schermo basta anche un fianco stretto
+  let left, top;
+  if (innerWidth - rpos.right - 16 >= FIANCO)      { left = rpos.right + 8; top = VERT; }
+  else if (rpos.left - 16 >= FIANCO)               { left = rpos.left - r.width - 8; top = VERT; }
+  else {
+    left = Math.min(Math.max(8, mx - r.width / 2), Math.max(8, innerWidth - r.width - 8));
+    top = (my + 20 + r.height > innerHeight - 8 ? Math.max(8, my - r.height - 20) : my + 20);
+  }
+  pop.style.left = left + 'px';
+  pop.style.top = top + 'px';
 }
 function raceCardBody(d){
   const auto = (d.cars ?? []).join(', ') || '—';

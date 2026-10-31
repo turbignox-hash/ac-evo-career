@@ -551,6 +551,39 @@ girate di nuovo:
   `/api/ingegnere` con shared memory spenta. Nei PROSSIMI collaudi
   vergine il giro console lo prende di default, non a campione.
 
+### 31/10/2026 — Le varianti pesanti se ne vanno: Standard ovunque, prescritto vero e conteggio allineato
+- **Celle sintetiche col preset VERO** ([src/gridbuilder.mjs](src/gridbuilder.mjs)):
+  la sintesi non innesta più il token inventato `preset_<carId>` — scrive il
+  preset VERO del server, come fa Paddock. Il pernio carId→preset NON sta nel
+  cars.json (solo preset→display→PI): si MINA dalle CELLE REALI già in giro
+  (f3 ↔ f10.f1) — template corrente, poi gli altri della stessa cartella
+  (cap 20), poi le griglie di fabbrica. Preferita la variante `mech_1`
+  (Standard); display completo del catalogo; PI (f42) preso dal catalogo
+  quando il donatore non lo porta. Mineo memoizzato: l'FTA cambia i file →
+  firma di dir (somma dei mtime) → nuova mina. Prova sul 695:
+  `preset_695b_mech_1` e «Abarth 695 Biposto - Standard» nel testo della cella.
+- **Spazzata varianti pesanti**: scansione (tmp/_sonda-varianti.mjs) di
+  griglie-fabbrica e grid-templates per `_mech_(2|3|4)`; le serie toccate
+  riscritte tutte Standard — 40 file di griglie-fabbrica in ordine, incluso
+  `coppa_vintage-mini` che ha dato la lezione (griglia da 12 quando il
+  gamemodesave aspettava 24).
+- **Lezione del conteggio nel CLI** ([src/cli.mjs](src/cli.mjs)): il GATE del
+  conteggio sta SOLO nella corsa dei candidati di `rebuildGridApply` — con
+  `buildGridMessage` diretto una serie il cui template combacia col file di
+  turno restava MAI allineata. `ac-evo-career griglia` ora passa da
+  `rebuildGridApply` (stessi candidati, backup e magazzino) e nel report appare
+  `conteggi N → M (allineato al gamemodesave)`.
+- **Ronda Mini riprovata sul LIVE**: carriera di Mauro, serie `coppa_vintage-mini`,
+  ronda 1 Donington riscritta col builder — 25 celle tutte `preset_jcs_mech_1`,
+  finestra PI 9–10 allineata alla config (prima restando 10.000–11.000 della
+  vecchia variante Tune). La prima APPLICA in gioco resta la verifica.
+- **Vorante del centro gare che non copre più il bottone**
+  ([gui/js/viste-b.js](gui/js/viste-b.js)): la volante si APPICCA ESTERNA alla
+  card (a destra, altrimenti a sinistra; ricade solo se i fianchi mancano):
+  «scegli per oggi» torna cliccabile con l'anteprima aperta.
+- Suite **679/679** exit 0, Biome 0 sui 4 file toccati. Il lavoro è NON
+  committato (serie di griglie-fabbrica in attesa di committatura con Mauro).
+
 ### 31/10/2026 notte — Giro completo delle schede sul vergine: DUE zone piegate prese e curate
 
 Il collaudo libero prosegue su richiesta di Mauro: sfoglia TUTTE le 19
@@ -1395,6 +1428,27 @@ bagnata → secca) è ora rum del popolo solo in modalità test:
   l'evento, finestra pista vuota e lancio che spiana. set-track ora scrive 3.5.5
   (tabella PIT_SLOTS, 18 piste del libro) e la INSTANT_RACE corrotta è stata
   riparata (pit 30→16, backup .bak-track-19-05).
+
+### 1/11/2026 — La sonda anti-colpo è guardia regia: `life` chiusa, test incatenato
+- **Rotta smascherata in vista** ([src/webui.mjs](src/webui.mjs)): `GET /api/life`
+  eseguiva `ensureLife`+`ensureContract`+`checkSigils` con `persist(state)`
+  — una GET di scrittura, l'ultima della sua specie secondo lo sweep. Ora
+  'life' nel set SOLO_POST (pericolo zero per la GUI: `api()` in core.js manda
+  TUTTO via POST, unica eccezione le letture dirette `/api/lang` e `/api/agg-info`).
+- **Sonda promossa** ([tools/_difesa-probe.mjs](tools/_difesa-probe.mjs)): il banco
+  isola TUTTO (EVO_DATA_DIR/EVO_FLOWS_DIR/ACE_DATA/ACE_GAME_SAVEDIR/ACE_SAVEDIR)
+  e gira su una carriera di MARCA «Prova Sonda»; lo sweep coglie le 118 rotte
+  `case` DEL FONTE (il set scritto a mano poteva divergiare: ora é letto
+  direttamente dal source) e confronta l'impronta ricorsiva della sandbox
+  prima/dopo dell'una GET. Suo trovare del 31/10: colpo 'life'. Nota onesta:
+  i log append-only in EVO_DATA_DIR (copilot-voce-*.jsonl, errors.jsonl) sono
+  rumore consentito e dichiarato, NON stato; il resto muta = colpo.
+- **Test di regressione** ([test/diffesa-sonda.test.mjs](test/diffesa-sonda.test.mjs)):
+  2 statici (nessun fantasma nel set; `life` resta armato) + la sonda viva
+  (exit 0 atteso). Prova di rottura fatta sul disco: slegato `life` dal sources,
+  il test CADE (2/3 pass) — e il ripristino è a backup file.
+- Suite **682/682** in sandbox, lint Biome 0, danza amico 24/24 — release
+  **v0.1.44** in uscita.
 
 ### 30/10/2026 — Il doppio «Chiudi la stagione» trappato
 - **Il vivo**: dopo aver chiuso la stagione (click riuscito: save avanzato,

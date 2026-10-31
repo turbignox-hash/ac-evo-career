@@ -1294,15 +1294,22 @@ async function cmdGriglia(args) {
   let buffer = null;
   let report = null;
   let scriveIlFalhub = false;
-  try {
+  if (typeof args.flags.template === 'string') {
+    // template DICHIARATO: l'utente intendeva QUEL file, non un surrogato — percorso diretto.
     ({ buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: tplFile }));
-  } catch (e) {
-    if (typeof args.flags.template === 'string') throw e;   // template DICHIARATO: l'utente intendeva QUEL file, non un surrogato
+  } else {
+    // LEZIONE 31/10 (Mini Donington: griglia scritta a 12 quand il gamemodesave
+    // aspettava 24): il GATE del conteggio sta SOLO nella corsa dei candidati di
+    // rebuildGridApply — buildGridMessage diretto non lo vede, e una serie il cui
+    // template combacia col file di turno esce MAI allineata (crash 0xC0000005
+    // alla Coppa 500). La scrittura live passa SEMPRE da rebuildGridApply:
+    // stessi candidati, stesso backup, stesso magazzino, più il conteggio vero.
     const r = rebuildGridApply({ ladder, nodeId, roundIndex, file, force: true, dry: !!args.flags.dry });
     report = r.report;
     buffer = r.buffer ?? null;
     scriveIlFalhub = !args.flags.dry && r.written === true;
-    report.source = `magazzino (via ${r.source ?? 'candidati'}) · ${report.source.split('/').pop()}`;
+    if (r.countAlign) report.conteggioAllineato = `${r.countAlign.from} → ${r.countAlign.to}`;
+    if (r.source) report.source = `magazzino (via ${r.source}) · ${report.source.split('/').pop()}`;
   }
   const C_ = C;
   console.log(C_.bold(tr({ it: `\nGriglia della gara del giorno\n`, en: `\nGrid of the race of the day\n` })));
@@ -1320,6 +1327,7 @@ async function cmdGriglia(args) {
   // il CLI è la vetrina quando si lavora da finestrino.
   for (const line of report.tinte ?? []) console.log(`  tinte   ${line}`);
   if (report.tintePrestate) console.log(tr({ it: `  prestate ${report.tintePrestate} celle fotocopiate dagli altri template (tintePrestate)`, en: `  borrowed ${report.tintePrestate} cells copied from the other templates (tintePrestate)` }));
+  if (report.conteggioAllineato) console.log(`  conteggi ${report.conteggioAllineato} (allineato al gamemodesave)`);
   if (args.flags.dry) { console.log(C_.dim(tr({ it: '\nDRY: niente scritto. Lancia senza --dry per scrivere.\n', en: '\nDRY: nothing written. Run without --dry to write.\n' }))); return 0; }
 
   if (scriveIlFalhub) {

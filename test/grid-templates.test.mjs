@@ -168,6 +168,43 @@ test('celle NUOVE con opt-in: la RS 3 mai in griglia entra nel pool F40 (sintesi
   assert.deepEqual(out.report.sintesi, ['ks_audi_rs_3_sportback'], 'il report dichiara le sintetizzate');
 });
 
+test('preset VERO al posto del token: la 695 manca dal template ma il parco la conosce (lezione 31/10, come Paddock)', async () => {
+  const bg = await import('../src/gridbuilder.mjs');
+  // un template cugino NELLA STESSA dir porta una cella REALE della 695:
+  // preset mech_1 (Standard), nome completo del catalogo, PI in f42.
+  const fpi = Buffer.alloc(4); fpi.writeFloatLE(10.178277, 0);
+  const cellaVera = encodeMsg([
+    { field: 3, wire: 2, bytes: B('ks_abarth_695_biposto') },
+    { field: 4, wire: 2, bytes: B('Abarth 695 Biposto') },
+    { field: 10, wire: 2, bytes: encodeMsg([
+      { field: 1, wire: 2, bytes: B('preset_695b_mech_1') },
+      { field: 2, wire: 2, bytes: B('Abarth 695 Biposto - Standard') },
+      { field: 3, wire: 0, varint: 1n },
+      { field: 4, wire: 2, bytes: B('Standard') },
+    ]) },
+    { field: 42, wire: 5, bytes: fpi },
+  ]);
+  const fields = [{ field: 1, wire: 2, bytes: cellaVera }, { field: 2, wire: 2, bytes: driver(0.60) }, { field: 2, wire: 2, bytes: driver(0.40) }, { field: 3, wire: 2, bytes: encodeMsg([{ field: 1, wire: 0, varint: 3n }]) }];
+  writeFileSync(join(TMP, 'cugina-695.customgrid'), encodeMsg(fields));   // sì: .customgrid nella dir del template = parco minato
+  LADDER.nodes.push({
+    nodeId: 'serie_mista_695_test', display: 'Mista con 695 mai in griglia', gridSize: 4,
+    cars: ['ks_f40_lm', 'ks_abarth_695_biposto'],
+    calendar: [{ name: 'Prova', track: 'Red Bull Ring', weather: 0, laps: 3 }],
+  });
+  const file = scrivi(templateF40(3));              // sul disco SOLO F40: la 695 senza celle, ma con IDENZA nel parco
+  const out = bg.buildGridMessage({ ladder: LADDER, nodeId: 'serie_mista_695_test', roundIndex: 0, file, aiBand: [88, 93], noBalance: true, celleNuove: true });
+  const stiff = ev.decodeMsg(out.buffer);
+  const sino = stiff.filter((f) => f.field === 1).find((f) => Buffer.from(f.bytes).toString('latin1').includes('ks_abarth_695_biposto'));
+  assert.ok(sino, 'la 695 entra in griglia (sintesi)');
+  const txt = Buffer.from(sino.bytes).toString('latin1');
+  assert.ok(txt.includes('preset_695b_mech_1'), 'preset mech_1 VERO del catalogo, non il token inventato');
+  assert.ok(txt.includes('Abarth 695 Biposto - Standard'), 'display completo del catalogo');
+  const inner = ev.decodeMsg(sino.bytes);
+  const f42 = inner.find((g) => g.field === 42 && g.wire === 5);
+  assert.ok(f42 && Math.abs(Buffer.from(f42.bytes).readFloatLE(0) - 10.178277) < 1e-4, 'PI del catalogo al posto di quello del donatore');
+  assert.match(String(out.report.sintesi[0]), /preset_695b_mech_1/, 'il report dichiara il preset vero');
+});
+
 /* ---------- griglie di fabbrica (distribuzione, 24/10) ---------- */
 test('macchina vergine, nessun template sul disco: la GRIGLIA DI FABBRICA copre la serie (ultimo ripiego)', () => {
   rmSync(join(TMP, 'grid-templates'), { recursive: true, force: true });
