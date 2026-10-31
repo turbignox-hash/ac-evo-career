@@ -310,6 +310,11 @@ async function drawGarage(m){
       <span class="muted" style="font-size:11px">${tr({ it: 'Le auto vinte negli eventi speciali arrivano qui da sole.', en: 'Cars won in special events arrive here by themselves.' })}</span>
     </div>
     <div id="g-mech" style="margin-bottom:12px"></div>
+    <!-- BANCO A/B riportato nel Garage (1/11, richiesta Mauro: «da rivedere e spostare,
+         dove serve»): il confronto dei setup MoTeC vive qui, accanto al segna del
+         meccanico — è il tab dove l'auto prepara la gara, non nell'Analisi delle
+         gare passate. Stessa funzione (renderAB di viste-analisi), un solo viso. -->
+    <div id="g-ab" style="margin-bottom:12px"></div>
     <div id="g-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px"></div>
   </div>`;
   const draw = (gg) => {
@@ -367,6 +372,9 @@ async function drawGarage(m){
   $('#g-how').onchange = priceHint;
   priceHint();
   drawMechanicPanel('#g-mech', g.cars?.[0]?.carName ?? '');
+  // il banco A/B dei setup si disegna SOLO UNA VOLTA (i redraw di draw() toccano
+  // solo le card auto): i select A/B non ripartono da zero a ogni nota salvata.
+  if (typeof renderAB === 'function') renderAB($('#g-ab'));
   $('#g-addbtn').onclick = async () => {
     const sel = $('#g-add');
     if (!sel.value) return toast(tr({ it: "Scegli prima un'auto dal menu.", en: 'Pick a car from the menu first.' }), 'err');

@@ -74,6 +74,13 @@ export function agendaDay(state) {
 export function ensureAgenda(state) {
   state.agenda ??= { day: 1, startDate: 0 };
   if (!Number.isFinite(Number(state.agenda.startDate))) state.agenda.startDate = 0;
+  // ORE PER RONDA (1/11, richiesta Mauro: «due gare lo stesso giorno, una la
+  // mattina e una verso sera»): gli override di ora vivono qui, nodeId →
+  // { roundIndex, hour }. Validi SOLO per la ronda pendente: se la serie
+  // cambia ronda (gara corsa, sedile spostato) l'override muore da solo
+  // (pulito alla LETTURA in oraRonda) e la ronda nuova torna all'ora
+  // scritta in calendario.
+  state.agenda.ore ??= {};
   state.seats ??= {};
   return state;
 }
@@ -135,6 +142,43 @@ export function cadenzaOf(state, node, seriesCounter = null) {
   return cadenzaSerie(seriesCounter ?? 1);
 }
 
+/* ------------------------------------------------------------------ */
+/* ORE SPOSTABILI (1/11): l'ora della ronda pendente di una serie       */
+/* ------------------------------------------------------------------ */
+
+/** L'ORA OVERRIDE della ronda `roundIndex` della serie `nodeId`: un intero
+ *  0–23, o null (niente override). Gli override STANTI (ronda diversa da quella
+ *  pendente, o valore fuori banda) si eliminano alla LETTURA: nessuna
+ *  migrazione, i save vecchi non si sporcano. */
+export function oraRonda(state, nodeId, roundIndex) {
+  const o = state.agenda?.ore?.[nodeId];
+  if (!o) return null;
+  const h = Math.floor(Number(o.hour));
+  if (o.roundIndex !== roundIndex || !Number.isInteger(h) || h < 0 || h > 23) {
+    delete state.agenda.ore[nodeId];   // override stante: pulito alla lettura
+    return null;
+  }
+  return h;
+}
+
+/** Scrive l'ora override della ronda pendente (Endpoint webui). Non tocca
+ *  le rondà passate o future: l'override vale UNA ronda sola. Con hour vuoto
+ *  ('' o null) CANCELLA l'override: la ronda torna all'ora del calendario. */
+export function impostaOraRonda(state, nodeId, roundIndex, hour) {
+  ensureAgenda(state);
+  // RESET («come calendario» nel selettore): via l'override e resto null
+  if (hour === '' || hour == null) {
+    if (state.agenda.ore[nodeId] && state.agenda.ore[nodeId].roundIndex === roundIndex) {
+      delete state.agenda.ore[nodeId];
+    }
+    return null;
+  }
+  const h = Math.floor(Number(hour));
+  if (!Number.isInteger(h) || h < 0 || h > 23) throw new Error('ora fuori banda (0–23)');
+  state.agenda.ore[nodeId] = { roundIndex: Math.floor(Number(roundIndex) || 0), hour: h };
+  return h;
+}
+
 /** Il giorno A CALENDARIO della ronda pendente: per le gare in RITARDO non è
  *  più il giorno inizialmente programmato (le card si ripetevano ogni giorno,
  *  o sparivano del tutto). Regola Mauro "1 gara a settimana, in ritardo mai
@@ -167,13 +211,17 @@ export function nextUnplayedRound(ladder, state, node) {
   if (index == null) return null;
   const round = node.calendar[index];
   const names = ladder.contentNames?.tracks ?? {};
+  // ORE SPOSTABILI (1/11): l'ora override (se presente per QUESTA ronda)
+  // vince sull'ora scritta nel calendario; agenda, impegni, posta e card
+  // la raccontano già spostata.
+  const hourOv = oraRonda(state, node.nodeId, index);
   return {
     node, index, season,
     name: round.name ?? `Round ${index + 1}`,
     trackId: round.track,
     track: names[round.track] ?? round.track,
     laps: round.laps ?? null,
-    hour: round.hour ?? null,
+    hour: hourOv ?? round.hour ?? null,
     weather: ladder.weatherNames?.[String(round.weather)] ?? null,
     scheduledDay: scheduledDay(ladder, state, node),
   };
@@ -419,6 +467,9 @@ export function impegni(ladder, state) {
     mine.push({
       nodeId, display: node.display, level: node.level ?? 0, discipline: node.discipline,
       roundIndex: r.index, totalRounds: node.calendar.length, track: r.track,
+      // l'ora (override compreso) serve alla GUI del conflitto: il selettore
+      // «l'ora della gara» si apre già sul valore corrente.
+      hour: r.hour,
       day: slot, date: dateLabel(slot), isCurrent: nodeId === state.node,
       inRitardo: r.scheduledDay < slot,
     });

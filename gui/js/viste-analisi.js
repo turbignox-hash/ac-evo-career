@@ -18,11 +18,11 @@ async function drawAnalisi(m){
   m.innerHTML = `
     <div id="an-autopsia" class="panel"></div>
     <div id="an-tetto" class="panel"></div>
-    <div id="an-ab" class="panel"></div>
     <div id="an-mc" class="panel"></div>`;
+  /* BANCO A/B MOSSO NEL GARAGE (1/11, richiesta Mauro: «da rivedere e spostare,
+     dove serve»): qui il tab resta sulla gara — autopsia, tetto, Monte Carlo. */
   renderAutopsia($('#an-autopsia', m), audi);
   renderTetto($('#an-tetto', m), tetto);
-  renderAB($('#an-ab', m));
   renderMC($('#an-mc', m), mc);
 }
 

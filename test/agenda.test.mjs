@@ -23,6 +23,7 @@ const {
   calendarStrip, dateLabel, realDate,
   choicesOf, canChoose, recordChoice, MAX_SCELTE_PER_GIORNO, CADENZA_GIORNI,
   impegni, shiftSeat, hasSeat,
+  oraRonda, impostaOraRonda, nextUnplayedRound,
 } = await import('../src/agenda.mjs');
 
 const DATA = mkdtempSync(join(tmpdir(), 'evo-agenda2-'));
@@ -99,6 +100,32 @@ test('impegni e conflitti: due serie lo stesso giorno = 1 conflitto, che lo spos
   assert.equal(after, before + CADENZA_GIORNI);
   inf = impegni(ladder, state);
   assert.ok(!inf.conflitti.some((c) => c.day === before));   // il giorno del conflitto è risolto
+});
+
+test('ORE SPOSTABILI (1/11): l\'override vale per UNA ronda sola e muore quando la ronda cambia', () => {
+  const node = nodeById(ladder, state.node);
+  // la ronda pendente cambia coi test precedenti: la leggo dal motore, NON la presumo
+  const pend = nextUnplayedRound(ladder, state, node);
+  const idx = pend.index;
+  const calHour = pend.hour;
+  const inf = impegni(ladder, state).lista.find((x) => x.nodeId === node.nodeId);
+  assert.equal(inf.hour, calHour, `senza override: l'ora di impegni è quella del calendario (${calHour})`);
+  // sposto LA RONDA PENDENTE a mezzanotte (0): agenda + impegni la raccontano spostate
+  const h = impostaOraRonda(state, node.nodeId, idx, 0);
+  assert.equal(h, 0);
+  assert.equal(nextUnplayedRound(ladder, state, node).hour, 0);
+  assert.equal(impegni(ladder, state).lista.find((x) => x.nodeId === node.nodeId).hour, 0);
+  // reset («come calendario»): torna via e l'ora torna del calendario
+  assert.equal(impostaOraRonda(state, node.nodeId, idx, ''), null);
+  const o = state.agenda?.ore ?? {};
+  assert.ok(!(o[node.nodeId]), "il reset cancella l'override");
+  assert.equal(nextUnplayedRound(ladder, state, node).hour, calHour);
+  // override STANTE: roundIndex diverso => alla LETTURA si pulisce e vale null
+  state.agenda.ore[node.nodeId] = { roundIndex: idx + 9, hour: 5 };
+  assert.equal(oraRonda(state, node.nodeId, idx), null);
+  assert.ok(!(state.agenda.ore[node.nodeId]));
+  // fuori banda => errore esplicito dal server (il selettore GUI non può inviarlo)
+  assert.throws(() => impostaOraRonda(state, node.nodeId, idx, 25));
 });
 
 test('gate severo: a rep appena sufficiente la L1 apre, le GT4 restano chiuse sotto 450', () => {

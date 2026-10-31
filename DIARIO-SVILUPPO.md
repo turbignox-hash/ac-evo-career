@@ -219,6 +219,37 @@ vuoto dormirebbe per un «nessun bersaglio». `--no-multi` torna al guardiano
 puro fotografo. Verifica: `node --check` su entrambi i tool il quadro
 (`--stampa`), la fabbrica resta in attesa del prossimo scatto in EVO.
 
+### DA-14 — Ore spostabili, poste operative, Campionati ricchi, Banco A/B nel Garage · STATO: fatto (1/11 notte) · richieste Mauro 1/11
+Cinque fronti in una notte, tutti verificati con test a casa:
+
+- **Ore spostabili per campionato** («se due gare si corrono lo stesso giorno,
+  si potrebbe fare un weekend la mattina e poi verso sera un'altra corsa, che
+  ne pensi?»): confermato l'idea e realizzata la leva — override di ORA per
+  RONDA ([src/agenda.mjs](src/agenda.mjs): `oraRonda`/`impostaOraRonda`, vive in
+  `state.agenda.ore` e muore da solo al cambio ronda), tema nel pannello dei
+  conflitti del Centro gare (selettore 06–23 + «come calendario» + «sposta ⯈»)
+  via endpoint `agenda-hour`. L'ora spostata scende fino alla CARD e al
+  gamemodesave: [src/race.mjs](src/race.mjs) `nextRound` la preleva e la
+  `raceCard` la usa al posto dell'ora di serie (priorità: ronda > serie >
+  calendario). La serie resta a cadenza fissa: SI SPOSTA L'ORA, NON LA RONDA.
+- **Posta del pilota**: il chip della serie dei bollettini NON porta più al
+  Cruscotto ma al CENTRO GARE con la scheda già aperta (gui/js/viste-d.js)
+  — il posto dove si sceglie il campionato e si corre.
+- **Campionati arricchiti**: le card portano premio, tassa, griglia tipica,
+  rep richiesta e la prossima ronda completa (data vera, ora, meteo — src/webui.mjs);
+  il click su una card chiude gli altri pieghevoli e lo scroll non atterra più
+  sotto l'header (`.champ-detail{scroll-margin-top:86px}`).
+- **Avviso «Prima volta in EVO» tolto dalla scheda gara** (PC vergine, guerra
+  finita): banner rimosso da gui/js/viste-a.js; il campo `weekendSeen` resta
+  nel JSON per i collaudi.
+- **Banco A/B MOSSO nel GARAGE** («da rivedere e spostare»): accanto al segna
+  del meccanico — dove si lavora sui setup — non più nel tab Analisi.
+
+Verifica: `npm test` 647/647 (incluso il test nuovo ORE SPOSTABILI in
+[test/agenda.test.mjs](test/agenda.test.mjs): override, reset, override stante
+pulito alla lettura, fuori banda → errore). Sintassi `node --check` ok su tutti
+i file toccati (src e gui/js).
+
 ### DA-10 — Sistema le tinte nel builder · STATO: prima fetta (31/10 sera) · richiesta Mauro 30/10 («tienine nota nel diario»)
 Il builder della griglia lascia gli avversari **monocolore**: in gara le auto
 avversarie escono tutte con la STESSA livrea del pool, no varianti — già
@@ -249,7 +280,40 @@ template RICCO di livree della stessa auto.
 
 ## Registro del diario
 
-### 31/10/2026 notte — Ripasso del giro schede sul vergine: la TERZA zona era fuori schermo (poll /api/ingegnere)
+### 1/11/2026 notte — ORE SPOSTABILI nel Centro gare + quattro cure di agliedai di Mauro
+
+Su richiesta di Mauro («se due gare si corrono lo stesso giorno, si potrebbe
+fare un weekend la mattina e poi verso sera un'altra corsa, che ne pensi?»):
+
+- **L'idea confermata e la leva costruita.** Il pannello dei conflitti era un
+  bulbo con un solo pugno («sposta ⯈» = slitta l'intera serie di 7 giorni).
+  Ora ogni gara del conflitto porta anche il SELETTORE DELL'ORA (06–23 +
+  «come calendario»): dalla carriera del 1/11 (Red Bull Ring + Oulton lo
+  stesso Sabato, Nürburgring ×2 la Domenica, Brands Hatch ×2 il Mercoledì)
+  la giornata tipo della produzione reale si mette in piedi senza smontare
+  nessun campionato. L'override vive per UNA ronda (`state.agenda.ore`,
+  pulito alla LETTURA con ronda cambiata o valore stante): la serie resta a
+  cadenza fissa.
+- **La catena fina è al completo.** L'ora spostata esce dall'agenda
+  (`nextUnplayedRound`, `racesOnDay`, `impegni`, `elencoCompleto`) e arriva
+  nel gioco: `nextRound` in race.mjs la applica e la raceCard la usa per
+  il raceHour e il piano orario delle sessioni (priorità: ronda > serie >
+  calendario), così il «Prepara tutto» scrive il gamemodesave all'ora
+  spostata. Test a casa in agenda.test.mjs (9/9: override, reset, override
+  stante, fuori banda). Il primo giro del test era的来说 sbagliato IO, non il
+  motore: la ronda pendente non è la R0, l'attesa va presa dal motore e non
+  presumere la R0.
+- **Le quattro cure di OGGI**: (1) il chip-auto della Posta porta al
+  Centro gare, non al Cruscotto, col pannello giusto (scheda serie + «scegli
+  per oggi»); (2) le schede di Campionati portano al pieghevole GIUSTO
+  (chiusura dei vicini + `scroll-margin-top` lungo il header) e la sezione si
+  arricchisce: premio, tassa, griglia tipica, rep, prossima con data/ora/meteo;
+  (3) il banner «Prima volta in EVO» esce dalla scheda gara (PC vergine:
+  istruzione ormai nella guida), `weekendSeen` resta nel JSON per i collaudi;
+  (4) il Banco A/B dei setup si muove nel GARAGE, accanto al segna del
+  meccanico — dove le sessioni MoTeC si leggono mentre si lavora sul settaggio.
+- **Verifica**: `npm test` 647/647, `node --check` su src (agenda, race,
+  webui) e su tutti e cinque i gui/js toccati.
 
 Su richiesta («avvia la GUI della sandbox su 8799 e ripassa le schede
 senza cartelle dati: rivali, campionati, garage, segnala le zone piegate»)

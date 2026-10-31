@@ -145,7 +145,7 @@ async function drawMessages(m){
       <pre class="mcorpo">${esc(mm.corpo)}</pre>
       ${actions ? `<div class="row" style="gap:6px;margin-top:8px">${actions}</div>` : ''}
       ${mm.action?.rivals?.length ? `<div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${mm.action.rivals.map(r=>`<span class="chip gold" data-rival="${esc(r.key??'')}" style="cursor:pointer" title="${tr({ it: 'apri la scheda pilota', en: 'open the driver card' })}">${esc(r.name)}</span>`).join('')}</div>` : ''}
-      ${mm.action?.rows?.length ? `<div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${mm.action.rows.map((rr)=>`<span class="chip" data-row-node="${esc(rr.nodeId??'')}" data-row-track="${esc(rr.trackKey??'')}" style="cursor:pointer" title="${tr({ it: 'serie → scheda gara · pista → scheda pista', en: 'series → race card · track → track card' })}">${esc(rr.label)}</span> <span class="chip gold" data-track-open="${esc(rr.trackKey??'')}" data-track-name="${esc(rr.track)}" style="cursor:pointer;font-size:10px;padding:1px 6px" title="${tr({ it: 'apri la scheda pista', en: 'open the track card' })}">📍</span>`).join('')}</div>` : ''}
+      ${mm.action?.rows?.length ? `<div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${mm.action.rows.map((rr)=>`<span class="chip" data-row-node="${esc(rr.nodeId??'')}" data-row-track="${esc(rr.trackKey??'')}" style="cursor:pointer" title="${tr({ it: 'serie → Centro gare (la scheda per iscriverti e correre) · pista → scheda pista', en: 'series → Race centre (the card to sign up and race) · track → track card' })}">${esc(rr.label)}</span> <span class="chip gold" data-track-open="${esc(rr.trackKey??'')}" data-track-name="${esc(rr.track)}" style="cursor:pointer;font-size:10px;padding:1px 6px" title="${tr({ it: 'apri la scheda pista', en: 'open the track card' })}">📍</span>`).join('')}</div>` : ''}
     </div>`;
   };
   m.innerHTML = `
@@ -205,7 +205,17 @@ async function drawMessages(m){
     else toast(tr({ it: 'Rivale non in registro.', en: 'Rival not in the registry.' }), 'info');
   }; });
   // RIGHE SETTIMANALE/ATARDO: chip serie (card gara) + 📍 pista (scheda pista)
-  $$('.chip[data-row-node]', m).forEach(c => { c.onclick = () => { tab = 'dashboard'; drawNav(); render(); toast(tr({ it: 'Scheda gara nel Cruscotto.', en: 'Race card on the Dashboard.' }), 'info'); }; });
+  // RICHIESTA MAURO 1/11: il chip della serie PORTA AL CENTRO GARE — il posto
+  // dove si SCEGLIE il campionato e se ne corre la ronda («scegli per oggi»),
+  // non al Cruscotto (lì va solo la gara GÀI iscritta e attiva). Après il
+  // render della vista agenda, la scheda della serie si apre SUBITO: dà il
+  // bottone giusto in mano (iscriversi/correre) senza cercare la card.
+  $$('.chip[data-row-node]', m).forEach(c => { c.onclick = () => {
+    tab = 'agenda'; drawNav(); render().then(() => {
+      if (typeof raceCardModal === 'function') raceCardModal(c.dataset.rowNode, (typeof agendaView !== 'undefined' && agendaView) ? agendaView.day : null);
+      else toast(tr({ it: 'Scheda nel Centro gare: scegli il campionato dalla striscia.', en: 'Card in the Race centre: pick the championship from the strip.' }), 'info');
+    });
+  }; });
   $$('.chip[data-track-open]', m).forEach(c => { c.onclick = () => {
     const nome = c.dataset.trackName;
     tab = 'tracks'; drawNav(); render().then?.(() => {});

@@ -96,11 +96,23 @@ async function drawAgenda(m){
   }).join('');
 
   const impegniHtml = (a.impegni?.lista ?? []).length ? `<span class="impegni">(${a.impegni.iscritte} ${tr({ it: 'iscritte', en: 'signed' })}${a.impegni.conflitti.length?` · ⚠️ ${a.impegni.conflitti.length} ${a.impegni.conflitti.length===1?tr({ it: 'conflitto', en: 'conflict' }):tr({ it: 'conflitti', en: 'conflicts' })}`:''})</span>` : '';
+  // ORE SPOSTABILI (1/11, richiesta Mauro: «due gare lo stesso giorno, uno la
+  // mattina e una la sera»): accanto a ogni gara del conflitto un selettore
+  // dell'ORA. '' = torna l'ora scritta nel calendario; il resto = move della
+  // SOLA ronda (la serie resta a cadenza fissa). Le gare del giorno si
+  // riaccavagliano senza più dover slittare l'intera serie con «sposta ⯈».
+  const oraOpts = (cur) => {
+    const opt = (h) => `<option value="${h}" ${String(h)===String(cur)?'selected':''}>${String(h).padStart(2,'0')}:00</option>`;
+    return `<option value="" ${cur===''?'selected':''}>${tr({ it: 'come calendario', en: 'as scheduled' })}</option>`
+      + [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21].map(opt).join('')
+      + [0,1,2,3,4,5,22,23].map(opt).join('');
+  };
   const conflittiHtml = (a.impegni?.conflitti ?? []).map((c) => `
     <div class="conflitto">
       <div>${esc(c.date)} — ${c.gare.length} ${tr({ it: 'gare iscritte lo stesso giorno:', en: 'races signed up on the same day:' })}</div>
       ${c.gare.map((g)=>`<span class="conf-item">
         <b>${esc(g.display)}</b> <span class="faint">R${g.roundIndex+1} · ${esc(g.track)}</span>
+        <select class="mini ora-sel" data-ora-node="${esc(g.nodeId)}" data-ora-round="${g.roundIndex}" data-ora-cur="${g.hour ?? ''}" title="${tr({ it: 'sposta questa ronda a un\u2019altra ora (stesso giorno): 00 = torna l\u2019ora del calendario', en: 'move this round to a different hour (same day): 00 = back to the calendar hour' })}">${oraOpts(g.hour ?? 14)}</select>
         <button class="mini" data-shift="${esc(g.nodeId)}" title="${tr({ it: 'Sposta la serie in avanti di una cadenza (le prossime gare si spostano con lei)', en: 'Shift the series forward by one interval (upcoming races move with it)' })}">${tr({ it: 'sposta ⯈', en: 'shift ⯈' })}</button>
       </span>`).join('')}
     </div>`).join('');
@@ -145,6 +157,17 @@ async function drawAgenda(m){
   $$('button[data-shift]').forEach(b => { b.onclick = async () => {
     await api('agenda-shift', { method:'POST', body:{ nodeId: b.dataset.shift } });
     render();
+  }; });
+  // selettore ora per ronda (1/11): '' REINSERISCE l'ora del calendario;
+  // qualunque altro valore è l'ora nuova di QUESTA ronda sola.
+  $$('select[data-ora-node]').forEach(s => { s.onchange = async () => {
+    try {
+      const r = await api('agenda-hour', { method:'POST', body:{ nodeId: s.dataset.oraNode, roundIndex: Number(s.dataset.oraRound), hour: s.value } });
+      toast(r.hour == null
+        ? tr({ it: 'Ora della ronda tornata a calendario ✔', en: 'Round hour back to calendar ✔' })
+        : tr({ it: `Ronda spostata alle ${String(r.hour).padStart(2,'0')}:00 ✔`, en: `Round moved to ${String(r.hour).padStart(2,'0')}:00 ✔` }), 'ok');
+      render();
+    } catch(e){ toast(e.message, 'err'); }
   }; });
   // "GARE DEL GIORNO" si riempie qui: conteggio + card racing in un colpo solo
   const wrapEl = $('#gare-wrap');
@@ -345,10 +368,17 @@ async function drawChampionships(m){
      vere — nome, livello, auto, barra di avanzamento della stagione, prossimo
      round, posizione tua. La scheda completa sta sotto in pieghevole (aperto
      solo per la serie attiva): la pagina resta leggibile anche con 16 serie. */
+  /* SEZIONE ARRICHITA (1/11, «troppo scarna»: le card ora raccontano
+     premio per gara, griglia tipica, rep richiesta e la prossima ronda
+     COMPLETA di data vera, ora (override «ore spostabili» compreso) e meteo:
+     gli stessi numeri della scheda gara, senza andarsela a cercare. */
   const cards = v.championships.map((c) => {
     const played = c.calendar.filter(r=>r.played).length;
     const pct = c.calendar.length ? Math.round(played / c.calendar.length * 100) : 0;
-    const nxt = c.nextRound ? `R${c.nextRound.index + 1} · ${c.nextRound.track}` : tr({ it: 'calendario finito', en: 'calendar over' });
+    const nr = c.nextRound;
+    const nxt = nr
+      ? `R${nr.index + 1} · ${esc(nr.track)} · ${String(nr.hour ?? 0).padStart(2,'0')}:00${nr.weather ? ` · ${esc(nr.weather)}` : ''}${nr.dateLabel ? `<br><span class="faint">${esc(nr.dateLabel)}</span>` : ''}`
+      : tr({ it: 'calendario finito', en: 'calendar over' });
     const me = (c.standings ?? []).find(r=>r.isPlayer);
     return `<div class="champ-card ${c.isCurrent ? 'cur' : ''}" data-node="${esc(c.nodeId)}" title="${esc(c.display)} — ${tr({ it: 'clicca per la scheda completa', en: 'click for the full card' })}">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
@@ -357,7 +387,13 @@ async function drawChampionships(m){
       </div>
       <div class="muted" style="font-size:11px;margin-top:2px">L${c.level} · ${esc(c.discipline)} · ${(c.cars ?? []).map(window.carLinkHtml).join(' · ')}</div>
       <div class="cc-bar" style="margin-top:8px"><i style="width:${pct}%"></i></div>
-      <div class="muted" style="font-size:11.5px;margin-top:6px">${played}/${c.calendar.length} ${tr({ it: 'gare', en: 'races' })} · ${tr({ it: 'prossima', en: 'next' })}: ${esc(nxt)}${me ? ` · <b style="color:var(--text)">${tr({ it: 'tu P', en: 'you P' })}${me.position}</b> (${me.points} pt)` : ''}</div>
+      <div class="muted" style="font-size:11.5px;margin-top:6px">${played}/${c.calendar.length} ${tr({ it: 'gare', en: 'races' })} · ${tr({ it: 'prossima', en: 'next' })}: ${nxt}${me ? ` · <b style="color:var(--text)">${tr({ it: 'tu P', en: 'you P' })}${me.position}</b> (${me.points} pt)` : ''}</div>
+      <div class="muted" style="font-size:11px;margin-top:4px;display:flex;gap:10px;flex-wrap:wrap">
+        ${c.prize != null ? `<span title="${tr({ it: 'premio di gara', en: 'race prize' })}">🏁 ${money(c.prize)}</span>` : ''}
+        ${c.entryFee ? `<span title="${tr({ it: 'costo d\'iscrizione', en: 'entry fee' })}">🎫 ${money(c.entryFee)}</span>` : ''}
+        ${c.gridSize ? `<span title="${tr({ it: 'griglia tipica degli avversari', en: 'typical grid size' })}">🚗 ${c.gridSize} ${tr({ it: 'auto', en: 'cars' })}</span>` : ''}
+        ${c.repRequired ? `<span title="${tr({ it: 'reputazione richiesta per iscriversi', en: 'reputation required to sign up' })}">⭐ ${c.repRequired}</span>` : ''}
+      </div>
     </div>`;
   }).join('');
   m.innerHTML = `<div class="panel" style="padding:14px 16px">
@@ -419,10 +455,17 @@ async function drawChampionships(m){
     const sec = $(`#champ-${CSS.escape(AO.apri)}`);
     if (sec) { sec.open = true; sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   } else if (AO) window.NAV_OPTS = null;
-  // click su una carta: apre il pieghevole della scheda e scende fluido
+  // click su una carta: apre il pieghevole della scheda e scende fluido.
+  // LEZIONE 1/11 («porta a posizioni sbagliate»): prima la card RESTAVA aperta
+  // su altra scheda e lo scroll atterrava sotto l'header. Ora: si chiudono gli
+  // ALTRI pieghevoli (ne resta uno visibile: la scheda cliccata), si apre al
+  // punto giusto e scroll-margin-top durata il header fra lo scatto e la sezione.
   $$('.champ-card').forEach(b => { b.onclick = () => {
     const sec = $(`#champ-${CSS.escape(b.dataset.node)}`);
-    if (sec) { sec.open = true; sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    if (!sec) { toast(tr({ it: 'Scheda della serie non trovata: aggiornare il tab.', en: 'Series card not found: refresh the tab.' }), 'err'); return; }
+    $$('.champ-detail', m).forEach(d => { if (d !== sec) d.open = false; });
+    sec.open = true;
+    sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }; });
 }
 

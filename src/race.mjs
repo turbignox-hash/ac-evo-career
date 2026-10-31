@@ -23,6 +23,9 @@ import { carPoolOf } from './car-pool.mjs';
 import { sameTrack } from './tracknames.mjs';
 import { existsSync } from 'node:fs';
 import { weekendCarCount, WEEKEND_FILE } from '../tools/set-track.mjs';
+// ORE SPOSTABILI (1/11): l'ora override per-ronda dichiarata in agenda.mjs.
+// agenda.mjs non importa race.mjs: nessun ciclo.
+import { oraRonda } from './agenda.mjs';
 
 /* Nomi delle opzioni meteo come compaiono ESATTAMENTE nel menu di EVO
  * (sereno, nuvole sparse, nuvoloso, coperto, pioggia leggera, pioggia, pioggia intensa).
@@ -86,7 +89,14 @@ function layoutFor(trackDisplay) {
 export function nextRound(ladder, state, node = null) {
   const n = node ?? nodeById(ladder, state.node);
   const roundIndex = Math.min(state.round, n.calendar.length - 1);
-  return { node: n, roundIndex, round: n.calendar[roundIndex], totalRounds: n.calendar.length };
+  const round = { ...n.calendar[roundIndex] };
+  // ORE SPOSTABILI (1/11): l'ora override per-ronda (spostata dal pannello
+  // «gare iscritte lo stesso giorno») vince su quella del calendario. Qui la
+  // prende LA CARD GARA e tutto ciò che ne scende (Prepa tutto, gamemodesave):
+  // la serie resta dove sta, la ronda spostata corre all'ora nuova.
+  const oraOv = oraRonda(state, n.nodeId, roundIndex);
+  if (Number.isFinite(oraOv)) round.hour = oraOv;
+  return { node: n, roundIndex, round, totalRounds: n.calendar.length };
 }
 
 export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
@@ -137,7 +147,10 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
   // round, con il warm-up 15 min prima della gara). Con il moltiplicatore>1 il
   // gioco riscorre indietro; qui si scrivono le ore distinte nei blocchi del
   // gamemodesave (setRaceSessions), come dalla regola gara settings.
-  const raceHour = raceStartOv ?? round.hour ?? null;
+  // Priorità (1/11): 1) ora DELLA RONDA spostata (più specifica, vince anche
+  // sull'override di serie via «Regole weekend»); 2) raceStart della serie;
+  // 3) hour del calendario (se la ronda non è mai stata toccata).
+  const raceHour = oraRonda(state, node.nodeId, roundIndex) ?? raceStartOv ?? round.hour ?? null;
   const diff = difficultyFor(ladder, state, node, round.track);
   // in EVO la difficoltà AI si imposta come INTERVALLO min-max: banda STRETTA di un
   // punto (scelta Mauro 23/10: gap massimo 1% su tutte le serie, per avvicinare

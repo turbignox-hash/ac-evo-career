@@ -130,6 +130,7 @@ import {
   racesOnDay, calendarStrip, dateLabel, MAX_SCELTE_PER_GIORNO, CADENZA_GIORNI,
   choicesForDay, canChoose, recordChoice, impegni, shiftSeat,
   scheduledDay, nextUnplayedRound, hasSeat,
+  oraRonda, impostaOraRonda,
 } from './agenda.mjs';
 import { heritageOverview, claimMemory } from './memories.mjs';
 import { resetNews } from './gazzetta.mjs';
@@ -1517,9 +1518,23 @@ async function api(context0, _req, res, action, body) {
           discipline: disciplineName(ladder, node.discipline),
           season: state.season,
           seatDay: state.seats[nodeId].day ?? null,
+          // CAMPIONATI ARRICHITI (1/11, «sezione troppo scarna»): le card portano
+          // anche il premio per gara, la tassa d'ingresso, la griglia tipica e la
+          // reputazione richiesta — gli stessi numeri della scheda gara.
+          prize: node.econ?.prize ?? null,
+          entryFee: node.econ?.rent ?? node.econ?.buy ?? 0,
+          repRequired: node.repRequired ?? 0,
+          gridSize: grigliaSimEstesa(ladder, state, node).gridSize ?? null,
           // dettagli per i badge in cima alla pagina: auto della serie + prossimo round
           cars: (node.cars ?? []).slice(0, 3).map((c) => names2[c] ?? c),
-          nextRound: nextR ? { index: nextR.index, track: names[nextR.track] ?? nextR.track, day: nextR.scheduledDay ?? null } : null,
+          // l'ora della prossima ronda viene da nextUnplayedRound: rispetta già
+          // l'override «ore spostabili» (1/11). Meteo e data vera inclusi.
+          nextRound: nextR ? {
+            index: nextR.index, track: names[nextR.track] ?? nextR.track,
+            laps: nextR.laps, hour: nextR.hour, weather: nextR.weather,
+            day: nextR.scheduledDay ?? null,
+            dateLabel: nextR.scheduledDay != null ? dateLabel(nextR.scheduledDay) : null,
+          } : null,
           calendar: node.calendar.map((round, i) => ({
             index: i,
             name: round.name ?? `Round ${i + 1}`,
@@ -2045,6 +2060,34 @@ async function api(context0, _req, res, action, body) {
       pushMessage(state, `${m.display} spostata in avanti: prossima gara ${dateLabel(now)} (conflitto di calendario risolto).`, 'info');
       persist(state);
       return sendJson(res, 200, { ok: true, nodeId: id, nextDay: now });
+    }
+    case 'agenda-hour': {
+      // ORE SPOSTABILI (1/11, richieste Mauro): due gare dello stesso giorno NON
+      // si rimescolano più di serie — si sposta l'ORA. Il pannello del conflitto
+      // propone un selettore: setteMattina, gara del pomeriggio, ecc.; vuoto =
+      // torna l'ora del calendario. L'override è per RONDA (nodeId+roundIndex):
+      // la serie resta a cadenza fissa, solo quella ronda corre all'ora nuova.
+      const id = String(body.nodeId ?? '');
+      const roundIndex = Number(body.roundIndex);
+      const inf = impegni(ladder, state);
+      const m = inf.lista.find((x) => x.nodeId === id);
+      if (!m) return sendJson(res, 400, { error: 'Non hai un impegno con questa serie.' });
+      if (!Number.isFinite(Number(m.roundIndex)) || Number(m.roundIndex) !== roundIndex) {
+        return sendJson(res, 400, { error: 'La ronda indicata non è quella a programma.' });
+      }
+      const hour = impostaOraRonda(state, id, roundIndex, body.hour);
+      const testo = hour == null
+        ? tr({
+            it: `${m.display} R${roundIndex + 1}: ora tornata quella del calendario.`,
+            en: `${m.display} R${roundIndex + 1}: hour back to the calendar value.`,
+          })
+        : tr({
+            it: `${m.display} R${roundIndex + 1} spostata alle ${hour}:00 (stesso giorno, orario diverso).`,
+            en: `${m.display} R${roundIndex + 1} moved to ${hour}:00 (same day, different time).`,
+          });
+      pushMessage(state, testo, 'info');
+      persist(state);
+      return sendJson(res, 200, { ok: true, nodeId: id, roundIndex, hour });
     }
     case 'agenda-choose': {
       // sceglie la gara di OGGI (o del giorno che si sta guardando, se consentito):
