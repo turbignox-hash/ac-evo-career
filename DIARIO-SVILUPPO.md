@@ -249,6 +249,44 @@ template RICCO di livree della stessa auto.
 
 ## Registro del diario
 
+### 31/10/2026 notte — Giro completo delle schede sul vergine: DUE zone piegate prese e curate
+
+Il collaudo libero prosegue su richiesta di Mauro: sfoglia TUTTE le 19
+schede della GUI sulla sandbox (carriera attiva, ZERO cartelle ACE), una
+scheda alla volta, con estrazione del testo, console e log del server:
+
+- **17 schede su 19 sane e oneste**: Centro gare, Setup, Analisi,
+  Messaggi, Campionati, Griglia, Rivali, Auto, Garage, Archivio, Online,
+  Giri liberi, Statistiche, Finanze, Difficoltà, Impostazioni, Cruscotto
+  — ogni pannello dice la sua verità («nessun rivale», «nessuna
+  sessione», «apri il wizard»), niente crollo da nessuna parte. «Aiuto»
+  invece NON è una scheda: apre un modale sopra la vista corrente —
+  giusto così, era solo l'inganno della snapshot.
+- **Zona 1 — schede Risultati E Piste in errore nudo**: entrambe
+  rispondevano «Cannot read properties of null (reading
+  'resultsDirs')». Causa: [results.mjs](src%2Fresults.mjs)
+  `listResultFiles` legge `paths.resultsDirs` SENZA del punto
+  interrogativo, e la scheda Piste arriva lì via
+  `sessionStatsFromResults` (il suo try-catch protegge solo la prima
+  chiamata, la seconda resta nuda). Cura: `paths?.resultsDirs ?? []` —
+  con le schede sanate di conseguenza.
+- **Zona 2 — /api/system-health 500 a OGNI poll** (il cruscotto la
+  interroga ogni 2 s: la console si riempiva di 40+ errori rossi):
+  [webui-telem.mjs](src%2Fwebui-telem.mjs) `telemScanLocale` faceva
+  `paths.dataDirs ?? []` — il null-guard stava sulla PROPRIETÀ, non
+  sull'OGGETTO: con `paths` null scoppiava uguamente. Cura:
+  `paths = paths ?? { dataDirs: [] }` in testa alla funzione.
+- **Controprova dal vivo DOPO le cure** (i due file curati copiati nella
+  sandbox, server riavviato): `system-health` 200, `import-inspect` 200
+  con `files:[]`, `tracks` 200 col libro delle piste completo; console
+  PULITA e rete tutta 200. Suite 645/645 con 3 test nuovi in
+  [test/percorsi-null.test.mjs](test%2Fpercorsi-null.test.mjs), Biome
+  pulita sui 3 file toccati. Commit `b1fc769`.
+- **Nota di lezione**: è il difetto di classe che NON si vede mai sul PC
+  di sviluppo (dove ACE c'è): solo il vergine lo ha esposto — ragione in
+  più per ogni collaudo su installazione pulita.
+
+
 ### 31/10/2026 notte — Collaudo LIBERO del vergine: carriera falsa + PC senza ACE
 
 Le due prove restanti del collaudo vergine dello zip amico v0.1.43, fatte
