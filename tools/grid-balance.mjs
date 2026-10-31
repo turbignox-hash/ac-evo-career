@@ -48,13 +48,29 @@ export function readCells(buf) {
   const g = gridFileOf(buf);
   const out = [];
   g.cells.forEach((c, i) => {
-    let preset = null, kg = 0, pct = 0;
+    let preset = null, kg = 0, pct = 0, tinta = '(default)';
     for (const f of decodeMsg(c.raw)) {
       if (f.field === 10) preset = decodeMsg(f.bytes).filter((x) => x.field === 1).map((x) => utf8(x.bytes))[0] ?? null;
+      else if (f.field === 11) {
+        // TINTA (vetrina DA-10 1/11, autorizzazione migliorie): campo 11 = preset
+        // visual, stessa estrazione del builder (gridbuilder.tintaDi): serving
+        // dopo \x12, taglio a \x18. Il FORMATO GIOCO porta un byte di lunghezza
+        // dopo il tag (\x15 = 21) e i template SINTETICI (test) un '\n' + byte di
+        // lunghezza in testa: si tolgono gli eventuali caratteri di controllo in
+        // apertura. Assente = il default del gioco: UNA livrea propria ('(default)'),
+        // come il builder conta.
+        const t = Buffer.from(f.bytes).toString('utf8');
+        const k = t.indexOf('\x12');
+        // taglio dei caratteri di CONTROLLO in testa (biome vieta la regex \x):
+        // stesso gesto del /^[\x00-\x1f]+/ ma senza regex.
+        const smartiCtrl = (s) => { let i = 0; while (i < s.length && s.charCodeAt(i) <= 0x1f) i++; return i ? s.slice(i) : s; };
+        const v = smartiCtrl(k >= 0 ? t.slice(k + 1).split('\x18')[0] : (t.startsWith('\n') ? t.slice(2) : t)) || null;
+        tinta = v || '(default)';
+      }
       else if (f.field === 24) kg = Number(f.varint);
       else if (f.field === 25) pct = (f32(f.bytes) ?? 0) * 100;
     }
-    out.push({ idx: i, name: c.carName ?? c.carId ?? '?', preset, kg, pct });
+    out.push({ idx: i, name: c.carName ?? c.carId ?? '?', preset, tinta, kg, pct });
   });
   const cfg = g.config ?? {};
   return { cells: out, count: cfg.count ?? g.cells.length, aiMin: cfg.aiMin ?? null, aiMax: cfg.aiMax ?? null, piMin: cfg.piMin ?? null, piMax: cfg.piMax ?? null, drivers: g.drivers.length };
