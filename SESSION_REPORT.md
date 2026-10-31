@@ -62,6 +62,17 @@
   corto dopo un cambio c'è `--niente-baseline` (la baseline si dà per
   passante).
 
+- **Release 0.1.44 preparata** (prossimo passo del report precedente,
+  escuti da [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)): `npm run check`
+  exit 0 (suite **660/660**, Biome 0), danza del PC amico vergine
+  `node tools/_collaudo-amico.mjs` exit 0 con **24 verifiche verdi**, pagella
+  palestra sazio 3/3 mutazioni cadute. `npm run bump` → **0.1.44**,
+  [CHANGELOG.md](CHANGELOG.md) con la voce nuova e
+  [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md) col registro. Commit `e4f805b`.
+  La PUBLISH GitHub (`node tools/crea-release.mjs v0.1.44 …` con la zip
+  del pacchetto-amico) resta a Mauro via `sincronizza-git.cmd`: la
+  checklist §5 la segnala come gesto umano, non un passo dell'agente.
+
 ## File modificati / creati
 
 - `AUDIT.md` (creato nella sessione audit)
@@ -76,6 +87,8 @@
 - `test/garage-buy.test.mjs`, `test/agenda.test.mjs`, `test/lingua-server.test.mjs`,
   `DIARIO-SVILUPPO.md` (committati: 2406ee7 e i commit della fase 2)
 - `tools/_collaudo-sazio.mjs` (creato, committato: c545101)
+- `package.json` (bump 0.1.43 → 0.1.44), `CHANGELOG.md`, `DIARIO-SVILUPPO.md`
+  (voce release, committato: e4f805b)
 
 ## Test eseguiti
 
@@ -108,4 +121,7 @@ non può raggiungere da solo: avversari con livree diverse a vista), poi
 **release 0.1.44** via `RELEASE_CHECKLIST.md` (`npm run bump` + report
 build + crea-release con zip asset). La top-10 −8 (palestra sazio) è
 casalinga: `node tools/_collaudo-sazio.mjs` quando si aggiunge un altro
-modulo casuale ai campioni.
+modulo casuale ai campioni. Apportato dopo: **gesto umano per la
+publish** della release GitHub (crea-release con la zip asset, via
+`sincronizza-git.cmd`) e i due collaudi in gioco che richiedono ACE
+vivo: il campo palestrato DA-1/DA-10 a vista sul via (gara 2) e DA-3/DA-4.
