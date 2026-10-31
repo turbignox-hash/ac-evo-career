@@ -250,6 +250,20 @@ Verifica: `npm test` 647/647 (incluso il test nuovo ORE SPOSTABILI in
 pulito alla lettura, fuori banda → errore). Sintassi `node --check` ok su tutti
 i file toccati (src e gui/js).
 
+### DA-15 — Collaudo del PC amico vergine, dall'alto in fondo · STATO: fatto (1/11) · richiesta Mauro 1/11 («Ricontrollo installazione amico»)
+Non bastava lo unitario di ieri sera: la domanda vera è «l'AMICO, col pacchetto scaricato dal GitHub, fa installa-e-gioca?». La prova della sequenza intera in
+[tools/_collaudo-amico.mjs](tools/_collaudo-amico.mjs):
+
+1. **zipball vera del ramo** — `git ls-files` in palude, zip col tar di System32: non la mini-zip dei test, TUTTO il codice tracciato (test e data esclusi);
+2. **installazione.cmd come l'amico** — contro un server HTTP finto che serve solo l'endpoint zipball, `EVO_INSTALLER_NO...` per saltare scorciatoie e avvii; la cartella destinazione nasce vergine: build-id.txt, data/ senza token, e — 
+   il punto che la danza ha TROVATO — all'inizio il pacchetto arrivato SENZA l'installatore delle app, perché i cinque file di ieri sera non erano ancora nel git (l'amico avrebbe cavalcato la zipball vecchia). Committo tutto e la ripresa va a segno;
+3. **il PC dell'amico** — base Saved Games finta con la mod ACE UI App Loader installata e ZERO app nostre; primo avvio nel modo silenzioso (quello che avvia.cmd chiama a ogni apertura GUI);
+4. **dopodiché** — app copiate IDENTICHE alle sorgenti (byte a byte), marcatori vuoti in ACE/Video, nessun menu.html, build-id coerente, e il SECONDO avvio tacca (nessuna copia ripetuta).
+
+Esito: **danza completa, 21 verifiche verdi zero KO**.
+
+⚠ di confine, come sempre: il server finto e le cartelle TMP stanno al posto di GitHub e del PC vero; il collaudo prova la catena del pacchetto, non il click umano.
+
 ### DA-10 — Sistema le tinte nel builder · STATO: prima fetta (31/10 sera) · richiesta Mauro 30/10 («tienine nota nel diario»)
 Il builder della griglia lascia gli avversari **monocolore**: in gara le auto
 avversarie escono tutte con la STESSA livrea del pool, no varianti — già

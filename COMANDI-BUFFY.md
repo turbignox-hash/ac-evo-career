@@ -161,3 +161,74 @@ in [data/journal/stagione-12.md](data/journal/stagione-12.md) (o stagione-N
 corrente): la ripresa, la gara con i numeri (grida, best lap, margine,
 zavorre viste sul vivo) e la nota per griglia-calib. La rassegna ufficiale
 a stagione chiusa sovrascriverà la pagina: il capitolo è la stampa di sera.
+
+---
+
+## Quarto blocco — 1/11/2026, i PROMPT RICORRENTI (collaudo della macchina, non del gioco)
+
+Quattro prompt fissi da incollare una volta ogni tanto: il collaudo della
+macchina quando nessuno chiede niente, e la cura puntuale di un settore
+quando serve. Vengono DETTATI e l'agente parte senza doverli rispiegare.
+
+### «Cuore di collaudo» (la suite, in sandbox)
+
+> Cuore di collaudo: lancia la suite completa in sandbox, riporta il
+> verdetto numerico e dimmi se qualcosa è peggiorato rispetto al conteggio
+> precedente.
+
+Cosa fa l'agente: gira `node --test test/*.test.mjs` in sandbox
+(EVO_DATA_DIR/ACE_GAME_SAVEDIR, mai colpendo i file veri di EVO). Se un
+test cade, NON lo riscrive: lo RILANCIA da solo (`--test-name-pattern`)
+per capire se è rosso vero o maglietta (flaky), e nel secondo caso lo
+dice come tale senza rattoppare a occhio. Verdetto numerico («650/650,
+3 test nuovi da ieri») + lista dei rossi con la RIGA di errore copiata.
+Se un rosso dipende dall'ora (fusi, giorni), lo rinforza e lo firma nel
+diario: niente test che dipendono dall'OROLOGIO del PC.
+
+### «Crepa il canarino» (il collaudo amico, vergine)
+
+> Crepa il canarino: rifai la danza del PC amico vergine in
+> tools/_collaudo-amico.mjs e riporta l'esito delle verifiche
+> byte per byte.
+
+Cosa fa l'agente: esegue il collaudo end-to-end (l'unico che prova ciò
+che l'AMICO scaricherebbe): zipball del ramo corrente (`git ls-files` +
+zip col tar di System32), server finto che serve la zipball,
+installa.cmd, base Saved Games finta col loader ACEUIAppLoader + primo
+avvio + secondo avvio. Verdetto: elenco delle 21 righe [x]/[!] col
+punto esatto dove cade l'eventuale KO (in sandbox o nella danza).
+Se un file manca dalla zipball, il colpevole è quasi sempre un file non
+ancora tracciato nel git: si committa e si rilancia (lezione 1/11: i
+cinque file dell'installazione automatica non erano nel git e il
+pacchetto dell'amico ne resterebbe privo).
+
+### «Che cosa fa la GUI peggio di ieri»
+
+> Che cosa fa la GUI peggio di ieri: passeggia per le schede della GUI
+> (Campionati, Garage, Rivali, pannello conflitti) e dimmi cosa è
+> peggiore del collaudo vergine del 31/10.
+
+Cosa fa l'agente (lanciabile ogni tanto, al volo): le 19 schede furono
+collaudate sul PC vergine il 31/10 — 17 sane, 2 piegate e curate subito
+(Risultati/Piste e system-health; la voce di collaudo è nel diario).
+Le RILEGGE tutte e vede se è caduto qualcosa: le 2 curate SONO CONTINUE
+sane? Le altre 17 RESISTONO al cambio? Verdetto scheda per scheda con
+la prova accanto. NON ripara: solo REPORT — se un KO emerge (una scheda
+che salta al posto sbagliato), lo firma nel diario senza rincorrerlo
+oltre il verdetto.
+
+### «Mai un test sazio»
+
+> Mai un test sazio: cerca i test VERDE-SEMPRE (passano sempre, anche
+> se rompi la cosa che proteggono) e propostane 2-3 da rinforzo.
+
+Cosa fa l'agente (PRIMA la proposta, POI il permesso di Mauro): cerca i
+test che passano SEMPRE — rompe a mano, dentro una copia, la cosa che
+proteggono e guarda se il test cade: quello che NON cade è un test
+sazio, da rinforzare. Propone la stesura di 2-3 test d'infarto:
+(1) assenza di crolli, (2) protezione delle regole di casa,
+(3) un caso-limite di rottura. Scrittura SOLO dopo il permesso: fino a
+quel punto, REPORT puro.
+
+Riferimenti nel diario: DA-15 (1/11) per l'esito del collaudo completo,
+DA-14 per le schede rivedute, DA-10 per le tinte ancora in corso.
