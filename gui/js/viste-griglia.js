@@ -45,6 +45,7 @@ async function drawGridTab(m){
     ${(data.classi ?? []).map((cl) => `
       <details ${data.classe === cl.id ? 'open' : ''} style="margin-bottom:10px;border:1px solid var(--line,#333);border-radius:8px;padding:10px">
         <summary style="cursor:pointer"><b>${esc(cl.id)}</b> ${cl.aiStandard ? `<span class="muted">· AI ${cl.aiStandard[0]}–${cl.aiStandard[1]}</span>` : ''}
+          ${cl.tintePrestate === true ? `<span class="tag" style="border-color:#d9a83e">${tr({ it: 'tinte prestate (parco)', en: 'borrowed liveries (park)' })}</span>` : ''}
           ${(cl.convalidatoSu || []).length ? ` · ${tr({ it: 'su ', en: 'on ' })}${esc(cl.convalidatoSu.join(', '))}: ${badgeOk}` : ''}</summary>
         <div class="row" style="align-items:start;gap:14px;margin-top:10px;flex-wrap:wrap">
           <div style="flex:1;min-width:280px">

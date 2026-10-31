@@ -2283,6 +2283,7 @@ async function api(context0, _req, res, action, body) {
         autoBase: c.autoBase ?? null,
         aiStandard: c.aiStandard ?? null,
         convalidatoSu: c.convalidatoSu ?? [],
+        tintePrestate: c.tintePrestate === true,   // vetrina DA-10: il flag della serie a vista in GUI (1/11)
         match: (c.regole ?? []).filter((r) => r.preset && out.exists && r.preset === out.cells.find((ce) => ce.preset === r.preset)?.preset).length,
         regole: (c.regole ?? []).map((r) => ({ auto: r.auto, preset: r.preset ?? null, kg: r.ballastKg ?? 0, pct: r.restrictorPct ?? 0, escluso: r.escluso === true })),
         perTraccia: Object.entries(c.perTraccia ?? {}).filter(([k]) => !k.startsWith('_')).map(([trk, ov]) => ({
