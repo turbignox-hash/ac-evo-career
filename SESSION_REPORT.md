@@ -44,6 +44,10 @@
   DRY incluso) e nei messaggi prep della WebUI (`prep.guests` /
   `prep.grid.rebuild`, con avviso MONOCOLORE e gesto «più LIVERIES +
   APPLICA»). Suite 656/656, biome 0.
+- **Vetrina in tavola (terza fetta)**: `readCells` porta la `tinta` per
+  cella e la tab Griglia della GUI la mostra (colonna + riquadro per
+  modello col grido MONOCOLORE e il gesto «più LIVERIES + APPLICA» o la
+  leva `tintePrestate`). 4 test nuovi (`readcells-tinta`), suite 660/660.
 - **2 warning Biome risanati** (autorizzazione alle migliorie): import
   inutili via da `src/webui.mjs` e `tools/_collaudo-amico.mjs` — lint
   ora **0 diagnostica**.

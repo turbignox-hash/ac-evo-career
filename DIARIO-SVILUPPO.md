@@ -329,6 +329,26 @@ nel JSON del report. Ora:
 
 Verificato: `--check` webui/cli, suite 656/656, biome sui due file 0.
 
+### La vetrina in tavola: la GUI Grid racconta le tinte (1/11, autorizzazione migliorie)
+
+Terza fetta della vetrina: la tab **Griglia** della GUI (
+[viste-griglia.js](gui/js/viste-griglia.js)) ora mostra le LIVERIES del
+file in attesa:
+- **`readCells`** ([tools/grid-balance.mjs](tools/grid-balance.mjs)) porta
+  la `tinta` di ogni cella (campo 11, stessa estrazione del builder:
+  segmento dopo `\x12` taglio a `\x18`). Le varianti di formato si
+  sistemano da sole: byte di lunghezza dopo il tag e, sui template
+  sintetici dei test, l'intestazione `\n` + lunghezza. Il builder NON
+  toccato (per i contatori il prefisso costante non cambia niente).
+- **Tab Griglia**: colonna `Tinta` sul file e riquadro «Tinte (liverie):
+  modello ×N …» sotto la classe combaciata; un modello con UNA sola
+  livrea grida **MONOCOLORE** col gesto «più LIVERIES + APPLICA» e la
+  leva dei rivali (`tintePrestate: true` in grid-classes.json).
+- Test: [test/readcells-tinta.test.mjs](test/readcells-tinta.test.mjs) 4/4
+  (sintetico pulito, `(default)` per il campo 11 assente, formato gioco
+  reale\nessuna regressione preset/kg/count). Suite **660/660**, biome 0
+  sui tre file toccati.
+
 ---
 
 ## Registro del diario
