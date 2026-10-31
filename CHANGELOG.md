@@ -18,9 +18,25 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
   campioni ufficializzata in tool — copia in sandbox, baseline, poi muta
   un modulo alla volta e confema che il test rinforzato CADE: baseline
   **660/0**, mutazioni garage/agenda/lang **3/3 cadute**.
-- **Suite completa: 660 test verdi** (da 653), lint Biome 0 diagnostica.
+- **Difesa anti-colpo chiusa fino in fondo** (lezione dei DUE colpi del 31/10):
+  la sonda `tools/_difesa-probe.mjs` è promossa in `tools/` — banco completo
+  (carriera di MARCA «Prova Sonda», flussi, file di gioco e intera root
+  «Saved Games» in sandbox) e sweep GET con impronta prima/dopo su TUTTE le
+  118 rotte del dispatcher: qualsiasi GET che muti lo stato esiede smascherata
+  PER NOME. La l'ultima ha rovistata fuori: `GET /api/life` eseguiva
+  `ensureLife`/`ensureContract`/`checkSigils` che persistono il save — ora
+  `life` è nel set SOLO_POST (la GUI mandava già tutto via POST via `api()`:
+  zero impatto in vista). I log append-only in EVO_DATA_DIR (radio voce,
+  errors.jsonl) sono dichiarati RUMORE CONSENTITO nel banco, il resto muta → colpo.
+- **Test di regressione della difesa** ([test/diffesa-sonda.test.mjs](test/diffesa-sonda.test.mjs)):
+  due guardie statiche (ogni rotta nel set SOLO_POST è un `case` VERO; `life`
+  resta armato) + la sonda viva ENCASINATA al banco (prova di rottura: tolto
+  `life` dal fonte, il test CADE — verificata su disco).
+- **Suite completa: 682 test verdi** (da 660), lint Biome 0 diagnostica.
 - **Danza del PC amico vergine: 24 verifiche verdi** (contatore cresciuto
-  per le 5 verifiche dell'installer delle app in gioco).
+  per le 5 verifiche dell'installer delle app in gioco; riprovata con la
+  difesa in bordo: zip dal commit 505 file, installazione e primo/secondo
+  avvio puliti).
 
 ## v0.1.43 — 1/11/2026
 

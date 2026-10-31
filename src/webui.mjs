@@ -3926,6 +3926,10 @@ function serialize(task, label = 'azione') {
    perché la scrittura richiede il campo esplicito del corpo: wizard (check in
    GET dal smoke test), weekend-track (riscrive solo con body.track). */
 const SOLO_POST = new Set([
+  // 'life' entra qui con la sonda anti-colpo del 31/10 (tools/_difesa-probe.mjs):
+  // la GET eseguiva ensureLife+ensureContract+checkSigils che persistono il
+  // save — una GET di scrittura. La GUI non ne risente: api() manda TUTTO via POST.
+  'life',
   'agg-install', 'riavvia', 'live-toggle', 'voce-server', 'voce-prova',
   'new-career', 'rename', 'enter', 'accept', 'race', 'import', 'alias-set', 'ab-setup',
   'agenda-advance', 'agenda-skip-to-next', 'agenda-shift', 'agenda-hour', 'agenda-choose',
