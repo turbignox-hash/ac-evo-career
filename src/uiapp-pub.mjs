@@ -264,6 +264,16 @@ export const CODICI_METEO = [
   ['overcast', 'OVERCAST'], ['nuvoloso', 'OVERCAST'], ['coperto', 'OVERCAST'], ['cloudy', 'OVERCAST'],
   ['clear', 'CLEAR'], ['sole', 'CLEAR'], ['sereno', 'CLEAR'], ['sunny', 'CLEAR'],
 ];
+
+/** IL KILL-SWITCH del meteo/ora al volo (1/11, dopo il crash 0xC0000005).
+ *  L'ultima sequenza mai vista prima (SetGameModeParameters con le ore per
+ *  sessione + SetWeather nel menu DI UN GIOCO GIÀ APERTO, e request start
+ *  subito dopo) è il principale sospetto del crash del 31/10 17:59: ieri
+ *  sera la STESSA catena di gara partiva senza quei due passi e non cadeva.
+ *  AC_EVO_METEO_ORA_VOLO=0 li esclude dal comando: i valori restano sul
+ *  disco (scheda, gamemodesave) e in pista si applicano a mano come un
+ *  tempo. Default: ACCESO (comportamento di oggi, la novità voluta). */
+export function voloMeteoOra(env = process.env) { return env?.AC_EVO_METEO_ORA_VOLO !== '0'; }
 export function codiceMeteo(label) {
   const s = String(label ?? '').trim().toLowerCase();
   if (!s) return null;
@@ -271,7 +281,7 @@ export function codiceMeteo(label) {
   return hit ? hit[1] : null;
 }
 
-export function comandoAuto(ladder, state) {
+export function comandoAuto(ladder, state, env = process.env) {
   try {
     const p = state?.pending;
     // la scadenza del pending (lezione 27/10 19:30) vive in testa al modulo:
@@ -324,10 +334,14 @@ export function comandoAuto(ladder, state) {
         // (p.weather, markPending); qui diventano codice comando ('RAIN' ecc.).
         // Vecchi pending senza meteo: campo null — il Cruscotto resta/a mano/là.
         const oraRonda = Number.isFinite(Number(p.hour)) && p.hour != null ? Number(p.hour) : null;
+        // KILL-SWITCH (voloMeteoOra): con AC_EVO_METEO_ORA_VOLO=0 il comando
+        // esce SENZA ora/meteo (sospetto del crash 31/10 17:59); il resto
+        // della sequenza (auto, pista) resta lo stesso nome di sempre.
+        const volo = voloMeteoOra(env);
         const rondaComando = {
           id: idP, tipo: 'setcar', nome, carId: p.car,
           pista: spec?.name ?? null, layout: spec?.layout ?? null,
-          ora: oraRonda, meteo: codiceMeteo(p.weather ?? null),
+          ora: volo ? oraRonda : null, meteo: volo ? codiceMeteo(p.weather ?? null) : null,
         };
         // SCADENZA anche qui (lezione 27/10, la stessa dei ramoscelli più
         // sotto): il pending NON ancora confermato, se ha più di un giorno,
@@ -578,7 +592,7 @@ function rigaRegistro() {
   try { return formattaRigaRegistro(leggiRegistro(1)[0]) ?? null; } catch { return null; }
 }
 
-export function azioniPulsanti(ladder, state) {
+export function azioniPulsanti(ladder, state, env = process.env) {
   try {
     const az = {};
     const demo = state?.vetrinaCustom;
@@ -600,7 +614,8 @@ export function azioniPulsanti(ladder, state) {
         // non inventa una banda a caso.
         const ov = state?.raceSettings?.[p.node] ?? {};
         const banda = [ov?.sliderMin, ov?.sliderMax].every((x) => Number.isFinite(Number(x))) ? `${Number(ov.sliderMin)}–${Number(ov.sliderMax)}` : null;
-        az.ronda = { id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome, carId: p.car, pista: spec?.name ?? null, layout: spec?.layout ?? null, ora: Number.isFinite(Number(p.hour)) && p.hour != null ? Number(p.hour) : null, meteo: codiceMeteo(p.weather ?? null), serie: p.node ?? null, scadeIn: scadeIn(p.startedAt), banda };
+        const voloB = voloMeteoOra(env);   // lo stesso kill-switch / meteo/ora del comando diretto
+        az.ronda = { id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome, carId: p.car, pista: spec?.name ?? null, layout: spec?.layout ?? null, ora: voloB && Number.isFinite(Number(p.hour)) && p.hour != null ? Number(p.hour) : null, meteo: voloB ? codiceMeteo(p.weather ?? null) : null, serie: p.node ?? null, scadeIn: scadeIn(p.startedAt), banda };
       }
     }
     if (!az.demo) {
@@ -791,7 +806,75 @@ export function uiappTick(env = process.env) {
       for (const f of vecchiP.slice(0, Math.max(0, vecchiP.length - 2))) { try { unlinkSync(join(dirP, f)); } catch { } }
     }
   } catch { /* fasce Pitwall saltate: la principale non deve attese per niente */ }
+  // LE FASCE RAPIDE DEL PADDOCK (1/11, la cura del flood): il tick del
+  // Cruscotto compra anche questo canale. Tutto qui sotto è in try: il
+  // Paddock è un plus, mai un ammazzatick.
+  try { fascePaddock(cartellaApp(env, 'paddock')); } catch { /* fasce Paddock saltate */ }
   return { ok: true, file: `ui-${fascia}.json` };
+}
+
+/** LE FASCE RAPIDE DEL PADDOCK (1/11, la cura del flood).
+ *  L'app Paddock (paddock.js) chiede una propria `ui-<fascia>.json` Ogni
+ *  500 ms — un ritmo che il tick del Cruscotto (2500 ms) da sé non copre.
+ *  Il suo editor (il vecchio publisher di Paddock, morto alle 02:46 di
+ *  oggi: stesso giorno del riavvio del server a metà giornata) non è mai
+ *  stato sostituito: EVO ha protestato con RICHIESTE FALLITE CONTINUE
+ *  (10 398 solo nel log di oggi, ~2 per secondo) che riempivano il log
+ *  e spendevano CPU del gioco per niente.
+ *  Qui a ogni tick del Cruscotto il canale RESTA VIVO: si scrivono le
+ *  5 fasce successive (copertura continua a 500 ms, sei secondi avanzati
+ *  per tick) con un SOLO head — i puntatori alle sezioni `pd-*.json`
+ *  statiche — tenuto in memoria e ripreso dal disco alla prima fascia.
+ *  Le vecchie si potano a 12: il margine resta largo (12 × 500 ms).
+ *  La base dei tempi è QUELLA di paddock.js (500 ms, Math.floor(now/500)): qui
+ *  si calcola da sé, niente scalifice col periodo del Cruscotto (2,5 s). */
+const testaPaddockNota = new Map();   // dir -> head letto una volta sul disco
+function testaPaddock(dir) {
+  if (dir == null || testaPaddockNota.has(dir)) return testaPaddockNota.get(dir);
+  let head = null;
+  try {
+    const presenti = readdirSync(dir).filter((f) => /^ui-\d+\.json$/.test(f)).sort().reverse();
+    while (presenti.length && !head) {
+      try { head = JSON.parse(readFileSync(join(dir, presenti.shift()), 'utf8')); } catch { head = null; }
+    }
+  } catch { head = null; }
+  head = head ?? { v: 2, engine: 'Paddock 1.0.2', acks: {}, generatedAt: 0, sections: {} };
+  // LE SEZIONI SMARRITE (1/11): un head senza sezioni (head bech o potatura
+  // scortesa del giorno stesso) non deve ammazzare il Paddock Mentre esiste
+  // anche UNA sezione `pd-<nome>-<hash>.json` sul disco: si difiquinano i
+  // puntatori direttamente dai file statici (main, home, calendar, garage…).
+  try {
+    if (!Object.keys(head.sections ?? {}).length) {
+      const sezioni = {};
+      for (const f of readdirSync(dir)) {
+        const m = /^pd-([a-z]+)-[0-9a-f]+\.json$/.exec(f);
+        if (m) sezioni[m[1]] = f;
+      }
+      if (Object.keys(sezioni).length) head.sections = sezioni;
+    }
+  } catch { /* senza sezioni il canale resta a sezioni vuote, come oggi */ }
+  testaPaddockNota.set(dir, head);
+  return head;
+}
+export function fascePaddock(dir, fascia = null) {
+  if (!dir || !existsSync(dir)) return { ok: false, motivo: 'paddock non installato' };
+  // la base a 500 ms del Paddock, calcolata QUI (il periodo del Cruscotto è
+  // un altro: passarli sbaglia l'intera scala delle fasce, lezione 1/11)
+  const base = Number.isFinite(Number(fascia)) && fascia != null ? Number(fascia) : Math.floor(Date.now() / 500);
+  const head = testaPaddock(dir);
+  const scritte = [];
+  for (let i = 0; i < 5; i++) {
+    const slot = base + i;
+    const dati = { ...head, generatedAt: (slot + 1) * 500, slot };
+    try { writeFileSync(join(dir, `ui-${slot}.json`), JSON.stringify(dati), 'utf8'); scritte.push(`ui-${slot}.json`); }
+    catch { /* presa in lettura dal gioco: la copertura rientra al prossimo tick */ }
+  }
+  // la potatura: le ultime 12 restano (6 s di copertura nuova per tick, margine largo)
+  try {
+    const presenti = readdirSync(dir).filter((f) => /^ui-\d+\.json$/.test(f));
+    for (const f of presenti.slice(0, Math.max(0, presenti.length - 12))) { try { unlinkSync(join(dir, f)); } catch { } }
+  } catch { }
+  return { ok: scritte.length > 0, file: scritte };
 }
 
 /** Il percorso dello store del gioco (ack dell'app): null se non c'è. */
@@ -853,6 +936,7 @@ export function startUiappPublisher(baseUrl = null) {
     console.log('  App «Cruscotto» in gioco: la mod App Loader non è installata — publisher fermo (installa con tools/installa-cruscotto.mjs).');
     return null;
   }
+  if (!voloMeteoOra()) console.log('  Cruscotto: meteo/ora AL VOLO SPENTI (AC_EVO_METEO_ORA_VOLO=0) — i valori restano su disco e si applicano a mano nel menu.');
   uiappTick();
   timer = setInterval(() => { try { uiappTick(); } catch { /* mai bloccare il server per la vetrina */ } }, PERIODO_MS);
   timer.unref?.();
