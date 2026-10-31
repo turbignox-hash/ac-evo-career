@@ -14,7 +14,9 @@ import { recordWarning } from './warnings.mjs';
 
 export function listResultFiles(paths) {
   const files = [];
-  for (const dir of paths.resultsDirs) {
+  // paths può essere NULL: installazione vergine senza ACE (collaudo zip 31/10)
+  // — il tab Risultati e il libro Piste devono dare lista vuota, non 500 nudo.
+  for (const dir of paths?.resultsDirs ?? []) {
     for (const file of listFiles(dir)) {
       if (!/\.sessionresults\.json$/i.test(file)) continue;
       let mtime = 0;

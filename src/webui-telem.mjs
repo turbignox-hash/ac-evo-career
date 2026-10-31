@@ -20,6 +20,10 @@ import { join } from 'node:path';
 let _telemAt = 0, _telemScan = null;
 function telemScanLocale(paths) {
   if (_telemScan && Date.now() - _telemAt < 10000) return _telemScan;
+  // paths può essere NULL: PC senza ACE (collaudo zip 31/10) — il pannello
+  // di salute (/api/system-health, interrogato a ogni giro dal cruscotto)
+  // risponda il suo onesto "niente da leggere", non un 500 ricorrente.
+  paths = paths ?? { dataDirs: [] };
   // ultimo file .ld tra le cartelle MoTeC note (Saved Games\ACE, Documents\ACE)
   let lastLd = null;
   const dirsState = [];
