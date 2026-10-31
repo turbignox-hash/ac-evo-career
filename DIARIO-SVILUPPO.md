@@ -249,6 +249,33 @@ template RICCO di livree della stessa auto.
 
 ## Registro del diario
 
+### 31/10/2026 notte — Collaudo LIBERO del vergine: carriera falsa + PC senza ACE
+
+Le due prove restanti del collaudo vergine dello zip amico v0.1.43, fatte
+TUTTE dal vivo in sandbox (%TEMP%\evo-sbiz):
+
+- **Carriera falsa via CLI**: `new` (AmicoTest ITA) → Coppa 500, Rookie,
+  6000 ¤; `next` stampa ronda, sfida della ronda e difficoltà proposta.
+  webui della sandbox su 8799: `/api/boot` `hasCareer:true` + header del
+  pilota, `/api/card` con la ronda vera (Brands Hatch R1/5), `/api/status`
+  pieno, `/api/wizard` `career:true`. PRIMO AVVIO COMPLETO VERDE, da solo.
+- **PC senza ACE** (USERPROFILE reindirizzato su temp vuoto): la CLI
+  (`setup`, `status`) rifiuta con il messaggio educato (strade cercate +
+  rinvio `ACE_DATA`); webui su 8798: `/api/wizard` `dataDir:null` con i
+  candidati TUTTI rossi e content a zero, `/api/boot` `dataDirs:[]`. Il
+  cruscotto (foto in tmp/) mostra la carriera con ogni pannello onesto:
+  verdetto «apri il wizard», MOTEC vuoto — niente crollo, nessun 400.
+- **Bonus scoperto e lasciato stare (di progetto)**: nella sandbox il badge
+  di livello dice «Fuoriclasse»: NON è bug — `paddockLevelBadge` legge il
+  journal Paddock installato sulla MACCHINA («una sola verità»); nella
+  sandbox atterra solo perché sul PC di Mauro c'è la cartella ACE reale.
+  Su un amico senza Paddock il chip resta nascosto (rep < 490). Anche la
+  barra «Aggiornamenti su GitHub» nel pacchetto è design: l'amico senza
+  .git è curato da `aggiorna-zip` (zipball → copia → test, data/ intatto).
+- Casa chiusa bene: server della sandbox (PID Windows 5132 e 21968)
+  fermati con taskkill per PID (mai per nome), porte 8798 e 8799 libere,
+  webui REALE su 8642 toccata in nessun modo.
+
 ### 31/10/2026 notte — Secondo cambio live CONFERMATO + storia VISIBILE nel pannello
 
 Chiusura della rama metà serale:
