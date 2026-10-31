@@ -130,7 +130,7 @@ import {
   racesOnDay, calendarStrip, dateLabel, MAX_SCELTE_PER_GIORNO, CADENZA_GIORNI,
   choicesForDay, canChoose, recordChoice, impegni, shiftSeat,
   scheduledDay, nextUnplayedRound, hasSeat,
-  oraRonda, impostaOraRonda,
+  impostaOraRonda,
 } from './agenda.mjs';
 import { heritageOverview, claimMemory } from './memories.mjs';
 import { resetNews } from './gazzetta.mjs';

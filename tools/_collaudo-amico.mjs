@@ -20,7 +20,7 @@
 // Uso:  node tools/_collaudo-amico.mjs        (esce 0 se tutta la sequenza stanca)
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
-import { copyFileSync, createWriteStream, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
