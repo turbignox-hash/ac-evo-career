@@ -4,6 +4,24 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md) (il registro completo). Il save in
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
+## v0.1.44 — 1/11/2026
+
+- **DA-10 — il builder delle tinte è intero**: bilancio per FAMIGLIA (le
+  regole `mech_1` pesano anche `mech_2`/`mech_3` della stessa auto),
+  **tinte prestate** opt-in col flag `tintePrestate` in `grid-classes.json`
+  (il parco del monocolore pesca celle vere degli altri template, cap 20
+  file, dedup HEX, zero celle inventate), e la **vetrina** delle livree
+  arriva a vista: CLI `griglia`, messaggi prep del WebUI, tab Griglia della
+  GUI (colonna tinta, riquadro per modello, grido MONOCOLORE col gesto
+  «più LIVERIES + APPLICA») e badge «tinte prestate (parco)» sulle Classi.
+- **Palestra sazio** (`tools/_collaudo-sazio.mjs`): la tecnica dei
+  campioni ufficializzata in tool — copia in sandbox, baseline, poi muta
+  un modulo alla volta e confema che il test rinforzato CADE: baseline
+  **660/0**, mutazioni garage/agenda/lang **3/3 cadute**.
+- **Suite completa: 660 test verdi** (da 653), lint Biome 0 diagnostica.
+- **Danza del PC amico vergine: 24 verifiche verdi** (contatore cresciuto
+  per le 5 verifiche dell'installer delle app in gioco).
+
 ## v0.1.43 — 1/11/2026
 
 - **Le app DENTRO il gioco si mettono a posto da sole**: `INSTALLA-GIOCO.cmd` e

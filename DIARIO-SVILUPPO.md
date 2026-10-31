@@ -357,6 +357,32 @@ file in attesa:
 
 ## Registro del diario
 
+### 1/11/2026 — Release 0.1.44 preparata: le tinte intere, la palestra e i contatori al passo
+
+Chiuso il pacchetto della 0.1.44 (tutto di questa giornata di tinte + palestra),
+seguendo [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md):
+
+- **Verde con i contatori Homepage**: `npm run check` exit 0 — suite **660/660**
+  (da 653 di v0.1.43), Biome 0 diagnostica su 291 file.
+- **Danza del PC amico vergine** (`node tools/_collaudo-amico.mjs`): exit 0,
+  **24 verifiche verdi** (il contatore di DA-15 è cresciuto a 21+3 col
+  ramo «installa-gioco» delle app: zipball, installazione, primo/secondo
+  avvio, marcatori). Log in tmp/ (fuori dal tracciato).
+- **Pagella del campo sazio**: le 3 mutazioni del palestrato cadono tutte
+  (garage 0.85→0.80, agenda %8→%1, DISPLAY_EN spenta) — i rinforzi di
+  v0.1.43 garva.
+- Bump semantico: patch `npm run bump` → **0.1.44**; [CHANGELOG.md](CHANGELOG.md)
+  con la voce nuova, nulla citato che non abbia prove (fonti: diario 1/11,
+  SESSION_REPORT.md).
+- **Resta fuori da solo**: la creazione della release GitHub stessa
+  (`node tools/crea-release.mjs v0.1.44 …` con la zip di pacchetto-amico
+  come asset) la fa il flusso di casa (`sincronizza-git.cmd` e Mauro):
+  la checklist dice che la publish NON è un passo dell'agente.
+- **Non verde qui** (per onestà): il collaudo visuale delle Schede-GUI e il
+  campo DA-1/DA-3/DA-4 in gioco — richiedono ACE di Mauro sul PC, fuori
+  dalla sandbox. Il cierterio della DA-10 di caccia (avversari con livree
+  diverse a vista sul via) resta l'appuntamento in gara (gara 2).
+
 ### 1/11 — Fase 1 chiusa: l'unica leva, il CHANGELOG e la lista della release
 
 Chiusa la Fase 1 della roadmap di AUDIT.md, con dentro le adattate dei Prompt
