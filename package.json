@@ -12,7 +12,8 @@
     "test": "node --test \"test/*.test.mjs\"",
     "magazzino": "node tools/magazzino-check.mjs",
     "bump": "node tools/bump-versione.mjs",
-    "lint": "biome lint src tools test gui/js uiapp ac-evo-career.mjs"
+    "lint": "biome lint src tools test gui/js uiapp ac-evo-career.mjs",
+    "check": "npm test && npm run lint"
   },
   "engines": {
     "node": ">=18"

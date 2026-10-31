@@ -536,6 +536,24 @@ ACE_DATA="demo/ace" node ac-evo-career.mjs import
 `--position N --cars M`, `--fl` e `--dnf`. `ACE_DATA` è un override esclusivo: con
 quello impostato l'app guarda **solo** quella cartella.
 
+## Suite di test e l'unica leva
+
+`npm run check` è il cancellino completo prima di ogni salvataggio: gira tutta
+la suite (`node --test test/*.test.mjs` — oltre 650 test) più il cancellino
+Biome qui sotto. Dietro ci sono scelte deliberate:
+
+- **zero dipendenze runtime**: i test sono file ESM ordinari fatti girare dal
+  runner di Node, niente da installare;
+- **i test non toccano mai i file veri di gioco**: girano in sandbox
+  (`EVO_DATA_DIR`, `ACE_GAME_SAVEDIR`, `test/_game-sandbox.mjs`,
+  `test/_flows-sandbox.mjs`) e fanno parte del rituale anche le prove di
+  rottura a mano: un test che protegge davvero deve CADE quando la cosa che
+  custodisce viene staccata;
+- **nessuna GitHub Actions, di proposito**: la stessa suite gira in sandbox in
+  locale prima di ogni push — per un'app aggrappata al gioco è più severa di
+  una CI generica (e la danza end-to-end sul PC amico,
+  `tools/_collaudo-amico.mjs`, la gira un PC vergine vero).
+
 ## Cancellino di qualità (Biome)
 
 Il repo porta la sua [biome.jsonc](biome.jsonc):

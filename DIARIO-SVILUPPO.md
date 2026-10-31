@@ -294,6 +294,31 @@ template RICCO di livree della stessa auto.
 
 ## Registro del diario
 
+### 1/11 — Fase 1 chiusa: l'unica leva, il CHANGELOG e la lista della release
+
+Chiusa la Fase 1 della roadmap di AUDIT.md, con dentro le adattate dei Prompt
+2 e 8 del pacchetto esterno (regole di casa, non le loro):
+- **`npm run check`**: una sola leva, `npm test && npm run lint` — la leva
+  prima di ogni commit. Prova: in sandbox **653 pass / 0 fail**, lint exit 0
+  (2 warning preesistenti: import inutili in `src/webui.mjs:133` e
+  `tools/_collaudo-amico.mjs:23` — non di oggi, a costo di due righe se
+  processo). Zero dipendenze nuove: la suite è ESM col runner di Node.
+- **README IT/EN**: sezione nuova «Suite di test e l'unica leva» con le
+  scelte dette in faccia: i test girano in sandbox (mai file veri di EVO),
+  le prove di rottura fanno parte del rituale (il test che protegge deve
+  CADE), e **niente CI GitHub Actions di proposito** — la suite in sandbox
+  locale è più severa di una runner generica per un'app aggrappata al gioco.
+- **[CHANGELOG.md](CHANGELOG.md)** creato (mancaeva davvero): voci 0.1.23,
+  0.1.25, 0.1.42, 0.1.43 puntate ai veri report/ e al diario, niente
+  inventato.
+- **[RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)**: il Prompt 8 ridetto con
+  l'accento di casa — commit a main descrittivi, `npm run bump`, crea-release
+  con la zip come asset, il token `data/.github-token` resta FUORI dal
+  pacchetto, ronda sazio sull'ultima fetta obbligatoria.
+
+Restano per la **Fase 2**: DA-10 (tinte varianti nel template) e la doc dei
+comandi vocali nel README.
+
 ### 1/11/2026 — Mai un test sazio: tre rinforzi alle fondamenta
 
 Dalla ronda «Mai un test sazio» (verde-sempre cacciati rompendo a mano i

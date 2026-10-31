@@ -545,6 +545,23 @@ ACE_DATA="demo/ace" node ac-evo-career.mjs import
 `--position N --cars M`, `--fl` and `--dnf` modes. `ACE_DATA` is an exclusive
 override: with it set, the app looks **only** at that folder.
 
+## Test suite and the one-command gate
+
+`npm run check` is the whole gate before any commit: it runs the full test
+suite (`node --test test/*.test.mjs` — 650+ tests) plus the Biome lint below.
+What lives behind it, deliberately:
+
+- **zero runtime dependencies**: the tests are plain ESM files run by Node's
+  own runner, nothing to install;
+- **the tests never touch the real game files**: they run inside sandboxes
+  (`EVO_DATA_DIR`, `ACE_GAME_SAVEDIR`, `test/_game-sandbox.mjs`,
+  `test/_flows-sandbox.mjs`) — breaking-the-source probes are part of the
+  ritual too: a properly guarding test must FALL when the thing it protects
+  is broken;
+- **no GitHub Actions, on purpose**: the same suite runs in-sandbox locally
+  before every push, which is stricter than a generic CI runner can be for a
+  game-integrated app (the friend-PC end-to-end dance,
+  `tools/_collaudo-amico.mjs`, runs on a real virgin install as well).
 ## Code quality gate (Biome)
 
 The repo carries its own [biome.jsonc](biome.jsonc): `npx @biomejs/biome@2.3.12 check src gui`
