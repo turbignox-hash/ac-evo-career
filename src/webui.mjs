@@ -1934,7 +1934,9 @@ async function api(context0, _req, res, action, body) {
             pruneBackups(GRID_FILE);   // rotazione bak automatica (tetto 25, comune 31/10)
             writeFileSync(`${GRID_FILE}.tmp`, built.buffer);
             renameSync(`${GRID_FILE}.tmp`, GRID_FILE);  // scrittura atomica come i tool
-            prep.guests = `griglia riscritta: ${built.report.gridSize} celle${built.report.poolMulti ? ` · ${built.report.poolMulti}` : ''}${built.report.ai ? ` · AI ${built.report.ai}` : ''}${sourceFile !== GRID_FILE ? ` · template ${basename(sourceFile)}` : ''}`;
+            // TINTE A VISTA (DA-10): le prestate e i MONOCOLORE sono dichiarati nel messaggio di prep — l'avviso arriva senza decodifiche a mano.
+            const tinteMono = (built.report.tinte ?? []).filter((s) => s.includes('MONOCOLORE'));
+            prep.guests = `griglia riscritta: ${built.report.gridSize} celle${built.report.poolMulti ? ` · ${built.report.poolMulti}` : ''}${built.report.ai ? ` · AI ${built.report.ai}` : ''}${sourceFile !== GRID_FILE ? ` · template ${basename(sourceFile)}` : ''}${built.report.tintePrestate ? ` · ${built.report.tintePrestate} tinte prestate dal parco (tintePrestate)` : ''}${tinteMono.length ? ` · avviso: ${tinteMono.join('; ')} — più LIVERIES + APPLICA` : ''}`;
             prep.guestsWritten = true;
           }
         } catch (e) {
@@ -2466,7 +2468,8 @@ async function api(context0, _req, res, action, body) {
             });
             if (rb.written) {
               prep.grid = prep.grid ?? {};
-              prep.grid.rebuild = `riscritta per "${rb.report.serie}" — ${rb.report.gridSize} celle${rb.report.poolMulti ? ` (${rb.report.poolMulti})` : ''}${rb.source ? ` · template: ${rb.source}` : ''}`;
+              const tinteMonoRb = (rb.report.tinte ?? []).filter((s) => s.includes('MONOCOLORE'));
+              prep.grid.rebuild = `riscritta per "${rb.report.serie}" — ${rb.report.gridSize} celle${rb.report.poolMulti ? ` (${rb.report.poolMulti})` : ''}${rb.source ? ` · template: ${rb.source}` : ''}${rb.report.tintePrestate ? ` · ${rb.report.tintePrestate} tinte prestate` : ''}${tinteMonoRb.length ? ` · avviso: ${tinteMonoRb.join('; ')}` : ''}`;
               prep.grid.written = true;
             }
           } catch (e) {
