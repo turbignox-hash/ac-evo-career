@@ -17,6 +17,11 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// testa la TRADUZIONE delle serie senza server: setLang cambialo e rimettilo
+// a it PRIMA che i test con server partano (questo file corre nel processo
+// test-runner, i server child ereditano solo il loro env da spawn).
+const { setLang, localizeLadder } = await import('../src/lang.mjs');
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SERVER = join(ROOT, 'src', 'webui.mjs');
 const PORT = 8732;
@@ -95,6 +100,25 @@ test('la lingua del server comanda le CARD del box (it→card italiana, en→car
     // 3) ritorno a it: lo stato lasciato dal test è neutro rispetto alla GUI
     await postLang('it');
   } finally { child.kill(); }
+});
+
+test('MAPPA DISPLAY_EN (1/11): le serie tradotte cambiano display, il pattern path funziona ed il già-EN resta (test sazio chiuso)', () => {
+  // la mappa era SMONTABILE (13 nomi fissi: Coppa Città → City Cup,
+  // Trofeo Hatch → Hatch Trophy, …) senza che questo file muovesse un muso
+  // (il test vecchio copriva solo le CARD del box, non i display del ladder).
+  const ladder = { disciplines: [], archetypes: {}, nodes: [ { display: 'Coppa Città' }, { display: 'Trofeo Hatch' }, { display: 'Coppa Prova' }, { display: 'GT4 Open' } ] };
+  setLang('en');
+  try {
+    localizeLadder(ladder);
+    assert.equal(ladder.nodes[0].display, 'City Cup', 'mappa: «Coppa Città» deve essere City Cup in EN');
+    assert.equal(ladder.nodes[1].display, 'Hatch Trophy', 'mappa: «Trofeo Hatch» deve essere Hatch Trophy in EN');
+    // nome NON in mappa: via pattern (`Coppa X` → `X Cup`)
+    assert.equal(ladder.nodes[2].display, 'Prova Cup', 'pattern: «Coppa Prova» deve essere Prova Cup in EN');
+    // già adatto all'EN: invariato
+    assert.equal(ladder.nodes[3].display, 'GT4 Open', 'già EN: «GT4 Open» NON deve cambiare');
+    // il file su disco NON deve mutare: la traduzione è in place, non persistita
+    assert.equal(ladder.lingua, undefined, 'nessun campo lingua estraneo spunta nel ladder');
+  } finally { setLang('it'); }
 });
 
 test('lang non valida: 400 gentile, niente cambio', async () => {

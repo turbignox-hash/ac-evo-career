@@ -23,7 +23,7 @@ const {
   calendarStrip, dateLabel, realDate,
   choicesOf, canChoose, recordChoice, MAX_SCELTE_PER_GIORNO, CADENZA_GIORNI,
   impegni, shiftSeat, hasSeat,
-  oraRonda, impostaOraRonda, nextUnplayedRound,
+  oraRonda, impostaOraRonda, nextUnplayedRound, cadenzaSerie,
 } = await import('../src/agenda.mjs');
 
 const DATA = mkdtempSync(join(tmpdir(), 'evo-agenda2-'));
@@ -146,4 +146,18 @@ test('salvataggio e ricaricamento: agenda, sedili e date reali sopravvivono', ()
   const before = gareDelGiorno(ladder, state).gare.map((g) => [g.node.nodeId, g.index, g.scheduledDay]);
   const after = gareDelGiorno(ladder, reloaded).gare.map((g) => [g.node.nodeId, g.index, g.scheduledDay]);
   assert.deepEqual(after, before);
+});
+
+test('CADENZA SERIE (1/11): banda 3..10 garantita e cambia col contatore (hash che degenera: test sazio chiuso)', () => {
+  // contatori fissi del ventaglio promesso (0, 1, 7, 1000, 2^31): ognuno
+  // DEVE tornare un intero in [3,10]
+  for (const c of [0, 1, 7, 1000, 2 ** 31]) {
+    const v = cadenzaSerie(c);
+    assert.ok(Number.isInteger(v), `cadenzaSerie(${c}) deve essere un intero (trovato: ${v})`);
+    assert.ok(v >= 3 && v <= 10, `cadenzaSerie(${c})=${v} deve stare in [3,10]`);
+  }
+  // e l'output deve VARIARE col contatore: con [0,1,7,1000,2^31] i valori veri
+  // sono 3, 4, 10, 3, 3 → 3 distinti. Se l'hash degenerasse, qui si vede.
+  const distinti = new Set([0, 1, 7, 1000, 2 ** 31].map(cadenzaSerie)).size;
+  assert.ok(distinti >= 2, `l'output deve variare col contatore, trovati ${distinti} valori distinti su 5 input`);
 });

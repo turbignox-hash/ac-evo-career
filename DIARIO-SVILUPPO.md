@@ -294,6 +294,27 @@ template RICCO di livree della stessa auto.
 
 ## Registro del diario
 
+### 1/11/2026 — Mai un test sazio: tre rinforzi alle fondamenta
+
+Dalla ronda «Mai un test sazio» (verde-sempre cacciati rompendo a mano i
+moduli di casa) tre cure, ognuna con la sua prova di rottura:
+- **[garage-buy.test.mjs](test%2Fgarage-buy.test.mjs)** — tolta
+  l'auto-referenzialità: i valori attesi di `carValueKm` e `salePrice` sono
+  ora LITERALI a mano (30000 km0 → 25500, 3000 km → 16500, vendita 70%,
+  fondo 4000) e non ricalcolati dalle stesse funzioni che proteggono. Cade
+  se si smonta il fattore chilometraggio.
+- **[agenda.test.mjs](test%2Fagenda.test.mjs)** — nuovo test di
+  `cadenzaSerie`: banda 3–10 rispettata per contatori 0, 1, 7, 1000 e
+  2³¹ (l'hash che spalma non deve degenerare) e il valore CAMBIA col
+  contatore. Prima nessuno proteggeva il ritmo della serie: con la
+  cadenza costante il file restava 9/9 verde — ora la rottura lo fa cadere.
+- **[lingua-server.test.mjs](test%2Flingua-server.test.mjs)** — mappa
+  DISPLAY_EN assaggiata per nome: «Coppa Città» → City Cup, «Trofeo
+  Hatch» → Hatch Trophy, e un nome ignoto («Coppa Prova») che passa dal
+  pattern path → Prova Cup. Cade se la mappa va spenta.
+
+Suite completa in sandbox **653/653** (prima 647), solo file di test toccati.
+
 ### 1/11/2026 notte — ORE SPOSTABILI nel Centro gare + quattro cure di agliedai di Mauro
 
 Su richiesta di Mauro («se due gare si corrono lo stesso giorno, si potrebbe

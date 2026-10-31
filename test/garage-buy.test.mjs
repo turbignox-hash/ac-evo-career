@@ -67,6 +67,22 @@ test('vinta: entra gratis come prima', () => {
   assert.equal(state.garage.cars.length, 1);
 });
 
+test('valutazione per chilometraggio: FATTORI di casa fissati a mano, non ricalcolati (1/11, test sazio chiuso)', () => {
+  // L'atteso NON torna da carValueKm: la vecchia asserzione comparava
+  // sell.gain con salePrice(carValueKm(...)), cioè calcolava il «valore
+  // atteso» con la STESSA funzione sotto prova — con la valutazione spenta
+  // il test restava verde. Qui i valori sono LITERALI:
+  assert.deepEqual(carValueKm(30000, 0),    { value: 25500, factor: 0.85 });
+  assert.deepEqual(carValueKm(30000, 1000), { value: 21000, factor: 0.70 });
+  assert.deepEqual(carValueKm(30000, 3000), { value: 16500, factor: 0.55 });
+  assert.deepEqual(carValueKm(30000, 9000), { value: 12000, factor: 0.40 });
+  // il floor di 4.000 €: un rottame non vale meno del minimo
+  assert.deepEqual(carValueKm(100, 5000), { value: 4000, factor: 0.40 });
+  // ricavo di vendita fissato a mano: 70% della valutazione, minimo 2.000
+  assert.equal(salePrice(25500), 17850);
+  assert.equal(salePrice(5), 2000);
+});
+
 test('acquisto subito seguito da rivendita: non impana soldi dal nulla', () => {
   const price = carPriceOf(ALFA.carName);
   if (price == null) return;
