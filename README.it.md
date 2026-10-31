@@ -391,6 +391,16 @@ La copilota parla in italiano, sempre, e le sue frasi nascono da UNA sola fonte 
 - **Regole che i test riprovano a ogni gara:** una frase identica non si ripete entro 70 secondi (in voce esce una volta sola; il registro la segna «detto»); il contatore giri è monotono nella sessione (mai più doppio «metà gara»); la bandiera non gridata prima del giro che la merita; l'annuncio stint esce SOLO se il piano è nel payload (niente finestre fantasma).
 - **Il volume lo scegli tu:** il chip in testa o la tendina del pannello Ingegnere portano il livello `off / essenziale / normale / full` — persiste in `data/evo.config.json` (`voceCopilota`), e «essenziale» zittisce gli annunci «da bravo narratore» tenendo ciò che serve in pista. La prova senza correre una gara: chip `♪ prova` in testa.
 
+### L'elenco delle frasi, per livello
+
+Le chiavi che trovi nel registro `data/copilot-voce-24-10.jsonl`, con la frase e il livello che la merita:
+
+- **essenziale** (il minimo indispensabile in pista) — «Bandiera verde: via libera» (`verde`), «Bandiera rossa!» (`rossa`), «Bandiera nera: il gioco ti squalifica» (`nera`), «Ultimo giro!» (`ultimoGiro`), «Ultimo minuto!»/«Trenta secondi!» nelle gare a tempo (`minuto`), «Bandiera a scacchi!» (`bandiera`), «Bandiera blu» (`blu`), «Box aperto/chiuso» nel pitlane (`boxopen`/`boxclose`), la finestra sosta col conto alla rovescia (`pit`, `pitcount`, `finestra` — «Box entro N giri» del piano stint), «Benzina per N giri» e l'avviso che cala (`benzina`), «Penalità tagli: N secondi» (`penalia`).
+- **normale** (il default di sempre) — tutto l'essenziale, più «Giro N fatto in 1:42.3» col nuovo best (`giroFatto`), «Meta gara: benzina X L, per N giri» (`metaBenzina`), «Gomme al N percento» quando salano di sezione di usura (`gomme`), «P7, posizione recuperata/persa» — massimo una al mezzo minuto (`postalk`).
+- **full** — gli annunci di lusso del ritmo: «sei più veloce/lento del best di …» (`delta`) e «Chi ti sta davanti: N secondi» (`gap`).
+- Gli ordini di pista — verde, rossa, squalifica, bandiera blu — si sentono a TUTTI i livelli (tranne `off`): sono il via, non un dettaglio di ricchezza.
+- Ogni voce non di sua invenzione: il filtro dei livelli è in `src/voce-copilota.mjs` (`FRASI_LIVELLO`), le frasi vive nell'unico narratore `gui/js/narratore-unito.js`.
+
 ## Programmazione: giorno e meteo per round
 
 Il pianificatore (tab **Centro gare**, CLI `piano`) dice quando firmare, noleggiare

@@ -407,6 +407,15 @@ The co-driver always speaks Italian — and her lines come from a single source 
 - **What she says:** the bucketed delta, lap completed, falling fuel, tire wear climbing a step, the gap, the pit window countdown, "Last lap!" and "Chequered flag!" at the cut, position lost/gained, the multi-class blue flag, a car out of the park and — in endurance — the stint window: "Box within N laps".
 - **Rules the tests reprove every race:** an identical line never repeats within 70 seconds (spoken once; the log marks it "said"); the lap counter is monotonic within a session (no more double "half race"); the flag is never shouted before the lap it belongs to; the stint announcement only appears when the plan is in the payload (no ghost windows).
 - **You choose the volume:** the header chip or the Engineer panel dropdown sets `off / essential / normal / full` — persisted in `data/evo.config.json` (`voceCopilota`); "essential" silences the "good narrator" extras, keeping only what matters on track. Test without driving: the `♪ prova` chip in the header.
+### The phrases, level by level
+
+The keys you find in the `data/copilot-voce-24-10.jsonl` log, with the line and the level that deserves it:
+
+- **essential** (the bare minimum on track) — "Flag green: free to go" (`verde`), "Red flag!" (`rossa`), "Black flag: the game is disqualifying you" (`nera`), "Last lap!" (`ultimoGiro`), "Last minute!"/"Thirty seconds!" in timed races (`minuto`), "Chequered flag!" (`bandiera`), "Blue flag" (`blu`), "Pit open/closed" in the pitlane (`boxopen`/`boxclose`), the pit window with its countdown (`pit`, `pitcount`, `finestra` — "Box within N laps" from the stint plan), "Fuel for N laps" and the falling-fuel warning (`benzina`), "Cut penalty: N seconds" (`penalia`).
+- **normal** (the standing default) — everything essential, plus "Lap N done in 1:42.3" with a new best (`giroFatto`), "Half race: fuel X L, N laps" (`metaBenzina`), "Tyres at N percent" when wear climbs a band (`gomme`), "P7, position gained/lost" — at most one every 30 s (`postalk`).
+- **full** — the rhythm extras: "you are faster/slower than your best by ..." (`delta`) and "The car ahead: N seconds" (`gap`).
+- Track orders — green, red, disqualification, blue flag — speak at EVERY level (`off` excepted): they are the start order, not a narrator extra.
+- Nothing is invented on the spot: the level filter lives in `src/voce-copilota.mjs` (`FRASI_LIVELLO`), the living lines in the single narrator `gui/js/narratore-unito.js`.
 
 ## Schedule: day and weather per round
 
