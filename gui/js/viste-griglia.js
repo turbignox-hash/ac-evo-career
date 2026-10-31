@@ -19,13 +19,24 @@ async function drawGridTab(m){
     : c === 'media' ? `<span class="tag warn">${tr({ it: 'confidenza media', en: 'medium confidence' })}</span>`
     : c === 'bassa' ? `<span class="tag red">${tr({ it: 'confidenza bassa', en: 'low confidence' })}</span>` : '';
 
+  // TINTE A VISTA (1/11, vetrina DA-10): il file in attesa racconta le LIVERE:
+  // per modello quante tinte distinte (campo 11, letta in readCells) e - se un
+  // modello esce con UNA sola - il grido con il gesto «più LIVERIES + APPLICA»
+  // e la leva del parco (tintePrestate per serie in grid-classes.json).
+  const tintePerModello = {};
+  for (const c of data.cells ?? []) {
+    (tintePerModello[c.name] ??= new Set()).add(c.tinta ?? '(default)');
+  }
+  const monoTinte = Object.entries(tintePerModello).filter(([, s]) => s.size < 2).map(([n]) => n);
+  const tinteRiga = Object.entries(tintePerModello).map(([n, s]) => `${esc(n)} ×${s.size}`).join(' · ');
   m.innerHTML = `
   <div class="panel">
     <h2>${tr({ it: 'Griglia', en: 'Grid' })} <span class="muted" style="font-size:12.5px">${data.exists ? `${data.cells.length} ${tr({ it: 'celle', en: 'cells' })} · ${data.drivers} ${tr({ it: 'piloti', en: 'drivers' })} · AI ${data.aiMin ?? '–'}–${data.aiMax ?? '–'} · PI ${data.piMin ?? '–'}–${data.piMax ?? '–'}` : ` (${tr({ it: 'file customgrid non trovato', en: 'customgrid file not found' })})`}</span></h2>
     ${data.classe ? `<div style="margin:6px 0 10px">${tr({ it: 'Classe combaciata:', en: 'Matched class:' })} <b>${esc(data.classe)}</b>${data.perTraccia ? ` · ${tr({ it: 'per-traccia', en: 'per-track' })} <b>${esc(data.perTraccia)}</b> ${data.convalidato ? badgeOk : badgeKo}` : ''}</div>` : `<div class="muted" style="margin:6px 0 10px">${tr({ it: 'Nessuna classe combacia con le auto della griglia', en: 'No class matches the grid cars' })}</div>`}
+    ${data.exists && tinteRiga ? `<div class="muted" style="margin:2px 0 8px;font-size:12px">${tr({ it: 'Tinte (liverie):', en: 'Liveries:' })} ${tinteRiga}${monoTinte.length ? ` — <b style="color:#d9a83e">${tr({ it: 'MONOCOLORE:', en: 'MONOCHROME:' })} ${esc(monoTinte.join(', '))}</b> → ${tr({ it: 'in EVO genera più LIVERIE della stessa auto e APPLICA, oppure (avversari) tintePrestate: true dalla serie in grid-classes.json', en: 'in EVO create more LIVERIES of the same car and APPLICA, or (rivals) tintePrestate: true on the series in grid-classes.json' })}` : ''}</div>` : ''}
     ${data.escluseClasse?.length || data.escluseTraccia?.length ? `<div class="banner" style="border-color:#d9a83e">${tr({ it: 'Auto escluse ancora presenti nel file: {A} → usa "Applica bilancio" per rimuoverle', en: 'Excluded cars still in the file: {A} → use "Apply balance" to remove them' }).replace('{A}', esc([...(data.escluseClasse ?? []), ...(data.escluseTraccia ?? [])].join(' · ')))}</div>` : ''}
-    <table><thead><tr><th>#</th><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Preset', en: 'Preset' })}</th><th class="right">${tr({ it: 'Zavorra / Penalità', en: 'Ballast / Penalty' })}</th></tr></thead>
-    <tbody>${(data.cells ?? []).map((c, i) => `<tr><td class="muted">${i + 1}</td><td><span class="car-link" data-car="${esc(c.name)}" style="cursor:pointer;text-decoration:underline dotted">${esc(c.name)}</span></td><td class="muted" style="font-size:11.5px">${esc(c.preset ?? '—')}</td><td class="right">${kgpct(c)}</td></tr>`).join('')}</tbody>
+    <table><thead><tr><th>#</th><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Preset', en: 'Preset' })}</th><th>${tr({ it: 'Tinta', en: 'Livery' })}</th><th class="right">${tr({ it: 'Zavorra / Penalità', en: 'Ballast / Penalty' })}</th></tr></thead>
+    <tbody>${(data.cells ?? []).map((c, i) => `<tr><td class="muted">${i + 1}</td><td><span class="car-link" data-car="${esc(c.name)}" style="cursor:pointer;text-decoration:underline dotted">${esc(c.name)}</span></td><td class="muted" style="font-size:11.5px">${esc(c.preset ?? '—')}</td><td class="muted" style="font-size:11px">${esc(c.tinta ?? '(default)')}</td><td class="right">${kgpct(c)}</td></tr>`).join('')}</tbody>
     </table>
   </div>
 
