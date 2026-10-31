@@ -48,6 +48,8 @@
   cella e la tab Griglia della GUI la mostra (colonna + riquadro per
   modello col grido MONOCOLORE e il gesto «più LIVERIES + APPLICA» o la
   leva `tintePrestate`). 4 test nuovi (`readcells-tinta`), suite 660/660.
+  In più il badge «tinte prestate (parco)» sulle serie che hanno il
+  flag attivo, nelle Classi e regole della stessa tab.
 - **2 warning Biome risanati** (autorizzazione alle migliorie): import
   inutili via da `src/webui.mjs` e `tools/_collaudo-amico.mjs` — lint
   ora **0 diagnostica**.

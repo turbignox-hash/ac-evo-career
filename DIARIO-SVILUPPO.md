@@ -348,6 +348,10 @@ file in attesa:
   (sintetico pulito, `(default)` per il campo 11 assente, formato gioco
   reale\nessuna regressione preset/kg/count). Suite **660/660**, biome 0
   sui tre file toccati.
+- **Badge del flag** (sopra): `api('grid')` porta `tintePrestate` della
+  classe in pasto alla GUI e le Classi e regole mostrano il badge
+  «tinte prestate (parco)» sulle serie che lo hanno attivo — chi non
+  legge grid-classes.json a mano vede da solo chi pesca dal parco.
 
 ---
 
