@@ -494,6 +494,8 @@ export function markPending(_ladder, state, card) {
     trackId: card.trackId,
     trackNames: [card.trackName, card.trackId],
     hour: card.round.hour,
+    weather: card.weather ?? null,   // ETICHETTA meteo della ronda (card.weather, weatherNames): il publisher la traduce in codice comando (codiceMeteo)
+
     laps: card.laps ?? card.round.laps ?? null,
     car: card.car,
     gridSize: card.gridSize,

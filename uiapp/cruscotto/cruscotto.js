@@ -264,7 +264,7 @@
                     'ò': 'o', 'ó': 'o', 'ô': 'o', 'ö': 'o', 'ù': 'u', 'ú': 'u', 'û': 'u', 'ü': 'u', 'ñ': 'n', 'ç': 'c' };
   function chiave(t) { return String(t || '').toLowerCase().replace(/[àáâäèéêëìíîïòóôöùúûüñç]/g, function (c) { return ACCENTI[c] || c; }).replace(/[^a-z0-9]/g, ''); }
 
-  function trovaAuto(cars, nome) {
+  function trovaAuto(cars, nome, carId) {
     const k = chiave(nome); if (!k) return null;
     for (let i = 0; i < cars.length; i++) { if (chiave(cars[i].display_name) === k) return cars[i]; }
     for (let i = 0; i < cars.length; i++) {
@@ -277,7 +277,39 @@
       const dn = chiave(cars[i].display_name);
       if (dn && parole.every(function (w) { return dn.indexOf(w) >= 0; }) && (!best || dn.length < chiave(best.display_name).length)) best = cars[i];
     }
-    return best;
+    if (best) return best;
+    // RISERVA DELL'ID (1/11, come fa Paddock le auto sconosciute la prima
+    // volta): ogni car_model del menu porta anche il campo interno name
+    // (l'id ks_...), e la ladder può chiamare l'auto col SUO nome ("Mini
+    // JCS 1990") mentre il menu la chiama diversamente ("Mini John Cooper
+    // S"): niente token combacia. L'ID della scheda invece è UNIVOCO:
+    // chiave(c.name) === chiave(carId) risolve al volo, senza dizionario.
+    if (carId) {
+      const kId = chiave(carId);
+      if (kId) {
+        for (let i = 0; i < cars.length; i++) { if (chiave(cars[i].name) === kId) return cars[i]; }
+      }
+    }
+    return null;
+  }
+
+  // IL CIELO nella lista meteo del gioco (weather_data dei GameModeParameters):
+  // il tipo finisce col codice («…_RAIN»), come nella battuta del Paddock.
+  // Per la pioggia GENERICA le voci specifiche (_LIGHT_RAIN, _HEAVY_RAIN) non
+  // devono catturarla: se solo quelle ci sono, valgono comunque loro (meglio
+  // bagnato che niente).
+  function scegliCielo(list, cod) {
+    const want = String(cod || '').toUpperCase();
+    if (!want) return null;
+    const scarti = [];
+    const cieli = list || [];
+    for (let i = 0; i < cieli.length; i++) {
+      const t = String(cieli[i]?.type || '').toUpperCase();
+      if (!t || !(t === want || t.endsWith('_' + want))) continue;
+      if (want === 'RAIN' && (t.endsWith('_LIGHT_RAIN') || t.endsWith('_HEAVY_RAIN'))) { scarti.push(cieli[i]); continue; }
+      return cieli[i];
+    }
+    return scarti[0] || null;
   }
 
   // la pista nell'elenco del gioco: nome uguale, poi uno contenuto nell'altro;
@@ -314,12 +346,45 @@
     const cl = await giocoComando('CarSelectionClientRequestModels', { mode: MODO_SINGLE, brand: '' }, 10000);
     if (!cl) { notaComando('Models: nessuna risposta dal menu di EVO'); loga('Models: nessuna risposta'); return false; }
     const cars = (cl.car_model) || [];
-    const car = trovaAuto(cars, c.nome);
+    const car = trovaAuto(cars, c.nome, c.carId);
     if (!car) { notaComando('Auto non trovata nel menu del gioco: ' + c.nome + ' (' + cars.length + ' in lista)'); loga('Auto non trovata: ' + c.nome); return false; }
     loga('auto trovata: ' + car.display_name);
     const r3 = await giocoComando('CarSelectionClientRequestSetCurrentCar', { mode: MODO_SINGLE, model: car }, 8000);
     if (!r3 || r3.response !== OK_RISPOSTA) { notaComando(c.nome + ': ' + okTesto(r3)); loga('SetCurrentCar: ' + okTesto(r3)); return false; }
-    notaComando('✓ ' + car.display_name + ' impostata nel menu di EVO, senza riavvio.');
+    loga('✓ SetCurrentCar ok: ' + car.display_name);
+    // METEO + ORA AL VOLO (1/11, la STESSA scuola delle auto per id: chiedi al
+    // gioco le sue liste e scegli, niente dizionari). BEST EFFORT: ora e meteo
+    // della ronda restano comunque sul disco (stesso piano del Prepara) —
+    // se il menu non risponde, la vetrina dell'auto resta e l'ack esce uguale.
+    // NIENTE GIRI: la durata resta quella scritta su disco.
+    const fatti = [];
+    try {
+      const gp = await giocoComando('GameModeSelectionClientRequestGameModeParameters', { mode: MODO_SINGLE }, 8000);
+      if (gp) {
+        const sess = gp.sessions || [];
+        // ORA: lo stesso piano orario del Prepara su disco (P −6h, Q −3h, W −1h, gara all'ora esatta)
+        if (c.ora != null) {
+          const off = (sn) => { const s = String(sn || '').toLowerCase(); return /practice/.test(s) ? 6 : /qualif/.test(s) ? 3 : /warm/.test(s) ? 1 : 0; };
+          let toc = 0;
+          sess.forEach((s) => { if (s && s.time_of_day && typeof s.time_of_day === 'object') { s.time_of_day.hour = Math.max(0, Math.min(23, Number(c.ora) - off(s.name))); toc++; } });
+          if (toc) {
+            const rp = await giocoComando('GameModeSelectionClientRequestSetGameModeParameters', { mode: MODO_SINGLE, sessions: sess }, 8000);
+            if (rp && rp.response === OK_RISPOSTA) fatti.push('ore ' + c.ora + ':00');
+            loga('ora ' + c.ora + ':00 per ' + toc + ' sessioni: ' + okTesto(rp));
+          }
+        }
+        // METEO: il cielo si sceglie nella lista del gioco per SUFFISSO del tipo
+        if (c.meteo) {
+          const ciel = scegliCielo(gp.weather_data, c.meteo);
+          if (ciel) {
+            const rw = await giocoComando('GameModeSelectionClientRequestSetWeather', { weather_data: ciel }, 8000);
+            if (rw && rw.response === OK_RISPOSTA) fatti.push('meteo ' + c.meteo);
+            loga('meteo ' + c.meteo + ': ' + okTesto(rw));
+          } else { loga('meteo ' + c.meteo + ': il gioco non lo ha nella lista'); }
+        }
+      }
+    } catch (e) { loga('meteo/ora al volo: ' + e); }
+    notaComando('✓ ' + car.display_name + ' nel menu di EVO' + (fatti.length ? ' · ' + fatti.join(' · ') : ', senza riavvio') + '.');
     loga('✓ SetCurrentCar ok: ' + car.display_name);
     return true;
   }
@@ -333,7 +398,7 @@
     const cl = await giocoComando('CarSelectionClientRequestModels', { mode: MODO_SINGLE, brand: '' }, 10000);
     if (!cl) { notaComando('Models: nessuna risposta dal menu di EVO'); loga('Models: nessuna risposta'); return false; }
     const cars = (cl.car_model) || [];
-    const car = trovaAuto(cars, c.nome);
+    const car = trovaAuto(cars, c.nome, c.carId);
     if (!car) { notaComando('Auto non trovata nel menu del gioco: ' + c.nome + ' (' + cars.length + ' in lista)'); loga('Auto non trovata: ' + c.nome); return false; }
     loga('auto evento trovata: ' + car.display_name);
     const r = await giocoComando('CarSelectionClientRequestSetCurrentCar', { mode: MODO_SINGLE, model: car }, 8000);

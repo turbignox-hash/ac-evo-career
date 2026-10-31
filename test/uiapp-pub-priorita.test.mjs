@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 
-import { comandoAuto, confermaAck, azioniPulsanti, statoIstantanea, verdettoFascia, preparaFascia } from '../src/uiapp-pub.mjs';
+import { comandoAuto, confermaAck, azioniPulsanti, statoIstantanea, verdettoFascia, preparaFascia, nomeDaCarId, codiceMeteo } from '../src/uiapp-pub.mjs';
 
 // fixture in stile events-card.test.mjs: un'auto nota nel libro lader e
 // un evento attivo e accettato (premio un'auto diversa da quella della ronda).
@@ -92,6 +92,86 @@ test('pending con auto NON nota nel ladder: scade in 1 giorno come gli altri', (
   const fresca = mkState({ pending: { car: 'auto_used_ignota', startedAt: Date.now() - 60_000 } });
   const cmdFresca = comandoAuto(mkLadder(), fresca);
   assert.equal(cmdFresca, null, 'fresca con auto ignota: il ramo evento resta soppresso');
+});
+
+// AUTI SCONOSCIUTE AL VOLO (1/11, «come fa Paddock la prima volta»):
+// la ladder chiama l'auto col SUO nome («Mini JCS 1990») che nel menu di
+// EVO NON esiste (lì è «Mini John Cooper S»): il libro contentNames non
+// ce l'ha, ma l'ID ks_ sì. Il comando esce LO STESSO con nome derivato
+// dall'id + carId: l'app in gioco risolve per ID interno (car_model.name),
+// senza che nessuno scriva a mano un dizionario di nomi.
+test('nomeDaCarId: dall\'id ks_ un nome leggibile per la vetrina', () => {
+  assert.equal(nomeDaCarId('ks_mini_jcs_1990'), 'Mini Jcs 1990');
+  assert.equal(nomeDaCarId('ks_ferrari_296_gt3'), 'Ferrari 296 Gt3');
+  assert.equal(nomeDaCarId(null), '');
+});
+
+test('ronda con auto ks_ ESTRANEA al libro: il comando esce comunque (carId per il riconoscimento al volo)', () => {
+  // il caso della Mini: contentNames non la conosce, ma l'id ks_ basta
+  // all'app in gioco (trovaAuto per car_model.name) — niente più «Auto non
+  // trovata» e niente preparazione manuale.
+  const state = mkState({ pending: { car: 'ks_mini_jcs_1990', startedAt: Date.now() - 60_000, trackNames: ['donington'] } });
+  const cmd = comandoAuto(mkLadder(), state);
+  assert.equal(cmd?.tipo, 'setcar');
+  assert.equal(cmd?.carId, 'ks_mini_jcs_1990');
+  assert.equal(cmd?.nome, 'Mini Jcs 1990');
+});
+
+test('garà al volo (demo) con auto ks_ estranea al libro: stesso canale, carId al comando', () => {
+  const state = mkState({ vetrinaCustom: { car: 'ks_mini_jcs_1990', startedAt: Date.now() - 60_000 } });
+  const cmd = comandoAuto(mkLadder(), state);
+  assert.equal(cmd?.tipo, 'evento');
+  assert.equal(cmd?.carId, 'ks_mini_jcs_1990');
+  assert.equal(cmd?.nome, 'Mini Jcs 1990');
+});
+
+test('pending con auto SENZA alcun id usabile (no libro, no ks_): silenzio come prima', () => {
+  const state = mkState({ pending: { car: 'auto_usata_ignota', startedAt: Date.now() - 60_000 } });
+  assert.equal(comandoAuto(mkLadder(), state), null, 'niente id, niente nome: né il menu né l\'utente sanno chi è');
+});
+
+// METEO + ORA AL VOLO (1/11, « implementa diretto tutto quello che puoi, meno
+// giri facciamo e meglio è»): il comando della RONDA porta l'ORA della card
+// (p.hour: già nel pending da sempre) e il METEO come CODICE del menu di EVO
+// ('RAIN', 'LIGHT_RAIN'…), tradotto dall'ETICHETTA che markPending scriva nel
+// business (card.weather, le weatherNames della ladder). L'evento/demo NON le
+// porta: le impostazioni della scheda si mettono a mano (lezione 23/10).
+test('codiceMeteo: dall\'etichetta EN/IT delle weatherNames al CODICE del comando', () => {
+  assert.equal(codiceMeteo('Rain'), 'RAIN');
+  assert.equal(codiceMeteo('Light rain'), 'LIGHT_RAIN', 'la bagnata leggera guarda PRIMA della generica');
+  assert.equal(codiceMeteo('Heavy rain'), 'HEAVY_RAIN');
+  assert.equal(codiceMeteo('Pioggia leggera'), 'LIGHT_RAIN', 'le etichette ITAGLIE valgono uguale');
+  assert.equal(codiceMeteo('Scattered clouds'), 'SCATTERED_CLOUDS');
+  assert.equal(codiceMeteo('Coperto'), 'OVERCAST');
+  assert.equal(codiceMeteo('Clear'), 'CLEAR');
+  assert.equal(codiceMeteo('meteo 3'), null, 'etichetta ignota: niente codice, comando senza meteo');
+  assert.equal(codiceMeteo(null), null);
+});
+
+test('ronda con ora e meteo: il comando le porta entrambe, evento NON le porta', () => {
+  const state = mkState({
+    pending: { car: 'ks_mini_jcs_1990', startedAt: Date.now() - 60_000, trackNames: ['donington'], hour: 17, weather: 'Heavy rain' },
+  });
+  const cmd = comandoAuto(mkLadder(), state);
+  assert.equal(cmd?.tipo, 'setcar');
+  assert.equal(cmd?.ora, 17);
+  assert.equal(cmd?.meteo, 'HEAVY_RAIN');
+});
+
+test('pending VECCHIO formato (senza ora/meteo): comando come sempre, ora/meteo null', () => {
+  const state = mkState({ pending: { car: 'r5_touring', startedAt: Date.now() - 60_000, trackNames: ['cota', 'cota'] } });
+  const cmd = comandoAuto(mkLadder(), state);
+  assert.equal(cmd?.tipo, 'setcar');
+  assert.equal(cmd?.ora, null, 'ora mancante: il programma resta quello su disco');
+  assert.equal(cmd?.meteo, null, 'meteo mancante: il Cruscotto non tocca il cielo');
+});
+
+test('comando EVENTO demo: mai ora/meteo (la scheda resta a mano, lezione 23/10)', () => {
+  const state = mkState({ vetrinaCustom: { car: 'ks_mini_jcs_1990', startedAt: Date.now() - 60_000 } });
+  const cmd = comandoAuto(mkLadder(), state);
+  assert.equal(cmd?.tipo, 'evento');
+  assert.equal('ora' in (cmd ?? {}), false, 'l\'evento non riceve un\'ora dal canale');
+  assert.equal('meteo' in (cmd ?? {}), false);
 });
 
 // ------------------------------------------------------------------

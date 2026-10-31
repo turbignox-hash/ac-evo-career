@@ -239,6 +239,38 @@ export function messaggiFascia(state, n = 4) {
   } catch { return []; }
 }
 
+/** Etichetta d'emergenza derivata dall'ID (1/11, «al volo come Paddock»):
+ *  ks_mini_jcs_1990 → «Mini Jcs 1990». Serve SOLO come nome di vetrina quando
+ *  il libro non ha l'auto: il riconoscimento VERO nel menu di EVO avviene per
+ *  ID interno (car_model.name, cruscotto.js trovaAuto), non per questo nome. */
+export function nomeDaCarId(id) {
+  return String(id ?? '').replace(/^ks_/, '')
+    .split('_').filter(Boolean)
+    .map((w) => (/^\d+$/.test(w) ? w : w[0].toUpperCase() + w.slice(1)))
+    .join(' ');
+}
+
+/** L'ETICHETTA meteo (la card la porta dalle weatherNames della ladder, EN o
+ *  IT indifferente) nel CODICE che il menu di EVO capisce: »Rain« → RAIN e
+ *  via così. Le bagnate specifiche guarda PRIMA della pioggia generica (la
+ *  stesso lezione del 2/11 in weather.mjs: 'light rain' contiene 'rain', con
+ *  l'ordine sbagliato si partiva bagnato pesante al posto della drizzle).
+ *  null = etichetta ignota: il comando esce SENZA meteo, come sempre. */
+export const CODICI_METEO = [
+  ['heavy rain', 'HEAVY_RAIN'], ['pioggia intensa', 'HEAVY_RAIN'], ['heavy', 'HEAVY_RAIN'],
+  ['light rain', 'LIGHT_RAIN'], ['pioggia leggera', 'LIGHT_RAIN'], ['drizzle', 'LIGHT_RAIN'], ['light', 'LIGHT_RAIN'],
+  ['rain', 'RAIN'], ['pioggia', 'RAIN'],
+  ['scattered clouds', 'SCATTERED_CLOUDS'], ['nuvole sparse', 'SCATTERED_CLOUDS'], ['scattered', 'SCATTERED_CLOUDS'], ['few clouds', 'SCATTERED_CLOUDS'],
+  ['overcast', 'OVERCAST'], ['nuvoloso', 'OVERCAST'], ['coperto', 'OVERCAST'], ['cloudy', 'OVERCAST'],
+  ['clear', 'CLEAR'], ['sole', 'CLEAR'], ['sereno', 'CLEAR'], ['sunny', 'CLEAR'],
+];
+export function codiceMeteo(label) {
+  const s = String(label ?? '').trim().toLowerCase();
+  if (!s) return null;
+  const hit = CODICI_METEO.find((x) => s.includes(x[0]));
+  return hit ? hit[1] : null;
+}
+
 export function comandoAuto(ladder, state) {
   try {
     const p = state?.pending;
@@ -271,15 +303,15 @@ export function comandoAuto(ladder, state) {
     const rondaPiuFresca = (Date.now() - Number(p?.startedAt ?? 0)) < PENDING_SCADENZA_MS &&
       Number(p?.startedAt ?? 0) >= Number(demo?.startedAt ?? 0);
     if (demo?.car && !rondaPiuFresca) {
-      const nomeDemo = ladder?.contentNames?.cars?.[demo.car] ?? null;
+      const nomeDemo = ladder?.contentNames?.cars?.[demo.car] ?? (/^ks_[a-z0-9_]+$/.test(String(demo.car)) ? nomeDaCarId(demo.car) : null);
       if ((Date.now() - Number(demo.startedAt ?? 0)) < PENDING_SCADENZA_MS) {
         const idDemo = `demo:${demo.startedAt ?? 0}:${demo.car}`;
         if (confermati.has(idDemo)) return null;   // già nel menu di EVO: silenzio per tutta la finestra
-        if (nomeDemo) return { id: idDemo, tipo: 'evento', nome: nomeDemo, pista: null, layout: null };
+        if (nomeDemo) return { id: idDemo, tipo: 'evento', nome: nomeDemo, carId: demo.car, pista: null, layout: null };
       }
     }
     if (p?.car) {
-      const nome = ladder?.contentNames?.cars?.[p.car] ?? null;
+      const nome = ladder?.contentNames?.cars?.[p.car] ?? (/^ks_[a-z0-9_]+$/.test(String(p.car)) ? nomeDaCarId(p.car) : null);
       const idP = `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`;
       // se quel comando è GIÀ stato eseguito dall'app (ack in ui_storage),
       // non torna in vetrina: si scende al ramo evento (27/10 19:30: il
@@ -287,9 +319,15 @@ export function comandoAuto(ladder, state) {
       // attivo — la F40 non arrivava mai al gioco)
       if (nome && !confermati.has(idP)) {
         const spec = p.trackNames?.[0] ? specFor(p.trackNames[0]) : null;
+        // ORA + METEO AL VOLO (1/11, la STESSA scuola delle auto per id): la ronda
+        // porta l'ora della card (p.hour, già nel pending) e l'ETICHETTA meteo
+        // (p.weather, markPending); qui diventano codice comando ('RAIN' ecc.).
+        // Vecchi pending senza meteo: campo null — il Cruscotto resta/a mano/là.
+        const oraRonda = Number.isFinite(Number(p.hour)) && p.hour != null ? Number(p.hour) : null;
         const rondaComando = {
-          id: idP, tipo: 'setcar', nome,
+          id: idP, tipo: 'setcar', nome, carId: p.car,
           pista: spec?.name ?? null, layout: spec?.layout ?? null,
+          ora: oraRonda, meteo: codiceMeteo(p.weather ?? null),
         };
         // SCADENZA anche qui (lezione 27/10, la stessa dei ramoscelli più
         // sotto): il pending NON ancora confermato, se ha più di un giorno,
@@ -304,7 +342,7 @@ export function comandoAuto(ladder, state) {
         const cardEv = eventCard(ladder, state);
         if (cardEv?.acceptedAt && cardEv.carName) {
           if (!eventoArmato(state)) return rondaComando;
-          return { id: `evento:${cardEv.theme?.id ?? cardEv.eventId ?? '?'}:${cardEv.carName}`, tipo: 'evento', nome: cardEv.carName, pista: null, layout: null };
+          return { id: `evento:${cardEv.theme?.id ?? cardEv.eventId ?? '?'}:${cardEv.carName}`, tipo: 'evento', nome: cardEv.carName, carId: cardEv.prize?.carId ?? null, pista: null, layout: null };
         }
         return rondaComando;
       }
@@ -352,7 +390,7 @@ export function comandoAuto(ladder, state) {
     if (card?.acceptedAt && card.carName && eventoArmato(state)) {
       // stessa legge della scadenza: senza armatura il canale evento è MUTO
       // (la scheda evento sta nella GUI, l'auto del premio si mette a mano)
-      return { id: `evento:${card.theme?.id ?? card.eventId ?? '?'}:${card.carName}`, tipo: 'evento', nome: card.carName, pista: null, layout: null };
+      return { id: `evento:${card.theme?.id ?? card.eventId ?? '?'}:${card.carName}`, tipo: 'evento', nome: card.carName, carId: card.prize?.carId ?? null, pista: null, layout: null };
     }
     return null;
   } catch { return null; }
@@ -545,14 +583,14 @@ export function azioniPulsanti(ladder, state) {
     const az = {};
     const demo = state?.vetrinaCustom;
     if (demo?.car) {
-      const nomeDemo = ladder?.contentNames?.cars?.[demo.car] ?? null;
+      const nomeDemo = ladder?.contentNames?.cars?.[demo.car] ?? (/^ks_[a-z0-9_]+$/.test(String(demo.car)) ? nomeDaCarId(demo.car) : null);
       if ((Date.now() - Number(demo.startedAt ?? 0)) < PENDING_SCADENZA_MS) {
-        if (nomeDemo) az.demo = { id: `demo:${demo.startedAt ?? 0}:${demo.car}`, tipo: 'evento', nome: nomeDemo, scadeIn: scadeIn(demo.startedAt), istantanea: statoIstantanea(), registro: rigaRegistro() };
+        if (nomeDemo) az.demo = { id: `demo:${demo.startedAt ?? 0}:${demo.car}`, tipo: 'evento', nome: nomeDemo, carId: demo.car, scadeIn: scadeIn(demo.startedAt), istantanea: statoIstantanea(), registro: rigaRegistro() };
       }
     }
     const p = state?.pending;
     if (p?.car) {
-      const nome = ladder?.contentNames?.cars?.[p.car] ?? null;
+      const nome = ladder?.contentNames?.cars?.[p.car] ?? (/^ks_[a-z0-9_]+$/.test(String(p.car)) ? nomeDaCarId(p.car) : null);
       if (nome && (Date.now() - Number(p.startedAt ?? 0)) < PENDING_SCADENZA_MS) {
         const spec = p.trackNames?.[0] ? specFor(p.trackNames[0]) : null;
         // BANDA della serie (4/11, card arricchite): gli override dei cursori
@@ -562,7 +600,7 @@ export function azioniPulsanti(ladder, state) {
         // non inventa una banda a caso.
         const ov = state?.raceSettings?.[p.node] ?? {};
         const banda = [ov?.sliderMin, ov?.sliderMax].every((x) => Number.isFinite(Number(x))) ? `${Number(ov.sliderMin)}–${Number(ov.sliderMax)}` : null;
-        az.ronda = { id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome, pista: spec?.name ?? null, layout: spec?.layout ?? null, serie: p.node ?? null, scadeIn: scadeIn(p.startedAt), banda };
+        az.ronda = { id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome, carId: p.car, pista: spec?.name ?? null, layout: spec?.layout ?? null, ora: Number.isFinite(Number(p.hour)) && p.hour != null ? Number(p.hour) : null, meteo: codiceMeteo(p.weather ?? null), serie: p.node ?? null, scadeIn: scadeIn(p.startedAt), banda };
       }
     }
     if (!az.demo) {
