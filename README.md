@@ -190,17 +190,20 @@ changelog under [report/](report/), with the real test-suite result inside):
 - **One-file install for a friend.** `installa.cmd` (a single file, a few KB)
   installs everything on a Windows PC — portable Node downloaded if missing,
   code from GitHub, `build-id.txt` written, tests run, desktop shortcut with
-  the program icon and the first-launch wizard. `disinstalla.cmd` undoes it
-  cleanly and refuses folders that don't look like an installation. Both are
-  covered by sandbox tests.
+  the program icon and the first-launch wizard. The IN-GAME apps (Cruscotto
+  and Pitwall of the loader) set themselves up on first launch: without the
+  ACE UI App Loader mod everything else still works, and the tool says so.
+  `disinstalla.cmd` undoes it cleanly and refuses folders that don't look
+  like an installation. All covered by sandbox tests.
 - **Old closing messages stay readable.** Paddock and grid-calibration notes
   written back when the career ran in Italian are translated on display in
   the English interface — the save file is still never modified.
 - **The in-game «Cruscotto» widget (from 27/10).** The first widget inside the
   game: it quietly reads the server dashboard and shows your driver, today's
-  races and entered series in the ACEUIAppLoader app — install with
-  `node tools/installa-cruscotto.mjs`, kept fresh by the publisher
-  (`src/uiapp-pub.mjs`). From 28/10 it also shows the mini-standings of your
+  races and entered series in the ACEUIAppLoader app — it installs itself on
+  first launch (the launcher does it silently) or with one double click on
+  `INSTALLA-GIOCO.cmd`; the publisher (`src/uiapp-pub.mjs`) keeps the data
+  strips fresh. From 28/10 it also shows the mini-standings of your
   current series and the world-skill panel, plus a button that opens the full
   Mondiale in the browser GUI — all computed with the same server formulas
   (`standingsFor`, `playerWorldSkill`) so the numbers can never diverge.

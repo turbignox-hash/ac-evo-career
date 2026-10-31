@@ -104,6 +104,16 @@ Doppio click su **`avvia.cmd`**:
    l'icona è quella del programma;
 3. apre l'interfaccia grafica nel browser su `http://127.0.0.1:8642`.
 
+**Le app DENTRO il gioco si mettono a posto da sole (dal 1/11).** Al primo
+avvio il launcher copia in silenzio Cruscotto e Pitwall dentro
+`Saved Games\ACE\mods\uiresources\ACEUIAppLoader\` — quando EVO è
+installato, le trovi nel drawer APPS del menu di EVO e si aggiornano da sole
+a ogni successivo doppio click su avvia.cmd. Serve però la mod **ACE UI App Loader** installata (la
+stessa che usano le app in gioco come Paddock): se manca, il launcher lo dice
+con una riga e va avanti lo stesso — la GUI, la carriera e la preparazione
+delle gare non dipendono da essa. Via manuale in qualunque momento: doppio
+click su `INSTALLA-GIOCO.cmd` nella cartella del programma.
+
 **Tutto è cliccabile** (28/10, stile Football Manager): il nome di un'auto
 apre la sua scheda nel Libro delle auto, il nome di una pista la scheda
 nel Libro delle piste, il nome di una serie porta al tab Campionati, la
@@ -296,6 +306,13 @@ Dalla GUI c'è anche la banda **Aggiornamenti** sopra il Cruscotto, col bottone
 Le risposte di use quotidiano, le stesse del README con qualche caso in più
 tipico del primo avvio su un PC nuovo. Se qui manca il tuo sintomo, il README
 (it) ha la sezione completa: [README.it.md](README.it.md).
+
+**Le app in gioco non appaiono nel menu di EVO.** Manca la mod **ACE UI App
+Loader** in `Saved Games\ACE\mods\uiresources\ACEUIAppLoader\` (la stessa
+che usano le app in gioco come Paddock): installata quella, doppio click su
+`INSTALLA-GIOCO.cmd` (o semplicemente riavvia il launcher, che lo fa da
+solo). Senza mod niente si rompe: la GUI nel browser e tutta la carriera
+funzionano normali.
 
 **Ho installato su un PC vergine e «Prepara tutto» dice «ora/giri da impostare a mano».**
 In un save nuovo EVO non ha ANCORA il file del weekend di carriera: le

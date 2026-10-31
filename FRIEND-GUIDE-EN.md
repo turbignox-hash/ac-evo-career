@@ -112,6 +112,16 @@ Double click **`avvia.cmd`**:
 3. it opens the graphical interface in the browser at
    `http://127.0.0.1:8642`.
 
+**The IN-GAME apps set themselves up (from 1/11).** On first launch the
+launcher silently copies Cruscotto and Pitwall into
+`Saved Games\ACE\mods\uiresources\ACEUIAppLoader\` — with EVO installed,
+you find them in the APPS drawer of EVO's menu and they refresh themselves
+on each later double-click of avvia.cmd. It does need the **ACE UI App
+Loader** mod installed (the same one in-game apps like Paddock use): if it
+is missing, the launcher says so in one line and goes on anyway — the GUI,
+the career and the race preparation do not depend on it. Manual route any
+time: double click `INSTALLA-GIOCO.cmd` in the program folder.
+
 At first open the GUI shows the **wizard**: it finds the data folders on its
 own (`%USERPROFILE%\Saved Games\ACE`), the game in Steam
 (`AssettoCorsaEVO.exe`) and scans the content. If something is not found, the
@@ -244,6 +254,13 @@ Every time you start from `avvia.cmd` (or open the interface again):
 
 Typical of the first start on a new PC. If your symptom is not here, the
 README has the full section: [README.md](README.md).
+
+**The in-game apps don't appear in EVO's menu.** The **ACE UI App Loader**
+mod is missing from `Saved Games\ACE\mods\uiresources\ACEUIAppLoader\`
+(the same one in-game apps like Paddock use): install it, then double click
+`INSTALLA-GIOCO.cmd` (or simply restart the launcher, which does it by
+itself). Without the mod nothing breaks: the browser GUI and the whole
+career work as usual.
 
 **I installed on a virgin PC and «Get everything ready» says «hour/laps to be set by hand».**
 On a new save EVO does not have the career weekend file YET: the round's

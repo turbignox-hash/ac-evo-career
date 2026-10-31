@@ -220,18 +220,21 @@ tacciono comunque: EVO non popola i campi gap delle gare single-player
 - **Installazione un-file per l'amico.** `installa.cmd` (un file solo, pochi
   KB) installa tutto su un PC Windows — Node portatile scaricato se manca,
   codice da GitHub,  `build-id.txt` scritto, test passati, scorciatoia sul
-  desktop con l'icona del programma e wizard di prima apertura.
-  `disinstalla.cmd` rimuove tutto in pulizia e rifiuta le cartelle che non
-  somigliano a un'installazione. Entrambi coperti da test in sandbox.
+  desktop con l'icona del programma e wizard di prima apertura. Le app
+  DENTRO il gioco (Cruscotto e Pitwall del loader) si mettono a posto da sole
+  al primo avvio: senza l'apposita mod ACE UI App Loader il resto funziona
+  comunque, e lo dice. `disinstalla.cmd` rimuove tutto in pulizia e rifiuta
+  le cartelle che non somigliano a un'installazione. Tutto coperto da test
+  in sandbox.
 - **I vecchi messaggi si leggono comunque.** Le note di paddock e di
   calibrazione griglia scritte quando la carriera era in italiano si
   traducono in visualizzazione nell'interfaccia inglese — il save non viene
   comunque mai toccato.
 - **«Cruscotto» in gioco (dal 27/10).** Il primo widget dentro il gioco: legge
   in silenzio il cruscotto del server e mostra pilota, gare del giorno e serie
-  iscritte nell'app ACEUIAppLoader — si installa con
-  `node tools/installa-cruscotto.mjs` e si tiene aggiornato dal publisher
-  (`src/uiapp-pub.mjs`). Dal 28/10 mostra anche la mini-classifica della serie
+  iscritte nell'app ACEUIAppLoader — si installa da SOLE al primo avvio (il
+  launcher lo fa in silenzio) o a doppio click con `INSTALLA-GIOCO.cmd`; il
+  publisher (`src/uiapp-pub.mjs`) tiene le fasce fresche. Dal 28/10 mostra anche la mini-classifica della serie
   corrente e il pannello mondiale (skill e top-5 con la tua riga), col pulsante
   che apre il Mondiale completo nella GUI del browser — tutto calcolato con le
   stesse formule del server (`standingsFor`, `playerWorldSkill`): i numeri non

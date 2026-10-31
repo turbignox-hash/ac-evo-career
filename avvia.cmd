@@ -166,6 +166,10 @@ rem stantio (>36h) o con --force; senza gioco installato esce 0 e non tocca nien
 node "%~dp0tools\salva-save.mjs" 2>nul
 rem scorciatoia «Carriera EVO» sul desktop: la crea solo se manca o e' senza icona (silenziosa)
 node "%~dp0tools\crea-scorciatoia.mjs" 2>nul
+rem app DENTRO il gioco (cruscotto + pitwall, 1/11): si installano/aggiornano da
+rem sole e in silenzio; parlano solo quando copiano qualcosa o se manca la mod
+rem ACE UI App Loader (senza mod il resto funziona comunque: GUI, carriera, gare)
+node "%~dp0tools\installa-gioco.mjs" --silenzioso 2>nul
 start "EVO Pitwall" /MIN "%~dp0gui-run.cmd"
 exit /b 0
 
