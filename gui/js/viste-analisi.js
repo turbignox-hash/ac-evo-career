@@ -46,7 +46,7 @@ function renderAutopsia(host, d){
       <div class="kpi"><div class="l">${tr({ it: 'Esito', en: 'Result' })}</div><div class="v ${e.dnf ? 'bad' : e.position === 1 ? 'good' : ''}">${e.dnf ? 'DNF' : 'P' + (e.position ?? '?')}<span class="faint" style="font-size:11px">/${e.gridSize ?? '?'}</span></div></div>
       <div class="kpi"><div class="l">${tr({ it: 'Punti', en: 'Points' })}</div><div class="v">+${e.points ?? 0}</div></div>
       <div class="kpi"><div class="l">${tr({ it: 'Giri', en: 'Laps' })}</div><div class="v">${e.laps ?? '—'}</div></div>
-      <div class="kpi"><div class="l">${tr({ it: 'Gap vincitore', en: 'To winner' })}</div><div class="v">${Number.isFinite(e.gapMs) ? fmtSecMs(e.gapMs, false).replace('+', '+') : '—'}</div></div>
+      <div class="kpi"><div class="l">${e.position === 1 ? tr({ it: 'Margine sul 2°', en: 'Margin to P2' }) : tr({ it: 'Gap vincitore', en: 'To winner' })}</div><div class="v">${e.position === 1 ? (Number.isFinite(e.secondGapMs) ? fmtSecMs(e.secondGapMs, false) : '—') : (Number.isFinite(e.gapMs) ? fmtSecMs(e.gapMs, false).replace('+', '+') : '—')}</div></div>
     </div>
     ${(d.attributions ?? []).map((a) => `
       <div style="display:flex;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px dashed var(--line,#ddd)">
@@ -88,6 +88,10 @@ function renderTetto(host, d){
 async function renderAB(host){
   if (!host) return;
   host.innerHTML = `<h2>⚖️ ${tr({ it: 'Banco A/B dei setup', en: 'Setup A/B bench' })} <span class="h-act">${tr({ it: 'due sessioni MoTeC, il diff e il tempo perso per zona', en: 'two MoTeC sessions, the channel diff and time lost per zone' })}</span></h2>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:6px">
+      <select id="ab-f-car" style="min-width:180px"><option value="">${tr({ it: 'tutte le auto…', en: 'all cars…' })}</option></select>
+      <select id="ab-f-track" style="min-width:180px"><option value="">${tr({ it: 'tutte le piste…', en: 'all tracks…' })}</option></select>
+    </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center">
       <select id="ab-a" style="min-width:250px"><option value="">${tr({ it: 'sessione A (base)…', en: 'session A (base)…' })}</option></select>
       <select id="ab-b" style="min-width:250px"><option value="">${tr({ it: 'sessione B (prova)…', en: 'session B (trial)…' })}</option></select>
@@ -103,9 +107,29 @@ async function renderAB(host){
     it: 'Nessuna sessione MoTeC ancora: il banco si attiva da solo dopo la prima uscita in pista (EVO scrive il file .ld quando chiudi la sessione).',
     en: 'No MoTeC session yet: the bench fills up by itself after the first track outing (EVO writes the .ld file when you close the session).',
   });
-  const opt = (s) => `<option value="${esc(s.file)}">${esc(s.car)} · ${esc(s.track)} · ${esc(s.when)}</option>`;
-  $('#ab-a', host).innerHTML += list.map(opt).join('');
-  $('#ab-b', host).innerHTML += list.map(opt).join('');
+  const opt = (s) => `<option value="${esc(s.file)}">${esc(s.car || '—')} · ${esc(s.track || '—')} · ${esc(s.when)}</option>`;
+  /* FILTRI A/B (1/11): auto e pista selezionabili. Con una decina di sessioni
+     sparse su più auto e piste, i due menu di sessione diventano lunghi da
+     scorrere: i filtri restringono le opzioni SENZA azzerare le scelte già
+     fatte (A/B restano selezionati finché la sessione è ancora visibile). */
+  const notaBase = $('#ab-note', host)?.textContent ?? '';
+  const uniqSorted = (key) => Array.from(new Set(list.map((s) => String(s[key] ?? '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  $('#ab-f-car', host).innerHTML += uniqSorted('car').map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  $('#ab-f-track', host).innerHTML += uniqSorted('track').map((t) => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  const riempiMenu = () => {
+    const fc = $('#ab-f-car', host).value, ft = $('#ab-f-track', host).value;
+    const visibili = list.filter((s) => (!fc || String(s.car ?? '') === fc) && (!ft || String(s.track ?? '') === ft));
+    for (const id of ['#ab-a', '#ab-b']) {
+      const sel = $(id, host), prima = sel.value;
+      sel.innerHTML = sel.options[0].outerHTML + visibili.map(opt).join('');
+      if (prima && visibili.some((s) => s.file === prima)) sel.value = prima;
+    }
+    if ($('#ab-note', host)) $('#ab-note', host).textContent = visibili.length ? notaBase
+      : tr({ it: 'Nessuna sessione con questi filtri: azzera auto o pista.', en: 'No session with these filters: reset car or track.' });
+  };
+  $('#ab-f-car', host).onchange = riempiMenu;
+  $('#ab-f-track', host).onchange = riempiMenu;
+  riempiMenu();
   $('#ab-go', host).onclick = async () => {
     const a = $('#ab-a', host).value, b = $('#ab-b', host).value;
     if (!a || !b) return toast(tr({ it: 'Scegli le due sessioni (A e B).', en: 'Pick the two sessions (A and B).' }), 'err');

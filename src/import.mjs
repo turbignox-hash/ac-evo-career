@@ -291,7 +291,7 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
       track: candidate.trackMatch ? result.track : (rnd.round.track ?? result.track),
       round: pending?.round ?? state.round,
       laps: info.laps, winnerLaps: info.winnerLaps, bestLap: info.bestLap,
-      totalTime: info.totalTime, gapMs: info.gapMs, car: info.car, carNumber: info.carNumber,
+      totalTime: info.totalTime, gapMs: info.gapMs, secondGapMs: info.secondGapMs, car: info.car, carNumber: info.carNumber,
       sectors: secAnalysis,
       durationMin: rnd.round?.durationMin ?? null,
     };

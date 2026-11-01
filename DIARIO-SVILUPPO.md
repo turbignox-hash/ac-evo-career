@@ -320,12 +320,17 @@ La bozza in [IDEA-POST-PRESENTAZIONE.md](IDEA-POST-PRESENTAZIONE.md) è verifica
 Per andare in luce servono:
 
 1. la release pubblica (DA-7: che dipende da DA-1, DA-3, DA-4 — i collaudii
-   che solo la pista può dare);
+   che solo la pista può dare): il PACCHETTO v0.1.45 è già costruito e
+   provato (697/697 test, danza amico 24/24 — [report/release-0.1.45.md](report/release-0.1.45.md));
+   manca SOLO il gesto: push + `crea-release.mjs` con la zip come asset
 2. gli screenshot della GUI in docs/screenshots — il post li cita e la cartella
    oggi non li ha tutti;
 3. allineare i NOMI del post ai VERI nomi degli schermi (claim n.1:
    «Campionati a miscuglio» la GUI NON lo dice — dice «Pools sorteggiati…»);
-4. decidere il CANALE (forum, subreddit, entrambi) e l'apertura IT/EN.
+4. decidere il CANALE (forum, subreddit, entrambi) e l'apertura IT/EN — il
+   doppio linguaggio è già vivo nella bozza bilingue rigo per rigo: resta l'ORDINE
+   (IT in testa e EN rincodato, da fissare col canale) — RESIDUO a tabella
+   R1–R3 in [IDEA-POST-PRESENTAZIONE.md](IDEA-POST-PRESENTAZIONE.md) (agg. 1/11).
 
 Il momento giusto: DOPO la release pubblica. Finché no, il post resta
 nel cassetto con il verdetto attaccato.
@@ -1885,3 +1890,51 @@ Weekend-roster (trapianto delle celle nel blocco weekend, idempotente con potatu
 verify di rilettura, 7/7 sandbox); riavvia-webui che scopre da solo il processo sulla
 porta; banner di riavvio nella GUI; audit dei dati della carriera; gara al volo con
 griglia dal pool.
+
+### 31/10/2026 — Giorno dello 0,00 finto (vittoria COTA Coppa Peugeot)
+La scheda autopsia di COTA raccontava la VITTORIA col linguaggio della sconfitta:
+«Gap 0,00s su 3 giri: ~0,00s al giro da ridare al vincitore» — cioè a me stesso
+(gapMs per il vincitore È sempre 0: mio tempo − tempo vincitore).
+- [results.mjs](src%2Fresults.mjs) — `classify` calcola `secondGapMs`: per P1 il
+  margine VERO è il tempo di P2 − il mio (37,04s su COTA), non il gap nullo;
+- [analisi.mjs](src%2Fanalisi.mjs) — l'autopsia nella vittoria: se il margine
+  c'è dice «margine sul secondo 37,04s su 3 giri (~12,35s al giro di vantaggio)»,
+  se manca meglio il silenzio che un 0,00 finto; la voce `entry` per la GUI porta
+  anche position e secondGapMs;
+- [viste-analisi.js](gui%2Fjs%2Fviste-analisi.js) — il KPI «Gap vincitore» diventa
+  «Margine sul 2°» quando il vincitore sei tu;
+- ritorno di mano sulla gara GIÀ importata: il file risultato normale di COTA
+  (261031-2357, ancora in Saved Games\ACE\Results) ricalcolato e il solo campo
+  `secondGapMs` scritto in save (backup `evo-career.save.json.bak-backfill-secondgap`).
+- Prove: [test/analisi.test.mjs](test%2Fanalisi.test.mjs) 15/15 (nuovo caso vittoria
+  con margine + caso senza margine = silenzio), classify reale sul file di ieri
+  (P1/15, secondGapMs 37036), endpoint `/api/autopsy` vivo con il nuovo testo.
+
+### 1/11 — Release 0.1.46 preparata: l'autopsia della vittoria e il battito coi ms
+La parte LOCALE della checklist ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md))
+su richiesta Mauro («segna questo fix nel CHANGELOG e prepara la release»):
+
+- **[CHANGELOG.md](CHANGELOG.md)** voce v0.1.46 scritta dai fatti del delta:
+  il fix dello 0,00 finto end-to-end ([results.mjs](src/results.mjs) calcola
+  `secondGapMs`, l'autopsia lo racconta o tace, [viste-analisi.js](gui/js/viste-analisi.js)
+  mostra «Margine sul 2°»; la gara già importata ricalcolata con backup),
+  il battito del server col ping in ms ([core.js](gui/js/core.js)), i filtri
+  auto/pista del banco A/B, l'icona meteo nel righello dell'agenda
+  ([agenda.mjs](src/agenda.mjs) + [viste-b.js](gui/js/viste-b.js)), il
+  commento uscito dal template della scheda «Prossima gara» e la legge del
+  ritmo publisher↔app ([uiapp-periodo.test.mjs](test/uiapp-periodo.test.mjs)).
+- **Suite completa in sandbox: 701/701** (da 697), exit 0; lint Biome a 0
+  diagnostica sui 299 file.
+- **Danza del PC amico vergine dal sorgente: 24/24** (zipball dal ramo,
+  installer in sandbox, primo+secondo avvio, nessuna pagina consegnata al
+  loader).
+- **README.it.md e README.md**: verificati allineati tra loro — parlano a
+  fasce storiche (0.1.13–0.1.41) e nessun rigo tocca la versione di
+  release: niente da allineare.
+- **Bump**: `npm run bump` 0.1.45 → **0.1.46**.
+- Commit locale con messaggio di release, tag `v0.1.46`, pacchetto-amico
+  costruito dal commit della testa (zip in `pacchetti/`, `build-id.txt`
+  dentro) e corpo della release in `tmp/corpo-release-0.1.46.md`.
+RESTA NELLA MANO DI MAURO (come da checklist: la sincronizzazione passa dal
+suo script): push su off-site e poi la GitHub Release con la zip come asset
+via `tools/crea-release.mjs`.

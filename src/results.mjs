@@ -225,8 +225,13 @@ export function classify(result, entry) {
   const rawPos = d ? toPosition(d.position) : null;
   const off = d ? officialPositionOf(result, d) : { position: null, dsq: false, penalty: null };
   const dnf = !d || !d.total_time || Number(d.laps ?? 0) === 0 || off.dsq;
+  const pos = dnf ? drivers.length : (off.position ?? rawPos);
+  // MARGINE SUL SECONDO (1/11): gapMs per il vincitore è SEMPRE 0 (tempo mio −
+  // tempo vincitore), quindi l'autopsia direbbe «0,00s da ridare a me stesso».
+  // Se sono P1 calcolo anche il distacco da P2: è il margine vero della vittoria.
+  const second = drivers.find((x) => Number(x.position) === (zeroBased ? 1 : 2));
   return {
-    position: dnf ? drivers.length : (off.position ?? rawPos),   // considerata la penalità
+    position: pos,   // considerata la penalità
     rawPos,
     gridSize: drivers.length,
     dnf,
@@ -239,6 +244,10 @@ export function classify(result, entry) {
     winnerTime: winner?.total_time ?? null,
     gapMs: (!dnf && d?.total_time && winner?.total_time && Number.isFinite(lapToMs(d.total_time)) && Number.isFinite(lapToMs(winner.total_time)))
       ? lapToMs(d.total_time) - lapToMs(winner.total_time)
+      : null,
+    // margine sul secondo: solo chi passa P1 ce l'ha, gli altri si tengono gapMs
+    secondGapMs: (!dnf && pos === 1 && d?.total_time && second?.total_time && Number.isFinite(lapToMs(d.total_time)) && Number.isFinite(lapToMs(second.total_time)))
+      ? lapToMs(second.total_time) - lapToMs(d.total_time)
       : null,
     // il gioco scrive car_name già completo di marchio ("Mazda MX-5 ND Cup"):
     // se il brand è già incluso non va ripetuto (evita "Mazda Mazda ...")

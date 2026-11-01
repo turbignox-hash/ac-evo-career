@@ -536,13 +536,17 @@ async function drawSrvLive(){
   if (!el) return;                       // il piede si ricostruisce a ogni refreshBoot: pazienza, riprova
   let r = null;
   try {
+    // tempo di risposta in ms (2/11, richiesta Mauro): a colpo d'occhio vicino al ·
+    const t0 = performance.now();
     const res = await fetch('/api/ping', { signal: AbortSignal.timeout(2000) });
+    const ms = Math.round(performance.now() - t0);
     r = res.ok ? await res.json() : null;
+    el._ms = ms;   // riusato sotto nel testo del battito
   } catch { /* non risponde: sotto si dipinge rosso */ }
   if (r?.ok) {
     srvUltima = r;
-    el.innerHTML = `<span style="color:var(--good,#3fb26f)">●</span> server vivo · porta <b>${esc(r.port)}</b> · build ${esc(r.build?.semver ?? '?')}${r.build?.hash ? ` · ${esc(r.build.hash)}` : ''}`;
-    el.title = tr({ it: 'Battito del server locale, aggiornato in tempo reale (ogni 4 s): porta d\'ascolto e build che gira ora.', en: 'Local server heartbeat, updated live (every 4 s): listening port and the build running now.' });
+    el.innerHTML = `<span style="color:var(--good,#3fb26f)">●</span> server vivo · porta <b>${esc(r.port)}</b> · build ${esc(r.build?.semver ?? '?')}${r.build?.hash ? ` · ${esc(r.build.hash)}` : ''}${Number.isFinite(el._ms) ? ` · ${el._ms} ms` : ''}`;
+    el.title = tr({ it: 'Battito del server locale, aggiornato in tempo reale (ogni 4 s): porta d\'ascolto, build che gira ora e tempo di risposta del ping.', en: 'Local server heartbeat, updated live (every 4 s): listening port, the build running now and the ping response time.' });
   } else {
     el.innerHTML = `<span style="color:#e08a9a">●</span> server non risponde${srvUltima ? ` · porta ${esc(srvUltima.port)}` : ''} — riparte da avvia.cmd`;
     el.title = tr({ it: 'Il ping non torna: il server locale è giù (o si sta riavviando). La riga torna verde da sola appena risponde.', en: 'The ping is not coming back: the local server is down (or restarting). The line goes green by itself as soon as it answers.' });

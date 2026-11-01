@@ -656,14 +656,16 @@ function drawCardInto(el, card){
     $('#b-season-end', el).onclick = () => seasonEndFlow(false);
     return;
   }
+  /* AVVISO «PRIMA VOLTA IN EVO» TOLTO (1/11, richiesta Mauro: PC vergine
+     e la tecnica del Race Weekend è ormai istruita nella guida): il banner
+     rosso pesava sulla scheda di ogni gara nuova. Il campo weekendSeen resta
+     nel JSON della card: utile a chi collauda, invisibile qui.
+     (Il commento era finito DENTRO il template literal e si stampava in
+     pagina come testo: fuori dall'assegnazione, dove deve stare.) */
   el.innerHTML = `<h2>${LI.flag} ${tr({ it: 'Prossima gara', en: 'Next race' })} <span class="h-act">R${card.roundIndex+1} ${tr({ it: 'di', en: 'of' })} ${card.totalRounds}${card.agendaDayLabel ? ` · ${esc(card.agendaDayLabel)}` : ''}</span></h2>
 
     <div class="title">${CFLAG} ${esc(card.roundName)}</div>
     <div class="sub">${window.serLinkHtml(card.nodeDisplay, { node: card.nodeId })} · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(card.entryFee)} € · ${tr({ it: 'si paga una volta per round', en: 'paid once per round' })}${card.agendaDay ? (card.agendaDay <= (boot.header?.day ?? 0) ? '' : ' · ' + tr({ it: 'in calendario per il ', en: 'scheduled for ' }) + esc(card.agendaDayLabel ?? (tr({ it: 'giorno ', en: 'day ' }) + card.agendaDay))) : ''}</div>
-    /* AVVISO «PRIMA VOLTA IN EVO» TOLTO (1/11, richiesta Mauro: PC vergine
-     e la tecnica del Race Weekend è ormai istruita nella guida): il banner
-     rosso pesava sulla scheda di ogni gara nuova. Il campo weekendSeen resta
-     nel JSON della card: utile a chi collauda, invisibile qui. */
     ${card.carImage ? `<div style="display:flex;align-items:center;gap:12px;margin:8px 0 4px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2,#121822)">
       <img src="${card.carImage}" alt="${esc(card.carName ?? '')}" style="width:150px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#0d1118">
       <div style="font-size:12.5px;flex:none;min-width:180px;max-width:250px"><b>${tr({ it: 'Auto della giornata', en: "Today's car" })}</b><br>${window.carLinkHtml(card.carName)}

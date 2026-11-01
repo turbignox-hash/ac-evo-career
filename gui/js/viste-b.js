@@ -67,7 +67,7 @@ async function drawAgenda(m){
         <span class="ag-round">R${g.roundIndex+1}<i>/${g.totalRounds}</i></span>
         <span class="ag-disc" title="${esc(dNames.get(g.discipline) ?? g.discipline ?? '')}">${discIcon(dNames.get(g.discipline) ?? g.discipline)}</span>
         <div class="ag-nome" style="flex:1;min-width:0">${esc(g.display)}</div>
-        <span class="ag-ora">${String(g.hour).padStart(2,'0')}:00</span>
+        <span class="ag-ora" title="${esc(g.weather ?? tr({ it: 'meteo previsto per questa ronda', en: 'forecast weather for this round' }))}">${g.wx == null ? '' : (WX_ICON[Number(g.wx)] ?? '')} ${String(g.hour).padStart(2,'0')}:00</span>
       </div>
       <div class="ag-track">␦ ${esc(g.track)}${g.laps?` · ${g.laps} ${tr({ it: 'giri', en: 'laps' })}`:''}${g.scheduledDay && a.viewDay ? (g.scheduledDay === a.viewDay ? '' : ` · <span class="tag gold">${tr({ it: 'in agenda il ', en: 'scheduled for ' })}${esc(a.viewLabel ?? '')}</span>`) : ''}</div>
       <div class="ag-bot">

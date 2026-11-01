@@ -4,6 +4,58 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md) (il registro completo). Il save in
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
+## v0.1.46 — 1/11/2026
+
+- **Autopsia della vittoria senza più lo 0,00 finto** (il caso COTA del
+  31/10): `gapMs` per chi vince è SEMPRE 0 (tempo mio − tempo vincitore),
+  quindi la scheda raccontava la VITTORIA col linguaggio della sconfitta —
+  «Gap 0,00s su 3 giri: ~0,00s al giro da ridare al vincitore», cioè a me
+  stesso. Ora [results.mjs](src/results.mjs) calcola anche `secondGapMs`:
+  per P1 il margine vero è il tempo del SECONDO classificato meno il mio
+  (37,04s a COTA). [analisi.mjs](src/analisi.mjs) nella vittoria lo dice
+  («Vittoria: margine sul secondo 37,0s su 3 giri (~12,3s al giro di
+  vantaggio)») e, se manca, meglio il silenzio che uno 0,00 finto;
+  [import.mjs](src/import.mjs) porta il campo nel save a ogni import.
+  La gara già importata (file risultato di COTA ancora in
+  `Saved Games\ACE\Results`) ricalcolata per la mano: in save il solo
+  campo nuovo, con backup.
+- **KPI «Gap vincitore» → «Margine sul 2°» quando il vincitore sei tu**
+  ([viste-analisi.js](gui/js/viste-analisi.js)): stessa casella, la cifra
+  giusta; per i posti da 2 in poi la voce resta com'era.
+- **Battito del server col tempo di risposta** (richiesta Mauro): il piede
+  della GUI misura anche il ping in ms — «server vivo · porta 4689 · build
+  0.1.46 · a1b2c3d · 12 ms» ([core.js](gui/js/core.js)), il titolo della
+  voce lo racconta.
+- **Filtri auto e pista nel banco A/B** (richiesta Mauro: «i due menu di
+  sessione diventano lunghi»): sopra ai selettori due tendine che
+  restringono l'elenco SENZA azzerare le scelte già fatte (A e B restano
+  selezionati finché la sessione è visibile); se i filtri escludono tutto
+  la nota lo dice invece di lasciare menu vuoti muti.
+  [viste-analisi.js](gui/js/viste-analisi.js).
+- **Icona del meteo nel righello dell'agenda** (richiesta Mauro): accanto
+  all'ora di ogni ronda la STESSA mappa `WX_ICON` del piano di gara —
+  ☀️🌤️☁️🌦️🌧️⛈️ — con nel tooltip il meteo previsto
+  ([viste-b.js](gui/js/viste-b.js)). Il codice preset della ronda lo calcola
+  [agenda.mjs](src/agenda.mjs) (`wx`), il nome resta in parole accanto.
+- **Un commento si stampava in pagina**: nella scheda «Prossima gara» la
+  nota di cancellazione dell'avviso «Prima volta in EVO» era rimasta
+  DENTRO il template literal e usciva come testo della pagina; rimessa
+  fuori, dove deve stare ([viste-a.js](gui/js/viste-a.js)).
+- **La legge del ritmo fra publisher e app in gioco** (test nuovo):
+  `PERIODO_MS` vive in TRE file senza nessun import fra loro —
+  il publisher ([uiapp-pub.mjs](src/uiapp-pub.mjs)), il Cruscotto e il
+  Pitwall — e i soli commenti dicevano «se lo cambi, cambia là» come
+  fiducia orale.
+  [uiapp-periodo.test.mjs](test/uiapp-periodo.test.mjs) la rende una
+  spunta con nome: STESSO numero, STESSA formula dello slot
+  (`ui-<slot>.json` da ENTRAMBE le parti) e sondaggio a metà periodo (le
+  app leggono ogni `PERIODO_MS/2`, il publisher scrive ogni `PERIODO_MS`).
+- **Suite completa in sandbox: 701 test verdi** (da 697 di v0.1.45), 0
+  cadute; test nuovi: caso vittoria con margine (e senza margine =
+  silenzio) in [analisi.test.mjs](test/analisi.test.mjs), più la legge del
+  ritmo. Lint Biome secca sui 299 file. Danza del PC amico vergine dal
+  sorgente: **24/24 verifiche verdi**.
+
 ## v0.1.45 — 1/11/2026
 
 - **La banda di serie prende il posto del ladder preistorico nel customgrid**

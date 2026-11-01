@@ -2037,7 +2037,7 @@ async function api(context0, _req, res, action, body) {
           nodeId: g.node.nodeId, display: g.node.display, level: g.node.level ?? 0,
           discipline: g.node.discipline, roundIndex: g.index, totalRounds: g.node.calendar.length,
           season: g.season, name: g.name, track: g.track, laps: g.laps, hour: g.hour,
-          weather: g.weather ?? null, scheduledDay: g.scheduledDay,
+          weather: g.weather ?? null, wx: g.wx ?? null, scheduledDay: g.scheduledDay,
           // LA PORTA: la gara di OGGI con l'ora già oltre l'orologio resta visibile
           // ma si griggia (la scaletta non torna indietro); server la blocca pure.
           passata: portaGiornata(state, viewDay, g.hour),

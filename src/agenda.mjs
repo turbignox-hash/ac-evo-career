@@ -16,6 +16,7 @@
 
 import { nodeById, gateStatus, grigliaSimEstesa } from './state.mjs';
 import { lang } from './lang.mjs';
+import { presetForLabel } from './weather.mjs';
 
 export const CADENZA_GIORNI = 7;         // una ronda a SETTIMANA per le serie iscritte (scelta Mauro)
 export const CADENZA_LIVELLI = 3;        // cadenza MINIMA delle serie non iscritte (gare "altrove")
@@ -222,6 +223,10 @@ export function nextUnplayedRound(ladder, state, node) {
     track: names[round.track] ?? round.track,
     laps: round.laps ?? null,
     hour: hourOv ?? round.hour ?? null,
+    // wx = IL CODICE preset EVO della ronda (0 sereno … 4 leggera, 5 pioggia,
+    // 6 forte): la GUI lo traduce in icona con WX_ICON; «weather» resta il
+    // NOME (testo) per chi lo legge in parole.
+    wx: round.weather == null ? null : (presetForLabel(String(round.weather)) ?? (typeof round.weather === 'number' ? round.weather : null)),
     weather: ladder.weatherNames?.[String(round.weather)] ?? null,
     scheduledDay: scheduledDay(ladder, state, node),
   };
@@ -260,7 +265,7 @@ export function racesOnDay(ladder, state, d) {
       if (r && slot != null && slot === d) {
         out.push({
           node, index: r.index, season: r.season, name: r.name, trackId: r.trackId,
-          track: r.track, laps: r.laps, hour: r.hour, weather: r.weather,
+          track: r.track, laps: r.laps, hour: r.hour, weather: r.weather, wx: r.wx,
           scheduledDay: slot, raceDay: r.scheduledDay,
           late: r.scheduledDay < d, onSchedule: r.scheduledDay >= d,
           champStarted: false,  // è al SUO slot: campionato non "già iniziato"
@@ -301,6 +306,7 @@ export function racesOnDay(ladder, state, d) {
       track: names[round.track] ?? round.track,
       laps: round.laps ?? null, hour: round.hour ?? null,
       weather: ladder.weatherNames?.[String(round.weather)] ?? null,
+      wx: round.weather == null ? null : (presetForLabel(String(round.weather)) ?? (typeof round.weather === 'number' ? round.weather : null)),
       scheduledDay: d, onSchedule: true, late: false, procedural: true,
       // il campionato è GIÀ PARTITO se questo giorno mostra la R2+: la sua R1
       // è caduta giorni fa — serve a "nascondi gare già iniziate"

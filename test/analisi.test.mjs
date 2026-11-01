@@ -88,6 +88,34 @@ test('raceAutopsy: ritiro — headline abbandonata in EN e IT, niente «handed i
   });
   assert.match(aIt.narrative[0], /Gara abbandonata/);
 });
+
+test('raceAutopsy: vittoria — il margine sul secondo prende il posto dello 0,00 finto', () => {
+  // come in classifica HE, gapMs del vincitore è SEMPRE 0 (tempo mio − tempo
+  // vincitore): la voce «Distanza» deve parlare del MARGINE (secondGapMs,
+  // calcolato in classify dal file grezzo), non dire «ridare 0,00s a me stesso».
+  setLang('it');
+  const a = raceAutopsy(ladder, {
+    node: 'serie_gt3', season: 1,
+    results: { serie_gt3: [{
+      ...entry, position: 1, gapMs: 0, secondGapMs: 37036, points: 20,
+      gridPosition: 1, laps: 3, winnerLaps: 3,
+    }] },
+  });
+  assert.equal(a.entry.position, 1);
+  assert.equal(a.entry.secondGapMs, 37036);
+  const distanza = a.attributions.find((x) => x.title === 'Distanza');
+  assert.ok(distanza, 'la voce Distanza nella vittoria c’è (con il margine)');
+  assert.match(distanza.text, /Vittoria: margine sul secondo 37,04s su 3 giri/);
+  assert.match(distanza.text, /~12,35s al giro di vantaggio/);
+  assert.ok(!distanza.text.includes('0,00'), 'niente 0,00 finto nel racconto della vittoria');
+
+  // senza margine (file dato senza P2 leggibile): SOLO un silenzio, niente voce Distanza
+  const aSenza = raceAutopsy(ladder, {
+    node: 'serie_gt3', season: 1,
+    results: { serie_gt3: [{ ...entry, position: 1, gapMs: 0, secondGapMs: null, laps: 3 }] },
+  });
+  assert.ok(!aSenza.attributions.some((x) => x.title === 'Distanza'), 'senza margine niente voce Distanza');
+});
 /* ==================================================================
    FETTA 31/11 — setupAB e seatMonteCarlo, gli UNICI DUE strumenti di
    analisi.mjs ancora senza test. Servivano due fixture che prima non

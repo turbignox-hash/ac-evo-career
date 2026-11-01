@@ -191,9 +191,20 @@ verdetto resta fresco:
 | 8 | Zavorre per traccia dai risultati veri + Mondiale skill | **VIVO** | grid-calib.mjs · world.mjs (skill + forma) |
 | 9 | Sicurezza save: backup, anti-doppioni, integrità, rassegna | **VIVO** | integrity.mjs · import.mjs (registro anti-doppioni) · review.mjs · backup-rotation.test.mjs |
 | 10 | Giri liberi con libro PB | **VIVO** | hotlaps.mjs (carro×pista, giro ideale dai settori) |
-| 11 | Install amico un file + auto-update GitHub | **VIVO** | installa.cmd · core.js barra «Aggiorna ora» (fetch+merge+test, save intatto) — v0.1.44 in package.json |
+| 11 | Install amico un file + auto-update GitHub | **VIVO** | installa.cmd · core.js barra «Aggiorna ora» (fetch+merge+test, save intatto) — v0.1.45 in package.json |
 | 12 | (ex) «in gioco c'è solo Cruscotto» | **MORTO** | Pitwall in gioco da 31/10 (radio, verdetto, finestra, sincro) — visto sopra |
 
-Cosa manca per il post VERI (→ DA-19 nel diario): la release pubblica
-(DA-7 al suo turno), la caccia agli screenshot della GUI e l'assicurazione
-che i nomi del post usano i VERI nomi degli schermi.
+## RESIDUO DA-19 (agg. 1/11, dopo la v0.1.45) — Remaining items before the real post
+
+Tre cose separano la bozza dal post VERO — una è garantita, due sono un gesto/una scelta:
+
+| # | Residuo | Stato 1/11 | Cosa serve per chiudere |
+|---|---|---|---|
+| R1 | **Release pubblica** (DA-7 al suo turno) | Il pacchetto c'È e prova: `pacchetti/ac-evo-career-amico-v0.1.45-6f796e1.zip` su [report/release-0.1.45.md](report/release-0.1.45.md) — 697/697 test, danza amico 24/24 | il gesto di Mauro: `sincronizza-git.cmd` (push) + `node tools/crea-release.mjs v0.1.45 … --asset pacchetti/ac-evo-career-amico-v0.1.45-6f796e1.zip`. Il post segue la release, mai il contrario |
+| R2 | **Canale** | NON deciso | forum EVO, subreddit (o entrambi): il TONO e la lunghezza cambiano — forum lungo e tecnico, subreddit corto con le foto in testa. Da scegliere PRIMA di montare il post |
+| R3 | **Apertura IT/EN** | IL DOPPIO ESISTE: la bozza è bilingue rigo per rigo — resta solo l'ORDINE | l'apertura IT (il pubblico EVO italiano è quello del copilota) e l'EN rincodata; si fissa insieme a R2 |
+
+Restano fuori dalla tabella (già tracciate altrove): la caccia agli screenshot
+della GUI (taccuino nel diario, § DA-19) e l'assicurazione che i nomi del
+post usano i VERI nomi degli schermi (claim n.1 del verdetto: nel post si
+dice «Pools sorteggiati…» NON «Campionati a miscuglio»).

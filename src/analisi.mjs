@@ -124,7 +124,20 @@ export function raceAutopsy(ladder, state, { nodeId = state.node } = {}) {
       it: `Ritiro al giro ${entry.laps ?? '?'} (il leader ne aveva completati ${entry.winnerLaps}). Nessun premio e la classifica resta in mano ai rivali.`,
       en: `Retired on lap ${entry.laps ?? '?'} (the leader had completed ${entry.winnerLaps}). No prize and the standings stay with the rivals.`,
     }), 'bad');
-  } else if (Number.isFinite(entry.gapMs) && entry.gapMs != null && Number(entry.laps ?? 0) > 0) {
+  } else if (entry.position === 1 && Number(entry.laps ?? 0) > 0) {
+    // VITTORIA (1/11): gapMs per chi vince è SEMPRE 0 (tempo mio − tempo
+    // vincitore) — l'autopsia direbbe «~0,00s al giro da ridare al vincitore»,
+    // cioè a te stesso. Il margine che conta è quello sul secondo (secondGapMs,
+    // calcolato in classify dal file grezzo): se c'è lo si racconta, senza
+    // margine meglio il silenzio che uno 0,00 finto.
+    if (Number.isFinite(entry.secondGapMs)) {
+      const perLap = entry.secondGapMs / Math.max(1, entry.laps);
+      push(tr({ it: 'Distanza', en: 'Distance' }), tr({
+        it: `Vittoria: margine sul secondo ${fmtSec(entry.secondGapMs / 1000, false)} su ${entry.laps} giri (~${fmtSec(perLap / 1000, false)} al giro di vantaggio).`,
+        en: `Victory: margin over P2 ${fmtSec(entry.secondGapMs / 1000, false)} over ${entry.laps} laps (~${fmtSec(perLap / 1000, false)} per lap ahead).`,
+      }), 'info');
+    }
+  } else if (!entry.dnf && Number.isFinite(entry.gapMs) && entry.gapMs != null && Number(entry.laps ?? 0) > 0) {
     const perLap = entry.gapMs / Math.max(1, entry.laps);
     const shortLaps = Number(entry.winnerLaps ?? 0) > entry.laps ? tr({
       it: ` Ti sei fermato ${entry.winnerLaps - entry.laps} giro(i) prima del leader: tempo in sosta o difficoltà telematiche escluse, l'età della gara fa il resto.`,
@@ -153,6 +166,7 @@ export function raceAutopsy(ladder, state, { nodeId = state.node } = {}) {
     entry: {
       position: entry.dnf ? null : entry.position, gridSize: entry.gridSize, dnf: !!entry.dnf,
       laps: entry.laps ?? null, bestLap: entry.bestLap ?? null, gapMs: entry.gapMs ?? null,
+      secondGapMs: entry.secondGapMs ?? null,   // margine sul secondo della vittoria (1/11)
       points: entry.points ?? 0, car: entry.car ?? null, fl: !!entry.fl,
       gridPosition: entry.gridPosition ?? null, at: entry.at ?? null,
     },
