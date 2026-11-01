@@ -7,8 +7,7 @@
  *   • le classi con la loro storia di convalida (per-traccia incluso)
  *   • i bottoni: applica bilancio, rimuovi auto escluse, intervallo AI
  * Scrittura protetta: EVO deve essere CHIUSO (il guardiano lo dice da sé).
- */
-async function drawGridTab(m){
+ */  async function drawGridTab(m){
   const data = await api('grid');
   const pct = (v) => Number(v ?? 0).toFixed(1).replace(/\.0$/, '') + '%';
   const kgpct = (c) => `${c.kg}kg / ${pct(c.pct)}`;
@@ -29,9 +28,26 @@ async function drawGridTab(m){
   }
   const monoTinte = Object.entries(tintePerModello).filter(([, s]) => s.size < 2).map(([n]) => n);
   const tinteRiga = Object.entries(tintePerModello).map(([n, s]) => `${esc(n)} ×${s.size}`).join(' · ');
+  // DUE REGISTRI A VISTA (richiesta Mauro 1/11: «mostra accanto al customgrid
+  // anche la banda attiva dei cursori»): il campo AI del FILE (aiMin/aiMax,
+  // sopra) è il registro scritto; la banda dei CURSORI del weekend
+  // (84–85 + trim, pannello Difficoltà) è quello vivo del Prepara. L'uno non
+  // comanda l'altro: un «Imposta intervallo AI» a mano sovrascrive il file
+  // SENZA toccare i cursori — per questo li si legge accanto, con il
+  // confronto pronto (allineata / da riscrivere col Prepara).
+  const bS = data.bandaSerie ?? null;
+  const bFile = (data.aiMin != null && data.aiMax != null) ? [Number(data.aiMin), Number(data.aiMax)] : null;
+  const bAllineata = !!(bS && bFile && bFile[0] === bS.banda[0] && bFile[1] === bS.banda[1]);
+  const bTag = bS
+    ? (bFile == null ? `<span class="tag warn">${tr({ it: 'file senza AI scritta', en: 'file has no AI range' })}</span>`
+      : bAllineata ? `<span class="tag green">${tr({ it: 'allineata al campo', en: 'aligned with the field' })}</span>`
+      : `<span class="tag warn">${tr({ it: 'da riscrivere (Prepara)', en: 'needs a rewrite (Prepara)' })}</span>`)
+    : '';
+  const bTesto = bS ? `${bS.banda[0]}–${bS.banda[1]}${bS.trim ? ` (trim ${bS.trim > 0 ? '+' : ''}${bS.trim})` : ''}` : null;
   m.innerHTML = `
   <div class="panel">
-    <h2>${tr({ it: 'Griglia', en: 'Grid' })} <span class="muted" style="font-size:12.5px">${data.exists ? `${data.cells.length} ${tr({ it: 'celle', en: 'cells' })} · ${data.drivers} ${tr({ it: 'piloti', en: 'drivers' })} · AI ${data.aiMin ?? '–'}–${data.aiMax ?? '–'} · PI ${data.piMin ?? '–'}–${data.piMax ?? '–'}` : ` (${tr({ it: 'file customgrid non trovato', en: 'customgrid file not found' })})`}</span></h2>
+    <h2>${tr({ it: 'Griglia', en: 'Grid' })} <span class="muted" style="font-size:12.5px">${data.exists ? `${data.cells.length} ${tr({ it: 'celle', en: 'cells' })} · ${data.drivers} ${tr({ it: 'piloti', en: 'drivers' })} · AI ${data.aiMin ?? '–'}–${data.aiMax ?? '–'} ${bS ? `<span class="muted">(${tr({ it: 'campo del file', en: 'file field' })})</span>` : ''} · PI ${data.piMin ?? '–'}–${data.piMax ?? '–'}` : ` (${tr({ it: 'file customgrid non trovato', en: 'customgrid file not found' })})`}</span></h2>
+    ${bS ? `<div style="margin:2px 0 8px;font-size:12.5px">${tr({ it: 'Banda attiva dei cursori del weekend:', en: 'Active band of the weekend sliders:' })} <b>${bTesto}</b> ${bTag}</div>` : ''}
     ${data.classe ? `<div style="margin:6px 0 10px">${tr({ it: 'Classe combaciata:', en: 'Matched class:' })} <b>${esc(data.classe)}</b>${data.perTraccia ? ` · ${tr({ it: 'per-traccia', en: 'per-track' })} <b>${esc(data.perTraccia)}</b> ${data.convalidato ? badgeOk : badgeKo}` : ''}</div>` : `<div class="muted" style="margin:6px 0 10px">${tr({ it: 'Nessuna classe combacia con le auto della griglia', en: 'No class matches the grid cars' })}</div>`}
     ${data.exists && tinteRiga ? `<div class="muted" style="margin:2px 0 8px;font-size:12px">${tr({ it: 'Tinte (liverie):', en: 'Liveries:' })} ${tinteRiga}${monoTinte.length ? ` — <b style="color:#d9a83e">${tr({ it: 'MONOCOLORE:', en: 'MONOCHROME:' })} ${esc(monoTinte.join(', '))}</b> → ${tr({ it: 'in EVO genera più LIVERIE della stessa auto e APPLICA, oppure (avversari) tintePrestate: true dalla serie in grid-classes.json', en: 'in EVO create more LIVERIES of the same car and APPLICA, or (rivals) tintePrestate: true on the series in grid-classes.json' })}` : ''}</div>` : ''}
     ${data.escluseClasse?.length || data.escluseTraccia?.length ? `<div class="banner" style="border-color:#d9a83e">${tr({ it: 'Auto escluse ancora presenti nel file: {A} → usa "Applica bilancio" per rimuoverle', en: 'Excluded cars still in the file: {A} → use "Apply balance" to remove them' }).replace('{A}', esc([...(data.escluseClasse ?? []), ...(data.escluseTraccia ?? [])].join(' · ')))}</div>` : ''}
@@ -102,6 +118,7 @@ async function drawGridTab(m){
       <button class="ghost" id="g-drop">${tr({ it: 'Rimuovi auto escluse dal file', en: 'Remove excluded cars from file' })}</button>
       <button class="ghost" id="g-reload">${tr({ it: 'Ricarica', en: 'Reload' })}</button>
     </div>
+    ${bS ? `<div class="muted" style="font-size:11.5px">${tr({ it: 'banda viva dei cursori: ', en: 'live slider band: ' })}<b>${bTesto}</b>${bAllineata ? ` — <span class="tag green" style="font-size:11px">${tr({ it: 'il campo del file combacia', en: 'the file field matches' })}</span>` : tr({ it: ' — il Prepara la scrive nel file', en: ' — Prepara writes it into the file' })}</div>` : ''}
     <div id="grid-out" style="margin-top:12px"></div>
     <div class="muted" style="font-size:11.5px;margin-top:10px">${tr({ it: '"Applica bilancio" riscrive zavorre/penalità della classe (con supplementi per-traccia se la traccia combacia) e rimuove dal pool le auto in escludiAuto (di classe o per-traccia).', en: '"Apply balance" rewrites the class ballast/penalties (with per-track supplements if the track matches) and removes escludiAuto cars from the pool (class-level or per-track).' })}</div>
   </div>`;

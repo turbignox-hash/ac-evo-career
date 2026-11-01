@@ -498,6 +498,34 @@ file in attesa:
 
 ## Registro del diario
 
+### 1/11 — Prova in sandbox del bottone (🌉) del pannello Copertura (richiesta Mauro: «verifica che il .carsetup nuove compaia e la chip passi a ✔»)
+
+Il pannello di DA-13 non aveva unit test («la rotta mangia sessioni MoTeC
+vere, la prova live è la verifica»): ora ne ha uno SU SANDBOX intera:
+[test/cover-ponte-sandbox.test.mjs](test/cover-ponte-sandbox.test.mjs).
+Un server webui VERO su porta 8743 (stesso schema di webui-smoke) girando con
+`ACE_DATA` = Saved Games finta: la Ferrari 296 GT3 ha il base setup su Imola
+(`Car Setups/…/Imola/Mio setup.carsetup`) e un .ld sintetico — steso col forte
+formato binario di laptrace/analisi (header 64 B, 5 canali, beacon nel .ldx) —
+su Red Bull Ring GP. `ACE_LIVE=0` tiene spenta la guardia della pista viva,
+così il test resta deterministico anche con EVO aperto sul PC.
+
+Il ciclo verificato, col POST ESATTO che il gestore del click in
+[viste-c.js](gui/js/viste-c.js) manda (`{ car, track: data-cover-bridge,
+srcFile: data-src }`):
+
+1. setup-cover → Red Bull Ring GP è in `missing` col `srcFile` che punta
+   al base di Imola: la chip ✖ con bottone 🌉 è quella che il server annuncia;
+2. setup-bridge col payload del bottone → `ok:true`, e il file NUOVO
+   `Car Setups/…/Red Bull Ring GP/Mio setup.carsetup` esiste sul disco,
+   byte per byte pari al base (payload letto e ricontrollato);
+3. setup-cover daccapo → la pista passa in `covered` (chip ✔,Files ×1) e
+   esce dalle mancanti; un secondo click sullo stesso bottone rifiuta in
+   modo civile con `already: true` («già coperta»), non un errore.
+
+Verifica: node --test del file 1/1 verde (~1 s), biome pulita. Nessun tocco
+al codice di produzione: il test PROVA il flusso già vivo.
+
 ### 1/11 — A gara finita la GUI arrivava tardi: il ritiro delle cifre fisse (richiesta Mauro: «Paddock è molto più veloce»)
 
 Percezione vera, indagine vera. Il Paddock beve fasce scritte ogni 2,5 s
@@ -1938,3 +1966,179 @@ su richiesta Mauro («segna questo fix nel CHANGELOG e prepara la release»):
 RESTA NELLA MANO DI MAURO (come da checklist: la sincronizzazione passa dal
 suo script): push su off-site e poi la GitHub Release con la zip come asset
 via `tools/crea-release.mjs`.
+
+### 1/11 — Collaudo a mano dei cursori della banda AI (richiesta Mauro: «trascina min e max salva davvero sui cursori di EVO»)
+Prova VIVA con il save di carriera vero e il gamemodesave vero
+(la partenza è fotografata: banda Coppa Peugeot 205 T16 84–85,
+override vivo, cursori EVO al disco 84–85).
+
+- **Cursori fermi in adattiva** (disabled, giusto così): per il collaudo
+  si passa a «fissa», che li sblocca, e a fine prova si torna alla foto.
+- **Il rilascio del cursore salva davvero**: al mouse-up la GUI manda
+  `difficulty-action {op:'range'}` con nodeId+min+max; il server di
+  [webui.mjs](src%2Fwebui.mjs) scrive `state.raceSettings` e chiama la
+  `setWeekendAi` di [tools/set-track.mjs](tools%2Fset-track.mjs) che
+  riscrive i campi 30/31 del gamemodesave. Letti col lettore del tool:
+  rilascio del min su 83 → banda 83–83 nel save E **cursori EVO al
+  disco 83/83**; rilascio del max su 84 → save 83–84 E **disco 83/84**.
+  La posta del tool registra «Scritti anche i cursori del gioco —
+  valgono alla PROSSIMA apertura del weekend», e alla scrittura nasce
+  il suo `.bak-ai` in GameModes.
+- **La tastiera non salva (limite annotato, non da chiamare bug)**:
+  le frecce muovono il pollice e la banda in pagina si aggiorna, ma il
+  Chromium non emette il `change` che la GUI ascolta (né a blur/Tab):
+  nessun POST, nessun salvataggio. Mauro guida col mouse e la scheda
+  dice «si salvano al rilascio», per cui resta così; se un giorno si
+  vuole la tastiera, basterà ascoltare anche `input` (con debounce).
+- **Nebbia del «torna al consiglio» (↺)**: dopo il clear l'endpoint
+  series risponde ancora 84–85 col vecchio override attivo, mentre il
+  riavvio del server riscrive sul gamemodesave la banda del consiglio
+  (99–100 col fisso 95). Scavato: NON è un difetto del test — ogni
+  richiesta con carriera attiva RISEMINA le serie senza cursori con la
+  banda predefinita 84–85 ([webui.mjs:778](src%2Fwebui.mjs%23L778),
+  scelta di Mauro del 27/10): il ramo difensivo riempie il salvataggio
+  a vuoto col default, quindi la fotografia del test era onesta. Da
+  motivare se è il ritocco giusto per «↺ torna al consiglio calcolato».
+- **Rimessa a zero**: server spento (PID preso con `pidSullaPorta` di
+  [tools/riavvia-webui.mjs](tools%2Friavvia-webui.mjs)), save e
+  gamemodesave rimessi dalle fotografie di partenza — MD5 del save
+  ripristinato IDENTICO alla foto (`13d6489a1922533ea6491416158409de`),
+  trim per serie intatti (coppa_r5-turbo +1, roadster_classic −5,
+  coppa_mazda-rx7-fd +1) — server ripartito e risanato: modalità
+  adattiva, Peugeot base 87 / banda 84–85 / override vivo, cursori EVO
+  al disco 84–85. Puliti i due `.bak-ai` nati nel collaudo e due copie
+  in `tmp/`: la rotazione di GameModes torna ai due baks vecchi.
+
+### 1/11 — Sfoglata della GUI: righe/colonne disallineate sulle altre 19 viste
+Audit live nel browser (i 19 tab della nav, pannello Difficoltà escluso:
+è il caso di riferimento). Tre passate per tab: struttura delle tabelle
+(testa contro le righe), griglie a righe ripetute, ripetizioni di valore
+per tutto il corpo della vista.
+- **Struttura pulita ovunque**: in tutte le 19 viste ogni riga di ogni
+  tabella ha le colonne della testa (51 tabelle nella sola Griglia, il
+  conto è per tab); nessuna riga fuori posto. Anche i form di
+  Impostazioni/Gironi e i panel variabili di Rivali/Campionati
+  sono varianti legittime per stato.
+- **Un difetto reale dello stesso tipo del pannello Difficoltà**
+  (colonna che risponde uguale per tutte le righe senza guardare la
+  riga): il **Tetto teorico** in Analisi — «Margini migliore» e
+  «Ultimo margine» = «0,00s» su tutte le 14 piste (confermato all'endpoint `analisi-tetto`:
+  `marginBestMs:0`, mentre `campTopDeltaMs` e i settori
+  hanno valori veri). Per costruzione:
+  [results.mjs:361](src%2Fresults.mjs%23L361) calcola il «giro
+
+  teorico» sommando i settori del giro che È già il best, quindi il
+  margine vale meglio 0. L'onesto (somma dei migliori settori tra TUTTI
+  i giri) non è calcolabile dal file risultato: driver porta solo gli
+  split del giro migliore. Da decidere con Mauro: nascondere le due
+  colonne o sostituirle con una metrica vera (es. il delta top già in
+  pannello), perché oggi dicono un falso.
+- **Lezione di metodo**: il render è asincrono; alla prima stesa
+  fotografavo il tab PRECEDENTE (prime segnalazioni fantasma su
+  Messaggi/Rivali). Con la sincron giusta (aspettare il titolo nuovo):
+  i «0,00s»×36 sono del Tetto, l'«0–3»×14 dei rivali a 3 gare insieme
+  (dati vivi: h2h variati, 74 rivali, nessun default), le colonne
+  costanti di Piste (auto/preset/tinta/zavorra) sono reali — serie
+  mono-auto.
+- **Monte Carlo, «Titolo» 0% su tutte le sedie**: onesto — arrotonda
+  sotto lo 0,25% (vittorie all'1% dietro un filo più forte). Non è un
+  disallineamento: la sedia è triste, non morta.
+
+### 1/11 — Verifica post-estrazione: il pannello setup del Garage senza il Banco A/B
+Richiesta Mauro: «spazi vuoti o scrollbar strani dopo la rimozione del
+Banco A/B?». Prova su GUI viva (porta 8642), stessa sonda tecnica
+sintetizzata per entrambi i tab coinvolti:
+- **Codice**: nel Garage non resta nessun riferimento `#ab-*` o «A/B»
+  (i selector del banco vivono SOLO in
+  [viste-analisi.js](gui%2Fjs%2Fviste-analisi.js), dove è tornato); nel
+  [viste-c.js](gui%2Fjs%2Fviste-c.js) resta solo il commento del
+  perché.
+- **Tab Garage**: catalogo + meccanico + 2 auto — nessun blocco vuoto
+  senza contenuto, nessun overflow orizzontale, nessuna scrollbar
+  sospetta.
+- **Tab Setup** (il pannello setup del garage): 7 pannelli (grafico
+  del giro largo tutto, consigli del box, 4 PSI, auto della serie,
+  diagnostica telemetria, salute sistema, registro errori) — gap
+  interpannelli tutti sotto 30px, nessun «pannello fantasma» (vuoto
+  ma visibile), nessuna scrollbar anomala.
+- **Trovata lungo il tragitto (tab Rivali, non la domanda)**: la
+  colonna SQUADRA è vuota per 74/74 rivali —
+  [viste-d.js:704](gui%2Fjs%2Fviste-d.js#L704) usa `r.team ?? '—'`, ma
+  con `team:""` il nullish non scatta. Verificato all'endpoint
+  (`team:""` su tutte le 74 schede). Stessa questione del Tetto
+  teorico: o si mette `r.team || '—'` (igiene del display) o si toglie
+  la colonna finché la squadra dei rivali non arriva con un'import
+  vero.
+
+### 1/11 — Prova viva del filtro pista del Banco A/B (già nella 0.1.46)
+Richiesta Mauro: «aggiungi un filtro per pista al Banco A/B». Era già
+stato fatto con lo spostamento del banco in Analisi e commesso nella
+0.1.46 (`c9d52bc`): verificato sul vivo, senza toccare codice.
+- 40 sessioni in lista; menu «tutte le piste…» con 7 piste.
+- Selezionando «KyalamiGP»: i menu A e B scendono da 41 a 4 voci (3
+  sessioni MX-5 ND Cup + il segnaposto vuoto), e le scelte A/B fatte
+  prima non si azzerano (il filtro ripristina la selezione se ancora
+  visibile).
+- Ogni voce porta auto · pista · data, quindi due gare diverse sulla
+  STESSA pista restano distinguibili a mano nel menu: il filtro divide
+  le piste, la data divide le gare.
+
+### 1/11 — Il `--template` della CLI porta ora la banda di serie (e l'attesa verificata ancora a 84–85)
+Completamento della voce «banda di serie» qui sotto: Muro chiede «il
+builder scriva 84–85 più trim, non la vecchia del ladder, e allinei
+anche l'attesa». Ispezione di tutti i percorsi del builder:
+- **Già a posto (senza toccare nulla)**: CLI `prepara`/`griglia` senza
+  `--template` e Prepara dell'app passano già `aiBandSerie`
+  ([grid-apply.mjs](src/grid-apply.mjs) 312/369,
+  [webui.mjs](src/webui.mjs) 2535).
+- **Gap vero**: il ramo `--template` di
+  [cli.mjs](src/cli.mjs#L1311) chiamava `buildGridMessage` SENZA banda:
+  con un template dichiarato la griglia sarebbe tornata al ladder
+  preistorico (82–92 della Peugeot). Ora pass anche lì
+  `aiBandSerie: bandaSeriePrep` (stessa banda dei cursori/trim già
+  calcolata in testa alla funzione).
+- **File in attesa — verificati dal vivo, NIENTE da riallineare**:
+  customgrid `last_grid.customgrid` porta AI scritta **84–85** (19 celle
+  Peugeot, una tinta) e il gamemodesave porta `weekendAi` **84–85** con
+  griglia custom a 19. Banda viva calcolata con
+  `bandaSerieSlider`: `[84,85]`, base 87, **trim 0** (quindi «84–85 più
+  trim» oggi coincide; muovendo il trim la banda scritta dal builder
+  lo segue).
+- **Prova viva**: dry-run `node ac-evo-career.mjs griglia --template
+  data/grid-templates/coppa_peugeot-205-t16.customgrid --dry` → riga
+  abilità «**84-85 (banda di serie (cursori))**».
+- **Test**: gridbuilder-banda-serie + grid-templates
+  **15/15 verdi** (contratto invariato: senza banda di serie il builder
+  resta sul ladder, la serie vince sul ladder, aiBand evento sopra
+  tutti). Biome pulita su cli.mjs. Sonda in `tmp/_sonda-*.mjs`.
+
+### 1/11 — I due registri a vista nel tab Griglia: campo AI del file accanto alla banda dei cursori
+Richiesta Mauro: «accanto al campo AI del customgrid mostra anche la
+banda attiva dei cursori del weekend, per non confondere i due
+registri». La distinzione vera: il CAMPO AI scritto nel file (aiMin/
+aiMax) è un registro, la banda dei CURSORI del weekend
+(state.raceSettings / difficultyFor, trim incluso) è l'altro — l'uno
+non comanda l'altro e un «Imposta intervallo AI» a mano può smorzarli
+l'uno contro l'altro.
+- **Server** (`case 'grid'`, [webui.mjs](src/webui.mjs#L2313)): payload
+  con in più `bandaSerie` = banda viva della serie corrente da
+  `bandaSerieSlider` (84–85, base 87, trim 0, override vivo) — falli
+  silente: senza carriera (state assente) resta `null` e la GUI mostra
+  solo il campo del file.
+- **GUI** ([viste-griglia.js](gui%2Fjs%2Fviste-griglia.js)) in DUE posti:
+  - sotto il titolo: «**Banda attiva dei cursori del weekend: 84–85**
+    [allineata al campo]» (tag green; o warn «da riscrivere
+    (Prepara)» se il campo scorre diverso dal file), e nella rigadel titolo l'etichetta «AI 84–85
+    (campo del file)» per dire
+    subito chi è chi;
+  - nel pannello Azioni, sotto gli input «Imposta intervallo AI»:
+    «banda viva dei cursori: 84–85 — il campo del file combacia» (o
+    «il Prepara la scrive nel file»), così la banda live si legge
+    accanto alla leva che la può sovrascrivere a mano.
+- **Endpoint provato sul vivo**: `POST /api/grid` → `aiMin 84 · aiMax
+  85` e `bandaSerie {banda:[84,85], base:87, trim:0, override:true}`;
+  GUI riavviata (riavvia-webui): tab Griglia mostra ambo i registri
+  con il tag verde «allineata al campo».
+- **Test**: viste-guard + webui-smoke **5/5 verdi**, biome pulita sui
+  due file toccati, parse dei due file ok (`node --check`).
+

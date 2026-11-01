@@ -120,6 +120,11 @@ tr.cur td{background:#4d9fdb10}
 .faint{color:var(--faint)}
 
 .tag{display:inline-block; font-size:10.5px; padding:1px 8px; border-radius:99px; border:1px solid var(--line2); color:var(--dim); letter-spacing:.4px; white-space:nowrap}
+/* Quadro Copertura (11/11): le chip — specialmente quelle col tendina + ponte
+ 🌉 — devono restare DENTRO la scheda anche con piste dal nome lungo: si
+ restringono e il tendina/bottone scende a capo DENTRO la chip, invece di
+ spingere la pagina in orizzontale (stesso gesto gia' usato per .modal .mb .tag). */
+#setup-cover .tag{display:inline-flex; flex-wrap:wrap; align-items:center; gap:4px; white-space:normal; word-break:break-word; max-width:100%}
 .tag.gold{color:var(--acc); border-color:#d9a83e55}
 .tag.blue{color:var(--acc2); border-color:#4d9fdb55}
 .tag.green{color:var(--good); border-color:#4cc27a55}

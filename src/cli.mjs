@@ -1308,7 +1308,10 @@ async function cmdGriglia(args) {
   let scriveIlFalhub = false;
   if (typeof args.flags.template === 'string') {
     // template DICHIARATO: l'utente intendeva QUEL file, non un surrogato — percorso diretto.
-    ({ buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: tplFile }));
+    // BANDA DI SERIE anche quì (1/11, ilgetto del richiamo di Mauro): senza
+    // banda il --template porterebbe in griglia la banda preistorica del ladder
+    // (82–92 della Peugeot) INVECE dei cursori del weekend (84–85 + trim).
+    ({ buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: tplFile, aiBandSerie: bandaSeriePrep }));
   } else {
     // LEZIONE 31/10 (Mini Donington: griglia scritta a 12 quand il gamemodesave
     // aspettava 24): il GATE del conteggio sta SOLO nella corsa dei candidati di

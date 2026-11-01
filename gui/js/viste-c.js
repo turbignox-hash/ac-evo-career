@@ -729,7 +729,7 @@ async function drawSetup(m){
        pontare (nome · pista, opzioni dal più nuovo). Il default resta il
        più recente: chi non apre il menu fa come prima. */
     const srcSel = (x) => (c.sources ?? []).length
-      ? `<select class="mini" data-cover-src="${esc(x.track)}" style="max-width:260px" title="${esc(tr({ it: 'quale setup base pontare su questa pista', en: 'which base setup to bridge to this track' }))}">${(c.sources ?? []).map((s) => `<option value="${esc(s.file)}"${s.file === x.srcFile ? ' selected' : ''}>${esc(s.name)} · ${esc(s.track)}</option>`).join('')}</select>`
+      ? `<select class="mini" data-cover-src="${esc(x.track)}" style="max-width:min(260px,100%)" title="${esc(tr({ it: 'quale setup base pontare su questa pista', en: 'which base setup to bridge to this track' }))}">${(c.sources ?? []).map((s) => `<option value="${esc(s.file)}"${s.file === x.srcFile ? ' selected' : ''}>${esc(s.name)} · ${esc(s.track)}</option>`).join('')}</select>`
       : '';
     const missBtn = (x) => x.srcFile
       ? `${srcSel(x)} <button class="mini" type="button" data-cover-bridge="${esc(x.track)}" data-src="${esc(x.srcFile)}" title="${esc(tr({ it: 'copia qui il setup base scelto, byte per byte', en: 'copy the chosen base setup here, byte per byte' }))}">🌉 ${tr({ it: 'pontalo', en: 'bridge it' })}</button>`

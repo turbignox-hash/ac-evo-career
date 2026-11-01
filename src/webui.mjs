@@ -2313,6 +2313,22 @@ async function api(context0, _req, res, action, body) {
     case 'grid': {
       // tab Griglia: stato del customgrid + classi (regole/perTraccia/convalida)
       const out = gridStatus({ track: typeof body.track === 'string' && body.track ? body.track : null });
+      // BANDA VIVA ACCANTO AL CAMPO (richiesta Mauro 1/11: «accanto al customgrid
+      // mostra anche la banda attiva dei cursori»): il tab porta ENTRAMBI i
+      // registri distinti — l'AI scritta nel FILE (out.aiMin/aiMax) e la banda
+      // VIVA dei cursori del weekend (84–85 + trim, formula del pannello
+      // Difficoltà). L'una non comanda l'altra: la banda la scrive il Prepara,
+      // il campo a mano la sovrascrive. Falli silente: senza carriera (state
+      // assente) la GUI mostra solo il campo del file.
+      let bandaSerie = null;
+      if (state) {
+        try {
+          const nSerie = nodeById(ladder, state.node);
+          const idxSerie = Math.min(state.round ?? 0, nSerie.calendar.length - 1);
+          const b = bandaSerieSlider(ladder, state, nSerie, nSerie.calendar[idxSerie]?.track ?? null);
+          bandaSerie = { banda: b.banda, base: b.base ?? null, trim: b.trim ?? null, override: b.override === true };
+        } catch { /* senza banda la GUI mostra solo il campo del file */ }
+      }
       const classes = loadClasses();
       const classi = Object.entries(classes.classi ?? {}).map(([id, c]) => ({
         id,
@@ -2330,7 +2346,7 @@ async function api(context0, _req, res, action, body) {
       }));
       let calib = null;
       try { calib = (await hot('./grid-calib.mjs')).calibSummary(); } catch { /* il registro calibrazione non esiste ancora: va bene */ }
-      return sendJson(res, 200, { ...out, classi, matched: out.exists ? matchCurrentClass() : null, calib: (out.exists ? calib : null) });
+      return sendJson(res, 200, { ...out, classi, matched: out.exists ? matchCurrentClass() : null, bandaSerie, calib: (out.exists ? calib : null) });
     }
     case 'grid-apply': {
       try {
