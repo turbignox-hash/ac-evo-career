@@ -228,7 +228,7 @@ function trapiantaRoster(buffer, { force, dry }) {
   }
 }
 
-export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE, force = false, dry = false } = {}) {
+export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE, force = false, dry = false, aiBandSerie = null } = {}) {
   if (!ladder || !nodeId || roundIndex == null) throw Object.assign(new Error('rebuildGridApply: servono ladder, nodeId e roundIndex'), { code: 'NO_ARGS' });
   // GATE DEL CONTEGGIO (24/10 15:50, Coppa 500): la carriera EVO si aspetta
   // un numero FISSO di avversari per ronda (gamemodesave 3.7/3.10): 14 per
@@ -309,7 +309,7 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
   // (bacgriglia/backu-apply) che passa una dry-run del builder col pool di
   // questa serie — quindi nessuna altra potrebbe scelcarsi da sé.
   try {
-    const first = buildGridMessage({ ladder, nodeId, roundIndex, file });
+    const first = buildGridMessage({ ladder, nodeId, roundIndex, file, aiBandSerie });
     if (dry) return { report: first.report, written: false };
     const backup = writeSafe(first.buffer, file, { force });
     storeTemplate(nodeId, first.buffer);   // la griglia riuscita resta la memoria della serie
@@ -366,7 +366,7 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
           // TUTTE le regole vere: monomarca, poolAuto, esclusioni di classe,
           // celle uniche. Un pre-filtro qui, senza la semantica del builder,
           // butta via template validi — e coppaa-citta è la prova.
-          const { buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: nomeFile });
+          const { buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: nomeFile, aiBandSerie });
           if (dry) return { report, written: false, source: label };
           const backup = writeSafe(buffer, file, { force });
           storeTemplate(nodeId, buffer);

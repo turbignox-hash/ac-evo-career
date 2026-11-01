@@ -110,9 +110,90 @@ the clean-race bonus and the reputation cap all came from there.
 
 ## Punti da NON citare (onestà) — Things NOT to mention (honesty)
 
-- Pitwall non ha (ancora) la vivacità «da gioco» di Paddock: la GUI vive sul desktop, in gioco \
-  c'è solo Cruscotto e i pennelli live. Paddock resta il posto per leggere la carriera col \
-  gamepad sul divano.
-- Pitwall does not have (yet) Paddock's in-game vivaciousness: the GUI lives on the desktop; \
-  inside the game there is only Cruscotto and the live strips. Paddock stays the place to read \
-  the career with a gamepad from the couch.
+- «In gioco c'è solo Cruscotto» NON si dice più (DA-8, verdetto 1/11):
+  da 31/10 in gioco girano DUE app nostre — il **Cruscotto** (comandi
+  e vetrina) e il **Pitwall** (radio del copilota, verdetto, finestra
+  stint, sincro «Prepara e Divertiti») — più Paddock accanto. La vivacità
+  «da gioco» non è più un limite da nascondere; resta vero che Paddock
+  resta il posto COMODO per leggere la carriera col gamepad sul divano,
+  e quello honesto si può ancora citare.
+- The old claim "inside the game there is only the Dashboard" is DEAD
+  (see above): in-game we now ship TWO apps of ours (Cruscotto + Pitwall)
+  alongside Paddock. The remaining honest note: Paddock still owns the
+  couch/gamepad reading experience — that much we can still say.
+
+## Le foto del post — The post's photos
+
+Due fotogrammi «in-diretta» già in canna (31/10): **segnaposto dell'UI**, da
+dichiarare nel post come anteprime corse fuori dal gioco sul server vero
+(sonde `tools/_preview-cruscotto.mjs` / `tools/_preview-pitwall.mjs`).
+The two «live» shots already in the can (placeholders, flagged in the post
+as previews rendered outside the game on real server data).
+
+![Cruscotto in-diretta](docs/screenshots/in-diretta/cruscotto.png)
+*Cruscotto — registro cambio auto, consigli dal box, «Prepara e Divertiti»*
+
+![Pitwall in-diretta](docs/screenshots/in-diretta/pitwall.png)
+*Pitwall — radio del copilota viva in sessione («box chiuso», benzina per
+giri), ronda armata col via automatico*
+
+La nota «🤖 engine non disponibile» della foto Cruscotto è il simbolo
+dell'anteprima fuori dal gioco: in gioco non compare — va detto nella
+didascalia. Il fotogramma «nel menù di EVO» (l'app vista DENTRO il gioco)
+resta da fotografare col gioco aperto.
+The «engine not available» strip is the out-of-game marker: say it in the
+caption; the in-game frame (app inside EVO's menu) still needs the game open.
+
+### Ricetta «07-engineer» — Recipe for the 07-engineer shot
+
+Destinazione: `docs/screenshots/07-engineer.png` (slot libero: il README
+cita 06 e 08, il 07 manca). Il fotogramma si scatta in DUE fasi —
+
+**Fase A (offline, subito) — la scheda col piano stint pre-gara:**
+1. iscriviti nella GUI a una enduro della tua scala: **Endurance GT4**
+   (tab Campionati) è sbloccata — rep required 450 (la tua 699),
+   iscrizione 3.500 €; GT3 Endurance resta chiusa (rep 800);
+2. apri la scheda gara della ronda a tempo: la riga «⛽ Piano stint»
+   compare SENZA partire in pista — il piano segue il SEDILE, non la
+   sessione (`stintDurEff` legge `nextRound` di webui.mjs);
+3. screenshot della scheda.
+
+**Fase B (in sessione) — l'Ingegnere LIVE:**
+4. in EVO entra in PROVE o QUALIFICHE della ronda: bastano per il banner
+   LIVE (con la cronologia MoTeC del sedile già in casa, il calcolo viene
+   dal piano raccolto in Fase A);
+5. in GUI apri il pannello Ingegnere: banner di sessione + finestra viva;
+6. la «finestra viva» (giri mancanti alla sosta, `stintStopAlert`) cresce
+   col CONTO DEI GIRI: fotografa in GARA per il fotogramma completo —
+   in qualifica il banner già basta per il segnaposto.
+
+The two-phase recipe: Phase A (offline) — subscribe to **Endurance GT4**
+(rep 450, €3,500 entry), open the race sheet, the «⛽ Stint plan» row shows
+without driving (the plan follows the seat, not the session). Phase B (in
+session) — enter PRACTICE/QUALIFYING for the LIVE banner (lap-count window
+only fills during the race itself); photograph in the race for the full
+frame, the banner alone is enough as a placeholder.
+
+## VERDETTO DA-8 (1/11, rilettura di casa) — Claim verdict (1/11, DA-8)
+
+Contro il codice, claim per claim — la bozza NON si pubblica finché il
+verdetto resta fresco:
+
+| # | Claim della bozza | Verdetto | Dove vive nel codice |
+|---|---|---|---|
+| 1 | Campionati procedurali (seed, cap 20%, zavorre intelligenti) | **VIVO** | viste-b.js «Pools sorteggiati a sorte dal catalogo · seed · cap 20%» · tools/_genera-stili.mjs · grid-calib.mjs. NEL POST usare il nome reale («Campionati a miscuglio» NON è il nome del UI) |
+| 2 | Tutto cliccabile, stile Football Manager | **VIVO** | core.js + viste-*.js (schede auto/pilota/pista/serie dal 29/10) |
+| 3 | Nomi piloti editabili + soprannomi in blocco | **VIVO** | core.js rinominaPilota (26/10) · viste-d.js bulkRinomina |
+| 4 | Copilota in italiano + chip «♪ prova» | **VIVO** | voce-copilota.mjs · radio del Pitwall in gioco |
+| 5 | Widget «Cruscotto» in gioco (mini-classifica 28/10) | **VIVO** | uiapp/cruscotto + uiapp-pub.mjs (miniClassifica) — e ora PURE l'orologio di giornata (1/11) |
+| 6 | Griglia che scrive davvero nel gioco (prepara customgrid) | **VIVO** | gridbuilder.mjs + grid-apply.mjs + backup/verifica pre-scrittura |
+| 7 | Meccanico: telemetria → .carsetup, caricamento a caldo | **VIVO** | carsetup.mjs + webui anteprima · hot.mjs |
+| 8 | Zavorre per traccia dai risultati veri + Mondiale skill | **VIVO** | grid-calib.mjs · world.mjs (skill + forma) |
+| 9 | Sicurezza save: backup, anti-doppioni, integrità, rassegna | **VIVO** | integrity.mjs · import.mjs (registro anti-doppioni) · review.mjs · backup-rotation.test.mjs |
+| 10 | Giri liberi con libro PB | **VIVO** | hotlaps.mjs (carro×pista, giro ideale dai settori) |
+| 11 | Install amico un file + auto-update GitHub | **VIVO** | installa.cmd · core.js barra «Aggiorna ora» (fetch+merge+test, save intatto) — v0.1.44 in package.json |
+| 12 | (ex) «in gioco c'è solo Cruscotto» | **MORTO** | Pitwall in gioco da 31/10 (radio, verdetto, finestra, sincro) — visto sopra |
+
+Cosa manca per il post VERI (→ DA-19 nel diario): la release pubblica
+(DA-7 al suo turno), la caccia agli screenshot della GUI e l'assicurazione
+che i nomi del post usano i VERI nomi degli schermi.

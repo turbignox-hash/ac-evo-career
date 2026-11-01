@@ -77,7 +77,7 @@ match is unique, the sheet opens on its own.
 | ![Garage](docs/screenshots/12-garage.png) | **Garage** — cars you own or won, appraisals and sales. |
 | ![Results](docs/screenshots/13-results.png) | **Results** — one-click import of the last compatible race (or manual entry). |
 | ![Archive](docs/screenshots/14-archive.png) | **Archive** — every session written by EVO, searchable, with full classifications. |
-| ![Online](docs/screenshots/14-archive.png) | **Online** — the multiplayer races (`_MP_` tag) in a tab of their own: a clickable grid for every online session, plus the **online rivals book** (stable identity via the game's `driver_id`). |
+| ![Online](docs/screenshots/20-online.png) | **Online** — the multiplayer races (`_MP_` tag) in a tab of their own: a clickable grid for every online session, plus the **online rivals book** (stable identity via the game's `driver_id`). |
 | ![Free laps](docs/screenshots/19-free-laps.png) | **Free laps** — the pure test-day mode: pick PRACTICE, track and car in EVO and just drive; every session the game writes lands in the hotlap book by itself, with the PB book per car × track and the ideal lap built from your best-ever sectors. The career is never touched. |
 | ![Stats](docs/screenshots/15-stats.png) | **Stats** — trophy hall, sigils, points and position charts. |
 | ![Finances](docs/screenshots/16-finances.png) | **Finances** — the flow ledger: prizes, sponsors, entries. |

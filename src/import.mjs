@@ -38,7 +38,7 @@ import { recordWarning } from './warnings.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 import { slotDataDir, savePath, activeSlot } from './state.mjs';
 import { recordRaceFromResult } from './grid-calib.mjs';
-import { avanzaDopoGara } from './agenda.mjs';
+import { avanzaGiornataDopoGara } from './agenda.mjs';
 import { carPoolOf, carInPool } from './car-pool.mjs';
 // APPRENDIMENTO AUTO (25/10): a fine gara coppiamo il garage sul disco con il
 // nome dell'auto corsa — così il dizionario perso da un'installazione pulita
@@ -446,6 +446,17 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
     duelOut = eff.duel; newSigils = eff.newSigils ?? [];
   } catch { /* mai bloccare l'import */ }
 
+  // giornata auto-avanzata dopo la registrazione (richiesta Mauro 19/10, poi
+  // OROLOGIO DI GIORNATA 1/11): la gara fa avanzare il tempo di 8 ore — la
+  // giornata si chiude alla terza gara (o se non restano gare a programma
+  // non passate) e il calendario salta al prossimo giorno con gare.
+  // PRIMA DEL persist (lezione 31/10 23:57): l'avanzamento era DOPO la scrittura
+  // — l'ultimo +8 restava nel solo oggetto in memoria e col riavvio del server
+  // si perdeva: le tre gare di quella notte (R5, R5, Peugeot 205) hanno lasciato
+  // il salvataggio fermo alle 16 del giorno 223 invece di chiudere la giornata.
+  let agendaJump = null;
+  try { agendaJump = avanzaGiornataDopoGara(ladder, state); } catch { /* mai bloccare l'import */ }
+
   persist(state);
 
   // RETE 1 (scrittura) — il file incassato oggi non potrà pagare due volte
@@ -485,11 +496,6 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
       });
     } catch { /* la calibrazione non ferma mai la carriera */ }
   }
-
-  // giornata auto-avanzata dopo la registrazione (richiesta Mauro 19/10): se i
-  // sedili iscritti non hanno gare oggi, il calendario salta al prossimo giorno con gare
-  let agendaJump = null;
-  try { agendaJump = avanzaDopoGara(ladder, state); } catch { /* mai bloccare l'import */ }
 
   // gazzetta: la stampa del paddock commenta la gara (solo gare nuove)
   let newsItem = null;

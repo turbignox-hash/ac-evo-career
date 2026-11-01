@@ -524,6 +524,32 @@ function paintHeader(h){
   }
 }
 
+/* IL BATTITO DEL SERVER (1/11, richiesta Mauro): il piede della GUI non dice più
+   solo la build statica — in tempo reale dice se il server è VIVO, su QUALE porta
+   ascolta e QUALE build gira. Un ping leggerissimo (/api/ping) ogni 4 s: se il
+   server cade (o si riavvia per l'auto-aggiorna), la riga diventa rossa e torna
+   verde da sola, senza ricaricare la pagina. Serve anche come totem durante l'
+   auto-riavvio dell'aggiornatore: capisci a colpo d'occhio quando il server torna. */
+let srvUltima = null;   // ultima risposta buona: se muore, resta il ricordo della porta
+async function drawSrvLive(){
+  const el = document.getElementById('srv-live');
+  if (!el) return;                       // il piede si ricostruisce a ogni refreshBoot: pazienza, riprova
+  let r = null;
+  try {
+    const res = await fetch('/api/ping', { signal: AbortSignal.timeout(2000) });
+    r = res.ok ? await res.json() : null;
+  } catch { /* non risponde: sotto si dipinge rosso */ }
+  if (r?.ok) {
+    srvUltima = r;
+    el.innerHTML = `<span style="color:var(--good,#3fb26f)">●</span> server vivo · porta <b>${esc(r.port)}</b> · build ${esc(r.build?.semver ?? '?')}${r.build?.hash ? ` · ${esc(r.build.hash)}` : ''}`;
+    el.title = tr({ it: 'Battito del server locale, aggiornato in tempo reale (ogni 4 s): porta d\'ascolto e build che gira ora.', en: 'Local server heartbeat, updated live (every 4 s): listening port and the build running now.' });
+  } else {
+    el.innerHTML = `<span style="color:#e08a9a">●</span> server non risponde${srvUltima ? ` · porta ${esc(srvUltima.port)}` : ''} — riparte da avvia.cmd`;
+    el.title = tr({ it: 'Il ping non torna: il server locale è giù (o si sta riavviando). La riga torna verde da sola appena risponde.', en: 'The ping is not coming back: the local server is down (or restarting). The line goes green by itself as soon as it answers.' });
+  }
+}
+setInterval(() => { try { drawSrvLive(); } catch { /* mai bloccare la GUI per un battito */ } }, 4000);
+
 async function refreshBoot(){
   boot = await api('boot');
   /* RICARICAMENTO AUTO SU BUILD NUOVA (26/10, il caso Mauro: la tab del
@@ -549,7 +575,7 @@ async function refreshBoot(){
   // (tools/bump-versione.mjs) — package.json + hash breve del commit.
   if (boot.versione?.semver && boot.versione.semver !== '?') {
     const sf = $('.side-foot');
-    if (sf) sf.innerHTML = `${tr({ it: 'Assetto Corsa EVO · tool locale', en: 'Assetto Corsa EVO · local tool' })}<br>${tr({ it: 'tutto resta sul tuo PC', en: 'everything stays on your PC' })}<br><span id="build-ver" title="versione della build (si aggiorna a ogni salvataggio del progetto su GitHub)">build ${esc(boot.versione.semver)}${boot.versione.hash ? ` · ${esc(boot.versione.hash)}` : ''}</span> <button class="mini" id="lang-foot" style="margin-left:6px;font-size:10.5px;padding:2px 7px" title="${esc(tr({ it: "cambia la lingua dell'interfaccia: vale per la GUI, il server in locale e il cruscotto in gioco", en: "switch the interface language: applies to the GUI, the local server and the in-game dashboard" }))}">${window.LINGUA === 'en' ? '🇬🇧 EN' : '🇮🇹 IT'}</button>`;
+    if (sf) sf.innerHTML = `${tr({ it: 'Assetto Corsa EVO · tool locale', en: 'Assetto Corsa EVO · local tool' })}<br>${tr({ it: 'tutto resta sul tuo PC', en: 'everything stays on your PC' })}<br><span id="build-ver" title="versione della build (si aggiorna a ogni salvataggio del progetto su GitHub)">build ${esc(boot.versione.semver)}${boot.versione.hash ? ` · ${esc(boot.versione.hash)}` : ''}</span><br><span id="srv-live">…</span> <button class="mini" id="lang-foot" style="margin-left:6px;font-size:10.5px;padding:2px 7px" title="${esc(tr({ it: "cambia la lingua dell'interfaccia: vale per la GUI, il server in locale e il cruscotto in gioco", en: "switch the interface language: applies to the GUI, the local server and the in-game dashboard" }))}">${window.LINGUA === 'en' ? '🇬🇧 EN' : '🇮🇹 IT'}</button>`;
     // footer: contatto e donazioni (scelta del 21/10: issue GitHub precompilata + Ko-fi).
     // Il SERVER precompila titolo e corpo della segnalazione (versione build, serie in
     // corso, ronda, pista, difficoltà, ultimi errori); l'utente completa e invia.
@@ -564,6 +590,7 @@ async function refreshBoot(){
     if (lf) lf.onclick = () => window.impostaLingua(window.LINGUA === 'en' ? 'it' : 'en');
   }
   drawNav();
+  drawSrvLive();   // primo battito: al boot non aspetta i 4 s dell'intervallo
   if (boot.hasCareer) paintHeader(boot.header);
 }/* l'etichetta STATICHE dell'header (index.html): tradotte una volta sola */
 (function paintStaticChrome() {

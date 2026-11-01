@@ -15,8 +15,17 @@ import './_game-sandbox.mjs';
 import './_flows-sandbox.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, readFileSync, existsSync, rmSync, readdirSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, rmSync, readdirSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+// LA SANDBOX DEL SAVE (lezione 1/11, ore 00:07): garaVeloce col passo «sedile»
+// (vetrina custom) scrive il SAVE della carriera su EVO_DATA_DIR — senza
+// questa riga ogni suite ripristinava la Ferrari 296 GT3 nel menu del gioco
+// «senza toccare nulla» (nuovo startedAt = nuovo comando ancora non ackato).
+// Stesso patto di backup-rotation, garage-buy, integrity: EVO_DATA_DIR
+// PRIMA degli import dinamici (SAVE_FILE nasce a import di webui-env.mjs).
+process.env.EVO_DATA_DIR = mkdtempSync(join(tmpdir(), 'evo-garavolo-'));
 
 const { encodeMsg, GAME_MODES_DIR } = await import('../tools/evo-grid.mjs');
 const { garaVeloce } = await import('../tools/_gara-veloce.mjs');
@@ -51,11 +60,13 @@ test('gara al volo senza ricetta (o doppia): rifiuto pulito', () => {
 test('dry-run: niente scritture, passi con «dry:»', () => {
   mkInstant();
   const prima = readFileSync(INSTANT_FILE);
-  const out = garaVeloce({ giri: 5, dry: true, force: true });
+  const out = garaVeloce({ giri: 5, auto: 'ks_ferrari_296_gt3', dry: true, force: true });
   assert.equal(out.dry, true);
   assert.ok(out.passi.some((p) => p.nome === 'durata gara' && /dry:/.test(p.esito)), `passo durata in dry: ${JSON.stringify(out.passi[0])}`);
   assert.ok(out.passi.some((p) => p.nome === 'banda AI' && /dry:/.test(p.esito)), 'passo banda in dry');
+  assert.ok(out.passi.some((p) => p.nome === 'sedile (vetrina custom)' && /dry:/.test(p.esito)), 'anche il sedile resta in PROVA a inizio asciutta (lezione 1/11)');
   assert.ok(readFileSync(INSTANT_FILE).equals(prima), 'dry: nessun byte toccato');
+  assert.ok(!existsSync(join(process.env.EVO_DATA_DIR, 'save-current.json')), 'dry col sedile: il SAVE della carriera NON nasce (1/11, ore 00:07)');
 });
 
 test('scrittura vera: 5 giri e banda 99-99 confermati dalla rilettura', () => {

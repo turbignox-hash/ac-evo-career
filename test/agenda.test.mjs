@@ -24,6 +24,7 @@ const {
   choicesOf, canChoose, recordChoice, MAX_SCELTE_PER_GIORNO, CADENZA_GIORNI,
   impegni, shiftSeat, hasSeat,
   oraRonda, impostaOraRonda, nextUnplayedRound, cadenzaSerie,
+  agendaOra, portaGiornata, avanzaGiornataDopoGara,
 } = await import('../src/agenda.mjs');
 
 const DATA = mkdtempSync(join(tmpdir(), 'evo-agenda2-'));
@@ -61,13 +62,42 @@ test('il calendario VARIA: giorni pieni e giorni magri, mai lo stesso quadro fis
   assert.ok(strip.every((s) => s.available <= s.total));
 });
 
-test('il giorno avanza di 1 a ogni gara e la cadenza pone la R2 a +CADENZA_GIORNI', () => {
+test('OROLOGIO DI GIORNATA (1/11): la gara avanza il TEMPO di 8 ore, il giorno salta solo al prossimo con gare', () => {
   const node = nodeById(ladder, state.node);
   applyRaceResult(ladder, state, node, { position: 3, gridSize: node.gridSize, track: node.calendar[0].track });
-  assert.equal(agendaDay(state), 2);
-  const today = gareDelGiorno(ladder, state);
-  assert.equal(today.gare.length, 0);
-  assert.equal(prossimoGiornoConGara(ladder, state), 1 + CADENZA_GIORNI);
+  const res = avanzaGiornataDopoGara(ladder, state);
+  assert.equal(res.day, 1 + CADENZA_GIORNI, 'salto diretto al prossimo giorno con gare (R2 a +cadenza)');
+  assert.equal(agendaDay(state), res.day);
+  assert.equal(agendaOra(state), null, 'il giorno nuovo riparte con l\'orologio al mattino');
+  // il giorno 1 non ha più: gare presenti solo sul nuovo slot della serie
+  assert.equal(gareDelGiorno(ladder, state, 1).gare.length, 0);
+  assert.equal(gareDelGiorno(ladder, state, res.day).gare.length, 1);
+  // il cerrre salto ATERRA esattamente sul giorno della sua prossima ronda:
+  // il sedile è a Casa, la sua R2 è oggi (prossimo oltre oggi: nessuno)
+  assert.equal(nextUnplayedRound(ladder, state, node).scheduledDay, res.day);
+  assert.equal(prossimoGiornoConGara(ladder, state), null);
+});
+
+test('PORTA DELLA GIORNATA (1/11): con l\'orologio oltre luccheno, le gare antecedenti non tornano indietro', () => {
+  const base = agendaDay(state);
+  state.agenda.ora = 16;
+  assert.ok(portaGiornata(state, base, 9), 'gara del mattino quando è già pomeriggio: passata');
+  assert.ok(!portaGiornata(state, base, 17), 'gara di sera di oggi: ancora libera');
+  assert.ok(!portaGiornata(state, base + 1, 9), 'gare dei giorni futuri: mai bloccate');
+  state.agenda.ora = null;
+  assert.ok(!portaGiornata(state, base, 9), 'mattino appena aperto: nessuna gara passata');
+});
+
+test('GIORNATA A 3 FASCE (1/11): 8 ore a gara, alla mezzanotte l\'orologio riparte', () => {
+  // lo stato della giornata È agenda.ora: le tre fasce non toccano il calendario
+  const backupOra = state.agenda?.ora;
+  state.agenda.ora = 8;
+  assert.equal(agendaOra(state), 8);
+  state.agenda.ora = 16;
+  assert.equal(agendaOra(state), 16);
+  state.agenda.ora = 24;   // 24: chiusa → riparte
+  assert.equal(agendaOra(state), null, 'alla 24 l\'orologio riparte: nuova giornata');
+  state.agenda.ora = backupOra ?? null;
 });
 
 test('cap scelte: al massimo MAX_SCELTE_PER_GIORNO per giornata, riscegliere è libero', () => {

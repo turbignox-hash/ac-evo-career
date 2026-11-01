@@ -49,6 +49,40 @@ const EVO_WEATHER_EN = {
   5: 'heavy rain',
 };
 
+/** BOLLETTINO DEL WEEKEND (3/11, richiesta Mauro: «weekend realistici: prove
+ * nuvoloso, qualifiche molto nuvoloso, gara pioggia leggera se bagnata»):
+ * nel weekend vero il cielo NON è uguale per tre sessioni — peggiora verso la
+ * gara. Il piano è DETERMINISTICO dal meteo della ronda (round.weather): la
+ * GUI non CHIEDE mai un preset, chiede la SESSIONE ed è il server a ricalcolare
+ * il numero (il cancello del meteo resta chiuso alle scelte a mano). Regola:
+ *   gara a livello r →  prove r−2 (tetto «nuvoloso», così le prove restano
+ *   da correre anche sulle ronde più dure) · qualifiche e warm-up r−1 · gara r.
+ *   r=0 → sereno ovunque; r=4 (bagnata) = l'esempio di Mauro, alla lettera.
+ * Si scrive PRIMA di entrare in ogni sessione: EVO legge il preset del
+ * selettore a OGNI avvio di sessione, e il piano copre tutte e quattro le
+ * sessioni del weekend. */
+export function weatherPlanFor(round, { practiceStart = null, qualifyStart = null, warmupStart = null, raceHour = null } = {}) {
+  const r = Math.max(0, Math.min(6, Number(round?.weather ?? 0)));
+  const nomiSessione = {
+    Practice: tr({ it: 'Prove libere', en: 'Practice' }),
+    Qualifying: tr({ it: 'Qualifiche', en: 'Qualifying' }),
+    Warmup: tr({ it: 'Warm-up', en: 'Warm-up' }),
+    Race: tr({ it: 'Gara', en: 'Race' }),
+  };
+  const nome = lang() === 'en' ? EVO_WEATHER_EN : EVO_WEATHER;
+  const step = (session, w, hour) => {
+    const wx = Math.max(0, w);
+    return { session, sessionLabel: nomiSessione[session] ?? session, weather: wx, label: nome[wx] ?? String(wx), hour: hour != null ? hour : null };
+  };
+  const piano = [
+    step('Practice', Math.min(r - 2, 2), practiceStart),
+    step('Qualifying', r - 1, qualifyStart),
+    step('Warmup', r - 1, warmupStart),
+    step('Race', r, raceHour),
+  ];
+  return piano;
+}
+
 /* Layout reali del menu di EVO, dal catalogo del server dedicato (events_race_weekend.json).
  * Regola: si corre sul layout GP quando esiste; dove manca si usa il piu' lungo della pista
  * (Oulton Park → International, Paul Ricard → Layout 1C-V2, Watkins Glen → GP Inner Loop).
@@ -256,6 +290,10 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
   const tipica = grigliaSimEstesa(ladder, state, node);
   const gridsTipica = Math.max(tipica?.gridSize ?? 0, node.gridSize);
 
+  // BOLLETTINO DEL WEEKEND (3/11): il piano meteo per sessione accenna
+  // già in scheda (vedi weatherPlanFor sopra) e la GUI lo disegna col
+  // tasto «Metti» per la sessione che stai per correre.
+  const weatherPlan = weatherPlanFor(round, { practiceStart, qualifyStart, warmupStart, raceHour });
   const base = {
     node,
     roundIndex,
@@ -274,6 +312,12 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
     trackId: round.track,
     trackName: trackName(round.track),
     weather: ladder.weatherNames[String(round.weather)] ?? `meteo ${round.weather}`,
+    // BOLLETTINO (3/11): il piano DETERMINISTICO per sessione + il rituale (una riga)
+    weatherPlan,
+    weatherRitual: tr({
+      it: 'Il cielo peggiora verso la gara, come nel weekend vero: il meteo va scritto PRIMA di entrare in ogni sessione — EVO legge il preset del selettore a ogni avvio sessione.',
+      en: 'The sky hardens toward the race, like a real weekend: write the weather right BEFORE entering each session — EVO reads the selector preset at every session start.',
+    }),
     gridSize: gridsReali,
     opponents: gridsReali - 1,
     profile,

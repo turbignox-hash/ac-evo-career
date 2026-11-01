@@ -37,3 +37,26 @@ test("runImport senza persist esplicita salva davvero la carriera (regressione: 
   const imported = Object.values(saved.results ?? {}).flat();
   assert.equal(imported.length, 1, 'il risultato manuale deve finire nel salvataggio');
 });
+
+// OROLOGIO DI GIORNATA (1/11, lezione 31/10 23:57): l'avanzamento del tempo
+// (+8 ore) deve comparire nel SALVATAGGIO scritto dall'import stesso — prima
+// era DOPO il persist: l'ultimo +8 restava in memoria e col riavvio del
+// server si perdeva (le tre gare di quella notte hanno fermato il tempo alle
+// 16 invece di chiudere la giornata).
+test("la gara importata fa avanzare l'orologio NEL FILE (lezione 31/10 23:57: prima del persist)", () => {
+  const state = createCareer(ladder, { name: 'Clock Driver', nation: 'ITA', discipline: 'entry' });
+  // mattina della giornata (null) + un SECONDO sedile ancora a programma oggi:
+  // il giorno non salta e l'orologio resta sulla giornata in corso.
+  state.agenda = { day: 1, ora: null };
+  state.seats.hyper_road = { day: 1, season: 1 };
+
+  const out = runImport(ladder, null, state, {
+    manual: { position: 1, gridSize: 12, dnf: false, fl: false },
+  });
+
+  assert.equal(out.ok, true);
+  assert.equal(out.agenda?.ora, 8, 'la voce «agenda» del debrief dice 8:00');
+  const saved = JSON.parse(readFileSync(SAVE_FILE, 'utf8'));
+  assert.equal(saved.agenda.ora, 8, 'l orologio a 8:00 sta nel SALVATAGGIO, non solo in memoria');
+  assert.equal(saved.agenda.day, 1, 'col buco ancora a programma il giorno non salta');
+});

@@ -35,8 +35,8 @@ async function drawGridTab(m){
     ${data.classe ? `<div style="margin:6px 0 10px">${tr({ it: 'Classe combaciata:', en: 'Matched class:' })} <b>${esc(data.classe)}</b>${data.perTraccia ? ` · ${tr({ it: 'per-traccia', en: 'per-track' })} <b>${esc(data.perTraccia)}</b> ${data.convalidato ? badgeOk : badgeKo}` : ''}</div>` : `<div class="muted" style="margin:6px 0 10px">${tr({ it: 'Nessuna classe combacia con le auto della griglia', en: 'No class matches the grid cars' })}</div>`}
     ${data.exists && tinteRiga ? `<div class="muted" style="margin:2px 0 8px;font-size:12px">${tr({ it: 'Tinte (liverie):', en: 'Liveries:' })} ${tinteRiga}${monoTinte.length ? ` — <b style="color:#d9a83e">${tr({ it: 'MONOCOLORE:', en: 'MONOCHROME:' })} ${esc(monoTinte.join(', '))}</b> → ${tr({ it: 'in EVO genera più LIVERIE della stessa auto e APPLICA, oppure (avversari) tintePrestate: true dalla serie in grid-classes.json', en: 'in EVO create more LIVERIES of the same car and APPLICA, or (rivals) tintePrestate: true on the series in grid-classes.json' })}` : ''}</div>` : ''}
     ${data.escluseClasse?.length || data.escluseTraccia?.length ? `<div class="banner" style="border-color:#d9a83e">${tr({ it: 'Auto escluse ancora presenti nel file: {A} → usa "Applica bilancio" per rimuoverle', en: 'Excluded cars still in the file: {A} → use "Apply balance" to remove them' }).replace('{A}', esc([...(data.escluseClasse ?? []), ...(data.escluseTraccia ?? [])].join(' · ')))}</div>` : ''}
-    <table><thead><tr><th>#</th><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Preset', en: 'Preset' })}</th><th>${tr({ it: 'Tinta', en: 'Livery' })}</th><th class="right">${tr({ it: 'Zavorra / Penalità', en: 'Ballast / Penalty' })}</th></tr></thead>
-    <tbody>${(data.cells ?? []).map((c, i) => `<tr><td class="muted">${i + 1}</td><td><span class="car-link" data-car="${esc(c.name)}" style="cursor:pointer;text-decoration:underline dotted">${esc(c.name)}</span></td><td class="muted" style="font-size:11.5px">${esc(c.preset ?? '—')}</td><td class="muted" style="font-size:11px">${esc(c.tinta ?? '(default)')}</td><td class="right">${kgpct(c)}</td></tr>`).join('')}</tbody>
+    <table><thead><tr><th>#</th><th data-ord="auto" style="cursor:pointer">${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Preset', en: 'Preset' })}</th><th>${tr({ it: 'Tinta', en: 'Livery' })}</th><th class="right" data-ord="pz" style="cursor:pointer">${tr({ it: 'Zavorra / Penalità', en: 'Ballast / Penalty' })}</th></tr></thead>
+    <tbody id="g-tbody">${(data.cells ?? []).map((c, i) => `<tr><td class="muted">${i + 1}</td><td><span class="car-link" data-car="${esc(c.name)}" style="cursor:pointer;text-decoration:underline dotted">${esc(c.name)}</span></td><td class="muted" style="font-size:11.5px">${esc(c.preset ?? '—')}</td><td class="muted" style="font-size:11px">${esc(c.tinta ?? '(default)')}</td><td class="right">${kgpct(c)}</td></tr>`).join('')}</tbody>
     </table>
   </div>
 
@@ -108,6 +108,45 @@ async function drawGridTab(m){
 
   // NAVIGZIONE incrociata (28/10, stile Football Manager): ogni nome auto → scheda auto nel libro
   $$('.car-link', m).forEach((e) => { e.onclick = () => vai('cars', { search: e.dataset.car }); });
+
+  // ORDINE in zavorre e penalità (richiesta 1/11): la tavola celle si RIGHE col
+  // click sull'intestazione — default «Zavorra / Penalità» AL RIBASSO (la più
+  // pesante in cima, la base a 0kg/0% in fondo). La colonna # non si tocca:
+  // resta la POSIZIONE REALE della cella nel customgrid (quella di partenza),
+  // solo che le righe vengono mostrate ordinate. kg pesa di più della %:
+  // i pari si spezzano sui grammi di penalità, infine sul posto di riga.
+  const gTbody = $('#g-tbody');
+  const ord = { chiave: 'pz', dir: -1 };
+  const valDi = (c) => ord.chiave === 'auto'
+    ? String(c.name).toLowerCase()
+    : Number(c.kg ?? 0) * 10000 + Number(c.pct ?? 0);
+  const disegnaRighe = () => {
+    gTbody.innerHTML = (data.cells ?? []).map((c, i) => ({ c, i }))
+      .sort((a, b) => {
+        const va = valDi(a.c), vb = valDi(b.c);
+        return ord.dir * (va < vb ? -1 : va > vb ? 1 : 0) || a.i - b.i;
+      })
+      .map(({ c, i }) => `<tr><td class="muted">${i + 1}</td><td><span class="car-link" data-car="${esc(c.name)}" style="cursor:pointer;text-decoration:underline dotted">${esc(c.name)}</span></td><td class="muted" style="font-size:11.5px">${esc(c.preset ?? '—')}</td><td class="muted" style="font-size:11px">${esc(c.tinta ?? '(default)')}</td><td class="right">${kgpct(c)}</td></tr>`)
+      .join('');
+    $$('.car-link', gTbody).forEach((e) => { e.onclick = () => vai('cars', { search: e.dataset.car }); });
+  };
+  const etichettaDi = (k) => k === 'auto' ? tr({ it: 'Auto', en: 'Car' }) : tr({ it: 'Zavorra / Penalità', en: 'Ballast / Penalty' });
+  const aggiornaFrecce = () => {
+    $$('th[data-ord]', m).forEach((t) => {
+      t.textContent = etichettaDi(t.dataset.ord)
+        + (ord.chiave === t.dataset.ord ? (ord.dir > 0 ? ' ▲' : ' ▼') : '');
+    });
+  };
+  $$('th[data-ord]', m).forEach((th) => {
+    th.onclick = () => {
+      if (ord.chiave === th.dataset.ord) ord.dir = -ord.dir;
+      else { ord.chiave = th.dataset.ord; ord.dir = th.dataset.ord === 'auto' ? 1 : -1; }
+      aggiornaFrecce();
+      disegnaRighe();
+    };
+  });
+  aggiornaFrecce();
+  disegnaRighe();
 
   const out = (html, kind) => { $('#grid-out').innerHTML = html ? `<div class="banner ${kind ?? ''}">${html}</div>` : ''; };
   const busy = (btn, on, text) => { btn.disabled = on; btn.innerHTML = on ? '<span class="spin"></span>' : text; };

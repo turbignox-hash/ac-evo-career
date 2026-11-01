@@ -164,6 +164,15 @@ due schermate nella GUI:
    soldi, rep, punti e copilota fanno il resto. Dalla seconda gara in poi:
    SOLO il bottone giallo, l'auto si sceglie da sola, zero gesti manuali.
 
+🌦️ **Il cielo cambia nel weekend, come dal vero** (3/11): il «Bollettino del
+weekend» nella scheda gara mostra un meteo diverso per ogni sessione — il
+cielo PEGGIORA verso la gara (gara serena → tutto sereno; gara pioggia →
+prove nuvoloso, qualifiche pioggia leggera). Il «Prepara tutto» scrive già
+il meteo delle PROVE; prima di entrare nelle sessioni successive premi il
+bottone **Metti** della sessione nel bollettino (qualifica, warm-up, gara):
+un click, il preset finisce nel file del weekend. Puoi anche correre una
+sessione col cielo sbagliato: nessuna penalità, solo realismo in meno.
+
 🎙️ **La copilota parla sempre italiano** (dal 27/10: anche con l'interfaccia
 in inglese la VOCE resta it-IT). Sul cruscotto della GUI c'è il chip
 **♪ prova**: un click, dice una frase e verifica al volo che copilota e

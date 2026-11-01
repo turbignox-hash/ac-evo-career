@@ -17,7 +17,7 @@ import { resolvePaths, isGameRunning, GAME_EXE, dataDirCandidates, isDir, isFile
 
 import {
   createCareer, nodeById, disciplineName, nomeDisciplina, gateStatus,
-  standingsFor, difficultyFor, seasonEnd,
+  standingsFor, difficultyFor, bandaSerieSlider, seasonEnd,
   acceptOffer, pushMessage, enterNode, renameDriver, careerStats,
   slotDataDir, grigliaSimEstesa, seasonJustClosed,
 } from './state.mjs';
@@ -60,7 +60,7 @@ import { stintsFromLd } from './stinti.mjs';
 import { seatStintInputs, stintPlanOf, stintStopAlert } from './stint-plan.mjs';
 import { tyreWearFromLd } from './usura-gomme.mjs';
 import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
-import { parseSetup, listSetups, writeSetupCopy, brakePlanOf, annotateAllyAdvice } from './carsetup.mjs';
+import { parseSetup, listSetups, writeSetupCopy, brakePlanOf, annotateAllyAdvice, bridgeSetup } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
 import { carPoolOf, carInPool, poolNodeForLive } from './car-pool.mjs';
 import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, setWeekendGridCustom, WEEKEND_FILE } from '../tools/set-track.mjs';
@@ -130,7 +130,7 @@ import {
   racesOnDay, calendarStrip, dateLabel, MAX_SCELTE_PER_GIORNO, CADENZA_GIORNI,
   choicesForDay, canChoose, recordChoice, impegni, shiftSeat,
   scheduledDay, nextUnplayedRound, hasSeat,
-  impostaOraRonda,
+  impostaOraRonda, agendaOra, portaGiornata,
 } from './agenda.mjs';
 import { heritageOverview, claimMemory } from './memories.mjs';
 import { resetNews } from './gazzetta.mjs';
@@ -770,7 +770,7 @@ function durataSessioni(sessi) {
 async function api(context0, _req, res, action, body) {
   const { ladder, paths } = context0;
   const hasCareer = () => existsSync(SAVE_FILE);
-  const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'alias-set', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'gazzetta-season', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-prep', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'event-prize-refresh', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'import-inspect', 'tracks', 'backup', 'grid-apply', 'grid-drop', 'grid-ai', 'mechanic', 'maintenance'];
+  const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'alias-set', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'gazzetta-season', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-prep', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'event-prize-refresh', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'wx-session', 'import-inspect', 'tracks', 'backup', 'grid-apply', 'grid-drop', 'grid-ai', 'mechanic', 'maintenance'];
   if (needsCareer.includes(action) && !state) {
     return sendJson(res, 400, { error: tr({ it: "Non c'è ancora una carriera: creane una dalla schermata iniziale.", en: 'There is no career yet: create one from the start screen.' }) });
   }
@@ -1110,6 +1110,14 @@ async function api(context0, _req, res, action, body) {
         // «Prepara tutto» e non scopre a gara rimandata.
         weekendFile: existsSync(WEEKEND_FILE),
       });
+    }
+    case 'ping': {
+      // BATTITO del footer (1/11, richiesta Mauro): un endpoint SPECCHIO e
+      // leggerissimo — la GUI lo chiama in tondo per dire in tempo reale se il
+      // server è vivo, su QUALE porta ascolta e QUALE build gira. Qui niente
+      // carriera, niente sessione, niente git (buildVersion è memoizzata): la
+      // risposta esce in microsecondi e il tick del footer non pesa niente.
+      return sendJson(res, 200, { ok: true, port: PORT, build: buildVersion() });
     }
     case 'boot': {
       return sendJson(res, 200, {
@@ -2016,6 +2024,9 @@ async function api(context0, _req, res, action, body) {
         viewDay,
         todayLabel: dateLabel(day),
         viewLabel: dateLabel(viewDay),
+        // OROLOGIO DI GIORNATA (1/11): null = inizio giornata; dopo ogni gara
+        // salta di 8, alla 24 la giornata è chiusa e il giorno salta avanti.
+        ora: agendaOra(state),
         nextRaceDay: prossimoGiornoConGara(ladder, state),
         maxScelte: MAX_SCELTE_PER_GIORNO,
         scelteOggi: choicesForDay(state, day),
@@ -2027,6 +2038,9 @@ async function api(context0, _req, res, action, body) {
           discipline: g.node.discipline, roundIndex: g.index, totalRounds: g.node.calendar.length,
           season: g.season, name: g.name, track: g.track, laps: g.laps, hour: g.hour,
           weather: g.weather ?? null, scheduledDay: g.scheduledDay,
+          // LA PORTA: la gara di OGGI con l'ora già oltre l'orologio resta visibile
+          // ma si griggia (la scaletta non torna indietro); server la blocca pure.
+          passata: portaGiornata(state, viewDay, g.hour),
           onSchedule: !!g.onSchedule, late: !!g.late, champStarted: !!g.champStarted, stato: g.stato,
           griglia: tipoGriglia(g.node),
           fattibile: g.fattibile, gateReasons: g.gateReasons ?? [], isCurrent: !!g.isCurrent,
@@ -2077,6 +2091,18 @@ async function api(context0, _req, res, action, body) {
       if (!Number.isFinite(Number(m.roundIndex)) || Number(m.roundIndex) !== roundIndex) {
         return sendJson(res, 400, { error: 'La ronda indicata non è quella a programma.' });
       }
+      // ORE SPOSTABILI DIETRO LA PORTA (1/11): se la gara è per OGGI e l'orologio
+      // della giornata è oltre l'ora scelta, l'override si rifiuta col motivo
+      // (non solo disabilitare: la scaletta deve dire «non consentito prima delle 12»).
+      const portaOra = (m.day === agendaDay(state) && Number.isInteger(Number(body.hour))
+        && Number(body.hour) >= 0 && portaGiornata(state, m.day, Number(body.hour)))
+        ? agendaOra(state) : null;
+      if (portaOra != null) {
+        return sendJson(res, 409, { error: tr({
+          it: `Giornata già alle ${portaOra}:00: non consentito spostare la ronda prima delle ${portaOra} — la scaletta non torna indietro.`,
+          en: `Day already at ${portaOra}:00: not allowed to move the round before ${portaOra} — the schedule doesn't go back.`,
+        }) });
+      }
       const hour = impostaOraRonda(state, id, roundIndex, body.hour);
       const testo = hour == null
         ? tr({
@@ -2121,6 +2147,16 @@ async function api(context0, _req, res, action, body) {
         }
       }
       if (!g.fattibile) return sendJson(res, 403, { error: `Serie bloccata: ${g.gateReasons.join('; ')}` });
+      // LA PORTA DELLA GIORNATA (richiesta Mauro 1/11: «una gara terminata alle
+      // 12, non si possono più fare gare con orario antecedente»): la gara di
+      // OGGI con l'ora già oltre l'orologio non si sceglie. Messaggio chiaro
+      // con l'ora della gara e quella della giornata (non solo un disabled).
+      if (day0 === agendaDay(state) && portaGiornata(state, day0, g.hour)) {
+        return sendJson(res, 409, { error: tr({
+          it: `Giornata già alle ${agendaOra(state)}:00 — la gara delle ${g.hour}:00 è passata: la scaletta non torna indietro.`,
+          en: `Day already at ${agendaOra(state)}:00 — the ${g.hour}:00 race is over: the schedule doesn't go back.`,
+        }) });
+      }
       const already = state.node === id;
       if (!already && !canChoose(state, day0, id)) {
         return sendJson(res, 409, { error: tr({ it: `Hai già scelto ${MAX_SCELTE_PER_GIORNO} gare per oggi: ne resta una sola da disputare (salta il tempo per cambiare giornata).`, en: `You already picked ${MAX_SCELTE_PER_GIORNO} races for today: only one is left to run (skip the time to change day).` }) });
@@ -2308,6 +2344,29 @@ async function api(context0, _req, res, action, body) {
         return sendJson(res, 200, { ...out, cells: gridStatus({}).cells });
       } catch (e) { return sendJson(res, e.code ? 409 : 500, { error: e.message, code: e.code }); }
     }
+    case 'wx-session': {
+      // BOLLETTINO DEL WEEKEND (3/11): il tasto «Metti» della scheda scrive sul
+      // gamemodesave il meteo della SESSIONE scelta (prove/quali/warm-up/gara).
+      // EVO legge il preset a OGNI avvio di sessione: si sistema il cielo prima
+      // di entrarci, non una volta per tutto il weekend. Piano DETERMINISTICO
+      // in race.mjs (weatherPlanFor): qui la GUI NON sceglie un preset, chiede
+      // solo la sessione — il server ricalcola il numero e nessun cancello si apre.
+      const tag = String(body.session ?? '').toLowerCase();
+      const nome = tag === 'practice' ? 'Practice' : tag === 'qualify' ? 'Qualifying' : tag === 'warmup' ? 'Warmup' : tag === 'race' ? 'Race' : null;
+      if (!nome) return sendJson(res, 400, { error: 'sessione non riconosciuta: prove/qualifica/warmup/gara' });
+      try {
+        const card = viewCard(ladder, state, typeof body.car === 'string' ? body.car : null);
+        const piano = card.weatherPlan ?? [];
+        const riga = piano.find((x) => x.session === nome);
+        if (!riga) return sendJson(res, 409, { error: nome + ': nessun tasto meteo (la sessione del piano è ' + piano.map((p) => p.session).join(', ') + ')' });
+        const cur = currentWeatherPreset();
+        if (cur !== riga.weather) {
+          const w = setWeatherPreset(riga.weather, {});
+          return sendJson(res, 200, { ok: true, session: nome, label: w.preset.label, newPreset: riga.weather, forecast: piano, card });
+        }
+        return sendJson(res, 200, { ok: true, already: true, session: nome, label: riga.label, forecast: piano, card });
+      } catch (e) { return sendJson(res, 500, { error: e.message }); }
+    }
     case 'weekend-track': {
       // la sede del weekend: pista ATTUALE nel gamemodesave + pista ATTESA della
       // ronda corrente — e con track dato, la RISCRIVE (a gioco aperto: è il
@@ -2461,11 +2520,24 @@ async function api(context0, _req, res, action, body) {
           // allineato al gamemodesave, zavorre/penalità solo dove la classe
           // le chiede) e la cartuccia non si parcheggia più.
           try {
+            // BANDA DI SERIE (1/11/2026, richiamo di Mauro sul 82–92 della Peugeot):
+            // la banda VIVA dei cursori del weekend segue il builder, così anche
+            // le serie SENZA classe (monomarca) non portano più in griglia la
+            // banda preistorica del nodo ladder. Formula identica al pannello
+            // Difficoltà (state.raceSettings / difficultyFor); falli
+            // silente: senza banda voluta il builder resta su quella di prima.
+            const bandaSeriePrep = (() => {
+              try {
+                const idx = Math.min(state.round ?? 0, node.calendar.length - 1);
+                return bandaSerieSlider(ladder, state, node, node.calendar[idx]?.track ?? null).banda;
+              } catch { return null; }
+            })();
             const rb = rebuildGridApply({
               ladder,
               nodeId: state.node,
               roundIndex: Math.min(state.round ?? 0, node.calendar.length - 1),
               force: true,   // a EVO aperto si può scrivere dal menu principale (7ª prova 19/10, certificata in NOTE-AUTOMAZIONE)
+              aiBandSerie: bandaSeriePrep,            // banda VIVA della serie (cursori/trim) al posto del ladder preistorico
             });
             if (rb.written) {
               prep.grid = prep.grid ?? {};
@@ -2566,13 +2638,21 @@ async function api(context0, _req, res, action, body) {
         const round = node?.calendar?.[Math.min(state.round ?? 0, (node?.calendar?.length ?? 1) - 1)];
         const wxLabel = round?.weather != null ? (ladder.weatherNames?.[String(round.weather)] ?? round.weather) : null;
         if (wxLabel != null) {
-          const wantIdx = presetForLabel(String(wxLabel));
+          // BOLLETTINO DEL WEEKEND (3/11): il Prepara scrive il meteo della PRIMA
+          // sessione (le prove libere) col piano DETERMINISTICO del calendario;
+          // le sessioni successive (qualifiche, warm-up, gara) si aggiustano col
+          // tasto del bollettino nella scheda (case wx-session qui sotto): EVO
+          // legge il preset a OGNI avvio di sessione, non solo alla gara.
+          // previsto:true — STESSO cancello di event-prep: la scrittura porta il
+          // meteo dichiarato dalla RONDA (verificato qui sopra), non una scelta.
+          const pianoPrep = card.weatherPlan ?? [];
+          const prima = pianoPrep.find((s) => s.session === 'Practice') ?? null;
+          const wantIdx = prima ? prima.weather : presetForLabel(String(wxLabel));
+          const inGara = pianoPrep.find((s) => s.session === 'Race') ?? null;
           const cur = currentWeatherPreset();
           if (wantIdx != null && cur !== wantIdx) {
-            // previsto:true — STESSO cancello di event-prep: la scrittura porta il
-            // meteo dichiarato dalla RONDA (verificato qui sopra), non una scelta.
             const w = setWeatherPreset(wantIdx, { previsto: true });
-            prep.weather = `${w.preset.label} (era: ${PRESETS[cur]?.label ?? cur ?? '?'} — round vuole: ${wxLabel})`; prep.weatherWritten = w.written;
+            prep.weather = `${w.preset.label} per le prove libere (era: ${PRESETS[cur]?.label ?? cur ?? '?'} — round vuole: ${wxLabel}, gara: ${inGara?.label ?? wxLabel}${inGara && inGara.weather !== wantIdx ? ` — mettilo col tasto del bollettino prima della gara` : ''})`; prep.weatherWritten = w.written;
           } else prep.weather = PRESETS[cur ?? wantIdx]?.label ?? null;
         }
       } catch (e) { prep.weatherError = e.message; }
@@ -3259,7 +3339,10 @@ async function api(context0, _req, res, action, body) {
         // (stessa lezione) se la pista richiesta non è quella dei .carsetup trovati
         // (caso: pista chiesta e NO setup di quella pista → fallback «tutta la vita»),
         // la copia finirebbe NELLA CARTA SBAGLIATA e in gioco non si vedrebbe: rifiuto.
-        if (trackName && setups[0]?.track && !trkSame(setups[0].track, trackName)) return sendJson(res, 200, { ok: false, track: trackName, foundTrack: setups[0].track, hint: tr({ it: `Nessun .carsetup per questa auto su «${trackName}» (ho trovato solo il base su «${setups[0].track}»): salvare UNA volta un setup in EVO su quella pista e riprova — la copia «EVO-consigliato» va accanto alla sua base, altrimenti il gioco non la mostra.`, en: `No .carsetup for this car at «${trackName}» (found the base only at «${setups[0].track}»): save a setup in EVO on that track once and retry — the «EVO-consigliato» copy goes next to its base, or the game won't show it.` }) });
+        // il pool del PONTE: tutti i base setup dell'auto su ALTRE piste, il più recente primo —
+        // la GUI li propone nel menù del «🌉 PONTALO QUI» (se ne vuole uno preciso, non solo il primo)
+        const bridgePool = setups.filter((s) => !s.name.includes('EVO-consigliato')).sort((a, b) => statSync(b.file).mtimeMs - statSync(a.file).mtimeMs);
+        if (trackName && setups[0]?.track && !trkSame(setups[0].track, trackName)) return sendJson(res, 200, { ok: false, track: trackName, foundTrack: setups[0].track, hint: tr({ it: `Nessun .carsetup per questa auto su «${trackName}» (ho trovato solo il base su «${setups[0].track}»): salvare UNA volta un setup in EVO su quella pista e riprova — la copia «EVO-consigliato» va accanto alla sua base, altrimenti il gioco non la mostra.`, en: `No .carsetup for this car at «${trackName}» (found the base only at «${setups[0].track}»): save a setup in EVO on that track once and retry — the «EVO-consigliato» copy goes next to its base, or the game won't show it.` }), bridgeAvailable: true, bridgeOptions: bridgePool.map((s) => ({ name: s.name, track: s.track, file: s.file })), bridgeSrcFile: bridgePool[0]?.file ?? null });
         // la base del consiglio è SEMPRE il TUO setup: le copie «— EVO-consigliato»
         // generate dai click precedenti si escludono (altrimenti: doppio suffisso e
         // il consiglio parte dai valori già corretti, non dal tuo file)
@@ -3373,6 +3456,73 @@ async function api(context0, _req, res, action, body) {
           basis: basis ?? advice?.basis?.kindLabel ?? raceAdvice?.basis?.kindLabel ?? null,
           liveHot: liveHot ?? null,
         });
+      } catch (e) { return sendJson(res, 500, { error: e.message }); }
+    }
+    case 'setup-cover': {
+      // QUADRO DI COPERTURA (1/11): per l'auto chiesta — quali piste hanno i
+      // tuoi .carsetup (file e data dell'ultimo, per cartella EVO) e quali piste
+      // hai GIRATO di recente senza setup: lì il ponte 🌉 è l'unica via senza
+      // aprire EVO. Con body.all true: la STESSA computazione per TUTTE le auto
+      // del garage (richiesta 1/11; overview in un colpo, senza spostare sedile).
+      // Lettura pura; «pistaViva» (la pista della sessione LIVE, se c'è) arriva
+      // a informativa — la guardia della scrittura resta in setup-bridge.
+      try {
+        const savedDir = paths.dataDirs?.[0] ?? '';
+        if (!savedDir) return sendJson(res, 200, { ok: true, covered: [], missing: [] });
+        const carReq = String(body.car ?? '').trim();
+        const allReq = body.all === true;
+        const rootDir = savedDir.replace(/[\\/]$/, '');
+        const moTecRoot = join(savedDir, 'MoTec');
+        const resultsRoot = paths.resultsDirs?.[0] ?? join(savedDir, 'Results');
+        let pistaViva = null;
+        try { if (await syncLiveReader() !== 'off') pistaViva = liveReader()?.snapshot?.()?.session?.track ?? null; } catch { /* live non disponibile: quadro senza */ }
+        const carCover = (name) => {
+          if (!name) return null;
+          let setups = listSetups(rootDir, { car: name }).filter((s) => !s.name.includes('EVO-consigliato'));
+          if (!setups.length) setups = listSetups(rootDir).filter((s) => carSame(s.car, name) && !s.name.includes('EVO-consigliato'));
+          const byTrack = new Map();
+          for (const s of setups) {
+            let m; try { m = statSync(s.file); } catch { continue; }
+            const e = byTrack.get(s.track) ?? { track: s.track, files: 0, last: 0, lastFile: null };
+            e.files++;
+            if (m.mtimeMs > e.last) { e.last = m.mtimeMs; e.lastFile = s.file; }
+            byTrack.set(s.track, e);
+          }
+          const covered = [...byTrack.values()].map((e) => ({ ...e, last: new Date(e.last).toLocaleDateString('it-IT') })).sort((a, b) => a.track.localeCompare(b.track));
+          // piste GIRATE di recente con quest'auto (motori MoTeC + Results): lì dove
+          // giravi senza un .carsetup è là dove il ponte serve DAVVERO
+          let sessions = collectSessions(moTecRoot, resultsRoot, { car: name, limit: carReq ? 40 : 12 });
+          if (!sessions.length) sessions = collectSessions(moTecRoot, resultsRoot, { limit: carReq ? 60 : 80 }).filter((sn) => carSame(sn.car ?? '', name));
+          const viste = [];
+          for (const sn of sessions) { const tk = sn.track ?? null; if (tk && !viste.some((x) => trkSame(x, tk))) viste.push(tk); }
+          // I SORGENTI DISPONIBILI (31/10, richiesta Mauro): non solo il più
+          // recente — la GUI mette in tendina TUTTI i setup base dell'auto
+          // (max 12, dal più nuovo), così si ponta quello che si vuole.
+          const ordinati = setups.slice().sort((a, b) => statSync(b.file).mtimeMs - statSync(a.file).mtimeMs);
+          const missing = viste.filter((tk) => !covered.some((c) => trkSame(c.track, tk))).slice(0, carReq ? 8 : 6).map((tk) => {
+            const src = ordinati[0] ?? null;
+            // SORGENTE ANCHE NEL QUADRO (1/11, richiesta Mauro: «proponi il
+            // ponte diretto anche da lì»): il bottone 🌉 del quadro «Tutto il
+            // garage» ha bisogno di srcFile (il base setup PIÙ RECENTE dell'auto
+            // di quel chip) per pontare senza spostare il sedile.
+            return { track: tk, srcName: src?.name ?? null, srcTrack: src?.track ?? null, srcFile: src?.file ?? null };
+          });
+          const srcs = [];
+          if (!allReq) for (const s of ordinati.slice(0, 12)) {
+            let m; try { m = statSync(s.file); } catch { continue; }
+            srcs.push({ name: s.name, track: s.track, file: s.file, when: new Date(m.mtimeMs).toLocaleDateString('it-IT') });
+          }
+          return { car: name, covered, missing, sources: srcs };
+        };
+        // TUTTE le auto del garage: overview con i SORGENTI per il ponte
+        // diretto (1/11, richiesta Mauro) — la GUI propone 🌉 in tendina sul
+        // quadro stesso, senza più passare dal pannello dell'auto in mano
+        if (allReq) {
+          const cars = (state?.garage?.cars ?? []).map((g) => g.carName ?? null).filter(Boolean).map((name) => carCover(name)).filter(Boolean);
+          return sendJson(res, 200, { ok: true, cars, pistaViva });
+        }
+        const me = carCover(carReq);
+        return sendJson(res, 200, { ok: true, ...(me ?? { car: carReq, covered: [], missing: [] }), pistaViva });
       } catch (e) { return sendJson(res, 500, { error: e.message }); }
     }
     case 'setup-history': {
@@ -3556,6 +3706,45 @@ async function api(context0, _req, res, action, body) {
       const parent = dirname(target);
       const canUp = parent !== target;
       return sendJson(res, 200, { kind: 'dir', path: target, parent: canUp ? parent : null, entries });
+    }
+    case 'setup-bridge': {
+      // PONTE FRA PISTE (1/11): il setup base della tua auto su un'altra pista
+      // arriva in CARTELLA della pista di arrivo, byte per byte — così in EVO
+      // puoi CARICARLO senza prima salvare a mano un setup finto a vuoto. Mai
+      // overwriting: se il nome esiste già, il ponte lo sposta su « (2)».
+      try {
+        const savedDir = paths.dataDirs?.[0] ?? '';
+        if (!savedDir) return sendJson(res, 409, { error: 'Cartella Saved Games/ACE non impostata (Impostazioni).' });
+        const carName = String(body.car ?? '').trim();
+        let destTrack = String(body.destTrack ?? '').trim() || String(body.track ?? '').trim();
+        // STESSA GUARDIA dell'setup-apply: se EVO è aperto su una sessione, la
+        // pista VIVA comanda — non scriviamo nella cartella di un'altra pista
+        // che il gioco comunque non mostrerebbe.
+        {
+          let liveTrack = null;
+          try { if (await syncLiveReader() !== 'off') liveTrack = liveReader()?.snapshot?.()?.session?.track ?? null; } catch { /* decide senza */ }
+          if (liveTrack) {
+            if (destTrack && !trkSame(liveTrack, destTrack)) return sendJson(res, 200, { ok: false, track: destTrack, liveTrack, hint: tr({ it: `Il gioco è su «${liveTrack}»: il ponte scrive solo su quella pista (lì EVO mostra i setup). Aggiorna il pannello se la pista è cambiata.`, en: `The game is at «${liveTrack}»: the bridge writes to that track only (that's where EVO shows setups). Refresh the panel if the track changed.` }) });
+            destTrack = destTrack || liveTrack;
+          }
+        }
+        if (!carName || !destTrack) return sendJson(res, 200, { ok: false, hint: tr({ it: 'Serve auto e pista di arrivo per il ponte.', en: 'Car and destination track are required for the bridge.' }) });
+        // paranoia: la pista finisce in un percorso su disco — niente separatori né caratteri vietati da Windows
+        if (/[\\/:*?"<>|]/.test(destTrack)) return sendJson(res, 400, { error: 'Nome pista non valido.' });
+        const rootDir = savedDir.replace(/[\\/]$/, '');
+        let all = listSetups(rootDir, { car: carName }).filter((s) => !s.name.includes('EVO-consigliato'));
+        if (!all.length) all = listSetups(rootDir).filter((s) => carSame(s.car, carName) && !s.name.includes('EVO-consigliato'));
+        if (!all.length) return sendJson(res, 200, { ok: false, hint: tr({ it: `Nessun setup base per questa auto: il ponte ha bisogno di UNA pista con almeno un .carsetup del tuo. Salva un setup in EVO (anche coi valori default) e riprova.`, en: `No base setup for this car: the bridge needs ONE track with at least a .carsetup of yours. Save a setup in EVO (default values are fine) and retry.` }) });
+        // il setup c'è GIÀ su questa pista? il ponte non serve, si usa quello
+        const onDest = all.filter((s) => trkSame(s.track, destTrack));
+        if (onDest.length) return sendJson(res, 200, { ok: false, already: true, hint: tr({ it: `Sulla pista «${destTrack}» c'è già ${onDest.length === 1 ? 'un tuo setup' : 'tuo setup (' + onDest.length + ')'}: non serve il ponte — vai dritti al meccanico.`, en: `Track «${destTrack}» already has your setup: no bridge needed — go straight to the mechanic.` }) });
+        all.sort((a, b) => statSync(b.file).mtimeMs - statSync(a.file).mtimeMs);
+        const src = body.srcFile ? (all.find((s) => s.file === body.srcFile) ?? all[0]) : all[0];
+        const r = bridgeSetup(rootDir, src.car, destTrack, src.file);
+        if (!r.ok) return sendJson(res, 200, { ok: false, error: r.error, hint: tr({ it: `Il ponte non è riuscito: ${r.error}`, en: `The bridge failed: ${r.error}` }) });
+        console.log('[setup-bridge]', src.car, ':', src.name, `(${src.track}) → «${destTrack}» =`, r.name);
+        return sendJson(res, 200, { ok: true, file: r.file, name: r.name, bytes: r.bytes, fromTrack: src.track, destTrack, hint: tr({ it: `Pontato in pista: il tuo setup «${src.name}» di «${src.track}» è ora anche su «${destTrack}» («${r.name}», ${Math.round((r.bytes ?? 0) / 1024)} KB, termino identico). A gioco aperto: setup → CARICA → «${r.name}».`, en: `Bridged: your setup «${src.name}» from «${src.track}» is now also at «${destTrack}» («${r.name}», ${Math.round((r.bytes ?? 0) / 1024)} KB, byte-identical). In game: setup → LOAD → «${r.name}».` }) });
+      } catch (e) { return sendJson(res, 500, { error: e.message }); }
     }
     case 'setup-save': {
       const patch = {};
@@ -3765,9 +3954,15 @@ function watcherTick() {
       }
 
       if (watcher.racedEnd) {
-        // dai al gioco il tempo di scrivere il file risultato, poi importalo
+        // dai al gioco il tempo di scrivere il file risultato, poi importalo.
+        // 1/11 (richiesta Mauro: «l'aggiornamento della GUI a gara finita è
+        // lento, Paddock è molto più veloce»): l'attesa era 8 s FISSE; ora 3 s
+        // di grazia e basta, e se il file non è ancora a posto NON si perde
+        // nulla: l'incasso riparte da solo al tick successivo (NO_CANDIDATE /
+        // PLAYER_NOT_FOUND sono già trattate senza rumore) e le volte oltre il
+        // limite avvisano come prima.
         if (!watcher.wait) watcher.wait = Date.now();
-        if (Date.now() - watcher.wait < 8000) return;
+        if (Date.now() - watcher.wait < 3000) return;
         try {
           // in coda con le richieste API: nessuno sovrascrive lo state dell'altro
           const out = await serialize(async () => {
@@ -3787,9 +3982,10 @@ function watcherTick() {
             return { event: evAuto };
           });
           if (out?.waiting) {
-            // il gioco non ha ancora scritto un file leggibile: si rimarta, con limite
-            watcher.tries = (watcher.tries ?? 0) + 1;
-            if (watcher.tries > 20) {
+          // il gioco non ha ancora scritto un file leggibile: si rimarta, con limite
+          // (30 giri × tick 2 s ≈ 60 s, il tetto che c'era con tick 4 s + 20 tentativi)
+          watcher.tries = (watcher.tries ?? 0) + 1;
+          if (watcher.tries > 30) {
               watcher.racedEnd = false;
               watcher.wait = null;
               watcher.tries = 0;
@@ -3817,7 +4013,7 @@ function watcherTick() {
           // niente risultati ancora scritti: riprova al prossimo giro per un po', poi molla
           if (!watcher.tries) watcher.tries = 0;
           watcher.tries += 1;
-          if (watcher.tries > 20) {
+          if (watcher.tries > 30) {
             watcher.racedEnd = false;
             watcher.wait = null;
             watcher.tries = 0;
@@ -3936,8 +4132,8 @@ const SOLO_POST = new Set([
   'event-accept', 'event-prep', 'event-prize-refresh', 'event-decline', 'event-finish', 'event-abandon',
   'garage-add', 'garage-remove', 'garage-note', 'garage-sell',
   'difficulty-nudge', 'nudge-dismiss', 'difficulty-action',
-  'grid-apply', 'grid-drop', 'grid-ai', 'race-settings',
-  'setup-apply', 'setup-save', 'slot-launch',
+  'grid-apply', 'grid-drop', 'grid-ai', 'race-settings', 'wx-session',
+  'setup-apply', 'setup-save', 'setup-bridge', 'slot-launch',
   'challenge-accept', 'sponsor-accept', 'sponsor-decline',
   'review-export', 'integrity-fix', 'save-backup', 'backup',
   'gara-veloce', 'parti-subito', 'maintenance', 'gv-preset',
@@ -4099,8 +4295,12 @@ server.listen(PORT, '127.0.0.1', () => {
 });
 
 // il watcher parte solo quando il server è davvero in ascolto (prima il primo
-// tick poteva scattare prima del listen)
-setInterval(watcherTick, 4000);
+// tick poteva scattare prima del listen). 1/11 (Mauro: «la GUI a gara finita
+// aggiorna tardi, Paddock è più veloce»): il battito scende 4 s → 2 s — i costi
+// per giro sono di pochi ms (poll live/watcher misurati 30–190 ms con curl) e
+// il BUSY-FLAG qui dentro già garantisce che un giro lento non ne incolli
+// un altro.
+setInterval(watcherTick, 2000);
 // la VOCE DEL PITWALL parte da qui: primo giro dopo il listen (prima il
 // payload poteva scattare mentre il server era ancora tenuto in gola), ogni
 // 4 s — stesso battito del monitor e del cruscotto. MAI con `unref` dal

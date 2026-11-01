@@ -415,6 +415,23 @@ export function difficultyFor(ladder, state, node, track = null) {
   return { base, trim, offClass, offTrack, global, total, slider: skillToEvoSlider(total, ladder), locked: d.locked.includes(node.nodeId), mode: d.mode };
 }
 
+/** BANDA DI SERIE per il customgrid (1/11/2026, richiamo di Mauro sul 82–92
+ *  residuo in scheda Griglia): la STESSA formula del pannello Difficoltà
+ *  (viewDifficulty in webui-views.mjs) — override manuale dei cursori
+ *  (state.raceSettings) oppure lo slider calcolato, banda stretta di 1 punto.
+ *  È la banda VIVA della serie; il builder la usa quando la griglia NON
+ *  combacia con una classe, così il vecchio nodo ladder ("ai": [82, 92]
+ *  dello script d'impianto) non finisce più nel customgrid.
+ *  Ritorna { banda: [min,max], override, slider, base, trim }. */
+export function bandaSerieSlider(ladder, state, node, track = null) {
+  const d = difficultyFor(ladder, state, node, track);
+  const ov = state.raceSettings?.[node.nodeId] ?? {};
+  const oMin = Number.isFinite(Number(ov.sliderMin)) ? Number(ov.sliderMin) : null;
+  const oMax = Number.isFinite(Number(ov.sliderMax)) ? Number(ov.sliderMax) : null;
+  const lo = oMin ?? Math.max(0, Math.round(d.slider));
+  return { banda: [lo, oMax ?? Math.min(100, lo + 1)], override: oMin != null || oMax != null, slider: Math.round(d.slider), base: Math.round(d.base ?? 0), trim: d.trim };
+}
+
 /** Proposta di correzione del trim, in attesa di conferma. */
 export function proposeDifficulty(_ladder, state, node, position, gridSize) {
   if (state.difficulty.mode !== 'adaptive' || state.difficulty.locked.includes(node.nodeId)) return null;
@@ -840,9 +857,11 @@ export function applyRaceResult(ladder, state, node, payload) {
   if (state.pending && state.pending.node === node.nodeId && state.pending.round === round) state.pending = null;
   if (state.round <= round) state.round = round + 1;
 
-  // agenda a giorni: finita la gara, il giorno del calendario avanza di 1
-  state.agenda ??= { day: 1 };
-  state.agenda.day = Math.max(1, Math.floor(Number(state.agenda.day) || 1)) + 1;
+  // agenda a giorni (1/11, OROLOGIO DI GIORNATA): il giorno NON avanza più di 1
+  // a gara qui — avanza il TEMPO (agenda.mjs avanzaGiornataDopoGara, chiamata
+  // nel flusso dei risultati di import.mjs): +8 ore a gara, giornata chiusa alla
+  // terza (o senza resto) e salto al prossimo giorno con gare. Con 3 gare al
+  // giorno il calendario non gira più a ogni gara di un giorno intero.
 
   const gapText = !dnf && Number.isFinite(gapMs) && gapMs != null && gapMs > 0
     ? (gapMs >= 60000 ? `+${Math.floor(gapMs / 60000)}'${String(Math.round((gapMs % 60000) / 1000)).padStart(2, '0')}"` : `+${(gapMs / 1000).toFixed(1)}"`)

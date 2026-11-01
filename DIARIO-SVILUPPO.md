@@ -17,6 +17,19 @@ affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo
 
 ## Cose da fare o da rivedere
 
+### DA-13 — Ponte fra piste per i setup · richiesta Mauro 31/10 («i setup per macchina come sono organizzati? ogni pista ha la sua auto con dentro i setup? o condivisi per tutte le piste e auto») · STATO: fatto (31/10 tarda sera)
+Prima l'audit (36 setup su 10 auto in Car Setups, copertura inegiale: Ferrari 296 su 4 piste, Hyundai su 1), poi la risposta: in EVO i .carsetup vivono SOLO per auto+pista — niente condivisione globale, è il formato del gioco. Il limite pratico: su una pista NUOVA l'app chiedeva finora di aprire EVO e salvare «una volta, anche a vuoto» prima che il meccanico potesse applicare consigli — ora lo fa lei. Toccato:
+- [src/carsetup.mjs](src/carsetup.mjs): `bridgeSetup(savedDir, destCar, destTrack, srcFile)` — il setup base dell'auto (esclusi i «— EVO-consigliato») viene copiato BYTE PER BYTE nella cartella Car Setups/<auto>/<pista di arrivo>/; mai sovrascritture: se il nome esiste, il nuovo prende « (2)»; nessun parse/patch (round-trip identico per costruzione).
+- [src/webui.mjs](src/webui.mjs): rotta POST `setup-bridge` (nel registro SOLO_POST) con la STESSA guardia «pista viva» dell'setup-apply — se EVO è in sessione, il ponte scrive solo SU QUELLA pista; e il vecchio rifiuto «nessun setup su questa pista» di setup-apply ora allega `bridgeAvailable` + `bridgeSrcFile`.
+- [gui/js/viste-c.js](gui/js/viste-c.js): il rifiuto diventa bottone «🌉 PONTALO QUI» (funzione `bridgeOut`, usata sia dalla preview sia dalla conferma); dopo il ponte l'app ripropone ⚡ APPLICA e il consiglio parte dalla pista nuova.
+Verifica: [test/ponte-setup.test.mjs](test/ponte-setup.test.mjs) 3/3 (copia identica, « (2)» senza overwrite, rifiuti); suite intera 691/691 verdi (22 s); biome pulito sui 4 file toccati.
+
+Scelta del sorgente (subito dopo: il ponte partiva solo dal setup PIÙ RECENTE — se su un'altra pista ne hai tre con nomi diversi, non c'era modo di puntare quello giusto): setup-apply a rifiuto ora allega `bridgeOptions` (TUTTI i base setup dell'auto, esclusi i «— EVO-consigliato», dal più recente) e in [gui/js/viste-c.js](gui/js/viste-c.js) il bottone del ponte è preceduto da un menù quando le piste pontabili sono più di una; l'handler manda `#bridge-src`.value. Suite 691/691 ancora verdi.
+
+Quadro di copertura [31/10 tarda notte, chiusura del giro]: rotta POST `setup-cover` in [webui.mjs](src/webui.mjs) (lettura pura, non aggiunta a SOLO_POST) — per l'auto chiesta ritorna `covered` (piste con .carsetup: file, data ultimo, file pontabile), `missing` (piste GIRATE di recente MoTeC/Results senza setup, max 8, con il sorgente consigliato = base più recente dell'auto) e `pistaViva` (solo informazione; la guardia della scrittura resta in setup-bridge). In [gui/js/viste-c.js](gui/js/viste-c.js) il pannello «🗺 Copertura dei setup» si innesta sotto la storia del meccanico (`__drawSetupCover`, ridisegno senza re-render come la storia) — chip ✔ verdi per coperte, chip ✖ rossi con bottone 🌉 per mancate; il click chiama setup-bridge e rinfresca quadro+storia da solo. PROVA SUL VIVO (riavvia-webui, guanta 0.1.45 + nuovo codice): Ferrari 296 GT3 → coperte Brands Hatch / Imola / Monza / Oulton Park, missing «Red Bull RingGP» con sorgente «Rerrari bagnato default» (Oulton Park) — il nome del file è quello vero dell'hard disk. Nessun unit test dedicato: la rotta mangia sessioni MoTeC vere; la prova live è la verifica.
+
+Tutto il garage (31/10 notte, chiusura del giro): `setup-cover` con `all: true` rifà la STESSA computazione per ogni auto di [state.garage.cars](src/state.mjs) (helper `carCover` unico, limit MoTeC ridotto a 12/80 per non recalcolare a ogni apertura) — ritorna `cars: [{ car, covered, missing }]` SENZA sorgenti per pista: le piste pontabili restano solo nel pannello dell'auto corrente (i bottoni lì). In [gui/js/viste-c.js](gui/js/viste-c.js) il quadro ora ha il ripieghévole «🏢 Tutto il garage»: riga per auto con chips ✔/✖; auto del garage senza copertura né sessioni recenti si dicono a voce esplicita. PROVA SUL VIVO (riavvia-webui, seconda ripartenza): 2 auto — Peugeot 205 T16 e Lamborghini Countach LP5000 QV — entrambe `covered: []`, missing Brands HatchGP / COTA GP / Suzuka GP e MonzaGP rispettivamente: il quadro dice la verità dei file. Suite 691/691 verdi (16 s) dopo il passo, invariata a prima.
+
 ### DA-1 — Prova in pista del copilota: bandiere + tagli · STATO: APPUNTAMENTO 1/11 (richiesta Mauro: «ricordamelo domani»)
 La rossa/nera e i tagli veri ≤ ~2 s sono verificati SOLO in sandbox (`copilota-narratori.test.mjs`).
 Il protocollo è scritto in [PROVA-COPILOTA.md §5](PROVA-COPILOTA.md): tre sequenze in
@@ -80,10 +93,14 @@ Versione attuale 0.1.42 in `package.json`. Da chiamare SOLO dopo che DA-1, DA-3 
 sono verdi: il pacchetto è il pezzo che va agli amici
 (pacchetto-amico + GUIDA-AMICO + FRIEND-GUIDE-EN).
 
-### DA-8 — Rilegge IDEA-POST-PRESENTAZIONE e raccoglie le idee vive · STATO: DA FARE
-[IDEA-POST-PRESENTAZIONE.md](IDEA-POST-PRESENTAZIONE.md) resta nel cassetto: rileggerlo,
-decidere per ciascuna idea viva/morta/in sospeso, e spostare quelle vive in questa
-lista con ID nuovo. Il resto va chiuso con la data.
+### DA-8 — Rilegge IDEA-POST-PRESENTAZIONE e raccoglie le idee vive · STATO: CHIUSA 1/11 · verdetto firmato nel file · ✅
+Rilettura fatta 1/11 col permesso di Mauro (tipo «fai quello che vuoi»):
+**11 su 12 claim vivi**, tutti con la via nel codice — tabella verdetto
+claim per claim in [IDEA-POST-PRESENTAZIONE.md](IDEA-POST-PRESENTAZIONE.md)
+(§VERDETTO DA-8). Claim MORTO uno: «in gioco c'è solo Cruscotto» — il
+Pitwall in gioco (radio, verdetto, finestra, sincro) dal 31/10 l'ha sepolto;
+la voce d'onestà nel file riformulata. Il POST vero (da scrivere quando si
+crea la release pubblica) apre **DA-19**.
 
 ### DA-9 — Stint-plan endurance: finestre di sosta e stint calcolate prima della gara · STATO: CHIUSA (31/10 tarda sera) — see the diary entry «La finestra stint entra nella radio e nella vista»
 Oggi benzina e gomme le dice l'ingegnere DAL VIVO durante la sessione
@@ -297,6 +314,78 @@ SENZA prefisso conta la gara di oggi): **8/8**; smoke webui 1/1; dal vivo
 Hatch P1/15 · 00:19 Monza P1/15 · 13:55 Oulton Park P2/16 · 14:20 Imola P1/17,
 giro migliore 01:47.934 Brands Hatch).
 
+### DA-19 — Il POST di presentazione: dalla bozza al post vero · STATO: DA FARE · da DA-8 (1/11)
+La bozza in [IDEA-POST-PRESENTAZIONE.md](IDEA-POST-PRESENTAZIONE.md) è verificata
+(11/12 claim vivi, tabella verdetto nel file) ma resta una BOZZA, non un post.
+Per andare in luce servono:
+
+1. la release pubblica (DA-7: che dipende da DA-1, DA-3, DA-4 — i collaudii
+   che solo la pista può dare);
+2. gli screenshot della GUI in docs/screenshots — il post li cita e la cartella
+   oggi non li ha tutti;
+3. allineare i NOMI del post ai VERI nomi degli schermi (claim n.1:
+   «Campionati a miscuglio» la GUI NON lo dice — dice «Pools sorteggiati…»);
+4. decidere il CANALE (forum, subreddit, entrambi) e l'apertura IT/EN.
+
+Il momento giusto: DOPO la release pubblica. Finché no, il post resta
+nel cassetto con il verdetto attaccato.
+
+**Taccuino screenshots (inventario fatto 1/11, caccia 31/10 sera)**:
+- ✅ **20-online.png FATTO** — fotografato dal vivo dalla GUI (tab Online
+  col **libro dei rivali** aperto: Sting VG, Speedy Gonzales, 60 incrociati
+e la lista sessioni sopra). README IT/EN aggiornati: la tab Online non
+  ricicla più 14-archive.png.
+- ○ **07-engineer.png** — attenzione al CONTESTO: il piano stint esiste
+  SOLO per le ronde a tempo (durationMin del calendario; il piano rifiuta
+  per design senza raceMin, vedi stint-plan.mjs «durata») e l'Ingegnere
+  LIVE nasce e muore con una sessione vera. Il fotogramma si divide in
+  DUE momenti (dettaglio nella ricetta qui sotto): la SCHEDA col piano
+  pre-gara si fotografa SUBITO appena il sedile è su una ronda a tempo;
+  il pannello Ingegnere LIVE con la finestra viva va preso in sessione
+  (prove/qualifiche già bastano per il banner, la finestra viva in gara).
+  1) iscriviti nella GUI a una enduro della tua scala (rep 699:
+     **Endurance GT4** è già sbloccata, repRequired 450 e iscrizione
+     3.500 €; GT3 Endurance invece serve rep 800 — ancora chiusa;
+     scheda Campionati); 2) apri la scheda gara e leggi
+     il piano stint pre-gara (riga «⛽ Piano stint» della scheda, memo 2 min);
+  PRECISIONE DELL'ULTIMO GIRO (31/10, controllato nel codice): il piano
+     segue il SEDILE, non la sessione (stintDurEff legge nextRound di
+     webui.mjs) — il punto 2 vale SENZA essere in pista: l'iscrizione a
+     GT4 Endurance basta perché la scheda mostri «⛽ Piano stint». Lo
+     show del LIVE (Ingegnere) invece vuole una sessione vera, MA BASTA
+     PROVE o QUALIFICHE per il banner; solo la «finestra viva» (giri
+     mancanti alla sosta, stintStopAlert) cresce col CONTO DEI GIRI,
+     cioè in gara. Foto la si fa in 2 fasi: scheda (offline, subito)
+     e LIVE in qualifiche/gara (con cronologia MoTeC del sedile già in
+     casa, il banner la scrive dal piano raccolto in punto 2).
+  RICETTA PULITA (1/11): la versione ordinata a due fasi ora vive nel
+  post, § «Le foto del post» — Fase A offline (iscrizione **Endurance
+  GT4**, scheda col «⛽ Piano stint» senza pista) e Fase B in sessione
+  (banner in prove/qualifiche, finestra viva col CONTO DEI GIRI in gara).
+  Destinazione dichiarata: `docs/screenshots/07-engineer.png` — lo slot
+  è libero (il README cita 06 e 08; `07-world.png` esiste su disco ma
+  non è citato da nessuna tabella).
+- ✅ **in-diretta/ FATTO (31/10 tarda sera)** — la finestra è tornata
+  visibile e i due segnaposto sono scattati DALLE SONDE (non dal menù
+  di EVO: sono anteprime fuori dal gioco su dati veri del server):
+  [docs/screenshots/in-diretta/cruscotto.png](docs/screenshots/in-diretta/cruscotto.png)
+  (panello del Cruscotto con registro cambio auto, consigli, ronda
+  preparata) e [docs/screenshots/in-diretta/pitwall.png](docs/screenshots/in-diretta/pitwall.png)
+  (Pitwall con la radio del copilota viva DURANTE una sessione reale:
+  «Box chiuso: fuori dal pitlane», benzina per giri, ronda armata col
+  via automatico). NEL POST vanno dichiarati come segnaposto dell'UI
+  (il fotogramma «nel menù di EVO» resta da fare col gioco aperto); la
+  nota «🤖 engine non disponibile» del Cruscotto è il simbolo
+  dell'anteprima fuori dal gioco — in gioco non compare. Le sonde che
+  servono: `node tools/_preview-cruscotto.mjs 9104` (+ `?loader=finto`
+  per il semaforo) e `node tools/_preview-pitwall.mjs 9107`, click sul
+  drawer e screenshot.
+  **CHIUSA 1/11**: le due foto sono incastonate nel post —
+  [IDEA-POST-PRESENTAZIONE.md](IDEA-POST-PRESENTAZIONE.md) § «Le foto
+  del post», in linea e dichiarate segnaposto con la nota «🤖 engine»
+  spiegata in didascalia. Unico residuo dichiarato nel post: il
+  fotogramma «nel menù di EVO» da gioco aperto.
+
 ### DA-18 — MX-5 NA del pool «epoca» azzerata: da penalità doppia a zero · STATO: fatto (31/10 tarda mattinata) · richiesta Mauro 31/10 («il 14% è proprio la penalità, dovrebbe stare a 0 dato che è l'auto meno veloce»)
 Nella classe `campionato_epoca` di [data/grid-classes.json](data/grid-classes.json)
 (il pool 1990-2005: R5 GT Turbo base a 0, GR86 ~10, i30 N ~20, Countach cap 20)
@@ -403,6 +492,160 @@ file in attesa:
 ---
 
 ## Registro del diario
+
+### 1/11 — A gara finita la GUI arrivava tardi: il ritiro delle cifre fisse (richiesta Mauro: «Paddock è molto più veloce»)
+
+Percezione vera, indagine vera. Il Paddock beve fasce scritte ogni 2,5 s
+([uiapp-pub.mjs](src/uiapp-pub.mjs)): parla e si disegna in pochi secondi.
+La GUI invece doveva attraversare TRE cifre fisse, tutte in serie:
+
+- tick del watcher **4 s** (fino a), attesa «grazia» **8 s FISSE** prima
+  del primo tentativo d'incasso ([webui.mjs](src/webui.mjs)), poi il poll
+  GUI del seq **5 s** (fino a) che fa `refreshBoot` + render
+  ([viste-d.js](gui/js/viste-d.js)) — totale percepito ≈ 13–20 s dal
+  traguardo al ridisegno.
+- **Misura**: i due endpoint pollati (`watcher`, `live`) costano
+  **30–190 ms** col server in piedi (3×curl a 8642): il collo di bottiglia
+  NON è il costo delle chiamate — è il ritmo fisso. Nessun test agganciava
+  quelle cifre (spazzata su test/).
+- **La cura** (nessuna rete di sicurezza menosprezzata):
+  1. grazia 8 s → **3 s**: dopo, l'incasso si RETENTA da solo a ogni tick
+     (NO_CANDIDATE / PLAYER_NOT_FOUND / TRACK_MISMATCH restano silenziose)
+     e i tetti dei tentativi salgono 20 → **30** per conservare l'attesa
+     massima (~60 s) che c'era con tick 4 s;
+  2. tick del watcher 4 s → **2 s** (il BUSY-FLAG interno già evita i giri
+     che si incolano); il commento in testa al tick lo raccoglie;
+  3. poll GUI 5 s → **2 s** (stesso contratto: il seq non cambia finché la
+     gara non è incassata, il ridisegno non si moltiplica).
+- Effetto atteso: ≈ **5–9 s** dal traguardo al ridisegno (2 s tick + 3 s
+  grazia + incasso a ms + ≤2 s di poll) contro 13–20 s; SE il file esito
+  arriva tardi, il tempo torna quello di prima ma NIENTE si perde: la
+  ritenta c'è già.
+- Verifica: `node --check` su webui e viste-d ✓, `npx biome lint` 296
+  file a 0 diagnostica ✓, suite completa in sandbox **688/688** exit 0 ✓.
+- **Le viste IN GIOCO ereditano la cura senza toccarle** (audit 1/11,
+  «estendi lo stesso ritmo a Cruscotto e Pitwall, se qualcosa li rallenta»):
+  nulla di proprio le frena. Il publisher ([uiapp-pub.mjs](src/uiapp-pub.mjs)
+  `PERIODO_MS` 2500) scrive le fasce di ENTRAMBE a ogni tick dello stesso
+  stato; Cruscotto e Pitwall prendono lo slot ogni 1,25 s (PERIODO_MS/2,
+  due tacche per fascia) e contatori leggeri condizionati (pallino età 1 s,
+  conto vivo 30 s SOLO con preparazione viva). Il tratto lento era lo STATO
+  (tick+grazia+incasso): ora che la cura lo ha accorciato, la fascia dopo
+  l'incasso porta i dati già nuovi. Catena percepita in gioco al traguardo:
+  tick 2 s + grazia 3 s + incasso a ms + fascia ≤2,5 s + slot ≤1,25 s
+  ≈ **6,5–9 s** (era 13–20 s + fascia). Canale Paddock a 500 ms separato
+  e già vivo (`fascePaddock`), non serve alle due app nostre.
+
+### 1/11 — Release 0.1.45 preparata: il weekend col cielo per sessione e l'orologio nelle app
+
+La parte LOCALE della checklist ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md))
+chiusa in un colpo, su autorizzazione «fai quello che vuoi»:
+
+- **Suite completa in sandbox: 697/697** (`EVO_DATA_DIR` temporanea, 14,2 s,
+  exit 0) — il numero chiaro con l'inganno del diario (era l'attuale).
+- **Lint Biome a 0 diagnostica**: l'unico avviso restante
+  (`useOptionalChain` in [cruscotto.js](uiapp/cruscotto/cruscotto.js), fix
+  «unsafe» che il fixer non applica da solo) chiuso a mano — e la copia
+  installata nei Saved Games riallineata con `installa-cruscotto`.
+- **[CHANGELOG.md](CHANGELOG.md)** voce v0.1.45 scritta dai fatti del delta:
+  Bollettino meteo per sessione con WX_ICON e toast, orologio di giornata
+  in Cruscotto/Pitwall con le due porte (⌛/⏳), ponte 🌉 dal quadro «Tutto
+  il garage», test aggiornati + i due nuovi (banda di serie, ponte).
+- **Bump**: `npm run bump` 0.1.44 → **0.1.45** (verificato con `--check`).
+- **Prova live completa (1/11 tardi, sempre sul demo vuoto)**: riavvio del
+  server (`riavvia-webui`), `boot` vivo sulla carriera vera e `setup-cover`
+  `all:true` che porta `srcFile`/`srcName`/`srcTrack`/`sources`; quadro
+  «Tutto il garage» fotografato sul demo [`screenshot/copertura-garage-0145.png`](screenshot/copertura-garage-0145.png)
+  (chip ✖ secco dove non c'è base setup — come deve essere — e i bottoni
+  «🌉 Pontalo» verificati con dati fissi nel DOM, payload del click con
+  `car` dell'auto riga, pista e sorgente).
+- **Ponte dal quadro «Tutto il garage»** (richiesta Mauro, «proponi il
+  ponte diretto anche da lì, non solo dal pannello dell'auto corrente»):
+  `setup-cover` `all:true` ora include per ogni pista mancante il sorgente
+  (`srcFile`, `srcName`, `srcTrack`) — server in [webui.mjs](src/webui.mjs);
+  in [gui/js/viste-c.js](gui/js/viste-c.js) i chip del quadro usano
+  `chipGarageMiss`: con base setup disponibile il chip diventa «🌉 Pontalo»
+  con `data-cover-car` = l'auto DELLA RIGA (il gestore delegato la
+  rispetta: `btn.dataset.coverCar ?? ctx.car`), senza resta chip secco.
+  Prova live della catena (fetch intercettato in pagina, niente scritto su
+  disco): rendering dei bottoni coi dati fissi e click registrato al
+  server con l'auto giusta; ritorno a dati veri e pannello ridisegnato
+  pulito. Test: `test/ponte-setup.test.mjs` (3 casi).
+- **README**: nessun riferimento alla versione da allineare (solo fasce
+  storiche 0.1.13–0.1.41, giuste così).
+
+CHIUSURA DEL RILASCIO (1/11 sera, su richiesta Mauro «registra la versione
+0.1.45 e prepara il pacchetto»): commit locale delle modifiche di sessione,
+danza del PC amico vergine (§3) e pacchetto-amico costruito dal commit della
+testa (zip in `pacchetti/`, con `build-id.txt` dentro).
+RESTANO NELLA MANO DI MAURO (come da checklist): `sincronizza-git.cmd`
+(push su off-site, con il report di build generato dopo il push) e
+`node tools/crea-release.mjs` (release GitHub con la zip come asset).
+
+### 1/11 — Orologio di giornata nel cruscotto e nel pitwall (richiesta Mauro, «prossimi naturali»)
+Il calendario da 1/11 ha il SUO orologio (`agendaOra`, 0–23 + mattino
+presto): la GUI lo mostrava da sola, i due pannelli IN GIOCO no. Ora il
+server spedisce e i due pannelli lo dicono:
+
+- **Payload** ([uiapp-pub.mjs](src/uiapp-pub.mjs)): la vetrina porta
+  `ora: agendaOra(state)` accanto a `giorno`; il miniPitwall trasporta
+  giorno+ora nel payload piccolo (le sue chiavi sono chiuse dal test).
+- **Cruscotto** ([cruscotto.js](uiapp/cruscotto/cruscotto.js)): nella
+  intestazione sotto il pilota — «⏰ ore 16 · (mattino presto)» — e nella
+  card gara l'ORA DI PARTENZA (il server la mandava già, la card la
+  bevva da sempre, la card la mostrava mai).
+- **Pitwall** ([pitwall.js](uiapp/pitwall/pitwall.js)): primo blocco del
+  muro senza carriera = niente blocco, mai un mucchio vuoto.
+- Installati entrambi nei Saved Games (installa-cruscotto + installa-pitwall);
+  verificato che le copie in gioco portino il cambio.
+- SECONDA MANATA (1/11 pomeriggio, sempre «fai quello che vuoi»): la card
+  porta anche LE DUE PORTE del calendario — `portaChiusa` (⌛, calcolata
+  dal server con portaGiornata: l'orologio è oltre l'ora della gara, la
+  scaletta non torna indietro) e `inRitardo` (⏳, la gara di un altro
+  giorno che si corre quando si vuole, come la scheda del CLI). Il server
+  mandava inRitardo da sempre, la card lo beveva mai. Suite 688/688.
+- Test nuovo in [pitwall-radio.test.mjs](test/pitwall-radio.test.mjs):
+  le chiavi del miniPitwall aggiornate (giorno/ora in lista) e il passaggio
+  giorno=3/ora=16, ora null = mattino, senza carriera = null. Suite 688/688.
+
+### 1/11 — Bollettino del weekend: meteo per sessione (richiesta Mauro: «weekend realistici»)
+Prima la ronda portava UN preset per TUTTO il weekend: prove, qualifiche,
+warm-up e gara uscivano con lo stesso cielo. Ora il piano è DETERMINISTICO
+in [race.mjs](src/race.mjs) (`weatherPlanFor`): il cielo peggiora verso la
+gara (r = meteo della ronda) — prove min(r−2, 2), tetto «nuvoloso» così
+le prove si possono sempre correre · qualifiche/warm-up r−1 · gara r —
+con clamp a 0. La ronda bagnata (r=4) dà l'esempio letterale di Mauro:
+prove nuvoloso, qualifiche pioggia leggera, gara pioggia.
+
+- **Preparato tutto** ([webui.mjs](src/webui.mjs)): al via scrive il preset
+  della PRIMA sessione (le prove); le sessioni successive si sistemano col
+  tasto del bollettino (EVO legge il preset del selettore a ogni avvio
+  sessione, verificato 20/10).
+- **Tasto «Metti» nella scheda** ([viste-a.js](gui/js/viste-a.js)): il
+  «Bollettino» mostra le 4 sessioni con cielo pianificato e ora; il bottone
+  «Metti» chiama `wx-session` (sessione practice/qualify/warmup/race →
+  endpoint POST in webui.mjs, aggiunto alle rotte che esigono carriera) e
+  scrive il preset sul gamemodesave. Nessun cielo scelto a mano: non c'è
+  `previsto:true` perché qui a premere è l'utente (non l'automazione), ma
+  il numero arriva SEMPRE dal piano del calendario, mai dalla GUI.
+- IT/EN complete (nomi sessione e rituale), test nuovo in
+  [race-card.test.mjs](test/race-card.test.mjs) (i quattro livelli del piano + card),
+  payload di card con `weatherPlan` e `weatherRitual`
+  ([webui-views.mjs](src/webui-views.mjs)).
+
+### 1/11 — Icona del meteo nel Bollettino (richiesta Mauro: «sole su bello,
+pioggia su pioggia»)
+I chip del piano mostrano solo il nome («sereno», «pioggia») senza segno:
+si riconosce il cielo leggendo, non guardando. In [viste-a.js](gui/js/viste-a.js)
+c'è ora `WX_ICON` — chiave = codice della ronda (0–5, la stessa tabella di
+[race.mjs](src/race.mjs)): ☀️ sereno · 🌤️ nuvole sparse · ☁️ nuvoloso ·
+🌦️ pioggia leggera · 🌧️ pioggia · ⛈️ pioggia intensa — accodato al nome
+in ogni chip di sessione. Il codice resta SOLO server (nessun nuovo campo):
+la GUI legge `s.weather` già in `weatherPlan`. POCO DOPO la stessa icona
+anche nei toast di «Metti»: la mappatura legge `r.forecast` (il piano che
+il server ricalcola) con la stessa `WX_ICON`, niente doppio registro.
+Verifica: `node --check` su viste-a.js + guardie che camminano su gui/
+(`viste-guard`, `diffesa-sonda`) in verde.
 
 ### 1/11 — Difesa POST-only sulle API di scrittura (lezione sonda) — DA-16
 Colpo e restauro raccontati in [SESSION_REPORT.md](SESSION_REPORT.md) §Incidente;
@@ -1253,6 +1496,30 @@ cominciano a uscire nella SUA cartella, come promesso a teoria.
 
 **Test: webui-smoke 1/1 (con le nuove asserzioni del payload), paddock +
 uiapp + verdetto 59/59, lint Biome pulita sui file toccati.**
+### 1/11/2026 — Il piede che respira e la tendina del ponte
+
+- **Tendina del ponte nel quadro di copertura** (seguito di DA-13, richiesta
+  Mauro 1/11: «menu a tendina per scegliere quale setup base pontare su una
+  pista, non solo il più recente»): la rotta `setup-cover` ora porta anche
+  `sources` (fino a 12 base setup dell'auto, nome · pista · data, dal più
+  nuovo) e in [viste-c.js](gui/js/viste-c.js) per OGNI pista «girata, senza
+  setup» c'è il `<select data-cover-src>` accanto al bottone 🌉; default resta
+  il più recente (chi non apre il menu fa come prima), il click manda la voce
+  scelta. La nota 🌉 del pannello è allineata. Verifica: node --check verde,
+  nessun test dedicato (la rotta mangia .carsetup veri di disco).
+- **Battito del server dentro il piede della GUI** (richiesta Mauro 1/11:
+  «stato porta + build in tempo reale»): rotta `/api/ping` leggerissima in
+  [webui.mjs](src/webui.mjs) ({ok, port: PORT, build memoizzato}) e riga viva
+  `<span id="srv-live">` nel piede [core.js](gui/js/core.js) — 🟢 «server vivo
+  · porta · build» aggiornato ogni 4 s (timeout 2 s), 🔴 «server non risponde»
+  con la porta ricordata quando cade, torna verde da sola al rientro senza
+  ricaricare la pagina. Utile anche durante il riavvio dell'aggiornatore:
+  capisci a colpo d'occhio quando il server è tornato. Per attivarla serve
+  riavvia-webui + F5 (cambia rotta server + JS della GUI).
+- **Chiusura sul vivo** (riavvia-webui, server risalito PID 10856):
+  `/api/ping` risponde `{ok:true, port:8642, build:{semver:0.1.45, hash:6a29f8b}}`;
+  suite intera 691/691 verdi (22 s) e Biome pulita su 297 file.
+
 ### 31/10/2026 notte — L'area debole #2: analisi.mjs senza test (e frasi corrette anche nei TESTI)
 Misurato con dati: lint pulita su 267 file e la scansione «chi importa cosa»
 nei test ha pescato i moduli senza copertura. Il peggiore: [src/analisi.mjs](src/analisi.mjs)
@@ -1278,7 +1545,36 @@ Il primo test dedicato: [test/analisi.test.mjs](test/analisi.test.mjs), 7 casi:
 Prossima fetta: setupAB (fixture MoTeC) e seatMonteCarlo (fixture world).
 **Suite 575/575, lint su 268 file pulita.**
 
-### 31/10/2026 tarda sera — L'area debole del giorno: i commenti corrotti del webui
+### 31/10/2026 sera — Il crash 0xC0000005 della ronda Mini (Donington), annotato e ronda rifatta
+Crash reale preso dai log di EVO: log-261031-153615, **17:59:04.764**, eccezione
+0xC0000005 durante il CARICAMENTO di Donington Park `layout_grand_prix` (la
+ronda R2 della Coppa Mini Vintage). Il pattern nel log:
+- AISpline e pitlane di Donington caricati regolarmente (2324/412 punti);
+- subito prima: `Loaded 0 TrackLayoutBezier points from ''` — **dichiarazione
+  di layout VUOTA nel loader di scena**, linea che merita attenzione quando le
+  piste tornano in mano;
+- `World initialize took 2.15 s` + `Init camera manager` → eccezione sui
+  **Physics Worker 1/2/3**, stesso RVA 0x2873F84, la STESSA firma flaky
+  immortalata dal verdetto 23/10 (NOTE-AUTOMAZIONE, rev. 4: il crash NON
+  dipende dal conto della griglia né dal file; sia il 5→8 sia il taglio 8→5
+  giravano in processo vivo); più linee di crash (61) nel SOLO log di questo
+  avvio, che ha chiuso al primo colpo.
+Ripresa: EVO riaperto pulito DUE volte (18:41 e 20:08, entrambi i log senza
+una sola riga di crash) poi la ronda ripreparata sul vivo: **round 3/3 Oulton
+Park — Finale** via `prepara` (griglia scritta dal magazzino della serie, 12
+celle `preset_jcs_mech_1` × 2 tinte, PI fine 9–10, iscrizione 250 € pagata,
+card completa: 3 giri, AI 84–85, ora 15:00, pioggia fissa). Il rituale del
+23/10 resta il protocollo: al crash all'Avvia, RIPROVA, poi
+riavvia EVO — il file su disco resta a posto.
+Chiusura dello scavo Bezier (stessa sera): il contenuto del gioco è tutto in un
+unico `content.kspkg` (niente piste sfuse su disco), e nei log esaustivi la riga
+«Loaded 0 TrackLayoutBezier points from 'brands_hatch\layouts\layout_1…'» esce
+sempre nel canale `[gameplay] [info]` in ogni sessione, anche senza crash —
+stesso schema di `found 0 TV cameras` ecc.: conteggio normale di elementi
+opzionali, non pista corrotta né causa del 0xC0000005. Tutto il contenuto delle
+piste sta dentro i pacchetti del gioco (`content.kspkg`, niente file sfusi); se
+il caricamento piste dovesse sembrare di nuovo sotto accusa, si guardano le
+righe `[crash]` in coda al log, non le info `Loaded 0`.
 Chiesta «un'area debole da migliorare», scelta con dati e non a naso: suite verde,
 lint quasi pulita (1 solo warning vero) e zero CJK residui — ma restavano nei
 COMMENTI di [src/webui.mjs](src/webui.mjs) frasi Italinglish nate dalle sessioni
@@ -1449,6 +1745,110 @@ bagnata → secca) è ora rum del popolo solo in modalità test:
   il test CADE (2/3 pass) — e il ripristino è a backup file.
 - Suite **682/682** in sandbox, lint Biome 0, danza amico 24/24 — release
   **v0.1.44** in uscita.
+
+### 1/11/2026 — L'orologio ferma a 16: l'ultimo +8 muore nel persist sbagliato
+
+Prova Mauro (1/11 mattina, dopo le gare di ieri sera alle 23:21/23:33/23:57): «ho fatto gare, guarda se l'orologio funziona, dopo una gara dovrebbe avanzare di 8 ore». Non era avanzato: save fermo a **giorno 223, ora 16** dopo ben CINQUE gare (Mini, MX5, R5, R5, Peugeot 205) — tre turni di +8 richiesti, ma solo i primi due sono arrivati sul disco.
+
+- **Perché** (rassegna degli indizi, nessuna divinazione): le tre gare registrate dal server VECCHIO (sostituito solo alle 00:34) si incassavano con l'ordine sbagliato in [import.mjs](src/import.mjs): `persist(state)` a riga 449 e `avanzaGiornataDopoGara` DOPO a riga 494 — l'avanzamento del tempo toccava il SOLO oggetto in memoria; solo l'import successivo portava sul disco l'avanzamento del giro PRIMA, e l'ULTIMO +8 (Peugeot: 16→24, giornata chiusa) restò in memoria. Riavvio del server alle 00:34: oggetto perso, orologio congelato alle 16 sul disco.
+- **La cura** ([src/import.mjs](src/import.mjs)): `avanzaGiornataDopoGara` spostato PRIMA del persist — l'avanzamento dell'orologio finisce nel SALVATAGGIO scritto dall'import stesso, nessun '+8 di memoria'. Commento con la lezione datata accanto al codice.
+- **Rimedio sul vivo**: orologio riportato alla mattina del giorno 223 (ora null), backup di pronto soccorso in [data/backups/sonda-ora-pre.json](data/backups/sonda-ora-pre.json); il Cruscotto dice di nuovo «inizio giornata».
+- Test nuovo ([test/import-save.test.mjs](test/import-save.test.mjs)): la gara importata lascia `agenda.ora` a 8 nel FILE con un secondo sedile ancora a programma — prima del fix l'assert leggeva `null`. **Suite intera 692/692** (13 s), Biome pulita sui 2 file toccati, riavvia-webui: `/api/agenda` ora dice mattina.
+
+### 1/11/2026 — La Ferrari 296 nel menu «senza toccare nulla»: la suite riprameva il sedile
+Prova Mauro 1/11 di sera (aveva la R5): «ero sul menu ed è rientrato da solo in gara, poi verifica perché ogni tanto appare la Ferrari GT3 nel menu principale senza toccare nulla».
+- **La pista dei sospetti** (diario, nessuna divinazione): `startedAt` di `state.vetrinaCustom` nel save VERO = **00:07:37 di stanotte** — l'istante della suite di test (`data/flows-debug.jsonl`, npm test alle 00:07:18). Il registro `data/gara-veloce.jsonl` NON aveva scritture a quell'ora: nessuna gara al volo vera, quindi il re-arm non passava dall'endpoint.
+- **La fontana**: [tools/_gara-veloce.mjs](tools/_gara-veloce.mjs) passo «sedile (vetrina custom)» — `garaVeloce` scriveva `state.vetrinaCustom` sul save VERO ANCHE a ricetta dry, e [test/gara-veloce.test.mjs](test/gara-veloce.test.mjs) era l'UNICA suite senza sandbox `EVO_DATA_DIR`. Ogni run della suite con un'auto nel libro re-armava la vetrina: nuovo `startedAt` = nuovo comando `demo:` non ancora ackato dal Cruscotto — la Ferrari 296 GT3 tornava sedile del menu «senza toccare nulla», ciclicamente. Il «rientra da solo in gara» della stessa ora è la finestra di 30 min armati da «Prepara tutto» (documentata e a sue norma: scade da sola); la Ferrari nel menu era IL BUG.
+- **La cura** sul vivo: `node tools/vetrina-custom.mjs --off` (vetrina SPENTA, pending null); [tools/_gara-veloce.mjs](tools/_gara-veloce.mjs): in `dry` il sedile NON scrive niente (risposta «dry:»); sandbox del save in [test/gara-veloce.test.mjs](test/gara-veloce.test.mjs) (+2 asserzioni in dry del test: sedile in prova e `save-current.json` che NON nasce) — stessa casa di backup-rotation/garage-buy/integrity.
+- Verifica: suite intera **691/691 verdi** (12 s) e — la prova chiave — DOPO la suite il save VERO resta senza `vetrinaCustom`; Biome pulita sui 2 file; riavvia-webui e `/api/ping` 0.1.45 OK.
+
+### 1/11/2026 — La giornata ha l'orologio (Fase 1 + problema giorni)
+Richiesta Mauro: «giornata in 3 fasce, ogni gara avanza l'ora di 8, la 3ª chiude e
+salta direttamente al giorno dopo».
+- **Orologio di giornata** ([agenda.mjs](src%2Fagenda.mjs), ORE_PER_GARA=8):
+  `agendaOra` 0–23 con null = mattino appena aperto; a gara finita
+  `avanzaGiornataDopoGara` (import.mjs) avanza +8 e alla terza (o se non restano
+  gare a programma non passate) chiude e salta con la vecchia logica
+  avanzaDopoGara; cambiando giorno l'orologio riparte da `null`.
+- **La PORTA**: gara di OGGI con orario già oltre l'orologio resta visibile ma
+  grigia (badge «orario passato», scelte rifiutate) — server la blocca anche a
+  riguardo con 409 e messaggio contenuto (agenda-choose e agenda-hour). Le
+  gare dei giorni futuri e le gare senza orario non la vedono mai.
+- **Scaletta per ora** ([viste-b.js](gui%2Fjs%2Fviste-b.js)): le gare del giorno
+  si ordinano dal mattino alla sera, con le passate evidentemente dietro in
+  grigio; orologio + fascia in cima al Centro gare (a 8/16/23).
+- **Fase 2 già lì**: il piano `tramontoalba` (ore 21, 48x) esiste in
+  [orario.mjs](src%2Forario.mjs), arriva già nella select «Piano orario della
+  serie» con etichetta EN (`PIANI_EN`) e con CLI (`orario tramontoalba --serie …`).
+- **Il problema dei giorni risolto** ([state.mjs](src%2Fstate.mjs)):
+  `applyRaceResult` NON avanza più il giorno di 1 a gara — avanzava pure
+  `avanzaGiornataDopoGara` → doppio salto con le 3 gare al giorno; ora il
+  TEMPO (orologio) comanda, solo la chiusura (o lo zero rimasto) muove il
+  calendario.
+- Test: [test/agenda.test.mjs](test%2Fagenda.test.mjs) riscritto sulla nuova
+  semantica (orologio +8 con salto sullo slot; porta; 3 fasce al 24 riparte;
+  override ora spiegato pure lui) — **suite completa 685/685**.
+
+### 1/11/2026 — La barra della banda 84–85% torna nella sua colonna
+Prova Mauro, pannello Difficoltà: «la barra 84–85% è troppo a destra». Non era
+un problema di scala (84 su 0–100 sta lì, giusto): la riga era SPEZZATA.
+- **Causa**: i bottoni trim ±1/±2/±3 (27/10) hanno aggiunto un 8° elemento a
+  ogni riga senza toccare il template della griglia in
+  [style.css](gui%2Fstyle.css), che ne definiva 7 — la barra banda scivola
+  fuori colonna (la % di serie prendeva la sua ora) e casca su una seconda
+  riga, staccata e schiacciata: la misurata dal vivo, duo a x=93 fuori dal
+  pannello mentre la cella è larga 26px.
+- **Cura**: template a 8 colonne (`26px minmax(0,1fr) 58 58 auto 64 64 240`),
+  `auto` per i sei bottoni trim e nome con ellissi (tooltip col nome intero);
+  le righe evento_ (senza trim) ricevono uno span segnaposto nascosto così le
+  colonne restano in fila anche per loro.
+- **Prove**: pagina aperta dal vivo su http://127.0.0.1:8642 — 87 righe tutte
+  su una linea, barra banda ferma a +8/+9px dentro la riga, nessuno scroll
+  orizzontale a 1400px; restringendo a 1050px resta intatta. Biome pulita sui
+  due file toccati, viste-guard 4/4.
+
+### 1/11/2026 — Banco A/B torna nell'Analisi (messo fuori dal Garage)
+Domanda Mauro, provata a fondo: «Banco A/B dei setup — perché in garage? non
+sta meglio in analizza o setup?».
+- **Il perché era una vecchia idea mia, non sua**: dalla mattina il banco viveva
+  nel Garage col commento «è il tab dove l'auto prepara la gara» — ma la sua
+  materia non è preparazione: sono DUE SESSIONI MoTeC del passato, il diff dei
+  canali e il tempo perso per zona. Lettura pura, nessun file di setup toccato
+  (`ab-list`/`ab-cmp` non scrivono niente). Posto naturale: il tab Analisi,
+  accanto ad autopsia, tetto teorico e Monte Carlo (in Setup non c'entra di
+  più: là la materia è il disco dei preset, qui la uscita in pista).
+- **Cura** ([viste-analisi.js](gui%2Fjs%2Fviste-analisi.js),
+  [viste-c.js](gui%2Fjs%2Fviste-c.js)): host `#an-ab` in coda ai tre strumenti
+  di Analisi e `renderAB('#an-ab')`; dal Garage via l'ancora `#g-ab`, il
+  commento e la chiamata — il renderer resta UNO (renderAB di viste-analisi),
+  niente copie.
+- **Prove dal vivo** (server 8642): tab Analisi mostra «⚖️ Banco A/B dei
+  setup» con i due menu A/B e «Confronta» sotto il Monte Carlo; tab Garage
+  senza più `#g-ab` né menu A/B. Biome pulita sui due file, viste-guard 4/4.
+
+### 1/11/2026 — La banda 82–92 preistoria non finisce più nel customgrid (banda di serie)
+Seguito del richiamo di Mauro sulla scheda Griglia: «Peugeot 205 T16 ×1 —
+AI 82–92 … perché 82–92?? è per tutti 85/86 per default». La cura vera (3–4
+modifica), di sua autorizzazione («fai quello che vuoi»):
+- **Nuovo rango nel builder** (`aiBandSerie` in
+  [gridbuilder.mjs](src%2Fgridbuilder.mjs)): priorità aiBand (evento) > classe
+  pinnata (perTraccia/aiStandard) > **banda di serie** > node.ai del ladder,
+  col report che ci dice la fonte («banda di serie (cursori)»).
+- **Formula unica con il pannello Difficoltà**: `bandaSerieSlider` in
+  [state.mjs](src%2Fstate.mjs) — override dei cursori (state.raceSettings) o
+  lo slider calcolato, banda stretta di 1 punto. Prepara dell'app
+  ([webui.mjs](src%2Fwebui.mjs)) e CLI `griglia`
+  ([cli.mjs](src%2Fcli.mjs)) la tirano entrambi: niente più scritture dove
+  una strada porta 84–85 e l'altra 82–92.
+- **One-shot sul disco**: customgrid scritto 82–92 → 84–85 con
+  `applyAi` (EVO chiuso, backup
+  `last_grid.customgrid.bak-apply-2026-11-01T00-17-08`); il vigia aiStandard
+  delle classi NON si tocca.
+- **Test** [gridbuilder-banda-serie.test.mjs](test%2Fgridbuilder-banda-serie.test.mjs):
+  ladder senza banda di serie resta com'era, la banda di serie vince sul
+  ladder, aiBand evento resta sopra, override cursori parla per primo,
+  banda stretta segue lo slider. 5/5; race-card 18/18, griglia-sim compresa,
+  webui-smoke ok.
 
 ### 30/10/2026 — Il doppio «Chiudi la stagione» trappato
 - **Il vivo**: dopo aver chiuso la stagione (click riuscito: save avanzato,

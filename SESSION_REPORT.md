@@ -171,6 +171,52 @@
   + test di regressione senza prefisso. Dal vivo dopo riavvio: **Gare 4
   · 3 vittorie · 4 podi** (giro migliore 01:47.934 Brands Hatch).
 
+- **Release 0.1.44 PUBBLICATA (1/11)** — la checklist §5 è andata in fondo,
+  col gesto che il report precedente rimandava a Mauro:
+  - **Difesa anti-colpo chiusa**: la sonda dei colpi 31/10 è promossa da
+    `tmp/` a [tools/_difesa-probe.mjs](tools/_difesa-probe.mjs) — banco
+    completo (carriera di MARCA «Prova Sonda» + flussi + file di gioco +
+    ACE_DATA + intera ACE_SAVEDIR in sandbox) e sweep GET con impronta
+    prima/dopo su **TUTTE le 118 rotte `case` del dispatcher, lette DIRETTE
+    dal fonte** (rinforzo: il set SOLO_POST non è più una copia a mano — è
+    letto dal source, così il banco non può divergiare dalla difesa).
+    Lo sweep ha smascherato l'ultimo mutante rimasto: **`GET /api/life`
+    eseguiva `ensureLife`+`ensureContract`+`checkSigils` con
+    `persist(state)`** — la lezione dell'incidente del 31/10 è chiusa e la
+    GUI non ne risente (api() manda TUTTO via POST). Ora **`life` è nel set
+    SOLO_POST (51 rotte)** e i log append-only in EVO_DATA_DIR
+    (`copilot-voce-*.jsonl`, `errors.jsonl`) sono dichiarati RUMORE
+    CONSENTITO nel banco — il resto muta, colpo smascherato per nome.
+  - **Test di regressione della difesa** innestato al banco:
+    [test/diffesa-sonda.test.mjs](test/diffesa-sonda.test.mjs), 3 test —
+    due statici (ogni rotta nel set SOLO_POST è un `case` vero del
+    dispatcher: un refuso sarebbe un 405 mai dato; `life` resta armato) e
+    la sonda viva eseguita a `--quiet` (exit 0). **Prova di rottura fatta
+    sul disco**: slegato `life` dal source, il test CADE (2/3 pass) e il
+    ripristino è verificato (`git diff --stat`).
+  - **Verifiche della release**: `npm run check` exit 0 con suite
+    **682/682 verdi** in sandbox (da 660) + Biome **0 diagnostica**;
+    danza del PC amico vergine `node tools/_collaudo-amico.mjs` exit 0 con
+    **24/24 verifiche verdi**; pacchetto amico
+    [ac-evo-career-amico-v0.1.44-6a29f8b.zip](pacchetti/ac-evo-career-amico-v0.1.44-6a29f8b.zip)
+    (527 file, 9138 KB — con i test passanti dentro la cartella estratta).
+  - **GitHub release**: [v0.1.44](https://github.com/turbignox-hash/ac-evo-career/releases/tag/v0.1.44)
+    con corpo [report/release-0.1.44.md](report/release-0.1.44.md) e la zip
+    asset caricata; `main` spinto su `offsite` (`df05ce4..6a29f8b`), due
+    commit: `879b09a` (DA-10/varianti, committatura del resto di sessione
+    31/10) e `6a29f8b` (difesa anti-colpo + numeri della release).
+  - **Nota tecnica**: la creazione della release via API aveva generato il
+    tag v0.1.44 remoto SUL COMMIT VECCHIO (df05ce4, prima dei due commit di
+    release, il primo push del tag locale era-ha rifiutato com "already
+    exists"); ripuntato con `push -f` — ora il tag remoto = 6a29f8b, la
+    stessa coda dei commit del USER ZIP. Lezione per la prox release:
+    prima spingere i commit, DOPO creare la release/tag.
+  - La routine `sincronizza-git.cmd` NON l'ho usata come era richiesta per il
+    push: è interattiva (descrizione a mano, bump +1, pause) e il bump
+    avrebbe mitigato la versione della release stessa. La spinta del
+    `main`+`tag` ho făcuta direttamente sullo stesso remote `offsite`: il
+    passo e la destinazione sono quelli della routine, solo senza il bump.
+
 ## Test eseguiti
 
 - Suite diretta `node --test test/*.test.mjs` in sandbox: **656 pass /
@@ -200,6 +246,19 @@
   `tintePrestate`, e la verifica a occhio in gara che gli avversari escono
   con livree diverse.
 - Copertura del ramo C griglia-calib: in attesa di vederlo in gara 2 (AUDIT §4).
+
+- **1/11 — release 0.1.44**: `EVO_DATA_DIR=<tmp> npm run check`: **682 pass /
+  0 fail** + `npx biome lint`: 1 warning preesistente, 0 errori, exit 0;
+  `node tools/_collaudo-amico.mjs`: **24/24 diagnosi verdi** (danza del PC
+  amico vergine), exit 0;
+  `node tools/pacchetto-amico.mjs`: zip 527 file, exit 0;
+  prova di rottura del test difesa: fonte slegato → test CADE (2/3) → fonte
+  ripristinato. **Lezione del colpo `life`**: un GET «solo lettura» può
+  avere effetti collaterali (lì faceva `ensureLife`+`ensureContract`+
+  `checkSigils` con `persist`); da qui la regola di casa: ogni rotta che
+  tocca lo stato è POST-only (set SOLO_POST, ora 51), e ogni sonda gira
+  SOLO su un banco sandbox con impronta prima/dopo, mai contro i dati
+  veri della casa.
 
 ## Prossimo passo consigliato
 

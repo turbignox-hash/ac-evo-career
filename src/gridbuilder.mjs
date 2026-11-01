@@ -565,8 +565,19 @@ export function buildGridMessage(opts) {
   const trkKey = matched.cls ? perTrackKey(matched.cls, round.track) : null;
   const clsAi = matched.cls?.perTraccia?.[trkKey]?.aiStandard ?? matched.cls?.aiStandard ?? null;
   const bandaVoluta = Array.isArray(opts.aiBand) && opts.aiBand.length === 2;
-  const aiEff = bandaVoluta ? opts.aiBand : (clsAi ?? (node.ai?.length === 2 ? node.ai : null));
-  const aiFrom = bandaVoluta ? 'banda richiesta (evento)' : (clsAi == null ? 'dal ladder' : (trkKey && matched.cls?.perTraccia?.[trkKey]?.aiStandard ? 'per-traccia' : 'standard della classe'));
+  // BANDA DI SERIE (aiBandSerie, 1/11/2026 — richiamo di Mauro: la Peugeot 205
+  // portava 82–92, la banda preistorica del nodo ladder scritta dal primo
+  // script d'impianto, invece del 84–85 dei cursori del weekend). Quando la
+  // serie NON combacia con nessuna classe («Nessuna classe combacia») la
+  // griglia porta la banda VIVA della serie calcolata con la regola del
+  // pannello Difficoltà (state.raceSettings / difficultyFor, trim inclusi).
+  // Priorità: aiBand (evento) > classe pinnata (perTraccia/aiStandard) >
+  // aiBandSerie (cursori di serie) > node.ai del ladder.
+  const bandaSerie = Array.isArray(opts.aiBandSerie) && opts.aiBandSerie.length === 2 ? opts.aiBandSerie : null;
+  const aiEff = bandaVoluta ? opts.aiBand : (clsAi ?? bandaSerie ?? (node.ai?.length === 2 ? node.ai : null));
+  const aiFrom = bandaVoluta ? 'banda richiesta (evento)'
+    : (clsAi == null ? (bandaSerie ? 'banda di serie (cursori)' : 'dal ladder')
+      : (trkKey && matched.cls?.perTraccia?.[trkKey]?.aiStandard ? 'per-traccia' : 'standard della classe'));
   // auto ESCLUSE dalla classe matchata: rimosse dal pool — la griglia non le
   // include affatto. Possono essere di classe (escludiAuto: vale ovunque, come
   // il Golf 8 R nella 9-10) o PER-TRACCIA (escludiAuto dentro la variante

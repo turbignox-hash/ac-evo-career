@@ -18,6 +18,12 @@ const WZ_SKETCHES = [
   [tr({ it: 'Cruscotto', en: 'Dashboard' }),`<svg viewBox="0 0 96 40" width="96" height="40" fill="none" stroke="var(--dim,#8fa3bd)" stroke-width="1.4" aria-hidden="true"><rect x="4" y="4" width="88" height="32" rx="4"/><path d="M12 13a14 14 0 0 1 22 0" stroke="#ffcc66"/><path d="M23 13l4-5" stroke-linecap="round"/><rect x="46" y="10" width="10" height="20" stroke-dasharray="3 2"/><path d="M58 14h26M58 20h26M58 26h18" stroke-dasharray="5 3"/><path d="M12 28v9m0-9 6-1v7l-6 1"/></svg>`],
 ];
 const WZ_ARROW = `<svg class="wz-arrow" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none"><path d="M2 8h9m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>`;
+
+/* ICONA DEL METEO accanto al nome nel Bollettino del weekend (richiesta
+   Mauro: «sole su bello, pioggia su pioggia»): la chiave è il codice della
+   ronda (0–5, in cima a race.mjs) — separata da spazio subito prima del
+   nome, così i chip del piano leggono «☀️ sereno» / «🌧️ pioggia». */
+const WX_ICON = { 0: '☀️', 1: '🌤️', 2: '☁️', 3: '🌦️', 4: '🌧️', 5: '⛈️' };
 function wizardSketchSteps(w){
   const done = !!w.dataDir;
   const prep = done && (w.content?.cars > 0);
@@ -616,7 +622,7 @@ function verdettoHtml(v) {
   const agg = v.aggregato ?? {};
   const fmtGrial = (g) => (g.posto != null ? `P${g.posto}/${g.partecipanti}` : (g.dsq ? 'DSQ' : '—'));
   const fmtGap = (ms) => ms == null ? '—' : (ms < 0 ? '-' : '+') + Math.abs(Number(ms) / 1000).toFixed(1) + 's';
-  const fmtGiroTop = (g) => g ? `${Math.floor(g.ms / 60000)}:${String((g.ms % 60000) / 1000).toFixed(3).padStart(6, '0')} (${g.pista ?? ''})` : null;
+  const fmtGiroTop = (g) => g ? `${Math.floor(g.ms / 60000)}:${((g.ms % 60000) / 1000).toFixed(3).padStart(6, '0')} (${g.pista ?? ''})` : null;
   const riepilogo = tr({
     it: `Gare ${v.gare.length} · ${agg.vittorie ?? 0} vittorie · ${agg.podi ?? 0} podi${agg.mediaPos != null ? ` · posizione media ${agg.mediaPos.toFixed(1)}` : ''}${fmtGiroTop(agg.giroTop) ? ` · giro migliore ${fmtGiroTop(agg.giroTop)}` : ''}`,
     en: `Races ${v.gare.length} · ${agg.vittorie ?? 0} wins · ${agg.podi ?? 0} podiums${agg.mediaPos != null ? ` · average position ${agg.mediaPos.toFixed(1)}` : ''}${fmtGiroTop(agg.giroTop) ? ` · best lap ${fmtGiroTop(agg.giroTop)}` : ''}`,
@@ -726,6 +732,16 @@ function drawCardInto(el, card){
           <select id="rs-dist">${[100,75,50,25].map(p=>card.round?.durationMin
             ? `<option value="${p}" ${p===(card.distPct??100)?'selected':''}>${p}% — ${Math.max(5,Math.round((card.round?.durationMin ?? 0)*p/100))} ${tr({ it: 'min · premio fino a ', en: 'min · prize up to ' })}${money(Math.round((card.prizeFull ?? 0)*p/100))} €</option>`
             : `<option value="${p}" ${p===(card.distPct??100)?'selected':''}>${p}% — ${Math.max(2,Math.round((card.baseLaps ?? card.round.laps)*p/100))} ${tr({ it: 'giri · premio fino a ', en: 'laps · prize up to ' })}${money(Math.round((card.prizeFull ?? 0)*p/100))} €</option>`).join('')}</select>
+        </div>
+        <div class="field" style="grid-column:1/-1;border:1px solid var(--line,#2a3341);border-radius:8px;padding:8px 10px">
+          <b>🌦 ${tr({ it: 'Bollettino del weekend', en: 'Weekend forecast' })}</b> — <span class="muted" style="font-size:11.5px">${esc(card.weatherRitual ?? '')}</span>
+          <div id="wx-plan" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+            ${(card.weatherPlan ?? []).map(s => `<span style="display:flex;align-items:center;gap:6px;border:1px solid var(--line,#2a3341);border-radius:8px;padding:4px 8px;background:var(--panel2,#121822);font-size:11.5px">
+              <b>${esc(s.sessionLabel)}</b> <span style="font-weight:600">${WX_ICON[Number(s.weather)] ?? ''} ${esc(s.label)}</span>${s.hour!=null?`<span class="muted">· ${String(s.hour).padStart(2,'0')}:00</span>`:''}
+              <button class="mini" data-wx="${esc(s.session.toLowerCase())}" style="padding:2px 8px">${tr({ it: 'Metti', en: 'Set' })}</button>
+            </span>`).join('')}
+            <span class="muted" style="font-size:11px;align-self:center">${tr({ it: 'premuto «Metti» PRIMA di entrare in quella sessione', en: 'press “Set” BEFORE entering that session' })}</span>
+          </div>
         </div>
         <div class="row" style="align-items:end"><button class="mini" id="rs-save">${tr({ it: 'Salva regole', en: 'Save rules' })}</button><button class="mini" id="rs-reset">${tr({ it: 'Torna ai consigli', en: 'Back to suggestions' })}</button></div>
       </div>
@@ -1151,6 +1167,28 @@ function drawCardInto(el, card){
       drawCardInto(el, await api('card', { car: $('#sel-car', el)?.value ?? null }));
     } catch(e){ toast(e.message, 'err'); }
   });
+  // BOLLETTINO DEL WEEKEND (3/11): i tasti «Metti» del piano meteo scrivono
+  // sul gamemodesave il cielo della sessione scelta. DETERMINISTICO: qui non
+  // si chiede alcuna scelta — è il server a ricalcolare il piano dalla ronda
+  // (race.mjs weatherPlanFor), il cancello delle scelte a mano resta chiuso.
+  $$('#wx-plan .mini[data-wx]', el).forEach(b => { b.onclick = async () => {
+    if (b.disabled) return;
+    b.disabled = true;
+    try {
+      const r = await api('wx-session', { session: b.dataset.wx, car: $('#sel-car', el)?.value ?? null });
+      // LA VOCE ANCHE NEL TOAST (1/11, «sole su bello»): il codice del meteo
+      // della sessione toccata arriva in r.forecast (il piano che il server
+      // ricalcola) e si mappa con la STESSA WX_ICON dei chip sopra — nessun
+      // doppio registro.
+      const wx = (r.forecast ?? []).find((x) => x.session.toLowerCase() === b.dataset.wx);
+      const ico = WX_ICON[Number(wx?.weather)] ?? '';
+      const dico = ico ? `${ico} ` : '';
+      toast(r.already
+        ? tr({ it: `Meteo già ${dico}${r.label}: nessuna scrittura.`, en: `Weather already ${dico}${r.label}: nothing to write.` })
+        : tr({ it: `Meteo della sessione scritto: ${dico}${r.label}.`, en: `Session weather written: ${dico}${r.label}.` }), 'ok');
+    } catch(e){ toast(e.message, 'err'); }
+    b.disabled = false;
+  }; });
   $('#rs-reset', el)?.addEventListener('click', async () => {
     try {
       await api('race-settings', { clear: true });

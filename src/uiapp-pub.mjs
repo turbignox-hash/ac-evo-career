@@ -16,7 +16,7 @@
 import { writeFileSync, readdirSync, unlinkSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { savedGamesRoots, resolvePaths } from './paths.mjs';
-import { agendaDay, racesOnDay, dateLabel, prossimoGiornoConGara, impegni } from './agenda.mjs';
+import { agendaDay, agendaOra, portaGiornata, racesOnDay, dateLabel, prossimoGiornoConGara, impegni } from './agenda.mjs';
 import { context, SAVE_FILE, PROJECT } from './webui-env.mjs';
 import { loadState, nodeById, standingsFor, playerStanding } from './state.mjs';
 import { playerWorldSkill } from './world.mjs';
@@ -124,6 +124,11 @@ export function vetrina(ladder, state) {
         en: g.stato === 'iscritto' ? 'signed' : (g.fattibile ? 'available' : 'locked'),
       }),
       fattibile: !!g.fattibile, iscritto: g.stato === 'iscritto', isCorrente: !!g.isCurrent,
+      // LA PORTA di questa gara (1/11, orologio nel cruscotto): vera quando
+      // l'orologio della giornata è GIÀ oltre l'ora della gara — in gioco
+      // la card lo dice (⌛ porta chiusa), come la scheda del CLI («era il
+      // giorno {D}» per le IN RITARDO di giorni passati).
+      portaChiusa: portaGiornata(state, giorno, g.hour),
       inRitardo: !!g.late, sulProgramma: !!g.onSchedule,
       griglia: cars.length === 1 ? 'monomarca' : 'multimarca',
       premio: g.node.econ?.prize ?? 0,
@@ -132,7 +137,11 @@ export function vetrina(ladder, state) {
   });
   return {
     ok: 1, quando: new Date().toISOString(),
-    giorno, giornoLabel: dateLabel(giorno),
+    // L'OROLOGIO DI GIORNATA (1/11, «orologio nel cruscotto e pitwall»):
+    // l'ora 0–23 di agenda (null = mattino presto, porta chiusa) porta il
+    // PANNELLO in linea col calendario della GUI — le prove non si armamai
+    // nella porta chiusa e il pallino non sponta.
+    giorno, ora: agendaOra(state), giornoLabel: dateLabel(giorno),
     prossimo: prossimoGiornoConGara(ladder, state),
     // INTEGRAZIONE 31/10 («integra maggiormente il cruscotto con il
     // server»): ciò che il server vede e il pannello NON mostrava — la
@@ -438,7 +447,11 @@ const verdettoCache = { chiave: '', payload: null };
  *  consigli · radio) e la radio presa dal memo (leggi il MEMO qui sotto):
  *  funzione PURA perché il test la collauda senza il gioco. */
 export function miniPitwall(dati, fascia) {
-  return { quando: dati?.quando ?? null, slot: fascia, prepara: dati?.prepara ?? null, verdetto: dati?.verdetto ?? null, consigli: dati?.consigli ?? null, radio: radioFascia() };
+  // IL TEMPO (1/11, «orologio nel cruscotto e pitwall»): giorno + ora viaggiano
+  // anche nel payload piccolo — il pannello del muro è il SOLO che il pilota
+  // vede in gara. null di entrambi = carriera non ancora montata.
+  // Null a schermo niente: nessun blocco orario sul muro.
+  return { quando: dati?.quando ?? null, slot: fascia, giorno: dati?.giorno ?? null, ora: dati?.ora ?? null, prepara: dati?.prepara ?? null, verdetto: dati?.verdetto ?? null, consigli: dati?.consigli ?? null, radio: radioFascia() };
 }
 
 // IL MEMO della radio (31/10): il log del copilota cresce riga per riga, ma

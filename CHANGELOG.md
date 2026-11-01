@@ -4,6 +4,62 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md) (il registro completo). Il save in
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
+## v0.1.45 — 1/11/2026
+
+- **La banda di serie prende il posto del ladder preistorico nel customgrid**
+  (richiamo Mauro: la scheda Griglia diceva «AI 82–92» per la Peugeot mentre
+  i cursori di serie sono 84–85): nuovo rango `aiBandSerie` nel builder
+  ([gridbuilder.mjs](src/gridbuilder.mjs)), aiBand (evento) > classe pinnata >
+  banda di serie > ladder, calcolata con la STESSA formula del pannello
+  Difficoltà — `bandaSerieSlider` ([state.mjs](src/state.mjs)) — e tirata sia
+  dal «Prepara tutto» ([webui.mjs](src/webui.mjs)) sia da CLI `griglia`
+  ([cli.mjs](src/cli.mjs)). Customgrid attuale già riallineato 82–92 → 84–85.
+- **Il weekend ha l'orologio per sessione** (richiesta Mauro: «weekend
+  realistici»): il Bollettino della scheda gara mostra un cielo per OGNI
+  sessione e peggiosce verso la gara — piano deterministico
+  (`weatherPlanFor` in [race.mjs](src/race.mjs): prove min(r−2, 2),
+  qualifiche/warm-up r−1, gara r), EVO legge il preset a ogni avvio
+  sessione. Il tasto «Metti» chiama la nuova rotta `wx-session`
+  ([webui.mjs](src/webui.mjs)) e scrive il cielo sul gamemodesave; il
+  «Prepara tutto» arma la PRIMA sessione da sé. Niente cielo scelto a
+  mano: il numero arriva sempre dal piano del calendario, mai dalla GUI.
+- **Il cielo si vede al colpo d'occhio** ([viste-a.js](gui/js/viste-a.js)):
+  mappa `WX_ICON` (sole su bello, pioggia su pioggia) accanto al nome nei
+  chip del piano — ☀️ sereno · 🌤️ nuvole sparse · ☁️ nuvoloso ·
+  🌦️ pioggia leggera · 🌧️ pioggia · ⛈️ pioggia intensa — e STESSA icona
+  nei toast di «Metti» (il codice arriva dalla risposta del server,
+  niente doppio registro).
+- **Orologio di giornata nelle app in gioco** (richiesta Mauro,
+  «prossimi naturali»): il calendario da 1/11 ha l'ora (`agendaOra`) e
+  ora la dicono pure il **Cruscotto** («⏰ ore 16 · mattino presto» +
+  ora di partenza nella card gara, [cruscotto.js](uiapp/cruscotto/cruscotto.js) via
+  [uiapp-pub.mjs](src/uiapp-pub.mjs)) e il **Pitwall** (giorno+ora nel
+  payload piccolo; senza carriera niente blocco, mai un mucchio vuoto,
+  [pitwall.js](uiapp/pitwall/pitwall.js)). In più le due PORTE del giorno: ⌛
+  `portaChiusa` (orologio oltre l'ora della gara: la scaletta non torna
+  indietro) e ⏳ «in ritardo» (gara di un altro giorno che si corre
+  quando si vuole).
+- **Il ponte 🌉 parte anche dal quadro «Tutto il garage»** (richiesta Mauro):
+  l'endpoint `setup-cover` con `all:true` porta ora `srcFile`/`srcName`/
+  `srcTrack` per ogni pista girata senza setup; dove l'auto del garage ha
+  ALMENO UN base setup, il chip ✖ diventa «🌉 Pontalo» che chiama
+  `setup-bridge` con LA SUA auto (dataset `data-cover-car`), non quella in
+  mano al meccanico. Senza base setup il chip resta secco, com'è giusto.
+  Test: [ponte-setup.test.mjs](test/ponte-setup.test.mjs) (copia byte per
+  byte, mai sovrascrivere: secondo ponte stesso nome prende « (2)», rifiuti
+  stessa pista/file assente/auto mancante) + prova live con dati fissi nel DOM
+  (payload del click verificato elemento per elemento).
+- **Pulizia della lint al passo**: `useOptionalChain` sul cruscotto
+  chiuso — `npx biome lint` torna a 0 diagnostica sui 296 file.
+- **Suite completa in sandbox: 697 test verdi** (da 682 di v0.1.44),
+  0 cadute; test nuovi: [gridbuilder-banda-serie.test.mjs](test/gridbuilder-banda-serie.test.mjs)
+  (la banda di serie nel builder) e [ponte-setup.test.mjs](test/ponte-setup.test.mjs)
+  (il ponte byte per byte); test aggiornati/toccati:
+  [race-card.test.mjs](test/race-card.test.mjs) (i quattro livelli del piano
+  + payload), [pitwall-radio.test.mjs](test/pitwall-radio.test.mjs) (chiavi
+  miniPitwall), [agenda.test.mjs](test/agenda.test.mjs) (ore spostabili),
+  [diffesa-sonda.test.mjs](test/diffesa-sonda.test.mjs).
+
 ## v0.1.44 — 1/11/2026
 
 - **DA-10 — il builder delle tinte è intero**: bilancio per FAMIGLIA (le

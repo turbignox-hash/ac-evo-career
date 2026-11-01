@@ -25,9 +25,9 @@ async function drawDifficulty(m){
     ${v.rows.map(r=>{
       const atMax = r.trim >= (v.trimRange?.max ?? 20);
       return `<div class="diff-row" data-id="${esc(r.id)}" data-trim="${r.trim??0}"${r.id?.startsWith('evento_')?' data-evento="1"':''}>
-      <span>${r.current?'◄':''}</span><span class="nm">${esc(r.display)}${r.locked?' 🔒':''}</span>
+      <span>${r.current?'◄':''}</span><span class="nm" title="${esc(r.display)}">${esc(r.display)}${r.locked?' 🔒':''}</span>
       <span class="num" title="${tr({ it: 'base della serie + trim', en: 'series base + trim' })}">${tr({ it: 'base', en: 'base' })} ${r.base}</span><span class="num" title="${tr({ it: 'trim adattivo', en: 'adaptive trim' })} (±${rng.max})">${tr({ it: 'trim', en: 'trim' })} ${r.trim>=0?'+':''}${r.trim}${atMax?' ⚠️':''}</span>
-      ${r.id?.startsWith('evento_') ? '' : `<span class="tripunto" style="display:inline-flex;gap:2px" title="${tr({ it: 'trim a mano da +3 a −3 (Mauro 27/10): un punto di trim = un punto di banda AI della serie', en: 'manual trim from +3 to −3 (Mauro 27/10): one trim point = one AI band point of the series' })}${adattivo ? tr({ it: ' · modo adattivo attivo: comandi fermi, l\'app regola da sola — passa su «fissa» per il controllo manuale', en: ' · adaptive mode on: locked, the app tunes by itself — switch to fixed for manual control' }) : ''}">
+      ${r.id?.startsWith('evento_') ? '<span class="nmskip" aria-hidden="true"></span>' : `<span class="tripunto" style="display:inline-flex;gap:2px" title="${tr({ it: 'trim a mano da +3 a −3 (Mauro 27/10): un punto di trim = un punto di banda AI della serie', en: 'manual trim from +3 to −3 (Mauro 27/10): one trim point = one AI band point of the series' })}${adattivo ? tr({ it: ' · modo adattivo attivo: comandi fermi, l\'app regola da sola — passa su «fissa» per il controllo manuale', en: ' · adaptive mode on: locked, the app tunes by itself — switch to fixed for manual control' }) : ''}">
         ${[1,2,3].map(d=>`<button class="mini dy" data-d="-${d}" ${r.locked||adattivo?'disabled':''} title="${tr({ it: 'trim −', en: 'trim −' })}${d}">−${d}</button>`).join('')}
         ${[1,2,3].map(d=>`<button class="mini dy" data-d="+${d}" ${r.locked||adattivo?'disabled':''} title="${tr({ it: 'trim +', en: 'trim +' })}${d}">+${d}</button>`).join('')}
       </span>`}
@@ -992,7 +992,12 @@ document.addEventListener('click', (ev) => {
 drawCopilotStrip();
 
 /* auto-aggiornamento: quando il watcher importa un risultato (o la pagina resta
-   in background e i dati cambiano), il cruscotto si ricarica da solo */
+   in background e i dati cambiano), il cruscotto si ricarica da solo.
+   1/11 (Mauro: «a gara finita la GUI arriva tardi, Paddock è più veloce»):
+     il poll scende 5 s → 2 s — la chiamata /api/watcher misurata a 30–140 ms,
+     e fino a gara finita il seq non cambia: niente ridisegni spaiati, solo
+     un poll leggero più spesso, così l'incasso della gara esce davvero
+     quando è pronto (era: tick ≤4 s + grazia 8 s + attendo il poll ≤5 s). */
 let _watchSeq = null;
 setInterval(async () => {
   try {
@@ -1006,7 +1011,7 @@ setInterval(async () => {
       render();
     }
   } catch {}
-}, 5000);
+}, 2000);
 
 /* widget live nel cruscotto (dati di gara in tempo reale) */
 async function drawLiveStrip(){

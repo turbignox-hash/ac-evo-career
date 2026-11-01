@@ -310,11 +310,10 @@ async function drawGarage(m){
       <span class="muted" style="font-size:11px">${tr({ it: 'Le auto vinte negli eventi speciali arrivano qui da sole.', en: 'Cars won in special events arrive here by themselves.' })}</span>
     </div>
     <div id="g-mech" style="margin-bottom:12px"></div>
-    <!-- BANCO A/B riportato nel Garage (1/11, richiesta Mauro: «da rivedere e spostare,
-         dove serve»): il confronto dei setup MoTeC vive qui, accanto al segna del
-         meccanico — è il tab dove l'auto prepara la gara, non nell'Analisi delle
-         gare passate. Stessa funzione (renderAB di viste-analisi), un solo viso. -->
-    <div id="g-ab" style="margin-bottom:12px"></div>
+    <!-- BANCO A/B uscito dal Garage (1/11, domanda Mauro: «perché in garage?
+         non sta meglio in analizza o setup?»): la materia del banco sono I GIRI
+         (sessioni MoTeC diff, tempo perso per zona), non i setup sul disco —
+         posto giusto il tab Analisi, accanto ad autopsia/tetto/Monte Carlo. -->
     <div id="g-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px"></div>
   </div>`;
   const draw = (gg) => {
@@ -372,9 +371,6 @@ async function drawGarage(m){
   $('#g-how').onchange = priceHint;
   priceHint();
   drawMechanicPanel('#g-mech', g.cars?.[0]?.carName ?? '');
-  // il banco A/B dei setup si disegna SOLO UNA VOLTA (i redraw di draw() toccano
-  // solo le card auto): i select A/B non ripartono da zero a ogni nota salvata.
-  if (typeof renderAB === 'function') renderAB($('#g-ab'));
   $('#g-addbtn').onclick = async () => {
     const sel = $('#g-add');
     if (!sel.value) return toast(tr({ it: "Scegli prima un'auto dal menu.", en: 'Pick a car from the menu first.' }), 'err');
@@ -705,6 +701,88 @@ async function drawSetup(m){
   // quando si genera il setup): la innesto qui, ravvicinata, non a fine vista.
   if (histHtml) document.querySelector('#apply-out')?.insertAdjacentHTML('afterend', histHtml);
 
+  /* IL QUADRO DI COPERTURA (1/11): un solo colpo d'occhio — ✔ le piste dove
+     l'auto ha già i suoi .carsetup (con quanti e quando), ✖ le piste GIRATE
+     di recente SENZA setup: lì c'è la via del ponte 🌉 senza aprire EVO.
+     Dove manca, la scelta resta in mano a te — un bottone per pista, non un file muto. */
+  window.__drawSetupCover ??= async () => {
+    const ctx = window.__applySetupCtx ?? {};
+    let c = null;
+    let garage = null;
+    try { c = await api('setup-cover', { car: ctx.car ?? null }); } catch { return; }
+    if (!c?.ok) return;
+    // TUTTE le auto del garage (1/11): overview compatta — chips sintetiche per
+    // ogni auto. PONTE DIRETTO (1/11 tardi, richiesta Mauro: «proponi il ponte
+    // diretto anche da lì»): dove l'auto ha piste girate SENZA setup e ha almeno
+    // un base setup, il bottone 🌉 sta nel quadro stesso, con la SUA auto nel
+    // dataset — niente più spostare il sedile sul pannello dell'auto in mano.
+    try { garage = await api('setup-cover', { all: true }); } catch { /* quadro corrente anche da solo */ }
+    const chip = (t, bg, ok, extra) => `<span class="tag" style="font-size:11px;padding:3px 10px;background:${bg}${ok ? ';border-color:#1d3a2a' : ';border-color:#3a2433'}">${ok ? '✔' : '✖'} ${esc(t)}${extra}</span>`;
+    // chip «girata senza setup» del QUADRO, col ponte quando è possibile:
+    // il sorgente (srcFile) arriva ora anche nella risposta all:true del server
+    const chipGarageMiss = (x, carName) => x.srcFile
+      ? `<span class="tag" style="font-size:11px;padding:3px 10px;background:#1c1016;border-color:#3a2433">✖ ${esc(x.track)} <button class="mini" type="button" data-cover-bridge="${esc(x.track)}" data-cover-car="${esc(carName)}" data-src="${esc(x.srcFile)}" title="${esc(tr({ it: `ponte: «${x.srcName ?? 'setup base'}» (${x.srcTrack ?? '?'}) → «${x.track}», byte per byte`, en: `bridge: «${x.srcName ?? 'base setup'}» (${x.srcTrack ?? '?'}) → «${x.track}», byte for byte` }))}">🌉 ${tr({ it: 'Pontalo', en: 'Bridge it' })}</button></span>`
+      : chip(x.track, '#1c1016', false, '');
+    const covered = (c.covered ?? []).map((x) => chip(x.track, '#0e1f14', true, ` <span class="muted">×${x.files} ${esc(x.last)}</span>`)).join(' ');
+    /* IL TENDINA DEL SORGENTE (31/10, richiesta Mauro): non solo il più
+       recente — per ogni pista da pontare si SCEGLIE quale setup base dell'auto
+       pontare (nome · pista, opzioni dal più nuovo). Il default resta il
+       più recente: chi non apre il menu fa come prima. */
+    const srcSel = (x) => (c.sources ?? []).length
+      ? `<select class="mini" data-cover-src="${esc(x.track)}" style="max-width:260px" title="${esc(tr({ it: 'quale setup base pontare su questa pista', en: 'which base setup to bridge to this track' }))}">${(c.sources ?? []).map((s) => `<option value="${esc(s.file)}"${s.file === x.srcFile ? ' selected' : ''}>${esc(s.name)} · ${esc(s.track)}</option>`).join('')}</select>`
+      : '';
+    const missBtn = (x) => x.srcFile
+      ? `${srcSel(x)} <button class="mini" type="button" data-cover-bridge="${esc(x.track)}" data-src="${esc(x.srcFile)}" title="${esc(tr({ it: 'copia qui il setup base scelto, byte per byte', en: 'copy the chosen base setup here, byte per byte' }))}">🌉 ${tr({ it: 'pontalo', en: 'bridge it' })}</button>`
+      : '';
+    const missing = (c.missing ?? []).map((x) => chip(x.track, '#1c1016', false, ` <span class="muted" style="font-size:10px">${tr({ it: 'girata, senza setup', en: 'driven, no setup' })}</span> ${missBtn(x)}`)).join(' ');
+    const html = `<div id="setup-cover" style="margin-top:8px">
+      <div style="font-weight:700;font-size:14px">🗺 ${tr({ it: 'Copertura dei setup', en: 'Setup coverage' })} <span class="muted" style="font-weight:400;font-size:12px">${esc(c.car ?? '')}</span></div>
+      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${covered || `<span class="muted" style="font-size:12px">${tr({ it: 'nessun .carsetup per questa auto, in nessuna pista: salva UNO in EVO (anche default) e qui si apre la lista completa.', en: 'no .carsetup for this car on any track: save ONE in EVO (even default) and the full list opens here.' })}</span>`}</div>
+      ${(c.missing ?? []).length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${missing}</div><div class="muted" style="font-size:11px;margin-top:4px">🌉 = ${tr({ it: 'piste che hai girato di recente senza setup: scegli in tendina QUALE setup base pontare (default: il più recente), copia byte per byte; poi ⚡ APPLICA parte proprio da lì.', en: 'tracks recently driven without a setup: pick in the dropdown which base setup to bridge there, byte per byte; then ⚡ APPLY starts right from there.' })}</div>` : ''}
+      ${(garage?.cars ?? []).length ? `
+        <details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px"><b>${tr({ it: '🏢 Tutto il garage', en: '🏢 Whole garage' })}</b> <span class="muted" style="font-size:11px">${garage.cars.length} ${tr({ it: 'auto', en: 'cars' })}${c.pistaViva ? ` · 🎮 ${esc(c.pistaViva)}` : ''}</span></summary>
+        <div style="margin-top:6px">${garage.cars.map((g) => `
+          <div style="padding:4px 0;border-bottom:1px solid var(--line,#222)"><b style="font-size:12px">${esc(g.car)}</b>
+            <div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:5px">
+              ${(g.covered ?? []).map((x) => chip(x.track, '#0e1f14', true, ` <span class="muted">×${x.files}</span>`)).join(' ')}
+              ${(g.missing ?? []).map((x) => chipGarageMiss(x, g.car)).join(' ')}
+              ${(g.covered ?? []).length + (g.missing ?? []).length === 0 ? `<span class="muted" style="font-size:11px">${tr({ it: 'niente .carsetup e sessioni recenti per quest\'auto', en: 'no .carsetup and no recent sessions for this car' })}</span>` : ''}
+            </div></div>`).join('')}</div>
+      </details>` : ''}
+      ${c.pistaViva ? `<div class="muted" style="font-size:11px;margin-top:4px">🎮 ${tr({ it: 'pista viva ora: ', en: 'live track right now: ' })}<b>${esc(c.pistaViva)}</b> — ${tr({ it: 'con il gioco aperto il ponte scrive SOLO quì.', en: 'with the game open the bridge writes THERE only.' })}</div>` : ''}
+      <div id="cover-out" style="margin-top:6px"></div>
+    </div>`;
+    const anchor = document.querySelector('#setup-hist') ?? document.querySelector('#apply-out');
+    if (!anchor) return;
+    const old = document.querySelector('#setup-cover');
+    if (old) old.outerHTML = html; else anchor.insertAdjacentHTML('afterend', html);
+  };
+  window.__drawSetupCover?.();
+  if (!window.__coverDeleg) {
+    window.__coverDeleg = true;
+    document.addEventListener('click', async (ev) => {
+      const btn = ev.target?.closest?.('[data-cover-bridge]');
+      if (!btn) return;
+      const out = document.querySelector('#cover-out');
+      btn.disabled = true; btn.textContent = '⏳';
+      const ctx = window.__applySetupCtx ?? {};
+      try {
+        // il SORGENTE scelto nel tendine della stessa pista (se c'è) vince
+        // sul default (il più recente) che sta nel data-src del bottone
+        let coverSel = null;
+        for (const sel of document.querySelectorAll(`select[data-cover-src]`)) {
+          if (sel.dataset.coverSrc === btn.dataset.coverBridge) { coverSel = sel; break; }
+        }
+        // L'AUTO DEL CHIP (1/11 tardi): nel quadro «Tutto il garage» il bottone
+        // porta la SUA auto (data-cover-car) — il ponte parte dall'auto riga,
+        // non da quella in mano al meccanico
+        const r = await api('setup-bridge', { car: btn.dataset.coverCar ?? ctx.car ?? null, track: btn.dataset.coverBridge ?? null, srcFile: (coverSel?.value || btn.dataset.src) ?? null });
+        if (!r.ok) { if (out) out.innerHTML = `<div class="banner warn" style="margin-top:0">${esc(r.hint ?? r.error ?? tr({ it: 'Il ponte non è riuscito.', en: 'The bridge failed.' }))}</div>`; btn.disabled = false; btn.textContent = '🌉'; }
+        else { if (out) out.innerHTML = `<div class="banner ok" style="margin-top:0">🌉 ${esc(r.hint ?? '')}</div>`; btn.textContent = '✔'; window.__drawSetupHist?.(); window.__drawSetupCover?.(); }
+      } catch (e) { if (out) out.innerHTML = `<div class="banner bad" style="margin-top:0">${esc(e.message)}</div>`; btn.disabled = false; btn.textContent = '🌉'; }
+    });
+  }
+
   /* RICALCOLO della storia SENZA re-render (Mauro 22/10): dopo la conferma
      dell'applicatore la riga nuova compare da sola, in fondo (gridordine di
      tempo le righe si riordino da sole: fetch → builder → sostituzione nodo). */
@@ -782,6 +860,21 @@ async function drawSetup(m){
     const psiD = (v) => (v == null ? '—' : Number(v).toFixed(1));
     /* etichette gomme nell'ordine del file .carsetup (ant sx → ant dx → post sx → post dx:
        la lista RUOTE del decoder) — l'anteprima parlala per gomma. */    const RUOTE_LBL = ['ant sx', 'ant dx', 'post sx', 'post dx', 'extra 5', 'extra 6'];
+    /* PONTE FRA PISTE (1/11): il server, a rifiuto «nessun setup su questa
+       pista», può allegare bridgeAvailable + bridgeOptions (TUTTI i base setup
+       dell'auto su altre piste, il più recente primo) — qui quel rifiuto
+       diventa un menù + bottone: il setup scelto viene copiato su QUESTA
+       (byte per byte) e poi si ripremi ⚡ per il consiglio. */
+    const bridgeOut = (r, out) => {
+      const opts = (r.bridgeOptions ?? (r.bridgeSrcFile ? [{ name: '', track: '', file: r.bridgeSrcFile }] : []));
+      const btn = r.bridgeAvailable && opts.length
+        ? `<div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap">
+            ${opts.length > 1 ? `<select id="bridge-src" style="flex:1;min-width:240px;max-width:360px" title="${tr({ it: 'quale setup base pontare su questa pista', en: 'which base setup to bridge to this track' })}">${opts.map((o) => `<option value="${esc(o.file)}">${esc((o.track ? o.track + ' · ' : '') + o.name)}</option>`).join('')}</select>` : ''}
+            <button class="act" id="b-bridge-setup" type="button" data-src="${esc(r.bridgeSrcFile ?? opts[0].file)}">🌉 ${tr({ it: 'PONTALO QUI: portami il tuo setup di un’altra pista su questa', en: 'BRIDGE IT HERE: bring your setup from another track over' })}</button>
+          </div>`
+        : '';
+      out.innerHTML = `<div class="banner warn">${esc(r.hint ?? tr({ it: 'Non riesco a scrivere il file.', en: 'I cannot write the file.' }))}</div>${btn}`;
+    };
     const bannerOk = (r, out) => {
       out.innerHTML = `<div class="banner good">
           <b>✅ ${tr({ it: 'File pronto:', en: 'File ready:' })}</b> ${esc(r.fileShort)}<br>
@@ -802,8 +895,28 @@ async function drawSetup(m){
         const ctx = window.__applySetupCtx ?? {};
         try {
           const r = await api('setup-apply', { car: ctx.car ?? null, track: ctx.track ?? null, raceLaps: ctx.raceLaps ?? null, file: confirmBtn.dataset.baseFile ?? null });
-          if (!r.ok) out.innerHTML = `<div class="banner warn">${esc(r.hint ?? tr({ it: 'Non riesco a scrivere il file.', en: 'I cannot write the file.' }))}</div>`;
+          if (!r.ok) bridgeOut(r, out);
           else { bannerOk(r, out); window.__drawSetupHist?.(); }   // la riga nuova entra nella storia da sola
+        } catch (e) { out.innerHTML = `<div class="banner bad">${esc(e.message)}</div>`; }
+        return;
+      }
+      /* click sul ponte: copia il base setup in cartella pista corrente, poi
+         l'utente ripreme ⚡ APPICA — ora la preview trova il file e calcola. */
+      const bridgeBtn = ev.target?.closest?.('#b-bridge-setup');
+      if (bridgeBtn) {
+        const out = document.querySelector('#apply-out');
+        if (!out) return;
+        bridgeBtn.disabled = true; bridgeBtn.innerHTML = '<span class="spin"></span>';
+        const ctx = window.__applySetupCtx ?? {};
+        try {
+          const r = await api('setup-bridge', { car: ctx.car ?? null, track: ctx.track ?? null, srcFile: (document.querySelector('#bridge-src')?.value || bridgeBtn.dataset.src) ?? null });
+          if (!r.ok) out.innerHTML = `<div class="banner warn">${esc(r.hint ?? r.error ?? tr({ it: 'Il ponte non è riuscito.', en: 'The bridge failed.' }))}</div>`;
+          else {
+            out.innerHTML = `<div class="banner ok">🌉 ${esc(r.hint)}<br><span class="muted" style="font-size:11.5px">${esc(r.file ?? '')}</span><br>${tr({ it: 'Ora ripreme ⚡ APPICA: il consiglio parte proprio da QUESTA pista.', en: 'Now press ⚡ APPLY again: the advice now starts right from THIS track.' })}</div>`;
+            const live = document.querySelector('#b-apply-setup');
+            if (live) { live.disabled = false; live.textContent = tr({ it: '⚡ Applica i consigli al setup', en: '⚡ Apply the advice to the setup' }); }
+            window.__drawSetupHist?.();
+          }
         } catch (e) { out.innerHTML = `<div class="banner bad">${esc(e.message)}</div>`; }
         return;
       }
@@ -817,7 +930,7 @@ async function drawSetup(m){
         /* ANTEPRIMA prima della scrittura (richiesta Mauro 21/10): il file NON è
            ancora creato — l'utente vede le migliorie e conferma o annulla. */
         const p = await api('setup-apply', { car: ctx.car ?? null, track: ctx.track ?? null, raceLaps: ctx.raceLaps ?? null, preview: true });
-        if (!p.ok) { out.innerHTML = `<div class="banner warn">${esc(p.hint ?? tr({ it: 'Non riesco a calcolare il consiglio.', en: 'I cannot compute the advice.' }))}</div>`; }
+        if (!p.ok) { bridgeOut(p, out); }
         else {
           const righe = (p.before?.pressures ?? []).map((v, i) => {
             const dopo = (p.after?.pressures ?? [])[i] ?? v;

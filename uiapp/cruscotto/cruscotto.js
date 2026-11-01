@@ -366,7 +366,7 @@
         if (c.ora != null) {
           const off = (sn) => { const s = String(sn || '').toLowerCase(); return /practice/.test(s) ? 6 : /qualif/.test(s) ? 3 : /warm/.test(s) ? 1 : 0; };
           let toc = 0;
-          sess.forEach((s) => { if (s && s.time_of_day && typeof s.time_of_day === 'object') { s.time_of_day.hour = Math.max(0, Math.min(23, Number(c.ora) - off(s.name))); toc++; } });
+          sess.forEach((s) => { if (s?.time_of_day && typeof s.time_of_day === 'object') { s.time_of_day.hour = Math.max(0, Math.min(23, Number(c.ora) - off(s.name))); toc++; } });
           if (toc) {
             const rp = await giocoComando('GameModeSelectionClientRequestSetGameModeParameters', { mode: MODO_SINGLE, sessions: sess }, 8000);
             if (rp && rp.response === OK_RISPOSTA) fatti.push('ore ' + c.ora + ':00');
@@ -719,11 +719,20 @@
 
   function cardGara(g) {
     const st = STATI[g.stato] || STATI.bloccata;
+    // LE ORE DI PARTENZA (1/11, «orologio nel cruscotto»): la gara del
+    // calendario porta la SUA ora — a schermo la scaletta della giornata
+    // resta leggibile anche a gara. LE DUE PORTE (stesse regole della scheda
+    // del CLI): portaChiusa = l'orologio di giornata è GIÀ oltre l'ora della
+    // gara (la scaletta non torna indietro) · inRitardo = era la gara di un
+    // giorno passato (si corre quando si vuole), come la dice il calendario.
     const meta = [
       g.track ? 'Pista: ' + esc(g.track) : null,
       g.auto ? 'Auto: ' + esc(g.auto) : null,
       g.ronda ? 'Ronda ' + esc(g.ronda) + '/' + esc(g.totalRonde) : null,
+      g.ora != null ? 'ore ' + esc(g.ora) : null,
       g.griglia === 'multimarca' ? 'Multiclasse' : 'Monomarca',
+      g.inRitardo ? '⏳ in ritardo' : null,
+      g.portaChiusa ? '⌛ porta chiusa' : null,
     ].filter(Boolean).join(' · ');
     return '<div class="card"><div class="titolo">' + esc(g.nome) +
       ' <span class="stato ' + st[0] + '">' + st[1] + '</span></div>' +
@@ -775,7 +784,13 @@
       h += esc(d.pilota.nome) + ' · ' + Math.round(d.pilota.saldo ?? 0).toLocaleString('it-IT') + ' cr · ' +
         Math.round(d.pilota.rep ?? 0) + ' rep';
     }
-    if (d.giornoLabel) h += '<br>Giorno ' + esc(d.giornoLabel);
+    // L'OROLOGIO DI GIORNATA (1/11, «orologio nel cruscotto»): la voce è la
+    // sola che nel momento in gara dice il TEMPO — il pannello della GUI
+    // dietro a schermo non si guarda. ora null = giorno nuovo con la porta
+    // chiusa (le gare non si vedono ancora), il pannello lo dice con
+    // «mattino presto» mai con un buco a schermo.
+    if (d.giornoLabel) h += '<br>Giorno ' + esc(d.giornoLabel) +
+      ' · ⏰ ' + (d.ora != null ? 'ore ' + esc(d.ora) : 'mattino presto');
     h += '</div>';
     h += strisciaNota();
     // LA STORIA DEI COMANDI (31/10 «storia visibile in gioco»): sotto la

@@ -270,6 +270,12 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     const ladder = loadLadder();
     const nome = ladder?.contentNames?.cars?.[auto] ?? null;
     if (!nome) throw new Error(`auto "${auto}" NON nel libro della ladder: sedile NON armato (controlla l'id nel catalogo)`);
+    // DRY = PROVA SENZA SCRIVERE NIENTE (lezione 1/11, ore 00:07): il sedile
+    // scriveva il SAVE anche a ricetta asciutta — e ogni suite di test che
+    // esercitava garaVeloce con un'auto nel libro re-armava la vetrina custom
+    // SUL SALVATAGGIO VERO: nuovo startedAt = nuovo comando non ancora ackato,
+    // e la Ferrari 296 GT3 tornava nel menu del gioco «senza toccare nulla».
+    if (dry) return `dry: armerei il sedile "${nome}" nel menu gara (vetrina custom)`;
     const state = loadState(SAVE_FILE);
     state.vetrinaCustom = { car: auto, startedAt: Date.now() };
     saveState(SAVE_FILE, state);

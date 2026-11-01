@@ -365,14 +365,18 @@ export function prossimoGiornoConGara(ladder, state, fromDay = null) {
 export function avanzaGiorno(state, to = null) {
   ensureAgenda(state);
   const t = to == null ? agendaDay(state) + 1 : Math.max(1, Math.floor(Number(to)));
+  const prima = agendaDay(state);
   if (t > state.agenda.day) state.agenda.day = t;
+  // OROLOGIO DI GIORNATA (1/11): cambiando giorno l'orologio riparte dalla
+  // mattina (null) — il tempo appartiene alla SUA giornata.
+  if (agendaDay(state) !== prima) state.agenda.ora = null;
   return agendaDay(state);
 }
 
 /**
  * Giornata AUTO-avanzata dopo la registrazione di una gara (richiesta Mauro
- * 19/10/2026): applyRaceResult già porta il giorno a +1, ma spesso il giorno
- * dopo i tuoi sedili NON hanno gare in programma e il calendario sembra fermo.
+ * 19/10/2026, AGGIORNATA 1/11 con l'OROLOGIO DI GIORNATA: il giorno NON
+ * si muove più a gara — vedi avanzaGiornataDopoGara, la nuova voce del flusso).
  * Criterio (testato 19/10): contano SOLO le gare IN PROGRAMMA oggi (onSchedule);
  * quelle passate restano comunque elencate come "in ritardo" (buon corso,
  * Ulisse) ma non devono più fermare il calendario: se oggi non c'è niente
@@ -401,6 +405,63 @@ export function avanzaDopoRisultato(state) {
   ensureAgenda(state);
   state.agenda.day += 1;
   return agendaDay(state);
+}
+
+/* ------------------------------------------------------------------ */
+/* OROLOGIO DI GIORNATA (1/11, richiesta Mauro): il tempo scorre        */
+/* ------------------------------------------------------------------ */
+/* La giornata NON avanza più a ogni gara: ha un OROLOGIO. Tre fasce da
+/* 8 ore (0–8, 8–16, 16–24): ogni gara corsa fa avanzare il tempo di 8 ore;
+/* la 3ª chiude la giornata e il calendario salta direttamente al giorno
+/* dopo (avanzaDopoGara, che cerca il prossimo giorno con gare iscritte).
+/* LA PORTA: una gara a programma OGGI con l'ora GIÀ PASSATA (es. gara
+/* delle 9 quando l'orologio è alle 16) resta visibile MA non si può più
+/* scegliere né spostare a un'ora antecedente: la scaletta non torna
+/* indietro. Le gare dei giorni FUTURI non vedono la porta.            */
+
+export const ORE_PER_GARA = 8;              // una fascia = 8 ore, 3 gare al giorno prima del salto
+
+/** L'orologio della giornata: un intero 0–23 (alle 24 la giornata è chiusa),
+/*  o null = inizio giornata, porta ancora chiusa. Alle 24 reset a null + */
+export function agendaOra(state) {
+  const v = Number(state.agenda?.ora);
+  return Number.isInteger(v) && v > 0 && v < 24 ? v : null;
+}
+
+/** La PORTA della giornata: per una gara del giorno CORRENTE a programma
+/*  con l'ora nota, è vera se l'orologio è già oltre. Gare senza ora e
+/*  gare di giorni futuri non la vedono mai. */
+export function portaGiornata(state, day, hour) {
+  const d = Number(day);
+  if (Number.isFinite(d) && d !== agendaDay(state)) return false;
+  const ora = agendaOra(state);
+  if (ora == null) return false;
+  const h = Number(hour);
+  return Number.isInteger(h) && h < ora;
+}
+
+/** Il giorno AVANZA col tempo, non con il conteggio delle gare: dopo la gara
+/*  l'orologio sale di 8; se con il nuovo orario oggi non c'è più NESSUNA
+/*  gara a programma (o la giornata si è chiusa alle 24), il calendario salta
+/*  al prossimo giorno con gare (regola «salta direttamente al giorno dopo»).
+/*  Sostituisce avanzaDopoGara nel flusso dei risultati; avanzaDopoGara resta
+/*  per compat e per i salti manuali. */
+export function avanzaGiornataDopoGara(ladder, state) {
+  ensureAgenda(state);
+  const d0 = agendaDay(state);
+  const oraNuova = (agendaOra(state) ?? 0) + ORE_PER_GARA;
+  const chiuso = oraNuova >= 24;
+  state.agenda.ora = chiuso ? null : oraNuova;   // alle 24 l'orologio riparte col giorno nuovo
+  // RESTANO oggi le gare a programma NON passate dalla porta (le gare senza
+  // ora non si bloccano mai: niente porta su un orario che non si sa).
+  const restano = racesOnDay(ladder, state, d0).filter((g) =>
+    state.seats?.[g.node?.nodeId] && g.onSchedule !== false && !portaGiornata(state, d0, g.hour)).length;
+  if (restano > 0 && !chiuso) {
+    return { jump: false, chiuso: false, ora: agendaOra(state), day: d0, gare: restano };
+  }
+  const salto = avanzaDopoGara(ladder, state);   // il salto cerca il prossimo giorno con gare
+  return { jump: salto.jump, chiuso, ora: agendaOra(state), day: salto.day, gare: salto.gare,
+           nota: chiuso ? `giornata chiusa alle ${oraNuova}: salto al prossimo giorno con gare` : undefined };
 }
 
 /* ------------------------------------------------------------------ */

@@ -9,7 +9,7 @@ import { watchOnce, WATCH_INTERVAL_MS, heartbeat, watcherStatus } from './watch.
 import { scanContent, validateLadder, searchContent } from './content.mjs';
 import {
   createCareer, loadState, saveState, nodeById, disciplineName, tierOf, gateStatus,
-  standingsFor, playerStanding, difficultyFor, seasonEnd,
+  standingsFor, playerStanding, difficultyFor, bandaSerieSlider, seasonEnd,
   acceptOffer, pushMessage, sponsorTier, enterNode, renameDriver,
   savePath, activeSlot, slotDataDir, grigliaSimEstesa, seasonJustClosed,
 } from './state.mjs';
@@ -1276,6 +1276,18 @@ async function cmdGriglia(args) {
   if (!nodeId) throw new Error(tr({ it: 'nessuna serie corrente: usa --serie <nodeId>', en: 'no current series: use --serie <nodeId>' }));
   // round: quello segnato in attesa dallo stato (round corrente della serie)
   const roundIndex = typeof args.flags.round === 'string' ? Number(args.flags.round) : (state.round ?? 0);
+  // BANDA DI SERIE (1/11/2026, richiamo di Mauro sul 82–92 della Peugeot):
+  // la banda VIVA dei cursori del weekend (state.raceSettings / difficultyFor,
+  // trim accettati compresi) segue il builder anche da CLI — la stessa regola
+  // che il Prepara dell'app usa dalla sera dell'1/11. Falli silente: senza
+  // banda calcolata il builder resta sulla di prima (classe > ladder).
+  const bandaSeriePrep = (() => {
+    try {
+      const nodeSerie = nodeById(ladder, nodeId);
+      const idx = Math.min(roundIndex ?? 0, nodeSerie.calendar.length - 1);
+      return bandaSerieSlider(ladder, state, nodeSerie, nodeSerie.calendar[idx]?.track ?? null).banda;
+    } catch { return null; }
+  })();
   // --template: costruisce da un file DIVERSO dall'attuale (es. il backup
   // d'epoca multi-marca del 21/10 ore 12:34); la scrittura va SEMPRE su
   // last_grid.customgrid, con il suo backup (lezione 21/10 16:5x: nel primo
@@ -1304,7 +1316,7 @@ async function cmdGriglia(args) {
     // template combacia col file di turno esce MAI allineata (crash 0xC0000005
     // alla Coppa 500). La scrittura live passa SEMPRE da rebuildGridApply:
     // stessi candidati, stesso backup, stesso magazzino, più il conteggio vero.
-    const r = rebuildGridApply({ ladder, nodeId, roundIndex, file, force: true, dry: !!args.flags.dry });
+    const r = rebuildGridApply({ ladder, nodeId, roundIndex, file, force: true, dry: !!args.flags.dry, aiBandSerie: bandaSeriePrep });
     report = r.report;
     buffer = r.buffer ?? null;
     scriveIlFalhub = !args.flags.dry && r.written === true;

@@ -197,9 +197,14 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .offer .m{margin-left:auto; display:flex; gap:8px; align-items:center}
 
 /* ============ difficoltà ============ */
-.diff-row{display:grid; grid-template-columns:26px 1fr 58px 58px 64px 64px 240px; gap:8px; align-items:center; padding:7px 4px; border-bottom:1px solid #1d2430; font-size:13.5px; font-variant-numeric:tabular-nums}
+/* 1/11: 8 colonne — i bottoni trim ±1/±2/±3 (27/10) avevano aggiunto un 8°
+   elemento senza toccare il template (7): la barra banda 84–85% scivola
+   fuori colonna e finisce su una seconda riga, staccata. auto per i 6
+   bottoni, minmax(0,1fr) per il nome (collassa senza sforare). */
+.diff-row{display:grid; grid-template-columns:26px minmax(0,1fr) 58px 58px auto 64px 64px 240px; gap:8px; align-items:center; padding:7px 4px; border-bottom:1px solid #1d2430; font-size:13.5px; font-variant-numeric:tabular-nums}
 .diff-row:last-child{border-bottom:0}
-.diff-row .nm{font-weight:600}
+.diff-row .nm{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.diff-row .nmskip{min-width:0; width:1px; visibility:hidden}
 .diff-row .num{text-align:right; color:var(--dim); font-size:12.5px}
 .diff-row .sl{font-weight:700; text-align:right; color:var(--text)}
 .diff-row .rangebox{display:flex; align-items:center; gap:6px; justify-content:flex-end}
@@ -350,6 +355,12 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .ag-data i{font-style:normal;font-size:12.5px;color:var(--faint);font-weight:500}
 .impegni{font-size:12px;color:var(--faint);font-weight:400}
 .ag-controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+/* ⏱ OROLOGIO DI GIORNATA (1/11): la fascia del tempo in hero, davanti ai
+   comandi del giorno: rende leggibile la porta (le gare grigie passate) */
+.ag-orologio{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;font-weight:600;color:var(--dim);margin-bottom:12px;padding:9px 14px;border:1px solid var(--line);border-radius:9px;background:var(--panel2)}
+.ag-orologio b{font-weight:800;color:var(--text);font-variant-numeric:tabular-nums}
+.ag-orologio i{font-style:normal;font-size:12px;color:var(--faint);font-weight:500}
+.ag-orologio .faint{font-size:11.5px;font-weight:400}
 .btn-time{background:var(--panel3);color:var(--text);border:1px solid var(--line2);font:inherit;font-weight:700;font-size:14px;letter-spacing:.4px;padding:12px 22px;border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s}
 .btn-time:hover{border-color:var(--acc);color:var(--acc)}
 .btn-time.primary{background:var(--acc);color:#161207;border-color:var(--acc)}
@@ -373,6 +384,10 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .ag-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .ag-card{border:1px solid #ffffff18;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:7px;cursor:pointer;transition:transform .1s,box-shadow .15s}
 .ag-card:hover{transform:translateY(-2px);box-shadow:0 8px 22px #0008}
+/* LA PORTA (1/11): gara di oggi con orario già oltre l'orologio — visibile ma
+   grigia: la scaletta non torna indietro. Il messaggio del perché è sul badge. */
+.ag-card.ag-passata{opacity:.48;cursor:default}
+.ag-card.ag-passata:hover{transform:none;box-shadow:none}
 .ag-top{display:flex;align-items:center;gap:9px}
 .ag-round{font-size:10.5px;font-weight:700;color:var(--faint);border:1px solid var(--line2);border-radius:6px;padding:2px 7px;white-space:nowrap}
 .ag-round i{font-style:normal;color:var(--faint);font-weight:500}

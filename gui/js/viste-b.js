@@ -46,16 +46,20 @@ async function drawAgenda(m){
 
   const dNames = new Map((a.disciplines ?? []).map(d => [d.id, d.name]));
   const gareCard = (g) => {
-    const cls = g.stato === 'iscritto' ? 'ag-iscritto' : g.fattibile ? 'ag-fattibile' : 'ag-bloccata';
-    const stato = g.stato === 'iscritto'
+    const cls = g.passata ? 'ag-passata' : g.stato === 'iscritto' ? 'ag-iscritto' : g.fattibile ? 'ag-fattibile' : 'ag-bloccata';
+    const stato = g.passata
+      ? `<span class="tag faint" title="${tr({ it: 'la giornata è già oltre quest’ora: la scaletta non torna indietro', en: 'the day clock is past this hour: the schedule doesn\u2019t go back' })}">⏱ ${tr({ it: 'orario passato', en: 'time passed' })}</span>`
+      : g.stato === 'iscritto'
       ? `<span class="tag gold">★ ${tr({ it: 'iscritto', en: 'signed up' })}</span>`
       : g.fattibile
         ? `<span class="tag blue">${tr({ it: 'disponibile', en: 'available' })}</span>`
         : `<span title="${esc((g.gateReasons??[]).join(' · '))}">🔒 <span class="faint">${tr({ it: 'bloccata', en: 'locked' })}</span></span>`;
     const cta = g.isCurrent
       ? `<span class="tag gold ag-cta">▶ ${tr({ it: 'serie attuale — Cruscotto', en: 'current series — Dashboard' })}</span>`
-      : g.fattibile
+      : (g.fattibile && !g.passata)
         ? `<button class="btn-cta" data-corri="${esc(g.nodeId)}" data-name="${esc(g.display)}">${tr({ it: 'SCEGLI PER OGGI', en: 'PICK FOR TODAY' })}</button>`
+        : (g.fattibile && g.passata)
+        ? `<button class="btn-cta" disabled title="${tr({ it: 'orario già passato nella giornata corrente', en: 'hour already passed in the current day' })}">${tr({ it: 'SCEGLI PER OGGI', en: 'PICK FOR TODAY' })}</button>`
         : '';
     return `
     <div class="ag-card ${cls}" data-detail="${esc(g.nodeId)}" title="${tr({ it: 'passa col mouse sopra la scheda per il dettaglio della serie (o clicca)', en: 'hover the card for the series details (or click it)' })}">
@@ -86,6 +90,17 @@ async function drawAgenda(m){
     `<button class="chip-f ${agendaView.filter===id?'on':''}" data-af="${id}">${label}</button>`).join('');
   // "nascondi le già iniziate": spegne le gare in corso/ritardo della giornata vista
   const hideStarted = `<button class="chip-f ${agendaView.hideStarted?'on':''}" data-hidestarted="1" title="${tr({ it: 'nasconde le gare che sono già in programma da prima (in corso o in ritardo): restano solo quelle che partono esattamente nel giorno in vista', en: 'hides races that were already scheduled before (running or late): only races that start exactly on the day in view remain' })}">${agendaView.hideStarted?'☑':'☐'} ${tr({ it: 'nascondi gare già iniziate', en: 'hide races already started' })}</button>`;
+  // ⏱ OROLOGIO DI GIORNATA (1/11, Fase 1): null = inizio giornata; poi le fasce
+  // da 8 ore (una per gara). Serve a capire perché le gare a orario antecedente
+  // sono grigie (la porta): la scaletta non torna indietro. Le gare del giorno
+  // VISTO diverso da oggi non sono toccate dall'orologio.
+  const fascia = a.ora == null ? 0 : Math.min(3, Math.ceil(a.ora / 8));
+  const oraTxt = a.ora == null
+    ? tr({ it: 'giornata appena aperta', en: 'day just opened' })
+    : `${String(a.ora).padStart(2,'0')}:00 <i>· ${tr({ it: 'fascia', en: 'slot' })} ${fascia}/3</i>`;
+  const orologioHtml = `<div class="ag-orologio" title="${tr({ it: 'l\u2019orologio della giornata: ogni gara corsa fa avanzare il tempo di 8 ore; alla mezzanotte la giornata si chiude e il calendario salta al prossimo giorno con gare', en: 'the day clock: each raced round advances time by 8 hours; at midnight the day closes and the calendar jumps to the next day with races' })}">${tr({ it: '⏱ orologio di giornata', en: '⏱ day clock' })}: <b>${oraTxt}</b>${a.viewDay !== a.day ? ` <span class="faint">(${tr({ it: 'stai guardando un altro giorno: l\u2019orologio regola solo le gare di oggi', en: 'viewing another day: the clock only gates today\u2019s races' })})</span>` : ''}
+  </div>`;
+
   const strip = (a.strips??[]).map(s => {
     const side = s.mine ? `<i class="mine">+${s.mine}</i>` : '';
     return `<button class="ag-day ${s.today?'today':''} ${s.mine?'hasmine':''}" data-goday="${s.day}" title="${esc(s.date)}: ${s.total} ${tr({ it: 'gare', en: 'races' })} (${s.available} ${tr({ it: 'fattibili', en: 'pickable' })})${s.mine?`, ${s.mine} ${tr({ it: 'del tuo campionato (oro)', en: 'from your championship (gold)' })}`:''}">
@@ -123,6 +138,7 @@ async function drawAgenda(m){
       <div class="ag-titolo">${tr({ it: 'CENTRO GARE', en: 'RACE CENTRE' })}</div>
       <div class="ag-data">⯅ ${esc(a.todayLabel)} <i>· ${tr({ it: 'giorno ', en: 'day ' })}${a.day}</i> ${impegniHtml}</div>
     </div>
+    ${orologioHtml}
     <div class="ag-controls">
       <button class="btn-time primary" id="ag-advance">⯈ ${tr({ it: 'AVANZA UN GIORNO', en: 'ADVANCE ONE DAY' })}</button>
       <button class="btn-time" id="ag-next">${nextRaceBtn(a)}</button>
@@ -173,7 +189,10 @@ async function drawAgenda(m){
   const wrapEl = $('#gare-wrap');
   {
     // stesso filtro di prima: "nascondi gare già iniziate" toglie late e champStarted
+    // SCALETTA PER ORA (1/11, Fase 1): le gare del giorno si ordinano dal mattino
+    // alla sera (senza ora restano in fondo); la porta grigia le prime passate.
     const lista = agendaView.hideStarted ? a.gare.filter(g => !(g.late || g.champStarted)) : a.gare;
+    lista.sort((p, q) => (p.hour ?? 99) - (q.hour ?? 99) || (p.stato === 'iscritto' ? 0 : 1) - (q.stato === 'iscritto' ? 0 : 1));
     const nascoste = a.gare.length - lista.length;
     const gt = $('.gare-title');
     if (gt) gt.insertAdjacentHTML('beforeend', `<span class="tuttecount">${lista.length} ${tr({ it: 'a programma', en: 'on the schedule' })}${nascoste>0?` · ${nascoste} ${tr({ it: 'nascoste', en: 'hidden' })}`:''} · ${tr({ it: 'max ', en: 'max ' })}${a.maxScelte}${tr({ it: '/giornata', en: '/day' })}</span>`);

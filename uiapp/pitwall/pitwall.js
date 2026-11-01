@@ -260,9 +260,21 @@
     return '<div class="nota" style="color:#ffb347;margin-top:4px">⏸ Fasce ferme da ' + Math.round(eta / 1000) + " s: il server del Cruscotto è fermo (da GUI: riavvia il server, o 'node tools/riavvia-webui.mjs').</div>";
   }
 
+  // L'OROLOGIO DI GIORNATA (1/11, «orologio nel cruscotto e pitwall»): in
+  // gara il muro è spesso l'UNICA voce di testo leggibile — il giorno e
+  // l'ora di agenda viaggiano nel payload (campi giorno/ora di miniPitwall).
+  // Niente carriera (null di entrambi) = niente blocco: mai un mucchio vuoto.
+  function bloccoOrario() {
+    const g = S.dati?.giorno;
+    if (g == null) return '';
+    const o = S.dati?.ora;
+    return '<div class="nota" style="margin-bottom:6px">⏰ Giorno ' + esc(g) +
+      ' · ' + (o != null ? 'ore ' + esc(o) : 'mattino presto') + '</div>';
+  }
+
   function disegna() {
     const d = S.dati ?? {};
-    inner.innerHTML = bloccoConsigli() + bloccoRadio() + bloccoSincro() + bloccoVerdetto() + bloccoAvvisi() +
+    inner.innerHTML = bloccoOrario() + bloccoConsigli() + bloccoRadio() + bloccoSincro() + bloccoVerdetto() + bloccoAvvisi() +
       ((d.consigli?.tips ?? []).length || (d.radio ?? []).length || d.verdetto || d.prepara || !fasciaTs
         ? ''
         : '<div class="uwoto">Il muro è zitto: nessun consiglio e nessuna gara di oggi.</div>');

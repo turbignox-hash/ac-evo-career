@@ -1,4 +1,4 @@
-/* viste-analisi.js — tab ANALISI (23/10/2026): i cinque strumenti del pilota.
+/* viste-analisi.js — tab ANALISI (23/10/2026): quattro strumenti del pilota.
    Tutto dal server (src/analisi.mjs) in LETTURA pura: niente scritture, niente
    side-effect sulla carriera. */
 'use strict';
@@ -18,12 +18,17 @@ async function drawAnalisi(m){
   m.innerHTML = `
     <div id="an-autopsia" class="panel"></div>
     <div id="an-tetto" class="panel"></div>
-    <div id="an-mc" class="panel"></div>`;
-  /* BANCO A/B MOSSO NEL GARAGE (1/11, richiesta Mauro: «da rivedere e spostare,
-     dove serve»): qui il tab resta sulla gara — autopsia, tetto, Monte Carlo. */
+    <div id="an-mc" class="panel"></div>
+    <div id="an-ab" style="margin-top:12px"></div>`;
+  /* BANCO A/B tornato qui in ANALISI (1/11, domanda Mauro: «perché in garage?
+     non sta meglio in analizza o setup?»): la sua materia sono I GIRI — due
+     sessioni MoTeC, il diff canali e il tempo perso per zona — non i setup vero
+     sul disco. Nel Garage era dalla mattina (ebra: «lì si prepara la gara»):
+     fuori posto, come sospettava lui. Solo qui, niente doppio viso. */
   renderAutopsia($('#an-autopsia', m), audi);
   renderTetto($('#an-tetto', m), tetto);
   renderMC($('#an-mc', m), mc);
+  renderAB($('#an-ab', m));
 }
 
 /* -------------------- 1) AUTOPSIA DELLA GARA -------------------- */

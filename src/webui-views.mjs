@@ -285,6 +285,14 @@ function viewCard(ladder, state, car = null) {
     carChoices: card.carChoices,
     opponentCars: card.opponentCars,
     trackName: card.trackName,
+    // BOLLETTINO DEL WEEKEND (3/11, richiesta Mauro: «weekend realistici — prove
+    // nuvoloso,qualifiche molto nuvoloso, gara pioggia leggera se bagnata»):
+    // piano DETERMINISTICO per sessione costruito in raceCard (race.mjs); la
+    // scheda lo mostra come chip e il tasto lo scrive sul gamemodesave
+    // (case wx-session in webui.mjs) prima di ogni sessione.
+    weatherPlan: card.weatherPlan ?? null,
+    // la riga di istruzione del piano (quando stamparla): compagna del chip sopra
+    weatherRitual: card.weatherRitual ?? null,
     weather: card.weather,
     gridSize: card.gridSize,
     opponents: card.opponents,

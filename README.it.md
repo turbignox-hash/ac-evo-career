@@ -73,7 +73,7 @@ la scheda si apre da sola.
 | ![Garage](docs/screenshots/12-garage.png) | **Garage** — auto possedute o vinte, stime e vendite. |
 | ![Risultati](docs/screenshots/13-results.png) | **Risultati** — import con un click dell'ultima gara compatibile (o inserimento a mano). |
 | ![Archivio](docs/screenshots/14-archive.png) | **Archivio** — ogni sessione scritta da EVO, ricercabile, con classifiche complete. |
-| ![Online](docs/screenshots/14-archive.png) | **Online** — le gare multiplayer (tag `_MP_`) in un tab loro: griglia cliccabile per ogni sessione online e il **libro dei rivali online** (identity stabile dal `driver_id` del gioco). |
+| ![Online](docs/screenshots/20-online.png) | **Online** — le gare multiplayer (tag `_MP_`) in un tab loro: griglia cliccabile per ogni sessione online e il **libro dei rivali online** (identity stabile dal `driver_id` del gioco). |
 | ![Giri liberi](docs/screenshots/19-free-laps.png) | **Giri liberi** — la modalità pura della giornata di test: scegli PRATICA, pista e auto in EVO e gira; ogni sessione che il gioco scrive si registra da sola nel quaderno, con il libro PB per auto × pista e il giro ideale sommato dai migliori settoriali di sempre. La carriera non si tocca. |
 | ![Statistiche](docs/screenshots/15-stats.png) | **Statistiche** — stanza dei trofei, sigilli, grafici di punti e posizione. |
 | ![Finanze](docs/screenshots/16-finances.png) | **Finanze** — il registro dei flussi: premi, sponsor, iscrizioni. |

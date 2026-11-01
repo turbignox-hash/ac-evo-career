@@ -67,6 +67,18 @@ test('miniPitwall porta la radio + si aggiorna quando il registro cresce', () =>
 test('miniPitwall NON trasporta il resto della vetrina', () => {
   const dati = { quando: 3, comando: { tipo: 'setcar', id: 'x', nome: 'R5' }, files: [], riepilogo: ['peso'] };
   const pw = miniPitwall(dati, 5);
-  assert.deepEqual(Object.keys(pw).sort(), ['consigli', 'prepara', 'quando', 'radio', 'slot', 'verdetto'], 'solo le chiavi DEL PITWALL, il resto della fascia non viaggia');
+  assert.deepEqual(Object.keys(pw).sort(), ['consigli', 'giorno', 'ora', 'prepara', 'quando', 'radio', 'slot', 'verdetto'], 'solo le chiavi DEL PITWALL, il resto della fascia non viaggia');
   assert.equal(pw.radio.every((f) => typeof f.it === 'string'), true, 'ogni radio è una frase');
+});
+
+test('miniPitwall porta l\'orologio di giornata (1/11, «orologio nel cruscotto e pitwall»)', () => {
+  const pw = miniPitwall({ giorno: 3, ora: 16 }, 7);
+  assert.equal(pw.giorno, 3);
+  assert.equal(pw.ora, 16);
+  // il mattino presto NON esiste come 0: e null resta null, la GUI lo disegna
+  const a = miniPitwall({ giorno: 4, ora: null }, 9);
+  assert.equal(a.ora, null);
+  // manca la carriera: entrambi null, il blocco orario a schermo non esce
+  const vuoto = miniPitwall({}, 11);
+  assert.equal(vuoto.giorno, null);
 });

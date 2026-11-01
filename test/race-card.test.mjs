@@ -224,6 +224,39 @@ test('markPending: la ronda corrente della scheda va in state.pending per il flu
 
 /* ------- i layout REALE di EVO: la tabella TRACK_LAYOUTS vince sul default ------- */
 
+/* --------- BOLLETTINO DEL WEEKEND (3/11, richiesta Mauro) ----------- */
+
+/* Il piano NON chiede scelte: è deterministico dal meteo della ronda.
+ * gara a livello r ⇒ prove min(r−2, 2) · qualifiche/warm-up r−1 · gara r.
+ * clamp: mai sotto 0. r=4 è l'esempio letterale di Mauro: proves nuvoloso,
+ * qualifiche pioggia leggera, gara pioggia. */
+test('weatherPlanFor: ronda bagnata (4) = l\'esempio di Mauro alla lettera; clamp su sereno', () => {
+  const round = { weather: 4 };
+  const p = race.weatherPlanFor(round);
+  assert.equal(p.length, 4);
+  assert.deepEqual(p.map((s) => s.session), ['Practice', 'Qualifying', 'Warmup', 'Race']);
+  assert.deepEqual(p.map((s) => s.weather), [2, 3, 3, 4]);
+  assert.deepEqual(p.map((s) => s.label), ['nuvoloso', 'pioggia leggera', 'pioggia leggera', 'pioggia']);
+  // ronda serena: tutto sereno (clamp: niente -2)
+  assert.deepEqual(race.weatherPlanFor({ weather: 0 }).map((s) => s.weather), [0, 0, 0, 0]);
+  // ronda pioggia intensa: prove restano da correre (tetto nuvoloso), poi scala
+  const p5 = race.weatherPlanFor({ weather: 5 });
+  assert.deepEqual(p5.map((s) => s.weather), [2, 4, 4, 5]);
+  // round senza meteo: non esplode, il testo resta sereno
+  assert.deepEqual(race.weatherPlanFor({}).map((s) => s.weather), [0, 0, 0, 0]);
+});
+
+test('raceCard porta il piano (weatherPlan + weatherRitual) e le ore di ogni sessione', () => {
+  const { ladder, state } = mk();   // ronda 0: weather 0, hour 15
+  const c = race.raceCard(ladder, state);
+  assert.ok(Array.isArray(c.weatherPlan) && c.weatherPlan.length === 4);
+  assert.equal(c.weatherPlan[3].weather, 0);               // ronda serena → gara serena
+  assert.equal(c.weatherPlan[0].session, 'Practice');
+  assert.equal(c.weatherPlan[0].hour, c.practiceStart);    // il piano mostra anche l'ora
+  assert.equal(c.weatherPlan[3].hour, c.raceHour);
+  assert.ok(typeof c.weatherRitual === 'string' && c.weatherRitual.length > 10);
+});
+
 test('layout reali: Paul Ricard "Layout 1C-V2", Oulton "International", default "GP"', () => {
   const cellFor = (trackId, disp) => {
     const { ladder, state } = mk();

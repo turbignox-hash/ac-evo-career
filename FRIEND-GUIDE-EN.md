@@ -169,6 +169,15 @@ EVO, two screens in the GUI:
    second race on: ONLY the yellow button, the car is picked automatically,
    zero manual gestures.
 
+🌦️ **The sky changes over the weekend, like the real thing** (3/11): the
+«Weekend forecast» strip on the race sheet shows a different weather for
+every session — the sky HARDENS toward the race (dry race → clear all
+through; wet race → cloudy practice, light-rain qualifying). Get ready
+already writes the PRACTICE weather; before entering each later session
+(qualifying, warm-up, race) press that session's **Set** button in the
+forecast strip: one click, the preset lands in the weekend file. Racing a
+session under the wrong sky is allowed: no penalty, just less realism.
+
 ⚠️ **The first MULTICLASS race adds one gesture, ONCE only:** in the Race
 Weekend menu move **Grid Type from AUTOMATIC to CUSTOM** and press
 **Apply**, then NEVER TOUCH the selector again. On a fresh install EVO

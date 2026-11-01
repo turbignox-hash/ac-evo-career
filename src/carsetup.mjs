@@ -23,8 +23,8 @@
 //   1. Si parte SEMPRE da un file esistente salvato dal gioco (mai da zero).
 //   2. Ciò che non mappiamo resta BYTE PER BYTE (round-trip verificato identico).
 //   3. Si patchano solo campi wire5 (f32) dentro blocchi nested già decodificati.
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readFileSync, writeFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { dirname, join, basename } from 'node:path';
 import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
 import { tr } from './lang.mjs';
 import { memoOf, storiePerCampo } from './allievo.mjs';
@@ -433,6 +433,32 @@ export function readSetupFile(file) {
   if (!existsSync(file)) return null;
   const buf = readFileSync(file);
   return { buf, setup: parseSetup(buf) };
+}
+
+/* PONTE FRA PISTE (1/11): in EVO i setup vivono SOLO per auto+pista — niente
+   condivisione globale. Per partire su una pista nuova serviva finora un
+   salvataggio manuale dentro il gioco; qui il ponte lo fa l'app: il setup base
+   più recente dell'auto su UN'ALTRA pista viene copiato BYTE PER BYTE nella
+   cartella della pista di arrivo (è lì che EVO lo mostra in CARICA). Mai
+   sovrascritture: se il nome esiste già, il nuovo prende « (2)». Nessun
+   parse/patch: il file arriva identico, poi si regola a pista. */
+export function bridgeSetup(savedDir, destCar, destTrack, srcFile) {
+  const root = setupsRoot(savedDir);
+  if (!srcFile || !existsSync(srcFile)) return { ok: false, error: 'file sorgente assente: ' + srcFile };
+  if (!destCar || !destTrack) return { ok: false, error: 'auto o pista di arrivo mancante' };
+  const destDir = join(root, destCar, destTrack);
+  if (destDir === dirname(srcFile)) return { ok: false, error: 'sorgente e destinazione coincidono' };
+  try {
+    const base = basename(srcFile).replace(/\.carsetup$/i, '');
+    const presenti = new Set(existsSync(destDir) ? readdirSync(destDir).map((f) => f.toLowerCase()) : []);
+    let nome = base;
+    let n = 1;
+    while (presenti.has((nome + '.carsetup').toLowerCase())) nome = `${base} (${++n})`;
+    const dest = join(destDir, nome + '.carsetup');
+    mkdirSync(destDir, { recursive: true });
+    copyFileSync(srcFile, dest);
+    return { ok: true, file: dest, name: nome, bytes: statSync(dest).size };
+  } catch (e) { return { ok: false, error: e.message }; }
 }
 /** Scrive un .carsetup ritoccato su un NUOVO nome (NON sovrascrive l'originale). */
 export function writeSetupCopy(srcBuf, destFile, edits) {
