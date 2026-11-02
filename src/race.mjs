@@ -315,8 +315,8 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
     // BOLLETTINO (3/11): il piano DETERMINISTICO per sessione + il rituale (una riga)
     weatherPlan,
     weatherRitual: tr({
-      it: 'Il cielo peggiora verso la gara, come nel weekend vero: il meteo va scritto PRIMA di entrare in ogni sessione — EVO legge il preset del selettore a ogni avvio sessione.',
-      en: 'The sky hardens toward the race, like a real weekend: write the weather right BEFORE entering each session — EVO reads the selector preset at every session start.',
+      it: 'Il cielo si sistema da solo: al cambio ronda il tool scrive il meteo delle Prove, a fine di ogni sessione quello della successiva — EVO legge il preset del selettore a ogni avvio. Il tasto "Metti" resta il ripiego a mano.',
+      en: 'The weather sets itself: at a round change the tool writes the Practice sky, and after each session it writes the next one — EVO reads the selector preset at every session start. The "Set" button stays as a manual fallback.',
     }),
     gridSize: gridsReali,
     opponents: gridsReali - 1,
@@ -340,7 +340,13 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
       [tr({ it: 'Pista', en: 'Track' }), tr({ it: `${trackDisp} — layout ${layout}`, en: `${trackDisp} — ${layout} layout` })],
       [tr({ it: 'Auto', en: 'Car' }), chosenCarName],
       [tr({ it: 'Avversari', en: 'Opponents' }), tr({ it: `${gridsReali - 1} auto · ${node.cars.length > 1 ? 'multiclasse: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}${gridsTipica > gridsReali ? ` — griglia tipica di serie: ${gridsTipica}` : ''}`, en: `${gridsReali - 1} cars · ${node.cars.length > 1 ? 'multiclass: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}${gridsTipica > gridsReali ? ` — series typical grid: ${gridsTipica}` : ''}` })],
-      [tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), tr({ it: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%`, en: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%` })],
+      // TRIM VIVO (1/11, richiesta Mauro): la riga porta anche il trim attivo
+      // accanto alla banda — così la stampa CTRL-C dal CLI (card.settings) e il
+      // copia-testo della GUI segnano la banda VIVA, non solo l'intervallo.
+      [tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), tr({
+        it: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%${diffShown.trim ? ` (trim ${diffShown.trim > 0 ? '+' : ''}${diffShown.trim})` : ''}`,
+        en: `min ${diffShown.rangeMin}% · max ${diffShown.rangeMax}%${diffShown.trim ? ` (trim ${diffShown.trim > 0 ? '+' : ''}${diffShown.trim})` : ''}`,
+      })],
       [tr({ it: 'Prove libere', en: 'Practice' }), card_sessionHint(practiceMinEff, round, profile, 'P', practiceStartOv, raceHour)],
       [tr({ it: 'Qualifiche', en: 'Qualifying' }), card_sessionHint(qualifyMinEff, round, profile, 'Q', qualifyStartOv, raceHour)],
       [tr({ it: 'Warm-up', en: 'Warm-up' }), card_sessionHint(warmupMinEff, round, profile, 'W', warmupStartOv, raceHour)],

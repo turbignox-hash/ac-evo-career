@@ -435,30 +435,59 @@ async function render(){
   // server di più: la cache Memo vale 60s e il contorno resta leggero.
   clearInterval(window.__aggTimer);
   window.__aggTimer = setInterval(() => drawAggBar(), 600000);
+  // 3/11, LA VISTA STANTIA SI SPEGNE DA SOLA (la prova dal vivo con il test
+  // di layout: un click su un altro tab mentre il primissimo Cruscotto aspetta
+  // ancora le Sue tre api veniva TRAVOLTO dal dipingimento tardivo della
+  // dashboard — chi cliccava si ritrovava addosso la vista che ha lasciato).
+  // Ogni render porta un numero di generazione: la vista riceve un host
+  // GUARDATO che rifiuta l'innerHTML se nel frattempo un render più nuovo è
+  // partito. Letture e metodi passano dritti, solo la scrittura si filtra.
+  const gen = (window.__renderGen = (window.__renderGen ?? 0) + 1);
+  // La scrittura su un host stantio LANCIA (11/11, cura alla seconda prova del
+  // vivo: col solo rifiuto silenzioso la vista continuava DOPO l'innerHTML
+  // respinto e crashava sui nodi che credeva di avere dipinto — drawCardInto
+  // su $('#card-panel') già sostituito dall'altra vista). Lanciando QUI, la
+  // draw abbandona TUTTO all'istante: niente richiami su nodi altrui.
+  const stantio = new Error('render più nuovo in corso: la vista stantia non dipinge');
+  stantio.ritardoRender = true;
+  const guardia = (host) => new Proxy(host, {
+    get(t, k) { const v = Reflect.get(t, k); return typeof v === 'function' ? v.bind(t) : v; },
+    set(t, k, v) {
+      if (k === 'innerHTML' && gen !== window.__renderGen) throw stantio;
+      Reflect.set(t, k, v); return true;
+    },
+  });
   m.innerHTML = '<div class="panel"><span class="spin"></span></div>';
   try {
-  if (tab==='dashboard')  return await drawDashboard(m);
-      if (tab==='agenda')     return await drawAgenda(m);
-    if (tab==='rivals')     return await drawRivals(m);
-    if (tab==='analisi')    return await drawAnalisi(m);
-    if (tab==='championships') return await drawChampionships(m);
-    if (tab==='calendar')   return await drawCalendar(m);
-    if (tab==='standings')  return await drawWorldRanking(m);
-    if (tab==='tracks')     return await drawTracks(m);
-    if (tab==='cars')       return await drawCars(m);
-    if (tab==='garage')     return await drawGarage(m);
-    if (tab==='archive')    return await drawArchive(m);
-    if (tab==='online')     return await drawOnline(m);
-    if (tab==='gironi')     return await drawGironi(m);
-    if (tab==='stats')      return await drawStats(m);
-    if (tab==='banca')      return await drawBanca(m);
-    if (tab==='import')     return await drawImport(m);
-    if (tab==='griglia')    return await drawGridTab(m);
-    if (tab==='setup')      return await drawSetup(m);
-    if (tab==='difficulty') return await drawDifficulty(m);
-    if (tab==='messages')   return await drawMessages(m);
-    if (tab==='settings')   return drawSettings(m);
-  } catch(e){ window.__renderErr = e.stack ?? String(e); m.innerHTML = `<div class="panel"><div class="banner bad">${esc(e.message)}</div></div>`; }
+  const M = guardia(m);
+  if (tab==='dashboard')  return await drawDashboard(M);
+      if (tab==='agenda')     return await drawAgenda(M);
+    if (tab==='rivals')     return await drawRivals(M);
+    if (tab==='analisi')    return await drawAnalisi(M);
+    if (tab==='championships') return await drawChampionships(M);
+    if (tab==='calendar')   return await drawCalendar(M);
+    if (tab==='standings')  return await drawWorldRanking(M);
+    if (tab==='tracks')     return await drawTracks(M);
+    if (tab==='cars')       return await drawCars(M);
+    if (tab==='garage')     return await drawGarage(M);
+    if (tab==='archive')    return await drawArchive(M);
+    if (tab==='online')     return await drawOnline(M);
+    if (tab==='gironi')     return await drawGironi(M);
+    if (tab==='stats')      return await drawStats(M);
+    if (tab==='banca')      return await drawBanca(M);
+    if (tab==='import')     return await drawImport(M);
+    if (tab==='griglia')    return await drawGridTab(M);
+    if (tab==='setup')      return await drawSetup(M);
+    if (tab==='difficulty') return await drawDifficulty(M);
+    if (tab==='messages')   return await drawMessages(M);
+    if (tab==='settings')   return drawSettings(M);
+  } catch(e){
+    // Il ritardo di generazione NON è un guasto della vista (la corsa che lo
+    // fa nascere ha già una vista più nuova inflight): butta la pagina che
+    // NON deve proprio mostrare un posto in meno di println. Né con banner.
+    if (e && e.ritardoRender) return;
+    window.__renderErr = e.stack ?? String(e); m.innerHTML = `<div class="panel"><div class="banner bad">${esc(e.message)}</div></div>`;
+  }
 }
 
 function paintHeader(h){
@@ -531,6 +560,7 @@ function paintHeader(h){
    verde da sola, senza ricaricare la pagina. Serve anche come totem durante l'
    auto-riavvio dell'aggiornatore: capisci a colpo d'occhio quando il server torna. */
 let srvUltima = null;   // ultima risposta buona: se muore, resta il ricordo della porta
+let srvPing = [];       // finestra scorrevole: i 5 tempi di ping più recenti (il vecchio esce a sinistra)
 async function drawSrvLive(){
   const el = document.getElementById('srv-live');
   if (!el) return;                       // il piede si ricostruisce a ogni refreshBoot: pazienza, riprova
@@ -541,12 +571,25 @@ async function drawSrvLive(){
     const res = await fetch('/api/ping', { signal: AbortSignal.timeout(2000) });
     const ms = Math.round(performance.now() - t0);
     r = res.ok ? await res.json() : null;
-    el._ms = ms;   // riusato sotto nel testo del battito
+    if (r?.ok) srvPing = [...srvPing, ms].slice(-5);   // solo i ping ARRIVATI contano: un timeout non è un tempo
   } catch { /* non risponde: sotto si dipinge rosso */ }
   if (r?.ok) {
     srvUltima = r;
-    el.innerHTML = `<span style="color:var(--good,#3fb26f)">●</span> server vivo · porta <b>${esc(r.port)}</b> · build ${esc(r.build?.semver ?? '?')}${r.build?.hash ? ` · ${esc(r.build.hash)}` : ''}${Number.isFinite(el._ms) ? ` · ${el._ms} ms` : ''}`;
-    el.title = tr({ it: 'Battito del server locale, aggiornato in tempo reale (ogni 4 s): porta d\'ascolto, build che gira ora e tempo di risposta del ping.', en: 'Local server heartbeat, updated live (every 4 s): listening port, the build running now and the ping response time.' });
+    /* termometro su media (2/11, richiesta Mauro): la riga mostra la MEDIA
+       dei 5 ping più recenti, non la singola lettura — un ping fortunato
+       (o un colpo di GC) non deve sembrare una diagnosi. La media prende il
+       colore: verde sotto 150 ms (server in salute), arancio fino a 500 ms
+       (fa fatica: un import o un salvataggio in corso?), rosso sopra — lo
+       stesso tono del server caduto. Il pallino ● resta verde finché il
+       server risponde: la media dice quanto fatica, il pallino dice se è
+       vivo. Il tooltip del numero elenca i singoli ping (più recente per
+       primo) e segna il più basso e il più alto. */
+    const media = Math.round(srvPing.reduce((a, b) => a + b, 0) / srvPing.length);
+    const coloreMs = (m) => m < 150 ? 'var(--good,#3fb26f)' : m <= 500 ? 'var(--warn,#ffb454)' : '#e08a9a';
+    const leggiPing = [...srvPing].reverse().join(' · ') + ' ms'
+      + ` — più basso ${Math.min(...srvPing)}, più alto ${Math.max(...srvPing)}`;
+    el.innerHTML = `<span style="color:var(--good,#3fb26f)">●</span> server vivo · porta <b>${esc(r.port)}</b> · build ${esc(r.build?.semver ?? '?')}${r.build?.hash ? ` · ${esc(r.build.hash)}` : ''}${Number.isFinite(media) ? ` · <span style="color:${coloreMs(media)};font-weight:700" title="${esc(tr({ it: 'Ping (più recente per primo):', en: 'Pings (newest first):' }) + ' ' + leggiPing)}">${media} ms</span>` : ''}`;
+    el.title = tr({ it: "Battito del server locale (ogni 4 s): porta d'ascolto, build che gira ora e media degli ultimi 5 ping.", en: 'Local server heartbeat (every 4 s): listening port, the build running now and the average of the last 5 pings.' });
   } else {
     el.innerHTML = `<span style="color:#e08a9a">●</span> server non risponde${srvUltima ? ` · porta ${esc(srvUltima.port)}` : ''} — riparte da avvia.cmd`;
     el.title = tr({ it: 'Il ping non torna: il server locale è giù (o si sta riavviando). La riga torna verde da sola appena risponde.', en: 'The ping is not coming back: the local server is down (or restarting). The line goes green by itself as soon as it answers.' });

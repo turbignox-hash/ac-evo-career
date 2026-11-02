@@ -76,3 +76,22 @@ test('testday: prettyTrack risolve gli accenti e mostra il nome bello del ladder
   assert.equal(pretty('Pista Inesistente'), 'Pista Inesistente'); // fallback onesto
   assert.equal(typeof testday.recordTestDay, 'function'); // il modulo resta integro
 });
+
+test('prettyTrackLabeled (banco A/B): variante vera si vede, il «GP» generico no', () => {
+  // Le cartelle MoTeC scrivono il layout ATTACCATO al nome («Oulton ParkInternational»):
+  // il banco deve mostrare Imola (il «GP» è il circuito stesso), ma Oulton con la
+  // International, e le varianti vere distinguersi (Brands Hatch Indy ≠ GP, Suzuka East).
+  const ladder = { contentNames: { tracks: {
+    imola: 'Imola', oulton: 'Oulton Park', brands: 'Brands Hatch', suzuka: 'Suzuka',
+    rbr: 'Red Bull Ring', nrb: 'Nürburgring GP', sebring: 'Sebring',
+  } } };
+  assert.equal(testday.prettyTrackLabeled(ladder, 'ImolaGP'), 'Imola', 'il «GP» generico non si mostra');
+  assert.equal(testday.prettyTrackLabeled(ladder, 'Oulton ParkInternational'), 'Oulton Park International', 'la variante vera si vede');
+  assert.equal(testday.prettyTrackLabeled(ladder, 'Brands HatchIndy'), 'Brands Hatch Indy', 'Indy');
+  assert.equal(testday.prettyTrackLabeled(ladder, 'Brands HatchGP'), 'Brands Hatch', 'GP di Brands: cade');
+  assert.equal(testday.prettyTrackLabeled(ladder, 'SuzukaEast'), 'Suzuka East', 'East');
+  assert.equal(testday.prettyTrackLabeled(ladder, 'Red Bull RingNational'), 'Red Bull Ring National', 'National');
+  assert.equal(testday.prettyTrackLabeled(ladder, 'NurburgringGp Strecke'), 'Nürburgring GP Strecke', 'accenti + Gp già nel display');
+  assert.equal(testday.prettyTrackLabeled(ladder, 'Sebring International RacewayGP'), 'Sebring International Raceway', 'GP in coda al nome lungo: cade');
+  assert.equal(testday.prettyTrackLabeled(ladder, 'Pista Inesistente'), 'Pista Inesistente', 'fuori dal ladder: token onesto');
+});

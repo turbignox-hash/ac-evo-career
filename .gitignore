@@ -29,6 +29,8 @@ dist/
 # pacchetti amico e sonde di sessione (24/10: build zii local, probe/tasklist diag)
 pacchetti/
 test/_probe-*.ps1
+# sonde di sessione nella root (2/11: pannelli di prova con suffisso random)
+pannello-test-*/
 
 # le immagini auto/piste (78 MB) restano su disco: solo asset locali, fuori dal repo
 gui/carmaps/

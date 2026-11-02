@@ -17,6 +17,7 @@ import { readFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { writeJsonAtomic } from './atomic.mjs';
 import { listResultFiles, readSessionResult, isRaceSession, findPlayerDriver, classify, sectorAnalysis } from './results.mjs';
+import { margineVeroDaLog } from './margine-log.mjs';
 import { slotDataDir } from './state.mjs';
 import { matchTrackName, sameCar } from './tracknames.mjs';
 import { TRACK_INFO } from './tracks.mjs';
@@ -202,13 +203,39 @@ const wxClean = (w) => String(w ?? '').replace(/^.*WeatherType_/, '')|| null;
 /* i capitoli del 15/4 salvati col profilo nome=cognome: se il nome scritto è
  * «X X» si riduce a «X» (nei profili così il nome completo è il cognome solo). */
 const nomeSenzaDoppione = (n) => { const w = String(n ?? '').trim().split(/\s+/); return w.length === 2 && w[0].toLowerCase() === w[1].toLowerCase() ? w[0] : String(n ?? ''); };
-export function hotlapsLog(n = 40) {
+/* il teorico VERO (3/11, stessa legge del rapporto gara e del tetto):
+   la somma dei splits del quaderno ripete il best per costruzione (EVO scrive
+   nei splits i settori del GIRO MIGLIORE), quindi il teorico accanto ai settori
+   deve venire dai log del gioco (minimo per settore sui giri segnati della
+   stessa finestra). Nessun abbinamento → campi a null: niente numeri finti. */
+const testoMs = (ms) => (Number.isFinite(ms) && ms > 0)
+  ? `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}.${String(Math.round(ms % 1000)).padStart(3, '0')}`
+  : null;
+export function hotlapsLog(n = 40, { logsDirs = null } = {}) {
   const b = loadBook();
-  const sessions = b.sessions.slice(0, n).map((e) => ({
-    ...e,
-    weather: wxClean(e.weather),
-    sectors: (e.sectors ?? []).map((s) => ({ ...s, bestName: nomeSenzaDoppione(s.bestName) })),
-  }));
+  const righe = b.sessions.slice(0, n);
+  let veri = new Map();
+  if (logsDirs?.length) {
+    const richieste = righe
+      .filter((e) => Array.isArray(e.splits) && e.splits.length === 3 && e.splits.every(Number.isFinite))
+      .map((e) => ({ chiave: e.file, track: e.track, bestSplits: e.splits }));
+    try { veri = margineVeroDaLog(logsDirs, richieste); } catch { /* log assenti/ruotati: la colonna resta vuota */ }
+  }
+  const sessions = righe.map((e) => {
+    const v = veri.get(e.file) ?? null;
+    return {
+      ...e,
+      weather: wxClean(e.weather),
+      sectors: (e.sectors ?? []).map((s) => ({ ...s, bestName: nomeSenzaDoppione(s.bestName) })),
+      // il teorico dalla LEGGE VERA: sostituisce la somma dei splits (≡ best)
+      theoreticalMs: v ? v.sommaMs : null,
+      theoreticalText: v ? testoMs(v.sommaMs) : null,
+      theoreticalGainText: v && v.sommaMs < (e.bestLapMs ?? Infinity) ? testoMs(e.bestLapMs - v.sommaMs) : null,
+      // il margine vero (best − teorico) e quante misure sostengono il numero
+      theoreticalMargineMs: v?.margineMs ?? null,
+      theoreticalGiri: v?.giri ?? null,
+    };
+  });
   return { sessions, records: b.records ?? [], total: b.sessions.length };
 }
 

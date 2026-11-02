@@ -23,7 +23,7 @@ import { gameRunning, encodeMsg, gridFileOf, bakName, pruneBackups } from '../to
 export { pruneBackups };
 import { balanceCells, dropCells, setAiRange, planFromClass, readCells, DEFAULT_FILE } from '../tools/grid-balance.mjs';
 import { weekendCarCount, weekendGridMode } from '../tools/set-track.mjs';
-import { loadClasses, pickClassInfo, buildGridMessage } from './gridbuilder.mjs';
+import { loadClasses, pickClassInfo, buildGridMessage, classeMulticlasseSuPoolMono } from './gridbuilder.mjs';
 import { resolvePaths } from './paths.mjs';
 import { scanContentCached, carExists } from './content.mjs';
 import { slotDataDir } from './state.mjs';
@@ -68,10 +68,34 @@ export function storeTemplate(nodeId, buf) {
     const f = templatePathOf(nodeId);
     const nuovo = Buffer.from(buf);
     if (existsSync(f) && Buffer.compare(readFileSync(f), nuovo) === 0) return f;
-    if (existsSync(f)) { copyFileSync(f, bakName(f)); pruneBackups(f, { keep: 10 }); }
+    if (existsSync(f)) {
+      copyFileSync(f, bakName(f));
+      pruneBackups(f, { keep: 10 });
+    }
     writeFileSync(f, nuovo);
     return f;
   } catch { return null; }
+}
+
+/* ---------- GUARDIA CONTEGGIO (1/11 sera, Coppa MX-5 ND Cup) ---------- */
+// Un allineamento custom del gate (14 → 19) o una ronda con più gente fa
+// SCRIVERE meno celle di quante ne abbia il template appuntato: sovrascriverlo
+// con la griglia ridotta CANCELLA le tinte curate dal magazzino (le 8 nere + 8
+// blu di Mauro, sparite). Si appunta solo quando il conteggio NON
+// rimpicciolisce; quando aumenta si aggiorna (livedoor GENERA + APPLICA
+// curato). Sta FUORI da storeTemplate perché il test anti-regressione dei bak
+// (28/10) lo chiama direttamente e vuole la scrittura libera: la pila dei bak
+// al secondo è già la memoria di tutte le versioni attraversate.
+export function storeTemplateSeNonRidotto(nodeId, buf) {
+  try {
+    const f = templatePathOf(nodeId);
+    if (existsSync(f)) {
+      const cellaVecchia = gridFileOf(readFileSync(f)).cells.length;
+      const cellaNuova = gridFileOf(Buffer.from(buf)).cells.length;
+      if (cellaNuova < cellaVecchia) return f;   // il magazzino resta com'era
+    }
+  } catch { /* se non si legge il vecchio, si appunta come prima: i bak proteggono */ }
+  return storeTemplate(nodeId, buf);
 }
 
 /* ---------- DISCARICA DEI BACKUP ---------- */
@@ -312,7 +336,7 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
     const first = buildGridMessage({ ladder, nodeId, roundIndex, file, aiBandSerie });
     if (dry) return { report: first.report, written: false };
     const backup = writeSafe(first.buffer, file, { force });
-    storeTemplate(nodeId, first.buffer);   // la griglia riuscita resta la memoria della serie
+    storeTemplateSeNonRidotto(nodeId, first.buffer);   // la griglia riuscita resta la memoria della serie (guardia: niente sovrascritture con meno celle)
     if (rosterVale) first.report.roster = trapiantaRoster(first.buffer, { force, dry });
     return { report: first.report, written: true, backup, countAlign: bridge };
   } catch (firstErr) {
@@ -369,7 +393,7 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
           const { buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: nomeFile, aiBandSerie });
           if (dry) return { report, written: false, source: label };
           const backup = writeSafe(buffer, file, { force });
-          storeTemplate(nodeId, buffer);
+          storeTemplateSeNonRidotto(nodeId, buffer);
           if (rosterVale) report.roster = trapiantaRoster(buffer, { force, dry });
           return { report, written: true, backup, source: label, countAlign: bridge };
         } catch (e) { lastErr = e; }
@@ -390,6 +414,9 @@ export function gridStatus({ track = null, file = GRID_FILE } = {}) {
   const classi = loadClasses().classi ?? {};
   let classe = null, hits = -1;
   for (const [id, cls] of Object.entries(classi)) {
+    // STESSA dogana del builder (1/11 sera): su un pool monomarca la classe
+    // multiclasse non parla — so pannello Leggette come lo scrittore.
+    if (classeMulticlasseSuPoolMono(cls, presets)) continue;
     const h = (cls.regole ?? []).filter((r) => r.preset && presets.includes(r.preset)).length;
     if (h >= 2 && h > hits) { classe = id; hits = h; }
   }

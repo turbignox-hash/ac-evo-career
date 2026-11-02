@@ -2,8 +2,10 @@
 // Mauro: «dietro ogni racer che torna a un tool c'è lo slancio a far vedere
 // i risultati alla community»). Dopo ogni gara il dossier completo in un POST:
 // griglia ufficiale, podio, penalità, gap, giro veloce, testa a testa (MP),
-// settori del tuo giro vs griglia — composto SOLO dai dati scritti dal gioco
-// nel file risultato. Output: Markdown pronto da incollare su Discord (Discord
+// settori del tuo giro vs griglia — composto dai dati scritti dal GIOCO: nel file
+// risultato per tutto, nei LOG del gioco per il giro teorico vero (i minimi
+// settoriali giro-per-giro: nel file risultato la somma dei settori è il best
+// per costruzione, la lezione del 3/11 — margine-log.mjs). Output: Markdown pronto da incollare su Discord (Discord
 // NON disegna le tabelle: la classifica va in un blocco monospazio con colonne
 // allineate) + HTML per l'anteprima. Il file .md finisce in report/gare/ per
 // restare a portata di allegato anche a distanza di mesi.
@@ -23,11 +25,17 @@ import { sameTrack } from './tracknames.mjs';
 import { buildVersion } from './report.mjs';
 import { tr } from './lang.mjs';
 import { listMotecSessions, analyzeLd } from './motec.mjs';
+import { margineVeroDaLog } from './margine-log.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RADICE = dirname(HERE);
 // EVO_REPORT_DIR: solo per i test — redirige i .md della prova in una temporanea
 const OUT_DIR = process.env.EVO_REPORT_DIR ?? join(RADICE, 'report', 'gare');
+
+/* 'm:ss.mmm' come EVO formatta i tempi (stessa mano di fmtLap di results.mjs). */
+const testoMs = (ms) => (Number.isFinite(ms) && ms > 0)
+  ? `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}.${String(Math.round(ms % 1000)).padStart(3, '0')}`
+  : '—';
 
 /**
  * Il best lap dal MoTeC quando il file di gioco scrive best_lap VUOTO
@@ -205,8 +213,8 @@ function locale() {
     penalita: tr({ it: 'penalità', en: 'penalty' }),
     settore: tr({ it: 'Settore', en: 'Sector' }),
     peggiore: tr({ it: 'peggiore', en: 'worst' }),
-    giroTeorico: tr({ it: 'Giro teorico (i tuoi migliori settoriali): ', en: 'Theoretical lap (your best sectors): ' }),
-    scorta: tr({ it: 'scorta potenziale', en: 'potential gain' }),
+    giroTeorico: tr({ it: 'Giro teorico (dal log del gioco, minimo per settore sui giri segnati): ', en: 'Theoretical lap (from game logs, per-sector minimum over recorded laps): ' }),
+    scorta: tr({ it: 'scorta sul giro accreditato', en: 'gain on the credited lap' }),
     settoriPrev: tr({ it: 'Settori vs gara precedente', en: 'Sectors vs previous race' }),
     meglio: tr({ it: 'negativo = migliorato', en: 'negative = improved' }),
     giroVeloce: tr({ it: 'Giro veloce: ', en: 'Fastest lap: ' }),
@@ -217,8 +225,9 @@ function locale() {
 /* ---------------------------------------------------------------- MD (Discord) */
 /**
  * Il testo Discord-ready: titolo + podio + classifica in blocco monospazio +
- * la tua gara (settori del tuo giro, giro teorico, testa a testa MP) + giro
- * veloce + firma. Discord NON disegna le tabelle → colonne allineate a mano.
+ * la tua gara (settori del tuo giro, teorico VERO dai log del gioco — la
+ * somma dei settori del file risultato è il best per costruzione, vedasi
+ * margine-log.mjs — testa a testa MP) + giro veloce + firma.
  */
 export function mdCompose(d, { me = null, fl = null, sect = null, prev = null, build = null } = {}) {
   const L = locale();
@@ -286,14 +295,18 @@ export function mdCompose(d, { me = null, fl = null, sect = null, prev = null, b
   const tue = [];
   if (me) {
     tue.push(`⭐ ${L.tuSei}${me.dsq ? '**DSQ**' : `**P${me.position}**`}${me.gap != null ? ` · ${L.gap2} ${fmtGap(me.gap)}` : ''}${me.penalty ? ` · ${L.penalita} ${me.penalty}` : ''} · ${L.miglior} ${me.bestLap || '—'}${me.car ? ` · ${me.car}` : ''}`);
-    if (sect && Number.isFinite(sect.theoreticalMs)) {
+    if (sect?.sectors?.length) {
       const righeS = sect.sectors.map((s) =>
         `${L.settore} ${s.index} ${s.deltaMs != null ? `${s.deltaMs > 0 ? '+' : ''}${(s.deltaMs / 1000).toFixed(3)}"` : '—'}`).join(' · ');
       const peg = sect.worstSector
         ? ` (${L.peggiore}: ${L.settore} ${sect.worstSector.index} +${(sect.worstSector.deltaMs / 1000).toFixed(3)}")`
         : '';
       tue.push(`🎯 ${righeS}${peg}`);
-      tue.push(`🧩 ${L.giroTeorico}**${sect.theoreticalText}**${sect.theoreticalGainText ? ` — ${L.scorta} ${sect.theoreticalGainText}` : ''}`);
+    }
+    /* il teorico VERO dai log: niente abbinamento → niente riga (il numero
+       del file risultato ripeterebbe il best: margine-log.mjs, la lezione 3/11). */
+    if (sect?.vero) {
+      tue.push(`🧩 ${L.giroTeorico}**${sect.vero.testo}** (su ${sect.vero.giri} giri)${sect.vero.margineMs > 0 ? ` — ${L.scorta}: ${sect.vero.scortaText}` : ''}`);
     }
     if (prev && sect) {
       // il tuo evoluzione settoriale: attuale vs precedente, negativo = migliorato
@@ -404,7 +417,26 @@ export function rapportoGara(paths, fileName, { driver = null, salva = true } = 
         ?? null;
       if (meRaw) {
         sect = sectorAnalysis(raw, meRaw);
-        if (sect) prev = settoriPrecedente(paths, raw.track, safe, driver);
+        if (sect) {
+          prev = settoriPrecedente(paths, raw.track, safe, driver);
+          /* il TEORICO VERO (lezione 3/11): nel file risultato la somma dei settori
+             È IL BEST per costruzione — i settori giro-per-giro veri stanno nei log
+             del gioco. Legame sessione ↔ log: la tripla del best accreditato. */
+          try {
+            const v = margineVeroDaLog(paths?.logsDirs ?? [], [{
+              chiave: safe,
+              track: raw.track,
+              bestSplits: sect.sectors.map((s) => s.mine),
+            }]).get(safe);
+            if (v) sect.vero = {
+              testo: testoMs(v.sommaMs),
+              sommaMs: v.sommaMs,
+              margineMs: v.margineMs,
+              scortaText: testoMs(Math.max(0, v.margineMs)),
+              giri: v.giri,
+            };
+          } catch { /* log assenti/ruotati: la riga resta fuori, mai numeri inventati */ }
+        }
       }
     }
   } catch { /* senza splits il rapporto resta completo senza la sezione settori */ }

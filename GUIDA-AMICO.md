@@ -167,10 +167,11 @@ due schermate nella GUI:
 🌦️ **Il cielo cambia nel weekend, come dal vero** (3/11): il «Bollettino del
 weekend» nella scheda gara mostra un meteo diverso per ogni sessione — il
 cielo PEGGIORA verso la gara (gara serena → tutto sereno; gara pioggia →
-prove nuvoloso, qualifiche pioggia leggera). Il «Prepara tutto» scrive già
-il meteo delle PROVE; prima di entrare nelle sessioni successive premi il
-bottone **Metti** della sessione nel bollettino (qualifica, warm-up, gara):
-un click, il preset finisce nel file del weekend. Puoi anche correre una
+prove nuvoloso, qualifiche pioggia leggera). Funziona DA SOLO (dal 4/11): «Prepara tutto» scrive già il meteo delle
+PROVE, al cambio ronda il tool sistema da solo il cielo delle sessioni
+della nuova ronda e a fine di ogni sessione scrive quello della successiva.
+Il bottone **Metti** della sessione resta come ripiego a mano (per esempio
+due ronde di fila sulla stessa pista). Puoi anche correre una
 sessione col cielo sbagliato: nessuna penalità, solo realismo in meno.
 
 🎙️ **La copilota parla sempre italiano** (dal 27/10: anche con l'interfaccia

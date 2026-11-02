@@ -5,8 +5,14 @@
 //   TOP level:  blocco 3 ripetuto = UNA sessione (Practice, Qualifying, Warmup, Race)
 //   blocco f4   = il DATETIME della sessione (sub-message):
 //                 f4.1 anno · f4.2 mese · f4.3 giorno · f4.4 ora · f4.5 minuti
-//   blocco f7   (float, naken)  = la SCALA di avanzamento del tempo (1 = reale)
-//   blocco f4.f7 float          = scala alternativa vista nel dump (coerente col f7 top)
+//   blocco f7   (varint)        = contatore della griglia (slider custom, N): NON la scala
+//   blocco f4.f7 float          = la SCALA di avanzamento del tempo (1 = reale).
+//                                 NON e' «alternativa»: e' l'unica forma del gioco
+//                                 (1/11, round-trip byte-identico su tutti i file scritti
+//                                 dal gioco). Il f7-float a livello blocco che le vecchie
+//                                 scritte ponevano era zavorra nostra: mai scritto dal gioco,
+//                                 e sovrapposto al contatore canonico della griglia. Ora la
+//                                 scrittura va dentro il f4 e lo rimuove.
 //
 // Con il moltiplicatore >1 il tempo di gioco scorre più veloce: "dal tramonto
 // all'alba" (f4.4=21, scala 48) attraversa cicli completi di luce nella gara
@@ -29,6 +35,55 @@ export const WEEKEND_FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.game
 const NOMI_SESSIONE = { Practice: 'Practice', Qualifying: 'Qualifying', Warmup: 'Warmup', Race: 'Race' };
 const nomeSessione = (n) => NOMI_SESSIONE[String(n ?? '').trim()] ?? null;
 
+/** SCALA DEL TEMPO (1/11): il float vive DENTRO il sottoblocco data/ora (f4.f7);
+ *  il f7 di blocco e' un contatore varint (slider custom della griglia). Ripiego:
+ *  la zavorra legacy f7-float di blocco rimasta nei file toccati dalle vecchie scritte. */
+const readBlockScale = (sess) => {
+  const f4 = sess.find((s) => s.field === 4 && s.wire === 2);
+  if (f4) {
+    const sf = decodeMsg(f4.bytes).find((x) => x.field === 7 && x.wire === 5);
+    if (sf) return Buffer.from(sf.bytes).readFloatLE(0);
+  }
+  const junk = sess.find((s) => s.field === 7 && s.wire === 5);
+  return junk?.bytes ? Buffer.from(junk.bytes).readFloatLE(0) : 1;
+};
+
+/** Scrive la scala nella FORMA DEL GIOCO (f4.f7 interno) e rimuove la zavorra
+ *  f7-float a livello blocco (che altrimenti sovrappone al contatore griglia).
+ *  Ritorna true se ha toccato qualcosa. */
+const writeBlockScale = (sess, value, floatBytes) => {
+  let touched = false;
+  const f4 = sess.find((s) => s.field === 4 && s.wire === 2);
+  if (f4) {
+    const dt = decodeMsg(f4.bytes);
+    const sf = dt.find((x) => x.field === 7 && x.wire === 5);
+    if (sf) {
+      if (Math.abs(Buffer.from(sf.bytes).readFloatLE(0) - value) > 1e-6) {
+        sf.bytes = floatBytes;
+        f4.bytes = encodeMsg(dt);
+        touched = true;
+      }
+    } else {
+      dt.push({ field: 7, wire: 5, bytes: floatBytes });
+      f4.bytes = encodeMsg(dt);
+      touched = true;
+    }
+  } else {
+    // blocco senza data/ora (mai visto dalla mano del gioco): ripiego legacy
+    const f7 = sess.find((s) => s.field === 7 && s.wire === 5);
+    if (f7) {
+      if (Math.abs(Buffer.from(f7.bytes).readFloatLE(0) - value) > 1e-6) { f7.bytes = floatBytes; touched = true; }
+    } else {
+      sess.push({ field: 7, wire: 5, bytes: floatBytes });
+      touched = true;
+    }
+    return touched;
+  }
+  const i = sess.findIndex((s) => s.field === 7 && s.wire === 5);
+  if (i >= 0) { sess.splice(i, 1); touched = true; }
+  return touched;
+};
+
 /** Legge ora/minuti/scala dal blocco "Race" (o dal blocco indicato, 0-based) del gamemodesave. */
 export function currentRaceTime(file = WEEKEND_FILE, blockName = 'Race') {
   let buf;
@@ -46,8 +101,7 @@ export function currentRaceTime(file = WEEKEND_FILE, blockName = 'Race') {
   const dt = f4 ? decodeMsg(f4.bytes) : [];
   const hour = dt.find((x) => x.field === 4)?.varint;
   const min = dt.find((x) => x.field === 5)?.varint;
-  const scaleF = sess.find((s) => s.field === 7 && s.wire === 5);
-  const scale = scaleF?.bytes ? Buffer.from(scaleF.bytes).readFloatLE(0) : 1;
+  const scale = readBlockScale(sess);   // scala: f4.f7 interno (forma del gioco), ripiego zavorra
   const modeN = sess.find((s) => s.field === 3 && s.wire === 0);
   const mode = modeN ? Number(modeN.varint) : 1;   // f3 assente → a tempo (default osservato)
   return { hour: hour != null ? Number(hour) : null, minute: min != null ? Number(min) : null, scale, mode, aTempo: mode === 1, block: i + 1, blocchi: blkl(blk) };
@@ -69,7 +123,6 @@ export function currentSessionTimes(file = WEEKEND_FILE) {
     const dt = f4 ? decodeMsg(f4.bytes) : [];
     const hour = dt.find((x) => x.field === 4)?.varint;
     const min = dt.find((x) => x.field === 5)?.varint;
-    const scaleF = sess.find((s) => s.field === 7 && s.wire === 5);
     // durata DELLA SESSIONE (richiesta Mauro 31/10: dura anche al % bassa)
     // letta col campo MODALITÀ (scoperta 28/10: f3=1 → a tempo, f2 = SECONDI;
     // f3=2 → a giri, f2 = GIRI). Prima la distinguevo col nome della sessione:
@@ -79,7 +132,7 @@ export function currentSessionTimes(file = WEEKEND_FILE) {
     const mode = modeN ? Number(modeN.varint) : 1;
     const aTempo = mode === 1;
     const durSec = g2 && g2.varint != null && aTempo ? Number(g2.varint) : null;
-    out.push({ name, hour: hour != null ? Number(hour) : null, minute: min != null ? Number(min) : null, scale: scaleF?.bytes ? Buffer.from(scaleF.bytes).readFloatLE(0) : 1, mode, aTempo, durSec });
+    out.push({ name, hour: hour != null ? Number(hour) : null, minute: min != null ? Number(min) : null, scale: readBlockScale(sess), mode, aTempo, durSec });
   }
   return out;
 }
@@ -140,16 +193,11 @@ export function setRaceSessions({ sessions = {}, scale = null, file = WEEKEND_FI
     if (!g2) { g2 = { field: 2, wire: 0, varint: null }; sess.push(g2); } // blocco senza durata: il campo lo creiamo
     if (g2.varint == null || Number(g2.varint) !== req.durationSec) { g2.varint = BigInt(req.durationSec); touched = true; }
   }
+    // f7/f4.f7: scala di avanzamento del tempo — FORMA DEL GIOCO (f4.f7 interno,
+    // 1/11); il f7 di blocco e' il contatore griglia e NON va né letto né toccato
     if (sc != null) {
-      const f7 = sess.find((s) => s.field === 7 && s.wire === 5);
-      if (f7) {
-        const cur = Buffer.from(f7.bytes).readFloatLE(0);
-        if (Math.abs(cur - sc) > 1e-6) { const b = Buffer.alloc(4); b.writeFloatLE(sc, 0); f7.bytes = b; touched = true; }
-      } else {
-        const b = Buffer.alloc(4); b.writeFloatLE(sc, 0);
-        sess.push({ field: 7, wire: 5, bytes: b });
-        touched = true;
-      }
+      const b = Buffer.alloc(4); b.writeFloatLE(sc, 0);
+      if (writeBlockScale(sess, sc, b)) touched = true;
     }
     f3.bytes = encodeMsg(sess);
     if (touched) { changed++; toccati.push(name); }
@@ -201,16 +249,10 @@ export function setRaceTime({ hour = null, minute = null, scale = null, file = W
       }
       if (touched) f4.bytes = encodeMsg(dt);
     }
-    // f7: scala di avanzamento del tempo (float)
+    // f7/f4.f7: scala di avanzamento del tempo — FORMA DEL GIOCO (f4.f7 interno,
+    // vedi writeBlockScale); mai toccare il f7 di blocco (contatore griglia)
     if (scaleBytes) {
-      const f7 = sess.find((s) => s.field === 7 && s.wire === 5);
-      if (f7) {
-        const cur = Buffer.from(f7.bytes).readFloatLE(0);
-        if (Math.abs(cur - sc) > 1e-6) { f7.bytes = scaleBytes; touched = true; }
-      } else {
-        sess.push({ field: 7, wire: 5, bytes: scaleBytes });
-        touched = true;
-      }
+      if (writeBlockScale(sess, sc, scaleBytes)) touched = true;
     }
     if (touched) { changed++; f.bytes = encodeMsg(sess); }
     else f.bytes = encodeMsg(sess); // re-encode identico: il loop su tutti i blocchi non cambia niente

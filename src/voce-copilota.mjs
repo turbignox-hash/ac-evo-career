@@ -14,7 +14,7 @@
 // il trasporto (righe → voce) e la fase di sessione (firma/grazia/live),
 // nessuna logica di radio duplicata.
 import { spawn } from 'node:child_process';
-import { appendFileSync, readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { narratore } from '../tools/_monitor-copilota.mjs';
@@ -151,6 +151,39 @@ export function leggiRadioVoce({ last = 6, file = LOG_VOCE_FILE } = {}) {
     } catch { /* riga a metà scrittura o corrotta: si prosegue a quella prima */ }
   }
   return ultime;
+}
+
+/* PANNELLO VOCE (1/11, «ritornello/doppia voce» di Mauro): UN SOLO Pitwall
+   può parlare. Due server vivi sulla STESSA carriera (dafleti avviati a distanza,
+   il doppione della 8740 e quello vero della 8642) battevano ENTRAMBI il tick
+   voce sulla stessa shared memory: la stessa frase usciva quasi insieme da due
+   relatori = coro. La radioguida è un file di battito nella stessa cartella della
+   radio (voce-panello.json, PID + tempo): chi lo tocca per primo tiene il
+   microfono, l'altro tace SOLO FINCHÉ il battito gira (25 s di respiro: il tick
+   è ogni 4 s); se il titolare muore, il più vivo riprende da solo. I test
+   passano una DIR PROPRIA: il pannello del mondo vero non deve mai vedere le
+   prove (e viceversa). */
+const PANNELLO_RENA_MS = 25000;
+export function pannelloVoce({ dir = dirname(LOG_VOCE_FILE) } = {}) {
+  const file = join(dir, 'voce-panello.json');
+  const leggi = () => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
+  return {
+    file,
+    /* chiedi(): battito DI CUI PARLA — renno e torni true se il microfono è tuo
+       (o lo diventi dopo un titolare morto). Dentro ai 25 s dell'altro: false. */
+    chiedi({ ora = Date.now() } = {}) {
+      const p = leggi();
+      if (p?.pid && p.pid !== process.pid && p?.t && ora - p.t < PANNELLO_RENA_MS) return false;
+      try { writeFileSync(file, JSON.stringify({ pid: process.pid, t: ora }) + '\n'); return true; }
+      catch { return false; }   // senza pannello la voce resta: fallire spalanka non è un errore
+    },
+    // diagnostica: chi ha il microfono ADESSO (per il registro e la salute)
+    titolare() {
+      const p = leggi();
+      if (!p?.pid) return null;
+      return { pid: p.pid, mio: p.pid === process.pid, etaMs: p.t ? Date.now() - p.t : null };
+    },
+  };
 }
 
 export function giroVoce(m, slot, voce, { log = null, ora = Date.now(), graziaMs = 15000, livello = 'normale' } = {}) {

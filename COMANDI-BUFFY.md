@@ -22,8 +22,15 @@ radio END TO END:
 3. **Una sola radio**: con la voce server viva la PAGINA resta muta
    (`!voceServer`), niente frasi doppie.
 4. **Frasi sane**: nessuna ripetizione, niente «finendo il giro 1 mentre
-   parti» — dopo la gara passato il riepilogo
-   (`node tools/_monitor-copilota.mjs --riepilogo data/copilot-…jsonl`).
+   parti» — dopo la gara passato il riepilogo- **Cura livree chimere** (2/11): se un template o `last_grid` porta celle con
+  coppie mai scritte da EVO (anteprima vuota, zona crash Gameface),
+  `node tools/cura-livree.mjs` (dry run) → quadro; `--scrivi` cura: per ogni
+  identità (carId+mech+visual) copia il f14 della variante PIÙ FREQUENTE nel
+  parco di GameModes (last_grid + bak-*). Backup `bak-livree-*`; roster
+  risincronizzato. Tocco solo di f14: PI e skill intatti. EVO chiuso per scrivere.
+- **Cancellai delle coppie nel builder** (2/11): src/gridbuilder.mjs rifiuta le
+  celle con f10/f11 di modelli diversi dal f3 (invariante del parco: 2530/2530).
+    (`node tools/_monitor-copilota.mjs --riepilogo data/copilot-…jsonl`).
 
 Verdetto finale: cosa ha parlato, cosa ha taciuto e perché, con la riga
 del registro accanto a ogni voce. Test-mode spenta a fine collaudo.

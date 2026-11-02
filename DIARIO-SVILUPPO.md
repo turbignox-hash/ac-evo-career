@@ -83,10 +83,19 @@ PROVA LIVE «una sola verità» (30/10 serale): il verdetto di giornata sul pref
 e non paga né posti né giri: solo le 3 gare entrano nell'aggregato. Resta la metà
 RADIO: gli annunci in gioco sul testday lungo vero.
 
-### DA-6 — Audit periodico dei dati di carriera · STATO: DA RI-PIANIFICARE (ultimo: 28/10)
-Ultimo audit: [report/audit-dati-2026-10-28.md](report/audit-dati-2026-10-28.md) —
-save coerente, garage map, pool. Da ripetere ogni ~2 settimane di gara viva e
-SEMPRE dopo un update del gioco (nuovo DLC o reset del save).
+### DA-6 — Audit periodico dei dati di carriera · STATO: ronda 3 chiusa (1/11, senza interventi) — prossimo giro a ~2 settimane di gara viva
+Ultimo audit: [report/audit-dati-2026-11-01.md](report/audit-dati-2026-11-01.md) —
+ripetuto 1/11 a fine stagione 12 e apertura della 14, **sola lettura**
+(sonda in tmp, zero scritture, lezione DA-16 del «fai quello che vuoi» del
+1/11 precedente): save coerente (86 cursori tutti sani, posta al cap 60,
+2 auto in garage senza doppioni), il disco di data/ precipitato da ~774 MB
+a ~11 MB (la voce A1 del 28/10 chiusa di fatto), classi dentro cap del
+restrictor, nessuna fuga Git. Due anomalie minori censite senza leva:
+la chiave bestLaps morta «imola» (doppia grafia, lettori non la toccano mai)
+e i due zip FULL d'epoca usciti per rotazione MAX_ZIP=4 (scelta fatta
+in partenza). Precedente: [report/audit-dati-2026-10-28.md](report/audit-dati-2026-10-28.md).
+Da ripetere ogni ~2 settimane di gara viva e a ogni update del gioco
+(nuovo DLC o reset del save).
 
 ### DA-7 — Release di pacchetto (aggiorna-zip + bump versione) · STATO: AL MOMENTO GIUSTO
 Versione attuale 0.1.42 in `package.json`. Da chiamare SOLO dopo che DA-1, DA-3 e DA-4
@@ -455,6 +464,32 @@ Verificato in casa: `test/gridbuilder-tinte.test.mjs` 5/5 (famiglia:
    celle byte-uniche) — suite completa **656/656**, lint 0. Restano: il
    collaudo a vista sul via con un template RICCO di livree e un'altra
    serie col flag tintePrestate.
+**Terza fetta (1/11 notte, la cura sul PROMPT reale di Mauro: «ora le
+auto avversarie mx5 sono tutte identiche»)**: la coppa MX-5 ND Cup
+portava la livrea 2 su 17 celle su 25 (4/17/4 — la «tutte identiche»
+a vista). La norma è già nel builder (tinte prestate OFF, celle
+copiate dal template), il sentiero era il TEMPLATE sbilanciato. Cura
+si (tmp/_cura-mx5-tinte.mjs, schema tools/cura-livree.mjs):
+   - Donori VERI dal parco: ogni cella convertita riceve INTERO il
+     campo 11 e il run completo di f14 di una cella donatrice già
+     scritta da EVO (zero chimere — la lezione del crash 16:51).
+   - Guardia byte-uniche: le 25 celle post-cura son tutte distinte
+     (lezione 20/10 e 23/10, i doppioni vanno rifiutati).
+   - Riscritto coppa_mazda-mx5-nd-cup.customgrid: 4/17/4 → **9/8/8**,
+     25 celle byte-uniche, backup bak-mx5-tinte2026-11-01T22-23-19.
+     Bersaglio equo calcolato (total/3, il resto alle prime) — 18
+     celle danno 6/6/6, il live del weekend aveva GIÀ questo
+     equilibrio (APPLICA 23:18: 18 celle 6/6/6 uniche: la pista di
+     Mauro mostra rosso/bianco/arancione — confermato a vista).
+   - Il live NON si tocca col gioco aperto: il template curato
+     vale dalle PROSSIME costruzioni del builder.
+   - TROFEO MX-5: RIFIUTO con la cura giusta — la serie è mista
+     (7 × NA, TUTTE visual_3, e 7 × ND Cup) e ha 4 DOPPIONI byte
+     già presenti tra le NA (girate prima della cura, dal bagno
+     delle 20:41). Non è materia di tinte: è da pulizia-celle da
+     fare con cura dedicata. Sospesa qui.
+   Test: copilota-narratori.test.mjs 31/31 verde (la parte radio).
+
 ### La vetrina delle tinte (1/11, autorizzazione migliorie): tinte/prestate alla vista
 
 Il report del builder porta le livree per modello e le PRESTATE, ma nessuna
@@ -494,9 +529,1064 @@ file in attesa:
   «tinte prestate (parco)» sulle serie che lo hanno attivo — chi non
   legge grid-classes.json a mano vede da solo chi pesca dal parco.
 
+### DA-20 — Stato del test che lega PERIODO_MS di publisher e app di gioco · richiesta 1/11 («registra lo stato del test») · STATO: fatto (1/11, rifattore) 6/6 verdi · suite 782/782 (2/11)
+
+Il test [test/uiapp-periodo.test.mjs](test/uiapp-periodo.test.mjs) è la legge
+che tiene UNA sola voce del ritmo (il publisher) e le due app di gioco
+sulla stessa riga. Dalla rifattore di oggi (le app prendono il valore
+ALLA BUILD, vedi il registro del diario) controlla CINQUE cose:
+
+1. **La sagoma non dichiara nulla a mano**: nessun `const PERIODO_MS =`
+   scritto dentro le sagome (cruscotto.src.js / pitwall.src.js) — solo
+   il segnaposto `__PERIODO_MS_DAL_PUBLISHER__`;
+2. **I file costruiti portano il valore del publisher**: il numero nei
+   costruiti (cruscotto.js / pitwall.js) è identico alla costante
+   importata da [src/uiapp-pub.mjs](src/uiapp-pub.mjs);
+3. **Nei costruiti il segnaposto è sparito**: `node --check` sulla
+   sintassi dei due file passa, cioè l'innesto ha sostituito tutto;
+4. **Il generatore segue il cambio di valore**: cambiato il numero nel
+   publisher, un giro di [tools/genera-uiapp.mjs](tools/genera-uiapp.mjs)
+   aggiorna entrambi i costruiti (e richiama da solo gli installatori, 3/11);
+5. **Il ritmo MONTATO vale a numero** (1/11, dopo il rifattore): il ritmo
+   del sondaggio `prendiSlot` nei costruiti, VALUTATO con la costante
+   cucita dalla build, fa la metà esatta del periodo del publisher
+   (PERIODO_MS/2) — non solo la forma della riga.
+
+**Stato attuale: 6/6 verdi** nel file del periodo, e suite intera
+**782/782** a sessione ferma (node --test, 2/11, dopo l'estensione della
+prova runtime della coda ai tre sentieri di `applicaComando` — setcar,
+evento e avvia — sonda scaduta + controprova viva per ciascuno, l'estensione
+richiesta «anche ai comandi tipo evento e avvia sessione, non solo setcar»);
+biome 0 sui file toccati.
+
+Cosa il test NON copre (dichiarato, non nascosto): le copie installate
+nei Saved Games NON sono ricontrollate a programma — gli installatori
+(installa-cruscotto / installa-pitwall, che copiano i costruiti) girano
+a mano dopo la build; a cambio di PERIODO_MS nel publisher va rifatto
+«genera + installa» a mano (il generatore lo consiglia in output quando
+il valore è cambiato).
+
+**Quinto controllo (1/11 pomeriggio, per richieste di Mauro sul test stesso):
+la VALIDITÀ — test al passo, 5/5.** Il publisher già marca ogni fascia con
+`validaFino` = (slot+1)·PERIODO_MS, ma le app lo ignoravano. Ora entrambe
+catturano la scadenza della fascia adottata e la rispettano: la fascia
+scaduta (riserva slot-1 letta in ritardo o server fermo) si mostra a
+schermo CON LA DICITURA «Fascia scaduta: dati di una fascia passata» — mai
+venduta per fresca — e nel Cruscotto la guardia sta prima di tutto:
+`applicaComando` NON fa partire setcar/avvia da una fascia morta (il
+publisher li ripropone in ogni fascia viva, non si perde niente); il
+semaforo porta la riga sull'anello (pitwall: pallino arancione). Toccate le
+sagome (cruscotto.src.js, pitwall.src.js) e i costruiti rigenerati e
+reinstallati nel gioco con gli installatori. Verifica:
+[test/uiapp-periodo.test.mjs](test/uiapp-periodo.test.mjs) 5/5 (la prova
+del quinto filo: scadenza scritta dal publisher, cattura in adotta, guardia
+in applicaComando, avviso a schermo nelle due app); biome 0 sui 5 file
+toccati; `node --check` sui costruiti ok.
+
 ---
 
 ## Registro del diario
+
+### 1/11 notte — IL REGISTRO DELLE SCRITTURE AUTOMATICHE DEL BOLLETTINO, NELLA GUI (richiesta Mauro: «aggiungi nella GUI un piccolo registro delle scritture automatiche del bollettino») · ✅
+
+Il bollettino (wx-auto) ormai scrive il cielo da solo al cambio ronda e a fine
+di ogni sessione, ma chi lo ha visto? Finora la scrittura si raccontava una
+volta sola nella lista messaggi e poi spariva. Ora ogni scrittura RIUSCITA
+lascia una riga sul disco e la GUI la mostra:
+- **[src/wx-registro.mjs](src/wx-registro.mjs)** (nuovo): il diario su
+  `data/wx-auto.jsonl` — `{ at, via, sessione, preset, label, from, file }`:
+  QUANDO (ISO, ora del PC), PERCHÉ (`cambio-ronda` | `fine-sessione`), che cosa
+  (preset + nome nel catalogo), il preset che c'era prima (`from`) e il file
+  Risultati che ha innescato. Append-only corazzato come warnings.mjs (se
+  va storto si perde la voce, il bollettino non si ferma mai) con taglio
+  dolce a 300 righe (resta l'ultima metà). `registra(voce)` scrive,
+  `leggi({ n })` torna le ultime dal più recente col `total`. `EVO_DATA_DIR`
+  lo isola nei test.
+- **[src/wx-auto.mjs](src/wx-auto.mjs)**: al termine di OGNI scrittura
+  automatica riuscita (sia `wxAutoTick` fine-sessione sia `wxAutoPrima`
+  cambio-ronda) chiama `registra` (helper `attizza`): niente voci per
+  «già a posto», errori o file fuori piano — solo le scritture vere. La
+  lista messaggi del server resta com'era (notifica immediata), il registro
+  è la memoria.
+- **[src/webui.mjs](src/webui.mjs)**: casella `wx-log` (lettura pura, NON
+  aggiunta alle azioni POST di scrittura) che torna `leggiWx({ n: 15 })`
+  SENZA richiedere carriera (registro vuoto è legittimo).
+- **[gui/js/viste-a.js](gui/js/viste-a.js)**: nel details «Regole di questo
+  weekend · meteo» della scheda gara un details interno «📜 Registro delle
+  scritture automatiche» (con contatore `wx-log-n`) che CARICA ASINCRONO via
+  `api('wx-log')` DOPO il render (accanto all'aggancio dei tasti «Metti»):
+  ogni riga «ora · sessione → preset (perché)» più le note lievi (file
+  tratto, preset precedente). Vuoto (`total 0`) → «Ancora nessuna
+  scrittura…»; un fallimento del fetch non tocca il resto della scheda.
+
+Test: **[test/wx-registro.test.mjs](test/wx-registro.test.mjs)** (nuovo, 5
+test: scrittura+lettura round-trip, ordine inverso, taglio oltre cap con
+metà conservata, righe corrotte saltate, sandbox EVO_DATA_DIR) e
+[test/wx-auto.test.mjs](test/wx-auto.test.mjs): la sandbox ora porta il suo
+EVO_DATA_DIR TEMPORANEO così le asserzioni nuove (`via cambio-ronda`,
+`via fine-sessione` con file e from) NON toccano `data/wx-auto.jsonl` vero.
+`node --test` wx-registro + wx-auto 23/23 verdi; biome pulito sui 4 file
+toccati. PROVA SUL VIVO: server su 8642 ripartito DOPO le modifiche
+(PID 5960, 19:39), la scheda del Cruscotto apre il details con il pannello
+che si riempie dall'API (`/api/wx-log` → `{voci:[], total:0}` finché il
+bollettino non scrive il suo primo preset) e mostra l'empty-state.
+
+### 1/11 notte — PROVA SUL VIVO del Prepara: tag giallo → verde SENZA ricarica (e due difetti colti in flagrante)
+
+Prova chiesta («ripecorri la vera via del Prepara: simula la scrittura e verifica
+che il tag giallo si smonta nel momento, senza ricarica del browser»), fatta per
+intero con EVO CHIUSO: campo sganciato a [70,80] via API (la stessa del bottone),
+tab Griglia aperto nel browser con **sentinella** (window.__sentinella = 42),
+poi scrittura del vero ramo griglia del Prepara con
+[tools/_prova-prepara.mjs](tools/_prova-prepara.mjs): banda [84,85] · cursori ·
+21 celle scritti sul file vivo — e il battito di [gui/js/viste-griglia.js](gui/js/viste-griglia.js)
+(beat 3 s, aggiunto in questa prova) ha RIDIPINTO il tab DA SOLO: prima
+giallo (tag warn) sul 70–80, poi **verde** (tag green · «allineata al campo»)
+su 84–85, **zero ricariche** (sentinella intatta 42 tutto il tempo).
+
+Difetti colti DURANTE la prova (e curati subito):
+1. **Cella tinta unica**: la **ricostruzione** dal template della scheda
+   (22 celle) usciva con TUTTI Porsche 718 Cayman GT4 RS di UNA tinta sola —
+   esattamente il quadro che manda in crash i celli ripetuti (report crash
+   261101-16.51). NON è la via del Prepara dal vivo (il flusso diretto dal
+   gioco scrive le sue 21 DIVERSE): è la ricostruzione dal template che
+   restringe la varietà. Il backup del flusso vivo (`.bak-apply-…`) è
+   RESTITUITO e ha ripristinato le 21 celle vere (verificato: la GUI mostra
+   21, non più le 22). Follow-up aperto su gridbuilder/ricostituzione modelli
+   (VA-APERTI: «ricca di varietà la ricostruzione» — da una scelta del
+   template all'oracle del flusso dal vivo).
+2. **Battito mioSmartTag corto**: la chiave del beat portava solo AI+banda —
+   il RESTORE del backup sostituisce il file a STESSA AI ma serie DIVERSA
+   (21 vs 22 celle): il tab resterà sulla vecchia stampa fino a clic. Cura:
+   la chiave ora è una **impronta** che porta ANCHE piMin/piMax e il numero
+   delle celle — ogni cambio di griglia a pari AI fa ridipingere.
+   Verifica: biome pulito su viste-griglia.js.
+
+Nota di chiarezza GUI dal vivo: il tag verde porta la scritta «allineata al
+campo» (testo preesistente, non scritta di questa prova) — il COLORE è il
+segnale (verde = in banda col campo).
+
+### 1/11 tarda notte — IL METEO DELLA PRIMA SESSIONE ANCHE AUTOMATICO (richiesta Mauro: «si può sistemare in automatico il meteo della prima sessione, senza l'unico Metti manuale?») · ✅
+
+Il wx-auto della mattina viveva SOLO del file Risultati (che per la prima
+sessione della ronda NON esiste ancora): il trigger naturale mancante era il
+CAMBIO RONDA, e ora è agganciato.
+- [src/wx-auto.mjs](src/wx-auto.mjs): nuovo `wxAutoPrima(paths, costruisciPiano,
+  chiaveRonda)` — al cambio di chiave `node#round` (o al primo battito dopo il
+  riavvio) si valuta UNA volta: se nessun Risultati con sessione VALIDA del
+  piano è già sul disco per QUESTA pista, si scrive il meteo delle Prove del
+  piano (stesso cancello `previsto:true`, STESSA fonte card → weatherPlan).
+  Al cambio DA VIVO contano solo i file apparsi col cambio (mtime >= momento):
+  la Gara appena chiusa su ALTRA pista non blocca; la gara della STESSA pista
+  conta e chiude. Al REIAVvio basta che un file della pista esista per tacere
+  (i mtime non distinguono le ronde: conservativo, il Metti resta il ripiego
+  di quei casi). Notifica alla GUI: «Bollettino in automatico: nuova ronda →
+  meteo delle Prove libere».
+- [src/webui.mjs](src/webui.mjs): nel battito del watcher il pianoDellaRonda
+  (viewCard → weatherPlan, già la fonte del «Metti») è FACTORIZZATO e serve
+  ENTRAMBI gli inneschi: wxAutoTick (file Risultati) + wxAutoPrima (chiave
+  ronda). Misi per tick: la chiave uguale esce subito.
+- Testi allineati al nuovo patto: weatherRitual nella card
+  ([race.mjs](src/race.mjs)), chip del pannello bollettino («in automatico»
+  anche per le Prove, il Metti = ripiego) in [gui/js/viste-a.js](gui/js/viste-a.js),
+  paragrafo meteo di [GUIDA-AMICO.md](GUIDA-AMICO.md).
+- Verifica: [test/wx-auto.test.mjs](test/wx-auto.test.mjs) 30/30 (9 nuovi:
+  ronda senza storico → scrive Prove, stessa chiave → tace, file della pista →
+  si tace, gara da altra pista → non blocca, cambio ronda su altra pista →
+  scrittura seria, due ronde di fila sulla STESSA pista → resta a mano);
+  race-card verde; smoke GUI verde; suite intera 1407/1408 pass + 2 rossi NOTI
+  del pacco-fixture tmp/pacco-test; biome pulito sui 5 file toccati.
+  PROVA SUL VIVO: riavvia-webui → server 0.1.47 in piedi, registro wx-auto
+  fermo (0 voci dopo il riavvio, POST /api/warnings 200).
+
+### 1/11 ancora sera — ALLINEAMENTO DRIVER: il pacchetto skill f10 segue la banda (a forma del GENERA)
+
+Giro di controllo con la stessa lente d'ingrandimento sulle scritture del
+gioco: customgrid VIVO di oggi 18:07, riscritto dal GENERA del gioco (21
+driver — campione fresco): cella per
+cella per campo.
+- **La cura vera (skill)**: nel GENERA OGNI driver ha il f4 esterno = pacchetto
+  skill interno f10 (f10.f1 = f10.f2 = f10.f4 = f10.f5 = f10.f6 = f4: 0.83, 0.86,
+  0.85…; f10.f3 fisso 0.1 NON è skill; f10.f7 varint 1). Il nostro **0/21**:
+  la banda scalava SOLO il f4 lasciando il pack al valore del template (0.95):
+  banda dichiarata nel f4 ma le AI presumibilmente ancora al livello del
+  template dentro il pack. Cura [src/gridbuilder.mjs](src/gridbuilder.mjs):
+  `cambiaSkill`, toccata dalla scalatura e dal `nudgeSkill` — ogni scrittura
+  del f4 trascina il pack con lo stesso valore (f3 e f7 intatti). Il GENERA:
+  21/21 allineati (0.83–0.86); nel test con banda [88, 93] il builder scrive
+  5/5 allineati.
+- **Config confermata col vivo**: il GENERA scrive la config con 7 campi SENZA
+  f2 (la cura «Auto senza foto» della sera regge sul campione fresco); la banda
+  IA portata dal GENERA (f21/f22 in file) è sua, non della ronda: dentro il
+  config la banda è scelta dal generatore, non un difetto delle nostre write.
+- **Da capire (fili aperti)**:  (a) f8 varint dei driver: GENERA 142–176 vs
+  tiling nostre 52–60 con fuori-scala 302–304 — presumibilmente ID pilota;
+  (b) f4 meteo TOP-LEVEL del vivo 18:07 = **8**, valore mai visto nei
+  template del GENERA (0–5 o assente) e fuori dal catalogo LGM 0–7;
+  (c) f100 nelle f2-celle = due varint grandissime (presente da tutti e due
+  i lati, contenuto da fotografare su un GENERA fresco).
+- **Verifica**: test nuovo in
+  [test/gridbuilder-banda-serie.test.mjs](test/gridbuilder-banda-serie.test.mjs):
+  banda [88,93] con pack volutamente sfasato nel template → ALLINEATI 5/5
+  (f4 + pack, f3 = 0.1, f7 = 1); suite `test/` **748: 747 pass + 1 skip,
+  0 fail**; biome pulito sui due file toccati. (Due test rossi nel giro completo
+  `node --test`: stanno SOLO nel pacco-fixture `tmp/pacco-test` — «senza .git»
+  e `/api/paddock` nel sandbox — non toccati dalla cura.)
+
+### 1/11 sera — La FORMA DEL GIOCO: scala a f4.f7 interno, piste e meteo verificate a byte
+
+Il richiesto «sistema una volta per tutte» chiuso col criterio PIÙ FORTE possibile:
+non «funziona», ma «l'encode di casa riproduce BYTE PER BYTE ciò che la mano del
+Gioco scrive». Prova generale: decodifica→ricodifica del file vivo
+GameModeType_RACE_WEEKEND.gamemodesave e di gamemode.lastgamemode via via
+byte-identico (stesso codec di tutte le scritture).
+- **Piste (set-track)**: re-encode del blocco pista (4 blocchi, spec VUOTA =
+  valori correnti) **byte-identico** — la forma dei campi f5.1/2/3/5/6/8/9 che
+  scriviamo è ESATTAMENTE quella del gioco. Niente da curare: già nella forma.
+- **Scala del tempo (1ª cura vera)**: la mappa precedente teneva la scala nel
+  f7-float A LIVELLO BLOCCO — il file riscritto da EVO alle 18:07 la porta
+  invece come float DENTRO il sottoblocco data/ora (f4.f7, con anno/mese/giorno/ore):
+  il f7 di blocco è un VARINT = il contatore delle slider della griglia custom
+  (21 nel primo blocco, 15 negli altri). Il float di blocco l'avevamo scritto
+  SOLO NOI nelle scritte di oggi pomeriggio: zavorra sovrapposta a un campo
+  canonico, mai vista in NESSUN file scritto dal gioco (verify on entire disk).
+  Cura [tools/set-racetime.mjs](tools/set-racetime.mjs): lettore `readBlockScale`
+  (f4.f7 interno, ripiêgo sulla zavorra legacy) e scrittore `writeBlockScale`
+  (scrive nella forma del gioco e RIMUOVE il f7-float di blocco se c'è); ora e
+  minuti restano nel f4 interno come prima. Round-trip su copia del file vivo:
+  **12 byte diversi, TUTTI dentro i f4** (4 ore varint + 8 del float 1.0→48),
+  contatore griglia e tutto il resto byte-identici; dry-run invariato.
+- **Meteo (2ª cura)**: gamemode.lastgamemode usa proto3 — il SERENO (0) NON
+  porta il campo 2 (visto reale 20/10), ma noi lo scrivevamo come 2=0 (audit
+  bytes NO su impost invariato). Cura [src/weather.mjs](src/weather.mjs):
+  `setWeatherPreset(0)` ora RIMUOVE il campo 2 (forma del gioco) e non scrive
+  GIÀ a posto → nessun backup/nessuna scrittura; `setWeatherCustom` riscrive
+  SOLO se il risultato cambia un byte (2ª passata byte-identica). Il re-encode
+  completo del lastgamemode era già byte-identico (audit), quindi la patch	ota
+  il campo 2 e i float e nient'altro.
+- Verifica: weather-preset 12/12; cancelli-anticheat + set-racetime-mode +
+  weekend-laps-lib 16/16; suite intera **746/746 pass (1 skip)**; audit live
+  `tmp/_audit-forme.mjs` (pista SI / lgm SI / custom 2ª passata SI / preset-0 SI).
+
+### 1/11 — Auto senza foto in anteprima: la config del customgrid senza campo 2
+
+La pista del photo-bug (auto SENZA anteprima nel menu griglia dopo il «Prepara
+tutto», ricorrente da settimane e già portata a meteo e piste senza mordere):
+il test discriminante di Mauro — griglia generata/applicata DAL GENERA del
+gioco (menu griglia dello stesso weekend) — porta TUTTE le anteprime a
+posto. Non è il contenuto delle celle: è la forma del file che noi scriviamo.
+- OUTPUT del confronto byte (file del GIOCO alle 18:07 contro il nostro
+  16:56, bak): la config del customgrid scritta dal builder porta UN DATO
+  IN PIÙ, il campo `2 = 1` (36 byte contro 34). IL GENERA NON LO SCRIVE.
+- Storia del campo: incastonato 23/10 «per uniformità con EVO» (VERDETTO
+  rev. 4 di NOTE-AUTOMAZIONE: «non è la causa dei crash» — vero, ma NON
+  sosteneva nemmeno le foto: l'uniformità invocata era l'inverso).
+- Cura [src/gridbuilder.mjs](src/gridbuilder.mjs): il builder NON incastona
+  più il campo 2 e, se un template legacy lo porta dentro la config, lo
+  SCARTA prima della scrittura (stessa forma del gioco).
+- Verifica: test griglia (grid-templates, gridbuilder-tinte,
+  gridbuilder-banda-serie, gridclasses, readcells-tinta, griglia-sim,
+  grid-calib) 53/53 verdi. PROVA SUL VIVO alla prossima scrittura griglia
+  (node ac-evo-career.mjs griglia → APPLICA in EVO): se le anteprime restano
+  nere, il campo 2 non era tutto — ma è l'UNICA differenza strutturale rimasta.
+
+### 3/11 — Il bollettino si dichiara automatico (richiesta Mauro: «non l'avevamo reso automatico questo?»)
+
+Il meteo automatico c'era (3/11 mattina, wx-auto.mjs) ma il pannello
+«🌦 Bollettino del weekend» nella GUI chiedeva ancora il rituale a mano
+pieno («premuto Metti PRIMA» per TUTTE le sessioni) — la pagina raccontava
+l'era vecchia. Ora dice la verità:
+- [src/race.mjs](src/race.mjs): il rituale (una riga, weatherRitual) dice
+  che il PRIMO cielo è a mano e poi si sistema da solo a fine di ogni
+  sessione — niente più «PRIMA di entrare» richiesto per tutte.
+- [src/webui-views.mjs](src/webui-views.mjs): la card porta anche
+  `weatherNow` (currentWeatherPreset, la lettura del selettore che già
+  usa il case wx-session) — la GUI vede il cielo già scritto.
+- [gui/js/viste-a.js](gui/js/viste-a.js): ogni chip del piano porta il
+  tag — «✓ a posto» verde quando il preset attuale combacia col piano,
+  «a mano» sulla prima sessione, «in automatico» sulle successive; il
+  tasto «Metti» resta per il ripiego a mano, col tooltip «ripiego a
+  mano», e la coda del pannello spiega il gesto nuovo.
+
+Verifica: wx-auto + race-card + layout-impostazioni → 23/23 verdi;
+import nodali ok; server rientrato (riavvia-webui, nuovo PID) e
+`/js/viste-a.js` servito col testo nuovo. I server webui erano nati
+DOPO la scrittura di wx-auto.mjs e del suo aggancio: il bollettino
+automatico era già attivo in gioco, solo non dichiarato in pagina.
+
+### 3/11 — Il cap del miscuglio dai dati, non dal template (richiesta Mauro: «la GUI deve mostrare il restrictorMaxPct reale della classe»)
+
+La riserva leggera dell'audit schede (il badge «N al cap 20%» delle
+[serie a miscuglio](gui/js/viste-b.js#L367) scriveva il 20 nel template:
+una classe con cap diverso l'avrebbe mentito) è scaricata:
+- [src/stile-webui.mjs](src/stile-webui.mjs): ogni mazzo del pannello
+  «Cinque campionati a miscuglio» ora porta `capPct`, letto da
+  `cls.LIMITI_GIOCO.restrictorMaxPct` — gli STESSI limiti che clampa
+  grid-calib e gridbuilder; fallback 20 solo per una classe senza
+  limiti scritti.
+- [gui/js/viste-b.js](gui/js/viste-b.js): il badge dice `al cap
+  ${capPct}%` (en: `at ${capPct}% cap`) — niente più 20 inciso.
+
+Verifica: probe di `stileOverview` con ladder
++ [grid-classes.json](data/grid-classes.json) veri → capPct=20 su
+tutte e cinque le serie (il dato attuale è 20: il badge oggi si
+legge uguale a prima, ma deriva); `node --check` ok, `biome check` pulita sui due
+file; viste-guard + smoke → 7/7 verdi. Nota: il server vivo è
+partito col modulo vecchio (import statico), quindi `api/stili`
+porta `capPct` al prossimo rientro — il badge in mostra con le
+classi attuali resta identico anche col vecchio payload.
+
+### 3/11 — Banner del trim: la promessa ×5 tornata onesta (richiesta Mauro: «applica il fix del banner del trim»)
+
+Il falso già diagnosticato (il banner della proposta in
+[Difficoltà](gui/js/viste-a.js) prometteva «Accettare sposta anche la
+banda EVO della serie di ×5 punti» quando la legge di casa dal 2/11
+è 1 trim = 1 punto di banda) è riparato in entrambi i punti segnati:
+- [gui/js/viste-a.js](gui/js/viste-a.js): il moltiplicatore del banner
+della proposta è caduto da 5 a 1 — testo e traduzioni it/en invariati.
+La cifra ora è quella che il server dispensa davvero
+(`shift = (p.to - before) * 1` nel ramo accept,
+[webui.mjs](src/webui.mjs#L3063)).
+- [src/webui.mjs](src/webui.mjs): il commento del ramo accept dice ora
+«+1 trim = +1 punto: legge del 2/11, il commento ×5 è morto» —
+allineato col codice che dichiarava *1 da sempre.
+
+Verifica: `node --check` ok su webui.mjs; `biome check` pulita su
+[viste-a.js](gui/js/viste-a.js) e [webui.mjs](src/webui.mjs);
+testo viste [test/viste-guard.test.mjs](test/viste-guard.test.mjs) +
+smoke server [test/webui-smoke.test.mjs](test/webui-smoke.test.mjs)
+→ 7/7 verdi. Grep di conferma: nessun altro «×5»/«5 punti» nel codice
+(fuori che nel diario). Nota: il save vivo porta `difficulty.pending:
+null`, quindi il banner non era mostrabile sul vivo in questo momento —
+la promessa è verificata come espressione e contro la legge del server.
+
+### 3/11 — Guard della semina dei cursori: la riga «↺» non si riempie (richiesta Mauro: «aggiungi una guardia che fallisce se la banda AI di una serie mostra un record vuoto riempito dal seeding»)
+
+La legge del 2/11 nella semina dei cursori (il record VUOTO è una riga
+tornata al consiglio, NON «senza impostazione») ora ha la sua sentinella.
+Per poterla guardare, la semina è uscita dal blocco inline di
+[webui.mjs](src/webui.mjs) che gira a ogni richiesta con carriera: vive
+ora in `seminaRaceSettings(ladder, state)` in [src/state.mjs](src/state.mjs)
+accanto a bandaSerieLadder e bandaSerieSlider — nessuna semantica
+mutata, il server chiama la funzione al medesimo punto.
+
+La guardia: [test/semina-race-settings.test.mjs](test/semina-race-settings.test.mjs),
+6 test su ladder di PROVA con bande aiSerie DI PROPOSITO diverse da
+84–85 (così se sulla riga appare 84–85 si SA che è venuto dal fisso, non
+dal ladder):
+
+- **il VUOTO non si riempie** — la riga «↺» resta a null dopo la semina:
+  è la guardia della richiesta, il fisso [84, 85] NON risorge dal retro;
+- il record ASSENTE nasce dalla banda del LADDER (aiSerie), mai dal fisso;
+- il record MEZZO si completa solo sul cursore mancante, il valore
+  dell'utente non si tocca;
+- il ripiego [84, 85] sta SOLO sotto un ladder davvero senza aiSerie — e
+  anche lì «↺» resta vuoto;
+- idempotente: il server risemina a ogni richiesta, la seconda passata
+  non muove niente;
+- nel LADDER VERO del progetto ogni record nasce dalla SUA banda aiSerie.
+
+Verifica: `node --test test/semina-race-settings.test.mjs` → 6/6 verdi;
+webui-smoke 1/1 (il server parte con la semina estratta); `node --check`
+sui due sorgenti; biome pulita sui tre file toccati (rimossa via anche
+l'import di bandaSerieLadder dal server, ora inutile lì: la legge della
+semina vive tutta in state.mjs).
+
+### 3/11 — Quarto tab nella guardia di layout: la Dashboard a 4 larghezze (richiesta Mauro: «estendi il guard di layout anche alla tab Setup e alla Dashboard»)
+
+La guardia di [layout-impostazioni.test.mjs](test/layout-impostazioni.test.mjs)
+sale a 16 misure (4 larghezze × 4 tab): il Setup era già dentro dal 3/11,
+la Dashboard arriva col marcatore `#card-panel` (la racecard della
+prossima gara — esiste SOLO nel Cruscotto) e l'attesa GENERICA di
+stabilità: i riempimenti asincroni del tab sono tanti (card, paddock,
+vita, eredità, verdetto) e la legge dei tetti li copre senza enumerarli.
+
+- **Il primo morso a 360 è stato vero ma ha parlato di FIGURE**: 5
+  segnalazioni nel Cruscotto, tutte con almeno un membro interno a un
+  `<svg>` — i tratti (path/circle) delle icone kico/lico, che si
+disegnano sovrapponendosi DENTRO la loro scatola di 22 px per
+  costruzione, e il flagart decorativo dietro al testo (opacity .08,
+  aria-hidden). Vista retta: nessuna sovrapposizione di testo;
+- la terza lezione di misura vive in [test/_layout-probe.mjs](test/_layout-probe.mjs)
+  accanto alle due del 3/11 (ritaglio overflow, righe inline):
+  chi vive dentro un `<svg>` oppure fuori dalla lettura (aria-hidden)
+  non è candidato; le misure degli altri tab restano tese.
+
+Verifica: `node --test test/layout-impostazioni.test.mjs` → `ok`, 16/16
+misure verdi (11 s); biome pulita sui due file; niente skip nuovo
+(chromium era in gioco).
+
+### 3/11 — La sonda di layout incartata in un modulo condiviso (richiesta Mauro: «estrai la sonda di layout in un modulo condiviso per riusarla su altre viste»)
+
+Il motore tecnico nato il 2/11 dentro
+[test/layout-impostazioni.test.mjs](test/layout-impostazioni.test.mjs)
+vive ora in [test/_layout-probe.mjs](test/_layout-probe.mjs), in fila
+con i sandbox di casa (test/_flows-sandbox.mjs e simili). Tre pezzi:
+
+- `assettaVista` — click via evaluate (la lezione del bottone sbagliato
+  sotto la nav che si ridisegna) + attesa del marcatore della vista + i
+  due frame dopo `document.fonts.ready`;
+- gli arrivi asincroni — `assettaRiempimentiImpostazioni` (i tre
+  riempimenti noti enumerati a mano) e `assettaStabilitaGenerica` (due
+  impressioni a 300 ms identiche, tetto 15 s): le viste nuove senza
+  marcatori dedicati usano la generica;
+- `misuraSovrapposizioni` — il conto delle sovrapposizioni, con le due
+  lezioni di misura incastonate (ritaglio degli oltre-overflow, righe
+  vere `getClientRects` per gli inline multiriga) e il report leggibile
+  `righeReport` condiviso.
+
+Il modulo NON apre browser né server e non asserisce: chi chiama
+porta la pagina pronta e decide cosa fare del risultato — la guardia
+[layout-impostazioni.test.mjs](test/layout-impostazioni.test.mjs) resta
+l'orchestrazione (server su porta sua, save COPIATO in cartella dati
+temporanea, loop di larghezze e tab, assertion, pulizia) e si paga solo
+gli investimenti in comune.
+
+Verifica: ramo con ambiente (guardia al passo, chromium presente):
+`node --test test/layout-impostazioni.test.mjs` → `ok`, 12/12 misure
+passate (9 s), NESSUNA misura cambiata dal servizio; ramo skip
+(simulato con `LOCALAPPDATA` vuoto) → `ok # SKIP chromium assente nella
+cache di Playwright (…): scaricalo con npx playwright install chromium`
+col perché nel TAP; `biome check` pulita sui due file; un solo cliente
+al momento — le viste nuove della GUI si aggiungono alla costante `TAB`
+della guardia col loro marcatore.
+
+### 3/11 — Guardia di layout: senza ambiente si salta, non si sbaglia
+(richiesta Mauro: «nella CI del comando check esegui il guard della GUI
+solo se il chromium è presente, altrimenti il test resta verde ma dice
+il perché»)
+
+I tre PRESUPPOSTI del guard di layout
+([test/layout-impostazioni.test.mjs](test/layout-impostazioni.test.mjs))
+— `playwright-core` installato, `chromium` nella cache di Playwright,
+carriera sul disco — erano ASSERT rossi: su un PC vergine o in una CI
+pulita (il save è gitignored, quindi in un checkout fresco non c'è)
+la guardia sarebbe finita ROSSA senza che ci fosse codice da guardare.
+Ora sono tre `t.skip()` dichiarati, ognuno col suo perché nel messaggio
+(stessa legge dello skip onesto di
+[test/uiapp-installata.test.mjs](test/uiapp-installata.test.mjs)):
+verde che spiega, non rosso che finge.
+
+Verifica:
+- **ramo con chromium presente**:
+  `node --test test/layout-impostazioni.test.mjs` → `ok`, 12/12 misure
+  come prima (nessuna misura indebolita);
+- **ramo senza chromium** (simulato puntando `LOCALAPPDATA` su una
+  cartella vuota) → `ok # SKIP chromium assente nella cache di Playwright
+  (…): scaricalo con «npx playwright install chromium»: il perché
+  compare nel TAP del check, contatore `# skipped 1`, zero rossi;
+- il terzo presupposto (save assente) usa la stessa forma — non provato
+  di proposito, richiederebbe di spostare il save vero e il save non si
+  tocca.
+
+Biome pulita sul file; `node --check` ok.
+
+### 3/11 — Guardia di layout: Impostazioni anche a 360 px, e i tab Setup e Analisi nella stessa misura (richiesta Mauro: «stessa guardia a Impostazioni: terza larghezza 360 px (schermo piccolo) e ai tab Setup e Analisi»)
+
+La guardia di layout di [test/layout-impostazioni.test.mjs](test/layout-impostazioni.test.mjs)
+(nata 2/11, voce «Guardia di layout» più sotto) sorveglia ora 12 misure
+invece di 3: 4 larghezze (360 · 480 · 1250 · 1920) × 3 tab (Impostazioni ·
+Setup · Analisi). I due tab nuovi tienen il SUO marcatore di vista
+(`#psi-panel` il Setup, `#an-tetto` l'Analisi — esistono solo in quella
+vista, come `#agg-status` nelle Impostazioni), e al posto dei tre
+riempimenti asincroni di Impostazioni (agg-info/savebk/import-log)
+enumerati a mano usano un'attesa GENERICA di stabilità della geometria:
+due impressioni a 300 ms identiche (rettangolo di ogni nodo di #main) o
+15 s di tetto, poi si misura comunque — il momento della misura non
+indebolisce l'assert.
+
+- **La prova a 360 ha morso davvero**: 2 sovrapposizioni nel pannello
+  «Salute sistema» del Setup (`b ⟂ span.muted`, `span.tag ⟂ span.muted`,
+  in `#system-health`);
+- **ma erano un fantasma dell'unione dei rettangoli, non un disegno**: la
+  riga «Processo PowerShell: …» è testo inline; la nota lunga va a capo a
+  360px e il suo `getBoundingClientRect` è l'UNIONE delle righe — copre la
+  riga sopra (dove stanno l'etichetta e il tag di stato) e la coppia
+  risulta sovrapposta senza che si siano mai disegnati insieme. Rimsa
+  come serve: per gli `display:inline` la misura usa le RIGHE vere
+  (getClientRects, tetto 64) invece dell'unione — il text flow non si
+  sovrappone da solo, quindi il falso positivo resta fuori senza
+  indebolire il caso vero della guardia (flex/grid/absolute, che
+  mantengono il rettangolo intero).
+- **La guardia vive**: era il primo morso geometrico della guardia da
+  quando esiste (2/11); con le righe inline giuste le 12 misure passano
+  pulite.
+
+Verifica: [test/layout-impostazioni.test.mjs](test/layout-impostazioni.test.mjs)
+1/1 verde (12/12 misure, 9 s); biome pulita sul file (provato anche il
+warning preesistente della catena `document.fonts`, che è stato cambiato
+a catena opzionale — stessa semantica, stesso "suono"); node --check;
+nessun file della GUI toccato (la segnalazione era un fantasma di misura,
+non un difetto di vista).
+
+### 3/11 — Le app leggono il SUCCESSO della build: firma BUILD_OK + generatore severo (richiesta Mauro)
+Finora il generatore `tools/genera-uiapp.mjs` scriveva il numero e bastava:
+un `.js` costruito a mano o un vecchio mai rigenerato girava in gioco senza
+che niente lo dicesse. Ora il segnaposto riceve DUE cose — la costante
+`PERIODO_MS` e la firma `const BUILD_OK = true` — e le app la LEGGono:
+all'avvio logano «build ok: PERIODO_MS=… ms dal publisher», o l'avviso
+«firma BUILD_OK assente» se il file non è prodotto dalla build.
+
+- [tools/genera-uiapp.mjs](tools/genera-uiapp.mjs): la sostituzione scrive
+  le due dichiarazioni; dopo la scrittura il file sul disco viene RILETTO e
+  sorvegliato — segnaposto residuo o firma mancante = uscita 1 (mai un .js
+  a metà segnalato come riuscito);
+- [uiapp/cruscotto/cruscotto.src.js](uiapp/cruscotto/cruscotto.src.js) e
+  [uiapp/pitwall/pitwall.src.js](uiapp/pitwall/pitwall.src.js): dopo `loga`
+  la lettura della firma (ok/avviso), i costruiti rigenerati e reinstallati
+  nel gioco con gli installatori.
+
+Verifica: generatore verde con la firma (exit 0); prova del contrario con
+segno rimosso a una sagoma (backup/ripristino) = errore «trovate 0» ed
+"uscita 1"; i test di legge del ritmo [test/uiapp-periodo.test.mjs](test/uiapp-periodo.test.mjs)
+e [test/uiapp-pub-guard.test.mjs](test/uiapp-pub-guard.test.mjs) 9/9 verdi;
+firma `BUILD_OK` confermata dai grep nelle copie installate di entrambe.
+
+### 3/11 — Soprannomi in blocco: il bottone non era agganciato (richiesta Mauro: «non funziona»)
+Il difetto è semplice e imbarazzante: il bottone 📝 «Soprannomi in blocco»
+nei «Tutti i rivali» si vedeva, la funzione `bulkRinomina` c'era (dichiarata
+27/10 e completa: ricerca, caselle, «Salva tutti»), ma NESSUN aggancio la
+chiamava — il click non faceva niente.
+
+- [gui/js/viste-d.js](gui/js/viste-d.js) — il binding mancava: dopo quelli
+  delle righe (clic riga, ✏️ per pilota) entra `$('#b-bulk-rn', m).onclick =
+  () => bulkRinomina(rows)`; dalla GUI serve un refresh di pagina;
+- [test/viste-guard.test.mjs](test/viste-guard.test.mjs) — la guardia delle
+  viste non lo vedeva (copre solo le draw*): entra un collega in più, ogni
+  BOTTONE id="b-…" del gui DEVE avere un aggancio (selettore '#id' oppure
+  l'id come argomento di un helper, come `manutenzione('b-maint-board')`).
+
+Verifica: viste-guard 5/5 verdi (guardia nuova che scatta SOLO sui bottoni,
+per non falsare i pannelli-container); node --check e biome puliti.
+
+### 3/11 — Tetto teorico: il margine 0,00 era falso per costruzione — rimosso (richiesta Mauro: «controlla il margine a 0.00»)
+La verifica accende la luce: all'endpoint `tetto` TUTTE le 14 piste hanno
+`marginBestMs` e `marginLastMs` = 0. Non è una misura,
+è una costruzione: nei file risultato VERI (261029-1055 ecc.) EVO scrive nelle
+splits i settori del GIRO MIGLIORE — la somma è `best_lap` alla centesima —
+quindi il «giro teorico = somma dei tuoi best settori» è SEMPRE il giro
+reale e il margine best − teorico è 0 per definizione. Solo con i settori
+temporali giro-per-giro (MoTeC .ld) si potrebbe misurare davvero.
+
+- [src/analisi.mjs](src/analisi.mjs) — tettoReport: fuori i campi morti
+  (`bestLapMs`/`theoreticalMs`/`marginMs` dalla riga, `marginBestMs`/
+  `marginLastMs` per pista); nota nel documento che spiega il perché; l'hint
+  (stato vuoto) dice l'onestà: ciò che si misura resta il delta sul campione
+  top per settore — conferma che il cambio colonne di ieri aveva
+  individuato i valori giusti del server; l'unico tocco è togliere i
+  campi morti dal calcolo, la GUI non cambia;
+- [test/analisi.test.mjs](test/analisi.test.mjs) — il test del Tetto ora
+  asserisce che i campi del margine NON ci sono più (undefined) e tiene
+  le asserzioni vere (campTopDeltaMs, mediana bassa S1, peggiori carriera),
+  titolo aggiornato a «delta sul campione top e settore peggiore».
+
+Verifica: analisi.test.mjs 19/19 verdi, node --check e biome puliti sui due
+file toccati. Il «Giro teorico» nel rapporto gara (rapporto-gara.mjs) segue
+la stessa legge del file (teorico ≡ best) — resta com'è, ma è la stessa
+limitazione della fonte, raccontata qui.
+
+### 3/11 — Bollettino in AUTOMATICO: il «Metti» non si preme più (richiesta Mauro: «automatico senza l'intervento Metti»)
+
+Il bollettino del weekend garantiva il cielo di OGNI sessione, ma a
+mano: prima di entrare, si cliccava «Metti». Ora il cielo si sistema
+solo: il TRIGGER è il file Risultati che EVO chiude a fine di ogni
+sessione del weekend vero (`<aaaammgg-hhmmss>_SP_<Sessione>.sessionresults.json`)
+— sessione finita → si scrive il meteo della sessione SUCCESSIVA del
+piano, sempre a modo di EVO (che legge il preset del selettore a ogni
+avvio sessione) quando l'utente clicca «entra».
+
+- **Nuovo modulo [src/wx-auto.mjs](src/wx-auto.mjs)**: `wxAutoTick(paths, costruisciPiano)`.
+  Garanzie: si scrive SOLO meteo del piano (weatherPlan della card, la
+  STESSA fonte del «Metti», sempre con `previsto: true`), SOLO se la
+  pista del Risultati combacia con quella della ronda (stessa regola del
+  ponte qualifica→gara), UN file = UNA scrittura (impronta mtime a
+  memoria). Gare veloci / hotlap / piste diverse non toccano nulla; dopo
+  la Gara si tace; i Risultati nati prima del boot non innescano niente.
+  La PRIMA practice resta a mano (nessun Risultati ancora: il «Metti»
+  copre; dalla sessione 2 in poi cielo da solo).
+- **Aggancio nel battito** ([src/webui.mjs](src/webui.mjs), dentro
+  `watcherTick`, flag `wxBusy` proprio, try/catch con recordWarning):
+  `costruisciPiano()` viene eseguito SOLO quando sul disco c'è un
+  Risultati fresco — niente viewCard a ogni tick.
+- **Il tasto «Metti» diventa come l'automazione**: il case `wx-session`
+  ora passa `previsto: true` (il numero è sempre quello del piano, la
+  guardia resta tesa per le scelte a mano fuori test-mode).
+
+Verifica: test nuovo [test/wx-auto.test.mjs](test/wx-auto.test.mjs) 9/9
+(trigger, idempotenza, hotlap fuori piano, pista sbagliata, fine piano,
+preistoria, Rotto, già a posto); weather-preset + cancelli-anticheat
+17/17; webui-smoke verde; node --check sui due file toccati.
+
+### 2/11 — Analisi, Tetto teorico: colonne morte sostituite dal delta sul campione top (richiesta Mauro: «nascondi Margine migliore e Ultimo margine, tengo solo campagne con valori veri» e poi «sostituiscile col delta sul campione top già calcolato dal server»)
+
+Le due colonne erano MORTI di nascita: «Margine migliore» mescolava le
+marginalità di gare di serie/auto diverse (margine non confrontabile) e
+«Ultimo margine» non era l'ultimo in ordine di tempo ma l'ultimo a caso
+dell'ordine di Object.entries(state.results). Ora (gui/js/viste-analisi.js,
+renderTetto):
+
+- le due colonne escono; entra UNA colonna «Delta sul campione top» che
+  legge campTopDeltaMs già calcolato dal server in tettoReport
+  (src/analisi.mjs: la busta più grossa del riparto su quella pista —
+  testata in test/analisi.test.mjs con 400 ms su Monza S2); la didascalia
+  della testata spiega le due grandezze;
+- righe mostrate: SOLE le campagne con valori VERI (worstSectorDeltaMs
+  diverso da null = riparto settoriale reale); le piste senza settori
+  incassati restano fuori con il CONTO (riga muta sotto la tabella);
+- la prima incisione aveva lasciato una riga difforme nel template
+  literal (un IIFE impastato dentro tr()): sistemata a mano — node --check
+  pulito dopo.
+
+Il server (tettoReport) NON cambia: marginBestMs/marginLastMs restano
+nella risposta e i loro test continuano a valere; è solo la vista che non
+li mostra più.
+
+Verifica: node --check su viste-analisi.js, biome pulito. La guardia di
+layout non copre l'Analisi (sorveglia il tab Impostazioni).
+
+### 2/11 — Backup completo rigenerato: 208 commit coperti (richiesto dall'avviso dell'avvio)
+
+L'avvio diceva verità: l'ultimo zip era del 24/10 e 208 commit di
+storia non erano coperti. Nessuno script del progetto GENERAVA lo zip
+(magazzino copia solo); scritto adesso [tmp/_crea-backup.ps1](tmp/_crea-backup.ps1)
+riusabile: robocopy di tutto il progetto (fuori node_modules/dist/tmp/log
+bak) + zip con bsdtar, e CONTROLLO VIVO del save, del .git/HEAD e delle
+istruzioni PRIMA di chiudere lo zip (al primo giro il save della
+carriera era rimasto fuori: ora lo script lo verifica prima di zippare).
+Generato dist/CarrieraEVO-backup-completo-2026-11-01.zip (97 MB, 4.576
+voci, impronta a3ee42f0…) con .git, data/, mappe KUNOS e
+COME-RIPRISTINARE.txt; poi magazzino su L: aggiornato (copia verificata
+per impronta) e magazzino-check ora verde: storia coperta, off-site
+allineata, 0 giorni di vecchiaia. Il prossimo backup = ri-eseguire lo
+script.
+
+### 2/11 — Verifica dal vivo del tag «da riscrivere» (richiesta Mauro)
+
+Collaudo vero, non schema sul foglio: campo AI del customgrid portato a
+mano da 84–85 a 80–81 via grid-ai (backup bak-apply-…11-34-20, EVO
+echiuso). GUI aperta nel browser, tab Griglia: la riga «Banda attiva
+deì cursori del weekend: 84–85» porta la tag gialla «da riscrivere
+(Prepara · «allinea al campo»)» subito dopo la scrittura. Poi
+riallineato allo stato di partenza (84–85, tag verde «allineata al
+campo» tornata) risultato: file 84–85, banda [84,85] — il tavolo è
+ricominciato come l'avevo trovato.
+
+### 2/11 — Scheda Gara: la banda viva dei cursori è visibile accanto a DIFFICOLTÀ AI (richiesta Mauro)
+
+La scheda leggeva già il numero dai cursori (raceSettings), ma lo
+etichettava "di serie" senza dirlo: chi muoveva il trim nel pannello
+Difficoltà vedeva una riga senza la sua firma. Ora nel riquadro
+«Regole di questo weekend» accanto al grezzo 84–85% ci sono la tag
+verde «banda viva dei cursori» e la tag gialla «trim +N» quando è
+attivo ([gui/js/viste-a.js](gui/js/viste-a.js)); nel riquadro dati
+preparazione la riga diventa «84–85% — trim +N» quando il trim è vivo.
+Solo GUI: la fonte resta raceSettings, nessuna modifica al server.
+
+### 2/11 — Griglia: bottone «allinea al campo» (richiesta Mauro: «riscrive il campo AI con la banda viva dei cursori in un clic»)
+
+Il tab Griglia mostrava già i DUE REGISTRI (campo AI del file e banda
+viva dei cursori) con il tag «da riscrivere (Prepara)» — ma per
+allinearli da GUI serviva copiare i due numeri a mano dentro «Imposta
+intervallo AI». Ora c'è il bottone «Allinea al campo», accanto a
+quello ([gui/js/viste-griglia.js](gui/js/viste-griglia.js)): chiama
+l'azione `grid-ai` già esistente passando la banda di `data.bandaSerie`
+che il server calcola con bandaSerieSlider. Zero numeri da battere,
+stesso percorso di sempre: backup e guardia «EVO chiuso» inclusi.
+Resta spento quando il campo del file è già allineato (tag verde),
+perché allineare due volte non serve a niente.
+
+### 2/11 — Difficoltà: la banda di serie vive nel ladder, non nel codice (richiesta Mauro: «scrivi la banda di serie nel ladder alla prossima release, copri i nodi con l'84–85 attuale»)
+
+Il default 84–85 era inciso come fisso in codice (webui.mjs, ripiego per
+serie senza banda) e finché il ladder non conosceva la banda di serie il
+ripiego restava «preistorico» alla lettera: le gare dei ladder futuri
+avrebbero ripartito la banda da quello di ieri, non da quello scritto
+nella release che li genera. Ora:
+
+- [tools/evo-grid.mjs](tools/evo-grid.mjs) scrive `aiSerie: [84, 85]` su
+  ogni nodo del ladder alla release (helper `bandaSerieLadder`):
+  la prossima uscita nasce già coperta;
+- [src/webui.mjs](src/webui.mjs) legge l'`aiSerie` del ladder per default
+  e per le mezze righe, con `?? [84, 85]` SOLO per un ladder vecchio
+  effettivamente senza campi — il valore non è mai inciso;
+- [src/state.mjs](src/state.mjs) e [src/gridbuilder.mjs](src/gridbuilder.mjs)
+  convaliano il formato (pick `84, 85` con banda 1 punto);
+- il ladder VIVO di oggi ([config/career.evo.ladder.json](config/career.evo.ladder.json))
+  è scritto a mano 86/86 con lo stesso stile del builder, così anche le
+  serie sopra restano coperte, senza ripiego preistorico.
+
+Verifica: test banda serie 9/9 verdi (ladder finto senza aiSerie, pick
+di `aiSerie` con banda a 1 punto), suite intera 719/719, biome pulito
+sui 4 file toccati.
+
+### 2/11 — Dal vivo: muovere il trim segue il Prepara in tempo reale (richiesta Mauro: «verifica dal vivo che muovendo il trim la banda scritta dal Prepara segue subito»)
+
+Prova completa con il server vivo (0.1.47, rientro con tools/riavvia-webui.mjs):
+serie viva Coppa Peugeot 205 T16 · Suzuka R2. Quattro passaggi, andata e ritorno:
+
+- PANNELLO: API difficulty-action (op trim), la STESSA chiamata dei
+  pulsanti ±1 della riga — trim da 0 a +1: la riga del pannello passa da
+  84–85 a 85–86 NELLA STESSA risposta (la banda vive nei cursori del
+  record, col +1 scritto al volo).
+- PREPARA: il flusso del tasto, via CLI griglia (legge e scrive lo stesso
+  salvataggio del server). Dry-run con trim +1: `abilità 85-86 (banda di
+  serie (cursori))`. Scrittura vera: il customgrid di EVO porta aiMin/aiMax
+  (campi 21/22) 85–86 — letti da file con gridFileOf di evo-grid.mjs.
+- RITORNO: trim a 0 via API, pannello torna 84–85.
+- Chiusura: nuovo flusso del Prepara — il customgrid torna 84–85, esattamente
+  al punto di partenza.
+
+Effetti collaterali veri: due voci di posta nel mailbox («Difficoltà
+regolata a mano») e due backup nuova-faccia del customgrid (pruning
+del solito); il save di carriera resta una parola: trim 0 come prima.
+
+### 2/11 — Difficoltà: «↺» torna davvero al consiglio calcolato (richiesta Mauro: «che ↺ riporti la banda al consiglio calcolato invece del default fisso 84–85»)
+
+Il «↺» sembrava giusto a primo colpo d'occhio: cancellava l'override
+(state.raceSettings) e riscriveva nei cursori del gioco il consiglio di
+difficultyFor. Era il RENDER dopo che lo tradiva: a capo di OGNI chiamata
+API (webui.mjs, api()) un setting automatico riempiva le serie senza
+cursori col fisso 84–85 — e il record VUOTO lasciato dal clear veniva
+preso per «senza impostazione»: al primo trascinamento o al primo
+aggiornamento il default tornava a galla. Il consiglio reggeva un render
+solo.
+
+Ora ([src/webui.mjs](src/webui.mjs)):
+
+- il seeding salta le righe senza cursori: un record vuoto È una riga
+  tornata al consiglio, non un valore mancante. Il fisso 84–85 resta solo
+  per le serie che non hanno MAI avuto una banda;
+- nuovo helper consiglioBand(ladder, state, nodeId): la banda del consiglio
+  è [slider, slider+1] calcolata ADESSO da difficultyFor, non un fisso;
+- trim e suggerimento accettato su una riga al consiglio scrivono la banda
+  del consiglio RICALCOLATO col nuovo trim — niente shift doppio (il
+  consiglio già parla col trim); sulle righe con cursori veri resta lo
+  storico «1 punto di trim = 1 punto di banda», col vecchio fallback 84–85
+  (ed 88–89) ora rimosso;
+- testi in [gui/js/viste-d.js](gui/js/viste-d.js) aggiornati: niente più
+  «centro ±5» (testo d'era vecchio), il ↺ dice banda di 1 punto
+  [consiglio, consiglio+1] scritta anche nei cursori del gioco.
+
+Nuova guardia ([test/clear-consiglio.test.mjs](test/clear-consiglio.test.mjs),
+porta 8737, carriera finta in tmpdir): override 90–91 sulla prima serie,
+poi «↺», poi UNA LETTURA IN PIÙ — il difetto riportava il fisso 84–85 qui;
+l'altro prova il trim su riga al consiglio (consiglio post-trim, non
+84+shift). Il consiglio atteso è ricalcolato nel test con lo STESSO import
+del server (difficultyFor), così se i due divergono non si nasconde
+dietro un numero diverso.
+
+Verifica: test 2/2 verdi, biome pulito su webui.mjs, viste-d.js e il test.
+
+### 2/11 — Impostazioni: la colonna destra è un riquadro unico «Manutenzione» (richiesta Mauro: «accorpa i pannelli della colonna destra in un riquadro unico, così le due colonne finiscono più vicino»)
+
+La colonna destra era un solo pannello intitolato «Pilota» ma con CINQUE
+intestazioni h2 interne che sembravano pannelli separati, ciascuna con
+22 px in più di margine. Ora ([gui/js/viste-d.js](gui/js/viste-d.js)):
+
+- il riquadro si chiama «Manutenzione» (era «Pilota»: sbagliato, lì dentro
+  sta tutto ciò che cura il save, non solo il nome del pilota);
+- le sezioni interne scendono a h3 con una nuova regola compatta in
+  [gui/style.css](gui/style.css) (10,5 px, margine 16/8): Registro
+  import, Carriera, Backup del save di EVO, Verifica integrità;
+- la quinta («Manutenzione», identica al titolo del riquadro) si
+  chiama «Riparazioni e pulizie»;
+- a schermo le due colonne finiscono più vicine: niente intestazione
+  doppione e margini più stretti fra le sezioni (stima di ordine ~80 px,
+  non misurata al pixel).
+
+La GUARDIA DI LAYOUT di quest'ora sorvegliava il cambio: tab
+Impostazioni ancora senza sovrapposizioni a 480/1250/1920.
+
+Verifica: biome pulito su viste-d.js e style.css, guardia commenti +
+guardia layout 3/3 verdi.
+
+### 2/11 — Guardia di layout: sovrapposizioni del tab Impostazioni a 480/1250/1920 (richiesta Mauro: «test che misura le sovrapposizioni e falla fallire se qualcuna ritorna»)
+
+Prima nessun test guardava la GEOMETRIA: DOM e CSS statici non dicono se a
+schermo piccolo un bottone finisce sopra un campo — lo decide solo un
+browser vero. Il test nuovo ([test/layout-impostazioni.test.mjs](test/layout-impostazioni.test.mjs)):
+
+- server della GUI su porta 8736 con cartella dati TEMPORANEA: il save
+  slot 1 è una copia, il watcher relegato lì; il save vero non si tocca.
+- Chromium (v148, già nella cache di Playwright del PC — zero download)
+  guidato da `playwright-core` (devDependency nuova): apre la GUI e clicca
+  la tab Impostazioni a 480, 1250 e 1920 px.
+- La sonda misura nel browser: raccoglie le foglie e gli interattivi
+  visibili di `#main`, e conta le coppie che si sovrappongono per più di
+  2 px per lato SENZA contenersi una dentro l'altra. > 0 → FAIL con nome
+  dei due elementi e area in comune.
+- Guardia provata VIVA: un blocco injectato a mano sopra il selettore
+  lingua viene beccato («Lingua interfaccia ⟂ DIFETTO DI PROVA 97×10»),
+  quindi il verde vuol dire verde.
+
+Verifica: sonda misurata (76 candidati per larghezza), test guardia
+713/713 verdi, biome pulito su test e package.json.
+
+### 2/11 — Termometro del battito: media dei 5 ping, non la singola lettura (richiesta Mauro: «fai scorrere i 5 tempi di ping più recenti e mostra la media, con tooltip che elenca i bassi e gli alti»)
+
+Il termometro di un'ora prima leggeva un solo ping per volta: un ping fortunato
+(o un colpo di GC) sembrava diagnosi. Ora [gui/js/core.js](gui/js/core.js) tiene
+una finestra scorrevole dei 5 ping più recenti (solo i ping arrivati: un
+timeout non è un tempo, non entra), la riga mostra la MEDIA colorata con la
+stessa scala (verde < 150 ms, arancio ≤ 500 ms, rosso) e il tooltip del numero
+elenca i singoli ping dal più recente, con il più basso e il più alto marcato.
+Nota di mestiere due volte lo stesso male: la prima stesura usava `leggiPing`
+SENZA dichiararlo — esattamente il `prevName` di ieri. Rileggo sempre il
+blocco dopo la scrittura.
+
+Verifica: biome pulito su core.js, guardia commenti 2/2 verde.
+
+### 2/11 — Termometro del battito: ms colorati (richiesta Mauro: «verde sotto 150 ms, arancio fino a 500 ms, rosso sopra»)
+
+Il ping del battito già misurava i ms ma li mostrava neutri: ora la cifra
+si colora da sola in [gui/js/core.js](gui/js/core.js) — verde (sanità piena)
+sotto 150 ms, arancio (`--warn`) fino a 500 ms (il server fa fatica: import
+grosso o salvataggio in corso?), rosso — lo stesso rosso del server caduto — sopra.
+Il pallino ● resta verde finché il server risponde: il colore del numero è
+chi dice quanto fatica, il pallino dice se è vivo.
+
+Verifica: biome pulito su core.js, guardia commenti 2/2 verde.
+
+### 2/11 — Autopsia: margine sul precedente per P2 e P3 + commento sul gap dai giri corti (richiesta Mauro: «porta il margine sul pilota precedente anche per P2 e P3, e commenta il gap dal leader quando arrivi corto di giri»)
+
+Prima il margine di battaglia c'era solo per il vincitore (sul secondo);
+P2 e P3 vedevano solo il gap dal leader, che su 20 giri non dice la lotta
+per il podio. Ora:
+
+- [src/results.mjs](src/results.mjs) — `classify` calcola `prevGapMs/
+  prevName/prevLaps`: il precedente è chi gli sta davanti nella classifica
+  UFFICIALE (penalità comprese) e il conteggio usa i tempi REALI (totale +
+  penalità a tempo): un +5s mio o suo pesa. DNF o P1 → niente precedente.
+- [src/state.mjs](src/state.mjs) — BUG TROVATO IN PASSAGGIO: `applyRaceResult`
+  costruisce l'entry campo per campo e **secondGapMs non era nella lista** —
+  l'import lo calcolava e lo scartava: il KPI «Margine sul 2°» su un import
+  fresco restava nullo (si vedeva solo sulle gare ricalcolate a mano).
+  Ora entrano nel save dalla prima gara: secondGapMs + i tre campi nuovi.
+- [src/analisi.mjs](src/analisi.mjs) — voce «Distanza»: il vecchio commento
+  sospeso dei giri corti («l'età della gara fa il resto») diventa esplicito:
+  «Arrivi N giro(i) corto dal leader (m su z): il gap X conta anche i giri
+  mancanti — misura la distanza piena, non il ritmo»; e per P3+ aggiunge
+  «Margine su P<n-1> (nome): X». Quando il precedente ha PIÙ giri il tempo
+  non misura il ritmo: il margine tace (niente gap fra doppiati).
+- [gui/js/viste-analisi.js](gui/js/viste-analisi.js) — il quarto KPI prende
+  l'etichetta giusta: P1 «Margine sul 2°» (come prima), P2 «Margine su P1»,
+  P3 «Margine su P2», P4+ invariato «Gap vincitore»; con giri in meno del
+  precedente mostra «—» e lo spiega la voce Distanza.
+
+Verifica: suite ufficiale **712/712 verdi** (test nuovi:
+[penalties.test.mjs](test/penalties.test.mjs): precedenti con penalità
++5s = 1,471 s reali; [analisi.test.mjs](test/analisi.test.mjs): P3 a 2
+giri corti dice margine + commento, doppiato → tace). Guardia commenti
+verde, biome pulito sugli 8 file toccati. NOTA: un `node --test` senza
+filtro pesca anche i test della copia in tmp/ — lì fuori dal gioco
+(ambiente); la suite vera è `npm test` (test/*.test.mjs). Un server webui
+di test rimasto vivo sulla porta di prova 8743 nascondeva i risultati:
+chiuso.
+
+### 2/11 — Autopsia della vittoria: giro veloce e griglia→arrivo in scheda (richiesta Mauro: «aggiungi anche il giro veloce e il gridPosition dell'arrivo per raccontare come è partita la gara»)
+
+L'autopsia della vittoria non raccontava come era PARTITA la gara quando
+il giro veloce non era firmato dal pilota: la voce «Partenza e primo giro"
+esiste già, ma in scheda non si vedeva e il giro veloce compariva solo
+nel Bonus del pilota. Ora:
+
+- [src/analisi.mjs](src/analisi.mjs) — dall'archivio rivali esce `fastestOfRace`
+  (tempo e nome del firmatario del giro veloce, griglia COMPLETA: pilota
+  compreso); quando NON è il pilota, nuova voce «Giro veloce — il giro
+  veloce della gara va a <nome>: <tempo>». Senza archivio: silenzio onesto
+  (niente dati inventati). La partenza P1→vittoria ora dice «pole intoccata,
+  mai ceduta la testa» invece del finto «guadagnate 0 posizioni».
+- [gui/js/viste-analisi.js](gui/js/viste-analisi.js) + [style.css](gui/style.css)
+  — due KPI nuovi nella scheda autopsia: «Giro veloce» (con 🏁 e nome del
+  firmatario) e «Partenza → arrivo» (P griglia → P di arrivo, oppure «—»);
+  la  griglia dei KPI passa da 4 a 6 caselle (nuova classe .grid6: tre colonne).
+
+Verifica: [test/analisi.test.mjs](test/analisi.test.mjs) 17/17 verdi (vittoria:
+fastestOfRace e voci Partenza/Giro veloce; senza archivio: null e niente
+voce inventata), guardia commenti-render verde, biome pulito sui 4 file.
+
+### 2/11 — Scheda «Prossima gara» compatta: regole e meteo in un dettaglio espandibile (richiesta Mauro: «rendila più compatta spostando regole weekend e meteo in un dettaglio espandibile»)
+
+Il pannello «Regole di questo weekend» (orari delle sessioni, distanza,
+temperatura aria/pista e bollettino meteo) occupava metà scheda anche
+quando servivano solo l'auto, l'orario della gara ed eventuali ritiri.
+Ora in [gui/js/viste-a.js](gui/js/viste-a.js) è un `<details>` chiuso di
+default: in testa resta solo il sommario («Regole di questo weekend ·
+meteo — clic per aprire»); orari, distanza, temperature e bollettino
+tengono il posto che abbiamo sempre visto, ma da pannello a richiesta.
+
+Nessun cambio di logica: i controlli (id rs-*) restano identici e le
+callback continuano a trovarli via id, pannello chiuso o aperto che sia.
+Lezione del 1/11 verificata sul vivo: il mio primo commento di spiegazione
+è stato scritto per errore DENTRO il template literal e la guardia di ieri
+l'ha beccato al primo colpo (viste-a.js riga 669) — il commento ora sta
+sopra l'assegnazione, dove deve stare.
+
+Verifica: race-card 13/13 + commenti-render 2/2 verdi, biome pulito.
+
+ERRATA-CORREZIONE (2/11, stessa voce): la prima versione di questo
+paragrafo aveva due frasi scritte corrotte («in testa restano il sommario,
+orari e meteo stavolta a una riga, spostati sotto per apertura» e «Stessa
+lezione del 1/11 ALL'ATTO») — sono riscritte come si leggono qui sopra. Nel
+codice la GUI non è cambiata per l'errata: riguardava solo il testo del
+diario — nessuna riga di codice toccata, nessun test mancato.
+
+### 1/11 — Test di guardia: nessun commento /* … */ dentro i template della GUI (richiesta Mauro: «aggiungi un test di guardia che fallisce se una frase di commento /\* … \*/ finisce nel testo renderizzato della pagina»)
+
+I commenti /* … */ nei file della GUI sono normali nel codice, ma i testi di
+pagina nascono dentro template literal: un commento scritto DENTRO un
+backtick non resta commento — esce come testo in innerHTML. Biome non lo
+vede (sintassi valida). Nuovo [test/commenti-render.test.mjs](test/commenti-render.test.mjs):
+
+- SCANNER A STATI: due modalità in stack — C (codice, con interpolazioni
+  annidate) e T (corpo del template). In C si saltano stringhe, commenti e
+  regex: un regex può portare [ e ] con apici dentro, i quali non devono
+  aprire stringhe finte (il primo falso positivo della guardia nasceva
+  esattamente lì, su core.js). In T un /* è il difetto: segnalato con riga
+  ed estratto.
+- Unica eccezione: dentro <style>…</style> il /* … */ è commento del CSS
+  e non conta (il CSS non parla).
+- AUTO-VERIFICA: due casi sintetici costruiti con il backtick concatenato
+  (valore 96) — il difetto nel corpo del template viene segnalato (anche
+  se sta alla riga 2); commenti veri, interpolazioni con commento dentro e
+  regex con /* NON vengono segnalati. I sorgenti reali oggi escono puliti:
+  la guardia pesca il difetto FUTURO, non il passato.
+
+Verifica: test 2/2 verdi, biome pulito.
+
+### 1/11 — Avviso di confronto NON giusto nel banco A/B (richiesta Mauro: «quando scelgo la sessione B, auto e pista devono coincidere con quelle di A: avvertimi se non sono un confronto giusto»)
+
+Il banco A/B permetteva di confrontare un .ld della MX-5 con una RX-7 (o
+Monza con Brands Indy) senza dire niente: «chi vince» era un numero senza
+senso. Ora quando A e B sono scelte, [gui/js/viste-analisi.js](gui/js/viste-analisi.js)
+li mette a confronto:
+
+- auto e pista devono COINCIDERE con la stessa regola di tracknames.mjs:
+  uguaglianza o prefisso in entrambe le direzioni («Mazda RX-7 FD» e
+  «Mazda RX-7 FD Spirit R» sono la stessa auto; Imola e Brands Hatch Indy
+  sono piste diverse). Lato sconosciuto NON nega il match.
+- se NON coincidono: bordo di A e B giallo, e la nota sotto i menu diventa
+  «⚠️ Non è un confronto giusto (auto X ≠ Y · pista U ≠ V)» — la scelta
+  resta all'utente, il banco difetta. Nel MODALE del confronto esce la
+  banner di avviso dello stesso tenore, così chi apre il risultato non
+  vede i numeri senza il contesto.
+- se il match torna (cambi B o si resettano i filtri): bordo e nota
+  si ripristinano — i filtri reindirizzano alla stessa guardia, così il
+  re-riempimento non lascia avvisi vecchi appesi.
+
+Verifica: `node --check`, biome pulito, viste-guard 4/4, webui-smoke verde.
+
+### 1/11 — Filtri auto e pista sul grafico del giro (richiesta Mauro: «Aggiungi i filtri auto e pista anche al selettore di sessione del grafico del giro nel meccanico»)
+
+Il selettore «Sessione» del grafico del giro elencava TUTTE le sessioni di
+TUTTE le auto (il meccanico segue l'auto più recente ma il menu no): una
+decina di file .ld sparsi su più macchine diventavano lunghi da scorrere.
+Ora sopra al menu ci sono i due filtri del banco A/B (stesso modello,
+stesso testo «tutte le auto…/tutte le piste…»):
+
+- [gui/js/viste-c.js](gui/js/viste-c.js): `lc-f-car` e `lc-f-track` prima
+  del menu sessioni; ogni voce ora porta anche l'auto (etichetta e
+  `data-car`). Il riempimento (`__lcFill`) cancela la scelta già fatta se
+  la sessione è ancora visibile; il grafico si ridisegna da solo al cambio
+  filtro. Nel re-riempimento dopo il laptrace: con un filtro attivo resta
+  in mano ai filtri, senza cade sul lotto dell'auto campiata come prima
+  (entrambi i casi ora portano `data-track`, che il meccanico del pannello
+  leggeva dal markup/server e perdeva dopo il primo cambio sessione).
+- L'auto passata al server (`laptrace`, `meccanico`) è quella della
+  SESSIONE SCELTA, non più solo quella che il pannello segue: col filtro
+  «tutte le auto» si può guardare un .ld di un'altra macchina e la telemetria
+  + i consigli seguono l'auto giusta (il server trova il file MoTeC nella
+  cartella col nome dell'auto).
+
+Verifica: `node --check` della vista, biome pulito, webui-smoke verde.
+
+### 1/11 — Nomi di pista puliti nel menu del banco A/B (richiesta Mauro: «mostra le piste con il nome pulito invece del token del file»)
+
+I due menu del banco erano pieni di token da cartella («ImolaGP»,
+«Oulton ParkInternational»). Ora [gui/js/viste-analisi.js](gui/js/viste-analisi.js)
+non cambia niente: è la rotta `ab-list` a somministrare il nome già pulito —
+nuovo export `prettyTrackLabeled` in [src/testday.mjs](src/testday.mjs),
+acanto a `prettyTrack` del quaderno prove: bella voce del ladder + la
+VARIANTE vera della cartella, mentre il «GP» generico cade («ImolaGP» →
+«Imola», «Sebring International RacewayGP» → «Sebring International Raceway»);
+le varianti vere si distinguono («Brands Hatch Indy», «Suzuka East», «Red Bull
+Ring National», «Oulton Park International»). Su tutte le 19 cartelle
+vere MoTec di disco la voce torna pulita; pista non conosciuta dal ladder
+resta token (onestà). Bug corso durante la scrittura: il comparatore del
+prefisso trattava «ü» come punteggiatura — le lettere accentate sono
+alfanumerico dopo la trascrizione.
+
+Verifica: [test/tracknames.test.mjs](test/tracknames.test.mjs) 6/6 (il test
+nuovo copre 9 voci: GP in testa/in coda, varianti, accenti, sconosciuta);
+biome pulito sui 3 file toccati.
+
+### 1/11 — Quadro-zone dell'A/B nel pannello Analisi (richiesta Mauro: «Aggiungi il quadro-zone (frenata/uscita/gas lungo la giuda del giro) dell'A/B già in pannello Analisi»)
+
+Il banco A/B diceva QUANTO si perde per zona (il totale) ma non DOVE lungo
+il giro. Ora la fase si legge a colpo d'occhio nel modale del banco:
+
+- [src/motec.mjs](src/motec.mjs): ogni punto campionato di `lapTrace` porta
+  la sua `zone` (stesse soglie che usava il riparto A/B: freno > 25 % =
+  frenata, gas sotto 92 % = uscita, altrimenti gas pieno) — taggata una
+  volta sola alla fonte.
+- [src/analisi.mjs](src/analisi.mjs): nuovo export `zoneTimeline(A, B)` —
+  le fette attigue di STESSA zona e STESSO segno si fondono in tratti
+  leggibili ({x1, x2, zone, s, pts}); le fette sotto 0,01 s sono rumore e
+  restano fuori. `setupAB` legge la zona dal punto campionato (una sola
+  soglia nel codice); `A vs A` = nessuna fetta (tutto pari).
+- [src/webui.mjs](src/webui.mjs): la rotta `ab-setup` allega
+  `zoneTimeline` (una delle due sessioni non ricampionabile → null, e il
+  pannello non disegna niente).
+- [gui/js/viste-analisi.js](gui/js/viste-analisi.js): striscia SVG nel
+  modale del banco, sotto il banner del netto — segmenti colorati per zona
+  (rosso frenata / ambra uscita / verde gas), altezza = tempo su quella
+  fetta, sopra la riga perso da A, sotto (tratteggio) guadagnato; tooltip
+  al passaggio con i secondi.
+
+Verifica: [test/analisi.test.mjs](test/analisi.test.mjs) +2 (fette ordinate
+non sovrapposte, tutte tempo perso con B dominante, somma = netto del
+riparto a meno dello scarto, frenata in vista; A vs A → null).
+
+### 1/11 tarda sera — Collaudo SUL VIVO del quadro-zone (la vittoria non era nel server)
+
+Il modale del banco non disegnava la striscia con la coppia Ferrari/Monza: gli .ld si campionano entrambi (richiamata a mano di `sampleLap`: A 240 punti 114,4 s, B 133,1 s) e `zoneTimeline` restituisce 19 tratti — il codice era giusto, ma il processo webui era nato ALLE 09:16 e codice di oggi è stato toccato ALLE 11:24: girava il vecchio. `tools/riavvia-webui.mjs` e rientrato (nuovo PID 5176): la striscia si disegna (21 svg nella pagina, prima 0), 17 righe canali, banner zone e verdetto partenza corretti. Nota dati: B (18:13) ha 1 solo giro valido a 133,10 s — il −18,70 s del canale giro-migliore è un dato vero del file, non un difetto del pannello.
+
+### 1/11 — Rapporto A/B MX-5 su Imola salvato in carta, targa in gazzetta (richiesta Mauro: «Salva il rapporto dell'A/B MX-5 su Imola in carta e allega la targa fasce nelle occasionali/news»)
+
+- Le 11 sessioni MX-5 ImolaGP di MoTeC hanno tutte preset `mx5ndcup_mech_1`:
+  un A/B di SETUP lì non esiste, il confronto è fra SESSIONI (serata 26/9
+  19:37, best 135.0 — pomeriggio 27/9 17:20, best 133.9). Giri morti
+  (293–298 s) e out-lap (1 solo giro) dichiarati fuori.
+- **Carta**: [report/banco-ab-mx5-imola-2026-11-01.md](report/banco-ab-mx5-imola-2026-11-01.md)
+  — Δ −1,10 s, canali completi, tempo perso a fasce (gas 1,23 s · uscita 0,48 s
+  · frenata 0,41 s) e verdetto: la metà è a gas pieno, la leva è la pressione
+  (+1,1 bar a freddo LF).
+- **Targa in news occasionali**: item `kind: 'notice'` in testa a
+  data/news.json via `publishNotice` (backup: data/news.json.bak-2026-11-01);
+  la carta completa è citata nel corpo.
+
+### 1/11 — PERIODO_MS in una sola voce: le app lo ricevono alla build (rifattore «fai importare da src/uiapp-pub.mjs»)
+
+Il ritmo delle fasce era scritto TRE volte (publisher + cruscotto + pitwall)
+e ogni cambio andava rincorso a mano. Ora una sola legge:
+
+- Le app NON dichiarano più la costante: i sorgenti veri sono le sagome
+  [cruscotto.src.js](uiapp/cruscotto/cruscotto.src.js) e
+  [pitwall.src.js](uiapp/pitwall/pitwall.src.js), col segnaposto
+  `__PERIODO_MS_DAL_PUBLISHER__` al posto del numero.
+- Il generatore nuovo [tools/genera-uiapp.mjs](tools/genera-uiapp.mjs)
+  importa `PERIODO_MS` da [src/uiapp-pub.mjs](src/uiapp-pub.mjs) e
+  scrive i file costruiti (cruscotto.js / pitwall.js, con la riga
+  `const PERIODO_MS = …  // [via build]`) — il repo NON resta mai
+  senza i costruiti: il generatore gira a mano una volta e i due file
+  tornano al loro posto.
+- Installa-uiapp e gli installatori dell'app continuano a copiare i
+  costruiti: il consiglio di reinstallare le app nel gioco vale solo a cambio del valore.
+
+Verifica: [test/uiapp-periodo.test.mjs](test/uiapp-periodo.test.mjs) 4/4
+(niente dichiarazioni scritte a mano nelle sagome, i costruiti portano il
+valore del publisher, il generatore riscrive a cambio del numero) e il
+gruppo uiapp-pub che ne dipende 62/62; biome pulito sui 6 file toccati.
 
 ### 1/11 — Prova in sandbox del bottone (🌉) del pannello Copertura (richiesta Mauro: «verifica che il .carsetup nuove compaia e la chip passi a ✔»)
 
@@ -779,7 +1869,7 @@ fare un weekend la mattina e poi verso sera un'altra corsa, che ne pensi?»):
   il raceHour e il piano orario delle sessioni (priorità: ronda > serie >
   calendario), così il «Prepara tutto» scrive il gamemodesave all'ora
   spostata. Test a casa in agenda.test.mjs (9/9: override, reset, override
-  stante, fuori banda). Il primo giro del test era的来说 sbagliato IO, non il
+  stante, fuori banda). Il primo giro del test era sbagliato: colpa IO, non il
   motore: la ronda pendente non è la R0, l'attesa va presa dal motore e non
   presumere la R0.
 - **Le quattro cure di OGGI**: (1) il chip-auto della Posta porta al
@@ -2142,3 +3232,423 @@ l'uno contro l'altro.
 - **Test**: viste-guard + webui-smoke **5/5 verdi**, biome pulita sui
   due file toccati, parse dei due file ok (`node --check`).
 
+### 2/11 — Secondo giro di audit GUI: numeri costanti o sospetti in card e badge (fuori dalle tabelle)
+Metodo del primo giro (1/11, tabelle): prima i candidati finiti coi grep
+mirati pei file della GUI, poi la verifica di ciascuno sul server o nel
+save/config — niente codice toccato. Perimetro: card, badge, chip, KPI,
+banner (le tabelle sono già state passate). Esito:
+
+**Un falso intero — il banner del trim suggerito (scheda
+Carriera, [viste-a.js:714](gui/js/viste-a.js#L714))**: «Accettare sposta
+anche la banda EVO della serie di **X×5** punti» — computa
+`Math.abs((to - from) * 5)`. Ma la regola DI CASA dal 27/10 è: 1 punto
+trim = 1 punto banda (stessa scritta nel tooltip del pannello
+Difficoltà, [viste-d.js:30](gui/js/viste-d.js#L30), e nel server:
+[webui.mjs](src/webui.mjs#L2999) `shift = (val - before) * 1` sia nel
+ramo trim sia nel ramo accept [webui.mjs:3035](src/webui.mjs#L3035)).
+Con la proposta standard '+1 trim' il banner promette 5 punti che NON
+vengono. Stesso falso nel SERVER: il commento sopra il ramo
+accept dice ancora «(+1 trim = +5 slider)»
+([webui.mjs:3034](src/webui.mjs#L3034)) mentre il codice sotto fa ×1 —
+commento da rializzare col codice se si tocca. Proposta fix GUI:
+spostare il moltiplicatore da 5 a 1 lasciando il testo («punti») e le
+due traduzioni it/en invariato.
+
+**Ogni altra card/badge/chip passata al setaccio risulta onesta**:
+- «vendi al 70% della valutazione» (Garage, [viste-c.js:337](gui/js/viste-c.js#L337))
+  — salePrice vale ×0.70 con minimo 2000
+  ([garage.mjs:40-48](src/garage.mjs#L40)).
+- «N al cap 20%» (Campionati miscuglio, [viste-b.js:367](gui/js/viste-b.js#L367))
+  — le 12 classi di [grid-classes.json](data/grid-classes.json) sono
+  tutte `restrictorMaxPct: 20`, e il fallback in [grid-calib.mjs:141](src/grid-calib.mjs#L141)
+  è 20. RISERVA LEGGERA: il «20» è scritto nel template della GUI, non
+  arriva dai dati — se una classe avesse un cap diverso, il badge
+  mentirebbe.
+- «trim ±20» (pannello Difficoltà, [viste-d.js:5](gui/js/viste-d.js#L5) —
+  specchio del view [webui-views.mjs:511](src/webui-views.mjs#L511)) —
+  il server clampa `Math.max(-20, Math.min(20, ...))`
+  ([webui.mjs:2978](src/webui.mjs#L2978)).
+- «↺ torna al consiglio [consiglio, consiglio+1]»
+  ([viste-d.js:43](gui/js/viste-d.js#L43)) — il server scrive
+  `baseBand` … `baseBand + 1` (banda STRETTA di 1 punto, 23/10),
+  [webui.mjs:2969-2981](src/webui.mjs#L2969).
+- KPI della carta riviale (Scontri · Tu-Lui · Vittorie · Suo best · DNF
+  suoi, [viste-d.js:788-834](gui/js/viste-d.js#L788)) — tutti dai dati
+  del server (`totals`, `h2h`, `consistency.dnfRate`), nessun default
+  costante;
+- «30′ ≈ N giri» / «10 giri ≈ M min» ([viste-b.js:1003-1008](gui/js/viste-b.js#L1003))
+  — ricalcolate dal giro vero, non numeri fissi;
+- badge di stato passati (attiva · iscritto · sedile aperto · rep
+  x/y · finestra PI · seed), [viste-b.js:359-367](gui/js/viste-b.js#L359) —
+  dati del server ([stile-webui.mjs](src/stile-webui.mjs)).
+
+Niente fix toccati in questo giro: audit non distruttivo. Il tasto
+scaldato (banner ×5 e commento) resta in attesa di un «sistema» da
+Mauro.
+
+### 2/11 — Colonna SQUADRA del tab Rivali tolta del tutto
+Seguito della trovata del 1/11 (la colonna era vuota per 74/74 rivali:
+[viste-d.js](gui/js/viste-d.js) usava `r.team ?? '—'`, ma con `team:""`
+il nullish non scattava, e l'endpoint mostrava `team:""` su tutte le
+schede). Richiesta Mauro di oggi: «togli del tutto la colonna SQUADRA
+finché le squadre non arrivano davvero dagli import».
+- **Fuori** dalla tabella «Tutti i rivali»: la testa `<th>Squadra</th>`
+  e la cella di riga `<td>${esc(r.team ?? '—')}</td>` — la riga ora
+  parte Rivale · Gare insieme · Tu–Lui · Momentum · Forma · Vittorie ·
+  Podi.
+- **Restano** le menzioni `r.team` inline nelle carte Nemesi/Vittime:
+  non sono una colonna e con `team:""` non disegnano nulla — se la
+  squadra arriva con un import vero, lì torna visibile senza toccare
+  nulla.
+- **Verifiche**: `node --check` ok su viste-d.js, biome pulita sul file.
+  Il server non cambia: `team` resta nel payload riviali per quando
+  servirà.
+
+### 2/11 — Menu del Banco A/B raggruppati per giorno
+Richiesta Mauro: «raggruppa le sessioni del Banco A/B anche per giorno,
+oltre a auto e pista, così due gare sulla stessa pista restano separate
+nel menu». Il menu portava già auto · pista · data nella voce (1/11),
+ma la lista era piatta: sfogliare 40 sessioni in fila.
+- **GUI** ([viste-analisi.js](gui/js/viste-analisi.js), `riempiMenu`):
+  le voci di A e B vanno in `<optgroup>` per GIORNO (etichetta tipo
+  «01/11/2026», dal `mtimeMs` dell'endpoint `ab-list` — `when` è una
+  stringa 'it-IT' non affidabile da rianalizzare in EN, quindi I GIORNI
+  li calcola il client). La voce si scioglie all'ORARIO:
+  «auto · pista · 21:45».
+- I gruppi seguono l'ordine di arrivo del server (più recente per
+  primo): primo giorno visto primo gruppo, senza riordini inutili.
+- **Restano**: i filtri auto/pista con la riconferma della selezione
+  A/B (1/11), e l'avviso «Non è un confronto giusto» quando auto o
+  pista non ci tornano. Due gare sulla STESSA pista nello stesso gruppo
+  sono distinguibili per orario; in giorni diversi finiscono in gruppi
+  diversi e si vedono subito.
+- **Verifiche**: `node --check` ok su viste-analisi.js, biome pulita sul
+  file. Server intoccato (l'endpoint `ab-list` ha già `mtimeMs`).
+
+### 1/11 — Crash delle 16:51: la fabbrica del grid è assolta (sonda)
+Ieri il gioco è morto 0xC0000005 dentro AssettoCorsaEVO.exe il solo
+evento in 7 ore di Event Viewer; sospetto della griglia:
+«sostituisci le celle Porsche con quelle di fabbrica». Richiesta
+Mauro: «perché dalla fabbrica? a inizio sviluppo e superata dal
+paddock — controlla bene». La sonda [tmp/_sonda-pool.mjs]
+(tmp/_sonda-pool.mjs) ha invertito l'ipotesi:
+- `last_grid.customgrid` ≡ `data/grid-templates/endurance_gt4.customgrid`
+  (stesso sha1, 21 celle: `storeTemplate` lo scrive a ogni griglia
+  riuscita) — la vittoria è SEMPRE del template appuntato in magazzino;
+- la fabbrica (`config/griglie-fabbrica/endurance_gt4.customgrid`)
+  ti viene toccata SOLO dopo template → backup → snapshot falliti, col
+  suo gate CAR_MISSING; è inoltre recente (31/10 18:34, rifoto del
+  guardiano DOPO la cura varianti `- Standard` del 28/10): non residuo
+  di prototipo.
+- Le celle Porsche della cartuccia sono BYTE-IDENTIche alle prime otto
+  celle della fabbrica (stesso pool `R8 LMS GT4 Evo` + `718 Cayman
+  GT4 RS - Standard`, visual 1/2/99): sostituirle era un no-op con
+  rischio dietro.
+Verdetto: griglia assolta, crash attribuito a glitch engine/driver
+(transitorio thread UI in menu, decodificatore video sotto). Report
+completo [report/crash-261101-16.51.md](report/crash-261101-16.51.md).
+Protocollo di esclusione se si ripete: rientro → se torna, disattiva
+una app UIAPP per volta → se non torna, Kunos con il log già pronto.
+
+### 1/11 sera — Esclusione secondo il protocollo: le TRE app UIAPP fermate in un colpo
+Alle 17:37 EVO era già chiuso (dovuto a un tentativo di taskkill
+di 10724 che lo trovò sparito tra l'elenco dei processi e l'azione).
+Le tre app («cruscotto», «paddock», «pitwall») sono stati fermati
+TUTTE INSIEME (non una per volta come da protocollo ma in blocco,
+per un colpo solo): le cartelle rinominate con prefisso `_OFF-` in
+`Saved Games/ACE/mods/uiresources/ACEUIAppLoader/`:
+- `_OFF-cruscotto`, `_OFF-paddock`, `_OFF-pitwall`.
+La griglia NON si tocca: è la stessa che è girata (byte per byte
+scoperte: le celle Porsche della cartuccia sono identiche a quelle
+della fabbrica e del template in magazzino).
+Il partito è: se il crash all'«Avvia sessione» NON si ripete con le
+app disattivate, il colpevole è il codice delle app e si isolano
+riattivandole UNA per volta (mv per ridare il nome, riavvio di EVO
+tra i passi): così si conta. Se invece il crash chimbi senza chiama,
+il responsabile non è il codice della nostra app ma l'engine (il bug
+flaky conocciuto, il medesimo del 23/10): resta la via Kunos
+(log-261031-153615.txt + Event Viewer già in mano).
+Come si riattiva una app, esempio cruscotto:
+```
+cd "Saved Games/ACE/mods/uiresources/ACEUIAppLoader" &&
+mv _OFF-cruscotto cruscotto
+```
+
+### 1/11 sera — La prova è completa: il crash NON è nostro (2ª caduta con le app SPENTE)
+Alle 17:42, con le TRE app UIAPP ancora disattivate (i tre app.json falliti
+si vedono nel log 174040 a 17:40:52), il crash è tornato allo stesso punto:
+0xC0000005, 17:40:40 avvio → 17:40:50 carico del weekend → 17:41:07
+CarTeleportCompleted → **17:41:51 caduta DENTRO cohtml.WindowsDesktop + v8**
+(Gameface, la UI stock di EVO), poi le frame AssettoCorsaEVO. I due crash di
+oggi (16:51 e 17:42) portano offset DIVERSI nell'exe (0xf24900 e 0x15b9459):
+non un punto in rigore, ma la STESSA zona (UI engine) del verdetto flaky del
+23/10.
+- La frase di EVO nel log da portare a Kunos: «scene_actors collection
+  doesn't contain track_limits_left splines, seems like we lack the right
+  containers in this Gamemode» (17:40:50).
+- La teoria del «21 vs 20» è MORTA a sua volta: il builder in dry-run dice
+  21 celle = forma ALLINEATA (riga 3.7 = 20 aggiunte +1 sei tu). Conto,
+  bilancio, banda e celle valide: NIENTE da sistemare nei dati.
+- Rifarmi EVO (PID 12168 via Steam) e riprova secondo il protocollo flaky:
+  stesso file crashato una volta, girato due volte dopo.
+- Report aggiornato:
+  [report/crash-261101-16.51.md](report/crash-261101-16.51.md) — sezione
+  «SECONDA CADUTA». Ripiego pratico se la 3ª caduta RIPETE: gara
+  PERSONALIZZATA su Imola con la stessa flotta, fuori dalla ronda, in attesa
+  di Kunos.
+
+### 1/11 serata — TROVATA E CURTA la causa vera: la cura variante del 28/10 aveva Rinominato IL PRESET PORSCHE (e EVO non lo conosce)
+Mauro ricorda il pezzo mancante: «le anteprime nere erano state già
+verificate e sistemate tempo fà». Infatti era la cura del
+[30/10 ore 12:55](#30102026-ore-1255--corretto-la-griglia-va-fotocopiata-dai-template-veri-non-sintetizzata)
+(«APPLICA grigio e senza anteprime → fotocopia dai template VERI»). Con
+quella lente ho rifatto il confronto:
+- Il magazzino di PRIMA della cura —
+  `L:\CarrieraEVO\evo-pitwall-backup-25-10-2026\data-progetto\grid-templates\endurance_gt4.customgrid` —
+  porta le celle veramente di EVO: preset Porsche **`preset_718gt4rs_mech_2`**,
+  ZERO stringhe `…- Standard`, etichetta pulita «Porsche 718 Cayman GT4 RS».
+- La cura variante del 28/10 ha riscritto il pool con il preset
+  `preset_718gt4rs_mech_1` e l'etichetta «Porsche 718 Cayman GT4 RS
+  - Standard». EVO non risolve quel preset: anteprime NERE, scritta slug
+  `ks_porsche…standard` nel menu griglia — e al momento del carico della
+  sessione il crash cade dentro la STESSA zona (cohtml/Gameface), con le app
+  UIAPP già fuori da gioco.
+- La cura (stessa ricetta del 12:55, applicata oggi): backup in `tmp/` dei
+  due file attuali; `griglia --template` puntato al template sano su L:\ →
+  cartuccia a 18 celle con SOLO celle vere; poi `griglia` senza template →
+  allineamento automatico «18 → 21» (9 Audi + 10 Porsche + tu), banda AI
+  84–85 mantenuta.
+- VERIFICA DISCO: `last_grid.customgrid` = 21 celle (count 21 = 20+1
+  allineato), preset Audi mech_1 e Porsche mech_2, **zero** `tandard` nel
+  file vivo E nel template di magazzino (`storeTemplate` ha già scritto la
+  forma sana). La teoria «21 vs 20» resta MORTA: era il NOME DEL PRESET, non
+  il conto.
+- LEZIONE: la cura che Rinomina i preset in piscine «… - Standard» va
+  ABOLITA — EVO le celle si fotocopia SOLO da template VERI e NON si
+  rinominano i preset/visual originali dei slot di EVO. Report integrale:
+  [report/crash-261101-16.51.md](report/crash-261101-16.51.md) sezione «LA
+  CAUSA VERA» + «LA CURA APPLICATA».
+- Le app UIAPP restano disattivate (cartelle `_OFF-*`) finché Mauro non
+  conferma le anteprime vive e la sessione in piedi: POI si riattivano e si
+  chiuda anche l'esclusione che le app non c'entrano (il crash è già caduto
+  con esse SPENTE).
+
+
+
+## 1/11 sera — le GRIGIE del 718
+- IL FATTO: riaperto il gioco, la griglia del weekend porta le 22 Porsche 718 GT4 RS tutte identiche (giusto, monomarca voluta) ma TUTTE GRIGIE: il gioco carica il default senza livrea.
+- LA CAUSA: il template attuale (riscritto dopo il cambio-serie alle 19:15) porta in ogni cella il campo 11 con preset_718gt4rs_visual_1 e «718 GT4 RS - Visual 1»: stringhe mai scritte dal gioco. I bak-apply autoritativi (15:57 e 16:56, scritti da EVO) fotografano per il 718 SOLO preset_718gt4rs_visual_2 «718 GT4 RS - Visual 2». Preset irrisolvibile = livrea di serie grigia su ogni cella. Stessa lezione del crash 16:51: EVO si fotocopia SOLO stringhe vere, i preset visual non si inventano.
+- LA CURA (tmp/_cura-liveria-porsche.mjs, EVO chiuso): campo 11 fotocopiato INTATTO da una cella-vera del 718 (carId ks_porsche_718_cayman_gt4_rs) del bak-apply 16:56, applicato a template di magazzino, last_grid e roster del weekend (syncRoster, Practice a 22 slot). Backup bak-liveria su ogni file
+- ERRORE FISSATO IN CORSO: la prima estrazione prendeva la prima cella del bak, una Audi R8 (preset_r8gt4_visual_1): liveria del modello sbagliato. La cura va per carId del 718 nel campo 3, non per prima-cella; il secondo giro ha sovrascritto ogni destinazione.
+- VERIFICA DISCO: last_grid = 22 celle tutte 718 GT4 RS - Visual 2; template di magazzino idem; roster Practice 22 slot col carId del 718. Conteggio, preset meccanici, PI e abilità NON toccati: SOLO il campo 11.
+- PROSSIMA VISTA IN GIOCO: riaprire la ronda (o menu griglia SENZA GENERA, poi APPLICA) e guardare le livree: ora portano il preset autorevole di EVO. Varietà fra le 22: la via del parco resta più livree del 718 nel menu livrea di EVO + APPLICA, così raccogli fotografa anche visual_3 e oltre.
+
+------------------------------------------------------------------------------
+- 1/11 ora 19:32 — ANTEPRIME VUOTE nella Personalizzazione Griglia (23 carte
+  senza auto): la cura «liveria» di ieri sera 19:15 era CHIMERA. Aveva
+  fotocopiato SOLO il campo 11 (preset visual_2 «gialla racing», vero e
+  benigno) lasciando il blocco f14 (colori della livrea: EXT SKIN, caliper,
+  decal, interni) ancora sulla visual_1 NERA di serie. Combo mai scritta da
+  EVO (f11 giallo a f14 nere) → l'anteprima non si costruisce: carta vuota,
+  possibile crash al carico (stessa zona Gameface del 16:51).
+- DIAGNOSI: delta pre/post-cura = SOLO f11 cambiato (stessa forma, identica
+  lunghezza) → il problema NON era corruzione ma INCOMPLETEZZA della
+  fotocopia. Il mech preset f10 «mech_1» è risultato LEGITTIMO: è la coppia
+  che EVO stessa ha scritto nel backup 15:57 con etichetta lunga e sana; non
+  è stato lui il veleno stavolta.
+- CURA: tmp/_cura-chimera-liveria.mjs (dry-run e --scrivi) — il blocco f14
+  SPICCATO INTERO (31 posizioni) dalla cella GIOCO-AUTORE del backup
+  bak-apply-15-57-51, la STESSA coppia che le celle dichiarano (mech_1 +
+  visual_2). f10 e f11 intatti (PI e abilità invariati). Applicata a: last_grid
+  vivo, template endurance_gt4, roster del weekend (syncRoster). Backup
+  *.bak-chimera-2026-11-01T19-32-31 su ogni file.
+- VERIFICA DISCO: 23/23 celle (vivo e template) con f11=visual_2 e f14
+  IDENTICO AL BYTE al donore 15:57; roster riscritto. Ricontrollare col menu.
+- LEZIONE (aggiunta alla regola le celle si fotocopiano SOLO da template
+  VERI): quando si cura una LIVERIA si fotocopia TUTTO il blocco
+  dell'aspetto (f10 mech + f11 preset + f14 colori, il run INTERO) da UNA
+  CELLA GIOCO-AUTORE che la stessa coppia monta — non la singola etichetta.
+  Cura parziale = chimera = anteprime morte.
+- SONDA CHE COSTRUISCE: il template endurance_gt4 contava 23 celle (non 18)
+  al 1/11 sera: le cure successive gli hanno appese celle — innocue anch'esse,
+  e in cura non si tocca il conto.
+
+### 3/11 sera — IL MARGINE VERO è tornato: si legge dai LOG del gioco, non dal file risultato
+- LA DOMANDA: «il margine a 0.00» era vero per costruzione — nei file risultato
+  EVO scrive SOLO i settori del giro migliore (somma = best_lap alla centesima):
+  giro teorico ≡ best reale, margine impossibile lì. La colonna fu tolta.
+- LA FONTE VERA: i log del gioco (Saved Games/ACE/Logs). Ogni attraversamento
+  scrive «Split completed for car X: (M ms, splitindex N) lap:L» con N = S1/S2/S3
+  e L = contatore della sessione (lap:0 = giro di uscita con ms cumulativi da
+  scartare); ogni apertura weekend scrive «Game Started! … | <Pista> <tipo> …».
+  La stessa riga la scrive 3 volte di fila: deduplicata.
+- COME SI LEGA L'AUTO DEL PILOTA: la tripla dei splits del best_lap del file
+  risultato compare IDENTICA alle righe log del giro — abbinamento esatto.
+- NUOVO SRC/margine-log.mjs: parse dei log (cache mtime/size come analyzeLd,
+  cap 14 file recenti), finestre dei weekend dai «Game Started!», giri segnati
+  (lap ≥ 1), filtro anti-rumore: ogni settore entro 50%…130% del corrispondente
+  del giro legato — le gare della stessa serate su piste diverse non si
+  inquinano (il caso Brands/Donington del 31/10, carId riutilizzati).
+- SEMANTICA FINALE: margine = best ACCREDITATO nel file risultato − somma dei
+  minimi settoriali del log nella finestra della sessione legata. Positivo =
+  tempo da recuperare assemblando i tuoi settori (Kyalami 23:00 → +1,63 s,
+  Donington → +6,10 s dove il giro segreto più veloce non è stato accreditato);
+  può uscire negativo se i settori non battono il giro accreditato.
+- TETTO TEORICO: colonna «Margine vero» di ritorno (viste-analisi), per pista:
+  margine dell'ultima sessione misurata + margineBestMs + margineSessioni;
+  hint aggiornato su entrambe le lingue. I log più vecchi ruotati → «—».
+- TEST: test/margine-log.test.mjs (scene synth: practice+race stessa pista,
+  lap:0 cumulativi, righe triplicate, piste che non combaciano → 4/4);
+  suite completa 766/766; biome pulito; endpoint /api/tetto su dati veri:
+  Donington 6096, Imola 930, Oulton 624, Brands 312, Kyalami 0 (log presenti).
+
+## 1/11 notte — LE CELLE SONO SOLO FOTOCOPIA: il cancellaio del builder (2/11)
+- LA FEDE LEZIONE alla radice, stile Paddock: il builder non INVENTA NIENTA.
+  Nomi (carId, mech_N, visual_N) e soprattutto l'INTERO blocco f14 — la livrea
+  vera con i suoi colori interni, non l'etichetta — esistono SOLO dentro le
+  celle che EVO scrive lui; la libreria «a parte» non esiste.
+- CHIMERA del 1/11: template riscritto a mano dopo il cambio-serie ha
+  accostato campi (f11 «visual_2» gialla del donore + f14 del DEFAULT nero).
+  Coppia mai scritta da EVO → anteprima vuota in Personalizzazione Griglia e
+  crash Gameface di ieri 16:51. Curata con tmp/_cura-chimera-liveria.mjs
+  (--scrivi): f10 f11 f14 fotocopiati INTERI dalla cella gioco-autore
+  del backup 15:57, che monta la STESSA coppia.
+- IL GUARD (src/gridbuilder.mjs, hoistato carIdDi): ogni cella candidata della
+  serie viene decodificata; il modulo mech (f10) e quello visual (f11) devono
+  dichiarare lo STESSO ID-MODELLO dell'auto (f3). Se non combaciano →
+  BuildError: «fotocopia una cella intera dal parco, non assemblare campi».
+- INVARIANTE su tutto il parco reale: 2530/2530 celle parlano dello stesso
+  modello in f10 e f11 (scansione tmp/_prova-tutte-le-celle, script monouso).
+- CANCELLAIO NELL'OCCHIO giusto: il nucleo normalizza l'ID togliendo il
+  suffisso `_(mech|visual).*`, così i placeholder dei test tipo «visual_v1»
+  e i template dei test corrotti non fanno scattare il guard a sproposito.
+- TEST: test/grid-templates.test.mjs #8-#9 (coppia mista rifiutata; celle
+  sane distinte passano, in piedi ANCHE la regola anti-celle-identiche);
+  suite completa 769/769; biome pulito su src/gridbuilder.mjs e test.
+
+## 3/11 — Rapporto gara: la riga «Giro teorico» ora usa la fonte VERA o manca
+- LA COSA ovvia a occhio: nel rapporto di gara «Giro teorico (i tuoi migliori
+  settoriali)» ripeteva il best. Il motivo che già sapevamo: nel file risultato
+  EVO scrive SOLO i settori del giro migliore, la somma È IL BEST per
+  costruzione (lezione 3/11 in tettoReport), «scorta» sempre assente.
+- LA SISTEMO (richiesta Mauro: «sistemala o togila»): la riga cambia SRC —
+  non la somma dai splits del file, ma i minimi settoriali giro-per-giro dai
+  LOG del gioco tramite margineVeroDaLog (legame sessione e log: la tripla
+  del best accreditato, stessa finestra del marker, stessa regola 50%…130%).
+  Etichetta: «Giro teorico (dal log del gioco, minimo per settore sui giri
+  segnati) — su N giri»; la scorta si mostra SOLO se positiva.
+- NESSUN numero quando il log non abbina (log ruotati o gara assente): la
+  riga sparisce del tutto, il rapporto resta senza teorico falso.
+- SORGENTI: src/rapporto-gara.mjs (rapportoGara aggiunge sect.vero da
+  margineVeroDaLog; mdCompose mostra la riga solo con sect.vero). I campi
+  theoreticalText ecc. restavano in sectorAnalysis per hotlaps/analisi (fuori
+  da questo passo) — chiusi col punto sotto.
+- TEST: test/rapporto-gara.test.mjs — senza log abbinati NESSUNA riga
+  (prima asseriva il contrario); nuovo test il-log-ha-la-tripla: il MD mostra
+  teorico 2:38.245 su 2 giri e scorta 0:00.410. Suite completa 770/770;
+  biome pulito su i due file. Rapporto reale 261030-2117 generato senza errori.
+
+## 3/11 (serata) — Il teorico VERO arriva anche all'hotlaps e alla scheda giri
+- DOVE ERA STATO: la colonna «teorico» del quaderno dei giri liberi (tab
+  Gironi, via hotlapsLog) e i campi theoretical* della scheda Analisi usavano
+  ancora la somma dei splits del quaderno: il best stesso per costruzione,
+  quindi un teorico finto (guadagno sempre 0). Restava l'ultima parte del
+  passo «Giro teorico» del 3/11.
+- LA LEGGE VERA (stessa di rapporto gara e tetto): hotlapsLog(n, { logsDirs })
+  ora chiede a margine-log il minimo per settore sui giri segnati dei LOG del
+  gioco, agganciando la sessione con la tripla del best accreditato e la
+  finestra del marker. La sostituzione è a ogni render (in hotlapsLog):
+  il quaderno su disco resta intero, il teorico si ricalcola a ogni lettura
+  per le sessioni che i log ancora coprono.
+- SENZA ABBINAMENTO niente numero: theoreticalText e compagni ESCONO NULL
+  (la colonna smette di mentire) e le viste che li usano mostrano «—».
+- LA SCHEDA DELL'IMPORT GARA (src/import.mjs, runImport): subito dopo
+  sectorAnalysis il teorico della scheda viene sostituito con la legge vera
+  del log (chiave: nome del file risultato, pista del risultato); con
+  abbinamento si aggiunge anche veroLog (margineMs, giri); senza,
+  theoretical* a null. La voce finisce PERSISTITA nell'entry: le gare importate d'ora
+  in poi portano i VERI campi. viste-c.js mostra «—» sui campi null.
+- LA FRASE dell'Autopsia (src/analisi.mjs): «rispetto al giro teorico
+  (il minimo per settore sui giri segnati, dai log)» — niente più
+  «somma dei settoriali», che con i splits del file sarebbe solo
+  un ricalcolo del best.
+- Il teorico del libro PB (idealLapMs) è UN'ALTRA STORIA, legittima:
+  somma dei migliori settoriali presi tra sessioni diverse su quella
+  auto × pista — può davvero essere più veloce del PB stesso e resta.
+- SRC toccati: src/hotlaps.mjs, src/webui.mjs (logsDirs a hotlapsLog),
+  src/import.mjs, src/analisi.mjs, gui/js/viste-c.js.
+- TEST DI GUARDIA (test/import-teorico.test.mjs, forgia sintetica gemella del
+  test del rapporto): con un log che abina la tripla, `runImport` restituisce
+  la scheda con theoreticalText = 2:38.245 (minimo per settore), veroLog
+  margine 0:00.410 su 2 giri; senza log abbinati (pista diversa dal marker)
+  theoretical* = null. 2/2 pass, biome pulito.
+- Un'eco del mattino diceva la riga «teorico» di viste-c ancora morta: era lo
+  stato PRECEDENTE alla sostituzione — la legge attraversa runImport (il
+  vero arriva anche PERSISTITO nell'entry via applyRaceResult) e il test di
+  guardia ora lo impedisce per sempre.
+
+## 2/11 sera — La cura delle livree diventa PROCEDURA PERMANENTE (e una scoperta sul parco)
+- Da Mauro il via libera («continua»): la cura-chimera monouso del 1/11
+  diventa tool di famiglia: [tools/cura-livree.mjs](tools/cura-livree.mjs).
+- COME LAVA GLI ERRORI: per ogni identità dichiarata (carId + nome preset
+  mech + nome preset visual — i BYTE dei moduli NON sono identità: cambiano
+  dettaglio senza cambiare livrea) raccoglie le varianti di f14 dal parco di
+  GameModes (last_grid.customgrid e tutta la pila bak-*) e sceglie la PIÙ
+  FREQUENTE. Il f14 viene copiato PER RUN INTERO: livree in fila, ordine di
+  EVO; f10 e f11 intatti (PI e skill si rimangono). Bersagli: i template in
+  data/grid-templates + last_grid; dopo la scritta, roster del weekend
+  risincronizzato. Se un'identità non c'è nel parco, la cella resta COM'È:
+  auto fuori dal parco corrente, non verificabili — niente numeri inventati.
+- LA SCOPERTA (sonda tmp/_sonda-donori.mjs, cancellata dopo l'uso): per la
+  STESSA identità EVO scrive PIÙ varianti di f14 — nel parco 92 varianti
+  per 30 identità. La livrea è generata per griglia, non unica: il "primo
+  donore visto" era una lotteria, il quorum maggioritario dà una scelta
+  stabile a ogni cambi-serie.
+- LA PASSATA VERA (20:41, --scrivi, backup bak-livree-* su ogni file): 27
+  template sistemati (gt4_serie_b 15, coppa_porsche-718 13, campionato_pista
+  9, contati in output); endurance_gt4 e last_grid già a posto: 0/0 al
+  secondo quadro. Scritture solo nei template.
+- PROSSIMO CAMBI-SERIE: node tools/cura-livree.mjs (quadro) e --scrivi se
+  l'anteprima resta vuota; il cancellaio del builder impedisce di crearne
+  di nuove. COMANDI-BUFFY.md aggiornato.
+
+## 3/11 (notte) — Il 0,00 del tetto: campione vero o campo vuoto
+
+- FENOMENO (Mauro): nel Tetto teorico Suzuka e Laguna escono col delta
+  0,00 e sembrano auree. Nell'archivio reale SONO campioni veri (top3
+  negative, bestNames miei) — ma due casi diversi si nascondevano dietro lo
+  stesso numero: «sono io il campione» (delta 0 con rivali che hanno i
+  splits misurati: tutti i best settoriali della griglia sono miei) e
+  «senza dati» (nessun avversario con split nel file: il best è mio PER
+  COSTRUZIONE, il vecchio `?? 0` in tettoReport trasformava il campo vuoto
+  in uno 0,00 identico al campione).
+- [results.mjs](src/results.mjs) — `sectorAnalysis` porta la PROVENIENZA:
+  per settore `fieldCount` (rivali veri col split misurato) e a sede
+  `solo` (nessun campo vivo in tutta la sessione).
+- [analisi.mjs](src/analisi.mjs) — `tettoReport` agrega solo i delta col
+  campo vivo: la busta di un ingresso senza campo vale NULL (nessun dato),
+  i suoi settori non entrano più né nella busta per pista né nella mediana
+  del reparto né nella classifica dei peggiori. Con campo a 0,00: campione.
+  Vecchi import senza fieldCount: campo presente, comportamento invariato.
+- [viste-analisi.js](gui/js/viste-analisi.js) — la cella «Delta sul
+  campione top» distingue: 0,00 + tag verde «🥇 campione» (con tooltip),
+  pista senza alcun dato con campo = «— senza dati» stinto; il piede della
+  vista dice la regola.
+- Test di guardia in [analisi.test.mjs](test/analisi.test.mjs): le quattro
+  forgie (campione vivo / campo vuoto / settore misto / vecchio import),
+  28/28 pass. Biome pulito sui 4 file toccati.
+- PROSSIMO GIRO: le tinte della cella campione e la nota piste-fuori
+  (oggi contano il riparto, domani potrebbero distinguere le senza-dato).
+
+## 3/11 (mattina) — LE 3 SKIN DELLA MX-5 ND CUP: parco confermato, caso chiuso
+- CHIARIMENTO (Mauro, verificato a mano nel pannello Livree di EVO):
+  l'auto ha SOLO 3 skin — la bianco/rossa e DUE rosse tra loro quasi
+  gemelle. Il pool scritto nelle griglie del weekend (13 celle
+  «bianco/rossa» Visual 2 + 3 Visual 1 + 3 Visual 99, tutte rosse) NON
+  è un errore: è il parco livree reale dell'auto.
+- La prima impressione «ho solo 2 skin deriva dal fatto che le due rosse
+  (Visual 1 e Visual 99) si distinguono solo nei dettagli interni
+  (banner/roll del f14), non nel colore: a occhio fanno un solo gruppo.
+- NESSUN INTERVENTO sul tool: le celle e il builder sono a posto cosi.
+  Il cancellaio del builder (1/11) impedisce comunque di assemblare
+  coppie mai scritte da EVO.

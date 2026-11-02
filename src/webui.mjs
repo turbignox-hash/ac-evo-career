@@ -17,7 +17,7 @@ import { resolvePaths, isGameRunning, GAME_EXE, dataDirCandidates, isDir, isFile
 
 import {
   createCareer, nodeById, disciplineName, nomeDisciplina, gateStatus,
-  standingsFor, difficultyFor, bandaSerieSlider, seasonEnd,
+  standingsFor, difficultyFor, bandaSerieSlider, seasonEnd, seminaRaceSettings,
   acceptOffer, pushMessage, enterNode, renameDriver, careerStats,
   slotDataDir, grigliaSimEstesa, seasonJustClosed,
 } from './state.mjs';
@@ -28,7 +28,7 @@ import { rapportoGara } from './rapporto-gara.mjs';
 // tool CLI e dei fasce del cruscotto in gioco — UNA fonte sola.
 import { verdettoGiornata } from '../tools/verdetto-giornata.mjs';
 import { liveReader } from './shmem.mjs';
-import { creaVoceCopilota, nuovoSlotVoce, giroVoce, VOCE_LIVELLI, LOG_VOCE_FILE } from './voce-copilota.mjs';
+import { creaVoceCopilota, nuovoSlotVoce, giroVoce, pannelloVoce, VOCE_LIVELLI, LOG_VOCE_FILE } from './voce-copilota.mjs';
 import { raceCard, markPending, chargeEntry, launch, nextRound } from './race.mjs';
 import { applyPianoToCalendar } from './orario.mjs';
 import {
@@ -48,11 +48,11 @@ import { maybeSpawnEvent, acceptEvent, declineEvent, finishEvent, eventCard, eve
 import { seasonReview, reviewableSeasons, exportReview } from './review.mjs';
 import { contractStatus, sponsorOffers, acceptSponsor, declineSponsor, challengeFor, acceptChallenge, sigilDefs, ensureLife, sponsorFor, ensureContract, checkSigils } from './life.mjs';
 import { newsFeed, seasonPress } from './gazzetta.mjs';
-import { recordTestDay, testDayLog, calibrationSummary } from './testday.mjs';
+import { recordTestDay, testDayLog, calibrationSummary, prettyTrackLabeled } from './testday.mjs';
 import { recordHotlaps, hotlapSweep, hotlapsLog, hotlapsStats, hotlapsProgress, hotlapsPistaGiro } from './hotlaps.mjs';
 import { recordWarning, readWarnings } from './warnings.mjs';
 import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
-import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, telemDiagnostics, lapTrace } from './motec.mjs';
+import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, telemDiagnostics, lapTrace, sampleLap, sessionMetaOf } from './motec.mjs';
 // stinti.mjs e usura-gomme.mjs leggono la STESSA telemetria MoTeC: stint
 // spezzati dai rifornimenti veri e usura gomme (degrado ritmo + temperature)
 // entrano nel box e da terminale, sempre da file .ld reali (richiesta 28/10).
@@ -116,6 +116,10 @@ function buildVersion() {
   return (BUILD_VERSION = { semver: ver, hash: hash || null });
 }
 import { currentWeatherPreset, setWeatherPreset, PRESETS, presetForLabel } from './weather.mjs';
+// BOLLETTINO AUTOMATICO (3/11, richiesta Mauro «automatico senza Metti»):
+// a fine ogni sessione del weekend il meteo della PROSSIMA si scrive solo.
+import { wxAutoTick, wxAutoPrima } from './wx-auto.mjs';
+import { leggi as leggiWx } from './wx-registro.mjs';   // registro delle scritture del bollettino (case wx-log)
 import { statoBackup, forzaBackup } from '../tools/salva-save.mjs';
 import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
 import { sameTrack as trkSame, sameCar as carSame } from './tracknames.mjs';
@@ -147,7 +151,7 @@ import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
 // analisi.mjs: i cinque strumenti del pilota (autopsia, dossier rivali, banco
 // A/B, Monte Carlo sedili, tetto teorico) — letture pure, niente scritture.
 // 30/10: entra il SESTO, il debrief di fine gara (raceDebrief).
-import { raceAutopsy, raceDebrief, rivalDossier, setupAB, seatMonteCarlo, tettoReport } from './analisi.mjs';
+import { abPreferite, raceAutopsy, raceDebrief, rivalDossier, setupAB, seatMonteCarlo, tettoReport, zoneTimeline } from './analisi.mjs';
 
 /* TAG GRIGLIA all'iscrizione (richiesta Mauro 21/10: la coppa a un'unica auto
  * non deve più nascondere dietro il nome "Coppa X" cosa troverai in pista):
@@ -257,15 +261,21 @@ function listBackups(limit = 8) {
 /* la scansione MoTeC vive in src/webui-telem.mjs (31/10: estrazione senza
    cambiamenti — qui resta solo il richiamo, il lettore .ld con la memoir
    dei 10 s è identico) */
-function systemHealth(paths, mode = null) {
+function systemHealth(paths, mode = null, ladder = null) {
   const rd = liveReader();
   const m = mode ?? liveMode();
   if (m !== 'off') { syncLiveReader().catch(() => {}); } // idempotente
   const h = rd.health();
+  const telem = telemScanLocale(paths);
+  // NOME PULITO (1/11): il chip MoTeC dell'header (viste-d) e la salute sistema
+  // leggono la cartella pista («ImolaGP», «Circuit Of The Americas GP») → bella
+  // voce del ladder + variante vera (prettyTrackLabeled del banco A/B). La
+  // scansione è memoir 10s: NON mutare l'oggetto in cache, si clona solo lastLd.
+  if (telem.lastLd?.track) telem.lastLd = { ...telem.lastLd, track: prettyTrackLabeled(ladder, telem.lastLd.track) ?? telem.lastLd.track };
   return {
     ...h,
     liveMode: m,
-    telem: telemScanLocale(paths),
+    telem,
   };
 }
 
@@ -548,6 +558,16 @@ function logaVoceErr(e, fresh = false) {
 function voceServerAttiva() { // usata anche dalla guardia del ping qui sopra
   return voceServerLivello() !== 'off';
 }
+/* IL PANNELLO (1/11, «ritornello» di Mauro): due Pitwall vivi sulla stessa
+   carriera parlavano ENTRAMBI la stessa gara (il doppione della 13:42 sulla
+   8740 + quello vero della 8642). Da adesso chi non tiene il pannello
+   (voce-panello.json, accanto alla radio) TACE e lo scrive nel registro una
+   volta al minuto; il titolare muore e il battito finisce → il sopravvissuto
+   riprende da solo. Il pannello è del server di START: tutte le carte chiama
+   pannelloVoce() MENO UNA volta, con la DIR della radio (stessa regola
+   EVO_DATA_DIR della casa: i test la redirigono e non sporcano il mondo vero). */
+const PANNELLO_VOCE_AT = pannelloVoce();
+let _vocePanelloSilAt = 0;
 /** LIVELLO VOCE (30/10, richiesta Mauro: "minimo indispensabile, normale o
  *  full"): legge evo.config.json.voceCopilota — true/false dei giorni scorsi
  *  (true=normale, false=off) e i nuovi 'essenziale'|'normale'|'full'. Il
@@ -621,7 +641,12 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
         _engSess = sess; _engSessAt = Date.now();
       }
       const sess = _engSess;
-      if (sess && Number.isFinite(sess.fuelPerLap) && sess.fuelPerLap > 0) { fuelPerLap = sess.fuelPerLap; telemTrack = sess.track ?? null; }
+      if (sess && Number.isFinite(sess.fuelPerLap) && sess.fuelPerLap > 0) {
+        fuelPerLap = sess.fuelPerLap;
+        // NOME PULITO (1/11): la radio dell'ingegnere dice «telemetria su Imola»
+        // non «telemetria su ImolaGP» (prettyTrackLabeled del banco A/B).
+        telemTrack = sess.track ? (prettyTrackLabeled(ladder, sess.track) ?? sess.track) : null;
+      }
     } catch { /* senza telemetria si stima dal HUD del gioco */ }
   }
   const live = engineerLive(snap, { fuelPerLap, raceLaps });
@@ -717,6 +742,18 @@ async function copilotaServerTickInterno() {
     if (PERCHE.length && ora - _voceSilAt > 60000) { _voceSilAt = ora; logaVoce({ evento: 'SILENZIO', motivi: PERCHE.join(' + ') }); }
   };
   if (!voceServerAttiva()) { PERCHE.push('voce config OFF'); tacchio(); return; }
+  /* GUARDIA DEL PANNELLO (1/11, «ritornello» di Mauro): se un ALTRO Pitwall
+     vive sulla stessa carriera e tiene il pannello (voce-panello.json fresco),
+     qui la radio tace DEL TUTTO — la stessa frase non deve uscire due volte
+     quasi insieme (era il coro del doppione della 8740 + il vero della 8642).
+     Il motivo va nel registro UNA volta al minuto (tacchio lo gestisce); il
+     titolare muore e il battito finisce → il sopravvissuto riprende da solo al
+     tick dopo, senza tocco umano. */
+  if (!PANNELLO_VOCE_AT.chiedi()) {
+    const t = PANNELLO_VOCE_AT.titolare();
+    PERCHE.push(`voce presa dal PITWALL PID ${t?.pid ?? '?'}`);
+    tacchio(); voceSrv.silenzio(); return;
+  }
   if (liveMode() === 'off') { PERCHE.push('liveMode off'); tacchio(); voceSrv.silenzio(); return; }
   /* GUARDIA del PING RITIRATA (30/10, Mauro: «in gioco non va, sul browser sì»):
      la 3ª cura del 29/10 (chip OFF nel browser → ping on:false → il server tace)
@@ -776,21 +813,11 @@ async function api(context0, _req, res, action, body) {
   }
   if (state) {
     ensureFlowsSeeded(state); // carriere nate prima del registro flussi
-    // difficoltà AI diretta per OGNI serie: 84–85% di default (richiesta Mauro
-    // 27/10: prima il 88–89, poi «per qualcuno potrebbe già essere difficile»:
-    // si parte TUTTI dalla stessa banda 84–85 e poi comanda il TRIM
-    // adattivo a salire o scendere serie per serie) — la Coppa GT86 resta
-    // un'eccezione della sua scelta se la risegnalata da lui. Chi ha già un
-    // valore lo mantiene; le serie senza impostazione lo ricevono.
-    const RS = (state.raceSettings ??= {});
-    for (const n of (ladder.nodes ?? [])) {
-      const cur = RS[n.nodeId];
-      if (!cur) RS[n.nodeId] = { sliderMin: 84, sliderMax: 85 };
-      else {
-        if (cur.sliderMin == null) cur.sliderMin = 84;
-        if (cur.sliderMax == null) cur.sliderMax = 85;
-      }
-    }
+    // SEMINA DEI CURSORI DI SERIE (3/11, estratta in state.mjs): la legge
+    // della stanza è LÀ (record vuoto «↺» = al consiglio, i fisso [84, 85]
+    // solo ripiego per ladder senza aiSerie) e la sorveglia è il suo test:
+    // test/semina-race-settings.test.mjs.
+    seminaRaceSettings(ladder, state);
   }
 
   switch (action) {
@@ -1416,17 +1443,45 @@ async function api(context0, _req, res, action, body) {
     case 'rival-dossier': return sendJson(res, 200, rivalDossier(String(body.key ?? ''), state) ?? { error: tr({ it: 'Rivale non trovato.', en: 'Rival not found.' }) });
     // analisi (tab Analisi): autopsia dell'ultima gara, tetto teorico, banco A/B, Monte Carlo sedili
     case 'autopsy': return sendJson(res, 200, raceAutopsy(ladder, state) ?? { error: tr({ it: 'Nessuna gara ancora: dopo il primo import qui arriva la scomposizione del deficit.', en: 'No race yet: the deficit breakdown lands here after the first import.' }) });
-    case 'tetto': return sendJson(res, 200, tettoReport(ladder, state));
+    case 'tetto': return sendJson(res, 200, tettoReport(ladder, state, { logsDirs: paths.logsDirs ?? [] }));
     case 'seat-mc': return sendJson(res, 200, seatMonteCarlo(ladder, state, { sims: Number(body.sims) || 400 }));
     case 'ab-list': {
       // primo avvio senza cartelle dati: niente TypeError su join(undefined):
       // il root è una stringa vuota, listMotecSessions torno un elenco vuoto.
       const root = join(paths.dataDirs?.[0] ?? paths.dataDirs?.[1] ?? '', 'MoTec');
-      const sessions = listMotecSessions(root).slice(0, 40).map((s) => ({
-        file: s.name, path: s.file, car: s.car, track: s.track,
+      // RIEPILOGO SENOZA CAP (2/11): fin qui 40 sessioni a file — le MX-5 di
+      // Imola (26–27/9, le più vecchie) restavano fuori e i menu non le
+      // mostravano MANCO per sceglierle. Ora il riepilogo è completo; i menu
+      // restano navigabili perché i filtri e l'ultima scelta li restringono.
+      const sessions = listMotecSessions(root).map((s) => ({
+        file: s.name, path: s.file,
+        // NOME PULITO (1/11): «ImolaGP» → «Imola», «Oulton ParkInternational» →
+        // «Oulton Park International» — bella voce del ladder + variante vera
+        // della cartella (prettyTrackLabeled del quaderno prove); se il ladder
+        // non la conosce resta il token di cartella.
+        track: prettyTrackLabeled(ladder, s.track) ?? s.track, car: s.car,
+        sessionMs: sessionMetaOf(s.name).startMs ?? null,
         when: new Date(s.mtime).toLocaleString('it-IT'), mtimeMs: s.mtime,
+        // TEMPO VERO DI SESSIONE (2/11): il mtime è l'orario della COPIA sulla
+        // cartella MoTeC (le MX-5 di Imola copiate in blocco → 11 voci tutte
+        // «22:08 del 25/10», indistinguibili a menu). sessionMetaOf legge il
+        // token nel nome file («…_Sat Sep 26 193715 2026.ld») e il banco
+        // raggruppa/ora sul giorno del GIRO, non della copia. Fallback null:
+        // il client resta sul mtimeMs.
       }));
-      return sendJson(res, 200, { ok: true, sessions });
+      // AUTOPUNTAMENTO (2/11): la coppia (auto,pista) dominante — A = la più
+      // vecchia, B = la più recente del gruppo — calcolata puro in analisi.mjs.
+      // La GUI la usa per aprire il banco già selezionato (Imola MX-5) e coi
+      // menu ripuliti dai filtri; se il giocatore aveva scelto altro, la sua
+      // scelta vince (il collateral resta in viste-analisi.js).
+      // L'ULTIMA SCELTA (2/11, richiesta Mauro «seleziona le due sessioni di
+      // Imola MX-5»): il banco ricorda l'ultima comparazione riuscita nel save
+      // (state.abBanco, scritta da ab-setup) e la GUI la ripristina al giro
+      // nuovo — il default del server (prefer) vale solo se non c'è niente.
+      const last = state.abBanco && sessions.some((s) => s.file === state.abBanco.fileA) && sessions.some((s) => s.file === state.abBanco.fileB)
+        ? { ...state.abBanco, car: sessions.find((s) => s.file === state.abBanco.fileA)?.car ?? '', track: sessions.find((s) => s.file === state.abBanco.fileA)?.track ?? '' }
+        : null;
+      return sendJson(res, 200, { ok: true, sessions, prefer: abPreferite(sessions) ?? null, last });
     }
     case 'ab-setup': {
       try {
@@ -1436,7 +1491,19 @@ async function api(context0, _req, res, action, body) {
           ?? (isFile(String(name ?? '')) ? { file: String(name) } : null);
         const a = pick(body.fileA), b = pick(body.fileB);
         if (!a || !b) return sendJson(res, 400, { error: tr({ it: 'Seleziona due sessioni MoTeC (A e B).', en: 'Pick two MoTeC sessions (A and B).' }) });
-        return sendJson(res, 200, setupAB(a.file, b.file, { points: Number(body.points) || 240 }));
+        const ab = setupAB(a.file, b.file, { points: Number(body.points) || 240 });
+        if (ab.ok) {
+          // QUADRO-ZONE (1/11): la fascia frenata/uscita/gas PUNTO per PUNTO della
+          // STESSA coppia, per la striscia nel modale del banco. Se una delle due
+          // sessioni non si ricampiona resta null: il pannello non la disegna.
+          const P = Number(body.points) || 240;
+          ab.zoneTimeline = zoneTimeline(sampleLap(a.file, 'best', P), sampleLap(b.file, 'best', P));
+          // L'ULTIMA SCELTA (2/11): la coppia riuscita resta nel save — il banco
+          // la ripropone al giro nuovo, così il confronto giusto (Imola MX-5)
+          // non si perde a ogni riapertura del pannello.
+          if (a.name && b.name) { state.abBanco = { fileA: a.name, fileB: b.name }; persist(state); }
+        }
+        return sendJson(res, 200, ab);
       } catch (e) { return sendJson(res, 500, { error: e.message }); }
     }
     case 'world-ranking': {
@@ -2003,9 +2070,15 @@ async function api(context0, _req, res, action, body) {
     }
     case 'warnings':
       return sendJson(res, 200, readWarnings());
+    case 'wx-log': {
+      // REGISTRO DEL BOLLETTINO (4/11): le scritture automatiche riuscite
+      // (quando e perché). Lettura pura, senza carriera ammessa (registro
+      // vuoto finché il bollettino non scrive il suo primo preset).
+      return sendJson(res, 200, leggiWx({ n: 15 }));
+    }
     case 'system-health': {
       const mode = await syncLiveReader();
-      return sendJson(res, 200, systemHealth(paths, mode));
+      return sendJson(res, 200, systemHealth(paths, mode, ladder));
     }
     case 'agenda': {
       // calendario CONTINUO stile del modello originario: vista giornata + strip calendario + griglia filtri
@@ -2377,7 +2450,10 @@ async function api(context0, _req, res, action, body) {
         if (!riga) return sendJson(res, 409, { error: nome + ': nessun tasto meteo (la sessione del piano è ' + piano.map((p) => p.session).join(', ') + ')' });
         const cur = currentWeatherPreset();
         if (cur !== riga.weather) {
-          const w = setWeatherPreset(riga.weather, {});
+          // previsto: il numero è QUELLO del piano (weatherPlanFor), la
+          // STESSA semantica del preparatutto ronda/evento: la guardia del
+          // meteo resta tesa per le scelte a mano, qui non sposta nulla
+          const w = setWeatherPreset(riga.weather, { previsto: true });
           return sendJson(res, 200, { ok: true, session: nome, label: w.preset.label, newPreset: riga.weather, forecast: piano, card });
         }
         return sendJson(res, 200, { ok: true, already: true, session: nome, label: riga.label, forecast: piano, card });
@@ -2417,7 +2493,14 @@ async function api(context0, _req, res, action, body) {
       // nascita della carriera (state.createdAt) in poi; body.all = 1 mostra
       // TUTTO il disco (interruttore nella vista).
       const dopo = body.all ? 0 : (state?.createdAt ?? 0);
-      return sendJson(res, 200, { root, scoped: !!dopo, all: !!body.all, sinceLocal: dopo ? new Date(dopo).toLocaleString('it-IT') : null, cars: telemDiagnostics(root, { afterMs: dopo }) });
+      // NOME PULITO (1/11): la diagnostica telemetria mostrava la cartella
+      // («Circuit Of The AmericasGP») → bella voce del ladder + variante;
+      // se il ladder non la conosce resta il token di cartella.
+      const carsDiag = telemDiagnostics(root, { afterMs: dopo }).map((c) => ({
+        ...c,
+        files: (c.files ?? []).map((f) => ({ ...f, track: f.track ? (prettyTrackLabeled(ladder, f.track) ?? f.track) : f.track })),
+      }));
+      return sendJson(res, 200, { root, scoped: !!dopo, all: !!body.all, sinceLocal: dopo ? new Date(dopo).toLocaleString('it-IT') : null, cars: carsDiag });
     }
     case 'new-career': {
       if (!body.name || !String(body.name).trim()) return sendJson(res, 400, { error: tr({ it: 'Serve il nome del pilota.', en: 'The driver name is required.' }) });
@@ -2899,6 +2982,15 @@ async function api(context0, _req, res, action, body) {
         return sendJson(res, 200, { ok: true, view: viewDifficulty(ladder, state) });
       }
       const d = state.difficulty;
+      // consiglio della serie CALCOLATO ADESSO (2/11, Mauro): la banda che «↺»
+      // deve restituire è [slider, slider+1] di difficultyFor — non un fisso.
+      // La usano pure trim/accept quando la riga non ha cursori propri (↺).
+      const consiglioBand = (l, s, nodeId) => {
+        const nd = l.nodes.find((n) => n.nodeId === nodeId);
+        const track = nd?.calendar?.[Math.min(s.round ?? 0, (nd.calendar?.length ?? 1) - 1)]?.track ?? null;
+        const sl = Math.max(0, Math.min(100, Math.round(difficultyFor(l, s, nd, track).slider)));
+        return [sl, Math.min(100, sl + 1)];
+      };
       if (body.op === 'mode') {
         if (!['adaptive', 'fixed', 'custom'].includes(body.mode)) return sendJson(res, 400, { error: tr({ it: 'Modalità non valida.', en: 'Invalid mode.' }) });
         d.mode = body.mode;
@@ -2971,8 +3063,17 @@ async function api(context0, _req, res, action, body) {
           const RS = (state.raceSettings ??= {});
           const S = (RS[t] ??= {});
           const shift = (val - before) * 1;
-          S.sliderMin = Math.max(0, Math.min(100, (S.sliderMin ?? Math.round((state.raceSettings[t]?.sliderMin ?? 84))) + shift));
-          S.sliderMax = Math.max(S.sliderMin, Math.min(100, (S.sliderMax ?? Math.round((state.raceSettings[t]?.sliderMax ?? 85))) + shift));
+          // riga senza cursori (tornata al consiglio): la banda È il consiglio
+          // ricalcolato, che GIÀ parla col nuovo trim — niente shift in doppio
+          // (2/11). Con cursori veri resta lo storico 1 trim = 1 punto banda.
+          const [cLo, cHi] = consiglioBand(ladder, state, t);
+          if (S.sliderMin == null && S.sliderMax == null) {
+            S.sliderMin = cLo;
+            S.sliderMax = cHi;
+          } else {
+            S.sliderMin = Math.max(0, Math.min(100, (S.sliderMin ?? cLo) + shift));
+            S.sliderMax = Math.max(S.sliderMin, Math.min(100, (S.sliderMax ?? cHi) + shift));
+          }
         }
         // il trim della serie corrente arriva anche ai cursori del gioco
         try { const cs = state.raceSettings[state.node]; if (cs?.sliderMin != null) setWeekendAi(cs.sliderMin, cs.sliderMax); } catch { /* se manca il file si va avanti */ }
@@ -2987,13 +3088,22 @@ async function api(context0, _req, res, action, body) {
         if (body.op === 'accept') {
           const before = d.trim[p.nodeId] ?? 0;
           d.trim[p.nodeId] = p.to;
-          // il suggerimento accettato sposta anche la banda EVO della serie (+1 trim = +5 slider)
+          // il suggerimento accettato sposta anche la banda EVO della serie
+          // (+1 trim = +1 punto: legge del 2/11, il commento ×5 è morto)
           const shift = (p.to - before) * 1;
           if (shift) {
             const RS = (state.raceSettings ??= {});
             const S = (RS[p.nodeId] ??= {});
-            S.sliderMin = Math.max(0, Math.min(100, (S.sliderMin ?? 88) + shift));
-            S.sliderMax = Math.max(S.sliderMin, Math.min(100, (S.sliderMax ?? 89) + shift));
+            // riga senza cursori (↺): la banda È il consiglio ricalcolato col
+            // NUOVO trim, niente shift (2/11); con cursori, 1 trim = 1 punto
+            const [cLo, cHi] = consiglioBand(ladder, state, p.nodeId);
+            if (S.sliderMin == null && S.sliderMax == null) {
+              S.sliderMin = cLo;
+              S.sliderMax = cHi;
+            } else {
+              S.sliderMin = Math.max(0, Math.min(100, (S.sliderMin ?? cLo) + shift));
+              S.sliderMax = Math.max(S.sliderMin, Math.min(100, (S.sliderMax ?? cHi) + shift));
+            }
           }
           // accettare il suggerimento sulla serie corrente riscrive anche i cursori del gioco
           try { if (p.nodeId === state.node) { const cs = state.raceSettings[p.nodeId]; if (cs?.sliderMin != null) setWeekendAi(cs.sliderMin, cs.sliderMax); } } catch { /* se manca il file si va avanti */ }
@@ -3131,11 +3241,18 @@ async function api(context0, _req, res, action, body) {
             ok: true, car: usedCar ?? null, track: trackKey ?? null,
             // trasparenza su DOVE è stata girata la telemetria usata per il consiglio:
             // se pista del round e pista della telemetria divergono, la GUI lo dice
-            trackDisplay: board.trackDisplay ?? null, basisTrack: sessions[0]?.track ?? null,
+            trackDisplay: board.trackDisplay ?? null,
+            // trasparenza su DOVE è stata girata la telemetria usata per il consiglio:
+            // NOME PULITO (1/11): «ImolaGP» → «Imola» come nel banco A/B.
+            basisTrack: sessions[0]?.track ? (prettyTrackLabeled(ladder, sessions[0].track) ?? sessions[0].track) : null,
             target: tyre ? tyre.target : (body.target ?? null), classLabel: tyre?.label ?? null,
             telemetryLaps: telemetryLapsFor(usedCar ?? carName ?? ''),
             sessions: sessions.map((s) => ({
-              file: s.file, car: s.car, track: s.track, when: s.whenLocal, kindLabel: s.kindLabel, weather: s.weather, preset: s.preset, validLaps: s.validLaps, durationSec: s.durationSec, bestLapSec: s.bestLapSec, fuelPerLap: s.fuelPerLap, cold: s.coldPressures, hot: s.hotPressures, sus: s.sus, bump: s.bump, camberProxy: s.camberProxy,
+              file: s.file, car: s.car, track: s.track,
+              // per la GUI il nome bello (selettore sessioni viste-c): il token
+              // raw resta per i filtri e la cronologia
+              trackPretty: s.track ? (prettyTrackLabeled(ladder, s.track) ?? s.track) : null,
+              when: s.whenLocal, kindLabel: s.kindLabel, weather: s.weather, preset: s.preset, validLaps: s.validLaps, durationSec: s.durationSec, bestLapSec: s.bestLapSec, fuelPerLap: s.fuelPerLap, cold: s.coldPressures, hot: s.hotPressures, sus: s.sus, bump: s.bump, camberProxy: s.camberProxy,
               airTemp: s.airTemp, roadTemp: s.roadTemp, laps: s.laps,
             })),
             stale,
@@ -3308,11 +3425,11 @@ async function api(context0, _req, res, action, body) {
         if (body.action === 'record-file') {
           const out = recordHotlaps(ladder, paths, state, { file: String(body.file ?? '').trim(), since: 0 });
           const reg = out.registered[0] ?? null;
-          return sendJson(res, 200, { ok: true, registered: out.registered.length, entry: reg, log: hotlapsLog(40) });
+          return sendJson(res, 200, { ok: true, registered: out.registered.length, entry: reg, log: hotlapsLog(40, { logsDirs: paths?.logsDirs ?? [] }) });
         }
         // le analisi della gita (26/10): numeri, curva di progresso — il delta
         // per settore lo fa il browser dai dati che già spedisce qui
-        return sendJson(res, 200, { ok: true, log: hotlapsLog(40), stats: hotlapsStats(), progress: hotlapsProgress() });
+        return sendJson(res, 200, { ok: true, log: hotlapsLog(40, { logsDirs: paths?.logsDirs ?? [] }), stats: hotlapsStats(), progress: hotlapsProgress() });
       } catch (e) {
         return sendJson(res, 500, { error: e.message });
       }
@@ -3893,6 +4010,37 @@ function watcherTick() {
         }
       }
 
+      /* BOLLETTINO AUTOMATICO (3/11, richiesta Mauro: «automatico senza l'intervento
+         Metti»): a fine di ogni sessione del weekend il file Results appena
+         chiuso innesca la scrittura del meteo della sessione SUCCESSIVA del
+         piano — EVO legge il preset del selettore a ogni avvio sessione, così
+         il cielo è già a posto quando l'utente entra. Solo meteo DEL PIANO
+         (weatherPlan della card), solo piste della ronda, un file = una
+         scrittura. Il costo a tick è niente: senza Risultati freschi si esce
+         prima di toccare la card. */
+      if (!watcher.wxBusy) {
+        watcher.wxBusy = true;
+        try {
+          // IL PIANO DI QUESTA RONDA: la STESSA fonte del «Metti» della scheda
+          // (viewCard → weatherPlan) per ENTRAMBI i due inneschi qui sotto.
+          const pianoDellaRonda = () => {
+            const card = viewCard(ladder, state, null);
+            const roundTrackId = (card.round?.track ?? null);
+            const expectedName = roundTrackId ? (ladder.contentNames?.tracks?.[roundTrackId] ?? roundTrackId) : null;
+            return { piano: card.weatherPlan ?? [], pistaNomi: [roundTrackId, expectedName, card.trackName], push: (...a) => watcher.push(...a) };
+          };
+          wxAutoTick(paths, pianoDellaRonda);
+          /* PRIMA SESSIONE AUTOMATICA (4/11, richiesta Mauro: «il meteo della
+             PRIMA sessione senza l'unico Metti manuale»): al CAMBIO RONDA
+             (node#round), se nessuna sessione della pista è già girata, si
+             scrive il meteo delle Prove del piano — il Metti resta il ripiego
+             (per esempio due ronde di fila sulla STESSA pista). */
+          const chiaveRonda = (state != null && state.node != null) ? `${state.node}#${state.round ?? 0}` : null;
+          if (chiaveRonda) wxAutoPrima(paths, pianoDellaRonda, chiaveRonda);
+        } catch (e) { recordWarning('wx-auto', 'tick del bollettino automatico fallito', e.message); }
+        finally { watcher.wxBusy = false; }
+      }
+
       if (!snap.game) {
         if (watcher.armed) {
           // chiuso il gioco mentre eravamo in gara: la gara è finita lo stesso
@@ -4358,7 +4506,8 @@ setInterval(() => {                                                  // vigilant
       const s = liveReader().snapshot();
       logaVoce({ evento: 'STATO', tickEtaMs: bloccatoDaMs, tickN: _voceTickN, ripartiN: _voceRipartiN,
         paginaPingMs: _pingVocePagina.at ? ora - _pingVocePagina.at : null, paginaPingOn: _pingVocePagina.at ? _pingVocePagina.on : null,
-        game: s?.game ?? null, live: s?.live ?? null, sessionType: s?.session?.type ?? null });
+        game: s?.game ?? null, live: s?.live ?? null, sessionType: s?.session?.type ?? null,
+        pannello: PANNELLO_VOCE_AT.titolare() });
     } catch { /* il vigilante non deve rompere il server */ }
   }
 }, 5000);

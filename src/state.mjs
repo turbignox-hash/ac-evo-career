@@ -415,6 +415,27 @@ export function difficultyFor(ladder, state, node, track = null) {
   return { base, trim, offClass, offTrack, global, total, slider: skillToEvoSlider(total, ladder), locked: d.locked.includes(node.nodeId), mode: d.mode };
 }
 
+/** BANDA DI SERIE LETTA DAL LADDER (2/11/2026, richiesta Mauro: «scrivi la
+ *  banda di serie nel ladder alla prossima release: copri i nodi con l'84–85
+ *  attuale così nemmeno il ripiego resta preistorico»). Il ladder porta
+ *  `aiSerie` per nodo — il valore di DEFAULT dei cursori al tempo della
+ *  release (più il ripiego `bandaSerie` a livello ladder) — e qui si legge
+ *  in una sola funzione.
+ *  Ritorna [min, max] o null: chi la usa decide il proprio ultimo ripiego
+ *  (in webui il fisso [84, 85] resta SOLO per un ladder senza aiSerie —
+ *  come per gli sviluppi): alla prossima release si aggiorna LÀ e il codice
+ *  non ha più nulla di scritto a mano su un dato vivo. */
+export function bandaSerieLadder(ladder, node) {
+  const ai = (node && Array.isArray(node.aiSerie) && node.aiSerie.length === 2
+    && node.aiSerie.every((v) => Number.isFinite(Number(v))))
+    ? node.aiSerie
+    : (ladder && Array.isArray(ladder.bandaSerie) && ladder.bandaSerie.length === 2
+      && ladder.bandaSerie.every((v) => Number.isFinite(Number(v))))
+      ? ladder.bandaSerie
+      : null;
+  return ai ? ai.slice() : null;
+}
+
 /** BANDA DI SERIE per il customgrid (1/11/2026, richiamo di Mauro sul 82–92
  *  residuo in scheda Griglia): la STESSA formula del pannello Difficoltà
  *  (viewDifficulty in webui-views.mjs) — override manuale dei cursori
@@ -430,6 +451,42 @@ export function bandaSerieSlider(ladder, state, node, track = null) {
   const oMax = Number.isFinite(Number(ov.sliderMax)) ? Number(ov.sliderMax) : null;
   const lo = oMin ?? Math.max(0, Math.round(d.slider));
   return { banda: [lo, oMax ?? Math.min(100, lo + 1)], override: oMin != null || oMax != null, slider: Math.round(d.slider), base: Math.round(d.base ?? 0), trim: d.trim };
+}
+
+/** SEMINA DEI CURSORI DI SERIE (3/11, estratta da webui.mjs per essere
+ *  sorvegliata: gira a ogni richiesta del server con carriera).
+ *  La legge della stanza (2/11, richiesta Mauro): il record VUOTO — la riga
+ *  «↺» con ENTRAMBI i cursori null — È una riga tornata al consiglio
+ *  calcolato, NON una serie senza impostazione: la semina non la tocca MAI.
+ *  Se la riempisse, il fisso [84, 85] risorgerebbe dal retro, il peccato che
+ *  il ladder aiSerie del 2/11 ha tolto davanti. Resta tre sole porte:
+ *    - record ASSENTE → banda di serie del ladder (aiSerie a ogni release);
+ *      il fisso [84, 85] resta SOLO il ripiego per un ladder vecchio
+ *      effettivamente senza aiSerie — e anche lì un record «↺» non si riempie;
+ *    - record MEZZO (un solo cursore) → si completa solo il valore
+ *      mancante, il record pieno dell'utente non si tocca;
+ *    - record VUOTO («↺») → si lascia al consiglio calcolato: lelettura viva
+ *      (viewDifficulty, bandaSerieSlider) segue difficoltàFor a ogni giro.
+ *  Guardia: test/semina-race-settings.test.mjs. */
+export function seminaRaceSettings(ladder, state) {
+  const RS = (state.raceSettings ??= {});
+  for (const n of (ladder.nodes ?? [])) {
+    const cur = RS[n.nodeId];
+    if (!cur) {
+      const b = bandaSerieLadder(ladder, n) ?? [84, 85];
+      RS[n.nodeId] = { sliderMin: b[0], sliderMax: b[1] };
+    }
+    else if (cur.sliderMin == null && cur.sliderMax == null) {
+      // riga «↺»: lasciala al consiglio calcolato, niente riempimento
+    } else {
+      const b = bandaSerieLadder(ladder, n);
+      if (b) {
+        if (cur.sliderMin == null) cur.sliderMin = b[0];
+        if (cur.sliderMax == null) cur.sliderMax = b[1];
+      }
+    }
+  }
+  return RS;
 }
 
 /** Proposta di correzione del trim, in attesa di conferma. */
@@ -754,6 +811,13 @@ export function careerStats(ladder, state) {
 export function applyRaceResult(ladder, state, node, payload) {
   const { position, gridSize, dnf = false, fl = false, track = null, round = state.round, at = new Date().toISOString(),
     laps = null, winnerLaps = null, bestLap = null, totalTime = null, gapMs = null, car = null, carNumber = null, sectors = null, durationMin = null,
+    // MARGINI (2/11): margine sul 2° (vittoria), sul precedente (P2/P3).
+    // BUG TROVATO IN PASSAGGIO: secondGapMs ITANNE NON c'era, l'import lo
+    // calcolava e applyRaceResult lo scartava — il KPI «Margine sul 2°» di
+    // un import fresco restava nullo (si vedeva solo sulle gare ricalcolate
+    // a mano). Ora anche il margine sul precedente (prevGapMs/prevName/prevLaps)
+    // entra nel save dalla prima gara.
+    secondGapMs = null, prevGapMs = null, prevName = null, prevLaps = null,
     penalty = null, rawPos = null, dsq = false, autoFuori = null } = payload;
   // VIGIA DEL PARCO AUTO (24/10, richiesta Mauro): la gara girata con un'auto
   // FUORI dal parco della serie (una classe multiclasse ha il poolAuto di
@@ -774,7 +838,7 @@ export function applyRaceResult(ladder, state, node, payload) {
   state.results[node.nodeId] ??= [];
   const existing = state.results[node.nodeId].find((r) => r.season === state.season && r.round === round);
   const entry = { season: state.season, round, track, position, gridSize, dnf, fl, points, prize, rep, at,
-    laps, winnerLaps, bestLap, totalTime, gapMs, car, carNumber, sectors, durationMin,
+    laps, winnerLaps, bestLap, totalTime, gapMs, secondGapMs, prevGapMs, prevName, prevLaps, car, carNumber, sectors, durationMin,
     penalty, rawPos, dsq,
     // il sigillo del vigia: auto fuori parco → l'Ufficio sport vedrà perché
     autoFuori: fuori ? { car: autoFuori?.car ?? null } : null };

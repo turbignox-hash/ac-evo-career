@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import {
   listResultFiles, readSessionResult, isRaceSession, pickCandidate,
   findPlayerDriver, bestLapInfo, classify, archiveResult, findQualiResult,
-  sectorAnalysis,
+  sectorAnalysis, lapToMs,
 } from './results.mjs';
 import { nodeById, applyRaceResult, playerStanding, saveState, postRaceEffects, pushMessage } from './state.mjs';
 import { nextRound } from './race.mjs';
@@ -38,6 +38,13 @@ import { recordWarning } from './warnings.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 import { slotDataDir, savePath, activeSlot } from './state.mjs';
 import { recordRaceFromResult } from './grid-calib.mjs';
+// IL TEORICO VERO (3/11, notte — stesso margine-log del rapporto gara, del
+// tetto e del quaderno hotlaps): la somma dei splits del file ripete il best
+// per costruzione (i splits di EVO sono i settori del GIRO MIGLIORE). Il
+// «teorico» della scheda di import gara segue quindi la legge vera: minimo
+// per settore sui giri segnati nei log del gioco; senza abbinamento → campi
+// a null, niente numeri finti (mai bloccare l'import a causa dei log).
+import { margineVeroDaLog } from './margine-log.mjs';
 import { avanzaGiornataDopoGara } from './agenda.mjs';
 import { carPoolOf, carInPool } from './car-pool.mjs';
 // APPRENDIMENTO AUTO (25/10): a fine gara coppiamo il garage sul disco con il
@@ -64,6 +71,12 @@ const BACKUP_DIR = join(SLOT_DIR, 'backups');
 const BACKUP_KEEP = 10;
 
 const trackName = (ladder, id) => ladder.contentNames?.tracks?.[id] ?? id;
+
+/* il teorico VERO: formato «m:ss.mmm» come lo scrive il gioco (stesso fmt di
+   rapporto-gara e hotlaps). */
+const fmtMsVero = (ms) => (Number.isFinite(ms) && ms > 0)
+  ? `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}.${String(Math.round(ms % 1000)).padStart(3, '0')}`
+  : null;
 
 /* ------------------------------------------------------------------ */
 /* registro anti-doppioni (per hash del file)                          */
@@ -283,6 +296,30 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
     const info = classify(result, { driver });
     const lap = bestLapInfo(result, driver);
     const secAnalysis = sectorAnalysis(result, driver); // "dove guadagno / dove perdo"
+    // Sostituzione del teorico morto con la legge vera (3/11): la somma dei
+    // splits è il best per costruzione; il teorico del quaderno diventa il
+    // minimo per settore dai log del gioco. Senza abbinamento i campi vanno
+    // a null (niente teorico finto nella scheda). Un fallimento qui non
+    // sospende MAI un import di gara.
+    try {
+      const tripl = (driver?.splits ?? []).slice(0, 3).map(lapToMs);
+      if (tripl.length === 3 && tripl.every(Number.isFinite)) {
+        const v = margineVeroDaLog(paths?.logsDirs ?? [], [{
+          chiave: candidate.name, track: result.track ?? null, bestSplits: tripl,
+        }]).get(candidate.name);
+        if (v) {
+          secAnalysis.theoreticalMs = v.sommaMs;
+          secAnalysis.theoreticalText = fmtMsVero(v.sommaMs);
+          secAnalysis.theoreticalGainText = (secAnalysis.theoreticalMs ?? Infinity) < secAnalysis.bestLapMs
+            ? fmtMsVero(secAnalysis.bestLapMs - v.sommaMs) : null;
+          secAnalysis.veroLog = { margineMs: v.margineMs, giri: v.giri };
+        } else {
+          secAnalysis.theoreticalMs = null;
+          secAnalysis.theoreticalText = null;
+          secAnalysis.theoreticalGainText = null;
+        }
+      }
+    } catch { /* senza log il teorico resta quello del file, se esiste */ }
     // la ronda della serie era a TEMPO? allora nel payload ci va anche la durata (per l'evento memoria e i consigli)
     payload = {
       position: info.position, gridSize: info.gridSize, dnf: info.dnf,
@@ -292,6 +329,8 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
       round: pending?.round ?? state.round,
       laps: info.laps, winnerLaps: info.winnerLaps, bestLap: info.bestLap,
       totalTime: info.totalTime, gapMs: info.gapMs, secondGapMs: info.secondGapMs, car: info.car, carNumber: info.carNumber,
+      // margine sul pilota precedente della classifica ufficiale (2/11): P2 → P1, P3 → P2
+      prevGapMs: info.prevGapMs, prevName: info.prevName, prevLaps: info.prevLaps,
       sectors: secAnalysis,
       durationMin: rnd.round?.durationMin ?? null,
     };
@@ -559,4 +598,5 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
     vendetta,
   };
 }
+
 

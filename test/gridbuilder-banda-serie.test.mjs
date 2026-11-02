@@ -103,3 +103,106 @@ test('bandaSerieSlider: senza override segue lo slider calcolato, banda stretta 
   assert.equal(out.banda[0], out.slider);      // lo minimo È lo slider arrotondato
   assert.equal(out.override, false);
 });
+
+/* ------------------------------------------------------------------ */
+/* 2/11 — BANDA DI SERIE SCRITTA NEL LADDER (richiesta Mauro: «copri i   */
+/* nodi con l'84–85 attuale così nemmeno il ripiego resta preistorico»)  */
+/* ------------------------------------------------------------------ */
+
+const { bandaSerieLadder } = stateMod;
+
+/** il nodo del ladder test ora porta la banda di serie d'epoca (aiSerie) */
+const ladderConAiSerie = { nodes: [{ ...ladder.nodes[0], aiSerie: [84, 85] }] };
+
+test('senza aiBandSerie: il ripiego è la banda di serie del ladder (aiSerie), NON node.ai', () => {
+  writeFileSync(file, templateOf(5));
+  const r = buildGridMessage({ ladder: ladderConAiSerie, nodeId: 'coppa_test_banda', roundIndex: 0, file });
+  assert.match(r.report.ai, /84-85/);
+  assert.match(r.report.ai, /banda di serie \(ladder\)/);
+});
+
+test('senza aiSerie né aiBandSerie: il ripiego resta il vecchio node.ai (comportamento invariato)', () => {
+  writeFileSync(file, templateOf(5));
+  const r = buildGridMessage({ ladder: { nodes: [{ ...ladderConAiSerie.nodes[0], aiSerie: undefined }] }, nodeId: 'coppa_test_banda', roundIndex: 0, file });
+  assert.match(r.report.ai, /82-92/);
+  assert.match(r.report.ai, /dal ladder/);
+});
+
+test('bandaSerieLadder: nodo > ladder > null', () => {
+  const lz = { bandaSerie: [82, 83], nodes: [{ nodeId: 'a', aiSerie: [84, 85] }, { nodeId: 'b' }] };
+  assert.deepEqual(bandaSerieLadder(lz, lz.nodes[0]), [84, 85]); // il nodo vince
+  assert.deepEqual(bandaSerieLadder(lz, lz.nodes[1]), [82, 83]); // poi il ladder
+  assert.equal(bandaSerieLadder({ nodes: [{ nodeId: 'c' }] }, { nodeId: 'c' }), null); // niente → null (chi chiama decide)
+  // valori incompleti o non numerici non passano come banda
+  assert.equal(bandaSerieLadder({ nodes: [] }, { nodeId: 'd', aiSerie: [84] }), null);
+  assert.equal(bandaSerieLadder({ nodes: [] }, { nodeId: 'e', aiSerie: ['84', 'x'] }), null);
+});
+
+/** GUARDIA: il ladder VERO del repo (config/career.evo.ladder.json) porta
+ *  aiSerie [84, 85] su OGNI nodo — se una release cambia il default e
+ *  riscrive i nodi deve coprirli TUTTI, altrimenti il ripiego tornerebbe
+ *  preistorico per le serie rimaste indietro. */
+test('ladder vero: ogni nodo porta la banda di serie compilata alla release', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { join, dirname } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const qui = dirname(fileURLToPath(import.meta.url));
+  const vero = JSON.parse(readFileSync(join(qui, '..', 'config', 'career.evo.ladder.json'), 'utf8'));
+  const nodi = vero.nodes ?? [];
+  assert.ok(nodi.length > 0, 'il ladder vero ha nodi');
+  const nudi = nodi.filter((n) => !bandaSerieLadder(vero, n));
+  assert.deepEqual(nudi.map((n) => n.nodeId), [], 'ogni nodo porta aiSerie (o bandaSerie a livello ladder)');
+  for (const n of nodi) {
+    const [mi, ma] = bandaSerieLadder(vero, n);
+    assert.ok(mi >= 0 && ma <= 100 && ma >= mi, `${n.nodeId}: banda di serie sensibile (${mi}–${ma})`);
+  }
+});
+
+/** ALLINEAMENTO F10 (1/11 — forma del GENERA sul vivo odierno ore 18:07): nel
+ *  customgrid scritto dal gioco OGNI driver ha il f4 esterno = pacchetto skill
+ *  interno f10 (f10.f1=f10.f2=f10.f4=f10.f5=f10.f6, con f3 interno fisso 0.1 e
+ *  f7 varint 1): il builder scalava SOLO il f4 lasciando il pack al valore del
+ *  template — banda dichiarata ma AI con il vecchio livello dentro il pack.
+ *  Da qui ogni scrittura del f4 trascina il pack con lo stesso valore. */
+test('la banda scalata trascina con sé il pack f10: f4 esterno = skill pack interno (forma GIOCO)', () => {
+  const ff = (v) => { const b = Buffer.alloc(4); b.writeFloatLE(v, 0); return b; };
+  // driver a forma GIOCO ma con pack VOLUTAMENTE sfasato dal f4 (l'eredità
+  // che aveva il template nel vivo): il builder deve ripararla scrivendo
+  const driverPack = (skill, pack) => encodeMsg([
+    { field: 4, wire: 5, bytes: ff(skill) },
+    { field: 10, wire: 2, bytes: encodeMsg([
+      { field: 1, wire: 5, bytes: ff(pack) },
+      { field: 2, wire: 5, bytes: ff(pack) },
+      { field: 3, wire: 5, bytes: ff(0.1) },
+      { field: 4, wire: 5, bytes: ff(pack) },
+      { field: 5, wire: 5, bytes: ff(pack) },
+      { field: 6, wire: 5, bytes: ff(pack) },
+      { field: 7, wire: 0, varint: 1n },
+    ]) },
+  ]);
+  const tpl = encodeMsg([
+    ...Array.from({ length: 5 }, (_, i) => ({ field: 1, wire: 2, bytes: cella('preset_banda_finta_visual_' + i) })),
+    { field: 2, wire: 2, bytes: driverPack(0.40, 0.95) },
+    { field: 2, wire: 2, bytes: driverPack(0.60, 0.80) },
+    { field: 3, wire: 2, bytes: encodeMsg([{ field: 1, wire: 0, varint: BigInt(5) }]) },
+  ]);
+  writeFileSync(file, tpl);
+  const r = buildGridMessage({ ladder, nodeId: 'coppa_test_banda', roundIndex: 0, file, aiBand: [88, 93] });
+  const out = ev.decodeMsg(r.buffer);
+  const driverOut = out.filter((x) => x.field === 2);
+  assert.equal(driverOut.length, 5, '5 driver scritti');
+  for (const d of driverOut) {
+    const inner = ev.decodeMsg(d.bytes);
+    const f4 = Buffer.from(inner.find((g) => g.field === 4).bytes).readFloatLE(0);
+    // bordo float como il GENERA: 0.88 in float LE porta 0.87999999… — tolleranza 1e-6
+    assert.ok(f4 >= 0.88 - 1e-6 && f4 <= 0.93 + 1e-6, `f4 in banda: ${f4}`);
+    const pack = ev.decodeMsg(inner.find((g) => g.field === 10).bytes);
+    const floats = pack.filter((x) => x.wire === 5).map((x) => Buffer.from(x.bytes).readFloatLE(0));
+    assert.equal(floats.length, 6, 'il pack ha 6 float');
+    for (const k of [0, 1, 3, 4, 5]) assert.ok(Math.abs(floats[k] - f4) < 1e-6, `f10 slot ${k + 1} allineato al f4 (${floats[k]} ≠ ${f4})`);
+    assert.ok(Math.abs(floats[2] - 0.1) < 1e-6, 'f10.f3 resta il fisso 0.1 del GENERA');
+    const f7 = pack.find((x) => x.field === 7);
+    assert.equal(Number(f7.varint), 1, 'f10.f7 varint resta 1');
+  }
+});
+

@@ -14,7 +14,8 @@ const DATA = mkdtempSync(join(tmpdir(), 'evo-analisi-'));
 mkdirSync(DATA, { recursive: true });
 process.env.EVO_DATA_DIR = DATA;
 
-const { raceAutopsy, tettoReport, rivalDossier, setupAB, seatMonteCarlo } = await import('../src/analisi.mjs');
+const { raceAutopsy, tettoReport, rivalDossier, setupAB, seatMonteCarlo, zoneTimeline, abPreferite } = await import('../src/analisi.mjs');
+const { sampleLap } = await import('../src/motec.mjs');
 const { recordRaceGrid, rivalKey } = await import('../src/rivals.mjs');
 const { setLang } = await import('../src/lang.mjs');
 
@@ -109,12 +110,66 @@ test('raceAutopsy: vittoria — il margine sul secondo prende il posto dello 0,0
   assert.match(distanza.text, /~12,35s al giro di vantaggio/);
   assert.ok(!distanza.text.includes('0,00'), 'niente 0,00 finto nel racconto della vittoria');
 
+  // GIRO VELOCE + PARTENZA NELL'AUTOPSIA (2/11, richiesta Mauro):
+  // tale e quale al file: il giro veloce della ronda 1 (registrata dal test
+  // qui sopra) l'ha firmato Bianchi (1:40.100) — la vittoria lo racconta anche
+  // senza il Bonus del pilota.
+  assert.ok(a.fastestOfRace, 'fastestOfRace c’è (griglia in archivio)');
+  assert.equal(a.fastestOfRace.lap, '1:40.100');
+  assert.match(String(a.fastestOfRace.by ?? ''), /Bianchi/);
+  const giroVeloce = a.attributions.find((x) => x.title === 'Giro veloce');
+  assert.ok(giroVeloce, 'la voce Giro veloce c’è (non firmato da te)');
+  assert.match(giroVeloce.text, /1:40\.100/);
+  assert.match(giroVeloce.text, /Bianchi/);
+  const partenzaWin = a.attributions.find((x) => x.title === 'Partenza e primo giro');
+  assert.ok(partenzaWin, 'la voce partenza c’è anche nella vittoria');
+  assert.match(partenzaWin.text, /P1 in griglia → vittoria/);
+  assert.match(partenzaWin.text, /pole intoccata/);
+
   // senza margine (file dato senza P2 leggibile): SOLO un silenzio, niente voce Distanza
+  // stagione 99: nessuna raceRow in archivio — anche fastestOfRace e Giro veloce restano a zero
   const aSenza = raceAutopsy(ladder, {
     node: 'serie_gt3', season: 1,
-    results: { serie_gt3: [{ ...entry, position: 1, gapMs: 0, secondGapMs: null, laps: 3 }] },
+    results: { serie_gt3: [{ ...entry, season: 99, position: 1, gapMs: 0, secondGapMs: null, laps: 3 }] },
   });
   assert.ok(!aSenza.attributions.some((x) => x.title === 'Distanza'), 'senza margine niente voce Distanza');
+  // griglia non in archivio: niente fastestOfRace né voce Giro veloce (niente inventato)
+  assert.equal(aSenza.fastestOfRace, null);
+  assert.ok(!aSenza.attributions.some((x) => x.title === 'Giro veloce'), 'senza archivio niente voce Giro veloce');
+});
+
+test('raceAutopsy: P3 con giri corti — margine su P2 nel racconto e commento sul gap dal leader', () => {
+  setLang('it');
+  // stagione 99: nessuna raceRow in archivio — l'autopsia parla solo dei campi dell'entry
+  const a = raceAutopsy(ladder, {
+    node: 'serie_gt3', season: 1,
+    results: { serie_gt3: [{
+      ...entry, season: 99, round: 4, position: 3, gapMs: 9500, laps: 6, winnerLaps: 8,
+      prevGapMs: 1200, prevName: 'Luca Bianchi', prevLaps: 6,
+    }] },
+  });
+  assert.equal(a.entry.prevGapMs, 1200);
+  const distanza = a.attributions.find((x) => x.title === 'Distanza');
+  assert.ok(distanza, 'la voce Distanza c’è');
+  assert.match(distanza.text, /Margine su P2 \(Luca Bianchi\): 1,20s/);
+  assert.match(distanza.text, /Arrivi 2 giro\(i\) corto dal leader \(6 su 8\)/);
+  assert.match(distanza.text, /misura la distanza piena, non il ritmo/);
+  // il vecchio testo sospeso («l'età della gara fa il resto») non deve tornare
+  assert.ok(!distanza.text.includes('età della gara'), 'niente frase corrotta di nuovo');
+});
+
+test('raceAutopsy: P3 doppiato dal precedente — il margine di tempo tace e il KPI non esiste', () => {
+  setLang('it');
+  const a = raceAutopsy(ladder, {
+    node: 'serie_gt3', season: 1,
+    results: { serie_gt3: [{
+      ...entry, season: 99, round: 5, position: 3, gapMs: 9500, laps: 6, winnerLaps: 8,
+      prevGapMs: 9500, prevName: 'Luca Bianchi', prevLaps: 8,
+    }] },
+  });
+  const distanza = a.attributions.find((x) => x.title === 'Distanza');
+  assert.ok(distanza);
+  assert.ok(!distanza.text.includes('Margine su P2'), 'il prev è a un giro: il margine di tempo non si dice');
 });
 /* ==================================================================
    FETTA 31/11 — setupAB e seatMonteCarlo, gli UNICI DUE strumenti di
@@ -239,6 +294,63 @@ test('setupAB: STESSO file due volte — pari sul best, zero zone, niente domina
   assert.match(ab.brake.text, /Costanza in frenata/);
 });
 
+test('zoneTimeline: la fase lungo il giro, stesse soglie del riparto per zona', () => {
+  setLang('it');
+  const ab = setupAB(LD_A, LD_B);
+  const ztl = zoneTimeline(sampleLap(LD_A, 'best', 240), sampleLap(LD_B, 'best', 240));
+  assert.ok(ztl?.ok, JSON.stringify(ztl));
+  assert.ok(ztl.segs.length >= 2, 'fette: ' + ztl.segs.length);
+  // ordinate e NON sovrapposte lungo la frazione di distanza
+  for (let i = 1; i < ztl.segs.length; i++) assert.ok(ztl.segs[i].x1 >= ztl.segs[i - 1].x2 - 1e-9, 'sovrappostetroppo: ' + JSON.stringify([ztl.segs[i - 1], ztl.segs[i]]));
+  for (const g of ztl.segs) {
+    assert.ok(['frenata', 'uscita', 'gas'].includes(g.zone), 'zona: ' + g.zone);
+    assert.ok(g.s > 0, 'B domina: tutta fatta di tempo PERSO da A, non ' + g.s);
+    assert.ok(g.pts >= 2, 'larghezza: ' + g.pts);
+  }
+  // la somma delle fette ritaglia il netto del riparto (le scarti sotto soglia sono centesimi)
+  const tot = ztl.segs.reduce((a, g) => a + g.s, 0);
+  assert.ok(Math.abs(tot - (ab.lostS - ab.gainedS)) < 0.15, 'fette ' + tot + ' vs netto ' + (ab.lostS - ab.gainedS));
+  // la staccata del giro A esiste comessa fascia: la frenata pesa nella striscia come nel riparto
+  assert.ok(ztl.segs.some((g) => g.zone === 'frenata'), 'frenata in vista: ' + JSON.stringify(ztl.segs.map((g) => g.zone)));
+});
+
+test('zoneTimeline: senza dati è null, e due file uguali non disegnano niente', () => {
+  assert.equal(zoneTimeline(null, null), null);
+  const ztl = zoneTimeline(sampleLap(LD_A, 'best', 240), sampleLap(LD_A, 'best', 240));
+  assert.equal(ztl, null, 'A vs A: ogni fettina vale 0, sotto la soglia → nessuna fetta');
+});
+
+/* -- 3bis) AUTOPUNTAMENTO DEL BANCO (2/11) ------------------------ */
+test('abPreferite: prende la coppia con più sessioni, A la più vecchia e B la più recente', () => {
+  const ses = [
+    { file: 'aa', car: 'Porsche GT3', track: 'Monza', mtimeMs: 1000 },
+    { file: 'im1', car: 'Mazda MX-5', track: 'Imola', mtimeMs: 2000 },
+    { file: 'im2', car: 'Mazda MX-5', track: 'Imola', mtimeMs: 5000 },
+    { file: 'im3', car: 'Mazda MX-5', track: 'Imola', mtimeMs: 3000 },
+    { file: 'im4', car: 'Mazda MX-5', track: 'Imola', mtimeMs: 4000 },
+  ];
+  const p = abPreferite(ses);
+  assert.deepEqual(p, { car: 'Mazda MX-5', track: 'Imola', fileA: 'im1', fileB: 'im2' });
+});
+
+test('abPreferite: parità di quantità si risolve col binomio più recente, e senza coppia doppia è null', () => {
+  const pari = abPreferite([
+    { file: 'a1', car: 'Uno', track: 'Imola', mtimeMs: 5000 },
+    { file: 'a2', car: 'Uno', track: 'Imola', mtimeMs: 6000 },
+    { file: 'b1', car: 'Due', track: 'Monza', mtimeMs: 1000 },
+    { file: 'b2', car: 'Due', track: 'Monza', mtimeMs: 4000 },
+  ]);
+  assert.equal(pari.fileA, 'a1'); // 2 = 2, ma Unò ha la sessione più recente → vince
+  assert.equal(abPreferite([{ file: 'solo', car: 'X', track: 'Imola', mtimeMs: 1 }]), null);
+  assert.equal(abPreferite([]), null);
+  const fuori = abPreferite([
+    { file: 'x1', car: 'X', track: 'Imola', mtimeMs: 1 },
+    { file: 'x2', car: 'X', track: 'Imola', mtimeMs: 2 },
+    { file: '', car: 'X', track: 'Imola', mtimeMs: 3 }, // senza file: scartata
+  ]);
+  assert.equal(fuori.fileA, 'x1');
+});
+
 /* -- 4) MONTE CARLO DEL SEDILE ------------------------------------ */
 const mkWorldMc = () => ({
   drivers: Array.from({ length: 30 }, (_, i) => ({
@@ -332,7 +444,7 @@ test('seatMonteCarlo: casi onesti di bordo — serie corrente ignota, offerta fa
   assert.equal(ghost.basis.fromOffers, true);
 });
 
-test('tettoReport: aggrega per pista margine (best − teorico) e settore peggiore', () => {
+test('tettoReport: aggrega per pista delta sul campione top e settore peggiore', () => {
   const state2 = { results: {
     serie_gt3: [
       { track: 'Monza', season: 1, round: 0, position: 3, dnf: false, sectors: { bestLapMs: 100500, theoreticalMs: 99800, sectors: [{ index: 1, deltaMs: 300 }, { index: 2, deltaMs: 400 }, { index: 3, deltaMs: null }] } },
@@ -345,9 +457,12 @@ test('tettoReport: aggrega per pista margine (best − teorico) e settore peggio
   const monza = t.perTrack[0];
   assert.equal(monza.track, 'Monza');
   assert.equal(monza.sessions, 2);
-  // margini 700 e 450 ms: il migliore resta 450
-  assert.equal(monza.marginBestMs, 450);
-  assert.equal(monza.marginLastMs, 450);
+  // il margine best−teorico NON c'è più: i splits di EVO sono i settori del
+  // giro migliore (3/11, dopo «il margine a 0.00» verificato su tutte le 14
+  // piste), quindi giro teorico ≡ best per costruzione — il dato non esiste.
+  assert.equal(monza.marginBestMs, undefined);
+  assert.equal(monza.marginLastMs, undefined);
+  assert.equal(monza.marginMs, undefined);
   // mediana (bassa) dei delta per settore: S1 [300,250] → 250, S2 [400,200] → 200
   // → il peggiore è S1
   assert.equal(monza.worstSector, 1);
@@ -358,6 +473,48 @@ test('tettoReport: aggrega per pista margine (best − teorico) e settore peggio
   assert.deepEqual(t.worstSectors[0], { track: 'Monza', sector: 2, deltaMs: 400, season: 1, round: 0 });
   // la frase-corrotta «collecchia» non deve tornare nell'hint
   assert.ok(!t.hint.includes('collecchia'));
+});
+
+test('tettoReport: il 0,00 è campione SOLO col campo vivo, senza campo è nessun dato (3/11, lezione Suzuka)', () => {
+  const state3 = { results: {
+    campionata: [
+      // campione vero: delta 0 ma fieldCount > 0 (rivali reali, best tutti miei)
+      { track: 'Champion Park', season: 2, round: 0, position: 1, dnf: false, sectors: { sectors: [
+        { index: 1, deltaMs: 0, fieldCount: 13 }, { index: 2, deltaMs: 0, fieldCount: 13 }, { index: 3, deltaMs: 0, fieldCount: 11 },
+      ] } },
+    ],
+    buca_bianca: [
+      // campo vuoto: nessun rivale con split misurato — il 0,00 NON è un punteggio
+      { track: 'Vuota Seca', season: 2, round: 1, position: 1, dnf: false, sectors: { sectors: [
+        { index: 1, deltaMs: 0, fieldCount: 0 }, { index: 2, deltaMs: 0, fieldCount: 0 }, { index: 3, deltaMs: 0, fieldCount: 0 },
+      ] } },
+    ],
+    mestizzano: [
+      // misto: S1 e S3 senza campo, S2 con campo e delta vero — la busta è 300
+      { track: 'Mistona', season: 2, round: 2, position: 4, dnf: false, sectors: { sectors: [
+        { index: 1, deltaMs: 0, fieldCount: 0 }, { index: 2, deltaMs: 300, fieldCount: 9 }, { index: 3, deltaMs: 0, fieldCount: 0 },
+      ] } },
+    ],
+    antica: [
+      // vecchio import senza provenienza: si calcola col campo presente (stesso comportamento di ieri)
+      { track: 'Monza', season: 1, round: 0, position: 3, dnf: false, sectors: { sectors: [
+        { index: 1, deltaMs: 150 }, { index: 2, deltaMs: 220 }, { index: 3, deltaMs: null },
+      ] } },
+    ],
+  } };
+  const t = tettoReport(ladder, state3);
+  assert.equal(t.ok, true);
+  const champ = t.perTrack.find((x) => x.track === 'Champion Park');
+  assert.equal(champ.campTopDeltaMs, 0, 'campione col campo vivo: il numero resta 0, non null');
+  const vuota = t.perTrack.find((x) => x.track === 'Vuota Seca');
+  assert.equal(vuota.campTopDeltaMs, null, 'senza campo: NESSUN DATO (null), non uno 0,00 da vanteria');
+  assert.equal(t.perTrack.filter((x) => x.track === 'Vuota Seca').length, 1);
+  assert.equal(t.worstSectors.every((w) => w.track !== 'Vuota Seca'), true, 'senza campo non c\'è tempo "perso" da classificare');
+  const misto = t.perTrack.find((x) => x.track === 'Mistona');
+  assert.equal(misto.campTopDeltaMs, 300, 'i settori senza campo non azzeraono la busta: pesa SOLO il settore con campo');
+  assert.equal(t.perTrack.find((x) => x.track === 'Monza').campTopDeltaMs, 220, 'vecchio import senza fieldCount: campo presente, busta come ieri');
+  // nel tetto visibile il campione ed il sans-dato escono entrambi (entrambi
+  // hanno riparto) mentre la pista vuota resta fuori dalla tabella: worstSectorDeltaMs null
 });
 
 test('tettoReport: senza settori archiviati — vuoto e hint, non un errore', () => {

@@ -348,7 +348,7 @@ test('paddock: il paddock dei rivali porta evoSlider e nome archetipo per ogni s
 
 test('utilità: slug, hash32, rng e ourToSkill sono GLI stessi coi SEMI al metro', () => {
   // la Ø (U+00D8) NON si scompone in NFD: resta un non-[a-z0-9] e sale a separator
-  assert.equal(world.slug('Müller账户 Fabi-Ø2'), 'muller_fabi_2');
+  assert.equal(world.slug('Müller日本 Fabi-Ø2'), 'muller_fabi_2');
   assert.equal(world.slug('  Volgare  Settore3!'), 'volgare_settore3');
   const h1 = world.hash32('pista');
   assert.equal(world.hash32('pista'), h1, 'hash deterministico');

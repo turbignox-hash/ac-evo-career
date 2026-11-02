@@ -205,6 +205,124 @@ test('preset VERO al posto del token: la 695 manca dal template ma il parco la c
   assert.match(String(out.report.sintesi[0]), /preset_695b_mech_1/, 'il report dichiara il preset vero');
 });
 
+/* ---------- RADICE DELLE CHIMERA (2/11, template riscritto a mano alle 19:15) ---------- */
+test('cella INTERA del parco: la 695 entra TAL QUALE (f10+f11+f14 tutta scrittura del gioco, niente trapianto)', async () => {
+  const bg = await import('../src/gridbuilder.mjs');
+  const fpi = Buffer.alloc(4); fpi.writeFloatLE(10.178277, 0);
+  // la cella gioco-autore del parco: la STESSA coppia mech_1+visual_1 che il
+  // GENERA scrive, CON il blocco f14 dei colori. È ciò che il 19:15 aveva
+  // assemblato a mano (f11 gialla + f14 nere): qui invece tutto il blocco
+  // arriva da UN file scritto da EVO.
+  const cellaIntera = encodeMsg([
+    { field: 3, wire: 2, bytes: B('ks_abarth_695_biposto') },
+    { field: 4, wire: 2, bytes: B('Abarth 695 Biposto') },
+    { field: 10, wire: 2, bytes: encodeMsg([
+      { field: 1, wire: 2, bytes: B('preset_695b_mech_1') },
+      { field: 2, wire: 2, bytes: B('Abarth 695 Biposto - Standard') },
+      { field: 3, wire: 0, varint: 1n },
+      { field: 4, wire: 2, bytes: B('Standard') },
+    ]) },
+    { field: 11, wire: 2, bytes: encodeMsg([{ field: 1, wire: 2, bytes: B('preset_695b_visual_1') }]) },
+    { field: 14, wire: 2, bytes: encodeMsg([{ field: 1, wire: 2, bytes: B('blocco colori del gioco') }]) },
+    { field: 42, wire: 5, bytes: fpi },
+  ]);
+  writeFileSync(join(TMP, 'cugina-695-intera.customgrid'), encodeMsg([
+    { field: 1, wire: 2, bytes: cellaIntera },
+    { field: 2, wire: 2, bytes: driver(0.60) },
+    { field: 3, wire: 2, bytes: encodeMsg([{ field: 1, wire: 0, varint: 1n }]) },
+  ]));   // sì: .customgrid nella dir del template = parco minato
+  LADDER.nodes.push({
+    nodeId: 'serie_mista_695_intera_test', display: 'Mista con 695 cella intera', gridSize: 4,
+    cars: ['ks_f40_lm', 'ks_abarth_695_biposto'],
+    calendar: [{ name: 'Prova', track: 'Red Bull Ring', weather: 0, laps: 3 }],
+  });
+  const file = scrivi(templateF40(3));
+  const out = bg.buildGridMessage({ ladder: LADDER, nodeId: 'serie_mista_695_intera_test', roundIndex: 0, file, aiBand: [88, 93], noBalance: true, celleNuove: true });
+  const stiff = ev.decodeMsg(out.buffer);
+  const cella695 = stiff.filter((f) => f.field === 1).find((f) => Buffer.from(f.bytes).toString('latin1').includes('ks_abarth_695_biposto'));
+  assert.ok(cella695, 'la 695 entra in griglia');
+  assert.equal(Buffer.from(cella695.bytes).toString('hex'), Buffer.from(cellaIntera).toString('hex'),
+    'la cella entra BYTE IDENTICA al parco: nessun trapianto di campi');
+  assert.match(String(out.report.sintesi.at(-1)), /cella intera del parco/, 'il report dichiara la fotocopia intera');
+  assert.match(String(out.report.sintesi.at(-1)), /preset_695b_mech_1/, 'e nomina il preset del gioco');
+});
+
+test('CANCELLAIO delle coppie (2/11): mech e visual di DUE modelli diversi sulla stessa cella → la build si rifiuta', async () => {
+  const bg = await import('../src/gridbuilder.mjs');
+  // la signature delle celle assemblate a mano (lezione 19:15: f11 gialla su
+  // blocco f14 nere, e i vecchi grily con visual di un altro modello): f10
+  // dice F40, f11 dice CSLE46 — una combo che il GENERA non ha mai scritto.
+  const cellaChimera = encodeMsg([
+    { field: 3, wire: 2, bytes: B('ks_f40_lm') },
+    { field: 4, wire: 2, bytes: B('Auto di prova') },
+    { field: 10, wire: 2, bytes: encodeMsg([{ field: 1, wire: 2, bytes: B('preset_f40lm_mech_1') }]) },
+    { field: 11, wire: 2, bytes: encodeMsg([{ field: 1, wire: 2, bytes: B('preset_e46csl_visual_1') }]) },
+    { field: 7, wire: 0, varint: 9n },
+  ]);
+  const fields = [
+    { field: 1, wire: 2, bytes: cellaChimera },
+    ...[0, 1, 2].map((i) => ({ field: 1, wire: 2, bytes: cella('ks_f40_lm', i) })),
+    { field: 2, wire: 2, bytes: driver(0.60) },
+    { field: 2, wire: 2, bytes: driver(0.40) },
+    { field: 3, wire: 2, bytes: encodeMsg([{ field: 1, wire: 0, varint: 4n }]) },
+  ];
+  LADDER.nodes.push(nodo('serie_guard_chimera_test', ['ks_f40_lm'], 4));
+  const file = scrivi(encodeMsg(fields));
+  let err = null;
+  try { bg.buildGridMessage({ ladder: LADDER, nodeId: 'serie_guard_chimera_test', roundIndex: 0, file, aiBand: [88, 93], noBalance: true }); }
+  catch (e) { err = e; }
+  assert.ok(err, 'la build si rifiuta');
+  assert.match(String(err.message), /ASSEMBLATE/, 'nomina la malattia: cella assemblata campo per campo');
+  assert.match(String(err.message), /preset_f40lm_mech_1/, 'mostra il mech della cella velenosa');
+  assert.match(String(err.message), /preset_e46csl_visual_1/, 'mostra il visual della cella velenosa');
+  assert.match(String(err.message), /fotocopia INTERA/, 'dice la cura: fotocopia della cella intera');
+  // e il builder non ha scritto niente: il contorno resta quello di prima
+});
+
+test('CANCELLAIO NON scatta sulle celle sane: mech e visual dello stesso modello passano (il parco reale: 2530/2530)', async () => {
+  const bg = await import('../src/gridbuilder.mjs');
+  // due celle sane DISTINTE (visual diversi): anche la regola anti-celle-identiche deve stare in piedi insieme al cancellaio
+  const cellaSana = (visual, i) => encodeMsg([
+    { field: 3, wire: 2, bytes: B('ks_f40_lm') },
+    { field: 4, wire: 2, bytes: B('Auto di prova') },
+    { field: 10, wire: 2, bytes: encodeMsg([{ field: 1, wire: 2, bytes: B('preset_f40lm_mech_1') }]) },
+    { field: 11, wire: 2, bytes: encodeMsg([{ field: 1, wire: 2, bytes: B(visual) }]) },
+    { field: 7, wire: 0, varint: BigInt(i + 1) },
+  ]);
+  LADDER.nodes.push(nodo('serie_guard_sana_test', ['ks_f40_lm'], 2));
+  const file = scrivi(encodeMsg([
+    { field: 1, wire: 2, bytes: cellaSana('preset_f40lm_visual_3', 0) },
+    { field: 1, wire: 2, bytes: cellaSana('preset_f40lm_visual_4', 1) },
+    { field: 2, wire: 2, bytes: driver(0.60) },
+    { field: 2, wire: 2, bytes: driver(0.40) },
+    { field: 3, wire: 2, bytes: encodeMsg([{ field: 1, wire: 0, varint: 2n }]) },
+  ]));
+  const out = bg.buildGridMessage({ ladder: LADDER, nodeId: 'serie_guard_sana_test', roundIndex: 0, file, aiBand: [88, 93], noBalance: true });
+  const stiff = ev.decodeMsg(out.buffer);
+  assert.equal(stiff.filter((f) => f.field === 1).length, 2, '2 celle come gridSize');
+});
+
+/* ---------- CONFIG SENZA CAMPO 2 (1/11, cura delle anteprime auto assenti) ---------- */
+test('config del customgrid: niente campo 2 nelle scritture del builder (stessa forma del GENERA)', async () => {
+  const bg = await import('../src/gridbuilder.mjs');
+  LADDER.nodes.push(nodo('serie_f40_cfg2_test', ['ks_f40_lm'], 4));
+  // template che PORTE ancora il campo 2 = 1 nella config (eredità pre-1/11):
+  // il GENERA del gioco non lo scrive e col suo file le anteprime a posto —
+  // il dato del confronto byte 18:07 vs 16:56. Il builder lo SCARTA prima di scrivere.
+  const conF2 = encodeMsg([
+    ...[0, 1, 2, 3].map((i) => ({ field: 1, wire: 2, bytes: cella('ks_f40_lm', i) })),
+    { field: 2, wire: 2, bytes: driver(0.60) },
+    { field: 2, wire: 2, bytes: driver(0.40) },
+    { field: 3, wire: 2, bytes: encodeMsg([{ field: 1, wire: 0, varint: 4n }, { field: 2, wire: 0, varint: 1n }]) },
+  ]);
+  const file = scrivi(conF2);
+  const out = bg.buildGridMessage({ ladder: LADDER, nodeId: 'serie_f40_cfg2_test', roundIndex: 0, file, aiBand: [88, 93], noBalance: true });
+  const cfgField = ev.decodeMsg(out.buffer).find((f) => f.field === 3);
+  const cfgInner = ev.decodeMsg(cfgField.bytes);
+  assert.ok(cfgInner.every((g) => g.field !== 2), 'campo 2 ASSENTE nella config scritta (eredità del template scartata)');
+  assert.ok(cfgInner.some((g) => g.field === 1), 'count (campo 1) restato in config');
+});
+
 /* ---------- griglie di fabbrica (distribuzione, 24/10) ---------- */
 test('macchina vergine, nessun template sul disco: la GRIGLIA DI FABBRICA copre la serie (ultimo ripiego)', () => {
   rmSync(join(TMP, 'grid-templates'), { recursive: true, force: true });

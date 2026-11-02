@@ -413,11 +413,18 @@ export function lapTrace(ldFile, { lap = 'best', compare = 'best', points = 240 
       const v = Math.max(0, ld.dv.getFloat32(sv.off + idxAt(sv, t) * 4, true)) * (sv.unit && /m|s/i.test(sv.unit) && !/km/i.test(sv.unit) ? 3.6 : 1);   // unità iscritta nell'header: i file veri di EVO scrivono "m/s" → km/h
       if (k) dist += ((v + out.vs[k - 1]) / 2) * (span / (n - 1));   // km/h · s
       out.vs.push(v);
+      // ZONA DI GUIDA del punto (31/10): le STESSE soglie del riparto per zona
+      // del banco A/B (analisi.setupAB) —> freno > 25% = frenata, gas sotto
+      // il 92% = uscita, altrimenti gas pieno. Taggata QUI una volta sola:
+      // chi campiona il giro (A/B compreso) non ricalcola la soglia da sé.
+      const thV = th ? norm01(ld.dv.getFloat32(th.off + idxAt(th, t) * 4, true)) : null;
+      const brV = br ? norm01(ld.dv.getFloat32(br.off + idxAt(br, t) * 4, true)) : null;
       out.pts.push({
         x: 0, // riempita sotto, dopo il totale
         v: r1(v),
-        th: th ? r2(norm01(ld.dv.getFloat32(th.off + idxAt(th, t) * 4, true))) : null,
-        br: br ? r2(norm01(ld.dv.getFloat32(br.off + idxAt(br, t) * 4, true))) : null,
+        th: th ? r2(thV) : null,
+        br: br ? r2(brV) : null,
+        zone: brV != null && brV > 0.25 ? 'frenata' : thV != null && thV < 0.92 ? 'uscita' : 'gas',
       });
     }
     if (dist <= 0) return null;
@@ -615,7 +622,10 @@ export function presetOf(fileName) {
 /** Data/ora di inizio sessione dal nome file MoTeC ("... Sat Sep 26 200627 2026.ld"). */
 export function sessionMetaOf(fileName) {
   const name = String(fileName ?? '');
-  const m = name.match(/\b(\w{3}) (\d{1,2}) (\d{2})(\d{2})(\d{2}) (\d{4})\.ld$/i);
+  // SPAZI DOPPI (2/11): EVO scrive il giorno a UNA cifra con spazi doppi
+  // («Oct  7 214056») e la regex a spazio singolo lasciava quelle sessioni
+  // senza tempo vero; \s+ le recupera tutte (16 file a disco).
+  const m = name.match(/\b(\w{3})\s+(\d{1,2})\s+(\d{2})(\d{2})(\d{2})\s+(\d{4})\.ld$/i);
   let startAt = null;
   if (m) {
     const d = new Date(`${m[1]} ${m[2]} ${m[6]} ${m[3]}:${m[4]}:${m[5]}`);

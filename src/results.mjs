@@ -230,6 +230,19 @@ export function classify(result, entry) {
   // tempo vincitore), quindi l'autopsia direbbe «0,00s da ridare a me stesso».
   // Se sono P1 calcolo anche il distacco da P2: è il margine vero della vittoria.
   const second = drivers.find((x) => Number(x.position) === (zeroBased ? 1 : 2));
+  // PRECEDENTE nella classifica ufficiale (2/11): chi ha posizione pos-1 (penalità
+  // comprese). Il ritiro (dnf senza posizione ufficiale) resta senza precedente.
+  const officialOf = new Map(drivers.map((o) => [o, officialPositionOf(result, o)]));
+  const prev = !dnf && pos >= 2
+    ? (drivers.find((o) => o !== d && officialOf.get(o)?.position === pos - 1) ?? null)
+    : null;
+  // tempi REALI: totale del file + penalità a tempo (DSQ l'ha già escluso, DT è già nel giro)
+  const msReale = (x) => { const t = Number.isFinite(lapToMs(x?.total_time)) ? lapToMs(x.total_time) : null; return t == null ? null : t + penaltyOf(x).ms; };
+  const myMsReale = !dnf ? msReale(d) : null;
+  const prevMsReale = prev ? msReale(prev) : null;
+  const prevGapMs = (myMsReale != null && prevMsReale != null) ? myMsReale - prevMsReale : null;
+  const prevName = prev ? nomePilota(prev.driver_name, prev.driver_surname) : null;
+  const prevLaps = prev ? Number(prev.laps ?? 0) : null;
   return {
     position: pos,   // considerata la penalità
     rawPos,
@@ -249,6 +262,13 @@ export function classify(result, entry) {
     secondGapMs: (!dnf && pos === 1 && d?.total_time && second?.total_time && Number.isFinite(lapToMs(d.total_time)) && Number.isFinite(lapToMs(second.total_time)))
       ? lapToMs(second.total_time) - lapToMs(d.total_time)
       : null,
+    // MARGINE sul pilota PRECEDENTE (2/11, P2 e P3 nella scheda Analisi):
+    // è chi gli sta davanti nella classifica ufficiale (penalità comprese),
+    // NON nell'ordine di pista — come per la mia posizione. Il conteggio usa
+    // i tempi REALI (totale + penalità): un +5s mio o suo deve pesare. Se il
+    // precedente ha più giri (arrivi corto / doppiato) il gap di tempo non
+    // misura il ritmo: il numero resta grezzo, l'autopsia lo commenta.
+    prevGapMs, prevName, prevLaps,
     // il gioco scrive car_name già completo di marchio ("Mazda MX-5 ND Cup"):
     // se il brand è già incluso non va ripetuto (evita "Mazda Mazda ...")
     car: d ? (d.car_name && d.car_brand && String(d.car_name).toLowerCase().startsWith(String(d.car_brand).toLowerCase())
@@ -360,9 +380,11 @@ export function sectorAnalysis(result, driver) {
   const count = splits.length;
   for (let i = 0; i < count; i++) {
     let best = Infinity, bestName = null, mine = Infinity;
+    let fieldCount = 0; // RIVALI VERI col settore misurato (3/11, lezione Suzuka: «il 0,00 è campione o è campo vuoto?»)
     for (const d of drivers) {
       const v = lapToMsL((d.splits ?? [])[i]);
       if (!Number.isFinite(v)) continue;
+      if (d !== meRow) fieldCount++;
       if (v < best) { best = v; bestName = nomePilota(d.driver_name, d.driver_surname); }
     }
     mine = splits[i];
@@ -373,6 +395,7 @@ export function sectorAnalysis(result, driver) {
       best,
       bestText: fmtLap(best),
       bestName,
+      fieldCount,
       deltaMs: Number.isFinite(mine) && Number.isFinite(best) ? mine - best : null,
     });
   }
@@ -395,6 +418,11 @@ export function sectorAnalysis(result, driver) {
   return {
     sectors: bestSectors,
     top3Deltas,
+    // CAMPO VIVO (3/11): almeno UN rivale con un settore misurato nel file. Senza
+    // campo i delta per settore escono tutti 0 col best attribuito a me: un
+    // risultato da solissimo non deve PARÉRE un campione fantasma nel tetto
+    // teorico — il 0,00 col campo vivo è «tutti i settori del best sono miei».
+    solo: !(drivers.length > 1 && drivers.some((d) => d !== meRow && (d.splits ?? []).some((sp) => Number.isFinite(lapToMsL(sp))))),
     theoreticalMs: theoretical,
     theoreticalText: fmtLap(theoretical),
     bestLapMs: Number.isFinite(bestLapMs) ? bestLapMs : null,

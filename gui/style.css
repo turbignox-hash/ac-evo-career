@@ -69,11 +69,17 @@ header#top .in{max-width:1120px; margin:0 auto; padding:10px 24px; display:flex;
 .panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-top:16px}
 .panel.acc{border-color:#d9a83e66}
 .panel h2{font-size:11.5px; text-transform:uppercase; letter-spacing:1.4px; color:var(--dim); margin-bottom:14px; font-weight:700; display:flex; align-items:center; gap:10px}
+/* sottotitoli di sezione DENTRO un riquadro (2/11: colonna destra delle
+   Impostazioni diventa un solo riquadro «Manutenzione»): come h2 ma più
+   piccoli e stretti, con il margine alto che fa da respiro fra le sezioni */
+.panel h3{font-size:10.5px; text-transform:uppercase; letter-spacing:1.2px; color:var(--dim); margin:16px 0 8px; font-weight:700}
 .panel h2 .h-act{margin-left:auto; text-transform:none; letter-spacing:0; font-weight:400; font-size:12.5px}
 .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start}
 .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
 .grid4{display:grid; grid-template-columns:repeat(4,1fr); gap:12px}
-@media(max-width:860px){.grid2,.grid3,.grid4{grid-template-columns:1fr}}
+/* sei caselle in tre colonne (autopsia: esito/punti/giri/margine + giro veloce e partenza→arrivo) */
+.grid6{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+@media(max-width:860px){.grid2,.grid3,.grid4,.grid6{grid-template-columns:1fr}}
 
 .kpi{background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:12px 14px}
 .kpi .l{font-size:10.5px; color:var(--faint); text-transform:uppercase; letter-spacing:1px}
@@ -87,8 +93,11 @@ header#top .in{max-width:1120px; margin:0 auto; padding:10px 24px; display:flex;
 
 /* ============ cruscotto ricco ============ */
 .panel.hero{background:linear-gradient(135deg,#151b26 0%,#12151d 55%,#1a1509 100%); border-color:#d9a83e3d; position:relative; overflow:hidden}
-.panel.hero .flagart{position:absolute; right:-16px; top:-20px; width:150px; height:150px; color:var(--acc); opacity:.08; pointer-events:none}
-.panel h2 svg{width:14px; height:14px; flex:none; opacity:.9; color:var(--acc)}
+.panel.hero .flagart{position:absolute; right:-16px; top:-20px; width:150px; height:150px; color:var(--acc); opacity:.08; pointer-events:none}  .panel h2 svg{width:14px; height:14px; flex:none; opacity:.9; color:var(--acc)}
+  /* le icone LI dentro i summary (es. «Regole di questo weekend») non ereditano
+     la regola degli h2: senza misura l'SVG si stende ai 300x150 di default e
+     ogni riga di tendina diventa un manifesto (Mauro, 1/11) */
+  summary svg{width:15px; height:15px; flex:none; vertical-align:-2px; opacity:.9; color:var(--acc)}
 /* la faccina del decoratore: grande quanto il testo, mai dominante */
 .panel h2 .h-emoji{font-size:14px; line-height:1; margin-right:2px; filter:saturate(.9)}
 .seasonprog{margin:2px 0 14px}

@@ -16,13 +16,27 @@
 // risorse con ?t= falliscono — 27/10 18:11).
 (function () {
   'use strict';
-  const PERIODO_MS = 2500;        // lo stesso del publisher: se lo cambi, cambia là
+/* [via build] PERIODO_MS si dichiara SOLO nel publisher (src/uiapp-pub.mjs):
+   il generatore tools/genera-uiapp.mjs segue questo segnaposto e scrive qui
+   la costante col valore del publisher. */
+  const PERIODO_MS = 2500;  // [via build] il valore arriva da src/uiapp-pub.mjs
+  const BUILD_OK = true;  // [via build] firma della build riuscita (genera-uiapp) — l'app la legge in log
   const S = { slot: -1, dati: null };
 
   const LOADER = window.ACEUIAppLoader;
   const ME = LOADER ? LOADER.app('cruscotto') : null;
   const BASE = (ME?.base) || '/ACEUIAppLoader/cruscotto/';
   const loga = (t) => { try { console.log('[Cruscotto] ' + t); } catch (_e) {} };
+
+  // IL SUCCESSO CHE SI LEGGE (1/11): il generatore tools/genera-uiapp.mjs
+  // scrive al segnaposto la costante E la firma `const BUILD_OK = true`.
+  // Un .js costruito a mano, un vecchio mai rigenerato o un file col
+  // segnaposto residuo NON hanno la firma: qui si vede in console.
+  if (typeof BUILD_OK === 'undefined') {
+    loga('ATTENZIONE: file NON costruito da tools/genera-uiapp.mjs — firma BUILD_OK assente');
+  } else {
+    loga('build ok: PERIODO_MS=' + PERIODO_MS + ' ms dal publisher');
+  }
 
   // regola viva: NON toccare document o body styles — la pagina che gira qui
   // è quella del menu di EVO; le misure restano sugli elementi nostri
@@ -198,7 +212,7 @@
     });
   }
   function adotta(dati, slot) {
-    if (dati) { S.slot = slot; try { applicaComando(dati.comando); } catch (_e) { } S.dati = dati; fasciaTs = Date.now(); disegna(); }
+    if (dati) { S.slot = slot; S.dati = dati; fasciaValidaFino = Date.parse(dati.validaFino) || 0; fasciaTs = Date.now(); try { applicaComando(dati.comando); } catch (_e) { } disegna(); }
   }
 
   // ------------------------------------------------------------------ COMANDI IN DIRETTA
@@ -444,6 +458,15 @@
   const azioni = () => (S.dati?.azioni) || {};
   const bottoneTs = {};          // az -> ultimo tentativo (finestra anti doppio-clic = RETRY_MS)
   let fasciaTs = 0;              // quando è arrivata l'ultima fascia: per un conteggio vivo tra le fasce
+  // LA VALIDITÀ DELLA FASCIA (test del periodo): il publisher marca ogni
+  // fascia con validaFino = (slot+1)·PERIODO_MS. Scaduta = dati di una
+  // fascia passata (riserva slot-1 o server fermo): si mostrano, ma ai
+  // COMANDI non si obbedisce (il publisher li ripropone in fascia viva:
+  // niente setcar/avvia da dati morti).
+  let fasciaValidaFino = 0;
+  function fasciaScaduta() {
+    try { return fasciaValidaFino > 0 && Date.now() > fasciaValidaFino; } catch (_e) { return false; }
+  }
 
   async function bottoneCorri(_k, cmd) {
     if (cmd.tipo !== 'setcar') return corriEvento(cmd);
@@ -563,6 +586,10 @@
   // di sblocco (riavvia-webui). Fasce in salita: nessuna riga, come prima.
   function bloccoAvvisi() {
     if (!fasciaTs) return '';   // mai niente ricevuto: la striscia di attesa già parla
+    if (fasciaScaduta()) {
+      // VALIDITÀ: i dati si mostrano (meglio di un buco) ma non si vendono per freschi
+      return '<div class="nota" style="color:#ffb347;margin-top:4px">⏳ Fascia scaduta: dati di una fascia passata — la fresca arriva al prossimo slot.</div>';
+    }
     const eta = Date.now() - fasciaTs;
     if (eta < 15 * 1000) return '';
     return '<div class="nota" style="color:#ffb347;margin-top:4px">⏸ Fasce ferme da ' + Math.round(eta / 1000) + " s: il server del Cruscotto è fermo (da GUI: riavvia il server, o 'node tools/riavvia-webui.mjs').</div>";
@@ -623,6 +650,7 @@
 
   function applicaComando(c) {
     if (!c || !c.id || !c.nome) return;
+    if (fasciaScaduta()) { loga('fascia scaduta: comando ' + c.id + ' non parte — il publisher lo ripropone in fascia viva'); return; }
     if (inCorso) return;
     const tent = falliti.get(c.id) ?? 0;
     if (c.id === ultimoComando && tent === 0) return;
@@ -862,6 +890,9 @@
       righe.push('server ✗ fasce ferme da ' + Math.round(eta / 1000) + " s — da GUI riavvia il server, o 'node tools/riavvia-webui.mjs'");
       molli++;
     } else righe.push('server ✓ (fascia di ' + Math.round(eta / 1000) + ' s fa)');
+    // VALIDITÀ (test del periodo): oltre validaFino la fascia adottata è
+    // passata (il gioco legge la riserva slot-1) — il semaforo lo dice.
+    if (fasciaScaduta()) { righe.push('validaFino passata: i dati in pannello sono di una fascia passata'); molli++; }
     // LA SINCRONIZZAZIONE (29/10 «arricchisci il semaforo»): la fascia porta
     // anche il dato «Prepara e Divertiti» visto dal server (cui campo
     // `prepara`, uiapp-pub) — ronda armata con la finestra del via o gara

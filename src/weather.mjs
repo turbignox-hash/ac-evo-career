@@ -129,9 +129,10 @@ export function presetForLabel(label) {
 }
 
 /**
- * Scrive il preset selezionato (campo 2) in gamemode.lastgamemode, in-place
- * (il varint è 1 byte per valori 0-7: niente re-encode). Backup datato accanto
- * al file. Ritorna { from, to, written, backup }.
+ * Scrive il preset selezionato (campo 2) in gamemode.lastgamemode NELLA FORMA
+ * DEL GIOCO (proto3: il SERENO 0 È campo OMESSO — audit byte 1/11; prima si
+ * metteva 2=0 in cima, forma che EVO non scrive mai). Idempotente: già a
+ * posto → nessun backup e nessuna scrittura. Ritorna { from, to, written, backup }.
  */
 export function setWeatherPreset(preset, { lgmFile = LGM, dry = false, previsto = false } = {}) {
   const idx = presetFor(preset);
@@ -142,27 +143,33 @@ export function setWeatherPreset(preset, { lgmFile = LGM, dry = false, previsto 
   const fields = decodeMsg(buf);
   const p = fields.find((f) => f.field === 2 && f.wire === 0);
   const from = p != null ? Number(p.varint) : 0;
+  // FORMA DEL GIOCO (1/11): proto3 — il sereno 0 è campo OMESSO. idx=0 → field 2
+  // RIMOSSO se c'è (no-op se assente); idx>0 → in-place o INSERT prima del
+  // primo blocco 3 (come quando il gioco passa da sereno a un preset).
+  let touched = false;
+  if (p) {
+    if (idx === 0) { fields.splice(fields.indexOf(p), 1); touched = true; }
+    else if (Number(p.varint) !== idx) { p.varint = BigInt(idx); touched = true; }
+  } else if (idx !== 0) {
+    const out = [];
+    let inserted = false;
+    for (const f of fields) {
+      if (f.field === 3 && !inserted) { out.push({ field: 2, wire: 0, varint: BigInt(idx) }); inserted = true; }
+      out.push(f);
+    }
+    if (!inserted) out.push({ field: 2, wire: 0, varint: BigInt(idx) });
+    fields.length = 0; fields.push(...out);
+    touched = true;
+  }
   const backup = `${lgmFile}.bak-wx-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
-  if (!dry) {
+  let written = false;
+  if (!dry && touched) {
     copyFileSync(lgmFile, backup);
     pruneBackups(lgmFile);   // rotazione bak automatica (tetto 25, comune 31/10)
-    // campo 2 PRESENTE: si aggiorna; ASSENTE (proto3: sereno omesso): si INSERTISCE
-    // prima del primo blocco 3, come lo scrive il gioco quando il preset è non-zero
-    if (p) p.varint = BigInt(idx);
-    else {
-      const out = [];
-      let inserted = false;
-      for (const f of fields) {
-        if (f.field === 3 && !inserted) { out.push({ field: 2, wire: 0, varint: BigInt(idx) }); inserted = true; }
-        out.push(f);
-      }
-      if (!inserted) out.push({ field: 2, wire: 0, varint: BigInt(idx) });
-      fields.length = 0; fields.push(...out);
-    }
-    const out2 = encodeMsg(fields);         // re-encode completo: i campi top restano gli stessi
-    writeFileSync(lgmFile, out2);
+    writeFileSync(lgmFile, encodeMsg(fields));   // re-encode completo: i campi top restano
+    written = true;
   }
-  return { from, to: idx, preset: PRESETS[idx], written: !dry, backup };
+  return { from, to: idx, preset: PRESETS[idx], written, backup: written ? backup : null };
 }
 
 /**
@@ -199,7 +206,7 @@ export function setWeatherCustom({ rain = null, cloud = null, fog = null, lgmFil
     if (touched) w.bytes = encodeMsg(wFields);
     subWrap.bytes = encodeMsg(sub);
   }
-  if (presetField) presetField.varint = BigInt(7);   // custom
+  if (presetField) { if (Number(presetField.varint) !== 7) presetField.varint = BigInt(7); }   // custom
   else {
     const out = [];
     let inserted = false;
@@ -210,13 +217,19 @@ export function setWeatherCustom({ rain = null, cloud = null, fog = null, lgmFil
     if (!inserted) out.push({ field: 2, wire: 0, varint: 7n });
     fields.length = 0; fields.push(...out);
   }
+  // IDEMPOTENZA a byte (1/11): encodeMsg riproduce byte-per-byte il lastgamemode
+  // scritto da EVO, quindi dietro la cura «forma del gioco»: se il risultato
+  // NON cambia un byte (preset già 7 e float già uguali), non si riscrive.
   const backup = `${lgmFile}.bak-wx-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
-  if (!dry) {
+  const nuovo = encodeMsg(fields);
+  let written = false;
+  if (!dry && Buffer.compare(nuovo, buf) !== 0) {
     copyFileSync(lgmFile, backup);
     pruneBackups(lgmFile);   // rotazione bak automatica (tetto 25, comune 31/10)
-    writeFileSync(lgmFile, encodeMsg(fields));
+    writeFileSync(lgmFile, nuovo);
+    written = true;
   }
-  return { from, to: 7, patched, written: !dry, backup };
+  return { from, to: 7, patched, written, backup: written ? backup : null };
 }
 
 /* ---------------- CLI ---------------- */

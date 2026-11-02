@@ -40,11 +40,11 @@ async function drawDifficulty(m){
           <input type="range" class="smax" min="0" max="100" step="1" value="${r.rangeMax}" ${r.locked||adattivo?'disabled':''}>
         </span>
         <b class="pair">${Math.min(r.rangeMin,r.rangeMax)}–${Math.max(r.rangeMin,r.rangeMax)}%</b>
-        <button class="mini rc" title="${tr({ it: 'torna al consiglio: centro ±5', en: 'back to the suggestion: centre ±5' })}" ${r.overridden?'':'style="visibility:hidden"'}>↺</button>
+        <button class="mini rc" title="${tr({ it: 'torna al consiglio calcolato: banda di 1 punto [consiglio, consiglio+1], scritta anche nei cursori del gioco', en: 'back to the computed suggestion: a 1-point band [suggestion, suggestion+1], written to the game sliders too' })}" ${r.overridden?'':'style="visibility:hidden"'}>↺</button>
       </span>
     </div>`;}).join('')}
     </div>
-    <div class="muted" style="margin-top:10px">⚠️ = ${tr({ it: 'trim al massimo (', en: 'trim at the max (' })}${rng.max}): ${tr({ it: 'oltre si va solo cambiando serie. Coi due cursori fai la banda min–max da impostare in EVO', en: 'beyond you only move by changing series. With the two handles you make the min–max band to set in EVO' })} (${sr.min}–${sr.max}), ${tr({ it: 'come nel gioco: si salvano al rilascio (e si scrivono anche nei cursori di EVO); ↺ torna al consiglio (centro e centro+1). Il consiglio si ferma a 100: se una serie resta facile anche a fondo scala, si cambia serie.', en: 'as in the game: saved on release (and written to the EVO sliders); ↺ goes back to the suggestion (centre and centre+1). The suggestion stops at 100: if a series stays easy even at full scale, change series.' })}</div>
+    <div class="muted" style="margin-top:10px">⚠️ = ${tr({ it: 'trim al massimo (', en: 'trim at the max (' })}${rng.max}): ${tr({ it: 'oltre si va solo cambiando serie. Coi due cursori fai la banda min–max da impostare in EVO', en: 'beyond you only move by changing series. With the two handles you make the min–max band to set in EVO' })} (${sr.min}–${sr.max}), ${tr({ it: 'come nel gioco: si salvano al rilascio (e si scrivono anche nei cursori di EVO); ↺ torna al consiglio calcolato (consiglio e consiglio+1, no fissi). Il consiglio si ferma a 100: se una serie resta facile anche a fondo scala, si cambia serie.', en: 'as in the game: saved on release (and written to the EVO sliders); ↺ goes back to the suggestion (centre and centre+1). The suggestion stops at 100: if a series stays easy even at full scale, change series.' })}</div>
   </div>`;
   $$('button[data-mode]').forEach(b => { b.onclick = async () => {
     try { await api('difficulty-action', {op:'mode', mode:b.dataset.mode, value:Number($('#i-diffval').value)}); render(); } catch(e){ toast(e.message,'err'); }
@@ -97,7 +97,7 @@ async function drawDifficulty(m){
     $('.rc', row)?.addEventListener('click', async () => {
       try { await api('difficulty-action', {op:'range', nodeId: row.dataset.id, clear:true}); toast(row.dataset.id.startsWith('evento_')
         ? tr({ it: 'Banda dell\'evento tornata al fisso 88–93 (quella della scheda evento).', en: 'Event band back to the fixed 88–93 (the event card one).' })
-        : tr({ it: 'Tornato il consiglio automatico (cursori del gioco tornati a centro ±5).', en: 'Back to the automatic suggestion (game sliders back to centre ±5).' }), 'ok'); }
+        : tr({ it: 'Tornato il consiglio calcolato (cursori del gioco a [consiglio, consiglio+1]).', en: 'Back to the computed suggestion (game sliders back to [suggestion, suggestion+1]).' }), 'ok'); }
       catch(e){ toast(e.message, 'err'); }
     });
   });
@@ -362,32 +362,32 @@ function drawSettings(m){
         <button class="ghost" type="submit">${tr({ it: 'Salva percorsi', en: 'Save paths' })}</button>
       </form>
     </div>
-    <div class="panel"><h2>${tr({ it: 'Pilota', en: 'Driver' })}</h2>
+    <div class="panel"><h2>${tr({ it: 'Manutenzione', en: 'Maintenance' })}</h2>
       <div class="muted">${tr({ it: 'Nome attuale in carriera', en: 'Current career name' })}</div><div style="font-size:18px;font-weight:600">${esc(h.driver.name)}</div>
       <div class="muted" style="margin-top:4px">${tr({ it: "Deve essere uguale al nome con cui corri in EVO: serve a riconoscerti all'import dei risultati.", en: 'It must match the name you race with in EVO: it is how the result import recognizes you.' })}</div>
       <form id="f-rename" class="row" style="margin-top:12px">
         <input type="text" id="i-rename" placeholder="${tr({ it: 'Nuovo nome', en: 'New name' })}" style="flex:1;min-width:200px">
         <button class="ghost" type="submit">${tr({ it: 'Rinomina', en: 'Rename' })}</button>
       </form>
-      <h2 style="margin-top:22px">${tr({ it: 'Registro import', en: 'Import log' })}</h2>
+      <h3>${tr({ it: 'Registro import', en: 'Import log' })}</h3>
       <div class="muted" style="font-size:12px">${tr({ it: 'Ogni import fa un backup automatico del salvataggio, viene scritto in un log e ogni file risultato è ricordato per contenuto: lo stesso file non può essere incassato due volte.', en: 'Each import backs up the save automatically, is written to a log, and every result file is remembered by content: the same file cannot be banked twice.' })}</div>
       <div id="import-log" style="margin-top:8px;font-size:12px;max-height:220px;overflow:auto">…</div>
-      <h2 style="margin-top:22px">${tr({ it: 'Carriera', en: 'Career' })}</h2>
+      <h3>${tr({ it: 'Carriera', en: 'Career' })}</h3>
       <div class="row">
         <button class="ghost" id="b-backup">${tr({ it: 'Backup carriera', en: 'Career backup' })}</button>
         <button class="ghost danger" id="b-reset">${tr({ it: 'Ricomincia da zero', en: 'Start over' })}</button>
       </div>
       <div class="muted" id="backup-list" style="margin-top:6px;font-size:12px">${tr({ it: 'Crea una copia di sicurezza del salvataggio: soldi, risultati, rivali e statistiche restano intatti anche se qualcosa va storto.', en: 'Makes a safety copy of the save: money, results, rivals and stats stay intact even if something goes wrong.' })}</div>
       ${s.issues.length ? `<div class="banner warn" style="margin-top:16px">${tr({ it: `${s.issues.length} riferimenti della scala non trovati nell'installazione`, en: `${s.issues.length} ladder references not found in the installation` })}: ${esc(s.issues.slice(0,4).map(i=>i.id).join(', '))}${s.issues.length>4?'…':''}</div>` : `<div class="banner good" style="margin-top:16px">${tr({ it: 'La scala carriera combacia con il contenuto installato.', en: 'The career ladder matches the installed content.' })}</div>`}
-      <h2 style="margin-top:22px">${tr({ it: 'Backup del save di EVO', en: 'EVO save backup' })}</h2>
+      <h3>${tr({ it: 'Backup del save di EVO', en: 'EVO save backup' })}</h3>
       <div class="muted" style="font-size:12px">${tr({ it: "All'avvio del launcher il save del GIOCO (Saved Games\\ACE) viene zippato da solo, ma solo se l'ultimo backup ha più di 36 ore: due slot in rotazione, sempre i 2 zip più recenti. Qui vedi com'è messo e puoi forzarlo a mano in qualunque momento (anche con EVO aperto: non si spezza niente).", en: "At launcher start the GAME save (Saved Games\\ACE) is zipped automatically, but only if the last backup is older than 36 hours: two rotating slots, always the 4 newest zips. Here you can see where it stands and force it by hand at any time (even with EVO open: nothing breaks)." })}</div>
       <div id="savebk-out" style="margin-top:8px;font-size:13px">…</div>
       <div class="row" style="margin-top:10px"><button class="ghost" id="b-savebk">${tr({ it: 'Forza il backup del save ora', en: 'Force the save backup now' })}</button></div>
-      <h2 style="margin-top:22px">${tr({ it: 'Verifica integrità', en: 'Integrity check' })}</h2>
+      <h3>${tr({ it: 'Verifica integrità', en: 'Integrity check' })}</h3>
       <div class="row"><button class="ghost" id="b-integrity">${tr({ it: 'Controlla la carriera', en: 'Check the career' })}</button></div>
       <div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: 'Ricalcola statistiche, cassa e reputazione dalle gare e dalla bacheca: se qualcosa non torna (per esempio una gara fantasma) te lo dice e può correggere.', en: 'Recomputes stats, money and reputation from races and the board: if something is off (say a ghost race) it tells you and can fix it.' })}</div>
       <div id="integrity-out" style="margin-top:8px;font-size:13px"></div>
-      <h2 style="margin-top:22px">${tr({ it: 'Manutenzione', en: 'Maintenance' })}</h2>
+      <h3>${tr({ it: 'Riparazioni e pulizie', en: 'Repairs and cleanups' })}</h3>
       <div class="row" style="flex-wrap:wrap;gap:8px">
         <button class="ghost" id="b-maint-scan">${tr({ it: 'Scansiona ora', en: 'Scan now' })}</button>
         <button class="ghost" id="b-maint-fix">${tr({ it: 'Scansiona e ripara', en: 'Scan and repair' })}</button>
@@ -698,10 +698,9 @@ async function drawRivals(m){
     </div>`}
   </div>
   ${rows.length ? `<div class="panel"><h2>${tr({ it: 'Tutti i rivali', en: 'All rivals' })} <button class="mini acc" id="b-bulk-rn" style="margin-left:6px" title="${tr({ it: 'dà un soprannome a più piloti di fila, in una sola schermata', en: 'nickname many drivers in one go, on a single screen' })}">📝 ${tr({ it: 'Soprannomi in blocco', en: 'Nicknames in bulk' })}</button> <span class="h-act">${tr({ it: 'clicca una riga per la scheda completa', en: 'click a row for the full sheet' })}</span></h2>
-    <table><thead><tr><th>${tr({ it: 'Rivale', en: 'Rival' })}</th><th>${tr({ it: 'Squadra', en: 'Team' })}</th><th class="right">${tr({ it: 'Gare insieme', en: 'Races together' })}</th><th class="right">${tr({ it: 'Tu–Lui', en: 'You–Him' })}</th><th>${tr({ it: 'Momentum', en: 'Momentum' })}</th><th>${tr({ it: 'Forma (ultime 5)', en: 'Form (last 5)' })}</th><th class="right">${tr({ it: 'Vittorie', en: 'Wins' })}</th><th class="right">${tr({ it: 'Podi', en: 'Podiums' })}</th></tr></thead>
+    <table><thead><tr><th>${tr({ it: 'Rivale', en: 'Rival' })}</th><th class="right">${tr({ it: 'Gare insieme', en: 'Races together' })}</th><th class="right">${tr({ it: 'Tu–Lui', en: 'You–Him' })}</th><th>${tr({ it: 'Momentum', en: 'Momentum' })}</th><th>${tr({ it: 'Forma (ultime 5)', en: 'Form (last 5)' })}</th><th class="right">${tr({ it: 'Vittorie', en: 'Wins' })}</th><th class="right">${tr({ it: 'Podi', en: 'Podiums' })}</th></tr></thead>
     <tbody>${rows.map(r=>`<tr class="rival-link" data-key="${esc(r.key)}" style="cursor:pointer">
       <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.nemesis?` <span class="tag red">${tr({ it: 'nemesi', en: 'nemesis' })}</span>`:''}${r.lastSeen?`<div class="faint" style="font-size:11px">${tr({ it: 'visto: ', en: 'seen: ' })}${esc(r.lastSeen.node)} R${r.lastSeen.round}</div>`:''}</span><button class="btn ghost" style="padding:2px 7px;font-size:11px" data-rn="${esc(r.key)}" data-n="${esc(r.name)}" data-v="${esc(r.realName ?? '')}" title="${tr({ it: 'cambia il soprannome del pilota', en: 'change the driver nickname' })}">✏️</button></span></td>
-      <td class="muted">${esc(r.team ?? '—')}</td>
       <td class="right">${r.sharedRaces}</td>
       <td class="right">${h2hBadge(r.h2h.beats, r.h2h.losses)}</td>
       <td>${r.trend==null?'—':r.trend>0?`<span class="tag green">▲ +${r.trend}</span>`:r.trend<0?`<span class="tag bad">▼ ${r.trend}</span>`:`<span class="faint">${tr({ it: 'stabile', en: 'stable' })}</span>`}</td>
@@ -712,6 +711,10 @@ async function drawRivals(m){
   </div>` : ''}`;
   $$('.rival-link', m).forEach((trr)=>{ trr.onclick=()=>showRival(trr.dataset.key); });
   $$('[data-rn]', m).forEach((b)=>{ b.onclick=(e)=>{ e.stopPropagation(); window.rinominaPilota('rival', b.dataset.rn, b.dataset.n, b.dataset.v).then(()=>render()); }; });
+  /* 3/11, richiesta Mauro («non funziona»): il bottone esisteva ma NIENTE lo
+     agganciava — la funzione c'era (27/10) e l'aggancio era sparito. Ora il
+     clic apre davvero il blocco dei soprannomi con la lista completa. */
+  $('#b-bulk-rn', m).onclick = () => bulkRinomina(rows);
   /* NAVIGZIONE incrociata (28/10, stile Football Manager): arrivo qui con un
      nome pilota cliccato altrove (griglia, archivio) → trovo la riga il cui
      nome combacia (soprannome o nome vero) e spalanco la scheda come un clic. */

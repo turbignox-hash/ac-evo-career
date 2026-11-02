@@ -34,14 +34,16 @@
   // (84–85 + trim, pannello Difficoltà) è quello vivo del Prepara. L'uno non
   // comanda l'altro: un «Imposta intervallo AI» a mano sovrascrive il file
   // SENZA toccare i cursori — per questo li si legge accanto, con il
-  // confronto pronto (allineata / da riscrivere col Prepara).
+  // confronto pronto (allineata / da riscrivere col Prepara) e il bottone
+  // «allinea al campo» (2/11) che copia la banda viva nel campo del file
+  // IN UN CLIC, via grid-ai, senza aspettare il Prepara.
   const bS = data.bandaSerie ?? null;
   const bFile = (data.aiMin != null && data.aiMax != null) ? [Number(data.aiMin), Number(data.aiMax)] : null;
   const bAllineata = !!(bS && bFile && bFile[0] === bS.banda[0] && bFile[1] === bS.banda[1]);
   const bTag = bS
     ? (bFile == null ? `<span class="tag warn">${tr({ it: 'file senza AI scritta', en: 'file has no AI range' })}</span>`
       : bAllineata ? `<span class="tag green">${tr({ it: 'allineata al campo', en: 'aligned with the field' })}</span>`
-      : `<span class="tag warn">${tr({ it: 'da riscrivere (Prepara)', en: 'needs a rewrite (Prepara)' })}</span>`)
+      : `<span class="tag warn">${tr({ it: 'da riscrivere (Prepara · «allinea al campo»)', en: 'needs a rewrite (Prepara · "Align to field")' })}</span>`)
     : '';
   const bTesto = bS ? `${bS.banda[0]}–${bS.banda[1]}${bS.trim ? ` (trim ${bS.trim > 0 ? '+' : ''}${bS.trim})` : ''}` : null;
   m.innerHTML = `
@@ -115,6 +117,7 @@
       <span class="muted">–</span>
       <input id="g-ai-max" type="number" min="0" max="100" value="${data.aiMax ?? 100}" style="width:70px">
       <button class="ghost" id="g-ai">${tr({ it: 'Imposta intervallo AI', en: 'Set AI range' })}</button>
+      <button class="ghost" id="g-align" ${!bS || bAllineata ? 'disabled' : ''} title="${tr({ it: 'riscrive il campo AI del customgrid con la banda viva dei cursori del pannello Difficoltà', en: 'rewrites the customgrid AI field with the live band of the Difficulty sliders' })}">${tr({ it: 'Allinea al campo', en: 'Align to field' })}</button>
       <button class="ghost" id="g-drop">${tr({ it: 'Rimuovi auto escluse dal file', en: 'Remove excluded cars from file' })}</button>
       <button class="ghost" id="g-reload">${tr({ it: 'Ricarica', en: 'Reload' })}</button>
     </div>
@@ -183,6 +186,53 @@
     try { await api('grid-ai', { min: Number($('#g-ai-min').value), max: Number($('#g-ai-max').value) }); out(tr({ it: 'Intervallo AI riscritto sul customgrid.', en: 'AI range rewritten on the customgrid.' })); setTimeout(render, 600); }
     catch (e) { out(esc(e.message), 'bad'); }
   };
+
+  // ALLINEA AL CAMPO (richiesta Mauro 2/11): il campo AI del file assume la
+  // banda viva dei cursori (pannello Difficoltà) SENZA aspettare il Prepara.
+  // Stessa strada di «Imposta intervallo AI» (grid-ai → applyAi, backup e
+  // custode del gioco chiuso inclusi) ma i due numeri li calcola il server:
+  // niente campi da copiare a mano. A banda già allineata resta spento:
+  // allineare due volte non insegna niente.
+  $('#g-align').onclick = async () => {
+    if (!bS) return;
+    const b = $('#g-align'); busy(b, true, tr({ it: 'Allinea', en: 'Align' }));
+    try {
+      await api('grid-ai', { min: bS.banda[0], max: bS.banda[1] });
+      out(tr({ it: 'Campo AI allineato alla banda viva {B} — rileggo…', en: 'AI field aligned with the live band {B} — reloading…' }).replace('{B}', `<b>${bS.banda[0]}–${bS.banda[1]}</b>`));
+      setTimeout(render, 600);
+    } catch (e) { out(esc(e.message), 'bad'); }
+    busy(b, false, tr({ it: 'Allinea al campo', en: 'Align to field' }));
+  };
+
+  // BATTITO DEL TAG (3/11, richiesta Mauro: «il tag giallo si spegne nel
+  // momento, senza ricarica del browser»): il Prepara (scheda Campionati) e
+  // gli altri rami scrivono il campo AI del customgrid quando vogliono, ma
+  // questa tab finora si ridisegnava SOLO a click (Ricarica o i bottoni): il
+  // tag giallo «da riscrivere» restava appeso finché riaprivi il tab. Ora un
+  // beat leggero (3 s, SOLO finché il tab è a vista: il selettore di prima,
+  // stesso patto delle strip live di viste-d / dello stato di viste-b) rilegge
+  // /api/grid e se convcbia campo AI o banda dei cursori cambiano ridipinge
+  // il tab da solo con render() — la PAGINA del browser non si ricarica
+  // (nessun location.reload: la verifica dal vivo lo prova col sentinella).
+  const _ancora = $('#g-apply');
+  // L'IMPRONTA porta ANCHE le celle e la finestra PI (lezione della prova del
+  // 1/11 sera): il restore del backup torna al file con STESSA AI ma SERIE
+  // DIVERSA (21 celle del flusso dal vivo vs 22 della ricostruzione) — con
+  // soltanto AI+banda nella chiave il tab restava sulla vecchia stampa.
+  const impronta = (d) => JSON.stringify([
+    d.bandaSerie ?? null,
+    (d.aiMin != null && d.aiMax != null) ? [Number(d.aiMin), Number(d.aiMax)] : null,
+    (d.piMin != null && d.piMax != null) ? [Number(d.piMin), Number(d.piMax)] : null,
+    (d.cells ?? []).length,
+  ]);
+  const _chiaveTag = impronta(data);
+  const _beat = setInterval(async () => {
+    if (!_ancora || !_ancora.isConnected) { clearInterval(_beat); return; }
+    try {
+      const d = await api('grid');
+      if (impronta(d) !== _chiaveTag && _ancora.isConnected) render();   // tab ridipinto da solo: tag attuale, zero ricarica
+    } catch { /* server occupato: il beat riprova al giro dopo */ }
+  }, 3000);
 
   // SEDE DEL WEEKEND: la pista della ronda corrente scritta nel gamemodesave.
   // A differenza delle azioni griglia, QUESTA è permessa a gioco aperto: il menu

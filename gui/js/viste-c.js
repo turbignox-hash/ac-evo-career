@@ -115,7 +115,7 @@ function sectorRowsHtml(sec){
   const w = sec.worstSector ? `${tr({ it: 'Il settore ', en: 'Sector ' })}<b>${sec.worstSector.index}</b>${tr({ it: ' ti costa di più (+', en: ' costs you the most (+' })}${(sec.worstSector.deltaMs/1000).toFixed(3)}s ${tr({ it: 'sul migliore)', en: 'vs the best)' })}` : '';
   return `<div style="margin-top:10px"><b>${tr({ it: 'Settori', en: 'Sectors' })}</b> — ${tr({ it: 'tu contro il meglio della griglia', en: 'you against the best of the grid' })}${w?` · ${w}`:''}<table style="margin-top:6px"><thead><tr><th>S</th><th class="right">${tr({ it: 'Tuo', en: 'Yours' })}</th><th class="right">${tr({ it: 'Migliore', en: 'Best' })}</th><th>${tr({ it: 'Da chi', en: 'By whom' })}</th><th class="right">Δ</th><th class="right">${tr({ it: 'Δ media top3', en: 'Δ top3 avg' })}</th></tr></thead><tbody>
     ${sec.sectors.map((s,i)=>`<tr><td>S${s.index}</td><td class="right">${s.mineText}</td><td class="right">${s.bestText}</td><td class="muted">${esc(s.bestName??'—')}</td><td class="right">${s.deltaMs==null?'—':(s.deltaMs>=0?'+':'')+(s.deltaMs/1000).toFixed(3)}</td><td class="right">${sec.top3Deltas[i]==null?'—':(sec.top3Deltas[i]>=0?'+':'')+(sec.top3Deltas[i]/1000).toFixed(3)}</td></tr>`).join('')}
-    <tr><td class="faint">${tr({ it: 'teorico', en: 'ideal' })}</td><td class="right"><b>${sec.theoreticalText}</b></td><td class="right">${sec.bestLapText}</td><td colspan="3" class="faint">${sec.theoreticalGainText?`${tr({ it: 'giro teorico ', en: 'theoretical lap ' })}${sec.theoreticalGainText} ${tr({ it: 'sotto il tuo best', en: 'under your best' })}`:''}</td></tr>
+    <tr><td class="faint">${tr({ it: 'teorico', en: 'ideal' })}</td><td class="right"><b>${sec.theoreticalText ?? '—'}</b></td><td class="right">${sec.bestLapText}</td><td colspan="3" class="faint">${sec.theoreticalGainText?`${tr({ it: 'giro teorico ', en: 'theoretical lap ' })}${sec.theoreticalGainText} ${tr({ it: 'sotto il tuo best', en: 'under your best' })}`:''}</td></tr>
   </tbody></table></div>`;
 }
 
@@ -604,7 +604,9 @@ async function drawSetup(m){
       </div>
     <div id="meccanico-out" style="margin:0 0 10px"></div>
     <div class="lc-controls row" style="gap:10px;flex-wrap:wrap;align-items:center">
-      <label class="muted">${tr({ it: 'Sessione', en: 'Session' })}<br><select id="lc-session" style="width:300px">${list.map((x) => `<option value="${esc(x.file)}" data-track="${esc(x.track ?? '')}" ${x.file === s.file ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('') || `<option value="">(${tr({ it: 'nessuna', en: 'none' })})</option>`}</select></label>
+      <label class="muted">${tr({ it: 'Auto', en: 'Car' })}<br><select id="lc-f-car" style="width:190px"><option value="">${tr({ it: 'tutte le auto…', en: 'all cars…' })}</option></select></label>
+      <label class="muted">${tr({ it: 'Pista', en: 'Track' })}<br><select id="lc-f-track" style="width:190px"><option value="">${tr({ it: 'tutte le piste…', en: 'all tracks…' })}</option></select></label>
+      <label class="muted">${tr({ it: 'Sessione', en: 'Session' })}<br><select id="lc-session" style="width:300px">${list.map((x) => `<option value="${esc(x.file)}" data-car="${esc(x.car ?? '')}" data-track="${esc(x.track ?? '')}" ${x.file === s.file ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.car ?? '')} · ${esc(x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('') || `<option value="">(${tr({ it: 'nessuna', en: 'none' })})</option>`}</select></label>
       <label class="muted">${tr({ it: 'Giro', en: 'Lap' })}<br><select id="lc-lap" style="width:170px">${(() => { const vl = (s.laps ?? []).filter(l => l.durationSec > 15); const best = vl.length ? vl.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), vl[0]) : null; return vl.map(l => `<option value="${l.lap}" ${best && l.lap === best.lap ? 'selected' : ''}>${tr({ it: 'giro ', en: 'lap ' })}${l.lap} — ${(l.durationSec).toFixed(1)}s</option>`).join(''); })()}</select></label>
       <label class="muted">${tr({ it: 'Confronto', en: 'Compare' })}<br><select id="lc-cmp" style="width:190px"><option value="best">${tr({ it: 'miglior altro giro', en: 'best other lap' })}</option>${(() => { const vl = (s.laps ?? []).filter(l => l.durationSec > 15); const best = vl.length ? vl.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), vl[0]) : null; return vl.filter(l => !best || l.lap !== best.lap).map(l => `<option value="${l.lap}">${tr({ it: 'giro ', en: 'lap ' })}${l.lap} — ${(l.durationSec).toFixed(1)}s</option>`).join(''); })()}</select></label>
       <button class="act" id="lc-go" type="button">🔄 ${tr({ it: 'Ridisegna', en: 'Redraw' })}</button>
@@ -976,12 +978,23 @@ async function drawSetup(m){
     const compare = cv === 'best' ? 'best' : Number(cv);
     out.innerHTML = `<div class="muted" style="font-size:11px">${tr({ it: 'campiono il file .ld…', en: 'sampling the .ld file…' })}</div>`;
     try {
-      const t = await api('garage', { action: 'laptrace', car: window.__lcCar ?? null, file: sessSel ? sessSel.value : null, lap, compare, points: 300 });
+      // l'auto da campiare è quella della SESSIONE SCELTA (col filtro «tutte le
+      // auto» si può scegliere un .ld di un'altra macchina): serve al server per
+      // trovare il file MoTeC (la cartella porta il nome dell'auto).
+      const selCar = sessSel?.selectedOptions?.[0]?.dataset?.car ?? window.__lcCar ?? null;
+      const t = await api('garage', { action: 'laptrace', car: selCar, file: sessSel ? sessSel.value : null, lap, compare, points: 300 });
       if (t.ok) {
         // sessione cambiata: i giri e il confronto si ricoegono con i VALORI della nuova sessione
         if (sessSel && Array.isArray(t.sessions)) {
-          const old = sessSel.value;
-          sessSel.innerHTML = (t.sessions ?? []).map((x) => `<option value="${esc(x.file)}" ${x.file === old ? 'selected' : ''}>${esc(x.when)} · ${esc(x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('');
+          // con un filtro attivo il menu resta in mano ai FILTRI (ricarlo __lcFill,
+          // che mantiene la scelta se la sessione è ancora visibile); senza filtri
+          // ricadra sul lotto dell'auto campiata, come prima.
+          const filtrando = !!(document.querySelector('#lc-f-car')?.value || document.querySelector('#lc-f-track')?.value);
+          if (filtrando) window.__lcFill?.();
+          else {
+            const old = sessSel.value;
+            sessSel.innerHTML = (t.sessions ?? []).map((x) => `<option value="${esc(x.file)}" data-car="${esc(t.car ?? '')}" data-track="${esc(x.track ?? '')}" ${x.file === old ? 'selected' : ''}>${esc(x.when)} · ${esc(t.car ?? '')} · ${esc(x.trackPretty ?? x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('');
+          }
         }
         const vl = t.laps ?? [];
         lapSel.innerHTML = vl.map((l) => `<option value="${l.lap}" ${l.lap === t.lap ? 'selected' : ''}>${tr({ it: 'giro ', en: 'lap ' })}${l.lap} — ${l.durationSec.toFixed(1)}s</option>`).join('');
@@ -1001,6 +1014,27 @@ async function drawSetup(m){
     document.addEventListener('change', (ev) => { if (ev.target?.id === 'lc-session') window.__lcDraw(); });
   }
   window.__lcCar = carSel?.carName ?? tel.car ?? cur?.car ?? null;   // l'auto del render CORRENTE (la chiusura non basta: resterebbe la prima)
+  /* FILTRI del selettore sessioni (1/11, stesso modello del banco A/B): auto e
+     pista restringono il menu SENZA azzerare la sessione già scelta — se resta
+     visibile la selezione tiene, e il grafico si ridisegna da solo. */
+  window.__lcSessions = list;
+  window.__lcFill ??= () => {
+    const sessSel = document.querySelector('#lc-session');
+    if (!sessSel) return;
+    const fc = document.querySelector('#lc-f-car')?.value ?? '';
+    const ft = document.querySelector('#lc-f-track')?.value ?? '';
+    const prima = sessSel.value;
+    const vis = (window.__lcSessions ?? []).filter((x) => (!fc || String(x.car ?? '') === fc) && (!ft || String(x.track ?? '') === ft));
+    sessSel.innerHTML = vis.map((x) => `<option value="${esc(x.file)}" data-car="${esc(x.car ?? '')}" data-track="${esc(x.track ?? '')}" ${x.file === prima ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.car ?? '')} · ${esc(x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('') || `<option value="">(${tr({ it: 'nessuna con questi filtri', en: 'none with these filters' })})</option>`;
+  };
+  if (list.length) {
+    for (const [id, key] of [['#lc-f-car', 'car'], ['#lc-f-track', 'track']]) {
+      const sel = document.querySelector(id);
+      if (!sel) continue;
+      sel.innerHTML = sel.options[0].outerHTML + Array.from(new Set(list.map((x) => String(x[key] ?? '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)).map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+      sel.onchange = () => { window.__lcFill(); if (document.querySelector('#lc-session')?.value) window.__lcDraw(); };
+    }
+  }
   if (list.length) window.__lcDraw();   // il grafico nasce GIÀ disegnato: nessun click per vederlo
 
   /* IL MECCANICO: consigli di setup per pista sotto il titolo del grafico.
@@ -1012,7 +1046,10 @@ async function drawSetup(m){
       // pista del PANNELLO (dalla sessione scelta, non dalla serie): il meccanico
       // valuta e registra l'allievo sulla pista che stai realmente guardando
       const trackPanel = sessSel?.selectedOptions?.[0] ? (sessSel.selectedOptions[0].dataset.track ?? null) : (cur?.track ?? null);
-      const m = await api('garage', { action: 'meccanico', car: window.__lcCar ?? null, track: trackPanel ?? null });
+      // auto della SESSIONE SCELTA (con il filtro «tutte le auto» può essere
+      // un'altra macchina del garage, non solo quella che il pannello segue)
+      const carPanel = sessSel?.selectedOptions?.[0] ? (sessSel.selectedOptions[0].dataset.car ?? null) : null;
+      const m = await api('garage', { action: 'meccanico', car: carPanel ?? window.__lcCar ?? null, track: trackPanel ?? null });
       if (!m.ok) { out.innerHTML = ''; return; }
       const tag = { aero: tr({ it: '🪶 aerodinamica', en: '🪶 aero' }), trasmissione: tr({ it: '⚙️ cambio', en: '⚙️ gearbox' }), assetto: tr({ it: '🧱 assetto/altezza', en: '🧱 setup/height' }), camber: tr({ it: '📐 camber', en: '📐 camber' }), freni: tr({ it: '🛑 freni', en: '🛑 brakes' }), pressioni: tr({ it: '🛞 pressioni', en: '🛞 pressures' }), telemetria: tr({ it: '📡 telemetria', en: '📡 telemetry' }), memoria: tr({ it: '🧠 memoria', en: '🧠 memory' }) };
       const rows = (m.consigli ?? []).map((c) => `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><span style="flex:0 0 130px;font-size:11.5px;color:var(--dim)">${tag[c.vedi] ?? c.vedi}</span><span style="font-size:12.5px;line-height:1.5">${c.text}</span></div>`).join('');

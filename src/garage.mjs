@@ -210,7 +210,7 @@ function statsFor(state, carName, { ownedSince = null } = {}) {
       // ma non per l'usura della tua auto. Giri completi × lunghezza pista.
       // BUG 21/10: r.track porta il DISPLAY name ("Suzuka", "Circuit Of The Americas")
       // mentre le chiavi di TRACK_INFO sono gli id snake ("suzuka",
-      // "circuit_of_the_americas") — il lookup per帕 nome esatto falliva e i km
+      // "circuit_of_the_americas") — il lookup per nome esatto falliva e i km
       // restavano 0 anche con gare e giri in registro. Match col normalizzatore
       // standard di tracknames (come fa il resto dell'app).
       let len = TRACK_INFO[r.track]?.lengthKm ?? null;

@@ -364,7 +364,7 @@ function stilePannello(stili){
     const atCap = (s.regole ?? []).filter((r) => r.cap).length;
     return `<details style="margin-bottom:10px;border:1px solid var(--line,#333);border-radius:8px;padding:10px">
       <summary style="cursor:pointer"><b>${esc(s.display)}</b> ${stateTag(s)} <span class="tag blue">L${s.level}</span>
-        <span class="muted" style="font-size:11px"> · ${tr({ it: 'finestra PI ', en: 'PI window ' })}${s.finestra[0] ?? '–'}–${s.finestra[1] ?? '–'}${s.seed ? ` · seed ${esc(s.seed)}` : ''} · ${s.pool.length} ${tr({ it: 'modelli', en: 'models' })}${atCap ? ` · <span class="tag warn">${atCap} ${tr({ it: 'al cap 20%', en: 'at 20% cap' })}</span>` : ''}</span></summary>
+        <span class="muted" style="font-size:11px"> · ${tr({ it: 'finestra PI ', en: 'PI window ' })}${s.finestra[0] ?? '–'}–${s.finestra[1] ?? '–'}${s.seed ? ` · seed ${esc(s.seed)}` : ''} · ${s.pool.length} ${tr({ it: 'modelli', en: 'models' })}${atCap ? ` · <span class="tag warn">${atCap} ${tr({ it: `al cap ${s.capPct ?? 20}%`, en: `at ${(s.capPct ?? 20)}% cap` })}</span>` : ''}</span></summary>
       <div style="margin-top:8px;font-size:12.5px">
         <div><b>${tr({ it: 'Pool sorteggiato:', en: 'Drawn pool:' })}</b> <span class="muted">${tr({ it: 'miscuglio completamente random: stradali, Cup, GT e epiche battuti insieme allo stesso livello, mono e multiclasse insieme.', en: 'completely random mix: road cars, Cup, GT and classics shuffled together at the same level, mono and multiclass alike.' })}</span></div>
         <div style="margin-top:4px">${(s.pool ?? []).map(window.carLinkHtml).join(' · ') || '<span class="faint">—</span>'}</div>

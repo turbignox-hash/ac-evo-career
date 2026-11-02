@@ -52,6 +52,22 @@ test('vittoria con +5.0s: la posizione viene RIPREZZATA come fa il gioco (P0 di 
   assert.equal(info.position, 6, '23:36.571 reale: davanti restano Mendoza, Weidner, Jensen, Foster, Anderson');
 });
 
+test('margine sul PRECEDENTE nella classifica ufficiale (2/11): tempi REALI con la penalità dentro', () => {
+  // mauro P0 con +5.0s → P6 ufficiale: il precedente è Anderson (P5, 23:35.100),
+  // e il margine conta il mio tempo REALE 23:36.571 (23:31.571 + 5s)
+  let info = classify(paulRicard(), { driver: paulRicard().drivers[0] });
+  assert.equal(info.position, 6);
+  assert.equal(info.prevName, 'john anderson', 'nomePilota riporta i nomi così come sono nel file');
+  assert.equal(info.prevGapMs, 1471, '23:36.571 − 23:35.100');
+  assert.equal(info.prevLaps, 9);
+  // P3 ufficiale (Jensen): il precedente è Weidner, 23:34.220 − 23:32.029
+  const r3 = paulRicard();
+  info = classify(r3, { driver: r3.drivers[3] });
+  assert.equal(info.position, 3);
+  assert.equal(info.prevName, 'kurt weidner');
+  assert.equal(info.prevGapMs, 2191);
+});
+
 test('senza penalità nulla cambia: P di pista = P ufficiale', () => {
   const result = paulRicard({ high_penalty: '' });
   const info = classify(result, { driver: result.drivers[0] });

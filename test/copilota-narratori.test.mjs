@@ -52,12 +52,16 @@ test("bandiera verde: via libera sul PASSAGGIO a verde, non a ogni tick", () => 
 });
 
 test("posizione nel pitlane e nei 12 s dopo l'uscita: niente falsi «P15 posizione persa»", () => {
+  /* 1/11: il postalk è SOLO DI GARA (regola di Mauro) → questo scenario (gara
+     del 30/10) dichiara Race: i primi frame hanno lapsDone 0 e niente verde,
+     ma sono tutti in pitlane o nell'ombra dell'uscita: zitti; l'annuncio
+     legittimo esce a pista pulita (a lapsDone 1, via visto per giri fatti). */
   const frames = [
-    [0,     MMF(0,     { gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.8, lapsOnFuel: 9.2, lapsLeft: 3, position: 5, inPit: false }, delta: { lapNo: 0, dv: 0 } })],                           // semina
-    [5000,  MMF(5000,  { gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.8, lapsOnFuel: 9.2, lapsLeft: 3, position: 15, inPit: true }, delta: { lapNo: 0, dv: 0 } })],                              // in pit: P15? classifica ZERO
-    [8000,  MMF(8000,  { gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.7, lapsOnFuel: 9.1, lapsLeft: 3, position: 8, inPit: true }, delta: { lapNo: 0, dv: 0 } })],                                // ancora pit: tace
-    [10000, MMF(10000, { gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.6, lapsOnFuel: 9.0, lapsLeft: 3, position: 3, inPit: false }, delta: { lapNo: 0, dv: 0 } })],                               // uscito 2 s fa: ARENA tace
-    [30000, MMF(30000, { gauges: { lapsDone: 1, lapsTotal: 3, fuel: 26.0, lapsOnFuel: 8.6, lapsLeft: 2, position: 2, inPit: false }, delta: { lapNo: 1, dv: 0 }, timing: { lastLap: '1:31.000' } })],  // 20 s dopo l'uscita: PARLA
+    [0,     MMF(0,     { sessionType: 'Race', phase: 'Race', gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.8, lapsOnFuel: 9.2, lapsLeft: 3, position: 5, inPit: false }, delta: { lapNo: 0, dv: 0 } })],                           // semina
+    [5000,  MMF(5000,  { sessionType: 'Race', phase: 'Race', gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.8, lapsOnFuel: 9.2, lapsLeft: 3, position: 15, inPit: true }, delta: { lapNo: 0, dv: 0 } })],                              // in pit: P15? classifica ZERO
+    [8000,  MMF(8000,  { sessionType: 'Race', phase: 'Race', gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.7, lapsOnFuel: 9.1, lapsLeft: 3, position: 8, inPit: true }, delta: { lapNo: 0, dv: 0 } })],                                // ancora pit: tace
+    [10000, MMF(10000, { sessionType: 'Race', phase: 'Race', gauges: { lapsDone: 0, lapsTotal: 3, fuel: 26.6, lapsOnFuel: 9.0, lapsLeft: 3, position: 3, inPit: false }, delta: { lapNo: 0, dv: 0 } })],                               // uscito 2 s fa: ARENA tace
+    [30000, MMF(30000, { sessionType: 'Race', phase: 'Race', gauges: { lapsDone: 1, lapsTotal: 3, fuel: 26.0, lapsOnFuel: 8.6, lapsLeft: 2, position: 2, inPit: false }, delta: { lapNo: 1, dv: 0 }, timing: { lastLap: '1:31.000' } })],  // 20 s dopo l'uscita: PARLA
   ];
   const dette = gara(frames);
   assert.equal(voce(dette, 'postalk'), 1, "un solo annuncio di posizione, il legittimo a pista pulita");
@@ -67,8 +71,9 @@ test("posizione nel pitlane e nei 12 s dopo l'uscita: niente falsi «P15 posizio
 /* 31/10 SERA (R5 di sera): in Race il postalk aspetta la VERDE — prima del
    via la griglia si forma e il contatore non è il campionato; gli annunci di
    sedile aspettano il via libera visto (o una prima lettura già verde, per
-   le partenze viste in ritardo). Fuori gara resta il comportamento di
-   sempre: lì l'ordine conta subito. */
+   le partenze viste in ritardo), oppure GIRI GIÀ FATTI: il Pitwall ripartito
+   a metà gara non resta muto per sempre (1/11). Fuori gara il postalk TACE:
+   è il nuovo bando del 1/11 (Mauro). */
 test("in Race il postalk aspetta la verde: la griglia prima del via non gridisce", () => {
   const base = { lapsDone: 0, lapsTotal: 3, fuel: 26.8, lapsOnFuel: 9.2, lapsLeft: 3 };
   const inGara = (t, pos, fc, flag) => MMF(t, { sessionType: 'Race', phase: 'Race', gauges: { ...base, position: pos, flagCode: fc, flag }, delta: { lapNo: 0, dv: 0 } });
@@ -364,7 +369,8 @@ test("posizione: «P5, posizione persa/recuperata» al sedile che cambia — chi
   const slot = { last: {}, at: 0, said: {}, firma: 'sess-pos' };
   const giri = { lapsDone: 3, lapsTotal: 10, fuel: 40, lapsOnFuel: 8, lapsLeft: 8 };
   let t = 1000;
-  const passo = (pos, dt = 4000) => { t += dt; return narratore(MMF(t, { gauges: { ...giri, position: pos }, position: pos }), slot, t); };
+  // 1/11: solo gara → i frame dichiarano Race (lapsDone 3: via visto per giri fatti)
+  const passo = (pos, dt = 4000) => { t += dt; return narratore(MMF(t, { sessionType: 'Race', phase: 'Race', gauges: { ...giri, position: pos }, position: pos }), slot, t); };
   const a = passo(5, 1000);
   assert.equal(a.filter((f) => f.chi === 'postalk').length, 0, "la primissima vista semina il sedile in silenzio (niente voce all'avvio)");
   const b = passo(5);
@@ -402,17 +408,15 @@ test("penalita' tagli pista (9b, 30/10): parla sul salto >= 0,5 s del totale cum
   assert.ok(g.some((f) => f.chi === 'penalia' && !f.detto && (f.it ?? '').includes('2.7')), "salto successivo oltre i 0,5 s parla col totale aggiornato");
 });
 
-/* 31/10 (DA-5 del diario, «sessioni non-gara davanti ai conteggi vivi»):
-   practice e testday NON avevano NESSUN test dedicato: l'ingegnere li aveva
-   (test/ingegnere.test.mjs: radio viva, finestra sosta muta), ma il narratore
-   unico mai. Le regole deono restare honeste fuori da una gara:
+/* 1/11 (bando di Mauro sul postalk): le regole fuori da una gara:
      - il gap della prova è il campo morto della SP (gapAhead 0.0):
        MAI un «Chi ti sta davanti»;
-     - il cambio di sedile parla ANCHE senza verde (fuori gara l'ordine
-       conta subito, regola del 31/10 nel nucleo del postalk);
+     - il cambio di sedile in practice/testday NON parla più: la posizione
+       persa/recuperata è SOLO DI GARA (imuove il vecchio «l'ordine conta
+       subito» del 31/10, che era il rumore in qualifica e prove);
      - nel pitlane del testday la classifica vale ZERO come in gara:
-       niente annuncio di posizione finché l'uscita (12 s) non è passata. */
-test("sessioni non-gara (practice/testday): radio onesta — gap morto tace, sedile parla senza verde, pitlane zittisce", () => {
+       niente annuncio di posizione in ogni caso. */
+test("sessioni non-gara (practice/testday): postalk tace di proposito, gap morto tace, pitlane zittisce", () => {
   const slot = { last: {}, at: 0, said: {}, firma: 'sess-non-gara' };
   const giri = { lapsDone: 3, lapsTotal: 10, fuel: 40, lapsOnFuel: 8, lapsLeft: 8 };
   let t = 1000;
@@ -425,7 +429,7 @@ test("sessioni non-gara (practice/testday): radio onesta — gap morto tace, sed
   assert.equal(b.filter((f) => f.chi === 'gap').length, 0, 'gapAhead 0.0 (campo morto della prova libera): mai un «Chi ti sta davanti»');
 
   const c = passo({ position: 6, gapAhead: 0.0 });
-  assert.ok(c.some((f) => f.chi === 'postalk' && !f.detto && (f.it ?? '').includes('persa')), "il cambio sedile in practice parla ANCHE senza verde: l'ordine conta subito fuori gara");
+  assert.equal(c.filter((f) => f.chi === 'postalk').length, 0, "cambio sedile in practice: il postalk è SOLO DI GARA (1/11)");
 
   // il pitlane del testday: la classifica vale zero anche fuori da una gara
   const d = passo({ position: 9, gapAhead: 0.0, inPit: true });

@@ -16,9 +16,9 @@
 //                       (o serie aperta) Monte Carlo con lo STESSO motore dei
 //                       rivali di world.mjs: punti attesi a ronda, podio%,
 //                       titolo%, premio atteso e saldo con costi.
-//   5) tettoReport    — il TETTO: per ogni pista il giro teorico dai tuoi
-//                       settori contro il best reale (il margine lasciato per
-//                       strada) e i REPARTI dove perdi più spesso col campo.
+//   5) tettoReport    — il TETTO: per ogni pista il delta sul campione top (la
+//                       busta più grossa del riparto) e i REPARTI dove perdi
+//                       più spesso col campo.
 //
 // Nessun dato nuovo da digitare: tutto dai file che EVO e il tool già scrivono.
 
@@ -28,6 +28,10 @@ import { rivalsStore, stagioneDelRivale } from './rivals.mjs';
 import { analyzeLd, sampleLap, sessionMetaOf, brakeConsistency } from './motec.mjs';
 import { prizeFor, entryFee, difficultyFor, nodeById, gateStatus, grigliaSimEstesa } from './state.mjs';
 import { tr, lang } from './lang.mjs';
+// nome pulito delle piste anche al TETTO (1/11): la stessa bella voce del
+// quaderno prove / banco A/B (ladder + variante di layout della cartella)
+import { prettyTrackLabeled } from './testday.mjs';
+import { margineVeroDaLog } from './margine-log.mjs';
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const median = (vals) => {
@@ -78,14 +82,29 @@ export function raceAutopsy(ladder, state, { nodeId = state.node } = {}) {
   const others = (raceRow?.grid ?? []).filter((g) => !g.isPlayer && !g.dnf && Number.isFinite(lapToMs(g.bestLap)));
   const fieldBestMs = others.length ? Math.min(...others.map((g) => lapToMs(g.bestLap))) : null;
   const myMs = Number.isFinite(lapToMs(entry.bestLap)) ? lapToMs(entry.bestLap) : null;
+  // — GIRO VELOCE DELLA GARA (2/11, richiesta Mauro «aggiungi anche il giro
+  // veloce nell'autopsia della vittoria»): la griglia del registro porta i
+  // best-lap di TUTTI (pilota compreso) — chi lo ha firmato si dice anche
+  // quando non è il pilota della carriera. Nessun dato inventato: senza
+  // raceRow, silenzio (l'entry.fl del Bonus resta il caso «firmato da te»).
+  const tutteLeGriglie = (raceRow?.grid ?? []).filter((g) => Number.isFinite(lapToMs(g.bestLap)));
+  const tuttiBest = tutteLeGriglie.sort((a, b) => lapToMs(a.bestLap) - lapToMs(b.bestLap))[0] ?? null;
 
   // — PARTENZA E PRIMO GIRO (dalla qualifica abbinata incassata dall'import)
   if (!entry.dnf && entry.gridPosition != null) {
     const recovery = entry.position - entry.gridPosition;
-    push(tr({ it: 'Partenza e primo giro', en: 'Start and lap 1' }), tr({
-      it: `P${entry.gridPosition} in griglia → ${entry.position === 1 ? 'vincitore' : `P${entry.position}`} all'arrivo: ${recovery >= 0 ? `guadagnate ${recovery} posizioni` : `perse ${Math.abs(recovery)} posizioni`} sul tracciato.`,
-      en: `P${entry.gridPosition} on the grid → ${entry.position === 1 ? 'race winner' : `P${entry.position}`} at the flag: ${recovery >= 0 ? `gained ${recovery} positions` : `lost ${Math.abs(recovery)} positions`} on track.`,
-    }), recovery >= 0 ? 'good' : 'info');
+    /* pole→vittoria (2/11): «guadagnate 0 posizioni» non racconta la gara;
+       la pole intoccata è la sua storia vera e propria. */
+    const startStory = entry.gridPosition === 1 && entry.position === 1
+      ? tr({
+          it: `P1 in griglia → vittoria: pole intoccata, mai ceduta la testa.`,
+          en: `P1 on the grid → victory: pole held intact, the lead never surrendered.`,
+        })
+      : tr({
+          it: `P${entry.gridPosition} in griglia → ${entry.position === 1 ? 'vincitore' : `P${entry.position}`} all'arrivo: ${recovery >= 0 ? `guadagnate ${recovery} posizioni` : `perse ${Math.abs(recovery)} posizioni`} sul tracciato.`,
+          en: `P${entry.gridPosition} on the grid → ${entry.position === 1 ? 'race winner' : `P${entry.position}`} at the flag: ${recovery >= 0 ? `gained ${recovery} positions` : `lost ${Math.abs(recovery)} positions`} on track.`,
+        });
+    push(tr({ it: 'Partenza e primo giro', en: 'Start and lap 1' }), startStory, recovery > 0 ? 'good' : 'info');
   }
 
   // — RITMO SECCO: dove sta il tuo giro migliore rispetto a tutti
@@ -112,10 +131,12 @@ export function raceAutopsy(ladder, state, { nodeId = state.node } = {}) {
       : tr({ it: 'nessun settore perso in valore', en: 'no sector lost in value' });
     const gainMs = (Number.isFinite(entry.sectors?.bestLapMs) && Number.isFinite(entry.sectors?.theoreticalMs))
       ? Math.round(entry.sectors.bestLapMs - entry.sectors.theoreticalMs) : null;
-    push(tr({ it: 'Settori', en: 'Sectors' }), tr({
-      it: `Perdita per settore (sul best del campo): ${worst}.${gainMs != null && gainMs > 0 ? ` Lasci ${fmtSec(gainMs / 1000, false)} per strada rispetto al tuo giro teorico (la somma dei tuoi settoriali).` : ''}`,
-      en: `Sector losses (vs field best): ${worst}.${gainMs != null && gainMs > 0 ? ` You leave ${fmtSec(gainMs / 1000, false)} against your theoretical lap (sum of your best sectors).` : ''}`,
-    }), 'info');
+      // TEORICO VERO (3/11, notte): theoreticalMs è già sostituito (o annullato)
+      // da import.mjs con la legge dai log del gioco — la frase lo dice com'è.
+      push(tr({ it: 'Settori', en: 'Sectors' }), tr({
+        it: `Perdita per settore (sul best del campo): ${worst}.${gainMs != null && gainMs > 0 ? ` Lasci ${fmtSec(gainMs / 1000, false)} per strada rispetto al tuo giro teorico (il minimo per settore sui giri segnati, dai log del gioco).` : ''}`,
+        en: `Sector losses (vs field best): ${worst}.${gainMs != null && gainMs > 0 ? ` You leave ${fmtSec(gainMs / 1000, false)} against your theoretical lap (per-sector minimum over logged laps).` : ''}`,
+      }), 'info');
   }
 
   // — DISTANZA: gap al vincitore per giro + giri in meno del leader
@@ -139,16 +160,37 @@ export function raceAutopsy(ladder, state, { nodeId = state.node } = {}) {
     }
   } else if (!entry.dnf && Number.isFinite(entry.gapMs) && entry.gapMs != null && Number(entry.laps ?? 0) > 0) {
     const perLap = entry.gapMs / Math.max(1, entry.laps);
-    const shortLaps = Number(entry.winnerLaps ?? 0) > entry.laps ? tr({
-      it: ` Ti sei fermato ${entry.winnerLaps - entry.laps} giro(i) prima del leader: tempo in sosta o difficoltà telematiche escluse, l'età della gara fa il resto.`,
-      en: ` You stopped ${entry.winnerLaps - entry.laps} lap(s) earlier than the leader.`,
+    const corto = Number(entry.winnerLaps ?? entry.laps) > entry.laps;
+    /* GAP DAL LEADER con giri corti (2/11, richiesta Mauro): il gap di tempo
+       con i giri mancanti dentro misura la distanza piena, NON il ritmo —
+       il commento lo dice chiaro invece di lasciare il numero solo. */
+    const cortoNote = corto ? tr({
+      it: ` Arrivi ${entry.winnerLaps - entry.laps} giro(i) corto dal leader (${entry.laps} su ${entry.winnerLaps}): il gap ${fmtSec(entry.gapMs / 1000, false)} conta anche i giri mancanti — misura la distanza piena, non il ritmo.`,
+      en: ` You finish ${entry.winnerLaps - entry.laps} lap(s) short of the leader (${entry.laps} of ${entry.winnerLaps}): the ${fmtSec(entry.gapMs / 1000, false)} gap includes the missing laps — it measures distance, not pace.`,
     }) : '';
+    /* MARGINE sul PRECEDENTE (2/11, P3+): chi gli sta davanti in classifica.
+       Con giri in meno del precedente il numero non presentabile: tace. */
+    const prevNote = entry.position >= 3 && Number.isFinite(entry.prevGapMs) && entry.prevLaps === entry.laps
+      ? tr({
+          it: ` Margine su P${entry.position - 1} (${entry.prevName ?? 'il precedente'}): ${fmtSec(entry.prevGapMs / 1000, false)}.`,
+          en: ` Margin to P${entry.position - 1} (${entry.prevName ?? 'the driver ahead'}): ${fmtSec(entry.prevGapMs / 1000, false)}.`,
+        })
+      : '';
     push(tr({ it: 'Distanza', en: 'Distance' }), tr({
-      it: `Gap ${fmtSec(entry.gapMs / 1000, false)} su ${entry.laps} giri: ~${fmtSec(perLap / 1000, false)} al giro da ridare al vincitore.${shortLaps}`,
-      en: `Margin ${fmtSec(entry.gapMs / 1000, false)} over ${entry.laps} laps: ~${fmtSec(perLap / 1000, false)} per lap owed to the winner.${shortLaps}`,
+      it: `Gap ${fmtSec(entry.gapMs / 1000, false)} su ${entry.laps} giri: ~${fmtSec(perLap / 1000, false)} al giro da ridare al vincitore.${cortoNote}${prevNote}`,
+      en: `Margin ${fmtSec(entry.gapMs / 1000, false)} over ${entry.laps} laps: ~${fmtSec(perLap / 1000, false)} per lap owed to the winner.${cortoNote}${prevNote}`,
     }), perLap / 1000 > 2 ? 'bad' : 'info');
   }
 
+  // — GIRO VELOCE NON TUO (2/11): se il pilota NON l'ha firmato, il Bonus
+  // taceva e la vittoria non lo raccontava. Con la griglia in archivio
+  // si dice a chi va (nome + tempo); il tuo best resta nel KPI.
+  if (!entry.dnf && !entry.fl && tuttiBest && !tuttiBest.isPlayer) {
+    push(tr({ it: 'Giro veloce', en: 'Fastest lap' }), tr({
+      it: `Il giro veloce della gara va a ${tuttiBest.full ?? 'un rivale'}: ${tuttiBest.bestLap} (il tuo best resta ${entry.bestLap ?? '—'}).`,
+      en: `The race's fastest lap goes to ${tuttiBest.full ?? 'a rival'}: ${tuttiBest.bestLap} (your best stays ${entry.bestLap ?? '—'}).`,
+    }), 'info');
+  }
   // riconoscimenti rapidi
   if (entry.fl && !entry.dnf) push(tr({ it: 'Bonus', en: 'Bonus' }), tr({ it: `Giro veloce della gara: ${entry.bestLap}.`, en: `Fastest lap of the race: ${entry.bestLap}.` }), 'good');
   if (entry.pole && !entry.dnf) push(tr({ it: 'Bonus', en: 'Bonus' }), tr({ it: 'Pole position: firmata in qualifica.', en: 'Pole position: set in qualifying.' }), 'good');
@@ -167,10 +209,15 @@ export function raceAutopsy(ladder, state, { nodeId = state.node } = {}) {
       position: entry.dnf ? null : entry.position, gridSize: entry.gridSize, dnf: !!entry.dnf,
       laps: entry.laps ?? null, bestLap: entry.bestLap ?? null, gapMs: entry.gapMs ?? null,
       secondGapMs: entry.secondGapMs ?? null,   // margine sul secondo della vittoria (1/11)
+      prevGapMs: entry.prevGapMs ?? null, prevName: entry.prevName ?? null, prevLaps: entry.prevLaps ?? null,
+      // margine sul pilota precedente ufficiale (2/11): P2 → P1 (gap dal leader), P3 → P2
       points: entry.points ?? 0, car: entry.car ?? null, fl: !!entry.fl,
       gridPosition: entry.gridPosition ?? null, at: entry.at ?? null,
     },
     hasRaceRow: !!raceRow,
+    // giro veloce della gara (2/11): chi lo ha firmato, nome e tempo — la GUI
+    // lo mette nel KPI anche quando il Bonus non scatta. null senza archivio.
+    fastestOfRace: !entry.dnf && tuttiBest ? { lap: tuttiBest.bestLap, by: tuttiBest.full ?? null } : null,
     attributions,
     narrative: [headline, ...attributions.map((a) => a.text)],
   };
@@ -324,7 +371,8 @@ export function setupAB(fileA, fileB, { points = 240 } = {}) {
     row(tr({ it: 'gas medio sessione %', en: 'avg gas session %' }), a.gas?.sessionAvgPct, b.gas?.sessionAvgPct),
   ];
 
-  // — tempo perso/guadagnato per ZONA
+  // — tempo perso/guadagnato per ZONA (soglia letta dal punto campionato:
+  // lapTrace tagga ogni punto con la sua zona, stesse soglie anche per il quadro)
   const dz = { frenata: 0, uscita: 0, gas: 0 };
   let lost = 0, gained = 0;
   for (let i = 1; i < A.pts.length; i++) {
@@ -333,7 +381,7 @@ export function setupAB(fileA, fileB, { points = 240 } = {}) {
     if (!(vA > 1 && vB > 1) || ds <= 0) continue;
     const dt = ds * 3600 * (1 / vA - 1 / vB); // secondi
     const p = A.pts[i];
-    const zone = (p.br != null && p.br > 0.25) ? 'frenata' : (p.th != null && p.th < 0.92) ? 'uscita' : 'gas';
+    const zone = p.zone ?? ((p.br != null && p.br > 0.25) ? 'frenata' : (p.th != null && p.th < 0.92) ? 'uscita' : 'gas');
     if (dt > 0) { dz[zone] += dt; lost += dt; } else if (dt < 0) gained -= dt;
   }
   const zones = { frenata: Math.round(dz.frenata * 100) / 100, uscita: Math.round(dz.uscita * 100) / 100, gas: Math.round(dz.gas * 100) / 100 };
@@ -387,6 +435,81 @@ export function setupAB(fileA, fileB, { points = 240 } = {}) {
     zones, deltaBest, zonesText,
     brake,
   };
+}
+
+/* ================================================================== */
+/* 3bis) QUADRO-ZONE: la fase lungo il giro, PUNTO per PUNTO             */
+/* ================================================================== */
+
+/**
+ * La striscia del banco A/B, secco: DOVE lungo il giro nasce il netto, con la
+ * stessa soglia zona del riparto sopra. Prende i due giri campionati (i ritorni
+ * di sampleLap di motec.mjs) e srotola il giro in FETTE consecutive di zona:
+ * fette attigue della STESSA zona e dello STESSO segno si fondono, così usono
+ * un pugno di tratti leggibili (staccata, uscita, rettifilo) e non 240 puntini.
+ *  minLost   fette sotto questa soglia di secondi sono rumore: buttate (bassa
+ *            di proposito: la soglia è a FETTA, che con 240 punti vale pochi
+ *            centesimi di secondo — il rumore visivo lo tengono unite le
+ *            fette attigue della stessa zona, non lo scarto)
+ *  minSlivers fette più corte di questi CAMPIONI non si disegnano
+ * Ritorna { ok, dist, segs: [{ x1, x2, zone, sign, s, pts }] } o null.
+ */
+const r3z = (v) => Math.round(v * 1000) / 1000;
+export function zoneTimeline(A, B, { minLost = 0.005, minSlivers = 3 } = {}) {
+  if (!A?.pts?.length || !B?.vs?.length || !(A.distKm > 0)) return null;
+  const seg = [];
+  for (let i = 1; i < A.pts.length; i++) {
+    const ds = (A.xs[i] - A.xs[i - 1]) * A.distKm;
+    const vA = A.pts[i].v, vB = B.vs[i];
+    if (!(vA > 1 && vB > 1) || ds <= 0) continue;
+    const dt = ds * 3600 * (1 / vA - 1 / vB); // secondi: >0 perso da A, <0 guadagnati
+    if (Math.abs(dt) < minLost) continue;
+    const p = A.pts[i];
+    const zone = p.zone ?? ((p.br != null && p.br > 0.25) ? 'frenata' : (p.th != null && p.th < 0.92) ? 'uscita' : 'gas');
+    const sign = dt > 0 ? 1 : -1;
+    const last = seg[seg.length - 1];
+    if (last && last.zone === zone && last.sign === sign) {
+      last.x2 = r3z(A.xs[i]);
+      last.s = r3z(last.s + dt);
+    } else {
+      seg.push({ zone, sign, s: r3z(dt), x1: r3z(A.xs[i - 1]), x2: r3z(A.xs[i]) });
+    }
+  }
+  const nPts = A.pts.length - 1;
+  // pts = la LARGHEZZA del tratto in campioni (per la striscia del pannello),
+  // e insieme il minimo di sostanza sotto cui la fetta non valesse il pixel.
+  const segs = seg
+    .map((g) => ({ ...g, pts: Math.max(2, Math.round((g.x2 - g.x1) * nPts)) }))
+    .filter((g) => g.pts >= minSlivers);
+  return segs.length ? { ok: true, dist: A.distKm, segs } : null;
+}
+
+/**
+ * LA COPPIA DI DEFAULT DEL BANCO (2/11, richiesta Mauro: «seleziona le due
+ * sessioni di Imola MX-5 e rafforza il confronto col quadro-zone»): dal
+ * RIEPILOGO delle sessioni elige il binomio (auto,pista) con PIÙ sessioni
+ * (parità: quello con la sessione più recente) e dentro il gruppo A = la più
+ * vecchia (base), B = la più recente (prova) — la regola A/B del banco. Con le
+ * 11 MX-5 su Imola il banco si apre GIÀ puntato sul confronto giusto; i filtri
+ * della GUI restringono i menu al binomio e i menu restano puliti.
+ * Puro, senza disco: prova a banco come il resto del modulo.
+ * Ritorna { car, track, fileA, fileB } o null con meno di due sessioni.
+ */
+export function abPreferite(list) {
+  const vs = (Array.isArray(list) ? list : [])
+    .map((s) => ({ file: String(s?.file ?? s?.path ?? ''), car: String(s?.car ?? '').trim(), track: String(s?.track ?? '').trim(), mtimeMs: Number(s?.mtimeMs) || 0 }))
+    .filter((s) => s.file);
+  const gruppi = new Map();
+  for (const s of vs) {
+    const k = `${s.car}\u0000${s.track}`;
+    (gruppi.get(k) ?? gruppi.set(k, []).get(k)).push(s);
+  }
+  const gruppo = [...gruppi.values()]
+    .sort((x, y) => y.length - x.length || Math.max(...y.map((g) => g.mtimeMs)) - Math.max(...x.map((g) => g.mtimeMs)))[0] ?? [];
+  if (gruppo.length < 2) return null;
+  const ord = gruppo.slice().sort((x, y) => x.mtimeMs - y.mtimeMs);
+  const a = ord[0], b = ord[ord.length - 1];
+  return { car: a.car, track: a.track, fileA: a.file, fileB: b.file };
 }
 
 /* ================================================================== */
@@ -566,30 +689,54 @@ export function seatMonteCarlo(ladder, state, { sims = 400 } = {}) {
 
 /**
  * Il TETTO, per pista e per carriera: dal sectorAnalysis incassato a ogni
- * import (giro teorico = somma dei tuoi best settori contro il best reale, e
- * i delta sul best del campo per settore) si aggrega:
- *   - per pista: quanto margine lasci in pista (best e ultimo), e il REPARTO
- *     dove perdi più spesso (la mediana dei delta per settore);
+ * import (i delta sul best del campo per settore) si aggrega:
+ *   - per pista: il delta sul campione top (la busta più grossa del riparto)
+ *     e il REPARTO dove perdi più spesso (la mediana dei delta per settore);
  *   - in carriera: i settori peggiori classificati — dove il tempo si è perso
  *     più spesso dall'inizio.
+ * NOTA (3/11, verifica Mauro «il margine a 0.00»): il margine best − teorico
+ * NON esiste nei file risultato — EVO scrive nei splits i settori del GIRO
+ * MIGLIORE (somma = best_lap alla centesima sui file veri), quindi giro
+ * teorico ≡ best reale sempre per costruzione.
+ * RITORNA VIA LOG (3/11, sera): i settori GIRO-PER-GIRO stanno nei log del
+ * gioco (src/margine-log.mjs): best = il giro accreditato nel file risultato
+ * (la tripla incassata nell'entry), settori = minimo per settore dei giri
+ * segnati della stessa finestra di weekend nel log. Il margine può uscire
+ * negativo: potenziale settoriale più veloce del giro accreditato.
  */
-export function tettoReport(ladder, state) {
+export function tettoReport(ladder, state, { logsDirs = null } = {}) {
   const rows = [];
+  const richieste = [];
   for (const [nodeId, list] of Object.entries(state.results ?? {})) {
     for (const entry of list) {
       const s = entry.sectors;
       if (!s || !Array.isArray(s.sectors) || !s.sectors.length) continue;
-      rows.push({
+      const tripl = [...s.sectors].sort((a, b) => a.index - b.index)
+        .map((x) => (Number.isFinite(x.mine) ? Math.round(x.mine) : null));
+      const chiave = tripl.every(Number.isFinite) ? tripl.join(':') : null;
+      const row = {
         nodeId, node: ladder.nodes.find((n) => n.nodeId === nodeId)?.display ?? nodeId,
         track: entry.track ?? null, season: entry.season, round: entry.round,
         position: entry.dnf ? null : entry.position,
-        bestLapMs: Number.isFinite(s.bestLapMs) ? s.bestLapMs : null,
-        theoreticalMs: Number.isFinite(s.theoreticalMs) ? s.theoreticalMs : null,
-        marginMs: (Number.isFinite(s.bestLapMs) && Number.isFinite(s.theoreticalMs)) ? Math.round(s.bestLapMs - s.theoreticalMs) : null,
-        sectorDeltas: s.sectors.map((x) => ({ n: x.index, deltaMs: Number.isFinite(x.deltaMs) ? x.deltaMs : null })),
-      });
+        // CON CAMPO (3/11, lezione Suzuka): fieldCount dentro il settore dice
+        // se un rivale col split misurato è con VERO. Vecchi import senza la
+        // provenienza: storicamente griglia piena (14-17), si calcola col
+        // campo presente — niente di peggio si può dire.
+        sectorDeltas: s.sectors.map((x) => ({
+          n: x.index,
+          deltaMs: Number.isFinite(x.deltaMs) ? x.deltaMs : null,
+          conCampo: Number.isFinite(x.fieldCount) ? x.fieldCount > 0 : null,
+        })),
+        chiave,
+      };
+      rows.push(row);
+      if (chiave && !richieste.some((r) => r.chiave === chiave)) {
+        richieste.push({ chiave, track: row.track, bestSplits: tripl });
+      }
     }
   }
+  const margine = logsDirs?.length ? margineVeroDaLog(logsDirs, richieste) : new Map();
+  for (const row of rows) row.margineMs = row.chiave ? margine.get(row.chiave)?.margineMs ?? null : null;
   if (!rows.length) {
     return { ok: true, perTrack: [], worstSectors: [], hint: tr({
       it: 'Niente settori incassati: EVO scrive gli S1/S2/S3 nel file risultato e l\'import li raccoglie a ogni gara. Dopo la prossima gara qui spuntano i numeri.',
@@ -606,11 +753,12 @@ export function tettoReport(ladder, state) {
     t.entries.push(row);
   }
   const perTrack = byTrack.map((t) => {
-    const margins = t.entries.map((e) => e.marginMs).filter(Number.isFinite);
-    // il reparto peggio: la mediana dei delta per indice di settore
+    // il reparto peggio: la mediana dei delta per indice di settore (SOLO i
+    // delta col campo vivo: il medesimo 0,00 senza campo è anderem una misura,
+    // non un dato)
     const bySector = new Map();
     for (const e of t.entries) for (const sd of e.sectorDeltas) {
-      if (sd.deltaMs == null) continue;
+      if (sd.deltaMs == null || sd.conCampo === false) continue;
       const arr = bySector.get(sd.n);
       if (arr) arr.push(sd.deltaMs);
       else bySector.set(sd.n, [sd.deltaMs]);
@@ -618,22 +766,46 @@ export function tettoReport(ladder, state) {
     const sectors = [...bySector.entries()]
       .map(([n, dl]) => ({ sector: n, medianDeltaMs: median(dl) }))
       .sort((a, b) => b.medianDeltaMs - a.medianDeltaMs);
+    const conMargine = t.entries.filter((e) => e.margineMs != null);
+    const ultimoM = conMargine.length
+      ? conMargine.reduce((a, b) => ((b.season > a.season || (b.season === a.season && b.round >= a.round)) ? b : a))
+      : null;
+    // BUSTA CON CAMPO (3/11, lezione Suzuka): contano SOLO i settori che hanno
+    // almeno un rivale con split misurato — il vecchio `?? 0` trasformava un
+    // campo vuoto in uno 0,00 identico al campione detenuto. Un ingresso senza
+    // settore con campo vale NESUN DATO (null); con campo a 0,00 invece tutti
+    // i settori del best della griglia sono miei: campione vero.
+    const buste = t.entries.map((e) => {
+      const con = e.sectorDeltas.filter((sd) => sd.conCampo !== false && sd.deltaMs != null);
+      return con.length ? Math.max(0, ...con.map((sd) => sd.deltaMs)) : null;
+    });
+    const conBusta = buste.filter((b) => b != null);
     return {
-      track: t.track,
+      // NOME PULITO (1/11): la tabella del tetto dice «Oulton Park», non il
+      // token dell'import (raggruppamento internamente sul raw, come sempre)
+      track: prettyTrackLabeled(ladder, t.track) ?? t.track,
       sessions: t.entries.length,
-      marginBestMs: margins.length ? Math.min(...margins) : null,
-      marginLastMs: margins.length ? margins[margins.length - 1] : null,
-      campTopDeltaMs: t.entries.length ? Math.max(...t.entries.map((e) => Math.max(0, ...e.sectorDeltas.map((d) => d.deltaMs ?? 0)))) : null,
+      // LA BUSTA SU CAMPIONE (3/11, lezione Suzuka): 0,00 col campo vivo =
+      // «tutti i settori del best della griglia sono miei» (campione);
+      // null = nessun ingresso con campo: senza dati, non un 0,00 finto.
+      campTopDeltaMs: conBusta.length ? Math.max(...conBusta) : null,
+      senzaCampoSessioni: buste.filter((b) => b == null).length,
       worstSector: sectors[0]?.sector ?? null,
       worstSectorDeltaMs: sectors[0]?.medianDeltaMs ?? null,
+      // MARGINE VERO (3/11): dal log del gioco; l'ultima sessione misurata +
+      // quante sessioni ce l'hanno e il più contenuto (il «ci sono arrivato»)
+      margineMs: ultimoM?.margineMs ?? null,
+      margineBestMs: conMargine.length ? Math.min(...conMargine.map((e) => e.margineMs)) : null,
+      margineSessioni: conMargine.length,
       sectors,
     };
   }).sort((a, b) => b.sessions - a.sessions || (b.worstSectorDeltaMs ?? 0) - (a.worstSectorDeltaMs ?? 0));
 
-  // i peggiori settori della carriera: raggruppare per pista + settore
+  // i peggiori settori della carriera: raggruppare per pista + settore (SOLO
+  // con campo vivo: senza avversari non c'è tempo "perso" da misurare)
   const worst = [];
   for (const row of rows) for (const sd of row.sectorDeltas) {
-    if (sd.deltaMs == null || sd.deltaMs <= 0) continue;
+    if (sd.deltaMs == null || sd.deltaMs <= 0 || sd.conCampo === false) continue;
     worst.push({ track: row.track, sector: sd.n, deltaMs: sd.deltaMs, season: row.season, round: row.round });
   }
   worst.sort((a, b) => b.deltaMs - a.deltaMs);
@@ -642,10 +814,11 @@ export function tettoReport(ladder, state) {
   return {
     ok: true,
     perTrack,
-    worstSectors: worstTop,
+    // chips «settori peggiori della carriera» col nome pulito come sopra
+    worstSectors: worstTop.map((w) => ({ ...w, track: prettyTrackLabeled(ladder, w.track) ?? w.track })),
     hint: tr({
-      it: 'Il margine = best reale − giro teorico (somma dei tuoi best settori): quanto tempo ogni pista ti è costata a farla in un unico giro.',
-      en: 'Margin = real best − theoretical lap (sum of your best sectors): how much time each track cost you to string together.',
+      it: 'Il margine vero (best − somma dei migliori settoriali) si legge dai log del gioco: i giri ci sono giro per giro, il file risultato no. dove manca, i log della sessione non esistono più (il gioco li ruota).',
+      en: "The true margin (best − sum of best sector times) is read from the game logs: laps exist per-lap there, not in the result file. Where it is missing, that session's logs are gone (the game rotates them).",
     }),
   };
 }

@@ -369,16 +369,21 @@ function narratore(m, slot, ora = Date.now()) {
        dei box gridava «P15, posizione persa» mentre l'ordine vero non esisteva
        ancora. Si annuncia solo fuori dal pit E oltre i 12 s dall'ultima lettura
        in pit: la classifica rientra un istante DOPO il pitlane etichetta. */
-    /* 31/10 SERA: in GARA («Race») il postalk aspetta la VERDE — prima del
-       via la griglia si forma e l'ordine non è il campionato: gli annunci di
-       sedile aspettano il via libera visto (o una prima lettura già verde).
-       Fuori gara (quali, TimeAttack, sessione ignota) resta il comportamento
-       di sempre: lì l'ordine conta subito. */
+    /* 1/11 (Mauro: «il copilot ha una specie di ritornello, disattiva dall'✅
+       pratiche libere la posizione, lascialo solo per la gara»): il postalk è
+       SOLO DI GARA. Quali, prove libere, TimeAttack e sessioni ignote: tace SI,
+       per disegno — in qualifica «posizione persa» raccontava l'ordine vivo e
+       non il campionato, e a lungo andare era rumore. In GARA aspetta la VERDE
+       (31/10), ma con un soccorso: se il Pitwall riparte A METÀ GARA (la memoria
+       azzera bersaglio, «verdeVisto» è perdita), i GIRI GIÀ FATTI valgono per
+       via visto — senza questo la ripartizione in gara metteva la radio muta
+       fino all'azione successiva. */
     const inGara = /race/i.test(String(m.phase ?? m.sessionType ?? ''));
-    const viaVisto = slot.last.verdeVisto === true;
+    const viaVisto = slot.last.verdeVisto === true
+      || Number(m.gauges?.lapsDone) > 0;    // gara ripresa a metà: i giri dicono il via
     if (g.inPit === true) slot.last.inPitOra = ora;
     const pitScena = g.inPit === true || (slot.last.inPitOra != null && ora - slot.last.inPitOra <= 12000);
-    if (!pitScena && (!inGara || viaVisto) && slot.last.pos != null && g.position !== slot.last.pos
+    if (!pitScena && inGara && viaVisto && slot.last.pos != null && g.position !== slot.last.pos
         && (slot.last.postalk == null || ora - slot.last.postalk >= 30000)) {
       slot.last.postalk = ora;
       parla.push({

@@ -40,8 +40,15 @@ export function stileOverview(ladder, state) {
         kg: r.ballastKg ?? 0,
         pct: r.restrictorPct ?? 0,
         // le regole al cap portano la nota «→ cap 20; la prima gara decide»
+        // (testo del file, 10/10: la cifra con la nota è DATA, il badge legge
+        // capPct qui a sotto — non questo testo)
         cap: /→ cap/.test(r.nota ?? ''),
       })),
+      // (3/11, richiesta Mauro: «il cap del miscuglio dai dati»): il CAP del
+      // restrictor NON vive nel template della GUI — arriva dai DATI della
+      // classe, gli STESSI che clampa grid-calib (fallback 20) e gridbuilder:
+      // se una classe un giorno avrà un limite diverso, il badge segue il file.
+      capPct: cls?.LIMITI_GIOCO?.restrictorMaxPct ?? 20,
       calendario: (node.calendar ?? []).map((r) => nomi[r.track] ?? r.track),
     });
   }

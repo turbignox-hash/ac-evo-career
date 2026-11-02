@@ -17,13 +17,27 @@
 // il pannello nasce invisibile e si apre dalla voce del drawer APPS.
 (function () {
   'use strict';
-  const PERIODO_MS = 2500;   // lo stesso ritmo del publisher — se lo cambi, cambia là
+  /* [via build] PERIODO_MS si dichiara SOLO nel publisher (src/uiapp-pub.mjs):
+     il generatore tools/genera-uiapp.mjs segue questo segnaposto e scrive qui
+     la costante col valore del publisher. */
+  const PERIODO_MS = 2500;  // [via build] il valore arriva da src/uiapp-pub.mjs
+  const BUILD_OK = true;  // [via build] firma della build riuscita (genera-uiapp) — l'app la legge in log
   const S = { slot: -1, dati: null };
 
   const LOADER = window.ACEUIAppLoader;
   const ME = LOADER ? LOADER.app('pitwall') : null;
   const BASE = (ME?.base) || '/ACEUIAppLoader/pitwall/';
   const loga = (t) => { try { console.log('[Pitwall] ' + t); } catch (_e) {} };
+
+  // IL SUCCESSO CHE SI LEGGE (1/11): il generatore tools/genera-uiapp.mjs
+  // scrive al segnaposto la costante E la firma `const BUILD_OK = true`.
+  // Un .js costruito a mano, un vecchio mai rigenerato o un file col
+  // segnaposto residuo NON hanno la firma: qui si vede in console.
+  if (typeof BUILD_OK === 'undefined') {
+    loga('ATTENZIONE: file NON costruito da tools/genera-uiapp.mjs — firma BUILD_OK assente');
+  } else {
+    loga('build ok: PERIODO_MS=' + PERIODO_MS + ' ms dal publisher');
+  }
 
   const CSS = `
 .pwv-panel { position:fixed; right:12px; top:120px; bottom:100px; width:390px;
@@ -151,6 +165,11 @@
     } catch (_e) { cb(null); }
   }
   let fasciaTs = 0;
+  // LA VALIDITÀ DELLA FASCIA (test del periodo): il publisher marca ogni
+  // fascia con validaFino = (slot+1)·PERIODO_MS. Scaduta = dati di una
+  // fascia passata (riserva slot-1 o server fermo): si mostrano, ma il
+  // pannello lo dice — Pitwall è sola-lettura, qui niente comandi.
+  let fasciaValidaFino = 0;
   function prendiSlot(now) {
     const slot = Math.floor(now / PERIODO_MS);
     if (slot === S.slot) return;
@@ -171,6 +190,7 @@
     if (dati) {
       S.slot = slot;
       S.dati = dati;
+      fasciaValidaFino = Date.parse(dati.validaFino) || 0;
       fasciaTs = Date.now();
       disegna();
     }
@@ -255,6 +275,11 @@
   // senza fasce il pannello resta fermo e lo dice, con la via di sblocco.
   function bloccoAvvisi() {
     if (!fasciaTs) return '';
+    // VALIDITÀ (test del periodo): i dati si mostrano (meglio di un buco)
+    // ma non si vendono per freschi al di là della scadenza del publisher.
+    if (fasciaValidaFino > 0 && Date.now() > fasciaValidaFino) {
+      return '<div class="nota" style="color:#ffb347;margin-top:4px">⏳ Fascia scaduta: dati di una fascia passata — la fresca arriva al prossimo slot.</div>';
+    }
     const eta = Date.now() - fasciaTs;
     if (eta < 15 * 1000) return '';
     return '<div class="nota" style="color:#ffb347;margin-top:4px">⏸ Fasce ferme da ' + Math.round(eta / 1000) + " s: il server del Cruscotto è fermo (da GUI: riavvia il server, o 'node tools/riavvia-webui.mjs').</div>";
@@ -290,6 +315,7 @@
       const eta = fasciaTs ? Date.now() - fasciaTs : -1;
       if (eta < 0) { conn.textContent = '⚪'; conn.setAttribute('title', 'Nessuna fascia ricevuta ancora dal publisher.'); return; }
       if (eta >= 15 * 1000) { conn.textContent = '🟠'; conn.setAttribute('title', 'Fasce ferme da ' + Math.round(eta / 1000) + " s — riavvia il server (node tools/riavvia-webui.mjs)."); return; }
+      if (fasciaValidaFino > 0 && Date.now() > fasciaValidaFino) { conn.textContent = '🟠'; conn.setAttribute('title', 'Fascia scaduta (validaFino passata): dati di una fascia passata.'); return; }
       conn.textContent = '🟢';
       conn.setAttribute('title', 'Publisher allineato (fascia di ' + Math.round(eta / 1000) + ' s fa).');
     } catch (_e) { }

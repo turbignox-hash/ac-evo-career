@@ -5,7 +5,11 @@
 // ma la GUI muore al click sulla tab. Questo test parcheggia il vuoto:
 //   1) ogni draw* INVOCATA da core.js deve essere DICHIARATA in gui/js/*;
 //   2) ogni draw* DICHIARATA in gui/js/* deve essere richiamata in almeno
-//      un file della GUI — niente viste morte che si accumulano di nascosto.
+//      un file della GUI — niente viste morte che si accumulano di nascosto;
+//   3) (3/11) ogni id="…" renderizzato nel gui deve avere un aggancio
+//      $('#id') o querySelector('#id') in qualche file — niente bottoni
+//      morti da click (dietro la richiesta Mauro:“Soprannomi in blocco non
+//      funziona”: bottone e funzione c'erano, il BINDING era sparito).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -51,4 +55,49 @@ test('ogni draw* di core.js è una dichiarazione di funzione vera, non un nome p
     assert.ok(dichiarazioni.includes(n),
       `"${n}" è richiamata in core.js ma in gui/js c'è solo il nome, non la function`);
   }
+});
+
+// 3/11 — ogni BOTTONE id="b-…" renderizzato nel gui DEVE avere un aggancio:
+// $('#b-…'), querySelector('#b-…') oppure l'id come argomento di un helper
+// (manutenzione('b-…', …)). Pannelli e contenitori HTML no: si pescano via
+// innerHTML con altri canali, e qui non è la classe del bug visto (il
+// «Soprannomi in blocco»: bottone e funzione c'erano, il binding era sparito).
+test('ogni bottone id="b-…" del gui è agganciato a un selettore o a un helper', () => {
+  for (const f of files) {
+    const ids = [...src[f].matchAll(/\bid=["']?(b-[\w-]+)/g)].map((m) => m[1]);
+    for (const id of new Set(ids)) {
+      const aggancio = files.some((g) =>
+        src[g].includes(`'#${id}'`) || src[g].includes(`"#${id}"`
+        ) || src[g].includes(`'${id}'`) || src[g].includes(`"${id}"`),
+      );
+      assert.ok(aggancio,
+        `il bottone id="${id}" (${f}) non è mai agganciato — niente $('#${id}') né '${id}' da helper: il click non fa nada`);
+    }
+  }
+});
+
+// 1/11 — I COMMENTI HTML del markup (analogia con le app in gioco:
+// test/uiapp-installata.test.mjs). Ogni <!-- … --> rimasto nel markup della
+// GUI (index.html o i template delle viste) è o MEMORIA con la firma della
+// casa — una data «(30/10)» come i commenti JS — o dubbia spazzatura da
+// cancellare. E NESSUN markup commentato (un tag dentro il commento è un
+// blocco HTML sepolto che il browser NON usa ma lo spediamo lo stesso:
+// si cancella o lo si racconta nel diario). Anche multi-riga: il corpo va
+// cercato con /\s, non confermato a riga fissa.
+test('ogni commento HTML del markup della GUI porta la firma della casa (data) e non nasconde tag', () => {
+  const daGuardare = { 'index.html': readFileSync(join(DIR, '..', 'index.html'), 'utf8'), ...src };
+  const fuorilegge = [];
+  for (const [f, t] of Object.entries(daGuardare)) {
+    for (const m of t.matchAll(/<!--([\s\S]*?)-->/g)) {
+      const corpo = m[1].replace(/\s+/g, ' ').trim();
+      if (!/\b\d{1,2}\/\d{1,2}\b/.test(corpo)) {
+        fuorilegge.push(`${f}: commento HTML senza data — «${corpo.slice(0, 60)}» — mettici la firma (data) o cancellalo`);
+        continue;
+      }
+      if (/<[a-zA-Z/]/.test(corpo)) {
+        fuorilegge.push(`${f}: markup commentato (tag dentro il commento) — «${corpo.slice(0, 60)}» — cancellalo: il browser non lo usa e noi lo spediamo lo stesso`);
+      }
+    }
+  }
+  assert.deepEqual(fuorilegge, [], `commenti HTML fuorilegge nel markup:\n${fuorilegge.join('\n')}`);
 });

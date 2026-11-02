@@ -348,7 +348,7 @@ export function heritageOverview(ladder, state) {
     rank: rankPairOf(H.completed.length).it,
     rankEn: rankPairOf(H.completed.length).en,
     active: active ? {
-      id: active.id, title: active.title, titleEn: active.titleEn ?? null, ancestor: active.ancestor, relation: active.relation, relationEn: active.relationEn ?? null,
+      id: active.id, nodeId: active.nodeId, title: active.title, titleEn: active.titleEn ?? null, ancestor: active.ancestor, relation: active.relation, relationEn: active.relationEn ?? null,
       era: active.era, series: active.series, disc: active.disc, seat: active.seat,
       carId: active.carId, carName: active.carName,
       legends: active.legends, rounds: active.tracksDisplay, roundsDone: active.progress.length,

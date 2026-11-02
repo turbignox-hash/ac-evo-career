@@ -24,6 +24,7 @@ import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
 import { sameTrack } from './tracknames.mjs';
 import { tr } from './lang.mjs';
 import { matchPool, logMatch, normKey } from './car-match.mjs';
+import { bandaSerieLadder } from './state.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);
@@ -85,6 +86,25 @@ function prestaTinte(fileCorrente, carId) {
    interno del builder (31/10: hoistato per servire anche prestaTinte). */
 const carIdDi = (b) => { for (const g of decodeMsg(b)) if (g.field === 3) return utf8(g.bytes); return null; };
 
+/* I PRESET di UNA cella — f10 (mech) e f11 (visual) parlano sempre dello stesso
+   modello nelle celle che il gioco scrive (2530/2530 celle reali su disco, 1/11
+   notte). Il mismato (mech di un modello, visual di un altro) è la firma della
+   cella ASSEMBLATA a mano — la radice delle anteprime morte e della zona crash
+   Gameface. coppieCelle torna { mech, visual } SOLO sul mismatch: null quando
+   la coppia è sana o quando uno dei due preset manca/non è lodabile. */
+function coppieCelle(cellBytes) {
+  let mech = null, visual = null;
+  try {
+    for (const g of decodeMsg(cellBytes)) {
+      if (g.field === 10) mech = utf8(decodeMsg(g.bytes).find((s) => s.field === 1)?.bytes ?? '');
+      else if (g.field === 11) visual = utf8(decodeMsg(g.bytes).find((s) => s.field === 1)?.bytes ?? '');
+    }
+  } catch { return null; }   // campo insabile: non è una chimera che posso provare
+  if (typeof mech !== 'string' || typeof visual !== 'string' || !mech.startsWith('preset_') || !visual.startsWith('preset_')) return null;
+  const nuc = (s) => s.toLowerCase().replace(/_(mech|visual)_.*$/, '');
+  return nuc(mech) === nuc(visual) ? null : { mech, visual };
+}
+
 /* FAMIGLIA di un preset: il confronto che ha già morduto le esclusioni
    27/10 vale per TUTTO il match del bilancio — i preset del template
    vengono RINUMERATI a ogni variante mecca (mech_2, mech_3...), il
@@ -127,9 +147,27 @@ export function loadClasses() {
 
 /** classe combaciante SOLO per preset (per chi lavora sul file customgrid:
  *  grid-apply/GUI). Ritorna { id, cls, hits } o null. */
+// MONOMARCA vs CLASSE MULTICLASSE (1/11 sera, Coppa MX-5 ND Cup): le classi
+// pensate per una GARA MISTA (es. pi-10-11-moderna: GT4 + MX-5 ospite) portano
+// regole d'OSPITE sulle auto condivise (100 kg / 2%) e un aiStandard tutto
+// loro (99-100): ereditate per overlap-preset su un pool di UNA sola famiglia,
+// metamorfano la monomarca — zavorra dove non serve e banda AI sbagliata al
+// posto di quella di serie (84-85). Il criterio è PURAMENTErasse d'anticipo:
+// pool monofamiglia (senzaMech) → candidate con regole su ≥2 famiglie SCAVATA.
+// Le classi dedicate CULO alla serie stessa (hyper_pista CSL: una sola famiglia
+// da ambo i lati) parlano ancora, e i pool multiclasse parlano come prima.
+const famigliaDi = (p) => (p == null ? null : String(p).toLowerCase().replace(/_mech_\d+/g, ''));
+/** Esportata per grid-apply (gridStatus): stessa dogana, un solo verdetto. */
+export const classeMulticlasseSuPoolMono = (cls, presetList) => {
+  const famiglie = new Set(presetList.map(famigliaDi).filter(Boolean));
+  if (famiglie.size !== 1) return false;   // pool già multiclasse: nessuna dogana
+  const regole = (cls.regole ?? []).filter((r) => r.preset);
+  return new Set(regole.map((r) => famigliaDi(r.preset)).filter(Boolean)).size >= 2;
+};
 export function pickClassInfo(classes, presets) {
   let best = null;
   for (const [id, cls] of Object.entries(classes.classi ?? {})) {
+    if (classeMulticlasseSuPoolMono(cls, presets)) continue;
     const hits = (cls.regole ?? []).filter((r) => r.preset && presets.includes(r.preset)).length;
     if (hits >= 2 && (!best || hits > best.hits)) best = { id, cls, hits };
   }
@@ -252,7 +290,7 @@ function minaPreset(cells, pi) {
 // Il parco COMPLETO delle identità: prima le celle del template corrente, poi
 // gli ALTRI template della STESSA cartella (come tinte prestate: cap 20 file,
 // ordine per nome) e infine le griglie di fabbrica. Memoizzato per percorso.
-const __mineParco = new Map();  // 'dir|firma-mtime' → Map: l'FTA cambiano i file (nuova APPLICA, cura a mano) → la firma cambia e mina di nuovo
+const __mineParco = new Map();  // 'dir|firma-mtime' → { pres, int }: i file cambiano (nuova APPLICA, cura a mano) → la firma cambia e mina di nuovo
 const firmaDir = (d) => {
   let somma = 0;
   try {
@@ -260,25 +298,56 @@ const firmaDir = (d) => {
   } catch { }
   return somma;
 };
+/* LE DUE MINE del parco, insieme (2/11 — radice delle chimera, lezione del
+   template riscritto a mano alle 19:15): oltre alle IDENTITÀ (carId→preset,
+   come Paddock: Sta solo nei dati che il gioco ha scritto) si conservano le
+   CELLE INTERE gioco-autore per carId. La cella sintetica (trapianto di
+   f3/f4/f10 su un donore) stanava f11/f14 del DONORE — combo mai scritta dal
+   gioco per il NUOVO carId. Se il parco ha una cella intera della STESSA
+   auto, quella vince: fotocopia tal quale, niente fattoria. */
+function minaParco(celle, pi) {
+  const pres = minaPreset(celle, pi);
+  const int = new Map();   // normKey(carId) → cella INTERA (prima incontrata)
+  for (const b of celle) {
+    const k = normKey(carIdDi(b) ?? '');
+    if (k && !int.has(k)) int.set(k, b);
+  }
+  return { pres, int };
+}
+function entryParco(d, pi) {
+  const firma = `${d}|${firmaDir(d).toFixed(0)}`;
+  if (!__mineParco.has(firma)) {
+    let voci = [];
+    try { voci = readdirSync(d).filter((f) => f.endsWith('.customgrid')).sort().slice(0, 20); } catch { }
+    const celle = [];
+    for (const f of voci) {
+      try { for (const g of decodeMsg(readFileSync(join(d, f)))) if (g.field === 1 && g.wire === 2) celle.push(g.bytes); } catch { }
+    }
+    __mineParco.set(firma,minaParco(celle, pi));
+  }
+  return __mineParco.get(firma);
+}
 function parcoPreset(fileCorrente, tplCells, pi) {
   const dir = dirname(fileCorrente);
   const fabbrica = process.env.EVO_FACTORY_DIR ?? join(PROJECT, 'config', 'griglie-fabbrica');   // stessa redirezione del grid-apply (sabbia nei test)
   const dirs = [dir, ...(dir !== fabbrica ? [fabbrica] : [])];
   const risultato = minaPreset(tplCells, pi);
   for (const d of dirs) {
-    const firma = `${d}|${firmaDir(d).toFixed(0)}`;
-    if (!__mineParco.has(firma)) {
-      let voci = [];
-      try { voci = readdirSync(d).filter((f) => f.endsWith('.customgrid')).sort().slice(0, 20); } catch { }
-      const celle = [];
-      for (const f of voci) {
-        try { for (const g of decodeMsg(readFileSync(join(d, f)))) if (g.field === 1 && g.wire === 2) celle.push(g.bytes); } catch { }
-      }
-      __mineParco.set(firma, minaPreset(celle, pi));
-    }
-    for (const [k, v] of __mineParco.get(firma)) risultato.set(k, miglioreVoce(risultato.get(k), v));
+    for (const [k, v] of entryParco(d, pi).pres) risultato.set(k, miglioreVoce(risultato.get(k), v));
   }
   return risultato;
+}
+/** CELLE INTERE del parco per carId (solo file sul disco, non il template
+ *  corrente: per le sue auto serve il trapianto comunque). Stesse dir di
+ *  parcoPreset: l'identità e la cella intera della stessa auto LAVORA INSIEME. */
+function parcoCelle(fileCorrente) {
+  const dir = dirname(fileCorrente);
+  const fabbrica = process.env.EVO_FACTORY_DIR ?? join(PROJECT, 'config', 'griglie-fabbrica');
+  const fuori = new Map();
+  for (const d of [dir, ...(dir !== fabbrica ? [fabbrica] : [])]) {
+    for (const [k, b] of entryParco(d, null).int) if (!fuori.has(k)) fuori.set(k, b);
+  }
+  return fuori;
 }
 const senzaMechN = (p) => (/_mech_(\d+)$/.exec(String(p))?.[1] ?? '9');
 function miglioreVoce(a, b) {
@@ -290,6 +359,12 @@ function miglioreVoce(a, b) {
 }
 
 function cellaSintetica(donore, carId, vero = null) {
+  // (2/11) QUESTO trapianto è l'ULTIMA SPIAGGIA, non il primo passo: se il
+  // parco ha una cella intera gioco-autore dello stesso carId, buildGridMessage
+  // la fotocopia TAL QUALE (parcoCelle) e qui non si arriva. Quando si arriva,
+  // f11/f14 restano quelli del donore: la coppia è coerente FRA LORO (una cella
+  // vera del donore) ma schedata a un'altra auto — è il trapianto dichiarato
+  // nel report, mai negato a mano.
   const B = (s) => Buffer.from(s, 'utf8');
   // preset VERO del catalogo quando il parco lo recupera: preset Standard del
   // modello, nome completo ("Mini John Cooper S - Standard"), variante, PI.
@@ -329,6 +404,9 @@ function pickClass(classes, serieId, presetList) {
   if (CL[serieId]) return { id: serieId, cls: CL[serieId] };
   let best = null, bestId = null, bestN = -1;
   for (const [id, c] of Object.entries(CL)) {
+    // MONOMARCA (1/11 sera): niente eredità di classi multiclasse per overlap —
+    // vedi classeMulticlasseSuPoolMono sopra per la lezione Coppa MX-5 ND Cup.
+    if (classeMulticlasseSuPoolMono(c, presetList)) continue;
     const n = (c.regole ?? []).filter((r) => r.preset && presetList.includes(r.preset)).length;
     if (n > bestN) { best = c; bestId = id; bestN = n; }
   }
@@ -463,6 +541,7 @@ export function buildGridMessage(opts) {
   const wantCars = Array.isArray(node.cars) && node.cars.length ? new Set(node.cars) : null;
   let poolCells = tpl.cells;
   const reportSintesi = [];   // auto mai in griglia, montate con celle sintetiche (1/11)
+  let sintetiche = null;      // hex delle celle trapiantate dell'ultimo ramo di sintesi (il guardiano delle coppie le esenta): null fuori dal ramo
   if (poolMulti) {
     const sel = tpl.cells.filter((b) => poolMulti.has(carIdOf(b)));
     const distinte = [...new Set(sel.map(carIdOf).filter(Boolean))];
@@ -504,15 +583,27 @@ export function buildGridMessage(opts) {
     }
     if (m.mancanti.length && opts.celleNuove) {
       // SINTESI (opt-in opts.celleNuove, gara al volo): le auto del pool NON
-      // nel template NON bloccano più — le celle si fabbricano dal donatore
-      // (la prima cella matched, o comunque la prima reale del template).
-      // Le presenti restano fotocopiate e il report dichiara le sintetiche.
+      // nel template NON bloccano più. ORDINE DELLE MANI (2/11, radice delle
+      // chimera del 19:15): 1) se il parco ha la CELLA INTERA gioco-autore
+      // dell'auto, si fotocopia tal quale (parcoCelle) — niente fattoria;
+      // 2) ALTRIMENTI, trapianto sul donore (cellaSintetica): ultima spiaggia,
+      // già dichiarato nel report.
       const selected = [...m.sel];
+      sintetiche = new Set();
       const donore = selected.length ? selected[0] : tpl.cells[0];
       const parco = parcoPreset(file, tpl.cells, carPiByPreset());
+      const intere = parcoCelle(file);
       for (const id of m.mancanti) {
         const vero = parco.get(normKey(id)) ?? null;
-        selected.push(cellaSintetica(donore, id, vero));
+        const intera = vero ? (intere.get(normKey(id)) ?? null) : null;
+        if (intera) {
+          selected.push(intera);
+          reportSintesi.push(`${id} → ${presetOf(intera) ?? vero.preset} (cella intera del parco, gioco-autore)`);
+          continue;
+        }
+        const cella = cellaSintetica(donore, id, vero);
+        sintetiche.add(Buffer.from(cella).toString('hex'));
+        selected.push(cella);
         reportSintesi.push(vero ? `${id} → ${vero.preset} (Standard, PI ${vero.pi != null ? vero.pi.toFixed(3) : '—'})` : id);
       }
       poolCells = selected;
@@ -551,7 +642,31 @@ export function buildGridMessage(opts) {
         if (giàTinte.get(id).has(tintaDi(c))) continue;   // tinta già in casa
         giàTinte.get(id).add(tintaDi(c)); poolCells.push(c); tintePrestate++;
       }
-    }
+    }  }
+
+  /* ---------- GUARDIANO DELLE COPPIE (2/11, radice delle chimera) ---------- */
+  // verificato su tutto il parco reale su disco (2530 celle il 1/11 notte):
+  // in OGNI cella scritta dal gioco il preset MECCANICO (f10) e il preset VISUALE
+  // (f11) parlano dello STESSO modello (preset_gtam_mech_n ↔ preset_gtam_visual_n).
+  // Una cella che mescola modelli non è mai uscita dal GENERA: è una cella
+  // ASSEMBLATA campo per campo — la fabbrica che ha fatto le carte vuote
+  // del 1/11 (template riscritto a mano alle 19:15) e la zona crash Gameface
+  // del 16:51. Il builder la rifiuta: la cura è fotocopiare INTERA la cella
+  // gioco-autore della STESSA coppia (tmp/_cura-chimera-liveria.mjs). Esenzione
+  // solo per le celle trapiantate, dichiarate nel report: sono l'ultima spiaggia
+  // per auto mai viste da NESSUN file scritto dal gioco.
+  const chimere = [];
+  for (const b of poolCells) {
+    if (sintetiche?.has(Buffer.from(b).toString('hex'))) continue;   // trapianto dichiarato
+    const prova = coppieCelle(b);
+    if (prova) chimere.push(prova);
+  }
+  if (chimere.length) {
+    const prima = chimere[0];
+    throw new Error(tr({
+      it: `celle ASSEMBLATE nel pool della griglia (${chimere.length}): la cella porta il mech "${prima.mech}" con il visual "${prima.visual}" — due modelli diversi sulla stessa cella, combo mai scritta dal gioco (anteprime morte / crash al carico, lezione 1/11). Cura: fotocopia INTERA la cella gioco-autore della stessa coppia (come tmp/_cura-chimera-liveria.mjs: f10+f11+f14 dal donore che monta la STESSA coppia, non la singola stringa).`,
+      en: `ASSEMBLED cells in the grid pool (${chimere.length}): the cell carries mech "${prima.mech}" with visual "${prima.visual}" — two different models on one cell, a combo never written by the game (dead previews / load crash, 1/11 lesson). Fix: photocopy the WHOLE game-authored cell of the same pair (like tmp/_cura-chimera-liveria.mjs: f10+f11+f14 from the donor carrying the SAME pair, not the single string).`,
+    }));
   }
 
   const poolPresets = [...new Set(poolCells.map(presetOf).filter(Boolean))];
@@ -572,13 +687,16 @@ export function buildGridMessage(opts) {
   // griglia porta la banda VIVA della serie calcolata con la regola del
   // pannello Difficoltà (state.raceSettings / difficultyFor, trim inclusi).
   // Priorità: aiBand (evento) > classe pinnata (perTraccia/aiStandard) >
-  // aiBandSerie (cursori di serie) > node.ai del ladder.
+  // aiBandSerie (cursori di serie) > banda di serie del ladder (aiSerie) >
+  // node.ai d'impianto (il preistorico, ora SOTTO la banda di serie).
   const bandaSerie = Array.isArray(opts.aiBandSerie) && opts.aiBandSerie.length === 2 ? opts.aiBandSerie : null;
-  const aiEff = bandaVoluta ? opts.aiBand : (clsAi ?? bandaSerie ?? (node.ai?.length === 2 ? node.ai : null));
+  const aiLadder = bandaSerieLadder(ladder, node);
+  const aiEff = bandaVoluta ? opts.aiBand : (clsAi ?? bandaSerie
+    ?? (aiLadder ? aiLadder : (node.ai?.length === 2 ? node.ai : null)));
   const aiFrom = bandaVoluta ? 'banda richiesta (evento)'
-    : (clsAi == null ? (bandaSerie ? 'banda di serie (cursori)' : 'dal ladder')
-      : (trkKey && matched.cls?.perTraccia?.[trkKey]?.aiStandard ? 'per-traccia' : 'standard della classe'));
-  // auto ESCLUSE dalla classe matchata: rimosse dal pool — la griglia non le
+    : (clsAi == null ? (bandaSerie ? 'banda di serie (cursori)'
+      : (aiLadder ? 'banda di serie (ladder)' : 'dal ladder'))
+      : (trkKey && matched.cls?.perTraccia?.[trkKey]?.aiStandard ? 'per-traccia' : 'standard della classe'));  // auto ESCLUSE dalla classe matchata: rimosse dal pool — la griglia non le
   // include affatto. Possono essere di classe (escludiAuto: vale ovunque, come
   // il Golf 8 R nella 9-10) o PER-TRACCIA (escludiAuto dentro la variante
   // perTraccia: solo su quella pista).
@@ -693,6 +811,23 @@ export function buildGridMessage(opts) {
     newCells.push(b);
   }
   const newDrivers = [];
+  // ALLINEAMENTO SKILL (1/11): il GENERA del gioco scrive ogni driver con il
+  // f4 esterno = pacchetto skill interno f10 (21/21 driver nel vivo odierno:
+  // 0.83/0.86/0.85 con f10.f1=f10.f2=f10.f4=f10.f5=f10.f6 — e f3 interno fisso
+  // 0.1, non è skill). La nostra scalatura toccava SOLO il f4 lasciando il pack
+  // al 0.95 del template: banda dichiarata ma AI che restavano al livello del
+  // template. Da qui cambiaSkill tocca il f4 e il pack INSIEME, a forma GIOCO.
+  const cambiaSkill = (inner, v) => {
+    const out2 = inner.map((g) => {
+      if (g.field === 4 && g.wire === 5) return { ...g, bytes: setF32(v) };
+      if (g.field === 10 && g.wire === 2) {
+        const pack = decodeMsg(g.bytes).map((s) => (s.field !== 3 && s.wire === 5) ? { ...s, bytes: setF32(v) } : s);
+        return { ...g, bytes: encodeMsg(pack) };
+      }
+      return g;
+    });
+    return out2;
+  };
   for (let i = 0; i < target; i++) newDrivers.push(tpl.drivers[i % tpl.drivers.length]);
 
   if (aiEff?.length === 2) {
@@ -709,8 +844,7 @@ export function buildGridMessage(opts) {
       const inner = decodeMsg(raw);
       const skill = tplSkills[i % tpl.drivers.length];
       const scaled = fMin + (skill - lo) / span * (fMax - fMin);
-      const out2 = inner.map((g) => (g.field === 4 && g.wire === 5) ? { ...g, bytes: setF32(scaled) } : g);
-      newDrivers.push(encodeMsg(out2));
+      newDrivers.push(encodeMsg(cambiaSkill(inner, scaled)));
     }
   }
 
@@ -722,11 +856,10 @@ export function buildGridMessage(opts) {
   const passoSkill = (limitiDriver[1] - limitiDriver[0]) / (target + 1);
   const nudgeSkill = (b) => {
     const inner = decodeMsg(b);
-    const i4 = inner.findIndex((x) => x.field === 4 && x.wire === 5);
-    if (i4 < 0) return b;
-    const v = Math.min(limitiDriver[1], Math.max(limitiDriver[0], (f32(inner[i4].bytes) ?? 0) + passoSkill));
-    inner[i4].bytes = setF32(v);
-    return encodeMsg(inner);
+    const f4 = inner.find((x) => x.field === 4 && x.wire === 5);
+    if (!f4) return b;
+    const v = Math.min(limitiDriver[1], Math.max(limitiDriver[0], (f32(f4.bytes) ?? 0) + passoSkill));
+    return encodeMsg(cambiaSkill(inner, v));
   };
   const vistiDriver = new Set();
   for (let i = 0; i < target; i++) {
@@ -774,18 +907,22 @@ export function buildGridMessage(opts) {
 
   // config campo 3: partiamo dai raw del template e patchiamo ciò che cambia
   const cfgInner = decodeMsg(tpl.config.bytes);
-  const cfgNew = cfgInner.map((g) => ({ ...g }));
+  // CONFIG SENZA CAMPO 2 (1/11/2026, cura del photo-bug alle anteprime auto):
+  // il GENERA del gioco NON scrive il campo `2 = 1` nella config del
+  // customgrid (confronto byte 18:07 contro il nostro 16:56: generato dal
+  // gioco, config 34 byte senza f2, griglia applicata dal menu e OGNI anteprima
+  // auto a posto; il nostro con f2=1, 36 byte, foto nere). Il campo era
+  // incastonato il 23/10 «per uniformità con EVO» (VERDETTO rev. 4:
+  // marcato come NON causa dei crash all'avvio sessione): l'uniformità era
+  // l'inverso. Si torna alla forma del gioco: campo 2 RIMOSSO (non aggiunto,
+  // e scartato se un template legacy lo porta, eredità pre-1/11).
+  const cfgNew = cfgInner.filter((g) => g.field !== 2).map((g) => ({ ...g }));
   const setCfg = (field, value) => {
     const i = cfgNew.findIndex((g) => g.field === field);
     if (i >= 0) cfgNew[i] = { ...cfgNew[i], ...value };
     else cfgNew.push(value);       // ordine non garantito alla coda, i protobuf lo tollerano
   };
   setCfg(1, { field: 1, wire: 0, varint: BigInt(target) });
-  // 23/10: il builder ora incolona il campo `2 = 1` nella config, come fa
-  // EVO (la nativa lo scrive sempre). VERDETTO rev. 4 (NOTE AUTOMAZIONE): quel
-  // campo NON è la causa dei crash all'avvio sessione (flaky, nella UI del
-  // menu) — resta scritto per uniformità con EVO, non come difesa.
-  setCfg(2, { field: 2, wire: 0, varint: 1n });
   if (aiEff?.length === 2) { setCfg(21, { field: 21, wire: 0, varint: BigInt(aiEff[0]) }); setCfg(22, { field: 22, wire: 0, varint: BigInt(aiEff[1]) }); }
   // finestra PI: dal pool reale del template (min/max dei PI dei preset, arrotondate)
   const pi = carPiByPreset();

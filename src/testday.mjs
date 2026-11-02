@@ -27,8 +27,11 @@ export const TESTDAY_FILE = join(slotDataDir(), 'testdays.json');
 const trackName = (ladder, id) => ladder.contentNames?.tracks?.[id] ?? id;
 
 /** Nome visualizzato della pista scritta nel file risultato (match normalizzato sul ladder,
- *  unica implementazione in tracknames.mjs: accenti + prefisso, come per MoTeC e Results). */
-function prettyTrack(ladder, fileTrack) {
+ *  unica implementazione in tracknames.mjs: accenti + prefisso, come per MoTeC e Results).
+ *  Export (1/11): il banco A/B della GUI mostra i nomi delle cartelle MoTeC
+ *  («ImolaGP», «Oulton Park InternationalRace») — riceve la stessa bella voce
+ *  del quaderno prove («Imola», «Oulton Park (International Race)»). */
+export function prettyTrack(ladder, fileTrack) {
   if (!fileTrack) return null;
   const names = [], displayOf = new Map();
   for (const [id, display] of Object.entries(ladder.contentNames?.tracks ?? {})) {
@@ -38,6 +41,43 @@ function prettyTrack(ladder, fileTrack) {
   }
   const hit = matchTrackName(fileTrack, names);
   return hit ? displayOf.get(hit) : fileTrack;
+}
+
+/** Coda di token DOPO il prefisso che combacia col display: «Oulton ParkInternational» →
+ *  «International». Consuma da token i soli alfanumerici del display — senza accenti,
+ *  senza distinzione di casi, con gli spazî e la punteggiatura in mezzo sempre trascorsi. */
+function suffissoLayout(token, display) {
+  const deacc = (c) => c.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  // alfanumerico DOPO la trascrizione: la «ü» del display è una lettera, non un segno
+  const alnum = (c) => /[a-z0-9]/i.test(deacc(c));
+  let ti = 0, pi = 0;
+  while (pi < display.length) {
+    if (!alnum(display[pi])) { pi++; continue; }
+    while (ti < token.length && !alnum(token[ti])) ti++;
+    if (ti >= token.length || deacc(token[ti]) !== deacc(display[pi])) return token.slice(ti);
+    ti++; pi++;
+  }
+  while (ti < token.length && !alnum(token[ti])) ti++;
+  return token.slice(ti).trim();
+}
+
+/**
+ * Come prettyTrack, ma per le CARTELLE MoTeC del banco A/B: dopo il nome bello
+ * del ladder si porta la VARIANTE di layout che la cartella scrive —
+ * «Oulton ParkInternational» → «Oulton Park International», «Brands HatchIndy» →
+ * «Brands Hatch Indy» — e si lascia cadere il «GP» generico, che è il circuito
+ * stesso e non una variante: «ImolaGP» → «Imola», «NurburgringGp Strecke» →
+ * «Nürburgring GP Strecke» (il «Gp» in testa alla coda belga è già nel display).
+ * Senza match nel ladder: il token di cartella, com'è.
+ */
+export function prettyTrackLabeled(ladder, fileTrack) {
+  const base = prettyTrack(ladder, fileTrack);
+  if (!base || !fileTrack) return fileTrack ?? null;
+  const coda = suffissoLayout(String(fileTrack), base).replace(/\s+/g, ' ');
+  // il «GP» che NON si mostra: in testa alla coda («ImolaGP») come attaccato in coda
+  // a un nome lungo («Sebring International RacewayGP») — è il circuito, non la variante
+  const variante = coda.replace(/(?:^|\s)gp\b/i, '').replace(/gp$/i, '').trim();
+  return variante ? `${base} ${variante}` : base;
 }
 
 function loadBook() {

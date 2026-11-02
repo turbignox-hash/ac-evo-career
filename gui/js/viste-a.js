@@ -456,7 +456,7 @@ async function drawHeritagePanel(){
       html += `<div class="liferow"><span class="lico">📜</span><div class="lt"><b>${esc(tr({ it: a.title, en: a.titleEn ?? a.title }))}</b> — ${esc(a.ancestor)}, ${tr({ it: 'tuo ', en: 'your ' })}${esc(tr({ it: a.relation, en: a.relationEn ?? a.relation }))} (${esc(a.era)})              <div style="font-size:12.5px;margin-top:3px">${window.serLinkHtml(a.series)} · ${tr({ it: 'auto: ', en: 'car: ' })}<b>${a.carName ? window.carLinkHtml(a.carName) : esc(tr({ it: 'n/d', en: 'n/a' }))}</b>${a.seat?` #${a.seat}`:''} · ${tr({ it: 'obiettivo: ', en: 'goal: ' })}<b>${esc(tr({ it: a.objective.text, en: a.objective.en ?? a.objective.text }))}</b></div>
         <div style="font-size:12.5px">${tr({ it: 'Prove: ', en: 'Rounds: ' })}${a.rounds.map((t)=>{const pr=(a.progress??[]).find(p=>p.track===t); return `<span class="tag ${pr?.ok ? 'green':''}" style="font-size:10px;padding:1px 6px" title="${esc(pr?.detail ?? tr({ it: 'da correre', en: 'to run' }))}">${esc(t)}</span>`;}).join(' ')}</div>
         <div style="font-size:12px;margin-top:4px" class="muted">${tr({ it: 'Leggende in griglia: ', en: 'Legends on the grid: ' })}${esc(a.legends.join(' · '))}</div>
-        ${a.done ? `<div class="banner good" style="margin-top:8px">${tr({ it: "🏁 Impresa rifatta! L'eredità di ", en: '🏁 Feat re-run! The inheritance of ' })}<b>${money(a.inherit)} €</b>${tr({ it: ' è pronta. ', en: ' is ready. ' })}<button class="mini" id="b-her-claim" style="margin-top:4px">${tr({ it: "Incassa l'eredità", en: 'Claim the inheritance' })}</button></div>` : `<div class="muted" style="font-size:12px;margin-top:5px">${tr({ it: 'Vali in palio: ', en: 'Prize at stake: ' })}${money(a.inherit)} € (${tr({ it: 'dopo: ', en: 'after: ' })}${money(a.repeat)} € ${tr({ it: 'a ripetizione', en: 'per repeat' })}) · ${tr({ it: 'relic: ', en: 'relic: ' })}${esc(tr({ it: a.relic, en: a.relicEn ?? a.relic }))}</div>` }
+        ${a.done ? `<div class="banner good" style="margin-top:8px">${tr({ it: "🏁 Impresa rifatta! L'eredità di ", en: '🏁 Feat re-run! The inheritance of ' })}<b>${money(a.inherit)} €</b>${tr({ it: ' è pronta. ', en: ' is ready. ' })}<button class="mini" id="b-her-claim" style="margin-top:4px">${tr({ it: "Incassa l'eredità", en: 'Claim the inheritance' })}</button></div>` : `<div class="muted" style="font-size:12px;margin-top:5px">${tr({ it: 'Vali in palio: ', en: 'Prize at stake: ' })}${money(a.inherit)} € (${tr({ it: 'dopo: ', en: 'after: ' })}${money(a.repeat)} € ${tr({ it: 'a ripetizione', en: 'per repeat' })}) · ${tr({ it: 'relic: ', en: 'relic: ' })}${esc(tr({ it: a.relic, en: a.relicEn ?? a.relic }))}</div><div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span style="font-size:12.5px">🎯 ${tr({ it: 'Come si partecipa: le Prove sono ronde NORMALI della serie, si corrono come ogni campionato (l\'obbiettivo conta da solo al risultato importato).', en: 'How to take part: the Rounds are =NORMAL rounds of that series, raced like any championship (the objective counts by itself on the imported result).' })}</span>${a.nodeId ? `<button class="mini" id="b-her-agenda">${tr({ it: 'Punta la ronda in Agenda', en: 'Point the round in the Agenda' })}</button>` : ''}</div>` }
       </div></div>`;
     }
     if (v.completed.length){
@@ -467,6 +467,21 @@ async function drawHeritagePanel(){
     $('#b-her-claim')?.addEventListener('click', async ()=>{
       try { const r = await api('heritage-claim',{}); toast(`${tr({ it: 'Eredità incassata: ', en: 'Inheritance claimed: ' })}+${money(r.claimed)} € — ${r.completed}`,'ok'); refreshBoot().then(render); }
       catch(e){ toast(e.message,'err'); }
+    });
+    // PUNTA LA RONDA DELL'IMPRESA (2/11, richiesta Mauro: "nessun pulsante per
+    // partecipare"): il flusso esiste già — in Agenda "scegli per oggi" iscrive la
+    // serie e punta il sedile — ma il pannello era solo un foglio informativo.
+    // Il bottone chiama STESSO treno di agenda-choose: se la serie è bloccata o la
+    // ronda odierna è passata, il messaggio chiaro del server arriva al toast.
+    $('#b-her-agenda')?.addEventListener('click', async ()=>{
+      const b = $('#b-her-agenda'); b.disabled = true;
+      try {
+        const id = v.active?.nodeId;
+        if (!id) throw new Error(tr({ it: 'Serie dell\'impresa non indicata dal server: cerca la serie in Agenda e scegli per oggi.', en: 'Server did not say which series the feat belongs to: find the series in the Agenda and pick it for today.' }));
+        await api('agenda-choose', { method: 'POST', body: { nodeId: id } });
+        toast(tr({ it: 'Ronda dell\'impresa punta per oggi ✔ (la vedi in Agenda)', en: 'Feat round picked for today ✔ (see it in the Agenda)' }), 'ok');
+        refreshBoot().then(render);
+      } catch(e){ toast(e.message,'err'); b.disabled = false; }
     });
   } catch { el.innerHTML = `<h2>${tr({ it: '📜 Eredità di famiglia', en: '📜 Family heritage' })}</h2><div class="empty">${tr({ it: 'Non disponibile', en: 'Not available' })}.</div>`; }
 }
@@ -662,6 +677,11 @@ function drawCardInto(el, card){
      nel JSON della card: utile a chi collauda, invisibile qui.
      (Il commento era finito DENTRO il template literal e si stampava in
      pagina come testo: fuori dall'assegnazione, dove deve stare.) */
+  /* SCHEDA COMPATTA (2/11, richiesta Mauro): regole del weekend (orari,
+     distanza, temperature) e bollettino meteo vivono in un DETTAGLIO
+     espandibile — la scheda mostra la gara, le regole si aprono a
+     richiesta. I controlli restano gli stessi (id rs-*), solo chiusi
+     di default: la scheda resta compatta anche con l'orario in vista. */
   el.innerHTML = `<h2>${LI.flag} ${tr({ it: 'Prossima gara', en: 'Next race' })} <span class="h-act">R${card.roundIndex+1} ${tr({ it: 'di', en: 'of' })} ${card.totalRounds}${card.agendaDayLabel ? ` · ${esc(card.agendaDayLabel)}` : ''}</span></h2>
 
     <div class="title">${CFLAG} ${esc(card.roundName)}</div>
@@ -706,15 +726,17 @@ function drawCardInto(el, card){
     ${card.heritageActive ? `<div class="banner warn" style="margin-top:10px">📜 <b>${tr({ it: 'Impresa di famiglia: ', en: 'Family feat: ' })}${esc(tr({ it: card.heritageActive.title, en: card.heritageActive.titleEn ?? card.heritageActive.title }))}</b> — ${esc(card.heritageActive.ancestor)}, ${tr({ it: 'tuo ', en: 'your ' })}${esc(tr({ it: card.heritageActive.relation, en: card.heritageActive.relationEn ?? card.heritageActive.relation }))} (${esc(card.heritageActive.era)}). ${tr({ it: 'Questa gara vale per l\'obiettivo «', en: 'This race counts for the goal «' })}${esc(tr({ it: card.heritageActive.objective, en: card.heritageActive.objectiveEn ?? card.heritageActive.objective }))}» (${card.heritageActive.done}/${card.heritageActive.total} ${tr({ it: 'superate · eredità ', en: 'done · inheritance ' })}${money(card.heritageActive.inherit)} €).</div>` : ''}
     ${!card.heritageActive && card.heritageHint ? `<div class="banner info" style="margin-top:10px">📜 ${tr({ it: "L'impresa di famiglia ", en: 'The family feat ' })}${card.heritageHint ? tr({ it: 'prosegue a <b>', en: 'continues at <b>' })+esc(card.heritageHint)+'</b>' : ''}${tr({ it: ': corri la ronda indicata per farla contare (vedi pannello Eredità).', en: ': run the listed round to make it count (see the Heritage panel).' })}</div>` : ''}
     ${card.challenge && !card.challenge.verdict ? `<div class="banner ${card.challenge.accepted?'info':'warn'}" style="margin-top:10px">${LI.target} <b>${tr({ it: 'Sfida della ronda', en: 'Round challenge' })}</b> — ${esc(legacyIt(card.challenge.text))}<br><span class="muted">${tr({ it: 'facoltativa · premio ', en: 'optional · reward ' })}${money(card.challenge.reward)} € ${tr({ it: 'se ci riesci · −', en: 'if you make it · −' })}${card.challenge.penalty} rep ${tr({ it: 'se fallisci', en: 'if you fail' })}${card.challenge.accepted?` · <b>${tr({ it: 'accettata', en: 'accepted' })}</b>`:''}</span>${card.challenge.accepted?'':` <button class="mini" id="b-accept-chal" style="margin-top:6px">${tr({ it: 'Accetta la sfida', en: 'Accept the challenge' })}</button>`}</div>` : ''}
-    ${card.pendingProposal ? `<div class="banner warn" style="margin-top:10px"><b>${tr({ it: '🎯 Il tool suggerisce il trim', en: '🎯 The tool suggests the trim' })}</b> ${esc(card.pendingProposal.reason)}: ${tr({ it: 'trim ', en: 'trim ' })}${card.pendingProposal.from >= 0 ? '+' : ''}${card.pendingProposal.from} → <b>${card.pendingProposal.to >= 0 ? '+' : ''}${card.pendingProposal.to}</b>. ${tr({ it: 'Accettare sposta anche la banda EVO della serie di ', en: 'Accepting also moves the series EVO band by ' })}${Math.abs((card.pendingProposal.to - card.pendingProposal.from) * 5)} ${tr({ it: 'punti (', en: 'points (' })}${card.pendingProposal.to > card.pendingProposal.from ? tr({ it: 'in salita', en: 'upward' }) : tr({ it: 'in discesa', en: 'downward' })}).<br>
+    ${card.pendingProposal ? `<div class="banner warn" style="margin-top:10px"><b>${tr({ it: '🎯 Il tool suggerisce il trim', en: '🎯 The tool suggests the trim' })}</b> ${esc(card.pendingProposal.reason)}: ${tr({ it: 'trim ', en: 'trim ' })}${card.pendingProposal.from >= 0 ? '+' : ''}${card.pendingProposal.from} → <b>${card.pendingProposal.to >= 0 ? '+' : ''}${card.pendingProposal.to}</b>. ${tr({ it: 'Accettare sposta anche la banda EVO della serie di ', en: 'Accepting also moves the series EVO band by ' })}${Math.abs((card.pendingProposal.to - card.pendingProposal.from) * 1)} ${tr({ it: 'punti (', en: 'points (' })}${card.pendingProposal.to > card.pendingProposal.from ? tr({ it: 'in salita', en: 'upward' }) : tr({ it: 'in discesa', en: 'downward' })}).<br>
       <button class="mini" id="b-prop-accept" style="margin-top:6px">${tr({ it: 'Accetta (trim ', en: 'Accept (trim ' })}${card.pendingProposal.to >= 0 ? '+' : ''}${card.pendingProposal.to})</button>
       <button class="mini" id="b-prop-reject" style="margin-top:6px;margin-left:6px">${tr({ it: 'Rifiuta', en: 'Reject' })}</button></div>` : ''}
     ${card.difficulty?.trim >= (20) ? `<div class="banner warn" style="margin-top:10px"><b>${tr({ it: 'Difficoltà al massimo', en: 'Difficulty at the max' })}</b> — ${tr({ it: 'il trim adattivo è arrivato a +20 e la serie resta troppo facile: il passo successivo è passare a una serie più alta (bottone 🎯 nel cruscotto).', en: 'the adaptive trim reached +20 and the series still feels too easy: the next step is moving up to a higher series (the 🎯 button in the dashboard).' })}</div>` : ''}
-    <div class="panel" style="margin-top:12px; padding:14px 16px" id="rs-panel">
-      <h2 style="margin-bottom:10px">${LI.gauge} ${tr({ it: 'Regole di questo weekend', en: 'Rules of this weekend' })} <span class="h-act">${tr({ it: 'banda AI a 84–85%: poi comanda il trim (pannello Difficoltà)', en: 'AI band at 84–85%: the trim takes it from there (Difficulty panel)' })}</span></h2>
-      <div class="rs-grid">
+    <details class="panel" style="margin-top:12px; padding:14px 16px" id="rs-panel">
+      <summary style="cursor:pointer;margin-bottom:0">${LI.gauge} <b>${tr({ it: 'Regole di questo weekend · meteo', en: 'Rules of this weekend · weather' })}</b> <span class="h-act">${tr({ it: 'clic per aprire: orari, distanza, temperature e bollettino', en: 'click to open: times, distance, temperatures and forecast' })}</span></summary>
+      <div class="rs-grid" style="margin-top:10px">
         <div class="field" style="grid-column:1/-1;border:1px solid var(--line,#2a3341);border-radius:8px;padding:8px 10px">
-          <b>${tr({ it: `Difficoltà AI ${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%`, en: `AI difficulty ${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%` })}</b> — <span class="muted" style="font-size:12px">${tr({ it: 'è quella di serie: parte da 84–85% e si muove col trim adattivo (e coi tasti ±1/±2/±3 del cruscotto se serve). Per regolarla a mano: pannello Difficoltà — la variante a mano non vive più qui.', en: 'of the series: it starts at 84–85% and moves with the adaptive trim (and with the dashboard ±1/±2/±3 arrows if needed). To set it by hand: the Difficulty panel — the manual control no longer lives here.' })}</span>
+          <b>${tr({ it: `Difficoltà AI ${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%`, en: `AI difficulty ${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%` })}</b>
+          ${card.difficulty?.trim ? `<span class="tag warn" style="margin-left:6px">trim ${card.difficulty.trim > 0 ? '+' : ''}${card.difficulty.trim}</span>` : ''}
+          <span class="tag green" style="margin-left:6px" title="${tr({ it: 'è la banda viva dei cursori del pannello Difficoltà: muovi il trim là e si sposta qui', en: 'it is the live band of the Difficulty-panel sliders: move the trim there and this follows' })}">${tr({ it: 'banda viva dei cursori', en: 'live slider band' })}</span> — <span class="muted" style="font-size:12px">${tr({ it: 'si muove col trim adattivo e coi tasti ±1/±2/±3 del cruscotto; per regolarla a mano: pannello Difficoltà.', en: 'it moves with the adaptive trim and the dashboard ±1/±2/±3 arrows; to set it by hand: the Difficulty panel.' })}</span>
         </div>
         <div class="field"><label>${tr({ it: 'Inizio prove libere (ora del gioco)', en: 'Practice start (game time)' })}</label><input type="number" id="rs-pstart" min="0" max="23" value="${card.practiceStart}"></div>
         <div class="field"><label>${tr({ it: 'Inizio qualifiche (ora del gioco)', en: 'Qualifying start (game time)' })}</label><input type="number" id="rs-qstart" min="0" max="23" value="${card.qualifyStart}"></div>
@@ -738,17 +760,36 @@ function drawCardInto(el, card){
         <div class="field" style="grid-column:1/-1;border:1px solid var(--line,#2a3341);border-radius:8px;padding:8px 10px">
           <b>🌦 ${tr({ it: 'Bollettino del weekend', en: 'Weekend forecast' })}</b> — <span class="muted" style="font-size:11.5px">${esc(card.weatherRitual ?? '')}</span>
           <div id="wx-plan" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-            ${(card.weatherPlan ?? []).map(s => `<span style="display:flex;align-items:center;gap:6px;border:1px solid var(--line,#2a3341);border-radius:8px;padding:4px 8px;background:var(--panel2,#121822);font-size:11.5px">
+            ${(card.weatherPlan ?? []).map(s => {
+              // BOLLETTINO IN AUTOMATICO (3/11 + 4/11): si sistema TUTTO da
+              // solo — alla ronda nuova il tool scrive le Prove (wxAutoPrima),
+              // a fine di ogni sessione scrive la successiva (wxAutoTick);
+              // attivato dal watcher. Il tasto «Metti» resta il ripiego a mano
+              // (per esempio due ronde di fila sulla stessa pista).
+              const ok = card.weatherNow != null && Number(card.weatherNow) === Number(s.weather);
+              const prima = String(s.session).toLowerCase() === 'practice';
+              const tag = ok
+                ? `<span style="color:#69b06e;font-size:10.5px">✓ ${tr({ it: 'a posto', en: 'set' })}</span>`
+                : prima
+                  ? `<span class="muted" style="font-size:10.5px">${tr({ it: 'al cambio ronda', en: 'on round change' })}</span>`
+                  : `<span class="muted" style="font-size:10.5px">${tr({ it: 'in automatico', en: 'automatic' })}</span>`;
+              return `<span style="display:flex;align-items:center;gap:6px;border:1px solid var(--line,#2a3341);border-radius:8px;padding:4px 8px;background:var(--panel2,#121822);font-size:11.5px">
               <b>${esc(s.sessionLabel)}</b> <span style="font-weight:600">${WX_ICON[Number(s.weather)] ?? ''} ${esc(s.label)}</span>${s.hour!=null?`<span class="muted">· ${String(s.hour).padStart(2,'0')}:00</span>`:''}
-              <button class="mini" data-wx="${esc(s.session.toLowerCase())}" style="padding:2px 8px">${tr({ it: 'Metti', en: 'Set' })}</button>
-            </span>`).join('')}
-            <span class="muted" style="font-size:11px;align-self:center">${tr({ it: 'premuto «Metti» PRIMA di entrare in quella sessione', en: 'press “Set” BEFORE entering that session' })}</span>
+              ${tag}
+              <button class="mini" data-wx="${esc(s.session.toLowerCase())}" style="padding:2px 8px" title="${tr({ it: 'ripiengo a mano', en: 'manual fallback' })}">${tr({ it: 'Metti', en: 'Set' })}</button>
+            </span>`;
+            }).join('')}
+            <span class="muted" style="font-size:11px;align-self:center">${tr({ it: 'si sistema da solo: al cambio ronda le Prove, a fine di ogni sessione la successiva — sempre PRIMA di entrarci', en: 'sets itself: Prove at a round change, the next session after each one — always BEFORE entering' })}</span>
           </div>
+          <details id="wx-log" style="margin-top:6px">
+            <summary class="muted" style="cursor:pointer;font-size:12px">📜 ${tr({ it: 'Registro delle scritture automatiche', en: 'Automatic writes log' })} <span id="wx-log-n" class="muted" style="font-size:11px"></span></summary>
+            <div id="wx-log-body" class="muted" style="font-size:11.5px;line-height:1.55;margin-top:4px">…</div>
+          </details>
         </div>
         <div class="row" style="align-items:end"><button class="mini" id="rs-save">${tr({ it: 'Salva regole', en: 'Save rules' })}</button><button class="mini" id="rs-reset">${tr({ it: 'Torna ai consigli', en: 'Back to suggestions' })}</button></div>
       </div>
       <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'Aggressività AI ' + card.aggression + '% (bloccata in EVO) · «Torna ai consigli» azzera le tue scelte.', en: 'AI aggression ' + card.aggression + '% (locked in EVO) · “Back to suggestions” clears your choices.' })}</div>
-    </div>
+    </details>
     <div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px" id="prep-data">
       ${(() => {
         const setRow = (pref) => (card.settings.find(([k]) => k.startsWith(pref)) ?? [])[1] ?? '—';
@@ -781,12 +822,16 @@ function drawCardInto(el, card){
         [tr({ it: 'Ora del giorno', en: 'Time of day' }), setRow('Ora')],
         [tr({ it: 'Meteo', en: 'Weather' }), setRow('Meteo')],
         [tr({ it: 'Partenza', en: 'Start' }), setRow('Partenza')],
-        [tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), `${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%`],
+        // BANDA VIVA DEI CURSORI anche nel riquadro (richiesta Mauro 2/11):
+        // il numero è già quello del pannello Difficoltà (raceSettings);
+        // accanto il trim, perché chi muove il trim là si riconosca qui.
+        [tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), `${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%${card.difficulty?.trim ? ` — trim ${card.difficulty.trim > 0 ? '+' : ''}${card.difficulty.trim}` : ''}`],
         ];
         return righe.map(([k, v]) => { const s = spezza(k, v); return `<div style="border:1px solid var(--line,#2a3341);border-radius:8px;padding:8px 10px;background:var(--panel2,#121822)">
         <div class="muted" style="font-size:10.5px;text-transform:uppercase;letter-spacing:1px">${icona[k] ? icona[k] + ' ' : ''}${esc(k)}</div>
         <div style="font-size:13px;font-weight:600;margin-top:2px">${k === auto && v && v !== '—' ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda tecnica dell\'auto', en: 'open the car spec sheet' })}" onclick="vai('cars',{search:'${String(v).replace(/'/g, "\\'")}'})">${esc(s.main)}</span>` : esc(s.main)}</div>
         ${s.sub ? `<div class="muted" style="font-size:11px;line-height:1.45;margin-top:3px">${esc(s.sub)}</div>` : ''}
+        ${k === tr({ it: 'Difficoltà AI', en: 'AI difficulty' }) ? `<div class="row" style="gap:5px;margin-top:6px"><button class="mini d-nudge" data-d="-1" title="${tr({ it: 'gara troppo dura? scendi di 1 punto la banda della serie: vale per le prossime gare e si vede anche nel pannello Difficoltà', en: 'race too hard? drop the series band by 1 point: it applies to upcoming races and shows also in the Difficulty panel' })}">−1</button><button class="mini d-nudge" data-d="+1" title="${tr({ it: 'gara troppo facile? sali di 1 punto la banda della serie: vale per le prossime gare e si vede anche nel pannello Difficoltà', en: 'race too easy? raise the series band by 1 point: it applies to upcoming races and shows also in the Difficulty panel' })}">+1</button></div>` : ''}
       </div>`; }).join('');
       })()}
     </div>
@@ -1191,6 +1236,38 @@ function drawCardInto(el, card){
     } catch(e){ toast(e.message, 'err'); }
     b.disabled = false;
   }; });
+  // REGISTRO DELLE SCRITTURE AUTOMATICHE (4/11): quando e perché il
+  // bollettino ha scritto ogni preset (wx-registro.mjs, via API wx-log).
+  // Caricamento asincrono dopo il render: il pannello si apre con «…» e si
+  // riempe da solo; un fallimento resta quel puntini, il pannello non muore.
+  const wxLogBody = $('#wx-log-body', el);
+  if (wxLogBody) api('wx-log').then((r) => {
+    const voci = r?.voci ?? [];
+    const nEl = $('#wx-log-n', el);
+    if (nEl) nEl.textContent = r?.total ? `${r?.total === 1 ? '· 1' : `· ${r.total}`}` : '';
+    if (!voci.length) {
+      wxLogBody.textContent = tr({
+        it: 'Ancora nessuna scrittura: il meteo delle Prove lo scrive «Prepara tutto», poi il bollettino automatico registra qui ogni preset che sistema.',
+        en: 'No writes yet: "Get ready" sets the Practice sky, then the automatic forecast logs every preset it writes here.',
+      });
+      return;
+    }
+    const VIA = {
+      'cambio-ronda': tr({ it: 'cambio ronda', en: 'round change' }),
+      'fine-sessione': tr({ it: 'finita la sessione precedente', en: 'previous session ended' }),
+    };
+    wxLogBody.innerHTML = voci.map((v) => {
+      const data = new Date(v.at).toLocaleString();
+      const preset = `${WX_ICON[Number(v.preset)] ?? ''} ${v.label ?? String(v.preset)}`.trim();
+      const era = (v.from != null && Number(v.from) !== Number(v.preset))
+        ? `<span class="muted">(${tr({ it: 'era', en: 'was' })} ${WX_ICON[Number(v.from)] ?? ''} ${esc(String(v.from))})</span>` : '';
+      const file = v.file ? `<div class="muted" style="font-size:10.5px;margin-top:1px">↳ ${esc(String(v.file))}</div>` : '';
+      return `<div style="border-bottom:1px dashed var(--line,#2a3341);padding:3px 0">
+        <b style="font-weight:600">${esc(data)}</b> — ${esc(String(v.via) === 'cambio-ronda' ? VIA['cambio-ronda'] : VIA['fine-sessione'])} →
+        <span style="font-weight:600">${esc(v.sessione ?? '?')} ${esc(preset)}</span> ${era}${file}
+      </div>`;
+    }).join('');
+  }).catch(() => { /* i puntini restano: il pannello non deve morire per il registro */ });
   $('#rs-reset', el)?.addEventListener('click', async () => {
     try {
       await api('race-settings', { clear: true });

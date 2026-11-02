@@ -1,7 +1,10 @@
 // test/rapporto-gara.test.mjs — il rapporto di gara condivisibile, provato su
 // una griglia finta in cartella temporanea (mai il data/ vero):
 //   1. il MD si compone dal file risultato: titolo, podio, classifica nel
-//      blocco monospazio, penalità, la tua riga, giro teorico dai settori;
+//      blocco monospazio, penalità, la tua riga, settori del tuo giro;
+//      il GIRO TEORICO non appare con la somma dei splits del file (quella È
+//      il best per costruzione: lezione 3/11, margine-log.mjs) — appare SOLO
+//      quando un log del gioco abbina la tripla del best (teorico VERO);
 //   2. il file .rapporto.md si salva SOLO nella cartella di test (env);
 //   3. file assente → errore, niente tiri;
 //   4. l'HTML porta la tabella e la tua riga in oro.
@@ -53,7 +56,7 @@ test('il MD si compone dal file risultato: podio, blocco classifica, penalità, 
   assert.match(md, /\+5\.0s/, 'la penalità di EVO entra nella classifica');
   assert.match(md, /▸ Pietro/, 'la tua riga marchiata ▸ nel blocco');
   assert.match(md, /⭐ TU: \*\*P2\*\*/, 'la tua gara in testa al dossier');
-  assert.match(md, /Giro teorico/, 'il giro teorico dai tuoi settoriali (dai splits del file)');
+  assert.ok(!md.includes('Giro teorico'), 'senza log abbinate niente riga del teorico: la somma dei splits del file e il best per costruzione (lezione 3/11, margine-log.mjs)');
   assert.match(md, /Settore 1 \+0\.000|Settore 1 /, 'i settori del tuo giro');
   assert.match(md, /⚡ Giro veloce: \*\*2:34\.900\*\*/, 'il giro veloce con il suo autore');
   assert.ok(!stripLit(md).includes('undefined'), 'nessun "undefined" nel testo');
@@ -66,6 +69,32 @@ test('il file .rapporto.md si salva nella cartella di test e riporta lo stesso t
   const rip = rg.rapportoGara(paths, FILE, { driver: { first: 'Pietro', last: 'Pitwall', name: 'Pietro Pitwall' } });
   assert.ok(rip.salvatoMd && existsSync(rip.salvatoMd), `il .md è salvato: ${rip.salvatoMd}`);
   assert.equal(readFileSync(rip.salvatoMd, 'utf8'), rip.md, 'il file salvato = il testo mostrato');
+});
+
+test("il teorico VERO: un log del gioco che abbina la tripla del best lo porta nel MD", () => {
+  const LOGS = join(TMP, 'Logs');
+  mkdirSync(LOGS, { recursive: true });
+  const CAR = '8f8e1f77-d6a7-4ef3-a856-4eb06fa51fe8';
+  // la tripla del best (44310+47328+67017) compare GIRO 1; il giro 2 ha S1 più
+  // veloce → teorico = minimo per settore = 43900+47328+67017 = 2:38.245,
+  // scorta = best accreditato (158655) meno teorico = 0:00.410
+  const righe = [
+    '[2026-04-16 21:09:00.000] [general] [info] Game Started! Assetto Corsa EVO | Misano World Circuit Full Race | track: misano',
+    ...[
+      ['(44310 ms, splitindex 0) lap:1', '21:10:01.000'],
+      ['(47328 ms, splitindex 1) lap:1', '21:10:41.000'],
+      ['(67017 ms, splitindex 2) lap:1', '21:11:21.000'],
+      ['(43900 ms, splitindex 0) lap:2', '21:12:01.000'],
+      ['(47900 ms, splitindex 1) lap:2', '21:12:41.000'],
+      ['(67500 ms, splitindex 2) lap:2', '21:13:21.000'],
+    ].map(([s, ts]) => `[2026-04-16 ${ts}] [gameplay] [info] Split completed for car ${CAR}: ${s}`),
+  ];
+  writeFileSync(join(LOGS, 'log-260416-2115.txt'), righe.join('\n') + '\n', 'latin1');
+  const pathsLog = { resultsDirs: [RESULTS], logsDirs: [LOGS] };
+  const rip = rg.rapportoGara(pathsLog, FILE, { driver: { first: 'Pietro', last: 'Pitwall', name: 'Pietro Pitwall' } });
+  assert.ok(!rip.error, `niente errore: ${JSON.stringify(rip.error)}`);
+  assert.ok(rip.md.includes('2:38.245** (su 2 giri)'), `teórico VERO dai minimi settoriali del log, due giri nella finestra: ${rip.md.split('\n').filter((l) => l.includes('🧩')).join(' | ')}`);
+  assert.ok(rip.md.includes('scorta sul giro accreditato: 0:00.410'), 'scorta reale: positivo = tempo da recuperare');
 });
 
 test('file assente: errore chiaro, nessun lancio', () => {

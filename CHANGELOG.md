@@ -50,6 +50,32 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
   spunta con nome: STESSO numero, STESSA formula dello slot
   (`ui-<slot>.json` da ENTRAMBE le parti) e sondaggio a metà periodo (le
   app leggono ogni `PERIODO_MS/2`, il publisher scrive ogni `PERIODO_MS`).
+- **Il teorico diventa una legge, un solo fonte** (richiesta Mauro, lezione
+  3/11): la somma dei splits del file è il best per costruzione (EVO scrive
+  nei splits i settori del GIRO MIGLIORE), quindi ovunque l'interfaccia
+  diceva «teorico» su quella somma mentiva. Ora il teorico VERO (minimo per
+  settore sui giri segnati nei log del gioco, con margine e giri) arriva in
+  tre posti: la riga «teorico» del Gironi ([hotlaps.mjs](src/hotlaps.mjs),
+  sostituzione al momento di lettura — il quaderno su disco non cambia), la
+  scheda dell'import gara ([import.mjs](src/import.mjs), persistito nel
+  save) e la frase dell'Autopsia ([analisi.mjs](src/analisi.mjs)), che ora
+  dice «minimo per settore sui giri segnati, dai log». Senza log abbinati la
+  riga mostra «—»: niente più best travestito da teorico. Test di guardia
+  sull'import vero: [import-teorico.test.mjs](test/import-teorico.test.mjs).
+- **Il 0,00 del Tetto non è quasi sempre un no-score** (richiesta Mauro:
+  «distingui 'sono io il campione' dal caso senza dati»): nel Tetto
+  teorico Suzuka e Laguna mostravano delta 0,00 indistinguibili da uno
+  0,00 finto — il vecchio `?? 0` in [analisi.mjs](src/analisi.mjs)
+  trasformava un campo VUOTO (nessun avversario con split misurato nel
+  file) in uno 0,00 identico al campione detenuto. Ora
+  [results.mjs](src/results.mjs) porta per settore `fieldCount` (rivali
+  veri col settore) e `solo`: [tettoReport](src/analisi.mjs) agrega SOLO i
+  delta col campo vivo (un ingresso senza campo vale nessun-dato, fuori
+  da busta, mediana e peggiori), e la cella della GUI
+  ([viste-analisi.js](gui/js/viste-analisi.js)) distingue: 0,00 + «🥇
+  campione» col campo vivo, «— senza dati» quando il campo non c'è.
+  Test di guardia nelle quattro forgie in
+  [analisi.test.mjs](test/analisi.test.mjs).
 - **Suite completa in sandbox: 701 test verdi** (da 697 di v0.1.45), 0
   cadute; test nuovi: caso vittoria con margine (e senza margine =
   silenzio) in [analisi.test.mjs](test/analisi.test.mjs), più la legge del
