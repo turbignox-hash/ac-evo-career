@@ -6,8 +6,9 @@
 // cursori a null) È una riga tornata al consiglio calcolato, NON una serie
 // senza impostazione. La semina (seminaRaceSettings in src/state.mjs, video
 // estratta dal blocco inline di webui.mjs dove gira a ogni richiesta) non
-// deve MAI riempirla: se lo facesse, il fisso [84, 85] risorgerebbe dal
-// retro — il peccato che il ladder aiSerie del 2/11 ha tolto davanti.
+// deve MAI riempirla: se lo facesse con la cifra di un tempo, la banda
+// preistorica [84, 85] risorgerebbe dal retro — il peccato che il ladder
+// aiSerie del 2/11 aveva tolto davanti (e il 3/11 l'ha tolta affatto).
 //
 // Ordine della semina, ogni porta col SUO esito atteso:
 //   record MEZZO  (un cursore)  → si completa solo il valore mancante;
@@ -16,9 +17,12 @@
 //                                porta la sua banda;
 //   record VUOTO («↺»)         → NIENTE riempimento: la guardia fallisce
 //                                se sulla riga appare un numero.
-// Il ripiego [84, 85] vive SOLO in fondo: un ladder davvero senza aiSerie —
-// e anche lì un record «↺» resta vuoto. La semina è IDEMPOTENTE: il server
-// la rilancia a ogni richiesta, la seconda volta non deve cambiare niente.
+// (3/11, richiesta Mauro: «senza la cifra 84–85 incisa, che segua il ladder
+// alle release seguenti») — il fisso [84, 85] È SCESO anche dall'ultima
+// porta: un ladder davvero senza banda NON si semina, la riga resta assente
+// e la banda la calcola il consiglio a ogni giro (viewDifficulty/difficultyFor).
+// La semina è IDEMPOTENTE: il server la rilancia a ogni richiesta, la
+// seconda volta non deve cambiare niente.
 //
 // Niente server né browser qui: la funzione è pura su state in memoria
 // (le pause del codice viva girano in webui-smoke.test.mjs e compagnia).
@@ -47,7 +51,7 @@ test('Il record VUOTO («↺») non si riempie: la guardia fallisce se appare un
   const state = { raceSettings: { serie_b: { sliderMin: null, sliderMax: null } } };
   seminaRaceSettings(LADDER, state);
   assert.deepEqual(state.raceSettings.serie_b, { sliderMin: null, sliderMax: null },
-    'la semina ha riempito la riga «↺»: il fisso [84, 85] risorge dal retro — la riga vuota è tornata al consiglio calcolato, si lascia lì.');
+    'la semina ha riempito la riga «↺»: la cifra di un tempo risorge dal retro — la riga vuota è tornata al consiglio calcolato, si lascia lì.');
 });
 
 test('Il record ASSENTE prende la banda del LADDER, mai il fisso [84, 85]', () => {
@@ -64,14 +68,14 @@ test('Il record MEZZO si completa solo sul cursore mancante, l\'utente non si to
     'il valore dell\'utente (90) doveva restare: si completa solo il cursore che manca.');
 });
 
-test('Il fisso [84, 85] vive SOLO nel ripiego: ladder senza aiSerie — e lì «↺» resta vuoto', () => {
+test('Il ladder SENZA banda non si semina: niente cifre incise, la riga nasce dal consiglio calcolato', () => {
   const vecchio = { nodes: [{ nodeId: 'k1' }, { nodeId: 'k2' }] };   // niente aiSerie, niente bandaSerie
   const state = { raceSettings: { k2: { sliderMin: null, sliderMax: null } } };
   seminaRaceSettings(vecchio, state);
-  assert.deepEqual(state.raceSettings.k1, { sliderMin: 84, sliderMax: 85 },
-    'per un ladder davvero privo di aiSerie il ripiego [84, 85] è l\'ultima rete.');
+  assert.equal(state.raceSettings.k1, undefined,
+    'senza banda di ladder la semina NON inventa numeri (niente [84, 85]): la banda la calcola il consiglio come e segue il ladder alle release seguenti.');
   assert.deepEqual(state.raceSettings.k2, { sliderMin: null, sliderMax: null },
-    'anche sotto il ripiego la riga «↺» non si riempie.');
+    'anche senza banda di ladder la riga «↺» non si riempie.');
   assert.equal(bandaSerieLadder(vecchio, vecchio.nodes[0]), null,
     'senza aiSerie né bandaSerie il lettore del ladder deve dire null, non inventare.');
 });

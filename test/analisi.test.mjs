@@ -492,6 +492,10 @@ test('tettoReport: aggrega per pista delta sul campione top e settore peggiore',
   // → il peggiore è S1
   assert.equal(monza.worstSector, 1);
   assert.equal(monza.worstSectorDeltaMs, 250);
+  // IL PICCO (3/11, richiesta Mauro): il colpo singolo più grosso che la
+  // mediana nasconde — qui la mediana dice S1 250, ma il picco è S2 400
+  // (round 0) — esce come evento nella colonna «Reparto che pesa»
+  assert.deepEqual(monza.picco, { sector: 2, deltaMs: 400, season: 1, round: 0 });
   assert.equal(monza.campTopDeltaMs, 400);
   // i peggiori della carriera: il massimo per primo
   assert.equal(t.worstSectors[0].sector, 2);
@@ -531,12 +535,14 @@ test('tettoReport: il 0,00 è campione SOLO col campo vivo, senza campo è nessu
   assert.equal(t.ok, true);
   const champ = t.perTrack.find((x) => x.track === 'Champion Park');
   assert.equal(champ.campTopDeltaMs, 0, 'campione col campo vivo: il numero resta 0, non null');
+  assert.equal(champ.picco, null, 'deltas a 0 col campo vivo: nessun picco da raccontare');
   const vuota = t.perTrack.find((x) => x.track === 'Vuota Seca');
   assert.equal(vuota.campTopDeltaMs, null, 'senza campo: NESSUN DATO (null), non uno 0,00 da vanteria');
   assert.equal(t.perTrack.filter((x) => x.track === 'Vuota Seca').length, 1);
   assert.equal(t.worstSectors.every((w) => w.track !== 'Vuota Seca'), true, 'senza campo non c\'è tempo "perso" da classificare');
   const misto = t.perTrack.find((x) => x.track === 'Mistona');
   assert.equal(misto.campTopDeltaMs, 300, 'i settori senza campo non azzeraono la busta: pesa SOLO il settore con campo');
+  assert.deepEqual(misto.picco, { sector: 2, deltaMs: 300, season: 2, round: 2 }, 'il picco segue la regola del campo: pesa solo il S2 con campo');
   assert.equal(t.perTrack.find((x) => x.track === 'Monza').campTopDeltaMs, 220, 'vecchio import senza fieldCount: campo presente, busta come ieri');
   // nel tetto visibile il campione ed il sans-dato escono entrambi (entrambi
   // hanno riparto) mentre la pista vuota resta fuori dalla tabella: worstSectorDeltaMs null

@@ -120,7 +120,7 @@ function renderTetto(host, d){
       <div class="empty">${esc(d.hint ?? '')}</div>`;
     return;
   }
-  host.innerHTML = `<h2>🏔️ ${tr({ it: 'Tetto teorico', en: 'Theoretical ceiling' })} <span class="h-act">${tr({ it: 'delta sul campione top = il colpo più grosso del riparto su quella pista · 0,00 con 🥇 campione = i settori del best sono tutti tuoi · «senza dati» = nessun avversario con settoriali misurabili nel file · reparto che pesa = mediana dei delta per settore · margine vero = best − somma dei migliori settoriali, dai log del gioco giro per giro (positivo = tempo da recuperare; negativo = i settori della sessione non superano il giro accreditato)', en: 'top campaign delta = the biggest hit of the sector split on that track · 0.00 with 🥇 champion = you hold every best sector · «no data» = no opponent with measurable sector splits in the file · costliest sector = median delta per sector · true margin = best − sum of best sectors, read lap-by-lap from the game logs (positive = recoverable time; negative = session sectors do not beat the credited lap)' })}</span></h2>
+  host.innerHTML = `<h2>🏔️ ${tr({ it: 'Tetto teorico', en: 'Theoretical ceiling' })} <span class="h-act">${tr({ it: 'delta sul campione top = il colpo più grosso del riparto su quella pista · 0,00 con 🥇 campione = i settori del best sono tutti tuoi · «senza dati» = nessun avversario con settoriali misurabili nel file · reparto che pesa = mediana dei delta per settore · picco = il colpo singolo più grosso che la mediana nasconde (es. «S1 0,00s · picco S3 20,25s») · margine vero = best − somma dei migliori settoriali, dai log del gioco giro per giro (positivo = tempo da recuperare; negativo = i settori della sessione non superano il giro accreditato)', en: 'top campaign delta = the biggest hit of the sector split on that track · 0.00 with 🥇 champion = you hold every best sector · «no data» = no opponent with measurable sector splits in the file · costliest sector = median delta per sector · peak = the biggest single hit the median hides (e.g. "S1 0.00s · peak S3 20.25s") · true margin = best − sum of best sectors, read lap-by-lap from the game logs (positive = recoverable time; negative = session sectors do not beat the credited lap)' })}</span></h2>
     <table><thead><tr><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Gare', en: 'Races' })}</th>
       <th class="right">${tr({ it: 'Delta sul campione top', en: 'Top campaign delta' })}</th>
       <th>${tr({ it: 'Reparto che pesa', en: 'Costliest sector' })}</th>
@@ -129,7 +129,7 @@ function renderTetto(host, d){
       <td><b>${esc(t.track)}</b></td>
       <td class="right">${t.sessions}</td>
       <td class="right">${bustaCell(t)}</td>
-      <td>${t.worstSector != null ? `<span class="tag red">S${t.worstSector}</span> <span class="muted">${fmtSecMs(t.worstSectorDeltaMs, false).replace('+', '+')}</span>` : '—'}</td>
+      <td>${t.worstSector != null ? `<span class="tag red">S${t.worstSector}</span> <span class="muted">${fmtSecMs(t.worstSectorDeltaMs, false).replace('+', '+')}</span>${t.picco != null ? ` · <span title="${tr({ it: 'picco: il colpo singolo più grosso che la mediana nasconde', en: 'peak: the biggest single hit the median hides' })}" class="tag" style="color:#f0a93c;border-color:#f0a93c55">picco</span> ${t.picco.sector !== t.worstSector ? `<span class="tag red">S${t.picco.sector}</span> ` : ''}<span class="muted">${fmtSecMs(t.picco.deltaMs, false).replace('+', '+')}</span>` : ''}` : '—'}</td>
       <td class="right">${t.margineMs != null ? fmtSecMs(t.margineMs, false) : '—'}</td>
     </tr>`).join('')}</tbody></table>
     ${veri.length < d.perTrack.length ? `<div class="muted" style="margin-top:6px;font-size:11.5px">${d.perTrack.length - veri.length} ${tr({ it: 'piste senza riparto settoriale vero: fuori dalla tabella', en: 'tracks without a real sector split: not listed' })}</div>` : ''}
@@ -213,11 +213,20 @@ async function renderAB(host){
     </div>
     <div id="ab-note" class="muted" style="margin-top:8px;text-align:center;font-size:12px">${tr({ it: 'EVO registra il setup nel nome file (preset_…): due preset in due sessioni = un confronto A/B giusto.', en: "EVO stores the setup in the file name (preset_…): two presets across two sessions make a fair A/B." })}</div>`;
   let list = [];
+  let senza = [];
   let prefer = null;
   let last = null;
   try {
     const d = await api('ab-list');
     list = d.sessions ?? [];
+    /* SENZA GIRO CRONOMETRATO (2/11, richiesta Mauro): il server prova i
+       beacon del .ldx e ESCLUDE le voci 0-beacon da `sessions`; qui le
+       leggiamo da `senzaGiri` e le rimettiamo in menu DISABILITATE, sotto
+       l'etichetta del gruppo — visibili ma non puntabili (non diventano
+       A né B per un «confronto» che non esisterebbe: out-lap morti fuori).
+       Stessi filtri delle voci attive e stesso `opt`: il giorno completo
+       resta leggibile anche in voce spenta. */
+    senza = d.senzaGiri ?? [];
     prefer = d.prefer ?? null;
     last = d.last ?? null;
   } catch { /* senza telemetria i select restano vuoti */ }
@@ -225,7 +234,15 @@ async function renderAB(host){
     it: 'Nessuna sessione MoTeC ancora: il banco si attiva da solo dopo la prima uscita in pista (EVO scrive il file .ld quando chiudi la sessione).',
     en: 'No MoTeC session yet: the bench fills up by itself after the first track outing (EVO writes the .ld file when you close the session).',
   });
-  const opt = (s) => `<option value="${esc(s.file)}">${esc(s.car || '—')} · ${esc(s.track || '—')} · ${esc(abOra(s))}</option>`;
+  /* GIORNO NELLA VOCE (2/11, richiesta Mauro: «mostra il giorno completo anche
+     dentro le voci dei menu A/B, non solo nel titolo del gruppo»): l'optgroup
+     mostra il titolo solo quando il menu è aperto in pochi browser — la voce
+     chiusa e i riferimenti (note, modale) vedono soltanto il testo dell'option,
+     che ora porta AUTO · PISTA · GIORNO ORA e regge da solo quando il gruppo
+     non si vede. */
+  /* DISABLED (2/11): flag degli out-lap — value resta il .ld (la spunta non
+     si muove, ma un confronto su quelle voci non può nascere). */
+  const opt = (s, dis) => `<option value="${esc(s.file)}"${dis ? ' disabled' : ''}>${esc(s.car || '—')} · ${esc(s.track || '—')} · ${esc(abGiorno(s))} ${esc(abOra(s))}</option>`;
   /* GIORNO DELLA SESSIONE (2/11, richiesta Mauro): i menu A/B si raggruppano
      per GIORNO (optgroup), oltre ai filtri auto/pista — due gare sulla STESSA
      pista restano distinte pure dentro lo stesso gruppo (l'orario distingue);
@@ -269,7 +286,12 @@ async function renderAB(host){
         if (!visto.has(g)) { visto.set(g, gruppi.length); gruppi.push({ titolo: g, ses: [] }); }
         gruppi[visto.get(g)].ses.push(s);
       }
-      sel.innerHTML = sel.options[0].outerHTML + gruppi.map((gr) => `<optgroup label="${esc(gr.titolo)}">${gr.ses.map(opt).join('')}</optgroup>`).join('');
+      /* ESCLUSE (2/11): gruppo muto «senza giri cronometrati» in fondo,
+         colgap per auto/pista degli stessi filtri; nessun match = niente
+         footer visibile, il menu respira. */
+      const escluse = senza.filter((s) => (!fc || String(s.car ?? '') === fc) && (!ft || String(s.track ?? '') === ft));
+      sel.innerHTML = sel.options[0].outerHTML + gruppi.map((gr) => `<optgroup label="${esc(gr.titolo)}">${gr.ses.map(opt).join('')}</optgroup>`).join('')
+        + (escluse.length ? `<optgroup label="${esc(tr({ it: 'senza giri cronometrati', en: 'no timed laps' }))}">${escluse.map((s) => opt(s, true)).join('')}</optgroup>` : '');
       if (prima && visibili.some((s) => s.file === prima)) sel.value = prima;
     }
     if ($('#ab-note', host)) $('#ab-note', host).textContent = visibili.length ? notaBase

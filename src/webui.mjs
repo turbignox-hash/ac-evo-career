@@ -52,7 +52,7 @@ import { recordTestDay, testDayLog, calibrationSummary, prettyTrackLabeled } fro
 import { recordHotlaps, hotlapSweep, hotlapsLog, hotlapsStats, hotlapsProgress, hotlapsPistaGiro } from './hotlaps.mjs';
 import { recordWarning, readWarnings } from './warnings.mjs';
 import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
-import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, telemDiagnostics, lapTrace, sampleLap, sessionMetaOf } from './motec.mjs';
+import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, telemDiagnostics, lapTrace, sampleLap, sessionMetaOf, parseLdx } from './motec.mjs';
 // stinti.mjs e usura-gomme.mjs leggono la STESSA telemetria MoTeC: stint
 // spezzati dai rifornimenti veri e usura gomme (degrado ritmo + temperature)
 // entrano nel box e da terminale, sempre da file .ld reali (richiesta 28/10).
@@ -814,8 +814,9 @@ async function api(context0, _req, res, action, body) {
   if (state) {
     ensureFlowsSeeded(state); // carriere nate prima del registro flussi
     // SEMINA DEI CURSORI DI SERIE (3/11, estratta in state.mjs): la legge
-    // della stanza è LÀ (record vuoto «↺» = al consiglio, i fisso [84, 85]
-    // solo ripiego per ladder senza aiSerie) e la sorveglia è il suo test:
+    // della stanza è LÀ (record vuoto «↺» = al consiglio; NESSUNA cifra
+    // incisa — anche un ladder senza banda resta al consiglio calcolato,
+    // 3/11) e la sorveglia è il suo test:
     // test/semina-race-settings.test.mjs.
     seminaRaceSettings(ladder, state);
   }
@@ -1453,7 +1454,7 @@ async function api(context0, _req, res, action, body) {
       // Imola (26–27/9, le più vecchie) restavano fuori e i menu non le
       // mostravano MANCO per sceglierle. Ora il riepilogo è completo; i menu
       // restano navigabili perché i filtri e l'ultima scelta li restringono.
-      const sessions = listMotecSessions(root).map((s) => ({
+      const tutte = listMotecSessions(root).map((s) => ({
         file: s.name, path: s.file,
         // NOME PULITO (1/11): «ImolaGP» → «Imola», «Oulton ParkInternational» →
         // «Oulton Park International» — bella voce del ladder + variante vera
@@ -1468,7 +1469,16 @@ async function api(context0, _req, res, action, body) {
         // token nel nome file («…_Sat Sep 26 193715 2026.ld») e il banco
         // raggruppa/ora sul giorno del GIRO, non della copia. Fallback null:
         // il client resta sul mtimeMs.
+        // GIRO CRONOMETRATO (2/11, richiesta Mauro: «escludi dal banco A/B le
+        // sessioni senza giro cronometrato»): i beacon in MICROsecondi stanno
+        // nel .ldx a fianco del .ld (Marker Time sul traguardo). parseLdx su
+        // file assente o XML senza marker torna [] — quindi: sessioni 0 beacon
+        // NON entrano nei menu (nessun out-lap morto può farsi A o B) e si
+        // riappaiono al pilota come voci DISABILITATE «senza giri
+        // cronometrati» (viste-analisi le legge da `senzaGiri`).
+        beacons: parseLdx(s.file.replace(/\.ld$/i, '.ldx')).length,
       }));
+      const sessions = tutte.filter((s) => s.beacons > 0), senzaGiri = tutte.filter((s) => !(s.beacons > 0));
       // AUTOPUNTAMENTO (2/11): la coppia (auto,pista) dominante — A = la più
       // vecchia, B = la più recente del gruppo — calcolata puro in analisi.mjs.
       // La GUI la usa per aprire il banco già selezionato (Imola MX-5) e coi
@@ -1481,7 +1491,9 @@ async function api(context0, _req, res, action, body) {
       const last = state.abBanco && sessions.some((s) => s.file === state.abBanco.fileA) && sessions.some((s) => s.file === state.abBanco.fileB)
         ? { ...state.abBanco, car: sessions.find((s) => s.file === state.abBanco.fileA)?.car ?? '', track: sessions.find((s) => s.file === state.abBanco.fileA)?.track ?? '' }
         : null;
-      return sendJson(res, 200, { ok: true, sessions, prefer: abPreferite(sessions) ?? null, last });
+      // senzaGiri (2/11) ESCLUSE dal banco: la GUI le mostra come voci
+      // disabilitate sotto l'intestazione «senza giri cronometrati».
+      return sendJson(res, 200, { ok: true, sessions, senzaGiri, prefer: abPreferite(sessions) ?? null, last });
     }
     case 'ab-setup': {
       try {

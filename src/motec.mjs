@@ -57,7 +57,11 @@ function parseLd(buf) {
   return { dv, channels, duration };
 }
 
-function parseLdx(file) {
+/* parseLdx esportata (2/11): il banco A/B conta i BEACON di ogni sessione
+   prima di metterla in menu — senza .ldx (o senza transiti sul traguardo)
+   non ci sono giri cronometrati da confrontare, la sessione viene OUT dei
+   menu e finisce fra le «senza giri» disabilitate (viste-analisi). */
+export function parseLdx(file) {
   // Marker Time in microsecondi → secondi
   try {
     const xml = readFileSync(file, 'latin1');

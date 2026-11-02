@@ -606,7 +606,7 @@ async function drawSetup(m){
     <div class="lc-controls row" style="gap:10px;flex-wrap:wrap;align-items:center">
       <label class="muted">${tr({ it: 'Auto', en: 'Car' })}<br><select id="lc-f-car" style="width:190px"><option value="">${tr({ it: 'tutte le auto…', en: 'all cars…' })}</option></select></label>
       <label class="muted">${tr({ it: 'Pista', en: 'Track' })}<br><select id="lc-f-track" style="width:190px"><option value="">${tr({ it: 'tutte le piste…', en: 'all tracks…' })}</option></select></label>
-      <label class="muted">${tr({ it: 'Sessione', en: 'Session' })}<br><select id="lc-session" style="width:300px">${list.map((x) => `<option value="${esc(x.file)}" data-car="${esc(x.car ?? '')}" data-track="${esc(x.track ?? '')}" ${x.file === s.file ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.car ?? '')} · ${esc(x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('') || `<option value="">(${tr({ it: 'nessuna', en: 'none' })})</option>`}</select></label>
+      <label class="muted">${tr({ it: 'Sessione', en: 'Session' })}<br><select id="lc-session" style="width:300px">${list.map((x) => `<option value="${esc(x.file)}" data-car="${esc(x.car ?? '')}" data-track="${esc(x.track ?? '')}" data-when="${esc(x.whenLocal ?? x.when ?? '')}" ${x.file === s.file ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.car ?? '')} · ${esc(x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('') || `<option value="">(${tr({ it: 'nessuna', en: 'none' })})</option>`}</select></label>
       <label class="muted">${tr({ it: 'Giro', en: 'Lap' })}<br><select id="lc-lap" style="width:170px">${(() => { const vl = (s.laps ?? []).filter(l => l.durationSec > 15); const best = vl.length ? vl.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), vl[0]) : null; return vl.map(l => `<option value="${l.lap}" ${best && l.lap === best.lap ? 'selected' : ''}>${tr({ it: 'giro ', en: 'lap ' })}${l.lap} — ${(l.durationSec).toFixed(1)}s</option>`).join(''); })()}</select></label>
       <label class="muted">${tr({ it: 'Confronto', en: 'Compare' })}<br><select id="lc-cmp" style="width:190px"><option value="best">${tr({ it: 'miglior altro giro', en: 'best other lap' })}</option>${(() => { const vl = (s.laps ?? []).filter(l => l.durationSec > 15); const best = vl.length ? vl.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), vl[0]) : null; return vl.filter(l => !best || l.lap !== best.lap).map(l => `<option value="${l.lap}">${tr({ it: 'giro ', en: 'lap ' })}${l.lap} — ${(l.durationSec).toFixed(1)}s</option>`).join(''); })()}</select></label>
       <button class="act" id="lc-go" type="button">🔄 ${tr({ it: 'Ridisegna', en: 'Redraw' })}</button>
@@ -982,6 +982,12 @@ async function drawSetup(m){
       // auto» si può scegliere un .ld di un'altra macchina): serve al server per
       // trovare il file MoTeC (la cartella porta il nome dell'auto).
       const selCar = sessSel?.selectedOptions?.[0]?.dataset?.car ?? window.__lcCar ?? null;
+      // DATA SESSIONE NEL RIQUADRO (2/11, richiesta Mauro: «porta la data
+      // sessione anche nel riquadro del confronto giri», come nel banco A/B):
+      // la dicitura sotto al grafico parla di giri senza dire di QUALCHE
+      // sessione sono — la data arriva dall'option scelta (data-when, popolata
+      // da template, filtri e ricarica con whenLocal/when).
+      const selWhen = sessSel?.selectedOptions?.[0]?.dataset?.when ?? '';
       const t = await api('garage', { action: 'laptrace', car: selCar, file: sessSel ? sessSel.value : null, lap, compare, points: 300 });
       if (t.ok) {
         // sessione cambiata: i giri e il confronto si ricoegono con i VALORI della nuova sessione
@@ -993,7 +999,7 @@ async function drawSetup(m){
           if (filtrando) window.__lcFill?.();
           else {
             const old = sessSel.value;
-            sessSel.innerHTML = (t.sessions ?? []).map((x) => `<option value="${esc(x.file)}" data-car="${esc(t.car ?? '')}" data-track="${esc(x.track ?? '')}" ${x.file === old ? 'selected' : ''}>${esc(x.when)} · ${esc(t.car ?? '')} · ${esc(x.trackPretty ?? x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('');
+            sessSel.innerHTML = (t.sessions ?? []).map((x) => `<option value="${esc(x.file)}" data-car="${esc(t.car ?? '')}" data-track="${esc(x.track ?? '')}" data-when="${esc(x.whenLocal ?? x.when ?? '')}" ${x.file === old ? 'selected' : ''}>${esc(x.when)} · ${esc(t.car ?? '')} · ${esc(x.trackPretty ?? x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('');
           }
         }
         const vl = t.laps ?? [];
@@ -1002,7 +1008,7 @@ async function drawSetup(m){
       }
       if (!t.ok) { out.innerHTML = `<div class="banner info">${esc(t.hint ?? tr({ it: 'Nessun dato', en: 'No data' }))}</div>`; return; }
       const d = t.compare;
-      out.innerHTML = lapChartSvg(t) + `<div class="muted" style="font-size:11px;margin-top:4px">${d ? tr({ it: 'Differenza media col giro {L}: {D} a favore del giro {T} · picco {MX} / minimo {MN} km/h · distanza giro {KM} km · tempo: {TD} rispetto al giro {L2}.', en: 'Average difference vs lap {L}: {D} in favour of lap {T} · peak {MX} / minimum {MN} km/h · lap distance {KM} km · time: {TD} versus lap {L2}.' }).replace('{L}', d.lap).replace('{D}', `<b style="color:${d.dvAvg >= 0 ? 'var(--ok,#7f7)' : '#f66'}">${d.dvAvg >= 0 ? '+' : ''}${d.dvAvg.toFixed(1)} km/h</b>`).replace('{T}', t.lap).replace('{MX}', d.dvMax >= 0 ? '+' : '' + ''.concat(d.dvMax >= 0 ? '+' : '', d.dvMax.toFixed(1))).replace('{MN}', d.dvMin.toFixed(1)).replace('{KM}', t.distanceKm).replace('{TD}', `${d.timeDelta >= 0 ? '+' : ''}${d.timeDelta.toFixed(1)}s`).replace('{L2}', d.lap) : tr({ it: 'senza confronto', en: 'no comparison' })}</div>`;
+      out.innerHTML = lapChartSvg(t) + `<div class="muted" style="font-size:11px;margin-top:4px">${selWhen ? `<b>${esc(selWhen)}</b> · ` : ''}${d ? tr({ it: 'Differenza media col giro {L}: {D} a favore del giro {T} · picco {MX} / minimo {MN} km/h · distanza giro {KM} km · tempo: {TD} rispetto al giro {L2}.', en: 'Average difference vs lap {L}: {D} in favour of lap {T} · peak {MX} / minimum {MN} km/h · lap distance {KM} km · time: {TD} versus lap {L2}.' }).replace('{L}', d.lap).replace('{D}', `<b style="color:${d.dvAvg >= 0 ? 'var(--ok,#7f7)' : '#f66'}">${d.dvAvg >= 0 ? '+' : ''}${d.dvAvg.toFixed(1)} km/h</b>`).replace('{T}', t.lap).replace('{MX}', d.dvMax >= 0 ? '+' : '' + ''.concat(d.dvMax >= 0 ? '+' : '', d.dvMax.toFixed(1))).replace('{MN}', d.dvMin.toFixed(1)).replace('{KM}', t.distanceKm).replace('{TD}', `${d.timeDelta >= 0 ? '+' : ''}${d.timeDelta.toFixed(1)}s`).replace('{L2}', d.lap) : tr({ it: 'senza confronto', en: 'no comparison' })}</div>`;
     } catch (e) { out.innerHTML = `<div class="banner bad">${esc(e.message)}</div>`; }
   };
   if (!window.__lcDeleg) {
@@ -1025,7 +1031,7 @@ async function drawSetup(m){
     const ft = document.querySelector('#lc-f-track')?.value ?? '';
     const prima = sessSel.value;
     const vis = (window.__lcSessions ?? []).filter((x) => (!fc || String(x.car ?? '') === fc) && (!ft || String(x.track ?? '') === ft));
-    sessSel.innerHTML = vis.map((x) => `<option value="${esc(x.file)}" data-car="${esc(x.car ?? '')}" data-track="${esc(x.track ?? '')}" ${x.file === prima ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.car ?? '')} · ${esc(x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('') || `<option value="">(${tr({ it: 'nessuna con questi filtri', en: 'none with these filters' })})</option>`;
+    sessSel.innerHTML = vis.map((x) => `<option value="${esc(x.file)}" data-car="${esc(x.car ?? '')}" data-track="${esc(x.track ?? '')}" data-when="${esc(x.whenLocal ?? x.when ?? '')}" ${x.file === prima ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.car ?? '')} · ${esc(x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('') || `<option value="">(${tr({ it: 'nessuna con questi filtri', en: 'none with these filters' })})</option>`;
   };
   if (list.length) {
     for (const [id, key] of [['#lc-f-car', 'car'], ['#lc-f-track', 'track']]) {

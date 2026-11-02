@@ -422,9 +422,10 @@ export function difficultyFor(ladder, state, node, track = null) {
  *  release (più il ripiego `bandaSerie` a livello ladder) — e qui si legge
  *  in una sola funzione.
  *  Ritorna [min, max] o null: chi la usa decide il proprio ultimo ripiego
- *  (in webui il fisso [84, 85] resta SOLO per un ladder senza aiSerie —
- *  come per gli sviluppi): alla prossima release si aggiorna LÀ e il codice
- *  non ha più nulla di scritto a mano su un dato vivo. */
+ *  (NESSUN punto del codice porta più una banda incisa — 3/11, richiesta
+ *  Mauro «senza la cifra 84–85 scritta, che segua il ladder alle release
+ *  seguenti»: un ladder senza aiSerie né bandaSerie resta al consiglio
+ *  calcolato, che legge lo slider del ladder riga per riga). */
 export function bandaSerieLadder(ladder, node) {
   const ai = (node && Array.isArray(node.aiSerie) && node.aiSerie.length === 2
     && node.aiSerie.every((v) => Number.isFinite(Number(v))))
@@ -458,11 +459,14 @@ export function bandaSerieSlider(ladder, state, node, track = null) {
  *  La legge della stanza (2/11, richiesta Mauro): il record VUOTO — la riga
  *  «↺» con ENTRAMBI i cursori null — È una riga tornata al consiglio
  *  calcolato, NON una serie senza impostazione: la semina non la tocca MAI.
- *  Se la riempisse, il fisso [84, 85] risorgerebbe dal retro, il peccato che
- *  il ladder aiSerie del 2/11 ha tolto davanti. Resta tre sole porte:
+ *  Se la riempisse, la banda preistorica [84, 85] risorgerebbe dal retro,
+ *  il peccato che il ladder aiSerie del 2/11 aveva tolto davanti — e il
+ *  3/11 l'ha tolta anche dall'ultima porta (ladder senza banda = niente
+ *  semina). Restano tre sole porte:
  *    - record ASSENTE → banda di serie del ladder (aiSerie a ogni release);
- *      il fisso [84, 85] resta SOLO il ripiego per un ladder vecchio
- *      effettivamente senza aiSerie — e anche lì un record «↺» non si riempie;
+ *      UN ladder vecchio SENZA banda NON si semina affatto: la riga nasce
+ *      al consiglio calcolato e la banda la legge lì a ogni giro (3/11:
+ *      nessuna cifra incisa nel codice);
  *    - record MEZZO (un solo cursore) → si completa solo il valore
  *      mancante, il record pieno dell'utente non si tocca;
  *    - record VUOTO («↺») → si lascia al consiglio calcolato: lelettura viva
@@ -473,7 +477,11 @@ export function seminaRaceSettings(ladder, state) {
   for (const n of (ladder.nodes ?? [])) {
     const cur = RS[n.nodeId];
     if (!cur) {
-      const b = bandaSerieLadder(ladder, n) ?? [84, 85];
+      const b = bandaSerieLadder(ladder, n);
+      // 3/11, richiesta Mauro: NESSUNA cifra incisa — un ladder vecchio senza
+      // aiSerie né bandaSerie NON si semina: la banda la calcola il consiglio
+      // (viewDifficulty/difficultyFor) e segue il ladder alle release seguenti.
+      if (!b) continue;
       RS[n.nodeId] = { sliderMin: b[0], sliderMax: b[1] };
     }
     else if (cur.sliderMin == null && cur.sliderMax == null) {

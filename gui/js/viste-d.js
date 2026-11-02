@@ -21,6 +21,14 @@ async function drawDifficulty(m){
     </div>
     ${v.pending ? `<div class="banner ${v.pending.to>=(v.trimRange?.max??20)?'warn':''}">${tr({ it: 'Suggerimento in attesa —', en: 'Pending suggestion —' })} ${esc(v.pendingDisplay)}: ${esc(v.pending.reason)} → trim ${v.pending.to >= 0 ? '+' : ''}${v.pending.to}${v.pending.to>=(v.trimRange?.max??20)?` (${tr({ it: 'massimo raggiunto', en: 'max reached' })})`:''}
       <button class="mini" id="b-acc">${tr({ it: 'accetta', en: 'accept' })}</button> <button class="mini" id="b-rej">${tr({ it: 'rifiuta', en: 'reject' })}</button></div>` : ''}
+    <div class="diff-row" style="border-bottom:1px solid #1d2430; padding:3px 4px; font-size:11.5px; color:var(--muted,#8b96a8)">
+      ${/* LEGGE DELLA BANDA (3/11, richiesta Mauro): visibile ACCANTO ai cursori,
+          allineata alla loro colonna: era sepolta nel tooltip del .tripunto.
+          Vale TUTTE le volte che il trim slitta (bottoni ±, accordo del
+          suggerimento adattivo: shift = (to − trim corrente) × 1). */ ``}
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+      <span style="grid-column:7 / 9; font-weight:600" title="${tr({ it: 'oggni punto di trim sposta la banda della serie di un punto intero: e vale anche per il suggerimento adattivo quando lo accetti', en: 'every trim point moves the series band by one whole point: it also applies to the adaptive suggestion when you accept it' })}">⚖️ ${tr({ it: 'legge della banda: 1 trim = 1 punto', en: 'band law: 1 trim = 1 point' })}</span>
+    </div>
     <div style="margin-top:10px">
     ${v.rows.map(r=>{
       const atMax = r.trim >= (v.trimRange?.max ?? 20);

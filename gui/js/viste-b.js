@@ -1127,7 +1127,13 @@ const STI = {
   euro: LI.euro, gauge: LI.gauge, shield: LI.shield, scroll: LI.scroll, book: LI.book,
 };
 function stPan(title, ico, body, { note = '', bodyClass = '' } = {}){
-  return `<div class="panel st-panel"><h2><span class="st-ico">${ico}</span> ${esc(title)} <span class="h-act">${esc(note)}</span></h2>${bodyClass ? `<div class="${bodyClass}">` : ''}${body}${bodyClass ? '</div>' : ''}</div>`;
+  /* (2/11, terzo step della guardia di layout): le tabelle delle statistiche
+     non stringono sotto il loro min-content e gonfiavano il pannello oltre
+     la viewport (320px: ricavato di 66…331 px). Qui la scatola che scorre in
+     orizzontale STA DENTRO al pannello: il pannello non sborda, la tabella
+     sì — col sua scrollbar interna (classe .tscroll in style.css). */
+  const corpo = body.includes('<table>') && !body.includes('class="tscroll"') ? `<div class="tscroll">${body}</div>` : body;
+  return `<div class="panel st-panel"><h2><span class="st-ico">${ico}</span> ${esc(title)} <span class="h-act">${esc(note)}</span></h2>${bodyClass ? `<div class="${bodyClass}">` : ''}${corpo}${bodyClass ? '</div>' : ''}</div>`;
 }
 function stKpis(items){
   return `<div class="st-kpis">${items.map(([l, v, cls, t]) => `<div class="kpi st-kpi" ${t ? `title="${esc(t)}"` : ''}><div class="l">${esc(l)}</div><div class="v ${cls ?? ''}">${v}</div></div>`).join('')}</div>`;

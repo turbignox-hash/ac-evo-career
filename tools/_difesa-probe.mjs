@@ -35,9 +35,22 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { createServer } from 'node:net';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
-const PORT = 8799;   // fuori dal fallback 8642..8655 del server vivo di casa
+// PORTA LIBERA AD OGNI SORTITA (3/11): prima era fissa 8799 e un server di
+// sonda ORFANO (ronda finita, shell madre morta) restava in ascolto sulla
+// porta: il figlio della nuova corsa usciva con «porta occupata», MA la
+// finestra di attesa veniva servita PRIMA dall'orfano — che era nato col SAVE
+// VERO. Risultato: check di marca «Mauro Turbigno» (giustamente rosso), sweep
+// pulito con COLPI: NESSUNO ed exit 1 senza che il banco fosse mai davvero
+// interrogato. Da adesso la porta la decide l'OS a presa libera: due banchi
+// non possono più litigare sulla stessa porta.
+const PORT = await new Promise((resolve, reject) => {
+  const probe = createServer();
+  probe.once('error', reject);
+  probe.listen(0, '127.0.0.1', () => { const p = probe.address().port; probe.close(() => resolve(p)); });
+});
 const BASE = `http://127.0.0.1:${PORT}`;
 const QUIET = process.argv.includes('--quiet');
 const DETTAGLIO = process.argv.includes('--dettaglio');
@@ -134,6 +147,13 @@ while (Date.now() - t0 < 15000) {
 if (!su) {
   console.error('SERVER NON PRONTO entro 15s', err.slice(0, 1200));
   child.kill();
+  process.exit(1);
+}
+// Guardia finale (3/11): se QUALCOSA risponde mentre il nostro figlio è già
+// morto, chi risponde NON è il banco — fallisce SUBITO con la diagnosi,
+// invece di lasciare che sia il check di marca a smascherarlo a distanza.
+if (child.exitCode !== null) {
+  console.error(`LA PORTA È DI UN ALTRO: qualcosa ha risposto mentre il figlio ${child.pid} era già uscito (exit ${child.exitCode}) — la risposta arriva da un processo estraneo sulla stessa porta, il banco non è mai stato interrogato.\n${err.slice(0, 1200)}`);
   process.exit(1);
 }
 

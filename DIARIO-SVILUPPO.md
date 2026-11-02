@@ -832,6 +832,87 @@ comando (esito bene, nessun residuo). Verifica: la guardia intera
 5/5 (quattro test precedenti + il nuovo), biome pulito su test e
 menu.html.
 
+### 3/11 — L'INDAGINE OUT-LAP di Monza 18:13: il «giro» che non c'era (richiesta Mauro: «aggiungi la voce dell'indagine out-lap Monza 18:13 al diario di sviluppo»)
+
+- **IL FATTO SOSPETTO** (coppia Ferrari/Monza della serata 30/10, il B che
+  offende il giro della casa): A = 17:54, 2 giri, best **1:54.40**; B = 18:13,
+  un solo «giro», best **2:13.10** — un +18,70 s che nessun setup spiegava:
+  ~25 s fuori scala dal personale della settimana (1:48.3–1:42.6).
+- **L'INDAGINE** (sonde a sola lettura [tmp/_sonda-bmonza.mjs](tmp/_sonda-bmonza.mjs)
+  e [tmp/_sonda-bmonza2.mjs](tmp/_sonda-bmonza2.mjs) sui file MoTeC VERI):
+  il `.ldx` del B (`…_Fri Oct 30 181305 2026.ld`) ha **ZERO beacon di transito**
+  (ClassName="BCN", Marker Time sul traguardo) e il parso ([motec.mjs](src/motec.mjs))
+  allora gestisce la SESSIONE INTERA come un solo giro ([motec.mjs:180](src/motec.mjs#L180)).
+  Quei 133,10 s non sono un giro: sono l'USCITA dai box — dal fermo (gas spinto),
+  picco 255,5 km/h, **5,45 km su 5,79 percorsi, chiude a ~94 % del giro — il file
+  finisce PRIMA del traguardo**. Un out-lap senza cronometro: nessun transito,
+  nessuna linea sul traguardo, un «best» immaginario.
+- **L'ARTEFATTO A COLLATERALE**: allineare quel «giro» nel riparto per zone
+  produce un netto assurdo — «−51,99 s guadagnati da A» (perso 12,79 s,
+  «guadagnato» 64,78 s) — aritmetica che si spiega SOLO col difetto, non lettura
+  del pilota. Anche la fascia dei canali (Δ +18.70 s sul giro best) vale SOLO
+  come documento del difetto (la colonna B misura un'uscita, l'evoluzione della
+  pista non è misurabile lì).
+- **LA CARTA**: [report/banco-ab-ferrari296-monza-2026-11-01.md](report/banco-ab-ferrari296-monza-2026-11-01.md)
+  — archiviato come DOCUMENTO DEL DIFETTO, non come serata del pilota; targa
+  copiata in gazzetta (data/news.json, occasionali).
+- **IL DIFETTO NEL BANCO, nato proprio qui**: l'autopuntamento propose per
+  Ferrari/Monza la coppia PEGGIORE disponibile — A = `Wed Apr 15 215138`, file
+  arido da 21 KB SENZA `.ldx` (ILEGGIBILE, le copie in blocco del 25/10 lo sono
+  anche a menu), B = l'out-lap delle 18:13. `abPreferite` non filtrava le
+  sessioni senza giri tempestati: le 0 beacon potevano farsi A o B al buio.
+- **LE CURE ARRIVATE, QUANDO CADAUNA**: l'avviso del giro singolo nel modale
+  (1/11, «guardalo prima di fidarlo»); poi la LEGGE DEL BANCO (2/11, richiesta
+  «escludi dal banco A/B le sessioni senza giro cronometratuale»): `ab-list`
+  filtra `beacons > 0` ([webui.mjs](src/webui.mjs)), le 0 beacon restano in
+  `senzaGiri` e la GUI le mostra DISABILITATE sotto «senza giri cronometrati»
+  ([viste-analisi.js](gui/js/viste-analisi.js)); infine la GUARDIA CHE MORDE
+  (3/11): [test/ab-senza-giri.test.mjs](test/ab-senza-giri.test.mjs) 1/1 —
+  fallisce se ab-list propone una 0 beacon (sessioni sintetiche in sandbox:
+  `.ldx` assente, `.ldx` cieco SENZA marker, e le buone CON marker) — coperte
+  anche le porte di controllo `prefer` e `last`; prova del morso fatta davvero:
+  la legge spaccata → test ROSSO col nome del colpevole, ristabilita → verde.
+- VERIFICA: le sonde non toccano disco; test 1/1 in 0,7 s; biome pulita sui
+  file della legge (warning preesistente: import inutilizzato webui.mjs:135).
+
+### 3/11 — Il 84–85 inciso è demolito: audit degli sbocchi e verdetto (richiesta Mauro: «riscrivi la copia della banda viva senza la cifra 84–85 incisa, così segue il ladder alle release seguenti» + «voce al diario con l'audit degli sbocchi e il verdetto di demolizione»)
+
+**L'audit.** La cifra 84–85 — la banda di serie del weekend PEUGEOT dell'epoca
+1/11 — era scritta a mano in UN solo punto vivo, ma i rivi ne scendevano più giù:
+
+- **La sorgente** — [state.mjs](src/state.mjs) `seminaRaceSettings`: al record
+  assente la semina scriveva `bandaSerieLadder(ladder, n) ?? [84, 85]` — il
+  fisso era l'«ultima rete» per un ladder d'epoca senza `aiSerie`;
+- **lo sbocco della racecard** — la tile «Difficoltà AI» del Cruscotto
+  (viste-a.js) non porta numeri: legge il card, e il card (race.mjs) computa
+  `rangeMin/Max` dallo slider vivo con override a parte — la copia guasta
+  arrivava dal monte, non da lì;
+- **lo sbocco del pannello** — viewDifficulty (webui-views.mjs) sa già vivere
+  senza record: `oMin ?? Math.round(d.slider)`, banda stretta 1 punto — il
+  record assente NON resta a secco;
+- **il difetto documentato** — il fisso aveva già la sua sentenza:
+  [test/clear-consiglio.test.mjs](test/clear-consiglio.test.mjs) nasce per
+  lui («↺» riempita dal seeding 84–85 al render dopo) — difetto chiuso
+  dal 3/11 col primo strappo (semina estratta in state.mjs);
+- **le cite storiche** — Peugeot 205 «82–92» del primo script d'impianto
+  (gridbuilder, cli --template) e l'era del fisso in commenti e guardie:
+  STORIA raccontata, non legge — restano dov'è.
+
+**Il verdetto di demolizione.** La rete d'infanzia è DEMOLITA: è sceso
+l'`?? [84, 85]` dalla semina e senza banda di ladder NON si semina affatto — la riga resta assente e la banda la calcola il consiglio a
+ogni giro (viewDifficulty/difficultyFor), che segue il ladder via `aiSerie`
+per nodo. La legge si dichiara nei commenti che la dicitano (state.mjs:
+bandaSerieLadder e seminaRaceSettings; webui.mjs: la legge della stanza):
+NESSUN punto del codice porta più una banda incisa — un dato inciso a mano
+non poteva seguire i rilasci del ladder; ora può solo leggerlo.
+
+Verifica: semina 6/6 (la guardia girata alla nuova legge: il vecchio test
+«il ripiego è l'ultima rete» ora esige il CONTRARIO — ladder senza banda
+NON seminato e «↺» vuoto anche lì); gridbuilder-banda-serie 10/10;
+clear-consiglio 2/2 su server vivo (nessun ritorno del fisso); webui-smoke
+1/1; biome pulita (warning preesistente: import inutilizzato webui.mjs:135,
+non di questa mano).
+
 ### 3/11 — La guardia entra nel flusso di release: preflight di crea-release (richiesta Mauro: «collega la guardia al flusso di release: crea-release deve far girare genera-uiapp + la guardia prima di confezionare lo zip»)
 
 Fino a ieri release e app in gioco parlavano due lingue: la guardia

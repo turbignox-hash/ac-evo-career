@@ -4,7 +4,6 @@
 //
 // È il motore nato il 2/11 dentro layout-impostazioni.test.mjs e incartato:
 // NESSUNA misura cambia, cambia solo dove vive. Tre pezzi:
-//
 //   1) assettaVista — click via evaluate (lezione 3/11: il click di
 //      Playwright su un nodo può atterrare sul bottone SBAGLIATO quando la
 //      nav si ridisegna sotto il click) + attesa del MARCATORE della vista
@@ -20,6 +19,15 @@
 //      a capo ha un rettangolo-UNIONE che ingoia la riga sopra — si
 //      misurano le RIGHE vere con getClientRects).
 //
+//   4) misuraPanelliFuoriViewport (2/11, richiesta Mauro: «terzo step
+//      della guardia: fallisce se un pannello esce dalla viewport in
+//      orizzontale») — i `.panel` di #main la cui scatola sborda oltre
+//      i bordi della viewport (2 px di tolleranza come le
+//      sovrapposizioni). Lo stesso spirito del RITAGLIO: se un antenato
+//      del pannello ha overflow-x con clipping (auto/hidden/scroll),
+//      la scatola visibile è LUI e la sbordatura non arriva alla
+//      viewport — non si segnala. Panelli dentro details chiuse e
+//      invisibili pure no.
 // Il modulo non apre browser né server e non asserisce niente: chi chiama
 // porta la pagina PRONTA (browser, server sulla sua porta, eventuale
 // cartella dati copiata) e decide cosa fare dei risultati: la guardia di
@@ -221,4 +229,56 @@ export async function misuraSovrapposizioni(page) {
 export function righeReport(sovrapposizioni) {
   return sovrapposizioni.map((s) =>
     `  · ${s.a}  ⟂  ${s.b}   (aria in comune ${s.w}×${s.h} px)  ${s.ca} ⟂ ${s.cb}\n      ↳ ${s.pa}\n      ↳ ${s.pb}`).join('\n');
+}
+
+/* 4) I PANNELLI CHE SBORDANO: i `.panel` di #main la cui scatola esce
+ * dalla viewport (clientWidth = la larghezza VISIBILE, senza la barra
+ * di scorrimento) a sinistra o a destra, oltre 2 px di tolleranza.
+ * Ritorna le prime 10 con chi, dove e di quanto. */
+export async function misuraPanelliFuoriViewport(page) {
+  return page.evaluate(() => {
+    const largh = document.documentElement.clientWidth;
+    const catena = (el) => {
+      const out = [];
+      for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+        if (a.id) out.push('#' + a.id);
+        else if (typeof a.className === 'string' && a.className.trim()) out.push(a.tagName.toLowerCase() + '.' + a.className.trim().replace(/\s+/g, '.'));
+        if (out.length >= 4) break;
+      }
+      return out.join(' < ') || '(senza antenati con id o classi)';
+    };
+    const fughe = [];
+    for (const el of document.querySelectorAll('#main .panel')) {
+      const s = getComputedStyle(el);
+      if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) === 0) continue;
+      const det = el.closest('details');
+      if (det && !det.open && el !== det) continue;    // piegato: non è in vista
+      const r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) continue;
+      // l'antenato col clipping orizzontale è LUI la scatola visibile:
+      // che il pannello sbordi dentro la sua area scorrevole non tocca la viewport
+      let taglio = false;
+      for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+        if (getComputedStyle(a).overflowX !== 'visible') { taglio = true; break; }
+      }
+      if (taglio) continue;
+      if (r.left < -2 || r.right > largh + 2) {
+        const id = el.id ? '#' + el.id : '';
+        const h2 = el.querySelector('h2,h3')?.textContent?.replace(/\s+/g, ' ').trim().slice(0, 60) ?? '';
+        fughe.push({ a: (id ? id + ' ' : '') + el.tagName.toLowerCase() + (h2 ? ` («${h2}»)` : ''),
+          l: Math.round(r.left), r: Math.round(r.right), largh,
+          pa: catena(el) });
+      }
+    }
+    return fughe.slice(0, 10);
+  });
+}
+
+/* La RIGA di report delle fughe: uno riga per pannello, col QUANTO
+ * sborda (a destra o a sinistra) e la catena antenati come le sovrapposizioni. */
+export function righeFughe(fughe) {
+  return fughe.map((f) => {
+    const verso = f.l < 0 ? `${-f.l} px a sinistra` : `${f.r - f.largh} px a destra`;
+    return `  · ${f.a}  sborda ${verso} (viewport ${f.largh}px · scatola [${f.l} → ${f.r}])\n      ↳ ${f.pa}`;
+  }).join('\n');
 }

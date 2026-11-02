@@ -20,11 +20,12 @@ https://github.com/turbignox-hash/ac-evo-career
 
 Gratuita, open source, aggiornata da sola. La costruisco da mesi tra una gara e l'altra — ecco cosa fa:
 
-- **Carriera vera per EVO**: campionati generati da un sorteggio riproducibile dentro il catalogo del gioco (5 livelli, serie monomarca e multiclasse, zavorre e penalità calcolate dal ΔPI con cap 20% — niente a occhio).
+- **Carriera vera per EVO**: campionati generati da un sorteggio riproducibile dentro il catalogo del gioco — il tab si chiama «Pools sorteggiati a sorte dal catalogo» (5 livelli, serie monomarca e multiclasse, zavorre e penalità calcolate dal ΔPI con cap 20% — niente a occhio).
 - **La griglia si scrive DAVVERO nel gioco**: Pitwall sceglie le AI, le mette in griglia e scrive i customgrid dei weekend; ogni scrittura va su disco solo dopo backup e verifica.
 - **Il meccanico toglie il «che pressione metto?»**: legge la telemetria dei TUOI giri, consiglia pressioni/aero/benzina e scrive il `.carsetup` che EVO accetta a caldo, senza riavvio.
 - **🌉 Ponte tra piste**: il base setup dell'auto si copia nella pista dove non era mai stata — senza riaprire il setup da zero.
 - **Copilota a voce, sempre italiano**: delta, benzina, metà gara, meteo — te li dice a voce durante la sessione: niente da leggere mentre guidi.
+- **In gioco girano DUE app nostre** accanto a Paddock (che resta il posto comodo per leggere col gamepad sul divano): il **Cruscotto** (sedile, gare del giorno, mini-classifica della ronda viva, orologio di giornata) e il **Pitwall** (la radio del copilota durante la sessione).
 - **Nomi dei piloti editabili** (rinomina singola o in blocco), tutto cliccabile stile Football Manager: auto, piloti, piste, serie.
 - **Save al sicuro**: backup prima di ogni import, no doppioni, verifica integrità con riparazioni sicure.
 - **Libro PB** per auto×pista e giro ideale dai settori migliori di sempre.

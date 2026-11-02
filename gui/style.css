@@ -79,6 +79,14 @@ header#top .in{max-width:1120px; margin:0 auto; padding:10px 24px; display:flex;
 .grid4{display:grid; grid-template-columns:repeat(4,1fr); gap:12px}
 /* sei caselle in tre colonne (autopsia: esito/punti/giri/margine + giro veloce e partenza→arrivo) */
 .grid6{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+/* (2/11, terzo step della guardia di layout): i figli delle griglie possono
+   STRINGERE sotto il loro min-content — la catena del min-width:auto di
+   un item di griglia altrimenti affermola al contenuto più largo (una
+   tabella) e gonfia TUTTA la pagina oltre la viewport. Con min-width:0
+   il pannello resta nella colonna e lo scorrimento interno (classe
+   .tscroll) fa il resto. A schermo ampio nessuna misura cambia: le
+   colonne entrano comunque. */
+.grid2>*,.grid3>*,.grid4>*,.grid6>*{min-width:0}
 @media(max-width:860px){.grid2,.grid3,.grid4,.grid6{grid-template-columns:1fr}}
 
 .kpi{background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:12px 14px}
@@ -381,6 +389,11 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .btn-time.primary:hover{filter:brightness(1.12);color:#161207}
 .btn-time:disabled{opacity:.45;cursor:default}
 .ag-strip{display:flex;gap:5px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:thin}
+/* (2/11, terzo step della guardia di layout): scatola che scorre IN ORIZZONTALE
+   dentro al pannello — il pannello non gonfia la pagina oltre la viewport,
+   è la tabella dentro a scorrere. Usata da stPan (viste-b.js) per le
+   tabelle delle statistiche. */
+.tscroll{overflow-x:auto;scrollbar-width:thin}
 .ag-day{flex:0 0 auto;width:64px;padding:8px 4px 9px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);cursor:pointer;color:var(--text);font:inherit;display:flex;flex-direction:column;align-items:center;gap:2px;position:relative;transition:border-color .15s}
 .ag-day-date{font-size:10.5px;color:var(--faint);white-space:nowrap}
 .ag-day-num{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}

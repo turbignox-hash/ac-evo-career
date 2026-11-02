@@ -828,6 +828,15 @@ export function tettoReport(ladder, state, { logsDirs = null } = {}) {
       return con.length ? Math.max(0, ...con.map((sd) => sd.deltaMs)) : null;
     });
     const conBusta = buste.filter((b) => b != null);
+    // PICCO (3/11, richiesta Mauro): il colpo singolo più grosso del riparto —
+    // l'evento che la MEDIANA nasconde (la mediana può dire S1 0,00 e il S3
+    // della stessa pista avere un picco da 20 s). Solo con campo vivo, come le
+    // altre misure del tetto; mai negativo o 0 (quello non è un evento).
+    let picco = null;
+    for (const e of t.entries) for (const sd of e.sectorDeltas) {
+      if (sd.deltaMs == null || sd.deltaMs <= 0 || sd.conCampo === false) continue;
+      if (!picco || sd.deltaMs > picco.deltaMs) picco = { sector: sd.n, deltaMs: sd.deltaMs, season: e.season, round: e.round };
+    }
     return {
       // NOME PULITO (1/11): la tabella del tetto dice «Oulton Park», non il
       // token dell'import (raggruppamento internamente sul raw, come sempre)
@@ -840,6 +849,7 @@ export function tettoReport(ladder, state, { logsDirs = null } = {}) {
       senzaCampoSessioni: buste.filter((b) => b == null).length,
       worstSector: sectors[0]?.sector ?? null,
       worstSectorDeltaMs: sectors[0]?.medianDeltaMs ?? null,
+      picco,
       // MARGINE VERO (3/11): dal log del gioco; l'ultima sessione misurata +
       // quante sessioni ce l'hanno e il più contenuto (il «ci sono arrivato»)
       margineMs: ultimoM?.margineMs ?? null,

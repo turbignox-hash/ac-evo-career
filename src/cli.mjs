@@ -1279,8 +1279,8 @@ async function cmdGriglia(args) {
   // BANDA DI SERIE (1/11/2026, richiamo di Mauro sul 82–92 della Peugeot):
   // la banda VIVA dei cursori del weekend (state.raceSettings / difficultyFor,
   // trim accettati compresi) segue il builder anche da CLI — la stessa regola
-  // che il Prepara dell'app usa dalla sera dell'1/11. Falli silente: senza
-  // banda calcolata il builder resta sulla di prima (classe > ladder).
+  // che il Prepara dell'app usa dalla sera dell'1/11. Fallisce silente: senza
+  // banda calcolata il builder resta sulla regola di prima (classe > ladder).
   const bandaSeriePrep = (() => {
     try {
       const nodeSerie = nodeById(ladder, nodeId);
@@ -1302,13 +1302,14 @@ async function cmdGriglia(args) {
   // di rebuildGridApply — template appuntato della serie (magazzino), backup
   // d'epoca, snapshot, griglia di fabbrica — che in non-dry scrive lei
   // stessa (backup + store). Solo se quell'errore resta in piedi:
-  // l'errore prima della caduta (noTemplateHint) nel ritoalenti dell'uomo.
+  // si cade col messaggio d'errore prima della caduta (noTemplateHint),
+  // l'unico che l'uomo vede.
   let buffer = null;
   let report = null;
-  let scriveIlFalhub = false;
+  let laCorsaHaScritto = false;
   if (typeof args.flags.template === 'string') {
     // template DICHIARATO: l'utente intendeva QUEL file, non un surrogato — percorso diretto.
-    // BANDA DI SERIE anche quì (1/11, ilgetto del richiamo di Mauro): senza
+    // BANDA DI SERIE anche quì (1/11, sotto il richiamo di Mauro): senza
     // banda il --template porterebbe in griglia la banda preistorica del ladder
     // (82–92 della Peugeot) INVECE dei cursori del weekend (84–85 + trim).
     ({ buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: tplFile, aiBandSerie: bandaSeriePrep }));
@@ -1322,7 +1323,7 @@ async function cmdGriglia(args) {
     const r = rebuildGridApply({ ladder, nodeId, roundIndex, file, force: true, dry: !!args.flags.dry, aiBandSerie: bandaSeriePrep });
     report = r.report;
     buffer = r.buffer ?? null;
-    scriveIlFalhub = !args.flags.dry && r.written === true;
+    laCorsaHaScritto = !args.flags.dry && r.written === true;
     if (r.countAlign) report.conteggioAllineato = `${r.countAlign.from} → ${r.countAlign.to}`;
     if (r.source) report.source = `magazzino (via ${r.source}) · ${report.source.split('/').pop()}`;
   }
@@ -1345,7 +1346,7 @@ async function cmdGriglia(args) {
   if (report.conteggioAllineato) console.log(`  conteggi ${report.conteggioAllineato} (allineato al gamemodesave)`);
   if (args.flags.dry) { console.log(C_.dim(tr({ it: '\nDRY: niente scritto. Lancia senza --dry per scrivere.\n', en: '\nDRY: nothing written. Run without --dry to write.\n' }))); return 0; }
 
-  if (scriveIlFalhub) {
+  if (laCorsaHaScritto) {
     // la corsa dei candidati HA GIÀ scritto (backup + magazzino aggiornato):
     console.log(C_.green(tr({ it: `\nScritto ${file} (da magazzino della serie)`, en: `\nWritten ${file} (from the series' template store)` })));
     if (args.flags['servo-prepara']) return 0;
