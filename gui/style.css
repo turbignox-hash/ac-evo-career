@@ -501,10 +501,10 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .wz-arrow{align-self:center;color:#4a5570;flex:none;opacity:.75}
 
 /* -------- footer sidebar: contatto (issue precompilata) e donazioni (Ko-fi) -------- */
-.side-foot .kofi-banner{display:flex;align-items:center;gap:6px;margin-top:8px;padding:8px 10px;border-radius:9px;border:1px solid var(--acc2);background:rgba(255,190,60,.09);color:#ffcc66;font-size:12px;text-align:left;transition:background .15s}
-.side-foot .kofi-banner:hover{background:rgba(255,190,60,.18)}
-.side-foot .kofi-banner .cup{font-size:14px}
-.side-foot .kofi-banner .muted{font-size:10.5px}
+/* DONAZIONE IN TESTA (10/11): chip accanto a MoTeC, il color d'oro del vecchio banner */
+header#top a.kofi-chip{color:#ffcc66;border-color:#e8a23a33;background:rgba(255,190,60,.09);text-decoration:none;cursor:pointer}
+header#top a.kofi-chip:hover{background:rgba(255,190,60,.18)}
+a.kofi-chip{white-space:nowrap}
 .side-foot .foot-links{margin-top:6px;line-height:1.5;font-size:11px}
 .side-foot .foot-links a{color:var(--acc2)}
 .side-foot .foot-links a:hover{text-decoration:underline}

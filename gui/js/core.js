@@ -604,7 +604,8 @@ async function refreshBoot(){
      a fuoco SENZA ricaricarla — l'app gira sui JS vecchi e le schede nuove
      (es. il selettore lingua nell'onboarding) sembrano «mancanti». L'ETag
      del server non può aiutare: il browser nemmeno chiede i file. Qui la
-     build vista si confronta con quella del server: se cambia, UNA sola     ricarica (segno in sessionStorage, mai loop) e tutto torna attuale. */
+     build vista si confronta con quella del server: se cambia, UNA sola
+     ricarica (segno in sessionStorage, mai loop) e tutto torna attuale. */
   const buildVista = `${boot.versione?.semver ?? '?'}@${boot.versione?.hash ?? '?'}`;
   const segnoBuild = 'evo-build-vista';
   if (boot.versione?.semver && !boot.versione.semver.startsWith('?') && sessionStorage.getItem(segnoBuild) !== buildVista) {
@@ -622,15 +623,22 @@ async function refreshBoot(){
   // (tools/bump-versione.mjs) — package.json + hash breve del commit.
   if (boot.versione?.semver && boot.versione.semver !== '?') {
     const sf = $('.side-foot');
-    if (sf) sf.innerHTML = `${tr({ it: 'Assetto Corsa EVO · tool locale', en: 'Assetto Corsa EVO · local tool' })}<br>${tr({ it: 'tutto resta sul tuo PC', en: 'everything stays on your PC' })}<br><span id="build-ver" title="versione della build (si aggiorna a ogni salvataggio del progetto su GitHub)">build ${esc(boot.versione.semver)}${boot.versione.hash ? ` · ${esc(boot.versione.hash)}` : ''}</span><br><span id="srv-live">…</span> <button class="mini" id="lang-foot" style="margin-left:6px;font-size:10.5px;padding:2px 7px" title="${esc(tr({ it: "cambia la lingua dell'interfaccia: vale per la GUI, il server in locale e il cruscotto in gioco", en: "switch the interface language: applies to the GUI, the local server and the in-game dashboard" }))}">${window.LINGUA === 'en' ? '🇬🇧 EN' : '🇮🇹 IT'}</button>`;
-    // footer: contatto e donazioni (scelta del 21/10: issue GitHub precompilata + Ko-fi).
-    // Il SERVER precompila titolo e corpo della segnalazione (versione build, serie in
-    // corso, ronda, pista, difficoltà, ultimi errori); l'utente completa e invia.
-    // 24/10 (richiesta Mauro): il caffè non più solo come link nel footer ma un
-    // BANNER proprio sopra i link — più visibile, resta comunque discreto.
+    if (sf) sf.innerHTML = `${tr({ it: 'Assetto Corsa EVO · tool locale', en: 'Assetto Corsa EVO · local tool' })}<br>${tr({ it: 'tutto resta sul tuo PC', en: 'everything stays on your PC' })}<br><span id="build-ver" title="versione della build (si aggiorna a ogni salvataggio del progetto su GitHub)">build ${esc(boot.versione.semver)}${boot.versione.hash ? ` · ${esc(boot.versione.hash)}` : ''}</span><br><span id="srv-live">…</span> <button class="mini" id="lang-foot" style="margin-left:6px;font-size:10.5px;padding:2px 7px" title="${esc(tr({ it: "cambia la lingua dell'interfaccia: vale per la GUI, il server in locale e il cruscotto in gioco", en: "switch the interface language: applies to the GUI, the local server and the in-game dashboard" }))}">${window.LINGUA === 'en' ? '🇬🇧 EN' : '🇮🇹 IT'}</button>`;
+    // footer: contatto (issue GitHub precompilata). 10/11 (richiesta Mauro:
+    // «leva la donazione dalla barra laterale così guadagniamo spazio» —
+    // il caffè è salito nell'INTESTAZIONE, chip accanto a MoTeC.)
     const fl = boot.feedback || {};
     const footLinks = [];
-    if (fl.kofi) sf.innerHTML += `<a class="kofi-banner" href="${esc(fl.kofi)}" target="_blank" rel="noopener" title="${tr({ it: 'Offri un caffè: sostieni lo sviluppo del tool — apre Ko-fi', en: 'Buy me a coffee: support the tool\'s development — opens Ko-fi' })}"><span class="cup">☕</span> ${tr({ it: 'Offrimi un caffè', en: 'Buy me a coffee' })}<span class="muted">${tr({ it: ' · sostieni lo sviluppo', en: ' · support the dev' })}</span></a>`;
+    const hk = $('#hstat-kofi');
+    if (hk) hk.style.display = fl.kofi ? '' : 'none';   // senza Ko-fi configurato il quadro resta a casa
+    const kc = $('#kofi-chip');
+    if (kc) {
+      if (fl.kofi) {
+        kc.href = fl.kofi;
+        kc.title = tr({ it: 'Offri un caffè: sostieni lo sviluppo del tool — apre Ko-fi', en: "Buy me a coffee: support the tool's development — opens Ko-fi" });
+        kc.textContent = '☕ ' + tr({ it: 'Offri un caffè', en: 'Buy me a coffee' });
+      } else kc.textContent = '';
+    }
     if (fl.issuesUrl) footLinks.push(`<a href="${esc(fl.issuesUrl)}" target="_blank" rel="noopener" title="${tr({ it: 'Apre GitHub con la segnalazione già compilata: leggi, completa il dettaglio e invia', en: 'Opens GitHub with the report already filled in: read, add details and submit' })}">🐞 ${esc(tr({ it: 'Segnala un problema', en: 'Report a problem' }))}</a>`);
     if (footLinks.length) sf.innerHTML += `<div class="foot-links">${footLinks.join('<span class="foot-sep">·</span>')}</div>`;
     const lf = $('#lang-foot', sf);
@@ -651,6 +659,7 @@ async function refreshBoot(){
     'Prossima gara': tr({ it: 'Prossima gara', en: 'Next race' }),
     'Gioco': tr({ it: 'Gioco', en: 'Game' }),
     'MoTeC': 'MoTeC',
+    'Caffè': tr({ it: 'Caffè', en: 'Coffee' }),
     'In pista': tr({ it: 'In pista', en: 'On track' }),
   };
   $$('#hstats .hstat .l').forEach((el) => { if (HEADER_L[el.textContent.trim()]) el.textContent = HEADER_L[el.textContent.trim()]; });
@@ -714,7 +723,6 @@ function decoratePanels(scope) {
   if (root) new MutationObserver(() => decoratePanels(root)).observe(root, { childList: true, subtree: true });
   run();
 })();
-
 /* Rinomina i piloti (26/10): SITO di chiamata unico per rivali e classifica
    mondiale. Il soprannome vive nel save (state.alias) e vale SOLO sulle
    schermate (registro, schede, mondiale): la storia e i record di gara su
