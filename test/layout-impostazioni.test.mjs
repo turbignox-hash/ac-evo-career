@@ -39,6 +39,11 @@ import './_flows-sandbox.mjs';
 // #rv-registro Rivali, #ch-carica Campionati — in ENTRAMBI i rami — e
 // #bn-libro Finanze). Il tempo sale: 76 misure, il tetto del test sale con loro.
 //
+// (3/11, QUINTA LARGHEZZA, richiesta Mauro: «aggiungi la larghezza 320 px alla
+// guardia di layout e verifica che non compaia nessuna sovrapposizione»): 320
+// si mette SOTTO alle altre — il re dei telefoni stretti e delle finestre
+// affiancate davvero piccole — 95 misure (5 larghezze × 19 tab).
+//
 // Porta: 8736 (fuori dal range di fallback 8642..8655 e dal 8731 di smoke).
 
 import test from 'node:test';
@@ -55,10 +60,10 @@ const SERVER = join(ROOT, 'src', 'webui.mjs');
 const SAVE = join(ROOT, 'data', 'evo-career.save.json');
 const PORT = 8736;
 const BASE = `http://127.0.0.1:${PORT}`;
-/* la quarta larghezza è il MARGINE più piccolo: 480 era il minimo
- * collaudato, sotto c'è il regno dei telefoni e dei pannelli affiancati
- * in finestra stretta */
-const WIDTHS = [360, 480, 1250, 1920];
+/* le due larghezze più piccole sono il MARGINE: 360 era il minimo
+ * collaudato; 320 (3/11) è sotto ancora — regno dei telefoni stretti e
+ * delle finestre affiancate davvero piccole */
+const WIDTHS = [320, 360, 480, 1250, 1920];
 /* DICIANNOVE tab della STESSA guardia, nell'ordine della nav, ognuno col SUO
  * marcatore (esiste SOLO in quella vista, non nei vicini): #card-panel
  * Dashboard, #ag-advance Centro gare, #mx-posta Messaggi, #imp-result Import,
@@ -102,7 +107,7 @@ const CHROMIUM = [
   join(LOCALAPPDATA, 'ms-playwright', 'chromium_headless_shell-1223', 'chrome-headless-shell-win64', 'chrome-headless-shell.exe'),
 ].find(existsSync);
 
-test('tutti i 19 tab della GUI: niente sovrapposizioni a 360, 480, 1250 e 1920', { timeout: 900_000 }, async (t) => {
+test('tutti i 19 tab della GUI: niente sovrapposizioni a 320, 360, 480, 1250 e 1920', { timeout: 900_000 }, async (t) => {
   if (!existsSync(join(ROOT, 'node_modules', 'playwright-core')))
     return t.skip('manca playwright-core: `npm install` e la guardia riparte');
   if (!CHROMIUM)

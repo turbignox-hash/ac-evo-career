@@ -114,6 +114,19 @@ export async function misuraSovrapposizioni(page) {
     // Si salva il chi NON tocca la box del suo antenato scorrevole più
     // vicino — lo stesso spirito del salto per i details chiusi sopra:
     // non è in vista, non si misura.
+    // (320px, 3/11, Campionati): c'è anche il caso PARZIALE: la riga nel
+    // mezzo dello scorrimento TOCCA la box del suo contenitore ma la
+    // sporge sotto (getBoundingClientRect è l'unione): la parte sotto
+    // il bordo NON si disegna (il box la ritaglia) e l'elemento che sta
+    // DOPO la scatola veniva contato come sovrapposizione fantasma. Il
+    // rettangolo si MOZZA alla scatola del contenitore scorrevole più
+    // vicino: si misura SOLO la parte disegnata davvero.
+    const ritaglia = (a, c) => {
+      if (!c) return a;
+      const l = Math.max(a.left, c.left), t = Math.max(a.top, c.top);
+      return { left: l, top: t, right: Math.min(a.right, c.right), bottom: Math.min(a.bottom, c.bottom),
+        width: Math.min(a.right, c.right) - l, height: Math.min(a.bottom, c.bottom) - t };
+    };
     // GLI INLINE MULTIRIGA NON SI MANGIANO (360px, 3/11): un <span> di
     // testo lungo VA A RIGA e il suo getBoundingClientRect è l'UNIONE delle
     // righe — a 360px ingoia la riga sopra (dove stanno il <b> con
@@ -125,17 +138,24 @@ export async function misuraSovrapposizioni(page) {
       const det = el.closest('details');
       if (det && !det.open) return [];                       // contenuti piegati: non sono in vista
       if (el.closest('svg') || el.closest('[aria-hidden="true"]')) return [];  // figure e cose escluse dalla lettura
-      const r = visibile(el);
+      let r = visibile(el);
       if (!r) return [];
+      // l'antenato con clipping (verticale o orizzontale): il contenuto che
+      // sporge oltre la sua scatola NON si disegna, quindi si MOZZA — se
+      // resta un rettangolo sotto i 2px qualcosa non era in vista affatto
+      let contenitore = null;
       for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
-        if (getComputedStyle(a).overflowY !== 'visible') {
-          const br = a.getBoundingClientRect();
-          if (Math.min(r.bottom, br.bottom) - Math.max(r.top, br.top) <= 0) return [];
+        const sa = getComputedStyle(a);
+        if (sa.overflowY !== 'visible' || sa.overflowX !== 'visible') {
+          contenitore = a.getBoundingClientRect();
           break;
         }
       }
-      // misurabili: foglie vere (testi, input) e interattivi chiari
-      const scelto = !el.children.length || el.matches('button,select,input,label,summary,.kpi,.chip');
+      r = ritaglia(r, contenitore);
+      if (r.width < 2 || r.height < 2) return [];
+
+    // misurabili: foglie vere (testi, input) e interattivi chiari
+    const scelto = !el.children.length || el.matches('button,select,input,label,summary,.kpi,.chip');
       if (!scelto) return [];
       // l'etichetta porta ANCHE tag+classi: le componenti senza id, con
       // placeholder/value vuoto (le <b> del registro, gli <h2>...), non si
@@ -147,9 +167,10 @@ export async function misuraSovrapposizioni(page) {
         + (['button', 'summary', 'option'].includes(el.tagName.toLowerCase())
           ? (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 40)
           : String(el.getAttribute('placeholder') ?? el.value ?? '').slice(0, 30));
-      const rects = getComputedStyle(el).display === 'inline'
-        ? [...el.getClientRects()].filter((x) => x.width >= 2 && x.height >= 2).slice(0, 64)
+      let rects = getComputedStyle(el).display === 'inline'
+        ? [...el.getClientRects()].slice(0, 64).map((x) => ritaglia(x, contenitore))
         : [];
+      rects = rects.filter((x) => x.width >= 2 && x.height >= 2);
       return [{ r, rects: rects.length ? rects : null, eti, el }];
     });
     // la catena antenati di ogni elemento della coppia (id e classi più
