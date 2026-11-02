@@ -30,6 +30,15 @@ import './_flows-sandbox.mjs';
 // sono skip DICHIARATO col perché nel messaggio, non rossi: il save è
 // gitignored (nel checkout fresco non c'è), il chromium va chiesto a mano.
 //
+// (3/11, TUTTI I TAB, richiesta Mauro: «aggiungi alla guardia di layout anche
+// i restanti tab della GUI… mantenendo le stesse misure di stabilità»): la
+// stesa copre ORA l'intera nav (19 tab), stessi 4 larghezze, stessa sonda,
+// stesse leggi (marcatore unico + stabilità della geometria + niente
+// sovrapposizioni + niente errori JS nuovi). Quattro viste non avevano un id
+// stabile: ora ognuna porta il SUO marcatore (#mx-posta Messaggi,
+// #rv-registro Rivali, #ch-carica Campionati — in ENTRAMBI i rami — e
+// #bn-libro Finanze). Il tempo sale: 76 misure, il tetto del test sale con loro.
+//
 // Porta: 8736 (fuori dal range di fallback 8642..8655 e dal 8731 di smoke).
 
 import test from 'node:test';
@@ -50,24 +59,39 @@ const BASE = `http://127.0.0.1:${PORT}`;
  * collaudato, sotto c'è il regno dei telefoni e dei pannelli affiancati
  * in finestra stretta */
 const WIDTHS = [360, 480, 1250, 1920];
-/* Quattro tab della STESSA guardia, ognuno col SUO marcatore (esiste SOLO in
- * quella vista, non nei vicini): #card-panel nella Dashboard, #agg-status
- * nelle Impostazioni, #psi-panel nel Setup, #an-tetto nell'Analisi.
+/* DICIANNOVE tab della STESSA guardia, nell'ordine della nav, ognuno col SUO
+ * marcatore (esiste SOLO in quella vista, non nei vicini): #card-panel
+ * Dashboard, #ag-advance Centro gare, #mx-posta Messaggi, #imp-result Import,
+ * #ch-carica Campionati (identico nei DUE rami: vuoto e pieno), #g-tbody
+ * Griglia, #rv-registro Rivali, #track-hist Piste, #cars-grid Auto,
+ * #g-mech Garage, #arc-q Archivio, #b-on-all Online, #gv-subito Giri liberi,
+ * #stats-vetrina Statistiche, #bn-libro Finanze, #i-diffval Difficoltà,
+ * #agg-status Impostazioni, #psi-panel Setup, #an-tetto Analisi.
  * riempimentiDedicati solo per Impostazioni (i tre arrivi asincroni NOTI);
- * per gli altri la stabilità GENERICA della geometria tiene il posto. */
-// (3/11, seconda estrazione): il tab Dashboard entra nella STESSA guardia
-// (richiesta Mauro: «estendi il guard di layout anche alla tab Setup e alla
-// Dashboard»): il Setup era già dentro dall'estensione a tre tab, la
-// Dashboard arriva col SUO marcatore (#card-panel, la racecard della
-// prossima gara — esiste solo nel Cruscotto) e vive coi due vichini
-// dell'attesa GENERICA di stabilità: i riempimenti asincroni sono tanti
-// (card, paddock, vita, eredità, verdetto) e la legge dei tetti li copre
-// TUTTI senza enumerarli.
+ * per tutti gli altri la stabilità GENERICA della geometria tiene il posto.
+ * pannelli: il minimo di .panel che la vista aggiunge (1 per la maggior parte;
+ * Centro gare ne mette 2: hero + gare del giorno; Griglia ne mette 5:
+ * celle, classi, sede weekend, calibrazione, azioni). */
 const TAB = [
   { id: 'dashboard', nome: 'Dashboard', marker: '#card-panel', pannelli: 4 },
-  { id: 'settings', nome: 'Impostazioni', marker: '#agg-status', pannelli: 3, riempimentiDedicati: true },
-  { id: 'setup',    nome: 'Setup',        marker: '#psi-panel', pannelli: 1 },
-  { id: 'analisi',  nome: 'Analisi',      marker: '#an-tetto',  pannelli: 1 },
+  { id: 'agenda',    nome: 'Centro gare', marker: '#ag-advance', pannelli: 2 },
+  { id: 'messages',  nome: 'Messaggi',    marker: '#mx-posta',   pannelli: 1 },
+  { id: 'import',    nome: 'Import',      marker: '#imp-result', pannelli: 1 },
+  { id: 'championships', nome: 'Campionati', marker: '#ch-carica', pannelli: 1 },
+  { id: 'griglia',   nome: 'Griglia',     marker: '#g-tbody',    pannelli: 3 },
+  { id: 'rivals',    nome: 'Rivali',      marker: '#rv-registro', pannelli: 1 },
+  { id: 'tracks',    nome: 'Piste',       marker: '#track-hist', pannelli: 1 },
+  { id: 'cars',      nome: 'Auto',        marker: '#cars-grid',  pannelli: 1 },
+  { id: 'garage',    nome: 'Garage',      marker: '#g-mech',     pannelli: 1 },
+  { id: 'archive',   nome: 'Archivio',    marker: '#arc-q',      pannelli: 1 },
+  { id: 'online',    nome: 'Online',      marker: '#b-on-all',   pannelli: 1 },
+  { id: 'gironi',    nome: 'Giri liberi', marker: '#gv-subito',  pannelli: 1 },
+  { id: 'stats',     nome: 'Statistiche', marker: '#stats-vetrina', pannelli: 1 },
+  { id: 'banca',     nome: 'Finanze',     marker: '#bn-libro',   pannelli: 1 },
+  { id: 'difficulty', nome: 'Difficoltà', marker: '#i-diffval',  pannelli: 1 },
+  { id: 'settings',  nome: 'Impostazioni', marker: '#agg-status', pannelli: 3, riempimentiDedicati: true },
+  { id: 'setup',     nome: 'Setup',       marker: '#psi-panel',  pannelli: 1 },
+  { id: 'analisi',   nome: 'Analisi',     marker: '#an-tetto',   pannelli: 1 },
 ];
 
 // il Chromium già nella cache di Playwright (niente download: se manca, il
@@ -78,7 +102,7 @@ const CHROMIUM = [
   join(LOCALAPPDATA, 'ms-playwright', 'chromium_headless_shell-1223', 'chrome-headless-shell-win64', 'chrome-headless-shell.exe'),
 ].find(existsSync);
 
-test('tab Dashboard, Impostazioni, Setup e Analisi: niente sovrapposizioni a 360, 480, 1250 e 1920', { timeout: 240_000 }, async (t) => {
+test('tutti i 19 tab della GUI: niente sovrapposizioni a 360, 480, 1250 e 1920', { timeout: 900_000 }, async (t) => {
   if (!existsSync(join(ROOT, 'node_modules', 'playwright-core')))
     return t.skip('manca playwright-core: `npm install` e la guardia riparte');
   if (!CHROMIUM)
@@ -127,6 +151,14 @@ test('tab Dashboard, Impostazioni, Setup e Analisi: niente sovrapposizioni a 360
 
       for (const tab of TAB) {
         await assettaVista(page, tab);
+
+        /* (3/11, tutti i tab) ATTARDI CON DIVARIO: Griglia (5 pannelli, con
+         * la sede del weekend che si riempie a parte) può allungare
+         * l'arrivo della geometria stabile — qui si aspetta anche il BOX
+         * «carico…» svuotato, oltre alla stabilità GENERICA della sonda. */
+        if (tab.id === 'griglia') {
+          await page.waitForFunction(() => !document.querySelector('#wtrack-box')?.textContent.includes('carico'), null, { timeout: 15000 }).catch(() => { /* si misura comunque */ });
+        }
         if (tab.riempimentiDedicati) await assettaRiempimentiImpostazioni(page);
         else await assettaStabilitaGenerica(page);
 

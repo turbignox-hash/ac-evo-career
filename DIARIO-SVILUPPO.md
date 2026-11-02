@@ -790,7 +790,154 @@ posto. Non è il contenuto delle celle: è la forma del file che noi scriviamo.
   (node ac-evo-career.mjs griglia → APPLICA in EVO): se le anteprime restano
   nere, il campo 2 non era tutto — ma è l'UNICA differenza strutturale rimasta.
 
+### 5/11/2026 — Le firme dei commenti HTML della Pratica (viste-b) si riconciliano col diario
+
+Passo di ronda richiesto da Mauro («porta le date discordanti dei commenti HTML
+viste-b (5/11 vs 30/10) al loro vero giorno controllando il diario e firmale
+correttamente»). Esito della ronda: i TRE commenti HTML del pannello Gara al
+volo in gui/js/viste-b.js portano la data GIUSTA, 30/10 — le tre voci del
+diario la confermano (PARTE SUBITO ore 14:10, menu a tendina col PRESET DI
+GRIGLIA ore 14:40, PRESET COL NOME la sera). Il «5/11» che il confronto faceva
+temere non era di viste-b: sta nel FILBAR di servizio (core.js e index.html)
+e lì resta a dire il fatto suo. Comunque le firme non recitavano le parole
+del diario: «sarebbe una noia impostare ogni volta» era una parafrasi —
+sostituita con la citazione VERA del diario («ogni volta ci sono sempre
+problemi con auto, griglie, piste o gara tempo/giri»); il preset di griglia
+ora porta la richiesta intera («dammi menu a tendina per piste, auto, griglie
+mono o multiclasse»). Il preset col nome era già giusto («preset con la mia
+auto», diario serale).
+
+Verifica: test/viste-guard.test.mjs 6/6 (firme con data, niente markup
+sepolto), Biome pulito su gui/js/viste-b.js.
+
+#### 3/11 — La regola dei commenti HTML arriva anche alle app in gioco (richiesta Mauro: «estendi la stessa regola (firma con data, niente markup sepolto) ai file uiapp delle app in gioco: menu.html e le sagome src.js portano anch'esse markup»)
+
+La regola nata per la GUI (test/viste-guard.test.mjs: ogni
+`<!-- … -->` o è MEMORIA con la firma della casa — una data «3/11»
+nel corpo — o è dubbia spazzatura da cancellare, e non tiene markup
+sepolto) ora sta anche nella guardia delle app in gioco
+([test/uiapp-installata.test.mjs](test/uiapp-installata.test.mjs),
+quinto punto della stanza, test «COMMENTI HTML DELLE APP»): guarda
+`uiapp/<app>/menu.html` e `uiapp/<app>/<app>.src.js` per cruscotto e
+pitwall (pitwall non porta la pagina: la lezione 27/10 lo esclude).
+Primo fuorilegge PRESO: la firma del menu del Cruscotto (2), che
+portava `ui-<slot>.json` DENTRO il commento (il browser non lo usa, ma
+noi lo spediamo lo stesso) e nessuna data — riscritta col «slot» detto
+a parole e con la firma 3/11.
+
+PROVA DI ROTTURA: commento ri-sporcato a mano (senza data, con
+`ui-<slot>.json`), test name-pattern solo sul nuovo → 1 fail col
+messaggio giusto, poi file ripristinato da `menu.html.bak`, stesso
+comando (esito bene, nessun residuo). Verifica: la guardia intera
+5/5 (quattro test precedenti + il nuovo), biome pulito su test e
+menu.html.
+
+### 3/11 — La guardia entra nel flusso di release: preflight di crea-release (richiesta Mauro: «collega la guardia al flusso di release: crea-release deve far girare genera-uiapp + la guardia prima di confezionare lo zip»)
+
+Fino a ieri release e app in gioco parlavano due lingue: la guardia
+(test/uiapp-installata.test.mjs) girava a chiamata di test, mentre la
+release nasceva quando capitava — e uno zip uscito da `git archive HEAD`
+poteva portare costruiti stanti o copie in gioco non riallineate. Ora la
+soglia è UNA SOLO, dentro [tools/crea-release.mjs](tools/crea-release.mjs):
+PRIMA delle credenziali, della release e di qualunque zip il tool fa
+girare
+
+1. `node tools/genera-uiapp.mjs` — costruiti fresh (PERIODO_MS dal
+   publisher + firma BUILD_OK) e copie in gioco riallineate;
+2. `node --test test/uiapp-installata.test.mjs` — la guardia intera
+   (biome sulle sagome, BUILD_OK, copia .js byte per byte e le pagine
+   d'ingresso: app.json = sorgente, menu.html assente).
+
+Esito non-zero = la release NON parte (✧ preflight non superato). E se
+la build ha riscritto file NON committati, avviso ad alta voce: lo zip
+(git archive HEAD) li porta VECCHI — committa prima.
+
+- NUOVI FLAG: `--con-pacchetto` confeziona la zip QUI (node
+  tools/pacchetto-amico.mjs, con `--no-test` per saltare la prova npm
+  dentro lo zip) DOPO il preflight e la carica come primo asset,
+  leggendo il «Percorso:» dall'output del pacchetto — niente zip fatte a
+  mano da un flusso fuori dal preflight. L'uso `--asset …` resta com'era
+  per zip/asset già fabbricati (i flag tool vengono puliti via prima del
+  parsing tag/titolo).
+- `--solo-preflight`: prova a secco della soglia — gira il preflight ed
+  esce senza toccare GitHub né fare zip: è il tasto di collaudo.
+- Check-list aggiornata: RELEASE_CHECKLIST §5 ora dice che preflight e
+  `--con-pacchetto` sono parte del passo 5.
+- E nella check-list dei COMANDI ([COMANDI-BUFFY.md](COMANDI-BUFFY.md),
+  quarto blocco dei prompt ricorrenti) entra la spunta standard
+  «Guardia delle app in gioco»: genera-uiapp + guardia DOPO ogni tocco
+  alle app — stessa soglia, anche fuori dalla release.
+
+Prova col vivo: `node tools/crea-release.mjs` senza argomenti → uso ed
+exit 1 (preflight non ancora in gioco); `--solo-preflight` → build «già
+al passo», guardia 4/4, avviso onesto dei costruiti non committati (la
+storia del disco), exit 0 senza chiamate a GitHub. Biome pulito sul tool.
+
+### 3/11 — La guardia delle app in gioco arriva alle PAGINE D'INGRESSO (richiesta Mauro: «estendi la nuova guardia uiapp anche a app.json e menu.html installati: il loader li legge a ogni avvio e curarsi lì è la beffa tipica»)
+
+La guardia delle app ([test/uiapp-installata.test.mjs](test/uiapp-installata.test.mjs))
+sorvegliava la copia del solo costruito .js; ma il loader rilegge a ogni
+avvio del gioco ANCHE le due pagine d'ingresso di ogni app — una è
+la carta d'identità (app.json) e se là resta una pagina vecchia (menu.html)
+la beffa è servita. Quarto punto della stanza vera:
+
+- app.json installato = sorgente `uiapp/<app>/app.json` BYTE PER BYTE:
+  senza allineamento l'app in gioco dichiara pagine/script di un'altra
+  versione (lo stesso guaio che la guardia già temeva per il .js);
+- menu.html NON deve ESSERCI affatto: la lezione 27/10 ore 18:40 dice
+  che il file dichiarato in app.json ma non più consegnato NON va
+  rimesso — una copia stantia che resta
+  nella cartella viene rilegata a ogni avvio e rimonta l'app nel SUO
+  drawer spostando il menu di EVO. La cura è `node tools/installa-<chiave>.mjs`
+  (cancella lui la pagina e riallinea), il fallimento del test lo dice;
+- stesso skip del costruito: app non installata (cartella assente) o PC
+  senza Saved Games → NON un falso-verde, salto dichiarato.
+- STANZA VERA verificata subito: entrambi gli app.json in
+  `Saved Games\ACE\mods\uiresources\ACEUIAppLoader\{cruscotto,pitwall}`
+  sono identici alla sorgente e nessun menu.html è rimasto — la stanza
+  era già a rigore, la guardia adesso se ne accorge se cessa di esserlo.
+
+Verifica: [test/uiapp-installata.test.mjs](test/uiapp-installata.test.mjs)
+4/4 (3 vecchi + 1 nuovo), biome pulito sul file toccato.
+
+### 3/11 — La guardia dei nomi puliti a server vivo: lastLd, garage/sessions e tetto (richiesta Mauro: «un test dedicato a systemHealth, garage/sessions e tetto, come il test del banco A/B»)
+
+Quando il nome bello (prettyTrackLabeled di test/tracknames, 1/11) era
+entrato nel banco, la stessa cura era già passata SOPRA il server: Mauro
+chiese la prova dedicata, «come il test del banco A/B», e il test è
+arrivato EX FLUSSO invece che a campioncini. Nuovo
+[test/nomi-puliti-server.test.mjs](test/nomi-puliti-server.test.mjs):
+un server VERO ([src/webui.mjs](src/webui.mjs) sulla sua porta 8744) con
+una carriera finta in sandbox (EVO_DATA_DIR + ACE_DATA in tmpdir, come
+clear-consiglio e cover-ponte) e sessioni MoTeC SINTETICHE scritte a mano
+allo stesso formato che [src/motec.mjs](src/motec.mjs) decodifica (header
+64B, 5 canali da 124B, beacon nel .ldx). Tre piste con token VERI di
+cartella, una delle quali ignota al ladder:
+
+- `/api/system-health` → `telem.lastLd.track`: il chip MoTeC
+  dell'header legge la CARTELLA («ImolaGP») e deve parlare col nome
+  bello («Imola», con valid:true);
+- `/api/garage {action:'sessions'}` → `sessions[].trackPretty` del
+  selettore del pannello meccanico + `basisTrack` (dove è girata la
+  telemetria del consiglio), entrambi puliti;
+- `/api/tetto` → `perTrack[].track` e `worstSectors[].track`: la
+  tabella dice «Imola», il token grezzo «ImolaGP» non deve comparire
+  da nessuna parte;
+- il token onesto resta il patto: la pista fuori dal ladder
+  («Pista Fantasma») NON prende nomi, in garage come nel tetto.
+
+Filo di autenticità: gli attesi NON sono stringhe copiate nel test ma
+ricalcolati con lo STESSO import del server (prettyTrackLabeled + ladder
+vero di config/career.evo.ladder.json) — se i due mondi divergono si
+vede, se cambia una dicitura non rompe.
+
+Verifica: il test nuovo 1/1 pass (~1,1 s, server vero compreso); biome
+pulito. Due scontri col vivo sistemati DENTRO il test: su Windows
+`utimesSync` con i numeri dà EINVAL (solo le `Date` passano) e la
+cartella della pista va creata prima di scrivere il `.ld`.
+
 ### 3/11 — Il bollettino si dichiara automatico (richiesta Mauro: «non l'avevamo reso automatico questo?»)
+
 
 Il meteo automatico c'era (3/11 mattina, wx-auto.mjs) ma il pannello
 «🌦 Bollettino del weekend» nella GUI chiedeva ancora il rituale a mano
@@ -892,7 +1039,7 @@ sui due sorgenti; biome pulita sui tre file toccati (rimossa via anche
 l'import di bandaSerieLadder dal server, ora inutile lì: la legge della
 semina vive tutta in state.mjs).
 
-### 3/11 — Quarto tab nella guardia di layout: la Dashboard a 4 larghezze (richiesta Mauro: «estendi il guard di layout anche alla tab Setup e alla Dashboard»)
+#### 3/11 — Quarto tab nella guardia di layout: la Dashboard a 4 larghezze (richiesta Mauro: «estendi il guard di layout anche alla tab Setup e alla Dashboard»)
 
 La guardia di [layout-impostazioni.test.mjs](test/layout-impostazioni.test.mjs)
 sale a 16 misure (4 larghezze × 4 tab): il Setup era già dentro dal 3/11,
@@ -916,7 +1063,7 @@ Verifica: `node --test test/layout-impostazioni.test.mjs` → `ok`, 16/16
 misure verdi (11 s); biome pulita sui due file; niente skip nuovo
 (chromium era in gioco).
 
-### 3/11 — La sonda di layout incartata in un modulo condiviso (richiesta Mauro: «estrai la sonda di layout in un modulo condiviso per riusarla su altre viste»)
+#### 3/11 — La sonda di layout incartata in un modulo condiviso (richiesta Mauro: «estrai la sonda di layout in un modulo condiviso per riusarla su altre viste»)
 
 Il motore tecnico nato il 2/11 dentro
 [test/layout-impostazioni.test.mjs](test/layout-impostazioni.test.mjs)
@@ -3174,7 +3321,7 @@ stato fatto con lo spostamento del banco in Analisi e commesso nella
   le piste, la data divide le gare.
 
 ### 1/11 — Il `--template` della CLI porta ora la banda di serie (e l'attesa verificata ancora a 84–85)
-Completamento della voce «banda di serie» qui sotto: Muro chiede «il
+Completamento della voce «banda di serie» qui sotto: Mauro chiede «il
 builder scriva 84–85 più trim, non la vecchia del ladder, e allinei
 anche l'attesa». Ispezione di tutti i percorsi del builder:
 - **Già a posto (senza toccare nulla)**: CLI `prepara`/`griglia` senza
@@ -3184,7 +3331,7 @@ anche l'attesa». Ispezione di tutti i percorsi del builder:
 - **Gap vero**: il ramo `--template` di
   [cli.mjs](src/cli.mjs#L1311) chiamava `buildGridMessage` SENZA banda:
   con un template dichiarato la griglia sarebbe tornata al ladder
-  preistorico (82–92 della Peugeot). Ora pass anche lì
+  preistorico (82–92 della Peugeot). Ora passa anche lì
   `aiBandSerie: bandaSeriePrep` (stessa banda dei cursori/trim già
   calcolata in testa alla funzione).
 - **File in attesa — verificati dal vivo, NIENTE da riallineare**:
@@ -3208,17 +3355,17 @@ banda attiva dei cursori del weekend, per non confondere i due
 registri». La distinzione vera: il CAMPO AI scritto nel file (aiMin/
 aiMax) è un registro, la banda dei CURSORI del weekend
 (state.raceSettings / difficultyFor, trim incluso) è l'altro — l'uno
-non comanda l'altro e un «Imposta intervallo AI» a mano può smorzarli
-l'uno contro l'altro.
+non comanda l'altro e un «Imposta intervallo AI» a mano può farli
+divergere l'uno contro l'altro.
 - **Server** (`case 'grid'`, [webui.mjs](src/webui.mjs#L2313)): payload
   con in più `bandaSerie` = banda viva della serie corrente da
-  `bandaSerieSlider` (84–85, base 87, trim 0, override vivo) — falli
-  silente: senza carriera (state assente) resta `null` e la GUI mostra
+  `bandaSerieSlider` (84–85, base 87, trim 0, override vivo) — fallisce
+  in silenzio: senza carriera (state assente) resta `null` e la GUI mostra
   solo il campo del file.
 - **GUI** ([viste-griglia.js](gui%2Fjs%2Fviste-griglia.js)) in DUE posti:
   - sotto il titolo: «**Banda attiva dei cursori del weekend: 84–85**
     [allineata al campo]» (tag green; o warn «da riscrivere
-    (Prepara)» se il campo scorre diverso dal file), e nella rigadel titolo l'etichetta «AI 84–85
+    (Prepara)» se il campo scorre diverso dal file), e nella riga del titolo l'etichetta «AI 84–85
     (campo del file)» per dire
     subito chi è chi;
   - nel pannello Azioni, sotto gli input «Imposta intervallo AI»:
@@ -3313,7 +3460,7 @@ ma la lista era piatta: sfogliare 40 sessioni in fila.
   le voci di A e B vanno in `<optgroup>` per GIORNO (etichetta tipo
   «01/11/2026», dal `mtimeMs` dell'endpoint `ab-list` — `when` è una
   stringa 'it-IT' non affidabile da rianalizzare in EN, quindi I GIORNI
-  li calcola il client). La voce si scioglie all'ORARIO:
+  li calcola il client). La voce si distingue per ORARIO:
   «auto · pista · 21:45».
 - I gruppi seguono l'ordine di arrivo del server (più recente per
   primo): primo giorno visto primo gruppo, senza riordini inutili.
@@ -3526,7 +3673,7 @@ quella lente ho rifatto il confronto:
   sane distinte passano, in piedi ANCHE la regola anti-celle-identiche);
   suite completa 769/769; biome pulito su src/gridbuilder.mjs e test.
 
-## 3/11 — Rapporto gara: la riga «Giro teorico» ora usa la fonte VERA o manca
+### 3/11 — Rapporto gara: la riga «Giro teorico» ora usa la fonte VERA o manca
 - LA COSA ovvia a occhio: nel rapporto di gara «Giro teorico (i tuoi migliori
   settoriali)» ripeteva il best. Il motivo che già sapevamo: nel file risultato
   EVO scrive SOLO i settori del giro migliore, la somma È IL BEST per
@@ -3548,7 +3695,7 @@ quella lente ho rifatto il confronto:
   teorico 2:38.245 su 2 giri e scorta 0:00.410. Suite completa 770/770;
   biome pulito su i due file. Rapporto reale 261030-2117 generato senza errori.
 
-## 3/11 (serata) — Il teorico VERO arriva anche all'hotlaps e alla scheda giri
+### 3/11 (serata) — Il teorico VERO arriva anche all'hotlaps e alla scheda giri
 - DOVE ERA STATO: la colonna «teorico» del quaderno dei giri liberi (tab
   Gironi, via hotlapsLog) e i campi theoretical* della scheda Analisi usavano
   ancora la somma dei splits del quaderno: il best stesso per costruzione,
@@ -3587,7 +3734,7 @@ quella lente ho rifatto il confronto:
   vero arriva anche PERSISTITO nell'entry via applyRaceResult) e il test di
   guardia ora lo impedisce per sempre.
 
-## 2/11 sera — La cura delle livree diventa PROCEDURA PERMANENTE (e una scoperta sul parco)
+### 2/11 sera — La cura delle livree diventa PROCEDURA PERMANENTE (e una scoperta sul parco)
 - Da Mauro il via libera («continua»): la cura-chimera monouso del 1/11
   diventa tool di famiglia: [tools/cura-livree.mjs](tools/cura-livree.mjs).
 - COME LAVA GLI ERRORI: per ogni identità dichiarata (carId + nome preset
@@ -3612,7 +3759,7 @@ quella lente ho rifatto il confronto:
   l'anteprima resta vuota; il cancellaio del builder impedisce di crearne
   di nuove. COMANDI-BUFFY.md aggiornato.
 
-## 3/11 (notte) — Il 0,00 del tetto: campione vero o campo vuoto
+### 3/11 (notte) — Il 0,00 del tetto: campione vero o campo vuoto
 
 - FENOMENO (Mauro): nel Tetto teorico Suzuka e Laguna escono col delta
   0,00 e sembrano auree. Nell'archivio reale SONO campioni veri (top3
@@ -3640,7 +3787,63 @@ quella lente ho rifatto il confronto:
 - PROSSIMO GIRO: le tinte della cella campione e la nota piste-fuori
   (oggi contano il riparto, domani potrebbero distinguere le senza-dato).
 
-## 3/11 (mattina) — LE 3 SKIN DELLA MX-5 ND CUP: parco confermato, caso chiuso
+### 3/11 — IL NOME PULITO DELLE PISTE ANCHE IN GIOCO: Pitwall e Cruscotto parlano come il banco A/B
+- CHIESTO (Mauro): «Porta il nome pulito delle piste anche nei chip del
+  Pitwall in-gioco, usando la stessa prettyTrackLabeled».
+- DOVE ERA IL VELENO: non nelle card azioni (quelle portano già i nomi
+  TRACK_INFO: `specFor().name` per la ronda, `eventTrackReal` per
+  l'evento) ma nel VERDETTO DI GIORNATA — le righe speddite al pannello
+  in gioco portavano la pista del file Results GREZZA (token di cartella
+  tipo «OultonParkInternational») e il giro migliore « @ pista» grezzo.
+- LA CURA ([uiapp-pub.mjs](src/uiapp-pub.mjs), publisher delle fasce):
+  `verdettoFascia` prende il ladder in mano (stesso oggetto della
+  vetrina) e le righe del verdetto escono con `prettyTrackLabeled` di
+  testday.mjs — UNA sola implementazione, come chiesto. AVVERTENZA:
+  il verdetto incolla il layout in coda («Mount Panorama (GP Race)») —
+  la prima tentata andata lo strappava in fondo «Mount Panorama
+  Race)» (fascia 261102): ora il layout si SCASTA prima (regex sulla
+  coda tra parentesi) e si ripala dopo, identico com'era.
+- COLPITI DALLA STESSA cura: le righe del verdetto e il giro migliore
+  nel Cruscotto in gioco e nella Pitwall (miniPitwall porta la stessa
+  `dati.verdetto` già pulita) — il pannello non cambia riga.
+- TEST ([uiapp-pub-priorita.test.mjs](test/uiapp-pub-priorita.test.mjs)):
+  col LADDER il token «OultonParkInternational» esce «Oulton Park
+  (International Race)» e la pista già pulita col layout «Mount
+  Panorama (GP Race)» resta INTATTA; senza ladder la firma resta quella
+  di prima (pista grezza intatta, mai un nome inventato).
+- Collaudo a fascia viva: riavvio del server (tools/riavvia-webui.mjs)
+  e la fascia `ui-<slot>.json` della Pitwall porta «Mount Panorama (GP
+  Race)» — la pista di notte già bella, il layout al suo posto.
+- suite: uiapp-pub-priorita + pitwall-radio 53/53 pass; biome pulito sui
+  2 file toccati.
+
+### 3/11 — REGISTRO DEL QUADRO-ZONE: striscia vs riparto del banco, si dicono la verità
+- CHIESTO (Mauro): «estendi il registro del quadro-zone: confronta il
+  riparto del banco con quello del quadro-zone e segnala se non
+  tornano» — la striscia e il riparto nascevano dalla STESSA coppia
+  campionata, ma la striscia filtra le fette (soglia per punto +
+  minSlivers), quindi i due numeri potevano divergere.
+- ANALISI (`src/analisi.mjs`): la striscia (zoneTimeline) ora porta
+  `somme` (secondi visibili per zona, firmati), `riparto` (grezzo,
+  stesse soglie del banco) e `gained`; il registro vero è
+  `quadroZoneCheck` (2/11, zona per zona): soglia ZONA max(0.08 s,
+  20%) e netto 0.15 s (la stessa tolleranza già in piedi nel test
+  della striscia); senza banco usa il riparto della striscia stessa.
+- `src/webui.mjs` `ab-setup`: attacca `zoneTimeline.check` col banco
+  (zones + netRiparto) sul vivo del confronto — una sola fonte del
+  verdetto, la GUI non ricalcola nulla.
+- `gui/js/viste-analisi.js`: la striscia legge zl.somme (niente più
+  doppio conteggio) e mostra il VERDETTO giusto sotto la legenda:
+  «✔ registro: striscia e riparto del banco tornano» o «⚠ NON
+  tornano» con gli scarti in fila (zone o netto, striscia vs riparto).
+- TEST + BIOME: `test/analisi.test.mjs` aggiunge quadroZoneCheck
+  (coppia di finte fette coerente → ok, banco che dichiara più della
+  striscia → scarti in frenata e netto, null senza striscia) e tutto
+  il modulo passa 23/23;
+  biome pulito sui 4 file toccati (messa a posto let→const di
+  _vocePanelloSilAt, pre-esistente a questo giro).
+
+### 3/11 (mattina) — LE 3 SKIN DELLA MX-5 ND CUP: parco confermato, caso chiuso
 - CHIARIMENTO (Mauro, verificato a mano nel pannello Livree di EVO):
   l'auto ha SOLO 3 skin — la bianco/rossa e DUE rosse tra loro quasi
   gemelle. Il pool scritto nelle griglie del weekend (13 celle
@@ -3652,3 +3855,49 @@ quella lente ho rifatto il confronto:
 - NESSUN INTERVENTO sul tool: le celle e il builder sono a posto cosi.
   Il cancellaio del builder (1/11) impedisce comunque di assemblare
   coppie mai scritte da EVO.
+
+### 2/11 notte — Crash 01:47:30 curato: il veleno del 718 era RIENTRATO dal magazzino; Paddock torna nel menu
+- IL FATTO: caduta 0xC0000005 nella zona Gameface al carico del Race
+  Weekend (stesso verdetto del 23/10 e delle due cadute del 1/11):
+  `last_grid.customgrid` riscritto alle 01:47 portava 20 celle con
+  `preset_718gt4rs_mech_1` ed etichetta «… - Standard» — LA STESSA
+  ricetta del verdetto «LA CAUSA VERA» del 1/11 sera.
+- DOVE ERA RIENTRATO: il magazzino della serie viva,
+  data/grid-templates/endurance_gt4.customgrid, era tornato velenato
+  (23 celle mech_1 + «Standard») da stanotte: ogni ricostruzione
+  (builder, Prepara, vigia) da lì riboccava le celle morte in
+  last_grid — e lo ha fatto di nuovo QUESTA NOTTE, poco prima del crash.
+- LA CURA (rituale del 1/11 sera, rifatto fresco): template sano dal
+  backup 25/10 su L: (9×718 mech_2 + 9×R8, zero «Standard»);
+  `griglia --template` → cartuccia a 18 celle vere; `griglia`
+  (magazzino) → allineamento 18 → 21 (20 avversari + tu), banda 84–85.
+  Il fisso: il guard storeTemplateSeNonRidotto ha rifiutato
+  l'appuntamento del template nuovo (21 < 23 celle) e il magazzino
+  RESTAVA velenato — neutralizzato a mano, fotocopiando il vivo (sano)
+  sopra il template: ora magazzino e vivo sono la stessa cosa, zero
+  «Standard», 10×718 mech_2 + 11×R8 (mech_1, visual_1 + visual_99).
+- FILE DI SICUREZZA: veleni salvati in
+  tmp/bak-veleno-porsche-718-*.customgrid e
+  tmp/bak-veleno-endurance-*.customgrid; su last_grid la consueta pila
+  bak-griglia/bak-apply.
+- AMBITO: le etichette «… - Standard» le scrive EVO anche da sé
+  (bak-apply 15:57 e 16:40; per R8/695 ecc. sono legittime). Per il 718
+  la coppia VERIFICATA da EVO resta: mech_2 + etichetta SENZA
+  «Standard» (bak-apply 16:56 e 18:14/18:15/18:35, celle 718 pulite).
+- LUNGO LA STRADA: il resto del magazzino (gt4_open, gt4_serie_b,
+  campionato_pista, campionato_strada) porta ancora 718 con
+  mech_1/«Standard» (8/9/4/2 celle: da curare con la STESSA ricetta
+  prima di correre quelle serie). E il re-inquinamento delle 20:32–21:41
+  di stanotte resta da attribuire (sospetto: cure/ripreparazioni dei
+  template); rituale d'ora in poi: prima della serie col 718, grep
+  «tandard» a zero sia in magazzino che nel vivo.
+- PADDOCK: era finito in `_OFF-paddock` con il taglio DI BLOCCO delle
+  tre app UIAPP (17:37 del 1/11, protocollo di esclusione del crash);
+  stanotte a 01:53 cruscotto e pitwall erano di nuovo attivi ma il
+  paddock era rimasto off. Ora `mv _OFF-paddock paddock`: torna nel
+  menu di EVO. Nel loader restano le due copie `_OFF-cruscotto` /
+  `_OFF-pitwall` (inerti, non caricate: da ripulire quando si vuole).
+- PROSSIMA PROVA IN GIOCO: apri EVO → menu griglia (SENZA GENERA) →
+  controlla → APPLICA → gara. Con le anteprime vive e la sessione che
+  sale, la notte è chiusa; se cade di nuovo → protocollo di riprova e
+  log già in mano, e si va a Kunos con il racconto dei 4 crash.

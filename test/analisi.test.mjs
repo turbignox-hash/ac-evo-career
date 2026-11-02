@@ -14,7 +14,7 @@ const DATA = mkdtempSync(join(tmpdir(), 'evo-analisi-'));
 mkdirSync(DATA, { recursive: true });
 process.env.EVO_DATA_DIR = DATA;
 
-const { raceAutopsy, tettoReport, rivalDossier, setupAB, seatMonteCarlo, zoneTimeline, abPreferite } = await import('../src/analisi.mjs');
+const { raceAutopsy, tettoReport, rivalDossier, setupAB, seatMonteCarlo, zoneTimeline, quadroZoneCheck, abPreferite } = await import('../src/analisi.mjs');
 const { sampleLap } = await import('../src/motec.mjs');
 const { recordRaceGrid, rivalKey } = await import('../src/rivals.mjs');
 const { setLang } = await import('../src/lang.mjs');
@@ -318,6 +318,31 @@ test('zoneTimeline: senza dati è null, e due file uguali non disegnano niente',
   assert.equal(zoneTimeline(null, null), null);
   const ztl = zoneTimeline(sampleLap(LD_A, 'best', 240), sampleLap(LD_A, 'best', 240));
   assert.equal(ztl, null, 'A vs A: ogni fettina vale 0, sotto la soglia → nessuna fetta');
+});
+
+test('quadroZoneCheck: registra se la striscia del quadro-zone torna col riparto del banco', () => {
+  const abc = { zones: { frenata: 0.36, uscita: 0.23, gas: 0.01 }, netRiparto: 0.58 };
+  const zl = {
+    ok: true,
+    segs: [
+      { zone: 'frenata', sign: 1, s: 0.342, x1: 0.02, x2: 0.18, pts: 12 },
+      { zone: 'uscita', sign: 1, s: 0.228, x1: 0.18, x2: 0.34, pts: 12 },
+      { zone: 'gas', sign: 1, s: 0.010, x1: 0.34, x2: 0.40, pts: 5 },
+    ],
+    somme: { frenata: 0.342, uscita: 0.228, gas: 0.010 },
+    riparto: { frenata: 0.36, uscita: 0.23, gas: 0.01 },
+    gained: 0.002,
+  };
+  const cOK = quadroZoneCheck(zl, abc);
+  assert.ok(cOK.ok === true, JSON.stringify(cOK));
+  assert.equal(cOK.netto, 0.58);
+  assert.deepEqual(cOK.scarti, []);
+  // fette sotto soglia: se il riparto del banco dichiara piu' della striscia il segnalatore lo dice (qui +0.44s in frenata sopra tolleranza)
+  const c2 = quadroZoneCheck(zl, { ...abc, zones: { frenata: 0.80, uscita: 0.23, gas: 0.01 }, netRiparto: 1.02 });
+  assert.equal(c2.ok, false, JSON.stringify(c2));
+  assert.ok(c2.scarti.some((s) => s.zone === 'frenata'), JSON.stringify(c2));
+  assert.ok(c2.scarti.some((s) => s.zone === 'netto'), JSON.stringify(c2));
+  assert.equal(quadroZoneCheck(null, abc), null);
 });
 
 /* -- 3bis) AUTOPUNTAMENTO DEL BANCO (2/11) ------------------------ */

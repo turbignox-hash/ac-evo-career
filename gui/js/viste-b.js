@@ -390,7 +390,9 @@ async function drawChampionships(m){
   let mondo = null;
   try { mondo = await worldRankingInner(); } catch { /* che la pagina dei campionati resti anche senza mondo */ }
   if (!(v.championships ?? []).length) {
-    m.innerHTML = `<div class="panel"><h2>${tr({ it: 'Campionati', en: 'Championships' })}</h2><div class="empty">${tr({ it: 'Nessun campionato iscritto: firma un sedile dal Centro gare quando la giornata ti offre una serie adatta.', en: 'No championship signed up: grab a seat from the Race Centre when the day offers a suitable series.' })}</div></div>` + stilePannello(stiliData.stili ?? []);
+    // 3/11 — MARCATORE DI VISTA (richiesta Mauro: la guardia di layout su TUTTI i tab):
+    // l'id #ch-carica esiste SOLO in questa vista, tanto nel ramo vuoto quanto in quello pieno.
+    m.innerHTML = `<div class="panel" id="ch-carica"><h2>${tr({ it: 'Campionati', en: 'Championships' })}</h2><div class="empty">${tr({ it: 'Nessun campionato iscritto: firma un sedile dal Centro gare quando la giornata ti offre una serie adatta.', en: 'No championship signed up: grab a seat from the Race Centre when the day offers a suitable series.' })}</div></div>` + stilePannello(stiliData.stili ?? []);
     return;
   }
   // BADGE cliccabili in alto: ogni campionato in corso con auto, pista e prossimo
@@ -428,7 +430,7 @@ async function drawChampionships(m){
       </div>
     </div>`;
   }).join('');
-  m.innerHTML = `<div class="panel" style="padding:14px 16px">
+  m.innerHTML = `<div class="panel" id="ch-carica" style="padding:14px 16px">
     <h2 style="margin:0 0 10px">${ICONS.championships} ${tr({ it: 'Campionati', en: 'Championships' })} <span class="h-act">${v.championships.length} ${tr({ it: 'serie firmate', en: 'signed series' })}</span></h2>
     <div class="champ-grid">${cards}</div>
     <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'Clicca una carta per scendere alla scheda completa.', en: 'Click a card to jump to its full card below.' })}</div>
@@ -691,7 +693,9 @@ async function drawGironi(m){
   m.innerHTML = `
   <div class="panel">
         <h2>${LI.flag} ${tr({ it: '🏁 Gara personalizzata al volo', en: '🏁 Instant custom race' })}</h2>
-        <!-- ▶ PARTE SUBITO (30/10, «sarebbe una noia impostare ogni volta»):
+        <!-- ▶ PARTE SUBITO (30/10, «ogni volta ci sono sempre problemi con
+             auto, griglie, piste o gara tempo/giri» — reimpostare la stessa
+             gara era noia e fonte d'errori, diario ore 14:10):
              un bottone in cima al pannello che ri-esegue l'ULTIMA RICETTA
              scritta (registro della durata) — la stessa dei campi qui
              sotto; l'anteprima con la ricetta sta a destra del bottone. -->
@@ -712,7 +716,8 @@ async function drawGironi(m){
           <div class="field"><label>${tr({ it: 'Pista', en: 'Track' })}</label><select id="gv-pista"><option value="">— ${tr({ it: 'non cambia', en: 'no change' })} —</option></select></div>
           <div class="field" style="grid-column:1/-1">
             <label>${tr({ it: 'Griglia', en: 'Grid' })}</label>
-            <!-- IL PRESET DI GRIGLIA (30/10, «mono o multiclasse nel menu»):
+            <!-- IL PRESET DI GRIGLIA (30/10, «dammi menu a tendina per
+                 piste, auto, griglie mono o multiclasse», diario ore 14:40):
                  la scelta riempie il POOL a fianco (editable: puoi togliere o
                  mettere un Id dal datalist); il menu resta «personalizzata»
                  se poi modificarà il pool a mano. -->
@@ -723,7 +728,7 @@ async function drawGironi(m){
           </div>
           <div class="field" style="grid-column:1/-1">
             <label>${tr({ it: 'Preset della ricetta (con la tua auto)', en: 'Recipe presets (with your own car)' })}</label>
-            <!-- I PRESET with NOME (30/10, «preset con la mia auto»): la
+            <!-- I PRESET COL NOME (30/10, «preset con la mia auto»): la
                  ricetta COMPLETA salvata con nome — giri O tempo, banda,
                  pista, SEDILE (la mia auto) e pool. Il «PARTE SUBITO» tiene
                  UNA ricetta sola: qui ne tieni quante vuoi. La scelta
@@ -1234,8 +1239,10 @@ async function drawBanca(m){
     .map((r)=>{ const k=KIND[r.kind]||{icon:'•',label:r.kind,side:null}; const m=Number(r.money??0);
       return `<tr><td class="faint" style="white-space:nowrap">${esc(String(r.at||'').slice(5,16).replace('T',' '))}</td><td>${k.icon} <span class="muted">${esc(k.label)}</span></td><td>${esc(legacyIt(r.reason??''))}</td><td class="right" style="white-space:nowrap">${m?`<span style="color:${m>0?'var(--good)':'var(--bad)'};font-weight:600">${m>0?'+':''}${money(m)} €</span>`:(r.rep?`<span class="faint">rep ${r.rep>0?'+':''}${r.rep}</span>`:'')}</td></tr>`;
     }).join('');
+  // 3/11 — MARCATORE DI VISTA: l'id #bn-libro esiste SOLO in questa vista per la
+  // guardia di layout (test/layout-impostazioni.test.mjs).
   m.innerHTML = `
-  <div class="panel">
+  <div class="panel" id="bn-libro">
     <h2>${STI.euro} ${tr({ it: 'FINANZE', en: 'FINANCES' })} <span class="h-act">${tr({ it: 'saldo attuale ', en: 'current balance ' })}${money(boot.header.money)} € · ${tot.in[0]>0?'+'+money(tot.in[0]):'0'} € ${tr({ it: 'entrate', en: 'in' })} · ${money(tot.out[0])} € ${tr({ it: 'uscite', en: 'out' })} (${tr({ it: 'ultimi ', en: 'last ' })}${rows.length} ${tr({ it: 'movimenti', en: 'entries' })})</span></h2>
     <div style="display:flex;gap:6px;margin:8px 0 10px">${filtri.map(([id,lab])=>`<button class="mini ${bancaView.filter===id?'acc':''}" data-bf="${id}">${lab??id}</button>`).join('')}</div>
     ${rowsHtml

@@ -10,18 +10,77 @@
 //   node tools/crea-release.mjs v0.1.25 "titolo" corpo.md --asset pacchetti/x.zip --asset y.zip
 //     --asset (ripetibile): carica il file NELL'asset della release; se un
 //     asset con lo stesso nome esiste già, lo CANCELLA e lo ricarica (sostituzione).
+//   node tools/crea-release.mjs v0.1.25 "titolo" corpo.md --con-pacchetto [--no-test]
+//     --con-pacchetto: la zip del pacchetto-amico NON si fa a mano prima:
+//     qui viene CONFEZIONATA (node tools/pacchetto-amico.mjs) e caricata
+//     come asset proprio (la prima); --no-test le salta la prova npm
+//     test dentro la cartella estratta.
+//   --solo-preflight: gira SOLO il preflight (genera-uiapp + guardia) ed
+//     esce senza toccare GitHub: la prova a secco della soglia di release.
+//
+// IL PREFLIGHT (3/11, richiesta Mauro: "collega la guardia al flusso di
+// release: crea-release deve far girare genera-uiapp + la guardia prima
+// di confezionare lo zip"): PRIMA di ogni cosa — prima delle credenziali,
+// prima della release, prima della zip — girano
+//   1) node tools/genera-uiapp.mjs: costruiti freschi (PERIODO_MS dal
+//      publisher + firma BUILD_OK) e copie in gioco riallineate;
+//   2) node --test test/uiapp-installata.test.mjs: la GUARDIA delle app in
+//      gioco (biome sulle sagome, BUILD_OK, copia .js byte per byte e le
+//      PAGINE D'INGRESSO: app.json = sorgente, menu.html assente).
+// Qualunque esito non-zero: la release NON parte. E se la build ha
+// riscritto file non committati lo dico ad alta voce: lo zip esce da
+// git archive HEAD — senza commit il pacchetto porta i costruiti VECCHI.
 // Tag già presente → viene riusato; release già esistente → aggiorna il corpo.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { basename } from 'node:path';
+import { basename, join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const argv = process.argv.slice(2);
-const tag = argv[0];
-const titolo = argv[1];
-const stopAsset = argv.indexOf('--asset');
-const rest = (stopAsset === -1 ? argv.slice(2) : argv.slice(2, stopAsset)).join(' ');
-const assets = stopAsset === -1 ? [] : argv.slice(stopAsset + 1);
-if (!tag || !titolo || !rest) { console.error('uso: node tools/crea-release.mjs <tag> <titolo> <corpo-file|corpo-inline> [--asset file.zip ...]'); process.exit(1); }
+const SOLO_PREFLIGHT = argv.includes('--solo-preflight');
+const CON_PACCHETTO = argv.includes('--con-pacchetto');
+const NO_TEST_PACCHETTO = argv.includes('--no-test');
+// i flag tool non sono né tag né titolo né asset: puliti via prima di carcare
+const puliti = argv.filter((a) => a !== '--con-pacchetto' && a !== '--solo-preflight' && a !== '--no-test');
+const tag = puliti[0];
+const titolo = puliti[1];
+const stopAsset = puliti.indexOf('--asset');
+const rest = (stopAsset === -1 ? puliti.slice(2) : puliti.slice(2, stopAsset)).join(' ');
+const assets = stopAsset === -1 ? [] : puliti.slice(stopAsset + 1);
+if (!tag || !titolo || !rest) { console.error('uso: node tools/crea-release.mjs <tag> <titolo> <corpo-file|corpo-inline> [--asset file.zip ...] [--con-pacchetto [--no-test]] [--solo-preflight]'); process.exit(1); }
+
+// ---- IL PREFLIGHT delle app in gioco: la soglia di release -------------
+const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..');
+function preghiamo(detta, args, { stdio } = {}) {
+  console.log(`↻ ${detta}`);
+  const r = spawnSync(process.execPath, args, { cwd: RADICE, encoding: 'utf8', stdio: stdio ?? 'inherit' });
+  if (r.status !== 0) {
+    if (r.stdout) process.stdout.write(r.stdout);
+    if (r.stderr) process.stderr.write(r.stderr);
+    console.error(`✧ preflight non superato (${detta}, exit ${r.status}): la release NON parte.`);
+    process.exit(1);
+  }
+  return r;
+}
+console.log('—— PREFLIGHT UIAPP: la release esce solo con le app fresche e sorvegluate ——');
+preghiamo('node tools/genera-uiapp.mjs — costruiti freschi (PERIODO_MS + BUILD_OK) e copie in gioco riallineate', [join('tools', 'genera-uiapp.mjs')]);
+preghiamo('node --test test/uiapp-installata.test.mjs — la guardia delle app in gioco (sagome, costruiti, copie, pagine d\'ingresso)', ['--test', join('test', 'uiapp-installata.test.mjs')]);
+// la build ha riscritto qualcosa? lo zip esce da HEAD: senza commit non entra
+const sporca = spawnSync('git', ['status', '--porcelain', '--', 'uiapp'], { cwd: RADICE, encoding: 'utf8' });
+if ((sporca.stdout ?? '').trim()) {
+  console.log('⚠ la build ha riscritto i costruiti NON committati: il pacchetto (git archive HEAD) li porta VECCHI.\n' + sporca.stdout.trim());
+}
+if (SOLO_PREFLIGHT) { console.log('✓ preflight superato (--solo-preflight): niente GitHub, niente zip.'); process.exit(0); }
+
+// --con-pacchetto: la zip si confeziona QUI, dopo il preflight, e sale come asset
+let zipFresco = null;
+if (CON_PACCHETTO) {
+  const dett = `node tools/pacchetto-amico.mjs${NO_TEST_PACCHETTO ? ' --no-test' : ''} — confezione dello zip, DOPO il preflight`;
+  const r = preghiamo(dett, [join('tools', 'pacchetto-amico.mjs'), ...(NO_TEST_PACCHETTO ? ['--no-test'] : [])], { stdio: ['ignore', 'pipe', 'pipe'] });
+  zipFresco = /^Percorso: (.+)$/m.exec(r.stdout ?? '')?.[1]?.trim() ?? null;
+  if (!zipFresco) { console.error('✧ non ho letto il Percorso dello zip dall\'output del pacchetto: la release NON parte.'); process.exit(1); }
+  console.log(`   zip fresca: ${zipFresco}`);
+}
 const corpoRaw = rest;
 const isFile = corpoRaw.endsWith('.md') || corpoRaw.endsWith('.txt');
 const corpo = isFile ? readFileSync(corpoRaw, 'utf8') : corpoRaw.replace(/\\n/g, '\n');
@@ -46,7 +105,8 @@ const releaseId = out.id ?? list.id;
 
 // asset: POST binario su uploads.github.com; 422 (nome già preso) → si cancella
 // quello esistente e si ritenta, così la zip della release è SEMPRE l'ultima
-for (const file of assets) {
+const dallaZip = zipFresco ? [zipFresco, ...assets] : assets;   // la zip di --con-pacchetto sale per prima
+for (const file of dallaZip) {
   const nome = basename(file);
   const buf = readFileSync(file);
   const carica = async () => fetch(`https://uploads.github.com/repos/${repo}/releases/${releaseId}/assets?name=${encodeURIComponent(nome)}`, {

@@ -20,6 +20,21 @@
 //      falso-verde. Le radici sono quelle di genera-uiapp e degli
 //      installatori (savedGamesRoots di src/paths.mjs): Steam su altro disco
 //      o ACE_SAVEDIR comandano qui come là.
+//   4) (3/11, richiesta Mauro: «estendi la guardia anche a app.json e
+//      menu.html installati: il loader li legge a ogni avvio») — le DUE
+//      PAGINE D'INGRESSO: app.json installato = sorgente byte per byte
+//      (la carta d'identità che il loader rilegge a ogni avvio), mentre
+//      menu.html NON deve ESSERCI: dichiarato in app.json ma non più
+//      consegnato (lezione 27/10 ore 18:40) — una copia stantia che resta
+//      nella cartella viene rilegata a ogni avvio e rimonta l'app nel SUO
+//      drawer spostando il menu di EVO, la beffa appunto.
+//   5) (3/11, richiesta Mauro: «estendi la stessa regola (firma con data,
+//      niente markup sepolto) ai file uiapp delle app in gioco») — i
+//      COMMENTI HTML di menu.html e delle sagome .src.js valgono come nel
+//      gui (test/viste-guard.test.mjs): o MEMORIA con la firma della casa
+//      (una data «3/11» nel corpo) o dubbia spazzatura da cancellare, e
+//      NESSUN tag dentro il commento (markup sepolto che il browser non
+//      usa: si cancella o lo si racconta nel diario).
 //
 // La legge del ritmo resta nel workspace (test/uiapp-periodo.test.mjs); i
 // costruiti src/*.mjs→sandbox degli installatori (test/installa-gioco.test.mjs,
@@ -89,4 +104,51 @@ test('COPPIA IN GIOCO ALLINEATA: la copia installata è il costruito, byte per b
     assert.ok(installata.equals(costruitoVivo),
       `la copia in gioco di ${chiave} (${via}) NON è identica a uiapp/${chiave}/${costruito} — rigenera con node tools/genera-uiapp.mjs (richiama gli installatori da solo).`);
   }
+});
+
+// 3/11 — LE DUE PAGINE D'INGRESSO (richiesta Mauro: «il loader li legge a
+// ogni avvio e curarsi lì è la beffa tipica»). Stessa stanza vera del test
+// sopra, stesso skip: app non installata → niente da guardare qui.
+test('PAGINE D\'INGRESSO IN GIOCO: app.json = sorgente, menu.html assente', (t) => {
+  const radici = savedGamesRoots();
+  if (!radici.length) return t.skip('nessuna cartella Saved Games: PC senza il profilo di gioco, niente stanza vera da guardare');
+  for (const { chiave } of APP) {
+    let cartella = null;
+    for (const root of radici) {
+      const p = join(root, 'ACE', 'mods', 'uiresources', 'ACEUIAppLoader', chiave);
+      if (existsSync(join(p, 'app.json'))) { cartella = p; break; }
+    }
+    if (!cartella) continue; // non installata: la coppia del costruito decide lo skip com'era
+    const sorgente = join(ROOT, 'uiapp', chiave, 'app.json');
+    assert.ok(existsSync(sorgente), `manca uiapp/${chiave}/app.json nel workspace: senza sorgente la guardia non può dire nulla`);
+    assert.ok(readFileSync(join(cartella, 'app.json')).equals(readFileSync(sorgente)),
+      `la carta d'identità in gioco (${chiave}) NON è la sorgente uiapp/${chiave}/app.json — il loader la rilegge a ogni avvio: node tools/installa-${chiave}.mjs`);
+    const vecchiaPagina = join(cartella, 'menu.html');
+    assert.ok(!existsSync(vecchiaPagina),
+      `${chiave}: menu.html stantio in gioco (${vecchiaPagina}) — il loader lo rilegge a ogni avvio e rimonta l'app nel SUO drawer spostando il menu di EVO (lezione 27/10 ore 18:40): node tools/installa-${chiave}.mjs lo cancella`);
+  }
+});
+
+// 3/11 — LA STESSA REGOLA dei commenti HTML della GUI (viste-guard.test.mjs)
+// arriva alle app: menu.html e le sagome .src.js portano anch'esse markup.
+test('COMMENTI HTML DELLE APP: firma con data e niente markup sepolto', () => {
+  const fuorilegge = [];
+  for (const { chiave } of APP) {
+    for (const f of ['menu.html', `${chiave}.src.js`]) {
+      const via = join(ROOT, 'uiapp', chiave, f);
+      if (!existsSync(via)) continue; // pitwall non porta la pagina (lezione 27/10)
+      const testo = readFileSync(via, 'utf8');
+      for (const m of testo.matchAll(/<!--([\s\S]*?)-->/g)) {
+        const corpo = m[1].replace(/\s+/g, ' ').trim();
+        if (!/\b\d{1,2}\/\d{1,2}\b/.test(corpo)) {
+          fuorilegge.push(`uiapp/${chiave}/${f}: commento HTML senza data — "${corpo.slice(0, 60)}" — mettici la firma (data) o cancellalo`);
+          continue;
+        }
+        if (/<[a-zA-Z/]/.test(corpo)) {
+          fuorilegge.push(`uiapp/${chiave}/${f}: markup sepolto (tag dentro il commento) — "${corpo.slice(0, 60)}" — cancellalo: il browser non lo usa e noi lo spediamo lo stesso`);
+        }
+      }
+    }
+  }
+  assert.deepEqual(fuorilegge, [], `commenti HTML fuorilegge nelle app in gioco:\n${fuorilegge.join('\n')}`);
 });

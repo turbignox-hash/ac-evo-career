@@ -237,5 +237,30 @@ sazio, da rinforzare. Propone la stesura di 2-3 test d'infarto:
 (3) un caso-limite di rottura. Scrittura SOLO dopo il permesso: fino a
 quel punto, REPORT puro.
 
+### «Guardia delle app in gioco» (spunta standard, 3/11)
+
+> Guardia delle app in gioco: gira genera-uiapp e la guardia, e dimmi se
+> le app costruite e le copie in gioco sono al passo.
+
+Cosa fa l'agente: la SPUNTA STANDARD dopo OGNI modifica alle app in
+gioco (`uiapp/`: sagome `.src.js`, `app.json`, `menu.html` o il valore
+`PERIODO_MS` del publisher). Due passi, nell'ordine:
+
+1. `node tools/genera-uiapp.mjs` — costruiti freschi (PERIODO_MS dal
+   publisher + firma BUILD_OK); se il costruito cambia, il generatore
+   richiama da solo gli installatori e le copie in gioco seguono;
+2. `node --test test/uiapp-installata.test.mjs` — la guardia intera:
+   biome sulle sagome, firma BUILD_OK nel costruito, copia installata
+   BYTE PER BYTE, le PAGINE D'INGRESSO (`app.json` installato =
+   sorgente byte per byte, `menu.html` assente — lezione 27/10: il
+   loader le rilegge a ogni avvio) e i COMMENTI HTML (regola 3/11:
+   ogni `<!-- … -->` o è firmato con una data tipo «3/11», o va
+   cancellato — markup sepolto vietato, anche nei commenti).
+
+Esito non-zero NON si chiude: si diagnostica (solitamente riallinea con
+il passo 1) e si rigira fino al verde. In release la soglia è già
+automatica: il preflight di `tools/crea-release.mjs` gira gli stessi
+due passi prima di confezionare la zip.
+
 Riferimenti nel diario: DA-15 (1/11) per l'esito del collaudo completo,
 DA-14 per le schede rivedute, DA-10 per le tinte ancora in corso.

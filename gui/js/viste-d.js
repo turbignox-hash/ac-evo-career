@@ -148,8 +148,11 @@ async function drawMessages(m){
       ${mm.action?.rows?.length ? `<div class="row" style="gap:4px;margin-top:6px;flex-wrap:wrap">${mm.action.rows.map((rr)=>`<span class="chip" data-row-node="${esc(rr.nodeId??'')}" data-row-track="${esc(rr.trackKey??'')}" style="cursor:pointer" title="${tr({ it: 'serie → Centro gare (la scheda per iscriverti e correre) · pista → scheda pista', en: 'series → Race centre (the card to sign up and race) · track → track card' })}">${esc(rr.label)}</span> <span class="chip gold" data-track-open="${esc(rr.trackKey??'')}" data-track-name="${esc(rr.track)}" style="cursor:pointer;font-size:10px;padding:1px 6px" title="${tr({ it: 'apri la scheda pista', en: 'open the track card' })}">📍</span>`).join('')}</div>` : ''}
     </div>`;
   };
+  // 3/11 — MARCATORE DI VISTA (richiesta Mauro: la guardia di layout passa
+  // su TUTTI i tab): la sonda aspetta l'id che esiste SOLO in questa vista
+  // prima di misurare (test/layout-impostazioni.test.mjs, #mx-posta).
   m.innerHTML = `
-  <div class="panel">
+  <div class="panel" id="mx-posta">
     <h2>${tr({ it: 'Posta del pilota', en: 'Driver mailbox' })} <span class="h-act">${mb.mails.length} ${tr({ it: 'email', en: 'emails' })} · ${esc(mb.oggi ?? '')}</span></h2>
     <div class="row" style="margin-bottom:10px">${chips}</div>
     ${(()=>{ const nUrg = mails.filter(x=>x.priorita==='urgente').length; return nUrg ? `<div class="muted" style="margin-bottom:8px">⚠️ ${nUrg} ${tr({ it: nUrg===1 ? 'email urgente (gare da disputare, conflitti da risolvere)' : 'email urgenti (gare da disputare, conflitti da risolvere)', en: nUrg===1 ? 'urgent email (races to run, conflicts to resolve)' : 'urgent emails (races to run, conflicts to resolve)' })}</div>` : ''; })()}
@@ -684,8 +687,10 @@ function h2hBadge(b, l){
 async function drawRivals(m){
   const d = await api('rivals');
   const rows = d.rivals;
+  // 3/11 — MARCATORE DI VISTA: l'id che esiste SOLO qui per la guardia di
+  // layout (test/layout-impostazioni.test.mjs, #rv-registro).
   m.innerHTML = `
-  <div class="panel">
+  <div class="panel" id="rv-registro">
     <h2>${tr({ it: 'Registro rivali', en: 'Rivals log' })} <span class="h-act">${d.totals.rivals} ${tr({ it: 'avversari con nome, da', en: 'named opponents, from' })} ${d.totals.races} ${tr({ it: 'gare importate', en: 'imported races' })}</span></h2>
     ${!rows.length ? `<div class="empty">${tr({ it: 'Nessun rivale ancora: i nomi arrivano dai file risultato a ogni import di gara.', en: 'No rivals yet: names come from the result files at every race import.' })}</div>` : `
     <div class="grid2">

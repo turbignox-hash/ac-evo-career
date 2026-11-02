@@ -148,9 +148,12 @@ function abZoneStrip(zl, points = 240) {
   if (!zl?.segs?.length) return '';
   // RINFORZO (2/11): i secondi per zona e il netto, dalla STESSA striscia —
   // le sommo qui così pannello e modale regalano la stessa cifra persa/guadagnata.
-  const tot = { frenata: 0, uscita: 0, gas: 0 };
-  for (const g of zl.segs) if (g.zone in tot) tot[g.zone] += g.s;
-  const net = tot.frenata + tot.uscita + tot.gas;
+  // REGISTRO (2/11, richiesta Mauro «confronta il riparto del banco con
+  // quello del quadro-zone e segnala se non tornano»): il server li manda
+  // già sommati (zl.somme) con il verdetto a scarti (zl.check) — niente più
+  // doppie somme in vista, il pannello parla con lo stesso numero del banco.
+  const tot = zl.somme ?? (() => { const t = { frenata: 0, uscita: 0, gas: 0 }; for (const g of zl.segs) if (g.zone in t) t[g.zone] += g.s; return t; })();
+  const net = +(tot.frenata + tot.uscita + tot.gas).toFixed(2);
   const H = 48, BASE = H - 14;
   const maxAbs = Math.max(...zl.segs.map((g) => Math.abs(g.s)), 0.05);
   const body = zl.segs.map((g) => {
@@ -173,7 +176,26 @@ function abZoneStrip(zl, points = 240) {
       }).join('')}
       <span class="muted" style="font-size:10.5px">${tr({ it: 'netto', en: 'net' })} <b style="color:${net >= 0 ? '#e15b64' : '#4bbf73'}">${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(2)}s</b></span>
       <span class="muted" style="margin-left:auto;font-size:10.5px">${tr({ it: 'in alto: tempo perso da A · in basso (tratteggiato): guadagnato', en: 'above the line: lost by A · below (hatched): gained' })}</span>
-    </div>`;
+    </div>
+    ${abZoneVerdetto(zl)}`;
+}
+
+/* — verdetto del REGISTRO (2/11, richiesta Mauro): la striscia dichiara se
+/* torna col riparto del banco — verde «tornano», giallo con gli scarti in fila
+/* quando non tornano (zona per zona, e netto vs lostS−gainedS). Il pannello ha
+/* una sola fonte di verità: il check fatto LENTAMENTE sul server — la GUI solo
+/* lo racconta. */
+function abZoneVerdetto(zl) {
+  const chk = zl?.check;
+  if (!chk) return '';
+  const fmt = (v) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}s`;
+  const lbl = (z) => (z === 'netto' ? tr({ it: 'netto', en: 'net' }) : abZoneLabel(z));
+  if (chk.ok) {
+    const extra = chk.netRiparto != null ? ` — ${tr({ it: 'netto', en: 'net' })} <b>${fmt(chk.netto)}</b> ${tr({ it: 'vs', en: 'vs' })} <b>${fmt(chk.netRiparto)}</b>` : '';
+    return `<div class="muted" style="font-size:11px;margin-top:3px">✔ ${tr({ it: 'registro: striscia e riparto del banco tornano', en: 'ledger: strip and bench split agree' })}${extra}</div>`;
+  }
+  const scarti = (chk.scarti ?? []).map((s) => `${esc(lbl(s.zone))} striscia <b>${fmt(s.striscia)}</b> ${tr({ it: 'vs riparto', en: 'vs split' })} <b>${fmt(s.riparto)}</b>`);
+  return `<div style="font-size:11px;margin-top:3px;color:#f0a93c">⚠ ${tr({ it: 'registro: NON tornano', en: 'ledger: they do NOT agree' })} — ${scarti.join(' · ')}</div>`;
 }
 
 /* -------------------- 3) BANCO A/B DEI SETUP -------------------- */

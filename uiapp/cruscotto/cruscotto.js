@@ -250,6 +250,62 @@
     } catch (e) { loga('ack: ' + e); }
   }
 
+  // ============ IL PANNELLO DELL'EREDITÀ E IL SUO BOTTONE (2/11) ============
+  // Il pannello «Eredità di famiglia» della web ha già «Punta la ronda in
+  // Agenda»; qui il cruscotto DENTRO EVO lo ottiene col canale DI CASA:
+  // niente HTTP (origine incrociata, il gioco non ce l'ha con le pagine
+  // statiche): la richiesta va scritta nel persist del loader
+  // (`cruscotto.richieste` in ui_storage.uistorage — la STESSA strada degli
+  // ack, al contrario) e il publisher la gira col nucleo ufficiale della
+  // scelta (scegliRonda: la STESSA logica di «scegli per oggi» in Agenda
+  // e del bottone del pannello web). La risposta torna CON la fascia dopo
+  // (d.eredita.esito, riconosciuta per id della richiesta).
+  let richSessione = [];
+  let ereditaPending = null;
+  let ereditaPendingAt = 0;
+  function scriviRichiestaEredita(id, tipo) {
+    richSessione = [{ id, tipo, at: Date.now() }, ...richSessione.filter(function (x) { return x && x.id !== id; })].slice(0, 10);
+    try {
+      const l = window.ACEUIAppLoader;
+      if (!l || !l.persist || typeof l.persist.writeStore !== 'function') return false;
+      l.persist.writeStore('cruscotto.richieste', { richieste: richSessione });
+      return true;
+    } catch (e) { loga('richiesta: ' + e); return false; }
+  }
+  function bloccoEredita() {
+    const er = S.dati?.eredita;
+    if (!er || !er.nodeId) return '';
+    // l'esito del PROPRIO id libera il bottone: la risposta torna con la fascia e
+    // l'id della richiesta è la firma (l'esito di un altro id non conta).
+    // Niente esito entro 30 s = l'attesa si scioglie da sola (richiesta persa).
+    let inAttesa = false;
+    if (ereditaPending) {
+      const es = er.esito;
+      if (es && String(es.id) === String(ereditaPending)) ereditaPending = null;
+      else inAttesa = Date.now() - ereditaPendingAt < 30_000;
+    }
+    const righe = [];
+    righe.push('📜 ' + er.titolo + ' — ' + er.antenato + ', il tuo ' + er.relazione + ' (' + er.era + ')');
+    if (er.auto) righe.push('auto: ' + er.auto);
+    if (er.obiettivo) righe.push('🎯 obiettivo: ' + er.obiettivo);
+    let prog = 'ronde: ' + er.ronde;
+    if (er.prossima) prog += ' · prossima: ' + er.prossima;
+    righe.push(prog + ' · ' + er.rank + ' · capitoli ' + er.capitoli);
+    if (er.pronta) righe.push('🏁 Impresa rifatta: l\'eredità si incassa nel pannello del browser.');
+    const es = er.esito;
+    const esRiga = es && !inAttesa ? (es.ok ? '✓ ' + es.msg : '✕ ' + es.msg) : null;
+    const h = ['<div class="gruppo"><h2>Eredità di famiglia</h2><div class="card">'];
+    h.push('<div class="titolo">' + esc(er.titolo) + '</div><div class="riga">' + righe.map(esc).join('<br>') + '</div>');
+    if (esRiga) h.push('<div class="nota" style="' + (es.ok ? 'color:#7bdc8b' : 'color:#f28b82') + ';margin-top:4px">' + esc(esRiga) + '</div>');
+    if (!er.pronta) {
+      h.push(inAttesa
+        ? '<button class="crd-btn" disabled style="margin-top:8px;width:100%">⏳ Punto in corsa — la fascia dice il risultato…</button>'
+        : '<button class="crd-btn" data-eredita="1" style="margin-top:8px;width:100%">🎯 Punta la ronda in Agenda</button>');
+    }
+    h.push('</div></div>');
+    return h.join('');
+  }
+
   function giocoComando(tipo, corpo, tempo) {
     return new Promise(function (risolvi) {
       const eng = window.engine;
@@ -490,6 +546,22 @@
       verdettoAperto = !verdettoAperto;
       disegna();
       return;
+    }
+    // IL BOTTONE DELL'EREDITÀ (2/11): la richiesta parte SOLO se c'è la
+    // serie della memoria nel payload (il publisher la manda a ogni fascia).
+    // Mentre aspetta la risposta (30 s di finestra, poi si scioglie da sola)
+    // il bottone resta disattivo: una richiesta a fascia è un giro giusto.
+    const eb = e.target?.closest ? e.target.closest('button.crd-btn[data-eredita]') : null;
+    if (eb && panel.contains(eb)) {
+      e.preventDefault();
+      if (ereditaPending) { notaComando('La punta è già in corsa: la prossima fascia dice il risultato.'); return; }
+      const er = S.dati?.eredita;
+      if (!er || !er.nodeId) { notaComando('Nessuna impresa attiva da puntare (o fascia vecchia).'); return; }
+      const id = 'eredita:' + Date.now();
+      if (!scriviRichiestaEredita(id, 'eredita-punta')) { notaComando('Persist del gioco non raggiungibile: la «punta» qui non parte.'); return; }
+      ereditaPending = id;
+      ereditaPendingAt = Date.now();
+      disegna();
     }
     const b = e.target?.closest ? e.target.closest('button.crd-btn[data-az]') : null;
     if (!b || !panel.contains(b)) return;
@@ -839,6 +911,9 @@
     h += bloccoBottoni();
 
     h += bloccoVerdetto();
+    // L'EREDITÀ DI FAMIGLIA (2/11): impresa attiva e bottone «Punta la ronda
+    // in Agenda», la speculare del pannello web — prima delle gare di oggi.
+    h += bloccoEredita();
 
     h += '<div class="gruppo"><h2>Gare di oggi</h2>';
     // la prima gara ISCRITTA viene prima di tutto (se c'è): è quella del comando

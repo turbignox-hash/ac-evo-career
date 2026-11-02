@@ -134,7 +134,7 @@ import {
   racesOnDay, calendarStrip, dateLabel, MAX_SCELTE_PER_GIORNO, CADENZA_GIORNI,
   choicesForDay, canChoose, recordChoice, impegni, shiftSeat,
   scheduledDay, nextUnplayedRound, hasSeat,
-  impostaOraRonda, agendaOra, portaGiornata,
+  impostaOraRonda, agendaOra, portaGiornata, scegliRonda,
 } from './agenda.mjs';
 import { heritageOverview, claimMemory } from './memories.mjs';
 import { resetNews } from './gazzetta.mjs';
@@ -151,7 +151,7 @@ import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
 // analisi.mjs: i cinque strumenti del pilota (autopsia, dossier rivali, banco
 // A/B, Monte Carlo sedili, tetto teorico) — letture pure, niente scritture.
 // 30/10: entra il SESTO, il debrief di fine gara (raceDebrief).
-import { abPreferite, raceAutopsy, raceDebrief, rivalDossier, setupAB, seatMonteCarlo, tettoReport, zoneTimeline } from './analisi.mjs';
+import { abPreferite, quadroZoneCheck, raceAutopsy, raceDebrief, rivalDossier, setupAB, seatMonteCarlo, tettoReport, zoneTimeline } from './analisi.mjs';
 
 /* TAG GRIGLIA all'iscrizione (richiesta Mauro 21/10: la coppa a un'unica auto
  * non deve più nascondere dietro il nome "Coppa X" cosa troverai in pista):
@@ -567,7 +567,7 @@ function voceServerAttiva() { // usata anche dalla guardia del ping qui sopra
    pannelloVoce() MENO UNA volta, con la DIR della radio (stessa regola
    EVO_DATA_DIR della casa: i test la redirigono e non sporcano il mondo vero). */
 const PANNELLO_VOCE_AT = pannelloVoce();
-let _vocePanelloSilAt = 0;
+const _vocePanelloSilAt = 0;
 /** LIVELLO VOCE (30/10, richiesta Mauro: "minimo indispensabile, normale o
  *  full"): legge evo.config.json.voceCopilota — true/false dei giorni scorsi
  *  (true=normale, false=off) e i nuovi 'essenziale'|'normale'|'full'. Il
@@ -1498,6 +1498,12 @@ async function api(context0, _req, res, action, body) {
           // sessioni non si ricampiona resta null: il pannello non la disegna.
           const P = Number(body.points) || 240;
           ab.zoneTimeline = zoneTimeline(sampleLap(a.file, 'best', P), sampleLap(b.file, 'best', P));
+          // REGISTRO DEL QUADRO-ZONE (2/11, richiesta Mauro): la striscia
+          // si spiega col riparto del SIMULATO BANCO — sul vivo del
+          // confronto. numerico: prendo zones/netRiparto; se uno dei due
+          // sessioni non puo' ricampionare (nl Rahman) null: il pannello
+          // la mostra SEME senza taglio pietontini.
+          if (ab.zoneTimeline?.ok) ab.zoneTimeline.check = quadroZoneCheck(ab.zoneTimeline, { zones: ab.zones, netRiparto: (ab.lostS ?? 0) - (ab.gainedS ?? 0) });
           // L'ULTIMA SCELTA (2/11): la coppia riuscita resta nel save — il banco
           // la ripropone al giro nuovo, così il confronto giusto (Imola MX-5)
           // non si perde a ogni riapertura del pannello.
@@ -2191,73 +2197,14 @@ async function api(context0, _req, res, action, body) {
       return sendJson(res, 200, { ok: true, nodeId: id, roundIndex, hour });
     }
     case 'agenda-choose': {
-      // sceglie la gara di OGGI (o del giorno che si sta guardando, se consentito):
-      // solo gare fattibili, al massimo 3 per giornata — come le scelte del modello originario.
-      // Rerscegliere la stessa serie è ok.
-      const id = String(body.nodeId ?? '');
-      // se la carta è di un giorno FUTURO in vista, si punta lì; mai nel passato
-      const chooseDay = Math.max(agendaDay(state), Math.floor(Number(body.day) || 0) >= agendaDay(state) ? Math.floor(Number(body.day)) : agendaDay(state));
-      let day0 = chooseDay >= agendaDay(state) ? chooseDay : agendaDay(state);
-      const griglia = racesOnDay(ladder, state, day0);
-      let g = griglia.find((x) => x.node.nodeId === id);
-      // ROBUSTEZZA: se nel giorno richiesto la serie non è a programma, cerco la sua
-      // prossima gara nei giorni a venire (max 7): se la trovo, iscrivo con anchor
-      // sul VERO giorno di gara — niente più "non ha gare oggi" ambiguo.
-      if (!g) {
-        for (let dd = day0 + 1; dd <= day0 + 7 && !g; dd++) {
-          const cand = racesOnDay(ladder, state, dd).find((x) => x.node.nodeId === id);
-          if (cand?.fattibile) { g = cand; day0 = dd; }
-        }
-        if (!g) {
-          // als ultima risorsa dico QUANDO cade: la sua prossima disputa entro 30 giorni
-          let quando = null;
-          for (let dd = day0; dd <= day0 + 30 && !quando; dd++) {
-            if (racesOnDay(ladder, state, dd).some((x) => x.node.nodeId === id)) quando = dateLabel(dd);
-          }
-          return sendJson(res, 400, { error: quando
-            ? `La prossima gara di questa serie va il ${quando}: apri quel giorno nella striscia calendario e premi "scegli per oggi".`
-            : 'Nessuna gara programmata di questa serie nei prossimi 30 giorni.' });
-        }
-      }
-      if (!g.fattibile) return sendJson(res, 403, { error: `Serie bloccata: ${g.gateReasons.join('; ')}` });
-      // LA PORTA DELLA GIORNATA (richiesta Mauro 1/11: «una gara terminata alle
-      // 12, non si possono più fare gare con orario antecedente»): la gara di
-      // OGGI con l'ora già oltre l'orologio non si sceglie. Messaggio chiaro
-      // con l'ora della gara e quella della giornata (non solo un disabled).
-      if (day0 === agendaDay(state) && portaGiornata(state, day0, g.hour)) {
-        return sendJson(res, 409, { error: tr({
-          it: `Giornata già alle ${agendaOra(state)}:00 — la gara delle ${g.hour}:00 è passata: la scaletta non torna indietro.`,
-          en: `Day already at ${agendaOra(state)}:00 — the ${g.hour}:00 race is over: the schedule doesn't go back.`,
-        }) });
-      }
-      const already = state.node === id;
-      if (!already && !canChoose(state, day0, id)) {
-        return sendJson(res, 409, { error: tr({ it: `Hai già scelto ${MAX_SCELTE_PER_GIORNO} gare per oggi: ne resta una sola da disputare (salta il tempo per cambiare giornata).`, en: `You already picked ${MAX_SCELTE_PER_GIORNO} races for today: only one is left to run (skip the time to change day).` }) });
-      }
-      if (state.node !== id) {
-        state.node = id;
-        state.round = g.index;
-        // sedile nuovo o rinnovato: la cadenza della serie parte da oggi
-        state.seats ??= {};
-        if (!state.seats[id]) {
-          const results = state.results?.[id] ?? [];
-          let last = 0;
-          for (const r of results) if (Number(r.season) > last) last = Number(r.season);
-          const seatSeason = (last && results.filter((r) => Number(r.season) === last).length < g.node.calendar.length) ? last : state.season;
-          state.seats[id] = { day: day0, season: seatSeason };
-          pushMessage(state, tr({
-            it: `Iscritto a ${g.node.display}: le sue gare partono sulla griglia del calendario da oggi.`,
-            en: `Signed up for ${g.node.display}: its races start from today's calendar grid.`,
-          }), 'info');
-        }
-        pushMessage(state, tr({
-          it: `Scelta la gara del giorno: ${g.node.display} R${g.index + 1} (${g.track}).`,
-          en: `Picked today's race: ${g.node.display} R${g.index + 1} (${g.track}).`,
-        }), 'info');
-      }
-      recordChoice(state, day0, id);
+      // IL CUORE È IN agenda.mjs (scegliRonda, 2/11): «scegli per oggi» e il
+      // bottone «Punta la ronda in Agenda» del pannello Eredità (anche nel
+      // cruscotto in gioco) corrono la STESSA sequenza — qui solo il finale:
+      // persist col suo canale e la firma HTTP con i SUOI status (400/403/409).
+      const r = scegliRonda(ladder, state, body.nodeId, body.day);
+      if (!r.ok) return sendJson(res, r.status, { error: r.error });
       persist(state);
-      return sendJson(res, 200, { ok: true, nodeId: id, roundIndex: g.index, choices: choicesForDay(state, day0).length });
+      return sendJson(res, 200, r);
     }
     case 'calendar': return sendJson(res, 200, viewCalendar(ladder, state));
     case 'standings': return sendJson(res, 200, viewStandings(ladder, state));

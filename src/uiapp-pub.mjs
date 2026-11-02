@@ -16,8 +16,8 @@
 import { writeFileSync, readdirSync, unlinkSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { savedGamesRoots, resolvePaths } from './paths.mjs';
-import { agendaDay, agendaOra, portaGiornata, racesOnDay, dateLabel, prossimoGiornoConGara, impegni } from './agenda.mjs';
-import { context, SAVE_FILE, PROJECT } from './webui-env.mjs';
+import { agendaDay, agendaOra, portaGiornata, racesOnDay, dateLabel, prossimoGiornoConGara, impegni, scegliRonda } from './agenda.mjs';
+import { context, SAVE_FILE, PROJECT, persist } from './webui-env.mjs';
 import { loadState, nodeById, standingsFor, playerStanding } from './state.mjs';
 import { playerWorldSkill } from './world.mjs';
 import { tr } from './lang.mjs';
@@ -53,10 +53,22 @@ import { statSync } from 'node:fs';
 // STESSA fonte della CLI e dell'endpoint GUI — un aggregato, nessuna
 // formula da duplicare. La LETTURA dei Results è sola lettura.
 import { verdettoGiornata } from '../tools/verdetto-giornata.mjs';
+// I NOMI BELLI DELLE PISTE (2/11, «nome pulito anche nei chip del Pitwall»):
+// le righe del verdetto leggono LA PISTA grezza dal file Results (token di
+// cartella tipo «OultonParkInternational») — stessa voce di prettyTrackLabeled
+// del banco A/B e del quaderno prove, niente seconda implementazione.
+import { prettyTrackLabeled } from './testday.mjs';
+
 // LA LINGUA DEI MESSAGGI (31/10, «integra maggiormente il cruscotto»): il
 // traduttore dei messaggi vecchi (testo IT di nascita) è QUELLO della GUI —
 // un solo libro di traduzione, niente copie da tenere in pari.
 import { legacyMessageEn } from './webui-views.mjs';
+// L'EREDITÀ IN GIOCO (2/11): la vetrina del pannello pronta e la chiave del
+// puntamelo (scegliRonda, il nucleo che serve ANCHE alla webui) commentano
+// qui sopra. Il nodeId della serie dell'impresa va al pannello e la richiesta
+// del bottone in gioco lo esegue LÌ al server: niente che il pannello debba
+// saper fare da sé.
+import { heritageOverview, memoryRoundHint } from './memories.mjs';
 
 export const PERIODO_MS = 2500;          // il ritmo delle fasce: 2.5 secondi esatti
 export const APP_KEY = 'cruscotto';      // il nome della cartella-app nel loader
@@ -104,6 +116,13 @@ export function setGuiBaseUrl(url) {
  *  (racesOnDay fa la stessa calibrazione per la GUI del browser) —
  *  niente logica nuova da tenere allineata, due file, una sola fonte. */
 export function vetrina(ladder, state) {
+  // L'EREDITÀ NELLA FASCIA (2/11): la scheda dell'impresa attiva + l'esito
+  // dell'ultima richiesta del bottone (settata da giraRichiesteEredità, che
+  // gira PRIMA della vetrina nel tick — quindi l'esito è già fresco qui).
+  // ogni pezzo in try: un problema del pannello eredità non ammazza la vetrina.
+  let eredita = null;
+  try { eredita = ereditaFascia(ladder, state); } catch { eredita = null; }
+  if (eredita && ultimoEsitoEredità) eredita.esito = ultimoEsitoEredità;
   const giorno = agendaDay(state);
   if (state == null || giorno == null) {
     return { ok: 0, no_carriera: true, quando: new Date().toISOString(), giorno: null, iscritte: [], gare: [] };
@@ -181,10 +200,14 @@ export function vetrina(ladder, state) {
     // cosa è passata per il menu dell'auto, inviata e/o confermata.
     storia: storiaComandoFascia(),
     azioni: azioniPulsanti(ladder, state),
+    // IL PANNELLO DELL'EREDITÀ (2/11): l'impresa attiva, le ronde fatte e
+    // l'esito dell'ultima «punta» del bottone (null = nessuna memoria in
+    // corso, il gruppo in gioco non esiste).
+    eredita,
     // IL VERDETTO DI GIORNATA (29/10): riepilogo compatto di oggi per il
     // pannello in gioco (bottone «Verdetto di giornata»). null = giornata
     // senza gare (o senza carriera): il pannello resta nascosto, non ruvido.
-    verdetto: verdettoFascia(state),
+    verdetto: verdettoFascia(state, process.env, ladder),
     // LA SINCRONIZZAZIONE «PREPARA E DIVERTITI» (29/10, «arricchisci il
     // semaforo»): il pallino della connessione in punta al pannello la legge
     // (cruscotto.js) e dice se il server è allineato con la preparazione
@@ -469,7 +492,29 @@ function radioFascia() {
   } catch { if (memoRadio.size !== -1) { memoRadio.size = -1; memoRadio.frasi = []; } }
   return memoRadio.frasi;
 }
-export function verdettoFascia(state, env = process.env) {
+/** La pista del file Results (token di cartella) col NOME BELLO del ladder:
+     prettyTrackLabeled di testday.mjs, unica implementazione — senza ladder o
+     pista mancate, la voce grezza passa integra. VERDETTOWARE: le righe del
+     verdetto montano il layout in coda («Mount Panorama (GP Race)») — si
+     SCASTA prima la parentesi (è il layout, nel Results è campo a sé) e si
+     ripala dopo, così la variabile del banco non diventa «Race)» (fascia
+     261102, pitwall). Senza layout in coda, la pista intera alla pulita. */
+function pistaPulita(ladder, pista) {
+  if (!ladder || !pista) return pista ?? null;
+  try {
+    const m = /^(.+?)\s\(([^()]*)\)$/.exec(String(pista));
+    const solo = m?.[1].trim() ? m[1] : String(pista);
+    const coda = m?.[1].trim() ? ` (${m[2]})` : '';
+    return (prettyTrackLabeled(ladder, solo) ?? solo) + coda;
+  } catch { return pista; }
+}
+/** Il giro migliore dell'aggregato porta anch'esso « @ pista» grezza: il chip
+     del cruscotto lo compone da solo a schermo. Stessa voce pulita. */
+function giroTopPulito(ladder, giroTop) {
+  return giroTop && giroTop.pista != null ? { ...giroTop, pista: pistaPulita(ladder, giroTop.pista) } : giroTop;
+}
+
+export function verdettoFascia(state, env = process.env, ladder = null) {
   try {
     const driver = state?.driver ?? null;
     if (!driver) return null;
@@ -495,9 +540,9 @@ export function verdettoFascia(state, env = process.env) {
         vittorie: v.aggregato.vittorie,
         podi: v.aggregato.podi,
         mediaPos: v.aggregato.mediaPos,
-        giroTop: v.aggregato.giroTop,
+        giroTop: giroTopPulito(ladder, v.aggregato.giroTop),
         righe: v.gare.map((g) => ({
-          ora: g.ora, pista: g.pista, posto: g.posto, partecipanti: g.partecipanti,
+          ora: g.ora, pista: pistaPulita(ladder, g.pista), posto: g.posto, partecipanti: g.partecipanti,
           gap: g.gap, giro: g.mioGiro, penalita: g.penalita, dsq: g.dsq ?? false,
         })),
       }
@@ -775,7 +820,21 @@ export function uiappTick(env = process.env) {
   if (!prendiLock(dir)) return { ok: false, motivo: 'altro publisher attivo (stesse fasce)' };
   const fascia = Math.floor(Date.now() / PERIODO_MS);
   const { ladder } = context();
-  const dati = vetrina(ladder, loadState(SAVE_FILE));
+  // UNO STATO PER TICK (2/11): le richieste del bottone cambiano save (iscrizione,
+  // messaggi) e la vetrina deve mostrare lo stesso sonnito NO il giorno prima —
+  // quindi il publisher carica, gira, salva e poi disegna sullo stesso oggetto.
+  const stato = loadState(SAVE_FILE);
+  // LE RICHIESTE DALL'APP IN GIOCO (2/11): `cruscotto.richieste` nel persist
+  // del loader — la STESSA strada degli ack, al contrario. Lettura ambigua
+  // (undefined, store occupato dal gioco) = SI TACE: si riprova al prossimo tick.
+  try {
+    const store = percorsoStore();
+    if (store) {
+      const richieste = leggiStoreJson(store, 'cruscotto.richieste');
+      if (richieste) giraRichiesteEredità(ladder, stato, richieste.richieste ?? []);
+    }
+  } catch { /* il bottone in gioco è un plus: mai rompere il tick */ }
+  const dati = vetrina(ladder, stato);
   dati.slot = fascia;
   try { assorbiAck(dati); } catch { /* l'ack è un plus: mai rompere il tick */ }
   // STORIA (31/10 notte): il comando che esce ORA in fascia va in memoria UNA
@@ -906,6 +965,91 @@ const confermati = new Map();
 // porticina SOLO per i test: simulare un ack già scritto (l'ack vero arriva
 // dall'app in gioco via ui_storage). Nessun uso di produzione.
 export function confermaAck(id, { at = Date.now() } = {}) { confermati.set(String(id), at); }
+
+// ============ IL PANNELLO DELL'EREDITÀ E IL SUO BOTTONE (2/11) ===========
+// Il pannello «Eredità di famiglia» della GUI conduce già il bottone
+// «Punta la ronda in Agenda» (viste-a.js): il cruscotto DENTRO EVO no,
+// e anche lì il pilota vuol darmi di ancarlo senza prongiare il browser.
+// Il canale resta DI CASA: l'applicazione, quando clicca, scrive la sua
+// richiesta nel persist del loader (`cruscotto.richieste` dentro
+// ui_storage.uistorage, la STESSA coppia di `cruscotto.acks` che già
+// assorbiAck legge al tick) e qui il publisher la esegue col NUCLEO
+// UFFICIALE della scelta (scegliRonda di agenda.mjs: la STESSA logica di
+// «scegli per oggi» in Agenda e dell'endpoint della webui). L'esito torna
+// al pannello COL PANNELLO della fascia dopo (immediatamente visivo).
+
+/** La scheda dell'impresa attiva per il pannello: null = nessuna memoria in
+ *  corso (il pannello tace, come ogni gruppo senza dati). I campi portano
+ *  SOLO ciò che la card dice: titolo, antenato, obiettivo, ronde ferte e
+ *  nodeId della serie (la chiave del puntamento, come heritageOverview). */
+export function ereditaFascia(ladder, state) {
+  try {
+    const v = heritageOverview(ladder, state);
+    if (!v || !v.active) return null;
+    const a = v.active;
+    return {
+      nodeId: a.nodeId,
+      titolo: a.title, antenato: a.ancestor, relazione: a.relation, era: a.era,
+      serie: a.series, auto: a.carName, obiettivo: a.objective?.text ?? null,
+      ronde: `${a.roundsDone}/${a.rounds}`, prossima: memoryRoundHint(ladder, state),
+      pronta: !!a.done, incassata: !!a.claimed,
+      rank: v.rank, capitoli: `${v.completedCount}/${v.totalChapters}`,
+      completo: !!v.allDone,
+    };
+  } catch { return null; }
+}
+
+// le richieste GIÀ GESTITE (id → at): senza la memoria, la richiesta resta
+// sul persist e ogni tick la rifarebbe — l'iscrizione è idempotente ma i
+// messaggi e l'esito sono un giro che NON si ripete all'infinito.
+const richiesteFatti = new Map();
+// L'esito dell'ultima richiesta: va al pannello colla fascia, identificato
+// dall'id della richiesta (il bottonolo sa dire il PROPRIÒ «fatto»).
+let ultimoEsitoEredità = null;
+// porticine SOLO dei test: svuotare la memoria e leggere l'esito.
+export function richiesteTestReset() { richiesteFatti.clear(); ultimoEsitoEredità = null; }
+export function esitoEreditàTest() { return ultimoEsitoEredità; }
+
+/** Gira SOLE le richieste NUOVE (array già letto dallo store): per ora solo
+ *  `tipo:'eredita-punta'` — il nodeId NON lo dice l'app (l'id del browser non
+ *  è una fonte fidata): qui il server lo calcola dal capitolo attivo.
+ *  Persist SOLO a viaggio riuscito; l'esito resta in ultimoEsitoEredità. */
+export function giraRichiesteEredità(ladder, state, richieste = []) {
+  // l'ingresso capisce ENTRAMBI i formati: l'array già estratto (richieste.richieste
+  // del tick) o l'OGGETTO STORE intero (i test lo passano) — mai un undefined iterable.
+  const lista = Array.isArray(richieste) ? richieste : (richieste?.richieste ?? []);
+  for (const r of lista) {
+    if (!r || !r.id) continue;
+    if (richiesteFatti.has(String(r.id))) continue;
+    richiesteFatti.set(String(r.id), Date.now());
+    if (String(r.tipo ?? '') !== 'eredita-punta') continue;
+    const panel = ereditaFascia(ladder, state);
+    const nodeId = panel?.nodeId ?? null;
+    let esito;
+    if (!nodeId) {
+      esito = { ok: false, msg: tr({
+        it: "Nessuna impresa attiva da puntare: il capitolo arriva quando vinci il tuo primo titolo.",
+        en: "No active feat to point: the chapter comes when you win your first title.",
+      }) };
+    } else {
+      const es = scegliRonda(ladder, state, nodeId, null);
+      if (es.ok) {
+        try { persist(state); } catch { /* il resto per il prossimo tick */ }
+        esito = { ok: true, msg: tr({ it: `Ronda dell'impresa punta per oggi: ${panel.titolo} R${(es.roundIndex ?? 0) + 1}.`, en: `Feat round picked for today: ${panel.titolo} R${(es.roundIndex ?? 0) + 1}.` }) };
+      } else {
+        esito = { ok: false, msg: es.error };
+      }
+    }
+    ultimoEsitoEredità = { ...esito, id: String(r.id), at: new Date().toISOString() };
+    try { storiaAggiungi({ stato: esito.ok ? 'eseguito' : 'fallito', tipo: 'eredita-punta', nome: panel?.titolo ?? null, id: String(r.id), msg: esito.msg }); } catch { /* la storia è un plus */ }
+  }
+  if (richiesteFatti.size > 8) {
+    const t = Date.now();
+    for (const [id, at] of richiesteFatti) { if (t - at > 3_600_000) richiesteFatti.delete(id); }
+  }
+  return ultimoEsitoEredità;
+}
+
 function assorbiAck(dati) {
   const c = dati.comando;
   if (!c) return;

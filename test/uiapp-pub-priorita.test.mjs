@@ -510,3 +510,48 @@ test('verdettoFascia: fino al file illeggibile non ammazza la fascia (giornata v
   assert.equal(v, null, 'file che non si legge: card assente, la fascia continua');
   rmSync(dir, { recursive: true, force: true });
 });
+
+// ------------------------------------------------------------------
+// IL NOME PULITO DELLE PISTE NELLE FASCE (2/11, «nome pulito anche nei
+// chip del Pitwall»): la pista del file Results esce GREZZA dal verdetto
+// (token di cartella tipo «OultonParkInternational») — col ladder in mano
+// parla col NOME BELLO del ladder (prettyTrackLabeled di testday.mjs); se vo
+// ladder (funzione firmata come prima) la voce grezza resta intatta.
+// ------------------------------------------------------------------
+const LADDER_PISTE = { contentNames: { tracks: { oulton_park_intl: 'Oulton Park (International Race)', monza: 'Monza' } } };
+const scriviGaraGrezzo = (dir, nome, track) => writeFileSync(join(dir, 'Results', nome), JSON.stringify({
+  season: 11, event: 'Prova', session: 'Race', track, layout: '',
+  weather_type: 'GameModeSelectionWeatherType_CLEAR', hour: 15, min: 20,
+  drivers: [fila('Turbigno', 0, { me: true }), fila('Palmer', 1)],
+}, null, 2));
+
+test('verdettoFascia: col LADDER le righe parlano pulito (nome bello del ladder, come il banco A/B)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'verdetto-fascia-'));
+  mkdirSync(join(dir, 'Results'), { recursive: true });
+  scriviGaraGrezzo(dir, `${oggiPrefisso()}-1130_SP_Race.sessionresults.json`, 'OultonParkInternational');
+  // il verdetto INCOLLA il layout in coda: la pista grezza col layout NON deve
+  // venire strappata in fondo («Mount Panorama Race)», fascia 261102)
+  const layouted = (dir2, nome) => writeFileSync(join(dir2, 'Results', nome), JSON.stringify({
+    season: 11, event: 'Prova', session: 'Race', track: 'Mount Panorama', layout: 'GP Race',
+    weather_type: 'GameModeSelectionWeatherType_CLEAR', hour: 15, min: 20,
+    drivers: [fila('Turbigno', 0, { me: true }), fila('Palmer', 1)],
+  }, null, 2));
+  layouted(dir, `${oggiPrefisso()}-1645_SP_Race.sessionresults.json`);
+  const v = verdettoFascia({ driver: DRV }, { ACE_DATA: dir }, LADDER_PISTE);
+  assert.ok(v, 'la card esiste');
+  assert.equal(v.righe.length, 2, 'due gare, due righe');
+  const piste = v.righe.map((r) => r.pista);
+  assert.ok(piste.includes('Oulton Park (International Race)'), `token di cartella col nome bello (${piste.join(' · ')})`);
+  assert.ok(piste.includes('Mount Panorama (GP Race)'), `pista già pulita col layout INTATTO (${piste.join(' · ')})`);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('verdettoFascia: SENZA ladder (firma come prima) la pista grezza passa intatta', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'verdetto-fascia-'));
+  mkdirSync(join(dir, 'Results'), { recursive: true });
+  scriviGaraGrezzo(dir, `${oggiPrefisso()}-1515_SP_Race.sessionresults.json`, 'OultonParkInternational');
+  const v = verdettoFascia({ driver: DRV }, { ACE_DATA: dir });
+  assert.ok(v, 'la card esiste');
+  assert.equal(v.righe[0].pista, 'OultonParkInternational', 'niente nome inventato: la fascia non ha il libro');
+  rmSync(dir, { recursive: true, force: true });
+});

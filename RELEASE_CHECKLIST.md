@@ -44,8 +44,20 @@ opzionale; se uno non si può girare, la release non si prepara.
 
 - [ ] Bump semantico con `npm run bump` (tools/bump-versione.mjs): patch per
       fix, minor per feature, major solo per breaking.
-- [ ] `node tools/crea-release.mjs`: la release GitHub esce con la zip del
-      pacchetto-amico caricata come asset (sostituzione se il nome esiste).
+- [ ] PREFLIGHT APP IN GIOCO dentro il flusso (3/11, il preflight di
+      `tools/crea-release.mjs`): PRIMA di ogni cosa il tool fa girare
+      `node tools/genera-uiapp.mjs` (costruiti fresh + copie in gioco
+      riallineate) e la guardia `node --test test/uiapp-installata.test.mjs`
+      (sagome biome, BUILD_OK, copia .js byte per byte, pagine d'ingresso:
+      app.json = sorgente, menu.html assente). Esito non-zero = release NON
+      parte. Se dopo la build restano file non committati lo zip (git
+      archive HEAD) li porta vecchi: committa prima; prova a secco della
+      soglia con `--solo-preflight` (niente GitHub, niente zip).
+- [ ] `node tools/crea-release.mjs <tag> <titolo> corpo.md --con-pacchetto`:
+      la release GitHub esce con la zip del pacchetto-amico CONFEZIONATA
+      DOPO il preflight e caricata come asset (sostituzione se il nome
+      esiste); `--no-test` salta la prova npm test dentro lo zip, `--asset`
+      resta per gli asset extra o per una zip già fabbricata a parte.
 - [ ] NIENTE push a main da solo: la sincronizzazione passa da
       `sincronizza-git.cmd`.
 

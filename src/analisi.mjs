@@ -452,12 +452,25 @@ export function setupAB(fileA, fileB, { points = 240 } = {}) {
  *            centesimi di secondo — il rumore visivo lo tengono unite le
  *            fette attigue della stessa zona, non lo scarto)
  *  minSlivers fette più corte di questi CAMPIONI non si disegnano
- * Ritorna { ok, dist, segs: [{ x1, x2, zone, sign, s, pts }] } o null.
+ * Ritorna { ok, dist, segs: [{ x1, x2, zone, sign, s, pts }], somme, riparto,
+ * gained, check } o null.
  */
 const r3z = (v) => Math.round(v * 1000) / 1000;
+const zlSomme = (segs) => {
+  const tot = { frenata: 0, uscita: 0, gas: 0 };
+  for (const g of segs) if (g.zone in tot) tot[g.zone] = r3z(tot[g.zone] + g.s);
+  return tot;
+};
 export function zoneTimeline(A, B, { minLost = 0.005, minSlivers = 3 } = {}) {
   if (!A?.pts?.length || !B?.vs?.length || !(A.distKm > 0)) return null;
   const seg = [];
+  // IL REGISTRO (2/11, richiesta Mauro «confronta il riparto del banco con
+  // quello del quadro-zone e segnala se non tornano»): nello STESSO loop
+  // senza soglie che fa il riparto del banco in setupAB accumulo anche qui
+  // riparto grezzo per zona e guadagnato — il confronto lo dichiara poi
+  // quadroZoneCheck(), così striscia e banco si dicono la verità in un fox.
+  const dz = { frenata: 0, uscita: 0, gas: 0 };
+  let gained = 0;
   for (let i = 1; i < A.pts.length; i++) {
     const ds = (A.xs[i] - A.xs[i - 1]) * A.distKm;
     const vA = A.pts[i].v, vB = B.vs[i];
@@ -467,6 +480,7 @@ export function zoneTimeline(A, B, { minLost = 0.005, minSlivers = 3 } = {}) {
     const p = A.pts[i];
     const zone = p.zone ?? ((p.br != null && p.br > 0.25) ? 'frenata' : (p.th != null && p.th < 0.92) ? 'uscita' : 'gas');
     const sign = dt > 0 ? 1 : -1;
+    if (dt > 0) { dz[zone] += dt; } else gained -= dt;
     const last = seg[seg.length - 1];
     if (last && last.zone === zone && last.sign === sign) {
       last.x2 = r3z(A.xs[i]);
@@ -481,7 +495,41 @@ export function zoneTimeline(A, B, { minLost = 0.005, minSlivers = 3 } = {}) {
   const segs = seg
     .map((g) => ({ ...g, pts: Math.max(2, Math.round((g.x2 - g.x1) * nPts)) }))
     .filter((g) => g.pts >= minSlivers);
-  return segs.length ? { ok: true, dist: A.distKm, segs } : null;
+  return segs.length ? { ok: true, dist: A.distKm, segs, somme: zlSomme(segs), riparto: dz, gained: r3z(gained) } : null;
+}
+
+/**
+ * IL REGISTRO DEL QUADRO-ZONE (2/11, richiesta Mauro): riparto del BANCO vs
+ * secondi della striscia, ZONA per ZONA, con soglie dichiarate. La striscia
+ * filtra le fette (sotto minLost e sotto minSlivers), il banco somma tutto:
+ * qui si dice quanto le due versioni disegnano di diverso — e ok:false con
+ * gli scarti in elenco quando non tornano. zl = il ritorno di zoneTimeline;
+ * banco = { zones, netRiparto } da setupAB (zones = solo tempo PERSO da A
+ * per zona, netRiparto = lostS − gainedS, opzionale). Senza banco, il
+ * riparto grezzo della striscia fa da riferimento (il registro si auto-).
+ * Soglie: ZONA max(0.08 s, 20% del riparto di zona); netto 0.15 s — la stessa
+ * tolleranza già in piedi nel test della striscia.
+ * Ritorna { ok, striscia, riparto, netto, netRiparto, scarti } o null.
+ */
+export function quadroZoneCheck(zl, banco, { tollZona = 0.08, tollNetto = 0.15 } = {}) {
+  if (!zl?.ok || !Array.isArray(zl.segs) || !zl.segs.length) return null;
+  const riparto = (banco?.zones && typeof banco.zones === 'object' ? banco.zones : zl.riparto) ?? null;
+  if (!riparto) return null;
+  const striscia = zlSomme(zl.segs);
+  const netto = r3z(striscia.frenata + striscia.uscita + striscia.gas);
+  const scarti = [];
+  for (const z of ['frenata', 'uscita', 'gas']) {
+    const r = Number(riparto?.[z]);
+    if (!Number.isFinite(r)) continue;
+    const delta = r3z(striscia[z] - r);
+    if (Math.abs(delta) > Math.max(tollZona, 0.2 * r)) scarti.push({ zone: z, striscia: striscia[z], riparto: r3z(r), delta });
+  }
+  const netRiparto = Number(banco?.netRiparto);
+  if (Number.isFinite(netRiparto)) {
+    const delta = r3z(netto - netRiparto);
+    if (Math.abs(delta) > tollNetto) scarti.push({ zone: 'netto', striscia: netto, riparto: r3z(netRiparto), delta });
+  }
+  return { ok: scarti.length === 0, tolleranza: { zona: tollZona, netto: tollNetto }, striscia, riparto, netto, netRiparto: Number.isFinite(netRiparto) ? netRiparto : null, scarti };
 }
 
 /**

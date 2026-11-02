@@ -14,8 +14,8 @@
 // Ogni serie ha la SUA numerazione di stagione: cambiare sedile e tornare non
 // riparte da zero (le ronde corse restano corse).
 
-import { nodeById, gateStatus, grigliaSimEstesa } from './state.mjs';
-import { lang } from './lang.mjs';
+import { nodeById, gateStatus, grigliaSimEstesa, pushMessage } from './state.mjs';
+import { lang, tr } from './lang.mjs';
 import { presetForLabel } from './weather.mjs';
 
 export const CADENZA_GIORNI = 7;         // una ronda a SETTIMANA per le serie iscritte (scelta Mauro)
@@ -617,5 +617,100 @@ export function elencoCompleto(ladder, state, { fattibili = false } = {}) {
     (a.level ?? 0) - (b.level ?? 0) ||
     a.display.localeCompare(b.display));
   return out;
+}
+
+/* ------------------------------------------------------------------ */
+/* IL CUORE DELLA SCELTA (2/11, estratto dal dispatcher webui):        */
+/* «scegli per oggi» in Agenda e il bottone «Punta la ronda in         */
+/* Agenda» del pannello Eredità (GUI web E cruscotto in gioco)        */
+/* corrono la STESSA sequenza — un solo nucleo, due clienti: se la    */
+/* copia della webui decide con una regola, la regola vale per tutti. */
+/* NON persiste e NON tocca HTTP: ritorna l'ESITO e il cliente decide */
+/* come finire (webui: sendJson col suo persist; publisher del        */
+/* cruscotto: esito sul payload e il SUO persist). Gli avvisi         */
+/* pushMessage restano QUI: parte della scelta, per tutti.             */
+/* ------------------------------------------------------------------ */
+
+/** Scegliere la ronda della serie `nodeId` per il giorno `day` (null = oggi).
+ *  Ritorna { ok:true, nodeId, roundIndex, choices } oppure { ok:false, status,
+ *  error }: le stesse chiavi della risposta HTTP della webui (400 = niente in
+ *  programma, 403 = serie bloccata, 409 = porta chiusa o scelte finite). */
+export function scegliRonda(ladder, state, nodeId, day = null) {
+  const id = String(nodeId ?? '');
+  const oggi = agendaDay(state);
+  const richiesto = Math.floor(Number(day) || 0);
+  // se la carta è di un giorno FUTURO in vista, si punta lì; mai nel passato
+  let day0 = richiesto >= oggi ? Math.max(oggi, richiesto) : oggi;
+  const griglia = racesOnDay(ladder, state, day0);
+  let g = griglia.find((x) => x.node.nodeId === id);
+  // ROBUSTEZZA: se nel giorno richiesto la serie non è a programma, cerco la sua
+  // prossima gara nei giorni a venire (max 7): se la trovo, iscrivo con anchor
+  // sul VERO giorno di gara — niente più "non ha gare oggi" ambiguo.
+  if (!g) {
+    for (let dd = day0 + 1; dd <= day0 + 7 && !g; dd++) {
+      const cand = racesOnDay(ladder, state, dd).find((x) => x.node.nodeId === id);
+      if (cand?.fattibile) { g = cand; day0 = dd; }
+    }
+    if (!g) {
+      // da ULTIMA risorsa dico QUANDO cade: la sua prossima disputa entro 30 giorni
+      let quando = null;
+      for (let dd = day0; dd <= day0 + 30 && !quando; dd++) {
+        if (racesOnDay(ladder, state, dd).some((x) => x.node.nodeId === id)) quando = dateLabel(dd);
+      }
+      return { ok: false, status: 400, error: quando
+        ? tr({
+            it: `La prossima gara di questa serie va il ${quando}: apri quel giorno nella striscia calendario e premi "scegli per oggi".`,
+            en: `The next race of this series lands on ${quando}: open that day in the calendar strip and press "pick for today".`,
+          })
+        : tr({
+            it: 'Nessuna gara programmata di questa serie nei prossimi 30 giorni.',
+            en: 'No race of this series scheduled in the next 30 days.',
+          }) };
+    }
+  }
+  if (!g.fattibile) return { ok: false, status: 403, error: tr({
+    it: `Serie bloccata: ${g.gateReasons.join('; ')}`,
+    en: `Series locked: ${g.gateReasons.join('; ')}`,
+  }) };
+  // LA PORTA DELLA GIORNATA (richiesta Mauro 1/11: «una gara terminata alle
+  // 12, non si possono più fare gare con orario antecedente»): la gara di
+  // OGGI con l'ora già oltre l'orologio non si sceglie. Messaggio chiaro
+  // con l'ora della gara e quella della giornata (non solo un disabled).
+  if (day0 === oggi && portaGiornata(state, day0, g.hour)) {
+    return { ok: false, status: 409, error: tr({
+      it: `Giornata già alle ${agendaOra(state)}:00 — la gara delle ${g.hour}:00 è passata: la scaletta non torna indietro.`,
+      en: `Day already at ${agendaOra(state)}:00 — the ${g.hour}:00 race is over: the schedule doesn't go back.`,
+    }) };
+  }
+  const already = state.node === id;
+  if (!already && !canChoose(state, day0, id)) {
+    return { ok: false, status: 409, error: tr({
+      it: `Hai già scelto ${MAX_SCELTE_PER_GIORNO} gare per oggi: ne resta una sola da disputare (salta il tempo per cambiare giornata).`,
+      en: `You already picked ${MAX_SCELTE_PER_GIORNO} races for today: only one is left to run (skip the time to change day).`,
+    }) };
+  }
+  if (state.node !== id) {
+    state.node = id;
+    state.round = g.index;
+    // sedile nuovo o rinnovato: la cadenza della serie parte da oggi
+    state.seats ??= {};
+    if (!state.seats[id]) {
+      const results = state.results?.[id] ?? [];
+      let last = 0;
+      for (const r of results) if (Number(r.season) > last) last = Number(r.season);
+      const seatSeason = (last && results.filter((r) => Number(r.season) === last).length < g.node.calendar.length) ? last : state.season;
+      state.seats[id] = { day: day0, season: seatSeason };
+      pushMessage(state, tr({
+        it: `Iscritto a ${g.node.display}: le sue gare partono sulla griglia del calendario da oggi.`,
+        en: `Signed up for ${g.node.display}: its races start from today's calendar grid.`,
+      }), 'info');
+    }
+    pushMessage(state, tr({
+      it: `Scelta la gara del giorno: ${g.node.display} R${g.index + 1} (${g.track}).`,
+      en: `Picked today's race: ${g.node.display} R${g.index + 1} (${g.track}).`,
+    }), 'info');
+  }
+  recordChoice(state, day0, id);
+  return { ok: true, nodeId: id, roundIndex: g.index, choices: choicesForDay(state, day0).length };
 }
 
