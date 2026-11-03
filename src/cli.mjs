@@ -690,7 +690,7 @@ async function cmdPrepara(args) {
   //    di EVO; col gioco già aperto l'utente continua a vedere pista/auto
   //    vecchie ("non attecchiscono", lezione 22–23/10). Default = come prima:
   //    pista e auto si scelgono a mano in EVO; con --pista / --auto (o --tutto)
-  //    il tool le riscrive comunque. Errori silente: non bloccano la ronda.
+  //    il tool le riscrive comunque. Gli errori passano in silenzio: non bloccano la ronda.
   const wantPista = args.flags.pista != null || args.flags.tutto != null;
   const wantAuto = args.flags.auto != null || args.flags.tutto != null;
   const prepMsg = [];
@@ -1304,7 +1304,7 @@ async function cmdGriglia(args) {
   // BANDA DI SERIE (1/11/2026, richiamo di Mauro sul 82–92 della Peugeot):
   // la banda VIVA dei cursori del weekend (state.raceSettings / difficultyFor,
   // trim accettati compresi) segue il builder anche da CLI — la stessa regola
-  // che il Prepara dell'app usa dalla sera dell'1/11. Fallisce silente: senza
+  // che il Prepara dell'app usa dalla sera dell'1/11. Fallisce in silenzio: senza
   // banda calcolata il builder resta sulla regola di prima (classe > ladder).
   const bandaSeriePrep = (() => {
     try {

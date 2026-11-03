@@ -390,8 +390,26 @@ function stilePannello(stili){
    seminatore resta SOLO da riga di comando: node tools/semina-campionato.mjs
    (ricetta e guardie NO_SEED / FILE_DIFFERENTI / BAD_WEATHER / GAME_OPEN
    — GAME_OPEN era l'errore col gioco aperto). */
+/* ERRORE CHE PARLA (3/11, file classi corrotto): il pannello dei miscugli non
+   sparisce in silenzio col vecchio .catch(()=>({stili:[]})) — un errore che il
+   server RISPONDE (es. «grid-classes.json CORROTTO») esce leggibile nel tab. La
+   rete in giù resta un silenzio: quella la racconta già il filbar. */
+function stileErrore(e){
+  return `<div class="panel" style="padding:14px 16px">
+    <h2 style="margin:0 0 8px">${ICONS.championships} ${tr({ it: 'Cinque campionati a miscuglio', en: 'Five random-mix championships' })}</h2>
+    <div class="empty">⚠️ ${esc(e?.message ?? tr({ it: 'errore sconosciuto', en: 'unknown error' }))}</div>
+    <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'Il pannello resta fuori finché il file grid-classes.json non torna leggibile.', en: 'The panel stays out until the grid-classes.json file is readable again.' })}</div>
+  </div>`;
+}
+
 async function drawChampionships(m){
-  const [v, stiliData] = await Promise.all([api('championships'), api('stili').catch(() => ({ stili: [] }))]);
+  const v = await api('championships');
+  /* FILE CLASSI CORROTTO (3/11): l'errore del server esce col suo testo nel tab —
+     non un pannello sparito in silenzio. */
+  let stileBlock = '';
+  try { stileBlock = stilePannello((await api('stili')).stili ?? []); }
+  catch (e) { stileBlock = e?.risposto ? stileErrore(e) : ''; }
+
   /* PANNELLO MONDIALE a pieghevole (30/10): la partenza stagnante della barra
      (prima scheda 'standings') ora vive QUI, in fondo alla pagina dei
      campionati — stessa funzione, posto meno in barra e un posto scelto. */
@@ -400,7 +418,7 @@ async function drawChampionships(m){
   if (!(v.championships ?? []).length) {
     // 3/11 — MARCATORE DI VISTA (richiesta Mauro: la guardia di layout su TUTTI i tab):
     // l'id #ch-carica esiste SOLO in questa vista, tanto nel ramo vuoto quanto in quello pieno.
-    m.innerHTML = `<div class="panel" id="ch-carica"><h2>${tr({ it: 'Campionati', en: 'Championships' })}</h2><div class="empty">${tr({ it: 'Nessun campionato iscritto: firma un sedile dal Centro gare quando la giornata ti offre una serie adatta.', en: 'No championship signed up: grab a seat from the Race Centre when the day offers a suitable series.' })}</div>` + stilePannello(stiliData.stili ?? []);
+    m.innerHTML = `<div class="panel" id="ch-carica"><h2>${tr({ it: 'Campionati', en: 'Championships' })}</h2><div class="empty">${tr({ it: 'Nessun campionato iscritto: firma un sedile dal Centro gare quando la giornata ti offre una serie adatta.', en: 'No championship signed up: grab a seat from the Race Centre when the day offers a suitable series.' })}</div>` + stileBlock;
     return;
   }
   // BADGE cliccabili in alto: ogni campionato in corso con auto, pista e prossimo
@@ -443,7 +461,7 @@ async function drawChampionships(m){
     <div class="champ-grid">${cards}</div>
     <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'Clicca una carta per scendere alla scheda completa.', en: 'Click a card to jump to its full card below.' })}</div>
   </div>`
-    + stilePannello(stiliData.stili ?? [])
+    + stileBlock
     + v.championships.map((c) => {
     const rounds = c.calendar.map((r) => {
       const mark = r.played ? '✓' : r.current ? '►' : '';

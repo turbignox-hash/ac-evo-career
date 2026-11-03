@@ -1445,7 +1445,20 @@ async function api(context0, _req, res, action, body) {
     case 'rival-detail': return sendJson(res, 200, rivalDetail(String(body.key ?? ''), state) ?? { error: tr({ it: 'Rivale non trovato.', en: 'Rival not found.' }) });
     case 'rival-dossier': return sendJson(res, 200, rivalDossier(String(body.key ?? ''), state) ?? { error: tr({ it: 'Rivale non trovato.', en: 'Rival not found.' }) });
     // analisi (tab Analisi): autopsia dell'ultima gara, tetto teorico, banco A/B, Monte Carlo sedili
-    case 'autopsy': return sendJson(res, 200, raceAutopsy(ladder, state) ?? { error: tr({ it: 'Nessuna gara ancora: dopo il primo import qui arriva la scomposizione del deficit.', en: 'No race yet: the deficit breakdown lands here after the first import.' }) });
+    case 'autopsy': {
+      // il messaggio VUOTO parla LA SERIE (3/11, richiesta Mauro: «Metti il
+      // nome della serie corrente nel messaggio vuoto dell'autopsia
+      // («Nessuna gara ancora in <serie>»)»): il display del nodo corrente,
+      // localizzato alla lingua della richiesta (il dispatcher l'ha già
+      // applicata). nodeById in try, come fa raceAutopsy al suo interno:
+      // un save malandato non deve rompere il caso vuoto.
+      const serie = (() => { try { return nodeById(ladder, state.node)?.display; } catch { return null; } })();
+      const vuota = tr({
+        it: `Nessuna gara ancora${serie ? ` in ${serie}` : ''}: dopo il primo import qui arriva la scomposizione del deficit.`,
+        en: `No race yet${serie ? ` in ${serie}` : ''}: the deficit breakdown lands here after the first import.`,
+      });
+      return sendJson(res, 200, raceAutopsy(ladder, state) ?? { error: vuota });
+    }
     case 'tetto': return sendJson(res, 200, tettoReport(ladder, state, { logsDirs: paths.logsDirs ?? [] }));
     case 'seat-mc': return sendJson(res, 200, seatMonteCarlo(ladder, state, { sims: Number(body.sims) || 400 }));
     case 'ab-list': {
@@ -1840,7 +1853,16 @@ async function api(context0, _req, res, action, body) {
     // quando il sedile non è firmato (il tab Campionati mostra solo le serie
     // iscritte). Stesso schema di championships: finestra, pool sorteggiato con
     // seme, regole con cap, calendario, stato della sua iscrizione.
-    case 'stili': return sendJson(res, 200, stileOverview(ladder, state));
+    case 'stili': {
+      // FILE CLASSI CORROTTO (3/11): stileOverview può lanciare l'errore
+      // chiaro di loadClasses («grid-classes.json CORROTTO…»). Senza questa
+      // custodia la richiesta muore in fretta e il browser la mette nel
+      // catch(()=>({stili:[]})) — mezza pagina senza spieganni. Un errore
+      // CHIARO deve uscire, non un pannello sparito (guardia:
+      // test/cap-dati-guard.test.mjs).
+      try { return sendJson(res, 200, stileOverview(ladder, state)); }
+      catch (e) { return sendJson(res, 500, { error: e?.message ?? String(e) }); }
+    }
     case 'garage-catalog': return sendJson(res, 200, { cars: catalogPicker(ladder, { paths }) });
     case 'garage-add': {
       try {
@@ -2352,7 +2374,7 @@ async function api(context0, _req, res, action, body) {
       // registri distinti — l'AI scritta nel FILE (out.aiMin/aiMax) e la banda
       // VIVA dei cursori del weekend (84–85 + trim, formula del pannello
       // Difficoltà). L'una non comanda l'altra: la banda la scrive il Prepara,
-      // il campo a mano la sovrascrive. Falli silente: senza carriera (state
+      // il campo a mano la sovrascrive. Fallisce in silenzio: senza carriera (state
       // assente) la GUI mostra solo il campo del file.
       let bandaSerie = null;
       if (state) {
@@ -2571,7 +2593,7 @@ async function api(context0, _req, res, action, body) {
           // porto lo stesso gesto nell'app, prima della vigia — che dopo la
           // scrittura trova il bilancio già in piedi (il builder applica le
           // regole delle poolAuto della classe della serie in grid-classes.json).
-          // Falli silente: un errore non blocca l'iscrizione — la card sotto
+          // Fallisce in silenzio: un errore non blocca l'iscrizione — la card sotto
           // resta il piano B (come fa il CLI: "la griglia non pronta: la
           // carriera prosegue con la card qui sotto").
           // RAMO GRIGLIA (26/10 notte, decisione finale di Mauro): il modo
@@ -2584,8 +2606,8 @@ async function api(context0, _req, res, action, body) {
             // la banda VIVA dei cursori del weekend segue il builder, così anche
             // le serie SENZA classe (monomarca) non portano più in griglia la
             // banda preistorica del nodo ladder. Formula identica al pannello
-            // Difficoltà (state.raceSettings / difficultyFor); falli
-            // silente: senza banda voluta il builder resta su quella di prima.
+            // Difficoltà (state.raceSettings / difficultyFor); fallisce
+            // in silenzio: senza banda voluta il builder resta su quella di prima.
             const bandaSeriePrep = (() => {
               try {
                 // LA RONDA DEL CALENDARIO SEMINATO (4/11): la card se l'è

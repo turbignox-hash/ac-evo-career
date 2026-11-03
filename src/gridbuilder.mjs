@@ -140,7 +140,19 @@ export function loadClasses() {
   // il memo PARLA anche del PERCORSO (test con EVO_CLASSES_FILE a cambio file:
   // due fixture scritte nello stesso tick hanno la stessa mtime ma non i dati).
   if (!_classesMemo || _classesMemo.percorso !== F || _classesMemo.mtime !== mtime) {
-    _classesMemo = { percorso: F, mtime, dati: existsSync(F) ? JSON.parse(readFileSync(F, 'utf8')) : { classi: {} } };
+    let dati = { classi: {} };
+    if (existsSync(F)) {
+      try { dati = JSON.parse(readFileSync(F, 'utf8')); }
+      catch (e) {
+        // FILE CLASSI CORROTTO (3/11, richiesta Mauro): un SyntaxError secco
+        // («Unexpected token» SENZA percorso) non dice nemmeno QUALE file è
+        // marcio, e la GUI lo ingoia in un mezzo tab Campionati senza
+        // pannello. Errore che NOMINA il file e dice la cura; il memo NON cosce
+        // il marcio: ogni chiamata rilegge finché il file non torna leggibile.
+        throw new Error(`grid-classes.json CORROTTO (JSON invalido) su ${F}: ${e.message}. Sistema o elimina il file (al primo accesso torna la fixture congelata).`);
+      }
+    }
+    _classesMemo = { percorso: F, mtime, dati };
   }
   return _classesMemo.dati;
 }

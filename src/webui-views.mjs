@@ -361,7 +361,13 @@ function viewCard(ladder, state, car = null) {
     // vivo 27/10: trim dell'Alfa 75 accanto alla scheda della Coppa Golf).
     // Nella pagina Difficoltà invece resta visibile per TUTTE, con il nome
     // della serie che lo ha generato.
-    pendingProposal: state.difficulty?.pending?.nodeId === card.node.nodeId ? state.difficulty.pending : null,
+    // il TRIM CORRENTE viene col suggerimento (3/11): la GUI calcola la cifra
+    // di slittamento col vivo del save — la STESSA legge dell'accept
+    // (to − trim corrente) — non col «from» fissato nella proposta, che
+    // mentiva se il trim era già mosso dopo la nascita del suggerimento.
+    pendingProposal: state.difficulty?.pending?.nodeId === card.node.nodeId
+      ? { ...state.difficulty.pending, cur: state.difficulty.trim?.[card.node.nodeId] ?? 0 }
+      : null,
     heritageActive: (() => {
       const mem = state.heritage?.active;
       if (!mem || mem.done) return null;

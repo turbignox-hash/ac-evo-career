@@ -193,3 +193,64 @@ test('ab-list: le sessioni senza giri cronometrati NON entrano nei menu (né pre
     child.kill();
   }
 });
+
+test('ab-list a banco TUTTO morto: sessions vuota, senzaGiri piena, niente prefer né last', async () => {
+  // PROVA DELL'ARCO FORTE (3/11, richiesta Mauro: «quando un filtro non
+  // riesce — né A né B — aggiungi la prova, senzaGiri piena»): il caso
+  // limite in cui OGNI sessione del banco è 0 beacon — sandbox con SOLO
+  // file senza .ldx e .ldx cieco, e abBanco che punta un file morto.
+  // ab-list deve restare a 200 con il quadro: sessions [], senzaGiri con
+  // TUTTE le voci (la GUI le mostra tutte disabilitate sotto il gruppo
+  // muto), prefer null (autopuntamento impossibile: niente A, niente B)
+  // e last null (il save non può risuscitare la coppia). Crash o voci
+  // che riappaiono cliccabili = guardia colpita.
+  const morteA = 'preset_morta_tre_Sat Sep 26 210000 2026.ld';
+  const morteB = 'preset_morta_quattro_Sat Sep 26 211000 2026.ld';
+
+  const DATA = mkdtempSync(join(tmpdir(), 'evo-ab-tutto-morto-'));
+  const motDir = join(DATA, 'MoTec', AUTO, TRACK);
+  scriviLd(motDir, FILE_NO_LDX.replace(/\.ld$/, ''));
+  scriviLd(motDir, FILE_LDX_CIECO.replace(/\.ld$/, ''), { ldx: 'cieco' });
+  scriviLd(motDir, morteA.replace(/\.ld$/, ''));
+  scriviLd(motDir, morteB.replace(/\.ld$/, ''), { ldx: 'cieco' });
+  scriviCarriera(DATA); // abBanco punta FILE_NO_LDX: morto ANCHE la porta posteriore
+
+  const child = spawn(process.execPath, [SERVER], {
+    cwd: ROOT,
+    env: { ...process.env, ACE_UI_PORT: String(PORT), ACE_DATA: DATA, ACE_LIVE: '0' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stderr = '';
+  child.stderr.on('data', (d) => { stderr += d; });
+  try {
+    await waitReady(child);
+
+    const r = await fetch(`${BASE}/api/ab-list`);
+    assert.equal(r.status, 200, `sul banco tutto morto ab-list deve restare a 200, non 500 (stderr: ${stderr.slice(-300)})`);
+    const j = await r.json();
+    assert.equal(j.ok, true, 'ab-list deve essere ok anche senza NESSUNA sessione buena');
+
+    const nomi = (x) => x.file;
+    const proposte = (j.sessions ?? []).map(nomi);
+    const escluse = (j.senzaGiri ?? []).map(nomi);
+
+    assert.deepEqual(proposte, [], `sessions deve essere VUOTA (nessuna sessione ha giri): ${JSON.stringify(proposte)}`);
+    assert.equal(escluse.length, 4, `senzaGiri deve ereditare TUTTE le 4 sessioni: ${JSON.stringify(escluse)}`);
+    for (const f of [FILE_NO_LDX, FILE_LDX_CIECO, morteA, morteB]) {
+      assert.ok(escluse.includes(f), `«${f}» deve stare in senzaGiri: ${JSON.stringify(escluse)}`);
+    }
+
+    // l'autopuntamento NON può nascere: niente A, niente B
+    assert.ok(j.prefer === null || j.prefer === undefined, `GUARDIA COLPITA: prefer propone una coppia su un banco senza NESSUNA sessione cronometrata: ${JSON.stringify(j.prefer)}`);
+
+    // e nemmeno il save può risuscitare la coppia morta
+    assert.equal(j.last, null, `GUARDIA COLPITA: last riporta la coppia col file SENZA giri (${FILE_NO_LDX}) su un banco tutto morto: ${JSON.stringify(j.last)}`);
+
+    // la GUI deve poter costruire il gruppo muto: forma completa delle voci
+    for (const e of j.senzaGiri ?? []) {
+      assert.ok(typeof e.track === 'string' && typeof e.car === 'string' && typeof e.when === 'string', `voce senza giri incompleta anche a banco morto: ${JSON.stringify(e)}`);
+    }
+  } finally {
+    child.kill();
+  }
+});

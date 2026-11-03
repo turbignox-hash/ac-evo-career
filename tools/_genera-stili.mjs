@@ -203,9 +203,14 @@ function proposteStile(prelevati, livello) {
     const reg = { preset: r.preset, auto: r.display, ballastKg: BALLAST_STD, restrictorPct: pct };
     const fuori = r.pi > piFin[1] || r.pi < piFin[0];
     if (fuori || pct >= CAP_PCT) {
+      // NOTA SENZA CIFRA (3/11, richiesta Mauro): la nota dice «cap della
+      // classe», la CIFRA resta SOLO nel badge del pannello Campionati
+      // (stile-webui.mjs legge limiti LIMITI_GIOCO.restrictorMaxPct): se una
+      // classe un giorno porta un limite diverso, testo e badge non si
+      // smentiscono a vicenda.
       reg.nota = fuori
-        ? `variante fuori dalla finestra del livello (${r.pi.toFixed(3)}) → cap ${CAP_PCT} come l'Escort (lezione 27/10); la prima gara decide`
-        : `formula Δ${dPI.toFixed(3)}×25=${+(dPI * PENDENZA).toFixed(1)}% → cap ${CAP_PCT}; la prima gara decide`;
+        ? `variante fuori dalla finestra del livello (${r.pi.toFixed(3)}) → cap della classe come l'Escort (lezione 27/10); la prima gara decide`
+        : `formula Δ${dPI.toFixed(3)}×25=${+(dPI * PENDENZA).toFixed(1)}% → cap della classe; la prima gara decide`;
     }
     regole.push(reg);
   }

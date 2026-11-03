@@ -98,7 +98,7 @@ function renderTetto(host, d){
       return `<span class="muted" title="${tr({
         it: 'nessun avversario con settoriali misurabili nel file: nessun dato, il delta non esiste',
         en: 'no opponent with measurable sector splits in the file: no data, the delta does not exist',
-      })}">— senza dati</span>`;
+      })}">— ${tr({ it: 'senza dati', en: 'no data' })}</span>`;
     }
     const num = fmtSecMs(t.campTopDeltaMs, false);
     if (t.campTopDeltaMs !== 0) return num;
@@ -129,7 +129,7 @@ function renderTetto(host, d){
       <td><b>${esc(t.track)}</b></td>
       <td class="right">${t.sessions}</td>
       <td class="right">${bustaCell(t)}</td>
-      <td>${t.worstSector != null ? `<span class="tag red">S${t.worstSector}</span> <span class="muted">${fmtSecMs(t.worstSectorDeltaMs, false).replace('+', '+')}</span>${t.picco != null ? ` · <span title="${tr({ it: 'picco: il colpo singolo più grosso che la mediana nasconde', en: 'peak: the biggest single hit the median hides' })}" class="tag" style="color:#f0a93c;border-color:#f0a93c55">picco</span> ${t.picco.sector !== t.worstSector ? `<span class="tag red">S${t.picco.sector}</span> ` : ''}<span class="muted">${fmtSecMs(t.picco.deltaMs, false).replace('+', '+')}</span>` : ''}` : '—'}</td>
+      <td>${t.worstSector != null ? `<span class="tag red">S${t.worstSector}</span> <span class="muted">${fmtSecMs(t.worstSectorDeltaMs, false).replace('+', '+')}</span>${t.picco != null ? ` · <span title="${tr({ it: 'picco: il colpo singolo più grosso che la mediana nasconde', en: 'peak: the biggest single hit the median hides' })}" class="tag" style="color:#f0a93c;border-color:#f0a93c55">${tr({ it: 'picco', en: 'peak' })}</span> ${t.picco.sector !== t.worstSector ? `<span class="tag red">S${t.picco.sector}</span> ` : ''}<span class="muted">${fmtSecMs(t.picco.deltaMs, false).replace('+', '+')}</span>` : ''}` : '—'}</td>
       <td class="right">${t.margineMs != null ? `${fmtSecMs(t.margineMs, false)}${t.margineMs < 0 ? ` <span class="tag" style="color:#f0a93c;border-color:#f0a93c55" title="${tr({ it: 'margine negativo: nel log del gioco i settori battono il giro accreditato — ma quel giro (vigliettato, fuori pista o di uscita) NON è stato accreditato dal gioco, conta solo a settori; il margine valuta anche quel potenziale, non un tempo riconosciuto', en: 'negative margin: in the game log the sectors beat the credited lap — but that lap (flagged, off track or an out lap) was NOT credited by the game, it counts only as sectors; the margin prices that potential too, not a time the game accepts' })}">⚠ ${tr({ it: 'giro non accreditato', en: 'uncredited lap' })}</span>` : ''}` : '—'}</td>
     </tr>`).join('')}</tbody></table>
     ${veri.some((t) => t.margineMs != null && t.margineMs < 0) ? `<div class="muted" style="margin-top:6px;font-size:11.5px">⚠ ${tr({ it: 'margine negativo: nei log del gioco esiste potenziale settoriale più veloce del giro che il gioco ha accreditato (es. ultima passata con settori validi ma giro non accreditato, vigliettato o fuori pista): è potenziale nascosto, non un tempo riconosciuto', en: 'negative margin: the game logs hold sector potential faster than the lap the game credited (e.g. a final flyer with valid sectors whose lap was not credited — flagged or off track): hidden potential, not a recognized time' })}</div>` : ''}
@@ -212,7 +212,8 @@ async function renderAB(host){
       <select id="ab-b" style="min-width:250px"><option value="">${tr({ it: 'sessione B (prova)…', en: 'session B (trial)…' })}</option></select>
       <button class="mini acc" id="ab-go">${tr({ it: 'Confronta', en: 'Compare' })}</button>
     </div>
-    <div id="ab-note" class="muted" style="margin-top:8px;text-align:center;font-size:12px">${tr({ it: 'EVO registra il setup nel nome file (preset_…): due preset in due sessioni = un confronto A/B giusto.', en: "EVO stores the setup in the file name (preset_…): two presets across two sessions make a fair A/B." })}</div>`;
+    <div id="ab-note" class="muted" style="margin-top:8px;text-align:center;font-size:12px">${tr({ it: 'EVO registra il setup nel nome file (preset_…): due preset in due sessioni = un confronto A/B giusto.', en: "EVO stores the setup in the file name (preset_…): two presets across two sessions make a fair A/B." })}</div>
+    <div id="ab-cnt" class="muted" style="margin-top:4px;text-align:center;font-size:11px"></div>`;
   let list = [];
   let senza = [];
   let prefer = null;
@@ -231,6 +232,14 @@ async function renderAB(host){
     prefer = d.prefer ?? null;
     last = d.last ?? null;
   } catch { /* senza telemetria i select restano vuoti */ }
+  /* CONTATORE DEL FOOT (3/11, richiesta Mauro: «senzaGiri (0 beacon) nel contatore
+     delle sessioni del foot, per accorgersene a colpo d'occhio»): la riga sotto
+     alla nota conta DAL DISCO, non coi filtri — N sessioni cronometrate, e le
+     0 beacon SOLO se ci sono, col numero in evidenza e il nome che ha già la
+     coda del menu («senza giri (0 beacon)»): i gruppi muto del menu lo
+     raccontano solo col menu APERTO, la voce del foot lo dice SEMPRE. */
+  const cnt = $('#ab-cnt', host);
+  if (cnt) cnt.innerHTML = `${list.length} ${tr({ it: 'sessioni cronometrate', en: 'timed sessions' })}${senza.length ? ` · <b style="color:var(--warn,#ffb454)">${senza.length} ${tr({ it: 'senza giri (0 beacon)', en: 'without timed laps (0 beacons)' })}</b>` : ''}`;
   if (!list.length && $('#ab-note', host)) $('#ab-note', host).textContent = tr({
     it: 'Nessuna sessione MoTeC ancora: il banco si attiva da solo dopo la prima uscita in pista (EVO scrive il file .ld quando chiudi la sessione).',
     en: 'No MoTeC session yet: the bench fills up by itself after the first track outing (EVO writes the .ld file when you close the session).',

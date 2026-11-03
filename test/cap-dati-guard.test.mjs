@@ -18,6 +18,10 @@
 //   LIMITI_GIOCO senza restrictorMaxPct → 20 (il ballastMaxKg non copre il cap);
 //   classe ASSENTE             → 20 (classi vuote, bootstrap vergine);
 //   file CLASSI ASSENTE        → NESSUN errore, capPct = 20;
+//   file classi CORROTTO (JSON invalido, 3/11 richiesta Mauro) → ERRORE CHIARO
+//                              che NOMINA il file — non un SyntaxError secco
+//                              senza percorso, non un mezzo tab Campionati con
+//                              il pannello sparito in silenzio;
 //   LADDER VIVO del progetto   → capPct UN NUMERO per OGNI campionato
 //                                arrogato (mai undefined/NaN/stringa), e se
 //                                la classe viva porta LIMITI_GIOCO deve
@@ -124,12 +128,63 @@ test('FILE CLASSI ASSENTE (bootstrap vergine): NESSUN errore e cap che non spari
   }
 });
 
+test('File classi CORROTTO (JSON invalido): errore CHIARO che nomina il file, non un mezzo tab', () => {
+  // la cura è doppia (3/11): loadClasses (gridbuilder.mjs) smette di lanciare
+  // un SyntaxError secco e il server lo gira come risposta (case 'stili') —
+  // la GUI mostra il pannello d'errore (viste-b.js stileErrore) invece di
+  // ingoiarlo nel vecchio catch(()=>({stili:[]})) che spezzava il tab in due
+  // senza spieganni.
+  const leggibile = join(mkdtempSync(join(tmpdir(), 'cap-corrotto-')), 'grid-classes.json');
+  writeFileSync(leggibile, JSON.stringify({ classi: { campionato_epoca: { LIMITI_GIOCO: { restrictorMaxPct: 10 } } } }), 'utf8');
+  process.env.EVO_CLASSES_FILE = leggibile;
+  assert.equal(capPer('campionato_epoca'), 10, 'la lettura BUONA deve passare: il corrotto è un altro scenario, non un nuovo fallback.');
+
+  // STESSO percorso, il file viene marcito SOTTO: il memo non deve mascherare
+  // il marcio (il mtime cambia, la rilettura deve esplodere in modo normale).
+  writeFileSync(leggibile, '{ "classi": { "campionato_epoca": { "LIMITI_GIOCO": { "restrictorMaxPct"', 'utf8');
+  try {
+    assert.throws(() => stileOverview(LADDER, STATE),
+      'un file corrotto non deve né riempire il tab con classi mezze né passare in silenzio: errore che parla.');
+  } finally { delete process.env.EVO_CLASSES_FILE; }
+
+  // e un file corrotto FRESCO (mai letto prima): non ci deve essere drammatica
+  // diversa — l'errore è quello, sempre e comunque.
+  const corrotto = join(mkdtempSync(join(tmpdir(), 'cap-corrotto-')), 'grid-classes.json');
+  writeFileSync(corrotto, '{ "classi": { "campionato_strada": { "LIMITI"', 'utf8');
+  process.env.EVO_CLASSES_FILE = corrotto;
+  try {
+    // NOTA (3/11): assert.throws ritorna l'errore SOLO con l'arg error (su questo
+    // Node senza arg esce undefined): catturo in chiaro, che mi serve il MESSAGGIO.
+    let lancio = null;
+    try { stileOverview(LADDER, STATE); } catch (err) { lancio = err; }
+    assert.ok(lancio, 'il file corrotto FRESCO deve LANCIARE; un mezzo tab silenzioso non va bene.');
+    const msg = String(lancio.message ?? '');
+    assert.ok(/corrotto/i.test(msg), `il messaggio deve dire «corrotto»: ${msg}`);
+    assert.ok(msg.includes('grid-classes.json'), `il messaggio deve NOMINARE il file: ${msg}`);
+    // l'errore APRE col nome del file; la causa SyntaxError può restare dentro
+    // come dettaglio, MA il SyntaxError secco non deve più essere l'unica faccia
+    // (chi legge il pannello della GUI non sa nemmeno QUALE file è marcio).
+    assert.match(msg, /^grid-classes\.json CORROTTO/, `l'errore deve APRIRE col nome del file, è uscito: ${msg}`);
+    assert.ok(!/^Unexpected token/.test(msg), `un messaggio che APRE SOLO «Unexpected token» senza percorso è la tenebra che il file corrotto toglie via: ${msg}`);
+  } finally { delete process.env.EVO_CLASSES_FILE; }
+});
+
 test('LADDER VIVO del progetto: capPct è un NUMERO SANO per OGNI campionato, e combacia col file classi', () => {
   const ladder = JSON.parse(readFileSync(join(ROOT, 'config', 'career.evo.ladder.json'), 'utf8'));
   const classiVive = JSON.parse(readFileSync(join(ROOT, 'data', 'grid-classes.json'), 'utf8')).classi ?? {};
   const { stili } = stileOverview(ladder, STATE);
   assert.ok(stili.length >= 5, 'nel ladder vivo i 5 campionati devono uscire (almeno).');
   for (const s of stili) {
+    // LA MAPPA LADDER→CLASSI al BARBIERE (3/11, richiesta Mauro: «il cap in GUI
+    // venga DAVVERO dai dati di oggi»): con tutte le classi ancora a cap 20 la
+    // combacienza si maschera nel FALLBACK — un nodo che puntasse a una chiave
+    // rotta farebbe lo stesso uscire 20 e NESSUN test esploderebbe. Quindi il
+    // legame è asserto DIRETTAMENTE: il nodo DEVE avere la classe nel file; il
+    // cap che ne esce è il SUO dato (o il fallback SOLO se la classe nata
+    // nuda). Chi rinomina una chiave in grid-classes.json senza toccare il
+    // ladder (o vice versa) sfonda qui, non nel pannello della GUI.
+    assert.ok(classiVive[s.id] != null,
+      `${s.id}: il nodo ladder NON ha classe in data/grid-classes.json — la mappa ladder→classi è rotta e il cap uscirebbe dal FALLBACK, non dai dati.`);
     assert.ok(typeof s.capPct === 'number' && Number.isFinite(s.capPct),
       `${s.id}: capPct DEVE essere un numero, è ${JSON.stringify(s.capPct)} — un «undefined» nel badge è ERROR.`);
     assert.ok(s.capPct > 0 && s.capPct <= 100, `${s.id}: un cap ${s.capPct}% fuori dal 0–100 è da rivedere.`);
@@ -138,5 +193,15 @@ test('LADDER VIVO del progetto: capPct è un NUMERO SANO per OGNI campionato, e 
     const fileCap = classiVive[s.id]?.LIMITI_GIOCO?.restrictorMaxPct;
     assert.equal(s.capPct, fileCap ?? 20,
       `${s.id}: il badge dice ${s.capPct} ma il file classi (LIMITI_GIOCO.restrictorMaxPct ${fileCap}) — il cap deve venire SOLO da lì o dal fallback 20.`);
+  }
+  // e i campionati del ladder COMPATTEMENTE fuori dal set dei Cinque (aperto,
+  // sport_moderno) portano ANCHE LORO LIMITI_GIOCO nei dati: se cresce il
+  // parco di oggi, chi li Toca sa che le loro chiavi vivono nel file classi.
+  const GIA_GUARDATI = new Set(stili.map((x) => x.id));
+  for (const n of ladder.nodes ?? []) {
+    if (!String(n.nodeId).startsWith('campionato_') || GIA_GUARDATI.has(n.nodeId)) continue;
+    if (classiVive[n.nodeId] == null) continue; // serie senza classe nel file: nessuna cura qui
+    assert.ok(classiVive[n.nodeId].LIMITI_GIOCO != null,
+      `${n.nodeId}: classe VIVA nel file ma SENZA LIMITI_GIOCO — il cap della sua serie non ha dato, solo fallback 20 silenzioso.`);
   }
 });

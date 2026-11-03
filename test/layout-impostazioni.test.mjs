@@ -54,6 +54,12 @@ import './_flows-sandbox.mjs';
 // ha il marcatore sul PANEL e NON sull'h2: worldRankingInner è riciclato
 // anche nel pieghevole dei Campionati (#mondo-fold) e l'h2 condiviso non
 // poteva dire «solo qui». 105 misure (5 larghezze × 21 tab).
+//
+// (3/11, SESTA LARGHEZZA, richiesta Mauro: «aggiungi una larghezza 256 px
+// alla guardia di layout come limite estremo e verifica che non compaiano
+// sovrapposizioni»): 256 si mette SOTTO alle 320 — il limbo dei pannelli
+// laterali annidati e delle finestre strappate a quattro affiancate. 126
+// misure (6 larghezze × 21 tab).
 
 //// Porta: 8736 (fuori dal range di fallback 8642..8655 e dal 8731 di smoke).
 //
@@ -90,10 +96,12 @@ const SERVER = join(ROOT, 'src', 'webui.mjs');
 const SAVE = join(ROOT, 'data', 'evo-career.save.json');
 const PORT = 8736;
 const BASE = `http://127.0.0.1:${PORT}`;
-/* le due larghezze più piccole sono il MARGINE: 360 era il minimo
+/* le tre larghezze più piccole sono il MARGINE: 360 era il minimo
  * collaudato; 320 (3/11) è sotto ancora — regno dei telefoni stretti e
- * delle finestre affiancate davvero piccole */
-const WIDTHS = [320, 360, 480, 1250, 1920];
+ * delle finestre affiancate davvero piccole; 256 (3/11) è il LIMITE
+ * ESTREMO sotto le altre — pannelli laterali annidati e finestre
+ * strappate a quattro */
+const WIDTHS = [256, 320, 360, 480, 1250, 1920];
 /* VENTUNO tab della STESSA guardia: i 19 in nav (ordine della nav) e i 2
  * NASCOSTI in coda, ognuno col SUO
  * marcatore (esiste SOLO in quella vista, non nei vicini): #card-panel
@@ -144,7 +152,7 @@ const CHROMIUM = [
   join(LOCALAPPDATA, 'ms-playwright', 'chromium_headless_shell-1223', 'chrome-headless-shell-win64', 'chrome-headless-shell.exe'),
 ].find(existsSync);
 
-test('tutti i 21 tab della GUI (19 in nav + 2 nascosti): niente sovrapposizioni né pannelli fuori viewport a 320, 360, 480, 1250 e 1920', { timeout: 900_000 }, async (t) => {
+test('tutti i 21 tab della GUI (19 in nav + 2 nascosti): niente sovrapposizioni né pannelli fuori viewport a 256, 320, 360, 480, 1250 e 1920', { timeout: 900_000 }, async (t) => {
   if (!existsSync(join(ROOT, 'node_modules', 'playwright-core')))
     return t.skip('manca playwright-core: `npm install` e la guardia riparte');
   if (!CHROMIUM)
@@ -194,7 +202,12 @@ test('tutti i 21 tab della GUI (19 in nav + 2 nascosti): niente sovrapposizioni 
     // per DELTA dentro la loro pagina, che qui nasce fresca a ogni larghezza
     // come a ogni corsia.
     for (const width of WIDTHS) {
-      const CORSIE = 3;
+      /* LE CORSIE sono la leva del ritmo: TRENIno di tab alla stessa larghezza
+       * girano in parallelo. Da banco (3/11, richiesta Mauro «prova a portare le
+       * corsie a 4 o 5») si misura quante ne regge la macchina senza perdere:
+       * default resta 3, la forma collaudata; il numero al soffio lo dà
+       * EVO_LAYOUT_CORSIE (il banco è il consumatore previsto). */
+      const CORSIE = Math.min(7, Number(process.env.EVO_LAYOUT_CORSIE) || 3);
       const ferrate = Array.from({ length: CORSIE }, (_, i) => TAB.filter((_, j) => j % CORSIE === i));
       const corsieLive = [];
       await Promise.all(ferrate.map(async (treno) => {

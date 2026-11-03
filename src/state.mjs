@@ -654,6 +654,35 @@ function lapTimeMs(t) {
   return Number(m[1]) * 60000 + Number(m[2]) * 1000 + Number(m[3]);
 }
 
+/** Identità di GRAFIA (case-insensitive): il criterio UNO delle chiavi
+ *  bestLaps (3/11, aggancio della leva di cura normalizza-bestlaps al nodo
+ *  di import). Definita QUI perché è lo state a scrivere i record: la
+ *  leva di cura la riusa (re-export per i vecchi import — nessun criterio
+ *  copiato in due posti). */
+export function grafiaNorma(s) {
+  return String(s ?? '').trim().toLowerCase();
+}
+
+/** CANONE DELLA CHIAVE bestLaps (3/11, richiesta Mauro: «le nuove gare
+ *  non devono mai riseminare chiavi in doppia grafia»): il record scritto
+ *  da una gara NUOVA atterra sulla chiave GIÀ PRESENTE con la stessa
+ *  grafia (case-insensitive) se c'è — l'imola pre-canone del 23/9 non
+ *  genera più una «Imola» gemella —, altrimenti sul nome pista attivo
+ *  del ladder (contentNames.tracks, quello che i lettori di casa —
+ *  race.mjs/life.mjs/tracks.mjs — cercano davvero), altrimenti sul
+ *  valore del payload. Solo GRAFIA: l'accento NON è grafia (vedi leva
+ *  di cura). Puramente funzionale: niente scritture, niente stato.
+ * @param {object} bl  la mappa state.stats.bestLaps (chiave pista → record)
+ * @param {string} track  la pista dell'payload (id del calendario o nome)
+ * @param {string[]} nomiCanon  i nomi pista attivi del ladder (Object.values(contentNames.tracks))
+ * @returns {string} la chiave da scrivere/leggere */
+export function chiaveBestLaps(bl, track, nomiCanon = []) {
+  const stessa = Object.keys(bl ?? {}).find((k) => grafiaNorma(k) === grafiaNorma(track));
+  if (stessa) return stessa;
+  const canon = (nomiCanon ?? []).find((n) => grafiaNorma(n) === grafiaNorma(track));
+  return canon ?? String(track ?? '').trim();
+}
+
 function ensureStats(state) {
   state.stats ??= { races: 0, wins: 0, podiums: 0, fastestLaps: 0, laps: 0, bestLaps: {} };
   state.stats.bestLaps ??= {};
@@ -871,12 +900,18 @@ export function applyRaceResult(ladder, state, node, payload) {
     }
     if (fl && !fuori) s.fastestLaps += 1;
     if (!dnf && !fuori && track && bestLap) {
-      const rec = s.bestLaps[track];
+      // CANONE DELLA CHIAVE (3/11): niente doppie grafie risartate.
+      // Il SEME è il NOME ATTIVO della pista (contentNames.tracks — i lettori
+      // di casa cercano quello, non l'id del calendario), poi chiaveBestLaps
+      // lo fa atterrare sulla grafia già presente se esiste.
+      const seme = ladder.contentNames?.tracks?.[track] ?? track;
+      const chiave = chiaveBestLaps(s.bestLaps, seme, Object.values(ladder.contentNames?.tracks ?? {}));
+      const rec = s.bestLaps[chiave];
       if (!rec || lapTimeMs(bestLap) < lapTimeMs(rec.time)) {
-        s.bestLaps[track] = { time: bestLap, car, season: state.season, round, node: node.nodeId, at };
+        s.bestLaps[chiave] = { time: bestLap, car, season: state.season, round, node: node.nodeId, at };
         pushMessage(state, tr({
-          it: `Nuovo miglior giro personale a ${track}: ${bestLap} (${car ?? 'auto n/d'}).`,
-          en: `New personal best lap at ${track}: ${bestLap} (${car ?? 'car n/a'}).`,
+          it: `Nuovo miglior giro personale a ${chiave}: ${bestLap} (${car ?? 'auto n/d'}).`,
+          en: `New personal best lap at ${chiave}: ${bestLap} (${car ?? 'car n/a'}).`,
         }), 'good');
       }
     }

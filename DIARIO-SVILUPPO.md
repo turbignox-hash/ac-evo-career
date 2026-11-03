@@ -5,6 +5,103 @@ IL RESTO (da fare o da rivedere). Ogni giorno prendiamo qualcuna di queste e la
 eseguiamo; a fine giornata il diario si arricchisce e la lista si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 3/11 — il discarico delle copie in blocco del 25/10 (richiesta Mauro: «discolpa le copie in blocco, verifica che la legge senza giri le copra, con voce al diario»)
+- **Il necessario**: il blocco del 25/10 (ore 22:08:38–44) ha lasciato sul disco **29 file `.ld` SENZA il proprio `.ldx`** — file aridi da 20–21 KB sulle Apr 15/16/17 (Audi R8 GT4 Monza ×3 · Ferrari 296 Monza ×2, Red Bull Ring ×6, Suzuka ×1 · Ferrari 288 GTO Sebring ×1 · Countach Monza ×6, Sebring ×1 · Mini JCS Red Bull Ring ×2 · Peugeot 205 T16 Red Bull Ring ×7 · Porsche GT3 RS SuzukaEast ×1). Il conto chiude: 269 `.ld` a disco = 240 con `.ldx` + 29 aridi.
+- **La legge vale e li copre TUTTI**: replica a sorgente della logica dell'endpoint A/B ([webui.mjs:1490-1511](src/webui.mjs#L1490-L1511)) sui file reali — il save corrente non porta `createdAt` (tutto visibile, il caso peggiore da buttirci dentro) e con 269 voci visibili il banco monta 229 `sessions` (beacon > 0) e **40 `senzaGiri`**: i 29 aridi ci cadono TUTTI (parseLdx su file mancante → `[]` → beacons 0, [motec.mjs:64](src/motec.mjs#L64)), più 11 voci morte con `.ldx` presente ma senza marker BCN (out-lap e `.ldx` cieco: la coppia out-lap 18:13 di Monza, Oulton 30/10, Donington 18/10, ecc.). Match arido-per-arido: **29/29 coperti, nessuno perso** — nessun arido può farsi A o B né entrare nell'autopuntamento (che leggi SOLE le sessions).
+- **Niente da curare**: la difesa era già in piedi dalla legge del 2/11; la presente è la conferma a disco vivo. Lettura pura, nessun file toccato.
+
+### 3/11 — la carta del CONFRONTO GIUSTO di Monza, e il difetto del giro-record che l'ha fermata
+- **Il caso** (richiesta Mauro, già rimandata dal verdetto del 1/11: «confronto GIUSTO 17:54 (30/10) contro 14:31 (29/10, 1:42.6) — scrivi dove la serata perde»): la coppia è valida (2 giri pieni, stesso preset, nessun beacon morto) e le canali puntano tutti nel GAS: gas medio giro-best 73.7% vs 80.3%, gas pieno 65.8% vs 73.5%, TC 1.6% vs 0.5% — con pressioni (freddo 24.5/24.4, caldo 25.9/26.0), camber, benzina e costanza in frenata (nessuna zona calda: la matita non è il colpo) rimasti a parità. Δ best −11.8 s.
+- **Il difetto emerso**: i riparto e le fette per zone DI QUESTA COPPIA sono artefatti di allineamento, da non leggere: la somma Σdt/vB sulle fette di A dà 114.14 s mentre il tempo atteso del record scalato (T_B·D_A/D_B) è 103.17 s (scarto 10.97 s); errore medio fra i profili di velocità 55.6 km/h e NESSUNO sfasamento fino a ±30% del giro lo sistema; nello stesso file B il secondo giro valido (1:43.6) si allinea invece a 14.8 km/h. Sospetto: wrap del canale distanza al traguardo nel giro-record (1:42.6 — distanza dichiarata 5.725 km vs 5.760 del giro gemello).
+- **Il secondo difetto**: il registro `quadroZoneCheck` resta muto sul caso perché striscia e banco montano la STESSA mappa sbagliata (stesso `xs` dell'A): la guardia confronto due implementazioni dello stesso conto. Proposta: guardia di allineamento diretta — Σdt/vB vs T_B·D_A/D_B con tolleranza ~0.5 s a setupAB/zoneTimeline (qui avrebbe gridato 10.97 s).
+- **La carta**: [report/banco-ab-ferrari296-monza-2026-11-03.md](report/banco-ab-ferrari296-monza-2026-11-03.md), verdetto a chiserve: la serata perde nel GAS (fiducia nel piede, non auto/gomme), il DOVE lungo il giro serve dopo la guardia d'allineamento.
+
+### 3/11 — il contatore delle sessioni nel foot del banco A/B
+- **Il caso** (richiesta Mauro: «senzaGiri (0 beacon) nel contatore delle sessioni del foot di ab-list, per accorgersene a colpo d'occhio»): i gruppi «senza giri cronometrati» dei menu A/B si vedono solo col menu APERTO — il numero di voci morte in coda restava invisibile a vista.
+- **La cura** ([viste-analisi.js](gui/js/viste-analisi.js)): una riga contatore `#ab-cnt` sotto alla nota del banco, riempita DOPO la fetch di `ab-list`, conta DAL DISCO (non coi filtri): «N sessioni cronometrate» e — SOLO se ci sono — « · M senza giri (0 beacon)» col numero in evidenza col colore dell'avviso: la stessa dicitura della coda del menu, visibile anche a mano morta.
+- **Verifica**: biome pulito; guardie a sorgente vivo verdi (10/10: [ab-senza-giri-gui.test.mjs](test/ab-senza-giri-gui.test.mjs) + [viste-guard.test.mjs](test/viste-guard.test.mjs)) — il contatore è markup dell'interfaccia, quello che conta non cambia: niente `opt` che nascono disabilitate in più.
+
+### 3/11 — la prova del banco tutto morto a server vivo
+- **Il caso** (richiesta Mauro: «quando un filtro non riesce — né A né B —
+  aggiungi la prova, senzaGiri piena»): il banco può avere OGNI sessione
+  0 beacon (copia in blocco senza .ldx, salvataggi senza marker BCN): il
+  filtro del server non trova A né B; la GUI non deve però né cadere né
+  perdere la coda disabilitata. A lettura del codice `last` torna già
+  null col contratto `sessions.some(...)` su lista vuota, e
+  `abPreferite([])` torna null senza lanciare (gruppo < 2,
+  [analisi.mjs:557](src/analisi.mjs#L557)) — ma NESSUN test guardava un
+  eventuale crash e il quadro dato alla GUI.
+- **La prova**: secondo test in [ab-senza-giri.test.mjs](test/ab-senza-giri.test.mjs),
+  sandbox a server vivo con 4 sessioni TUTTE morte (2 senza .ldx,
+  2 .ldx cieco) e abBanco che punta un file morto: 200, ok true,
+  `sessions` VUOTA, `senzaGiri` eredita TUTTE le 4 voci con la forma
+  completa (car/track/when, per il gruppo muto della GUI), `prefer` null
+  (niente autopuntamento: niente A, niente B) e `last` null (né il save
+  può risuscitare la coppia).
+- **Verifica**: node --test ↦ 2/2 verdi (i test girano in sequenza sulla
+  stessa porta 8746: il child del primo è killato nel finally).
+
+### 3/11 — la guardia delle voci senza giri, lato GUI (richiesta Mauro: «la stessa guardia del banco, ma per senzaGiri»)
+- **Il buco**: la legge del banco 2/11 ha due metà — il SERVER esclude le
+  sessioni 0 beacon in `senzaGiri` (coperta da [ab-senza-giri.test.mjs](test/ab-senza-giri.test.mjs)
+  a server vivo) e la GUI le rimette in menu SOLO DISABILITATE sotto
+  l'optgroup muto. La seconda metà non aveva NESSUNA guardia: se
+  qualcuno smonta il `disabled`, le voci morte (out-lap, fermo in griglia,
+  sessione abbandonata) tornano cliccabili e il banco si costruisce un
+  confronto al buio — un difetto che Biome non vede (compila ogni file
+  isolato, senza il contratto con il server).
+- **La guardia**: [ab-senza-giri-gui.test.mjs](test/ab-senza-giri-gui.test.mjs),
+  a SORGENTE VIVO come [viste-guard.test.mjs](test/viste-guard.test.mjs)
+  (le viste non girano in node), quattro legami col nome riga per riga:
+  1. la porta — `senza` nasce SOLO da `d.senzaGiri ?? []` del server
+     (mai da `sessions`, mai da una variabile di commiato);
+  2. la legatura — `opt(s, dis)` lega `disabled` al SECONDO ARGOMENTO,
+     non a un valore fisso (`dis ? ' disabled' : ''`);
+  3. il gruppo muto — nella finestra di ±400 caratteri attorno al
+     letterale `'senza giri cronometrati'` stanno ENTRAMBE la mappa
+     `escluse.length` e `opt(s, true)`: gruppo e disabled si muovono assieme;
+  4. una sola corsia — le voci di banco chiamano `opt` nudo
+     (`gr.ses.map(opt)`) e `opt(…, true)` esiste UNA volta sola in tutto
+     il file: nessun'altra corsia eredita il disabled per errore.
+- **Prova del morso**: `opt(s, true)` → `opt(s)` a sorgente = la guardia
+  cade su 3 e 4 (come deve); ripristino byte-esatto (cmp) e torna 4/4.
+- **Verifica**: node --test ↦ 4/4 verdi; biome senza warning (dopo la
+  riformulazione del messaggio col `${…}` letterale, che il linter
+  segnala come placeholder).
+
+### 3/11 — le date di sessione nei tab del giro: voci A/B col giorno, data nel riquadro e nel modale, e il «picco» guarito (richieste Mauro)
+- **Le cure** (a cavallo 2–3/11, chiuse e verificate a schermo):
+  1. **GIORNO NELLE VOCI A/B** («mostra il giorno completo anche dentro le voci
+     dei menu A/B, non solo nel titolo del gruppo»): ogni option del banco
+     porta AUTO · PISTA · GIORNO ORA — con il menu chiuso la voce parla da
+     sola, l'optgroup secondo giorno resta solo cornice
+     ([viste-analisi.js:238](gui/js/viste-analisi.js#L238)). Le sessioni
+     senza giri cronometrati restano in coda sotto il gruppo muto,
+     disabilitate e con la STESSA scritta data.
+  2. **DATA SESSIONE NEL RIQUADRO DEL CONFRONTO GIRI** («porta la data di
+     sessione anche nel riquadro», come nel banco A/B): le option del menu
+     Sessione del grafico portano `data-when` (token dal nome file, non il
+     mtime — la lezione del datario 2/11 vale anche qua) e la dicitura sotto
+     al grafico la ripete in grassetto («02/11/2026, 00:53:50 · Differenza
+     media col giro…») ([viste-c.js:984](gui/js/viste-c.js#L984)) — STESSA
+     fonte dei cartoncini del modale A/B (data di sessione, non mtime).
+  3. **DATA NEL MODALE DEL BANCO A/B** («mostra anche la data di ogni
+     sessione accanto al nome file»): helper dataDi sui due cartoncini A e
+     B — sessione sparita dalla lista = niente data, il cartoncino resta
+     leggibile col solo nome file ([viste-analisi.js:259](gui/js/viste-analisi.js#L259)).
+- **L'etichetta «picco» del confronto, riparata** (colmata a striscio durante
+  la verifica a schermo): nel ternario del `{MX}` della dicitura del grafico
+  la precedenza mangiava il NUMERO quando il picco era positivo — usciva
+  «picco +» senza valori. Ora `(d.dvMax >= 0 ? '+' : '') + d.dvMax.toFixed(1)`,
+  stesso schema del `{D}` della differenza media accanto; il caso negativo
+  (-15.0 km/h) non cambia ([viste-c.js:1009](gui/js/viste-c.js#L1009)).
+- **Verifiche**: pagina viva sul server 8642, scheda Setup: dicitura letta
+  dal grafico del giro «02/11/2026, 00:53:50 · … · picco +20.1 / minimo
+  -15.0 km/h» e menu Sessione datato; console della pagina pulita. Zero
+  unit test in più: le voci e la dicitura sono markup dell'interfaccia, la
+  prova del vivo è la verifica — la legge del layout resta a controllo
+  COMANDI-BUFFY.md.
+
 ### 3/11 — la sera dell'Endurance GT4: griglia giusta, auto ferma; dizionario auto-corretto
 - **Il fatto**: Mauro cambia campionato (Endurance GT4) e preme «Prepa tutto»:
   la griglia si scrive dal template GT4 giusto, ma l'auto in garage resta la MX-5.
@@ -1566,6 +1663,152 @@ cache di Playwright (…): scaricalo con npx playwright install chromium`
 col perché nel TAP; `biome check` pulita sui due file; un solo cliente
 al momento — le viste nuove della GUI si aggiungono alla costante `TAB`
 della guardia col loro marcatore.
+
+#### 3/11 — La pulizia del testo: «fallisce in silenzio» al posto delle frasi corrotte (richiesta Mauro: «Pulisci le stesse frasi corrotte «Falli silente» in webui.mjs righe 2341 e 2560» + «Aggiungi al diario la voce della pulizia del testo di cli.mjs (3/11)»)
+
+Cinque commenti di casa parlavano un ITALIANO che non esiste: «Falli silente»,
+«Errori silente», «Fallisce silente» — tentativi ammaccati di tradurre
+*fail silently*, la lezione del try/catch che ingoia l'errore senza urlarlo.
+Forma giusta incastonata in TUTTI e cinque: **«fallisce in silenzio»** —
+il soggetto è l'operazione dentro il try, e la frase finalmente regge
+senza perdere il senso.
+
+Dove stava la lussazione:
+
+- [src/webui.mjs](src/webui.mjs) — TRE frasi, non due: le righe indicate
+  da Mauro (2341 e 2560) erano scivolate in avanti di 14 righe da quando
+  erano state segnate, e la ricerca dietro ha fatto uscire anche la
+  TERZA, stessa corruzione ma minuscola:
+  - [webui.mjs:2355](src/webui.mjs#L2355) — la banda viva del tab
+    Griglia («senza carriera (state assente) la GUI mostra solo il campo
+    del file»);
+  - [webui.mjs:2574](src/webui.mjs#L2574) — la ricostruzione della
+    griglia al Prepara («un errore non blocca l'iscrizione — la card
+    sotto resta il piano B»);
+  - [webui.mjs:2588](src/webui.mjs#L2588) — la banda di serie del
+    builder («senza banda voluta il builder resta su quella di prima»).
+- [src/cli.mjs](src/cli.mjs) — DUE frasi, la stessa corruzione sotto
+  altro nome:
+  - [cli.mjs:693](src/cli.mjs#L693) — «Errori silente: non bloccano la
+    ronda» → «Gli errori passano in silenzio: non bloccano la ronda»;
+  - [cli.mjs:1307](src/cli.mjs#L1307) — «Fallisce silente: senza banda
+    calcolata il builder resta sulla regola di prima» → «Fallisce in
+    silenzio: …» (la stessa banda di serie che il Prepara dell'app porta
+    dalla sera dell'1/11).
+
+Verifica: `grep "silente" src/` → ZERO occorrenze rimaste; in cli.mjs
+restano solo i «fallisci» veri (le sfide: «premio {R} € se ci riesci,
+-{P} rep se fallisci») che sono italiano giusto e NON si toccano;
+`npx biome lint src/cli.mjs src/webui.mjs` → 0 errori (l'unico warning,
+gli import inutilizzati a webui.mjs:135, è preesistente: confermato col
+bash del stash, era là anche prima). Nessun codice cambiato — SOLO
+commenti, quindi niente suite da rigirare.
+
+#### 3/11 — Guardia di layout alla QUINTA larghezza: 320 px sotto le altre, la lezione della sonda e la prova sul vivo (richiesta Mauro: «aggiungi la larghezza 320 px alla guardia di layout e verifica che non compaia nessuna sovrapposizione» + «aggiungi la voce del 3/11 al diario per la larghezza 320px, la lezione della sonda e la prova della guardia»)
+
+**La quinta larghezza** entra SOTTO alle altre — 320 px, il regno del
+telefono stretto e della finestra affiancata davvero piccola: 19 tab ×
+**5 larghezze (320 · 360 · 480 · 1250 · 1920) = 95 misure**, verdi in 45
+s, nessuna riga di `gui/` toccata.
+
+**La lezione della sonda** (incastonata in [test/_layout-probe.mjs](test/_layout-probe.mjs)):
+il primo morso a 320 era un FANTASMA di scorrimento, non un disegno — le
+righe del calendario in Campionati toccavano la scatola del loro
+contenitore scorrevole sporgendo SOTTO, dove il browser non disegna
+nulla, e i rect fittizi infiltravano le sovrapposizioni con gli elementi
+che seguono. La legge nuova di misura:
+
+- ogni rettangolo si **MOZZA alla scatola del contenitore con clipping**
+  (overflow auto/hidden/scroll), verticale E orizzontale: si misura SOLO
+  la parte disegnata davvero;
+- le **righe inline comprese**: per gli `display:inline` la misura usa le
+  RIGHE vere (`getClientRects`, tetto 64), non l'unione che ingoia le righe
+  vicine — la lezione del fantasma multiriga del 360;
+- chi resta **interamente mozzato** scarta da solo sotto i 2 px: non è in
+  vista, non si misura.
+
+Stesso spirito dei details chiusi e delle figure (svg/aria-hidden): NON
+in vista = NON candidato.
+
+**La prova sul vivo che la guardia NOTA**: iniettata nel Cruscotto una
+sovrapposizione finta a cavallo di un testo della racecard — la guardia
+va ROSSA col perché nel messaggio dell'assert: `span.h-act ⟂ div · area
+in comune 40×12 px + catena antenati`, e tolto il difetto (le stesse 3
+righe di banchi azzerrate byte per byte) riparte VERDE 95/95. Sonda tab
+singola di servizio `tmp/_sonda-tab.mjs` (a mano, non nella suite: il
+difetto finto è un gesto di banco), poi finita nel pulito del tmp come
+tutti gli attrezzi di banca.
+
+Verifica: `node --test test/layout-impostazioni.test.mjs` → `ok`, 95/95
+misure verdi (45 s); niente skip nuovo; biome pulita sul file di test;
+la lezione sta tutta nella sonda condivisa, quindi ogni cliente nuovo
+(eredita-bottone, fascie, ecc.) la porta gratis.
+
+### 3/11 — Le corsie della guardia di layout a 4 o 5: la misurazione dice che non si guadagna (richiesta Mauro: «prova a portare le corsie della guardia di layout a 4 o 5 e misura se si guadagna ancora oppure il muro si sgombera»)
+
+Le TRE corsie della guardia (treni di tab in parallelo alla
+stessa larghezza) sono diventate una LEVA misurabile da fuori
+(`EVO_LAYOUT_CORSIE` in test/layout-impostazioni.test.mjs, tetto 7,
+per il banco: il default resta 3), così il banco può giocare senza toccare
+codice per ogni passo. La misurazione, ogni passo verde (126/126):
+
+| corsie | durata | esito |
+|---|---|---|
+| 3 (default) | 37,1 s da sola · 33,4 s dentro la suite | baseline della giornata |
+| **4** | **32,5 s · 34,6 s (conferma)** | guadagno dentro il rumore (±2 s) |
+| **5** | **37,7 s** | il rendimento torna INDIETRO |
+
+La lettura: le attese in pagina sono timer, ma ogni pagina è un
+processo-renderer e i reflow sono CPU — a 5 corsie i core della macchina
+si saturano e la stabilità GENERICA (due impression a 300 ms identiche)
+si trascina lunga. La consolazione: le 21 tab e le 126 misure restano
+IDENTICHE al variare delle corsie; nessuna misura indebolita. Default 3
+NON cambiato: con il guadagno dentro il rumore non si cambia la forma
+collaudata.
+
+Verifica: `EVO_LAYOUT_CORSIE=4/5 node --test test/layout-impostazioni.test.mjs`
+→ `ok` SIA a 4 CHE a 5, con conferma a 4; biome pulita sul file di test;
+nessuna riga della sonda o della GUI toccata.
+
+### 3/11 — Guardia di layout alla SESTA larghezza: 256 px come limite estremo (richiesta Mauro: «aggiungi una larghezza 256 px alla guardia di layout come limite estremo e verifica che non compaiano sovrapposizioni»)
+
+**La sesta larghezza** entra SOTTO alle 320 — 256 px, il limbo dei
+pannelli laterali annidati e delle finestre strappate a quattro
+affiancate: 21 tab × **6 larghezze (256 · 320 · 360 · 480 · 1250 · 1920)
+= 126 misure**, verdi in 37 s.
+
+Questa volta la guardia beccava un difetto vero alla prima corda: a 256
+px il tab **Garage** sbordava 21 px a destra — le card del garage
+(`#g-grid` in [viste-c.js](gui/js/viste-c.js)) nascono da una griglia
+`minmax(240px,1fr)` e sotto i 240 px di contenitore `auto-fill` tiene la
+colonna a 240: la card usciva dalla viewport (scatola misurata
+[37 → 277] a viewport 256). Curata col pattern standard
+`minmax(min(240px,100%),1fr)`: alla larghezza normale è lo stesso
+tracciato, sotto la colonna si stringe col contenitore invece di
+sbordare.
+
+Verifica: il primo giro della guardia resta ROSSO col perché
+(`a 256px il tab Garage ha 2 pannello/i fuori viewport · #g-grid <
+div.panel < #main`); dopo la cura → `node --test
+test/layout-impostazioni.test.mjs` → `ok`, **126/126 misure verdi
+(37 s)**, zero sovrapposizioni e zero pannelli fuori viewport su tutte
+le sei larghezze; le altre 20 viste passano a 256 al primo colpo.
+Commento in testa al file di test aggiornato (SESTA
+LARGHEZZA, 126 misure) e spunta standard di COMANDI-BUFFY aggiornata
+(6 larghezze, 126 misure).
+
+### 3/11 — Prova a rottura del TERZO STEP: sbordatura finta nella Griglia, rosso col perché, poi torna indietro (richiesta Mauro: «colpisci la guardia sul vivo: inietta una sbordatura finta in un pannello della Griglia e verifica che il terzo step vada rosso col perché, poi torna indietro»)
+
+Banco della fuga in tmp/_sonda-fuga-griglia.mjs, come la _sonda-tab del 320 (gesto di banco, NON in suite): la fuga viene beccata nel suo habitat naturale, con gli stessi muscoli della guardia (importa `misuraPanelliFuoriViewport` da test/_layout-probe.mjs, non una copia).
+
+- **partenza sana**: vista Griglia pulita a 320 px → 0 fughe (la guardia deve già dirlo);
+- **l'iniet**: il primo .panel di #main allargato di 40 px oltre la viewport con `width: calc(100% + 40px)` — nessun antenato col clipping orizzontale (il caso garage/256 provava che i .panel di #main scavalcano il margine), quindi la sbordatura arriva davvero alla viewport e supera i 2 px di tolleranza: la legge «contenuto in contenuto: sano» non la può lasciare passare;
+- **il rosso col perché**: il terzo step (`misuraPanelliFuoriViewport`) stampa la riga della guardia — `div («🏁 Griglia 18 celle…») sborda 24 px a destra (viewport 320px · scatola [16 → 344]) ↳ #main < #shell` — chi sborda, di quanto, la scatola e la catena antenati, già leggibile da solo;
+- **coerente col resto**: lo step delle sovrapposizioni resta SILENTE durante la fuga (0 sovrapposizioni): la sbordatura non è un cinghio fra due testi, e i due scala non parlano l'un per l'altro;
+- **tornando indietro**: levato l'iniet la misura riparte verde (0 fughe), e un RELOAD a vuoto conferma che l'ambiente è tornato com'era — l'iniet viveva SOLO nel DOM della pagina del banco, nessun file della GUI toccato; la lezione del banco: dopo il reload il boot ridisegna la nav, quindi si aspetta PRIMA la nav (il click via ?. sul bottone assente è no-op e la vista non arriva mai — il primo morso del banco diceva timeout);
+- **chiusura di legge**: la guardia intera riparte 126/126 (33 s, exit 0).
+
+Verifica: `node tmp/_sonda-fuga-griglia.mjs` → exit 0 con tutto il corteo; `node --test test/layout-impostazioni.test.mjs` → ok 126/126 (33 s). Nessun file `gui/` toccato.
 
 ### 3/11 — Guardia di layout: senza ambiente si salta, non si sbaglia
 (richiesta Mauro: «nella CI del comando check esegui il guard della GUI
@@ -4758,3 +5001,324 @@ verificate a zero con grep sui rotti originali (muniisce, collaudii,
 Mineo, Vorante, APPICCA, SOFFISSO, ha PORTATO, soccorso di 10, sibile,
 distanziello, brancha, proporpone: tutti a 0). Nessun file di codice
 toccato, nessun test da girare.
+
+### 3/11 — La fitta-fitta del tab Analisi: GUI e JSON si stringono la mano, it ed EN (richiesta Mauro: «confronta la tabella mostrata in GUI con il JSON di api/tetto e fallisci se una riga diverge», poi «porta lo stesso confronto anche a autopsia e Monte Carlo», poi «verifica che la vista Analisi e il tetto reggano anche a lingua EN»)
+
+Le due facce del tab Analisi non si stringevano la mano: il JSON lo guardava
+l'unit test, la CELLA disegnata solo gli occhi. La guardia è in
+[test/tetto-gui-json.test.mjs](test/tetto-gui-json.test.mjs) e si scrive:
+server vero su PORTA SUA (8745–8750: pannello E lingua, una ciascuna),
+carriera FINTA che alimenta i pannelli, tab Analisi aperto a schermo e i
+pannelli letti cella per cella e accostati all'API: una riga che mente =
+test rosso, col nome della riga e l'atteso a schermo.
+
+- **Impalcato comune** perché la scuola una volta sola:
+  `carrieraFinta` (i campi dell'autopsia dentro le STESSE gare del tetto:
+  i settori restano identici al bit), `avviaServerAnalisi` (battito via
+  `/api/watcher?probe=1`, tetto 12 s, stderr collettata per dire chi ha
+  spento il server), `presuppostiBrowser` con skip DICHIARATO col perché
+  (la legge della guardia di layout: verde che spiega, non rosso che finge).
+- **Le lezioni di sandbox**, dette e provate sul vivo:
+  - `EVO_DATA_DIR` ridirige il save del TOOL e `ACE_DATA` la cartella dati
+    del GIOCO (Results, log) — la lezione del 23/10: il vecchio data dir
+    fisso leggeva il save VERO anche nei test;
+  - il nodo NON si inventa: «serie_gt3» non esiste nel ladder e il boot
+    urla «Serie sconosciuta» — si prende il PRIMO nodo vero del ladder;
+  - il save finto parte SENZA parco piloti, ma `/api/boot` esplode
+    «reading 'drivers'»: `world: { drivers: [] }` lo acqua;
+  - la lingua ADOPTATA è una maglietta di tempo: il browser senza scelta
+    adotta `/api/lang` con una RICARICA che sposta l'attesa delle viste —
+    `evo-lingua` fissato in `addInitScript` PRIMA dei copioni del sito e
+    la vista è stabile dalla prima letta;
+  - le API si chiedono COME le chiede la GUI: POST col campo `lingua`, che
+    il dispatcher applica per richiesta (una GET terrebbe la lingua del
+    config e i due lati diverrebbero per legge, non per fortuna);
+  - i confronti a NUMERI, mai a stringhe: `msDi` per i secondi (decifra
+    virgola, punto e il meno stondato), `parseFloat` per la cella raw dei
+    punti/ronda, `numera` per le percentuali e le valige con la
+    punteggiatura di migliaia dei due locale;
+  - la Monte Carlo del sedile è confrontabile SOLO perché deterministica:
+    seme fisso `seatmc|nodo|stagione|diff|sims` in [src/analisi.mjs](src/analisi.mjs)
+    — due chiamate identiche rispondono identiche;
+  - il rebind della porta appena uscita non si conta: porte DISTINTE per
+    confronto e lingua (8745–8750).
+- **Il giro a due lingue**: ogni confronto itera `[['it', PORT], ['en', PORT_EN]]`
+  con server e cartella dati SUA. Oltre ai confronti di cifra valgono le
+  asserzioni della LINGUA: la legenda parla («campione»/«champion»), i
+  secondi portano il SEPARATORE giusto (virgola a it, PUNTO a en — `dec()`
+  del core), la prima etichetta KPI dichiara la lingua («Esito»/«Result»),
+  la marcatura senza archivio esce nella lingua della pagina
+  («griglia non in archivio»/«grid not in archive») e la MC parla le
+  parole giuste («stagioni per sedile»/«seasons per seat»,
+  «auto · ronde»/«cars · rounds»). Le tag del picco si cercano con la
+  parola della lingua (`picco`/`peak`), settore e valore resta sul testo
+  ORIGINALE.
+- **Due maglie EN trovate sul vivo e curate** in [gui/js/viste-analisi.js](gui/js/viste-analisi.js):
+  «— senza dati» e la tag «picco» stavano FUORI da `tr()` (il tooltip era
+  già tradotto, la stringa VIVA no) — passate per `tr()` e la guardia EN
+  le controlla con la parola della lingua (senza dati/no data, picco/peak).
+- **Verifica**: `node --test test/tetto-gui-json.test.mjs` → 3/3 (~18 s
+  con le due lingue), `npx biome check` sui due file → zero. Il passo di
+  sempre resta: file isolato durante il collaudo, `npm run check` intero
+  PRIMA di dichiarare la spunta fatta.
+
+
+### 3/11 — La prova del banner trim al vivaio: il trim accettato SLITTA la banda, provato via ENDPOINT (`test/proposta-trim-banda.test.mjs`)
+
+Il banco del 3/11 (sonda, poi smontata): il banner «Suggerimento in attesa»
+promette che accettare sposta la banda EVO della serie. La guardia parla
+AL VIVO del dispatcher: carriera vergine in sandbox (EVO_DATA_DIR + ACE_DATA + EVO_FLOWS_DIR, porte 8742), banda di partenza
+88–89 scritta con la op `range` dell'endpoint stesso (record con cursori
+veri: condizione della legge, la riga «↺» senza cursori seguirebbe il
+consiglio ricalcolato), proposta pendente seminata DIRETTAMENTE nel save
+(`proposeDifficulty` non ha endpoint di nascita: nasce da un risultato di
+gara — il server rilegge il save a ogni richiesta, la semina al file
+arriva a destinazione senza il tocco della carriera vera), accettazione
+per `POST /api/difficulty-action` op `accept` — lo STESSO tasto della GUI.
+
+- **La legge prova in AMBEDUE i sensi**: trim 0 → +2 = banda 90–91
+  (|to−from| = 2); trim +2 → −1 = banda 87–88 (|to−from| = 3). Il trim
+  della riga arriva a `pending.to`, la proposta si consuma (`pending`
+  torna null) e il save a valle (riletto dal disco) regge i valori
+  finali;
+- **il cancello**: una seconda accettazione senza proposta è un 400 con
+  «Nessun suggerimento in attesa», mai un crash;
+- il codice di legge sta nel ramo `accept` di `/api/difficulty-action`
+  (2/11: shift = (to − trim corrente) × 1 — il commento ×5 era morto).
+
+Verifica: `node --test test/proposta-trim-banda.test.mjs` → 1/1 (~0,5 s,
+server una singola tra le porte libere), `npx biome check` → zero.
+
+
+### 3/11 — Banner del trim: la cifra di slittamento legge il TRIM CORRENTE, non il «from» della proposta
+
+Il banner della scheda gara («🎯 Il tool suggerisce il trim») calcolava
+lo slittamento della banda con `to − from`, dove `from` è FISSATO nella
+proposta scritta in save al momento della nascita: se il trim era poi
+mosso (bottone ± del cruscotto, o accettazione di un altro consiglio),
+il banner prometteva punti che l'accept non avrebbe fatti — la legge
+reale dell'accept è `(to − trim corrente) × 1` ([src/webui.mjs:3073](src/webui.mjs#L3073)).
+
+- [src/webui-views.mjs](src/webui-views.mjs): la scheda ora allega al
+  `pendingProposal` anche `cur` = trim corrente della serie, letto dal
+  vivo del save al momento del payload;
+- [gui/js/viste-a.js](gui/js/viste-a.js): cifra e direzione (salita/
+  discesa) usano `cur`. Se `to` combacia col trim vivo il banner dice
+  **0 punti** — onesto: quell'accettazione non muove la banda;
+- il racconto della proposta (trim from → to) e il bottone resta così,
+  cambia SOLO la cifra promessa.
+
+Verifica: `npx biome check src/webui-views.mjs gui/js/viste-a.js` →
+zero; `node --test test/viste-guard.test.mjs test/race-card.test.mjs`
+→ 23/23 (~0,5 s), tetti della GUI in piedi.
+
+**Ripulitura tmp/ (3/11 ore 07:13)**: smontate ~75 sonde e log di suite
+(il nido di collaudo–dati: pacco-test, filbar-sandbox, gabbia-b, cover-gui,
+dati-layout, _journal-prova, più dump/json/log e i backup JS ridondanti
+con i commit del giorno). RIMANGONO: le copie di sicurezza del restauro
+dei 2/11
+(`tmp/_backup-rinomina`, `tmp/_diario-pre-restore.md`), i backup di
+gioco `.customgrid` (pre-cura e «veleni»), e i due testi da pubblicare
+(`anteprima-subreddit.html`, `corpo-release-0.1.46.md`). Riferimenti a
+questi percorsi nel codice erano solo di STORIA (commenti), mai attivi.
+tmp/ è ignorata da git: lo stato del deposito non cambia. Restano SOLO le
+lavorazioni vere della sessione (8 file modificati +
+test/proposta-trim-banda.test.mjs).
+
+
+### 3/11 — Campionati: il cap parla SOLO in badge (dati), la nota smette di incisionare la cifra
+
+Nel pannello Campionati il cap viveva in DUE posti col rischio di
+smentirsi: il badge (dal 3/11 mattino legge dal DATO,
+`LIMITI_GIOCO.restrictorMaxPct`) e il testo `nota` delle regole, che il
+generatore cuciva col numero fisso («→ cap 20; la prima gara decide»).
+Se una classe avesse un giorno portato un limite diverso, il badge avrebbe
+detto una cifra e la nota un'altra.
+
+- [tools/_genera-stili.mjs](tools/_genera-stili.mjs): le note al cap non
+  portano più la cifra — «→ cap della classe; la prima gara decide»
+  (e «cap della classe come l'Escort» per la variante fuori-finestra);
+- [src/stile-webui.mjs](src/stile-webui.mjs): il rilevatore del tag cap
+  capisce le note VECCHIE («→ cap 20») e le NUOVE («→ cap della classe»)
+  con una sola fregola `/→ (?:al )?cap/`;
+- [data/grid-classes.json](data/grid-classes.json) e
+  [test/fixtures/grid-classes-sample.json](test/fixtures/grid-classes-sample.json):
+  normalizzate le note esistenti (10 + 11 righe), zero residui «→ cap <n>».
+
+Verifica: `npx biome check` sui due sorgenti → zero; `node --test` (cap-dati-guard, gridclasses, semina-campionato, grid-calib) → 34/34 (~2 s).
+
+### 3/11 — File classi CORROTTO (JSON invalido): errore che NOMINA il file, non un mezzo tab Campionati
+
+Se [data/grid-classes.json](data/grid-classes.json) si marciva (un editor
+rompe il salvataggio, un disco che canta), `loadClasses` esplodeva col
+SyntaxError secco («Unexpected token», senza dire QUALE file) e la
+porticina `stili`, senza custodia, lasciava morire la richiesta: la GUI
+allora `api('stili').catch(() => ({ stili: [] }))` seppelliva tutto e
+spariva il pannello dei miscugli in silenzio — un mezzo tab Campionati
+senza indizi del perché.
+
+- [src/gridbuilder.mjs](src/gridbuilder.mjs): il `JSON.parse` è custodito —
+  errore che APRE col nome del file, percorso e causa, e dice la cura
+  («Sistema o elimina il file; al primo accesso torna la fixture»);
+  il memo NON tiene il marcio: ogni rilettura ripropone l'errore finché
+  il file non torna leggibile;
+- [src/webui.mjs](src/webui.mjs) (`case 'stili'`): l'errore esce come
+  risposta `{ error: «grid-classes.json CORROTTO…» }`, non come richiesta
+  appesa;
+- [gui/js/viste-b.js](gui/js/viste-b.js): nato `stileErrore` — un errore
+  che il server RISPONDE esce in un pannello leggibile nel tab; il vecchio
+  silenzio resta solo per la RETE in giù, che quella la racconta già il
+  filbar;
+- [test/cap-dati-guard.test.mjs](test/cap-dati-guard.test.mjs): ora copre
+  ANCHE lo scenario corrotto — prima una lettura BUONA (la classe si
+  accetta), poi LO STESSO percorso marcito SOTTO (il memo non maschera),
+  poi un file corrotto FRESCO (stesso errore, nessun dramma diverso):
+  l'errore deve APRIRE col nome del file, MAI un «Unexpected token» nudo.
+
+Nota di battitura (per le future guardie): su questo Node
+`assert.throws(fn)` SENZA l'argomento errore NON restituisce l'errore
+(esce `undefined` in diretta): quando serve il messaggio si cattura in
+try/catch.
+
+Verifica: `npx biome check` sui 4 sorgenti → zero errori; `node --test`
+(cap-dati-guard, gridclasses, semina-campionato, grid-calib,
+grid-templates, car-pool) → 61/61 (~2 s); webui-smoke → 1/1.
+
+### 3/11 — Sonda audit ricostruita + leva SOGLIE: le righe al cap escono con ⚠
+
+La leva chiesta da Mauro («nella `--report` della sonda audit segnala le
+SOGLIE attive nel diff») cadeva su una sonda GIÀ SMONTATA: la ripulitura
+di tmp/ delle 07:13 aveva portato via `tmp/_audit-dati-1101.mjs` (e le
+audit di casa la citano ancora). Ricostruita dal vivo: la STRUTTURA
+dell'output è quella fedele di
+[report/audit-dati-2026-11-02.num.md](report/audit-dati-2026-11-02.num.md),
+letta sui campi VERO del save di oggi (endurance_gt4, 13 sedili firmati,
+storico a 81 voci). Solo lettura come sempre: nulla tocca data/ né il save.
+
+La leva nuova nel diff (a terminale come nel .num.md):
+
+- sezione **== SOGLIE ==** a fondo report: le tre soglie di casa con la
+  loro marcatura (⚠ non è un defect: «riga al cap, guardaci tu»);
+- **messaggi** cap 60 (state.mjs · `pushMessage slice(-60)`) — a cap
+  pieno il box scarta dal più vecchio: riga ⚠;
+- **zips** cap MAX_ZIP in salva-save — la rotazione condanna il più
+  vecchio;
+- **trim di serie** cap ±20 (cli.mjs · `difficulty --trim`) — il save NON
+  dovrebbe portare oltre: se lo porta è anomalia;
+- la riga FINE chiude col numero: «⚠ soglie toccate: messaggi, zip».
+
+Due decisioni guida:
+- **MAX_ZIP si LEGGE, non si ricorda**: la sonda vecchia stampava
+  «MAX_ZIP=4» di ricordo (era il valore del 25/10); dal 31/10
+  (build 0.1.43) il salv-auto taglia a 2 (commit 37c762a) — la sonda ora
+  importa la costante vera da [tools/salva-save.mjs](tools/salva-save.mjs);
+- sezione DISCO filtrata: la vecchia riportava tutto l'elenco dei file
+  (rumore di tmp/); qui il dato utile: cartelle sempre, file top-level
+  da ≥ 0,1 MB.
+
+Run dal vivo (3/11 ore 08:39, --report):
+[report/audit-dati-2026-11-03.num.md](report/audit-dati-2026-11-03.num.md)
+— ⚠ su messaggi (60 al cap) e zip (2 a cap: il più vecchio è condannato),
+raceSettings 86 record tutte sane, classi dentro cap, trim vivo max −5
+(lontano dal ±20); potatura .num.md: 2 voci, sotto il tetto dei 3.
+
+### 3/11 — Audit + blocco bestLaps: le doppie grafie escono con ⚠ da sole
+
+Ritocco alla leva SOGLIE (richiesta Mauro: «aggiungi il blocco bestLaps
+con le doppie grafie segnalate con ⚠, così la prossima leva le vede da
+sola»): la sonda ora porta un blocco **== SAVE: bestLaps ==** subito dopo
+il garage — record presenti, piste uniche, e le doppie grafie
+(CASE-INSENSITIVE, il criterio della leva di cura del 2/11) con la
+propria marcatura e la lista «"imola" + "Imola"» accanto.
+
+Due decisioni:
+- **la normalizzazione di grafia si IMPORTA, non si riscrive**:
+  `grafiaNorma` viene da [tools/normalizza-bestlaps.mjs](tools/normalizza-bestlaps.mjs)
+  (con fallback in linea se la leva manca) — il criterio è UNO per ogni
+  lettore di bestLaps, stessa lezione del MAX_ZIP sopra;
+- la sezione **== SOGLIE ==** guadagna la riga «bestLaps cap 0 → ...» e
+  la FINE chiude col nome («⚠ soglie toccate: messaggi, zip, bestLaps»):
+  le doppie grafie al cap 0 si toccano appena compaiono.
+
+Run dal vivo delle 08:49: la sonda COLLASSA il dato reale — il save
+porta «imola» (02:17.115) + «Imola» (02:05.382): ⚠ 1 doppia grafia,
+record nel blocco, nella SOGLIE e in FINE. La prossima leva di cura
+(`node tools/normalizza-bestlaps.mjs --dry`) le vede da sola.
+Esito: [report/audit-dati-2026-11-03.num.md](report/audit-dati-2026-11-03.num.md).
+
+### 3/11 — Leva bestLaps agganciata al nodo di import: le gare nuove non riseminano più doppie grafie
+
+Terzo passo della giornata sui bestLaps (richiesta Mauro: «aggancia la
+leva normalizza-bestlaps al nodo di import»). Il dato era impietoso:
+l'unico punto di scrittura dei record personali è
+[src/state.mjs](src/state.mjs) · `applyRaceResult`, e scriveva
+`s.bestLaps[track]` col VALORE DEL PAYLOAD — cioè l'ID del calendario
+(`brands_hatch`) — mentre i lettori di casa (`race.mjs` · lapTarget,
+`life.mjs` · trackMastery, `tracks.mjs`) cercano il NOME ATTIVO
+(`ladder.contentNames.tracks[id]`, `Brands Hatch`): la chiave scritta
+non la voleva MAI, e un eventuale doppio impianto era una gara di
+distanza. Tre decisioni:
+
+- **il criterio vive in src/state.mjs, la leva lo riusa**: `grafiaNorma`
+  (case-insensitive; gli ACCENTI NON sono grafia, come per la leva
+  del 2/11) è definita lì — tools/normalizza-bestlaps.mjs la re-importa
+  e la re-esporta, così audit e test vecchi continuano a comprarla nella
+  leva e non esiste nessuna copia del criterio in due posti;
+- **`chiaveBestLaps(bl, seme, nomiCanon)`** è il canone di scrittura:
+  il SEME è il nome attivo (`contentNames.tracks[track] ?? track`), poi
+  la chiave atterra sulla grafia GIÀ PRESENTE se c'è (l'imola
+  pre-canone del 23/9 riceve la gara nuova invece di farsi una gemella),
+  altrimenti sul nome ladder — quello che i lettori cercano davvero;
+- **il collaudo su UN ID REALE ha mostrato la Bertolli**: brands_hatch ≠
+  «Brands Hatch» per il trattino basso — l'id NON è un seme: la prima
+  stesura semava un TERZO impianto; con il seme sul nome attivo il
+  record finisce nella grafia viva (verificato a mano con una probe
+  buttata e giù). La guardia: test/normalizza-bestlaps.test.mjs +2 —
+  chiaveBestLaps in puro e `applyRaceResult` non risemina doppie grafie.
+
+Verifica: `node --test` su normalizza+agenda+race-card+life → 38/38
+(agenda incluso, perché chiama applyRaceResult su ladder vero);
+normalizza-bestlaps.test.mjs → 8/8; biome sui 3 sorgenti → zero errori
+zero warning; la sonda --report (che ora LEGGE grafiaNorma dalla leva,
+che a sua volta legge da state.mjs: doppia dipendenza voluta e
+sorvegliata) segnala sempre l'imola doppia — il canone serve alle gare
+DA OGGI, i record già in save restano doppie finché la leva non le
+fonde, ed è per questo che la CURA RESTA: l'imola minuscola non la
+trova NESSUNO dei lettori che cercano il nome attivo.
+
+Nota in più: il messaggio della scrittura (pushMessage «Nuovo miglior
+giro personale a X») ora usa la chiave canonica: la bacheca dice
+«Brands Hatch», non «brands_hatch».
+
+### 3/11 — chiusura: il POST FORUM LUNGO è montato
+- **Il fatto**: chiesto da Mauro («Prepara anche la versione forum lungo
+del post di presentazione, con il tono tecnico e le stesse claim
+verificate dal verdetto DA-8»), subito dopo la suite piena 895/895.
+- **Il montaggio**: [POST-PRESENTAZIONE-FORUM-LUNGO.md](POST-PRESENTAZIONE-FORUM-LUNGO.md) —
+  apertura IT (scelta R3), tono tecnico per il forum EVO (scelta R2):
+  le 11 claim vive del verdetto DA-8, una sezione ciascuna con l'aggancio
+  tecnico vera (seed + ΔPI + cap 20% + ricalibrazione per pista; catena
+  ESATTA→CONTIENE→PAROLE→ALIAS; backup/verifica pre-scrittura; le guardie
+  anti-cheat del calendario) + una sezione in più «Come è fatto
+  dentro» (CLI + GUI web + le due app in gioco, fonti SOLO i file di
+  EVO in Saved Games) e claim 11 in più (il dizionario auto che impara
+  da solo, i giorni scorsi).
+- **Discipline del verdetto rispettate**: i NOMI DI SCHERMO veri («Pools
+  sorteggiati a sorte dal catalogo · seed · cap 20%», mai «Campionati a
+  miscuglio») e le due foto in-diretta DICHIARATE segnaposto con il bordo
+  «🤖 engine non disponibile» spiegato in didascalia. Il fotogramma «nel
+  menù di EVO» resta il residuo dichiarato (DA-19 taccuino).
+- **Puntatore aggiornato**: la riga R2 della tabella residuo in
+  [IDEA-POST-PRESENTAZIONE.md](IDEA-POST-PRESENTAZIONE.md) ora accenna la
+  versione lunga (e il taglio corto resta POST-PRESENTAZIONE-IT.md).
+- **Didascalie allineate (3/11, chiusura)**: la nota sulla fascia
+  «engine non disponibile» era nell'EN e non nell'IT — portata anche in
+  [POST-PRESENTAZIONE-SUBREDDIT.md](POST-PRESENTAZIONE-SUBREDDIT.md) sotto
+  le due foto («della seconda immagine», che nell'ordine del taglio è il
+  Cruscotto); l'EN del taglio ([POST-PRESENTAZIONE-SUBREDDIT-EN.md](POST-PRESENTAZIONE-SUBREDDIT-EN.md)
+  diceva «first shot» col Cruscotto SECONDO nel suo ordine: rettificata
+  «second shot (Cruscotto)». I post lunghi IT/EN restano corretti:
+  lì il Cruscotto è PRIMO nell'ordine. Nessun codice toccato.
+- **Verifiche**: nessun codice toccato (solo documenti); rilettura del
+  post a schermo con le due grafie sbagliate restanti corrette; il dato
+  «895/895» del post è il banco intero girato oggi pomeriggio (exit 0).

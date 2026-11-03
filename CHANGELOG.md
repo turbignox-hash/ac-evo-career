@@ -4,6 +4,33 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md) (il registro completo). Il save in
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
+## v0.1.53 — 3/11/2026
+
+- **Le date di sessione in tutti i tab del giro** (richieste Mauro): le
+  voci dei menu del banco A/B portano il GIORNO COMPLETO nell'option
+  (AUTO · PISTA · GIORNO ORA — non solo nel titolo del gruppo optgroup;
+  le sessioni senza giri cronometrati restano in coda disabilitate con
+  la STESSA scritta data) — [viste-analisi.js:238](gui/js/viste-analisi.js#L238);
+  la DATA DI SESSIONE entra anche nel MODALE del confronto, accanto al
+  nome file dei due cartoncini A e B (helper dataDi, token dal nome file
+  e non mtime — la lezione datario 2/11; sessione sparita = niente
+  data, il cartoncino regge col solo nome)
+  ([viste-analisi.js:259](gui/js/viste-analisi.js#L259)); e nel
+  **grafico del giro** le option del menu Sessione portano data-when e
+  la dicitura sotto al grafico la ripete in grassetto
+  ([viste-c.js:984](gui/js/viste-c.js#L984)).
+- **L'etichetta «picco» del confronto giri, riparata**: col picco
+  POSITIVO il ternario del {MX} nella dicitura del grafico mangiava il
+  numero («picco +» senza valore); ora
+  `(d.dvMax >= 0 ? '+' : '') + d.dvMax.toFixed(1)` — stesso schema del
+  {D} della differenza media; il caso negativo non cambia
+  ([viste-c.js:1009](gui/js/viste-c.js#L1009)).
+- **Verifica**: pagina viva sul server 8642, scheda Setup: dicitura del
+  grafico «02/11/2026, 00:53:50 · … · picco +20.1 / minimo −15.0 km/h»,
+  menu Sessione datato, cartoncini A/B datati, console pulita. Zero unit
+  test in più: markup dell'interfaccia, la prova del vivo è la verifica
+  (dettagli in [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md), voce del 3/11).
+
 ## v0.1.52 — 3/11/2026
 
 - **Le catene di lettura, una volta per tutte**: calendario, garage e

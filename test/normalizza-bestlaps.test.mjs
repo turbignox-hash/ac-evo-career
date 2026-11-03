@@ -13,7 +13,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizzaBestLaps, lapMs, grafiaNorma } from '../tools/normalizza-bestlaps.mjs';
+import { normalizzaBestLaps, lapMs, grafiaNorma, chiaveBestLaps } from '../tools/normalizza-bestlaps.mjs';
 
 const IMPOLA_VECCHIA = { time: '02:17.115', car: 'Abarth 695 Biposto', season: 1, round: 0, at: '2026-09-23T18:21:00.103Z' };
 const IMPOLA_VIVA = { time: '02:05.382', car: 'Porsche 911 GT3 RS (992)', season: 13, round: 5, at: '2026-10-31T14:46:24.242Z' };
@@ -73,4 +73,60 @@ test('Chiavi anormali (spazi, record null) non fanno esplodere la fusione', () =
   assert.deepEqual(nuovo.Suzuka, { time: '02:10.000' }, 'anche con spazi la grafia si raggruppa case-insensitive.');
   assert.equal(nuovo.vuota, null, 'il record vuoto non è un peccato: si conserva com\'è.');
   assert.equal(fusioni.length, 1);
+});
+
+// — AGGANCIO 3/11: la leva arriva PRIMA del nodo di import —
+// La scrittura di una gara NUOVA (src/state.mjs · applyRaceResult) usa
+// chiaveBestLaps: nessuna doppia grafia dovrà più risorgere dal save.
+
+test('chiaveBestLaps: una gara nuova atterra sulla grafia GIÀ PRESENTE, non ne semina una gemella', () => {
+  const bl = { imola: IMPOLA_VECCHIA, Monza: MONZA };
+  // l'import porta «Imola» (nome attivo del ladder): la chiave è l'imola vecchia
+  assert.equal(chiaveBestLaps(bl, 'Imola', ['Imola', 'Monza']), 'imola', 'la grafia esistente (anche bassa) riceve il record nuovo.');
+  // grafia non ancora toccata e nome ladder presente: il canone del ladder
+  assert.equal(chiaveBestLaps(bl, 'suzuka', ['Suzuka']), 'Suzuka', 'il nome ladder è il canone per le piste nuove.');
+  // niente aggancio possibile: il valore del payload, pulito
+  assert.equal(chiaveBestLaps(bl, '  laguna ', []), 'laguna', 'senza aggancio la chiave è il payload, senza spazi in testa né in coda.');
+  // accento ≠ grafia: il canone del ladder NON aggancia la pista accennata
+  assert.equal(chiaveBestLaps({ Nürburgring:IMPOLA_VECCHIA }, 'Nurburgring', []), 'Nurburgring', 'l\'accento NON è grafia: la chiave bassa non atterra su quella accennata (e viceversa).');
+});
+
+test('applyRaceResult NON risemina doppie grafie: il record di una gara nuova va nella grafia esistente', async () => {
+  await import('./_flows-sandbox.mjs');
+  const { readFileSync } = await import('node:fs');
+  const { join, dirname } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const ROOT = join(dirname(dirname(fileURLToPath(import.meta.url))));
+  const LADDER = JSON.parse(readFileSync(join(ROOT, 'config', 'career.evo.ladder.json'), 'utf8'));
+  const { createCareer, applyRaceResult, nodeById } = await import('../src/state.mjs');
+
+  const ladder = JSON.parse(JSON.stringify(LADDER));
+  const state = createCareer(ladder, { name: 'Canone', first: 'C', last: 'N' });
+  const node = nodeById(ladder, state.node);
+  const trackId = node.calendar[0].track;
+  const disp = ladder.contentNames?.tracks?.[trackId] ?? trackId;   // il nome attivo (i lettori cercano QUESTO)
+  // la doppia grafia dell'anomalia A1: STESSA grafia, ALTRA battitura —
+  // la C maiuscola/minuscola ribaltata ('brands Hatch' ≈ 'Brands Hatch');
+  // il trattino basso dell'ID NON è grafia: un id tipo brands_hatch resta
+  // un'altra pista agli occhi della leva e del canone.
+  const strana = disp[0] === disp[0].toLowerCase()
+    ? disp[0].toUpperCase() + disp.slice(1)
+    : disp[0].toLowerCase() + disp.slice(1);
+  assert.notEqual(strana, disp, 'fixture: serve una grafia DIVERSA a parità di suono');
+  assert.equal(grafiaNorma(strana), grafiaNorma(disp), 'fixture: le due grafie devono raggrupparsi insieme');
+  state.stats ??= {};
+  state.stats.bestLaps ??= {};   // su una carriera vergine ensureStats non è ancora passata
+  state.stats.bestLaps[strana] = { time: '99:99.999', car: 'Vecchia', at: '2026-01-01T00:00:00.000Z' };
+
+  // la gara nuova (track = id del calendario) scrive il record personale
+  applyRaceResult(ladder, state, node, {
+    position: 1, gridSize: node.gridSize, track: trackId, bestLap: '01:39.000', fl: false,
+  });
+
+  const chiavi = Object.keys(state.stats.bestLaps);
+  const gruppi = new Set(chiavi.map((k) => grafiaNorma(k)));
+  assert.equal(chiavi.length, gruppi.size, 'nessuna doppia grafia dopo l\'import: il nuovo atterra sulla grafia già presente.');
+  assert.ok(chiavi.includes(strana), `la chiave preesistente «${strana}» resta, la gara nuova la raccoglie (non la gemella «${disp}»).`);
+  assert.ok(!chiavi.includes(disp), `non dev'essersi creata la chiave gemella «${disp}» accanto a «${strana}».`);
+  assert.ok(state.stats.bestLaps[strana].time < '02', `il record migliore sulla grafia viva è fresco (trovato: ${state.stats.bestLaps[strana].time}).`);
 });

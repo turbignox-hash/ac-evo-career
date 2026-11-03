@@ -37,15 +37,23 @@
 import { readFileSync, copyFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { activeSlot, loadState, savePath, saveState, slotDataDir } from '../src/state.mjs';
+// AGGANCIO 3/11 (richiesta Mauro): il canone della chiave SI SCRIVE GIÀ GIUSTO
+// dal nodo di import — src/state.mjs · chiaveBestLaps (usato da applyRaceResult)
+// — e il criterio di GRAFIA vive UNO solo, in src/state.mjs · grafiaNorma:
+// qui il re-export tiene vita ai vecchi import (audit, test). La leva resta la
+// cura delle doppie GRAFIE GIA IN SAVE, arrivate prima del canone.
+import {
+  activeSlot, loadState, savePath, saveState, slotDataDir, grafiaNorma, chiaveBestLaps,
+} from '../src/state.mjs';
 import { LADDER_FILE } from '../src/orario.mjs';
 
 const ROOT = join(import.meta.dirname, '..');
 
-/** Identità di GRAFIA (case-insensitive): quella dell'anomalia A1. */
-export function grafiaNorma(s) {
-  return String(s ?? '').trim().toLowerCase();
-}
+/** Identità di GRAFIA (case-insensitive): quella dell'anomalia A1.
+ *  Definite in src/state.mjs; qui si ri-esportano il criterio e il canone
+ *  della scrittura (chiaveBestLaps) — i vecchi import (audit, test)
+ *  continuano a comprarli dalla leva, nessuna copia del criterio. */
+export { grafiaNorma, chiaveBestLaps };
 
 /** ms del giro, stesso formato del save ('M:SS.mmm' e 'H:MM:SS.mmm'); fallisce a Infinity. */
 export function lapMs(t) {

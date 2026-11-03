@@ -39,10 +39,11 @@ export function stileOverview(ladder, state) {
         auto: r.auto,
         kg: r.ballastKg ?? 0,
         pct: r.restrictorPct ?? 0,
-        // le regole al cap portano la nota «→ cap 20; la prima gara decide»
-        // (testo del file, 10/10: la cifra con la nota è DATA, il badge legge
-        // capPct qui a sotto — non questo testo)
-        cap: /→ cap/.test(r.nota ?? ''),
+        // tag capSenzaCIFRA (3/11, richiesta Mauro): la nota vive SENZA numero
+        // («→ cap 20» del dato vecchio, «→ cap della classe» del generatore
+        // nuovo) — la CIFRA è solo del badge, dal file LIMITI_GIOCO qui a
+        // sotto: il testo non può smentire il dato se un limite cambia.
+        cap: /→ (?:al )?cap/.test(r.nota ?? ''),
       })),
       // (3/11, richiesta Mauro: «il cap del miscuglio dai dati»): il CAP del
       // restrictor NON vive nel template della GUI — arriva dai DATI della

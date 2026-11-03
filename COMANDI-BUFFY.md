@@ -276,8 +276,8 @@ CHE IL COMANDO PORTA GIÀ DENTRO: `"test": "node --test test/*.test.mjs"`
 la scopre col glob, e `"check": "npm test && npm run lint"` la esegue a ogni
 passata. 21 tab — i 19 in nav (Dashboard → Analisi) e i 2 NASCOSTI senza
 bottone in nav (Calendario, Classifica Mondiale, aperti dalla sonda con la
-stessa leva dei click vivi `tab = '…'; render()`, flag `nascosto`) — × 5
-larghezze (320 · 360 · 480 · 1250 · 1920) = 105 misure: `assettaVista` clicka
+stessa leva dei click vivi `tab = '…'; render()`, flag `nascosto`) — × 6
+larghezze (256 · 320 · 360 · 480 · 1250 · 1920) = 126 misure: `assettaVista` clicka
 via evaluate e aspetta il marcatore di vista (`#drv-messaggi` la Posta,
 `#rv-registro` i Rivali, `#ch-carica` i Campionati, `#an-tetto` l'Analisi,
 `#cal-titolo` il Calendario nascosto, `#mondo-vetrina` la Classifica
@@ -298,7 +298,8 @@ La prova del 3/11 (dopo le due voci del diario di questa giornata:
 giro completo: suite `888/888` con la guardia dentro e Biome senza
 errori (gli stessi 5 warning preesistenti e documentati), `npm run check`
 exit 0 — la forma del 3/11 con i tab nascosti (2 tab
-in più, 105 misure) in [tmp/check-21tab.log](tmp/check-21tab.log) e la
+in più, 105 misure poi) e con la sesta larghezza 256 (126 misure, la
+forma corrente) in [tmp/test-256.log](tmp/test-256.log) e la
 guardia da sola in [tmp/layout-21tab.log](tmp/layout-21tab.log) (`ok 1`,
 28 s). PC amico senza
 chromium: la suite salta onesto (zero misure) e il check resta verde.
@@ -313,3 +314,115 @@ Classifica Mondiale (105 misure, 21 tab × 5 larghezze) e la voce
 «Guardia di layout nel comando check» per il legame dimostrato con la
 «Guardia di layout nel comando check» per il legame dimostrato con la
 spunta standard.
+
+---
+
+### Guardia della fitta-fitta Analisi (spunta standard, 3/11)
+
+> Guardia Analisi a confronto: gira tetto-gui-json e dimmi se le due
+> facce del tab Analisi (GUI e JSON) si stringono la mano a entrambe
+> le lingue.
+
+Cosa fa l'agente: la SPUNTA STANDARD dopo ogni tocco al tab Analisi —
+grafica ([gui/js/viste-analisi.js](gui/js/viste-analisi.js)), server
+([src/analisi.mjs](src/analisi.mjs) e i casi `tetto`/`autopsy`/`seat-mc`
+del dispatcher webui) o la legge della lingua ([src/lang.mjs](src/lang.mjs)).
+Un passo: `node --test test/tetto-gui-json.test.mjs` — 3 confronti ×
+2 lingue (it · en, porte 8745–8750, ~18 s):
+
+1. **Tetto teorico**: la tabella disegnata LETTA riga per riga contro
+   `/api/tetto` — stessa lista di piste VERE (le piste senza riparto
+   restano fuori, lezione Suzuka), stesse Gare, stessa busta, stessa
+   mediana del reparto col SUO settore, stesso picco e stesso margine
+   onesto;
+2. **Autopsia della gara**: i SEI KPI uno a uno, le cagioni una per una
+   (tag e testo entrambi in pannello) e la marcatura «griglia non in
+   archivio» quando il JSON dice `hasRaceRow:false` — niente confronti
+   finti sul campo-top;
+3. **Monte Carlo del sedile**: la tabella riga per riga contro
+   `/api/seat-mc` con gli STESSI sims della GUI (400) — legale perché la
+   stima è deterministica (seme fisso `seatmc|nodo|stagione|diff|sims`).
+
+A due lingue vale in più la misura della LINGUA: legenda e testate
+tradotte («campione»/«champion»), secondi col SEPARATORE della lingua
+(virgola a it, PUNTO a en), la prima etichetta KPI e le parole della
+sottoriga MC giuste per lingua. I confronti restano a NUMERI, mai a
+stringhe: `msDi`/`parseFloat`/`numera` decifrano entrambi i separatori.
+
+Skip onesti: senza `playwright-core` o senza `chromium` nella cache di
+Playwright la misura resta `ok` col perché nel TAP, come la guardia di
+layout. Il save e la cartella del GIOCO vivono in sandbox
+(`EVO_DATA_DIR`/`ACE_DATA`), mai sui file veri; le porte 8745–8750
+devono stare libere (una per pannello e lingua).
+
+Lo stesso passo per vista singola: il `node --test` del file isolato
+durante il collaudo, e `npm run check` intero PRIMA di dichiarare la
+spunta fatta.
+
+Riferimenti nel diario: la voce 3/11 «La fitta-fitta del tab Analisi»
+per le lezioni di sandbox (adozione della lingua, carriera finta e
+decifratori numerici).
+
+---
+
+### Sonda audit dei dati (spunta standard, 3/11)
+
+> Sonda audit dei dati: gira la sonda audit con --report e dimmi come
+> stanno i dati di casa, con le soglie segnate.
+
+Cosa fa l'agente: `node tmp/_audit-dati-1101.mjs --report` — SOLO
+LETTURA dei dati (data/) e del save: l'unica carta scritta è
+[report/audit-dati-AAAA-MM-GG.num.md](report/audit-dati-2026-11-03.num.md)
+(quello del giorno), con potatura dei .num.md oltre i 3 più recenti.
+Senza `--report` il diff esce SOLO a terminale, niente scritture.
+
+La leva SOGLIE (3/11): le righe del diff che toccano o superano un
+LIMITE NOTO del codice portano un ⚠ — che NON è un difetto: è
+«riga al cap, guardaci tu»:
+
+- **messaggi** cap 60 (`state.mjs` · `pushMessage slice(-60)`);
+- **zips** cap MAX_ZIP (`tools/salva-save.mjs`) — la sonda LEGGE la
+  costante VERA dal codice (dal 31/10 è 2), non lo ricorda (i report più
+  vecchi stampavano «4», il valore di un altro giorno);
+- **trim di serie** oltre ±20 (`cli.mjs` · `difficulty --trim`) — il
+  save non dovrebbe mai portare oltre: se lo porta è anomalia;
+- **doppie grafie di bestLaps** (cap 0, le esce appena compaiono) —
+  criterio case-insensitive IMPORTATO dalla leva di cura
+  [tools/normalizza-bestlaps.mjs](tools/normalizza-bestlaps.mjs), con la
+  lista delle chiavi doppie nel blocco SAVE: bestLaps.
+
+La riga FINE chiude col numero: «⚠ soglie toccate: messaggi, zip».
+
+Le sezioni del diff, nell'ordine: DISCO (cartelle di data/, sempre, più
+i file top-level da ≥ 0,1 MB), SAVE (carta d'identità · difficulty ·
+raceSettings · garage · bestLaps), LADDER, CLASSI (grid-classes.json),
+SALVA-SAVE (gli zip in slot-1/slot-2) e SOGLIE a fondo pagina.
+
+Riferimenti nel diario: le voci 3/11 «Sonda audit ricostruita + leva
+SOGLIE» (ricostruzione e decisioni guida) e «Leva bestLaps agganciata
+al nodo di import» (il canone delle gare nuove); esempio di esito:
+[report/audit-dati-2026-11-03.num.md](report/audit-dati-2026-11-03.num.md).
+
+---
+
+### Leva normalizza-bestlaps agganciata al nodo di import (spunta per le
+gare nuove, 3/11)
+
+> Normalizza le grafie di bestLaps nel save; poi dimmi se le gare nuove
+> le possono ancora raddoppiare.
+
+Due gesti separati:
+
+1. **cura delle doppie GIA IN SAVE** — `node tools/normalizza-bestlaps.mjs
+   [--dry]` fonde i gruppi di grafia case-insensitive col canone del
+   ladder; GUARDIA ANTI-CORSA: webui col save in memoria vivo → NON
+   scrive: prima `node tools/riavvia-webui.mjs`, poi si rilancia;
+2. **prevenzione delle gare NOVE** — non serve più alcun gesto: la
+   scrittura del record personale (src/state.mjs · applyRaceResult)
+   passa da chiaveBestLaps (seme = nome attivo del ladder; grafia già
+   presente riceve la gara nuova, altrimenti canone). Il criterio
+   grafiaNorma vive in src/state.mjs e la leva fa il re-export (una
+   sola copia). Guardia del canone: test/normalizza-bestlaps.test.mjs.
+
+Riferimenti nel diario: la voce 3/11 «Leva bestLaps agganciata al nodo
+di import: le gare nuove non riseminano più doppie grafie».

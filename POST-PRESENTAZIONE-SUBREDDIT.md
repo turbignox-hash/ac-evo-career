@@ -14,6 +14,10 @@
 
 ![Cruscotto — registro cambio auto, consigli dal box, «Prepara e Divertiti»](docs/screenshots/in-diretta/cruscotto.png)
 
+*(Anteprime dell'interfaccia v0.1.45, rese fuori dal gioco sul server
+vero — la fascia «engine non disponibile» della seconda immagine è il
+marchio: in gioco non compare.)*
+
 **Pitwall (ac-evo-career) — la carriera di AC EVO gestita dal desktop, e in pista parla il copilota in italiano**
 
 https://github.com/turbignox-hash/ac-evo-career

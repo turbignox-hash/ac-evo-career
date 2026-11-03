@@ -201,7 +201,7 @@ Tre cose separano la bozza dal post VERO — una è garantita, due sono un gesto
 | # | Residuo | Stato 1/11 | Cosa serve per chiudere |
 |---|---|---|---|
 | R1 | **Release pubblica** (DA-7 al suo turno) | Il pacchetto c'È e prova: `pacchetti/ac-evo-career-amico-v0.1.45-6f796e1.zip` su [report/release-0.1.45.md](report/release-0.1.45.md) — 697/697 test, danza amico 24/24 | il gesto di Mauro: `sincronizza-git.cmd` (push) + `node tools/crea-release.mjs v0.1.45 … --asset pacchetti/ac-evo-career-amico-v0.1.45-6f796e1.zip`. Il post segue la release, mai il contrario |
-| R2 | **Canale** | NON deciso | forum EVO, subreddit (o entrambi): il TONO e la lunghezza cambiano — forum lungo e tecnico, subreddit corto con le foto in testa. Da scegliere PRIMA di montare il post |
+| R2 | **Canale** | NON deciso | forum EVO, subreddit (o entrambi): il TONO e la lunghezza cambiano — forum lungo e tecnico, subreddit corto con le foto in testa. Da scegliere PRIMA di montare il post. AGG. 3/11: la versione FORUM LUNGO è montata — [POST-PRESENTAZIONE-FORUM-LUNGO.md](POST-PRESENTAZIONE-FORUM-LUNGO.md) (tono tecnico, claim del verdetto, nomi veri degli schermi; il taglio corto resta POST-PRESENTAZIONE-IT.md) |
 | R3 | **Apertura IT/EN** | IL DOPPIO ESISTE: la bozza è bilingue rigo per rigo — resta solo l'ORDINE | l'apertura IT (il pubblico EVO italiano è quello del copilota) e l'EN rincodata; si fissa insieme a R2 |
 
 Restano fuori dalla tabella (già tracciate altrove): la caccia agli screenshot

@@ -691,28 +691,28 @@
           "auto": "Hyundai i30 N",
           "ballastKg": 100,
           "restrictorPct": 20,
-          "nota": "formula Δ1.077×25=26.9% → cap 20; la prima gara decide"
+          "nota": "formula Δ1.077×25=26.9% → cap della classe; la prima gara decide"
         },
         {
           "preset": "preset_cntqv_mech_1",
           "auto": "Lamborghini Countach",
           "ballastKg": 100,
           "restrictorPct": 20,
-          "nota": "formula Δ1.019×25=25.5% → cap 20; la prima gara decide"
+          "nota": "formula Δ1.019×25=25.5% → cap della classe; la prima gara decide"
         },
         {
           "preset": "preset_i30n_hb_mech_1",
           "auto": "Hyundai i30 N",
           "ballastKg": 100,
           "restrictorPct": 20,
-          "nota": "formula Δ0.875×25=21.9% → cap 20; la prima gara decide"
+          "nota": "formula Δ0.875×25=21.9% → cap della classe; la prima gara decide"
         },
         {
           "preset": "preset_mx5na_mech_2",
           "auto": "Mazda MX-5 NA",
           "ballastKg": 100,
           "restrictorPct": 20,
-          "nota": "formula Δ0.821×25=20.5% → cap 20; la prima gara decide"
+          "nota": "formula Δ0.821×25=20.5% → cap della classe; la prima gara decide"
         },
         {
           "preset": "preset_mx5na_mech_1",
@@ -776,14 +776,14 @@
           "auto": "Toyota Supra MKIV",
           "ballastKg": 100,
           "restrictorPct": 20,
-          "nota": "variante fuori dalla finestra del livello (13.026) → cap 20 come l'Escort (lezione 27/10); la prima gara decide"
+          "nota": "variante fuori dalla finestra del livello (13.026) → cap della classe come l'Escort (lezione 27/10); la prima gara decide"
         },
         {
           "preset": "preset_288gto_mech_1",
           "auto": "Ferrari 288 GTO",
           "ballastKg": 100,
           "restrictorPct": 20,
-          "nota": "formula Δ0.980×25=24.5% → cap 20; la prima gara decide"
+          "nota": "formula Δ0.980×25=24.5% → cap della classe; la prima gara decide"
         },
         {
           "preset": "preset_mln_mech_1",
@@ -849,28 +849,28 @@
           "auto": "Alfa Romeo Giulia GTAm",
           "ballastKg": 100,
           "restrictorPct": 20,
-          "nota": "formula Δ1.200×25=30% → cap 20; la prima gara decide"
+          "nota": "formula Δ1.200×25=30% → cap della classe; la prima gara decide"
         },
         {
           "preset": "preset_718gt4rs_mech_1",
           "auto": "Porsche 718 Cayman GT4 RS",
           "ballastKg": 100,
           "restrictorPct": 20,
-          "nota": "formula Δ1.102×25=27.5% → cap 20; la prima gara decide"
+          "nota": "formula Δ1.102×25=27.5% → cap della classe; la prima gara decide"
         },
         {
           "preset": "preset_718gt4rs_mech_2",
           "auto": "Porsche 718 Cayman GT4 RS",
           "ballastKg": 100,
           "restrictorPct": 20,
-          "nota": "formula Δ1.102×25=27.5% → cap 20; la prima gara decide"
+          "nota": "formula Δ1.102×25=27.5% → cap della classe; la prima gara decide"
         },
         {
           "preset": "preset_zl1_mech_2",
           "auto": "Chevrolet Camaro ZL1",
           "ballastKg": 100,
           "restrictorPct": 20,
-          "nota": "formula Δ0.931×25=23.3% → cap 20; la prima gara decide"
+          "nota": "formula Δ0.931×25=23.3% → cap della classe; la prima gara decide"
         },
         {
           "preset": "preset_zl1_mech_1",
@@ -981,7 +981,7 @@
           "auto": "Ferrari 296 GT3",
           "ballastKg": 100,
           "restrictorPct": 20,
-          "nota": "formula Δ1.243×25=31.1% → cap 20; la prima gara decide"
+          "nota": "formula Δ1.243×25=31.1% → cap della classe; la prima gara decide"
         },
         {
           "preset": "preset_m4gt3_mech_1",

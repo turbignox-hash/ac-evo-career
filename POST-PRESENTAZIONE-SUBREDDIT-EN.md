@@ -14,8 +14,8 @@
 ![Cruscotto — car-swap log, pit-wall advice, "Prepara e Divertiti" (Prepare and Have Fun)](docs/screenshots/in-diretta/cruscotto.png)
 
 *(Previews of the v0.1.45 interface, rendered outside the game on the real
-server — the "engine not available" strip on the first shot is the marker:
-it doesn't appear in game.)*
+server — the "engine not available" strip on the second shot (Cruscotto)
+is the marker: it doesn't appear in game.)*
 
 **Pitwall (ac-evo-career) — the AC EVO career managed from your desktop, and on track your copilot speaks Italian**
 

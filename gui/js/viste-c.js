@@ -312,7 +312,7 @@ async function drawGarage(m){
          non sta meglio in analizza o setup?»): la materia del banco sono I GIRI
          (sessioni MoTeC diff, tempo perso per zona), non i setup sul disco —
          posto giusto il tab Analisi, accanto ad autopsia/tetto/Monte Carlo. -->
-    <div id="g-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px"></div>
+    <div id="g-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr));gap:12px"></div>
   </div>`;
   const draw = (gg) => {
     $('#g-grid').innerHTML = gg.cars.map(c=>`
@@ -1006,7 +1006,7 @@ async function drawSetup(m){
       }
       if (!t.ok) { out.innerHTML = `<div class="banner info">${esc(t.hint ?? tr({ it: 'Nessun dato', en: 'No data' }))}</div>`; return; }
       const d = t.compare;
-      out.innerHTML = lapChartSvg(t) + `<div class="muted" style="font-size:11px;margin-top:4px">${selWhen ? `<b>${esc(selWhen)}</b> · ` : ''}${d ? tr({ it: 'Differenza media col giro {L}: {D} a favore del giro {T} · picco {MX} / minimo {MN} km/h · distanza giro {KM} km · tempo: {TD} rispetto al giro {L2}.', en: 'Average difference vs lap {L}: {D} in favour of lap {T} · peak {MX} / minimum {MN} km/h · lap distance {KM} km · time: {TD} versus lap {L2}.' }).replace('{L}', d.lap).replace('{D}', `<b style="color:${d.dvAvg >= 0 ? 'var(--ok,#7f7)' : '#f66'}">${d.dvAvg >= 0 ? '+' : ''}${d.dvAvg.toFixed(1)} km/h</b>`).replace('{T}', t.lap).replace('{MX}', d.dvMax >= 0 ? '+' : '' + ''.concat(d.dvMax >= 0 ? '+' : '', d.dvMax.toFixed(1))).replace('{MN}', d.dvMin.toFixed(1)).replace('{KM}', t.distanceKm).replace('{TD}', `${d.timeDelta >= 0 ? '+' : ''}${d.timeDelta.toFixed(1)}s`).replace('{L2}', d.lap) : tr({ it: 'senza confronto', en: 'no comparison' })}</div>`;
+      out.innerHTML = lapChartSvg(t) + `<div class="muted" style="font-size:11px;margin-top:4px">${selWhen ? `<b>${esc(selWhen)}</b> · ` : ''}${d ? tr({ it: 'Differenza media col giro {L}: {D} a favore del giro {T} · picco {MX} / minimo {MN} km/h · distanza giro {KM} km · tempo: {TD} rispetto al giro {L2}.', en: 'Average difference vs lap {L}: {D} in favour of lap {T} · peak {MX} / minimum {MN} km/h · lap distance {KM} km · time: {TD} versus lap {L2}.' }).replace('{L}', d.lap).replace('{D}', `<b style="color:${d.dvAvg >= 0 ? 'var(--ok,#7f7)' : '#f66'}">${d.dvAvg >= 0 ? '+' : ''}${d.dvAvg.toFixed(1)} km/h</b>`).replace('{T}', t.lap).replace('{MX}', (d.dvMax >= 0 ? '+' : '') + d.dvMax.toFixed(1)).replace('{MN}', d.dvMin.toFixed(1)).replace('{KM}', t.distanceKm).replace('{TD}', `${d.timeDelta >= 0 ? '+' : ''}${d.timeDelta.toFixed(1)}s`).replace('{L2}', d.lap) : tr({ it: 'senza confronto', en: 'no comparison' })}</div>`;
     } catch (e) { out.innerHTML = `<div class="banner bad">${esc(e.message)}</div>`; }
   };
   if (!window.__lcDeleg) {
