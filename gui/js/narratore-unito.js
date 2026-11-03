@@ -378,7 +378,21 @@ function narratore(m, slot, ora = Date.now()) {
        azzera bersaglio, «verdeVisto» è perdita), i GIRI GIÀ FATTI valgono per
        via visto — senza questo la ripartizione in gara metteva la radio muta
        fino all'azione successiva. */
-    const inGara = /race/i.test(String(m.phase ?? m.sessionType ?? ''));
+    /* 3/11 (Mauro: «il copilot non dice più la posizione persa e guadagnata…
+       levala dalle qualifiche e prove, non gara»): il gate chiedeva /race/
+       alla SOLA fase del gioco; quando la fase non arriva (o arriva vuota)
+       resta il tipo STATIC, che nelle gare SP mente («TimeAttack» — 178 tick
+       su 178 nelle due gare vere): il postalk taceva ANCHE IN GARA. Ora la
+       qualifica e la prova zittiscono per NOME (fase o tipo che le
+       dichiarano), la gara parla per fase Race, per tipo Race o per il segno
+       che nessuna TimeAttack ha: i GIRI TOTALI > 0 (la TimeAttack è a tempo,
+       lapsTotal 0 — registri 24/10-1/11). */
+    const tipo = String(m.sessionType ?? '');
+    const fase = String(m.phase ?? '');
+    const fuoriGara = /qualif|practice|pratic|test|hotlap|warm|outlap/i;
+    const faseGara = /race|gara/i.test(fase);
+    const inGara = !fuoriGara.test(fase)
+      && (faseGara || (!fuoriGara.test(tipo) && (/race|gara/i.test(tipo) || Number(m.gauges?.lapsTotal) > 0)));
     const viaVisto = slot.last.verdeVisto === true
       || Number(m.gauges?.lapsDone) > 0;    // gara ripresa a metà: i giri dicono il via
     if (g.inPit === true) slot.last.inPitOra = ora;
@@ -392,6 +406,24 @@ function narratore(m, slot, ora = Date.now()) {
       });
     }
     slot.last.pos = g.position;
+  }
+  /* SETTORE DEBOLE (3/11, richiesta Mauro: «inserisci questo solo in
+     qualifica»): il dato arriva dal file risultato della qualifica
+     (m.settore, calcolato dal server a fine sessione); qui si decide SE
+     parlarne. Solo qualifica — fase o tipo devono dichiararla, altrimenti
+     tace anche col campo presente — e UNA volta per risultato (chiave
+     settore+distacco+migliore: la stessa qualifica non si ripete). */
+  if (m.settore && m.settore.deltaMs > 0 && m.settore.deltaMs <= 3000 && /qualif/i.test(String(m.phase ?? m.sessionType ?? ''))) {
+    const st = m.settore;
+    const chiave = `${st.indice}|${Math.round(st.deltaMs)}|${st.migliore ?? ''}`;
+    if (slot.last.settoreKey !== chiave) {
+      slot.last.settoreKey = chiave;
+      const sec = (st.deltaMs / 1000).toFixed(1);
+      parla.push({
+        chi: 'settore',
+        it: `Perdi ${sec} nel settore ${st.indice}${st.migliore ? ` — lì il migliore è ${st.migliore}` : ''}.`,
+      });
+    }
   }
   if (pit?.need && Number.isFinite(pit.lapsToWindow)) {
     const stanche = (slot.last.wearBand ?? 0) >= 1;

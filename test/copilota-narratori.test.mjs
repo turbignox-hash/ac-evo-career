@@ -657,3 +657,47 @@ test("trascrizione: radio reale per gara con i ripetuti segnati, eco dichiarata,
   assert.ok(ecoTesto.includes('[gomme] Gomme al 60 percento (eco)'), 'la frase eco porta il tag in coda');
   assert.ok(!ecoTesto.includes('radio reale'), 'l\'eco NON si traveste da radio');
 });
+
+/* 3/11 (Mauro: «il copilot non dice più la posizione persa e guadagnata…
+   levala dalle qualifiche e prove, non gara»): il gate del postalk chiedeva
+   /race/ alla sola fase del gioco; senza fase resta il tipo STATIC, che nelle
+   gare SP mente («TimeAttack»). Qui la gara SP etichettata TimeAttack
+   (lapsTotal 3, nessuna fase) DEVE parlare; qualifica e prova tacciono. */
+test("postalk: gara SP col tipo che mente (TimeAttack) parla; qualifica e prova tacciono", () => {
+  const frame = (t2, over, g) => MMF(t2, { ...over, gauges: { lapsTotal: 3, lapsDone: 1, inPit: false, ...g }, delta: { lapNo: 1, dv: 0 } });
+  const garaSp = gara([
+    [0, frame(0, { sessionType: 'TimeAttack' }, { position: 5 })],
+    [40000, frame(40000, { sessionType: 'TimeAttack' }, { position: 7 })],
+  ]);
+  assert.ok(garaSp.some((f) => f.chi === 'postalk' && !f.detto && f.it.includes('persa')), 'SP race (TimeAttack bugiardo): «posizione persa» deve uscire');
+  const chiusa = (tipo, fase) => gara([
+    [0, frame(0, { sessionType: tipo, phase: fase }, { position: 5 })],
+    [40000, frame(40000, { sessionType: tipo, phase: fase }, { position: 7 })],
+  ]);
+  assert.equal(voce(chiusa('Qualify', 'Qualify'), 'postalk'), 0, 'qualifica: la posizione tace (regola di Mauro)');
+  assert.equal(voce(chiusa('Practice', 'Practice'), 'postalk'), 0, 'prove libere: la posizione tace (regola di Mauro)');
+});
+
+/* 3/11 (richiesta Mauro: «Settore debole: «Perdi 0.4 nel settore 2, lì il
+   migliore è X». inserisci questo solo in qualifica»): il dato lo calcola il
+   server dal file risultato; qui si prova che la frase esce UNA volta, con
+   i numeri giusti, e che in gara il campo viene ignorato. */
+test("settore debole: parla SOLO in qualifica, una volta per risultato", () => {
+  const frame = (t2, over) => MMF(t2, { gauges: { lapsTotal: 0, lapsDone: 0, inPit: false, position: 3 }, delta: { lapNo: 1, dv: 0 }, ...over });
+  const sett = { indice: 2, deltaMs: 420, migliore: 'Luca Bianchi' };
+  const quale = gara([
+    [0, frame(0, { sessionType: 'Qualify', phase: 'Qualify', settore: sett })],
+    [20000, frame(20000, { sessionType: 'Qualify', phase: 'Qualify', settore: sett })],
+  ]);
+  const detti = quale.filter((f) => f.chi === 'settore' && !f.detto);
+  assert.equal(detti.length, 1, 'una volta sola per risultato, non a ogni tick');
+  assert.match(detti[0].it, /Perdi 0\.4 nel settore 2/, 'il distacco si dice in decimi di secondo');
+  assert.match(detti[0].it, /lì il migliore è Luca Bianchi/, 'il nome del migliore del settore esce');
+  const inGara = gara([
+    [0, frame(0, { sessionType: 'Race', phase: 'Race', settore: sett })],
+  ]);
+  assert.equal(inGara.filter((f) => f.chi === 'settore').length, 0, 'in gara il settore tace (solo qualifica)');
+
+  const rovinato = gara([[0, frame(0, { sessionType: 'Qualify', phase: 'Qualify', settore: { indice: 3, deltaMs: 12546, migliore: 'Derek Morrison' } })]]);
+  assert.equal(rovinato.filter((f) => f.chi === 'settore').length, 0, 'un delta da giro rovinato (12,5 s) non è un settore debole: tace');
+});

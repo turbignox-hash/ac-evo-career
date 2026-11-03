@@ -34,6 +34,7 @@ import { applyPianoToCalendar } from './orario.mjs';
 import {
   listResultFiles, readSessionResult, isRaceSession, findPlayerDriver, classify,
 } from './results.mjs';
+import { sectorAnalysis } from './results.mjs';
 import { rivalsOverview, rivalDetail } from './rivals.mjs';
 // runImport sta FUORI dall'import statico: la catena import.mjs → grid-calib.mjs
 // va nel launcher a CALDO (src/hot.mjs — lezione 22/10/2026: gli eventi nati rotti
@@ -584,7 +585,56 @@ function voceServerLivello() {
  *  /api/ingegnere (pannello + copilota del browser) e il tick della voce del
  *  Pitwall usano lo stesso costruttore — segue la firma del pegno 29/10:
  *  «un solo costruttore per tutti i consumatori» e niente vuoi-qui-vuoi-là. */
+/* SETTORE DEBOLE IN QUALIFICA (3/11, richiesta Mauro: «Settore debole:
+   «Perdi 0.4 nel settore 2, lì il migliore è X» — inserisci questo solo in
+   qualifica»). La MMF non porta i settori: esistono solo nel file risultato
+   che EVO scrive a fine sessione. Il tick della voce, IN QUALIFICA (fase o
+   tipo che la dichiarano, mai in gara), legge il risultato più recente e ne
+   ricava il settore peggiore col nome di chi l'ha fatto meglio
+   (sectorAnalysis). Fuori qualifica il campo è null: la radio tace e il
+   contratto è esplicito. Memo per file+mtime: il tick gira ogni ~2 s e la
+   lettura del risultato non deve pesare sul giro. */
+let _settMemo = { file: null, mtimeMs: 0, val: null };
+let _settScanAt = 0;
+function settoreDeboleQualifica(paths, state, live, tipo) {
+  try {
+    const fase = String(live?.gauges?.sessionPhase ?? tipo ?? live?.sessionType ?? '').trim();
+    if (!/qualif/i.test(fase)) return null;            // SOLO qualifica
+    // scansione leggera: il tick gira ogni ~2 s e il menu Risultati puo avere
+    // centinaia di file — si rilegge la cartella al piu ogni 15 s
+    if (Date.now() - (_settScanAt ?? 0) < 15000) return _settMemo.val;
+    _settScanAt = Date.now();
+    const newest = listResultFiles(paths)[0];
+    if (!newest) return null;
+    if (Date.now() - newest.mtime > 3 * 60 * 60 * 1000) return null;   // risultato vecchio: non è questa qualifica
+    if (_settMemo.file === newest.file && _settMemo.mtimeMs === newest.mtime) return _settMemo.val;
+    const res = readSessionResult(newest.file);
+    let val = null;
+    if (!isRaceSession(res) && /qualif/i.test(String(res?.session ?? ''))) {
+      const nome = String(state?.player?.name ?? '').trim();
+      const pezzi = nome.split(/\s+/).filter(Boolean);
+      const driver = pezzi.length ? { name: nome, first: pezzi[0], last: pezzi[pezzi.length - 1] } : null;
+      const me = driver ? findPlayerDriver(res, driver)?.driver ?? null : null;
+      const sect = me ? sectorAnalysis(res, me) : null;
+      const worst = sect?.worstSector ?? null;
+      // senza campo (solo) o con un distacco illeggibile il settore non si dice:
+      // «il migliore è X» con X inesistente sarebbe una bugia detta a voce
+      if (sect && !sect.solo && worst && Number.isFinite(worst.deltaMs) && worst.deltaMs >= 100 && worst.deltaMs <= 3000) {
+        val = {
+          indice: worst.index,
+          deltaMs: worst.deltaMs,
+          migliore: sect.sectors?.find((x) => x.index === worst.index)?.bestName ?? null,
+          quando: newest.name ?? null,
+        };
+      }
+    }
+    _settMemo = { file: newest.file, mtimeMs: newest.mtime, val };
+    return val;
+  } catch { return null; }   // senza risultato leggibile la radio tace, non mente
+}
+
 async function payloadIngegnere(context0, state, body, { leggero = false } = {}) {
+
   const { ladder, paths } = context0;
   const r = liveReader();
   await syncLiveReader();
@@ -610,6 +660,7 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
     } catch { /* senza piano il narratore tace, non è un errore */ }
     return {
       ...live0, auto: null, stintAlert,
+      settore: settoreDeboleQualifica(paths, state, live0, snap?.session?.type),
     sessionId: snap.session?.id ?? null,
     sessionType: snap.session?.type ?? null,
     // 29/10: la FASE VERA della sessione (SMEvoSessionState.phase_name, es.
@@ -4491,7 +4542,7 @@ setInterval(watcherTick, 2000);
 logaVoce({ evento: 'SERVER VOCE PRONTO', pid: process.pid, build: 'voce-ge 29/10' });
 /* VIGILANTE DEL TICK VOCE (29/10 sera, la gara muta delle 10:47): il registro
    mostra un tick vivo all'avvio e poi NULLA per l'intera gara mentre il server
-   rispondeva regolarmente (il loop vivо somministrava le API) — il tick era
+   rispondeva regolarmente (il loop vivo somministrava le API) — il tick era
    APPESO da qualche parte (primo await sospetto) e non si sa dove. Il vigilante
    non serve saperlo: se il tick non finisce per 15 s riparte da solo e lo
    scrive; ogni 60 s una riga STATO col quadro completo (età del tick, snapshot,

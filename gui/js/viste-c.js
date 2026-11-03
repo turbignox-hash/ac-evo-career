@@ -892,6 +892,8 @@ async function drawSetup(m){
         const out = document.querySelector('#apply-out');
         if (!out) return;
         confirmBtn.disabled = true; confirmBtn.innerHTML = '<span class="spin"></span>';
+        // (3/11) l'attesa della scrittura non deve sembrare un click a vuoto
+        out.innerHTML = `<div class="muted" style="font-size:12px">⟳ ${tr({ it: 'Creo il file «EVO-consigliato»…', en: 'Creating the «EVO-advised» file…' })}</div>`;
         const ctx = window.__applySetupCtx ?? {};
         try {
           const r = await api('setup-apply', { car: ctx.car ?? null, track: ctx.track ?? null, raceLaps: ctx.raceLaps ?? null, file: confirmBtn.dataset.baseFile ?? null });
@@ -925,6 +927,9 @@ async function drawSetup(m){
       const out = document.querySelector('#apply-out');
       if (!out) return;
       btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+      // (3/11) il riquadro da' segno di vita all'istante: senza questo, finche' il
+      // server non risponde il click sembra perso e si riclicca.
+      out.innerHTML = `<div class="muted" style="font-size:12px">⟳ ${tr({ it: "Preparo l'anteprima del setup…", en: 'Preparing the setup preview…' })}</div>`;
       const ctx = window.__applySetupCtx ?? {};
       try {
         /* ANTEPRIMA prima della scrittura (richiesta Mauro 21/10): il file NON è
@@ -1226,6 +1231,12 @@ async function drawSetup(m){
       ]);
       const sig2 = sigFresh({ sessions: t2?.sessions, stale: t2?.stale }, h2?.telem?.lastLd?.mtimeMs);
       if (sig2 === sigAt || tab !== 'setup') return;   // niente da dire
+      // (3/11) L'ANTEPRIMA APERTA NON SI TOCCA: il ridisegno completo di drawSetup
+      // sostituisce #main e con esso il riquadro #apply-out — l'anteprima o il
+      // «PONTALO QUI» appena aperti sparivano sotto le mani e il click dopo andava
+      // a vuoto (Mauro: «devo cliccare 2-3 volte per farlo apparire»). Il timer
+      // resta vivo: riprova al giro dopo, appena l'anteprima e' stata decisa.
+      if (document.querySelector('#b-confirm-apply, #b-bridge-setup')) return;
       clearInterval(window.__setupTimer); window.__setupTimer = null;
       const y = window.scrollY;        // ricalcolo completo con i dati nuovi (il nuovo drawSetup riaggancia il timer
         // con la firma aggiornata: niente loop infinito di ridisegni)
