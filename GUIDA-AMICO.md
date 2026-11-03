@@ -376,6 +376,17 @@ sfoglia le unità del PC. Arriva fino alla cartella Risultati e conferma lì.
 Impostazioni, senza riavviare) e passa `content --validate` per verificare che
 la scala combaci ancora.
 
+**Le corse di Paddock si chiudono subito (1 giro e via).** È lo stato di default
+del gioco, non un difetto: il tool lo cura con `node tools/cura-giri-app.mjs`
+(cerca Paddock.exe al posto di consuetudine, `Desktop\Paddock`; se non lo
+trova, passa il percorso a mano come secondo argomento). Fissa **3 giri** su
+tutte le ronde che ne avevano 12 nel catalogo (Paul Ricard e le gare speciali
+restano come sono): esegui con il gioco CHIUSO — se Paddock è acceso il tool
+dice che il file è bloccato e si ferma. È idempotente e fa il backup
+`Paddock.exe.bak-giri12` accanto all'exe prima di toccare il file: rilanciato,
+risponde «Già curato. Niente da fare.». Se il gioco aggiorna Paddock, la cura
+si rifà uguale. La diagnosi senza scrittura: `--verifica`.
+
 **Ho clonato ma il launcher dice «offsite non risponde».** Manca
 `git remote rename origin offsite` (capitolo 2). Onestamente: parte lo stesso,
 diciamo che gli aggiornamenti restano muti finché il remote non ha quel nome.

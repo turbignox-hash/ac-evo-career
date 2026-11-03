@@ -67,8 +67,17 @@ test('miniPitwall porta la radio + si aggiorna quando il registro cresce', () =>
 test('miniPitwall NON trasporta il resto della vetrina', () => {
   const dati = { quando: 3, comando: { tipo: 'setcar', id: 'x', nome: 'R5' }, files: [], riepilogo: ['peso'] };
   const pw = miniPitwall(dati, 5);
-  assert.deepEqual(Object.keys(pw).sort(), ['consigli', 'giorno', 'ora', 'prepara', 'quando', 'radio', 'slot', 'verdetto'], 'solo le chiavi DEL PITWALL, il resto della fascia non viaggia');
+  // 3/11 nono giro: `guardia` è ammessa — la voce del battito passa INVARIATA
+  // dalla vetrina, senza ricalcoli.
+  assert.deepEqual(Object.keys(pw).sort(), ['consigli', 'giorno', 'guardia', 'ora', 'prepara', 'quando', 'radio', 'slot', 'verdetto'], 'solo le chiavi DEL PITWALL, il resto della fascia non viaggia');
   assert.equal(pw.radio.every((f) => typeof f.it === 'string'), true, 'ogni radio è una frase');
+  assert.deepEqual(pw.guardia, null, 'senza battito in vetrina la guardia è null, non undefined');
+});
+
+test('miniPitwall porta il battito della guardia passato dalla vetrina (3/11 nono giro)', () => {
+  const guardia = { alive: true, ageMs: 2500, diz: '1 auto nuova dal menu', at: new Date().toISOString() };
+  const pw = miniPitwall({ guardia }, 13);
+  assert.deepEqual(pw.guardia, guardia, 'lo stesso oggetto in fascia, senza copie né ricalcoli');
 });
 
 test('miniPitwall porta l\'orologio di giornata (1/11, «orologio nel cruscotto e pitwall»)', () => {

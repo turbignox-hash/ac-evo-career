@@ -264,3 +264,52 @@ due passi prima di confezionare la zip.
 
 Riferimenti nel diario: DA-15 (1/11) per l'esito del collaudo completo,
 DA-14 per le schede rivedute, DA-10 per le tinte ancora in corso.
+
+### Guardia di layout (spunta standard, nel comando check, 3/11)
+
+> Guardia di layout: gira il comando check e dimmi se i 21 tab della
+> GUI (19 in nav + 2 nascosti) stanno in piedi a ogni larghezza.
+
+Cosa fa l'agente: girare `npm run check` e leggere l'esito della guardia
+di [test/layout-impostazioni.test.mjs](test/layout-impostazioni.test.mjs),
+CHE IL COMANDO PORTA GIÀ DENTRO: `"test": "node --test test/*.test.mjs"`
+la scopre col glob, e `"check": "npm test && npm run lint"` la esegue a ogni
+passata. 21 tab — i 19 in nav (Dashboard → Analisi) e i 2 NASCOSTI senza
+bottone in nav (Calendario, Classifica Mondiale, aperti dalla sonda con la
+stessa leva dei click vivi `tab = '…'; render()`, flag `nascosto`) — × 5
+larghezze (320 · 360 · 480 · 1250 · 1920) = 105 misure: `assettaVista` clicka
+via evaluate e aspetta il marcatore di vista (`#drv-messaggi` la Posta,
+`#rv-registro` i Rivali, `#ch-carica` i Campionati, `#an-tetto` l'Analisi,
+`#cal-titolo` il Calendario nascosto, `#mondo-vetrina` la Classifica
+Mondiale nascosta, e così via);
+`assettaRiempimentiImpostazioni` attende i tre riempimenti noti,
+`assettaStabilitaGenerica` (due impression a 300 ms identiche, tetto 15 s)
+i tab senza riempimenti noti. Orchestrazione e sonda separate:
+[test/_layout-probe.mjs](test/_layout-probe.mjs).
+
+Skip onesti: senza `playwright-core` installato, senza `chromium` nella
+cache di Playwright o senza `data/evo-career.save.json` la misura NON cade
+rossa ma resta `ok`, `# skipped 1`, col perché nel TAP («scaricalo con
+`npx playwright install chromium`», «manca il save …»): verde che spiega,
+non rosso che finge — la legge richiesta per la CI del comando check.
+
+La prova del 3/11 (dopo le due voci del diario di questa giornata:
+«senza ambiente si salta» e «prova del vivo») ha chiuso il
+giro completo: suite `888/888` con la guardia dentro e Biome senza
+errori (gli stessi 5 warning preesistenti e documentati), `npm run check`
+exit 0 — la forma del 3/11 con i tab nascosti (2 tab
+in più, 105 misure) in [tmp/check-21tab.log](tmp/check-21tab.log) e la
+guardia da sola in [tmp/layout-21tab.log](tmp/layout-21tab.log) (`ok 1`,
+28 s). PC amico senza
+chromium: la suite salta onesto (zero misure) e il check resta verde.
+
+Quando si lavora a una vista singola vale lo stesso passo che per le app
+in gioco: il `node --test` del file isolato durante il collaudo, e
+`npm run check` intero PRIMA di dichiarare la spunta fatta.
+
+Riferimenti nel diario: la voce 3/11 «senza ambiente si salta» per la
+forma dello skip, le voci odierna «due tab nascosti» per Calendario e
+Classifica Mondiale (105 misure, 21 tab × 5 larghezze) e la voce
+«Guardia di layout nel comando check» per il legame dimostrato con la
+«Guardia di layout nel comando check» per il legame dimostrato con la
+spunta standard.

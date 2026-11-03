@@ -15,6 +15,11 @@ import { join } from 'node:path';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 
 import { comandoAuto, confermaAck, azioniPulsanti, statoIstantanea, verdettoFascia, preparaFascia, nomeDaCarId, codiceMeteo } from '../src/uiapp-pub.mjs';
+// LA GUARDIA VIVA (3/11): le attese dei chip non sono stringhe incollate —
+// escono da pistaPulita/prettyTrackLabeled di testday.mjs, la STESSA fonte
+// che il codice consuma: se la pulizia cambia, attese e codice cambiano
+// insieme, mai il test che segue una formula morta.
+import { prettyTrackLabeled, pistaPulita } from '../src/testday.mjs';
 
 // fixture in stile events-card.test.mjs: un'auto nota nel libro lader e
 // un evento attivo e accettato (premio un'auto diversa da quella della ronda).
@@ -525,7 +530,7 @@ const scriviGaraGrezzo = (dir, nome, track) => writeFileSync(join(dir, 'Results'
   drivers: [fila('Turbigno', 0, { me: true }), fila('Palmer', 1)],
 }, null, 2));
 
-test('verdettoFascia: col LADDER le righe parlano pulito (nome bello del ladder, come il banco A/B)', () => {
+test('verdettoFascia: col LADDER le righe parlano pulito — attese VIVE (prettyTrackLabeled del banco)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'verdetto-fascia-'));
   mkdirSync(join(dir, 'Results'), { recursive: true });
   scriviGaraGrezzo(dir, `${oggiPrefisso()}-1130_SP_Race.sessionresults.json`, 'OultonParkInternational');
@@ -540,9 +545,17 @@ test('verdettoFascia: col LADDER le righe parlano pulito (nome bello del ladder,
   const v = verdettoFascia({ driver: DRV }, { ACE_DATA: dir }, LADDER_PISTE);
   assert.ok(v, 'la card esiste');
   assert.equal(v.righe.length, 2, 'due gare, due righe');
+  // le attese passano dalla GUARDIA VIVA, non da nomi incollati: il token di
+  // cartella va dal vivo a prettyTrackLabeled, quello col layout a pistaPulita
+  // (la stessa funzione che il server chiama sui chip) — una sola formula
+  const attesaToken = prettyTrackLabeled(LADDER_PISTE, 'OultonParkInternational');
+  const attesaLayout = pistaPulita(LADDER_PISTE, 'Mount Panorama (GP Race)');
+  assert.equal(attesaToken, 'Oulton Park (International Race)', 'la guardia viva parla ancora il nome del banco A/B (rentrée silenziosa se un giorno cambia qui)');
+  assert.equal(attesaToken, pistaPulita(LADDER_PISTE, 'OultonParkInternational'), 'pistaPulita senza coda = prettyTrackLabeled: UNA formula, due porte');
+  assert.equal(attesaLayout, 'Mount Panorama (GP Race)', 'il layout resta in coda, mai strappato');
   const piste = v.righe.map((r) => r.pista);
-  assert.ok(piste.includes('Oulton Park (International Race)'), `token di cartella col nome bello (${piste.join(' · ')})`);
-  assert.ok(piste.includes('Mount Panorama (GP Race)'), `pista già pulita col layout INTATTO (${piste.join(' · ')})`);
+  assert.ok(piste.includes(attesaToken), `token di cartella col nome bello (${piste.join(' · ')})`);
+  assert.ok(piste.includes(attesaLayout), `pista già pulita col layout INTATTO (${piste.join(' · ')})`);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -552,6 +565,9 @@ test('verdettoFascia: SENZA ladder (firma come prima) la pista grezza passa inta
   scriviGaraGrezzo(dir, `${oggiPrefisso()}-1515_SP_Race.sessionresults.json`, 'OultonParkInternational');
   const v = verdettoFascia({ driver: DRV }, { ACE_DATA: dir });
   assert.ok(v, 'la card esiste');
-  assert.equal(v.righe[0].pista, 'OultonParkInternational', 'niente nome inventato: la fascia non ha il libro');
+  // stessa guardia viva anche qui, col ladder MANCANTE: la funzione conferma
+  // che senza libro della pista la voce grezza passa intatta (nessun invento)
+  assert.equal(v.righe[0].pista, pistaPulita(null, 'OultonParkInternational'), 'niente nome inventato: la fascia non ha il libro');
+  assert.equal(pistaPulita(null, 'OultonParkInternational'), 'OultonParkInternational', 'la guardia senza ladder rimanda il token, scritta com’era');
   rmSync(dir, { recursive: true, force: true });
 });

@@ -10,7 +10,7 @@
 //  5) il tick del publisher legge lo store e fa tutto il giro (vetrina sì).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,8 +26,7 @@ mkdirSync(DATA, { recursive: true });
 
 const LADDER = JSON.parse(readFileSync(join(ROOT, 'config', 'career.evo.ladder.json'), 'utf8'));
 const ladder = JSON.parse(JSON.stringify(LADDER));
-const { createCareer, saveState } = await import('../src/state.mjs');
-const { scegliRonda } = await import('../src/agenda.mjs');
+const { createCareer } = await import('../src/state.mjs');
 const { ensureHeritage } = await import('../src/memories.mjs');
 const { ereditaFascia, giraRichiesteEredità, esitoEreditàTest, richiesteTestReset, vetrina } = await import('../src/uiapp-pub.mjs');
 
@@ -119,4 +118,22 @@ test('VEDRINA (5): la fascia porta il pannello eredità che l\'app legge', () =>
   assert.ok(fascia, 'la fascia costruisce');
   assert.ok(fascia.eredita, 'la fascia porta il pannello eredità');
   assert.equal(fascia.eredita.nodeId, st5.node);
+});
+
+// 3/11 — OTTAVO GIRO: la fascia porta anche la guardia (battito + lezione):
+// stessa riga del CLI `status`, adesso anche nel cruscotto dentro il gioco.
+test('VEDRINA (5-bis): la fascia porta la guardia — viva o ferma, con l\'ultima lezione del battito', async () => {
+  richiesteTestReset();
+  const st6 = createCareer(ladder, { name: 'Test Eredità guardia', first: 'Test', last: 'Guardia' });
+  const fascia = vetrina(ladder, st6);
+  assert.ok(fascia, 'la fascia costruisce');
+  // (3/11, ottavo giro) senza battito: la voce esiste SEMPRE e il pannello
+  // la disegna solo se c'è — le fasce vecchie non rompono niente.
+  assert.ok('alive' in fascia.guardia, 'la voce guardia esiste nella fascia');
+  const { heartbeat } = await import('../src/watch.mjs');
+  heartbeat(15, { dizionario: { msg: '1 auto nuova dal menu', at: new Date().toISOString() } });
+  const g = vetrina(ladder, st6).guardia;
+  assert.equal(g.alive, true, 'con battito fresco la guardia risulta viva');
+  assert.equal(g.diz, '1 auto nuova dal menu', 'la lezione del battito arriva in fascia');
+  assert.ok(g.ageMs >= 0, 'il tempo dal battito è storicizzato');
 });

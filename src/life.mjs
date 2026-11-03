@@ -48,7 +48,7 @@ export function ensureLife(state) {
   }
   L.challengeStats ??= { taken: 0, won: 0 };
   L.challengeLostRep ??= 0;
-  L.paddockQuotes ??= {};      // key -> ultima citazione
+  L.rivaliCitate ??= {};       // key -> ultima citazione
   return L;
 }
 

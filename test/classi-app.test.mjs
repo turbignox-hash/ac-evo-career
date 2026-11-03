@@ -1,4 +1,4 @@
-// classi-paddock.test.mjs — il ripartito del 27/10: Paddock riempie i BUCHI
+// classi-app.test.mjs — il ripartito del 27/10: Paddock riempie i BUCHI
 // delle classi, le regole di Mauro restano sopra. Protegge le regole oneste del
 // tool (il «niente dati fittizi» deve reggere anche con dati corrotti o assenti):
 //   1) la pendenza si CALIBRA sui punti misurati della classe e si RIFIUTA se
@@ -9,7 +9,7 @@
 //      derivabile (lezione Mini/Delta del 21/10);
 //   5) la zavorra si scala per massa reale (lezione del 19/10: 100kg su auto
 //      leggere pesa troppo — in pista Mini/MX-5 sono scese a 50kg);
-//   6) la scrittura tocca SOLE le regole fonte 'paddock', con backup, e le
+//   6) la scrittura tocca SOLE le regole fonte 'app', con backup, e le
 //      regole di Mauro restano intatte.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,9 +17,9 @@ import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, rmSync
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  proposteDaPaddock, scriviProposte, calibraturaClasse,
-  paddockIndexFromCat,
-} from '../tools/classi-da-paddock.mjs';
+  proposteDaApp, scriviProposte, calibraturaClasse,
+  appIndexFromCat,
+} from '../tools/classi-da-app.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -73,18 +73,18 @@ const carRaw = {
 };
 
 /* ---------- la pendenza si calibra SOLO sui misurati ---------- */
-test.beforeEach(() => { rmSync(join(HERE, '_classi-paddock-tmp'), { recursive: true, force: true }); });
-test.after(() => { rmSync(join(HERE, '_classi-paddock-tmp'), { recursive: true, force: true }); });
+test.beforeEach(() => { rmSync(join(HERE, '_classi-app-tmp'), { recursive: true, force: true }); });
+test.after(() => { rmSync(join(HERE, '_classi-app-tmp'), { recursive: true, force: true }); });
 
 test('la pendenza si calibra SOLO sui misurati', () => {
-  const cal = calibraturaClasse(classes.classi['test-9-10'], paddockIndexFromCat(cat));
+  const cal = calibraturaClasse(classes.classi['test-9-10'], appIndexFromCat(cat));
   assert.ok(cal.k != null, 'k derivata dai 2 punti misurati (Δ14→2%, Δ50→5%)');
   assert.ok(Math.abs(cal.k * 50 - 5) < 0.25, `k riproduce il misurato (got ${(cal.k * 50).toFixed(2)})`);
   assert.ok(cal.scartoMax <= 2.5);
 });
 
 test('calibratura: si RIFIUTA se i misurati contraddicono (niente fit forzato)', () => {
-  const cal = calibraturaClasse(classes.classi['test-classe-incoerente'], paddockIndexFromCat(cat));
+  const cal = calibraturaClasse(classes.classi['test-classe-incoerente'], appIndexFromCat(cat));
   assert.equal(cal.k, null, 'la classe incoerente NON produce numeri');
   assert.match(cal.motivo ?? '', /classo NON derivabile|un punto misurato scarta|NON derivabile/);
 });
@@ -97,13 +97,13 @@ test('calibratura: con UN solo punto misurato non si calibra (gr86-r5-escort sul
       { preset: 'preset_forte_mech_1', auto: 'Auto forte', ballastKg: 100, restrictorPct: 5 },
     ],
   };
-  const cal = calibraturaClasse(una, paddockIndexFromCat(cat));
+  const cal = calibraturaClasse(una, appIndexFromCat(cat));
   assert.equal(cal.k, null);
   assert.match(cal.motivo, /servono le gare vere/);
 });
 
 test('senza piMin/piMax la classe esce dal perimetro, dichiarato (monomarca/ricette a mano)', () => {
-  const esito = proposteDaPaddock(classes, { carRaw, catCars: cat });
+  const esito = proposteDaApp(classes, { carRaw, catCars: cat });
   const cls = esito.classi.find((c) => c.id === 'test-monomarca');
   assert.equal(cls.stato, 'non-derivabile');
   assert.match(cls.motivo, /piMin\/piMax/);
@@ -111,26 +111,26 @@ test('senza piMin/piMax la classe esce dal perimetro, dichiarato (monomarca/rice
 
 /* ---------- i BUCHI: numeri SOLO con i dati veri ---------- */
 test('buchi: proposte con k derivata, fonte paddock, nota che dichiara la derivazione', () => {
-  const esito = proposteDaPaddock(classes, { carRaw, catCars: cat });
+  const esito = proposteDaApp(classes, { carRaw, catCars: cat });
   const cls = esito.classi.find((c) => c.id === 'test-9-10');
   assert.equal(cls.stato, 'proposta');
   const p = cls.proposte.find((x) => x.auto.startsWith('Bicocolino'));
   assert.ok(p, 'Bicocolino (Δkw/t +50, PI 9.51) proposto');
-  assert.equal(p.fonte, 'paddock');
-  const k = calibraturaClasse(classes.classi['test-9-10'], paddockIndexFromCat(cat)).k;
+  assert.equal(p.fonte, 'app');
+  const k = calibraturaClasse(classes.classi['test-9-10'], appIndexFromCat(cat)).k;
   assert.equal(p.restrictorPct, Math.round(k * 50 * 2) / 2, 'restrittore = k × Δkw/t (arrotondato al 0,5)');
   assert.ok(p.ballastKg < 100, `zavorra scalata per massa (got ${p.ballastKg})`);
   assert.match(p.note ?? '', /griglia-calib/);
 });
 
 test('buchi: auto fuori dalla finestra PI della classe non si toccano', () => {
-  const esito = proposteDaPaddock(classes, { carRaw, catCars: cat });
+  const esito = proposteDaApp(classes, { carRaw, catCars: cat });
   const tutte = esito.classi.flatMap((c) => [...(c.proposte ?? []), ...(c.senzaNumero ?? [])].map((x) => String(x.auto)));
   assert.ok(!tutte.some((a) => a.includes('Maxi turbo')), 'PI 12.5 è fuori dalla 9–10');
 });
 
 test('buchi: auto senza kw/t dichiarate SENZA numero, mai riempite col vuoto', () => {
-  const esito = proposteDaPaddock(classes, { carRaw, catCars: cat });
+  const esito = proposteDaApp(classes, { carRaw, catCars: cat });
   const cls = esito.classi.find((c) => c.id === 'test-9-10');
   const s = cls.senzaNumero.find((x) => x.auto.startsWith('Sconosciuta'));
   assert.ok(s, 'Sconosciuta elencata');
@@ -139,7 +139,7 @@ test('buchi: auto senza kw/t dichiarate SENZA numero, mai riempite col vuoto', (
 });
 
 test('ramo negativo: PI sopra base → dichiarato non derivabile (lezione Mini/Delta)', () => {
-  const esito = proposteDaPaddock(classes, { carRaw, catCars: cat });
+  const esito = proposteDaApp(classes, { carRaw, catCars: cat });
   const cls = esito.classi.find((c) => c.id === 'test-9-10');
   const senza = cls.senzaNumero.find((x) => x.auto.startsWith('Auto presa'));
   assert.ok(senza, 'Δkw/t negativo + PI sopra la base: NON si deriva');
@@ -148,7 +148,7 @@ test('ramo negativo: PI sopra base → dichiarato non derivabile (lezione Mini/D
 });
 
 test('ramo negativo: PI sotto base → 0/0 proposto (più lenta della base, parità fisica)', () => {
-  const esito = proposteDaPaddock(classes, { carRaw, catCars: cat });
+  const esito = proposteDaApp(classes, { carRaw, catCars: cat });
   const cls = esito.classi.find((c) => c.id === 'test-9-10');
   const p = cls.proposte.find((x) => x.auto.startsWith('Auto lenta'));
   assert.ok(p, 'PI sotto base e potenza inferiore → 0/0 scritta come regola onesta');
@@ -158,12 +158,12 @@ test('ramo negativo: PI sotto base → 0/0 proposto (più lenta della base, pari
 
 /* ---------- la scrittura non tocca le regole di Mauro ---------- */
 test('scrittura: SOLE le regole fonte paddock cambiano, backup incluso, secondo giro idempotente', () => {
-  const tmp = join(HERE, '_classi-paddock-tmp');
+  const tmp = join(HERE, '_classi-app-tmp');
   mkdirSync(tmp, { recursive: true });
   const file = join(tmp, 'grid-classes.json');
   writeFileSync(file, JSON.stringify(classes, null, 2), 'utf8');
 
-  const esito = proposteDaPaddock(classes, { carRaw, catCars: cat });
+  const esito = proposteDaApp(classes, { carRaw, catCars: cat });
   const cls = esito.classi.find((c) => c.id === 'test-9-10');
   assert.ok(cls.proposte.length > 0, 'ci sono proposte da scrivere');
 
@@ -185,9 +185,9 @@ test('scrittura: SOLE le regole fonte paddock cambiano, backup incluso, secondo 
   // il file su disco si rilegge e ha le proposte
   const reclasses = JSON.parse(readFileSync(file, 'utf8'));
   const reregole = reclasses.classi['test-9-10'].regole;
-  assert.equal(reregole.filter((r) => r.fonte === 'paddock').length, cls.proposte.length);
+  assert.equal(reregole.filter((r) => r.fonte === 'app').length, cls.proposte.length);
   // secondo giro: la classe è chiusa, nessun doppione
-  const esito2 = proposteDaPaddock(reclasses, { carRaw, catCars: cat });
+  const esito2 = proposteDaApp(reclasses, { carRaw, catCars: cat });
   const cls2 = esito2.classi.find((c) => c.id === 'test-9-10');
   assert.equal(cls2.proposte.length, 0, 'dopo la scrittura non c\'è più da proporre');
 });

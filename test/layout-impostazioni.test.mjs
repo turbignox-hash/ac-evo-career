@@ -41,8 +41,20 @@ import './_flows-sandbox.mjs';
 //
 // (3/11, QUINTA LARGHEZZA, richiesta Mauro: «aggiungi la larghezza 320 px alla
 // guardia di layout e verifica che non compaia nessuna sovrapposizione»): 320
-// si mette SOTTO alle altre — il re dei telefoni stretti e delle finestre
-// affiancate davvero piccole — 95 misure (5 larghezze × 19 tab).
+// si mette SOTTO alle altre — il re dei telefoni stretti e delle finestre// affiancate davvero piccole — 95 misure (5 larghezze × 19 tab).
+////
+// (3/11, DUE TAB NASCOSTI, richiesta Mauro: «estendi la guardia al tab
+// nascosto Calendario e alla Classifica Mondiale, dandogli un marcatore
+// di vista ciascuno») — non stanno in nav (Calendario si apre dagli
+// annunci della stagione, Classifica Mondiale dal tile del Cruscotto o
+// dall'azione «vai-classifica» dei messaggi): la sonda li apre con la
+// STESSA leva dei click vivi (`tab = '…'; render()` — assettaVista, flag
+// `nascosto`, test/_layout-probe.mjs), e ognuno porta il SUO marcatore:
+// #cal-titolo Calendar, #mondo-vetrina Classifica Mondiale. La Classifica
+// ha il marcatore sul PANEL e NON sull'h2: worldRankingInner è riciclato
+// anche nel pieghevole dei Campionati (#mondo-fold) e l'h2 condiviso non
+// poteva dire «solo qui». 105 misure (5 larghezze × 21 tab).
+
 //// Porta: 8736 (fuori dal range di fallback 8642..8655 e dal 8731 di smoke).
 //
 // (2/11, terzo step della guardia, richiesta Mauro: «fallisce se un
@@ -82,14 +94,17 @@ const BASE = `http://127.0.0.1:${PORT}`;
  * collaudato; 320 (3/11) è sotto ancora — regno dei telefoni stretti e
  * delle finestre affiancate davvero piccole */
 const WIDTHS = [320, 360, 480, 1250, 1920];
-/* DICIANNOVE tab della STESSA guardia, nell'ordine della nav, ognuno col SUO
+/* VENTUNO tab della STESSA guardia: i 19 in nav (ordine della nav) e i 2
+ * NASCOSTI in coda, ognuno col SUO
  * marcatore (esiste SOLO in quella vista, non nei vicini): #card-panel
  * Dashboard, #ag-advance Centro gare, #mx-posta Messaggi, #imp-result Import,
  * #ch-carica Campionati (identico nei DUE rami: vuoto e pieno), #g-tbody
  * Griglia, #rv-registro Rivali, #track-hist Piste, #cars-grid Auto,
  * #g-mech Garage, #arc-q Archivio, #b-on-all Online, #gv-subito Giri liberi,
  * #stats-vetrina Statistiche, #bn-libro Finanze, #i-diffval Difficoltà,
- * #agg-status Impostazioni, #psi-panel Setup, #an-tetto Analisi.
+ * #agg-status Impostazioni, #psi-panel Setup, #an-tetto Analisi; i due
+ * NASCOSTI (senza bottone in nav, leva `nascosto` della sonda):
+ * #cal-titolo Calendario, #mondo-vetrina Classifica Mondiale.
  * riempimentiDedicati solo per Impostazioni (i tre arrivi asincroni NOTI);
  * per tutti gli altri la stabilità GENERICA della geometria tiene il posto.
  * pannelli: il minimo di .panel che la vista aggiunge (1 per la maggior parte;
@@ -115,6 +130,10 @@ const TAB = [
   { id: 'settings',  nome: 'Impostazioni', marker: '#agg-status', pannelli: 3, riempimentiDedicati: true },
   { id: 'setup',     nome: 'Setup',       marker: '#psi-panel',  pannelli: 1 },
   { id: 'analisi',   nome: 'Analisi',     marker: '#an-tetto',   pannelli: 1 },
+  /* i due NASCOSTI (3/11): senza bottone in nav — la sonda li apre con
+   * `tab = '…'; render()`, la stessa leva dei click vivi */
+  { id: 'calendar',  nome: 'Calendario',  marker: '#cal-titolo', pannelli: 1, nascosto: true },
+  { id: 'standings', nome: 'Classifica Mondiale', marker: '#mondo-vetrina', pannelli: 1, nascosto: true },
 ];
 
 // il Chromium già nella cache di Playwright (niente download: se manca, il
@@ -125,7 +144,7 @@ const CHROMIUM = [
   join(LOCALAPPDATA, 'ms-playwright', 'chromium_headless_shell-1223', 'chrome-headless-shell-win64', 'chrome-headless-shell.exe'),
 ].find(existsSync);
 
-test('tutti i 19 tab della GUI: niente sovrapposizioni né pannelli fuori viewport a 320, 360, 480, 1250 e 1920', { timeout: 900_000 }, async (t) => {
+test('tutti i 21 tab della GUI (19 in nav + 2 nascosti): niente sovrapposizioni né pannelli fuori viewport a 320, 360, 480, 1250 e 1920', { timeout: 900_000 }, async (t) => {
   if (!existsSync(join(ROOT, 'node_modules', 'playwright-core')))
     return t.skip('manca playwright-core: `npm install` e la guardia riparte');
   if (!CHROMIUM)

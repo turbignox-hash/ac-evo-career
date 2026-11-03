@@ -1,5 +1,5 @@
-// car-match.mjs — IL MATCH GRADUALE delle auto (26/10, importato dal Gufo
-// Paddock: la sua findModel). Perché: il builder costruiva il pool con un
+// car-match.mjs — IL MATCH GRADUALE delle auto (26/10): la catena arriva dal
+// builder originale. Perché: il builder costruiva il pool con un
 // confronto ESATTO (wantCars.has(carIdOf(cell))) — basta un preset rinominato
 // da Kunos o un nome con l'accento di troppo e la serie si srotola. La catena
 // graduale torna invece l'auto anche se:
@@ -7,8 +7,8 @@
 //   • le cifre/parole cambiano di separatore;
 //   • l'alias arriva dai dati («stevo2» ...).
 // E i mancanti NON fanno più un errore cieco: nel log (data/match-auto.log)
-// finiscono con i NOMI VERI che il gioco had on disc — same trick di Paddock:
-// «auto della classe non trovate: X · auto del gioco: ...» e in un colpo si
+// finiscono con i NOMI VERI che il gioco ha sul disco — la stessa concisione del
+// resto del tool:
 // sistema la fonte dati.
 //
 // Le stesse quattro strade che già usa carInPool del vigia (car-pool.mjs), qui
@@ -35,8 +35,8 @@ export function wordsOf(s) {
 /**
  * La catena graduale per UN nome richiesto.
  * candidates = [{ ... , keyOf: (c) => label|array }]; chi matcha meglio vince
- * (Paddock: a parità di tappa il nome più CORTO — l'auto più specifica, non la
- * too generica «Abarth» che contiene tutto).
+ * (a parità di tappa vince il nome più CORTO — l'auto più specifica, non la
+ * troppo generica «Abarth» che contiene tutto).
  * aliases: { 'nome richiesto (lower)': 'alias con cui cercarlo anche' }.
  * Ritorna { hit, stage: 'esatta'|'contiene'|'parole'|'alias', label } o null.
  */

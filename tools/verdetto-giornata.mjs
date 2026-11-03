@@ -21,9 +21,14 @@ import { writeFileSync, mkdirSync, existsSync, readdirSync, readFileSync } from 
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolvePaths } from '../src/paths.mjs';
+import { pistaPulita } from '../src/testday.mjs';
 import { resultDetail, resultDirs } from '../src/catalog.mjs';
 import { lapToMs, isRaceSession } from '../src/results.mjs';
 import { tr } from '../src/lang.mjs';
+// I NOMI PULITI (3/11, richiesta Mauro: «il verdetto della GUI col nome
+// pulito, come le fasce del Pitwall»): la stessa pistaPulita del banco
+// (testday.mjs) — con il ladder le righe montano il nome bello, senza gira
+// la voce grezza com'è sempre (CLI e report-cartella).
 
 const PROJECT = dirname(dirname(fileURLToPath(import.meta.url)));
 const OUT_DIR = process.env.EVO_REPORT_DIR ?? join(PROJECT, 'report', 'gare');
@@ -36,7 +41,7 @@ function dalNome(file) {
 
 /** Il core: gare del giorno (prefisso), righe compatte e aggregato.
  *  `opts.files` (solo per i test) sostituisce la scansione dei Results. */
-export function verdettoGiornata({ paths, driver, prefix, files = null } = {}) {
+export function verdettoGiornata({ paths, driver, prefix, files = null, ladder = null } = {}) {
   // IL PREFISSO di default è aammgg di OGGI — MAI la stringa "undefined":
   // (31/10, richiesta Mauro: «verdetto di gara oggi non va»): la GUI chiamava
   // /api/verdetto SENZA prefisso, l'endpoint passava `prefix: undefined` e la
@@ -68,7 +73,7 @@ export function verdettoGiornata({ paths, driver, prefix, files = null } = {}) {
     const base = {
       file: f,
       ora: dalNome(f),
-      pista: det.track + (det.layout ? ` (${det.layout})` : ''),
+      pista: pistaPulita(ladder, det.track + (det.layout ? ` (${det.layout})` : '')),
       sessione: det.session ?? '?',
       mioGiro: me?.bestLap ?? null,
     };

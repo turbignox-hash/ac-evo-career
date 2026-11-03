@@ -33,7 +33,7 @@
   // Un .js costruito a mano, un vecchio mai rigenerato o un file col
   // segnaposto residuo NON hanno la firma: qui si vede in console.
   if (typeof BUILD_OK === 'undefined') {
-    loga('ATTENZIONE: file NON costruito da tools/genera-uiapp.mjs — firma BUILD_OK assente');
+    loga('ATTENZIONE: file NON costruito da tools/genera-uiapp.mjs — firma BUILD_OK assente sul disco');
   } else {
     loga('build ok: PERIODO_MS=' + PERIODO_MS + ' ms dal publisher');
   }
@@ -296,9 +296,22 @@
       ' · ' + (o != null ? 'ore ' + esc(o) : 'mattino presto') + '</div>';
   }
 
+  // LA GUARDIA SUL MURO (3/11, nono giro): la stessa riga del CLI `status` e
+  // del cruscotto — il battito viaggia in fascia (dati.guardia di
+  // miniPitwall, presa dalla vetrina). Fascie senza il campo: niente
+  // blocco, come l'orologio — nessun errore finché il server non è al passo.
+  function bloccoGuardia() {
+    const g = S.dati?.guardia;
+    if (!g) return '';
+    const sek = Math.max(0, Math.round((g.ageMs ?? 0) / 1000));
+    const saluto = g.alive ? '<span style="color:#7fd18f">👁 guardia attiva</span>' : '<span style="color:#e5b46a">👁 guardia ferma</span>';
+    return '<div class="nota" style="margin-bottom:6px">' + saluto +
+      ' — ' + esc('controlla ' + sek + ' s fa') + (g.diz ? ' · ' + esc('dizionario: ' + g.diz) : '') + '</div>';
+  }
+
   function disegna() {
     const d = S.dati ?? {};
-    inner.innerHTML = bloccoOrario() + bloccoConsigli() + bloccoRadio() + bloccoSincro() + bloccoVerdetto() + bloccoAvvisi() +
+    inner.innerHTML = bloccoOrario() + bloccoGuardia() + bloccoConsigli() + bloccoRadio() + bloccoSincro() + bloccoVerdetto() + bloccoAvvisi() +
       ((d.consigli?.tips ?? []).length || (d.radio ?? []).length || d.verdetto || d.prepara || !fasciaTs
         ? ''
         : '<div class="uwoto">Il muro è zitto: nessun consiglio e nessuna gara di oggi.</div>');

@@ -334,11 +334,9 @@ test('midSeasonPulse: hot/cold SONO membri della griglia e il rookie DEBUTTA sol
   assert.deepEqual(e2.hot, e.hot, 'stesso round: stessi "in forma" — la storia non si riscrive');
 });
 
-test('paddock: il paddock dei rivali porta evoSlider e nome archetipo per ogni sedile', () => {
-  const ladder = mkLadder();
-  const w = world.createWorld(ladder, 'paddock', 40);
-  const node = nodeOf(ladder, 0);
-  const p = world.paddock(w, ladder, node, 1);
+test('rivali: la scheda dei rivali porta evoSlider e nome archetipo per ogni sedile', () => {
+  const ladder = mkLadder();   const w = world.createWorld(ladder, 'serie-mista', 40);
+  const node = nodeOf(ladder, 0);   const p = world.rivaliSerie(w, ladder, node, 1);
   assert.equal(p.length, node.gridSize - 1);
   for (const s of p) {
     assert.equal(s.archetypeName, ladder.archetypes[s.archetype].name);

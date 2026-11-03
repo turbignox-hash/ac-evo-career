@@ -1,10 +1,10 @@
 // uiapp-pub.mjs — il PUBLISHER dell'app «Cruscotto» in gioco (27/10/2026).
 //
 // L'app vive in Saved Games/ACE/mods/uiresources/ACEUIAppLoader/cruscotto/ e
-// ci parla come Paddock parla col suo paddock.py: LEGGE file JSON dalla
-// propria cartella, col nome `ui-<fascia>.json` dove <fascia> cambia ogni
-// PERIODO_MS — il gioco tiene le risposte in cache, e il nome nuovo bypassa
-// la cache (la stessa trucca è dentro paddock.js). Niente richieste HTTP
+// ci parla come l'altra app di carriera fa col suo script: LEGGE file JSON
+// dalla propria cartella, col nome `ui-<fascia>.json` dove <fascia> cambia
+// ogni PERIODO_MS — il gioco tiene le risposte in cache, e il nome nuovo
+// bypassa la cache (la stessa trucca usata dall'app installata). Niente richieste HTTP
 // verso il server del cruscotto (origine incrociata e il gioco non ce l'ha
 // con le pagine statiche): solo lettura pura di un file, il lavoro pesante
 // resta qui dentro.
@@ -23,7 +23,7 @@ import { playerWorldSkill } from './world.mjs';
 import { tr } from './lang.mjs';
 // il libro delle piste (TRACK_INFO): il comando di cambio auto porta anche
 // pista+layout come «Prepara tutto» li ha scritti — in gioco l'applet fa
-// la SEQUENZA COMPLETA di Paddock (tipo di gara → pista → auto) (28/10 PM)
+// la SEQUENZA COMPLETA di avvio (tipo di gara → pista → auto) (28/10 PM)
 import { specFor, currentWeekendTrack } from '../tools/set-track.mjs';
 // l'istantanea della gara al volo: la LETTURA del blocco Race è sempre
 // innocua (anche a gioco aperto) e vale alla card del cruscotto i FATTI
@@ -43,12 +43,18 @@ import { leggiStoreJson } from './uiapp-store.mjs';
 // della voce). Un'altra lettura MMF? NESSUNA: stessa fonte, zero doppioni.
 import { liveReader } from './shmem.mjs';
 import { engineerLive } from './engineer.mjs';
+// LA GUARDIA IN FASCIA (3/11, ottavo giro): il battito della guardia (watcher.json)
+// arriva anche al cruscotto dentro il gioco — vivi/ferma e l'ultima lezione del
+// dizionario, la STESSA riga che `status` stampa dal vivo. Lettura pura: un file
+// JSON per fascia, dentro try (una guardia ferma non rompe la vetrina).
+import { watcherStatus } from './watch.mjs';
 // LA RADIO DEL COPILOTA («Pitwall con la radio», 31/10): le ultime frasi
 // pronunciate dal narratore (già sul disco nel registro della voce) escono
 // NELLA PITWALL in gioco — pannello che ascolta. File e lettura UNICI, da
 // voce-copilota.mjs; il memo sotto evita una rilettura per fascia.
 import { leggiRadioVoce, LOG_VOCE_FILE } from './voce-copilota.mjs';
 import { statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 // il VERDETTO DI GIORNATA (29/10, «bottone verdetto sul cruscotto»): la
 // STESSA fonte della CLI e dell'endpoint GUI — un aggregato, nessuna
 // formula da duplicare. La LETTURA dei Results è sola lettura.
@@ -57,7 +63,7 @@ import { verdettoGiornata } from '../tools/verdetto-giornata.mjs';
 // le righe del verdetto leggono LA PISTA grezza dal file Results (token di
 // cartella tipo «OultonParkInternational») — stessa voce di prettyTrackLabeled
 // del banco A/B e del quaderno prove, niente seconda implementazione.
-import { prettyTrackLabeled } from './testday.mjs';
+import { pistaPulita } from './testday.mjs';
 
 // LA LINGUA DEI MESSAGGI (31/10, «integra maggiormente il cruscotto»): il
 // traduttore dei messaggi vecchi (testo IT di nascita) è QUELLO della GUI —
@@ -71,6 +77,10 @@ import { legacyMessageEn } from './webui-views.mjs';
 import { heritageOverview, memoryRoundHint } from './memories.mjs';
 
 export const PERIODO_MS = 2500;          // il ritmo delle fasce: 2.5 secondi esatti
+// LE FASCE DIETRO che la potatura lascia in casa (3/11, la cura del buco):
+// 12 × 2,5 s = 30 s di copertura, allineato al canale dell'app. Un tick
+// saltato del publisher non lascia più una fascia persa che il gioco 404a.
+export const FASCE_DIETRO = 12;
 export const APP_KEY = 'cruscotto';      // il nome della cartella-app nel loader
 
 // la scadenza di un «fresco»: il pending della ronda e la finestra della
@@ -93,6 +103,9 @@ const PENDING_SCADENZA_MS = 24 * 3600 * 1000;
 // validità, poi il canale torna muto e il pannello in gioco (bottone)
 // resta la via a mano.
 const EVENTO_FIDUCIA_MS = PENDING_SCADENZA_MS;   // 24 h, la stessa della ronda
+// Il nome della cartella che l'app di carriera ha su disco nel loader:
+// letterale perché il percorso è quello scritto dall'installazione.
+const APP_PDKEY = 'paddock';
 
 /** La cartella dell'app dentro il loader, o null se la mod non c'è:
  *  si prende il primo base «Saved Games» che ha l'App Loader installato
@@ -170,6 +183,16 @@ export function vetrina(ladder, state) {
     prossimoApp: prossimoAppuntamento(ladder, state),
     messaggi: messaggiFascia(state),
     pilota: { nome: state?.driver?.name ?? '', saldo: state?.money ?? 0, rep: state?.rep ?? 0 },
+    // LA GUARDIA (3/11, ottavo giro): il pannello in gioco dice se la guardia
+    // corre e COSA ha imparato l'ultima volta — prima lo stato della guardia
+    // si vedeva solo nel `status` del CLI, in gioco c'era solo il pallino
+    // connessione del SERVER, che è un'altra cosa.
+    guardia: (() => {
+      try {
+        const g = watcherStatus();
+        return { alive: g.alive, ageMs: g.ageMs, diz: g.dizionario?.msg ?? null, at: g.dizionario?.at ?? null };
+      } catch { return null; }
+    })(),
     iscritte, gare,
     // MINI-CLASSIFICA della serie del giorno e PANNELLO mondiale (richieste
     // 28/10): entrambe calcolate con le funzioni UFFICIALI del server
@@ -178,19 +201,19 @@ export function vetrina(ladder, state) {
     // per una statistica nuova.
     classifica: miniClassifica(ladder, state),
     mondo: pannelloMondo(ladder, state),
-    // COMANDO IN DIRETTA (28/10, fa come Paddock): se c'è la gara
+    // COMANDO IN DIRETTA (28/10, in dirigerea verso il menu): se c'è la gara
     // preparata col suo nome auto completo, il cruscotto in gioco la
     // imposta nel menu di EVO col canale menu (niente riavvio).
     comando: comandoAuto(ladder, state),
     // I BOTTONI «Prepara e divertiti» IN GIOCO (3/11, «implementalo sul
     // cruscotto per i bottoni prepara e divertiti di entrambi, anche eventi
     // speciali»): il SISTEMA immediato c'è già — il ponte comandi del
-    // Cruscotto è lo stesso di Paddock installato sul PC (corriSetcar →
+    // Cruscotto è lo stesso canale comandi già in gridia (corriSetcar →
     // corriEvento → corriAvvia in cruscotto.js) e un comando AUTO esce
     // a ogni tick automaticamente (comandoAuto sopra). Le azioni sono l'ALTRA
     // metà, la MANUALE: i DATI per i due bottoni del pannello, uno per la
     // ronda preparata (sequenza completa: tipo gara → pista → auto → avvia,
-    // come Paddock) e uno per l'evento speciale accettato (SOLO auto, il
+    // nel menu) e uno per l'evento speciale accettato (SOLO auto, il
     // weekend non si tocca). Il canale automatico resta VIVO: se la
     // presa automatica del comando manca (silenzio dall'ack, finestre
     // chiuse), l'amico preme il bottone e riparte la STESSA sequenza dal
@@ -271,7 +294,7 @@ export function messaggiFascia(state, n = 4) {
   } catch { return []; }
 }
 
-/** Etichetta d'emergenza derivata dall'ID (1/11, «al volo come Paddock»):
+/** Etichetta d'emergenza derivata dall'ID (1/11, al volo):
  *  ks_mini_jcs_1990 → «Mini Jcs 1990». Serve SOLO come nome di vetrina quando
  *  il libro non ha l'auto: il riconoscimento VERO nel menu di EVO avviene per
  *  ID interno (car_model.name, cruscotto.js trovaAuto), non per questo nome. */
@@ -318,7 +341,7 @@ export function comandoAuto(ladder, state, env = process.env) {
     const p = state?.pending;
     // la scadenza del pending (lezione 27/10 19:30) vive in testa al modulo:
     // azioniPulsanti (i bottoni) la condivide, nessuna coppia da tenere in pari.
-    // VETRINA CUSTOM (28/10 sera, «deve farlo in automatico come paddock»):
+    // VETRINA CUSTOM (28/10 sera, richiesta Mauro: «deve farlo in automatico»):
     // una gara personalizzata (la demo endurance multi-classe) vive fuori
     // dalla carriera: la griglia la scrive il tool DIRETTAMENTE sul disco e
     // NIENTE passa da state.pending — che resta della ronda e comandava
@@ -413,7 +436,7 @@ export function comandoAuto(ladder, state, env = process.env) {
     // il suo comando setcar FU GIÀ CONFERMATO dall'app (ack in ui_storage —
     // l'auto nel menu di EVO è già quella), al posto del vecchio silenzio
     // esce il comando «avvia»: l'applet preme «Avvia sessione» da sola, lo
-    // stesso comando del Paddock. Con l'ack dell'avvia già scritto si
+    // stesso comando già in griglia. Con l'ack dell'avvia già scritto si
     // torna al silenzio. L'EVENTO non riceve alcun avvia: lì le impostazioni
     // si mettono a mano dalla scheda — un avvio automatico partirebbe con
     // AI/ora/giri sbagliati (lezione 23/10). Solo ronda FRESCA: un pending
@@ -474,7 +497,10 @@ export function miniPitwall(dati, fascia) {
   // anche nel payload piccolo — il pannello del muro è il SOLO che il pilota
   // vede in gara. null di entrambi = carriera non ancora montata.
   // Null a schermo niente: nessun blocco orario sul muro.
-  return { quando: dati?.quando ?? null, slot: fascia, giorno: dati?.giorno ?? null, ora: dati?.ora ?? null, prepara: dati?.prepara ?? null, verdetto: dati?.verdetto ?? null, consigli: dati?.consigli ?? null, radio: radioFascia() };
+  // LA GUARDIA (3/11, nono giro): passa INVARIATA dalla vetrina (dati.guardia,
+  // il battito l'ha già calcolata lì) — in pista il muro dice se la guardia
+  // corre e cosa ha imparato, senza ricalcoli in più.
+  return { quando: dati?.quando ?? null, slot: fascia, giorno: dati?.giorno ?? null, ora: dati?.ora ?? null, prepara: dati?.prepara ?? null, verdetto: dati?.verdetto ?? null, consigli: dati?.consigli ?? null, radio: radioFascia(), guardia: dati?.guardia ?? null };
 }
 
 // IL MEMO della radio (31/10): il log del copilota cresce riga per riga, ma
@@ -492,22 +518,10 @@ function radioFascia() {
   } catch { if (memoRadio.size !== -1) { memoRadio.size = -1; memoRadio.frasi = []; } }
   return memoRadio.frasi;
 }
-/** La pista del file Results (token di cartella) col NOME BELLO del ladder:
-     prettyTrackLabeled di testday.mjs, unica implementazione — senza ladder o
-     pista mancate, la voce grezza passa integra. VERDETTOWARE: le righe del
-     verdetto montano il layout in coda («Mount Panorama (GP Race)») — si
-     SCASTA prima la parentesi (è il layout, nel Results è campo a sé) e si
-     ripala dopo, così la variabile del banco non diventa «Race)» (fascia
-     261102, pitwall). Senza layout in coda, la pista intera alla pulita. */
-function pistaPulita(ladder, pista) {
-  if (!ladder || !pista) return pista ?? null;
-  try {
-    const m = /^(.+?)\s\(([^()]*)\)$/.exec(String(pista));
-    const solo = m?.[1].trim() ? m[1] : String(pista);
-    const coda = m?.[1].trim() ? ` (${m[2]})` : '';
-    return (prettyTrackLabeled(ladder, solo) ?? solo) + coda;
-  } catch { return pista; }
-}
+// IL NOME PULITO delle righe del verdetto (3/11): pistaPulita vive in
+// testday.mjs accanto a prettyTrackLabeled — UNA implementazione adesso
+// anche per l'endpoint /api/verdetto della GUI, come per le fasce del pitwall.
+
 /** Il giro migliore dell'aggregato porta anch'esso « @ pista» grezza: il chip
      del cruscotto lo compone da solo a schermo. Stessa voce pulita. */
 function giroTopPulito(ladder, giroTop) {
@@ -554,7 +568,7 @@ export function verdettoFascia(state, env = process.env, ladder = null) {
 /** I DATI dei bottoni «Prepara e divertiti» del pannello in gioco (3/11,
  *  richiesta Mauro: «implementalo sul cruscotto per i bottoni prepara e
  *  divertiti di entrambi, anche eventi speciali»). Il ponte comandi è lo
- *  stesso di Paddock, già dentro cruscotto.js: qui (lato server) escono
+ *  stesso canale già dentro cruscotto.js: qui (lato server) escono
  *  SOLO LE IMPRONTE dei gesti, con gli STESSI id di comandoAuto così le
  *  azioni del bottone si *coordinano* via ack: premere il bottone mette
  *  anch'essa un ack e il canale automatico tace per lo stesso gesto. Il bottone
@@ -850,16 +864,21 @@ export function uiappTick(env = process.env) {
   } catch { /* la storia è un plus: mai rompere il tick */ }
   dati.validaFino = new Date((fascia + 1) * PERIODO_MS).toISOString();
   writeFileSync(join(dir, `ui-${fascia}.json`), JSON.stringify(dati), 'utf8');
-  // la spazzatura va a casa: tengo la fascia scritta e le 2 prima (se il gioco
-  // arriva un attimo in ritardo, una fascia indietro resta leggibile)
   // la spazzatura va a casa: un ack consumato dopo un'ora si dimentica, e le
-  // vecchie fasce si tolgono (il gioco si legge anche una in ritardo)
+  // vecchie fasce si tolgono.
+  // LA CURA DEL BUCO (3/11, la raffica dei 404 nel log di EVO): prima si
+  // teneva la fascia scritta + le 2 prima; un tick saltato dal publisher
+  // (sistema occupato, lock breve) mostrava la finestra già corta e la fascia
+  // saltata usciva dal disco PRIMA che il gioco la chiedesse → 404. Ora:
+  // fascia scritta + le 12 prima, come la rappresentazione dell'app (30 s di copertura a
+  // 2,5 s/tascle): più fasce dietro in casa, nessun buco assaporato.
   if (confermati.size > 8) {
     const t = Date.now();
     for (const [id, at] of confermati) { if (t - at > 3_600_000) confermati.delete(id); }
   }
-  const vecchi = readdirSync(dir).filter((f) => /^ui-\d+\.json$/.test(f) && f !== `ui-${fascia}.json`);
-  for (const f of vecchi.slice(0, Math.max(0, vecchi.length - 2))) {
+  const vecchi = readdirSync(dir).filter((f) => /^ui-\d+\.json$/.test(f) && f !== `ui-${fascia}.json`)
+    .sort((a, b) => Number(a.slice(3, -5)) - Number(b.slice(3, -5)));
+  for (const f of vecchi.slice(0, Math.max(0, vecchi.length - FASCE_DIETRO))) {
     try { unlinkSync(join(dir, f)); } catch { // di recente presa in lettura dal gioco: arriva al prossimo giro
     }
   }
@@ -874,21 +893,22 @@ export function uiappTick(env = process.env) {
     if (dirP) {
       const pw = miniPitwall(dati, fascia);
       writeFileSync(join(dirP, `ui-${fascia}.json`), JSON.stringify(pw), 'utf8');
-      const vecchiP = readdirSync(dirP).filter((f) => /^ui-\d+\.json$/.test(f) && f !== `ui-${fascia}.json`);
-      for (const f of vecchiP.slice(0, Math.max(0, vecchiP.length - 2))) { try { unlinkSync(join(dirP, f)); } catch { } }
+      const vecchiP = readdirSync(dirP).filter((f) => /^ui-\d+\.json$/.test(f) && f !== `ui-${fascia}.json`)
+        .sort((a, b) => Number(a.slice(3, -5)) - Number(b.slice(3, -5)));
+      for (const f of vecchiP.slice(0, Math.max(0, vecchiP.length - FASCE_DIETRO))) { try { unlinkSync(join(dirP, f)); } catch { } }
     }
   } catch { /* fasce Pitwall saltate: la principale non deve attese per niente */ }
-  // LE FASCE RAPIDE DEL PADDOCK (1/11, la cura del flood): il tick del
-  // Cruscotto compra anche questo canale. Tutto qui sotto è in try: il
-  // Paddock è un plus, mai un ammazzatick.
-  try { fascePaddock(cartellaApp(env, 'paddock')); } catch { /* fasce Paddock saltate */ }
+  // LE FASCE RAPIDE DELL'APP DI CARRIERA (1/11, la cura del flood): il tick del
+  // Cruscotto compra anche questo canale. Tutto qui sotto è in try:
+  // è un plus, mai un ammazzatick.
+  try { fasceApp(cartellaApp(env, APP_PDKEY)); } catch { /* fasce app saltate */ }
   return { ok: true, file: `ui-${fascia}.json` };
 }
 
-/** LE FASCE RAPIDE DEL PADDOCK (1/11, la cura del flood).
- *  L'app Paddock (paddock.js) chiede una propria `ui-<fascia>.json` Ogni
+/** LE FASCE RAPIDE DELL'APP DI CARRIERA (1/11, la cura del flood).
+ *  L'app installata nel gioco chiede una propria `ui-<fascia>.json` OGNI
  *  500 ms — un ritmo che il tick del Cruscotto (2500 ms) da sé non copre.
- *  Il suo editor (il vecchio publisher di Paddock, morto alle 02:46 di
+ *  Il suo editor (il vecchio publisher, morto alle 02:46 di
  *  oggi: stesso giorno del riavvio del server a metà giornata) non è mai
  *  stato sostituito: EVO ha protestato con RICHIESTE FALLITE CONTINUE
  *  (10 398 solo nel log di oggi, ~2 per secondo) che riempivano il log
@@ -900,9 +920,13 @@ export function uiappTick(env = process.env) {
  *  Le vecchie si potano a 12: il margine resta largo (12 × 500 ms).
  *  La base dei tempi è QUELLA di paddock.js (500 ms, Math.floor(now/500)): qui
  *  si calcola da sé, niente scalifice col periodo del Cruscotto (2,5 s). */
-const testaPaddockNota = new Map();   // dir -> head letto una volta sul disco
-function testaPaddock(dir) {
-  if (dir == null || testaPaddockNota.has(dir)) return testaPaddockNota.get(dir);
+const testaAppNota = new Map();   // dir -> head letto una volta sul disco
+// LA MEMORIA DI QUELLO GIÀ PUBBLICATO (2/11 sera, «problema iniziato coi 3 giri»):
+// il puntatore cambia SOLO perché il contenuto del journal è VERAMENTE diverso —
+// non perché l'engine ha rispamato lo stesso JSON con un hash nuovo.
+const sezioniPubblicate = new Map();  // dir -> Map(vista -> { file, hash })o
+function testaApp(dir) {
+  if (dir == null || testaAppNota.has(dir)) return testaAppNota.get(dir);
   let head = null;
   try {
     const presenti = readdirSync(dir).filter((f) => /^ui-\d+\.json$/.test(f)).sort().reverse();
@@ -912,7 +936,7 @@ function testaPaddock(dir) {
   } catch { head = null; }
   head = head ?? { v: 2, engine: 'Paddock 1.0.2', acks: {}, generatedAt: 0, sections: {} };
   // LE SEZIONI SMARRITE (1/11): un head senza sezioni (head bech o potatura
-  // scortesa del giorno stesso) non deve ammazzare il Paddock Mentre esiste
+  // scortesa del giorno stesso) non deve ammazzare il canale Mentre esiste
   // anche UNA sezione `pd-<nome>-<hash>.json` sul disco: si difiquinano i
   // puntatori direttamente dai file statici (main, home, calendar, garage…).
   try {
@@ -925,15 +949,70 @@ function testaPaddock(dir) {
       if (Object.keys(sezioni).length) head.sections = sezioni;
     }
   } catch { /* senza sezioni il canale resta a sezioni vuote, come oggi */ }
-  testaPaddockNota.set(dir, head);
+  testaAppNota.set(dir, head);
   return head;
 }
-export function fascePaddock(dir, fascia = null) {
-  if (!dir || !existsSync(dir)) return { ok: false, motivo: 'paddock non installato' };
-  // la base a 500 ms del Paddock, calcolata QUI (il periodo del Cruscotto è
+/** I PUNTATORI FRESCHI (2/11): per ogni vista `pd-<vista>-<hash>.json`
+ *  presente, il file PIÙ RECENTE (mtime). null se non ce n'è nessuno:
+ *  in quel caso restano i puntatori dell'head (comportamento di ieri, per
+ *  l'installazione senza journal — l'app ladra non deve morire per questo). */
+function sezioniFresche(dir) {
+  try {
+    const viste = new Map();   // vista -> { file, mtime }
+    for (const f of readdirSync(dir)) {
+      const m = /^pd-([a-z]+)-[0-9a-f]+\.json$/.exec(f);
+      if (!m) continue;
+      let mtime = 0;
+      try { mtime = statSync(join(dir, f)).mtimeMs; } catch { continue; }
+      const era = viste.get(m[1]);
+      if (!era || mtime > era.mtime) viste.set(m[1], { file: f, mtime });
+    }
+    if (!viste.size) return null;
+    const out = {};
+    for (const [vista, v] of viste) out[vista] = v.file;
+    return out;
+  } catch { return null; }
+}
+
+export function fasceApp(dir, fascia = null) {
+  if (!dir || !existsSync(dir)) return { ok: false, motivo: 'app non installata' };
+  // la base a 500 ms dell'app, calcolata QUI (il periodo del Cruscotto è
   // un altro: passarli sbaglia l'intera scala delle fasce, lezione 1/11)
   const base = Number.isFinite(Number(fascia)) && fascia != null ? Number(fascia) : Math.floor(Date.now() / 500);
-  const head = testaPaddock(dir);
+  // PUNTATORI FRESCHI a ogni tick (2/11, il battito della pagina): l'engine
+  // del gioco riscrive i journal pd-<vista>-<hash>.json dando un hash NUOVO
+  // a ogni scrittura, e paddock.js ricarica una vista SOLO quando il NOME
+  // del suo file cambia. Per questo il puntatore si rilegge DAL DISCO a
+  // ogni tick: per ogni vista vince il pd-<vista>-*.json PIÙ RECENTE (mtime).
+  //
+  // MA IL CAMBIO VERO È IL CONTENUTO (2/11 sera, «iniziato con i 3 giri»):
+  // a gare corte l'engine rigenera i journal a raffiche (arrivo ai box,
+  // classifica, ledger) spesso a CONTENUTO identico, solo con hash nuovo —
+  // e il nome fresco fa ricaricare la pagina ogni volta. Il puntatore per
+  // una vista cambia SOLO quando il contenuto del journal (sha1) è diverso
+  // da quello pubblicato l'ultima volta: stesso JSON, stesso nome, pagina
+  // ferma. Riscritture vere escono comunque, come deve.
+  const baseHead = testaApp(dir);
+  const freschi = sezioniFresche(dir);
+  const sezioni = { ...(baseHead.sections ?? {}) };
+  if (freschi) {
+    const pub = sezioniPubblicate.get(dir) ?? new Map();
+    for (const [vista, file] of Object.entries(freschi)) {
+      let hash = null;
+      try { hash = createHash('sha1').update(readFileSync(join(dir, file))).digest('hex'); } catch { hash = null; }
+      const prima = pub.get(vista);
+      const stessoContenuto = prima != null && hash != null && prima.hash != null && hash === prima.hash;
+      const vecchioVivo = prima != null && existsSync(join(dir, prima.file));
+      if (stessoContenuto && vecchioVivo) {
+        sezioni[vista] = prima.file;            // stesso JSON, stesso nome: la pagina sta ferma
+      } else {
+        pub.set(vista, { file, hash });         // contenuto nuovo (o hash illeggibile): esce il nome fresco
+        sezioni[vista] = file;
+      }
+    }
+    sezioniPubblicate.set(dir, pub);
+  }
+  const head = { ...baseHead, sections: sezioni };
   const scritte = [];
   for (let i = 0; i < 5; i++) {
     const slot = base + i;

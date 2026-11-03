@@ -1,4 +1,4 @@
-// classi-da-paddock.mjs — i BUCHI delle classi note, riempiti con i dati VERI.
+// classi-da-app.mjs — i BUCHI delle classi note, riempiti con i dati VERI.
 //
 // Ripartito confermato da Mauro il 27/10: Paddock diventa fonte primaria per le
 // CLASSI. Le regole nate dalle gare vere (grid-classes.json) restano SOPRA e non
@@ -30,12 +30,12 @@
 //                     Mini/Delta), niente regola scritta.
 //
 // uso:
-//   node tools/classi-da-paddock.mjs                    → dry-run (default)
-//   node tools/classi-da-paddock.mjs --apply            → scrive (backup prima)
-//   node tools/classi-da-paddock.mjs --serie pi-10-11-moderna
-//   node tools/classi-da-paddock.mjs --json             → output per test/GUI
+//   node tools/classi-da-app.mjs                    → dry-run (default)
+//   node tools/classi-da-app.mjs --apply            → scrive (backup prima)
+//   node tools/classi-da-app.mjs --serie pi-10-11-moderna
+//   node tools/classi-da-app.mjs --json             → output per test/GUI
 //
-// Override di test: EVO_CLASSES_FILE, EVO_CARS_JSON, PADDOCK_JOURNAL_DIR.
+// Override di test: EVO_CLASSES_FILE, EVO_CARS_JSON, APP_JOURNAL_DIR.
 // Il modulo è import-safe: la CLI gira solo quando eseguito direttamente
 // (lezione del 19/10 in grid-balance).
 
@@ -96,7 +96,7 @@ export function carIndexFromRaw(raw) {
 }
 
 /** journal pd-catalog: strip(nome)+strip(slug) → riga (kw_per_t, mass…). */
-export function paddockIndexFromCat(cat) {
+export function appIndexFromCat(cat) {
   const idx = new Map();
   for (const c of cat ?? []) {
     if (!c?.name) continue;
@@ -173,12 +173,11 @@ function piBaseOf(carIdx, base) {
  *   senza-numero → buchi trovati ma la classe NON ha pendenza derivabile:
  *                  si DICE, non si inventa (zavorra/massa non senza restrittore)
  *   non-derivabile → fuori perimetro (senza PI window, base o kw/t mancanti)
- *   pulita → nessun buco: la finestra PI è tutta coperta
- * Le proposte portano fonte:'paddock'; le regole di Mauro restano intatte.
+ *   pulita → nessun buco: la finestra PI è tutta coperta  * Le proposte portano fonte:'app'; le regole di Mauro restano intatte.
  */
-export function proposteDaPaddock(classes, { carRaw = null, catCars = null, onlyId = null } = {}) {
+export function proposteDaApp(classes, { carRaw = null, catCars = null, onlyId = null } = {}) {
   const carIdx = carIndexFromRaw(carRaw);
-  const catIdx = paddockIndexFromCat(catCars);
+  const catIdx = appIndexFromCat(catCars);
   const out = [];
   for (const [id, cls] of Object.entries(classes?.classi ?? {})) {
     if (onlyId && id !== onlyId) continue;
@@ -258,8 +257,7 @@ export function proposteDaPaddock(classes, { carRaw = null, catCars = null, only
             senzaNumero.push({ preset: v.preset, auto: label, pi: round2(v.pi), motivo: `PI sopra la base ma Δkw/t negativo (${round2(dKw)}): vince in presa/grip, non in potenza — non derivabile (lezione Mini/Delta 21/10), serve una gara reale` });
             continue;
           }
-          proposte.push({
-            preset: v.preset, auto: label, ballastKg: 0, restrictorPct: 0, fonte: 'paddock',
+          proposte.push({             preset: v.preset, auto: label, ballastKg: 0, restrictorPct: 0, fonte: 'app',
             note: `${oggi} · PI ≤ base e potenza inferiore (Δkw/t ${round2(dKw)}): 0/0, nessuna leva da dare. ${dati}. Da verificare in pista (griglia-calib)`,
           });
           continue;
@@ -271,14 +269,12 @@ export function proposteDaPaddock(classes, { carRaw = null, catCars = null, only
         const pct = Math.min(capPct, Math.max(0, Math.round(cal.k * dKw * 2) / 2));
         if (pct < 0.5) {
           if (v.pi <= piBase) continue;                              // potenza pari e PI ≤ base: 0/0 di fatto
-          proposte.push({
-            preset: v.preset, auto: label, ballastKg: kg, restrictorPct: 0, fonte: 'paddock',
+          proposte.push({             preset: v.preset, auto: label, ballastKg: kg, restrictorPct: 0, fonte: 'app',
             note: `${oggi} · la pendenza calibrata dà ${pct}% (<0.5: sotto la soglia sensata del selettore) → restrittore 0, zavorra da differenza di potenza: Δkw/t ${round2(dKw)}. ${dati}. Da verificare in pista`,
           });
           continue;
         }
-        proposte.push({
-          preset: v.preset, auto: label, ballastKg: kg, restrictorPct: pct, fonte: 'paddock',
+        proposte.push({           preset: v.preset, auto: label, ballastKg: kg, restrictorPct: pct, fonte: 'app',
           note: `${oggi} · Δkw/t ${round2(dKw)} (${cat.kw_per_t} vs base ${baseCat.kw_per_t}) × pendenza classe ${cal.k.toFixed(3)} %/kw·t (calibrata sui ${cal.punti.length} valori misurati in pista da Mauro, max scarto ${cal.scartoMax} punti) · zavorra ${kg}kg da convenzione ${convKg}kg×massa${cat?.mass != null && baseCat.mass ? ` (${cat.mass}/${baseCat.mass})` : ' (masse non disponibili: convenzione piena)'} · PUNTO DI PARTENZA: la prima gara con griglia-calib decide se regge. ${dati}`,
         });
       }
@@ -294,8 +290,7 @@ export function proposteDaPaddock(classes, { carRaw = null, catCars = null, only
 }
 
 /* ---------- scrittura (l'UNICO punto che tocca grid-classes.json) ---------- */
-/**
- * Sostituisce SOLE le regole con fonte 'paddock' nelle classi toccate
+/**  * Sostituisce SOLE le regole con fonte 'app' nelle classi toccate
  * (idempotente: al secondo giro si riscrivono le stesse). Le regole di Mauro
  * (senza fonte / fonte assente) NON si toccano mai. Backup prima di scrivere.
  */
@@ -306,14 +301,13 @@ export function scriviProposte(classes, esito, { file = classesFile() } = {}) {
   try {
     const bdir = join(dirname(file), 'backups');
     mkdirSync(bdir, { recursive: true });
-    backup = join(bdir, `grid-classes.bak-classi-paddock-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
+    backup = join(bdir, `grid-classes.bak-classi-app-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
     copyFileSync(file, backup);
   } catch { /* il backup non è vincolante: la scrittura è già atomica */ }
   for (const c of tocche) {
     const cls = classes.classi[c.id];
     const nuove = c.proposte;
-    cls.regole = [
-      ...(cls.regole ?? []).filter((r) => r.fonte !== 'paddock'),
+    cls.regole = [       ...(cls.regole ?? []).filter((r) => r.fonte !== 'app'),
       ...nuove,
     ];
   }
@@ -344,8 +338,8 @@ export async function main(argv = []) {
     let catCars = null;
     if (!esito.errore) {
       try {
-        const { paddockCatalog } = await import('../src/paddock.mjs');
-        const cat = paddockCatalog();
+        const { appCatalog } = await import('../src/app-carriera.mjs');
+        const cat = appCatalog();
         if (cat?.ok) catCars = cat.cars;
       } catch { /* journal assente: si dichiara sotto */ }
       if (!catCars) {
@@ -354,7 +348,7 @@ export async function main(argv = []) {
     }
     if (!esito.errore) {
       const carRaw = JSON.parse(readFileSync(esito.carsJson, 'utf8'));
-      Object.assign(esito, proposteDaPaddock(classes, { carRaw, catCars, onlyId: only }));
+      Object.assign(esito, proposteDaApp(classes, { carRaw, catCars, onlyId: only }));
       if (apply) esito.scritture = scriviProposte(classes, esito, { file: esito.file });
     }
   } catch (e) {
@@ -388,7 +382,7 @@ export async function main(argv = []) {
   } else if (apply) {
     console.log(`\n${dim('niente da scrivere: le regole reali coprono già la finestra')}`);
   } else if (tot > 0) {
-    console.log(`\nper scrivere (${tot} proposte): ${bold('node tools/classi-da-paddock.mjs --apply')}${dim(' — senza --apply nessun file cambia')}`);
+    console.log(`\nper scrivere (${tot} proposte): ${bold('node tools/classi-da-app.mjs --apply')}${dim(' — senza --apply nessun file cambia')}`);
   } else {
     console.log(`\n${dim('nessuna proposta in questa classe: nessun file cambia')}`);
   }

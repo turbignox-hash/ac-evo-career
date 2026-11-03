@@ -635,6 +635,16 @@ dizionario personale azzerato). Scegli l'auto a mano come al solito: a fine
 gara l'app impara l'auto dal garage e nelle gare successive la seleziona da
 sé, senza sampler.
 
+**Come si riempie il dizionario: da solo.** Tre fonti leggono le scritture del
+GIOCO, senza campionature a mano né tool esterni: i log di avvio (`Loaded car`),
+lo storage del menu delle auto (`ui_storage.uistorage`, al boot e a ogni giro
+della guardia) e le iscrizioni in paddock (coppia e calendario scritti insieme).
+La guardia (`watch`) rinfresca tutto a ogni ciclo e stampa una riga verde solo
+quando impara davvero qualcosa; un'etichetta scritta due volte («Mazda Mazda…»)
+si ripulisce da sola col nome ufficiale, mentre i sinonimi con rumore estraneo
+(«Kunos…») restano come erano. Le gare online (`_MP_`) restano fuori dal
+pagamento della carriera ma le copie restano nell'archivio.
+
 **Il Meccanico dice che manca una fonte.** Vuol dire che per quell'auto non c'è
 ancora telemetria `.ld` usabile (o il file è vuoto): fai un giro netto in gioco
 e alla prossima analisi i consigli nascono su dati veri. Spiega sempre quale

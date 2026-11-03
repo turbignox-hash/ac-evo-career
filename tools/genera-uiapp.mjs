@@ -40,6 +40,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { diff as differenz } from 'node:util';
 import { PERIODO_MS } from '../src/uiapp-pub.mjs';
 import { savedGamesRoots } from '../src/paths.mjs';
 
@@ -115,7 +116,7 @@ for (const app of APP) {
     try { costruitoVivo = readFileSync(inGioco, 'utf8'); } catch { /* la copia è irraggiungibile: la reinstallazione lo dirà */ }
     if (costruitoVivo !== testo) {
       daInstallare.add(app.chiave);
-      console.log(`  [!] la copia in gioco (${relative(RADICE, inGioco)}) non corrisponde all costruita`);
+      console.log(`  [!] la copia in gioco (${relative(RADICE, inGioco)}) non corrisponde alla costruita`);
     }
   }
 }
@@ -135,6 +136,39 @@ if (!uscita) {
     }
   } else {
     console.log('  niente da reinstallare: costruite e copie in gioco sono al passo');
+  }
+}
+if (!uscita) {
+  // (3/11) DIAGNOSTICA A CODA — costruiti E sorgenti aperti e diffati con la
+  // libreria di diff GIÀ A BORDO di Node (node:util.diff, modalità a righe;
+  // niente dipendenze nuove). Il conto è chiuso per costruzione: tolte le
+  // righe che la build è autorizzata a spostare (il segno consumato «−» e
+  // le due righe cucite al suo posto, riconosciute dal marchio [via build]),
+  // ciò che RESTA si stampa. Solo RAPPORTO: non tocca l'uscita — il
+  // verdetto della build resta quello delle guardie.
+  console.log('  — diagnostica a CODA: costruiti ↔ sorgenti (node:util.diff, riga per riga)');
+  for (const app of APP) {
+    const fuori = [];
+    // la libreria diffa VALORI generici: sulle stringhe fa un diff a
+    // CARATTERI (l'opzione diffMode:'lines' è di Node 24, qui ignorata) —
+    // le pipe uno a uno (split('\n')) e diffando i due array. Orientamento empirico della coppia [op, riga]: op 1 = riga
+    // solo nel PRIMO argomento (sorgente), op -1 = solo nel secondo, 0 = uguale.
+    const passi = differenz(readFileSync(join(app.cartella, `${app.chiave}.src.js`), 'utf8').split('\n'),
+      readFileSync(join(app.cartella, `${app.chiave}.js`), 'utf8').split('\n'));
+    for (const [op, riga] of passi) {
+      if (op === 0) continue;
+      // il resto legittimo: il segno consumato (riga solo nella sagoma, −)
+      // e la cucitura (le due righe + col marchio [via build], una ciascuna)
+      if (op === 1 && riga.trim() === SEGNAPOSTO) continue;
+      if (op === -1 && riga.includes('[via build]') && /^\s*const (PERIODO_MS|BUILD_OK)\b/.test(riga)) continue;
+      fuori.push(`${op === -1 ? '+' : '-'} ${riga}`);
+    }
+    if (fuori.length) {
+      console.log(`  [!] ${app.chiave}: ${fuori.length} righe di diff FUORI dalla cucitura:`);
+      for (const riga of fuori) console.log(`      ${riga}`);
+    } else {
+      console.log(`  [x] ${app.chiave}: oltre la cucitura della build NON resta niente`);
+    }
   }
 }
 process.exit(uscita);

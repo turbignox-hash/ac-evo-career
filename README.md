@@ -637,6 +637,16 @@ which the app must know to pick it by itself, is missing (new PC or a reset of
 personal data). Pick the car by hand as usual: at the race end the app learns
 the car from the garage and picks it by itself in later races.
 
+**The dictionary fills itself.** Three sources read what the GAME writes, no
+hand samples and no external tools: the startup logs (`Loaded car`), the car
+menu storage (`ui_storage.uistorage`, read at boot and on every pass of the
+guard) and paddock sign-ups (pair and calendar written together). The guard
+(`watch`) refreshes everything each cycle and prints a single green line only
+when it really learned something; a label written twice ("Mazda Mazda…") cleans
+itself with the official name, while synonyms carrying foreign noise ("Kunos…")
+stay as they were. Online races (`_MP_`) stay out of the career payout and are
+kept in the online archive.
+
 **The Mechanic says a source is missing.** It means no usable `.ld` telemetry
 for that car yet (or an empty file): drive one clean lap in the game and the
 advice builds on real data at the next scan. It always explains which source is

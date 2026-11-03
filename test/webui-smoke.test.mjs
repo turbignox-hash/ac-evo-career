@@ -182,15 +182,15 @@ test('il server GUI parte e serve le API chiave (boot, status, card, pagina)', a
       assert.equal(typeof rv.beaten, 'number', `rivale senza "tu davanti": ${JSON.stringify(rv)}`);
     }
 
-    // 4-quater) CONSIGLI ANCHE NEL PADDOCK (/api/paddock, 31/10): il bridge
+    // 4-quater) CONSIGLI ANCHE NEL PADDOCK (/api/app, 31/10): il bridge
     // porta ATTACCATO il pacchetto consigli { live, tips } di consigliFascia —
     // la STESSA fonte delle fasce del cruscotto, zero doppie letture MMF. La
     // forma deve valere SEMPRE (anche col bridge «ok:false» perché l'app non
     // è installata): live booleano e tips elenco di righe icon/title/text/prio;
     // col gioco fermo tips vuoto ma il campo PRESENTE — mai un 500.
-    const pdB = await getJson('/api/paddock', 'POST', {});
-    assert.equal(pdB.code, 200, '/api/paddock deve rispondere 200 (anteprima anche senza app)');
-    assert.ok(pdB.j, '/api/paddock deve essere JSON');
+    const pdB = await getJson('/api/app', 'POST', {});
+    assert.equal(pdB.code, 200, '/api/app deve rispondere 200 (anteprima anche senza app)');
+    assert.ok(pdB.j, '/api/app deve essere JSON');
     assert.equal(typeof pdB.j.consigli.live, 'boolean', 'consigli.live deve essere booleano');
     assert.ok(Array.isArray(pdB.j.consigli.tips), 'consigli.tips deve essere un elenco (anche vuoto)');
     for (const t of pdB.j.consigli.tips.slice(0, 3)) {

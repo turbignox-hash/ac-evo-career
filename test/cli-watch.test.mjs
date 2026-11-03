@@ -204,3 +204,59 @@ test('watchOnce davanti a una gara MULTIPLAYER (_MP_): carriera intonaca, poi la
   assert.ok(out2.imported, `la stessa gara SENZA il tag online deve invece incassare: ${JSON.stringify(out2)}`);
   assert.equal(out2.imported.entry.position, 2);
 });
+
+// 3/11 pomeriggio: il rinfresco del dizionario (menu + iscrizioni paddock) va
+// iniettato nel tick: i test non devono guardare né scrivere file veri.
+test('watchOnce rinfresca il dizionario a ogni tick, senza toccare la raccolta gare', async () => {
+  const { watchOnce } = await import('../src/watch.mjs?v=dizione');
+  const { resolvePaths } = await import('../src/paths.mjs');
+  const DATA = mkdtempSync(join(tmpdir(), 'evo-dizione-ok-'));
+  mkdirSync(join(DATA, 'Results'), { recursive: true });
+  const calls = [];
+  const out = watchOnce(JSON.parse(LADDER), resolvePaths(), {
+    baselineMs: Date.now(), // niente di fresco: il tick deve solo rinfrescare
+    stateLoader: () => { throw new Error('lo stato non deve essere toccato senza gare nuove'); },
+    refreshDizionario: () => {
+      calls.push(1);
+      return { storage: { added: 1, corrette: 0, aggiornate: 1 }, paddock: { added: 0, corrette: 0, nota: 'paddock installato: nessun journal da leggere' } };
+    },
+  });
+  assert.equal(calls.length, 1, 'il rinfresco va chiamato UNA volta per tick');
+  assert.equal(out.dizionario.storage.added, 1);
+  assert.equal(out.dizionario.storage.aggiornate, 1);
+  assert.equal(out.dizionario.paddock.nota, 'paddock installato: nessun journal da leggere');
+  assert.equal(out.scanned, 0);
+  assert.equal(out.imported, null);
+  assert.equal(out.error, null);
+});
+
+test('un errore del rinfresco non ruba il tick: la raccolta gare va avanti', async () => {
+  const { watchOnce } = await import('../src/watch.mjs?v=dizione-rotta');
+  const { resolvePaths } = await import('../src/paths.mjs');
+  const DATA = mkdtempSync(join(tmpdir(), 'evo-dizione-rotta-'));
+  const Results = join(DATA, 'Results');
+  mkdirSync(Results, { recursive: true });
+  const out = watchOnce(JSON.parse(LADDER), resolvePaths(), {
+    baselineMs: Date.now(),
+    stateLoader: () => { throw new Error('lo stato non deve essere toccato senza gare nuove'); },
+    refreshDizionario: () => { throw new Error('ui_storage a metà scrittura'); },
+  });
+  assert.equal(out.error, null, 'un errore del rinfresco non deve guastare il tick');
+  assert.equal(out.dizionario, undefined);
+  assert.equal(out.scanned, 0);
+});
+
+// 3/11: il battito porta con sé l'ultima lezione del dizionario: `status` la
+// legge dal watcher.json senza dover paragare con la guardia.
+test('heartbeat + watcherStatus: il battito trasporta l\'ultima lezione del dizionario', async () => {
+  const DATA = mkdtempSync(join(tmpdir(), 'evo-battito-'));
+  process.env.EVO_DATA_DIR = DATA;
+  process.env.ACE_DATA = DATA;
+  const { heartbeat, watcherStatus } = await import('../src/watch.mjs?v=battito');
+  heartbeat(10, { dizionario: { msg: '1 auto nuova dal menu · 1 etichetta ripulita col nome ufficiale', at: new Date().toISOString() } });
+  const st = watcherStatus();
+  assert.equal(st.alive, true, 'proprio scritto: la guardia risulta viva');
+  assert.equal(st.dizionario?.msg, '1 auto nuova dal menu · 1 etichetta ripulita col nome ufficiale');
+  assert.ok(st.dizionario?.at, 'la lezione porta il suo quando');
+  assert.ok(st.every >= 5);
+});

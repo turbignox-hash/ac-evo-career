@@ -9,11 +9,11 @@
 // Il resto, cioe' la lettura del risultato, e' automatico: lo fa il file nativo del gioco.
 
 import { difficultyFor, entryFee, pushMessage, nodeById, playerStanding, isClosedNode, senzaVincoli, grigliaSimEstesa } from './state.mjs';
-import { rebuildGridApply } from './grid-apply.mjs';
+import { rebuildGridApply, GRID_FILE } from './grid-apply.mjs';
 import { contractStatus, challengeFor, trackMastery, sponsorFor, ensureContract, refreshContractTexts } from './life.mjs';
 import { raceCrowdFor } from './memories.mjs';
 import { launchGame } from './paths.mjs';
-import { carPaddockSpecsOf } from './paddock.mjs';
+import { carAppSpecsOf, rondaDelCalendario } from './app-carriera.mjs';
 import { loadCatalog } from './catalog.mjs';
 import { rivalsOutlook } from './rivals.mjs';
 import { recordFlows } from './flows.mjs';
@@ -21,7 +21,8 @@ import { recordWarning } from './warnings.mjs';
 import { tr, lang } from './lang.mjs';
 import { carPoolOf } from './car-pool.mjs';
 import { sameTrack } from './tracknames.mjs';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { readCells } from '../tools/grid-balance.mjs';
 import { weekendCarCount, WEEKEND_FILE } from '../tools/set-track.mjs';
 // ORE SPOSTABILI (1/11): l'ora override per-ronda dichiarata in agenda.mjs.
 // agenda.mjs non importa race.mjs: nessun ciclo.
@@ -122,8 +123,46 @@ function layoutFor(trackDisplay) {
 
 export function nextRound(ladder, state, node = null) {
   const n = node ?? nodeById(ladder, state.node);
-  const roundIndex = Math.min(state.round, n.calendar.length - 1);
+  let roundIndex = Math.min(state.round, n.calendar.length - 1);
   const round = { ...n.calendar[roundIndex] };
+  // IL «CERCHIO» DEL CALENDARIO SEMINATO (4/11, richiesta Mauro: «la griglia
+  // l'ha scritta paddock, che ho usato stasera in campionato»): la serie che
+  // tools/semina-campionato.mjs pianta nell'app sta girando LÀ, e l'app tiene
+  // la sua cronologia (pd-calendar: data, ora, meteo, layout per ronda).
+  // QUANDO la ronda «next» del calendario seminato combacia con la serie del
+  // ladder, quella è la ronda da venire: la card, la griglia e l'import
+  // la seguono. Se l'app è ferma, o la serie non è seminata, non cambia
+  // niente: si sta sulla ladder come sempre.
+  // FALL-BACK AUTOMATICO: senza app del gioco, appCalendar() beve dal mirror
+  // journal (2/11) — così l'override funziona anche SENZA l'app installata.
+  try {
+    const pd = rondaDelCalendario(n);
+    if (pd) {
+      // La ronda dell'app deve puntare a una ronda VERA del ladder
+      // (via il numero N dell'app se punta alla STESSA pista; senza N, la
+      // prima ronda con la stessa pista) e non può tornare INDIETRO rispetto
+      // a state.round: si sposta SOLO in avanti, quando il ladder è in
+      // ritardo rispetto al calendario che si sta correndo nell'app.
+      let idxApp = null;
+      if (pd.n != null && pd.n >= 1 && pd.n <= n.calendar.length
+        && n.calendar[pd.n - 1].track === pd.trackId) idxApp = pd.n - 1;
+      if (idxApp == null) idxApp = n.calendar.findIndex((r) => r.track === pd.trackId);
+      if (idxApp >= 0 && idxApp > roundIndex) {
+        roundIndex = idxApp;
+        Object.assign(round, n.calendar[idxApp]);      }
+      // OVERRIDE dei DETTAGLI (vale anche se roundIndex NON si sposta):
+      // l'app (o il mirror) detta layout, giri, ora, meteo della ronda — ma
+      // solo dove il dato c'è davvero, il ladder resta la verità altrove.
+      // round.weather resta nella numerazione DELLA LADDER (meteoPdIndex
+      // traduce per NOME, mai per numero): weatherNames, template griglia
+      // e card consumano tutti quella numerazione.
+      if (pd.layout) round.layout = pd.layout;
+      if (Number(pd.laps) > 0) round.laps = Math.round(Number(pd.laps));
+      if (Number.isFinite(pd.hour)) round.hour = pd.hour;
+      if (pd.weather != null) round.weather = pd.weather;
+      round.__pd = true;              // la ronda viene dal calendario seminato
+    }
+  } catch { /* senza calendario (app e mirror assenti): la ladder, come sempre */ }
   // ORE SPOSTABILI (1/11): l'ora override per-ronda (spostata dal pannello
   // «gare iscritte lo stesso giorno») vince su quella del calendario. Qui la
   // prende LA CARD GARA e tutto ciò che ne scende (Prepa tutto, gamemodesave):
@@ -231,9 +270,40 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
   const chosenCar = sceltaParcheggiabile ?? adviceCar;
   const fuoriParco = parco.ammesse.length && !!car && !sceltaParcheggiabile;
   const chosenCarName = carName(chosenCar);
+  // VIGIA DEL CAMBIO DI CAMPIONATO (3/11, la prova in sandbox richiesta Mauro
+  // «che succede se cambio campionato e lancio Prepa tutto?»): dopo il cambio
+  // di serie sul disco può restare la griglia della SERIE VECCHIA (lezione
+  // 23/10: la RX-7 col file GT3 in piedi). Fino a ora la card NON lo diceva:
+  // l'amico lo scopriva solo premendo il bottone. Come la vigia del parco
+  // (24/10) qui la card dice SUBITO, APRIRE e SEMPLICE: se nessuna auto in
+  // piedi combacia col parco ammesso della serie, banner gemello del
+  // gridRitual — il Prepa la riscrivere dal template del magazzino
+  // (prova del 3/11 adesso certificata IN SISTEMA: 16× Ferrari → 17× BMW).
+  // Silente: file assente, illeggibile o già combaciante.
+  let gridAltraSerie = null;
+  try {
+    const celle = existsSync(GRID_FILE) ? (readCells(readFileSync(GRID_FILE))?.cells ?? []) : [];
+    const nomiDisco = [...new Set(celle.map((c) => String(c.name ?? '').trim()).filter(Boolean))];
+    if (nomiDisco.length) {
+      const ammesse = (parco.ammesse.length ? parco.ammesse : parcoIDs.map(carName))
+        .map((s) => String(s ?? '').toLowerCase().trim());
+      if (!nomiDisco.some((n) => ammesse.includes(n.toLowerCase().trim()))) {
+        gridAltraSerie = tr({
+          it: `la griglia sul disco è di un'altra serie (${nomiDisco.slice(0, 3).join(', ')}${nomiDisco.length > 3 ? '…' : ''}): premendo «Prepa tutto» la riscrive dal template della serie — niente da fare a mano`,
+          en: `the grid on disk belongs to a different series (${nomiDisco.slice(0, 3).join(', ')}${nomiDisco.length > 3 ? '…' : ''}): Get everything ready rewrites it from the series template — nothing to do by hand`,
+        });
+      }
+    }
+  } catch { /* file illeggibile: la vigia resta muta, il Prepa parla da sé */ }
   const trackName = (id) => ladder.contentNames?.tracks?.[id] ?? id;
   const trackDisp = trackName(round.track);
-  const layout = layoutFor(trackDisp);
+  // LAYOUT DELLA RONDA SEMINATA (3/11, il cerchio «Iscriviti e divertiti» col
+  // mirror): il calendario (pd-calendar dell'app, o il journal nostro) dice
+  // «National», «Fosters», «International»… per la ronda — quello si corre,
+  // NON il layout consigliato dalla tabella GP-default: la card, la riga
+  // settings e l'import seguono il layout VERAMENTE seminato. La tabella
+  // resta il fall-back per le ronde della ladder grezza (senza layout).
+  const layout = round.layout ?? layoutFor(trackDisp);
   // SERIE MULTICLASSE (26/10 notte, nota per l'amico): più di un modello di
   // auto avversarie = griglia mista = zavorre e penalità di classe. In EVO
   // arrivano al via SOLO col selettore Grid Type su CUSTOM (lezione Berline
@@ -305,9 +375,9 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
     // poolAuto in grid-classes.json, altrimenti le auto della serie del ladder
     carChoices: parcoIDs.map((id) => ({ id, display: carName(id) })),
     carPool: parco,
-    // EXTRA PADDACK (26/10): curva di coppia e versus dell'auto del sedile,
-    // dal catalogo scritto dall'app Paddock (letture pure, nessuna scrittura).
-    paddockSpec: carPaddockSpecsOf(chosenCarName, process.env),
+    // EXTRA PADDACK (26/10): curva di coppia e versus dell'auto del sedile,     // dal catalogo scritto dall'app di carriera (letture pure, nessuna scrittura).
+     appSpec: carAppSpecsOf(chosenCarName, process.env),
+
     opponentCars: node.cars.map(carName),
     trackId: round.track,
     trackName: trackName(round.track),
@@ -368,6 +438,7 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
     ],
     warnings: buildWarnings(node, round, profile, diffShown, laps),
     gridRitual,
+    gridAltraSerie,
     weekendSeen,
     outlook: (() => {
       // report pre-gara: obiettivo pista (miglior giro personale su questo tracciato),

@@ -33,7 +33,7 @@
   // Un .js costruito a mano, un vecchio mai rigenerato o un file col
   // segnaposto residuo NON hanno la firma: qui si vede in console.
   if (typeof BUILD_OK === 'undefined') {
-    loga('ATTENZIONE: file NON costruito da tools/genera-uiapp.mjs — firma BUILD_OK assente');
+    loga('ATTENZIONE: file NON costruito da tools/genera-uiapp.mjs — firma BUILD_OK assente sul disco');
   } else {
     loga('build ok: PERIODO_MS=' + PERIODO_MS + ' ms dal publisher');
   }
@@ -891,6 +891,20 @@
     // «mattino presto» mai con un buco a schermo.
     if (d.giornoLabel) h += '<br>Giorno ' + esc(d.giornoLabel) +
       ' · ⏰ ' + (d.ora != null ? 'ore ' + esc(d.ora) : 'mattino presto');
+    // LA GUARDIA in gioco (3/11, ottavo giro): il server porta in fascia il
+    // battito della guardia (watcher.json) e qui si ristampa la STESSA riga
+    // del CLI `status` — chi gioca non apre un terminale per sapere se la
+    // guardia corre e cosa ha imparato. Fascie vecchie senza `guardia`: la
+    // riga non esce (fino al primo riavvio del server, nessun errore).
+    if (d.guardia) {
+      const g = d.guardia;
+      const sek = Math.max(0, Math.round((g.ageMs ?? 0) / 1000));
+      const semaforo = g.alive
+        ? '<span style="color:#7fd18f">👁 guardia attiva</span>'
+        : '<span style="color:#e5b46a">👁 guardia ferma</span>';
+      h += '<br>' + semaforo + ' — ' + esc('controlla ' + sek + ' s fa') +
+        (g.diz ? ' · ' + esc('dizionario: ' + g.diz) : '');
+    }
     h += '</div>';
     h += strisciaNota();
     // LA STORIA DEI COMANDI (31/10 «storia visibile in gioco»): sotto la

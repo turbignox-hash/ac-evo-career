@@ -2,20 +2,22 @@
 // grosso Sensa test unit: costruisce raceCard (tutto quello da impostare in EVO
 // per correre) e chargeEntry (l'iscrizione). Doppio nido: ACE_GAME_SAVEDIR per
 // i file di gioco (via _game-sandbox) e EVO_DATA_DIR per la carriera, entrambi
-// in tmpdir — ma NIENTE che venga davvero avviato. Anche PADDOCK_JOURNAL_DIR
+// in tmpdir — ma NIENTE che venga davvero avviato. Anche APP_JOURNAL_DIR
 // reindirigto: la scheda chiede le specs Paddock e non deve guardare sul disco vero.
 import './_game-sandbox.mjs';                       // PRIMA: file di gioco finti
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 process.env.EVO_DATA_DIR = mkdtempSync(join(tmpdir(), 'evo-racecard-'));
 process.env.EVO_SENZA_VINCOLI = '0';                // i test descrivono il comportamento canonico: si paga
-process.env.PADDOCK_JOURNAL_DIR = mkdtempSync(join(tmpdir(), 'evo-racecard-pd-')); // nido vuoto → specs null
+process.env.APP_JOURNAL_DIR = mkdtempSync(join(tmpdir(), 'evo-racecard-pd-')); // nido vuoto → specs null
 
 const race = await import('../src/race.mjs');
+import { encodeMsg } from '../tools/evo-grid.mjs';                 // le celle del customgrid finto
+import { GRID_FILE } from '../src/grid-apply.mjs';                 // lo STESSO file che la vigia guarda
 
 /* ---- fixture: stessa scala di life.test.mjs (gridFor vuole 30 piloti attivi) ---- */
 const mkWorld = () => ({
@@ -60,6 +62,55 @@ const nodeOf = (l) => l.nodes[0];
 const texto = (t) => typeof t === 'string' ? t : (t?.it || t?.en || '');
 
 /* ------------------------------------------------------------------ */
+
+// IL TASTO «ISCRIVITI E DIVERTITI» COL MIRROR (3/11): raceCard è quello che
+// la GUI e il Prepara consumano — col NUOVO formato mirror journal (senza app
+// di gioco: APP_JOURNAL_DIR nido vuoto) la ronda «next» del calendario nostro
+// scritto accanto al save DEVE guidare la card: pista, layout, giri, ore e
+// meteo della ronda seminato, non solo la ladder grezza.
+test('raceCard col MIRROR: la ronda «next» del calendario nostro guida la scheda', () => {
+  const { ladder, state } = mk({
+    node: {
+      calendar: [
+        { track: 'monza', hour: 15, weather: 0, laps: 8 },
+        { track: 'imola', hour: 16, weather: 4, laps: 6 },
+      ],
+    },
+    ladder: { contentNames: { tracks: { monza: 'Monza', imola: 'Imola' }, cars: { car_a: 'Azzurra GT' } } },
+  });
+  // IL MIRROR del journal (2/11): la STESSA forma che src/journal.mjs scrive
+  // accanto al save a ogni saveState (done/next/todo; il weather a PAROLE).
+  // ATTENZIONE: il mirror è CONDIVISO coi test dopo (stesso EVO_DATA_DIR del
+  // processo) — rmSync in finally, sennò la ronda «next» finta guida ANCHE
+  // «la scheda della ronda 0» (lezione del primo run del 3/11: 4 ≠ 8 giri).
+  const mirrorFile = join(process.env.EVO_DATA_DIR, 'evo-calendar.json');
+  try {
+    writeFileSync(mirrorFile, JSON.stringify({
+      mirror: true, series: 'Coppa Città', season: 1, car: 'car a',
+      summary: { done: 1, total: 2 },
+      rounds: [
+        { n: 1, track: 'Monza', layout: null, laps: 8, time: '15:00', weather: 'Sereno', state: 'done' },
+        { n: 2, track: 'Imola', layout: 'GP', laps: 4, time: '17:30', weather: 'Pioggia', state: 'next' },
+      ],
+    }));
+    const c = race.raceCard(ladder, state);
+    // la ronda attiva è la 2ª (Imola): IL CALENDARIO SEMINATO LA DICE, non state.round
+    assert.equal(c.roundIndex, 1);
+    assert.equal(c.trackName, 'Imola');
+    assert.equal(c.round.__pd, true, 'la ronda porta il sigillo del calendario seminato');
+    // i DETTAGLI del seminato valgono: layout, giri, ore e meteo nella scala LADDER
+    assert.equal(c.round.layout, 'GP');
+    assert.equal(c.round.laps, 4);
+    assert.equal(c.round.hour, 17);
+    assert.equal(c.round.weather, 4);            // «Pioggia» → ladder 4 (half rain)
+    assert.equal(c.laps, 4,                      'giri dell\'override alla card');
+    // la riga «Pista» della scheda porta IL LAYOUT SEMINATO, non solo GP default
+    const rigaPista = c.settings.find((r) => typeof r[0] === 'string' && (r[0].includes('Pista') || r[0].includes('Track')));
+    if (rigaPista) assert.ok(String(rigaPista[1]).includes('layout GP'), 'il layout seminato nella riga pista della scheda');
+  } finally {
+    rmSync(mirrorFile, { force: true });            // niente mirror fuoriuscito per gli altri test
+  }
+});
 
 test('raceCard: la scheda della ronda 0 — pista tradotta, auto, giri e griglia', () => {
   const { ladder, state } = mk();
@@ -163,6 +214,28 @@ test('raceCard: auto FUORI parco — la card lo ridà PRIMA che parta', () => {
   // auto ammessa: NESSUN avviso di parco
   const c2 = race.raceCard(ladder, state, { car: 'car_a' });
   assert.ok(!c2.warnings.some((w) => /fuori serie|outside the series/i.test(texto(w))));
+});
+
+test('raceCard: riga Difficoltà AI con TRIM attivo — testo fissato (3/11, richiesta Mauro)', () => {
+  // La legge del 1/11 (TRIM VIVO): la riga porta il trim attivo ACCANTO alla
+  // banda — così stampa CTRL-C dal CLI e copia-testo della GUI segnano la
+  // banda VIVA, non solo l'intervallo. Da 3/11 il testo EXACT si fissa:
+  // trim +2sposta ANCHE la banda (24–25 → 28–29) e il suffisso va col segno.
+  const { ladder, state } = mk();
+  state.difficulty.trim.coppa = 2;
+  const c = race.raceCard(ladder, state);
+  const riga = c.settings.find(([k]) => /difficoltà ai|ai difficulty/i.test(texto(k)));
+  assert.ok(riga, 'riga Difficoltà AI presente');
+  // riga[1] è GIÀ il testo risolto (tr() torna la stringa della lingua viva):
+  // il gemello EN si costruisce con la STESSA formula (race.mjs, riga «TRIM VIVO»).  assert.equal(texto(riga[1]), 'min 28% · max 29% (trim +2)');
+  assert.equal(c.difficulty.trim, 2);
+  // senza trim: NESSUN suffisso — la banda resta nuda «min X% · max Y%»
+  const { ladder: l2, state: s2 } = mk();
+  const c2 = race.raceCard(l2, s2);
+  const riga2 = c2.settings.find(([k]) => /difficoltà ai|ai difficulty/i.test(texto(k)));
+  assert.ok(riga2, 'riga Difficoltà AI (senza trim) presente');
+  assert.equal(texto(riga2[1]), 'min 24% · max 25%');
+  assert.equal(c2.difficulty.trim, 0);
 });
 
 test('raceCard: outlook con obiettivo pista, stagione e contratto; Meteo con nome preset', () => {
@@ -269,4 +342,42 @@ test('layout reali: Paul Ricard "Layout 1C-V2", Oulton "International", default 
   assert.ok(cellFor('track_op', 'Oulton Park').includes('International'));
   // piste con tabella vuota: il default è GP (la pista del ladder standard del test)
   assert.ok(cellFor('track_monza', 'Monza').includes('GP'));
+});
+
+/* ------- VIGIA DEL CAMBIO DI CAMPIONATO (3/11, la prova del 2/11 incastonata
+ * come test: la card dice PRIMA del bottone se la griglia sul disco è di un'altra
+ * serie — non più scoperta solo premendo «Prepa tutto») ------- */
+const driverBlocco = () => {
+  const f = Buffer.alloc(4); f.writeFloatLE(0.55, 0);
+  return encodeMsg([{ field: 4, wire: 5, bytes: f }]);
+};
+// stessa convenzione dei test del builder (f3 = id auto, f4 = nome, f2 = pilota,
+// f3 esterno = conteggio): un customgrid minimo che readCells sapesse leggere
+const customgridDiAuto = (auto) => encodeMsg([
+  ...auto.map(([id, nome]) => ({ field: 1, wire: 2, bytes: encodeMsg([
+    { field: 3, wire: 2, bytes: Buffer.from(id, 'utf8') },
+    { field: 4, wire: 2, bytes: Buffer.from(nome, 'utf8') },
+  ]) })),
+  { field: 2, wire: 2, bytes: driverBlocco() },
+  { field: 2, wire: 2, bytes: driverBlocco() },
+  { field: 3, wire: 2, bytes: encodeMsg([{ field: 1, wire: 0, varint: BigInt(auto.length) }]) },
+]);
+
+test('vigia cambio campionato: la card nomina le auto estranee PRIMA del bottone', () => {
+  const { ladder, state } = mk();
+  writeFileSync(GRID_FILE, customgridDiAuto([['ks_f40_lm', 'Ferrari F40 LM']]));
+  const c = race.raceCard(ladder, state);
+  assert.ok(typeof c.gridAltraSerie === 'string' && c.gridAltraSerie.includes("griglia sul disco è di un'altra serie"), `banner atteso, suele: «${c.gridAltraSerie}»`);
+  assert.ok(c.gridAltraSerie.includes('Ferrari F40 LM'), 'la nota nomina la stirpe sul disco');
+  assert.ok(c.gridAltraSerie.includes('riscrive dal template'), 'dice cosa fa il Prepa tutto, non solo che non va');
+});
+
+test('vigia silente: griglia già della serie o file assente', () => {
+  const { ladder, state } = mk();
+  // parco combaciante: la 4-di-serie già in piedi → nessun banner
+  writeFileSync(GRID_FILE, customgridDiAuto([['car_a', 'Azzurra GT'], ['car_a', 'Azzurra GT'], ['car_a', 'Azzurra GT'], ['car_a', 'Azzurra GT']]));
+  assert.equal(race.raceCard(ladder, state).gridAltraSerie, null);
+  // file assente: muta (sempre sotto try/catch)
+  rmSync(GRID_FILE);
+  assert.equal(race.raceCard(ladder, state).gridAltraSerie, null);
 });

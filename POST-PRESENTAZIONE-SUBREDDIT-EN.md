@@ -3,14 +3,15 @@
 > Cut short from the long post (POST-PRESENTAZIONE-IT.md, 1/11) — same body as
 > [POST-PRESENTAZIONE-SUBREDDIT.md](POST-PRESENTAZIONE-SUBREDDIT.md), English.
 > The two screenshots go at the top: upload them manually on Reddit
-> (`docs/screenshots/in-diretta/cruscotto.png` and `pitwall.png`) — on Reddit
+> (`docs/screenshots/in-diretta/pitwall.png` and `cruscotto.png`, in this
+> order: Pitwall first, Cruscotto after) — on Reddit
 > the first thing seen is the image.
 
 ---
 
-![Cruscotto — car-swap log, pit-wall advice, "Prepara e Divertiti" (Prepare and Have Fun)](docs/screenshots/in-diretta/cruscotto.png)
-
 ![Pitwall — copilot radio live in session, timed stint armed with auto-start](docs/screenshots/in-diretta/pitwall.png)
+
+![Cruscotto — car-swap log, pit-wall advice, "Prepara e Divertiti" (Prepare and Have Fun)](docs/screenshots/in-diretta/cruscotto.png)
 
 *(Previews of the v0.1.45 interface, rendered outside the game on the real
 server — the "engine not available" strip on the first shot is the marker:

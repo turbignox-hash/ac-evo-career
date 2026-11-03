@@ -13,7 +13,7 @@ import {
   acceptOffer, pushMessage, sponsorTier, enterNode, renameDriver,
   savePath, activeSlot, slotDataDir, grigliaSimEstesa, seasonJustClosed,
 } from './state.mjs';
-import { paddock } from './world.mjs';
+import { rivaliSerie } from './world.mjs';
 import { raceCard, markPending, chargeEntry, launch } from './race.mjs';
 import { listResultFiles, readSessionResult, describeResult } from './results.mjs';
 import { runImport, importedFiles, importLog, resetImportRegistry } from './import.mjs';
@@ -315,8 +315,11 @@ function cmdStatus() {
 
   console.log(header(state, ladder));
   const guard = watcherStatus();
-  if (guard.alive) console.log(`  ${C.green(tr({ it: '👁 guardia attiva', en: '👁 guard active' }))} — ${tr({ it: 'incassa da sola le gare nuove (ultimo controllo {S}s fa)', en: 'collects new races by itself (last check {S}s ago)' }).replace('{S}', Math.round(guard.ageMs / 1000))}`);
-  else console.log(`  ${C.dim(tr({ it: '👁 guardia ferma — avvia guarda.cmd per incassare le gare in automatico', en: '👁 guard idle — run guarda.cmd to collect races automatically' }))}`);
+  if (guard.alive) {
+    const d = guard.dizionario;
+    const dGiu = d?.msg ? tr({ it: ` · ${C.dim(`dizionario: ${d.msg}`)}`, en: ` · ${C.dim(`dictionary: ${d.msg}`)}` }) : '';
+    console.log(`  ${C.green(tr({ it: '👁 guardia attiva', en: '👁 guard active' }))} — ${tr({ it: 'incassa da sola le gare nuove (ultimo controllo {S}s fa)', en: 'collects new races by itself (last check {S}s ago)' }).replace('{S}', Math.round(guard.ageMs / 1000))}${dGiu}`);
+  } else console.log(`  ${C.dim(tr({ it: '👁 guardia ferma — avvia guarda.cmd per incassare le gare in automatico', en: '👁 guard idle — run guarda.cmd to collect races automatically' }))}`);
   console.log(`\n  ${tr({ it: 'Sedile:', en: 'Seat:' })} ${node.display} — ${disciplineName(ladder, node.discipline)}, ${tr({ it: 'livello', en: 'level' })} ${node.level} (${tierOf(ladder, node.level)}), ${tr({ it: 'accesso', en: 'access' })} ${node.access}`);
   console.log(`  ${tr({ it: 'Modello economico:', en: 'Economy model:' })} ${node.econ.model}   ${tr({ it: 'Iscrizione', en: 'Entry' })} ${money(node.econ.entry)}   ${tr({ it: 'Premio', en: 'Prize' })} ${money(node.econ.prize)}${node.econ.champion ? `   ${tr({ it: 'Titolo', en: 'Title' })} ${money(node.econ.champion)}` : ''}`);
   console.log(`  ${tr({ it: 'Difficoltà AI: slider', en: 'AI difficulty: slider' })} ${diff.slider}% (${tr({ it: 'interna', en: 'internal' })} ${diff.total.toFixed(0)}, trim ${signed(diff.trim)})`);
@@ -505,13 +508,13 @@ function cmdStandings() {
   return 0;
 }
 
-function cmdPaddock(args) {
+function cmdApp(args) {
   const { ladder } = context();
   const state = requireState();
   const node = nodeById(ladder, state.node);
-  const rows = paddock(state.world, ladder, grigliaSimEstesa(ladder, state, node), state.season);
+  const rows = rivaliSerie(state.world, ladder, grigliaSimEstesa(ladder, state, node), state.season);
   const limit = args.flags.all ? rows.length : 12;
-  console.log(C.bold(tr({ it: '\nPaddock {D} — {N} rivali (i primi {L})\n', en: '\nPaddock {D} — {N} rivals (first {L})\n' }).replace('{D}', node.display).replace('{N}', rows.length).replace('{L}', limit)));
+  console.log(C.bold(tr({ it: '\nRivali {D} — {N} (i primi {L})\n', en: '\nRivals {D} — {N} (first {L})\n' }).replace('{D}', node.display).replace('{N}', rows.length).replace('{L}', limit)));
   for (const r of rows.slice(0, limit)) {
     console.log(`  ${r.name.padEnd(24)} ${r.country}  ${String(r.age).padStart(2)} ${tr({ it: 'anni', en: 'yrs' })}  ${r.archetypeName.padEnd(14)} ${tr({ it: 'banda', en: 'band' })} ${r.bandValue.toFixed(0).padStart(3)} (${tr({ it: 'slider', en: 'slider' })} ${String(r.evoSlider).padStart(3)}%)  ${r.iconic ? C.yellow(tr({ it: 'iconico', en: 'iconic' })) : r.hot ? C.cyan(tr({ it: 'in forma', en: 'in form' })) : ''}`);
   }
@@ -888,11 +891,33 @@ async function cmdWatch(args) {
   };
   const preflight = checkGridFile(true);
   if (preflight) console.log(`\n  ${C.yellow(tr({ it: 'alla partenza:', en: 'at startup:' }))} ${tr({ it: 'customgrid senza bilancio — viene proposto qui sotto al primo giro', en: 'customgrid without balance — it is proposed below on the first pass' })}\n`);
+  // L'ultima lezione del dizionario va a battito (3/11): la guardia la trasporta
+  // nel watcher.json e `status` la ristampa accanto a «guardia attiva».
+  let lastDiz = null;
   try {
     while (!stop) {
       const t0 = Date.now();
-      heartbeat(secs); // il cruscotto capisce da qui che la guardia è viva
+      heartbeat(secs, lastDiz ? { dizionario: lastDiz } : null); // il cruscotto capisce da qui che la guardia è viva
       const out = watchOnce(ladder, paths, { baselineMs: baseline });
+      // Dizionario vivo (3/11): una riga SOLO quando il rinfresco ha
+      // effettivamente cambiato qualcosa — silenzio altrimenti, la guardia
+      // gira ogni 15 secondi e non deve fare rumore a vuoto.
+      const diz = out.dizionario;
+      if (diz) {
+        const dS = diz.storage, dP = diz.paddock;
+        const parti = [];
+        if (dS.added) parti.push(tr({ it: dS.added === 1 ? '1 auto nuova dal menu' : `${dS.added} auto nuove dal menu`, en: dS.added === 1 ? '1 new car from the menu' : `${dS.added} new cars from the menu` }));
+        if (dS.corrette) parti.push(tr({ it: dS.corrette === 1 ? '1 etichetta corretta dal menu' : `${dS.corrette} etichette corrette dal menu`, en: dS.corrette === 1 ? '1 label fixed from the menu' : `${dS.corrette} labels fixed from the menu` }));
+        if (dS.aggiornate) parti.push(tr({ it: dS.aggiornate === 1 ? '1 etichetta ripulita col nome ufficiale' : `${dS.aggiornate} etichette ripulite col nome ufficiale`, en: dS.aggiornate === 1 ? '1 label cleaned to the official name' : `${dS.aggiornate} labels cleaned to the official name` }));
+        if (dP.added) parti.push(tr({ it: dP.added === 1 ? "1 auto da un'iscrizione paddock" : `${dP.added} auto da iscrizioni paddock`, en: dP.added === 1 ? "1 car from a paddock signup" : `${dP.added} cars from paddock signups` }));
+        if (dP.corrette) parti.push(tr({ it: dP.corrette === 1 ? '1 etichetta corretta da iscrizione' : `${dP.corrette} etichette corrette da iscrizione`, en: dP.corrette === 1 ? '1 label fixed from a signup' : `${dP.corrette} labels fixed from a signup` }));
+        if (dP.aggiornate) parti.push(tr({ it: dP.aggiornate === 1 ? "1 etichetta ripulita da un'iscrizione" : `${dP.aggiornate} etichette ripulite da iscrizioni`, en: dP.aggiornate === 1 ? '1 label cleaned from a signup' : `${dP.aggiornate} labels cleaned from signups` }));
+        if (parti.length) {
+          const msg = parti.join(' · ');
+          console.log(C.green(tr({ it: `\n  ✓ dizionario: ${msg}\n`, en: `\n  ✓ dictionary: ${msg}\n` })));
+          lastDiz = { msg, at: new Date().toISOString() };
+        }
+      }
       // giri liberi (24/10): una sessione di prove non sparisce nel nulla —
       // nasce una riga nel quaderno data/hotlaps.json, carriera intoccata
       for (const e of (out.hotlaps ?? [])) {
@@ -1481,14 +1506,14 @@ async function cmdGrigliaCalib(args) {
       const mark = a.medSec <= -0.8 ? C.red : a.medSec < 0.8 ? C.green : C.dim;
       console.log(`      ${a.auto.padEnd(34)} ${mark(fmtSec(a.medSec))} ${tr({ it: 'dalla base', en: 'from the base' })}`);
     }
-    // LE REGOLE PADDOCK SOTTO IL GIUDIZIO DELLE GARE (27/10): le proposte di
-    // classi-da-paddock NON sono garanzie — le gare vere le CONVALIDANO. Esito
+    // LE REGOLE DELL'APP SOTTO IL GIUDIZIO DELLE GARE (27/10): le proposte di
+    // classi-da-app NON sono garanzie — le gare vere le CONVALIDANO. Esito
     // dalla misura reale: ✓ confermata, ✗ sballata (la correzione torna
     // empirica, come dal ripartito), ◌ da corse (niente numero finché non gira).
-    for (const p of (g.paddock ?? [])) {
+    for (const p of (g.app ?? [])) {
       if (p.esito === 'confermata') console.log(`      ${C.green(`✓ ${p.auto}`)}  ${C.dim(`(${p.kg}kg / ${p.pct}%) — confermata dalle gare: ${fmtSec(p.medSec)} dalla base`)}`);
       else if (p.esito === 'sballata') console.log(`      ${C.red(`✗ ${p.auto}`)}  ${C.red(`(${p.kg}kg / ${p.pct}%) — SBALLATA: ${fmtSec(p.medSec)} dalla base — la correzione torna empirica`)}`);
-      else console.log(`      ${C.dim(`◌ ${p.auto} (${p.kg}kg / ${p.pct}%) — proposta Paddock, in attesa di gare`)}`);
+      else console.log(`      ${C.dim(`◌ ${p.auto} (${p.kg}kg / ${p.pct}%) — proposta dell'app, in attesa di gare`)}`);
     }
     if (g.ultimaProposta.length) {
       for (const p of g.ultimaProposta) {
@@ -1520,7 +1545,7 @@ export async function main(argv) {
       case 'series': return cmdSeries(args);
       case 'calendar': return cmdCalendar(args);
       case 'standings': return cmdStandings(args);
-      case 'paddock': return cmdPaddock(args);
+      case 'app': return cmdApp(args);
       case 'messages': return cmdMessages(args);
       case 'next': return cmdNext(args);
       case 'race': return await cmdRace(args);

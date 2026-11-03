@@ -546,12 +546,12 @@ export function calibSummary(classes = loadClasses()) {
       (perAuto[k] ??= { deltas: [] }).deltas.push(r.deltaVsBaseSec);
     }
     for (const k of Object.keys(perAuto)) perAuto[k].medSec = median(perAuto[k].deltas.map((v) => v));
-    // IL VERIFICATORE DI PADDOCK (27/10): le regole fonte:'paddock' NON le ha
+    // IL VERIFICATORE DELLE REGOLE DELL'APP (27/10): le regole fonte:'app' NON le ha
     // costruite nessuna gara — le gare vere le CONVALIDANO. Per ciascuna regola
-    // paddock della classe si guarda il delta misurato (medSec del perAuto):
+    // dell'app per la classe si guarda il delta misurato (medSec del perAuto):
     // entro la tolleranza = CONFERMATA, oltre = SBALLATA (registra la gare e la
     // correzione torna empirica), senza gare ancora = da corse.
-    const paddock = (cls?.regole ?? []).filter((r) => r.fonte === 'paddock').map((r) => {
+    const app = (cls?.regole ?? []).filter((r) => r.fonte === 'app').map((r) => {
       // perAuto è un oggetto chiave(NOME AUTO MISURATA)→mediana: si matcha sulla CHIAVE
       const hit = Object.entries(perAuto).find(([k]) => ruleAutoMatch(r.auto, k));
       const medSec = hit?.[1]?.medSec ?? null;
@@ -568,7 +568,7 @@ export function calibSummary(classes = loadClasses()) {
       convalidatoAdesso: perTraccia?.convalidato === true || (cls?.convalidatoSu ?? []).some((s) => trkKey.toLowerCase()?.includes?.(String(s).toLowerCase())) || false,
       suggerisciConvalida: c.suggerisciConvalida && perTraccia?.convalidato !== true,
       perAuto: Object.entries(perAuto).map(([auto, v]) => ({ auto, medSec: v.medSec })).sort((a, b) => a.medSec - b.medSec),
-      paddock,
+      app,
       ultimaProposta: ultValido?.segnale?.proposte ?? [],
       ultimoAt: (evValidi[evValidi.length - 1] ?? ev[ev.length - 1])?.at ?? null,
     });

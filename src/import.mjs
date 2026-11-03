@@ -27,10 +27,10 @@ import { recordRaceGrid, rivalKey, rivalsForNode } from './rivals.mjs';
 import { settleChallenge } from './life.mjs';
 import { raceCrowdFor } from './memories.mjs';
 // BONUS GARA PULITA + AVVISO REP-CAP (28/10): i due extra portati dal sistema
-// di Paddock — l'auto-fix pulito dà un +10% del premio della ronda, il tetto
+// di carriera — l'auto-fix pulito dà un +10% del premio della ronda, il tetto
 // reputazione su una ronda chiusa va ripetuto alla fine come invito alla
 // categoria più alta.
-import { padRepCapNote, paddockNextRace } from './paddock.mjs';
+import { padRepCapNote, appNextRace } from './app-carriera.mjs';
 import { publishRaceNews } from './gazzetta.mjs';
 import { recordFlows } from './flows.mjs';
 import { tr } from './lang.mjs';
@@ -406,12 +406,12 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
   try { backupFile = backupBeforeImport(); } catch { /* mai bloccare l'import per un backup */ }
 
   const { entry, proposal, crowdBonus } = applyRaceResult(ladder, state, targetNode, payload);
-  // AVVISO REP-CAP (28/10): se il journal di Paddock dice "reputazione al
+  // AVVISO REP-CAP (28/10): se il journal dell'app dice "reputazione al
   // massimo" per questa serie, la ripeti alla carriera dopo l'import — la
   // serie chiusa non può far crescere la reputazione: il consiglio è l'invito
   // a salire in una categoria più alta.
   try {
-    const pn = paddockNextRace();
+    const pn = appNextRace();
     if (pn?.repCapped) {
       // ANTI-DOPPIO (31/10, visto dal vivo: nota in IT alle 15:04 e in EN alle
       // 15:41 niente lo stesso avviso ripetuto): un solo esemplare in bacheca,

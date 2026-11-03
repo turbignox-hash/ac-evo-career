@@ -394,12 +394,12 @@ test('classe sconosciuta: nessun evento, nessun rumore', () => {
   assert.ok(brief === null || brief.classe == null, 'la classe sconosciuta NON produce proposte');
 });
 
-/* ------------ 7. IL VERIFICATORE DI PADDOCK (27/10): le regole fonte:'paddock'
+/* ------------ 7. IL VERIFICATORE DELLE REGOLE DELL'APP (27/10): regole fonte:'app'
  * NON le ha costruite nessuna gara — le gare vere le CONVALIDANO. Nel riepilogo
- * ogni regola paddock porta l'esito dalle misure reali per-auto:
+ * ogni regola dell'app porta l'esito dalle misure reali per-auto:
  * confermata (entro tolleranza dalla base) / sballata (oltre) / da corse.
  * Test sul file classi TEMPORANEO del test (come gli altri: mai il data/ vero). */
-test('regole fonte paddock nel riepilogo: confermata, sballata e da corse dall\'esito delle misure', () => {
+test('regole fonte app nel riepilogo: confermata, sballata e da corse dall\'esito delle misure', () => {
   calib.resetCalib();
   // misura reale: M3 ~8s più veloce della base, Mini a parità (±0.8), nessun T16
   const race = griglia(
@@ -411,27 +411,19 @@ test('regole fonte paddock nel riepilogo: confermata, sballata e da corse dall\'
     carAI('Abarth2', ...AUTO.abarth, 161.51),
   );
   race.track = 'Pista Di Prova Senza Regole';
-  calib.recordRaceFromResult({ result: race, track: race.track, sourceFile: 'pad-verifica.json' });
-  // patch del file classi TEMPORANEO: tre regole paddock — due che girano in
+  calib.recordRaceFromResult({ result: race, track: race.track, sourceFile: 'pad-verifica.json' });   // patch del file classi TEMPORANEO: tre regole dell'app — due che girano in
   // pista e una mai corsa. Al termine il file torna la fixture INTATTA (test.after
   // cancella tutto: gli altri test la richiedono pulita al 24/10).
   const classes = JSON.parse(readFileSync(CLASSES_TMP, 'utf8'));
-  classes.classi['pi-10-11-moderna'].regole.push(
-    { preset: 'preset_padtest_sballata', auto: 'BMW M3 E46 CSL', ballastKg: 100, restrictorPct: 4, fonte: 'paddock' },
-    { preset: 'preset_padtest_conferma', auto: 'Mini John Cooper S', ballastKg: 100, restrictorPct: 2, fonte: 'paddock' },
-    { preset: 'preset_padtest_dacorse', auto: 'Peugeot 205 T16', ballastKg: 0, restrictorPct: 5, fonte: 'paddock' },
+  classes.classi['pi-10-11-moderna'].regole.push(     { preset: 'preset_aptest_sballata', auto: 'BMW M3 E46 CSL', ballastKg: 100, restrictorPct: 4, fonte: 'app' },     { preset: 'preset_aptest_conferma', auto: 'Mini John Cooper S', ballastKg: 100, restrictorPct: 2, fonte: 'app' },     { preset: 'preset_aptest_dacorse', auto: 'Peugeot 205 T16', ballastKg: 0, restrictorPct: 5, fonte: 'app' },
   );
   writeFileSync(CLASSES_TMP, JSON.stringify(classes, null, 2));
   try {
     const sum = calib.calibSummary();
-    const g = sum.gruppi.find((x) => x.classe === 'pi-10-11-moderna');
-    assert.ok(g?.paddock?.length === 3, `le tre regole paddock sono nel riepilogo: ${JSON.stringify(g?.paddock)}`);
-    const m3 = g.paddock.find((p) => p.auto.includes('M3'));
+    const g = sum.gruppi.find((x) => x.classe === 'pi-10-11-moderna');     assert.ok(g?.app?.length === 3, `le tre regole dell'app sono nel riepilogo: ${JSON.stringify(g?.app)}`);     const m3 = g.app.find((p) => p.auto.includes('M3'));
     assert.equal(m3.esito, 'sballata', `M3 spalancata a ~8s dalla base: ${JSON.stringify(m3)}`);
-    assert.ok(m3.medSec != null && m3.medSec <= -1, `il delta misurato c'è: ${m3.medSec}s`);
-    const mini = g.paddock.find((p) => p.auto.includes('Mini'));
-    assert.equal(mini.esito, 'confermata', `Mini a parità di base: ${JSON.stringify(mini)}`);
-    const t16 = g.paddock.find((p) => p.auto.includes('T16'));
+    assert.ok(m3.medSec != null && m3.medSec <= -1, `il delta misurato c'è: ${m3.medSec}s`);     const mini = g.app.find((p) => p.auto.includes('Mini'));
+    assert.equal(mini.esito, 'confermata', `Mini a parità di base: ${JSON.stringify(mini)}`);     const t16 = g.app.find((p) => p.auto.includes('T16'));
     assert.equal(t16.esito, 'da corse', 'T16 mai corsa: in attesa, non una misurazione inventata');
   } finally {
     // la fixture torna INTATTA per i test successivi (e il memo invalidato da mtime)

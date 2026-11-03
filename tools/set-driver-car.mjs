@@ -10,18 +10,22 @@
 import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { encodeMsg, openDataDir, GAME_SAVEDIR, pruneBackups } from './evo-grid.mjs';
-import { decodeGarage, readMap, learnCarFromLogs } from './set-car-sample.mjs';
+import { decodeGarage, readMap, learnCarFromLogs, learnCarFromStorage } from './set-car-sample.mjs';
 
 // BOOT DIZIONARIO automatico (31/10): alla PRIMA ricerca auto in un processo
 // proviamo una volta a imparare le coppie dai log di gioco (learnCarFromLogs):
 // così le auto mai campionate (es. la Clio R5 firmata dall'amico) entrano nel
 // dizionario da sole e il Prepara cambia auto senza sampler a mano. Una volta
 // sola per processo: i log crescono, non serve riscandarli a ogni chiamata.
+// DAL 3/11 c'è la FATTORIA: ui_storage.uistorage scritto dal gioco in chiaro
+// con car_guid+display_name per ogni auto toccata dal menu — la sorgente
+// completa, indipendente dai log e dall'iscrizione a paddock.
 let _dizionarioBoot = false;
 function dizionarioBoot() {
   if (_dizionarioBoot) return;
   _dizionarioBoot = true;
   try { learnCarFromLogs(); } catch { /* log assenti o illeggibili: si va col dizionario a campioni */ }
+  try { learnCarFromStorage(); } catch { /* ui_storage assente (game mai aperto): poco male */ }
 }
 
 // il profilo attivo si SCOPRE su disco (ProfileData/<guid>/OpenData): la GUID
@@ -106,7 +110,7 @@ export function findCar(name) {
  */
 export function setDriverCar(name, { file = GARAGE_FILE, dry = false } = {}) {
   const car = findCar(name);
-  if (!car) throw Object.assign(new Error(`"${name}" non nel dizionario: aggiungi un campione con set-car-sample.mjs --map`), { code: 'UNKNOWN_CAR' });
+  if (!car) throw Object.assign(new Error(`"${name}" non nel dizionario: toccala una volta nel menu del gioco (o apri una gara) — il dizionario si impara da solo da ui_storage e dai log; il campionatore a mano è solo di emergenza`), { code: 'UNKNOWN_CAR' });
   const out = garageBuf(car.carHash, car.guid2);
   if (dry) return { ...car, written: false };
   const backup = `${file}.bak-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;

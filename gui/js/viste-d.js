@@ -713,7 +713,7 @@ async function drawRivals(m){
   ${rows.length ? `<div class="panel"><h2>${tr({ it: 'Tutti i rivali', en: 'All rivals' })} <button class="mini acc" id="b-bulk-rn" style="margin-left:6px" title="${tr({ it: 'dà un soprannome a più piloti di fila, in una sola schermata', en: 'nickname many drivers in one go, on a single screen' })}">📝 ${tr({ it: 'Soprannomi in blocco', en: 'Nicknames in bulk' })}</button> <span class="h-act">${tr({ it: 'clicca una riga per la scheda completa', en: 'click a row for the full sheet' })}</span></h2>
     <table><thead><tr><th>${tr({ it: 'Rivale', en: 'Rival' })}</th><th class="right">${tr({ it: 'Gare insieme', en: 'Races together' })}</th><th class="right">${tr({ it: 'Tu–Lui', en: 'You–Him' })}</th><th>${tr({ it: 'Momentum', en: 'Momentum' })}</th><th>${tr({ it: 'Forma (ultime 5)', en: 'Form (last 5)' })}</th><th class="right">${tr({ it: 'Vittorie', en: 'Wins' })}</th><th class="right">${tr({ it: 'Podi', en: 'Podiums' })}</th></tr></thead>
     <tbody>${rows.map(r=>`<tr class="rival-link" data-key="${esc(r.key)}" style="cursor:pointer">
-      <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.nemesis?` <span class="tag red">${tr({ it: 'nemesi', en: 'nemesis' })}</span>`:''}${r.lastSeen?`<div class="faint" style="font-size:11px">${tr({ it: 'visto: ', en: 'seen: ' })}${esc(r.lastSeen.node)} R${r.lastSeen.round}</div>`:''}</span><button class="btn ghost" style="padding:2px 7px;font-size:11px" data-rn="${esc(r.key)}" data-n="${esc(r.name)}" data-v="${esc(r.realName ?? '')}" title="${tr({ it: 'cambia il soprannome del pilota', en: 'change the driver nickname' })}">✏️</button></span></td>
+      <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.nemesis?` <span class="tag red">${tr({ it: 'nemesi', en: 'nemesis' })}</span>`:''}${r.lastSeen?`<div class="faint" style="font-size:11px">${tr({ it: 'visto: ', en: 'seen: ' })}${esc(r.lastSeen.node)} R${r.lastSeen.round}</div>`:''}</span></span></td>
       <td class="right">${r.sharedRaces}</td>
       <td class="right">${h2hBadge(r.h2h.beats, r.h2h.losses)}</td>
       <td>${r.trend==null?'—':r.trend>0?`<span class="tag green">▲ +${r.trend}</span>`:r.trend<0?`<span class="tag bad">▼ ${r.trend}</span>`:`<span class="faint">${tr({ it: 'stabile', en: 'stable' })}</span>`}</td>
@@ -723,7 +723,6 @@ async function drawRivals(m){
     </tr>`).join('')}</tbody></table>
   </div>` : ''}`;
   $$('.rival-link', m).forEach((trr)=>{ trr.onclick=()=>showRival(trr.dataset.key); });
-  $$('[data-rn]', m).forEach((b)=>{ b.onclick=(e)=>{ e.stopPropagation(); window.rinominaPilota('rival', b.dataset.rn, b.dataset.n, b.dataset.v).then(()=>render()); }; });
   /* 3/11, richiesta Mauro («non funziona»): il bottone esisteva ma NIENTE lo
      agganciava — la funzione c'era (27/10) e l'aggancio era sparito. Ora il
      clic apre davvero il blocco dei soprannomi con la lista completa. */
@@ -814,7 +813,6 @@ async function showRival(key){
         ${d.meetings.map(m=>`<tr><td>${window.trackLinkHtml(m.track)} <span class="faint">S${m.season} R${m.round+1}</span></td><td class="right">${m.dnf?'DNF':m.pos!=null?'P'+m.pos:'—'}</td><td class="right">${m.mePos!=null?'P'+m.mePos:'—'}</td><td class="muted">${esc(m.bestLap??'—')}</td><td>${m.beatMe?`<span class="tag bad">${tr({ it: 'battuto', en: 'beaten' })}</span>`:`<span class="tag good">${tr({ it: 'vinto', en: 'won' })}</span>`}</td></tr>`).join('')}
       </tbody></table></div>`,
       [[tr({ it: '📄 Dossier completo', en: '📄 Full dossier' }), 'acc', () => { openDossier(key); }],
-       [tr({ it: '✏️ Rinomina', en: '✏️ Rename' }), 'ghost', () => { window.rinominaPilota('rival', key, d.name, d.realName).then(() => { document.querySelector('#modal-root').innerHTML = ''; showRival(key); render(); }); }],
        [tr({ it: 'Chiudi', en: 'Close' }), 'ghost', () => {}]]);
     /* DOSSIER COMPLETE del rivale (src/analisi.mjs, module 5): ritmo/delta giro,
    piste dove è più forte, costanza e mappa degli scontri — un pannello insieme
@@ -865,8 +863,7 @@ async function openDossier(key){
       <details><summary class="muted" style="cursor:pointer">${tr({ it: `mappa degli scontri (${d.meetings?.length ?? 0})`, en: `map of the meetings (${d.meetings?.length ?? 0})` })}</summary>
         <div style="margin-top:8px;max-height:240px;overflow:auto"><table><thead><tr><th>${tr({ it: 'Gara', en: 'Race' })}</th><th class="right">${tr({ it: 'Lui', en: 'Him' })}</th><th class="right">${tr({ it: 'Tu', en: 'You' })}</th><th class="right">Δ giro</th><th>${tr({ it: 'Esito', en: 'Outcome' })}</th></tr></thead>
         <tbody>${(d.meetings ?? []).map(m=>`<tr><td>${esc(m.track)} <span class="faint">S${m.season} R${m.round+1}</span></td><td class="right">${m.dnf ? 'DNF' : m.pos != null ? 'P'+m.pos : '—'}</td><td class="right">${m.myPos != null ? 'P'+m.myPos : '—'}</td><td class="muted">${ds(m.himVsMeMs, true)}</td><td>${m.beatMe ? `<span class="tag bad">${tr({ it: 'battuto', en: 'beaten' })}</span>` : `<span class="tag good">${tr({ it: 'vinto', en: 'won' })}</span>`}</td></tr>`).join('')}</tbody></table></div></details>`,
-      [[tr({ it: '✏️ Rinomina', en: '✏️ Rename' }), 'ghost', () => { window.rinominaPilota('rival', key, d.name, d.realName).then(() => { document.querySelector('#modal-root').innerHTML = ''; openDossier(key); render(); }); }],
-       [tr({ it: 'Chiudi', en: 'Close' }), 'ghost', () => {}]]);
+      [[tr({ it: 'Chiudi', en: 'Close' }), 'ghost', () => {}]]);
   } catch(e){ toast(e.message, 'err'); }
 }
 

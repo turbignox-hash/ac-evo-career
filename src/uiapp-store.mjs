@@ -4,9 +4,9 @@
 //   Saved Games/ACE/ui_storage.uistorage
 // con un protobuf molto semplice: una fila di record `0A <lunghezza>` e dentro
 // ognuno `0A <len>chiave` + `12 <len>valore`. Lo sé dal vivo (27/10 ore 17:40:
-// «paddock.commands» a offset 5 con dentro il JSON dei comandi di Paddock).
+// le chiavi `<app>.commands` a offset 5 con dentro il JSON dei comandi dell'app).
 // Serve SOLO a leggere gli ACK dell'app Cruscotto (canale inverso, il modo
-// che Paddock usa coi suoi paddock.commands): il gioco scrive, noi leggiamo,
+// che l'app installata usa coi suoi comandi): il gioco scrive, noi leggiamo,
 // nessuno di più. Se il file sta a metà scrittura si torna al prossimo giro.
 //
 // 29/10 sera, il riparto delle gare («appena esco da una gara, sul menu

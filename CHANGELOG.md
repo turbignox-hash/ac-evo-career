@@ -4,6 +4,106 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md) (il registro completo). Il save in
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
+## v0.1.52 — 3/11/2026
+
+- **Le catene di lettura, una volta per tutte**: calendario, garage e
+  dizionario leggono SOLO file scritti dal gioco (journal `pd-calendar
+  dell'app, con fall-back sul mirror nostro per chi non ha l'app —
+  [src/app-carriera.mjs](src/app-carriera.mjs); garage.drivergarage;
+  ui_storage + log di boot). Fuori dai dati per sempre: il magazzino L:
+  è solo backup zip (e non gira più né al boot — [avvia.cmd](avvia.cmd) —
+  né in lettura, solo a mano con controlla-magazzino.cmd), la fattoria
+  dei campioni a mano è utensile di emergenza (il messaggio d'errore di
+  [findCar](tools/set-driver-car.mjs) ora rimanda prima al menu del gioco).
+- **La fattoria del dizionario: ui_storage.uistorage** (3/11 notte): il gioco
+  scrive IN CHIARO Saved Games\ACE\ui_storage.uistorage con dentro
+  `paddock.skins` — car_guid (già SDOPPIATA come chiave del garage) e
+  display_name ufficiale per ogni auto TOCCATA DAL MENU, senza log e senza
+  iscrizioni. Nuova sorgente `learnCarFromStorage` (CLI `--from-storage`,
+  [tools/set-car-sample.mjs](tools/set-car-sample.mjs)) agganciata al boot
+  del dizionario in [tools/set-driver-car.mjs](tools/set-driver-car.mjs):
+  le coppie nuove entrano, quelle contraddette si correggono, i sinonimi
+  restano. La kspkg cifrata non serviva più: la fonte era qui. Test in
+  [test/learn-car.test.mjs](test/learn-car.test.mjs) (9/9).
+- **Il tagliando del dizionario dal menu del gioco** (3/11 pomeriggio):
+  `learnCarFromStorage` non si ferma più alle voci NUOVE e CONTRADDETTE:
+  se una voce è solo il nome ufficiale scritto DUE volte («Mazda Mazda
+  MX-5 ND Cup») si aggiorna col nome pulito — l'etichetta doppia mente
+  alla scheda garage, che mostrava «Mazda Mazda» col nome ripetuto.
+  I sinonimi con RUMORE in più («Kunos Abarth 695 Biposto» del vecchio
+  campionamento) NON si toccano: solo l'eccedenza interamente fatta di
+  ripetizioni di token che il gioco stesso ha si puliscono. E la
+  ronda della guardia ora ri-aggiorna il dizionario a ogni tick: un'auto
+  toccata DAL MENU mentre il watch gira entra nel dizionario senza
+  riavviare nulla ([tools/set-car-sample.mjs](tools/set-car-sample.mjs),
+  [src/cli.mjs](src/cli.mjs)). Prova reale: --from-storage sul
+  ui_storage di Mauro ripulisce la Mazda raddoppiata (1 aggiornata);
+  Test in [test/learn-car.test.mjs](test/learn-car.test.mjs) (11/11).
+- **Il paddock entra nel tick della guardia**: anche l'apprendimento per
+  iscrizione (pd-calendar + garage freschi nella stessa finestra di 10
+  minuti) gira a ogni tick del watch: una serie iscritta MENTRE la guardia
+  corre arriva a dizionario senza aspettare il prossimo processo. Il
+  rinfresco del dizionario è iniettabile nei test (`refreshDizionario`,
+  parametro di [watchOnce](src/watch.mjs)), si spegne da solo con una nota
+  se non c'è niente di fresco e un suo errore non ruba il tick alla
+  raccolta gare. Test in [test/cli-watch.test.mjs](test/cli-watch.test.mjs)
+  (18/18 con [test/learn-car.test.mjs](test/learn-car.test.mjs)).
+- **La guardia dice quando impara** (terzo giro del pomeriggio): se il
+  rinfresco del dizionario cambia qualcosa, il watch stampa UNA riga
+  verde — auto nuove dal menu, etichette corrette o ripulite, auto da
+  iscrizione in paddock; a vuoto resta zitta
+  ([src/cli.mjs](src/cli.mjs)). Prova dal vivo: raddoppio della MX-5
+  rimesso a mano, guardia accesa → riga + mappa ripulita
+  automaticamente, tick successivo in silenzio.
+- **La lezione arriva anche a `status`** (settimo giro): il battito della
+  guardia porta con sé l'ultima riga verde del dizionario e la riga
+  «👁 guardia attiva» di `status` la ristampa — chi controlla da
+  terminale vede se e quando la guardia ha imparato, senza leggerne la
+  console ([src/watch.mjs](src/watch.mjs), [src/cli.mjs](src/cli.mjs)).
+  Test in [test/cli-watch.test.mjs](test/cli-watch.test.mjs).
+- **La guardia in gioco** (ottavo giro): lo stato della guardia e l'ultima
+  lezione del dizionario arrivano ANCHE nel cruscotto dentro EVO — il
+  publisher porta il battito in fascia
+  ([src/uiapp-pub.mjs](src/uiapp-pub.mjs)) e la riga a schermo esce sotto
+  l'orologio di giornata: 👁 verde con «controlla Ns fa» + «dizionario: …»
+  quando la guardia impara. Le fascie vecchie senza `guardia` non rompono
+  niente (la riga esce solo con battito a bordo). Prima lo stato si vedeva
+  SOLO nel CLI: chi gioca non apre un terminale.
+  ([uiapp/cruscotto/cruscotto.src.js](uiapp/cruscotto/cruscotto.src.js)).
+  Test in [test/eredita-cruscotto.test.mjs](test/eredita-cruscotto.test.mjs).
+- **La guardia anche sul muro** (nono giro): il pitwall — il pannello che in
+  gara è il SOLO testo leggibile — riceve il battito passato INVARIATO dalla
+  vetrina ([miniPitwall](src/uiapp-pub.mjs), niente ricalcoli) e stampa il
+  blocco guardia a fianco dell'orologio: stessa riga verde/ferma e lezione
+  del dizionario ([uiapp/pitwall/pitwall.src.js](uiapp/pitwall/pitwall.src.js)).
+  Il test delle chiavi del payload in
+  [test/pitwall-radio.test.mjs](test/pitwall-radio.test.mjs) adesso include
+  `guardia` (e ferma senza battito: null, non undefined).
+- **Il tagliando diventa regola comune** (quarto giro): la regola del
+  nome ufficiale raddoppiato esce dal learner di ui_storage in un
+  helper condiviso ([soloRaddoppio](tools/set-car-sample.mjs)) usato
+  anche dal paddock: un'iscrizione che conferma una voce doppia la
+  riporta col nome ufficiale; i sinonimi con rumore restano COM'ERANO.
+  La logica vive in un solo posto. Test in
+  [test/learn-car.test.mjs](test/learn-car.test.mjs) (21/21 con la
+  guardia) e suite di import/gara veloce verdi (17/17).
+- **Auto-correzione del dizionario auto** (la sera dell'Endurance GT4: la
+  griglia si è scritta giusta, l'auto è rimasta quella del garage): il
+  Prepara non può selezionare un'auto che il dizionario non conosce, e una
+  voce etichettata male la bloccava per sempre — la Audi R8 LMS GT4 Evo
+  compariva come «Kunos Abarth 695 Biposto». Ora l'apprendimento dai log
+  rietichetta le voci CONTRADDETTE (nessun token in comune) col nome vero
+  ([tools/set-car-sample.mjs](tools/set-car-sample.mjs)) e il disco riceve
+  le correzioni anche a `added` = 0 (prima il salvataggio scattava solo con
+  voci nuove). Test in [test/learn-car.test.mjs](test/learn-car.test.mjs).
+
+- **Vigia del cambio di campionato** (la prova della serata incastonata):
+  se sul disco resta la griglia della serie VECCHIA, la scheda gara ora
+  lo dice PRIMA del bottone ([src/race.mjs](src/race.mjs)): banner
+  gemello del rituale in [src/webui-views.mjs](src/webui-views.mjs) e
+  [gui/js/viste-a.js](gui/js/viste-a.js). Silente con file assente,
+  illeggibile o già combaciante. Test in [test/race-card.test.mjs](test/race-card.test.mjs).
+
 ## v0.1.51 — 3/11/2026
 
 - **Il cerchio col mirror** (richiesta Mauro): la scheda della gara

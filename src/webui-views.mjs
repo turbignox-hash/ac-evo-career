@@ -34,7 +34,7 @@ import { listMotecSessions, collectSessions, racePressureAdvice } from './motec.
 import { resolvePaths, STEAM_APP_ID } from './paths.mjs';
 import { scanContentCached, validateLadder } from './content.mjs';
 import { appEnv, context, DATA_DIR, SLOT, CONFIG_FILE } from './webui-env.mjs';
-import { paddockLevelBadge } from './paddock.mjs';
+import { appLevelBadge } from './app-carriera.mjs';
 
 const money = (n) => Number(n ?? 0).toLocaleString('it-IT');
 const trackName = (ladder, id) => ladder.contentNames?.tracks?.[id] ?? id;
@@ -76,9 +76,9 @@ export function viewHeader(ladder, state) {
     money: state.money,
     moneyText: money(state.money),
     rep: state.rep,
-    // TESSERA LIVELLO (31/10): reale quando Paddock parla, stimato dalla
+    // TESSERA LIVELLO (31/10): reale quando l'app di carriera parla, stimata dalla
     // reputazione NOSTRA quando manca — stessa funzione del ponte, niente doppia verità.
-    levelBadge: paddockLevelBadge(state.rep),
+    levelBadge: appLevelBadge(state.rep),
     sponsor: sponsor ? sponsor.name : null,
     heritage: { completed: (H.completed ?? []).length, activeDone: !!activeMem?.done },
     node: { id: node.nodeId, display: node.display, discipline: disciplineName(ladder, node.discipline), level: node.level, tier: tierOf(ladder, node.level) },
@@ -329,6 +329,10 @@ function viewCard(ladder, state, car = null) {
     // rituale della prima griglia della serie (23/10: serie nuova = template
     // assente sul disco): se c'è da fare tell'ora, la card la mostra in testa
     gridRitual: card.gridRitual ?? null,
+    // VIGIA DEL CAMBIO DI CAMPIONATO (3/11, NOVA): la griglia sul disco è di
+    // un'altra serie — la card lo dice PRIMA del bottone, col parco che non
+    // combacia (Sanità in race.mjs); il Prepa riscriverà dal template.
+    gridAltraSerie: card.gridAltraSerie ?? null,
     // PRIMA ACCENSIONE (26/10): il rituale «apri il Race Weekend una volta»
     // Compare SOLO se EVO non ha ancora nessun weekend su disco — appena il
     // round esiste (weekendSeen=true) l'avviso scompare da solo

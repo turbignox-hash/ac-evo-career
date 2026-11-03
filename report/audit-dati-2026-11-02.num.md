@@ -1,12 +1,12 @@
-# Audit numerico dei dati — 2026-11-02 11:12
+# Audit numerico dei dati — 2026-11-02 17:54
 > Autogenerato da tmp/_audit-dati-1101.mjs --report · sola lettura dei DATI; l'unico scritto è questo file e la potatura dei .num.md oltre i 3 più recenti.
 > Precedente generato: [report/audit-dati-2026-11-02.num.md](report/audit-dati-2026-11-02.num.md).
 
 == DISCO: cartelle di data/ (dimensione · file) ==
   data/backups                   4.0 MB ·   22 file
-  data/bak                       0.6 MB ·    4 file
+  data/bak                       1.0 MB ·    5 file
   data/customgrid-snapshots      0.1 MB ·    5 file
-  data/grid-templates            2.2 MB ·  192 file
+  data/grid-templates            2.4 MB ·  208 file
   data/journal                   0.0 MB ·    2 file
   data/report                    0.0 MB ·    2 file
   data/results-archive           0.8 MB ·   81 file
@@ -17,15 +17,15 @@
   data/test-installazione-pulita    0.1 MB ·    7 file
   data/evo-career.save.json               0.3 MB
   data/rivals.json                        0.6 MB
-  data/match-auto.log                     0.3 MB
+  data/match-auto.log                     0.4 MB
   data/flows-debug.jsonl                  0.2 MB
   data/grid-classes.json                  0.1 MB
 
 == SAVE: carta d'identità ==
-  nodo attivo: endurance_gt4 · ronda 0 · stagione 14 (stagioni vissute: n/d)
-  cassa: €626892 · rep: 726
+  nodo attivo: campionato_aperto · ronda 0 · stagione 14 (stagioni vissute: n/d)
+  cassa: €626342 · rep: 726
   messaggi in box: 60
-  sedili firmati: 13 → hyper_road, coppa_mazda-rx7-fd, coppa_r5-turbo, coppa_peugeot-205-t16, roadster_classic, dtm_legends, coppa_alfa-romeo-75-turbo-evo, coppa_volkswagen-golf-gti-mk8, coppa_strada_80, campionato_epoca, coppa_vintage-mini, coppa_mazda-mx5-nd-cup, endurance_gt4
+  sedili firmati: 14 → hyper_road, coppa_mazda-rx7-fd, coppa_r5-turbo, coppa_peugeot-205-t16, roadster_classic, dtm_legends, coppa_alfa-romeo-75-turbo-evo, coppa_volkswagen-golf-gti-mk8, coppa_strada_80, campionato_epoca, coppa_vintage-mini, coppa_mazda-mx5-nd-cup, endurance_gt4, campionato_aperto
   storico 0 voci · journal stagioni 0
 
 == SAVE: difficulty ==

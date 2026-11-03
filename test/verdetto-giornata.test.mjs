@@ -165,6 +165,28 @@ test('righe doppie nel file (persona riciclata su due slot): il verdetto conta U
   rmSync(dir, { recursive: true, force: true });
 });
 
+test('NOMI PULITI (3/11, come le fasce del Pitwall): con il ladder le righe portano il nome bello, e il layout in coda resta al suo posto', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'verdetto-'));
+  // EVO scrive nel Results «Fuji» (il token corto) e il layout in campo a sé:
+  // il ladder lo guarda «Fuji Speedway» — la stessa pistaPulita del banco
+  // (VERDETTOWARE 261102) prima che la riga esca nel browser.
+  scriviGara(dir, '261102-1639_SP_Race.sessionresults.json', [
+    fila(driver_name, 'Turbigno', 0, { best: '01:52.300', me: true }),
+    fila('Adrian', 'Palmer', 1),
+  ], { track: 'Fuji', layout: 'East Race' });
+  const LADDER = { contentNames: { tracks: { fuji: 'Fuji Speedway' } } };
+  const v = verdettoGiornata({ paths: { resultsDirs: [dir] }, driver: DRIVER, prefix: '261102', ladder: LADDER });
+  assert.equal(v.gare.length, 1);
+  assert.equal(v.gare[0].pista, 'Fuji Speedway (East Race)', 'token dal file col nome bello del ladder, il layout in coda resta a schermo');
+  assert.equal(v.aggregato.giroTop.pista, 'Fuji Speedway (East Race)', 'anche il giro migliore dell’aggregato porta il nome pulito');
+  assert.match(v.md, /Fuji Speedway \(East Race\)/, 'il dossier (md) porta il nome bello');
+  // senza ladder (CLI, report in cartella): la voce grezza passa integra —
+  // come prima del cambio, nessuna sorpresa per chi stampa il dossier a mano
+  const v2 = verdettoGiornata({ paths: { resultsDirs: [dir] }, driver: DRIVER, prefix: '261102' });
+  assert.equal(v2.gare[0].pista, 'Fuji (East Race)', 'senza ladder la pista resta com’è scritta nel file');
+  rmSync(dir, { recursive: true, force: true });
+});
+
 test('SENZA prefisso il verdetto prende OGGI, mai la stringa "undefined" (31/10, «verdetto webui Gare 0»)', () => {
   // La GUI chiama /api/verdetto senza prefisso: l'endpoint passava
   // `prefix: undefined` e la scansione cercava il NOME FILE letterale

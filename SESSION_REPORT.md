@@ -260,6 +260,30 @@
   SOLO su un banco sandbox con impronta prima/dopo, mai contro i dati
   veri della casa.
 
+- **3/11 — guardia di layout nel comando check (richiesta Mauro: «collega
+  la guardia di layout alla spunta standard del comando check nella
+  CI»)**: `npm run check` → exit 0, suite **888/888** (`# tests 888`,
+  `# pass 888`, `# fail 0`) con la guardia di layout DENTRO il glob
+  (`node --test test/*.test.mjs` la scopre da sola): `ok 412` con
+  l'etichetta delle 5 larghezze (19 tab × 5 larghezze = 95 misure);
+  Biome senza errori, **5 warning tutti preesistenti e documentati**
+  ([gui/js/core.js:488](gui/js/core.js#L488),
+  [src/webui.mjs:135](src/webui.mjs#L135),
+  [test/ab-avviso-giro.test.mjs:44](test/ab-avviso-giro.test.mjs#L44) ×2,
+  `mirrorJournal` inutilizzato in
+  [test/journal-nostro.test.mjs:32](test/journal-nostro.test.mjs#L32) —
+  importato e mai usato nel corpo dei test, warning preesistente
+  (il file non è ancora nel git, non fango del collegamento). Log della prova:
+  [tmp/check-collegamento.log](tmp/check-collegamento.log); log della
+  scoperta col glob:
+  [tmp/check-gui-scoperta.log](tmp/check-gui-scoperta.log). La
+  spunta standard in [COMANDI-BUFFY.md](COMANDI-BUFFY.md) da oggi
+  elenca il comando intero come prova standard della guardia di layout,
+  con la legge: skip onesti al posto di rossi finti su CI vergine
+  (chromium o save assenti), `node --test` isolato solo durante il
+  collaudo di una vista singola e check intero prima di dichiarare il
+  lavoro concluso.
+
 ## Prossimo passo consigliato
 
 Girare la prova DA-10 in gara (l'unico criterio di chiusura che un test

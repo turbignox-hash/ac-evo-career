@@ -38,8 +38,19 @@
  * (Impostazioni #agg-status, Setup #psi-panel, Analisi #an-tetto, …) e
  * pannelli è il minimo che la vista aggiunge a terra (1 basta per la
  * maggior parte, Impostazioni vuole 3). */
-export async function assettaVista(page, { id, marker, pannelli = 1 }) {
-  await page.evaluate((tabId) => document.querySelector(`#nav button[data-tab="${tabId}"]`)?.click(), id);
+export async function assettaVista(page, { id, marker, pannelli = 1, nascosto = false }) {
+  // la fascia fissa (6/11) porta Impostazioni fuori da #nav: data-tab vale per entrambe
+  if (nascosto) {
+    // 3/11 — tab NASCOSTI (Calendario, Classifica Mondiale): nessun bottone
+    // data-tab in nav (si aprono da annunci/tile dei vicini), quindi la sonda
+    // usa la STESSA leva dei click vivi — `tab` è una variabile globale
+    // condivisa degli script della GUI (viste-* fanno `tab = '…'; render()`)
+    // e il render parte da lì. Il click nav tramite ?. resterebbe no-op e la
+    // sonda misurerebbe la vista PRECEDENTE in silenzio: nascosto lo vieta.
+    await page.evaluate((tabId) => { tab = tabId; render(); }, id);
+  } else {
+    await page.evaluate((tabId) => document.querySelector(`nav button[data-tab="${tabId}"]`)?.click(), id);
+  }
   // niente skeleton E il marcatore: la vista SIA QUELLA
   await page.waitForFunction(({ marker, minimo }) => {
     const m = document.querySelector('#main');

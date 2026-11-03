@@ -235,6 +235,14 @@ export function specFor(trackName, over = {}) {
   if (pit != null) spec.pitSlots = over.pitSlots ?? pit;
   const key = specialKeyFor(trackName, info);
   if (key) Object.assign(spec, TRACK_SPECIALS[key]);
+  // l'override ESPLICITO vince su TUTTO, SPECIALS compresi (2/11, «il cerchio»:
+  // la ronda del pd-calendar porta il layout — Oulton Fosters — e Oulton è
+  // pista SPECIAL: è chi chiama che sa la ronda, i SPECIALS restano il ripiego
+  // quando nessuno sa di più)
+  if (over.tag != null) spec.tag = over.tag;
+  if (over.layout != null) spec.layout = over.layout;
+  if (over.lengthM != null) spec.lengthM = over.lengthM;
+  if (over.pitSlots != null) spec.pitSlots = over.pitSlots;
   return spec;
 }
 
@@ -344,10 +352,12 @@ export function setTrack(buf, spec) {
  * weekend per NOME (dal libro TRACK_INFO), con backup automatico. A differenza
  * delle scritture griglia NON serve EVO chiuso: provato ripetutamente, il menu
  * adopera il file riscritto.
- * opts: { file, dry } — dry: solo report, niente scrittura.
+ * opts: { file, dry, over } — over è la spec parziale che SOVRASCRIVE i campi
+ * pista (tag/layout/lengthM/pitSlots): è l'aggancio per la ronda del
+ * pd-calendar, che sa il layout vero quando il default GP non basta.
  */
-export function changeWeekendTrack(trackName, { file = WEEKEND_FILE, dry = false } = {}) {
-  const spec = specFor(trackName);
+export function changeWeekendTrack(trackName, { file = WEEKEND_FILE, dry = false, over = {} } = {}) {
+  const spec = specFor(trackName, over);
   if (!spec) throw Object.assign(new Error(`pista "${trackName}" non nel libro TRACK_INFO`), { code: 'UNKNOWN_TRACK' });
   const buf = readFileSync(file);
   const res = setTrack(buf, spec);

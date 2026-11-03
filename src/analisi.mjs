@@ -886,7 +886,7 @@ export function tettoReport(ladder, state, { logsDirs = null } = {}) {
 /* ================================================================== */
 
 /**
- * Il facciale di fine gara — PRIMA cosa dopo l'import, in stile Paddock:
+ * Il facciale di fine gara — PRIMA cosa dopo l'import, in stile app:
  *   - l'esito scomposto in cause (da raceAutopsy, in comune con tab Analisi),
  *   - i numeri che MORIONO alla chiusura del gioco (benzina rimasta, gomma
  *     andata, partenza) presi dal MoTeC della sessione, quando c'è,

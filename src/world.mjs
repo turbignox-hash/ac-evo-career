@@ -408,8 +408,8 @@ export function midSeasonPulse(world, ladder, node, season, round) {
   return events;
 }
 
-/** Statistiche dei rivali che corrono in una serie, per il comando paddock. */
-export function paddock(world, ladder, node, season) {
+/** Statistiche dei rivali che corrono in una serie, per il comando «rivali». */
+export function rivaliSerie(world, ladder, node, season) {
   return gridFor(world, ladder, node, season).map((s) => ({
     ...s,
     archetypeName: ladder.archetypes[s.archetype]?.name ?? s.archetype,

@@ -321,6 +321,17 @@ Run `node ac-evo-career.mjs setup` again (or fix the live paths in
 Settings, no restart needed) and run `content --validate` to check that the
 ladder still matches.
 
+**Paddock races finish instantly (1 lap and done).** That is the game's
+default, not a bug: fix it with `node tools/cura-giri-app.mjs` (it looks
+for Paddock.exe in its usual place, `Desktop\Paddock`; if it is not there,
+pass the path explicitly). It sets **3 laps** on every round that had 12 in
+the catalog (Paul Ricard and the special races stay as they are): run it
+with the game CLOSED — if Paddock is on, the tool says the file is locked
+and stops. It is idempotent and writes the backup `Paddock.exe.bak-giri12`
+next to the exe before touching the file: run it again and it replies
+"Already cured. Nothing to do.". If the game updates Paddock, run the cure
+again. Read-only diagnosis: `--verifica`.
+
 **I cloned but the launcher says «offsite does not answer».**
 Missing `git remote rename origin offsite` (chapter 2). Honestly: it starts
 anyway, the updates just stay mute until the remote has that name.

@@ -17,6 +17,7 @@ import { listResultFiles, readSessionResult, findPlayerDriver, bestLapInfo, clas
 import { nodeById } from './state.mjs';
 import { alreadyImportedHash } from './import.mjs';
 import { matchTrackName, sameTrack, matchesAnyTrack } from './tracknames.mjs';
+import { margineVeroDaLog } from './margine-log.mjs';   // il margine vero (best − teorico dai log) anche nel quaderno proves
 
 
 // nido per-slot (24/10): il quaderno delle prove vive con la SUA carriera
@@ -80,6 +81,25 @@ export function prettyTrackLabeled(ladder, fileTrack) {
   return variante ? `${base} ${variante}` : base;
 }
 
+/** La pista come la scrivono le RIGHE DEL VERDETTO (file Results + layout in
+ *  coda, «Mount Panorama (GP Race)») col NOME BELLO del ladder. VERDETTOWARE
+ *  (261102, fascia del pitwall): la coda col layout si SCASTA prima — nel
+ *  Results è campo a sé, se restasse dentro la variabile del banco brucerebbe
+ *  come «Race)» — e si riattacca DOPO la pulizia, così «(GP Race)» resta a
+ *  schermo al suo posto. Senza ladder o pista mancate: la voce grezza passa
+ *  integra una sola implementazione qui, consumata anche dal webui (verdetto
+ *  della GUI, 3/11) — mai una seconda formula di pulizia nel progetto.
+ */
+export function pistaPulita(ladder, pista) {
+  if (!ladder || !pista) return pista ?? null;
+  try {
+    const m = /^(.+?)\s\(([^()]*)\)$/.exec(String(pista));
+    const solo = m?.[1].trim() ? m[1] : String(pista);
+    const coda = m?.[1].trim() ? ` (${m[2]})` : '';
+    return (prettyTrackLabeled(ladder, solo) ?? solo) + coda;
+  } catch { return pista; }
+}
+
 function loadBook() {
   try {
     const b = JSON.parse(readFileSync(TESTDAY_FILE, 'utf8'));
@@ -93,9 +113,50 @@ function saveBook(book) {
   writeJsonAtomic(TESTDAY_FILE, book); // atomico: il quaderno di calibrazione non si corrompe
 }
 
-/** Ultimi n rapporti di prova, dal più recente. Per la GUI. */
-export function testDayLog(n = 30) {
-  return loadBook().sessions.slice(-n).reverse();
+/** testo mm:ss.mmm (stessa forma di hotlaps.mjs): un ms positivo o null. */
+const testoMs = (ms) => (Number.isFinite(ms) && ms > 0)
+  ? `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}.${String(Math.round(ms % 1000)).padStart(3, '0')}`
+  : null;
+
+/** Ultimi n rapporti di prova, dal più recente. Per la GUI.
+ *  IL MARGINE VERO anche nel quaderno proves (3/11, non solo gare e tetto):
+ *  stessa legge di rapporto gara, tetto e quaderno dei giri liberi — best = la
+ *  tripla accreditata del file risultato (in EVO i splits sono i settori del
+ *  GIRO migliore), teorico = minimo per settore dei giri segnati nei log del
+ *  gioco, STESSA finestra di weekend (margine-log.mjs). Si calcola a LETTURA:
+ *  il quaderno su disco resta com'è e i log ruotati non corrompono i numeri.
+ *  Nessun abbinamento → campi assenti: silenzio, non uno 0,00 finto (le stesse
+ *  Garanzie di hotlapsLog, i CAMPI sono gli stessi per chi scrive le viste). */
+export function testDayLog(n = 30, { logsDirs = null } = {}) {
+  const righe = loadBook().sessions.slice(-n).reverse();
+  let veri = new Map();
+  if (logsDirs?.length) {
+    const richieste = righe
+      .filter((e) => e.kind === 'file'
+        && Array.isArray(e.sectors?.sectors) && e.sectors.sectors.length === 3
+        && e.sectors.sectors.every((s) => Number.isFinite(s.mine)))
+      .map((e) => ({
+        chiave: e.file,
+        track: e.track,
+        bestSplits: e.sectors.sectors
+          .slice().sort((a, b) => a.index - b.index)
+          .map((s) => Math.round(s.mine)),
+      }));
+    try { veri = margineVeroDaLog(logsDirs, richieste); } catch { /* log assenti o ruotati: le colonne restano vuote */ }
+  }
+  return righe.map((e) => {
+    const v = (e.kind === 'file' && e.file) ? (veri.get(e.file) ?? null) : null;
+    if (!v) return e;
+    const bestMs = e.sectors?.bestLapMs ?? null;
+    return {
+      ...e,
+      theoreticalMs: v.sommaMs,
+      theoreticalText: testoMs(v.sommaMs),
+      theoreticalGainText: bestMs != null && v.sommaMs < bestMs ? testoMs(bestMs - v.sommaMs) : null,
+      theoreticalMargineMs: v.margineMs,
+      theoreticalGiri: v.giri,
+    };
+  });
 }
 
 /**

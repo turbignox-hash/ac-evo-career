@@ -5,14 +5,14 @@
 > [POST-PRESENTAZIONE-SUBREDDIT-EN.md](POST-PRESENTAZIONE-SUBREDDIT-EN.md). Le due foto
 > del fondo della versione lunga stavano QUI in testa: nel subreddit la prima
 > cosa che si vede è l'immagine. Caricate a mano su Reddit
-> (`docs/screenshots/in-diretta/cruscotto.png` e `pitwall.png`), il secondo
-> testo va come immagine #2 / commento.
+> (`docs/screenshots/in-diretta/pitwall.png` e `cruscotto.png`, nell'ordine:
+> Pitwall prima, Cruscotto dopo), il secondo testo va come immagine #2 / commento.
 
 ---
 
-![Cruscotto — registro cambio auto, consigli dal box, «Prepara e Divertiti»](docs/screenshots/in-diretta/cruscotto.png)
-
 ![Pitwall — radio del copilota viva in sessione, ronda armata col via automatico](docs/screenshots/in-diretta/pitwall.png)
+
+![Cruscotto — registro cambio auto, consigli dal box, «Prepara e Divertiti»](docs/screenshots/in-diretta/cruscotto.png)
 
 **Pitwall (ac-evo-career) — la carriera di AC EVO gestita dal desktop, e in pista parla il copilota in italiano**
 

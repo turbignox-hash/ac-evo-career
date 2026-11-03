@@ -212,9 +212,8 @@ function drawOnboarding(m){
  * con il meteo/orario già deciso a monte (gara bagnata = icona pioggia), la
  * classifica Paddock, il messaggio dell'ingegnere (a fondo % gas) e tutte le
  * ronde con esito. Nascosta se Paddock non gira o non ha dati. */
-async function drawPaddockPanel(){
-  const el = $('#p-paddock'); if (!el) return;
-  const pd = await api('paddock').catch(() => null);
+async function drawAppPanel(){
+  const el = $('#p-paddock'); if (!el) return;   const pd = await api('app').catch(() => null);
   if (!pd || !pd.ok || !pd.next)
     { el.style.display = 'none'; return; }
   const n = pd.next;
@@ -328,7 +327,7 @@ async function drawDashboard(m){
     <div class="racecard panel" id="card-panel"></div>
   </div>`;
   drawCardInto($('#card-panel'), card);
-  drawPaddockPanel();
+  drawAppPanel();
   drawLifePanel();
   drawHeritagePanel();
   drawEventsPanel();
@@ -693,6 +692,7 @@ function drawCardInto(el, card){
       </div>
     </div>` : ''}
     ${card.gridRitual ? `<div class="banner info" style="margin-top:8px">🏁 <b>${tr({ it: 'Nuova serie, griglia da sbloccare (una volta sola)', en: 'New series, grid to unlock (once only)' })}</b> — <span style="font-size:11.5px">${esc(card.gridRitual)}</span></div>` : ''}
+    ${card.gridAltraSerie ? `<div class="banner info" style="margin-top:8px">🔁 <b>${tr({ it: 'Griglia sul disco di un\'altra serie', en: "Grid on disk is from a different series" })}</b> — <span style="font-size:11.5px">${esc(card.gridAltraSerie)}</span></div>` : ''}
 
     ${card.boxRadio?.tips?.length ? `<details style="margin-top:8px" open><summary style="cursor:pointer;font-size:12px"><b>${window.mechIcon ? window.mechIcon(13) : '📻'} ${tr({ it: 'Consigli dal BOX', en: 'BOX tips' })}</b> <span class="muted" style="font-size:11px">— ${tr({ it: "la scheda dell'ingegnere di gara, personale del meccanico", en: "the race engineer's sheet, the mechanic's staff" })}</span></summary>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${card.boxRadio.tips.map(t=>`<div style="display:flex;gap:10px;align-items:flex-start;background:var(--panel2,#121822);border:1px solid var(--line);border-radius:8px;padding:7px 10px"><span style="flex:none;font-size:15px">${t.icon}</span><div style="font-size:12px;line-height:1.45"><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></div></div>`).join('')}</div></details>` : ''}

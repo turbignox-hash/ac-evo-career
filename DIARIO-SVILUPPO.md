@@ -5,6 +5,285 @@ IL RESTO (da fare o da rivedere). Ogni giorno prendiamo qualcuna di queste e la
 eseguiamo; a fine giornata il diario si arricchisce e la lista si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 3/11 — la sera dell'Endurance GT4: griglia giusta, auto ferma; dizionario auto-corretto
+- **Il fatto**: Mauro cambia campionato (Endurance GT4) e preme «Prepa tutto»:
+  la griglia si scrive dal template GT4 giusto, ma l'auto in garage resta la MX-5.
+- **La diagnosi** (tutta a lettura, senza toccare il gioco): la scheda passava
+  il nome GIUSTO («Porsche 718 Cayman GT4 RS», primo del parco della serie),
+  ma il dizionario auto non ha NESSUNA GT4 — `findCar` torna null e il Prepa
+  resta zitto (nota neutra al toast, la 25/10). La scritta MX-5 sul garage
+  (00:54) è del tap precedente (iscrizione Coppa MX-5 R4, 23:30), che ha
+  scritto la sua serie come doveva. La tabella ufficiale guid_map.carhashguid
+  (data/car-guids.json) non ha i nomi: la Porsche non è assegnabile in blocco.
+- **Il fallback scoperto**: la coppia dell'Audi R8 LMS GT4 Evo era GIÀ nel
+  dizionario ma etichettata male («Kunos Abarth 695 Biposto», firma di
+  campionatura a mano sbagliata): learnCarFromLogs scartava la contraddizione
+  («già mappata») e la voce sbagliata non moriva mai; e un secondo difetto
+  mostrava la correzione in console ma non la scriveva a disco (salvataggio
+  solo a `added > 0`).
+- **La correzione**: auto-correzione dai log (rientra solo a token-zero,
+  i sinonimi legittimi restano) + salvataggio anche a sole correzioni
+  ([tools/set-car-sample.mjs](tools/set-car-sample.mjs)); l'Audi ora esce da
+  findCar. La Porsche 718 GT4 RS si auto-imparerà alla PRIMA sessione GT4
+  («Loaded car» appare solo quando il gioco la carica): entra una volta nel
+  weekend, poi il Prepa la seleziona da solo, come per le altre.<br>
+  *Verifiche*: node --test test/learn-car.test.mjs → 6/6 (test nuovo: correzione sì,
+  sinonimo no); `--from-logs` reale → corrette 1; backup map.json
+  bak-1103-pre-correzione.
+
+### 3/11 — pomeriggio: il tagliando delle etichette + il dizionario respira nel watch
+- **Il fatto**: il dizionario reale di Mauro aveva la MX-5 come «Mazda Mazda
+  MX-5 ND Cup»: nome ufficiale scritto DUE volte, firma dei provini passati
+  per più fonti. Non è contraddizione (token tutti in comune col
+  display_name del gioco), quindi l'apprendimento la lasciava stare per
+  sempre e la scheda garage mostrava il nome raddoppiato.
+- **La correzione**: learnCarFromStorage aggiorna il sinonimo quando
+  l'eccedenza dei token è SOLO raddoppio del nome ufficiale (multiset:
+  ogni token in più del dizionario è un token che il gioco ha già):
+  «Mazda Mazda» → «Mazda». I sinonimi con RUMORE in più non si toccano
+  («Kunos», «MXM», «992» sono token che il gioco NON ha: restano
+  COM'ERANO).
+- **Il secondo passo**: la ronda della guardia nel watch ri-aggiorna il
+  dizionario a ogni tick: un'auto toccata nel MENU mentre il watch gira
+  entra nel dizionario senza riavviare nulla, come le letture aggiornate
+  del calendario e del garage.
+- **Prova reale**: --from-storage sul ui_storage di Mauro col raddoppio
+  rimesso a mano → «e ripulite 1 etichette col nome ufficiale», la mappa
+  torna «Mazda MX-5 ND Cup»; e col rumore non duplicato aggiunto a mano
+  il run non tocca niente (comportamento atteso).<br>
+  *Verifiche*: node --test test/learn-car.test.mjs → 11/11 (raddoppio
+  ripulito, rumore non duplicato resta, no-op se già pulita); le suite
+  ronda/watch/world ripassano verdi.
+
+### 3/11 — secondo pomeriggio: il paddock entra nel battito della guardia
+- **Il fatto**: il rinfresco del dizionario nel watch copriva solo le auto
+  toccate NEL MENU (ui_storage): una serie ISCRITTA a paddock mentre la
+  guardia corre aspettava il prossimo processo per entrare a dizionario.
+- **La modifica**: learnCarFromPaddock entra nello stesso rinfresco a ogni
+  tick ([src/watch.mjs](src/watch.mjs)): pd-calendar e garage scritti nella
+  STESSA finestra di 10 minuti insegnano la coppia anche a guardia accesa.
+  Il rinfresco è iniettabile nei test (refreshDizionario, parametro di
+  watchOnce) e un suo errore non ruba il tick alla raccolta gare.
+- **Verifiche**: node --test test/cli-watch.test.mjs test/learn-car.test.mjs
+  → 18/18 (rinfresco chiamato UNA volta per tick, errore senza conseguenze
+  per la raccolta, contatori visibili nel riepilogo del watcher).
+
+### 3/11 — terzo giro (tardo pomeriggio): la guardia dice quando impara
+- **Il fatto**: il rinfresco del dizionario nel watch lavorava in completo
+  silenzio: se ripuliva un'etichetta o imparava una coppia nuova nessuno
+  se ne accorgeva, né in console né altrove: chi guarda il terminale non
+  capisce cosa la guardia stia facendo mentre corre.
+- **La modifica**: nel loop del watch ([src/cli.mjs](src/cli.mjs)) una riga
+  verde UNA SOLA VOLTA per tick e SOLO quando il rinfresco cambia
+  qualcosa: auto nuove dal menu, etichette corrette, etichette ripulite
+  col nome ufficiale, auto da iscrizione in paddock. Zero rumore a
+  vuoto: il secondo tick di seguito sullo stesso stato non stampa
+  niente. Singolare/plurale rifinito (1 etichetta / 2 etichette).
+- **Prova dal vivo**: raddoppio della MX-5 rimesso a mano nel dizionario
+  vero, guardia accesa 20 secondi → «✓ dizionario: 1 etichetta ripulita
+  col nome ufficiale» e la mappa torna pulita senza toccare nulla; tick
+  successivo in silenzio completo.<br>
+  *Verifiche*: node --test test/cli-watch.test.mjs test/learn-car.test.mjs
+  → 18/18; node --check src/cli.mjs.
+
+### 3/11 — quarto giro (sera): il tagliando diventa regola comune
+- **Il fatto**: la regola che ripulisce l'etichetta raddoppiata («Mazda
+  Mazda» → «Mazda») viveva SOLO dentro il learner da ui_storage: il
+  paddock doveva aspettare il prossimo passaggio dell'auto nel menu per
+  profittarne.
+- **La modifica**: la regola esce in un helper condiviso (soloRaddoppio,
+  [tools/set-car-sample.mjs](tools/set-car-sample.mjs)) estratto dal
+  codice inline di learnCarFromStorage e usato ANCHE da
+  learnCarFromPaddock: un'iscrizione che conferma una voce raddoppiata
+  la riporta col nome ufficiale; un sinonimo con RUMORE resta COM'ERA
+  (test nuovo dedicato). La logica del tagliando vive in un solo
+  posto: se domani cambia, cambia qui.
+- **Banco completo di prima**: npm test intero girato PRIMA del
+  rifacimento → 878/878: zero regressioni su tutto il lavoro del giorno
+  (storage + paddock tick + riga della guardia).
+- **Verifiche dopo**: test/learn-car.test.mjs + test/cli-watch.test.mjs
+  → 21/21; test/import-save.test.mjs + test/gara-veloce.test.mjs →
+  17/17; node --check su src/cli.mjs e src/watch.mjs.
+
+### 3/11 — quinto giro (tarda sera): chiusura con il banco pieno
+- **Il fatto**: dopo il rifattoring del tagliando serviva il banco PIENO:
+  solo le suite vicine non bastavano a dichiarare la giornata chiusa.
+- **Le verifiche**: npm test intero dopo il rifattoring → 881/881
+  (878 pre-rifattoring più i test nuovi del tagliando nel
+  paddock); biome lint sui cinque
+  file toccati oggi → un residuo tolto (la firma `multi` avanzata dentro
+  learnCarFromStorage ora che la regola vive in soloRaddoppio) e
+  l'import inutile di decodeMsg nei test: lint a zero warning,
+  test/learn-car.test.mjs 14/14. Giornata chiusa.
+
+### 3/11 — nono giro (notte): la guardia anche sul muro (pitwall)
+- **Il fatto**: in gara il cruscotto non si guarda — il pitwall è il SOLO
+  pannello leggibile; senza la riga guardia, chi sta in pista non sa più se
+  la guardia corra e cosa abbia imparato.
+- **Il modo**: `miniPitwall` riceve la vetrina INTERA in ingresso: il battito
+  passa INVARIATO (`dati.guardia`, niente ricalcoli, zero letture in più);
+  pitwall.src.js stampa il blocco a fianco dell'orologio, la stessa riga del
+  CLI e del cruscotto. Fascie senza il campo: niente blocco, come l'orologio.
+- **Le verifiche**: il test delle chiavi di miniPitwall (pitwall-radio) ora
+  include `guardia` e fissa il caso NO-battito (null, non undefined) + test
+  dell'oggetto passato uguale: file 26/26 insieme a eredita-cruscotto e le
+  attigue uiapp; biome zero; genera-uiapp BUILD_OK + installatore pitwall
+  richiamato: app in Saved Games al passo.
+- **PROVA DAL VIVO (in anteprima, fasce vere)**: server webui riavviato
+  (girava CODICE VECCHIO: le fasce non portavano la voce), poi i due gusci
+  anteprima (_preview-cruscotto/pitwall) sulle fasce di Saved Games:
+  cruscotto «👁 guardia ferma — controlla 149 s fa · dizionario: 1 auto nuova
+  dal menu · 1 etichetta ripulita col nome ufficiale», pitwall identico.
+  Battito dimostrativo scritto a mano: 45 s dopo il semaforo è scaduto in
+  «ferma» da SOLO — la vita del semaforo segue il battito senza bug.
+
+### 3/11 — decimo giro (notte): i nomi puliti anche nel verdetto della GUI
+- **Il fatto**: le fasce del pitwall portano i nomi pista puliti da
+  `pistaPulita` (VERDETTOWARE 261102), ma le righe del verdetto di
+  giornata della GUI del browser uscivano COME LE SCRIVE il file Results —
+  il token grezzo, senza il passaggio dal nome bello del ladder.
+- **Il modo**: `pistaPulita` spostata in testday.mjs accanto a
+  `prettyTrackLabeled` (UNA implementazione, come voleva il commento);
+  `verdettoGiornata` ora riceve `ladder` e pulisce ALLA FONTE (righe,
+  note quali/practice, aggregato e dossier md in un colpo); l'endpoint
+  `/api/verdetto` del webui passa il ladder del carriera. Senza ladder
+  (CLI, dossier in cartella): la voce grezza passa com'era — niente
+  cambiamenti per chi stampa a mano.
+- **Le verifiche**: test NOMI PULITI in verdetto-giornata.test.mjs (track
+  «Fuji» col ladder → «Fuji Speedway (East Race)» in riga, aggregato e
+  md; senza ladder resta «Fuji (East Race)») — i tre file del bancos
+  61/61 (verdetto + uiapp-pub-priorita + uiapp-pub-guard). PROVA DAL VIVO:
+  webui riavviato col codice nuovo, `/api/verdetto` con il prefisso di
+  ieri (261102, 5 gare): «Mount Panorama (GP Race)», «Suzuka (East
+  Race)», «Donington Park (National Race)»… e il giro migliore
+  dell'aggregato pure «Suzuka (East Race)» — il layout resta in coda,
+  mai dentro la variabile.
+
+### 3/11 — decimo giro bis (notte): il test dei chip parla con la guardia VIVA
+- **Il fatto**: nei test dei chip del pitwall (verdettoFascia) le attese
+  erano STRINGHE INCOLLATE («Oulton Park (International Race)»): se un
+  domani prettyTrackLabeled cambia una parola, il dato sul chip cambia
+  e il test segue la formula morta — la divergenza test/dato la scopre
+  Mauro a schermo, non il banco.
+- **Il modo**: le attese ora escono dalle funzioni VIVE di testday.mjs
+  (`prettyTrackLabeled` per il token di cartella, `pistaPulita` per la
+  pista col layout) — la STESSA fonte che il server chiama sui chip, più
+  il collegamento dichiarato «pistaPulita senza coda = prettyTrackLabeled»
+  (una formula, due porte) e la conferma SENZA ladder (token intatto).
+- **Le verifiche**: uiapp-pub-priorita 48/48, insieme a verdetto-giornata
+  57/57; biome zero warning sul file del banco. Le stringhe attese restano
+  COME CONTROPROVA (le due assert.equal contro la guardia viva): se la
+  formula cambia, il banco lo dice PRIMA, non dopo la fascia in gioco.
+
+### 3/11 — decimo giro ter (notte): la guardia anche sulle fascie del publisher
+- **Il fatto**: le fascie `ui-<slot>.json` in gioco il publisher le scrive
+  con UNA writeFileSync nuda (niente atomico) e l'app le JSON.parse a
+  ogni tick: una fascia MEZZA in gioco (scrittura troncata, beffa a mano)
+  è la stessa beffa del menu.html del 27/10 — l'app esce rotta a schermo.
+- **Il modo**: nuova sottoprova FASCE DEL PUBLISHER IN GIOCO in
+  test/uiapp-installata.test.mjs: nella STESSA stanza vera del gioco, ogni
+  `ui-<slot>.json` presente nelle cartelle installate dev'essere un JSON
+  intero (parsabile, un oggetto). Messaggio con la cura: col server aperto
+  il publisher la riscrive intera al prossimo tick; una beffa di mano si
+  cancella — LE fascie le nasce SOLO il publisher.
+- **Le verifiche**: guardia verde 7/7 su stanza vera; poi la beffa sul
+  vivo: `ui-999999999.json` corrotta scritta a mano in cruscotto → guardia
+  rossa col percorso reale e la cura nel messaggio (1 fail) → fascia
+  cancellata → di nuovo 7/7. Biome sul file del banco nel prossimo tagliando.
+
+### 3/11 — ottavo giro (notte): la guardia esce nel cruscotto dentro il gioco
+- **Il fatto**: la riga «👁 guardia attiva» dopo il settimo giro viveva SOLO nel
+  `status` del CLI — chi gioca non apre un terminale: nel pannello dentro EVO
+  c'era solo il pallino del SERVER (fascie fresche), che è un'altra cosa.
+- **Il modo**: il publisher porta in fascia il battito della guardia
+  (`watcherStatus`, un file JSON per fascia, dentro try) e il cruscotto a
+  schermo la ristampa sotto l'orologio di giornata: verde «👁 guardia attiva —
+  controlla Ns fa» + «dizionario: …» quando ha imparato. Fascie vecchie senza
+  `guardia`: la riga non esce, nessun errore — fino al primo riavvio del server.
+- **Le verifiche**: test VEDRINA (5-bis) in eredita-cruscotto.test.mjs (la voce
+  `guardia` esiste sempre nella fascia, e col battito fresco arriva valorizzata
+  con `alive` vero e `diz` con la lezione) — file 8/8; le attigue
+  uiapp-pub-priorita/paddock 56/56;
+  biome a zero warning sui tre file toccati (due import morti del file test
+  portati fuori nel passaggio); genera-uiapp ha segnalato BUILD_OK e ha
+  richiamato l'installatore: la app in Saved Games è aggiornata.
+
+### 3/11 — sesto giro bis (notte): la lezione del dizionario arriva a `status`
+- **Il fatto**: la riga verde «✓ dizionario: …» resta nella console della
+  guardia: chi controlla solo da terminale (`status`) non sa SE e QUANDO la
+  guardia ha imparato qualcosa.
+- **Il modo**: il battito della guardia ([heartbeat](src/watch.mjs)) porta
+  con sé l'ultima lezione (`msg` + `at`); la riga «👁 guardia attiva» di
+  `status` la ristampa in dim — sempre in italiano/inglese secondo lingua.
+  Niente scritture extra: il tracker della guardia è già il posticino
+  giusto per questo ricordo.
+- **Le prove**: nuovo test del battito (heartbeat + watcherStatus, il
+  battito trasporta la lezione) in [test/cli-watch.test.mjs](test/cli-watch.test.mjs)
+  (8/8); fumo status con cartella temporanea → exit 0 e riga
+  «👁 guardia attiva — … · dizionario: 1 auto nuova dal menu · 1 etichetta
+  ripulita col nome ufficiale» stampata come da disegno.
+
+### 3/11 — sesto giro (notte): il dizionario si spiega nella FAQ
+- **Il fatto**: il funzionamento del dizionario vivente era raccontato nel
+  CHANGELOG ma non nella FAQ per i lettori: chi legge il README non
+  sapeva che il dizionario si riempie da solo.
+- **La modifica**: nel README italiano e in quello inglese, subito dopo
+  la domanda «Prepara tutto / auto non nel dizionario», la nuova voce:
+  le tre fonti (log, ui_storage, iscrizioni), la guardia che
+  rinfresca a ogni giro e parla solo quando impara, il tagliando delle
+  etichette raddoppiate e la regola del rumore estraneo.
+- **Verifiche**: nessun codice toccato, solo documentazione; le due
+  voci controllate a lettura nei rispettivi file.
+
+### 3/11 — notte: la FATTORIA del dizionario (ui_storage.uistorage)
+- **Il fatto**: i log del gioco (02:41) mostrano che la catena comandi nostra
+  va («✓ SetCurrentCar ok: Audi R8 LMS GT4 Evo») e nello stesso log il gioco
+  scrive da solo `paddock.skins` dentro **ui_storage.uistorage** (Saved Games\ACE).
+  Abbiamo aperto il file a nudo: è protobuf **SENZA cifratura** — la sorgente
+  di coppie guida↔nome che cercavamo nella kspkg (che invece è cifrata al
+  100%) era qui accanto, scritta DAL GIOCO STESSO ad ogni auto toccata dal
+  menu (vista, scelta, iscrizione).
+- **Il contegno**: per ogni skin, `car_guid` è la GUID stabile dell'auto già
+  SDOPPIATA (= carHash|guid2 del garage: il test «Audi R8 LMS GT4 Evo"
+  0x47E9D2CE3DC1C366|0x432F24BD6F41ED82 batte IDENTICO) e `display_name` è
+  il nome ufficiale del gioco ("Mini John Cooper S", "Audi R8 LMS GT4 Evo",
+  "Mazda MX-5 ND Cup", "Abarth 695 Biposto").
+- **La muratura**: nuova sorgente `learnCarFromStorage` in
+  [tools/set-car-sample.mjs](tools/set-car-sample.mjs) (lettore `readUiStorage` +
+  `pairDaGuid`), agganciata al boot dizionario nel [tools/set-driver-car.mjs](tools/set-driver-car.mjs)
+  e in CLI con `--from-storage`. Regole consuete: coppie nuove entrandono,
+  le CONTRADDETTE si correggono, i sinonimi legittimi restano.
+  *Verifiche*: node --test test/learn-car.test.mjs → 9/9 (3 nuovi: aggiunta,
+  correzione sinonimo/nota, file assente/brutto); `--from-storage` reale →
+  0 aggiunte: le 4 voci della fattoria sono già sinonimi del dizionario
+  (nessuna scritta superflua), e il garage attuale (Audi R8 GT4 Evo) è coerente.
+
+### 3/11 — notte, dopo la fattoria: le catene di lettura, una volta per tutte
+- **La paura di Mauro** (a parole sue): «così torniamo al magazzino e fattoria
+  che ci hanno creato tanti problemi; ora abbiamo il mirror journal, dovremmo
+  leggere tutto come paddock ed escluderli una volta per tutte». Verifica fatta
+  con la grep su TUTTO il flusso di lettura:
+  · «MAGAZZINO» su L:\CarrieraEVO è SOLO backup zip (completo + portabile,
+    impronte SHA-256): non entra in NESSUNA catena di lettura; l'unico punto
+    collegato    era l'avviso di stantio in avvia.cmd (solo messaggio, zero letture
+    dati): RIMOSSO dal boot (3/11 notte) — il backup e il controllo si fanno
+    a mano con controlla-magazzino.cmd, fuori da qualunque flusso.
+  · Il «magazzino griglie» in [src/grid-apply.mjs](src/grid-apply.mjs) è un
+    ALTRO magazzino: lo store interno dei template per serie. Niente a che
+    vedere con il disco L:.
+  · La «fattoria» VECCHIA (il dizionario di campioni a mano, set-car-sample --map
+    con il sampler a battito) è FUORI dalla routine: nessun processo la chiama.
+    Boot dizionario = letture SOLO da file del gioco (ui_storage + log), già
+    dal commit di stanotte. Il sampler a mano resta come UTENSILE di EMERGENZA
+    (auto che il menu non tocca mai), il messaggio d'errore di findCar ora lo
+    dice: prima riprova del menu, il campione a mano come ultimo passo.
+- **La catena di lettura che resta** (una sola, tutta read-only dai file del
+  gioco): calendario = journal pd-calendar dell'app (fonte primaria, quando
+  c'è) → mirror NOSTRO (stessa forma, scritto da [src/journal.mjs](src/journal.mjs),
+  per chi NON ha l'app); garage = garage.drivergarage del profilo; dizionario
+  auto = ui_storage + log di gioco al boot. NESSUN magazzino, NESSUN sampler
+  in mezzo: le sorgenti sono dello STESSO tipo dell'app.
+
 ## Le regole del diario
 
 1. **Una riga per gesto**: niente romanzi — data, cosa fatto, come lo sappiamo (test/prova).
@@ -41,7 +320,7 @@ non scrive, e in diario lo si annota come limite, non come bug.
 
 Prova sul vivo 30/10 sera (gara di test, registro voce): il TAGLIO ha superato la
 prima attraversata in pista — «Penalità tagli: 2.5 secondi» annunciata, e ~9 s dopo
-il gioco ha PORTATO l'auto in baia (boxopen che la radio ha raccontato a inPit vero,
+il gioco ha RIPORTATO l'auto in baia (boxopen che la radio ha raccontato a inPit vero,
 non un'azione del mod: le ricette gara non scrivono regole di tagli/penalità). La
 ROSSA a schermo in quella finestra NON è mai uscita nel payload — davanti il verde
 (code 2) era visto e annunciato — terzo dato della rossa-invisibilità: il criterio
@@ -291,7 +570,7 @@ Esito: **danza completa, 21 verifiche verdi zero KO**.
 ⚠ di confine, come sempre: il server finto e le cartelle TMP stanno al posto di GitHub e del PC vero; il collaudo prova la catena del pacchetto, non il click umano.
 
 ### DA-16 — Le rotte di scrittura del server rispondono SOLO al POST · STATO: fatto (1/11) · lezione dell'incidente sonda 1/11 (vedi SESSION_REPORT)
-La dispatcher muniisce GET e POST nello stesso switch e molte scritture hanno
+La dispatcher unisce GET e POST nello stesso switch e molte scritture hanno
 fallback a corpo vuoto: una GET «a lettura» poteva mutare il salvataggio:
 - la sonda API del 1/11 mattina lo provò in pieno (iscrizione −450, sfida
   accettata, nodo attivo spostato, sponsor riassegnato sul save VERO —
@@ -328,7 +607,7 @@ La bozza in [IDEA-POST-PRESENTAZIONE.md](IDEA-POST-PRESENTAZIONE.md) è verifica
 (11/12 claim vivi, tabella verdetto nel file) ma resta una BOZZA, non un post.
 Per andare in luce servono:
 
-1. la release pubblica (DA-7: che dipende da DA-1, DA-3, DA-4 — i collaudii
+1. la release pubblica (DA-7: che dipende da DA-1, DA-3, DA-4 — i collaudi
    che solo la pista può dare): il PACCHETTO v0.1.45 è già costruito e
    provato (697/697 test, danza amico 24/24 — [report/release-0.1.45.md](report/release-0.1.45.md));
    manca SOLO il gesto: push + `crea-release.mjs` con la zip come asset
@@ -1052,6 +1331,17 @@ exit 1 (preflight non ancora in gioco); `--solo-preflight` → build «già
 al passo», guardia 4/4, avviso onesto dei costruiti non committati (la
 storia del disco), exit 0 senza chiamate a GitHub. Biome pulito sul tool.
 
+Prova dal vivo della soglia (3/11, beffa preflight): `ui-999999999.json`
+MEZZA JSON scritta a mano nella cartella cruscotto in gioco, poi
+`--solo-preflight` → genera-uiapp passa «al passo» (di fascie non tocca:
+il suo riallineamento copre solo .js/app.json/menu.html) e la guardia
+cade sulla SOTTOPROVA FASCE con il percorso reale e la cura nel messaggio,
+preflight senza stderr «✧ preflight non superato … la release NON parte»
+e exit 1 SOPRA le credenziali — niente GitHub, niente zip. Fascia
+cancellata (le fascie le nasce SOLO il publisher) → stesso comando →
+7/7 e «✓ preflight superato». La soglia col vivo delle fascie in gioco
+regge: la beffa passa solo se manca la guardia.
+
 ### 3/11 — La guardia delle app in gioco arriva alle PAGINE D'INGRESSO (richiesta Mauro: «estendi la nuova guardia uiapp anche a app.json e menu.html installati: il loader li legge a ogni avvio e curarsi lì è la beffa tipica»)
 
 La guardia delle app ([test/uiapp-installata.test.mjs](test/uiapp-installata.test.mjs))
@@ -1301,11 +1591,35 @@ Verifica:
   cartella vuota) → `ok # SKIP chromium assente nella cache di Playwright
   (…): scaricalo con «npx playwright install chromium»: il perché
   compare nel TAP del check, contatore `# skipped 1`, zero rossi;
-- il terzo presupposto (save assente) usa la stessa forma — non provato
-  di proposito, richiederebbe di spostare il save vero e il save non si
-  tocca.
+- il terzo presupposto (save assente) usa la stessa forma — collaudato
+  3/11 tardo pomeriggio senza toccare il save vero: la suite gira in una
+  radice TEMPORANEA, incompleta DI PROPOSITO (test + sonda + loro
+  aiutanti copiati, `node_modules` in giunzione col progetto così
+  `playwright-core` c'è, chromium arriva dalla cache globale — i primi
+  due presupposti passano) e `data/evo-career.save.json` MANCA → `ok`
+  con `# skipped 1`, zero rossi, e nel TAP il perché completo
+  «la tab Impostazioni si apre solo con una carriera (niente
+  onboarding): manca il save …» col percorso stampato. Sui tre
+  presupposti rimane la stessa legge: verde che spiega, non rosso che
+  finge. Log della prova: [tmp/collau-save-assente.log](tmp/collau-save-assente.log).
 
 Biome pulita sul file; `node --check` ok.
+
+### 3/11 sera — Guardia di layout su tutta la nav: prova del vivo (19 tab, 76 misure, 36 s, verde)
+(richiesta Mauro: «annota nel diario la prova del vivo di stasera della guardia 19 tab»)
+
+La stesa «tutti i tab» della guardia
+([test/layout-impostazioni.test.mjs](test/layout-impostazioni.test.mjs) —
+la storia dei marcatori #mx-posta Messaggi, #rv-registro Rivali,
+#ch-carica Campionati e #bn-libro Finanze sta nei commenti in testa al
+file) ha portato le misure su TUTTA la nav: 19 tab (Dashboard → Analisi)
+× 4 larghezze (360 · 480 · 1250 · 1920) = 76 misure in una suite sola,
+col tetto di 15 s della stabilità GENERICA per i tab senza riempimenti noti.
+
+Prova del vivo di stasera: `node --test test/layout-impostazioni.test.mjs`
+→ `ok`, 76/76 misure verdi in 36 s — nessuna sovrapposizione e nessun
+pannello fuori viewport su ogni tab e su ogni larghezza, con chromium in
+gioco. Nessuna misura indebolita, niente skip nuovo.
 
 ### 3/11 — Guardia di layout: Impostazioni anche a 360 px, e i tab Setup e Analisi nella stessa misura (richiesta Mauro: «stessa guardia a Impostazioni: terza larghezza 360 px (schermo piccolo) e ai tab Setup e Analisi»)
 
@@ -1344,6 +1658,79 @@ warning preesistente della catena `document.fonts`, che è stato cambiato
 a catena opzionale — stessa semantica, stesso "suono"); node --check;
 nessun file della GUI toccato (la segnalazione era un fantasma di misura,
 non un difetto di vista).
+
+### 3/11 — Guardia di layout nel comando check: la spunta standard la porta già dentro
+
+Richiesta Mauro: «collega la guardia di layout alla spunta standard del
+comando check nella CI». Il collegamento si è dimostrato in due passi.
+
+1. **Scoperta col glob**: `npm test` esegue `node --test
+   test/*.test.mjs`, e il glob trova da solo la guardia
+   [test/layout-impostazioni.test.mjs](test/layout-impostazioni.test.mjs) —
+   nel TAP della suite completa: `ok 412 - tutti i 19 tab della GUI:
+   niente sovrapposizioni né pannelli fuori viewport a 320, 360, 480,
+   1250 e 1920` (19 tab × 5 larghezze = 95 misure; log
+   [tmp/check-gui-scoperta.log](tmp/check-gui-scoperta.log)).
+2. **Prova del comando intero**: `npm run check` (= `npm test && npm run
+   lint`, [package.json](package.json)) → exit 0, `# tests 888`, `# pass
+   888`, `# fail 0` con la guardia dentro, e Biome senza errori — i 5
+   warning restati sono tutti preesistenti e documentati
+   ([gui/js/core.js:488](gui/js/core.js#L488),
+   [src/webui.mjs:135](src/webui.mjs#L135),
+   [test/ab-avviso-giro.test.mjs:44](test/ab-avviso-giro.test.mjs#L44) ×2,
+   il `mirrorJournal` inutilizzato in
+   [test/journal-nostro.test.mjs:32](test/journal-nostro.test.mjs#L32) —
+   importato e mai usato nel corpo dei test, preesistente al turno di
+   oggi;
+   log [tmp/check-collegamento.log](tmp/check-collegamento.log)).
+
+Da qui in poi la spunta standard della guardia di layout in
+[COMANDI-BUFFY.md](COMANDI-BUFFY.md) è il comando intero `npm run check`:
+sta già dentro la CI, e si gira per intero prima di dichiarare concluso
+un lavoro sulle viste della GUI (durante il collaudo di una vista singola
+vale ancora il `node --test` del solo file — poi si deve rientrare nel
+check completo). Su un PC senza chromium o senza il save la suite NON
+fallisce: resta `ok` con `# skipped 1` e il perché nel TAP («scaricalo
+con npx playwright install chromium», «manca il save …») — la voce
+«senza ambiente si salta» di questa stessa giornata per la forma dello
+skip; il check resta verde anche in CI vergine.
+
+### 3/11 — La guardia di layout copre anche i tab nascosti: 21 tab (richiesta Mauro: «estendi la guardia di layout al tab nascosto Calendario e alla Classifica Mondiale, dandogli un marcatore di vista ciascuno»)
+
+Le due viste senza bottone nel nav — `standings` (Classifica Mondiale) e
+`calendar` (Calendario Stagionale) — esistono già in `render()`
+([gui/js/viste-b.js](gui/js/viste-b.js): `standings` → `drawWorldRanking`,
+`calendar` → `drawCalendar`) ma **non avevano né una voce nav né un
+marcatore**, quindi erano le uniche che la guardia di layout non guardava:
+una sovrapposizione lì non l'avrebbe mai vista nessuno finché non si
+arriva al tab da codice. La TAB della guardia sale 19 → **21**, e le
+misurano come le altre.
+
+- **Marcatori nuovi** in [gui/js/viste-b.js](gui/js/viste-b.js):
+  `#wr-panel` sul PANEL Solo di `drawWorldRanking` (non sull'`h2`, che
+  vive in `worldRankingInner` riciclato anche da Campionati, quindi il
+  marcatore andava lì fuori), `#cal-panel` sul panel di
+  `drawCalendar`;
+- **Sonda** [test/_layout-probe.mjs](test/_layout-probe.mjs): leva nuova
+  `nascosto: true` in `assettaVista` — al posto del click nav valuta
+  `tab='…'; render()` via `evaluate`: è la stessa leva dei click reali,
+  per le viste assegnano la globale `tab` a quel modo
+  (`viste-a.js`, riga 356);
+- **Guardia** [test/layout-impostazioni.test.mjs](test/layout-impostazioni.test.mjs):
+  TAB 19 → 21 con i due flag `nascosto: true`, misure totali **95 → 105**
+  (21 tab × 5 larghezze), commento di testa aggiornato (21 tab, 105
+  misure, marcatori nuovi).
+
+**Prova del vivo**: `node --test test/layout-impostazioni.test.mjs` →
+`ok 1`, 21 tab (19 nav + 2 nascosti), 0 sovrapposizioni over 105 misure,
+28 s ([tmp/layout-21tab.log](tmp/layout-21tab.log)). Poi la legge di
+casa, il comando check completo prima di dichiarare il lavoro concluso:
+`npm run check` → exit 0, suite **888/888** con la guardia nel glob
+(`ok 412` col nome nuovo «19 nav + 2 nascosti»), Biome 0 errori e gli
+stessi 5 warning preesistenti
+([tmp/check-collegamento.log](tmp/check-collegamento.log)).
+Spunta in [COMANDI-BUFFY.md](COMANDI-BUFFY.md) aggiornata (19→21 tab,
+95→105 misure).
 
 ### 3/11 — Le app leggono il SUCCESSO della build: firma BUILD_OK + generatore severo (richiesta Mauro)
 Finora il generatore `tools/genera-uiapp.mjs` scriveva il numero e bastava:
@@ -1647,6 +2034,58 @@ browser vero. Il test nuovo ([test/layout-impostazioni.test.mjs](test/layout-imp
 
 Verifica: sonda misurata (76 candidati per larghezza), test guardia
 713/713 verdi, biome pulito su test e package.json.
+
+### 2/11 — La guardia messa alla prova a ROTURA: la sovrapposizione finta
+(richiesta Mauro: «aggiungi al diario la prova della guardia con sovrapposizione finta»)
+
+La guardia esce dalla fabbrica con il collaudo più onesto che un test
+di geometria possa avere: un DIFETTO FINTO injectato a mano DEVE essere
+beccato, altrimento il verde non vale niente — un test che non sa cadere
+non è una guardia, è un decoro.
+
+**Come andò il 2/11**: con il tab Impostazioni aperto a 480 px e la pagina
+sana (0 sovrapposizioni), si inietta nel DOM un blocco a cavallo del
+selettore lingua — un elemento di prova 97×10 px messo fisso sopra la
+label «Lingua interfaccia» — e la sonda lo becca al primo colpo:
+
+> «Lingua interfaccia ⟂ DIFETTO DI PROVA 97×10»
+
+Tolto il blocco, la misura torna a 0. La prova visse allora nella sonda
+di banco `tmp/_sonda-sovrapposizione.mjs` (nessuna asserzione nella
+suite: era UNA prova manuale, il difetto finto non deve mai girare nel
+collaudo della suite), poi finita nel pulito del tmp come tutti i log di
+banco.
+
+**Riconferma del vivo del 3/11** (la richiesta lo chiedeva raccontato:
+il motore della sonda è cambiato tre volte da allora — estrazione nel
+modulo condiviso, righe vere degli inline, mozzica al contenitore
+scorrevole — quindi il gesto del 2/11 va RIGIOCATO, non solo citato):
+prova rigiocata in [tmp/_sonda-sovrapposizione-replay.mjs](tmp/_sonda-sovrapposizione-replay.mjs)
+sullo stesso impianto della guardia di oggi (21 tab, stesso server con
+cartella dati finta, stesso chromium) e girata a 480 px:
+
+- PASSO 1 pagina sana: **0** sovrapposizioni;
+- PASSO 2 bottone di prova injectato sopra la label del selettore
+  lingua: beccato — `label.muted ⟂ #difetto-prova buttonDIFETTO DI PROVA
+  · area comune 95×6` (il nome del campo nel report è cambiato col
+  formato ETI del 3/11: i componenti senza id dicono tag+classi, non
+  più il testo);
+- PASSO 3 difetto tolto: **0** sovrapposizioni, **0** pannelli fuori
+  viewport — la guardia torna verde da sola.
+
+Log della riconferma: [tmp/sonda-sovrapposizione-replay.log](tmp/sonda-sovrapposizione-replay.log).
+La sonda di replay resta in tmp (sopportata a mano, NON nella suite:
+il difetto finto è solo un gesto di banco), e nella riconferma insegna
+due regole concrete di chi la usa domani:
+
+1. l'inject va DENTRO `#main` — la misura raccoglie solo `#main *`, un
+   elemento appeso al body non esiste per lei;
+2. il difetto finto deve SBORDARE dal rettangolo del vicino — del tutto
+   contenuto dentro la sua scatola fa scattare a ragione la legge
+   «contenuto in contenuto: sano» (un figlio che sta dentro il padre è
+   la pagina che funziona, non un difetto): per questo la striscia è
+   messa a cavallo del bordo della label (area comune 6 px in altezza,
+   sborda sopra).
 
 ### 2/11 — Termometro del battito: media dei 5 ping, non la singola lettura (richiesta Mauro: «fai scorrere i 5 tempi di ping più recenti e mostra la media, con tooltip che elenca i bassi e gli alti»)
 
@@ -2251,7 +2690,7 @@ girate di nuovo:
   (f3 ↔ f10.f1) — template corrente, poi gli altri della stessa cartella
   (cap 20), poi le griglie di fabbrica. Preferita la variante `mech_1`
   (Standard); display completo del catalogo; PI (f42) preso dal catalogo
-  quando il donatore non lo porta. Mineo memoizzato: l'FTA cambia i file →
+  quando il donatore non lo porta. Mina memoizzata: l'FTA cambia i file →
   firma di dir (somma dei mtime) → nuova mina. Prova sul 695:
   `preset_695b_mech_1` e «Abarth 695 Biposto - Standard» nel testo della cella.
 - **Spazzata varianti pesanti**: scansione (tmp/_sonda-varianti.mjs) di
@@ -2269,9 +2708,9 @@ girate di nuovo:
   ronda 1 Donington riscritta col builder — 25 celle tutte `preset_jcs_mech_1`,
   finestra PI 9–10 allineata alla config (prima restando 10.000–11.000 della
   vecchia variante Tune). La prima APPLICA in gioco resta la verifica.
-- **Vorante del centro gare che non copre più il bottone**
-  ([gui/js/viste-b.js](gui/js/viste-b.js)): la volante si APPICCA ESTERNA alla
-  card (a destra, altrimenti a sinistra; ricade solo se i fianchi mancano):
+- **Volante del centro gare che non copre più il bottone**
+  ([gui/js/viste-b.js](gui/js/viste-b.js) ): la volante si ATTACCA ESTERNA alla card (a destra, altrimenti a sinistra; ricade
+  solo se i fianchi mancano):
   «scegli per oggi» torna cliccabile con l'anteprima aperta.
 - Suite **679/679** exit 0, Biome 0 sui 4 file toccati. Il lavoro è NON
   committato (serie di griglie-fabbrica in attesa di committatura con Mauro).
@@ -2541,7 +2980,7 @@ suite completa») sistemate in un colpo:
   cambiato fra le due (31→32 min a tempo, banda 88–93→89–94), a gioco APERTO
   col canale della GUI (force + backup, come gara-veloce da webui). Esito:
   TRE bak distinti nello stesso minuto — `bak-temprace-…T16-22-50`,
-  `bak-temprace-…T16-22-50-r2` (SOFFISSO -r2 sul pareggio dello stesso
+  `bak-temprace-…T16-22-50-r2` (SUFFISSO -r2 sul pareggio dello stesso
   secondo: nessuna versione perduta) e `bak-instantai-…T16-22-51`; verificato
   byte a byte che il PRISTINE e lo stato di mezzo RESTANO dentro gli bak. A
   fine prova il file è ripartinuto ESATTO (ripristino tmp+rename, byte
@@ -2589,7 +3028,7 @@ validazione invariata al salvataggio, overwrite/ordine/idempotenza, PB di
 pista e per-auto con quaderno e reali di Monza), suite vicine
 gara-veloce + hotlaps + set-instantrace 34/34, Biome pulito sui 4 file toccati.
 
-### 30/10/2026 (bis) — Il dottore riceve i suoi primi test (e una brancha morta esce)
+### 30/10/2026 (bis) — Il dottore riceve i suoi primi test (e un ramo morto esce)
 
 Sonda di copertura completa: nella lista dei moduli MAI toccati da nessun test
 c'era anche integrity.mjs, il revisore dei conti della carriera — probabilmente
@@ -2606,7 +3045,7 @@ il modulo più critico di tutti, e nessun test lo proteggeva. Fetta presa:
   e stato IMMUTATO (anche il save non toccato), con lente vera → tutto
   sistemato, flows re-seeded, zero anomalie e save atomico presente nel nido.
 - **BUG TROVATO E CORRETTO**: la regola «miglior giro in formato strano» era
-  una brancha morta da sempre — lapMs ritorna Infinity sul formato sbagliato
+  un ramo morto da sempre — lapMs ritorna Infinity sul formato sbagliato
   e `!Infinity` è falso, l'anomalia non si segnala MAI. In src/integrity.mjs
   ora matcha con `!Number.isFinite(lapMs(r.bestLap))`; il test la vede.
 - **test/pota-log.test.mjs (3 casi)**: la potatura keep-last scritta in
@@ -2847,8 +3286,8 @@ narratore-unito.js loaded):
   che parla in gara è stata guidata con un payload di gara completa
   (giro 2 con delta, meta, benzina, gomme, bandiera, stint). Regole
   confermate in pagina: prima lettura = seme zitta (bandiera già a scacchi
-  al primo tick NON parla); bandiera in coda esce al giro successivo o al
-  soccorso di 10 s; le frasi «giro 1» e meta arrivano conservando il
+  al primo tick NON parla); bandiera in coda esce al giro successivo o alla scadenza di
+  10 s; le frasi «giro 1» e meta arrivano conservando il
   `lapsTotal` VERO (senza totale vale il ramo 8c, ronde a tempo).
 - **Chip «♪ prova»**: clicca e parla sul vero: handler in
   [gui/js/viste-d.js](gui/js/viste-d.js) chiama
@@ -3130,8 +3569,8 @@ Avevi ragione: stessa fontana del verde. Il narratore leggeva solo alcuni codici
 campo `flagCode` della MMF (verde 2, a scacchi 8) e la rossa (3) e la nera (6) cadeva
 nel silenzio per costruzione, non perché il bello non le scriva mai. Da ora:
 «Bandiera rossa!» sul passaggio a rossa (procedura di restart, sospensione),
-«Bandiera nera: il gioco ti squalifica» sul passaggio a nera; sibile zitte alla prima
-lettura, distanziello di 15 s condiviso tra le due, livello essenziale (sono ordini di
+«Bandiera nera: il gioco ti squalifica» sul passaggio a nera; sempre zitte alla prima
+lettura, distanza di 15 s condivisa tra le due, livello essenziale (sono ordini di
 pista come il verde). Test dedicato: 27/27 verdi nel file del copilota.
 Verifica di fine giornata: suite **547/547** pass (9270 ms), lint pulita (0 errori,
 0 warning su 264 file). Protocollo di prova scritto in PROVA-COPILOTA.md §5 → DA-1.
@@ -3307,7 +3746,7 @@ modifica), di sua autorizzazione («fai quello che vuoi»):
   comunque» — con quel «comunque» che l'avrebbe svuotata nell'annuario.
 - **Causa**: la chiusura riesce ma il modale chiuso con la ✕ (e i click su una
   card non ancora ridisegnata) non ridisegna la pagina; il secondo click arriva
-  sul server fresco, che guarda la stagione 12 con 0 gare e proporpone di
+  sul server fresco, che guarda la stagione 12 con 0 gare e propone di
   «chiudere» una stagione mai corsa.
 - **Cura**: [state.mjs](src%2Fstate.mjs) espone `seasonJustClosed(state, node)`
   — puro, senza ladder né disco: stagione corrente a 0 gare E la STESSA serie
@@ -3750,7 +4189,7 @@ quella lente ho rifatto il confronto:
   forma sana). La teoria «21 vs 20» resta MORTA: era il NOME DEL PRESET, non
   il conto.
 - LEZIONE: la cura che Rinomina i preset in piscine «… - Standard» va
-  ABOLITA — EVO le celle si fotocopia SOLO da template VERI e NON si
+  ABOLITA — EVO le celle si fotocopiano SOLO da template VERI e NON si
   rinominano i preset/visual originali dei slot di EVO. Report integrale:
   [report/crash-261101-16.51.md](report/crash-261101-16.51.md) sezione «LA
   CAUSA VERA» + «LA CURA APPLICATA».
@@ -4188,6 +4627,26 @@ precedenti restano), biome su test+tool 0.
   **42/42 verdi**, webui-smoke 1/1. node --check OK su
   app-carriera.mjs e ronda-ladder.mjs.
 
+## 3/11 — LA VIGIA DEL CAMBIO DI CAMPIONATO ([src/race.mjs](src/race.mjs))
+
+- **Radice** (richiesta Mauro dopo la prova del 2/11 in sandbox: «che succede se
+  cambio campionato e lancio Prepa tutto?»): il cambiamento di serie lascia sul
+  disco la griglia della SERIE VECCHIA (lezione 23/10: la RX-7 col file GT3 in
+  piedi), e la scheda gara lo raccontava SOLO DOPO il bottone — l'amico lo
+  scopriva premendo.
+- **Cura**: in [src/race.mjs](src/race.mjs), accanto alla vigia del parco (24/10),
+  la vigia legge le auto in piedi su `GRID_FILE` CON la stessa `readCells` del
+  builder; se NESSUN nome combacia col parco ammesso della serie (`carPoolOf`),
+  la card porta `gridAltraSerie`, passthrough in [src/webui-views.mjs](src/webui-views.mjs)
+  e banner gemello del gridRitual in [gui/js/viste-a.js](gui/js/viste-a.js):
+  «la griglia sul disco è di un'altra serie (…): premendo «Prepa tutto» la riscrive
+  dal template della serie — niente da fare a mano». Silente: file assente,
+  illeggibile, parco vuoto o già combaciante.
+- **TEST di regressione** in [test/race-card.test.mjs](test/race-card.test.mjs):
+  customgrid di prova con F40 (convensione f3 id / f4 nome come i test del builder)
+  → la card nomina la stirpe estranea; griglia già della serie o file assente →
+  muta. Suite: race-card **17/17**.
+
 ## 3/11 notte — LE SKIN IDENTICHE: LA GUARDIA ANTI-SINGLETON A TINTE ([src/grid-apply.mjs](src/grid-apply.mjs))
 
 - **Radice dell'incidente** (richiesta Mauro: «tasto prepara e divertiti... le skin
@@ -4230,3 +4689,44 @@ precedenti restano), biome su test+tool 0.
   (sopravvissuta al crash F40 del 23/10) è anche la porta dell'omologia: quando
   il parco c'è da un'altra parte (magazzino), la misura non è «quante celle
   distinte ho scritto» ma «quante LIVERIE distinte restano in bocca al player».
+
+### 3/11 (notte) — La curazione delle FIRME SICURE: le 13 parole mangiate dal dettato tornano al segno (richiesta Mauro: «correggi nel diario le 13 firme sicure del mio report»)
+Il dettato di Mauro aveva lasciato nel diario parole rotte; il report di ieri
+(indagine sotto la regola dei commenti HTML) le ha chiamate a voce e oggi
+tornano al segno, FIRME SICURE nel disco:
+
+1. **unisce** (firma dettata «munisce») — DA-16, la dispatcher NON
+   «muniisce» più, *unisce* GET e POST nello stesso switch;
+2. **collaudi** — DA-19, i «collaudii» che solo la pista può dare tornano
+   *collaudi*;
+3. **Mina memoizzata** — 31/10 varianti pesanti, «Mineo memoizzato» torna
+   *Mina memoizzata* (l'FTA cambia i file → firma di dir → nuova mina);
+4. **Volante** — 31/10, il «Vorante del centro gare» torna *Volante*;
+5. **si ATTACCA ESTERNA** (firma dettata «attacca esterna») — la volante non
+   si «APPICCA» più ESTERNA alla card;
+6. **SUFFISSO** — i bak del 2/11 non portano più un «SOFFISSO -r2», porta
+   il *suffisso* `-r2` sul pareggio di secondo;
+7. **riportato** — 30/10 tagli, il gioco non ha più «PORTATO» l'auto in
+   baia: l'ha *riportata* (la firma dettata «riportato»);
+8. **si fotocopiano** — la lezione del 1/11: «EVO le celle si fotocopiano
+   SOLO da template VERI» (era «si fotocopia»);
+9. **alla scadenza di 10 s** — copilota 30/10, la bandiera in coda esce al
+   giro successivo «o alla scadenza di 10 s» (era «soccorso»);
+10. **sempre zitte** — le bandiere d'ordine «sempre zitte alla prima
+    lettura» (era «sibile»);
+11. **distanza di 15 s** — ritardi condivisi: *distanza di 15 s* tra le due
+    (era «distanziello»);
+12. **ramo morto ×2** — il dottore 30/10: nel titolo «e un ramo morto esce»
+    e nel corpo «una brancha morta da sempre» → *un ramo morto* (era
+    «brancha» in ambo i posti);
+13. **propone** — la card della stagione chiusa: il server fresco «e propose
+    di chiudere» (era «proporpone»).
+
+La 13ª voce del report («vedi la voce del diario») era il rimando del
+report a questa lista, non una frase da correggere.
+
+**La firma**: curazione fatta a mano, 13 firme in 14 sostituzioni in [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md) (il «ramo morto» era due, titolo e corpo),
+verificate a zero con grep sui rotti originali (muniisce, collaudii,
+Mineo, Vorante, APPICCA, SOFFISSO, ha PORTATO, soccorso di 10, sibile,
+distanziello, brancha, proporpone: tutti a 0). Nessun file di codice
+toccato, nessun test da girare.

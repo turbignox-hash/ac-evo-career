@@ -21,9 +21,13 @@ import { recordFlows } from './flows.mjs';
 import { takeLastPair, tr, lang } from './lang.mjs';
 import { ensureLife, ensureContract, settleContract, sponsorFor, sigilDefs, checkSigils } from './life.mjs';
 import { assignNextMemory, checkMemoryProgress, raceCrowdFor } from './memories.mjs';
-// BONUS GARA PULITA (28/10): il +10% del premio di Paddock, incassato qui
+// BONUS GARA PULITA (28/10): il +10% del premio (dall'app), incassato qui
 // quando l'import registra una ronda senza penalità né ritiro.
-import { cleanRaceBonusOf } from './paddock.mjs';
+import { cleanRaceBonusOf } from './app-carriera.mjs';
+// JOURNAL NOSTRO (2/11): ogni saveState rispecchia il calendario del ladder
+// nel journal `evo-calendar[-N].json` accanto al save — la sorgente che dà
+// ronda/calendario/prossima gara anche a chi NON ha l'app del gioco installata.
+import { mirrorJournal } from './journal.mjs';
 import { publishNotice } from './gazzetta.mjs';
 import { recordWarning } from './warnings.mjs';
 
@@ -244,6 +248,9 @@ export function saveState(file, state) {
     recordWarning('state', 'rename del salvataggio fallito: ' + tmp, e?.message ?? null);
     throw e;
   }
+  // specchio del calendario (2/11): rileggere il save riscrive il journal;
+  // silenzioso — un errore qui è un registro stantio, non un danno al save.
+  mirrorJournal(file, state);
 }
 
 /* ------------------------------------------------------------------ */
@@ -704,8 +711,8 @@ export function careerStats(ladder, state) {
     const end = all.filter((r) => !r.dnf && r.position === 1).slice(-streakBest);
     trophies.push({ icon: '🔥', label: tr({ it: `${streakBest} vittorie di fila`, en: `${streakBest} wins in a row` }), detail: end.map((r) => tDisp(r)).join(' · ') });
   }
-  /* TRAGUARDI di carriera (27/10, richiesta Mauro dopo l'inspezione della
-     MOD Paddock: «vedi se possiamo implementare una cosa del genere»):
+  /* TRAGUARDI di carriera (27/10, richiesta Mauro dopo l'ispezione di una
+     app di carriera: «vedi se possiamo implementare una cosa del genere»):
      contatori a scaglioni oltre alle prime volte. Tutti i numeri vengono
      dalla storia delle gare (stessa fonte della pagina Statistiche):
      niente dati esterni, niente di Kunos da aspettare. */
@@ -911,7 +918,7 @@ export function applyRaceResult(ladder, state, node, payload) {
     }
   }
 
-  // BONUS GARA PULITA (alla maniera di Paddock, 28/10): una gara chiusa senza
+  // BONUS GARA PULITA (alla maniera dell'app di carriera, 28/10): una gara chiusa senza
   // penalità né ritiro incassa in più il 10% del premio della ronda — un
   // incentivo alla pulizia in pista che prima esisteva solo nell'app esterna.
   const cleanBonus = !dnf && !fuori && !dsq && !penalty && prize > 0 ? cleanRaceBonusOf(prize) : 0;

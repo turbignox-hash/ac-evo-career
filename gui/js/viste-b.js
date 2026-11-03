@@ -1,7 +1,10 @@
 /* -------- calendario -------- */
+// 3/11 — MARCATORE DI VISTA: l'id esiste SOLO qui, per la guardia di layout
+// (test/layout-impostazioni.test.mjs, «tutti i N tab»), tab nascosto senza
+// bottone in nav (si apre dagli annunci della stagione).
 async function drawCalendar(m){
   const cal = await api('calendar');
-  m.innerHTML = `<div class="panel"><h2>${tr({ it: 'Calendario', en: 'Calendar' })} <span class="h-act">${esc(cal.node)} · ${tr({ it: 'stagione', en: 'season' })} ${cal.season}</span></h2>
+  m.innerHTML = `<div class="panel"><h2 id="cal-titolo">${tr({ it: 'Calendario', en: 'Calendar' })} <span class="h-act">${esc(cal.node)} · ${tr({ it: 'stagione', en: 'season' })} ${cal.season}</span></h2>
   <table><thead><tr><th></th><th>${tr({ it: 'Round', en: 'Round' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Gara', en: 'Race' })}</th><th class="right">${tr({ it: 'Ora', en: 'Time' })}</th><th>${tr({ it: 'Meteo', en: 'Weather' })}</th></tr></thead>
   <tbody>${cal.rounds.map(r=>`<tr class="${r.current?'cur':''}"><td>${r.played?'✓':r.current?'►':''}</td><td>R${r.index+1} ${esc(r.name)}</td><td>${window.trackLinkHtml(r.track)}</td><td class="right">${r.durationMin?`${r.durationMin}′ ${tr({ it: 'a tempo', en: 'by time' })}`:`${r.laps} ${tr({ it: 'giri', en: 'laps' })}`}</td><td class="right">${String(r.hour).padStart(2,'0')}:00</td><td class="muted">${esc(r.weather)}</td></tr>`).join('')}</tbody>
   </table></div>`;
@@ -382,6 +385,11 @@ function stilePannello(stili){
 }
 
 /* -------- campionati: le serie iscritte coi loro calendari e classifiche -------- */
+/* SEMINA (4/11) RIMOSSA (5/11, richiesta Mauro «il tasto che non voglio»): il
+   bottone «Prepara tutto e avvia il campionato» non c'è più nella GUI. Il
+   seminatore resta SOLO da riga di comando: node tools/semina-campionato.mjs
+   (ricetta e guardie NO_SEED / FILE_DIFFERENTI / BAD_WEATHER / GAME_OPEN
+   — GAME_OPEN era l'errore col gioco aperto). */
 async function drawChampionships(m){
   const [v, stiliData] = await Promise.all([api('championships'), api('stili').catch(() => ({ stili: [] }))]);
   /* PANNELLO MONDIALE a pieghevole (30/10): la partenza stagnante della barra
@@ -392,7 +400,7 @@ async function drawChampionships(m){
   if (!(v.championships ?? []).length) {
     // 3/11 — MARCATORE DI VISTA (richiesta Mauro: la guardia di layout su TUTTI i tab):
     // l'id #ch-carica esiste SOLO in questa vista, tanto nel ramo vuoto quanto in quello pieno.
-    m.innerHTML = `<div class="panel" id="ch-carica"><h2>${tr({ it: 'Campionati', en: 'Championships' })}</h2><div class="empty">${tr({ it: 'Nessun campionato iscritto: firma un sedile dal Centro gare quando la giornata ti offre una serie adatta.', en: 'No championship signed up: grab a seat from the Race Centre when the day offers a suitable series.' })}</div></div>` + stilePannello(stiliData.stili ?? []);
+    m.innerHTML = `<div class="panel" id="ch-carica"><h2>${tr({ it: 'Campionati', en: 'Championships' })}</h2><div class="empty">${tr({ it: 'Nessun campionato iscritto: firma un sedile dal Centro gare quando la giornata ti offre una serie adatta.', en: 'No championship signed up: grab a seat from the Race Centre when the day offers a suitable series.' })}</div>` + stilePannello(stiliData.stili ?? []);
     return;
   }
   // BADGE cliccabili in alto: ogni campionato in corso con auto, pista e prossimo
@@ -522,9 +530,12 @@ async function worldRankingInner(){
   return { w, html, wire: () => { $$('.wr-row').forEach(t => { t.onclick = () => showWorldPilot(t.dataset.k, w.rows); }); } };
 }
 
+// 3/11 — MARCATORE DI VISTA: l'id è sul PANEL della vista (tab nascosto
+// `standings`, senza bottone in nav): worldRankingInner è RICICLATO anche
+// dentro Campionati (#mondo-fold), quindi il metodo NON va sull'h2 condiviso.
 async function drawWorldRanking(m){
   const mo = await worldRankingInner();
-  m.innerHTML = `<div class="panel">${mo.html}</div>`;
+  m.innerHTML = `<div class="panel" id="mondo-vetrina">${mo.html}</div>`;
   mo.wire();
 }
 
@@ -545,7 +556,7 @@ function showWorldPilot(name, rows){
     <div class="muted" style="margin-bottom:8px"><b>${esc(r.archName ?? 'n/d')}</b> — ${esc(r.archDesc ?? '')}</div>
     <div class="muted" style="font-size:12.5px">${r.isPlayer ? tr({ it: 'Questo sei tu: la skill cresce coi risultati reali (vittorie e podi spingono sopra la banda della serie).', en: 'This is you: skill grows with real results (wins and podiums push you above the series baseline).' }) : r.hot ? tr({ it: '🔥 È in forma: in griglia alza il ritmo, attenzione.', en: '🔥 In form: raises the pace on the grid, be careful.' }) : tr({ it: 'Statista in forma normale: dati in tempo reale aggiornati a ogni import di gara.', en: 'Steady performer in normal form: real-time data refreshed at every race import.' })}</div>
     ${r.iconic ? `<div class="banner info" style="margin-top:8px">⭐ ${tr({ it: 'Pilota <b>iconico</b> del World: il suo livello è tra il vertice in assoluto di questa carriera.', en: 'A <b>world-class</b> driver: skill at the very top level of this career.' })}</div>` : ''}`,
-    [r.isPlayer ? null : [tr({ it: '✏️ Rinomina', en: '✏️ Rename' }), 'ghost', () => { window.rinominaPilota('world', r.key, r.name, r.realName).then(() => { document.querySelector('#modal-root').innerHTML = ''; render(); }); }], [tr({ it: 'Chiudi', en: 'Close' }), 'ghost',()=>{}]].filter(Boolean));
+    [tr({ it: 'Chiudi', en: 'Close' }), 'ghost',()=>{}]);
 }
 
 function serieDetail(n){
@@ -686,6 +697,25 @@ async function drawArchive(m){
 const MS = (ms) => (Number.isFinite(ms) && ms > 0)
   ? `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}.${String(Math.floor(ms % 1000)).padStart(3, '0')}`
   : '—';
+/* IL MARGINE VERO (3/11, non solo gare e tetto — anche prove liberi e testday):
+   la stessa legge del tetto e del rapporto gara: best − somma dei migliori
+   settoriali dei giri segnati nei log del gioco. Positivo = tempo da
+   recuperare; negativo = i settori della sessione stanno SOTTO il giro
+   accreditato; assente = i log della sessione non esistono più (il gioco li
+   ruota). Il numero in tabella, il teorico e i giri che lo sostengono nel
+   tooltip: le colonne della scheda Analisi restano la stessa verità. */
+const margCell = (e) => {
+  const v = e.theoreticalMargineMs;
+  if (!Number.isFinite(v)) return '—';
+  const s = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(Math.abs(v) / 1000);
+  return (v > 0 ? '+' : v < 0 ? '−' : '') + s;
+};
+const margTip = (e) => Number.isFinite(e.theoreticalMargineMs)
+  ? tr({
+      it: `margine vero = miglior giro − somma dei migliori settoriali (dai log del gioco): teorico ${e.theoreticalText ?? '—'} su ${e.theoreticalGiri ?? '?'} giri segnati`,
+      en: `true margin = best lap − sum of best sectors (from the game logs): ideal ${e.theoreticalText ?? '—'} over ${e.theoreticalGiri ?? '?'} timed laps`,
+    })
+  : tr({ it: 'margine vero non leggibile: i log di questa sessione non esistono più (il gioco li ruota)', en: "true margin not readable: this session's logs are gone (the game rotates them)" });
 async function drawGironi(m){
   const q = await api('hotlaps', {});
   const log = q.log ?? q;
@@ -772,7 +802,7 @@ async function drawGironi(m){
   /* il dettaglio delle sessioni: le ultime 25 con pista, auto, meteo, giri e best */
   const body = $('#hl-body');
   const paint = () => {
-    body.innerHTML = S.length ? `<table><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Meteo', en: 'Weather' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'Miglior giro', en: 'Best lap' })}</th><th class="right">${tr({ it: 'Settori', en: 'Sectors' })}</th></tr></thead>
+    body.innerHTML = S.length ? `<table><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Meteo', en: 'Weather' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'Miglior giro', en: 'Best lap' })}</th><th class="right">${tr({ it: 'Settori', en: 'Sectors' })}</th><th class="right">${tr({ it: 'Teorico', en: 'Ideal' })}</th><th class="right">${tr({ it: 'Margine vero', en: 'True margin' })}</th></tr></thead>
       <tbody>${S.slice(0, 25).map(e => `<tr class="${e.isPB ? 'hl-pb' : ''}">
         <td class="muted">${esc(String(e.at ?? '').slice(0, 16).replace('T', ' '))}</td>
         <td>${esc(e.trackPretty ?? e.track)} ${e.layout ? `<span class="faint">${esc(e.layout)}</span>` : ''}</td>
@@ -781,8 +811,15 @@ async function drawGironi(m){
         <td class="right">${e.lapsCount}</td>
         <td class="right"><b>${esc(e.bestLap ?? '—')}</b></td>
         <td class="right muted">${(e.sectors ?? []).map(s => `${s.index}. ${esc(s.mineText ?? '—')}`).join(' · ') || '—'}</td>
+        <!-- IL TEORICO VISIBILE (3/11, richiesta Mauro: «margine vero
+             accanto al teorico»): prima viveva solo nel tooltip del margine,
+             il numero non lo vedeva nessuno. Somma dei migliori settoriali
+             dei giri segnati nella finestra, dai log del gioco: le colonne
+             gare/tetto restano loro stesse. -->
+        <td class="right" title="${esc(tr({ it: 'teorico = somma dei migliori settoriali dei giri segnati della sessione, dai log del gioco (best − teorico = margine vero accanto)', en: 'ideal = sum of the best sectors of this session\'s timed laps, from the game logs (best − ideal is the true margin next to it)' }))}">${esc(e.theoreticalText ?? '—')}</td>
+        <td class="right" title="${esc(margTip(e))}">${margCell(e)}</td>
       </tr>`).join('')}</tbody></table>
-      <div class="muted" style="margin-top:8px">${tr({ it: 'PB = una riga del libro PB. Aggiorna il pannello quando il watcher registra (10 s max) o ricarica la pagina.', en: 'PB = a book-PB row. The panel follows the watcher registers (within 10 s) or reload the page.' })}</div>`
+      <div class="muted" style="margin-top:8px">${tr({ it: 'PB = una riga del libro PB. Aggiorna il pannello quando il watcher registra (10 s max) o ricarica la pagina. Teorico = somma dei migliori settoriali dei giri segnati, dai log del gioco; margine vero = best − teorico. Margine 0,00 = i settori del best sono tutti tuoi; «—» = i log di quella sessione non esistono più.', en: 'PB = a book-PB row. The panel follows the watcher registers (within 10 s) or reload the page. Ideal = sum of the best sectors of the timed laps, from the game logs; true margin = best − ideal. Margin 0.00 = every best-lap sector is yours; "—" = that session\'s logs are gone.' })}</div>`
       : `<div class="empty">${tr({ it: 'Nessuna sessione di prove in quaderno: gira in PRATICA e il tool fa il resto.', en: 'No practice session in the book: run a PRACTICE session and the tool does the rest.' })}</div>`;
   };
   paint();

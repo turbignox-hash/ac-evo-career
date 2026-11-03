@@ -237,7 +237,7 @@ function splitTemplate(buf) {
 }
 
 /* ---------- CELLE SINTETICHE (1/11: auto mai state in griglia) ---------- */
-// «Le auto le prendi anche se non sono state mai usate» (1/11, Mauro: paddock
+// «Le auto le prendi anche se non sono state mai usate» (1/11, Mauro: app
 // + loader collegati al gioco). In una cella protobuf di customgrid l'identità
 // dell'auto è SOLO testo: carId (f3), nome di scheda (f4), preset (f10,
 // sotto-messaggio con f1). Trapiantando quei tre su una CELLA DONATRICE reale
@@ -249,7 +249,7 @@ function splitTemplate(buf) {
 // APPLICA in gioco resta la verifica della sintesi (come per il builder
 // tutto-fotocopia lo è stata il suo primo Applied 23/10).
 // 31/10: il PRESET INNESTATO non è più il token inventato `preset_<carId>`: è
-// quello VERO del server, come fa Paddock (il catalogo dichiara l'auto, la
+// quello VERO del server, come fa l'app di carriera (il catalogo dichiara l'auto, la
 // variante «Standard» è la zero — niente meccanica sorpresa). Il pernio
 // carId→preset NON sta nel cars.json del server (le voci sono solo
 // preset→display→PI): si MINA dalle CELLE REALI già in giro (f3 ↔ f10.f1, la
@@ -300,7 +300,7 @@ const firmaDir = (d) => {
 };
 /* LE DUE MINE del parco, insieme (2/11 — radice delle chimera, lezione del
    template riscritto a mano alle 19:15): oltre alle IDENTITÀ (carId→preset,
-   come Paddock: Sta solo nei dati che il gioco ha scritto) si conservano le
+   come l'app di carriera: Sta solo nei dati che il gioco ha scritto) si conservano le
    CELLE INTERE gioco-autore per carId. La cella sintetica (trapianto di
    f3/f4/f10 su un donore) stanava f11/f14 del DONORE — combo mai scritta dal
    gioco per il NUOVO carId. Se il parco ha una cella intera della STESSA
@@ -560,7 +560,7 @@ export function buildGridMessage(opts) {
       }));
     }
   } else if (wantCars) {
-    // MATCH GRADUALE (26/10, dal Gufo Paddock findModel): il vecchio filtro
+    // MATCH GRADUALE (26/10, dal Gufo del match graduale): il vecchio filtro
     // esatto (wantCars.has(carIdOf(cell))) si srotolava su un preset rinominato
     // o su un nome con un accento di troppo. La catena esatta → contiene →
     // tutte le parole → alias trova l'auto comunque, e se davvero manca il

@@ -159,8 +159,8 @@ goto dopo
 :aprigui
 rem aggiornamenti: se GitHub e' avanti del disco, chiede s/N (Invio o 15s = no)
 node "%~dp0tools\aggiornamenti.mjs" --breve 2>nul
-rem avviso discreto: parla solo se il backup e' stantio o incompleto
-node "%~dp0tools\magazzino-check.mjs" --breve 2>nul
+rem (3/11) il magazzino ESCE dal boot: i backup restano, ma il controllo alla
+rem vecchiaia si fa a mano con controlla-magazzino.cmd — zero magazzino nel flusso di avvio
 rem backup del save (26/10): zip in data\salva-save\slot-1/2, max 4, SOLO se
 rem stantio (>36h) o con --force; senza gioco installato esce 0 e non tocca niente
 node "%~dp0tools\salva-save.mjs" 2>nul

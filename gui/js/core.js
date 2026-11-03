@@ -507,7 +507,7 @@ function paintHeader(h){
     const le = $('#t-level');
     le.textContent = `${lvl.source === 'stima' ? '~' : ''}${lvl.name}`;
     le.style.color = lvl.color || '';
-    lvlEl.title = lvl.source === 'paddock'
+    lvlEl.title = lvl.source === 'app'
       ? tr({ it: 'Livello pilota da Paddock (app installata): reputazione del profilo del gioco', en: 'Driver level from Paddock: the game profile reputation' })
       : tr({ it: 'Stima: livello pilota dedotto dalla reputazione della carriera (Paddock non parla) — la soglia 490 è quella osservata sul vivo', en: 'Estimate: driver level inferred from the career reputation (Paddock silent) — the 490 threshold is the one observed live' });
     lvlEl.onclick = () => vai('stats');

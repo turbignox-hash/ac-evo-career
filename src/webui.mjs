@@ -72,10 +72,10 @@ import { readCells } from '../tools/grid-balance.mjs';
 // GitHub precompilata (versione, serie in corso, errori recenti) e il link
 // Ko-fi dal config. Nessuna rete qui: il POST lo fa il browser.
 import { feedbackLinks } from './report.mjs';
-// paddock.mjs: il ponte con l'app Paddock del gioco (read-only): calendario
+// app-carriera.mjs: il ponte con l'app di carriera del gioco (read-only): calendario
 // della stagione con METEO/ORÀ scritti a monte, catalogo auto con curva di
-// coppia e versus, registro contabile. Il cruscotto la pesca in `/api/paddock`.
-import { paddockOverview } from './paddock.mjs';
+// coppia e versus, registro contabile. Il cruscotto la pesca in `/api/app`.
+import { appOverview } from './app-carriera.mjs';
 // il bridge della gara custom a tempo (POST /api/instantrace): lettura +
 // scrittura dell'INSTANT_RACE a gioco APERTO (force), come il ponte griglia
 import { timedRace, currentInstantRace } from '../tools/set-instantrace.mjs';
@@ -140,10 +140,10 @@ import { heritageOverview, claimMemory } from './memories.mjs';
 import { resetNews } from './gazzetta.mjs';
 // griglia: tab bilanciamento (celle, classi, perTraccia) + azioni di scrittura
 import { loadClasses, buildGridMessage } from './gridbuilder.mjs';
-import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, rebuildGridApply, GRID_FILE, pruneBackups } from './grid-apply.mjs';
+import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, rebuildGridApply, GRID_FILE, pruneBackups, templatePathOf } from './grid-apply.mjs';
 // app «Cruscotto» in gioco: publisher della vetrina nella cartella del loader
 import { startUiappPublisher, statoIstantanea, consigliFascia } from './uiapp-pub.mjs';
-// I CONSIGLI ANCHE NEL PADDOCK (31/10): la card Paddock della GUI mostra il
+// I CONSIGLI ANCHE NELL'APP (31/10): la card dell'app nella GUI mostra il
 // medesimo bussollino dell'ingegnere (consigliFascia) — STESSA fonte del
 // cruscotto in fascia, un solo calcolo, nessuna doppia lettura MMF.
 import { gridFileOf } from '../tools/evo-grid.mjs';
@@ -1259,16 +1259,16 @@ async function api(context0, _req, res, action, body) {
       });
     }
     case 'status': return sendJson(res, 200, viewStatus(ladder, state));
-    // PADDACK (richiesta Mauro 26/10 "punti correndo"): la scheda della
-    // prossima gara + il calendario + l'economia dell'app Paddock, LETTA dal
+    // APP (richiesta Mauro 26/10 "punti correndo"): la scheda della
+    // prossima gara + il calendario + l'economia dell'app di carriera, LETTA dal
     // disco (nessun avvio richiesto): gli extra sono ready per il cruscotto.
-    // 31/10 «consigli anche nel Paddock»: al bridge va ATTACCATO il pacchetto
+    // 31/10 «consigli anche nell'app»: al bridge va ATTACCATO il pacchetto
     // consigli { live, tips[] } di consigliFascia (il pacchetto del cruscotto
     // in fascia): il payload resta un unico JSON, la vista lo nasconde da
-    // sola col gioco fermo. paddockOverview non importa il publisher: la
+    // sola col gioco fermo. appOverview non importa il publisher: la
     // composizione sta QUI, al confine tra i due moduli (una sola riga).
-    case 'paddock': {
-      const pd = paddockOverview(process.env);
+    case 'app': {
+      const pd = appOverview(process.env);
       pd.consigli = consigliFascia();
       return sendJson(res, 200, pd);
     }
@@ -1285,8 +1285,10 @@ async function api(context0, _req, res, action, body) {
     // VERDETTO DI GIORNATA (29/10): le gare del prefisso (default: aammgg di
     // oggi) aggregate in un colpo solo — righe + numeri. body.prefix facoltà:
     // una giornata passata si rilegge con le QUATTRO cifre aammgg.
+    // Nomi puliti (3/11): con il ladder le righe montano il nome bello della
+    // pista (pistaPulita alla fonte, com'è per le fasce del pitwall).
     case 'verdetto': return sendJson(res, 200, paths
-      ? verdettoGiornata({ paths, driver: state?.driver ?? null, prefix: body.prefix ? String(body.prefix).slice(0, 6).replace(/\D/g, '') : undefined })
+      ? verdettoGiornata({ paths, driver: state?.driver ?? null, prefix: body.prefix ? String(body.prefix).slice(0, 6).replace(/\D/g, '') : undefined, ladder })
       : { error: tr({ it: 'Percorsi dati EVO non configurati: apri il wizard.', en: 'EVO data paths not configured: open the wizard.' }) });
     case 'watcher':
       return sendJson(res, 200, { active: true, armed: watcher.armed, racedEnd: watcher.racedEnd, lastMsg: watcher.lastMsg, events: watcher.events, seq: watcher.importSeq ?? 0 });
@@ -2586,14 +2588,17 @@ async function api(context0, _req, res, action, body) {
             // silente: senza banda voluta il builder resta su quella di prima.
             const bandaSeriePrep = (() => {
               try {
-                const idx = Math.min(state.round ?? 0, node.calendar.length - 1);
+                // LA RONDA DEL CALENDARIO SEMINATO (4/11): la card se l'è
+                // già scelta con nextRound (pd-calendar o mirror) — la banda
+                // della serie segue QUELLA pista, non state.round grezzo.
+                const idx = Math.min(card.roundIndex ?? 0, node.calendar.length - 1);
                 return bandaSerieSlider(ladder, state, node, node.calendar[idx]?.track ?? null).banda;
               } catch { return null; }
             })();
             const rb = rebuildGridApply({
               ladder,
               nodeId: state.node,
-              roundIndex: Math.min(state.round ?? 0, node.calendar.length - 1),
+              roundIndex: Math.min(card.roundIndex ?? 0, node.calendar.length - 1),   // la ronda del calendario seminato (4/11), come per la card
               force: true,   // a EVO aperto si può scrivere dal menu principale (7ª prova 19/10, certificata in NOTE-AUTOMAZIONE)
               aiBandSerie: bandaSeriePrep,            // banda VIVA della serie (cursori/trim) al posto del ladder preistorico
             });
@@ -2659,8 +2664,7 @@ async function api(context0, _req, res, action, body) {
         // si arresterà sul messaggio di errore con la guida (piano B).
         let contatore = celle.length > 0 ? celle.length - 1 : null;
         if (contatore == null) {
-          const nod = String(state.node).replace(/[^a-zA-Z0-9_.-]/g, '_');
-          const tPath = join(slotDataDir(), 'grid-templates', nod + '.customgrid');
+          const tPath = templatePathOf(state.node);   // UNA VOCE SOLA del path del magazzino (grid-apply): prima lo ricostruivo a mano qui
           if (!existsSync(tPath)) throw new Error(`customgrid sul disco ma con ${celle.length === 0 ? '0 celle' : 'celle non decodificabili'} e nessun template di serie in magazzino: ripremi Prepara tutto`);
           let celleTemplate = 0;
           try { celleTemplate = readCells(readFileSync(tPath))?.cells?.length ?? 0; } catch { celleTemplate = 0; }
@@ -2693,7 +2697,11 @@ async function api(context0, _req, res, action, body) {
       // meteo già in uso. Silente: se il round non dichiara meteo non tocca nulla.
       try {
         prep.weather = null;
-        const round = node?.calendar?.[Math.min(state.round ?? 0, (node?.calendar?.length ?? 1) - 1)];
+        // LA RONDA DELLA CARD (4/11): card.round porta già l'override del
+        // calendario seminato (pd-calendar o mirror) fatto in nextRound —
+        // niente state.round grezzo anche qui, o il meteo scritto diverrebbe
+        // quello della ronda ladder invece di quella che si sta per correre.
+        const round = card.round ?? node?.calendar?.[Math.min(state.round ?? 0, (node?.calendar?.length ?? 1) - 1)];
         const wxLabel = round?.weather != null ? (ladder.weatherNames?.[String(round.weather)] ?? round.weather) : null;
         if (wxLabel != null) {
           // BOLLETTINO DEL WEEKEND (3/11): il Prepara scrive il meteo della PRIMA
@@ -2854,7 +2862,7 @@ async function api(context0, _req, res, action, body) {
         // refresh a mano. Segnamo il ritmo UGUALE a quello del watcher:
         // i duplicati e gli import vuoti NON toccano il contatore (niente
         // ricariche inutili a ogni giro di polling).
-        // DEBRIEF DI FINE GARA (30/10): la scheda che Paddock mostra fra un
+        // DEBRIEF DI FINE GARA (30/10): la scheda che l'app mostra fra un
         // round e l'altro, qui costruita con i dati VERI: scomposizione del
         // deficit (raceAutopsy, in comune con tab Analisi) + benzina/gomma/
         // partenza dall'ultimo .ld di gara (i numeri che muoiono alla chiusura
@@ -2878,7 +2886,7 @@ async function api(context0, _req, res, action, body) {
             if (d) {
               out.debrief = d;
               // copia nel MERIDIANO: la scheda vive anche in Messaggi, come la
-              // stagione di Paddock che ricorda a fondo round cosa è successo.
+              // stagione che ricorda a tutto round cosa è successo.
               const breve = [d.headline, d.telem[0]?.text ?? d.rows[0]?.text ?? d.pareri[0]].filter(Boolean).join(' — ');
               pushMessage(state, `🏁 ${breve}`, 'info');
               persist(state);
@@ -3365,13 +3373,13 @@ async function api(context0, _req, res, action, body) {
       try {
         if (body.action === 'import-file') {
           const out = recordTestDay(ladder, paths, state, { importFile: body.file, trackNames: body.trackNames, allowAny: !!body.allowAny, rangeMin: body.rangeMin, rangeMax: body.rangeMax, note: body.note });
-          return sendJson(res, 200, { ok: true, entry: out.entry, updated: !!out.updated, log: testDayLog(30), calibration: calibrationSummary(ladder, state, { nodeId: body.nodeId ?? null }) });
+          return sendJson(res, 200, { ok: true, entry: out.entry, updated: !!out.updated, log: testDayLog(30, { logsDirs: paths?.logsDirs ?? [] }), calibration: calibrationSummary(ladder, state, { nodeId: body.nodeId ?? null }) });
         }
         if (body.action === 'manual') {
           const out = recordTestDay(ladder, paths, state, { manual: { car: body.car, rangeMin: body.rangeMin, rangeMax: body.rangeMax, position: body.position, gridSize: body.gridSize, bestLap: body.bestLap, note: body.note } });
-          return sendJson(res, 200, { ok: true, entry: out.entry, log: testDayLog(30), calibration: calibrationSummary(ladder, state, { nodeId: body.nodeId ?? null }) });
+          return sendJson(res, 200, { ok: true, entry: out.entry, log: testDayLog(30, { logsDirs: paths?.logsDirs ?? [] }), calibration: calibrationSummary(ladder, state, { nodeId: body.nodeId ?? null }) });
         }
-        return sendJson(res, 200, { ok: true, log: testDayLog(30), calibration: calibrationSummary(ladder, state, { nodeId: body.nodeId ?? null }) });
+        return sendJson(res, 200, { ok: true, log: testDayLog(30, { logsDirs: paths?.logsDirs ?? [] }), calibration: calibrationSummary(ladder, state, { nodeId: body.nodeId ?? null }) });
       } catch (e) {
         return sendJson(res, e.code ? 409 : 500, { error: e.message, code: e.code, detail: e.detail });
       }
@@ -4079,7 +4087,7 @@ function watcherTick() {
       if (watcher.racedEnd) {
         // dai al gioco il tempo di scrivere il file risultato, poi importalo.
         // 1/11 (richiesta Mauro: «l'aggiornamento della GUI a gara finita è
-        // lento, Paddock è molto più veloce»): l'attesa era 8 s FISSE; ora 3 s
+        // lento, l'app è molto più veloce»): l'attesa era 8 s FISSE; ora 3 s
         // di grazia e basta, e se il file non è ancora a posto NON si perde
         // nulla: l'incasso riparte da solo al tick successivo (NO_CANDIDATE /
         // PLAYER_NOT_FOUND sono già trattate senza rumore) e le volte oltre il
@@ -4419,7 +4427,7 @@ server.listen(PORT, '127.0.0.1', () => {
 
 // il watcher parte solo quando il server è davvero in ascolto (prima il primo
 // tick poteva scattare prima del listen). 1/11 (Mauro: «la GUI a gara finita
-// aggiorna tardi, Paddock è più veloce»): il battito scende 4 s → 2 s — i costi
+// aggiorna tardi, l'app è più veloce»): il battito scende 4 s → 2 s — i costi
 // per giro sono di pochi ms (poll live/watcher misurati 30–190 ms con curl) e
 // il BUSY-FLAG qui dentro già garantisce che un giro lento non ne incolli
 // un altro.
@@ -4478,7 +4486,7 @@ setInterval(() => {                                                  // vigilant
 // parte dopo 2.5s di server aperto, quando il cruscotto è già dipinto.
 setTimeout(() => maintenanceTick({ force: true }), 2500).unref();
 setInterval(() => maintenanceTick(), 10 * 60 * 1000);  // App «Cruscotto» in gioco (27/10): il publisher scrive la vetrina del giorno
-  // nella cartella della mod (loader ACE), stessa aerodinamica del Paddock —
+  // nella cartella della mod (loader ACE), stessa aerodinamica dell'app installata —
   // file statico JSON nuovo ogni 2.5s, il gioco non deve fare richiesta alcuna.
   // Passo anche l'URL della GUI: serve per il collegamento «Mondiale completo»
   // dentro il widget (request 28/10).
