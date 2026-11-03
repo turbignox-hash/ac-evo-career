@@ -23,11 +23,18 @@
 //
 // Tre file coprono le strade morte vere: .ldx ASSENTE (copiata in blocco
 // mozzata), .ldx PRESENTE ma SENZA marker BCN (XML senza il traguardo).
+//
+// 3/11, richiesta Mauro: «anche l'endpoint ab-setup deve rifiutare le
+// sessioni senza giri cronometrati, non solo il selettore» — la porta POST
+// era l'unica rimasta aperta: ab-list chiede i beacon, ma ab-setup montava
+// qualsiasi coppia (nome dal disco E path assoluto del fallback isFile).
+// Vedi il terzo test sotto: 400 con la stessa legge, e il save intoccato
+// dai rifiuti.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -140,7 +147,7 @@ test('ab-list: le sessioni senza giri cronometrati NON entrano nei menu (né pre
 
   const child = spawn(process.execPath, [SERVER], {
     cwd: ROOT,
-    env: { ...process.env, ACE_UI_PORT: String(PORT), ACE_DATA: DATA, ACE_LIVE: '0' },
+    env: { ...process.env, ACE_UI_PORT: String(PORT), ACE_DATA: DATA, EVO_DATA_DIR: DATA, ACE_LIVE: '0' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let stderr = '';
@@ -217,7 +224,7 @@ test('ab-list a banco TUTTO morto: sessions vuota, senzaGiri piena, niente prefe
 
   const child = spawn(process.execPath, [SERVER], {
     cwd: ROOT,
-    env: { ...process.env, ACE_UI_PORT: String(PORT), ACE_DATA: DATA, ACE_LIVE: '0' },
+    env: { ...process.env, ACE_UI_PORT: String(PORT), ACE_DATA: DATA, EVO_DATA_DIR: DATA, ACE_LIVE: '0' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let stderr = '';
@@ -250,6 +257,74 @@ test('ab-list a banco TUTTO morto: sessions vuota, senzaGiri piena, niente prefe
     for (const e of j.senzaGiri ?? []) {
       assert.ok(typeof e.track === 'string' && typeof e.car === 'string' && typeof e.when === 'string', `voce senza giri incompleta anche a banco morto: ${JSON.stringify(e)}`);
     }
+  } finally {
+    child.kill();
+  }
+});
+
+test('ab-setup: la porta POST rispetta la STESSA legge del selettore', async () => {
+  // 3/11, richiesta Mauro («anche l'endpoint ab-setup deve rifiutare le
+  // sessioni senza giri cronometrati, non solo il selettore»): ab-list
+  // chiede i beacon nei menu, ma l'endpoint POST montava QUALSIASI coppia —
+  // anche un PATH ASSOLUTO via fallback isFile: l'ultima porta posteriore
+  // rimasta aperta dalla legge del 2/11. Assaggi:
+  //   1. nome dal disco con UNA morta → 400 «senza giri», il nome in errore;
+  //   2. path ASSOLUTO del .ld morto → 400 uguale (nessuna via di sfuggita);
+  //   3. il save NON è toccato dai rifiuti (abBanco intatto, niente persist);
+  //   4. la coppia CON giri fila (200 ok, righe del banco) e si scriverla nel
+  //      save come sempre: la guardia non spegne il banco vero.
+  const DATA = mkdtempSync(join(tmpdir(), 'evo-ab-setup-guarda-'));
+  const motDir = join(DATA, 'MoTec', AUTO, TRACK);
+  scriviLd(motDir, BUONA_A.replace(/\.ld$/, ''), { ldx: 'bcn' });
+  scriviLd(motDir, BUONA_B.replace(/\.ld$/, ''), { ldx: 'bcn' });
+  scriviLd(motDir, FILE_NO_LDX.replace(/\.ld$/, ''));
+  scriviLd(motDir, FILE_LDX_CIECO.replace(/\.ld$/, ''), { ldx: 'cieco' });
+  scriviCarriera(DATA); // abBanco punta FILE_NO_LDX: il save parte "pigliato"
+
+  const child = spawn(process.execPath, [SERVER], {
+    cwd: ROOT,
+    env: { ...process.env, ACE_UI_PORT: String(PORT), ACE_DATA: DATA, EVO_DATA_DIR: DATA, ACE_LIVE: '0' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stderr = '';
+  child.stderr.on('data', (d) => { stderr += d; });
+  const post = (body) => fetch(`${BASE}/api/ab-setup`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const leggiCarriera = () => JSON.parse(readFileSync(join(DATA, 'evo-career.save.json'), 'utf8'));
+  try {
+    await waitReady(child);
+
+    // 1. il nome dal disco: una sessione senza giri fra A e B → 400
+    let r = await post({ fileA: FILE_NO_LDX, fileB: BUONA_A });
+    assert.equal(r.status, 400, `ab-setup deve RIFIUTARE la coppia con la sessione senza giri (ricevuto ${r.status}; stderr: ${stderr.slice(-300)})`);
+    let j = await r.json();
+    assert.ok(String(j.error ?? '').includes('senza giri'), `l'errore deve raccontare la legge: ${j.error}`);
+    assert.ok(String(j.error).includes(FILE_NO_LDX), `l'errore deve nominare la sessione rifiutata: ${j.error}`);
+
+    // 2. la porta del PATH ASSOLUTO: stessa legge, stessa sorte
+    r = await post({ fileA: join(motDir, FILE_LDX_CIECO), fileB: BUONA_B });
+    assert.equal(r.status, 400, `il path assoluto NON deve scavalcare la guardia (ricevuto ${r.status})`);
+    j = await r.json();
+    assert.ok(String(j.error ?? '').includes('senza giri'), `anche via path assoluto l'errore deve raccontare la legge: ${j.error}`);
+    assert.ok(String(j.error).includes(FILE_LDX_CIECO), `l'errore deve nominare il file rifiutato anche via path: ${j.error}`);
+
+    // 3. i rifiuti NON toccano il save: abBanco resta quello di partenza
+    const dopo = leggiCarriera();
+    assert.deepEqual(dopo.abBanco, { fileA: FILE_NO_LDX, fileB: BUONA_A }, `un rifiuto NON deve persistere la coppia morta nel save: ${JSON.stringify(dopo.abBanco)}`);
+
+    // 4. la coppia CON giri fila: 200, il banco costruisce il confronto
+    r = await post({ fileA: BUONA_A, fileB: BUONA_B });
+    assert.equal(r.status, 200, `la coppia buona deve passare la guardia (ricevuto ${r.status}; stderr: ${stderr.slice(-300)})`);
+    j = await r.json();
+    assert.equal(j.ok, true, `il banco deve salire sulla coppia CON giri: ${j.error ?? JSON.stringify(j)}`);
+    assert.ok(Array.isArray(j.rows) && j.rows.length > 0, 'il banco deve portare le righe del confronto');
+    // zoneTimeline del quadro campionato nel file: null o ok, NON crash
+    assert.ok(j.zoneTimeline === null || typeof j.zoneTimeline === 'object', 'zoneTimeline deve essere un oggetto o null');
+
+    // 5. e la coppia riuscita si scrive nel save come fa ab-setup da sempre
+    const fine = leggiCarriera();
+    assert.deepEqual(fine.abBanco, { fileA: BUONA_A, fileB: BUONA_B }, `la coppia riuscita deve restare nel save: ${JSON.stringify(fine.abBanco)}`);
   } finally {
     child.kill();
   }

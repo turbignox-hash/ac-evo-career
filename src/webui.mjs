@@ -140,7 +140,7 @@ import { heritageOverview, claimMemory } from './memories.mjs';
 import { resetNews } from './gazzetta.mjs';
 // griglia: tab bilanciamento (celle, classi, perTraccia) + azioni di scrittura
 import { loadClasses, buildGridMessage } from './gridbuilder.mjs';
-import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, rebuildGridApply, GRID_FILE, pruneBackups, templatePathOf } from './grid-apply.mjs';
+import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, rebuildGridApply, GRID_FILE, pruneBackups, bakName, templatePathOf } from './grid-apply.mjs';
 // app «Cruscotto» in gioco: publisher della vetrina nella cartella del loader
 import { startUiappPublisher, statoIstantanea, consigliFascia } from './uiapp-pub.mjs';
 // I CONSIGLI ANCHE NELL'APP (31/10): la card dell'app nella GUI mostra il
@@ -1518,6 +1518,23 @@ async function api(context0, _req, res, action, body) {
           ?? (isFile(String(name ?? '')) ? { file: String(name) } : null);
         const a = pick(body.fileA), b = pick(body.fileB);
         if (!a || !b) return sendJson(res, 400, { error: tr({ it: 'Seleziona due sessioni MoTeC (A e B).', en: 'Pick two MoTeC sessions (A and B).' }) });
+        // LA STESSA LEGGE DEL SELETTORE, ALL'ENDPOINT (3/11, richiesta Mauro:
+        // «anche l'endpoint ab-setup deve rifiutare le sessioni senza giro
+        // cronometrato, non solo il selettore»): ZERO beacon nel .ldx = FUORI
+        // dal banco ANCHE via POST — la porta del nome è chiusa da ab-list,
+        // così quella del PATH ASSOLUTO (fallback isFile) resta chiudibile qui
+        // e nessun out-lap o .ldx cieco può farsi A o B né scriverlo nel save.
+        // Stessa fonte del selettore: parseLdx su file assente o senza marker
+        // BCN torna [] → beacons 0 (motec.mjs).
+        const beaconsDi = (s) => parseLdx(String(s.file).replace(/\.ld$/i, '.ldx')).length;
+        const morte = [a, b].filter((s) => !(beaconsDi(s) > 0));
+        if (morte.length) {
+          const nomi = morte.map((s) => s.name ?? String(s.file).replace(/\\/g, '/').split('/').pop()).join(' · ');
+          return sendJson(res, 400, { error: tr({
+            it: `Sessione senza giri cronometrati (0 beacon nel .ldx): fuori dal banco A/B — ${nomi}.`,
+            en: `Session without timed laps (0 beacons in the .ldx): not eligible for the A/B bench — ${nomi}.`,
+          }) });
+        }
         const ab = setupAB(a.file, b.file, { points: Number(body.points) || 240 });
         if (ab.ok) {
           // QUADRO-ZONE (1/11): la fascia frenata/uscita/gas PUNTO per PUNTO della
@@ -2046,7 +2063,7 @@ async function api(context0, _req, res, action, body) {
               }
             }
             if (!built) throw errorePriore ?? ultimoErrore ?? new Error(`nessuna auto del pool dell'evento (${ospitiPool.join(', ')}) nel customgrid né nei suoi backup (${candidati.length} file provati): rigenera in EVO una griglia personalizzata con quelle auto e premi APPLICA (serve una volta sola)`);
-            const backup = `${GRID_FILE}.bak-evento-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+            const backup = bakName(GRID_FILE, 'evento-');   // backup al SECONDO dello UNICO bakName (3/11): la costruzione a mano era al minuto e si sovrascriveva a coppie
             copyFileSync(GRID_FILE, backup);          // il file di prima è il template della prossima ronda di campionato: rebuildGridApply lo recupera dai .bak-*
             pruneBackups(GRID_FILE);   // rotazione bak automatica (tetto 25, comune 31/10)
             writeFileSync(`${GRID_FILE}.tmp`, built.buffer);
@@ -2672,7 +2689,13 @@ async function api(context0, _req, res, action, body) {
         let celle, letErr = null;
         for (let t = 0; t < 4 && !celle; t++) {
           if (t) await new Promise((r) => setTimeout(r, 250));
-          try { celle = existsSync(GRID_FILE) ? (readCells(GRID_FILE)?.cells ?? []) : null; }
+          // BUFFER, non PATH (4/11, trovato dalla sonda cartuccia): readCells
+          // legge un BUFFER (race.mjs e la riga qui sotto con il template usano
+          // readFileSync): col percorso passato come stringa il decoder
+          // taglia i caratteri del PATH come se fossero protobuf — sul PC
+          // «varint oltrefine», altrove «0 celle» finte: il contatore non
+          // vedeva MAI le celle vere e il piano B salivva a file sano.
+          try { celle = existsSync(GRID_FILE) ? (readCells(readFileSync(GRID_FILE))?.cells ?? []) : null; }
           catch (e) { letErr = e; }
           if (celle === null) break;   // file assente: un altro tentativo non lo crea
         }

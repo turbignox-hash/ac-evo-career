@@ -22,6 +22,12 @@
 // Sequenza della fabbrica senza il passaggio manuale: raccogli in EVO → la
 // foto parte → il generatore riprova le serie scoperte. --no-multi disattiva
 // solo quel rilancio (il guardiano resta puro fotografo).
+//
+// AUTOCURA D'IDENTITÀ (3/11): prima della foto, il guardiano VISITA la griglia
+// viva con src/grid-cura.mjs — le celle col f10/f11 che il client non risolve
+// (caso Supra) vengono fotocopiate a GIOCO CHIUSO, così in magazzino e fabbrica
+// arriva la griglia CURATA e non il veleno. La visita parte al via, a ogni
+// scrittura, e si ripete finché resta un veleno in attesa (gioco aperto).
 import { readFileSync, writeFileSync, copyFileSync, existsSync, statSync, mkdirSync, readdirSync } from 'node:fs';
 import { basename } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -29,6 +35,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GAME_MODES_DIR, gridFileOf } from './evo-grid.mjs';
 import { buildGridMessage, loadClasses } from '../src/gridbuilder.mjs';
+import { autocuraVivo } from '../src/grid-cura.mjs';
 import { resolvePaths } from '../src/paths.mjs';
 import { scanContentCached, normId } from '../src/content.mjs';
 
@@ -220,12 +227,37 @@ function rilanciaGeneratore() {
 
 quadra();
 let ultimo = null, ultimoMtime = 0;
+// AUTOCURA d'identità (3/11, richiesta Mauro: «la griglia nasce da EVO e si
+// autocura da sola»): ogni griglia che EVO scrive col veleno sopra (Supra con
+// f10/f11 che il client non risolve) viene FOTOCOPIATA con l'identità vera
+// a gioco chiuso, senza toccare magazzino né fabbrica. La visita parte SOLO
+// quando il file cambia o c'è un veleno in attesa (tasklist non a ogni tick).
+let statoAuto = '';
+function refisciAuto(auto) {
+  if (auto.stato === statoAuto && auto.stato !== 'pulito') return;
+  statoAuto = auto.stato;
+  if (auto.stato === 'gioco-aperto') {
+    console.log(`\n⚠ autocura: ${auto.veleni} ${auto.veleni === 1 ? 'cella' : 'celle'} con identità che il client non risolve — le guarisco a gioco chiuso, DA SOLA.`);
+  } else if (auto.stato === 'curata') {
+    console.log(`✅ autocura: ${auto.veleni} ${auto.veleni === 1 ? 'cella' : 'celle'} fotocopiate con l'identità vera (backup ${auto.backup})${auto.roster?.errore ? ` — roster non toccato: ${auto.roster.errore}` : auto.roster?.written ? ' — roster del weekend riallineato' : ' — roster del weekend già allineato'}.`);
+  } else if (auto.stato === 'senza-donore') {
+    console.log(`\n⚠ autocura: ${auto.veleni} ${auto.veleni === 1 ? 'cella' : 'celle'} velenose MA la fotocopia vera non è disponibile né in grezze né incisa in src/grid-cura.mjs — nessun veleno guarito.`);
+  }
+}
+const ATTESA_AUTO = new Set(['gioco-aperto', 'senza-donore']);   // gli stati che chiedono di essere ripetuti a ogni tick
 if (existsSync(FILE)) { ultimo = readFileSync(FILE); ultimoMtime = statSync(FILE).mtimeMs; }
+// al via il veleno GIÀ sul disco si visita subito: un guardiano acceso dopo che
+// EVO ha scritto la griglia (o riacceso) non deve aspettare una scrittura nuova
+// (buco trovato dalla prova end-to-end del 3/11: stesso mtime = nessuna visita).
+refisciAuto(autocuraVivo());
 console.log(`vigilo su ${FILE} — crea la griglia in EVO e AVVIA la sessione: la foto parte da sola. Ctrl+C per uscire.`);
 setInterval(() => {
   try {
     if (!existsSync(FILE)) return;
     const mt = statSync(FILE).mtimeMs;
+    if (mt !== ultimoMtime || ATTESA_AUTO.has(statoAuto)) {
+      refisciAuto(autocuraVivo());
+    }
     if (mt === ultimoMtime) return;
     ultimoMtime = mt;
     const buf = readFileSync(FILE);

@@ -55,6 +55,18 @@
   },
   "overrides": [
     {
+      // Solo i TEST (3/11): un `assert` dentro un `if` SENZA `else` è il modo
+      // classico in cui un test passa «in onore» — se la condizione è falsa
+      // l'asserzione non gira e la run resta verde senza aver verificato nulla.
+      // Il plugin GritQL (tools/biome/assert-in-if.grit) segnala quegli assert;
+      // l'if/else che asserisce in ENTRAMBI i rami non lo è, perché lì
+      // l'asserzione gira comunque (era il 47% dei primi 74 avvisi).
+      // Severità `warn` finché i 39 punti esistenti non sono smaltiti, così
+      // `npm run lint` non blocca; poi nel .grit diventa `error`.
+      "includes": ["test/**"],
+      "plugins": ["./tools/biome/assert-in-if.grit"]
+    },
+    {
       // gui/js sona PAGINE DI SCRIPT CLASSICI: le viste si chiamano fra file con
       // le globali del browser (core.js smista le tab verso drawAgenda/drawCars/
       // modal/refreshBoot...), quindi Biome da solo ciascun file e non vede i

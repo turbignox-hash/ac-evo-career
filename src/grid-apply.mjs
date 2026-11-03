@@ -14,13 +14,14 @@
 //   const out = dropCellsApply(['preset_mk8gti_mech_1', 'BMW M3 E46 CSL']);
 import { readFileSync, writeFileSync, renameSync, copyFileSync, existsSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import { dirname, join, basename } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { sameTrack } from './tracknames.mjs';
 import { tr } from './lang.mjs';
-import { gameRunning, encodeMsg, gridFileOf, bakName, pruneBackups } from '../tools/evo-grid.mjs';
+import { gameRunning, encodeMsg, gridFileOf, bakName, pruneBackups, FACTORY_DIR } from '../tools/evo-grid.mjs';
 // compat: cli.mjs e corrupt-inputs.test mordono pruneBackups da qua — ma la
-// fonte è UNA (evo-grid, 31/10): re-export e NULLA si duplica più.
-export { pruneBackups };
+// fonte è UNA (evo-grid, 31/10): re-export e NULLA si duplica più. Dal 3/11
+// anche bakName passa di qui: webui (bak-evento) e cli (bak-griglia) sono passati
+// dal nome a MINUTO ricostruito a mano al backup al SECONDO dell'unico bakName.
+export { pruneBackups, bakName };
 import { balanceCells, dropCells, setAiRange, planFromClass, readCells, DEFAULT_FILE } from '../tools/grid-balance.mjs';
 import { weekendCarCount, weekendGridMode } from '../tools/set-track.mjs';
 import { loadClasses, pickClassInfo, buildGridMessage, classeMulticlasseSuPoolMono } from './gridbuilder.mjs';
@@ -42,7 +43,6 @@ export const GRID_FILE = DEFAULT_FILE;
 // sul disco (data/grid-templates/<nodeId>.customgrid) e TUTTI i round
 // successivi (anche dopo che il customgrid sul disco è passato ad altra
 // serie) si riscrivono da questo appunto, senza mai riaprire EVO per la griglia.
-const HERE_DIR = dirname(fileURLToPath(import.meta.url));
 // nido per-slot (24/10): magazzino e snapshot vivono con la SUA carriera (slot 1 =
 // data/ come fino ad oggi, slot 2-3 = data/slot-N/ vergini); la FABBRICA resta
 // condivisa com'era (config/griglie-fabbrica): fotocopia statica del progetto,
@@ -50,7 +50,8 @@ const HERE_DIR = dirname(fileURLToPath(import.meta.url));
 const APPLY_DATA_DIR = slotDataDir();
 const TEMPLATES_DIR = join(APPLY_DATA_DIR, 'grid-templates');
 const SNAPSHOTS_DIR = join(APPLY_DATA_DIR, 'customgrid-snapshots');
-const FACTORY_DIR = process.env.EVO_FACTORY_DIR ?? join(dirname(HERE_DIR), 'config', 'griglie-fabbrica');
+// FABBRICA: VOCE UNA in evo-grid (3/11, stessa cura del magazzino dello stesso giorno);
+// la ridirezione EVO_FACTORY_DIR dei sandbox vive là dove c'è l'interruttore.
 
 // Esportata (3/11, revisione dei tre banchi): il path del magazzino è UNA VOCE SOLA —
 // webui (contatore del modo custom quando la cartuccia è a 0 celle) lo legge

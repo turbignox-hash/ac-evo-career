@@ -104,9 +104,15 @@ test('raceCard col MIRROR: la ronda «next» del calendario nostro guida la sche
     assert.equal(c.round.hour, 17);
     assert.equal(c.round.weather, 4);            // «Pioggia» → ladder 4 (half rain)
     assert.equal(c.laps, 4,                      'giri dell\'override alla card');
-    // la riga «Pista» della scheda porta IL LAYOUT SEMINATO, non solo GP default
-    const rigaPista = c.settings.find((r) => typeof r[0] === 'string' && (r[0].includes('Pista') || r[0].includes('Track')));
-    if (rigaPista) assert.ok(String(rigaPista[1]).includes('layout GP'), 'il layout seminato nella riga pista della scheda');
+    // la riga «Pista» della scheda porta IL LAYOUT SEMINATO, non solo GP default.
+    // 3/11 (rinforzo dell'inchiesta): prima era `if (rigaPista) assert…` — se la
+    // riga SPARIVA il test restava verde e la scheda perdeva la pista in silenzio.
+    // Adesso la riga è OBBLIGATORIA (una e una sola) e il valore è fissato INTERO:
+    // pista seminata + layout, non un pezzo qualsiasi che contenga «layout GP».
+    const righePista = c.settings.filter((r) => typeof r[0] === 'string' && (r[0].includes('Pista') || r[0].includes('Track')));
+    assert.equal(righePista.length, 1, `una sola riga Pista nella scheda: ${JSON.stringify(c.settings.map((r) => [texto(r[0]), texto(r[1])]))}`);
+    assert.equal(texto(righePista[0][1]), 'Imola — layout GP',
+      'la riga Pista è la pista SEMINATA (Imola) col suo layout, non la Monza della ladder');
   } finally {
     rmSync(mirrorFile, { force: true });            // niente mirror fuoriuscito per gli altri test
   }
@@ -221,6 +227,11 @@ test('raceCard: riga Difficoltà AI con TRIM attivo — testo fissato (3/11, ric
   // banda — così stampa CTRL-C dal CLI e copia-testo della GUI segnano la
   // banda VIVA, non solo l'intervallo. Da 3/11 il testo EXACT si fissa:
   // trim +2sposta ANCHE la banda (24–25 → 28–29) e il suffisso va col segno.
+  // DAL POMERIGGIO del 3/11 anche il trim NEGATIVO (richiesta Mauro: «anche al
+  // trim negativo (es. −2: «trim −2» col segno) e alla banda che scende»):
+  // il segno PLUS solo col positivo — il meno lo porta il numero (race.mjs:
+  // `${trim > 0 ? '+' : ''}${trim}`), la banda SCINDE dello stesso passo,
+  // e il clamp in fondo alla scala non la fa uscire dal 0.
   const { ladder, state } = mk();
   state.difficulty.trim.coppa = 2;
   const c = race.raceCard(ladder, state);
@@ -236,6 +247,30 @@ test('raceCard: riga Difficoltà AI con TRIM attivo — testo fissato (3/11, ric
   assert.ok(riga2, 'riga Difficoltà AI (senza trim) presente');
   assert.equal(texto(riga2[1]), 'min 24% · max 25%');
   assert.equal(c2.difficulty.trim, 0);
+  // TRIM NEGATIVO (richiesta Mauro, pomeriggio 3/11): −2 abbatte la banda
+  // (24–25 → 20–21, simmetrico al +2 attorno al centro) e il suffisso porta
+  // il SEgno — ma niente più: il meno lo scrive il numero (atteso '(trim -2)',
+  // NON '(trim −2)' né '(trim +−2)').
+  const { ladder: l3, state: s3 } = mk();
+  s3.difficulty.trim.coppa = -2;
+  const c3 = race.raceCard(l3, s3);
+  const riga3 = c3.settings.find(([k]) => /difficoltà ai|ai difficulty/i.test(texto(k)));
+  assert.ok(riga3, 'riga Difficoltà AI (trim −2) presente');
+  assert.equal(texto(riga3[1]), 'min 20% · max 21% (trim -2)');
+  assert.equal(c3.difficulty.trim, -2);
+  assert.ok(c3.difficulty.rangeMin < c2.difficulty.rangeMin && c3.difficulty.rangeMax < c2.difficulty.rangeMax,
+    'la banda DEVE scendere col trim negativo (24–25 → 20–21)');
+  // il passo è lo stesso del positivo: ±1 trim = ±2 punti di slider
+  const { ladder: l4, state: s4 } = mk();
+  s4.difficulty.trim.coppa = -1;
+  const c4 = race.raceCard(l4, s4);
+  assert.equal(texto(c4.settings.find(([k]) => /difficoltà ai|ai difficulty/i.test(texto(k)))[1]), 'min 22% · max 23% (trim -1)');
+  // clamp in fondo alla scala: un trim da −99 non spinge la banda sotto 0
+  const { ladder: l5, state: s5 } = mk();
+  s5.difficulty.trim.coppa = -99;
+  const c5 = race.raceCard(l5, s5);
+  assert.ok(c5.difficulty.rangeMin >= 0 && c5.difficulty.rangeMax >= 0, 'la banda con trim estremo NON scende sotto lo 0');
+  assert.equal(c5.difficulty.rangeMax - c5.difficulty.rangeMin, 1, 'la banda resta STRETTA di 1 punto anche al clamp');
 });
 
 test('raceCard: outlook con obiettivo pista, stagione e contratto; Meteo con nome preset', () => {

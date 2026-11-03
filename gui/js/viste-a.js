@@ -788,7 +788,7 @@ function drawCardInto(el, card){
             <span class="muted" style="font-size:11px;align-self:center">${tr({ it: 'si sistema da solo: al cambio ronda le Prove, a fine di ogni sessione la successiva — sempre PRIMA di entrarci', en: 'sets itself: Prove at a round change, the next session after each one — always BEFORE entering' })}</span>
           </div>
           <details id="wx-log" style="margin-top:6px">
-            <summary class="muted" style="cursor:pointer;font-size:12px">📜 ${tr({ it: 'Registro delle scritture automatiche', en: 'Automatic writes log' })} <span id="wx-log-n" class="muted" style="font-size:11px"></span></summary>
+            <summary class="muted" style="cursor:pointer;font-size:12px">📜 ${tr({ it: 'Registro delle scritture automatiche (e degli scarti)', en: 'Automatic writes log (and skips)' })} <span id="wx-log-n" class="muted" style="font-size:11px"></span></summary>
             <div id="wx-log-body" class="muted" style="font-size:11.5px;line-height:1.55;margin-top:4px">…</div>
           </details>
         </div>
@@ -1264,6 +1264,18 @@ function drawCardInto(el, card){
     };
     wxLogBody.innerHTML = voci.map((v) => {
       const data = new Date(v.at).toLocaleString();
+      // SCARTO (3/11): la scrittura è stata buttata via dal cancello della pista
+      // (trackMatches) — la riga NON deve leggersi come una scrittura riuscita.
+      if (v.esito === 'scarto') {
+        const attese = Array.isArray(v.attese) && v.attese.length ? v.attese.slice(0, 3).join(' / ') : '—';
+        const verso = `${v.verso ?? '?'} ${WX_ICON[Number(v.preset)] ?? ''} ${v.label ?? String(v.preset ?? '?')}`.trim();
+        return `<div style="border-bottom:1px dashed var(--line,#2a3341);padding:3px 0">
+          <b style="font-weight:600">${esc(data)}</b> — ${esc(String(v.via) === 'cambio-ronda' ? VIA['cambio-ronda'] : VIA['fine-sessione'])} →
+          <span style="font-weight:600">✕ ${tr({ it: 'scartata', en: 'skipped' })}</span>
+          <span class="muted">(${tr({ it: 'pista', en: 'track' })} «${esc(String(v.pista ?? '?'))}» ${tr({ it: 'non tra le attese', en: 'not among expected' })}: ${esc(attese)})</span>
+          <div class="muted" style="font-size:10.5px;margin-top:1px">↳ ${esc(verso)}${v.file ? ` · ${esc(String(v.file))}` : ''}</div>
+        </div>`;
+      }
       const preset = `${WX_ICON[Number(v.preset)] ?? ''} ${v.label ?? String(v.preset)}`.trim();
       const era = (v.from != null && Number(v.from) !== Number(v.preset))
         ? `<span class="muted">(${tr({ it: 'era', en: 'was' })} ${WX_ICON[Number(v.from)] ?? ''} ${esc(String(v.from))})</span>` : '';

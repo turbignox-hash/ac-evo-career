@@ -35,6 +35,13 @@ import { currentInstantRace, INSTANT_FILE } from '../tools/set-instantrace.mjs';
 import { leggiRegistro, formattaRigaRegistro } from '../tools/_gara-veloce.mjs';
 import { eventCard } from './events.mjs';
 import { leggiStoreJson } from './uiapp-store.mjs';
+// LA FASCIA SI SCRIVE ATOMICA (3/11): la stessa tecnica del quaderno di
+// calibrazione (tmp + rename, atomic.mjs). Prima era writeFileSync sul file
+// buono: se il processo moriva (o Windows tagliava a metà) fra il byte 1 e la
+// fine, il gioco leggeva un JSON mozzato e il pannello mostrava la vetrina
+// vuota o «fascia scaduta» pur essendo fresca. Col rename il file è o la
+// versione di prima o quella nuova, MAI una via di mezzo.
+import { writeJsonAtomic } from './atomic.mjs';
 // I CONSIGLI IN GIOCO (30/10, «consiglio anche in gioco»): la radio
 // dell'ingegnere esce nel payload della vetrina. liveReader è il
 // SINGOLETTO di shmem e il publisher gira NEL processo del webui
@@ -863,7 +870,7 @@ export function uiappTick(env = process.env) {
     for (const [id2, at] of storiaInviata) { if (oraT - at > 3_600_000) storiaInviata.delete(id2); }
   } catch { /* la storia è un plus: mai rompere il tick */ }
   dati.validaFino = new Date((fascia + 1) * PERIODO_MS).toISOString();
-  writeFileSync(join(dir, `ui-${fascia}.json`), JSON.stringify(dati), 'utf8');
+  writeJsonAtomic(join(dir, `ui-${fascia}.json`), dati, { pretty: false });
   // la spazzatura va a casa: un ack consumato dopo un'ora si dimentica, e le
   // vecchie fasce si tolgono.
   // LA CURA DEL BUCO (3/11, la raffica dei 404 nel log di EVO): prima si
@@ -892,7 +899,7 @@ export function uiappTick(env = process.env) {
     const dirP = cartellaApp(env, 'pitwall');
     if (dirP) {
       const pw = miniPitwall(dati, fascia);
-      writeFileSync(join(dirP, `ui-${fascia}.json`), JSON.stringify(pw), 'utf8');
+      writeJsonAtomic(join(dirP, `ui-${fascia}.json`), pw, { pretty: false });
       const vecchiP = readdirSync(dirP).filter((f) => /^ui-\d+\.json$/.test(f) && f !== `ui-${fascia}.json`)
         .sort((a, b) => Number(a.slice(3, -5)) - Number(b.slice(3, -5)));
       for (const f of vecchiP.slice(0, Math.max(0, vecchiP.length - FASCE_DIETRO))) { try { unlinkSync(join(dirP, f)); } catch { } }
@@ -1017,7 +1024,7 @@ export function fasceApp(dir, fascia = null) {
   for (let i = 0; i < 5; i++) {
     const slot = base + i;
     const dati = { ...head, generatedAt: (slot + 1) * 500, slot };
-    try { writeFileSync(join(dir, `ui-${slot}.json`), JSON.stringify(dati), 'utf8'); scritte.push(`ui-${slot}.json`); }
+    try { writeJsonAtomic(join(dir, `ui-${slot}.json`), dati, { pretty: false }); scritte.push(`ui-${slot}.json`); }
     catch { /* presa in lettura dal gioco: la copertura rientra al prossimo tick */ }
   }
   // la potatura: le ultime 12 restano (6 s di copertura nuova per tick, margine largo)

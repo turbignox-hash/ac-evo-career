@@ -19,6 +19,26 @@
 //      a capo ha un rettangolo-UNIONE che ingoia la riga sopra — si
 //      misurano le RIGHE vere con getClientRects).
 //
+//   3b) LA LEGGE «CONTENUTO IN CONTENUTO: SANO» — il filtro che tiene nel
+//      conto SOLO i difetti veri. La pagina funziona a strati: i bottoni
+//      contengono le loro icone, le label i loro campi, le righe i loro
+//      pannelli. Se l'uno contiene l'altro, i due non si disegnano MAI
+//      l'uno sopra l'altro — è il DOM che si racconta per costruzione,
+//      non un colpo di layout male: e senza questa legge ogni figlio
+//      dentro il padre verrebbe cacciato come sovrapposizione al primo
+//      colpo (mai il verde delle 126 misure). Il scontro conta quindi
+//      solo se NESSUNO dei due contiene l'altro — la guard in `scontro`
+//      (`!dentro(A,B) && !dentro(B,A)`) e arriva un segnale SOLO per le
+//      coppie che si sovrappongono SBORDANDO l'una dal rettangolo
+//      dell'altra.
+//      Non è una nota scritta a tavola: la PROVA A ROTTURA del 2/11 la
+//      dimostra nelle DUE direzioni e la usa come seconda regola del
+//      difetto finto — uno che SBORDA dal vicino viene beccato; uno del
+//      tutto contenuto dentro la sua scatola NON deve scattare (a ragione:
+//      è il sano). Per questo il blocco di prova del banco va messo a
+//      cavallo del bordo del vicino, con l'area comune stretta su un lato
+//      solo (6 px di altezza): regola 2 del replay del 3/11.
+//
 //   4) misuraPanelliFuoriViewport (2/11, richiesta Mauro: «terzo step
 //      della guardia: fallisce se un pannello esce dalla viewport in
 //      orizzontale») — i `.panel` di #main la cui scatola sborda oltre
@@ -204,10 +224,20 @@ export async function misuraSovrapposizioni(page) {
       }
       return out.join(' < ') || '(senza antenati con id o classi)';
     };
+    /* LEGGE «CONTENUTO IN CONTENUTO: SANO» (2/11, prova a rottura;
+     * riprovata nel replay del 3/11 e nei morsi del banco a 1250/1920):
+     * la coppia è difetto solo se si sovrappongono >2 px per lato SENZA
+     * che l'uno contenga l'altro. Se l'uno sta TUTTO dentro l'altro la
+     * pagina funziona — bottone con icona, label col campo, riga nel
+     * pannello: sano, passa e la sonda resta muta. Il difetto finto del
+     * banco conosce la regola: per DOVERE essere beccato va messo a
+     * cavallo del bordo del vicino (un inject tutto dentro la sua scatola
+     * non sborda e fa scattare a ragione il sano). Bordi che si toccano:
+     * non è sopra l'uno nell'altro, non conta (i 2 px per lato). */
     const scontro = (A, B) => {
       const ox = Math.min(A.right, B.right) - Math.max(A.left, B.left);
       const oy = Math.min(A.bottom, B.bottom) - Math.max(A.top, B.top);
-      return (ox > 2 && oy > 2 && !dentro(A, B) && !dentro(B, A)) ? { ox, oy } : null;  // bordi che si toccano: non è sopra l'uno nell'altro; contenuto in contenuto: sano
+      return (ox > 2 && oy > 2 && !dentro(A, B) && !dentro(B, A)) ? { ox, oy } : null;
     };
     const trovati = [];
     for (let i = 0; i < cand.length; i++) {

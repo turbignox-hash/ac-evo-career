@@ -4,7 +4,9 @@
 // publisher la gira col NUCLEO ufficiale della scelta (scegliRonda,
 // agenda.mjs — la stessa «scegli per oggi» della webui). Qui si prova:
 //  1) ereditaFascia porta il nodeId della serie (la chiave del puntamento);
-//  2) giraRichiesteEredità iscrive davvero la serie e firma l'esito;
+//  2) giraRichiesteEredità iscrive davvero la serie e firma l'esito — e qui
+//     gli si guardano gli EFFETTI OSSERVABILI (sedile, ronda, scelte del
+//     giorno, messaggi, save su disco), non sé stesso;
 //  3) la stessa richiesta NON si rigira (richiesteFatti, niente doppioni);
 //  4) senza impresa attiva l'esito è un NO con il messaggio, non un crash;
 //  5) il tick del publisher legge lo store e fa tutto il giro (vetrina sì).
@@ -64,20 +66,57 @@ test('ereditaFascia: senza memoria attiva è null (il gruppo in gioco tace, non 
   assert.equal(ereditaFascia(ladder, state), null);
 });
 
-test('giraRichiesteEredità: la richiesta iscrive la SERIE e firma un esito ok col suo id', () => {
+test('giraRichiesteEredità: la richiesta iscrive DAVVERO la serie (effetti osservabili, non un assert su sé stesso)', async () => {
   richiesteTestReset();
+  const { racesOnDay, choicesForDay, agendaDay } = await import('../src/agenda.mjs');
+  const { SAVE_FILE } = await import('../src/webui-env.mjs');
   const state = createCareer(ladder, { name: 'Test Eredità gira', first: 'Test', last: 'Gira' });
-  impresaSu(state, state.node);
+  const oggi = agendaDay(state);
+  const partenza = state.node;
+  // La serie dell'impresa DEVE essere un'ALTRA da quella del sedile: se sono
+  // la stessa, scegliRonda prende la scorciatoia «già scelto» e il puntamento
+  // non si vede — era esattamente il difetto del vecchio assert, che
+  // confrontava `state.node` con `state.node` (sempre vero, qualunque cosa
+  // facesse giraRichiesteEredità). La candidata si cerca come la cerca il
+  // nucleo: giorni da oggi a +7, nell'ordine di racesOnDay — così l'attesa è
+  // esatta e non un «basta che qualcosa cambi».
+  let target = null;
+  for (let d = oggi; d <= oggi + 7 && !target; d++) {
+    for (const g of racesOnDay(ladder, state, d)) {
+      if (g.node.nodeId !== partenza && g.fattibile) { target = { ...g, day: d }; break; }
+    }
+  }
+  assert.ok(target, 'la ladder deve offrire una seconda serie fattibile nella settimana: senza, il test non proverebbe niente');
+  impresaSu(state, target.node.nodeId);
+  const messaggiPrima = state.messages.length;
+
   const esito = giraRichiesteEredità(ladder, state, costr({ id: 'eredita:123', tipo: 'eredita-punta', at: Date.now() }));
+
+  // 1) la risposta al bottone dice cosa è successo, con la ronda giusta
   assert.ok(esito, 'l\'esito esce');
   assert.equal(esito.id, 'eredita:123');
-  assert.ok(esito.ok, 'la scelta è riuscita (serie fattibile: è quella del sedile di partenza)');
-  assert.equal(esitoEsitoNode(state), state.node, 'il sedile/giorno punta la serie dell\'impresa');
+  assert.ok(esito.ok, `la scelta è riuscita: ${esito.msg}`);
+  assert.match(esito.msg, /Le Origini/);
+  assert.match(esito.msg, new RegExp(`R${target.index + 1}\\b`), `la ronda nel messaggio: ${esito.msg}`);
   assert.equal(esitoEreditàTest(), esito);
+  // 2) il SEDILE si è spostato sulla serie dell'impresa, sulla ronda di quel giorno
+  assert.notEqual(state.node, partenza, 'il sedile lascia la serie di prima');
+  assert.equal(state.node, target.node.nodeId, 'il sedile punta la serie dell\'impresa');
+  assert.equal(state.round, target.index, 'la ronda è quella che il calendario assegna a quella serie quel giorno');
+  assert.equal(state.seats?.[target.node.nodeId]?.day, target.day, 'la cadenza del sedile nuovo parte dal giorno della gara');
+  // 3) la scelta resta A REGISTRO nel giorno (è il conto del cap giornaliero)
+  assert.ok(choicesForDay(state, target.day).includes(target.node.nodeId),
+    `la scelta del giorno ${target.day} è a registro: ${JSON.stringify(choicesForDay(state, target.day))}`);
+  // 4) i messaggi che l'utente legge davvero: la serie e la sua ronda
+  const nuovi = state.messages.slice(messaggiPrima).map((m) => m.text);
+  assert.ok(nuovi.some((t) => t.includes(target.node.display) && new RegExp(`R${target.index + 1}\\b`).test(t)),
+    `la scelta della gara è annunciata: ${JSON.stringify(nuovi)}`);
+  // 5) il tick ha PERSISTITO: la scelta è anche nel save su disco, non solo in memoria
+  const salvato = JSON.parse(readFileSync(SAVE_FILE, 'utf8'));
+  assert.equal(salvato.node, target.node.nodeId, 'il save su disco porta il sedile nuovo');
+  assert.equal(salvato.round, target.index);
+  assert.ok((salvato.agenda?.choices?.[target.day] ?? []).includes(target.node.nodeId), 'il save porta la scelta del giorno');
 });
-
-/** La serie puntata: un sedile su state.node DEVE esistere dopo la scelta. */
-function esitoEsitoNode(state) { return state.node; }
 
 test('giraRichiesteEredità: la STESSA richiesta non si rigira (niente messaggi doppi a ogni tick)', () => {
   richiesteTestReset();

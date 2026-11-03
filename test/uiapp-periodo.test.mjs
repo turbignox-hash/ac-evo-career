@@ -154,6 +154,20 @@ test('NOME DELLO SLOT: fascia calcolata uguale e file ui-<slot>.json lo stesso n
   }
 });
 
+// LA FASCIA MAI A METÀ (3/11): il gioco legge ui-<slot>.json mentre il
+// publisher lo scrive; con la scrittura in place un tick interrotto lasciava
+// sul disco un JSON mozzo (pannello vuoto con la fascia fresca). La regola:
+// ogni fascia passa da writeJsonAtomic (tmp + rename); nessuna writeFileSync
+// diretta sui file ui-*.json. Testo dei sorgenti, come il resto di questo test.
+test('FASCIA ATOMICA: tutte le ui-<slot>.json passano da writeJsonAtomic', () => {
+  const dirette = (testoPublisher.match(/writeFileSync\(\s*join\([^)]*ui-\$\{/g) ?? []);
+  assert.equal(dirette.length, 0, `publisher: scrittura diretta di una fascia (${dirette.join(' · ')}) — si scrive col tmp e il rename`);
+  const atomiche = (testoPublisher.match(/writeJsonAtomic\(\s*join\([^)]*ui-\$\{/g) ?? []);
+  assert.equal(atomiche.length, 3, `publisher: le TRE fasce (cruscotto, pitwall, canale Paddock) devono passare da writeJsonAtomic — trovate ${atomiche.length}`);
+  assert.ok(/writeJsonAtomic\(join\(dir, `ui-\$\{fascia\}\.json`\), dati, \{ pretty: false \}\)/.test(testoPublisher),
+    'publisher: la fascia principale resta COMPATTA ({ pretty: false }) — il gioco la rilegge ogni slot');
+});
+
 test('SONDAGGIO A METÀ: le app leggono ogni PERIODO_MS/2, il publisher scrive ogni PERIODO_MS', () => {
   for (const { chiave } of APP) {
     const costruito = testoApp[chiave].costruito;

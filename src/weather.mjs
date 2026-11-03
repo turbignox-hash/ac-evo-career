@@ -161,7 +161,11 @@ export function setWeatherPreset(preset, { lgmFile = LGM, dry = false, previsto 
     fields.length = 0; fields.push(...out);
     touched = true;
   }
-  const backup = `${lgmFile}.bak-wx-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+  // SECONDI nel nome bak (4/11, sonda ciclo-weekend): a MINUTO dopo minuto
+  // due scritture nello stesso minuto (es. fine-sessione + cambio ronda di
+  // fila) si sfiliavano il bak l'una con l'altra stesso nome e restavava in
+  // giro l'undo sbagliato. Stessa famiglia di nome, granularità in più.
+  const backup = `${lgmFile}.bak-wx-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`;
   let written = false;
   if (!dry && touched) {
     copyFileSync(lgmFile, backup);
@@ -220,7 +224,9 @@ export function setWeatherCustom({ rain = null, cloud = null, fog = null, lgmFil
   // IDEMPOTENZA a byte (1/11): encodeMsg riproduce byte-per-byte il lastgamemode
   // scritto da EVO, quindi dietro la cura «forma del gioco»: se il risultato
   // NON cambia un byte (preset già 7 e float già uguali), non si riscrive.
-  const backup = `${lgmFile}.bak-wx-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+  // i SECONDI nel bak: v. nota in setWeatherPreset (stesso nome,
+  // stessa granularità).
+  const backup = `${lgmFile}.bak-wx-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`;
   const nuovo = encodeMsg(fields);
   let written = false;
   if (!dry && Buffer.compare(nuovo, buf) !== 0) {

@@ -13,6 +13,17 @@
 //   • preset:   il numero scritto; label: il suo nome nel catalogo meteo;
 //   • from:     il preset che c'era prima (dopo il catch di setWeatherPreset);
 //   • file:     il file Risultati che ha innescato la scrittura (fine-sessione).
+//
+// Sullo STESSO file (3/11, richiesta Mauro: «per capire cosa il bollettino non
+// scrive») anche le scritture SCARTATE dal cancello della pista (trackMatches):
+//   { at, via, esito: 'scarto', motivo: 'pista', sessione, pista, attese,
+//     preset, label, verso, file }
+//   • esito:    'scarto' — la riga NON è una scrittura, e la GUI la segna così;
+//   • pista:    la pista letta dal file Risultati (quella del gioco);
+//   • attese:   i nomi di pista che la card si aspetta per la ronda;
+//   • preset/label/verso: che cosa SAREBBE stato scritto, e a quale sessione;
+//   • file:     il Risultati scartato (o null quando l'innesco è la ronda).
+// Così «il bollettino non ha scritto» non è più un silenzio: resta il perché.
 // La GUI lo legge via API 'wx-log' (pannello «Regole di questo weekend ·
 // meteo» nella scheda): le ultime voci dal più recente.
 // EVO_DATA_DIR: solo per i test (il registro di test non tocca quello vero).
@@ -33,8 +44,9 @@ let count = (() => {
   try { return readFileSync(FILE, 'utf8').split('\n').filter(Boolean).length; } catch { return 0; }
 })();
 
-/** Una scrittura riuscita → una riga. voce: la forma documentata in cima. */
-export function registra(voce) {
+/** Una riga sul diario, qualunque sia il tipo di voce. Silenzioso per
+ *  costruzione: un registro mancato non è un danno al bollettino. */
+function scrivi(voce) {
   try {
     count += 1;
     mkdirSync(dirname(FILE), { recursive: true });
@@ -45,6 +57,23 @@ export function registra(voce) {
       count = restano.length;
     }
   } catch { /* careersi in silenzio: il registro è di servizio */ }
+}
+
+/** Una scrittura riuscita → una riga. voce: la forma documentata in cima. */
+export function registra(voce) {
+  scrivi(voce);
+}
+
+/** Una scrittura SCARTATA dal cancello della pista (trackMatches): il bollettino
+ *  tace, ma il PERCHÉ resta sul diario — la pista del file e quelle attese,
+ *  che cosa si sarebbe scritto e a quale sessione. */
+export function registraScarto({ via, motivo = 'pista', sessione = null, pista = null, attese = [], preset = null, label = null, verso = null, file = null } = {}) {
+  scrivi({
+    at: new Date().toISOString(), via,
+    esito: 'scarto', motivo,
+    sessione, pista, attese,
+    preset, label, verso, file,
+  });
 }
 
 /** Le ultime N voci, dal più recente. { voci, total } — il totale è quello

@@ -113,8 +113,12 @@ export function specOverridePerRonda(entry) {
 
 /** La ronda da preparare: { node, entry, ronda } dalla ladder + state.save.
  *  overrides: { nodeId, round, track, laps, hour, weather } — l'override
- *  corregge la voce del calendario al volo, il resto resta della ladder. */
-export function trovaRonda(overrides = {}) {
+ *  corregge la voce del calendario al volo, il resto resta della ladder.
+ *  opts: { nostro } (3/11, IL GENERATORE DEL «PADDOCK NOSTRO»): la ronda
+ *  arriva SOLO dalla ladder — il cerchio del pd-calendar dell'app si salta
+ *  ANCHE se la serie combacerebbe: chi genera il round nativo non LEGGE i
+ *  journal dell'exe, neanche per prenderne la pista portata a parole. */
+export function trovaRonda(overrides = {}, { nostro = false } = {}) {
   const ladder = JSON.parse(readFileSync(LADDER_FILE, 'utf8'));
   const st = loadState(SAVE_FILE);
   const nodeId = overrides.nodeId ?? st.node;
@@ -135,7 +139,7 @@ export function trovaRonda(overrides = {}) {
   // diversa. Gli override CLI vincono SEMPRE su entrambe.
   let rondaVera = ronda;
   const manuali = overrides.track != null || overrides.round != null;
-  if (!manuali) {
+  if (!manuali && !nostro) {
     const pd = rondaDelCalendario(node);
     if (pd) {
       entry = {
@@ -248,7 +252,8 @@ function scriviWeekendOps(ops, { file = WEEKEND_FILE, dry = false } = {}) {
 }
 
 /** La preparazione della ronda, un passo alla volta, con report. opts:
- *  { dry, force, skip: [..], singleMake, car, trovaRonda: { overrides } }. */
+ *  { dry, force, skip: [..], singleMake, car, nostro, trovaRonda: { overrides } }
+ *  — nostro passa a trovaRonda: la ronda solo ladder (ronda-nostro.mjs). */
 export async function rondaPaddock(opts = {}) {
   const { dry = false, force = false } = opts;
   const skip = new Set((opts.skip ?? []).map((s) => String(s).toLowerCase()));
@@ -263,7 +268,7 @@ export async function rondaPaddock(opts = {}) {
     }
   };
 
-  const { node, entry, ronda, nodeId, ronda_nome } = trovaRonda(opts.trovaRonda ?? {});
+  const { node, entry, ronda, nodeId, ronda_nome } = trovaRonda(opts.trovaRonda ?? {}, { nostro: opts.nostro === true });
   const evoAperto = gameRunning();
   const salva = (nome) => !force && evoAperto && ['pista', 'orari', 'giri', 'ai', 'griglia'].includes(nome);
   if (evoAperto && !force) passi.push({ nome: 'avviso', skip: false, ok: true, note: `EVO APERTO: i passi su gamemodesave (pista/griglia/orari/giri/ai) saltano (solo garage e meteo procedono). --force per forzarli.` });

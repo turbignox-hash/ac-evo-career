@@ -119,6 +119,18 @@ apre la sua scheda nel Libro delle auto, il nome di una pista la scheda
 nel Libro delle piste, il nome di una serie porta al tab Campionati, la
 data/soldi/reputazione/stagione del righello saltano al tab giusto.
 
+🛡️ **Le pagine del giorno di gara sono sorvegliate già dal 2/11.** Tutto il
+gruppo che un weekend di gara tocca — **Messaggi, Centro gare, Griglia,
+Garage, Risultati/Import** — e i vicini che il giorno di gara guarda
+(**Setup, Analisi, Piste, Auto**) è coperto dalla «guardia di layout»: un
+controllo automatico che gira a ogni aggiornamento e verifica che le
+pagine restino in ordine su qualunque schermo, dal piccolo al grande
+(256 → 1920 px: oggi 21 tab × 6 larghezze di misura). Per te niente da
+fare: è il lato nostro che si rilegge la GUI a ogni nuova build prima che
+le cose ti arrivino. Se una pagina ti sembra comunque fuori posto, segna
+la scheda/larghezza (o ridimensiona la finestra e resta a guardare) e
+riportacelo: il check del lato nostro ti dice se l'ha beccata anche lui.
+
 Alla prima apertura la GUI mostra il **wizard**: trova da solo le cartelle dati
 (`%USERPROFILE%\Saved Games\ACE`), il gioco in Steam (`AssettoCorsaEVO.exe`) e
 fa la scansione dei contenuti. Se qualcosa non viene trovato, si forzano i

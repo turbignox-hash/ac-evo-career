@@ -152,15 +152,24 @@ export function nextRound(ladder, state, node = null) {
         Object.assign(round, n.calendar[idxApp]);      }
       // OVERRIDE dei DETTAGLI (vale anche se roundIndex NON si sposta):
       // l'app (o il mirror) detta layout, giri, ora, meteo della ronda — ma
-      // solo dove il dato c'è davvero, il ladder resta la verità altrove.
+      // SOLO quando la sua «next» È la ronda attiva (idxApp === roundIndex).
+      // Il mirror è POSIZIONALE sul conteggio dei risultati del save: quando
+      // è indietro (ronda 1 consumata in una stagione passata, o conteggio
+      // che non quadra) la sua «next» è UN'ALTRA ronda — e senza questo
+      // cancello i dettagli di quella (ore, giri, METEO) finivano stampati
+      // sulla ronda attiva: il piano bollettino collassava (4/11, sonda
+      // ciclo-weekend: ore e meteo di Brands stampati su Donington, wx-auto
+      // credeva la Gara «già a posto» e non scriveva).
       // round.weather resta nella numerazione DELLA LADDER (meteoPdIndex
       // traduce per NOME, mai per numero): weatherNames, template griglia
       // e card consumano tutti quella numerazione.
-      if (pd.layout) round.layout = pd.layout;
-      if (Number(pd.laps) > 0) round.laps = Math.round(Number(pd.laps));
-      if (Number.isFinite(pd.hour)) round.hour = pd.hour;
-      if (pd.weather != null) round.weather = pd.weather;
-      round.__pd = true;              // la ronda viene dal calendario seminato
+      if (idxApp === roundIndex) {
+        if (pd.layout) round.layout = pd.layout;
+        if (Number(pd.laps) > 0) round.laps = Math.round(Number(pd.laps));
+        if (Number.isFinite(pd.hour)) round.hour = pd.hour;
+        if (pd.weather != null) round.weather = pd.weather;
+        round.__pd = true;            // la ronda viene dal calendario seminato
+      }
     }
   } catch { /* senza calendario (app e mirror assenti): la ladder, come sempre */ }
   // ORE SPOSTABILI (1/11): l'ora override per-ronda (spostata dal pannello

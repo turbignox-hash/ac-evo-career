@@ -15,8 +15,9 @@
 //     qui viene CONFEZIONATA (node tools/pacchetto-amico.mjs) e caricata
 //     come asset proprio (la prima); --no-test le salta la prova npm
 //     test dentro la cartella estratta.
-//   --solo-preflight: gira SOLO il preflight (genera-uiapp + guardia) ed
-//     esce senza toccare GitHub: la prova a secco della soglia di release.
+//   --solo-preflight: gira SOLO il preflight (genera-uiapp + guardia delle
+//     app + lista di controllo della guardia di layout) ed esce senza toccare
+//     GitHub: la prova a secco della soglia di release.
 //
 // IL PREFLIGHT (3/11, richiesta Mauro: "collega la guardia al flusso di
 // release: crea-release deve far girare genera-uiapp + la guardia prima
@@ -30,6 +31,22 @@
 // Qualunque esito non-zero: la release NON parte. E se la build ha
 // riscritto file non committati lo dico ad alta voce: lo zip esce da
 // git archive HEAD — senza commit il pacchetto porta i costruiti VECCHI.
+//
+// LA LISTA DI CONTROLLO DELLA GUARDIA DI LAYOUT (3/11, richiesta Mauro:
+// "scrivi una lista di controllo di rilascio automatica per la guardia di
+// layout dentro crea-release, nello stesso modo del preflight uiapp"): due
+// punti DURI e un avviso, subito dopo il preflight delle app.
+//   1) il CONTRATTO degli skip (test/skip-guardia-layout.test.mjs): tre
+//      `return t.skip(...)` ognuno col perché, e nessun presupposto tornato
+//      assert rosso. Test sul TESTO: 90 ms, niente browser.
+//   2) la GUARDIA VERA (test/layout-impostazioni.test.mjs): 21 tab × 6
+//      larghezze = 126 misure. La guardia è onesta con l'ambiente — senza
+//      playwright-core, chromium o save si salta UNA volta col perché ed
+//      esce 0 — quindi qui non si trasforma uno skip in un rosso: si dice
+//      AD ALTA VOCE che quella release esce senza layout misurato, perché
+//      il silenzio farebbe credere a una prova che non c'è stata.
+//   3) l'AVVISO dei file sporchi: lo zip nasce da `git archive HEAD`, quindi
+//      una GUI (o la sonda) modificata ma non committata esce VECCHIA.
 // Tag già presente → viene riusato; release già esistente → aggiorna il corpo.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -70,6 +87,30 @@ const sporca = spawnSync('git', ['status', '--porcelain', '--', 'uiapp'], { cwd:
 if ((sporca.stdout ?? '').trim()) {
   console.log('⚠ la build ha riscritto i costruiti NON committati: il pacchetto (git archive HEAD) li porta VECCHI.\n' + sporca.stdout.trim());
 }
+/* ---- LA LISTA DI CONTROLLO DELLA GUARDIA DI LAYOUT (i tre punti sono
+ * spiegati in testa al file): due gradi duri, uno che avvisa. */
+console.log('—— LISTA DI CONTROLLO LAYOUT: la release esce solo con la guardia viva ——');
+preghiamo('node --test test/skip-guardia-layout.test.mjs — il contratto dei tre skip (cosa manca, dove si guarda, cosa fare)', ['--test', join('test', 'skip-guardia-layout.test.mjs')]);
+const guardia = preghiamo('node --test test/layout-impostazioni.test.mjs — la guardia: 21 tab × 6 larghezze = 126 misure (sovrapposizioni e pannelli fuori viewport)', ['--test', join('test', 'layout-impostazioni.test.mjs')], { stdio: ['ignore', 'pipe', 'pipe'] });
+const tapGuardia = `${guardia.stdout ?? ''}\n${guardia.stderr ?? ''}`;
+// il TAP si stampa comunque: la prova del layout deve restare nel log della release
+process.stdout.write(tapGuardia);
+const saltata = /^ok \d+ - .*?# SKIP (.+)$/m.exec(tapGuardia);
+if (saltata) {
+  console.log(`⚠ la guardia di layout si è SALTATA in questa release: ${saltata[1].trim()}`);
+  console.log('  La release esce lo stesso (la guardia è ambiente, non codice), ma su questo PC il layout NON è stato misurato: se la release parla di GUI, va riprovata con chromium e una carriera a posto.');
+} else {
+  const suiteVerde = /# pass (\d+)/.exec(tapGuardia)?.[1] ?? '?';
+  console.log(`✓ guardia di layout misurata: ${suiteVerde} suite verde, 126 misure (TAP qui sopra).`);
+}
+// lo zip esce da HEAD: una GUI modificata e non committata esce vecchia
+const sporcaLayout = spawnSync('git', ['status', '--porcelain', '--', 'gui', 'test/layout-impostazioni.test.mjs', 'test/_layout-probe.mjs'], { cwd: RADICE, encoding: 'utf8' });
+if ((sporcaLayout.stdout ?? '').trim()) {
+  console.log('⚠ GUI o sonda della guardia NON committate: lo zip (git archive HEAD) porta i file VECCHI, non il layout appena misurato.\n' + sporcaLayout.stdout.trim());
+}
+console.log(saltata
+  ? '✓ lista di controllo layout superata a metà: contratto degli skip ✓, guardia SALTATA (vedi sopra) — release possibile, layout non misurato.'
+  : '✓ lista di controllo layout superata: contratto degli skip ✓, guardia misurata ✓ (126 misure).');
 if (SOLO_PREFLIGHT) { console.log('✓ preflight superato (--solo-preflight): niente GitHub, niente zip.'); process.exit(0); }
 
 // --con-pacchetto: la zip si confeziona QUI, dopo il preflight, e sale come asset

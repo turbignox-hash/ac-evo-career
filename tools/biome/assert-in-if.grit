@@ -1,0 +1,11 @@
+engine biome(1.0)
+language js
+
+`assert.$method($...)` as $assert where {
+  $assert <: within or { `if ($cond) { $... }`, `if ($cond) $then` },
+  register_diagnostic(
+    span = $assert,
+    message = "assert dentro un if SENZA else: se la condizione è falsa l'asserzione non gira e il test resta verde senza aver verificato niente. Rendi l'asserzione incondizionata (asserisci anche il caso «dato assente») oppure togli il test.",
+    severity = "warn"
+  )
+}

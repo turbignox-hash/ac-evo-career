@@ -107,6 +107,23 @@ test('sessione del piano su UN ALTRA pista: la salvaguardia pista chiude', () =>
   assert.equal(leggiPreset(), 3, 'LGM intoccato');
 });
 
+/* SCARTO NEL DIARIO (3/11, richiesta Mauro: «per capire cosa il bollettino non
+   scrive»): il cancello della pista tace sul cielo MA lascia la voce con la
+   pista del file, quelle attese e che cosa si sarebbe scritto. */
+test('lo scarto della pista resta nel registro: pista, attese, meteo mancato', async () => {
+  const reg = await leggiRegistro();
+  const v = reg.voci[0];
+  assert.equal(v?.esito, 'scarto', `la voce più recente è lo scarto: ${JSON.stringify(v)}`);
+  assert.equal(v?.motivo, 'pista');
+  assert.equal(v?.via, 'fine-sessione');
+  assert.equal(v?.sessione, 'Qualifying', 'la sessione del file scartato');
+  assert.equal(v?.pista, 'Imola', 'la pista del gioco');
+  assert.deepEqual(v?.attese, MONZA, 'i nomi attesi dalla card');
+  assert.equal(v?.verso, 'Warmup', 'la sessione che doveva ricevere il meteo');
+  assert.equal(v?.preset, 3);
+  assert.ok(v?.file?.includes('SP_Qualifying'), 'il Risultati scartato');
+});
+
 test('finita la Gara non c\'è una prossima: fine piano, si tace', () => {
   pushMsg = null;
   scriviResult('261103-160000_SP_Race.sessionresults.json', resultSP('Race', 'Monza'));
@@ -206,13 +223,22 @@ test('file delle Prove già sul disco: si tace, LGM intatto', () => {
 
 /* Cambio ronda DA VIVO: la Gara appena chiusa è sul disco MA su un'altra
    pista (la ronda nuova cambia pista) — non blocca la scrittura delle Prove. */
-test("cambio ronda da vivo: il file dell'altra pista non blocca", () => {
+test("cambio ronda da vivo: il file dell'altra pista non blocca", async () => {
   scriviResult2('261104-160000_SP_Race.sessionresults.json', resultSP('Race', 'Imola'));
   const esito = wxAutoPrima(paths2, costruisci, 'serie#9');
   // il preset delle Prove della ronda nuova combacia con quello già scritto: giaOk
   assert.equal(esito?.giaOk, true);
   assert.equal(esito?.scritto, false);
   assert.equal(leggiPreset(), 2);
+  // e lo scarto dell'altra pista è sul diario, col perché del cambio ronda
+  const reg = await leggiRegistro();
+  const v = reg.voci.find((x) => x.esito === 'scarto' && x.via === 'cambio-ronda');
+  assert.ok(v, `voce di scarto cambio-ronda presente: ${JSON.stringify(reg.voci.slice(0, 3))}`);
+  assert.equal(v.sessione, 'Race');
+  assert.equal(v.pista, 'Imola');
+  assert.deepEqual(v.attese, MONZA);
+  assert.equal(v.verso, 'Practice');
+  assert.equal(v.preset, 2);
 });
 test("cambio ronda con piano di un'altra pista: scrittura SERIA", () => {
   const esito = wxAutoPrima(paths2, costruisciAltro, 'serie#10');

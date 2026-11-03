@@ -20,6 +20,7 @@
 //
 import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import { savedGamesRoots } from '../src/paths.mjs';
 
@@ -37,6 +38,18 @@ export const USER_HOME = process.env.USERPROFILE || 'C:/Users/Mauro';
 export const GAME_SAVEDIR = process.env.ACE_GAME_SAVEDIR
   || join(savedGamesRoots(process.env)[0] ?? join(USER_HOME, 'Saved Games'), 'ACE');
 export const GAME_MODES_DIR = join(GAME_SAVEDIR, 'GameModes');
+
+/* VOCE UNICA DELLA FABBRICA DI GRIGLIE (3/11, audit «altre fonti duplicate»):
+ * config/griglie-fabbrica era ricostruita in DUE moduli — grid-apply (una
+ * volta) e gridbuilder (DUE volte, stessa riga incollata) — con la ridirezio-
+ * ne EVO_FACTORY_DIR rifatta a mano in ognuna: la stessa ferita del magazzino
+ * prima della revisione dei tre banchi del 3/11 (templatePathOf, «due
+ * ricostruzioni dello stesso path erano due occasioni di split al primo cambio
+ * di fonte»). Qui siamo SOTTO entrambi (c'è ciclo grid-apply → gridbuilder, la
+ * voce non poteva stare in nessuno dei due) ed entrambi importano già da qui.
+ * Il sand-box dei test è sempre env EVO_FACTORY_DIR, come per ACE_GAME_SAVEDIR. */
+const PROJECT_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));   // tools/ → progetto
+export const FACTORY_DIR = process.env.EVO_FACTORY_DIR ?? join(PROJECT_ROOT, 'config', 'griglie-fabbrica');
 
 /* Trova la cartella OpenData del profilo attivo: ProfileData/<guid>/OpenData*/
 export function openDataDir(root = GAME_SAVEDIR) {

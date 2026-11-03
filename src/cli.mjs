@@ -32,7 +32,7 @@ import { writeJsonAtomic } from './atomic.mjs';
 import { buildGridMessage } from './gridbuilder.mjs';
 import { gridGuardProposal } from './grid-guard.mjs';
 import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
-import { applyBalance, applyAi, pruneBackups, rebuildGridApply } from './grid-apply.mjs';
+import { applyBalance, applyAi, pruneBackups, bakName, rebuildGridApply } from './grid-apply.mjs';
 import { calibSummary, calibFile, resetCalib, appuntaConvalida } from './grid-calib.mjs';
 import { gameRunning, GAME_MODES_DIR } from '../tools/evo-grid.mjs';
 import { testModeBanner, testModeOn, testModeOff } from './test-mode.mjs';
@@ -1378,7 +1378,7 @@ async function cmdGriglia(args) {
     console.log(C_.dim(tr({ it: `  il template della serie resta in data/grid-templates/ · prossimi passi: apri EVO → menu griglia (SENZA GENERA) → controlla → APPLICA → gara.\n`, en: `  the series' template stays in data/grid-templates/ · next steps: open EVO → grid menu (NO GENERATE) → check → APPLY → race.\n` })));
     return 0;
   }
-  const bak = `${file}.bak-griglia-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
+  const bak = bakName(file, 'griglia-');   // backup al SECONDO dello UNICO bakName (3/11): la costruzione a mano era al minuto e si sovrascriveva a coppie
   copySyncGrid(file, bak);
   pruneBackups(file);
   writeFileSync(`${file}.tmp`, buffer);

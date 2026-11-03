@@ -4,6 +4,29 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md) (il registro completo). Il save in
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
+## v0.1.54 — 3/11/2026
+
+- **IL GENERATORE DI ROUND DEL «PADDOCK NOSTRO»** (richiesta Mauro): dal
+  LADDER, e solo da lei, crea il weekend NATIVO con i GIRI e la TRACCIA
+  della ronda da girare, senza dipendere dal catalogo dell'exe del
+  Paddock: niente journal `pd-*` dell'app, NEMMENO quando la serie
+  combacerebbe ([tools/ronda-nostro.mjs](tools/ronda-nostro.mjs)).
+  Il cammino: su PC vergine il campione catturato (data/ricette/
+  campionato/) si semina tale quale coi QUATTRO protobuf e il Luo parte
+  col METEO della ronda (scala ladder → preset, la traduzione di
+  meteoRonda); poi i SETTE passi canoni di rondaPaddock con
+  `nostro: true` (toccata in [tools/ronda-ladder.mjs](tools/ronda-ladder.mjs):
+  trovaRonda ha l'opzione `{ nostro }` che salta il cerchio pd-calendar);
+  infine la TRACCIA della ronda scrive in
+  `evo-ronda-nostro[-N].json` accanto al save — la regola di slot è
+  UNA con il mirror ([src/journal.mjs](src/journal.mjs), export slotSuffix) —
+  al più 12 record dietro, come le fasce.
+- **Verifica**: test/ronda-nostro.test.mjs 5/5 verdi con la TRAPPOLA
+  intenzionale (il journal dell'exe porta la serie combaciante e una
+  ronda «next» sbagliata: il generatore beve SOLO dalla ladder);
+  regressioni 53/55 (i 2 mancati del seminatore sono ambientali:
+  GAME_OPEN col gioco veramente aperto, non toccati da questa cura);
+  Biome zero errori sui quattro file.
 ## v0.1.53 — 3/11/2026
 
 - **Le date di sessione in tutti i tab del giro** (richieste Mauro): le

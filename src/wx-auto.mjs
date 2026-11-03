@@ -37,7 +37,7 @@
 import { listResultFiles, readSessionResult, trackMatches } from './results.mjs';
 import { currentWeatherPreset, setWeatherPreset } from './weather.mjs';
 import { recordWarning } from './warnings.mjs';
-import { registra } from './wx-registro.mjs';   // diario delle scritture riuscite (per la GUI)
+import { registra, registraScarto } from './wx-registro.mjs';   // diario delle scritture (riuscite e scartate)
 
 /** Una scrittura RIUSCITA → una riga del registro: quando, perché, che cosa. */
 const attizza = (via, esito) => registra({
@@ -87,8 +87,17 @@ export function wxAutoTick(paths, costruisciPiano) {
       continue;
     }
     // la pista DEVE combaciare: è la salvaguardia che reagisce solo alle
-    // sessioni della ronda in corso, non ad altri giochi sulla stessa pista
-    if (!trackMatches(pistaNomi, result?.track)) continue;
+    // sessioni della ronda in corso, non ad altri giochi sulla stessa pista.
+    // Lo scarto non è più un silenzio (3/11): la voce sul diario dice la pista
+    // del file, quelle attese e che cosa si sarebbe scritto.
+    if (!trackMatches(pistaNomi, result?.track)) {
+      registraScarto({
+        via: 'fine-sessione', sessione: sess,
+        pista: result?.track ?? null, attese: pistaNomi,
+        preset: next.weather, label: next.label ?? null, verso: next.session, file: f.name,
+      });
+      continue;
+    }
     const cur = currentWeatherPreset(ctx.lgmFile);
     if (cur === next.weather) {                           // già a posto: niente su disco
       esito = { scritto: false, giaOk: true, session: next.session, weather: next.weather };
@@ -150,7 +159,14 @@ export function wxAutoPrima(paths, costruisciPiano, chiaveRonda) {
     let result = null;
     try { result = readSessionResult(f.file); } catch { continue; }   // file mezzo scritto: non decide
     if (!DA_SESSIONE[String(result?.session ?? '').toLowerCase()]) continue;   // hotlap / esotiche: non conta
-    if (!trackMatches(pistaNomi, result?.track)) continue;            // altra pista: non conta
+    if (!trackMatches(pistaNomi, result?.track)) {                     // altra pista: non conta — ma resta il perché
+      registraScarto({
+        via: 'cambio-ronda', sessione: DA_SESSIONE[String(result?.session ?? '').toLowerCase()],
+        pista: result?.track ?? null, attese: pistaNomi,
+        preset: target.weather, label: target.label ?? null, verso: 'Practice', file: f.name,
+      });
+      continue;
+    }
     giaCorsa = true; break;
   }
   if (giaCorsa) return { scritto: false, giaCorsa: true, session: 'Practice' };

@@ -20,7 +20,7 @@
 import { readFileSync, existsSync, statSync, copyFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg, FACTORY_DIR } from '../tools/evo-grid.mjs';
 import { sameTrack } from './tracknames.mjs';
 import { tr } from './lang.mjs';
 import { matchPool, logMatch, normKey } from './car-match.mjs';
@@ -341,7 +341,7 @@ function entryParco(d, pi) {
 }
 function parcoPreset(fileCorrente, tplCells, pi) {
   const dir = dirname(fileCorrente);
-  const fabbrica = process.env.EVO_FACTORY_DIR ?? join(PROJECT, 'config', 'griglie-fabbrica');   // stessa redirezione del grid-apply (sabbia nei test)
+  const fabbrica = FACTORY_DIR;   // VOCE UNA in evo-grid (EVO_FACTORY_DIR nei sandbox): la riga era copi-a-copi in due funzioni qui (3/11, come il magazzino dello stesso giorno)
   const dirs = [dir, ...(dir !== fabbrica ? [fabbrica] : [])];
   const risultato = minaPreset(tplCells, pi);
   for (const d of dirs) {
@@ -354,7 +354,7 @@ function parcoPreset(fileCorrente, tplCells, pi) {
  *  parcoPreset: l'identità e la cella intera della stessa auto LAVORA INSIEME. */
 function parcoCelle(fileCorrente) {
   const dir = dirname(fileCorrente);
-  const fabbrica = process.env.EVO_FACTORY_DIR ?? join(PROJECT, 'config', 'griglie-fabbrica');
+  const fabbrica = FACTORY_DIR;   // VOCE UNA in evo-grid, vedi parcoPreset
   const fuori = new Map();
   for (const d of [dir, ...(dir !== fabbrica ? [fabbrica] : [])]) {
     for (const [k, b] of entryParco(d, null).int) if (!fuori.has(k)) fuori.set(k, b);

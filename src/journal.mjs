@@ -37,14 +37,21 @@ const LADDER_FILE = join(THIS_DIR, '..', 'config', 'career.evo.ladder.json');
 /* il nome file: accanto al save, stesso slot nel nome                  */
 /* ------------------------------------------------------------------ */
 
+/** Lo SLOT nel nome del save (slot 1 → '', slot 2 → "-2", slot 3 → "-3"):
+ *  la regola «stesso slot nel nome, accanto al save» è UNA (2/11) e chi
+ *  scrive ALTRO file per slot la reusa — il generatore di round (3/11) la
+ *  porta sulla traccia della ronda. File che non è un save → '' . */
+export function slotSuffix(saveFile) {
+  const m = String(basename(saveFile ?? '')).match(/^evo-career\.save(?:-([1-3]))?\.json$/);
+  return m?.[1] ? `-${m[1]}` : '';
+}
+
 /** `data/evo-calendar.json` (o `-2`/`-3`): nella STESSA cartella del save che
  *  lo alimenta. Attenzione: restituisce evo-calendar anche per file non save
  *  (i test lo usano con path sandbox). */
 export function journalPathForSave(saveFile) {
   const dir = dirname(String(saveFile ?? ''));
-  const m = String(basename(saveFile ?? '')).match(/^evo-career\.save(?:-([1-3]))?\.json$/);
-  const suffix = m?.[1] ? `-${m[1]}` : '';
-  return join(dir, `evo-calendar${suffix}.json`);
+  return join(dir, `evo-calendar${slotSuffix(saveFile)}.json`);
 }
 
 /* ------------------------------------------------------------------ */
