@@ -4,6 +4,112 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md) (il registro completo). Il save in
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
+## v0.1.51 — 3/11/2026
+
+- **Il cerchio col mirror** (richiesta Mauro): la scheda della gara
+  («Iscriviti e divertiti») segue la ronda del CALENDARIO anche per chi
+  NON ha l'app del gioco: [src/app-carriera.mjs](src/app-carriera.mjs)
+  porta `rondaDelCalendario`, l'helper unico che ritorna la ronda «next»
+  dal pd-calendar dell'app O dal mirror journal nostro
+  ([src/journal.mjs](src/journal.mjs), scritto accanto al save a ogni
+  saveState) — con pista, trackId, layout, giri, ora+minuto e meteo
+  tradotto nelle DUE scale (weather scala ladder per `round.weather`;
+  idPreset scala PRESETS per `setWeatherPreset`). `stessaSerie` matcha
+  prima per AUTO, poi per nome display (i due Trofei MX-5 hanno display
+  gemello e parco auto diverso); pista senza app → null e chi chiama
+  resta sulla ladder grezza. Consumata in [src/race.mjs](src/race.mjs)
+  (`nextRound` e `raceCard`) e in [tools/ronda-ladder.mjs](tools/ronda-ladder.mjs)
+  che ha perso le TRE funzioni duplicate e `findTrackInfo`.
+- **Meteo a due scale** — il fix che chiude il bug della riga CLI
+  ([tools/ronda-ladder.mjs](tools/ronda-ladder.mjs)): le due scale
+  (ladder 0..5 vs PRESETS di weather.mjs 0..6) NON coincidono da 3 in su;
+  `meteoRonda`/`meteoPdIndex` (tabella `METEO_PD`) traducono per NOME, mai
+  per numero: 3→Pioggia leggera (preset 4), 4→Pioggia (5), 5→Pioggia
+  intensa (6), Coperto/Overcast→ladder 2 ma preset 3 («Coperto» del
+  selettore), solo Nuvoloso/Cloudy cade sul preset 2 — come già insegna
+  `presetForLabel` in [src/weather.mjs](src/weather.mjs).
+- **Layout della card** — `raceCard` usa il LAYOUT seminato della ronda
+  (round.layout) al posto del solo GP-default della tabella: la scheda e
+  la riga «Pista» seguono il National/Fosters del calendario.
+- **Verifica**: node --test su race-card + journal-nostro +
+  ronda-ladder **42/42 verdi**, webui-smoke 1/1; node --check OK su
+  app-carriera.mjs e ronda-ladder.mjs. La griglia scritta a Prepare
+  non toccata: `rebuildGridApply` scrive solo sul Prepara, come sempre.
+- **Guardia anti-singleton** (le skin identiche dopo il tasto Prepara,
+  incidente Coppa MX-5 ND Cup — diario 3/11 notte): il rientro del save
+  (weekend azzerato) lasciava il vivo `last_grid.customgrid` ridotto a UNA
+  cella unica; la PRIMA CORSA del rebuild sul vivo non fallisce (il builder
+  completa con i cloni ARMONICI della stessa livrea: griglia MONOCOLORE,
+  16× visual_1) e la corsa dei candidati (magazzino per serie → bak →
+  snapshot → fabbrica) non parte mai. In [src/grid-apply.mjs](src/grid-apply.mjs)
+  `rebuildGridApply` conta le TINTE (campo 11 — non il byte-distinto: i
+  cloni armonici lo sono per costruzione) del vivo e del magazzino della
+  serie; se il magazzino ne possiede di più, la prima corsa SALTA e si va
+  dritti ai candidati (prima il template della serie): vince il parco più
+  ricco di livree, il Giudice `buildGridMessage` resta l'unico a validare
+  i candidati, e se il magazzino non si legge si gareggia com'era
+  (best-effort). Log esplicito: `[griglia] guardia anti-singleton: ...`.
+  Cura a secco dell'incidente: riscrittura del vivo MX-5 dal magazzino
+  (9× visual_2 bianco/rossa, 3× visual_99, 2× visual_1, banda di serie
+  84–85 intatta), backup `bak-liveria-2026-11-03-00-03-54`.
+- **Verifica della guardia**: node --test grid-templates **16/16**
+  (2 test nuovi: «vivo POCO TINTATO perde la prima corsa, vince il
+  magazzino» e «vivo SANO: la prima corsa resta sul vivo»);
+  readcells-tinta + gridbuilder-tinte + gridbuilder-banda-serie +
+  gridbuilder-uniche + weekend-roster **31/31**; dry-run sul vivo reale
+  SENZA log di guardia (vivo sano, 3 tinte): `celle 16`.
+
+## v0.1.50 — 2/11/2026
+
+- **Il modulo della carriera si chiama APP** — rinomina Paddock→App completa in
+tutto il progetto: il ponte [src/app-carriera.mjs](src/app-carriera.mjs) (era
+`src/paddock.mjs`, la sola lettura dei journal dell'app del gioco in Saved
+Games), con [src/journal.mjs](src/journal.mjs) e [src/uiapp-store.mjs](src/uiapp-store.mjs)
+a passo e consumatori aggiornati (webui, webui-views, uiapp-pub, state, cars,
+race, import, analisi, gridbuilder, grid-calib, world, testday, cli, life).
+Rinominati con lui [ronda-ladder.mjs](tools/ronda-ladder.mjs),
+[classi-da-app.mjs](tools/classi-da-app.mjs), [cura-giri-app.mjs](tools/cura-giri-app.mjs),
+[_prova-app.mjs](tools/_prova-app.mjs) e i test `app-*` di [test/](test/).
+**Non si toccano** i letterali dell'app del gioco (cartella journal
+`Saved Games\ACE\mods\uiresources\ACEUIAppLoader\paddock\`, file `pd-*`,
+`paddock.js`, `engine: 'Paddock 1.0.2'`) né il prodotto esterno
+(`Paddock.exe`): il contratto completo nel
+[diario](DIARIO-SVILUPPO.md), voce del 2/11.
+- **Il tasto «Prepara tutto e avvia il campionato» esce dalla GUI** (richiesta
+Mauro: «il nuovo tasto che non voglio, è da rimuovere»): via la riga da
+ENTRAMBE le montature del tab Campionati ([viste-b.js](gui/js/viste-b.js)), via
+il case POST `semina`, l'import del seminatore e la voce `semina` dai cancelli
+SOLO_POST di [webui.mjs](src/webui.mjs); l'endpoint risponde 404. Il seminatore
+resta da riga di comando (`node tools/semina-campionato.mjs`, test
+[semina-campionato.test.mjs](test/semina-campionato.test.mjs) intatto);
+test [semina-bottone.test.mjs](test/semina-bottone.test.mjs) cancellato —
+provava esattamente quel tasto+endpoint.
+- **Verifica**: suite dei moduli rinominati 82/82, suite intera `npm test`
+**867/867** (37 s); webui riavviata, `/api/semina` → 404. Nota d'ambiente:
+`node --test test/` su Node 22 prova a caricare la CARTELLA come modulo — vale
+il glob `test/*.test.mjs`.
+
+## v0.1.48 — 2/11/2026
+
+- Il salvataggio del giorno ([report](report/build-0.1.48-382313b.md)): bottone
+«Punta la ronda in Agenda» nel pannello Eredità (endpoint `agenda-choose`,
+verificato vivo sul save), meteo automatico (wx-auto) col suo registro,
+margine sul 2° nel registro, livree chimere cancellate,
+[genera-uiapp.mjs](tools/genera-uiapp.mjs) con guardie e sorgenti `src.js` nel
+repo, note presentazione subreddit EN/IT, audit dati e banchi A/B del 1/11 —
+782 test verdi.
+
+## v0.1.47 — 1/11/2026
+
+- Il grande ripasso da v0.1.43 ([report](report/build-0.1.47-7ac09ed.md)):
+collaudo del PC amico vergine dal sorgente (installa.cmd in sandbox, 24/24),
+schede sane sul save vuoto (Risultati/Piste/system-health/ingegnere curati),
+ore spostabili per ronda in Agenda, installatore delle app in gioco in
+INSTALLA-GIOCO.cmd, rinforzi ai test (garage-buy, agenda, lingua-server),
+tinte prestate DA-10, Fase 1 di [AUDIT.md](AUDIT.md) (`npm run check`,
+CHANGELOG nato, RELEASE_CHECKLIST) e preparazione delle release
+0.1.44–0.1.46.
+
 ## v0.1.46 — 1/11/2026
 
 - **Autopsia della vittoria senza più lo 0,00 finto** (il caso COTA del

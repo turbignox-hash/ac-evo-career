@@ -388,3 +388,48 @@ test('BAK AL SECONDO: tre riscritture ravvicinate dello stesso template restano 
   assert.ok(readFileSync(join(dir, baks[1])).equals(templateF40(8)), 'il bak più recente contiene il template a 8');
   assert.ok(readFileSync(join(dir, 'serie_f40_test.customgrid')).equals(templateF40(4)), 'il magazzino porta la versione corrente');
 });
+
+/* ---------- GUARDIA ANTI-SINGLETON (3/11, Coppa MX-5 ND Cup) ---------- */
+// Incidente: il rientro del save (weekend azzerato) lasciava il vivo ridotto a
+// UNA cella unica: la prima corsa sul vivo passava lo stesso (cloni ARMONICI
+// della stessa livrea — MONOCOLORE, 16 posti tutti visual_1) e i candidati non
+// partivano mai. La misura della guardia è la TINTA (campo 11), NON il
+// byte-distinto: i cloni armonici lo sono per costruzione. Se il magazzino
+// della serie ha più tinte del vivo, la prima corsa SALTA: vince il magazzino.
+import { readCells } from '../tools/grid-balance.mjs';
+// cella con la TINTA in formato GIOCO (preset visuale nel segmento PRECEDENTE a \x18)
+const cellaTinta = (id, i, visio) => encodeMsg([
+  { field: 3, wire: 2, bytes: B(id) },
+  { field: 4, wire: 2, bytes: B('Auto di prova') },
+  { field: 7, wire: 0, varint: BigInt(i + 1) },
+  { field: 11, wire: 2, bytes: B(`\x12${String.fromCharCode(visio.length)}${visio}\x18Auto Visual ${visio.slice(-1)}`) },
+]);
+const templateF40Tinte = (n, tinte) => {
+  const fields = [];
+  for (let i = 0; i < n; i++) fields.push({ field: 1, wire: 2, bytes: cellaTinta('ks_f40_lm', i, tinte[i % tinte.length]) });
+  fields.push({ field: 2, wire: 2, bytes: driver(0.60) });
+  fields.push({ field: 2, wire: 2, bytes: driver(0.40) });
+  fields.push({ field: 3, wire: 2, bytes: encodeMsg([{ field: 1, wire: 0, varint: BigInt(n) }]) });
+  return encodeMsg(fields);
+};
+const tintaDisc = (buf) => new Set(readCells(buf).cells.map((c) => c.tinta).filter(Boolean)).size;
+
+test('guardia anti-singleton: il vivo POCO TINTATO perde la prima corsa, vince il magazzino', () => {
+  pulisciBak();
+  writeFileSync(STORE(), templateF40Tinte(4, ['preset_f40lm_visual_2', 'preset_f40lm_visual_3']));
+  const file = scrivi(templateF40(4));   // il vivo monolivrea di stanotte ('(default)' unica tinta)
+  const out = ga.rebuildGridApply({ ladder: LADDER, nodeId: 'serie_f40_test', roundIndex: 0, file, force: true });
+  assert.ok(out.written, 'la riscrittura passa dal magazzino');
+  assert.ok(String(out.source ?? '').includes('serie_f40_test'), `source dichiara il magazzino (trovato: ${out.source ?? 'undefined'})`);
+  assert.ok(tintaDisc(readFileSync(file)) >= 2, 'la griglia scritta ha le TINTE del magazzino, non la monolivrea del vivo');
+});
+
+test('vivo SANO (pariggiato di tinte con il magazzino): la prima corsa resta sul vivo', () => {
+  pulisciBak();
+  writeFileSync(STORE(), templateF40Tinte(4, ['preset_f40lm_visual_2', 'preset_f40lm_visual_3']));
+  const file = scrivi(templateF40Tinte(4, ['preset_f40lm_visual_2', 'preset_f40lm_visual_3']));
+  const out = ga.rebuildGridApply({ ladder: LADDER, nodeId: 'serie_f40_test', roundIndex: 0, file, force: true });
+  assert.ok(out.written, 'la prima corsa sul vivo scrive senza candidati');
+  assert.equal(out.source, undefined, 'nessuna corsa dei candidati: il vivo ha bastato');
+  assert.ok(tintaDisc(readFileSync(file)) >= 2, 'le tinte del vivo sano restano (niente rasterolazione dal magazzino)');
+});

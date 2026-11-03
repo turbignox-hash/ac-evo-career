@@ -52,7 +52,11 @@ const TEMPLATES_DIR = join(APPLY_DATA_DIR, 'grid-templates');
 const SNAPSHOTS_DIR = join(APPLY_DATA_DIR, 'customgrid-snapshots');
 const FACTORY_DIR = process.env.EVO_FACTORY_DIR ?? join(dirname(HERE_DIR), 'config', 'griglie-fabbrica');
 
-const templatePathOf = (nodeId) => join(TEMPLATES_DIR, String(nodeId).replace(/[^a-zA-Z0-9_.-]/g, '_') + '.customgrid');
+// Esportata (3/11, revisione dei tre banchi): il path del magazzino è UNA VOCE SOLA —
+// webui (contatore del modo custom quando la cartuccia è a 0 celle) lo legge
+// QUI e non se lo ricostruisce più: due ricostruzioni dello stesso path erano
+// due occasioni di split al primo cambio di fonte (slot, veste, magazzino).
+export const templatePathOf = (nodeId) => join(TEMPLATES_DIR, String(nodeId).replace(/[^a-zA-Z0-9_.-]/g, '_') + '.customgrid');
 const factoryFileOf = (nodeId) => join(FACTORY_DIR, basename(templatePathOf(nodeId)));
 
 /* bak e POTATURA: stessa ferrea memoria della lezione 28/10, ma la fonte è
@@ -332,20 +336,47 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
   // La scelta del backup: cerco in ordine di mtime l'ultimo candidato
   // (bacgriglia/backu-apply) che passa una dry-run del builder col pool di
   // questa serie — quindi nessuna altra potrebbe scelcarsi da sé.
+  /* GUARDIA ANTI-SINGLETON (3/11, Coppa MX-5 ND Cup): dopo un rientro del save
+   * (weekend azzerato) il vivo del customgrid si è ridotto a UNA cella UNICA:
+   * la prima corsa sul vivo il builder la passa LO STESSO — riempie con i cloni
+   * ARMONICI della medesima livrea (MONOCOLORE, il vivo delle 23:54, 16 posti
+   * tutti visual_1) — e la corsa dei candidati non parte mai. La misura giusta
+   * NON è il byte-distinto (i cloni armonici lo sono per costruzione): è la
+   * TINTA (campo 11, la stessa estrazione del builder via readCells). Se il
+   * magazzino della serie (data/grid-templates/<nodeId>) possiede PIÙ tinte
+   * del vivo, la prima corsa SALTA: si va dritti ai candidati, che provano
+   * il magazzino per PRIMO e poi i backup (il vivo perso resta nei .bak di writeSafe).
+   * Best-effort: se non si legge niente, si gareggia come prima. */
+  let saltoIlVivo = null;
   try {
-    const first = buildGridMessage({ ladder, nodeId, roundIndex, file, aiBandSerie });
-    if (dry) return { report: first.report, written: false };
-    const backup = writeSafe(first.buffer, file, { force });
-    storeTemplateSeNonRidotto(nodeId, first.buffer);   // la griglia riuscita resta la memoria della serie (guardia: niente sovrascritture con meno celle)
-    if (rosterVale) first.report.roster = trapiantaRoster(first.buffer, { force, dry });
-    return { report: first.report, written: true, backup, countAlign: bridge };
-  } catch (firstErr) {
-    // lezione vergine (24/10, collaudo prova-vergine): sul PC di un player
-    // NUOVO last_grid.customgrid può NON ESISTERE (prima gara della vita,
-    // ENOENT): non va bloccata la corsa dei candidati — anzi è LÌ che serve
-    // la fabbrica. Solo i codici SEMANTICI del builder (CAR_MISSING ecc.)
-    //iscono l'errore subito; ENOENT va avanti coi candidati.
-    if (firstErr.code && firstErr.code !== 'ENOENT') throw noTemplateHint(firstErr, ladder, nodeId);
+    const tPath = templatePathOf(nodeId);
+    if (existsSync(tPath) && existsSync(file)) {
+      const tinteDi = (buf) => new Set(readCells(buf).cells.map((c) => c.tinta).filter(Boolean)).size;
+      const vivo = tinteDi(readFileSync(file)), tpl = tinteDi(readFileSync(tPath));
+      if (vivo > 0 && tpl > vivo) saltoIlVivo = { vivo, tpl };
+    }
+  } catch { /* niente guardia: la corsa resta quella di prima */ }
+  let firstErr = null;
+  if (saltoIlVivo) {
+    console.log(`[griglia] guardia anti-singleton: il vivo ha ${saltoIlVivo.vivo} tint${saltoIlVivo.vivo === 1 ? 'a' : 'e'}, il magazzino della serie ne ha ${saltoIlVivo.tpl} → riscrittura dal magazzino (candidati: prima il template della serie)`);
+    firstErr = Object.assign(new Error('vivo povero di tinte: si va coi candidati'), { code: 'ENOENT' });
+  }
+  if (!firstErr) {
+    try {
+      const first = buildGridMessage({ ladder, nodeId, roundIndex, file, aiBandSerie });
+      if (dry) return { report: first.report, written: false };
+      const backup = writeSafe(first.buffer, file, { force });
+      storeTemplateSeNonRidotto(nodeId, first.buffer);   // la griglia riuscita resta la memoria della serie (guardia: niente sovrascritture con meno celle)
+      if (rosterVale) first.report.roster = trapiantaRoster(first.buffer, { force, dry });
+      return { report: first.report, written: true, backup, countAlign: bridge };
+    } catch (e) { firstErr = e; }
+  }
+  // lezione vergine (24/10, collaudo prova-vergine): sul PC di un player
+  // NUOVO last_grid.customgrid può NON ESISTERE (prima gara della vita,
+  // ENOENT): non va bloccata la corsa dei candidati — anzi è LÌ che serve
+  // la fabbrica. Solo i codici SEMANTICI del builder (CAR_MISSING ecc.)
+  //iscono l'errore subito; ENOENT va avanti coi candidati.
+  if (firstErr?.code && firstErr?.code !== 'ENOENT') throw noTemplateHint(firstErr, ladder, nodeId);
     // 2) template appuntato della serie + backup compatibili: stessa serie
     //    (poolAuto) presenti nel file.
     try {
@@ -403,7 +434,6 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
       if (fabbricaBloccata.length) throw missingCarError(fabbricaBloccata);
       throw noTemplateHint(lastErr, ladder, nodeId);
     } catch (e) { throw noTemplateHint(e, ladder, nodeId); }
-  }
 }
 /* Stato della griglia per la GUI: celle, config, classe combaciata e perTraccia attiva. */
 export function gridStatus({ track = null, file = GRID_FILE } = {}) {

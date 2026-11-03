@@ -490,6 +490,38 @@ si (tmp/_cura-mx5-tinte.mjs, schema tools/cura-livree.mjs):
      fare con cura dedicata. Sospesa qui.
    Test: copilota-narratori.test.mjs 31/31 verde (la parte radio).
 
+### La cura deduplica: PULIZIA-CELLE (2/11, richiesta Mauro) — tool scritto, scritta in attesa di EVO chiuso
+
+La cura promessa ai mx5 del 1/11 («da pulizia-celle da fare con cura
+dedicata») è OUT dal tmp: tool permanente
+[tools/pulizia-celle.mjs](tools/pulizia-celle.mjs), con le regole di casa
+intatte:
+- DOPPIONI byte: per ogni gruppo di celle byte-identiche la prima resta, le
+  altre ricevono INTERO il run di f14 (livree in fila, ordine di EVO) di un
+  donore VERO del parco di last_grid + bak-* (stessa identità carId+mech+vis,
+  variante in ordine di QUORUM, mai un run già in uso nel file). Solo f14:
+  f10/f11/skill/driver intatti (prostesi di cura-livree).
+- GUARDIA byte-uniche a post-cura: se il risultato avrebbe ancora doppioni per
+  parco avaro, il file NON si scrive e si gridano le celle (il limbo 2/11: nel
+  dry-run su TUTTA la libreria 15+ template hanno doppioni seri con donori
+  assenti nel parco — quella è la lista del gesto «più LIVERIES + APPLICA»).
+- MONOCOLORE (opt-in --monocolore): tutte le celle di un modello su una sola
+  livrea → le extra pescano le altre varianti reali del parco. Il default resta
+  prudente: senza flag una tinta unica legittima non si tocca.
+- Bersagli mirabili: passando un .customgrid esplicito si cura SOLO quello;
+  senza argomenti fa quadro su tutta la libreria + last_grid. --scrivi solo con
+  EVO chiuso (stessa guardia del parco), backup bak-pulizia-*, roster del
+  weekend riscritto dopo la toccata del live.
+- DRY che trova anomalia esce 3 (come cura-livree): i wrapper lo vedono.
+
+Verificato: node --check 0; dry-run sul trofeo MX-5 grida ESATTAMENTE i
+**4 doppioni** promessi (celle 3/5/9/11, il bagno del 20:41) e trova i donori
+nel parco (4 varianti reali mx5, quorum sonda 2/11); ramo --monocolore on nel
+trofeo: 0 monocolore (giusto, le NA sono già tinte diverse). LA SCRITTA è in
+attesa: **EVO è APERTO** (tasklist 13324), la guardia di casa rifiuta — la
+cura vera è `node tools/pulizia-celle.mjs --scrivi data/grid-templates/trofeo_mx5.customgrid`
+a gioco chiuso.
+
 ### La vetrina delle tinte (1/11, autorizzazione migliorie): tinte/prestate alla vista
 
 Il report del builder porta le livree per modello e le PRESTATE, ma nessuna
@@ -586,6 +618,72 @@ toccati; `node --check` sui costruiti ok.
 ---
 
 ## Registro del diario
+
+### 2/11 — La carriera si chiama APP: il ponte di Paddock diventa app-carriera, e i letterali del gioco restano tali (richiesta Mauro: «aggiorna DIARIO-SVILUPPO.md con la voce di oggi sulla rinomina Paddock→App e la suite al verde su 867 test»)
+
+La rinomina è COMPLETA in tutto il progetto:
+
+- **Il ponte**: [src/paddock.mjs](src/paddock.mjs) → [src/app-carriera.mjs](src/app-carriera.mjs) — la sola lettura dei journal
+  dell'app del gioco in Saved Games (niente copia da allineare, lezione 31/10),
+  con [src/journal.mjs](src/journal.mjs) e [src/uiapp-store.mjs](src/uiapp-store.mjs) a passo; consumatori
+  aggiornati: webui, webui-views, uiapp-pub, state, cars, race, import, analisi,
+  gridbuilder, grid-calib, world, testday, cli, life.
+- **I rinominati con lui**: [tools/ronda-ladder.mjs](tools/ronda-ladder.mjs),
+  [tools/classi-da-app.mjs](tools/classi-da-app.mjs),
+  [tools/cura-giri-app.mjs](tools/cura-giri-app.mjs),
+  [tools/_prova-app.mjs](tools/_prova-app.mjs) e i test
+  [test/app-assenza.test.mjs](test/app-assenza.test.mjs),
+  [test/app-bridge.test.mjs](test/app-bridge.test.mjs),
+  [test/classi-app.test.mjs](test/classi-app.test.mjs),
+  [test/cura-giri-app.test.mjs](test/cura-giri-app.test.mjs),
+  [test/fasce-app-stabili.test.mjs](test/fasce-app-stabili.test.mjs),
+  [test/ronda-ladder.test.mjs](test/ronda-ladder.test.mjs),
+  [test/uiapp-pub-app.test.mjs](test/uiapp-pub-app.test.mjs) (insieme a
+  semina-bottone e uiapp-tick-coda di questo giro).
+- **Cosa NON si rinomina** (contratto): i letterali funzionali dell'app del
+  gioco — la cartella journal `Saved Games\ACE\mods\uiresources\ACEUIAppLoader\paddock\`, i journal `pd-*`,
+  `paddock.js`, `engine: 'Paddock 1.0.2'`, `APP_PDKEY='paddock'` — e il
+  PRODOTTO esterno vero (`Paddock.exe`, `Desktop\Paddock`, la versione
+  1.0.2): il nome "Paddock" nei restanti punti dei sorgenti è SOLTANTO il suo
+  catalogo e i suoi file; diario storico e POST-PRESENTAZIONE restano
+  cronologia, non codice.
+- **Cure di residuo**: `_classi-paddock-tmp` → `_classi-app-tmp`
+  ([test/classi-app.test.mjs](test/classi-app.test.mjs)), tmpdir
+  `ronda-ladder-` ([test/ronda-ladder.test.mjs](test/ronda-ladder.test.mjs)),
+  backup `grid-classes.bak-classi-app-` ([tools/classi-da-app.mjs](tools/classi-da-app.mjs)),
+  commento `isolazione identica a ronda-ladder.test`
+  ([test/app-bridge.test.mjs](test/app-bridge.test.mjs)).
+
+Verifica: la suite dei rinominati (app-assenza, app-bridge, classi-app,
+cura-giri-app, fasce-app-stabili, journal-nostro, ronda-ladder,
+uiapp-pub-app, uiapp-tick-coda, uiapp-pub-guard, uiapp-installata) **82/82**;
+suite INTERA `node --test "test/*.test.mjs"` **867/867 verdi** (37 s).
+Lezione di ambiente per il futuro: `node --test test/` su Node 22 prova a
+caricare la CARTELLA come modulo (MODULE_NOT_FOUND brutta) — il glob dei
+file, non la dir.
+
+### 2/11 — Il tasto «Prepara tutto e avvia il campionato» esce dalla GUI (richiesta Mauro: «il nuovo tasto che non voglio, è da rimuovere»)
+
+- [gui/js/viste-b.js](gui/js/viste-b.js): `seminaRigaHTML` + `seminaRigaWire`
+  via con le DUE montature del tab Campionati (pagina piena e ramo vuoto).
+- [src/webui.mjs](src/webui.mjs): via il case POST `semina` (consumatore
+  unico era quel tasto), l'import del seminatore e la voce `semina` dai
+  cancelli SOLO_POST.
+- [test/semina-bottone.test.mjs](test/semina-bottone.test.mjs) cancellato:
+  provava esattamente quel tasto+endpoint. Il seminatore resta DA RIGA DI
+  COMANDO (`node tools/semina-campionato.mjs`, provato da
+  [test/semina-campionato.test.mjs](test/semina-campionato.test.mjs)).
+- **L'errore colto sul vivo** era quasi sicuro la guardia GAME_OPEN («Il
+  gioco (EVO) è aperto: chiudilo prima di seminare» — Mauro era entrato in
+  EVO col «Prepara e divertiti» un attimo prima): col tasto via, la questione
+  muore comunque.
+
+Verifica: `node --check` su webui.mjs e viste-b.js; test mirati
+(webui-smoke, tetto-gui-json, guardia-nav, layout-impostazioni,
+semina-campionato, webui-queue, semina-race-settings) **19/19**; webui
+riavviata (nuovo processo su 8642, vecchio PID 6645 giù): home 200,
+`/api/championships` con le serie vere, `/api/semina` → **404**; suite INTERA
+**863/863** (i 4 mancanti su 867 sono i test cancellati col tasto).
 
 ### 1/11 notte — IL REGISTRO DELLE SCRITTURE AUTOMATICHE DEL BOLLETTINO, NELLA GUI (richiesta Mauro: «aggiungi nella GUI un piccolo registro delle scritture automatiche del bollettino») · ✅
 
@@ -731,7 +829,7 @@ cella per campo.
   (f4 + pack, f3 = 0.1, f7 = 1); suite `test/` **748: 747 pass + 1 skip,
   0 fail**; biome pulito sui due file toccati. (Due test rossi nel giro completo
   `node --test`: stanno SOLO nel pacco-fixture `tmp/pacco-test` — «senza .git»
-  e `/api/paddock` nel sandbox — non toccati dalla cura.)
+  e `/api/app` nel sandbox — non toccati dalla cura.)
 
 ### 1/11 sera — La FORMA DEL GIOCO: scala a f4.f7 interno, piste e meteo verificate a byte
 
@@ -1885,7 +1983,7 @@ La GUI invece doveva attraversare TRE cifre fisse, tutte in serie:
   l'incasso porta i dati già nuovi. Catena percepita in gioco al traguardo:
   tick 2 s + grazia 3 s + incasso a ms + fascia ≤2,5 s + slot ≤1,25 s
   ≈ **6,5–9 s** (era 13–20 s + fascia). Canale Paddock a 500 ms separato
-  e già vivo (`fascePaddock`), non serve alle due app nostre.
+  e già vivo (`fasceApp`), non serve alle due app nostre.
 
 ### 1/11 — Release 0.1.45 preparata: il weekend col cielo per sessione e l'orologio nelle app
 
@@ -2233,7 +2331,7 @@ TUTTE dal vivo in sandbox (%TEMP%\evo-sbiz):
   cruscotto (foto in tmp/) mostra la carriera con ogni pannello onesto:
   verdetto «apri il wizard», MOTEC vuoto — niente crollo, nessun 400.
 - **Bonus scoperto e lasciato stare (di progetto)**: nella sandbox il badge
-  di livello dice «Fuoriclasse»: NON è bug — `paddockLevelBadge` legge il
+  di livello dice «Fuoriclasse»: NON è bug — `appLevelBadge` legge il
   journal Paddock installato sulla MACCHINA («una sola verità»); nella
   sandbox atterra solo perché sul PC di Mauro c'è la cartella ACE reale.
   Su un amico senza Paddock il chip resta nascosto (rep < 490). Anche la
@@ -2833,7 +2931,7 @@ Gita in tre tappe, tutte chiuse con prove sul disco:
    3 gare (Donington 5/13 +24,8s, doppia Monza in DSQ col giro
    01:54.380), [report/gare/verdetto-261030.md](report%2Fgare%2Fverdetto-261030.md).
    Il numero della fascia e quello della CLI coincidono: una sola verità.
-3. **Consigli anche nel Paddock** — il bridge `/api/paddock` ora porta
+3. **Consigli anche nel Paddock** — il bridge `/api/app` ora porta
    allegato il pacchetto consigli (`consigliFascia`, STESSA fonte del
    cruscotto in fascia: zero letture MMF aggiuntive) e [viste-a.js](gui%2Fjs%2Fviste-a.js)
    li disegna in fila sotto la tabella del meteo. Collaudato SU SERVER
@@ -2841,7 +2939,7 @@ Gita in tre tappe, tutte chiuse con prove sul disco:
 
 
 Chiusura del cerchio: **riavvio del server vivo con [riavvia-webui.mjs](tools%2Friavvia-webui.mjs)**
-— `/api/paddock` risponde col pacchetto consigli (live:false a menu, giusto)
+— `/api/app` risponde col pacchetto consigli (live:false a menu, giusto)
 E il publisher riparte col pitwall: le sue mini-fasce (`ui-7173558xx.json`)
 cominciano a uscire nella SUA cartella, come promesso a teoria.
 
@@ -2972,7 +3070,7 @@ Test: +3 in [test/stint-plan.test.mjs](test/stint-plan.test.mjs) (alert vivi e s
 ### 31/10/2026 sera — La stima provata a ponte spento (e la tessera committata)
 La tessera dell'header committata (d859430, dopo riepilogo suite 556/556 e lint
 pulita su 278 file). Poi la prova DELLA STIMA CHE NON ESISTERA: il webui rientrato
-con `PADDOCK_JOURNAL_DIR="C:/no-such-paddock-dir"` (la root inesistente → il ponte
+con `APP_JOURNAL_DIR="C:/no-such-paddock-dir"` (la root inesistente → il ponte
 silenzia per progettazione, NON cade sui journal veri) — console e GUI dicono lo
 stesso: API `source:"stima"`, chip «~Fuoriclasse» giallo col tooltip della stima
 (rep 632 ≥ 490). Rientro pulito subito dopo: `source:"paddock", pct:100` di nuovo.
@@ -2984,7 +3082,7 @@ nell'intestazione della GUI web (campo «Livello» accanto a Reputazione): VERA 
 ponte (pd-home profile.level, nome+colore+pct del gioco), STIMA marcata «~» dalla
 reputazione della NOSTRA carriera quando Paddock non parla — e sotto la soglia
 osservata 490 niente chip: niente inventate. Clic → Statistiche.
-Pezzi: `paddockLevelBadge(rep)` in [src/paddock.mjs](src/paddock.mjs), campo
+Pezzi: `appLevelBadge(rep)` in [src/app-carriera.mjs](src/app-carriera.mjs), campo
 `levelBadge` nell'header server ([src/webui-views.mjs](src/webui-views.mjs)), chip in
 [gui/index.html](gui/index.html) + [gui/js/core.js](gui/js/core.js) con le stesse
 regole di traduzione statica. 2 test nuovi nel ponte (13/13): reale dal journal,
@@ -2998,11 +3096,11 @@ la versione in app.json e i **12 journal riscritti** al primo giro.
 Miglioria presa dalle novità: i journal ora portano `profile.level` con i NUOVI
 colori dei driver level — la card Paddock del cruscotto mostra la tessera
 (nome + livello col COLORE esatto del gioco, Fuoriclasse #f5c542 per Mauro).
-Tessera in [src/paddock.mjs](src/paddock.mjs) (paddockOverview passa profile →
-api/paddock) e [gui/js/viste-a.js](gui/js/viste-a.js).
+Tessera in [src/app-carriera.mjs](src/app-carriera.mjs) (appOverview passa profile →
+api/app) e [gui/js/viste-a.js](gui/js/viste-a.js).
 La prova del vuoto: **Paddock NON installato non crea problemi** — piccolo
-[test/paddock-assenza.test.mjs](test/paddock-assenza.test.mjs) (7/7) che replica
-l'assenza col PADDOCK_JOURNAL_DIR impossibile: endpoint 200 col JSON ok:false,
+[test/app-assenza.test.mjs](test/app-assenza.test.mjs) (7/7) che replica
+l'assenza col APP_JOURNAL_DIR impossibile: endpoint 200 col JSON ok:false,
 niente card, import resta zitto, bonus gara pulita integra (è matematica pura),
 schede auto perdono SOLO l'extra tecnico. **Suite 554/554**.
 ### 31/10/2026 — Le bandiere entrano nella storia (DA-2 chiusa)
@@ -3982,3 +4080,153 @@ quella lente ho rifatto il confronto:
   controlla → APPLICA → gara. Con le anteprime vive e la sessione che
   sale, la notte è chiusa; se cade di nuovo → protocollo di riprova e
   log già in mano, e si va a Kunos con il racconto dei 4 crash.
+
+## 2/11 sera — DEBITO DI PULIZIA: via la rinomina singola col window.prompt
+- NOTA (richiesta Mauro): tolto il bottone ✏️ di rinomina SINGOLA, ovunque
+  usasse `window.prompt`: la casella ✏️ in ogni riga del registro «Tutti i
+  rivali» (viste-d) e i bottoni «✏️ Rinomina» nella scheda rivale e nel
+  dossier (viste-d) e nella scheda della classifica mondiale (viste-b).
+- ELIMINATO anche `rinominaPilota` in core.js: era l'unico chiamante di
+  `window.prompt` per i soprannomi — il pop-up nativo del browser è brutto
+  e blocca l'app; zero riferimenti residui in gui/ (grep a vuoto).
+- RESTA l'UNICA via:
+  «📝 Soprannomi in blocco» (b-bulk-rn, viste-d bulkRinomina): un modal con
+  ricerca e casella per ogni pilota + «Salva tutti», ciascun alias via
+  `alias-set` come prima. Nota: il blocco vive nel registro rivali (scope
+  'rival'); dalla classifica mondiale i nomi lì NON si possono più
+  rinominare in loco (i modali lì hanno solo Chiudi) — serve il registro.
+- NON TOCCATI: il form «Rinomina» del nome carriera (f-rename, è un campo
+  testuale, non window.prompt) e gli altri prompt legittimi (nota setup in
+  viste-c, nome preset in viste-b, rimozione preset in viste-griglia).
+- SINTASSI: node --check OK su core/viste-a/b/c/d/viste-griglia.
+
+### Il caso stantio del generatore entra in guardia (3/11, richiesta Mauro)
+
+Richiesta: «Aggiungi al test anche il caso copia-in-gioco-stantia del
+generatore, con un finto ACE_SAVEDIR popolato». Il richiamo (genera-uiapp
+rivede la copia installata ≠ costruito → richiama da solo l'installatore
+nella STESSA run, uscita non-zero = build fallita) non aveva il caso di prova:
+la guardia guardava solo le stanza vere (uiapp-installata 3) e le sandbox dei
+flussi (installa-gioco.test.mjs). Ora **test/uiapp-installata.test.mjs** porta
+il test COPPIA STANTIA:
+- radice Saved Games FINTA in temp, popolata COME la vera: mod ACEUIAppLoader
+  installata (cartella app con app.json + costruito) + marcatore del loader
+  (file vuoto ACE/Video/ACEUIAppLoader-cruscotto.settingspreset, lezione 17:55);
+- la copia di cruscotto dentro è STANTIA (vecchio .js a mano ≠ costruito) e
+  ACE_SAVEDIR comandata alla radice finta: genera-uiapp E l'installatore che
+  richiama girano SOLO lì, mai nella stanza vera;
+- prove: log gridato «non corrisponde alla costruita», uscita 0, in radice
+  finta la copia consegnata è il costruito IDENTICO byte per byte, e alla
+  SECONDA run «niente da reinstallare» (idempotente).
+In bocca al lupo al test 1 il generatore gridava «non corrisponde all
+costruita» (svista in genera-uiapp.mjs): corretta in «alla costruita» — la
+guardia aspetta il messaggio vero, il tool parla bene.
+
+Verificato: node --test test/uiapp-installata.test.mjs **6/6** (le 5 guardie
+precedenti restano), biome su test+tool 0.
+
+## 2/11 — ore 19:20 — chiusura della cura del save (round 3, terza volta buona)
+
+- **Radice del ricaduto**: `test/ronda-ladder.test.mjs` importava `webui-env` in modo
+  statico: ESM innalza gli import PRIMA dell'assegnazione `EVO_DATA_DIR`, quindi la
+  suite scriveva sul save vero (rifinito alle 19:09 e di nuovo alle 19:17 sotto suite).
+  Cura: dynamic import DOPO che l'env è puntato al banco, come già fa testday-margine.
+- **Rientro gara (3ª volta)**: restore da `evo-career.save.bak-2026-11-01T23-54-04.auto.json`
+  + hash 784ebfa906048458 rimosso dal registro + `import`. P4/20 su Mount Panorama,
+  giro veloce, 13 punti, banca 630.392, rep 726, round 3, 416 piloti, ronda 2 nel book.
+- **Server webui**: il vecchio (pid 23684→24324) teneva lo stato sporco in memoria ed
+  era LUI le 19:09 (i tick del webui attivo hanno riscritto i campi poveri sopra il mio
+  restauro). Riavviato con `tools/riavvia-webui.mjs` → nuovo pid 5440 (19:20:30) che
+  ha letto lo save buono; lo save integro sotto tick 20 s (mtime/size fermi).
+- **Suite conclusiva**: prima run 833/834 (sonda anti-colpo a 1 solo in suite; verde
+  4/4 da sola — stesso quadro a rotazione del vecchio "tab Impostazioni", incastro
+  parallelo ambientale). Seconda run: **834/834 pass, fail 0, exit 0**. Biome: 0 error,
+  6 warning preesistenti.
+- **Imparo**: nella suite ogni test che tocca `webui-env` DEVE girare l'import con
+  dynamic-import a valle dell'assegnazione EVO_DATA_DIR — gli import statici sono
+  innalzati e ignorano l'env.
+
+### 3/11 (notte) — IL CERCHIO COL MIRROR: la card beve dalla ronda del calendario (pd-calendar o journal nostro), meteo a due scale, layout della card giusto
+- CHIESTO (Mauro): chi NON ha l'app del gioco in gioco, la scheda della
+  gara («Iscriviti e divertiti») la deve scrivere come la app ma con la
+  ronda presa DAL MIRROR (src/journal.mjs), che a ogni saveState
+  rispecchia la agenda del ladder accanto al save.
+- L'UNICO CERCHIO (`src/app-carriera.mjs`): `rondaDelCalendario` è
+  l'helper che ritorna la ronda «next» — pd-calendar dell'app O mirror
+  journal nostro (appCalendar fall-back già in piedi) — con pista
+  (pistaParola), trackId (trackIdDaNome), layout, giri, ora+minuto e
+  meteo tradotto nelle DUE scale (weather: scala ladder per
+  round.weather; idPreset: scala PRESETS di weather.mjs per
+  setWeatherPreset). `stessaSerie` matcha PRIMA per AUTO (la lezione
+  stasera sui due Trofei MX-5: display gemello, parco auto diverso),
+  poi per nome display. La serie deve combaciare col nodo e la ronda
+  avere la PISTA, senza: null e chi chiama resta sulla ladder grezza.
+- `src/race.mjs`: `nextRound` beve dall'helper unico (mirror arriva da
+  solo, senza app installata) e `raceCard` usa il LAYOUT seminato
+  (round.layout) invece del solo GP-default della tabella: la scheda e
+  la riga «Pista» seguono il National/Fosters del calendario.
+- `tools/ronda-ladder.mjs` (SOLO CLI): le TRE funzioni duplicate sono
+  sostituite dall'helper unico, via findTrackInfo, e CORRETTO
+  meteoRonda alla lezione weather.mjs — le DUE scale non coincidono da
+  3 in su (prima una ronda «Pioggia leggera» del calendario diventava
+  «Coperto» nella riga CLI). Traduzione per NOME, mai per numero
+  (tabella METEO_PD in app-carriera): scala ladder 3 (Light
+  rain)→preset 4, 4 (Rain)→5, 5 (Heavy rain)→6; Coperto/Overcast resta
+  ladder 2 ma preset 3 («Coperto» del selettore EVO), solo
+  Nuvoloso/Cloudy cade sul preset 2.
+- TEST: `test/journal-nostro.test.mjs` — rondaDelCalendario col mirror
+  (Oulton Park «Pioggia leggera» → ladder 3 / preset 4) e null senza
+  mirror. `test/race-card.test.mjs` — raceCard col mirror scritto accanto
+  al save: la ronda «next» guida la scheda in tutto (roundIndex,
+  layout seminato, giri, ora, meteo ladder, __pd true), con rmSync in
+  finally (prima run: 4 ≠ 8 giri, il mirror del test persisteva
+  nell'EVO_DATA_DIR condiviso e contaminava i test dopo).
+  `test/ronda-ladder.test.mjs` — tabella meteo aggiornata alle DUE
+  scale e meteoRonda alla lezione (i test che prima facevano da
+  cavallo al bug, corretti alla verità).
+- VERIFICA: node --test su race-card + journal-nostro + ronda-ladder
+  **42/42 verdi**, webui-smoke 1/1. node --check OK su
+  app-carriera.mjs e ronda-ladder.mjs.
+
+## 3/11 notte — LE SKIN IDENTICHE: LA GUARDIA ANTI-SINGLETON A TINTE ([src/grid-apply.mjs](src/grid-apply.mjs))
+
+- **Radice dell'incidente** (richiesta Mauro: «tasto prepara e divertiti... le skin
+  delle auto sono identiche e l'auto già verificato ha 3 skin»): il rientro del save
+  della sera (weekend azzerato) aveva ridotto il vivo `last_grid.customgrid` a UNA
+  cella unica (prova: bak-apply 23:54 = 530 B). La PRIMA CORSA del rebuild (il builder
+  sul vivo) NON fallisce: con il pool povero completa con il filler dell'ARMONICA — 15
+  cloni della STESSA livrea (16× visual_1, MONOCOLORE) — e la corsa dei candidati
+  (magazzino per serie → bak → snapshot → fabbrica)  non parte mai. Il parco giusto (19 celle, 3 tinte) stava nel magazzino della serie.
+- **La misura giusta NON è il byte-distinto**: i cloni armonici lo sono PER
+  COSTRUZIONE (passo 0,0003·k): una griglia monolivrea risulta «tutte celle uniche»
+  venirci letta così. La misura è la TINTA (campo 11, la stessa estrazione del
+  builder via `readCells(...).tinta`).
+- **Cura atto 1 (riparo a secco, fuori dal codice)**: riscrittura del vivo dal
+  magazzino della serie `coppa_mazda-mx5-nd-cup.customgrid` — 14 celle round 4
+  Laguna Seca, banda 84–85 intatta, parco 9× visual_2 (bianco/rossa) + 3×
+  visual_99 (rossa quadrifoglio) + 2× visual_1 (rossa standard); backup del vivo
+  monocolore in `last_grid.customgrid.bak-liveria-2026-11-03-00-03-54` (7940 B).
+- **Cura atto 2 (la guardia nel codice)**, in [src/grid-apply.mjs](src/grid-apply.mjs),
+  prima della prima corsa di `rebuildGridApply`): conta le tinte del vivo e del
+  magazzino della serie; se il magazzino ne ha PIÙ, la prima corsa SALTA
+  (`firstErr` finto code ENOENT) e si va dritti ai candidati, che provano il
+  magazzino per PRIMO — vince il parco con più tinte senza che il Giudice del
+  builder cambi (resta lui l'unico a dire se un candidato vale). Best-effort:
+  se il magazzino non esiste o non si legge si gareggia com'era. Log esplicito:
+  `[griglia] guardia anti-singleton: il vivo ha N tinte, il magazzino della serie
+  ne ha M → riscrittura dal magazzino (candidati: prima il template della serie)`.
+  Il vivo perso resta comunque nei bak-apply di writeSafe.
+- **TEST di regressione** in [test/grid-templates.test.mjs](test/grid-templates.test.mjs):
+  «vivo POCO TINTATO perde la prima corsa, vince il magazzino» (source dichiara il
+  magazzino, tinte ≥2 nella griglia scritta) e «vivo SANO (pariggiato di tinte):
+  la prima corsa resta sul vivo» (source assente, niente candidati). Suite:
+  grid-templates **16/16**; readcells-tinta + gridbuilder-tinte +
+  gridbuilder-banda-serie + gridbuilder-uniche + weekend-roster **31/31**.
+- **CONFERMA SUL VIVO**: dry-run reale (`node ac-evo-career.mjs griglia --dry`):
+  `celle 16` dal vivo, NESSUN log di guardia — giusto: il vivo curato ha le sue
+  3 tinte e la guardia deve stare zitta.
+- **Imparo**: chi prende il vivo in prima corsa esce felice anche quando nella
+  griglia piovono cloni della stessa livrea. La leva anti-crash dell'ARMONICA
+  (sopravvissuta al crash F40 del 23/10) è anche la porta dell'omologia: quando
+  il parco c'è da un'altra parte (magazzino), la misura non è «quante celle
+  distinte ho scritto» ma «quante LIVERIE distinte restano in bocca al player».
