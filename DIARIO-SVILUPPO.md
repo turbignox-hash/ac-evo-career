@@ -2087,6 +2087,34 @@ due regole concrete di chi la usa domani:
    messa a cavallo del bordo della label (area comune 6 px in altezza,
    sborda sopra).
 
+### 2/11 — Notizia: Messaggi e i tab del gruppo Gara sono GIÀ coperti dalla guardia
+(richiesta Mauro: «registra nel diario che Messaggi e i tab del gruppo Gara sono già coperti dalla guardia e scrivi la notizia del 2/11»)
+
+Da registrare perché conviene: NON c'è niente da aggiungere. Il gruppo
+che un weekend di gara tocca sta TUTTO nella TAB della guardia di layout,
+ognuno col SUO marcatore di vista e ciascuno con le 5 larghezze:
+
+- **Messaggi** — `#mx-posta` ([layout-impostazioni.test.mjs:116](test/layout-impostazioni.test.mjs#L116)), 1 pannello;
+- **Centro gare** — `#ag-advance`, 2 pannelli (hero + gare del giorno);
+- **Griglia** — `#g-tbody`, 5 pannelli (celle, classi, sede weekend,
+  calibrazione, azioni);
+- **Garage** — `#g-mech`;
+- **Risultati/Import** — `#imp-result`;
+- più i vicini che il giorno di gara guarda: **Setup** `#psi-panel`,
+  **Analisi** `#an-tetto`, **Piste** `#track-hist`, **Auto** `#cars-grid`.
+
+La linea del tempo, per chi rilegge il diario tenendo d'occhio le date: la
+guardia nasce il 2/11 proprio qui sopra (Impostazioni a 480/1250/1920,
+poi la prova a rottura); Griglia e Garage entrano in giornata il 2/11
+coi loro marcatori; Messaggi arriva con la stesa «tutti i tab» del 3/11
+(#mx-posta esiste SOLO in quella vista) e oggi la TAB conta le 21 (19 in
+nav + 2 nascosti) × 5 larghezze = **105 misure**, tutte verdi, anche a
+320 px. Quindi la risposta alla domanda «sto per toccare le viste di
+Messaggi o del giro Gara, la guardia è già lì?»: **sì, è già in
+servizio** — si tocca la vista, si gira il check intero come da legge di
+[COMANDI-BUFFY.md](COMANDI-BUFFY.md), e la guardia dice se il layout è
+restato a posto.
+
 ### 2/11 — Termometro del battito: media dei 5 ping, non la singola lettura (richiesta Mauro: «fai scorrere i 5 tempi di ping più recenti e mostra la media, con tooltip che elenca i bassi e gli alti»)
 
 Il termometro di un'ora prima leggeva un solo ping per volta: un ping fortunato
