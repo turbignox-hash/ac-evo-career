@@ -5,6 +5,15 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — EVO Pitwall vicino all'orologio: icona tray, server nascosto, Paddock intatto
+
+- **Richiesta**: Mauro vuole l'immediatezza di Paddock senza togliere Paddock: l'icona accanto all'orologio apre la GUI, mentre loader e Paddock restano nel menu.
+- **Tray**: nuovo `tools/evo-tray.ps1` (PowerShell 5.1, `-STA`, `NotifyIcon` con `gui/pitwall.ico`): clic sinistro apre `http://127.0.0.1:8642/`, menu Apri / Riavvia server / Esci. Un mutex `Local\EVOPitwallTray` impedisce due icone o due server. Se il server non c'è, parte `node webui.mjs` nascosto e il browser aspetta la porta.
+- **Un solo punto d'ingresso**: `gui-run.cmd` avvia lo script tray nascosto; `avvia.cmd` e `apri-gui.cmd` passano da lì. Fallback: se PowerShell non c'è, resta `node webui.mjs --open`.
+- **Paddock**: ripristinato com'era (689 file, `app.json` e marcatore `ACEUIAppLoader-paddock.settingspreset`) e non toccato; nessun file di gioco o save modificato.
+- **Verifica**: test mirati `tray` + `scorciatoie` **6/6**; suite completa **950/950**; Biome **378 file, 0 warning**; prova reale con `gui-run.cmd`: tray PowerShell PID 15340, listener 21228 su 8642, pagina **200**, `/api/card` con `loader/installata/publisher/attiva` tutti `true`; secondo avvio → una sola tray e stesso listener; `git diff --check` pulito.
+- **Nota**: release `v0.1.58` invariata; `data/samples/garage/map.json` resta fuori dal commit.
+
 ### 4/11 — Fase A: un solo installer, publisher che aspetta l'app, stato unico in GUI
 
 - **Un solo installer**: `tools/installa-gioco.mjs` assorbe installazione e rimozione (`--rimuovi`) di Cruscotto e Pitwall; `genera-uiapp` lo richiama una volta sola. Rimossi `tools/installa-cruscotto.mjs`, `tools/installa-pitwall.mjs` e il residuo `uiapp/cruscotto/menu.html`; `avvia.cmd` e `INSTALLA-GIOCO.cmd` restano le vie d'ingresso.

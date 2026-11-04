@@ -21,7 +21,7 @@ goto run
 echo.
 echo   Apro l'interfaccia grafica di EVO Pitwall...
 echo   (si apre nel browser su http://127.0.0.1:8642)
-echo   Il server gira ridotto a icona nella barra delle applicazioni: da li' lo chiudi.
+echo   Il server vive vicino all'orologio (icona tray): da li' apri o chiudi.
 echo.
 call :aprigui
 exit /b 0

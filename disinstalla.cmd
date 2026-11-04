@@ -131,7 +131,7 @@ exit /b 0
 
 :hpersomacchia
 echo   [i] Non ho levato tutto "%TARGET%": il launcher e' ancora APERTO
-echo       (icona nella barra delle applicazioni). Chiudilo e ri-lancia.
+echo       (icona vicino all'orologio). Chiudilo e ri-lancia.
 exit /b 1
 
 :annulla

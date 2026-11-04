@@ -55,8 +55,8 @@ la cartella installata, si gestisce da solo le installazioni):
    `[k]` la tiene (la sposta in `<cartella>-data`, accanto) o `[b]` via tutto;
 3. toglie le scorciatoie «Carriera EVO» dal Desktop e dal menu Start **solo se
    puntano a quella cartella** (quelle di un'altra installazione restano al loro posto);
-4. se il launcher è ancora aperto, te lo dice: chiudi (icona nella barra
-   delle applicazioni) e ri-lanciate.
+4. se il launcher è ancora aperto, te lo dice: chiudi l'icona vicino
+   all'orologio (tray) e ri-lanciate.
 
 La voce in **App e funzionalità** viene tolta solo se punta a quella cartella; dall'EXE il pulsante **Disinstalla…** avvia lo stesso `disinstalla.cmd`.
 

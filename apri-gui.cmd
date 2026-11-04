@@ -1,6 +1,6 @@
 @echo off
 rem apri-gui.cmd - apre l'interfaccia grafica di EVO Pitwall nel browser.
-rem Il server gira ridotto a icona nella barra delle applicazioni: da li' lo chiudi.
+rem Il server vive vicino all'orologio (icona tray): da li' apri o chiudi.
 setlocal
 cd /d "%~dp0"
 
