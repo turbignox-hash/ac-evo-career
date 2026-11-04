@@ -26,6 +26,20 @@ Il gioco resta il gioco. EVO Pitwall non sostituisce la carriera nativa di AC EV
 
 La **pre-release** corrente è **[v0.1.57](https://github.com/turbignox-hash/ac-evo-career/releases/tag/v0.1.57)**. Include lo ZIP amico, entrambi gli installer Windows e il bundle `EVO-Pitwall-v0.1.57-Windows.zip` con i due EXE, i checksum e una guida breve. Nessun privilegio di amministratore; l'EXE offline include Node portatile e funziona senza connessione.
 
+
+
+| Download | Cosa contiene |
+| --- | --- |
+| **[Bundle Windows ZIP](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.57/EVO-Pitwall-v0.1.57-Windows.zip)** | Entrambi gli EXE, i due checksum e `LEGGIMI-INSTALLER.txt`; download unico consigliato |
+| [EXE offline](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.57/EVO-Pitwall-Setup-Offline.exe) | Autonomo, Node e codice inclusi; nessuna connessione |
+| [EXE online](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.57/EVO-Pitwall-Setup.exe) | Scarica Node portatile e il codice corrente |
+| [SHA-256 del bundle](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.57/EVO-Pitwall-v0.1.57-Windows.zip.sha256) | Checksum dello ZIP stesso |
+| [ZIP amico](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.57/ac-evo-career-amico-v0.1.57-8e641b0.zip) | Pacchetto sorgente con guide e `installa.cmd` |
+
+> **SHA-256:** bundle `a9f0e67e0d2cb9b80339f97ac30d2de99b524d739c525158a441cdd71903b42c` · online `dcc4c85db627cee2f2f89bef254047755ce40ab82e5925b3590a963bca7d574f` · offline `6d44c5dbfabac7fbd582b287a38a0d3c3945e3207a84466eec0d4ed6ac616431`
+>
+> PowerShell: `Get-FileHash .EVO-Pitwall-v0.1.57-Windows.zip -Algorithm SHA256`
+
 > **Anteprima non firmata:** la v0.1.57 è una pre-release perché gli EXE non sono ancora firmati Authenticode. Aspettati SmartScreen; scarica solo da questo repository. La v0.1.56 è più vecchia.
 
 ### Opzione B — EXE Windows dal ramo `main`
