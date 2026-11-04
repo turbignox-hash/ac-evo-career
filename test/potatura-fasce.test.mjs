@@ -49,11 +49,11 @@ writeFileSync(join(NIDO, 'evo.config.json'), JSON.stringify({ dataDir: GIOCO }),
 
 const { uiappTick, FASCE_DIETRO } = await import('../src/uiapp-pub.mjs');
 
-/** riempie la cartella di fasce VECCHIE (slot corrente escluso): 40 fascia
- *  indietro in un solo colpo, come un disco affollato da un publisher che
- *  gira da ore prima della potatura. */
+/** riempie la cartella con lo slot corrente + 40 fasce vecchie: il publisher
+ *  può aver già scritto la fascia attuale, e il tick la sovrascrive. Include
+ *  il corrente così il confine 2,5 s non sposta la finestra di 12. */
 const affollaFasce = (dir, fasciaOra) => {
-  for (let d = 1; d <= 40; d++) {
+  for (let d = 0; d <= 40; d++) {
     const slot = fasciaOra - d;
     writeFileSync(join(dir, `ui-${slot}.json`), JSON.stringify({ slot }), 'utf8');
   }
@@ -83,9 +83,9 @@ test(`LA POTATURA tiene al più ${FASCE_DIETRO + 1} fasce (corrente + ${FASCE_DI
   assert.ok(minima >= fasciaT - FASCE_DIETRO,
     `la fascia più vecchia è nella finestra di ${FASCE_DIETRO} dietro (vecchia: ${minima}, corrente: ${fasciaT})`);
   // LA CURA DEL BUCO sul vivo: la copertura DIETRO (fascia-1, fascia-2) resta
-  // a casa — si potrebbe uguagliare contro il fascia - 1 ma il contorno (tick
-  // che attraversa il confine 2,5 s mentre seminiamo) romperebbe l'esatto;
-  // qui basta la finestra di sopra.
+  // a casa. La semina include lo slot corrente: se il tick attraversa il
+  // confine 2,5 s, la fascia seminata è già la prima dietro e la finestra non
+  // perde un posto; qui basta la finestra di sopra.
 });
 
 test(`LA POTATURA tiene al più ${FASCE_DIETRO + 1} fasce ANCHE alla pitwall (secondo canale dello stesso tick)`, () => {

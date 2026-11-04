@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — potatura-fasce: il confine 2,5 s non falsa la finestra (richiesta Mauro: «scegli autonomamente cosa migliorare e procedi, sei autorizzato a modificare se porta benefici»)
+
+- **Il flake**: il test seminava `attorno-1…attorno-40`. Se il tick attraversava il confine, scriveva `attorno+1` e le 12 fasce dietro restavano `attorno-12…attorno-1`: la più vecchia era 13 dietro il nuovo corrente. Non era la potatura rotta: era la semina che non conteneva lo slot corrente.
+- **La cura**: `affollaFasce` semina ora lo slot corrente + 40 dietro (41 file); il tick può sovrascriverlo, ma se attraversa il confine quella fascia è già la prima dietro e la finestra resta esatta. Nessuna asserzione allentata.
+- **Verifica**: 40 esecuzioni consecutive del test (**120 test eseguiti**) tutte verdi; `npm run check` exit 0; suite **963/963**; lint **365 file, 0 warning**; `node --check` e Biome sul test puliti.
+- **Nota**: test-only, nessun codice di produzione. Committato, non pushato. Restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — documenti: AUDIT storico e ROADMAP dei soli DA aperti (P2.9) (richiesta Mauro: «P2.9 — documenti: AUDIT.md è fermo a “650 test, non esiste check”; andrebbe marcato storico e affiancato da un ROADMAP.md con i soli DA aperti.»)
 
 - **AUDIT.md**: titolo e testa marcati **STORICO** — fotografia al 1/11/2026, quando la suite era 650/650 e `npm run check` non esisteva. Il corpo non è stato riscritto: resta la base dell'audit.
