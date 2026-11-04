@@ -23,13 +23,13 @@ import { gameRunning, encodeMsg, gridFileOf, bakName, pruneBackups, factoryDir }
 // dal nome a MINUTO ricostruito a mano al backup al SECONDO dell'unico bakName.
 export { pruneBackups, bakName };
 import { balanceCells, dropCells, setAiRange, planFromClass, readCells, DEFAULT_FILE } from '../tools/grid-balance.mjs';
-import { weekendCarCount, weekendGridMode } from '../tools/set-track.mjs';
+import { weekendCarCount, weekendGridMode, setWeekendGridCustom, WEEKEND_FILE, celleGrigliaCampionato } from '../tools/set-track.mjs';
 import { loadClasses, pickClassInfo, buildGridMessage, classeMulticlasseSuPoolMono } from './gridbuilder.mjs';
 import { resolvePaths } from './paths.mjs';
 import { scanContentCached, carExists } from './content.mjs';
 import { slotDataDir } from './state.mjs';
 import { carPoolOf, carInPool } from './car-pool.mjs';
-import { syncRoster, celleDiGrid } from './weekend-roster.mjs';
+import { syncRoster, celleDiGrid, riduciSlotRoster } from './weekend-roster.mjs';
 import { writeOrWarn } from './safe-write.mjs';
 
 export const GRID_FILE = DEFAULT_FILE;
@@ -334,8 +334,42 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
         let bersaglio, dato;
         const modo = (() => { try { return weekendGridMode(); } catch { return null; } })();
         if (modo?.mode === 'custom') {
-          bersaglio = Math.max(nativo.cars, (Number.isFinite(nativo.declared) ? nativo.declared : 0) + 1);
+          const atteso = Math.max(nativo.cars, (Number.isFinite(nativo.declared) ? nativo.declared : 0) + 1);
+          bersaglio = celleGrigliaCampionato(atteso);
           dato = `riga 3.7 = ${nativo.declared} (+1: sei tu), voci 3.10 native ${nativo.cars}`;
+          if (bersaglio !== atteso) {
+            // REGOLA CAMPIONATO (4/11/2026, Mauro: «26-28 auto sono troppe, fai
+            // in modo che i campionati generino griglie da 20-22»): la griglia di
+            // campionato sta in 20-22 CELLE. Il weekend deve ASPETTARSI la griglia
+            // nuova PRIMA che le celle cambino: in CUSTOM EVO dimensiona il via su
+            // 3.7 + la tua auto (race.mjs), ma weekendCarCount scandisce anche le
+            // voci 3.10 — se restano 27 il gate rilancerebbe il conto a 28, e 22
+            // celle contro 27 attese è il 0xC0000005 della lezione 24/10. Quindi
+            // roster ridotto agli stessi avversari e 3.7 = avversari, POI il
+            // builder scrive declared + 1 celle e syncRoster le trapianta.
+            // Se il weekend non si lascia scrivere, NON si rimpicciolisce.
+            const avversari = bersaglio - 1;
+            let allineato = !!dry;   // in dry si prova il piano, senza toccare il save
+            if (!dry) {
+              try {
+                riduciSlotRoster(avversari, { file: WEEKEND_FILE, force });
+                if (Number(modo.count) !== avversari) setWeekendGridCustom(avversari);
+                allineato = true;
+              } catch (e) {
+                console.log(`[griglia] regola campionato non applicata (${e.message}): resto a ${atteso} auto, weekend non toccato`);
+              }
+            }
+            if (allineato) {
+              dato += ` · regola campionato: ${avversari} avversari (${bersaglio} auto)`;
+              const chiaveCap = `cap:${atteso}→${bersaglio}`;
+              if (_ultimoAllineamento.get(`${nodeId}#cap`) !== chiaveCap) {
+                _ultimoAllineamento.set(`${nodeId}#cap`, chiaveCap);
+                console.log(`[griglia] regola campionato 20-22: griglia ${atteso} → ${bersaglio} auto («${nodeId}»), weekend riallineato a ${avversari} avversari`);
+              }
+            } else {
+              bersaglio = atteso;
+            }
+          }
         } else {
           bersaglio = nativo.cars;
           dato = `vetture native ${nativo.cars}`;

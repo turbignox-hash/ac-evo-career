@@ -121,3 +121,46 @@ export function syncRoster(cells, { file, force = false, dry = false } = {}) {
   }
   return { written: true, backup, blocchi: report };
 }
+
+/**
+ * RIDUCE il roster AI del weekend (4/11/2026, regola delle griglie 20-22).
+ * In CUSTOM EVO dimensiona il via su 3.7 dichiarato (griglia = declared + 1),
+ * ma weekendCarCount scandisce anche le voci 3.10: con 22 celle e un weekend
+ * che ne dichiara ancora 27 il gate del builder rilancerebbe il conto a 28, e
+ * 22 celle contro 27 attese è la ricetta del 0xC0000005 della lezione 24/10.
+ * Qui le voci 3.10 OLTRE n si tolgono in coda; il roster non si allarga MAI
+ * (syncRoster resta l'unico a scrivere le celle) — così weekend e customgrid
+ * restano d'accordo. opts: { file, force, dry }.
+ */
+export function riduciSlotRoster(n, { file, force = false, dry = false } = {}) {
+  const slot = Math.round(Number(n));
+  if (!Number.isFinite(slot) || slot < 1) throw Object.assign(new Error('riduciSlotRoster: serve il numero di avversari (>= 1)'), { code: 'NO_ARGS' });
+  let fields;
+  try { fields = decodeMsg(readFileSync(file)); } catch (e) { throw Object.assign(new Error(`weekend illeggibile (${e.code ?? e.message ?? e})`), { code: 'NO_FILE' }); }
+  if (gameRunning() && !force && !dry) throw Object.assign(new Error('EVO è APERTO: il roster del weekend si riduce solo con --force sapendolo (o a gioco chiuso).'), { code: 'GAME_RUNNING' });
+  const report = [];
+  let tocco = false;
+  const out = fields.map((f) => {
+    if (f.field !== 3 || f.wire !== 2) return f;
+    let sub;
+    try { sub = decodeMsg(f.bytes); } catch { return f; }
+    const idx = sub.map((x, i) => (x.field === 10 && x.wire === 2 ? i : -1)).filter((i) => i >= 0);
+    if (!idx.length || !idx.every((i) => cellaVera(sub[i].bytes))) return f;
+    if (idx.length <= slot) { report.push({ nome: nomeOf(sub), slot: idx.length, nota: 'già entro il tetto' }); return f; }
+    const via = new Set(idx.slice(slot));
+    report.push({ nome: nomeOf(sub), slot, da: idx.length, nota: `ridotto da ${idx.length} a ${slot}` });
+    tocco = true;
+    return { ...f, bytes: encodeMsg(sub.filter((_, i) => !via.has(i))) };
+  });
+  if (!report.length) throw Object.assign(new Error('nessun blocco-celle nel weekend da ridurre'), { code: 'NO_ROSTER' });
+  if (!tocco || dry) return { written: false, blocchi: report, nota: tocco ? 'dry' : 'già entro il tetto' };
+  const backup = bakName(file, 'roster-');
+  copyFileSync(file, backup);
+  pruneBackups(file);
+  writeFileSync(`${file}.tmp`, encodeMsg(out));
+  renameSync(`${file}.tmp`, file);
+  // verifica di lettura: nessun blocco deve superare il tetto dopo la scrittura
+  const dopo = rosterInfo(file);
+  if (dopo?.blocchi?.some((b) => b.slot > slot)) throw new Error('verifica fallita: il roster supera ancora il tetto dopo la scrittura');
+  return { written: true, backup, blocchi: report };
+}

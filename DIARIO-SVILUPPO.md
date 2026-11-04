@@ -5,6 +5,14 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Griglie di campionato 20-22 auto (richiesta Mauro: «26-28 auto sono troppe, fai in modo che i campionati generino griglie da 20-22»)
+
+- **Da dove nascevano i 27/28**: non dal ladder (`gridSize` massimo 20), ma dal gate di `rebuildGridApply` che allineava il customgrid al conteggio NATIVO del weekend. Sul save reale (Monza): `3.7 = 27`, voci 3.10 = 27 → bersaglio 28 celle.
+- **La regola**: una sola fonte in `tools/set-track.mjs` — `GRIGLIA_CAMPIONATO { min: 20, max: 22 }` e `celleGrigliaCampionato()`; `pianoGriglia` non supera più 21 avversari.
+- **La discesa sicura**: in CUSTOM EVO dimensiona il via su `3.7 + la tua auto`, ma `weekendCarCount` scandisce anche le voci 3.10. Il gate ora scrive PRIMA il weekend — il nuovo `riduciSlotRoster` riduce le 3.10 agli stessi avversari e `setWeekendGridCustom` porta il 3.7 a 21 — e solo dopo scrive le 22 celle col trapianto roster. Se il weekend non si lascia scrivere, il cap non si applica (22 celle contro 27 attese è il 0xC0000005 della lezione 24/10).
+- **Verifica**: dry-run sul save reale — `campionato_moderno`, Monza: piano **28 → 22 auto (21 avversari)**, report `gridSize 22`, `written:false`; `npm test` **966/966** (3 nuovi in `griglia-campionato`), `npm run lint` **370 file, 0 warning**.
+- **Nota**: commit, non push; restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — suite con EVO aperto: test isolati dal save reale (richiesta Mauro: «Il passo successivo più utile sarebbe rendere la suite affidabile anche con EVO aperto, isolando i test che oggi leggono il save reale.»)
 
 - **Griglie**: `test/grid-templates.test.mjs` aveva un `import { readCells }` statico in fondo; per l'hoisting ESM veniva valutato prima di `ACE_GAME_SAVEDIR`, caricava `evo-grid` col save vero e il gate leggeva 27 vetture. L'import è ora dinamico dopo l'ambiente sandbox; il test passa 17/17.
