@@ -18,13 +18,13 @@ EVO Pitwall aggiunge uno strato di carriera *attorno* ad Assetto Corsa EVO: una 
 
 Il gioco resta il gioco. EVO Pitwall non sostituisce la carriera nativa di AC EVO, non modifica i suoi contenuti e non richiede account, cloud o altre applicazioni di carriera.
 
-**Ramo main:** build **0.1.58** · **916/916** test · **374** file lint, 0 warning.
+**Ramo main:** build **0.1.58** · **916 test, 0 fail** · **374** file lint, 0 warning.
 
 ## Installazione
 
 ### Opzione A — pacchetto amico pubblicato
 
-La **pre-release** corrente è **[v0.1.58](https://github.com/turbignox-hash/ac-evo-career/releases/tag/v0.1.58)**. Include lo ZIP amico, entrambi gli installer Windows e il bundle `EVO-Pitwall-v0.1.58-Windows.zip` con i due EXE, i checksum e una guida breve. Nessun privilegio di amministratore; l'EXE offline include Node portatile e funziona senza connessione.
+La **pre-release** corrente è **[v0.1.58](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.58/ac-evo-career-amico-v0.1.58-d3084c9.zip)**. Include lo ZIP amico, entrambi gli installer Windows e il bundle `EVO-Pitwall-v0.1.58-Windows.zip` con i due EXE, i checksum e una guida breve. Nessun privilegio di amministratore; l'EXE offline include Node portatile e funziona senza connessione.
 
 
 
@@ -34,7 +34,7 @@ La **pre-release** corrente è **[v0.1.58](https://github.com/turbignox-hash/ac-
 | [EXE offline](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.58/EVO-Pitwall-Setup-Offline.exe) | Autonomo, Node e codice inclusi; nessuna connessione |
 | [EXE online](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.58/EVO-Pitwall-Setup.exe) | Scarica Node portatile e il codice corrente |
 | [SHA-256 del bundle](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.58/EVO-Pitwall-v0.1.58-Windows.zip.sha256) | Checksum dello ZIP stesso |
-| [ZIP amico](https://github.com/turbignox-hash/ac-evo-career/releases/tag/v0.1.58) | Pacchetto sorgente con guide e `installa.cmd` |
+| [ZIP amico](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.58/ac-evo-career-amico-v0.1.58-d3084c9.zip) | Pacchetto sorgente con guide e `installa.cmd` |
 
 > **SHA-256:** bundle `7f6f7c92073a95788b97598325d23ab85e2dc4fda06ff00fa77f827be810f060` · online `3313264e7790904953cfc3d90db51741da0d2d0db45a1545ad750f1cee56b8ef` · offline `396fb589262c562cda5e879c0ea78e0f3cafdb952ba6880774d84aa6017818a8`
 >

@@ -20,7 +20,7 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 - **Collaudo GUI automatico**: `test/tab-sane-gui.test.mjs` apre le 19 tab e
   pretende contenuto, zero errori JS e zero overflow; `test/guardia-dollar-lista.test.mjs`
   blocca `$(...).forEach/.map/.filter`, la classe di errore della Griglia.
-- **Verifica**: `npm test` **916/916**, `npm run lint` **374 file, 0 warning**.
+- **Verifica**: `npm test` **915 pass + 1 skip, 0 fail**, `npm run lint` **374 file, 0 warning**.
 
 ## v0.1.55 — 4/11/2026
 
