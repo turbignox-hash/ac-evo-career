@@ -330,7 +330,9 @@ const TABS = [
    (drawChampionships) — funzione intatta, un posto in meno in barra. */
 const NAV_GROUPS = [
   { label: { it: 'Gara', en: 'Race' }, ids: ['dashboard', 'agenda', 'setup', 'analisi', 'messages', 'import'] },
-  { label: { it: 'Studio', en: 'Study' }, ids: ['championships', 'griglia', 'rivals', 'tracks', 'cars', 'garage', 'archive', 'online', 'gironi', 'stats', 'banca', 'difficulty', 'settings'] },
+  { label: { it: 'Campionato', en: 'Championship' }, ids: ['championships', 'griglia', 'rivals', 'tracks', 'cars', 'garage'] },
+  { label: { it: 'Archivio', en: 'Archive' }, ids: ['archive', 'online', 'gironi', 'stats'] },
+  { label: { it: 'Sistema', en: 'System' }, ids: ['banca', 'difficulty', 'settings'] },
 ];
 const TAB_COLORS = {
   dashboard:'#5da9ff', agenda:'#ff7a45', calendar:'#b48cff', standings:'#ffd166',  rivals:'#ff6b6b',

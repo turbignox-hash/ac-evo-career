@@ -651,6 +651,20 @@ function msgRow(m){
   return `<div class="msg ${esc(m.kind||'')}"><span class="d">${esc((m.at||'').slice(0,10))}</span><span class="t">${esc(legacyIt(m.text||''))}</span></div>`;
 }
 
+/* AZIONI IN CIMA, MOBILE (4/11): su schermo stretto il blocco dei due
+   bottoni esce dalla scheda (che in colonna finirebbe in fondo alla pagina)
+   e apre la pagina. Una barra sola, riempita a ogni ridisegno della scheda
+   (cambio auto, sfida): i bottoni sono gli stessi nodi, handler compresi. */
+function estraiAzioniMobile(el){
+  const mainEl = el?.closest('main');
+  if (!mainEl || !matchMedia('(max-width:860px)').matches) return;
+  const az = el.querySelector('#card-actions');
+  if (!az) return;
+  let bar = mainEl.querySelector('.card-actions-bar');
+  if (!bar) { bar = document.createElement('div'); bar.className = 'panel card-actions-bar'; mainEl.prepend(bar); }
+  bar.replaceChildren(az);
+}
+
 function drawCardInto(el, card){
   // CHIP RIVALI CLICCABILI: il nome nella scheda gara apre la scheda completa
   // del rivale (showRival in viste-d.js, subito dopo nel load). Se la chiave
@@ -685,6 +699,21 @@ function drawCardInto(el, card){
 
     <div class="title">${CFLAG} ${esc(card.roundName)}</div>
     <div class="sub">${window.serLinkHtml(card.nodeDisplay, { node: card.nodeId })} · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(card.entryFee)} € · ${tr({ it: 'si paga una volta per round', en: 'paid once per round' })}${card.agendaDay ? (card.agendaDay <= (boot.header?.day ?? 0) ? '' : ' · ' + tr({ it: 'in calendario per il ', en: 'scheduled for ' }) + esc(card.agendaDayLabel ?? (tr({ it: 'giorno ', en: 'day ' }) + card.agendaDay))) : ''}</div>
+    <div id="card-actions" class="card-actions">
+    <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto', en: '🏁 Get everything ready' })}</button>
+    <button class="act" id="b-race-launch" style="width:100%;margin-top:6px">${tr({ it: '🏁 Prepara tutto e avvia', en: '🏁 Get everything ready and start' })}</button>
+    <div class="muted" style="margin-top:10px">${tr({ it: 'Il round intero lo scrive in EVO «Prepara tutto»: pista, griglia, auto e regole. Con «Prepara tutto e avvia» il gioco si apre e l’app preme «Avvia sessione» da sola; con il primo apri tu EVO e premi «Avvia sessione». Se una riga non torna, ripremi il bottone.', en: 'The whole round gets written into EVO by “Get everything ready”: track, grid, car and rules. “Get everything ready and start” opens the game and the app presses “Start session” by itself; with the first one you open EVO and press “Start session”. If a row looks off, press the button again.' })}</div>
+    <div class="muted" style="margin-top:6px;font-size:11.5px">${(() => {
+      // STATO DELL'APP (4/11): «Prepara tutto e avvia» preme il via da solo
+      // SOLO con l'app Cruscotto viva (ack recenti). Se non lo è, la scheda
+      // lo dice: niente promesse che il via partirà da sé.
+      const u = card.uiapp;
+      if (!u) return '';
+      if (u.attiva) return tr({ it: '🕹️ App Cruscotto attiva: «Prepara tutto e avvia» preme «Avvia sessione» da sola.', en: '🕹️ Cruscotto app active: “Get everything ready and start” presses “Start session” by itself.' });
+      if (u.installata) return tr({ it: '🕹️ App Cruscotto installata, ma nessun comando confermato negli ultimi 15 minuti: il via potresti doverlo premere tu.', en: '🕹️ Cruscotto app installed, but no command confirmed in the last 15 minutes: you may have to press start yourself.' });
+      return tr({ it: '🕹️ App Cruscotto non installata: «Prepara tutto e avvia» apre il gioco al menu, il via lo premi tu.', en: '🕹️ Cruscotto app not installed: “Get everything ready and start” opens the game at the menu, you press start.' });
+    })()}</div>
+    </div>
     ${card.carImage ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:8px 0 4px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2,#121822)">
       <img src="${card.carImage}" alt="${esc(card.carName ?? '')}" style="width:150px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#0d1118">
       <div style="font-size:12.5px;flex:none;min-width:180px;max-width:250px"><b>${tr({ it: 'Auto della giornata', en: "Today's car" })}</b><br>${window.carLinkHtml(card.carName)}
@@ -847,20 +876,7 @@ function drawCardInto(el, card){
     ${card.warnings.length ? `<ul class="warnlist">${card.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>` : ''}
     <div class="row" style="margin-top:16px">
       <button class="ghost" id="b-copy">${tr({ it: 'Copia scheda', en: 'Copy sheet' })}</button>
-    </div>    <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto', en: '🏁 Get everything ready' })}</button>
-    <button class="act" id="b-race-launch" style="width:100%;margin-top:6px">${tr({ it: '🏁 Prepara tutto e avvia', en: '🏁 Get everything ready and start' })}</button>
-    <div class="muted" style="margin-top:10px">${tr({ it: 'Tutto qui sopra lo scrive in EVO «Prepara tutto»: pista, griglia, auto e regole. Con «Prepara tutto e avvia» il gioco si apre e l’app preme «Avvia sessione» da sola; con il primo apri tu EVO e premi «Avvia sessione». Se una riga non torna, ripremi il bottone.', en: 'Everything above gets written into EVO by “Get everything ready”: track, grid, car and rules. “Get everything ready and start” opens the game and the app presses “Start session” by itself; with the first one you open EVO and press “Start session”. If a row looks off, press the button again.' })}</div>
-    <div class="muted" style="margin-top:6px;font-size:11.5px">${(() => {
-      // STATO DELL'APP (4/11): «Prepara tutto e avvia» preme il via da solo
-      // SOLO con l'app Cruscotto viva (ack recenti). Se non lo è, la scheda
-      // lo dice: niente promesse che il via partirà da sé.
-      const u = card.uiapp;
-      if (!u) return '';
-      if (u.attiva) return tr({ it: '🕹️ App Cruscotto attiva: «Prepara tutto e avvia» preme «Avvia sessione» da sola.', en: '🕹️ Cruscotto app active: “Get everything ready and start” presses “Start session” by itself.' });
-      if (u.installata) return tr({ it: '🕹️ App Cruscotto installata, ma nessun comando confermato negli ultimi 15 minuti: il via potresti doverlo premere tu.', en: '🕹️ Cruscotto app installed, but no command confirmed in the last 15 minutes: you may have to press start yourself.' });
-      return tr({ it: '🕹️ App Cruscotto non installata: «Prepara tutto e avvia» apre il gioco al menu, il via lo premi tu.', en: '🕹️ Cruscotto app not installed: “Get everything ready and start” opens the game at the menu, you press start.' });
-    })()}</div>
-    <div class="panel" style="margin-top:12px" id="verdetto-panel">
+    </div>    <div class="panel" style="margin-top:12px" id="verdetto-panel">
       <h2 style="margin:0 0 8px">📊 ${tr({ it: 'Verdetto di giornata', en: 'Day verdict' })}</h2>
       <div id="verdetto-out"><div class="row"><button class="mini" id="verdetto-carica">${tr({ it: 'Calcola il verdetto di oggi', en: 'Compute today’s verdict' })}</button></div></div>
     </div>`;
@@ -1499,5 +1515,6 @@ const note = !avvia
       if (btn) { btn.disabled = false; btn.textContent = tr({ it: 'Riprova', en: 'Retry' }); }
     }
   };
+  estraiAzioniMobile(el);
 }
 

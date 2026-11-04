@@ -126,6 +126,12 @@
     <div class="muted" style="font-size:11.5px;margin-top:10px">${tr({ it: '"Applica bilancio" riscrive zavorre/penalità della classe (con supplementi per-traccia se la traccia combacia) e rimuove dal pool le auto in escludiAuto (di classe o per-traccia).', en: '"Apply balance" rewrites the class ballast/penalties (with per-track supplements if the track matches) and removes escludiAuto cars from the pool (class-level or per-track).' })}</div>
   </div>`;
 
+  /* AZIONI IN CIMA (4/11): i bottoni che scrivono il file stavano in fondo a
+     una pagina da 21.000 caratteri. Il pannello è lo stesso (gli handler si
+     registrano qui sotto): lo si porta davanti a tutto appena disegnato. */
+  const pAzioni = [...m.querySelectorAll('.panel')].find(p => p.querySelector('#g-apply'));
+  if (pAzioni) m.prepend(pAzioni);
+
   // NAVIGZIONE incrociata (28/10, stile Football Manager): ogni nome auto → scheda auto nel libro
   $$('.car-link', m).forEach((e) => { e.onclick = () => vai('cars', { search: e.dataset.car }); });
 

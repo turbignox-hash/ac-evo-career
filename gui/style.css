@@ -31,7 +31,7 @@ main{flex:1; width:100%; max-width:1120px; margin:0 auto; padding:20px 24px 90px
 .brand .t b{display:block; font-size:14px; letter-spacing:.6px}
 .brand .t span{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:1.6px}
 nav#nav{display:flex; flex-direction:column; gap:1px; padding:10px 8px; flex:1; overflow-y:auto; min-height:0}
-nav#nav div.nav-grp{font-size:9.5px; letter-spacing:2.2px; text-transform:uppercase; color:var(--dim); opacity:.65; padding:10px 12px 2px; user-select:none}
+nav#nav div.nav-grp{font-size:10px; letter-spacing:2.2px; text-transform:uppercase; color:var(--dim); opacity:.8; padding:10px 12px 2px; user-select:none}
 nav#nav button{display:flex; align-items:center; gap:10px; background:none; border:0; border-left:2px solid transparent; color:var(--dim); font:inherit; font-size:13.5px; padding:9px 12px; cursor:pointer; text-align:left; border-radius:0 8px 8px 0}
 nav#nav button svg{width:16px; height:16px; flex:none; opacity:.75}
 nav#nav button .nico{display:inline-flex}
@@ -40,7 +40,7 @@ nav#nav button:hover{color:var(--text); background:var(--panel2)}
 nav#nav button.on{color:var(--acc); background:var(--panel2); border-left-color:var(--acc); font-weight:600}
 nav#nav button.on svg{opacity:1}
 nav#nav .badge{margin-left:auto; background:var(--acc); color:#141414; font-size:10.5px; font-weight:700; border-radius:99px; padding:0 7px; line-height:17px}
-.side-foot{padding:12px 18px; border-top:1px solid var(--line); font-size:11px; color:var(--faint)}
+.side-foot{padding:12px 18px; border-top:1px solid var(--line); font-size:11.5px; color:var(--dim)}
 #build-ver{font-variant-numeric:tabular-nums; user-select:text; opacity:.9}
 
 /* ============ header ============ */
@@ -53,7 +53,7 @@ header#top .in{max-width:1120px; margin:0 auto; padding:10px 24px; display:flex;
 .hstats{margin-left:auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap}
 .hstat{display:flex; flex-direction:column; align-items:flex-end; padding:0 14px; border-right:1px solid var(--line)}
 .hstat:last-child{border-right:0}
-.hstat .l{font-size:10px; color:var(--faint); text-transform:uppercase; letter-spacing:1px}
+.hstat .l{font-size:11.5px; color:var(--dim); text-transform:uppercase; letter-spacing:1px}
 .hstat .v{font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap}
 .hstat .v.money{color:var(--good)} .hstat .v.rep{color:var(--acc2)}
 .dot{display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--faint); margin-right:6px; vertical-align:1px}
@@ -72,7 +72,7 @@ header#top .in{max-width:1120px; margin:0 auto; padding:10px 24px; display:flex;
 /* sottotitoli di sezione DENTRO un riquadro (2/11: colonna destra delle
    Impostazioni diventa un solo riquadro «Manutenzione»): come h2 ma più
    piccoli e stretti, con il margine alto che fa da respiro fra le sezioni */
-.panel h3{font-size:10.5px; text-transform:uppercase; letter-spacing:1.2px; color:var(--dim); margin:16px 0 8px; font-weight:700}
+.panel h3{font-size:11.5px; text-transform:uppercase; letter-spacing:1.2px; color:var(--dim); margin:16px 0 8px; font-weight:700}
 .panel h2 .h-act{margin-left:auto; text-transform:none; letter-spacing:0; font-weight:400; font-size:12.5px}
 .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start}
 .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
@@ -90,7 +90,7 @@ header#top .in{max-width:1120px; margin:0 auto; padding:10px 24px; display:flex;
 @media(max-width:860px){.grid2,.grid3,.grid4,.grid6{grid-template-columns:1fr}}
 
 .kpi{background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:12px 14px}
-.kpi .l{font-size:10.5px; color:var(--faint); text-transform:uppercase; letter-spacing:1px}
+.kpi .l{font-size:11.5px; color:var(--dim); text-transform:uppercase; letter-spacing:1px}
 .kpi .v{font-size:22px; font-weight:700; margin-top:3px; font-variant-numeric:tabular-nums}
 .kpi .v small{font-size:13px; color:var(--dim); font-weight:500}
 .kpi .v.good{color:var(--good)} .kpi .v.acc{color:var(--acc)} .kpi .v.acc2{color:var(--acc2)}
@@ -126,7 +126,7 @@ header#top .in{max-width:1120px; margin:0 auto; padding:10px 24px; display:flex;
 .liferow .lt{font-size:13px; min-width:0}
 
 table{width:100%; border-collapse:collapse; font-size:13.5px; font-variant-numeric:tabular-nums}
-th{color:var(--faint); font-weight:600; text-align:left; padding:7px 9px; border-bottom:1px solid var(--line2); font-size:10.5px; text-transform:uppercase; letter-spacing:1px; white-space:nowrap}
+th{color:var(--dim); font-weight:600; text-align:left; padding:7px 9px; border-bottom:1px solid var(--line2); font-size:11.5px; text-transform:uppercase; letter-spacing:1px; white-space:nowrap}
 td{padding:8px 9px; border-bottom:1px solid #1d2430; vertical-align:top}
 tbody tr:last-child td{border-bottom:0}
 tbody tr:hover td{background:#ffffff06}
@@ -134,9 +134,10 @@ tr.me td{background:#d9a83e14; font-weight:600}
 tr.cur td{background:#4d9fdb10}
 .right{text-align:right}
 .muted{color:var(--dim); font-size:12.5px}
-.faint{color:var(--faint)}
+/* 4/11 — il testo si legge: --faint resta solo per punti, separatori e barrati */
+.faint{color:var(--dim)}
 
-.tag{display:inline-block; font-size:10.5px; padding:1px 8px; border-radius:99px; border:1px solid var(--line2); color:var(--dim); letter-spacing:.4px; white-space:nowrap}
+.tag{display:inline-block; font-size:11.5px; padding:1px 8px; border-radius:99px; border:1px solid var(--line2); color:var(--dim); letter-spacing:.4px; white-space:nowrap}
 /* Quadro Copertura (11/11): le chip — specialmente quelle col tendina + ponte
  🌉 — devono restare DENTRO la scheda anche con piste dal nome lungo: si
  restringono e il tendina/bottone scende a capo DENTRO la chip, invece di
@@ -171,7 +172,7 @@ button.link:hover{text-decoration:underline}
 
 /* ============ form ============ */
 .field{display:flex; flex-direction:column; gap:5px; margin-bottom:13px}
-.field label{font-size:10.5px; color:var(--faint); text-transform:uppercase; letter-spacing:1px}
+.field label{font-size:11.5px; color:var(--dim); text-transform:uppercase; letter-spacing:1px}
 input[type=text],input[type=number],select{background:#0b0e14; border:1px solid var(--line2); color:var(--text); font:inherit; padding:9px 12px; border-radius:8px; width:100%; font-variant-numeric:tabular-nums}
 input:focus,select:focus{outline:none; border-color:var(--acc2)}
 input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
@@ -179,6 +180,10 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 /* ============ scheda gara + checklist ============ */
 .racecard .title{font-size:19px; font-weight:700; margin-bottom:2px}
 .racecard .sub{font-size:12px; color:var(--dim); margin-bottom:14px; text-transform:uppercase; letter-spacing:1px}
+/* 4/11 — il blocco «Prepara tutto» vive in testa alla scheda; su schermo
+   stretto drawDashboard lo estrae in una barra che apre la pagina. */
+.card-actions{margin-top:2px}
+.card-actions-bar{margin-bottom:10px}
 .ckl{display:grid; grid-template-columns:22px 168px 1fr; gap:8px; align-items:center; padding:7px 8px; border-bottom:1px solid #1d2430; cursor:pointer; border-radius:6px}
 .ckl:hover{background:#ffffff05}
 .ckl:last-of-type{border-bottom:0}
@@ -212,7 +217,7 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .banner.info{background:#4d9fdb12; border:1px solid #4d9fdb40; color:#c5ddef}
 .msg{padding:9px 0; border-bottom:1px solid #1d2430; font-size:13.5px; display:flex; gap:12px}
 .msg:last-child{border-bottom:0}
-.msg .d{color:var(--faint); font-size:11.5px; white-space:nowrap; padding-top:2px; font-variant-numeric:tabular-nums}
+.msg .d{color:var(--dim); font-size:11.5px; white-space:nowrap; padding-top:2px; font-variant-numeric:tabular-nums}
 .msg.good .t{color:var(--good)} .msg.bad .t{color:var(--bad)} .msg.money .t{color:var(--warn)} .msg.title .t{color:var(--acc)}
 .offer{display:flex; align-items:center; gap:12px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; margin-top:8px; background:var(--panel2); flex-wrap:wrap}
 .offer .n{font-weight:600}
@@ -232,7 +237,7 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .diff-row .rangebox{display:flex; align-items:center; gap:6px; justify-content:flex-end}
 .diff-row .rangebox input{width:52px; padding:4px 6px; font-size:12.5px; text-align:center}
 .diff-row .rangebox .dash{color:var(--faint)}
-.diff-row .rangebox .pct{color:var(--faint); font-size:11px; margin-left:-2px}
+.diff-row .rangebox .pct{color:var(--dim); font-size:11.5px; margin-left:-2px}
 .diff-row .rangebox .rc{padding:4px 7px}
 /* due cursori sulla STESSA barra per min e max, come la barra difficoltà di EVO */
 .diff-row .duo{position:relative; width:132px; height:22px; flex:none}
@@ -318,7 +323,7 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .hidden{display:none !important}
 .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
 .spread{justify-content:space-between}
-.empty{color:var(--faint); font-size:13px; padding:6px 0}
+.empty{color:var(--dim); font-size:13px; padding:6px 0}
 
 /* ============ cornice foto auto (pagina Auto) ============ */
 .car-frame{outline:1px solid #ffffff26; outline-offset:-1px}
@@ -340,7 +345,7 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 /* oro = ci sono le GARE DEL TUO campionato in quel giorno. Il giorno corrente
    NON ha cornice (confondeva con le iscrizioni in oro): la sua DATA diventa verde */
 .ag-day.hasmine{border-color:rgba(255,209,102,.65);background:linear-gradient(to top, rgba(255,209,102,.14), rgba(255,209,102,.14)),radial-gradient(circle at 20% 15%, rgba(255,209,102,.18), transparent 70%),rgba(255,209,102,.05)}
-.ag-day.hasmine::after{content:'★ mio';font-size:9px;letter-spacing:.5px;color:rgba(255,209,102,.85);text-transform:uppercase}
+.ag-day.hasmine::after{content:'★ mio';font-size:10px;letter-spacing:.5px;color:rgba(255,209,102,.85);text-transform:uppercase}
 .badge.urgent{background:#c98a1b;color:#fff;margin-left:2px}
 .sig-prev{border:1px solid #ffffff14;border-radius:8px;padding:8px 10px;margin-top:8px;max-height:260px;overflow-y:auto}
 .sig-prev .tag{flex:0 0 auto}
@@ -354,10 +359,10 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .ag-day.today{border-color:var(--good);background:var(--good)}
 .ag-day.today .ag-day-date,
 .ag-day.today .ag-day-num{color:#0d1410}
-.ag-day.today::after{content:'OGGI';font-size:9px;letter-spacing:.5px;color:#0d1410;text-transform:uppercase;font-weight:700}
+.ag-day.today::after{content:'OGGI';font-size:10px;letter-spacing:.5px;color:#0d1410;text-transform:uppercase;font-weight:700}
 .ag-day.hasmine.today::after{content:'OGGI · MIO';color:var(--good)}
 .ag-day:hover{border-color:#ffffff42}
-.ag-day-date{font-size:11px;color:var(--faint)}
+.ag-day-date{font-size:11.5px;color:var(--dim)}
 .ag-day-num{font-size:15px;font-weight:700}
 .ag-card{border:1px solid #ffffff18;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
 .ag-iscritto{border-color:rgba(255,209,102,.75);background:rgba(255,209,102,.09);box-shadow:0 0 0 1px rgba(255,209,102,.25)}
@@ -374,14 +379,14 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .ag-hero-top{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:12px}
 .ag-titolo{font-size:26px;font-weight:800;letter-spacing:2.5px;color:var(--text)}
 .ag-data{font-size:15px;font-weight:700;color:var(--acc);font-variant-numeric:tabular-nums}
-.ag-data i{font-style:normal;font-size:12.5px;color:var(--faint);font-weight:500}
-.impegni{font-size:12px;color:var(--faint);font-weight:400}
+.ag-data i{font-style:normal;font-size:12.5px;color:var(--dim);font-weight:500}
+.impegni{font-size:12px;color:var(--dim);font-weight:400}
 .ag-controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 /* ⏱ OROLOGIO DI GIORNATA (1/11): la fascia del tempo in hero, davanti ai
    comandi del giorno: rende leggibile la porta (le gare grigie passate) */
 .ag-orologio{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;font-weight:600;color:var(--dim);margin-bottom:12px;padding:9px 14px;border:1px solid var(--line);border-radius:9px;background:var(--panel2)}
 .ag-orologio b{font-weight:800;color:var(--text);font-variant-numeric:tabular-nums}
-.ag-orologio i{font-style:normal;font-size:12px;color:var(--faint);font-weight:500}
+.ag-orologio i{font-style:normal;font-size:12px;color:var(--dim);font-weight:500}
 .ag-orologio .faint{font-size:11.5px;font-weight:400}
 .btn-time{background:var(--panel3);color:var(--text);border:1px solid var(--line2);font:inherit;font-weight:700;font-size:14px;letter-spacing:.4px;padding:12px 22px;border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s}
 .btn-time:hover{border-color:var(--acc);color:var(--acc)}
@@ -395,13 +400,13 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
    tabelle delle statistiche. */
 .tscroll{overflow-x:auto;scrollbar-width:thin}
 .ag-day{flex:0 0 auto;width:64px;padding:8px 4px 9px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);cursor:pointer;color:var(--text);font:inherit;display:flex;flex-direction:column;align-items:center;gap:2px;position:relative;transition:border-color .15s}
-.ag-day-date{font-size:10.5px;color:var(--faint);white-space:nowrap}
+.ag-day-date{font-size:11.5px;color:var(--dim);white-space:nowrap}
 .ag-day-num{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
-.ag-day .mine{font-style:normal;font-size:10.5px;color:rgba(255,209,102,.9);font-weight:700}
+.ag-day .mine{font-style:normal;font-size:11px;color:rgba(255,209,102,.9);font-weight:700}
 .ag-day:hover{border-color:#ffffff42}
 .gare-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:10px}
 .gare-title{display:flex;align-items:center;gap:12px;font-size:17px;font-weight:800;letter-spacing:2px;color:var(--text);margin-bottom:0}
-.tuttecount{font-size:11.5px;font-weight:400;letter-spacing:.4px;color:var(--faint);white-space:nowrap}
+.tuttecount{font-size:11.5px;font-weight:400;letter-spacing:.4px;color:var(--dim);white-space:nowrap}
 .chipbar{display:flex;gap:6px;flex-wrap:wrap}
 .chip-f{display:inline-flex;align-items:center;gap:6px;background:var(--panel3);color:var(--dim);border:1px solid var(--line2);font:inherit;font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding:7px 14px;border-radius:99px;cursor:pointer;transition:color .15s,border-color .15s}
 .chip-f:hover{color:var(--text);border-color:var(--acc)}
@@ -416,8 +421,8 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .ag-card.ag-passata{opacity:.48;cursor:default}
 .ag-card.ag-passata:hover{transform:none;box-shadow:none}
 .ag-top{display:flex;align-items:center;gap:9px}
-.ag-round{font-size:10.5px;font-weight:700;color:var(--faint);border:1px solid var(--line2);border-radius:6px;padding:2px 7px;white-space:nowrap}
-.ag-round i{font-style:normal;color:var(--faint);font-weight:500}
+.ag-round{font-size:11.5px;font-weight:700;color:var(--dim);border:1px solid var(--line2);border-radius:6px;padding:2px 7px;white-space:nowrap}
+.ag-round i{font-style:normal;color:var(--dim);font-weight:500}
 .ag-disc{display:inline-flex;width:22px;height:22px;align-items:center;justify-content:center;border-radius:7px;background:var(--panel3);color:var(--acc2);flex:none}
 .ag-disc svg{width:13px;height:13px}
 .ag-nome{font-size:14.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -427,7 +432,7 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .ag-bot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px}
 .ag-bot .prz{font-size:13.5px;font-weight:700;color:var(--good);font-variant-numeric:tabular-nums}
 .ag-bot .prz::after{content:' €';font-size:11px;font-weight:500;color:var(--dim)}
-.ag-bot .aut{font-size:10.5px;color:var(--faint);letter-spacing:.8px}
+.ag-bot .aut{font-size:11.5px;color:var(--dim);letter-spacing:.8px}
 .btn-cta{margin-left:auto;background:var(--acc);color:#161207;border:0;font:inherit;font-size:12px;font-weight:800;letter-spacing:.6px;padding:9px 16px;border-radius:8px;cursor:pointer}
 .btn-cta:hover{filter:brightness(1.12)}
 .btn-cta:disabled{opacity:.45;cursor:default}

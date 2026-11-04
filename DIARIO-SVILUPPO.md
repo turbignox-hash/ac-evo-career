@@ -5,6 +5,18 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Revisione grafica: overflow chiuso, testo leggibile, azioni in cima (richiesta Mauro: «Chiudere l'overflow di Giri liberi (flex-wrap:wrap sulla riga preset e min-width:0/flex:1 sulla select). Alzare il pavimento tipografico: 11.5–12px per tabelle ed etichette informative, e passare --faint → --dim su tutto ciò che è testo da leggere. Portare «Prepara tutto» (Cruscotto) e «Azioni» (Griglia) in cima o in una barra sticky; aggiungere filtri ad Archivio e card richiudibili a Campionati. Spezzare il gruppo «Studio»: Campionato · Archivio · Sistema»)
+
+- **Giri liberi**: la riga dei preset usciva dallo schermo (scrollWidth 1504 su client 1423; bottoni a right 1466/1504 contro main 1380) perché la select ereditava `width:100%` e con `flex:0 0 auto` si prendeva 1030px. Ora riga `flex-wrap:wrap`, select `flex:1 1 220px;min-width:0;width:auto`: document 1423 = client, salva/canc a 1297/1335 dentro il main (1380). Stesso trattamento alla riga della griglia.
+- **Tipografia**: `th`, `.tag`, `.panel h3`, etichette di KPI/header/campi a 11.5px; `--faint` → `--dim` su tutto il testo leggibile (resta solo per punti, separatori e barrati). Elementi sotto 11px: Archivio 321→0, Campionati 176→0, Griglia 146→0.
+- **Prepara tutto**: il blocco dei due bottoni stava in fondo alla scheda, dopo regole e avvisi. Ora è in testa (desktop: scheda a 209px, blocco a 344px, bottone subito in vista). Sotto 860px `estraiAzioniMobile` lo porta in una barra in cima a `main` (primo elemento: 1189 con main a 1157) mentre la scheda resta in fondo; l'estrazione gira a ogni ridisegno della scheda, con una barra sola.
+- **Griglia**: il pannello Azioni (prima in fondo a 21.696 caratteri) è ora il primo pannello, `#g-apply` a 310px.
+- **Archivio**: filtro per sessione accanto alla ricerca (HotLap/Practice/Qualifying/Race/Warmup) + contatore «N/M sessioni visibili»; prova dal vivo: 157 righe → 1 con HotLap.
+- **Campionati**: la griglia delle 14 carte si piega con un click sul titolo (`<details open>`); le 14 schede serie restano pieghevoli una per una.
+- **Sidebar**: «Studio» (13 voci) spezzato in Campionato (6), Archivio (4), Sistema (3); Gara resta 6.
+- **Verifica**: misure live a 1440×900 e 820×900 (nessun overflow: 1423/1423 e 803/803); `node --check`; suite **971/971** (0 fail/skip, EVO aperto); `npm run lint` **371 file, 0 warning**.
+- **Nota**: commit, non push; restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — «Prepara tutto e avvia» entra in gara, non solo nel gioco (richiesta Mauro: «prepara tutto e avvia deve lanciare la gara, non solo il gioco»)
 
 - **Il giro in meno**: il via dipendeva dall'ack del setcar (publisher → app mette l'auto → ack → publisher manda `avvia`). Se l'ack non tornava in tempo il gioco restava al menu. Ora il setcar del «Prepara tutto e avvia» porta `avvia: true` (dentro la finestra dei 30 min): l'app fa la STESSA sequenza del suo bottone (`corriSetcar` → `corriAvvia`, `GameModeSelectionClientRequestStart`) e acka anche `:avvia`. Il canale separato resta per il setcar già confermato.

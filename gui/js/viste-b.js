@@ -443,12 +443,12 @@ async function drawChampionships(m){
     return `<div class="champ-card ${c.isCurrent ? 'cur' : ''}" data-node="${esc(c.nodeId)}" title="${esc(c.display)} — ${tr({ it: 'clicca per la scheda completa', en: 'click for the full card' })}">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
         <b style="font-size:13.5px">${esc(c.display)}</b>
-        ${c.isCurrent ? `<span class="tag gold" style="font-size:9px">${tr({ it: 'attiva', en: 'active' })}</span>` : ''}
+        ${c.isCurrent ? `<span class="tag gold">${tr({ it: 'attiva', en: 'active' })}</span>` : ''}
       </div>
-      <div class="muted" style="font-size:11px;margin-top:2px">L${c.level} · ${esc(c.discipline)} · ${(c.cars ?? []).map(window.carLinkHtml).join(' · ')}</div>
+      <div class="muted" style="font-size:11.5px;margin-top:2px">L${c.level} · ${esc(c.discipline)} · ${(c.cars ?? []).map(window.carLinkHtml).join(' · ')}</div>
       <div class="cc-bar" style="margin-top:8px"><i style="width:${pct}%"></i></div>
       <div class="muted" style="font-size:11.5px;margin-top:6px">${played}/${c.calendar.length} ${tr({ it: 'gare', en: 'races' })} · ${tr({ it: 'prossima', en: 'next' })}: ${nxt}${me ? ` · <b style="color:var(--text)">${tr({ it: 'tu P', en: 'you P' })}${me.position}</b> (${me.points} pt)` : ''}</div>
-      <div class="muted" style="font-size:11px;margin-top:4px;display:flex;gap:10px;flex-wrap:wrap">
+      <div class="muted" style="font-size:11.5px;margin-top:4px;display:flex;gap:10px;flex-wrap:wrap">
         ${c.prize != null ? `<span title="${tr({ it: 'premio di gara', en: 'race prize' })}">🏁 ${money(c.prize)}</span>` : ''}
         ${c.entryFee ? `<span title="${tr({ it: 'costo d\'iscrizione', en: 'entry fee' })}">🎫 ${money(c.entryFee)}</span>` : ''}
         ${c.gridSize ? `<span title="${tr({ it: 'griglia tipica degli avversari', en: 'typical grid size' })}">🚗 ${c.gridSize} ${tr({ it: 'auto', en: 'cars' })}</span>` : ''}
@@ -456,11 +456,13 @@ async function drawChampionships(m){
       </div>
     </div>`;
   }).join('');
-  m.innerHTML = `<div class="panel" id="ch-carica" style="padding:14px 16px">
-    <h2 style="margin:0 0 10px">${ICONS.championships} ${tr({ it: 'Campionati', en: 'Championships' })} <span class="h-act">${v.championships.length} ${tr({ it: 'serie firmate', en: 'signed series' })}</span></h2>
-    <div class="champ-grid">${cards}</div>
+  /* CARTE RICHIUDIBILI (4/11): la griglia delle serie si piega con un click
+     sul titolo — sotto restano le schede complete, ognuna già richiudibile. */
+  m.innerHTML = `<details class="panel" id="ch-carica" open style="padding:14px 16px">
+    <summary style="cursor:pointer"><h2 style="display:inline;margin:0">${ICONS.championships} ${tr({ it: 'Campionati', en: 'Championships' })} <span class="h-act">${v.championships.length} ${tr({ it: 'serie firmate', en: 'signed series' })}</span></h2></summary>
+    <div class="champ-grid" style="margin-top:10px">${cards}</div>
     <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'Clicca una carta per scendere alla scheda completa.', en: 'Click a card to jump to its full card below.' })}</div>
-  </div>`
+  </details>`
     + stileBlock
     + v.championships.map((c) => {
     const rounds = c.calendar.map((r) => {
@@ -482,7 +484,7 @@ async function drawChampionships(m){
       : `<div class="empty">${tr({ it: 'Classifica non disponibile.', en: 'Standings not available.' })}</div>`;    return `<details class="panel champ-detail" id="champ-${esc(c.nodeId)}" ${c.isCurrent ? 'open' : ''} style="margin-top:12px">
       <summary style="cursor:pointer">
         <b>${esc(c.display)}</b> <span class="h-act">${tr({ it: 'stagione ', en: 'season ' })}${c.season}${c.isCurrent ? ` · <span class="tag gold">${tr({ it: 'serie attuale', en: 'current series' })}</span>` : ''}</span>
-        <div class="muted" style="font-size:11px;margin-top:2px">L${c.level} · ${esc(c.discipline)} · ${tr({ it: 'una gara a settimana', en: 'one race a week' })}</div>
+        <div class="muted" style="font-size:11.5px;margin-top:2px">L${c.level} · ${esc(c.discipline)} · ${tr({ it: 'una gara a settimana', en: 'one race a week' })}</div>
       </summary>
       <div style="margin-top:10px">
       <div class="grid2">
@@ -542,8 +544,8 @@ async function worldRankingInner(){
     <td class="right pos"><b>P${r.position}</b></td>
     <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.isPlayer?` <span class="tag gold">${tr({ it: 'tu', en: 'you' })}</span>`:''}${r.hot?` <span title="${tr({ it: 'in forma: in griglia alza il ritmo', en: 'in form: raises the pace on the grid' })}">🔥</span>`:''}</span></span></td>
     <td class="faint">${flagOf(r.country)} ${esc(r.country)}</td><td class="right"><b>${r.skill}</b>${r.iconic?` <span title="${tr({ it: 'tra i più forti in circolazione', en: 'among the strongest around' })}">⭐</span>`:''}</td><td class="right">${r.age??'—'}</td>
-    <td>${r.traits?.length?r.traits.map(t=>`<span class="chip blue" style="font-size:10px;padding:1px 6px">${esc(t)}</span>`).join(' '):''}</td>
-    <td class="muted" style="font-size:11px">${esc(r.archName ?? '')}</td></tr>`).join('')}</tbody>
+    <td>${r.traits?.length?r.traits.map(t=>`<span class="chip blue" style="font-size:11px;padding:1px 6px">${esc(t)}</span>`).join(' '):''}</td>
+    <td class="muted" style="font-size:11.5px">${esc(r.archName ?? '')}</td></tr>`).join('')}</tbody>
   </table>`;
   return { w, html, wire: () => { $$('.wr-row').forEach(t => { t.onclick = () => showWorldPilot(t.dataset.k, w.rows); }); } };
 }
@@ -659,17 +661,17 @@ async function drawArchive(m){
   // rimasto SOLO l'archivio SP; un rimando piccolo ricorda dove finiscono
   // quelle gare.
   const c = await api('catalog', { all: !!window.__arcAllPc });
+  const all = c.archive.rows;
   m.innerHTML = `
   <div class="panel">
     <h2>${tr({ it: 'Archivio sessioni', en: 'Session archive' })} <span class="h-act">${c.archive.total} ${tr({ it: 'file nei Results di EVO', en: 'files in EVO\'s Results' })}</span></h2>
     <div class="muted" style="font-size:11.5px;margin:0 0 8px">${c.archive.scoped
       ? `${tr({ it: 'Mostrati solo i file nati con QUESTA carriera: Results è una cartella condivisa per PC.', en: 'Showing only files born with THIS career: Results is a PC-wide shared folder.' })} <button class="mini" id="b-arc-all">${tr({ it: 'Mostra tutto il PC', en: 'Show the whole PC' })}</button>`
       : `${tr({ it: 'Mostrato TUTTO il PC: Results è una cartella condivisa dagli slot.', en: 'Showing the WHOLE PC: Results is shared across slots.' })} <button class="mini" id="b-arc-all">${tr({ it: 'Solo carriera', en: 'Career only' })}</button>`}</div>
-    <div class="row"><input type="text" id="arc-q" placeholder="${tr({ it: 'Cerca pista, pilota, sessione…', en: 'Search track, driver, session…' })}" style="max-width:280px"></div>
+    <div class="row"><input type="text" id="arc-q" placeholder="${tr({ it: 'Cerca pista, pilota, sessione…', en: 'Search track, driver, session…' })}" style="max-width:280px"><select id="arc-sess" style="max-width:190px"><option value="">${tr({ it: 'Tutte le sessioni', en: 'All sessions' })}</option>${[...new Set(all.map(r=>r.session))].sort().map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}</select></div>
     <div class="row" style="margin-top:6px"><button class="mini" id="mp-redirect">🌐 ${tr({ it: 'Le gare multiplayer sono nel loro tab: Archivio online', en: "Online races have their own tab: Online archive" })}</button></div>
     <div id="arc-body"></div>
   </div>`;
-  const all = c.archive.rows;
   const rowHtml = (r, tries) => `<tr data-file="${esc(r.file)}" class="arc-row" style="cursor:pointer">
     <td class="muted">${esc(r.when.slice(0,16).replace('T',' '))}</td>
     <td><span class="tag ${r.session==='Race'?'gold':'blue'}">${esc(r.session)}</span></td>
@@ -679,9 +681,9 @@ async function drawArchive(m){
     <td>${r.me ? `<span class="tag ${r.me.position===1?'gold':r.me.position<=3?'green':''}">P${r.me.position}</span>` : `<span class="faint" title="${tr({ it: 'non presente in questa sessione (riprove, spettatore o server)', en: 'not in this session (rejoins, spectator or server)' })}">—</span>`}</td>
     <td class="muted">${esc(r.winner ?? '—')}</td></tr>`;
   const body = $('#arc-body');
-  const paint = (q='') => {
+  const paint = (q='', sess='') => {
     q = q.toLowerCase();
-    const rows = all.filter(r=>!q || `${r.track} ${r.session} ${r.winner ?? ''} ${r.kind}`.toLowerCase().includes(q));
+    const rows = all.filter(r => (!q || `${r.track} ${r.session} ${r.winner ?? ''} ${r.kind}`.toLowerCase().includes(q)) && (!sess || r.session === sess));
     // raggruppa i tentativi ripetuti (stessa ora/sessione/pista): una riga con il
     // migliore, il conteggio dei tentativi e i file tutti apribili dal dettaglio
     const groups = new Map();
@@ -694,7 +696,7 @@ async function drawArchive(m){
       return { r: best, tries: g.length, files: g.map(x=>x.file) };
     });
     body.innerHTML = flat.length ? `<table><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Sessione', en: 'Session' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th>${tr({ it: 'Tipo', en: 'Type' })}</th><th class="right">${tr({ it: 'Piloti', en: 'Drivers' })}</th><th>${tr({ it: 'Tu', en: 'You' })}</th><th>${tr({ it: 'Vincitore', en: 'Winner' })}</th></tr></thead>
-    <tbody>${flat.map(({r,tries})=>rowHtml(r,tries)).join('')}</tbody></table><div class="muted" style="margin-top:8px">${tr({ it: 'Clicca una riga per la classificazione completa con tempi e gap. ×N = più tentativi nella stessa ora (si aprono dal dettaglio).', en: 'Click a row for the full classification with timings and gaps. ×N = multiple attempts in the same hour (opened from the detail).' })}</div>`
+    <tbody>${flat.map(({r,tries})=>rowHtml(r,tries)).join('')}</tbody></table><div class="muted" style="margin-top:8px">${flat.length}/${all.length} ${tr({ it: 'sessioni visibili.', en: 'sessions shown.' })} ${tr({ it: 'Clicca una riga per la classificazione completa con tempi e gap. ×N = più tentativi nella stessa ora (si aprono dal dettaglio).', en: 'Click a row for the full classification with timings and gaps. ×N = multiple attempts in the same hour (opened from the detail).' })}</div>`
     : `<div class="empty">${tr({ it: 'Nessuna sessione trovata.', en: 'No session found.' })}</div>`;
     $$('.arc-row', body).forEach(tr => { tr.onclick = () => openResult(tr.dataset.file); });
   };
@@ -702,7 +704,9 @@ async function drawArchive(m){
 
   const bAll = $('#b-arc-all');
   if (bAll) bAll.onclick = () => { window.__arcAllPc = !window.__arcAllPc; render(); };
-  $('#arc-q').oninput = () => paint($('#arc-q').value);
+  const filt = () => paint($('#arc-q').value, $('#arc-sess').value);
+  $('#arc-q').oninput = filt;
+  $('#arc-sess').onchange = filt;
   // rimanda al nuovo tab online, così le gare MP restano a un clic anche da qui
   $('#mp-redirect').onclick = () => vai('online');
 }
@@ -769,9 +773,9 @@ async function drawGironi(m){
                  la scelta riempie il POOL a fianco (editable: puoi togliere o
                  mettere un Id dal datalist); il menu resta «personalizzata»
                  se poi modificarà il pool a mano. -->
-            <div style="display:flex;gap:6px;align-items:center">
-              <select id="gv-griglia" style="flex:0 0 auto;min-width:230px"><option value="">— ${tr({ it: 'personalizzata (pool a mano)', en: 'custom (hand-written pool)' })} —</option></select>
-              <input type="text" id="gv-pool" placeholder="ks_f40_lm, ks_ferrari_296_gt3" list="dl-gv-auto" style="flex:1;min-width:0">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <select id="gv-griglia" style="flex:1 1 220px;min-width:0;width:auto"><option value="">— ${tr({ it: 'personalizzata (pool a mano)', en: 'custom (hand-written pool)' })} —</option></select>
+              <input type="text" id="gv-pool" placeholder="ks_f40_lm, ks_ferrari_296_gt3" list="dl-gv-auto" style="flex:1 1 200px;min-width:0">
             </div>
           </div>
           <div class="field" style="grid-column:1/-1">
@@ -782,8 +786,8 @@ async function drawGironi(m){
                  UNA ricetta sola: qui ne tieni quante vuoi. La scelta
                  riempie i campi (che restano editabili, il pool resta la
                  fonte). -->
-            <div style="display:flex;gap:6px;align-items:center">
-              <select id="gv-preset" style="flex:0 0 auto;min-width:230px"><option value="">— ${tr({ it: 'nessuno (usa i campi qui sotto)', en: 'none (use the fields below)' })} —</option></select>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <select id="gv-preset" style="flex:1 1 220px;min-width:0;width:auto"><option value="">— ${tr({ it: 'nessuno (usa i campi qui sotto)', en: 'none (use the fields below)' })} —</option></select>
               <button class="mini" id="gv-preset-salva" style="flex:0 0 auto">💾 ${tr({ it: 'Salva col nome', en: 'Save by name' })}</button>
               <button class="mini" id="gv-preset-canc" style="flex:0 0 auto" title="${esc(tr({ it: 'cancella il preset scelto', en: 'delete the selected preset' }))}">🗑</button>
             </div>
