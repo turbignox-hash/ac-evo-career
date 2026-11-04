@@ -38,7 +38,7 @@ La **pre-release** corrente è **[v0.1.57](https://github.com/turbignox-hash/ac-
 
 > **SHA-256:** bundle `a9f0e67e0d2cb9b80339f97ac30d2de99b524d739c525158a441cdd71903b42c` · online `dcc4c85db627cee2f2f89bef254047755ce40ab82e5925b3590a963bca7d574f` · offline `6d44c5dbfabac7fbd582b287a38a0d3c3945e3207a84466eec0d4ed6ac616431`
 >
-> PowerShell: `Get-FileHash .EVO-Pitwall-v0.1.57-Windows.zip -Algorithm SHA256`
+> PowerShell: `Get-FileHash .\EVO-Pitwall-v0.1.57-Windows.zip -Algorithm SHA256`
 
 > **Anteprima non firmata:** la v0.1.57 è una pre-release perché gli EXE non sono ancora firmati Authenticode. Aspettati SmartScreen; scarica solo da questo repository. La v0.1.56 è più vecchia.
 
