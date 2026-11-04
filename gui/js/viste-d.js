@@ -308,8 +308,23 @@ async function pathPicker(pick, onOk){
 }
 
 /* -------- impostazioni -------- */
-function drawSettings(m){
-  const s = boot.setup;
+async function drawSettings(m){
+  let s = boot.setup;
+  /* Il boot con una carriera attiva non paga più la scansione dei contenuti:
+     qui la si chiede solo quando questa vista serve davvero. */
+  if (s?.light && s.dataDirs?.length) {
+    const gen = window.__renderGen;
+    m.innerHTML = `<div class="panel"><span class="spin"></span> ${tr({ it: 'Controllo installazione…', en: 'Checking installation…' })}</div>`;
+    try {
+      s = await api('setup');
+      boot.setup = s;
+      if (gen !== window.__renderGen || tab !== 'settings') return;
+    } catch (e) {
+      if (gen !== window.__renderGen || tab !== 'settings') return;
+      m.innerHTML = `<div class="panel"><div class="banner bad">${esc(e.message)}</div></div>`;
+      return;
+    }
+  }
   /* slot senza carriera (es. provato con ACE_SLOT libero): boot.header è null —
      senza questa guardia la scheda non si rendeva affatto */
   const h = boot.header ?? { driver: { name: tr({ it: '(nessuna carriera in questo slot)', en: '(no career in this slot)' }) }, money: 0 };
@@ -389,7 +404,7 @@ function drawSettings(m){
         <button class="ghost danger" id="b-reset">${tr({ it: 'Ricomincia da zero', en: 'Start over' })}</button>
       </div>
       <div class="muted" id="backup-list" style="margin-top:6px;font-size:12px">${tr({ it: 'Crea una copia di sicurezza del salvataggio: soldi, risultati, rivali e statistiche restano intatti anche se qualcosa va storto.', en: 'Makes a safety copy of the save: money, results, rivals and stats stay intact even if something goes wrong.' })}</div>
-      ${s.issues.length ? `<div class="banner warn" style="margin-top:16px">${tr({ it: `${s.issues.length} riferimenti della scala non trovati nell'installazione`, en: `${s.issues.length} ladder references not found in the installation` })}: ${esc(s.issues.slice(0,4).map(i=>i.id).join(', '))}${s.issues.length>4?'…':''}</div>` : `<div class="banner good" style="margin-top:16px">${tr({ it: 'La scala carriera combacia con il contenuto installato.', en: 'The career ladder matches the installed content.' })}</div>`}
+      ${s.issues == null ? `<div class="banner warn" style="margin-top:16px">${tr({ it: 'Controllo contenuti non disponibile: imposta la cartella dati sopra e riapri Impostazioni.', en: 'Content check unavailable: set the data folder above and reopen Settings.' })}</div>` : s.issues.length ? `<div class="banner warn" style="margin-top:16px">${tr({ it: `${s.issues.length} riferimenti della scala non trovati nell'installazione`, en: `${s.issues.length} ladder references not found in the installation` })}: ${esc(s.issues.slice(0,4).map(i=>i.id).join(', '))}${s.issues.length>4?'…':''}</div>` : `<div class="banner good" style="margin-top:16px">${tr({ it: 'La scala carriera combacia con il contenuto installato.', en: 'The career ladder matches the installed content.' })}</div>`}
       <h3>${tr({ it: 'Backup del save di EVO', en: 'EVO save backup' })}</h3>
       <div class="muted" style="font-size:12px">${tr({ it: "All'avvio del launcher il save del GIOCO (Saved Games\\ACE) viene zippato da solo, ma solo se l'ultimo backup ha più di 36 ore: due slot in rotazione, sempre i 2 zip più recenti. Qui vedi com'è messo e puoi forzarlo a mano in qualunque momento (anche con EVO aperto: non si spezza niente).", en: "At launcher start the GAME save (Saved Games\\ACE) is zipped automatically, but only if the last backup is older than 36 hours: two rotating slots, always the 4 newest zips. Here you can see where it stands and force it by hand at any time (even with EVO open: nothing breaks)." })}</div>
       <div id="savebk-out" style="margin-top:8px;font-size:13px">…</div>

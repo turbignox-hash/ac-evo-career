@@ -5,6 +5,15 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — webUI: boot leggero con carriera, contenuti solo in Impostazioni (richiesta Mauro: «scegli autonomamente cosa migliorare e procedi,»)
+
+- **Problema**: con una carriera attiva il boot pagava la scansione contenuti dentro viewSetup, ma quei dati servono solo a Impostazioni (banner scala carriera); il primo boot con dati grandi restava il pezzo più lento.
+- **Modifica**: viewSetup(..., { scan: false }) nel boot quando state esiste; /api/setup continua a restituire il setup completo. Impostazioni lo carica on demand con pannello «Controllo installazione…» e guardia contro render stantio; onboarding senza carriera resta completo.
+- **Misure** (sandbox, cartella dati grande, save copiato): boot1 **357,7 → 171,8 ms** (prima un giro, dopo mediana di 3; −52%); boot2 **13,2 → 14,0 ms**; ready, status, card e ping stabili. Sonda con carriera: boot light:true, content 0/issues null; /api/setup light:false, 190 auto/19 piste, 190,1 ms.
+- **Verifica**: npm run check exit 0; suite **963/963**; lint **368 file, 0 warning**; node --check su 4 file; sonda reale con hasCareer:true.
+- **Limite**: la prima apertura di Impostazioni paga la scansione (fino a ~2,3s a freddo sul dataset di prova) e mostra il caricamento; il boot non la paga più.
+- **Nota**: 5 modifiche preesistenti fuori; commit, non push.
+
 ### 4/11 — webUI: boot parallelo e cache, prima schermata più veloce (richiesta Mauro: «controlla la webUI, migliora velocità di avvio e risposta»)
 
 - **Misure** (3 avvii, sandbox con copia del save): server pronto **341→332 ms** (sostanzialmente stabile); `/api/boot` a freddo **248→178 ms**; a caldo **159→15 ms**; status **9,1→9,1**; card **73,8→73,7** e **37,4→36,5**; ping **6,3→5,9**. Tempo fino al primo boot **589→510 ms** (−13,4%).

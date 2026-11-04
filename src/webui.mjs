@@ -1237,7 +1237,9 @@ async function api(context0, _req, res, action, body) {
       // esito. Prima stava in mezzo alla costruzione dell'oggetto: ~80 ms
       // sommati a ogni boot, con la stessa risposta già pronta.
       const gameRunningP = gameRunningMemo();
-      const setup = viewSetup(ladder, paths);
+      // Con una carriera attiva il setup completo (scansione contenuti) serve
+      // solo alla vista Impostazioni: boot leggero, poi /api/setup on demand.
+      const setup = viewSetup(ladder, paths, { scan: !state });
       const header = state ? viewHeader(ladder, state) : null;
       // badge urgente sul menu Messaggi: email priorità alta della posta del pilota
       const mailUrgent = state ? mailbox(ladder, state).mails.filter((m) => m.priorita === 'urgente').length : 0;

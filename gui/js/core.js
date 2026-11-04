@@ -480,7 +480,7 @@ async function render(){
     if (tab==='setup')      return await drawSetup(M);
     if (tab==='difficulty') return await drawDifficulty(M);
     if (tab==='messages')   return await drawMessages(M);
-    if (tab==='settings')   return drawSettings(M);
+    if (tab==='settings')   return await drawSettings(M);
   } catch(e){
     // Il ritardo di generazione NON è un guasto della vista (la corsa che lo
     // fa nascere ha già una vista più nuova inflight): butta la pagina che

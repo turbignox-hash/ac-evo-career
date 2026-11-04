@@ -530,7 +530,7 @@ function viewCard(ladder, state, car = null) {
   };
 }
 
-function viewSetup(ladder, paths = null) {
+function viewSetup(ladder, paths = null, { scan = true } = {}) {
   // paths può essere null (primo avvio senza cartella dati): non crasha MAI —
   // il wizard è lì per sistemare il percorso; qui va solo il minimo vitale.
   if (!paths) {
@@ -552,14 +552,17 @@ function viewSetup(ladder, paths = null) {
       saved: existsSync(CONFIG_FILE) ? JSON.parse(readFileSync(CONFIG_FILE, 'utf8')) : {},
       content: { cars: 0, tracks: 0 },
       ladder: { nodes: ladder.nodes.length, disciplines: ladder.disciplines.length },
-      issues: [],
+      issues: null,
+      light: true,
       steamUrl: `steam://rungameid/${STEAM_APP_ID}`,
     };
   }
-  // cache TTL 30s: scanContent cammina l'intera installazione EVO — /api/boot
-  // veniva riscritto riga per riga ad ogni caricamento pagina (cache in content.mjs)
-  const content = scanContentCached(paths);
-  const issues = validateLadder(ladder, content);
+  // cache TTL 5 min: scanContent cammina l'intera installazione EVO — /api/boot
+  // veniva riscritto riga per riga ad ogni caricamento pagina (cache in content.mjs).
+  // Con scan=false il boot non paga la scansione: content/issues restano null e
+  // la vista Impostazioni li chiede a /api/setup quando servono.
+  const content = scan ? scanContentCached(paths) : null;
+  const issues = content ? validateLadder(ladder, content) : null;
   return {
     dataDirs: paths.dataDirs,
     resultsDirs: paths.resultsDirs,
@@ -567,9 +570,10 @@ function viewSetup(ladder, paths = null) {
     gameExe: paths.gameExe,
     slots,
     saved: existsSync(CONFIG_FILE) ? JSON.parse(readFileSync(CONFIG_FILE, 'utf8')) : {},
-    content: { cars: content.cars.size, tracks: content.tracks.size },
+    content: content ? { cars: content.cars.size, tracks: content.tracks.size } : { cars: 0, tracks: 0 },
     ladder: { nodes: ladder.nodes.length, disciplines: ladder.disciplines.length },
-    issues: issues.map((i) => ({ node: i.node, kind: i.kind, id: i.id, display: i.display })),
+    issues: issues ? issues.map((i) => ({ node: i.node, kind: i.kind, id: i.id, display: i.display })) : null,
+    light: !content,
     steamUrl: `steam://rungameid/${STEAM_APP_ID}`,
   };
 
