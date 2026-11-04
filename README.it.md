@@ -2,7 +2,7 @@
 
 **Una carriera persistente e locale per Assetto Corsa EVO.**
 
-![Build](https://img.shields.io/badge/build-0.1.55-2563eb?style=flat-square)
+![Build](https://img.shields.io/badge/build-0.1.56-2563eb?style=flat-square)
 ![Test](https://img.shields.io/badge/test-911%2F911-16a34a?style=flat-square)
 ![Lint](https://img.shields.io/badge/lint-0%20warning-16a34a?style=flat-square)
 ![Node](https://img.shields.io/badge/Node-18%2B-339933?style=flat-square)
@@ -18,15 +18,15 @@ EVO Pitwall aggiunge uno strato di carriera *attorno* ad Assetto Corsa EVO: una 
 
 Il gioco resta il gioco. EVO Pitwall non sostituisce la carriera nativa di AC EVO, non modifica i suoi contenuti e non richiede account, cloud o altre applicazioni di carriera.
 
-**Ramo main:** build **0.1.55** · **911/911** test · **370** file lint, 0 warning.
+**Ramo main:** build **0.1.56** · **911/911** test · **370** file lint, 0 warning.
 
 ## Installazione
 
 ### Opzione A — pacchetto amico pubblicato
 
-La release pubblicata è **[v0.1.55](https://github.com/turbignox-hash/ac-evo-career/releases/tag/v0.1.55)**. L'asset è lo ZIP del pacchetto amico: `installa.cmd`, le guide e tutto il codice. Si installa senza privilegi di amministratore e scarica Node.js portatile se manca.
+La **pre-release** corrente è **[v0.1.56](https://github.com/turbignox-hash/ac-evo-career/releases/tag/v0.1.56)**. Include lo ZIP amico e entrambi gli installer Windows, online e offline. Nessun privilegio di amministratore; l'EXE offline include Node portatile e funziona senza connessione.
 
-> Il pacchetto v0.1.55 è precedente agli ultimi commit su installer e pulizia dei report. Il ramo `main` è più recente.
+> **Anteprima non firmata:** la v0.1.56 è una pre-release perché gli EXE non sono ancora firmati Authenticode. Aspettati SmartScreen; scarica solo da questo repository. La v0.1.55 è più vecchia.
 
 ### Opzione B — EXE Windows dal ramo `main`
 
@@ -44,7 +44,7 @@ Produce `dist\EVO-Pitwall-Setup.exe` oppure `dist\EVO-Pitwall-Setup-Offline.exe`
 - `--silent --dir <percorso>` per l'installazione senza interfaccia;
 - l'EXE offline funziona senza connessione; quello online richiede internet.
 
-> **Stato installer:** il builder EXE è in `main`, ma gli EXE **non sono ancora allegati alla release v0.1.55**. Si possono costruire in locale o attendere la prossima release.
+> **Stato installer:** entrambi gli EXE sono allegati alla **pre-release v0.1.56**. Non sono firmati; una release stabile firmata richiede un certificato OV o EV.
 
 <details>
 <summary>Firma Authenticode opzionale</summary>
@@ -64,6 +64,10 @@ Un **certificato self-signed non toglie SmartScreen**: aiuta solo su un PC che s
 
 Guida completa: [GUIDA-AMICO.md](GUIDA-AMICO.md), con la sezione inglese in fondo; versione inglese intera in [FRIEND-GUIDE-EN.md](FRIEND-GUIDE-EN.md).
 
+## Anteprima installer 0.1.56
+
+Prima build pubblica con entrambi gli installer Windows allegati. L'EXE online scarica Node e il codice; quello offline include Node portatile e tutto il sorgente. Entrambi sono non firmati, quindi aspettati SmartScreen: è una pre-release, non la build stabile firmata.
+
 ## Novità della 0.1.55
 
 - **Installer Windows senza amministratore.** Un EXE WinForms avvolge le stesse regole di installazione, con scelta cartella, log e disinstallatore; varianti online e offline.
@@ -73,7 +77,7 @@ Guida completa: [GUIDA-AMICO.md](GUIDA-AMICO.md), con la sezione inglese in fond
 - **Codice indipendente.** Rimossi il ponte ai journal esterni, il canale e le regole derivate. Calendario, garage e dizionario leggono solo file scritti dal gioco. Una guardia scansiona il progetto e fallisce se ricompare un riferimento al prodotto esterno.
 - **Controlli attuali:** `npm test` **911/911**, `npm run lint` **370 file, 0 warning**.
 
-Le note dell'ultima release pubblicata (v0.1.55) descrivono il taglio di indipendenza; installer e sicurezza release sono commit successivi sul ramo `main`.
+Le note della v0.1.55 descrivono il taglio di indipendenza; la v0.1.56 aggiunge l'anteprima installer non firmata, costruita da `main` pulito.
 
 ## In evidenza
 
