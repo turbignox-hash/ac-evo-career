@@ -51,6 +51,9 @@ import { writeJsonAtomic } from './atomic.mjs';
 // della voce). Un'altra lettura MMF? NESSUNA: stessa fonte, zero doppioni.
 import { liveReader } from './shmem.mjs';
 import { engineerLive } from './engineer.mjs';
+// Target gomme della classe (setup.mjs) per la diagnosi di pressione dal vivo:
+// la stessa tabella del pannello del box, così radio e box non si contraddicono.
+import { tyreClassOf } from './setup.mjs';
 // LA GUARDIA IN FASCIA (3/11, ottavo giro): il battito della guardia (watcher.json)
 // arriva anche al cruscotto dentro il gioco — vivi/ferma e l'ultima lezione del
 // dizionario, la STESSA riga che `status` stampa dal vivo. Lettura pura: un file
@@ -641,7 +644,12 @@ export function preparaFascia(state) {
  *  gruppo si nasconde da solo, mai un'eccezione che ammazza la fascia. */
 export function consigliFascia() {
   try {
-    const live = engineerLive(liveReader().snapshot(), { fuelPerLap: null, raceLaps: null });
+    const snap = liveReader().snapshot();
+    const live = engineerLive(snap, {
+      fuelPerLap: null, raceLaps: null,
+      livePsi: liveReader().last?.physics?.wheelPressure ?? null,
+      targetPsi: snap.player?.car ? (tyreClassOf(snap.player.car)?.target ?? null) : null,
+    });
     return {
       live: !!live.live,
       tips: (live.tips ?? []).slice(0, 5).map((t) => ({

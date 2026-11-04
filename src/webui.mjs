@@ -609,7 +609,7 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
      voce mutava). L'HUD calcola già lapsTotal e lapsOnFuel: il narratore
      consuma proprio quelle stime. */
   if (leggero) {
-    const live0 = engineerLive(snap, { fuelPerLap: null, raceLaps: null });
+    const live0 = engineerLive(snap, { fuelPerLap: null, raceLaps: null, livePsi: r.last?.physics?.wheelPressure ?? null, targetPsi: snap.player?.car ? (tyreClassOf(snap.player.car)?.target ?? null) : null });
     /* FINESTRA STINT nel tick (DA-9 seconda fetta): SOLO l'alert, SOLO dal
        cache caldo — il piano a freddo costa decine di secondi di MoTeC e il
        tick della radio non può piombare (chi scalda è il pannello intero).
@@ -662,7 +662,15 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
       }
     } catch { /* senza telemetria si stima dal HUD del gioco */ }
   }
-  const live = engineerLive(snap, { fuelPerLap, raceLaps });
+  // DIAGNOSI DI SETUP DAL VIVO (4/11): le pressioni a caldo del physics e il
+  // target della classe gomme viaggiano col tick, così la radio dice anche la
+  // correzione da dare alla partenza mentre si gira (stessa regola dei 4 PSI
+  // che applica il pannello del box).
+  const live = engineerLive(snap, {
+    fuelPerLap, raceLaps,
+    livePsi: r.last?.physics?.wheelPressure ?? null,
+    targetPsi: snap.player?.car ? (tyreClassOf(snap.player.car)?.target ?? null) : null,
+  });
   // VIGIA DEL PARCO AUTO: mentre giri, copilota e pannello sanno SUBITO se
   // l'auto del sedile è una di quelle ammesse della serie — un'auto fuori
   // pool all'import vale zero (car-pool.mjs). Il giudizio live però vale

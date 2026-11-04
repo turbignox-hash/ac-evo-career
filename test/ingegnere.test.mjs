@@ -259,3 +259,44 @@ test('engineerLive: EVO CHIUSO (niente shared memory) — il poll dell\u2019inge
   const mezzo = engineerLive({ live: true, session: { type: 'Race' }, player: null }, {});
   assert.ok(mezzo.ok === true && mezzo.live === false, 'sessione c\u00e8 ma player no: live:false senza eccezioni');
 });
+
+test('engineerLive: DIAGNOSI DI SETUP DAL VIVO (4/11) — pressioni vs target e gomma che scotta', () => {
+  // Prima di oggi l'ingegnere sapeva leggere solo sessioni CHIUSE (.ld): in
+  // pista parlava di benzina, usura, gap e bandiere, mai del setup. Qui si
+  // blinda il contratto nuovo: pressioni a caldo dal physics + target della
+  // classe danno la correzione a freddo (regola dei 4 PSI), le temperature di
+  // carcassa dicono quale ruota scotta. Tutto dal vivo, senza filesystem.
+  const base = { fuel: 40, tyreWear: [0.4, 0.55, 0.38, 0.42], lapsTotal: 20, lapsDone: 10, lapsPossible: 12, position: 3, drivers: 20 };
+  const snap = { live: true, session: { type: 'Race' }, player: { ...base } };
+
+  // 1) SOPRA target: media 28.6 vs 27.0 → delta −1.6 → ALLA PARTENZA PIÙ BASSO
+  const alto = engineerLive(snap, { livePsi: [28.4, 28.8, 28.5, 28.7], targetPsi: 27 });
+  const tp = alto.tips.find((t) => t.icon === '🛞' && /Pressioni a caldo/.test(t.title));
+  assert.ok(tp, 'manca il consiglio pressioni dal vivo');
+  assert.match(tp.text, /1\.6 PSI PIÙ BASSO/, 'la correzione deve dire di partire più bassi: ' + tp.text);
+  assert.equal(tp.prio, 2, 'la pressione è un consiglio operativo, non un urgenza (prio 2)');
+  assert.match(tp.title, /28\.6 PSI · target 27/, 'il titolo porta i numeri che l hanno generato');
+
+  // 2) SOTTO target: media 26.2 vs 27.0 → +0.8 → ALLA PARTENZA PIÙ ALTO
+  const basso = engineerLive(snap, { livePsi: [26.0, 26.2, 26.1, 26.3], targetPsi: 27 });
+  const tp2 = basso.tips.find((t) => /Pressioni a caldo/.test(t.title));
+  assert.ok(tp2, 'manca il consiglio pressioni (caso sotto target)');
+  assert.match(tp2.text, /0\.8 PSI PIÙ ALTO/, 'la correzione deve dire di partire più alti: ' + tp2.text);
+
+  // 3) IN FINESTRA (±0.8) e senza target: nessun consiglio inventato
+  assert.ok(!engineerLive(snap, { livePsi: [27.1, 27.2, 26.9, 27.0], targetPsi: 27 }).tips.some((t) => /Pressioni a caldo/.test(t.title)), 'dentro la finestra il box tace');
+  assert.ok(!engineerLive(snap, { livePsi: [31.4, 31.8, 31.5, 31.7] }).tips.some((t) => /Pressioni a caldo/.test(t.title)), 'senza target di classe nessun consiglio pressioni');
+  assert.ok(!engineerLive(snap, { livePsi: [0, 0, 0, 0], targetPsi: 27 }).tips.some((t) => /Pressioni a caldo/.test(t.title)), 'valori implausibili scartati (niente consigli da zeri)');
+
+  // 4) TERMICO: RF 106 °C contro LF 84 °C = 22° di scarto sull'asse anteriore
+  const caldo = engineerLive({ live: true, session: { type: 'Race' }, player: { ...base, tyreCoreTemp: [84, 106, 85, 86] } }, {});
+  const tt = caldo.tips.find((t) => t.icon === '🌡️');
+  assert.ok(tt, 'manca la diagnosi termica dal vivo');
+  assert.match(tt.title, /Gomma RF a 106°C/, 'la diagnosi deve nominare la ruota più calda: ' + tt.title);
+  assert.match(tt.text, /22° di scarto/, 'lo scarto deve essere quello misurato');
+  assert.match(tt.text, /anteriore/, 'asse anteriore dal layout LF/RF/LR/RR');
+
+  // 5) SOTTO soglia (3 °C) o dati assenti: silenzio, non rumore
+  assert.ok(!engineerLive({ live: true, session: { type: 'Race' }, player: { ...base, tyreCoreTemp: [95, 98, 96, 97] } }, {}).tips.some((t) => t.icon === '🌡️'), 'spread 3°: il box tace');
+  assert.ok(!engineerLive(snap, {}).tips.some((t) => /Pressioni|Gomma .* a \d+°C/.test(t.title)), 'senza dati live: nessun consiglio di setup inventato');
+});

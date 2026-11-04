@@ -212,6 +212,51 @@ export function engineerLive(snap, ctx = {}) {
     gauges.wear = pct;
   }
   gauges.temp = player.tyreCoreTemp ?? null;
+  /* ---------- DIAGNOSI DI SETUP DAL VIVO (4/11) ---------- */
+  // Il meccanico, prima dell'uscita, legge il .ld di una sessione CHIUSA. Qui
+  // parla la stessa logica sui dati che il gioco espone MENTRE giri: pressioni
+  // a caldo dal physics (ctx.livePsi) e temperature di carcassa dal player.
+  // Due voci sole, ognuna col numero che l'ha generata: la correzione a freddo
+  // e' quella della regola dei 4 PSI (nuova partenza = vecchia + target - caldo),
+  // cosi' il consiglio in pista e il pannello del box dicono la stessa cosa.
+  const livePsi = (Array.isArray(ctx.livePsi) ? ctx.livePsi : [])
+    .map(Number).filter((v) => Number.isFinite(v) && v > 15 && v < 60);
+  const targetPsi = Number(ctx.targetPsi);
+  if (livePsi.length >= 3 && Number.isFinite(targetPsi) && targetPsi > 0) {
+    const avg = livePsi.reduce((a, b) => a + b, 0) / livePsi.length;
+    const delta = r1(targetPsi - avg);           // correzione da dare alla partenza
+    if (Math.abs(delta) >= 0.8) {
+      tips.push({
+        icon: '🛞',
+        title: tr({ it: `Pressioni a caldo ${r1(avg)} PSI · target ${targetPsi}`, en: `Hot pressures ${r1(avg)} PSI · target ${targetPsi}` }),
+        text: tr({
+          it: `adesso ${livePsi.map((v) => r1(v)).join('/')} PSI (media ${r1(avg)}): alla prossima uscita parti ${Math.abs(delta).toFixed(1)} PSI ${delta < 0 ? 'PIÙ BASSO' : 'PIÙ ALTO'} a freddo — la regola dei 4 PSI, la stessa che applica il box.`,
+          en: `now ${livePsi.map((v) => r1(v)).join('/')} PSI (avg ${r1(avg)}): next time out start ${Math.abs(delta).toFixed(1)} PSI ${delta < 0 ? 'LOWER' : 'HIGHER'} cold — the 4 PSI rule, the same the garage applies.`,
+        }),
+        prio: 2,
+      });
+    }
+  }
+  const coreTemps = (Array.isArray(player.tyreCoreTemp) ? player.tyreCoreTemp : []).map(Number);
+  if (coreTemps.length === 4 && coreTemps.every((v) => Number.isFinite(v) && v > 10 && v < 200)) {
+    let hot = 0, cold = 0;
+    for (let i = 1; i < 4; i++) {
+      if (coreTemps[i] > coreTemps[hot]) hot = i;
+      if (coreTemps[i] < coreTemps[cold]) cold = i;
+    }
+    const spread = Math.round(coreTemps[hot] - coreTemps[cold]);
+    if (spread >= 10) {   // sotto i 10 °C e' rumore: il box non parla
+      tips.push({
+        icon: '🌡️',
+        title: tr({ it: `Gomma ${WHEEL_NAMES[hot]} a ${Math.round(coreTemps[hot])}°C`, en: `Tyre ${WHEEL_NAMES[hot]} at ${Math.round(coreTemps[hot])}°C` }),
+        text: tr({
+          it: `${spread}° di scarto dalla più fredda (${WHEEL_NAMES[cold]} ${Math.round(coreTemps[cold])}°C) sull'asse ${hot < 2 ? 'anteriore' : 'posteriore'}: una gomma che scotta lavora di più — alla prossima sosta controlla pressione e camber di quella ruota, non alzarla ancora.`,
+          en: `${spread}° spread from the coldest (${WHEEL_NAMES[cold]} ${Math.round(coreTemps[cold])}°C) on the ${hot < 2 ? 'front' : 'rear'} axle: an overheating tyre works harder — at the next stop check that wheel's pressure and camber, do not add more.`,
+        }),
+        prio: 2,
+      });
+    }
+  }
 
   /* ---------- gap: attacca o difendi ---------- */
   const gapAhead = Number(player.gapAhead), gapBehind = Number(player.gapBehind);
