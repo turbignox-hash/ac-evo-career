@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Dashboard a 256 px: le chip dei rivali restano dentro la scheda (richiesta Mauro: «scegli autonomamente cosa migliorare e procedi,»)
+
+- **Il difetto**: il test `layout-impostazioni` era l'unico rosso della suite. A 256 px rilevava due sovrapposizioni `span.chip.gold ⟂ span.chip` dentro `#card-panel`: la chip esterna dei rivali era larga 144 px, ma il blocco «forma: 7 2 2 2 2» (un `inline-flex` senza wrap) arrivava a 219 px e usciva dal bordo destro (192 px). A 320, 360, 480, 1250 e 1920 px non succedeva.
+- **La cura**: una sola riga in `gui/js/viste-a.js`: il blocco forma della chip rivale ora ha `flex-wrap:wrap`, `min-width:0` e `max-width:100%`. Le cinque chip della forma vanno a capo dentro la chip esterna; il desktop non cambia.
+- **Verifica**: `node --test test/layout-impostazioni.test.mjs` → **1/1** (21 tab × 6 viewport, 45,1 s); `npm run lint` → **369 file, 0 warning**; `git diff --check` pulito. La suite completa (`npm test`) resta **951/963** (11 rossi, 1 skip) per cause esterne alla modifica: 8 in `grid-templates` (il gate legge 27 vetture dal save reale), 2 in `semina-campionato` (guardia `EVO è APERTO`, l'utente sta giocando) e 1 in `diffesa-sonda` (in isolamento passa 4/4). Il test di layout è verde da solo e nella suite.
+- **Nota**: commit di `gui/js/viste-a.js` + questo diario, non push; restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — webui.mjs: estratta la Manutenzione col suo tick (P1.5, quinto dominio) (richiesta Mauro: «Ora che il contratto è protetto, il passo successivo più naturale è completare l’estrazione di maintenance con il suo tick periodico.»)
 
 - **Il taglio**: maintenance vive in src/webui-actions-maintenance.mjs con la rotta, maintenanceTick, autoRepairEnabled, lastAutoRepairAt e startMaintenanceTicker (primo giro a 2,5 s, poi ogni 10 minuti). webui.mjs conserva il dispatcher e chiama solo l'avvio.
