@@ -171,29 +171,49 @@ const raceMsOf = (t) => {
   return ((Number(m[1] ?? 0) * 3600) + (Number(m[2]) * 60) + Number(m[3])) * 1000 + Number(m[4] ?? 0);
 };
 
-/** Positione UFFICIALE di un pilota: i classificati vengono riordinati con
- *  total_time + penalità a tempo; DSQ e non classificati escono dal conto.
- *  DT non si ricompone: il tempo dell'attraversamento è già nel giro. */
+/** Posizione UFFICIALE di un pilota dentro la sua classe. L'ordine del file
+ *  EVO è l'ordine d'arrivo PRIMA delle penalità; per applicarle va riordinato
+ *  per tempo, ma il tempo vale solo DENTRO la classe. Nelle gare multi-classe/
+ *  Pro-Am l'ordine del file non è monotòno (Donington 18/10: i primi 5 avevano
+ *  38-45 s PIÙ del giocatore ed erano davanti — un'altra classe). Un riordino
+ *  globale promuoveva il giocatore di 5 posti (16 gare su 88, audit 4/11).
+ *  Qui l'ordine si spezza in blocchi: nuovo blocco quando i giri cambiano o il
+ *  tempo SCENDE (in una classe vera cresce con la posizione). Dentro il blocco
+ *  contano giri e tempo+penalità; fra blocchi non si scavalca. DSQ, ritirati e
+ *  giri zero restano fuori classifica. */
+const _gradCache = new WeakMap();
+function graduatoriaUfficiale(result) {
+  if (result && _gradCache.has(result)) return _gradCache.get(result);
+  const base = positionBase(result).base;
+  const rows = (result?.drivers ?? [])
+    .map((x) => ({ d: x, pos: Number(x.position) + base, laps: Number(x.laps ?? 0), ms: raceMsOf(x.total_time), pen: penaltyOf(x).ms }))
+    .filter((r) => r.d && Number.isFinite(r.pos) && Number.isFinite(r.ms) && r.laps > 0 && !penaltyOf(r.d).dsq)
+    .sort((a, b) => a.pos - b.pos);
+  const blocchi = [];
+  for (const r of rows) {
+    const prev = blocchi.at(-1)?.at(-1);
+    // tolleranza 0,5 s: il jitter dentro la stessa classe non apre un blocco
+    if (!prev || r.laps !== prev.laps || r.ms < prev.ms - 500) blocchi.push([r]);
+    else blocchi.at(-1).push(r);
+  }
+  const out = new Map();
+  let offset = 0;
+  for (const b of blocchi) {
+    b.sort((a, c) => c.laps - a.laps || (a.ms + a.pen) - (c.ms + c.pen) || a.pos - c.pos);
+    b.forEach((r, i) => { out.set(r.pos, offset + i + 1); });
+    offset += b.length;
+  }
+  if (result) _gradCache.set(result, out);
+  return out;
+}
+
 export function officialPositionOf(result, d) {
   const pen = penaltyOf(d);
   if (!d || !d.total_time || Number(d.laps ?? 0) === 0 || pen.dsq) {
     return { position: null, dsq: pen.dsq, penalty: pen.label };
   }
-  const myMs = raceMsOf(d.total_time);
-  const myLaps = Number(d.laps ?? 0);
-  // Classificazione come la fa il gioco: prima i GIRI, poi il tempo corretto
-  // (i doppiati restano dietro anche se total_time è più basso del leader!).
-  const ahead = (result?.drivers ?? []).filter((o) => {
-    if (o === d) return false;
-    const p = penaltyOf(o);
-    if (p.dsq) return false;
-    if (!o.total_time || Number(o.laps ?? 0) === 0) return false;
-    const oLaps = Number(o.laps ?? 0);
-    if (oLaps !== myLaps) return oLaps > myLaps;
-    const t = raceMsOf(o.total_time);
-    return Number.isFinite(t) && (t + p.ms) < (myMs + pen.ms);
-  }).length;
-  return { position: ahead + 1, dsq: false, penalty: pen.label };
+  const base = positionBase(result).base;
+  return { position: graduatoriaUfficiale(result).get(Number(d.position) + base) ?? null, dsq: false, penalty: pen.label };
 }
 
 /** Miglior giro in assoluto e se il giocatore l'ha firmato. */
