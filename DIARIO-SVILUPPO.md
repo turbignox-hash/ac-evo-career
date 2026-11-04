@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — MoTeC: i Results si indicizzano una volta per collectSessions (scansione + ottimizzazione, richiesta Mauro)
+
+- Scansione: il percorso caldo era `collectSessions` → `readResultMeta`: per OGNI sessione rileggeva e riparsava TUTTI i 362 JSON di Results. Con 10 sessioni erano 3.620 parse dello stesso contenuto; il costo misurato era 1.269 ms a freddo e 1.148 ms a caldo (286 .ld, 362 Results reali, sola lettura).
+- Ottimizzazione: `readResultsIndex` costruisce una volta per chiamata le sole schede che servono (mtime, pista, layout, tipo, meteo, ora/minuto); `readResultMeta` riceve l’indice e fa solo il confronto. Se chiamato da solo continua a costruirsi l’indice, quindi nessun chiamante resta scoperto. Non è una cache globale: un Results nuovo o modificato entra alla chiamata successiva.
+- Misura dopo: `collectSessions(limit=10)` passa da 1.269,5 ms a 268,1 ms a freddo (4,7×) e da 1.147,9 ms a 162,7 ms a caldo (7,1×). `readResultMeta` chiamato 10 volte da solo resta ~1.128 ms perché ricostruisce l’indice a ogni chiamata: il guadagno è nel percorso vero, non in un numero costruito a tavolino.
+- Verifica: 2 nuovi casi in `test/motec-results-index.test.mjs` (Results più vicino della stessa pista; fuori finestra → null), mirati 10/10, suite completa **946/946**, Biome lint sui file toccati e `node --check` puliti. Nessun file di gioco o save toccato; release invariata.
+
 ### 4/11 — Cruscotto: via il riquadro dorato del suggerimento trim (richiesta Mauro)
 
 - Dalla scheda gara è uscito il banner `card.pendingProposal` («Il tool suggerisce il trim», con Accetta/Rifiuta) e i due handler `b-prop-accept`/`b-prop-reject`. La riga compatta `#card-trim` resta sopra la sfida e prima di «Prepara tutto»; il suggerimento resta nella pagina Difficoltà.

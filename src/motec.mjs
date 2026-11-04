@@ -664,28 +664,51 @@ export function sessionMetaOf(fileName) {
 }
 
 /**
- * Trova il file Results scritto da EVO alla fine della sessione telemetrica
- * (mtime combacia entro la finestra) per sapere se era prove/qualifica/gara.
+ * Indice dei Results per UNA chiamata di collectSessions. Prima ogni sessione
+ * rileggeva e riparsava tutti i 362 JSON della cartella: con 10 sessioni erano
+ * 3.620 parse. I Results sono file chiusi (EVO li scrive a fine sessione), ma
+ * l'indice NON è una cache globale: vive quanto la chiamata, quindi un file
+ * nuovo o modificato viene visto subito alla chiamata successiva.
  */
-export function readResultMeta(resultsDir, { endMs, track = null, windowMs = 120000 } = {}) {
-  if (!endMs) return null;
+function readResultsIndex(resultsDir) {
   let files = [];
-  try { files = readdirSync(resultsDir).filter((f) => f.endsWith('.json')); } catch { return null; }
-  let best = null, bestFile = null, bestD = Infinity;
+  try { files = readdirSync(resultsDir).filter((f) => f.endsWith('.json')); } catch { return []; }
+  const out = [];
   for (const f of files) {
     const full = join(resultsDir, f);
     let mtime = 0, j = null;
     try { mtime = statSync(full).mtimeMs; j = JSON.parse(readFileSync(full, 'utf8')); } catch { continue; }
-    const d = Math.abs(mtime - endMs);
-    if (!sameTrack(track, j.track)) continue;
-    if (d <= windowMs && d < bestD) { bestD = d; best = j; bestFile = f; }
+    out.push({
+      file: f, mtime, track: j.track, layout: j.layout,
+      kind: String(j.session ?? '').toLowerCase() || null,
+      weather: String(j.weather_type ?? '').replace(/^.*WeatherType_/, '') || null,
+      hour: j.hour ?? null, min: j.min ?? null,
+    });
+  }
+  return out;
+}
+
+/**
+ * Trova il file Results scritto da EVO alla fine della sessione telemetrica
+ * (mtime combacia entro la finestra) per sapere se era prove/qualifica/gara.
+ * `index` è l'indice già costruito da collectSessions; se manca, readResultMeta
+ * resta autosufficiente per i chiamanti diretti.
+ */
+export function readResultMeta(resultsDir, { endMs, track = null, windowMs = 120000, index = null } = {}) {
+  if (!endMs) return null;
+  const entries = index ?? readResultsIndex(resultsDir);
+  let best = null, bestD = Infinity;
+  for (const e of entries) {
+    const d = Math.abs(e.mtime - endMs);
+    if (!sameTrack(track, e.track)) continue;
+    if (d <= windowMs && d < bestD) { bestD = d; best = e; }
   }
   if (!best) return null;
   return {
-    kind: String(best.session ?? '').toLowerCase() || null,
-    weather: String(best.weather_type ?? '').replace(/^.*WeatherType_/, '') || null,
-    hour: best.hour ?? null, min: best.min ?? null,
-    file: bestFile, track: best.track, layout: best.layout,
+    kind: best.kind,
+    weather: best.weather,
+    hour: best.hour, min: best.min,
+    file: best.file, track: best.track, layout: best.layout,
   };
 }
 
@@ -696,12 +719,14 @@ export function readResultMeta(resultsDir, { endMs, track = null, windowMs = 120
 export function collectSessions(motecRoot, resultsDir, { car = null, track = null, limit = 10, afterMs = 0 } = {}) {
   const list = listMotecSessions(motecRoot, { car, track, afterMs });
   const out = [];
+  let resultIndex = null;
   for (const s of list) {
     if (out.length >= limit) break;
     const a = analyzeLd(s.file);
     if (!a) continue;
     const meta = sessionMetaOf(s.name);
-    const res = readResultMeta(resultsDir, { endMs: s.mtime, track: s.track });
+    resultIndex ??= readResultsIndex(resultsDir);
+    const res = readResultMeta(resultsDir, { endMs: s.mtime, track: s.track, index: resultIndex });
     out.push({
       file: s.name, car: s.car, track: s.track, mtimeMs: Math.round(s.mtime),
       when: new Date(s.mtime).toISOString(), whenLocal: new Date(s.mtime).toLocaleString('it-IT'), startAt: meta.startAt ? meta.startAt.toISOString() : null,
