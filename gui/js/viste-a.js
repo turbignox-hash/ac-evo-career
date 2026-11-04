@@ -53,7 +53,7 @@ async function wizardChecklist(box, opts = {}){
   const WRN = '<span style="color:var(--warn,#ffb454);font-size:15px;margin-right:2px">⚠</span>';
   const boxRow = (ico, tol, title, sub, warn) =>
     `<div style="padding:9px 12px;border:1px solid ${warn ? '#4a3a2a' : 'var(--line,#283046)'};border-radius:9px;margin-bottom:8px;display:flex;gap:10px;align-items:center;background:${warn ? '#171310' : '#0f1420'}">${ico}
-     <div><b style="font-size:13.5px">${title}</b>${sub ? `<div class="muted" style="font-size:12px;margin-top:1px">${sub}</div>` : ''}</div>${tol ? `<span class="muted" style="margin-left:auto;font-size:11px">${tol}</span>` : ''}</div>`;
+     <div><b style="font-size:13.5px">${title}</b>${sub ? `<div class="muted" style="font-size:12px;margin-top:1px">${sub}</div>` : ''}</div>${tol ? `<span class="muted" style="margin-left:auto;font-size:11.5px">${tol}</span>` : ''}</div>`;
   const rows = [];
   /* 0 — azioni rapide:  📂 apre la cartella dati in Esplora risorse (selezionata
      dentro la sua cartella madre),  ▶ avvia EVO tramite l'URI ufficiale Steam
@@ -61,13 +61,13 @@ async function wizardChecklist(box, opts = {}){
   rows.push(`<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px">
     <button class="ghost" id="wz-open-exp" type="button">${tr({ it: '📂 Apri la cartella in Esplora risorse', en: '📂 Open the folder in File Explorer' })}</button>
     <button class="ghost" id="wz-launch" type="button">${tr({ it: '▶ Avvia EVO (Steam)', en: '▶ Launch EVO (Steam)' })}</button>
-    <span class="muted" style="font-size:11px">${tr({ it: 'azioni locali, affidate al server: nessun download', en: 'local actions, handled by the server: no downloads' })}</span>
+    <span class="muted" style="font-size:11.5px">${tr({ it: 'azioni locali, affidate al server: nessun download', en: 'local actions, handled by the server: no downloads' })}</span>
   </div>`);
   /* 1 — cartella dati EVO: la spunta verde che serve */
   if (w.dataDir) {
     rows.push(boxRow(OKI, 'ok', tr({ it: 'Cartella dati EVO', en: 'EVO data folder' }), esc(w.dataDir)));
   } else {
-    const cercati = (w.candidates ?? []).map((c) => `${c.ok ? OKI : MIS} <code style="font-size:11px">${esc(c.dir)}</code>`).join(' · ');
+    const cercati = (w.candidates ?? []).map((c) => `${c.ok ? OKI : MIS} <code style="font-size:11.5px">${esc(c.dir)}</code>`).join(' · ');
     rows.push(`<div style="padding:10px 12px;border:1px solid #4a3a2a;border-radius:9px;margin-bottom:8px;background:#171310">${MIS}
       <b style="font-size:13.5px">${tr({ it: 'Cartella dati EVO non trovata', en: 'EVO data folder not found' })}</b>
       <div class="muted" style="font-size:12px;margin-top:3px">${tr({ it: 'ho guardato: ', en: 'I checked: ' })}${cercati || tr({ it: 'nessun percorso standard', en: 'no standard path' })}</div>
@@ -75,7 +75,7 @@ async function wizardChecklist(box, opts = {}){
         <input type="text" id="wz-dir" placeholder="${tr({ it: 'incolla qui il percorso (es. C:/Users/Tu/Saved Games/ACE)', en: 'paste the path here (e.g. C:/Users/You/Saved Games/ACE)' })}" style="flex:1;min-width:300px">
         <button class="act" id="wz-dir-save" type="button">${tr({ it: '💾 Registra percorso', en: '💾 Save path' })}</button>
       </div>
-      <div class="muted" style="font-size:11px;margin-top:6px">${tr({ it: "Copia l'indirizzo dalla barra di Esplora risorse. Se l'EVO non è mai partito, avvialo una volta: crea la cartella da solo.", en: "Copy the address from the File Explorer bar. If EVO has never started, launch it once: it creates the folder by itself." })}</div>
+      <div class="muted" style="font-size:11.5px;margin-top:6px">${tr({ it: "Copia l'indirizzo dalla barra di Esplora risorse. Se l'EVO non è mai partito, avvialo una volta: crea la cartella da solo.", en: "Copy the address from the File Explorer bar. If EVO has never started, launch it once: it creates the folder by itself." })}</div>
     </div>`);
   }
   /* 2 — exe del gioco: spunta, NON blocca (senza exe si parte via Steam URI) */
@@ -360,7 +360,7 @@ async function showGazzetta(){
           ${!g.races ? `<div class="empty">${tr({ it: 'Il registro della stampa per quest\'anno è vuoto: i titoli arrivano con le gare importate.', en: "The season's press registry is empty: headlines arrive with imported races." })}</div>`
           : g.heads.map((h) => `
             <div style="border-left:2px solid var(--line,#283046);padding:6px 10px;margin-bottom:8px">
-              <span class="chip ${h.outcome === 'P1' ? 'gold' : h.outcome === 'dnf' ? 'red' : ''}" style="font-size:10px;padding:1px 6px">R${h.round} · ${esc(h.track ?? '')}</span>
+              <span class="chip ${h.outcome === 'P1' ? 'gold' : h.outcome === 'dnf' ? 'red' : ''}" style="font-size:11.5px;padding:1px 7px">R${h.round} · ${esc(h.track ?? '')}</span>
               <b style="font-size:12.5px;display:block;margin-top:3px">${esc(h.title)}</b>
               <div class="muted" style="font-size:12px;white-space:pre-wrap">${esc(h.body ?? '')}</div>
             </div>`).join('')}
@@ -412,13 +412,13 @@ async function drawHeritagePanel(){
     if (v.active){
       const a = v.active;
       html += `<div class="liferow"><span class="lico">📜</span><div class="lt"><b>${esc(tr({ it: a.title, en: a.titleEn ?? a.title }))}</b> — ${esc(a.ancestor)}, ${tr({ it: 'tuo ', en: 'your ' })}${esc(tr({ it: a.relation, en: a.relationEn ?? a.relation }))} (${esc(a.era)})              <div style="font-size:12.5px;margin-top:3px">${window.serLinkHtml(a.series)} · ${tr({ it: 'auto: ', en: 'car: ' })}<b>${a.carName ? window.carLinkHtml(a.carName) : esc(tr({ it: 'n/d', en: 'n/a' }))}</b>${a.seat?` #${a.seat}`:''} · ${tr({ it: 'obiettivo: ', en: 'goal: ' })}<b>${esc(tr({ it: a.objective.text, en: a.objective.en ?? a.objective.text }))}</b></div>
-        <div style="font-size:12.5px">${tr({ it: 'Prove: ', en: 'Rounds: ' })}${a.rounds.map((t)=>{const pr=(a.progress??[]).find(p=>p.track===t); return `<span class="tag ${pr?.ok ? 'green':''}" style="font-size:10px;padding:1px 6px" title="${esc(pr?.detail ?? tr({ it: 'da correre', en: 'to run' }))}">${esc(t)}</span>`;}).join(' ')}</div>
+        <div style="font-size:12.5px">${tr({ it: 'Prove: ', en: 'Rounds: ' })}${a.rounds.map((t)=>{const pr=(a.progress??[]).find(p=>p.track===t); return `<span class="tag ${pr?.ok ? 'green':''}" style="font-size:11.5px;padding:1px 7px" title="${esc(pr?.detail ?? tr({ it: 'da correre', en: 'to run' }))}">${esc(t)}</span>`;}).join(' ')}</div>
         <div style="font-size:12px;margin-top:4px" class="muted">${tr({ it: 'Leggende in griglia: ', en: 'Legends on the grid: ' })}${esc(a.legends.join(' · '))}</div>
         ${a.done ? `<div class="banner good" style="margin-top:8px">${tr({ it: "🏁 Impresa rifatta! L'eredità di ", en: '🏁 Feat re-run! The inheritance of ' })}<b>${money(a.inherit)} €</b>${tr({ it: ' è pronta. ', en: ' is ready. ' })}<button class="mini" id="b-her-claim" style="margin-top:4px">${tr({ it: "Incassa l'eredità", en: 'Claim the inheritance' })}</button></div>` : `<div class="muted" style="font-size:12px;margin-top:5px">${tr({ it: 'Vali in palio: ', en: 'Prize at stake: ' })}${money(a.inherit)} € (${tr({ it: 'dopo: ', en: 'after: ' })}${money(a.repeat)} € ${tr({ it: 'a ripetizione', en: 'per repeat' })}) · ${tr({ it: 'relic: ', en: 'relic: ' })}${esc(tr({ it: a.relic, en: a.relicEn ?? a.relic }))}</div><div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span style="font-size:12.5px">🎯 ${tr({ it: 'Come si partecipa: le Prove sono ronde NORMALI della serie, si corrono come ogni campionato (l\'obbiettivo conta da solo al risultato importato).', en: 'How to take part: the Rounds are =NORMAL rounds of that series, raced like any championship (the objective counts by itself on the imported result).' })}</span>${a.nodeId ? `<button class="mini" id="b-her-agenda">${tr({ it: 'Punta la ronda in Agenda', en: 'Point the round in the Agenda' })}</button>` : ''}</div>` }
       </div></div>`;
     }
     if (v.completed.length){
-      html += `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${v.completed.map(c=>`<span class="tag gold" style="font-size:11px;padding:3px 9px" title="${esc(c.ancestor)} · ${esc(c.era)} · ${esc(c.series)} · +${money(c.inherit)} €">${esc(tr({ it: c.crest, en: c.crestEn ?? c.crest }))} ${esc(tr({ it: c.title, en: c.titleEn ?? c.title }))}</span>`).join('')}</div>`;
+      html += `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${v.completed.map(c=>`<span class="tag gold" style="font-size:11.5px;padding:3px 9px" title="${esc(c.ancestor)} · ${esc(c.era)} · ${esc(c.series)} · +${money(c.inherit)} €">${esc(tr({ it: c.crest, en: c.crestEn ?? c.crest }))} ${esc(tr({ it: c.title, en: c.titleEn ?? c.title }))}</span>`).join('')}</div>`;
     }
     if (v.allDone) html += `<div class="banner good" style="margin-top:8px">${tr({ it: 'Saga completa: la famiglia è entrata nella leggenda. 🏛️', en: 'Saga complete: the family made it into legend. 🏛️' })}</div>`;
     el.innerHTML = html;
@@ -458,14 +458,14 @@ async function drawEventsPanel(){
       const a = v.active, c = v.card;
       const pending = !a.acceptedAt;
       html += `<div class="banner ${pending ? 'info' : 'good'}" style="margin-bottom:8px">
-        <b>${tr({ it: '⭐ ', en: '⭐ ' })}${esc(a.theme.name)}</b> <span class="tag" style="font-size:10px;padding:1px 6px">${a.tier === 'finale' ? tr({ it: 'FINALE DI STAGIONE', en: 'SEASON FINALE' }) : tr({ it: 'invito speciale', en: 'special invite' })}</span><br>
+        <b>${tr({ it: '⭐ ', en: '⭐ ' })}${esc(a.theme.name)}</b> <span class="tag" style="font-size:11.5px;padding:1px 7px">${a.tier === 'finale' ? tr({ it: 'FINALE DI STAGIONE', en: 'SEASON FINALE' }) : tr({ it: 'invito speciale', en: 'special invite' })}</span><br>
         <span class="muted" style="font-size:12.5px">${esc(a.theme.intro)}</span><br>
         <span style="font-size:12.5px;margin-top:4px;display:inline-block">🏁 ${window.trackLinkHtml(v.card?.trackName ?? a.trackDisplay)} · ${a.laps != null ? a.laps : '—'} ${tr({ it: 'giri', en: 'laps' })}${((c.guests ?? a.guests ?? []).length ? ` · ${esc((c.guests ?? a.guests).join(' · '))}` : '')} · ${tr({ it: 'premio: ', en: 'prize: ' })}<b>${a.prize.duplicateCash ? money(a.prize.money) + ' €' : window.carLinkHtml(a.prize.carName) + ' + ' + money(a.prize.money) + ' €'}</b>${a.prize.rep ? ` · +${a.prize.rep} rep` : ''}${a.tier !== 'finale' && !a.acceptedAt ? ` · <span class="muted">${tr({ it: 'scade dopo ', en: 'expires after ' })}${a.deadlineRounds} ${tr({ it: 'gare di campionato', en: 'championship races' })}</span>` : ''}</span>
       </div>`;
       if (pending){
         html += `<div class="row"><button class="act" id="b-ev-acc">${tr({ it: "Accetto l'invito", en: 'I accept the invite' })}</button><button class="ghost" id="b-ev-dec">${tr({ it: 'Rifiuta', en: 'Decline' })}</button></div>`;
       } else {
-        html += `<details open style="margin:6px 0"><summary style="cursor:pointer;font-size:12.5px"><b>${tr({ it: '📋 Scheda da impostare in EVO', en: '📋 Sheet to set up in EVO' })}</b> <span class="muted" style="font-size:11px">— ${tr({ it: 'spuntala come la gara di campionato', en: 'check it off like the championship race' })}</span></summary>
+        html += `<details open style="margin:6px 0"><summary style="cursor:pointer;font-size:12.5px"><b>${tr({ it: '📋 Scheda da impostare in EVO', en: '📋 Sheet to set up in EVO' })}</b> <span class="muted" style="font-size:11.5px">— ${tr({ it: 'spuntala come la gara di campionato', en: 'check it off like the championship race' })}</span></summary>
           <table style="margin-top:6px"><tbody>${c.settings.map((s)=>`<tr><td style="width:130px" class="muted">${esc(s[0])}</td><td>${esc(s[1])}</td></tr>`).join('')}</tbody></table>
           <div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: "Difficoltà AI consigliata per la tua serie: → usa gli slider della scheda gara normale. Se ti serve, guarda il pannello Prossima gara.", en: "Recommended AI difficulty for your series: → use the sliders of the normal race sheet. If needed, see the Next race panel." })}</div>
         </details>
@@ -588,9 +588,9 @@ const note = r.gameRunning ? tr({ it: 'EVO è già aperto', en: 'EVO is already 
 }
 
 /* IL VERDETTO DI GIORNATA (30/10, «verdetto anche nel webui»): l'HTML del
-   verdetto in un helper SOLO — lo beve la scheda di gara (da 29/10) e il
-   cruscotto (nuovo oggi): un aggregato, un disegno, mai due formule.
-   `v` è la risposta dell'endpoint /api/verdetto (md, gare, aggregato). */
+   verdetto in un helper SOLO — lo beve il pannello del cruscotto (dal 4/11
+   la scheda gara non ne ha più una copia): un aggregato, un disegno, mai due
+   formule. `v` è la risposta dell'endpoint /api/verdetto (md, gare, aggregato). */
 function verdettoHtml(v) {
   const agg = v.aggregato ?? {};
   const fmtGrial = (g) => (g.posto != null ? `P${g.posto}/${g.partecipanti}` : (g.dsq ? 'DSQ' : '—'));
@@ -698,22 +698,22 @@ function drawCardInto(el, card){
     ${card.gridRitual ? `<div class="banner info" style="margin-top:8px">🏁 <b>${tr({ it: 'Nuova serie, griglia da sbloccare (una volta sola)', en: 'New series, grid to unlock (once only)' })}</b> — <span style="font-size:11.5px">${esc(card.gridRitual)}</span></div>` : ''}
     ${card.gridAltraSerie ? `<div class="banner info" style="margin-top:8px">🔁 <b>${tr({ it: 'Griglia sul disco di un\'altra serie', en: "Grid on disk is from a different series" })}</b> — <span style="font-size:11.5px">${esc(card.gridAltraSerie)}</span></div>` : ''}
 
-    ${card.boxRadio?.tips?.length ? `<details style="margin-top:8px" open><summary style="cursor:pointer;font-size:12px"><b>${window.mechIcon ? window.mechIcon(13) : '📻'} ${tr({ it: 'Consigli dal BOX', en: 'BOX tips' })}</b> <span class="muted" style="font-size:11px">— ${tr({ it: "la scheda dell'ingegnere di gara, personale del meccanico", en: "the race engineer's sheet, the mechanic's staff" })}</span></summary>
+    ${card.boxRadio?.tips?.length ? `<details style="margin-top:8px" open><summary style="cursor:pointer;font-size:12px"><b>${window.mechIcon ? window.mechIcon(13) : '📻'} ${tr({ it: 'Consigli dal BOX', en: 'BOX tips' })}</b> <span class="muted" style="font-size:11.5px">— ${tr({ it: "la scheda dell'ingegnere di gara, personale del meccanico", en: "the race engineer's sheet, the mechanic's staff" })}</span></summary>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${card.boxRadio.tips.map(t=>`<div style="display:flex;gap:10px;align-items:flex-start;background:var(--panel2,#121822);border:1px solid var(--line);border-radius:8px;padding:7px 10px"><span style="flex:none;font-size:15px">${t.icon}</span><div style="font-size:12px;line-height:1.45"><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></div></div>`).join('')}</div></details>` : ''}
     <div id="ingegnere-live" style="margin-top:10px"></div>
     ${card.outlook ? `<div style="margin-top:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2,#151a24)">
-      <div style="font-size:12px;margin-bottom:4px"><b>${tr({ it: 'Obiettivo giro', en: 'Lap target' })}</b> · ${card.outlook.lapTarget ? `${tr({ it: 'il tuo best qui: ', en: 'your best here: ' })}<b style="color:var(--acc)">${esc(card.outlook.lapTarget.time)}</b> <span class="muted">(${window.carLinkHtml(card.outlook.lapTarget.car ?? '')}, ${esc((card.outlook.lapTarget.at||'').slice(0,10))})</span>` : `<span class="muted">${tr({ it: 'prima volta su questo tracciato: tutto da scrivere', en: 'first time on this track: everything to write down' })}</span>`}${card.outlook.mastery ? ` · <span class="tag ${card.outlook.mastery.level>=3?'gold':'blue'}" style="font-size:10px;padding:1px 6px">${tr({ it: 'maestria: ', en: 'mastery: ' })}${esc(card.outlook.mastery.name)}</span>` : ''}</div>
+      <div style="font-size:12px;margin-bottom:4px"><b>${tr({ it: 'Obiettivo giro', en: 'Lap target' })}</b> · ${card.outlook.lapTarget ? `${tr({ it: 'il tuo best qui: ', en: 'your best here: ' })}<b style="color:var(--acc)">${esc(card.outlook.lapTarget.time)}</b> <span class="muted">(${window.carLinkHtml(card.outlook.lapTarget.car ?? '')}, ${esc((card.outlook.lapTarget.at||'').slice(0,10))})</span>` : `<span class="muted">${tr({ it: 'prima volta su questo tracciato: tutto da scrivere', en: 'first time on this track: everything to write down' })}</span>`}${card.outlook.mastery ? ` · <span class="tag ${card.outlook.mastery.level>=3?'gold':'blue'}" style="font-size:11.5px;padding:1px 7px">${tr({ it: 'maestria: ', en: 'mastery: ' })}${esc(card.outlook.mastery.name)}</span>` : ''}</div>
       <div style="font-size:12px;margin-bottom:4px"><b>${tr({ it: 'Stagione', en: 'Season' })}</b> · ${card.outlook.standingPosition?`P${card.outlook.standingPosition} ${tr({ it: 'in classifica · ', en: 'in the standings · ' })}`:''}${card.outlook.racesRun}/${card.outlook.totalRounds} ${tr({ it: 'gare corse', en: 'races run' })} · ${card.outlook.seasonPoints} ${tr({ it: 'punti', en: 'points' })}${card.outlook.duel?` · ⚔️ ${tr({ it: 'duello con <b>', en: 'duel with <b>' })}${esc(card.outlook.duel.name)}</b> ${tr({ it: 'a ', en: 'at ' })}${card.outlook.duel.gap} pt`:''}${card.outlook.crowd?` · <span title="${tr({ it: 'stima spettatori dalla pista', en: 'crowd estimate from the track' })}">🧑‍🤝‍🧑 ${(card.outlook.crowd/1000).toFixed(0)}k ${tr({ it: 'attesi', en: 'expected' })}</span>`:''}</div>
       ${card.outlook.contract?.length ? `<div style="font-size:12px;margin-bottom:4px"><b>${tr({ it: 'Contratto', en: 'Contract' })}</b> · ${card.outlook.contract.map(c=>`<span title="${esc(c.progress)}" style="white-space:nowrap">${c.decided===false?'<span style="color:var(--bad)">✗</span>':c.ok?'<span style="color:var(--good)">✓</span>':'•'} ${esc(c.text.split(' ').slice(0,4).join(' '))}…</span>`).join(' ')}</div>` : ''}
     ${(card.timeMultiplier ?? 1) !== 1 ? `<div style="font-size:12px;margin-bottom:4px"><b>${tr({ it: 'Tempo', en: 'Time' })}</b> · ${tr({ it: 'moltiplicatore consigliato: ', en: 'suggested multiplier: ' })}<b>${card.timeMultiplier}x</b> <span class="muted">(${tr({ it: 'col gioco che corre più in fretta il pomeriggio si comprime: le ore di sessione restano quelle del calendario', en: 'with the game running faster the afternoon compresses: the session hours stay the ones of the calendar' })})</span></div>` : ''}
-      ${(card.outlook.rivals ?? []).length > 0 ? `<div style="font-size:12px;margin-top:6px"><b>${tr({ it: 'Rivali già visti', en: 'Rivals already faced' })}</b> <span class="muted" style="font-size:10.5px">${tr({ it: '· clicca un nome per la scheda completa', en: '· click a name for the full sheet' })}</span>
-          <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">${(card.outlook.rivals || []).map(r=>`<span class="chip ${r.h2h.beats>r.h2h.losses?'':'gold'}" data-rival="${esc(r.key??'')}" data-name="${esc(r.name)}" style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;flex-wrap:wrap;font-size:11px">
+      ${(card.outlook.rivals ?? []).length > 0 ? `<div style="font-size:12px;margin-top:6px"><b>${tr({ it: 'Rivali già visti', en: 'Rivals already faced' })}</b> <span class="muted" style="font-size:11.5px">${tr({ it: '· clicca un nome per la scheda completa', en: '· click a name for the full sheet' })}</span>
+          <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">${(card.outlook.rivals || []).map(r=>`<span class="chip ${r.h2h.beats>r.h2h.losses?'':'gold'}" data-rival="${esc(r.key??'')}" data-name="${esc(r.name)}" style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;flex-wrap:wrap;font-size:11.5px">
               ${typeof rivalAvatar==='function'?rivalAvatar(r.name, 22):''}
-              <b>${esc(r.name)}</b>${r.team?`<span class="muted" style="font-size:10.5px">${esc(r.team)}</span>`:''}
-              ${(r.form ?? []).length ? `<span style="display:inline-flex;flex-wrap:wrap;gap:3px;align-items:center;min-width:0;max-width:100%">${tr({ it: 'forma:', en: 'form:' })} ${(r.form||[]).map(f=>`<span class="chip ${f==='DNF'?'':Number(f)<=3?'gold':''}" style="font-size:10px;padding:1px 6px">${f}</span>`).join(' ')}</span>` : ''}
-              ${r.trend==null?'':r.trend>0?`<span class="tag green" style="font-size:10px;padding:1px 6px">▲ +${r.trend} ${tr({ it: 'in salita', en: 'rising' })}</span>`:r.trend<0?`<span class="tag bad" style="font-size:10px;padding:1px 6px">▼ ${r.trend} ${tr({ it: 'in declino', en: 'declining' })}</span>`:''}
-              <span class="tag ${r.h2h.beats>r.h2h.losses?'red':'green'}" style="font-size:10px;padding:1px 6px">${r.h2h.losses}–${r.h2h.beats}</span>
-              <span class="muted" style="font-size:10px;margin-left:auto">${tr({ it: 'scontri in serie', en: 'series meetings' })} ${r.inSeries ?? ''}</span>
+              <b>${esc(r.name)}</b>${r.team?`<span class="muted" style="font-size:11.5px">${esc(r.team)}</span>`:''}
+              ${(r.form ?? []).length ? `<span style="display:inline-flex;flex-wrap:wrap;gap:3px;align-items:center;min-width:0;max-width:100%">${tr({ it: 'forma:', en: 'form:' })} ${(r.form||[]).map(f=>`<span class="chip ${f==='DNF'?'':Number(f)<=3?'gold':''}" style="font-size:11.5px;padding:1px 7px">${f}</span>`).join(' ')}</span>` : ''}
+              ${r.trend==null?'':r.trend>0?`<span class="tag green" style="font-size:11.5px;padding:1px 7px">▲ +${r.trend} ${tr({ it: 'in salita', en: 'rising' })}</span>`:r.trend<0?`<span class="tag bad" style="font-size:11.5px;padding:1px 7px">▼ ${r.trend} ${tr({ it: 'in declino', en: 'declining' })}</span>`:''}
+              <span class="tag ${r.h2h.beats>r.h2h.losses?'red':'green'}" style="font-size:11.5px;padding:1px 7px">${r.h2h.losses}–${r.h2h.beats}</span>
+              <span class="muted" style="font-size:11.5px;margin-left:auto">${tr({ it: 'scontri in serie', en: 'series meetings' })} ${r.inSeries ?? ''}</span>
             </span>`).join('')}</div>
         </div>` : ''}
     </div>` : ''}
@@ -721,7 +721,7 @@ function drawCardInto(el, card){
       ${card.outlook.trackInfo.map ? `<img src="${card.outlook.trackInfo.map}" alt="${tr({ it: 'tracciato di ', en: 'track layout of ' })}${esc(card.trackName)}" style="width:180px;height:118px;flex:none;object-fit:contain;background:#000;border-radius:8px;padding:8px${card.outlook.trackInfo.map.endsWith('.svg')?';filter:invert(1);opacity:.92':''}">` : (card.outlook.trackInfo.outline ? `<svg viewBox="0 0 100 64" style="width:170px;height:110px;flex:none;background:#0d1118;border-radius:8px;padding:6px" aria-label="${tr({ it: 'tracciato di ', en: 'track layout of ' })}${esc(card.trackName)}"><path d="${card.outlook.trackInfo.outline}" fill="none" stroke="var(--acc)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/></svg>` : '')}
       <div style="flex:1;min-width:230px">
         <div style="font-size:13px;margin-bottom:5px"><b>${flagOf(card.outlook.trackInfo.country)} ${window.trackLinkHtml(card.trackName)}</b> <span class="muted">· ${esc(tr({ it: card.outlook.trackInfo.nick, en: card.outlook.trackInfo.nickEn }))} · ${esc(tr({ it: card.outlook.trackInfo.country, en: card.outlook.trackInfo.countryEn }))} · ${card.outlook.trackInfo.lengthKm} km, ${card.outlook.trackInfo.corners} ${tr({ it: 'curve', en: 'corners' })}, ${tr({ it: 'dal ', en: 'opened in ' })}${card.outlook.trackInfo.opened}</span></div>
-        ${card.outlook.trackRec ? `<div style="font-size:12.5px"><b>${tr({ it: '🏁 Giro più veloce in pista', en: '🏁 Fastest lap of the track' })}</b> · <b style="color:var(--acc);font-size:15px">${esc(card.outlook.trackRec.time)}</b> — ${esc(card.outlook.trackRec.driver)}${card.outlook.trackRec.mine?` <span class="tag green" style="font-size:10px;padding:1px 6px">${tr({ it: 'tu', en: 'you' })}</span>`:''}<br><span class="muted">${window.carLinkHtml(card.outlook.trackRec.car ?? '')}${card.outlook.trackRec.sameCar?'':' · ' + tr({ it: 'altra auto', en: 'another car' })} · ${esc((card.outlook.trackRec.at ?? '').slice(0, 10))}${card.outlook.lapTarget&&card.outlook.lapTarget.time!==card.outlook.trackRec.time?` · ${tr({ it: 'il tuo migliore: ', en: 'your best: ' })}${esc(card.outlook.lapTarget.time)}`:''}</span></div>` : ''}
+        ${card.outlook.trackRec ? `<div style="font-size:12.5px"><b>${tr({ it: '🏁 Giro più veloce in pista', en: '🏁 Fastest lap of the track' })}</b> · <b style="color:var(--acc);font-size:15px">${esc(card.outlook.trackRec.time)}</b> — ${esc(card.outlook.trackRec.driver)}${card.outlook.trackRec.mine?` <span class="tag green" style="font-size:11.5px;padding:1px 7px">${tr({ it: 'tu', en: 'you' })}</span>`:''}<br><span class="muted">${window.carLinkHtml(card.outlook.trackRec.car ?? '')}${card.outlook.trackRec.sameCar?'':' · ' + tr({ it: 'altra auto', en: 'another car' })} · ${esc((card.outlook.trackRec.at ?? '').slice(0, 10))}${card.outlook.lapTarget&&card.outlook.lapTarget.time!==card.outlook.trackRec.time?` · ${tr({ it: 'il tuo migliore: ', en: 'your best: ' })}${esc(card.outlook.lapTarget.time)}`:''}</span></div>` : ''}
         <details style="margin-top:6px"><summary class="muted" style="cursor:pointer;font-size:12px">📖 ${tr({ it: 'la storia di ', en: 'the history of ' })}${esc(card.trackName)}</summary>
         <div class="muted" style="margin-top:5px;font-size:12px;line-height:1.55">${esc(tr({ it: card.outlook.trackInfo.history, en: card.outlook.trackInfo.historyEn }))}</div>
         <button class="mini" style="margin-top:6px" onclick="document.querySelector('#nav button[data-tab=tracks]').click()">${tr({ it: 'Apri il libro delle piste', en: 'Open the book of tracks' })}</button></details>
@@ -779,19 +779,19 @@ function drawCardInto(el, card){
               const ok = card.weatherNow != null && Number(card.weatherNow) === Number(s.weather);
               const prima = String(s.session).toLowerCase() === 'practice';
               const tag = ok
-                ? `<span style="color:#69b06e;font-size:10.5px">✓ ${tr({ it: 'a posto', en: 'set' })}</span>`
+                ? `<span style="color:#69b06e;font-size:11.5px">✓ ${tr({ it: 'a posto', en: 'set' })}</span>`
                 : prima
-                  ? `<span class="muted" style="font-size:10.5px">${tr({ it: 'al cambio ronda', en: 'on round change' })}</span>`
-                  : `<span class="muted" style="font-size:10.5px">${tr({ it: 'in automatico', en: 'automatic' })}</span>`;
+                  ? `<span class="muted" style="font-size:11.5px">${tr({ it: 'al cambio ronda', en: 'on round change' })}</span>`
+                  : `<span class="muted" style="font-size:11.5px">${tr({ it: 'in automatico', en: 'automatic' })}</span>`;
               return `<span style="display:flex;align-items:center;gap:6px;border:1px solid var(--line,#2a3341);border-radius:8px;padding:4px 8px;background:var(--panel2,#121822);font-size:11.5px">
               <b>${esc(s.sessionLabel)}</b> <span style="font-weight:600">${WX_ICON[Number(s.weather)] ?? ''} ${esc(s.label)}</span>${s.hour!=null?`<span class="muted">· ${String(s.hour).padStart(2,'0')}:00</span>`:''}
               ${tag}
             </span>`;
             }).join('')}
-            <span class="muted" style="font-size:11px;align-self:center">${tr({ it: 'si sistema da solo: al cambio ronda le Prove, a fine di ogni sessione la successiva — sempre PRIMA di entrarci', en: 'sets itself: Prove at a round change, the next session after each one — always BEFORE entering' })}</span>
+            <span class="muted" style="font-size:11.5px;align-self:center">${tr({ it: 'si sistema da solo: al cambio ronda le Prove, a fine di ogni sessione la successiva — sempre PRIMA di entrarci', en: 'sets itself: Prove at a round change, the next session after each one — always BEFORE entering' })}</span>
           </div>
           <details id="wx-log" style="margin-top:6px">
-            <summary class="muted" style="cursor:pointer;font-size:12px">📜 ${tr({ it: 'Registro delle scritture automatiche (e degli scarti)', en: 'Automatic writes log (and skips)' })} <span id="wx-log-n" class="muted" style="font-size:11px"></span></summary>
+            <summary class="muted" style="cursor:pointer;font-size:12px">📜 ${tr({ it: 'Registro delle scritture automatiche (e degli scarti)', en: 'Automatic writes log (and skips)' })} <span id="wx-log-n" class="muted" style="font-size:11.5px"></span></summary>
             <div id="wx-log-body" class="muted" style="font-size:11.5px;line-height:1.55;margin-top:4px">…</div>
           </details>
         </div>
@@ -837,9 +837,9 @@ function drawCardInto(el, card){
         [tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), `${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%${card.difficulty?.trim ? ` — trim ${card.difficulty.trim > 0 ? '+' : ''}${card.difficulty.trim}` : ''}`],
         ];
         return righe.map(([k, v]) => { const s = spezza(k, v); return `<div style="border:1px solid var(--line,#2a3341);border-radius:8px;padding:8px 10px;background:var(--panel2,#121822)">
-        <div class="muted" style="font-size:10.5px;text-transform:uppercase;letter-spacing:1px">${icona[k] ? icona[k] + ' ' : ''}${esc(k)}</div>
+        <div class="muted" style="font-size:11.5px;text-transform:uppercase;letter-spacing:1px">${icona[k] ? icona[k] + ' ' : ''}${esc(k)}</div>
         <div style="font-size:13px;font-weight:600;margin-top:2px">${k === auto && v && v !== '—' ? `<span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda tecnica dell\'auto', en: 'open the car spec sheet' })}" onclick="vai('cars',{search:'${String(v).replace(/'/g, "\\'")}'})">${esc(s.main)}</span>` : esc(s.main)}</div>
-        ${s.sub ? `<div class="muted" style="font-size:11px;line-height:1.45;margin-top:3px">${esc(s.sub)}</div>` : ''}
+        ${s.sub ? `<div class="muted" style="font-size:11.5px;line-height:1.45;margin-top:3px">${esc(s.sub)}</div>` : ''}
         ${k === tr({ it: 'Difficoltà AI', en: 'AI difficulty' }) ? `<div class="row" style="gap:5px;margin-top:6px"><button class="mini d-nudge" data-d="-1" title="${tr({ it: 'gara troppo dura? scendi di 1 punto la banda della serie: vale per le prossime gare e si vede anche nel pannello Difficoltà', en: 'race too hard? drop the series band by 1 point: it applies to upcoming races and shows also in the Difficulty panel' })}">−1</button><button class="mini d-nudge" data-d="+1" title="${tr({ it: 'gara troppo facile? sali di 1 punto la banda della serie: vale per le prossime gare e si vede anche nel pannello Difficoltà', en: 'race too easy? raise the series band by 1 point: it applies to upcoming races and shows also in the Difficulty panel' })}">+1</button></div>` : ''}
       </div>`; }).join('');
       })()}
@@ -850,9 +850,6 @@ function drawCardInto(el, card){
     ${card.warnings.length ? `<ul class="warnlist">${card.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>` : ''}
     <div class="row" style="margin-top:16px">
       <button class="ghost" id="b-copy">${tr({ it: 'Copia scheda', en: 'Copy sheet' })}</button>
-    </div>    <div class="panel" style="margin-top:12px" id="verdetto-panel">
-      <h2 style="margin:0 0 8px">📊 ${tr({ it: 'Verdetto di giornata', en: 'Day verdict' })}</h2>
-      <div id="verdetto-out"><div class="row"><button class="mini" id="verdetto-carica">${tr({ it: 'Calcola il verdetto di oggi', en: 'Compute today’s verdict' })}</button></div></div>
     </div>`;
   // RADIO LIVE DELL'INGEGNERE: benzina residua, usura gomme, gap — dati veri
   // della shared memory mentre il gioco gira. Se non c'è gara in corso il
@@ -1062,7 +1059,7 @@ function drawCardInto(el, card){
         cp.at = 0;
         cp.grace = Date.now() + 15000;
       }
-      const wearRow = (m.gauges?.wear || []).length === 4 ? `<span class="muted" style="font-size:11px">${tr({ it: 'gomme', en: 'tyres' })} LF ${m.gauges.wear[0]}% · RF ${m.gauges.wear[1]}% · LR ${m.gauges.wear[2]}% · RR ${m.gauges.wear[3]}%${m.gauges.temp?.every(v=>v>0)?' · core '+m.gauges.temp.map(v=>v+'°C').join('/'):''}</span>` : '';
+      const wearRow = (m.gauges?.wear || []).length === 4 ? `<span class="muted" style="font-size:11.5px">${tr({ it: 'gomme', en: 'tyres' })} LF ${m.gauges.wear[0]}% · RF ${m.gauges.wear[1]}% · LR ${m.gauges.wear[2]}% · RR ${m.gauges.wear[3]}%${m.gauges.temp?.every(v=>v>0)?' · core '+m.gauges.temp.map(v=>v+'°C').join('/'):''}</span>` : '';
       /* --- DELTA DI RITMO: il numero grande che oggi non c'era --- */
       const dv = m.delta?.dv ?? m.delta?.hudDv ?? null;   // ms, con il segno
       const dvCol = dv == null ? 'var(--text)' : dv < 0 ? '#7f7' : '#f66';
@@ -1071,15 +1068,15 @@ function drawCardInto(el, card){
         : tr({ it: "delta HUD del gioco — il tuo best si traccia al primo giro valido", en: "HUD delta — your best gets traced from the first valid lap" });
       const dvHtml = `<div style="flex:1;min-width:190px">
           <div style="font-size:40px;font-weight:800;color:${dvCol};line-height:1;letter-spacing:-1px">${esc(fmtDelta(dv))}</div>
-          <div class="muted" style="font-size:11px;margin-top:3px">${dvSub}</div>
-          <div class="muted" style="font-size:11px;margin-top:2px">${m.timing?.lastLap ? tr({ it: 'ultimo giro ', en: 'last lap ' }) + `<b>${esc(m.timing.lastLap)}</b>` : ''}${m.timing?.bestLap ? ` · ${tr({ it: 'best ', en: 'best ' })}${esc(m.timing.bestLap)}` : ''}${dv != null && dv < 0 ? ` · <span style="color:#7f7">${tr({ it: 'stai andando sotto', en: 'running quicker' })}</span>` : dv != null ? ` · <span style="color:#f66">${tr({ it: 'stai perdendo', en: 'losing time' })}</span>` : ''}</div>
+          <div class="muted" style="font-size:11.5px;margin-top:3px">${dvSub}</div>
+          <div class="muted" style="font-size:11.5px;margin-top:2px">${m.timing?.lastLap ? tr({ it: 'ultimo giro ', en: 'last lap ' }) + `<b>${esc(m.timing.lastLap)}</b>` : ''}${m.timing?.bestLap ? ` · ${tr({ it: 'best ', en: 'best ' })}${esc(m.timing.bestLap)}` : ''}${dv != null && dv < 0 ? ` · <span style="color:#7f7">${tr({ it: 'stai andando sotto', en: 'running quicker' })}</span>` : dv != null ? ` · <span style="color:#f66">${tr({ it: 'stai perdendo', en: 'losing time' })}</span>` : ''}</div>
         </div>`;
       /* --- FINESTRA PIT: quando fermarsi, prima che la gomma dica la sua --- */
       const pit = m.pit;
       const pitHtml = pit?.need
         ? `<div class="banner warn" style="margin-top:8px;padding:8px 10px"><b>🔧 ${tr({ it: 'Finestra pit', en: 'Pit window' })}</b> — ${esc(pit.reason)}. ${tr({ it: 'Fermarsi al giro ', en: 'Pit on lap ' })}<b>${pit.pitLap + 1}</b> ${pit.lapsToWindow === 0 ? tr({ it: '(aperta adesso)', en: '(open now)' }) : `· ${tr({ it: 'si apre tra ', en: 'opens in ' })}<b>${pit.lapsToWindow}</b> ${tr({ it: 'giri', en: 'laps' })}`} · <span class="muted">${tr({ it: 'fermarsi dopo perdere ~', en: 'staying out costs ~' })}${pit.pitLossSec}s</span></div>`
-        : (pit && pit.need === null ? `<div class="muted" style="font-size:11px;margin-top:6px">🔧 ${esc(pit.reason)}</div>` : '');
-      const mapHtml = deltaMapSvg(m.mapTrack, m.delta?.segments, m.carPos);      /* PIANO STINT (31/10, DA-9): le finestre calcolate PRIMA della gara dai         dati del sedile + la finestra VIVA (quanti giri mancano alla sosta         col contatore HUD). Si mostra SOLO col piano ok nel payload: in gara         a giri o senza dati il banner non esce — niente finestre fantasma,         la stessa onestà di card e copilota. */      const piano = m.stintPlan?.ok ? m.stintPlan : null;      const fin = m.stintAlert ?? null;      const stintHtml = !piano ? '' : `<div class="banner" ${fin ? 'style="margin-top:8px;padding:8px 10px;border-color:#e0a030"' : 'style="margin-top:8px;padding:8px 10px"'}>        <b>⛽ ${tr({ it: 'Piano stint', en: 'Stint plan' })}</b> — ${esc(tr(piano.notes[0] ?? { it: '', en: '' }))} · <span class="muted" style="font-size:11.5px">${esc(tr(piano.notes[1] ?? { it: '', en: '' }))}</span>        <span class="muted" style="font-size:11px">${piano.windows?.length ? ` · ${tr({ it: 'finestre giri ', en: 'window laps ' })}${piano.windows.map((w) => `${w.earliest}–${w.latest}`).join(' / ')}` : ''}</span>        ${fin ? `<div style="margin-top:4px;font-size:12.5px"><b>🔧 ${fin.lapsTo === 0 ? tr({ it: 'Box entro QUESTO giro', en: 'Pit within THIS lap' }) : tr({ it: `Box entro ${fin.lapsTo} giri`, en: `Pit within ${fin.lapsTo} laps` })}</b> — ${tr({ it: `finestra sosta ${fin.k} (giri ${fin.earliest}–${fin.latest})`, en: `stop ${fin.k} window (laps ${fin.earliest}–${fin.latest})` })}</div>` : ''}      </div>`;
+        : (pit && pit.need === null ? `<div class="muted" style="font-size:11.5px;margin-top:6px">🔧 ${esc(pit.reason)}</div>` : '');
+      const mapHtml = deltaMapSvg(m.mapTrack, m.delta?.segments, m.carPos);      /* PIANO STINT (31/10, DA-9): le finestre calcolate PRIMA della gara dai         dati del sedile + la finestra VIVA (quanti giri mancano alla sosta         col contatore HUD). Si mostra SOLO col piano ok nel payload: in gara         a giri o senza dati il banner non esce — niente finestre fantasma,         la stessa onestà di card e copilota. */      const piano = m.stintPlan?.ok ? m.stintPlan : null;      const fin = m.stintAlert ?? null;      const stintHtml = !piano ? '' : `<div class="banner" ${fin ? 'style="margin-top:8px;padding:8px 10px;border-color:#e0a030"' : 'style="margin-top:8px;padding:8px 10px"'}>        <b>⛽ ${tr({ it: 'Piano stint', en: 'Stint plan' })}</b> — ${esc(tr(piano.notes[0] ?? { it: '', en: '' }))} · <span class="muted" style="font-size:11.5px">${esc(tr(piano.notes[1] ?? { it: '', en: '' }))}</span>        <span class="muted" style="font-size:11.5px">${piano.windows?.length ? ` · ${tr({ it: 'finestre giri ', en: 'window laps ' })}${piano.windows.map((w) => `${w.earliest}–${w.latest}`).join(' / ')}` : ''}</span>        ${fin ? `<div style="margin-top:4px;font-size:12.5px"><b>🔧 ${fin.lapsTo === 0 ? tr({ it: 'Box entro QUESTO giro', en: 'Pit within THIS lap' }) : tr({ it: `Box entro ${fin.lapsTo} giri`, en: `Pit within ${fin.lapsTo} laps` })}</b> — ${tr({ it: `finestra sosta ${fin.k} (giri ${fin.earliest}–${fin.latest})`, en: `stop ${fin.k} window (laps ${fin.earliest}–${fin.latest})` })}</div>` : ''}      </div>`;
       /* VIGIA DEL PARCO AUTO (24/10, Mauro): se l'auto del sedile non è una di
          quelle ammesse della serie, il pannello lo dice SUBITO — in rosso —
          perché all'import quella gara vale zero (0 punti, 0 premio). */
@@ -1096,7 +1093,7 @@ function drawCardInto(el, card){
         : '';  // in parco: nessun rumore
       ingOut.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:#0d1118">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <div style="font-size:12px"><b>${tr({ it: '🎧 Ingegnere LIVE', en: '🎧 Engineer LIVE' })}</b> <span class="muted" style="font-size:11px">· P${m.gauges.position??'—'}/${m.gauges.drivers??'—'}${m.gauges.lapsTotal!=null?` · ${tr({ it: 'giro ', en: 'lap ' })}${Math.min(m.gauges.lapsTotal, m.gauges.lapsDone+1)}/${m.gauges.lapsTotal}`:''}${m.gauges.timeLeft?` · ${tr({ it: 'resta ', en: 'left ' })}${esc(m.gauges.timeLeft)}`:''}${m.gauges.fuel!=null?` · ${tr({ it: 'benzina ', en: 'fuel ' })}${m.gauges.fuel} L`:''}${m.telemTrack?` · ${tr({ it: 'consumo da ', en: 'consumption from ' })}${esc(m.telemTrack)}`:''}</span></div>
+          <div style="font-size:12px"><b>${tr({ it: '🎧 Ingegnere LIVE', en: '🎧 Engineer LIVE' })}</b> <span class="muted" style="font-size:11.5px">· P${m.gauges.position??'—'}/${m.gauges.drivers??'—'}${m.gauges.lapsTotal!=null?` · ${tr({ it: 'giro ', en: 'lap ' })}${Math.min(m.gauges.lapsTotal, m.gauges.lapsDone+1)}/${m.gauges.lapsTotal}`:''}${m.gauges.timeLeft?` · ${tr({ it: 'resta ', en: 'left ' })}${esc(m.gauges.timeLeft)}`:''}${m.gauges.fuel!=null?` · ${tr({ it: 'benzina ', en: 'fuel ' })}${m.gauges.fuel} L`:''}${m.telemTrack?` · ${tr({ it: 'consumo da ', en: 'consumption from ' })}${esc(m.telemTrack)}`:''}</span></div>
           <button class="mini" id="cp-toggle" type="button" title="${esc(voceServer
             ? tr({ it: 'La voce la fa il PITWALL (server, Cosimo: parla anche con la GUI chiusa, in gara). Click: spegni tutto — copilota muta.', en: 'The voice comes from the server PITWALL (Cosimo: it speaks even with the GUI closed). Click to mute everything.' })
             : tr({ it: 'Copilota vocale: le stesse info dell\'ingegnere, dette con la voce. Click: lo accendi lato Pitwall (parla anche con la GUI chiusa).', en: 'Voice copilot: the same engineer info, spoken aloud. Click to enable it on the Pitwall side — it speaks even with the GUI closed.' }))}" style="margin-left:auto;letter-spacing:0.2px">
@@ -1107,7 +1104,7 @@ function drawCardInto(el, card){
         </div>
         <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-top:8px">
           ${dvHtml}
-          ${mapHtml ? `<div style="flex:none">${mapHtml}<div class="muted" style="font-size:10.5px;margin-top:4px;max-width:290px"><span style="color:#7f7">■ ${tr({ it: 'guadagni', en: 'gain' })}</span> · <span style="color:#f66">■ ${tr({ it: 'perdi', en: 'lose' })}</span> · ${tr({ it: 'passa il mouse sulle fette per il decimo esatto', en: 'hover the slices for the exact tenth' })}</div></div>` : ''}
+          ${mapHtml ? `<div style="flex:none">${mapHtml}<div class="muted" style="font-size:11.5px;margin-top:4px;max-width:290px"><span style="color:#7f7">■ ${tr({ it: 'guadagni', en: 'gain' })}</span> · <span style="color:#f66">■ ${tr({ it: 'perdi', en: 'lose' })}</span> · ${tr({ it: 'passa il mouse sulle fette per il decimo esatto', en: 'hover the slices for the exact tenth' })}</div></div>` : ''}
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">${(m.tips||[]).map(t=>`<div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.4"><span style="flex:none">${t.icon}</span><span><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></span></div>`).join('')}</div>
         ${wearRow ? `<div style="margin-top:6px">${wearRow}</div>` : ''}        ${pitHtml}        ${stintHtml}        ${autoHtml}
@@ -1255,13 +1252,13 @@ function drawCardInto(el, card){
           <b style="font-weight:600">${esc(data)}</b> — ${esc(String(v.via) === 'cambio-ronda' ? VIA['cambio-ronda'] : VIA['fine-sessione'])} →
           <span style="font-weight:600">✕ ${tr({ it: 'scartata', en: 'skipped' })}</span>
           <span class="muted">(${tr({ it: 'pista', en: 'track' })} «${esc(String(v.pista ?? '?'))}» ${tr({ it: 'non tra le attese', en: 'not among expected' })}: ${esc(attese)})</span>
-          <div class="muted" style="font-size:10.5px;margin-top:1px">↳ ${esc(verso)}${v.file ? ` · ${esc(String(v.file))}` : ''}</div>
+          <div class="muted" style="font-size:11.5px;margin-top:1px">↳ ${esc(verso)}${v.file ? ` · ${esc(String(v.file))}` : ''}</div>
         </div>`;
       }
       const preset = `${WX_ICON[Number(v.preset)] ?? ''} ${v.label ?? String(v.preset)}`.trim();
       const era = (v.from != null && Number(v.from) !== Number(v.preset))
         ? `<span class="muted">(${tr({ it: 'era', en: 'was' })} ${WX_ICON[Number(v.from)] ?? ''} ${esc(String(v.from))})</span>` : '';
-      const file = v.file ? `<div class="muted" style="font-size:10.5px;margin-top:1px">↳ ${esc(String(v.file))}</div>` : '';
+      const file = v.file ? `<div class="muted" style="font-size:11.5px;margin-top:1px">↳ ${esc(String(v.file))}</div>` : '';
       return `<div style="border-bottom:1px dashed var(--line,#2a3341);padding:3px 0">
         <b style="font-weight:600">${esc(data)}</b> — ${esc(String(v.via) === 'cambio-ronda' ? VIA['cambio-ronda'] : VIA['fine-sessione'])} →
         <span style="font-weight:600">${esc(v.sessione ?? '?')} ${esc(preset)}</span> ${era}${file}
@@ -1453,23 +1450,9 @@ const note = !avvia
   };
   $('#b-race', el).onclick = () => preparaRonda(false);
   $('#b-race-launch', el).onclick = () => preparaRonda(true);
-  /* VERDETTO DI GIORNATA nella scheda (29/10, «verdetto nella GUI»): lo
-     stesso aggregato del tool CLI e del cruscotto in gioco (endpoint
-     /api/verdetto, UNA fonte sola). Su richiesta, non autopoll: la scheda
-     viene ridisegnata spesso e i Results non cambiano ogni mezzo secondo. */
-  $('#verdetto-carica', el).onclick = async () => {
-    const zona = $('#verdetto-out', el); if (!zona) return;
-    const btn = $('#verdetto-carica', el);
-    if (btn) { btn.disabled = true; btn.textContent = tr({ it: 'calcolo…', en: 'computing…' }); }
-    try {
-      const v = await api('verdetto', {});
-      if (v.error) { zona.innerHTML = `<div class="empty">${esc(v.error)}</div>`; return; }
-      zona.innerHTML = verdettoHtml(v);   // 30/10: stesso disegno del cruscotto (helper unico, «verdetto anche nel webui»)
-    } catch (e) {
-      zona.innerHTML = `<div class="empty">✖ ${esc(e.message ?? String(e))}</div>`;
-      if (btn) { btn.disabled = false; btn.textContent = tr({ it: 'Riprova', en: 'Retry' }); }
-    }
-  };
+  // (4/11) Il verdetto vive SOLO nel pannello del cruscotto: la scheda ne
+  // aveva un secondo identico (stesso titolo, tasto «Calcola» in più) e chi
+  // leggeva la pagina lo vedeva due volte. Un aggregato, un pannello.
   estraiAzioniMobile(el);
 }
 

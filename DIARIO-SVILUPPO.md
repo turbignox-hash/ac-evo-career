@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Cruscotto: un solo verdetto e tipografia leggibile (richiesta Mauro: «ora le schede, controlla che sia tutto funzionante, leggibile e dove possibile migliora e implementa. Inizia dal cruscotto»)
+
+- **Doppione chiuso**: la pagina mostrava due pannelli «Verdetto di giornata» — quello del cruscotto che si calcola da solo e una copia nella scheda gara col tasto «Calcola il verdetto di oggi». Tolto quello della scheda con il suo handler: un aggregato, un pannello.
+- **Pavimento tipografico**: 94 testi del cruscotto stavano sotto 11.5px (50 a 10px, 27 a 10.5, 17 a 11) contro la regola del 4/11. Portati a 11.5px con padding dei tag 1px 7px: chip dei rivali, maestria, eredità ed etichette del bollettino.
+- **Verifica**: `node --check`; `npm run lint` **372 file, 0 warning**; suite **912 pass + 1 skip, 0 fail**; dal vivo 0 errori JS, 0 overflow e un solo titolo «Verdetto di giornata».
+- **Nota**: commit e push su `offsite/main`; release invariata (v0.1.57).
+
 ### 4/11 — Reparto GUI: fuoco da tastiera, stato del menu e annunci (richiesta Mauro: «ora il reparto GUI vedi cosa puoi fare»)
 
 - **Tastiera**: `input:focus` spegneva l'anello e restava solo il bordo; bottoni, link e `summary` non avevano alcun segnale, quindi chi naviga senza mouse non sapeva dove si trovava. Aggiunto `:focus-visible` (contorno `--acc2`, offset 2px) su bottoni/link/summary e 1px sui campi.
