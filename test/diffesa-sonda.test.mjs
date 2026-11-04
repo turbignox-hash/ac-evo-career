@@ -42,9 +42,24 @@ test('statico: ogni rotta del set SOLO_POST è un case vero del dispatcher (webu
   const casiWebui = new Set([...fonte.matchAll(/case '([\w-]+)':/g)].map((m) => m[1]));
   const casi = new Set([...casiWebui, ...MODULI_AZIONI.flatMap((m) => [...m.casi])]);
   assert.ok(casi.size >= 100, `dispatcher: ${casi.size} case — la lettura dei fonti non ha degradato`);
-  assert.ok(MODULI_AZIONI.length >= 2, `moduli azioni: ${MODULI_AZIONI.length} — agenda ed eventi devono esserci`);
+  assert.ok(MODULI_AZIONI.length >= 4, `moduli azioni: ${MODULI_AZIONI.length} — i quattro domini devono esserci`);
   const azioniTotali = MODULI_AZIONI.reduce((n, m) => n + m.azioni.size, 0);
-  assert.ok(azioniTotali >= 11, `azioni esterne: ${azioniTotali} — i set dei moduli sono degradati`);
+  assert.ok(azioniTotali >= 21, `azioni esterne: ${azioniTotali} — i set dei moduli sono degradati`);
+  for (const m of MODULI_AZIONI) {
+    assert.ok(m.azioni.size > 0, `${m.file}: set azioni vuoto`);
+    const senzaCase = [...m.azioni].filter((r) => !m.casi.has(r));
+    assert.deepEqual(senzaCase, [], `${m.file}: azioni senza case (dispatch a vuoto): ${senzaCase.join(', ')}`);
+    assert.ok(m.casi.size > 0, `${m.file}: nessun case`);
+    const fuoriSet = [...m.casi].filter((r) => !m.azioni.has(r));
+    assert.deepEqual(fuoriSet, [], `${m.file}: case fuori dal set (irraggiungibili): ${fuoriSet.join(', ')}`);
+  }
+  const proprietari = new Map();
+  for (const m of MODULI_AZIONI) {
+    for (const r of m.azioni) {
+      assert.ok(!proprietari.has(r), `rotta ${r} in due moduli: ${proprietari.get(r)} e ${m.file}`);
+      proprietari.set(r, m.file);
+    }
+  }
   const set = soloPostDaFonte(fonte);
   assert.ok(set.length >= 44, `set: ${set.length} rotte — il set nel fonte lette male o si è accorciato`);
   const fantasma = set.filter((r) => !casiWebui.has(r) && !MODULI_AZIONI.some((m) => m.azioni.has(r) && m.casi.has(r)));

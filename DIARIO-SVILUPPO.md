@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — test: contratto dei moduli azioni blindato (richiesta Mauro: «scegli autonomamente cosa migliorare e procedi,»)
+
+- **Gap**: il test controllava solo le rotte di `SOLO_POST`; una rotta senza case, un case fuori dal set o una rotta condivisa da due moduli poteva passare inosservata.
+- **Rinforzo**: per ogni `webui-actions-*` ora verifica che ogni azione abbia un case, che ogni case sia nel set, che nessun set sia vuoto e che la stessa rotta non appartenga a due moduli.
+- **Verifica**: `npm run check` exit 0; suite **963/963**; lint **368 file, 0 warning**; test da **105 a 120 righe**.
+- **Nota**: test-only, nessuna modifica di produzione. Commit, non push. Restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — webui.mjs: estratte integrità e backup (P1.5, quarto dominio) (richiesta Mauro: «scegli autonomamente cosa migliorare e procedi,»)
 
 - **Il taglio**: `integrity`, `integrity-fix`, `backup` e `save-backup` vivono in `src/webui-actions-integrity-backup.mjs`; il dispatcher le intercetta prima dello switch. Status, payload e comportamento sono identici.
