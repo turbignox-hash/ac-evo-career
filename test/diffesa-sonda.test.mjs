@@ -16,6 +16,7 @@ import { spawnSync } from 'node:child_process';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fonte = readFileSync(join(ROOT, 'src', 'webui.mjs'), 'utf8');
+const fonteAgenda = readFileSync(join(ROOT, 'src', 'webui-actions-agenda.mjs'), 'utf8');
 
 /** Le rotte dichiarate scrivere dal source: solo ciò che sta tra
  *  `const SOLO_POST = new Set([` e `]);`. */
@@ -25,12 +26,18 @@ function soloPostDaFonte(src) {
   return [...m[1].matchAll(/'([\w-]+)'/g)].map((x) => x[1]);
 }
 
-test('statico: ogni rotta del set SOLO_POST è un case vero del dispatcher', () => {
-  const casi = new Set([...fonte.matchAll(/case '([\w-]+)':/g)].map((m) => m[1]));
-  assert.ok(casi.size >= 100, `dispatcher: ${casi.size} case — la lettura del fonte non ha degradato`);
+test('statico: ogni rotta del set SOLO_POST è un case vero del dispatcher (webui o agenda)', () => {
+  const casiWebui = new Set([...fonte.matchAll(/case '([\w-]+)':/g)].map((m) => m[1]));
+  const casiAgenda = new Set([...fonteAgenda.matchAll(/case '([\w-]+)':/g)].map((m) => m[1]));
+  const casi = new Set([...casiWebui, ...casiAgenda]);
+  assert.ok(casi.size >= 100, `dispatcher: ${casi.size} case — la lettura dei fonti non ha degradato`);
+  const mAgenda = fonteAgenda.match(/const AGENDA_ACTIONS = new Set\(\[([\s\S]*?)\]\);/);
+  assert.ok(mAgenda, 'AGENDA_ACTIONS non trovato in webui-actions-agenda.mjs');
+  const agendaSet = new Set([...mAgenda[1].matchAll(/'([\w-]+)'/g)].map((x) => x[1]));
+  assert.ok(agendaSet.size >= 6, `AGENDA_ACTIONS: ${agendaSet.size} rotte — il set del modulo è degradato`);
   const set = soloPostDaFonte(fonte);
   assert.ok(set.length >= 44, `set: ${set.length} rotte — il set nel fonte lette male o si è accorciato`);
-  const fantasma = set.filter((r) => !casi.has(r));
+  const fantasma = set.filter((r) => !casi.has(r) && !(agendaSet.has(r) && casiAgenda.has(r)));
   assert.deepEqual(fantasma, [], `rotte nel set senza case (405 mai dati): ${fantasma.join(', ')}`);
 });
 

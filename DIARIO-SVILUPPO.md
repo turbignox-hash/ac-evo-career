@@ -5,6 +5,13 @@ IL RESTO (da fare o da rivedere). Ogni giorno prendiamo qualcuna di queste e la
 eseguiamo; a fine giornata il diario si arricchisce e la lista si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — webui.mjs: estratto il dominio Agenda (P1.5) (richiesta Mauro: «P1.5 — webui.mjs: 4.636 righe e 127 case; è il debito strutturale più grande. Va estratto un dominio per commit, senza cambiare le rotte.»)
+
+- **Il taglio**: le sei rotte `agenda`, `agenda-advance`, `agenda-skip-to-next`, `agenda-shift`, `agenda-hour`, `agenda-choose` vivono in `src/webui-actions-agenda.mjs` (140 righe). `webui.mjs` scende da **4.636 a 4.524 righe** (−112) e conserva solo il dispatcher prima dello switch: `AGENDA_ACTIONS` + `agendaAction`, con `sendJson`, `persist` e `gridLabel` iniettati. Percorsi, payload e status identici; `agenda-detail` resta in webui.
+- **Il contratto statico**: `test/diffesa-sonda.test.mjs` ora legge anche il modulo agenda e accetta una rotta se è un `case` webui **oppure** un `case` del modulo presente in `AGENDA_ACTIONS`; il controllo resta stretto (una rotta SOLO_POST senza case continua a fallire).
+- **Verifica**: `npm run check` exit 0; suite **962/962**; lint **363 file, 0 warning**; smoke server e test collegati **6/6**; statico + potatura **7/7**. Una prima esecuzione della suite ha visto un flake del test potatura fasce al confine dei 2,5 s (poi 6/6 da solo e verde nella suite finale), non toccato dal refactor.
+- **Nota**: committato, non pushato. Restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — Biome a zero e gate sui warning (richiesta Mauro: «guarda cosa hai fatto già e migliora il resto»)
 
 - **44 → 0 warning**: cinque difetti veri (import inutilizzati in `webui.mjs`, optional chain in `core.js`, variabile morta nel test journal, due falsi positivi sul segnaposto `${avvisoGiro}`) e i 39 assert condizionali del plugin `assert-in-if`, riscritti come implicazioni incondizionate (`assert.ok(!cond || verifica, ...)`) o `.every(...)` nei loop. Nessun test indebolito: la suite resta **962/962**.
