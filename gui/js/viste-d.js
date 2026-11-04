@@ -123,7 +123,7 @@ async function drawMessages(m){
     'Carriera': ['btn-carriera', '🧭', tr({ it: 'Carriera: reputazione, trim, guida alla scala', en: 'Career: reputation, trim, ladder guidance' })],
   };
   const kinds = ['tutte', ...Object.keys(KIND_META)];
-  const chips = kinds.map((k)=>`<button class="mini ${mailFilter===k?'acc':''}" data-mf="${k}">${k==='tutte'?tr({ it: 'tutte', en: 'all' }):(KIND_META[k]?KIND_META[k][1]+' '+(window.LINGUA==='en'?{Racing:'Racing',Sponsor:'Sponsor',Contratti:'Contracts',Carriera:'Career'}[k]??k:k):k)}</button>`).join('');
+  const chips = kinds.map((k)=>`<button class="mini ${mailFilter===k?'acc':''}" data-mf="${k}" aria-pressed="${mailFilter===k}">${k==='tutte'?tr({ it: 'tutte', en: 'all' }):(KIND_META[k]?KIND_META[k][1]+' '+(window.LINGUA==='en'?{Racing:'Racing',Sponsor:'Sponsor',Contratti:'Contracts',Carriera:'Career'}[k]??k:k):k)}</button>`).join('');
   const mails = mb.mails.filter((x) => mailFilter==='tutte' || x.kind===mailFilter);
   const mailCard = (mm) => {
     const [cls, ico] = KIND_META[mm.kind] ?? ['', '✉️'];
@@ -171,8 +171,8 @@ async function drawMessages(m){
     <div class="panel"><h2>${tr({ it: 'Offerte sul tavolo', en: 'Offers on the table' })}</h2>
       ${v.offers.length ? v.offers.map(o=>`<div class="offer"><span class="n">${esc(o.display)}</span>
         <span class="muted">L${o.level} · ${esc(o.discipline)} · ${esc(o.note)} · ${tr({ it: 'affitto', en: 'rent' })} ${money(o.rent)} €</span>
-        <span class="m"><button class="mini" data-detail="${o.index}" data-name="${esc(o.display)}" ${o.detail?'':'disabled'}>${tr({ it: 'dettagli', en: 'details' })}</button>
-        <button class="mini" data-acc="${o.index}" data-name="${esc(o.display)}">${tr({ it: 'firma', en: 'sign' })}</button></span></div>`).join('')
+        <span class="m"><button class="mini" data-detail="${o.index}" data-name="${esc(o.display)}" aria-label="${esc(tr({ it: 'Dettagli offerta', en: 'Offer details' }))}: ${esc(o.display)}" ${o.detail?'':'disabled'}>${tr({ it: 'dettagli', en: 'details' })}</button>
+        <button class="mini" data-acc="${o.index}" data-name="${esc(o.display)}" aria-label="${esc(tr({ it: 'Firma con', en: 'Sign with' }))}: ${esc(o.display)}">${tr({ it: 'firma', en: 'sign' })}</button></span></div>`).join('')
       : `<div class="empty">${tr({ it: 'Nessuna offerta al momento: arrivano a fine stagione. ATTENZIONE: firma solo quando hai gare libere nella giornata (mail del manager).', en: 'No offers right now: they arrive at season end. CAREFUL: sign only when you have free races in the day (the manager email).' })}</div>`}
     </div>
   </div>
@@ -658,7 +658,7 @@ async function seasonEndFlow(force){
     await refreshBoot();
     const offersHtml = r.offers.length ? r.offers.map(o=>`<div class="offer"><span class="n">${o.index}) ${esc(o.display)}</span>
       <span class="muted">L${o.level} · ${esc(o.discipline)} · ${esc(o.note)} · ${o.access==='closed'? tr({ it: 'parco chiuso (solo contratto)', en: 'closed park (contract only)' }) : `${tr({ it: 'affitto', en: 'rent' })} ${money(o.rent)} €`}</span>
-      <span class="m"><button class="mini" data-acc="${o.index}" data-name="${esc(o.display)}">${tr({ it: 'firma', en: 'sign' })}</button></span></div>`).join('')
+      <span class="m"><button class="mini" data-acc="${o.index}" data-name="${esc(o.display)}" aria-label="${esc(tr({ it: 'Firma con', en: 'Sign with' }))}: ${esc(o.display)}">${tr({ it: 'firma', en: 'sign' })}</button></span></div>`).join('')
       : `<div class="empty">${tr({ it: 'Nessuna offerta disponibile.', en: 'No offers available.' })}</div>`;
     modal(tr({ it: 'Stagione {S} chiusa', en: 'Season {S} closed' }).replace('{S}', r.me.season ?? ''), `
       <div class="winline ${r.champion?'gold':''}">${r.champion ? tr({ it: '🏆 CAMPIONE!', en: '🏆 CHAMPION!' }) : tr({ it: 'Posizione finale:', en: 'Final position:' }) + ' P' + r.me.position}</div>
@@ -727,7 +727,7 @@ async function drawRivals(m){
   </div>
   ${rows.length ? `<div class="panel"><h2>${tr({ it: 'Tutti i rivali', en: 'All rivals' })} <button class="mini acc" id="b-bulk-rn" style="margin-left:6px" title="${tr({ it: 'dà un soprannome a più piloti di fila, in una sola schermata', en: 'nickname many drivers in one go, on a single screen' })}">📝 ${tr({ it: 'Soprannomi in blocco', en: 'Nicknames in bulk' })}</button> <span class="h-act">${tr({ it: 'clicca una riga per la scheda completa', en: 'click a row for the full sheet' })}</span></h2>
     <table><thead><tr><th>${tr({ it: 'Rivale', en: 'Rival' })}</th><th class="right">${tr({ it: 'Gare insieme', en: 'Races together' })}</th><th class="right">${tr({ it: 'Tu–Lui', en: 'You–Him' })}</th><th>${tr({ it: 'Momentum', en: 'Momentum' })}</th><th>${tr({ it: 'Forma (ultime 5)', en: 'Form (last 5)' })}</th><th class="right">${tr({ it: 'Vittorie', en: 'Wins' })}</th><th class="right">${tr({ it: 'Podi', en: 'Podiums' })}</th></tr></thead>
-    <tbody>${rows.map(r=>`<tr class="rival-link" data-key="${esc(r.key)}" style="cursor:pointer">
+    <tbody>${rows.map(r=>`<tr class="rival-link" data-key="${esc(r.key)}" tabindex="0" style="cursor:pointer">
       <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.nemesis?` <span class="tag red">${tr({ it: 'nemesi', en: 'nemesis' })}</span>`:''}${r.lastSeen?`<div class="faint" style="font-size:11.5px">${tr({ it: 'visto: ', en: 'seen: ' })}${esc(r.lastSeen.node)} R${r.lastSeen.round}</div>`:''}</span></span></td>
       <td class="right">${r.sharedRaces}</td>
       <td class="right">${h2hBadge(r.h2h.beats, r.h2h.losses)}</td>
@@ -737,7 +737,7 @@ async function drawRivals(m){
       <td class="right">${r.podiums}</td>
     </tr>`).join('')}</tbody></table>
   </div>` : ''}`;
-  $$('.rival-link', m).forEach((trr)=>{ trr.onclick=()=>showRival(trr.dataset.key); });
+  $$('.rival-link', m).forEach((trr)=>{ trr.onclick=()=>showRival(trr.dataset.key); trr.onkeydown=(e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showRival(trr.dataset.key); } }; });
   /* 3/11, richiesta Mauro («non funziona»): il bottone esisteva ma NIENTE lo
      agganciava — la funzione c'era (27/10) e l'aggancio era sparito. Ora il
      clic apre davvero il blocco dei soprannomi con la lista completa. */

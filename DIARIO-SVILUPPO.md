@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Setup e Import verificati, Messaggi e Rivali con comandi riconoscibili
+
+- **Setup**: 6.168 caratteri, 4 pannelli, 3 titoli, 0 overflow, caricamento 2,9 s. **Import**: 1.093 caratteri, 1 pannello, 0 overflow, 0,7 s. Entrambe sane: il «vuoto» visto a 250 ms era solo lo spinner.
+- **Messaggi**: i 5 filtri (tutte/Racing/Sponsor/Contratti/Carriera) ora hanno `aria-pressed`; le 6 offerte avevano cinque «dettagli» e cinque «firma» identici → `aria-label` con il nome («Firma con: Strada Elite»). Stesso fix sulla card sponsor del Cruscotto (2 occorrenze): 0 bottoni senza nome accessibile, 0 overflow.
+- **Rivali**: 77 righe apribili solo col mouse → `tabindex="0"`, Enter/Spazio aprono la scheda, focus visibile (outline + fondo). Provato dal vivo: Enter sulla prima riga apre «Scheda rivale — Il Palmerino».
+- **Verifica**: 0 overflow, 0 errori JS in entrambe; `node --check`, lint **374 file, 0 warning**, collaudo tab 19/19.
+
 ### 4/11 — Centro gare: titoli, filtri accessibili e legenda del calendario (richiesta Mauro: «controlla centro gare e poi tutte le altre»)
 
 - **Etichetta**: «⯈ recall: prossimo weekend» era mezzo inglese in una UI italiana; ora è «⯈ salta al prossimo weekend», col `title` che dice che non avanza un giorno alla volta.
