@@ -7,8 +7,57 @@
  *   • le classi con la loro storia di convalida (per-traccia incluso)
  *   • i bottoni: applica bilancio, rimuovi auto escluse, intervallo AI
  * Scrittura protetta: EVO deve essere CHIUSO (il guardiano lo dice da sé).
- */  async function drawGridTab(m){
+ */  function weekendBuilderHtml(card) {
+  if (!card) return '';
+  const t = (it, en) => tr({ it, en });
+  const safe = (v) => (v == null || v === '' ? '—' : esc(String(v)));
+  const auto = safe(card.carName ?? card.car);
+  const pista = safe(card.trackName);
+  const pistaDett = card.round?.layout
+    ? `${t('layout', 'layout')} ${esc(card.round.layout)}`
+    : esc(card.roundName ?? '');
+  const meteo = safe(card.weather);
+  const ora = card.raceHour != null ? `${String(card.raceHour).padStart(2, '0')}:00` : '—';
+  const distanza = card.laps != null
+    ? `${card.laps} ${t('giri', 'laps')}`
+    : card.durationEff != null ? `${card.durationEff} ${t('minuti', 'minutes')}` : '—';
+  const pieno = card.round?.durationMin != null && card.durationEff != null && card.durationEff !== card.round.durationMin
+    ? ` · ${t('piena', 'full')} ${card.round.durationMin}′` : '';
+  const griglia = card.gridSize != null
+    ? `${card.gridSize} ${t('posti', 'seats')} · ${card.opponents ?? '—'} ${t('avversari', 'rivals')}`
+    : '—';
+  const ai = card.difficulty ? `AI ${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%` : '';
+  const gridExtra = card.gridAltraSerie
+    ? `<br><span class="tag warn" style="font-size:10px;padding:1px 5px">${t('griglia di un’altra serie', 'grid from another series')}</span>` : '';
+  const tile = (key, icon, label, value, detail, extra = '') => `
+    <button type="button" data-wb="${key}" style="text-align:left;display:flex;flex-direction:column;gap:2px;background:var(--panel2,#121822);border:1px solid var(--line,#2a3341);border-radius:8px;padding:8px 10px;color:inherit;cursor:pointer;font:inherit;min-height:74px">
+      <span class="muted" style="font-size:11px">${icon} ${label}</span>
+      <b style="font-size:14px">${value}</b>
+      <span class="muted" style="font-size:10.5px;line-height:1.25">${detail}${extra}</span>
+    </button>`;
+  return `
+  <div class="panel" id="weekend-builder">
+    <h2>${t('Costruzione weekend', 'Weekend build')} <span class="muted" style="font-size:12px">${t('i sei parametri che «Prepara tutto» scrive in EVO', 'the six settings “Get everything ready” writes into EVO')}</span></h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px">
+      ${tile('car', '🚗', t('Auto', 'Car'), auto, card.carChoices?.length > 1 ? t('più auto ammesse: scegli nella scheda', 'multiple cars allowed: choose in the sheet') : t('auto della giornata', 'today’s car'))}
+      ${tile('track', '🏁', t('Pista', 'Track'), pista, pistaDett || t('pista della ronda', 'round track'))}
+      ${tile('weather', '🌦', t('Meteo', 'Weather'), meteo, t('preset della ronda', 'round preset'))}
+      ${tile('hour', '🕒', t('Ora', 'Time'), ora, t('ora del gioco', 'game time'))}
+      ${tile('distance', '📏', t('Giri / tempo', 'Laps / time'), distanza, `${t('distanza scelta', 'selected distance')}${pieno}`)}
+      ${tile('grid', '🧱', t('Griglia', 'Grid'), griglia, ai || t('AI da definire', 'AI to define'), gridExtra)}
+    </div>
+    <div class="row" style="margin-top:10px;flex-wrap:wrap">
+      <button class="mini" id="wb-open">${t('Apri scheda gara e regole', 'Open race sheet and rules')}</button>
+      <span class="muted" style="font-size:11px">${t('Auto e pista aprono le schede; meteo, ora, distanza e griglia aprono le regole del weekend.', 'Car and track open their sheets; weather, time, distance and grid open the weekend rules.')}</span>
+    </div>
+  </div>`;
+}
+
+async function drawGridTab(m){
   const data = await api('grid');
+  let card = null;
+  try { card = await api('card'); } catch { /* la scheda gara non deve impedire la vista griglia */ }
+  const builder = weekendBuilderHtml(card);
   const pct = (v) => Number(v ?? 0).toFixed(1).replace(/\.0$/, '') + '%';
   const kgpct = (c) => `${c.kg}kg / ${pct(c.pct)}`;
   const badgeOk = `<span class="tag green">${tr({ it: 'convalidata', en: 'validated' })}</span>`;
@@ -47,6 +96,7 @@
     : '';
   const bTesto = bS ? `${bS.banda[0]}–${bS.banda[1]}${bS.trim ? ` (trim ${bS.trim > 0 ? '+' : ''}${bS.trim})` : ''}` : null;
   m.innerHTML = `
+  ${builder}
   <div class="panel">
     <h2>${tr({ it: 'Griglia', en: 'Grid' })} <span class="muted" style="font-size:12.5px">${data.exists ? `${data.cells.length} ${tr({ it: 'celle', en: 'cells' })} · ${data.drivers} ${tr({ it: 'piloti', en: 'drivers' })} · AI ${data.aiMin ?? '–'}–${data.aiMax ?? '–'} ${bS ? `<span class="muted">(${tr({ it: 'campo del file', en: 'file field' })})</span>` : ''} · PI ${data.piMin ?? '–'}–${data.piMax ?? '–'}` : ` (${tr({ it: 'file customgrid non trovato', en: 'customgrid file not found' })})`}</span></h2>
     ${bS ? `<div style="margin:2px 0 8px;font-size:12.5px">${tr({ it: 'Banda attiva dei cursori del weekend:', en: 'Active band of the weekend sliders:' })} <b>${bTesto}</b> ${bTag}</div>` : ''}
@@ -266,7 +316,23 @@
     }
   } catch { /* il pannello sede non deve mai rompere la tab */ }
 
-  $('#g-drop').onclick = async () => {
+  const apriRegole = () => {
+    vai('dashboard');
+    setTimeout(() => {
+      const p = document.querySelector('#rs-panel');
+      if (p) { p.open = true; p.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    }, 450);
+  };
+  $('[data-wb]', m).forEach((b) => {
+    b.onclick = () => {
+      if (b.dataset.wb === 'car') vai('cars', { search: card?.carName ?? '' });
+      else if (b.dataset.wb === 'track') vai('tracks', { search: card?.trackName ?? '' });
+      else apriRegole();
+    };
+  });
+  const wbOpen = $('#wb-open');
+  if (wbOpen) wbOpen.onclick = apriRegole;
+$('#g-drop').onclick = async () => {
     const b = $('#g-drop'); busy(b, true, tr({ it: 'Rimuovi', en: 'Remove' }));
     try {
       const preset = prompt(tr({ it: 'Preset o Nome auto da rimuovere (es. preset_mk8gti_mech_1):', en: 'Preset or car Name to remove (e.g. preset_mk8gti_mech_1):' }));
