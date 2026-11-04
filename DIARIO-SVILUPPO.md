@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Tutte le schede: pavimento tipografico e tabelle larghe
+
+- **Tipografia**: 117 token `font-size` sotto 11.5px in `gui/js/*.js` e `gui/style.css` (Campionati 63, Analisi 13, Griglia 10, viste-b 9, viste-d 5, core 1, CSS 16) portati a 11.5px, chip con padding 1px 7px. Nei file GUI restano **0 token** sotto il pavimento.
+- **Tabelle larghe**: in Analisi la tabella dei sedili (10 colonne, 1032px) sfondava la pagina di 38px. Dopo il render ogni tabella più larga del pannello entra in `.tscroll` e scorre dentro il pannello: overflow documento 38 → 0, un solo `.tscroll`.
+- **Verifica**: `node --check` su tutti i file toccati; lint **372 file, 0 warning**; suite **913/913**; dal vivo Cruscotto 0 testi sotto 11.5px, Agenda/Campionati/Griglia/Rivali/Analisi/Archivio/Online/Gironi/Statistiche/Piste/Auto/Garage 0 overflow.
+- **Nota**: `core.js` riallineato ai CRLF di HEAD (diff di una riga); commit su `offsite/main`.
+
 ### 4/11 — Cruscotto: un solo verdetto e tipografia leggibile (richiesta Mauro: «ora le schede, controlla che sia tutto funzionante, leggibile e dove possibile migliora e implementa. Inizia dal cruscotto»)
 
 - **Doppione chiuso**: la pagina mostrava due pannelli «Verdetto di giornata» — quello del cruscotto che si calcola da solo e una copia nella scheda gara col tasto «Calcola il verdetto di oggi». Tolto quello della scheda con il suo handler: un aggregato, un pannello.

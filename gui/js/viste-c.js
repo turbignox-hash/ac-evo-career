@@ -60,7 +60,7 @@ async function importCall(body){
       ${r.proposal ? `<br>${tr({ it: 'Difficoltà proposta: ', en: 'Proposed difficulty: ' })}${esc(r.proposal.reason)} — trim ${r.proposal.from} → ${r.proposal.to} (passo ${r.proposal.to - r.proposal.from > 0 ? '+' : ''}${r.proposal.to - r.proposal.from}). ${tr({ it: 'Accettala in Difficoltà.', en: 'Accept it under Difficulty.' })}` : ''}
       ${r.nudgeSuggested ? `<div class="banner warn" style="margin-top:8px"><b>🚀 ${tr({ it: 'Gara troppo facile?', en: 'Race too easy?' })} ${esc(r.nudgeSuggested.reason)}.<br>
         <button class="mini" id="b-nudge-accept" style="margin-top:6px">${tr({ it: 'Sì, porta la serie a +1', en: 'Yes, move the series up by +1' })}</button>
-        <span class="muted" style="font-size:11px;margin-left:6px">${tr({ it: 'no, lascia come sta', en: 'no, leave it as is' })}</span></div>` : ''}
+        <span class="muted" style="font-size:11.5px;margin-left:6px">${tr({ it: 'no, lascia come sta', en: 'no, leave it as is' })}</span></div>` : ''}
       ${r.challenge ? `<br>🎯 ${tr({ it: 'Sfida ', en: 'Challenge ' })}${r.challenge.won?`<b style="color:var(--good)">${tr({ it: 'vinta', en: 'won' })}</b>`:`<b style="color:var(--bad)">${tr({ it: 'persa', en: 'lost' })}</b>`}: ${esc(legacyIt(r.challenge.text))} (${r.challenge.won?'+':''}${r.challenge.won ? money(r.challenge.reward) : '−'+r.challenge.penalty+' rep'})` : ''}
       ${r.vendetta?.newNemesi?.length ? `<br>😬 <b>${tr({ it: 'Nuova nemesi:', en: 'New nemesis:' })}</b> ${esc(r.vendetta.newNemesi.join(', '))} — ${tr({ it: 'ti ha battuto due volte di fila.', en: 'beat you twice in a row.' })}` : ''}
       ${r.vendetta?.settled?.length ? `<br>⚔️ <b>${tr({ it: 'Vendetta assestata', en: 'Vendetta settled' })}</b> ${tr({ it: 'su ', en: 'on ' })}${esc(r.vendetta.settled.join(', '))}.` : ''}
@@ -157,7 +157,7 @@ async function drawCars(m){
     const q = $('#cars-q').value.toLowerCase();
     const onlyLadder = $('#cars-ladder').checked;
     const rows = b.rows.filter(r => (!cat || r.category===cat) && (!onlyLadder || r.ladderId) && (!q || matchCar(q, r)));
-    const piBadge = (pi) => pi==null ? '' : `<span class="tag blue" style="font-size:10px;padding:1px 6px" title="${tr({ it: 'Perf. index dal server dedicato', en: 'Perf. index from the dedicated server' })}">PI ${pi.toFixed(1)}</span>`;
+    const piBadge = (pi) => pi==null ? '' : `<span class="tag blue" style="font-size:11.5px;padding:1px 7px" title="${tr({ it: 'Perf. index dal server dedicato', en: 'Perf. index from the dedicated server' })}">PI ${pi.toFixed(1)}</span>`;
     $('#cars-grid').innerHTML = rows.map((r)=>{
       const eco = r.ladderId ? b.economy?.[r.ladderId] : null;
       const inGar = r.ladderId && b.inGarage?.includes(r.ladderId);
@@ -165,13 +165,13 @@ async function drawCars(m){
         ? `<div style="margin-top:6px"><span class="tag gold" style="font-size:12px;padding:2px 8px" title="${tr({ it: 'prezzo reale indicativo (listino o mercato)', en: 'indicative real price (list or market)' })}">💰 ${money(r.realPrice)} €</span></div>`
         : (eco?.buy != null
           ? `<div style="margin-top:6px"><span class="tag gold" style="font-size:12px;padding:2px 8px" title="${tr({ it: 'prezzo di gioco (serie più conveniente)', en: 'in-game price (cheapest series)' })}">💰 ${money(eco.buy)} € <span class="muted" style="font-weight:400">(${tr({ it: 'di gioco', en: 'in-game' })})</span></span></div>`
-          : `<div class="muted" style="margin-top:6px;font-size:11px">${tr({ it: 'prezzo non noto', en: 'price unknown' })}</div>`);
+          : `<div class="muted" style="margin-top:6px;font-size:11.5px">${tr({ it: 'prezzo non noto', en: 'price unknown' })}</div>`);
       return `<div class="panel car-click" data-i="${rows.indexOf(r)}" style="padding:0;overflow:hidden;cursor:pointer" title="${tr({ it: 'clicca per tutti i dettagli', en: 'click for full details' })}">
       <img class="car-frame" src="${r.image}" alt="${esc(r.name)}" loading="lazy" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#0d1118">
-      <div style="padding:8px 10px"><b style="font-size:12.5px">${esc(r.name)}</b> ${piBadge(r.pi)} <span class="faint" style="font-size:10px">${r.category==='racing'?` ${tr({ it: 'racing', en: 'racing' })}`:` ${tr({ it: 'stradale', en: 'road' })}`}</span>${inGar?` <span class="tag gold" style="font-size:10px;padding:1px 6px" title="${tr({ it: 'già nel tuo garage', en: 'already in your garage' })}">🏠 ${tr({ it: 'garage', en: 'garage' })}</span>`:''}
+      <div style="padding:8px 10px"><b style="font-size:12.5px">${esc(r.name)}</b> ${piBadge(r.pi)} <span class="faint" style="font-size:11.5px">${r.category==='racing'?` ${tr({ it: 'racing', en: 'racing' })}`:` ${tr({ it: 'stradale', en: 'road' })}`}</span>${inGar?` <span class="tag gold" style="font-size:11.5px;padding:1px 7px" title="${tr({ it: 'già nel tuo garage', en: 'already in your garage' })}">🏠 ${tr({ it: 'garage', en: 'garage' })}</span>`:''}
       ${price}
-      ${r.specs?.power!=null?`<div class="muted" style="font-size:11px;margin-top:4px">${r.specs.power} ${tr({ it: 'CV', en: 'hp' })} · ${r.specs.weight!=null?r.specs.weight+' kg · ':''}${esc(driveLabel(r.specs.drive))}</div>`:''}
-      ${r.variants?.length?`<div class="muted" style="font-size:11px;margin-top:2px">${tr({ it: 'varianti: ', en: 'variants: ' })}${esc(r.variants.join(', '))}</div>`:''}</div>
+      ${r.specs?.power!=null?`<div class="muted" style="font-size:11.5px;margin-top:4px">${r.specs.power} ${tr({ it: 'CV', en: 'hp' })} · ${r.specs.weight!=null?r.specs.weight+' kg · ':''}${esc(driveLabel(r.specs.drive))}</div>`:''}
+      ${r.variants?.length?`<div class="muted" style="font-size:11.5px;margin-top:2px">${tr({ it: 'varianti: ', en: 'variants: ' })}${esc(r.variants.join(', '))}</div>`:''}</div>
     </div>`;
     }).join('') || `<div class="empty">${tr({ it: 'Nessuna auto trovata.', en: 'No car found.' })}</div>`;
     $$('#cars-grid .car-click').forEach(el => { el.onclick = () => carDetail(rows[Number(el.dataset.i)], b); });
@@ -202,7 +202,7 @@ async function drawCars(m){
         ${T?.length?`<path d="${line(T, yT)}" fill="none" stroke="#f96" stroke-width="2" stroke-dasharray="5 4"/>`:''}
         ${P?.length?`<path d="${line(P, yP)}" fill="none" stroke="#8fa" stroke-width="2.4"/>`:''}
       </svg>
-      <div class="muted" style="font-size:11px;margin-top:3px">${tr({ it: 'Picchi: ', en: 'Peaks: ' })}${maxP?maxP.toFixed(0)+' kW':'—'} · ${maxT?maxT.toFixed(0)+' Nm':'—'} (${tr({ it: "curve dall'installazione di Assetto Corsa 1", en: "curves from your Assetto Corsa 1 install" })})</div>
+      <div class="muted" style="font-size:11.5px;margin-top:3px">${tr({ it: 'Picchi: ', en: 'Peaks: ' })}${maxP?maxP.toFixed(0)+' kW':'—'} · ${maxT?maxT.toFixed(0)+' Nm':'—'} (${tr({ it: "curve dall'installazione di Assetto Corsa 1", en: "curves from your Assetto Corsa 1 install" })})</div>
     </div>`;
   }
 
@@ -233,7 +233,7 @@ async function drawCars(m){
       ${row(tr({ it: 'Anno', en: 'Year' }), s.year??null)}
       ${row(tr({ it: 'Nazione', en: 'Country' }), s.country?esc(s.country):null)}
       ${curveChart(s)}       ${s.appVersus?.length ? `<div style="margin-top:10px">
-        <div class="muted" style="font-size:11px;margin-bottom:4px">📊 ${tr({ it: 'Versus sulla flotta', en: 'Fleet versus' })} · <span class="faint">${tr({ it: 'percentile su tutte le auto del catalogo', en: 'percentile across the whole car catalog' })}</span></div>         ${s.appVersus.map(v => `<div style="display:flex;align-items:center;gap:8px;font-size:11.5px;margin-top:3px"><span style="min-width:118px" class="muted">${esc(v.label)}</span><div style="flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden"><div style="height:100%;width:${Number(v.pos)||0}%;background:var(--acc)"></div></div><b style="min-width:34px;text-align:right">${v.pos}%</b><span class="faint" style="font-size:10px">${tr({ it: 'media ', en: 'avg ' })}${v.avg}%</span></div>`).join('')}
+        <div class="muted" style="font-size:11.5px;margin-bottom:4px">📊 ${tr({ it: 'Versus sulla flotta', en: 'Fleet versus' })} · <span class="faint">${tr({ it: 'percentile su tutte le auto del catalogo', en: 'percentile across the whole car catalog' })}</span></div>         ${s.appVersus.map(v => `<div style="display:flex;align-items:center;gap:8px;font-size:11.5px;margin-top:3px"><span style="min-width:118px" class="muted">${esc(v.label)}</span><div style="flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden"><div style="height:100%;width:${Number(v.pos)||0}%;background:var(--acc)"></div></div><b style="min-width:34px;text-align:right">${v.pos}%</b><span class="faint" style="font-size:11.5px">${tr({ it: 'media ', en: 'avg ' })}${v.avg}%</span></div>`).join('')}
       </div>` : ''}` : `<div class="muted" style="margin-top:8px;font-size:12px">${tr({ it: 'Scheda tecnica non disponibile per questo modello.', en: 'No tech specs available for this model.' })}</div>`}
       <h3 style="margin:14px 0 2px;font-size:13px">${tr({ it: 'Nella carriera', en: 'In the career' })}</h3>
       ${row(tr({ it: 'Nome nella carriera', en: 'Name in the career' }), r.ladderName ? esc(r.ladderName) : (r.ladderId ? esc(r.ladderId) : null))}
@@ -304,8 +304,8 @@ async function drawGarage(m){
       </select>
       <select id="g-how" style="width:130px"><option value="bought">${tr({ it: 'comprata', en: 'bought' })}</option><option value="won">${tr({ it: 'vinta', en: 'won' })}</option></select>
       <button class="act" id="g-addbtn" style="width:auto;padding:8px 14px">${tr({ it: 'Aggiungi', en: 'Add' })}</button>
-      <span id="g-price" class="muted" style="font-size:11px"></span>
-      <span class="muted" style="font-size:11px">${tr({ it: 'Le auto vinte negli eventi speciali arrivano qui da sole.', en: 'Cars won in special events arrive here by themselves.' })}</span>
+      <span id="g-price" class="muted" style="font-size:11.5px"></span>
+      <span class="muted" style="font-size:11.5px">${tr({ it: 'Le auto vinte negli eventi speciali arrivano qui da sole.', en: 'Cars won in special events arrive here by themselves.' })}</span>
     </div>
     <div id="g-mech" style="margin-bottom:12px"></div>
     <!-- BANCO A/B uscito dal Garage (1/11, domanda Mauro: «perché in garage?
@@ -319,8 +319,8 @@ async function drawGarage(m){
     <div class="panel" style="padding:0;overflow:hidden" data-car="${esc(c.carId)}">
       ${c.image?`<img class="car-frame" src="${c.image}" alt="${esc(c.carName)}" loading="lazy" style="width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#0d1118">`:''}
       <div style="padding:9px 11px">
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:13px;cursor:pointer;text-decoration:underline dotted" class="g-carlink" data-car="${esc(c.carName)}" title="${tr({ it: 'apri la scheda tecnica dell\'auto', en: 'open the car spec sheet' })}">${esc(c.carName)}</b> ${badge(c.how, c.note)}${c.pi!=null?`<span class="tag blue" style="font-size:10px;padding:1px 6px" title="${tr({ it: 'Perf. index dal server dedicato', en: 'Performance index from the dedicated server' })}">PI ${c.pi.toFixed(1)}</span>`:''}</div>
-        <div class="muted" style="font-size:11px;margin-top:3px">${tr({ it: 'nel garage dal ', en: 'in the garage since ' })}${esc(new Date(c.since).toLocaleDateString(window.LOCALE ?? 'it-IT'))}${c.note?` · ${esc(legacyIt(c.note))}`:''}</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:13px;cursor:pointer;text-decoration:underline dotted" class="g-carlink" data-car="${esc(c.carName)}" title="${tr({ it: 'apri la scheda tecnica dell\'auto', en: 'open the car spec sheet' })}">${esc(c.carName)}</b> ${badge(c.how, c.note)}${c.pi!=null?`<span class="tag blue" style="font-size:11.5px;padding:1px 7px" title="${tr({ it: 'Perf. index dal server dedicato', en: 'Performance index from the dedicated server' })}">PI ${c.pi.toFixed(1)}</span>`:''}</div>
+        <div class="muted" style="font-size:11.5px;margin-top:3px">${tr({ it: 'nel garage dal ', en: 'in the garage since ' })}${esc(new Date(c.since).toLocaleDateString(window.LOCALE ?? 'it-IT'))}${c.note?` · ${esc(legacyIt(c.note))}`:''}</div>
         <div style="display:flex;gap:10px;margin-top:7px;font-size:12px;flex-wrap:wrap">
           <span title="${tr({ it: 'gare con questa auto', en: 'races with this car' })}">🏁 ${c.stats.races} ${tr({ it: 'gare', en: 'races' })}</span>
           <span title="${tr({ it: 'vittorie', en: 'wins' })}" style="color:var(--good)">🥇 ${c.stats.wins}</span>
@@ -328,9 +328,9 @@ async function drawGarage(m){
           <span title="${tr({ it: 'chilometri percorsi in gara con noi (giri × lunghezza pista)', en: 'kilometers raced with us (laps × track length)' })}">🛣 ${money(c.stats.km)} km</span>
           ${c.stats.bestLap?`<span class="muted" title="${tr({ it: 'miglior giro in carriera', en: 'career best lap' })}">⏱ ${esc(c.stats.bestLap)}</span>`:''}
         </div>
-        <div style="margin-top:7px;font-size:12px"><b>${tr({ it: 'valutata ', en: 'appraised ' })}${money(c.value)} €</b> <span class="muted" style="font-size:10.5px" title="${tr({ it: 'prezzo reale svalutato dai km (', en: 'real price depreciated by km (' })}${Math.round(c.valueFactor*100)}%)">${c.realPrice!=null?`(${tr({ it: 'nuova ~', en: 'new ~' })}${money(c.realPrice)} €)`:''}</span> · <span style="color:var(--good)">${tr({ it: 'vendita ', en: 'sale ' })}${money(c.sale)} €</span></div>
+        <div style="margin-top:7px;font-size:12px"><b>${tr({ it: 'valutata ', en: 'appraised ' })}${money(c.value)} €</b> <span class="muted" style="font-size:11.5px" title="${tr({ it: 'prezzo reale svalutato dai km (', en: 'real price depreciated by km (' })}${Math.round(c.valueFactor*100)}%)">${c.realPrice!=null?`(${tr({ it: 'nuova ~', en: 'new ~' })}${money(c.realPrice)} €)`:''}</span> · <span style="color:var(--good)">${tr({ it: 'vendita ', en: 'sale ' })}${money(c.sale)} €</span></div>
         <div class="row" style="margin-top:8px;gap:6px">
-          <input class="g-note" type="text" placeholder="${tr({ it: 'nota (es. livrea, assetto…)...', en: 'note (e.g. livery, setup…)...' })}" value="${esc(c.note ?? '')}" style="flex:1;min-width:120px;font-size:11px">
+          <input class="g-note" type="text" placeholder="${tr({ it: 'nota (es. livrea, assetto…)...', en: 'note (e.g. livery, setup…)...' })}" value="${esc(c.note ?? '')}" style="flex:1;min-width:120px;font-size:11.5px">
           <button class="mini g-savenote">${tr({ it: 'salva', en: 'save' })}</button>
           <button class="mini g-sell" title="${tr({ it: 'vendi al 70% della valutazione', en: 'sell at 70% of the appraisal' })}">${tr({ it: 'vendi', en: 'sell' })}</button>
         </div>
@@ -431,11 +431,11 @@ async function drawTracks(m){
   const lapMs = (s) => { const m = String(s??'').match(/^(\d+):(\d{2})\.(\d{3})$/); return m ? (+m[1])*60000 + (+m[2])*1000 + (+m[3]) : null; };
   const flag = (c) => ({ 'Italia':'🇮🇹','Italy':'🇮🇹','Giappone':'🇯🇵','Japan':'🇯🇵','Austria':'🇦🇹','Australia':'🇦🇺','Germania':'🇩🇪','Germany':'🇩🇪','Stati Uniti':'🇺🇸','USA':'🇺🇸','Regno Unito':'🇬🇧','United Kingdom':'🇬🇧','Belgio':'🇧🇪','Belgium':'🇧🇪','Sudafrica':'🇿🇦','South Africa':'🇿🇦','Francia':'🇫🇷','France':'🇫🇷' }[c] ?? '🏁');
   const rows = t.rows.map((r) => `<tr>
-    <td><b>${flag(r.info?.country)} <span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda della pista', en: 'open the track card' })}" data-hist="${esc(r.id)}">${esc(r.track)}</span></b>${r.id===t.next?.id?` <span class="tag gold" style="font-size:10px;padding:1px 6px">${tr({ it: 'prossima', en: 'next' })}</span>`:''}${r.inLadder?'':` <span class="faint">(${tr({ it: 'fuori ladder', en: 'off ladder' })})</span>`}</td>
+    <td><b>${flag(r.info?.country)} <span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda della pista', en: 'open the track card' })}" data-hist="${esc(r.id)}">${esc(r.track)}</span></b>${r.id===t.next?.id?` <span class="tag gold" style="font-size:11.5px;padding:1px 7px">${tr({ it: 'prossima', en: 'next' })}</span>`:''}${r.inLadder?'':` <span class="faint">(${tr({ it: 'fuori ladder', en: 'off ladder' })})</span>`}</td>
     <td class="muted">${r.info?esc(tr({ it: r.info.nick, en: r.info.nickEn })):''}</td>
-    <td class="right"><b>${r.personal?esc(r.personal.time):'—'}</b>${r.personal?`<br><span class="faint" style="font-size:11px">${window.carLinkHtml(r.personal.car??'')}</span>`:''}</td>
+    <td class="right"><b>${r.personal?esc(r.personal.time):'—'}</b>${r.personal?`<br><span class="faint" style="font-size:11.5px">${window.carLinkHtml(r.personal.car??'')}</span>`:''}</td>
     <td class="right">${r.session?`<b>${esc(r.session.time)}</b> <span class="faint">${esc(r.session.driver)}${r.session.mine?` (${tr({ it: 'tu', en: 'you' })})`:''}</span>`:'—'}</td>
-    <td class="right">${(() => { const a=lapMs(r.personal?.time), b=lapMs(r.session?.time); return (a&&b)?(b<a?`<span class="tag gold" style="font-size:10px;padding:1px 6px">−${((a-b)/1000).toFixed(3)}</span>`:`<span class="tag green" style="font-size:10px;padding:1px 6px">+${((b-a)/1000).toFixed(3)}</span>`):'—'; })()}</td>
+    <td class="right">${(() => { const a=lapMs(r.personal?.time), b=lapMs(r.session?.time); return (a&&b)?(b<a?`<span class="tag gold" style="font-size:11.5px;padding:1px 7px">−${((a-b)/1000).toFixed(3)}</span>`:`<span class="tag green" style="font-size:11.5px;padding:1px 7px">+${((b-a)/1000).toFixed(3)}</span>`):'—'; })()}</td>
     <td>${r.info?`<button class="mini b-hist" data-hist="${esc(r.id)}">📚 ${tr({ it: 'storia & risultati', en: 'history & results' })}</button>`:''}</td>
   </tr>`).join('');
   m.innerHTML = `
@@ -451,8 +451,8 @@ async function drawTracks(m){
     const i = r?.info;
     $('#track-hist').innerHTML = !i ? '' : `<div class="panel" style="margin-top:14px"><h2>${flag(i.country)} ${esc(i.fullName)} <span class="h-act">${esc(tr({ it: i.country, en: i.countryEn }))} · ${i.lengthKm} km · ${i.corners} ${tr({ it: 'curve · inaugurato nel ', en: 'corners · opened in ' })}${i.opened}</span></h2>
       ${i.photo ? `<img src="${i.photo}" alt="${tr({ it: 'vista aerea di ', en: 'aerial view of ' })}${esc(r.track)}" style="width:100%;max-width:520px;aspect-ratio:16/9;object-fit:cover;background:#000;border-radius:10px;margin-bottom:10px">` : (i.map ? `<img src="${i.map}" alt="${tr({ it: 'tracciato ', en: 'layout ' })}${esc(r.track)}" style="width:100%;max-width:420px;object-fit:contain;background:#000;border-radius:10px;padding:12px;margin-bottom:10px${i.map.endsWith('.svg')?';filter:invert(1);opacity:.92':''}">` : '')}
-      ${r.layoutRows?.length>1 ? `<h3 style="margin:0 0 6px;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim)">${tr({ it: 'Record per configurazione (', en: 'Records by configuration (' })}${r.layoutRows.length} ${tr({ it: 'layout)', en: 'layouts)' })}</h3>
-      <table style="margin-bottom:10px"><thead><tr><th>${tr({ it: 'Layout', en: 'Layout' })}</th><th class="right">${tr({ it: 'Lunghezza', en: 'Length' })}</th><th class="right">${tr({ it: 'Box', en: 'Pits' })}</th><th class="right">${tr({ it: 'Tuo miglior', en: 'Your best' })}</th><th class="right">${tr({ it: 'Record di sessione', en: 'Session record' })}</th></tr></thead><tbody>${r.layoutRows.map(l=>`<tr><td><b>${esc(l.layout)}</b></td><td class="right">${l.lengthKm??'—'} km</td><td class="right">${l.pits??'—'}</td><td class="right">${l.mine?`<b>${esc(l.mine.time)}</b>${l.mineFallback?'<span class="faint"> *</span>':''}`:'—'}</td><td class="right">${l.session?`${esc(l.session.time)} <span class="faint">${esc(l.session.driver)}</span>`:'—'}</td></tr>`).join('')}</tbody></table><div class="faint" style="margin:-6px 0 10px;font-size:11px">* ${tr({ it: 'dal record personale in carriera/prove (una sola configurazione corsa: il save non distingue i layout)', en: 'from the personal record in career/practice (only one layout raced: the save does not distinguish layouts)' })}</div>` : ''}
+      ${r.layoutRows?.length>1 ? `<h3 style="margin:0 0 6px;font-size:11.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim)">${tr({ it: 'Record per configurazione (', en: 'Records by configuration (' })}${r.layoutRows.length} ${tr({ it: 'layout)', en: 'layouts)' })}</h3>
+      <table style="margin-bottom:10px"><thead><tr><th>${tr({ it: 'Layout', en: 'Layout' })}</th><th class="right">${tr({ it: 'Lunghezza', en: 'Length' })}</th><th class="right">${tr({ it: 'Box', en: 'Pits' })}</th><th class="right">${tr({ it: 'Tuo miglior', en: 'Your best' })}</th><th class="right">${tr({ it: 'Record di sessione', en: 'Session record' })}</th></tr></thead><tbody>${r.layoutRows.map(l=>`<tr><td><b>${esc(l.layout)}</b></td><td class="right">${l.lengthKm??'—'} km</td><td class="right">${l.pits??'—'}</td><td class="right">${l.mine?`<b>${esc(l.mine.time)}</b>${l.mineFallback?'<span class="faint"> *</span>':''}`:'—'}</td><td class="right">${l.session?`${esc(l.session.time)} <span class="faint">${esc(l.session.driver)}</span>`:'—'}</td></tr>`).join('')}</tbody></table><div class="faint" style="margin:-6px 0 10px;font-size:11.5px">* ${tr({ it: 'dal record personale in carriera/prove (una sola configurazione corsa: il save non distingue i layout)', en: 'from the personal record in career/practice (only one layout raced: the save does not distinguish layouts)' })}</div>` : ''}
       <div style="line-height:1.6">${esc(tr({ it: i.history, en: i.historyEn }))}</div></div>`;
     $('#track-hist').scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -610,7 +610,7 @@ async function drawSetup(m){
       <button class="act" id="lc-go" type="button">🔄 ${tr({ it: 'Ridisegna', en: 'Redraw' })}</button>
     </div>
     <div id="lc-out" style="margin-top:10px"></div>
-    <div class="muted" style="font-size:11px;margin-top:6px">${tr({ it: 'Il confronto allinea i due giri sulla distanza percorsa: la banda in fondo dice DOVE vince o perde km/h (frenata, staccata, rettifilo…). Le bande sottili: freno (rosso) e gas (verde). Sessione, giro e confronto si ricaricano da soli.', en: 'The comparison aligns the two laps on distance covered: the band at the bottom shows WHERE you gain or lose km/h (braking, hairpin, straight…). The thin bands: brake (red) and throttle (green). Session, lap and compare reload on their own.' })}</div>
+    <div class="muted" style="font-size:11.5px;margin-top:6px">${tr({ it: 'Il confronto allinea i due giri sulla distanza percorsa: la banda in fondo dice DOVE vince o perde km/h (frenata, staccata, rettifilo…). Le bande sottili: freno (rosso) e gas (verde). Sessione, giro e confronto si ricaricano da soli.', en: 'The comparison aligns the two laps on distance covered: the band at the bottom shows WHERE you gain or lose km/h (braking, hairpin, straight…). The thin bands: brake (red) and throttle (green). Session, lap and compare reload on their own.' })}</div>
     </div>
     <div class="panel" style="margin-top:14px">
     <h2>💡 ${tr({ it: 'Consigli del box', en: 'Garage advice' })} <span class="muted" style="font-size:12px">${tr({ it: 'target ', en: 'target ' })}${tel.target} PSI · ${list.length} ${tr({ it: 'sessioni recenti', en: 'recent sessions' })}</span></h2>
@@ -619,7 +619,7 @@ async function drawSetup(m){
     ${clHtml}
     <div class="row" style="margin-top:12px;align-items:center;gap:10px;flex-wrap:wrap">
       <button class="act" id="b-apply-setup" type="button" style="font-size:15px;padding:10px 18px">⚡ ${tr({ it: 'Applica i consigli al setup', en: 'Apply the advice to the setup' })}</button>
-      <span class="muted" style="font-size:11px">${tr({ it: 'scrive «(setup) — EVO-consigliato.carsetup» a fianco del tuo file · in EVO, A GIOCO APERTO: CARICA → il gioco rilegge il disco', en: 'writes «(setup) — EVO-advised.carsetup» next to your file · in EVO, WHILE IN GAME: LOAD → the game re-reads the disk' })}</span>
+      <span class="muted" style="font-size:11.5px">${tr({ it: 'scrive «(setup) — EVO-consigliato.carsetup» a fianco del tuo file · in EVO, A GIOCO APERTO: CARICA → il gioco rilegge il disco', en: 'writes «(setup) — EVO-advised.carsetup» next to your file · in EVO, WHILE IN GAME: LOAD → the game re-reads the disk' })}</span>
     </div>
     <div id="apply-out" style="margin-top:10px"></div>
     <details ${cl && !cl.allGood ? 'open' : ''} style="margin-top:6px"><summary style="cursor:pointer;font-size:12px" class="muted">${tr({ it: 'Da fare in EVO + consiglio pressioni completo (', en: 'To do in EVO + full pressure advice (' })}${telLaps} ${tr({ it: 'giri di telemetria)', en: 'telemetry laps)' })}</summary>
@@ -685,10 +685,10 @@ async function drawSetup(m){
         <td class="right">${r.fuel != null ? d1(r.fuel) + ' L' + (r.deltas?.fuel != null ? dd(r.deltas.fuel) : '') : '—'}</td>
       </tr>`;
     return `<div id="setup-hist" style="margin-top:8px">
-      <div style="font-weight:700;font-size:14px">📜 ${tr({ it: 'Storia dei setup', en: 'Setup history' })} <span class="muted" style="font-weight:400;font-size:12px">${tr({ it: 'ogni salvataggio · ', en: 'every save · ' })}<b style="color:var(--ok,#7f7)">+</b> = ${tr({ it: 'alzato', en: 'raised' })} · <b style="color:#f66">−</b> = ${tr({ it: 'abbassato', en: 'lowered' })} · <span style="color:var(--acc,#5da9ff);font-size:11px">${tr({ it: 'i nomi dei file sono cliccabili', en: 'file names are clickable' })}</span></span></div>
+      <div style="font-weight:700;font-size:14px">📜 ${tr({ it: 'Storia dei setup', en: 'Setup history' })} <span class="muted" style="font-weight:400;font-size:12px">${tr({ it: 'ogni salvataggio · ', en: 'every save · ' })}<b style="color:var(--ok,#7f7)">+</b> = ${tr({ it: 'alzato', en: 'raised' })} · <b style="color:#f66">−</b> = ${tr({ it: 'abbassato', en: 'lowered' })} · <span style="color:var(--acc,#5da9ff);font-size:11.5px">${tr({ it: 'i nomi dei file sono cliccabili', en: 'file names are clickable' })}</span></span></div>
       <table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'File', en: 'File' })}</th><th class="right">${tr({ it: 'Pressioni (sx/dx ant · sx/dx post)', en: 'Pressures (LF/RF · LR/RR)' })}</th><th class="right">${tr({ it: 'Camber', en: 'Camber' })}</th><th class="right">${tr({ it: 'Alt. ant / post', en: 'Height F/R' })}</th><th class="right">${tr({ it: 'Ala ant / post', en: 'Wing F/R' })}</th><th class="right">${tr({ it: 'Bias freni', en: 'Brake bias' })}</th><th>${tr({ it: 'TC', en: 'TC' })}</th><th class="right">${tr({ it: 'Benzina', en: 'Fuel' })}</th></tr></thead>
       <tbody>${rows.map(histRow).join('')}</tbody></table>
-      <div class="muted" style="font-size:11px;margin-top:6px">🔧 = ${tr({ it: "file scritto dall'applicatore del meccanico · 📄 = salvataggio tuo da EVO · i segni confrontano ogni riga col salvataggio PRECEDENTE in ordine di tempo.", en: 'file written by the mechanic\'s applier · 📄 = your own save from EVO · the signs compare each row with the PREVIOUS save in time order.' })}</div>
+      <div class="muted" style="font-size:11.5px;margin-top:6px">🔧 = ${tr({ it: "file scritto dall'applicatore del meccanico · 📄 = salvataggio tuo da EVO · i segni confrontano ogni riga col salvataggio PRECEDENTE in ordine di tempo.", en: 'file written by the mechanic\'s applier · 📄 = your own save from EVO · the signs compare each row with the PREVIOUS save in time order.' })}</div>
       </div>`;
   };
   let histHtml = '';
@@ -717,11 +717,11 @@ async function drawSetup(m){
     // un base setup, il bottone 🌉 sta nel quadro stesso, con la SUA auto nel
     // dataset — niente più spostare il sedile sul pannello dell'auto in mano.
     try { garage = await api('setup-cover', { all: true }); } catch { /* quadro corrente anche da solo */ }
-    const chip = (t, bg, ok, extra) => `<span class="tag" style="font-size:11px;padding:3px 10px;background:${bg}${ok ? ';border-color:#1d3a2a' : ';border-color:#3a2433'}">${ok ? '✔' : '✖'} ${esc(t)}${extra}</span>`;
+    const chip = (t, bg, ok, extra) => `<span class="tag" style="font-size:11.5px;padding:3px 10px;background:${bg}${ok ? ';border-color:#1d3a2a' : ';border-color:#3a2433'}">${ok ? '✔' : '✖'} ${esc(t)}${extra}</span>`;
     // chip «girata senza setup» del QUADRO, col ponte quando è possibile:
     // il sorgente (srcFile) arriva ora anche nella risposta all:true del server
     const chipGarageMiss = (x, carName) => x.srcFile
-      ? `<span class="tag" style="font-size:11px;padding:3px 10px;background:#1c1016;border-color:#3a2433">✖ ${esc(x.track)} <button class="mini" type="button" data-cover-bridge="${esc(x.track)}" data-cover-car="${esc(carName)}" data-src="${esc(x.srcFile)}" title="${esc(tr({ it: `ponte: «${x.srcName ?? 'setup base'}» (${x.srcTrack ?? '?'}) → «${x.track}», byte per byte`, en: `bridge: «${x.srcName ?? 'base setup'}» (${x.srcTrack ?? '?'}) → «${x.track}», byte for byte` }))}">🌉 ${tr({ it: 'Pontalo', en: 'Bridge it' })}</button></span>`
+      ? `<span class="tag" style="font-size:11.5px;padding:3px 10px;background:#1c1016;border-color:#3a2433">✖ ${esc(x.track)} <button class="mini" type="button" data-cover-bridge="${esc(x.track)}" data-cover-car="${esc(carName)}" data-src="${esc(x.srcFile)}" title="${esc(tr({ it: `ponte: «${x.srcName ?? 'setup base'}» (${x.srcTrack ?? '?'}) → «${x.track}», byte per byte`, en: `bridge: «${x.srcName ?? 'base setup'}» (${x.srcTrack ?? '?'}) → «${x.track}», byte for byte` }))}">🌉 ${tr({ it: 'Pontalo', en: 'Bridge it' })}</button></span>`
       : chip(x.track, '#1c1016', false, '');
     const covered = (c.covered ?? []).map((x) => chip(x.track, '#0e1f14', true, ` <span class="muted">×${x.files} ${esc(x.last)}</span>`)).join(' ');
     /* IL TENDINA DEL SORGENTE (31/10, richiesta Mauro): non solo il più
@@ -734,22 +734,22 @@ async function drawSetup(m){
     const missBtn = (x) => x.srcFile
       ? `${srcSel(x)} <button class="mini" type="button" data-cover-bridge="${esc(x.track)}" data-src="${esc(x.srcFile)}" title="${esc(tr({ it: 'copia qui il setup base scelto, byte per byte', en: 'copy the chosen base setup here, byte per byte' }))}">🌉 ${tr({ it: 'pontalo', en: 'bridge it' })}</button>`
       : '';
-    const missing = (c.missing ?? []).map((x) => chip(x.track, '#1c1016', false, ` <span class="muted" style="font-size:10px">${tr({ it: 'girata, senza setup', en: 'driven, no setup' })}</span> ${missBtn(x)}`)).join(' ');
+    const missing = (c.missing ?? []).map((x) => chip(x.track, '#1c1016', false, ` <span class="muted" style="font-size:11.5px">${tr({ it: 'girata, senza setup', en: 'driven, no setup' })}</span> ${missBtn(x)}`)).join(' ');
     const html = `<div id="setup-cover" style="margin-top:8px">
       <div style="font-weight:700;font-size:14px">🗺 ${tr({ it: 'Copertura dei setup', en: 'Setup coverage' })} <span class="muted" style="font-weight:400;font-size:12px">${esc(c.car ?? '')}</span></div>
       <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${covered || `<span class="muted" style="font-size:12px">${tr({ it: 'nessun .carsetup per questa auto, in nessuna pista: salva UNO in EVO (anche default) e qui si apre la lista completa.', en: 'no .carsetup for this car on any track: save ONE in EVO (even default) and the full list opens here.' })}</span>`}</div>
-      ${(c.missing ?? []).length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${missing}</div><div class="muted" style="font-size:11px;margin-top:4px">🌉 = ${tr({ it: 'piste che hai girato di recente senza setup: scegli in tendina QUALE setup base pontare (default: il più recente), copia byte per byte; poi ⚡ APPLICA parte proprio da lì.', en: 'tracks recently driven without a setup: pick in the dropdown which base setup to bridge there, byte per byte; then ⚡ APPLY starts right from there.' })}</div>` : ''}
+      ${(c.missing ?? []).length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${missing}</div><div class="muted" style="font-size:11.5px;margin-top:4px">🌉 = ${tr({ it: 'piste che hai girato di recente senza setup: scegli in tendina QUALE setup base pontare (default: il più recente), copia byte per byte; poi ⚡ APPLICA parte proprio da lì.', en: 'tracks recently driven without a setup: pick in the dropdown which base setup to bridge there, byte per byte; then ⚡ APPLY starts right from there.' })}</div>` : ''}
       ${(garage?.cars ?? []).length ? `
-        <details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px"><b>${tr({ it: '🏢 Tutto il garage', en: '🏢 Whole garage' })}</b> <span class="muted" style="font-size:11px">${garage.cars.length} ${tr({ it: 'auto', en: 'cars' })}${c.pistaViva ? ` · 🎮 ${esc(c.pistaViva)}` : ''}</span></summary>
+        <details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px"><b>${tr({ it: '🏢 Tutto il garage', en: '🏢 Whole garage' })}</b> <span class="muted" style="font-size:11.5px">${garage.cars.length} ${tr({ it: 'auto', en: 'cars' })}${c.pistaViva ? ` · 🎮 ${esc(c.pistaViva)}` : ''}</span></summary>
         <div style="margin-top:6px">${garage.cars.map((g) => `
           <div style="padding:4px 0;border-bottom:1px solid var(--line,#222)"><b style="font-size:12px">${esc(g.car)}</b>
             <div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:5px">
               ${(g.covered ?? []).map((x) => chip(x.track, '#0e1f14', true, ` <span class="muted">×${x.files}</span>`)).join(' ')}
               ${(g.missing ?? []).map((x) => chipGarageMiss(x, g.car)).join(' ')}
-              ${(g.covered ?? []).length + (g.missing ?? []).length === 0 ? `<span class="muted" style="font-size:11px">${tr({ it: 'niente .carsetup e sessioni recenti per quest\'auto', en: 'no .carsetup and no recent sessions for this car' })}</span>` : ''}
+              ${(g.covered ?? []).length + (g.missing ?? []).length === 0 ? `<span class="muted" style="font-size:11.5px">${tr({ it: 'niente .carsetup e sessioni recenti per quest\'auto', en: 'no .carsetup and no recent sessions for this car' })}</span>` : ''}
             </div></div>`).join('')}</div>
       </details>` : ''}
-      ${c.pistaViva ? `<div class="muted" style="font-size:11px;margin-top:4px">🎮 ${tr({ it: 'pista viva ora: ', en: 'live track right now: ' })}<b>${esc(c.pistaViva)}</b> — ${tr({ it: 'con il gioco aperto il ponte scrive SOLO quì.', en: 'with the game open the bridge writes THERE only.' })}</div>` : ''}
+      ${c.pistaViva ? `<div class="muted" style="font-size:11.5px;margin-top:4px">🎮 ${tr({ it: 'pista viva ora: ', en: 'live track right now: ' })}<b>${esc(c.pistaViva)}</b> — ${tr({ it: 'con il gioco aperto il ponte scrive SOLO quì.', en: 'with the game open the bridge writes THERE only.' })}</div>` : ''}
       <div id="cover-out" style="margin-top:6px"></div>
     </div>`;
     const anchor = document.querySelector('#setup-hist') ?? document.querySelector('#apply-out');
@@ -940,7 +940,7 @@ async function drawSetup(m){
           const righe = (p.before?.pressures ?? []).map((v, i) => {
             const dopo = (p.after?.pressures ?? [])[i] ?? v;
             const delta = Math.round(((dopo ?? 0) - (v ?? 0)) * 10) / 10;
-            return `<tr><td class="muted">${esc(RUOTE_LBL[i] ?? (tr({ it: 'gomma ', en: 'tyre ' }) + (i + 1)))}</td><td class="right">${psiD(v)} PSI</td><td class="right"><b>${psiD(dopo)} PSI</b>${delta ? ` <span class="muted" style="font-size:10.5px">(${delta > 0 ? '+' : ''}${delta.toFixed(1)})</span>` : ''}</td></tr>`;
+            return `<tr><td class="muted">${esc(RUOTE_LBL[i] ?? (tr({ it: 'gomma ', en: 'tyre ' }) + (i + 1)))}</td><td class="right">${psiD(v)} PSI</td><td class="right"><b>${psiD(dopo)} PSI</b>${delta ? ` <span class="muted" style="font-size:11.5px">(${delta > 0 ? '+' : ''}${delta.toFixed(1)})</span>` : ''}</td></tr>`;
           }).join('');
           /* le voci OLTRE le gomme (altezza/ala): l'anteprima le elenca esattamente
              come saranno scritte nel file — niente sorprese in EVO. */
@@ -950,7 +950,7 @@ async function drawSetup(m){
             : '';
           const cambia = extra.length > 0 || (p.before?.pressures ?? []).some((v, i) => Math.abs(((p.after?.pressures ?? [])[i] ?? v) - (v ?? 0)) >= 0.05);
           out.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 10px;background:#0d1118">
-            <b>👀 ${tr({ it: 'Anteprima del setup consigliato', en: 'Preview of the advised setup' })}</b> <span class="muted" style="font-size:11px">· ${tr({ it: 'base: ', en: 'base: ' })}${esc(p.baseName ?? '')}${p.basis ? ` · ${tr({ it: 'base dati: ', en: 'data basis: ' })}${esc(p.basis)}` : ''}${p.startPsi != null ? ` · ${tr({ it: 'partenza consigliata: ', en: 'suggested start: ' })}<b>${p.startPsi} PSI</b>` : ''}</span>
+            <b>👀 ${tr({ it: 'Anteprima del setup consigliato', en: 'Preview of the advised setup' })}</b> <span class="muted" style="font-size:11.5px">· ${tr({ it: 'base: ', en: 'base: ' })}${esc(p.baseName ?? '')}${p.basis ? ` · ${tr({ it: 'base dati: ', en: 'data basis: ' })}${esc(p.basis)}` : ''}${p.startPsi != null ? ` · ${tr({ it: 'partenza consigliata: ', en: 'suggested start: ' })}<b>${p.startPsi} PSI</b>` : ''}</span>
             <table style="margin-top:8px"><thead><tr><th>${tr({ it: 'Gomma', en: 'Tyre' })}</th><th class="right">${tr({ it: 'Adesso', en: 'Now' })}</th><th class="right">${tr({ it: 'Consigliato', en: 'Advised' })}</th></tr></thead><tbody>${righe}</tbody></table>
             ${extraHtml}
             ${cambia ? '' : `<div class="muted" style="font-size:12px;margin-top:6px">${tr({ it: 'Il setup attuale è GIÀ sui valori consigliati: nessuna modifica necessaria.', en: 'The current setup is ALREADY at the advised values: no change needed.' })}</div>`}
@@ -979,7 +979,7 @@ async function drawSetup(m){
     const lap = Number(lapSel.value);
     const cv = cmpSel?.value ?? 'best';
     const compare = cv === 'best' ? 'best' : Number(cv);
-    out.innerHTML = `<div class="muted" style="font-size:11px">${tr({ it: 'campiono il file .ld…', en: 'sampling the .ld file…' })}</div>`;
+    out.innerHTML = `<div class="muted" style="font-size:11.5px">${tr({ it: 'campiono il file .ld…', en: 'sampling the .ld file…' })}</div>`;
     try {
       // l'auto da campiare è quella della SESSIONE SCELTA (col filtro «tutte le
       // auto» si può scegliere un .ld di un'altra macchina): serve al server per
@@ -1011,7 +1011,7 @@ async function drawSetup(m){
       }
       if (!t.ok) { out.innerHTML = `<div class="banner info">${esc(t.hint ?? tr({ it: 'Nessun dato', en: 'No data' }))}</div>`; return; }
       const d = t.compare;
-      out.innerHTML = lapChartSvg(t) + `<div class="muted" style="font-size:11px;margin-top:4px">${selWhen ? `<b>${esc(selWhen)}</b> · ` : ''}${d ? tr({ it: 'Differenza media col giro {L}: {D} a favore del giro {T} · picco {MX} / minimo {MN} km/h · distanza giro {KM} km · tempo: {TD} rispetto al giro {L2}.', en: 'Average difference vs lap {L}: {D} in favour of lap {T} · peak {MX} / minimum {MN} km/h · lap distance {KM} km · time: {TD} versus lap {L2}.' }).replace('{L}', d.lap).replace('{D}', `<b style="color:${d.dvAvg >= 0 ? 'var(--ok,#7f7)' : '#f66'}">${d.dvAvg >= 0 ? '+' : ''}${d.dvAvg.toFixed(1)} km/h</b>`).replace('{T}', t.lap).replace('{MX}', (d.dvMax >= 0 ? '+' : '') + d.dvMax.toFixed(1)).replace('{MN}', d.dvMin.toFixed(1)).replace('{KM}', t.distanceKm).replace('{TD}', `${d.timeDelta >= 0 ? '+' : ''}${d.timeDelta.toFixed(1)}s`).replace('{L2}', d.lap) : tr({ it: 'senza confronto', en: 'no comparison' })}</div>`;
+      out.innerHTML = lapChartSvg(t) + `<div class="muted" style="font-size:11.5px;margin-top:4px">${selWhen ? `<b>${esc(selWhen)}</b> · ` : ''}${d ? tr({ it: 'Differenza media col giro {L}: {D} a favore del giro {T} · picco {MX} / minimo {MN} km/h · distanza giro {KM} km · tempo: {TD} rispetto al giro {L2}.', en: 'Average difference vs lap {L}: {D} in favour of lap {T} · peak {MX} / minimum {MN} km/h · lap distance {KM} km · time: {TD} versus lap {L2}.' }).replace('{L}', d.lap).replace('{D}', `<b style="color:${d.dvAvg >= 0 ? 'var(--ok,#7f7)' : '#f66'}">${d.dvAvg >= 0 ? '+' : ''}${d.dvAvg.toFixed(1)} km/h</b>`).replace('{T}', t.lap).replace('{MX}', (d.dvMax >= 0 ? '+' : '') + d.dvMax.toFixed(1)).replace('{MN}', d.dvMin.toFixed(1)).replace('{KM}', t.distanceKm).replace('{TD}', `${d.timeDelta >= 0 ? '+' : ''}${d.timeDelta.toFixed(1)}s`).replace('{L2}', d.lap) : tr({ it: 'senza confronto', en: 'no comparison' })}</div>`;
     } catch (e) { out.innerHTML = `<div class="banner bad">${esc(e.message)}</div>`; }
   };
   if (!window.__lcDeleg) {
@@ -1070,24 +1070,24 @@ async function drawSetup(m){
         const fmtT = (iso) => iso ? esc(String(iso).replace('T', ' ').slice(0, 16).replace(/:\d\d$/, '')) : '—';
         const fmtL = (v) => (v > 0 && v != null) ? `${Math.floor(v / 60)}:${(v % 60).toFixed(2).padStart(5, '0')}` : '—';
         const chip = (d) => d == null
-          ? `<span class="tag" style="font-size:10px;padding:1px 8px;background:#26303d;color:#9fb3cc">${tr({ it: 'in attesa di una sessione nuova', en: 'waiting for a new session' })}</span>`
+          ? `<span class="tag" style="font-size:11.5px;padding:1px 8px;background:#26303d;color:#9fb3cc">${tr({ it: 'in attesa di una sessione nuova', en: 'waiting for a new session' })}</span>`
           : (d < -0.05
-            ? `<span class="tag green" style="font-size:10px;padding:1px 8px">${tr({ it: 'guadagnati ', en: 'gained ' })}${(-d).toFixed(2)} s</span>`
+            ? `<span class="tag green" style="font-size:11.5px;padding:1px 8px">${tr({ it: 'guadagnati ', en: 'gained ' })}${(-d).toFixed(2)} s</span>`
             : (d > 0.15
-              ? `<span class="tag" style="font-size:10px;padding:1px 8px;background:#3a1d1d;color:#ff9b9b">${tr({ it: 'persi +', en: 'lost +' })}${d.toFixed(2)} s</span>`
-              : `<span class="tag" style="font-size:10px;padding:1px 8px;background:#26303d;color:#cdd9e8">${tr({ it: 'neutro (', en: 'neutral (' })}${d >= 0 ? '+' : ''}${d.toFixed(2)} s)</span>`));
+              ? `<span class="tag" style="font-size:11.5px;padding:1px 8px;background:#3a1d1d;color:#ff9b9b">${tr({ it: 'persi +', en: 'lost +' })}${d.toFixed(2)} s</span>`
+              : `<span class="tag" style="font-size:11.5px;padding:1px 8px;background:#26303d;color:#cdd9e8">${tr({ it: 'neutro (', en: 'neutral (' })}${d >= 0 ? '+' : ''}${d.toFixed(2)} s)</span>`));
         const righe = (a.rounds ?? []).map((r) => `<tr>
           <td class="muted" style="white-space:nowrap">${fmtT(r.at)}</td>
           <td style="white-space:nowrap"><span class="muted" style="font-size:11.5px">${fmtL(r.bestBefore)} → ${fmtL(r.bestAfter)}</span></td>
           <td>${chip(r.delta)}</td>
           <td style="font-size:11.5px;color:var(--dim)">${(r.campi ?? []).map((c) => esc(tag[c] ?? c)).join(' · ') || '—'}</td>
         </tr>`).join('');
-        storiaHtml = `<details style="margin-top:10px" ${a.rounds?.length ? '' : 'open'}><summary style="cursor:pointer;font-size:12.5px"><b>🧠 ${tr({ it: 'Storia dell\'allievo', en: "Apprentice's history" })}</b> <span class="muted" style="font-size:11px">— ${(a.rounds ?? []).length} ${tr({ it: 'round di consigli', en: 'advice rounds' })}${a.best ? ` · ${tr({ it: 'migliore registrato: ', en: 'best on file: ' })}<b>${fmtL(a.best.lap)}</b> (${fmtT(a.best.at)})` : ''}</span></summary>
+        storiaHtml = `<details style="margin-top:10px" ${a.rounds?.length ? '' : 'open'}><summary style="cursor:pointer;font-size:12.5px"><b>🧠 ${tr({ it: 'Storia dell\'allievo', en: "Apprentice's history" })}</b> <span class="muted" style="font-size:11.5px">— ${(a.rounds ?? []).length} ${tr({ it: 'round di consigli', en: 'advice rounds' })}${a.best ? ` · ${tr({ it: 'migliore registrato: ', en: 'best on file: ' })}<b>${fmtL(a.best.lap)}</b> (${fmtT(a.best.at)})` : ''}</span></summary>
           ${(a.rounds ?? []).length ? `<table style="margin-top:8px"><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Giro su questa pista', en: 'Lap on this track' })}</th><th>${tr({ it: 'Esito del round', en: 'Round outcome' })}</th><th>${tr({ it: 'Leve promosse', en: 'Levers pulled' })}</th></tr></thead><tbody>${righe}</tbody></table>` : `<div class="muted" style="font-size:12px;margin-top:6px">${tr({ it: "Nessun round chiuso: corri una sessione nuova dopo aver generato consigli e l'esito entra qui.", en: 'No closed rounds: run a new session after generating advice and the outcome lands here.' })}</div>`}
         </details>`;
       }
       out.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 10px;background:#0d1118">
-        <div style="font-size:12px;margin-bottom:6px"><b>🔧 ${tr({ it: 'Il meccanico', en: 'The mechanic' })}</b> — ${tr({ it: 'setup consigliato per ', en: 'advised setup for ' })}<b>${esc(m.track ?? '')}</b> <span class="muted" style="font-size:11px">· ${tr({ it: 'tracciato ', en: 'track type ' })}${esc(m.tipo ?? '?')}${m.densita ? ` · ${m.densita} ${tr({ it: 'curve/km', en: 'corners/km' })}` : ''}${m.sessFile ? tr({ it: ' · correzione su telemetria veri', en: ' · corrected on real telemetry' }) : tr({ it: ' · senza telemetria (solo pista)', en: ' · no telemetry (track profile only)' })}</span></div>
+        <div style="font-size:12px;margin-bottom:6px"><b>🔧 ${tr({ it: 'Il meccanico', en: 'The mechanic' })}</b> — ${tr({ it: 'setup consigliato per ', en: 'advised setup for ' })}<b>${esc(m.track ?? '')}</b> <span class="muted" style="font-size:11.5px">· ${tr({ it: 'tracciato ', en: 'track type ' })}${esc(m.tipo ?? '?')}${m.densita ? ` · ${m.densita} ${tr({ it: 'curve/km', en: 'corners/km' })}` : ''}${m.sessFile ? tr({ it: ' · correzione su telemetria veri', en: ' · corrected on real telemetry' }) : tr({ it: ' · senza telemetria (solo pista)', en: ' · no telemetry (track profile only)' })}</span></div>
         ${rows || `<div class="muted" style="font-size:12px">${tr({ it: 'Nessun consiglio per questa pista: anagrafica non disponibile.', en: 'No advice for this track: profile not available.' })}</div>`}
         ${storiaHtml}
       </div>`;
@@ -1116,7 +1116,7 @@ async function drawSetup(m){
         <td class="right">${s.degradation ? `<span style="color:${s.degradation.deltaSec > 0.1 ? '#ff9b9b' : 'var(--ok,#7f7)'}">${s.degradation.deltaSec >= 0 ? '+' : ''}${s.degradation.deltaSec.toFixed(2)} s</span>` : '—'}</td>
       </tr>`).join('');
       const fp = st?.fuelPace ?? null;
-      const fpHtml = fp ? `<div class="banner info" style="margin-top:8px;padding:8px 10px">⚖️ ${tr({ it: 'Peso del carburante MISURATO sui tuoi giri: ', en: 'Fuel weight MEASURED on your laps: ' })}<b>${fp.secPerLiter >= 0 ? '+' : ''}${fp.secPerLiter.toFixed(3)} ${tr({ it: 's per litro', en: 's per litre' })}</b> <span class="muted" style="font-size:11px">(${fp.n} ${tr({ it: 'giri campionati', en: 'laps sampled' })}, ${tr({ it: 'benzina da ', en: 'fuel from ' })}${fp.fuelSpread} L)</span></div>` : '';
+      const fpHtml = fp ? `<div class="banner info" style="margin-top:8px;padding:8px 10px">⚖️ ${tr({ it: 'Peso del carburante MISURATO sui tuoi giri: ', en: 'Fuel weight MEASURED on your laps: ' })}<b>${fp.secPerLiter >= 0 ? '+' : ''}${fp.secPerLiter.toFixed(3)} ${tr({ it: 's per litro', en: 's per litre' })}</b> <span class="muted" style="font-size:11.5px">(${fp.n} ${tr({ it: 'giri campionati', en: 'laps sampled' })}, ${tr({ it: 'benzina da ', en: 'fuel from ' })}${fp.fuelSpread} L)</span></div>` : '';
       const stintHtml = st?.ok ? `
         <table><thead><tr><th>${tr({ it: 'Stint', en: 'Stint' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'Num. giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'Media', en: 'Average' })}</th><th class="right">${tr({ it: 'Migliore', en: 'Best' })}</th><th class="right">${tr({ it: 'L/giro', en: 'L/lap' })}</th><th class="right">${tr({ it: 'Degrado', en: 'Degradation' })}</th></tr></thead>
         <tbody>${stintRows || `<tr><td colspan="8" class="muted">${tr({ it: 'Nessuno stint valido nella sessione.', en: 'No valid stint in the session.' })}</td></tr>`}</tbody></table>${fpHtml}` : '';
@@ -1128,12 +1128,12 @@ async function drawSetup(m){
       }).join('');
       const deg = go?.degradation ?? null;
       const gommaHtml = go?.ok ? `
-        <div style="margin-top:10px"><b>🛞 ${tr({ it: 'Usura gomme', en: 'Tyre wear' })}</b> <span class="muted" style="font-size:11px">· ${go.file}</span></div>
+        <div style="margin-top:10px"><b>🛞 ${tr({ it: 'Usura gomme', en: 'Tyre wear' })}</b> <span class="muted" style="font-size:11.5px">· ${go.file}</span></div>
         ${deg ? `<div class="muted" style="font-size:12px;margin-top:4px">${tr({ it: 'Ritmo dal 1° al {N}° giro: ', en: 'Lap 1 to {N}: ' }).replace('{N}', go.laps)}<b style="color:${deg.deltaSec > 0 ? '#ff9b9b' : 'var(--ok,#7f7)'}">${deg.firstAvg.toFixed(2)}s → ${deg.lastAvg.toFixed(2)}s (${deg.deltaSec >= 0 ? '+' : ''}${deg.deltaSec} s)</b></div>` : `<div class="muted" style="font-size:12px;margin-top:4px">${tr({ it: 'Giri non bastanti per misurare il degrado del ritmo (servono almeno 2).', en: 'Not enough laps to measure pace degradation (need at least 2).' })}</div>`}
         ${gommaRows ? `<table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Gomma', en: 'Tyre' })}</th><th class="right">${tr({ it: 'Tempo iniziale', en: 'First temp' })}</th><th class="right">${tr({ it: 'Tempo finale', en: 'Last temp' })}</th><th class="right">Δ</th><th class="right">${tr({ it: 'Picco', en: 'Peak' })}</th></tr></thead><tbody>${gommaRows}</tbody></table>
-        <div class="muted" style="font-size:11px;margin-top:4px">${go.hottestWheel ? `🔥 ${tr({ it: 'La gomma che soffre di più: ', en: 'The tyre suffering most: ' })}<b>${ruotaLbl(go.hottestWheel)}</b>.` : ''}${go.slipRearPct != null ? ` ${tr({ it: 'Slittamento trazione posteriore: ', en: 'Rear traction slip: ' })}${go.slipRearPct}%.` : ''}</div>` : `<div class="muted" style="font-size:12px;margin-top:4px">${tr({ it: "Nell'.ld non ci sono canali SURF_TEMP: le temperature gomma non sono state registrate.", en: 'No SURF_TEMP channels in the .ld: tyre temperatures were not recorded.' })}</div>`}
+        <div class="muted" style="font-size:11.5px;margin-top:4px">${go.hottestWheel ? `🔥 ${tr({ it: 'La gomma che soffre di più: ', en: 'The tyre suffering most: ' })}<b>${ruotaLbl(go.hottestWheel)}</b>.` : ''}${go.slipRearPct != null ? ` ${tr({ it: 'Slittamento trazione posteriore: ', en: 'Rear traction slip: ' })}${go.slipRearPct}%.` : ''}</div>` : `<div class="muted" style="font-size:12px;margin-top:4px">${tr({ it: "Nell'.ld non ci sono canali SURF_TEMP: le temperature gomma non sono state registrate.", en: 'No SURF_TEMP channels in the .ld: tyre temperatures were not recorded.' })}</div>`}
       ` : '';
-      out.innerHTML = `<div style="margin-top:10px"><b>🏁 ${tr({ it: 'Stint e usura gomme (da telemetria reale)', en: 'Stints and tyre wear (from real telemetry)' })}</b> <span class="muted" style="font-size:11px">· ${esc(st?.file ?? go?.file ?? '')}</span></div>
+      out.innerHTML = `<div style="margin-top:10px"><b>🏁 ${tr({ it: 'Stint e usura gomme (da telemetria reale)', en: 'Stints and tyre wear (from real telemetry)' })}</b> <span class="muted" style="font-size:11.5px">· ${esc(st?.file ?? go?.file ?? '')}</span></div>
         ${st?.ok ? `${stintHtml}` : `<div class="muted" style="font-size:12px;margin-top:4px">${esc(st?.hint ?? '')}</div>`}
         ${gommaHtml}`;
     } catch { /* stint e usura non devono mai rompere la vista */ }
@@ -1150,14 +1150,14 @@ async function drawSetup(m){
     const files = (c.files ?? []).map((f) => `<tr>
       <td class="muted">${esc(f.whenLocal ?? '')}</td><td>${esc(f.track)}</td>
       <td class="right">${fmtKB(f.size)}</td>
-      <td>${f.valid ? '<span class="tag green" style="font-size:10px;padding:1px 6px">dati ok</span>' : '<span class="tag" style="font-size:10px;padding:1px 6px;background:#3a1d1d;color:#ff9b9b">VUOTO</span>'}</td>
+      <td>${f.valid ? '<span class="tag green" style="font-size:11.5px;padding:1px 7px">dati ok</span>' : '<span class="tag" style="font-size:11.5px;padding:1px 7px;background:#3a1d1d;color:#ff9b9b">VUOTO</span>'}</td>
       <td class="right muted">${f.withData}/${f.channels} canali</td>
     </tr>`).join('');
     const emptyN = (c.files ?? []).filter((f) => !f.valid).length;
     const health = emptyN === 0
-      ? '<span class="tag green" style="font-size:10px;padding:1px 6px">OK</span>'
-      : `<span class="tag" style="font-size:10px;padding:1px 6px;background:#3a1d1d;color:#ff9b9b">${emptyN} vuoti</span>`;
-    return `<details style="margin-top:6px" ${c.files.some(f=>!f.valid)?'open':''}><summary style="cursor:pointer;font-size:12.5px"><b>${window.carLinkHtml(c.car)}</b> ${health} <span class="muted" style="font-size:11px">· ${c.total} file totali · ultimi ${c.files.length} elencati</span></summary>
+      ? '<span class="tag green" style="font-size:11.5px;padding:1px 7px">OK</span>'
+      : `<span class="tag" style="font-size:11.5px;padding:1px 7px;background:#3a1d1d;color:#ff9b9b">${emptyN} vuoti</span>`;
+    return `<details style="margin-top:6px" ${c.files.some(f=>!f.valid)?'open':''}><summary style="cursor:pointer;font-size:12.5px"><b>${window.carLinkHtml(c.car)}</b> ${health} <span class="muted" style="font-size:11.5px">· ${c.total} file totali · ultimi ${c.files.length} elencati</span></summary>
       <table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Dimensione', en: 'Size' })}</th><th>${tr({ it: 'Stato', en: 'State' })}</th><th class="right">${tr({ it: 'Canali con dati', en: 'Channels with data' })}</th></tr></thead><tbody>${files}</tbody></table>
     </details>`;
   }).join('');
@@ -1185,17 +1185,17 @@ async function drawSetup(m){
   let healthHtml = `<div class="panel" style="margin-top:14px" id="system-health"><h2>${tr({ it: 'Salute sistema', en: 'System health' })} <span class="h-act">${tr({ it: 'lettore live e telemetria', en: 'live reader and telemetry' })}</span></h2>`;
   if (health) {
     const rd = health.reader ?? {};
-    const liveRow = (label, ok, note) => `<div style="padding:3px 0;border-bottom:1px solid var(--line,#222)"><b>${label}:</b> ${ok ? '<span class="tag green" style="font-size:10px;padding:1px 6px">ok</span>' : '<span class="tag" style="font-size:10px;padding:1px 6px;background:#3a1d1d;color:#ff9b9b">no</span>'}${note ? ` <span class="muted" style="font-size:11px">${note}</span>` : ''}</div>`;
+    const liveRow = (label, ok, note) => `<div style="padding:3px 0;border-bottom:1px solid var(--line,#222)"><b>${label}:</b> ${ok ? '<span class="tag green" style="font-size:11.5px;padding:1px 7px">ok</span>' : '<span class="tag" style="font-size:11.5px;padding:1px 7px;background:#3a1d1d;color:#ff9b9b">no</span>'}${note ? ` <span class="muted" style="font-size:11.5px">${note}</span>` : ''}</div>`;
     healthHtml += liveRow(tr({ it: 'Processo PowerShell', en: 'PowerShell process' }), rd.running, rd.ps1Exists ? (rd.alive ? tr({ it: 'vivo e aggiorna', en: 'alive and updating' }) : (rd.running ? tr({ it: 'avviato ma silenzioso', en: 'started but quiet' }) : tr({ it: 'non ancora partito (si avvia al primo accesso al LIVE)', en: 'not started yet (starts at first LIVE access)' }))) : tr({ it: 'script tools/acevo-live.ps1 mancante', en: 'tools/acevo-live.ps1 script missing' }));
     healthHtml += liveRow(tr({ it: 'Gioco in sessione', en: 'Game in session' }), health.game, health.gameVersion ? tr({ it: `versione gioco ${esc(health.gameVersion)}`, en: `game version ${esc(health.gameVersion)}` }) : '');
-    if (health.smVersion) healthHtml += `<div style="padding:3px 0"><b>${tr({ it: 'Shared memory:', en: 'Shared memory:' })}</b> <span class="muted" style="font-size:11px">${tr({ it: `interfaccia ${esc(health.smVersion)}`, en: `interface ${esc(health.smVersion)}` })}${health.gameVersion ? tr({ it: ` · gioco ${esc(health.gameVersion)}`, en: ` · game ${esc(health.gameVersion)}` }) : ''}${rd.restarts ? tr({ it: ` · ${rd.restarts} ricicli del lettore`, en: ` · ${rd.restarts} reader recycles` }) : ''}</span></div>`;
-    if (health.stderrTail) healthHtml += `<div class="muted" style="font-size:11px;margin-top:4px">PowerShell stderr: ${esc(health.stderrTail)}</div>`;
+    if (health.smVersion) healthHtml += `<div style="padding:3px 0"><b>${tr({ it: 'Shared memory:', en: 'Shared memory:' })}</b> <span class="muted" style="font-size:11.5px">${tr({ it: `interfaccia ${esc(health.smVersion)}`, en: `interface ${esc(health.smVersion)}` })}${health.gameVersion ? tr({ it: ` · gioco ${esc(health.gameVersion)}`, en: ` · game ${esc(health.gameVersion)}` }) : ''}${rd.restarts ? tr({ it: ` · ${rd.restarts} ricicli del lettore`, en: ` · ${rd.restarts} reader recycles` }) : ''}</span></div>`;
+    if (health.stderrTail) healthHtml += `<div class="muted" style="font-size:11.5px;margin-top:4px">PowerShell stderr: ${esc(health.stderrTail)}</div>`;
     const ld = health.telem?.lastLd;
     if (ld) {
-      healthHtml += `<div style="padding:3px 0;border-bottom:1px solid var(--line,#222)"><b>${tr({ it: 'Ultimo file .ld:', en: 'Last .ld file:' })}</b> ${ld.valid ? `<span class="tag green" style="font-size:10px;padding:1px 6px">${tr({ it: 'dati ok', en: 'data ok' })}</span>` : `<span class="tag" style="font-size:10px;padding:1px 6px;background:#3a1d1d;color:#ff9b9b">${tr({ it: 'VUOTO', en: 'EMPTY' })}</span>`} <span class="muted" style="font-size:11px">${window.carLinkHtml(ld.car)} · ${esc(ld.file)} · ${Math.round(ld.size/1024)} KB · ${esc(ld.when)} · ${ld.withData}/${ld.channels} ${tr({ it: 'canali', en: 'channels' })}</span></div>`;
+      healthHtml += `<div style="padding:3px 0;border-bottom:1px solid var(--line,#222)"><b>${tr({ it: 'Ultimo file .ld:', en: 'Last .ld file:' })}</b> ${ld.valid ? `<span class="tag green" style="font-size:11.5px;padding:1px 7px">${tr({ it: 'dati ok', en: 'data ok' })}</span>` : `<span class="tag" style="font-size:11.5px;padding:1px 7px;background:#3a1d1d;color:#ff9b9b">${tr({ it: 'VUOTO', en: 'EMPTY' })}</span>`} <span class="muted" style="font-size:11.5px">${window.carLinkHtml(ld.car)} · ${esc(ld.file)} · ${Math.round(ld.size/1024)} KB · ${esc(ld.when)} · ${ld.withData}/${ld.channels} ${tr({ it: 'canali', en: 'channels' })}</span></div>`;
       if (!ld.valid) healthHtml += `<div class="banner warn" style="margin-top:6px">${tr({ it: "L'ultimo file scritto da EVO è vuoto (solo intestazione): la telemetria non era attiva in EVO (Setup → Elettronica, da impostare PRIMA di avviare la sessione). Finché non scrive dati veri, i consigli del BOX usano la stima.", en: 'The last file written by EVO is empty (header only): telemetry was NOT active in EVO (Setup → Electronics, set BEFORE starting the session). Until it writes real data, the BOX uses estimates.' })}</div>`;
     } else {
-      healthHtml += `<div class="muted" style="font-size:11px">${tr({ it: 'Nessun file .ld trovato in', en: 'No .ld file found in' })} ${(health.telem?.dirsChecked ?? []).map((d) => esc(d)).join(', ')}.</div>`;
+      healthHtml += `<div class="muted" style="font-size:11.5px">${tr({ it: 'Nessun file .ld trovato in', en: 'No .ld file found in' })} ${(health.telem?.dirsChecked ?? []).map((d) => esc(d)).join(', ')}.</div>`;
     }
   } else {
     healthHtml += '<div class="muted">Endpoint system-health non disponibile: riavvia il server del tool.</div>';
@@ -1207,7 +1207,7 @@ async function drawSetup(m){
   if (!mods.length) {
     warnsHtml += `<div class="banner good">${tr({ it: 'Nessun errore registrato: gli strumenti lavorano puliti.', en: 'No errors recorded: the tools are running clean.' })}</div>`;
   } else {
-    warnsHtml += mods.map((md) => `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12.5px"><b>${esc(md.module)}</b> <span class="tag" style="font-size:10px;padding:1px 6px;background:#3a2a1d;color:#ffc78a">${md.count}</span> <span class="muted" style="font-size:11px">${tr({ it: 'ultimo:', en: 'last:' })} ${esc(String(md.last[0]?.at ?? '').slice(0,19).replace('T',' '))}</span></summary><div style="margin-top:4px">${md.last.map((w) => `<div style="padding:2px 0;border-bottom:1px solid var(--line,#222);font-size:12px"><span class="muted">${esc(String(w.at).slice(11,19))}</span> ${esc(w.message)}${w.extra?` <span class="muted">(${esc(w.extra)})</span>`:''}</div>`).join('')}</div></details>`).join('');
+    warnsHtml += mods.map((md) => `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12.5px"><b>${esc(md.module)}</b> <span class="tag" style="font-size:11.5px;padding:1px 7px;background:#3a2a1d;color:#ffc78a">${md.count}</span> <span class="muted" style="font-size:11.5px">${tr({ it: 'ultimo:', en: 'last:' })} ${esc(String(md.last[0]?.at ?? '').slice(0,19).replace('T',' '))}</span></summary><div style="margin-top:4px">${md.last.map((w) => `<div style="padding:2px 0;border-bottom:1px solid var(--line,#222);font-size:12px"><span class="muted">${esc(String(w.at).slice(11,19))}</span> ${esc(w.message)}${w.extra?` <span class="muted">(${esc(w.extra)})</span>`:''}</div>`).join('')}</div></details>`).join('');
   }
   warnsHtml += '</div>';
   m.innerHTML += healthHtml + warnsHtml;

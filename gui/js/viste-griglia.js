@@ -40,7 +40,7 @@
   const chip = (s) => {
     const h = s.hour != null ? `${String(s.hour).padStart(2, '0')}:00` : '—';
     const gara = s.session === 'Race';
-    return `<span class="tag" style="font-size:10.5px;padding:2px 7px${gara ? ';font-weight:700' : ''}">${WX[Number(s.weather)] ?? '🌡️'} ${esc(s.sessionLabel)} ${h} · ${esc(s.label)}</span>`;
+    return `<span class="tag" style="font-size:11.5px;padding:2px 7px${gara ? ';font-weight:700' : ''}">${WX[Number(s.weather)] ?? '🌡️'} ${esc(s.sessionLabel)} ${h} · ${esc(s.label)}</span>`;
   };
   const ora = card.raceHour != null ? `${String(card.raceHour).padStart(2, '0')}:00` : '—';
   const distanza = card.laps != null
@@ -53,12 +53,12 @@
     : '—';
   const ai = card.difficulty ? `AI ${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%` : '';
   const gridExtra = card.gridAltraSerie
-    ? `<br><span class="tag warn" style="font-size:10px;padding:1px 5px">${t('griglia di un’altra serie', 'grid from another series')}</span>` : '';
+    ? `<br><span class="tag warn" style="font-size:11.5px;padding:1px 5px">${t('griglia di un’altra serie', 'grid from another series')}</span>` : '';
   const tile = (key, icon, label, value, detail, extra = '') => `
     <button type="button" data-wb="${key}" style="text-align:left;display:flex;flex-direction:column;gap:2px;background:var(--panel2,#121822);border:1px solid var(--line,#2a3341);border-radius:8px;padding:8px 10px;color:inherit;cursor:pointer;font:inherit;min-height:74px">
-      <span class="muted" style="font-size:11px">${icon} ${label}</span>
+      <span class="muted" style="font-size:11.5px">${icon} ${label}</span>
       <b style="font-size:14px">${value}</b>
-      <span class="muted" style="font-size:10.5px;line-height:1.25">${detail}${extra}</span>
+      <span class="muted" style="font-size:11.5px;line-height:1.25">${detail}${extra}</span>
     </button>`;
   return `
   <div class="panel" id="weekend-builder">
@@ -74,12 +74,12 @@
       ${tile('grid', '🧱', t('Griglia', 'Grid'), griglia, ai ? `${ai}${card.difficulty?.trim ? ` · ${t('trim', 'trim')} +${card.difficulty.trim}` : ''}` : t('AI da definire', 'AI to define'), gridExtra)}
     </div>
     <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap;align-items:center">
-      <span class="muted" style="font-size:11px">${t('Sessioni e meteo del weekend:', 'Weekend sessions and weather:')}</span>
+      <span class="muted" style="font-size:11.5px">${t('Sessioni e meteo del weekend:', 'Weekend sessions and weather:')}</span>
       ${(card.weatherPlan ?? []).map(chip).join('')}
     </div>
     <div class="row" style="margin-top:10px;flex-wrap:wrap">
       <button class="mini" id="wb-open">${t('Apri scheda gara e regole', 'Open race sheet and rules')}</button>
-      <span class="muted" style="font-size:11px">${t('Auto e pista aprono le schede; meteo, ora, distanza e griglia aprono le regole del weekend.', 'Car and track open their sheets; weather, time, distance and grid open the weekend rules.')}</span>
+      <span class="muted" style="font-size:11.5px">${t('Auto e pista aprono le schede; meteo, ora, distanza e griglia aprono le regole del weekend.', 'Car and track open their sheets; weather, time, distance and grid open the weekend rules.')}</span>
     </div>
   </div>`;
 }
@@ -135,7 +135,7 @@ async function drawGridTab(m){
     ${data.exists && tinteRiga ? `<div class="muted" style="margin:2px 0 8px;font-size:12px">${tr({ it: 'Tinte (liverie):', en: 'Liveries:' })} ${tinteRiga}${monoTinte.length ? ` — <b style="color:#d9a83e">${tr({ it: 'MONOCOLORE:', en: 'MONOCHROME:' })} ${esc(monoTinte.join(', '))}</b> → ${tr({ it: 'in EVO genera più LIVERIE della stessa auto e APPLICA, oppure (avversari) tintePrestate: true dalla serie in grid-classes.json', en: 'in EVO create more LIVERIES of the same car and APPLICA, or (rivals) tintePrestate: true on the series in grid-classes.json' })}` : ''}</div>` : ''}
     ${data.escluseClasse?.length || data.escluseTraccia?.length ? `<div class="banner" style="border-color:#d9a83e">${tr({ it: 'Auto escluse ancora presenti nel file: {A} → usa "Applica bilancio" per rimuoverle', en: 'Excluded cars still in the file: {A} → use "Apply balance" to remove them' }).replace('{A}', esc([...(data.escluseClasse ?? []), ...(data.escluseTraccia ?? [])].join(' · ')))}</div>` : ''}
     <table><thead><tr><th>#</th><th data-ord="auto" style="cursor:pointer">${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Preset', en: 'Preset' })}</th><th>${tr({ it: 'Tinta', en: 'Livery' })}</th><th class="right" data-ord="pz" style="cursor:pointer">${tr({ it: 'Zavorra / Penalità', en: 'Ballast / Penalty' })}</th></tr></thead>
-    <tbody id="g-tbody">${(data.cells ?? []).map((c, i) => `<tr><td class="muted">${i + 1}</td><td><span class="car-link" data-car="${esc(c.name)}" style="cursor:pointer;text-decoration:underline dotted">${esc(c.name)}</span></td><td class="muted" style="font-size:11.5px">${esc(c.preset ?? '—')}</td><td class="muted" style="font-size:11px">${esc(c.tinta ?? '(default)')}</td><td class="right">${kgpct(c)}</td></tr>`).join('')}</tbody>
+    <tbody id="g-tbody">${(data.cells ?? []).map((c, i) => `<tr><td class="muted">${i + 1}</td><td><span class="car-link" data-car="${esc(c.name)}" style="cursor:pointer;text-decoration:underline dotted">${esc(c.name)}</span></td><td class="muted" style="font-size:11.5px">${esc(c.preset ?? '—')}</td><td class="muted" style="font-size:11.5px">${esc(c.tinta ?? '(default)')}</td><td class="right">${kgpct(c)}</td></tr>`).join('')}</tbody>
     </table>
   </div>
 
@@ -159,7 +159,7 @@ async function drawGridTab(m){
                 ${pt.restrictorPct ? `<div class="muted" style="font-size:11.5px">${esc(Object.entries(pt.restrictorPct).map(([p, v]) => `${p.replace(/^preset_/, '')} → ${pct(v)}`).join(' · '))}</div>` : ''}
                 ${pt.aiStandard ? `<div class="muted" style="font-size:11.5px">${tr({ it: 'AI per-traccia', en: 'per-track AI' })} ${pt.aiStandard[0]}–${pt.aiStandard[1]}</div>` : ''}
                 ${pt.escludiAuto?.length ? `<div class="muted" style="font-size:11.5px">${esc(pt.escludiAuto.join(' · '))}</div>` : ''}
-                ${pt.nota ? `<div class="muted" style="font-size:11px;margin-top:4px">${esc(String(pt.nota).slice(0, 200))}${String(pt.nota).length > 200 ? '…' : ''}</div>` : ''}
+                ${pt.nota ? `<div class="muted" style="font-size:11.5px;margin-top:4px">${esc(String(pt.nota).slice(0, 200))}${String(pt.nota).length > 200 ? '…' : ''}</div>` : ''}
               </div>`).join('')
             : `<div class="faint">${tr({ it: 'nessuna variante per-traccia', en: 'no per-track variant' })}</div>`}
           </div>
@@ -202,7 +202,7 @@ async function drawGridTab(m){
       <button class="ghost" id="g-drop">${tr({ it: 'Rimuovi auto escluse dal file', en: 'Remove excluded cars from file' })}</button>
       <button class="ghost" id="g-reload">${tr({ it: 'Ricarica', en: 'Reload' })}</button>
     </div>
-    ${bS ? `<div class="muted" style="font-size:11.5px">${tr({ it: 'banda viva dei cursori: ', en: 'live slider band: ' })}<b>${bTesto}</b>${bAllineata ? ` — <span class="tag green" style="font-size:11px">${tr({ it: 'il campo del file combacia', en: 'the file field matches' })}</span>` : tr({ it: ' — il Prepara la scrive nel file', en: ' — Prepara writes it into the file' })}</div>` : ''}
+    ${bS ? `<div class="muted" style="font-size:11.5px">${tr({ it: 'banda viva dei cursori: ', en: 'live slider band: ' })}<b>${bTesto}</b>${bAllineata ? ` — <span class="tag green" style="font-size:11.5px">${tr({ it: 'il campo del file combacia', en: 'the file field matches' })}</span>` : tr({ it: ' — il Prepara la scrive nel file', en: ' — Prepara writes it into the file' })}</div>` : ''}
     <div id="grid-out" style="margin-top:12px"></div>
     <div class="muted" style="font-size:11.5px;margin-top:10px">${tr({ it: '"Applica bilancio" riscrive zavorre/penalità della classe (con supplementi per-traccia se la traccia combacia) e rimuove dal pool le auto in escludiAuto (di classe o per-traccia).', en: '"Apply balance" rewrites the class ballast/penalties (with per-track supplements if the track matches) and removes escludiAuto cars from the pool (class-level or per-track).' })}</div>
   </div>`;
@@ -233,7 +233,7 @@ async function drawGridTab(m){
         const va = valDi(a.c), vb = valDi(b.c);
         return ord.dir * (va < vb ? -1 : va > vb ? 1 : 0) || a.i - b.i;
       })
-      .map(({ c, i }) => `<tr><td class="muted">${i + 1}</td><td><span class="car-link" data-car="${esc(c.name)}" style="cursor:pointer;text-decoration:underline dotted">${esc(c.name)}</span></td><td class="muted" style="font-size:11.5px">${esc(c.preset ?? '—')}</td><td class="muted" style="font-size:11px">${esc(c.tinta ?? '(default)')}</td><td class="right">${kgpct(c)}</td></tr>`)
+      .map(({ c, i }) => `<tr><td class="muted">${i + 1}</td><td><span class="car-link" data-car="${esc(c.name)}" style="cursor:pointer;text-decoration:underline dotted">${esc(c.name)}</span></td><td class="muted" style="font-size:11.5px">${esc(c.preset ?? '—')}</td><td class="muted" style="font-size:11.5px">${esc(c.tinta ?? '(default)')}</td><td class="right">${kgpct(c)}</td></tr>`)
       .join('');
     $$('.car-link', gTbody).forEach((e) => { e.onclick = () => vai('cars', { search: e.dataset.car }); });
   };

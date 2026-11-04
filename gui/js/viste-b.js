@@ -367,7 +367,7 @@ function stilePannello(stili){
     const atCap = (s.regole ?? []).filter((r) => r.cap).length;
     return `<details style="margin-bottom:10px;border:1px solid var(--line,#333);border-radius:8px;padding:10px">
       <summary style="cursor:pointer"><b>${esc(s.display)}</b> ${stateTag(s)} <span class="tag blue">L${s.level}</span>
-        <span class="muted" style="font-size:11px"> · ${tr({ it: 'finestra PI ', en: 'PI window ' })}${s.finestra[0] ?? '–'}–${s.finestra[1] ?? '–'}${s.seed ? ` · seed ${esc(s.seed)}` : ''} · ${s.pool.length} ${tr({ it: 'modelli', en: 'models' })}${atCap ? ` · <span class="tag warn">${atCap} ${tr({ it: `al cap ${s.capPct ?? 20}%`, en: `at ${(s.capPct ?? 20)}% cap` })}</span>` : ''}</span></summary>
+        <span class="muted" style="font-size:11.5px"> · ${tr({ it: 'finestra PI ', en: 'PI window ' })}${s.finestra[0] ?? '–'}–${s.finestra[1] ?? '–'}${s.seed ? ` · seed ${esc(s.seed)}` : ''} · ${s.pool.length} ${tr({ it: 'modelli', en: 'models' })}${atCap ? ` · <span class="tag warn">${atCap} ${tr({ it: `al cap ${s.capPct ?? 20}%`, en: `at ${(s.capPct ?? 20)}% cap` })}</span>` : ''}</span></summary>
       <div style="margin-top:8px;font-size:12.5px">
         <div><b>${tr({ it: 'Pool sorteggiato:', en: 'Drawn pool:' })}</b> <span class="muted">${tr({ it: 'miscuglio completamente random: stradali, Cup, GT e epiche battuti insieme allo stesso livello, mono e multiclasse insieme.', en: 'completely random mix: road cars, Cup, GT and classics shuffled together at the same level, mono and multiclass alike.' })}</span></div>
         <div style="margin-top:4px">${(s.pool ?? []).map(window.carLinkHtml).join(' · ') || '<span class="faint">—</span>'}</div>
@@ -544,7 +544,7 @@ async function worldRankingInner(){
     <td class="right pos"><b>P${r.position}</b></td>
     <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.isPlayer?` <span class="tag gold">${tr({ it: 'tu', en: 'you' })}</span>`:''}${r.hot?` <span title="${tr({ it: 'in forma: in griglia alza il ritmo', en: 'in form: raises the pace on the grid' })}">🔥</span>`:''}</span></span></td>
     <td class="faint">${flagOf(r.country)} ${esc(r.country)}</td><td class="right"><b>${r.skill}</b>${r.iconic?` <span title="${tr({ it: 'tra i più forti in circolazione', en: 'among the strongest around' })}">⭐</span>`:''}</td><td class="right">${r.age??'—'}</td>
-    <td>${r.traits?.length?r.traits.map(t=>`<span class="chip blue" style="font-size:11px;padding:1px 6px">${esc(t)}</span>`).join(' '):''}</td>
+    <td>${r.traits?.length?r.traits.map(t=>`<span class="chip blue" style="font-size:11.5px;padding:1px 7px">${esc(t)}</span>`).join(' '):''}</td>
     <td class="muted" style="font-size:11.5px">${esc(r.archName ?? '')}</td></tr>`).join('')}</tbody>
   </table>`;
   return { w, html, wire: () => { $$('.wr-row').forEach(t => { t.onclick = () => showWorldPilot(t.dataset.k, w.rows); }); } };
@@ -572,7 +572,7 @@ function showWorldPilot(name, rows){
       <div class="kpi"><div class="l">${tr({ it: 'Costanza', en: 'Consistency' })}</div><div class="v">${r.cons != null ? r.cons : '—'}</div></div>
       <div class="kpi"><div class="l">${tr({ it: 'Aggressività', en: 'Aggression' })}</div><div class="v">${r.aggr != null ? r.aggr : '—'}</div></div>
     </div>
-    <div style="margin-bottom:10px">${(r.traits ?? []).map(t=>`<span class="chip blue" style="font-size:11px;padding:2px 8px">${esc(t)}</span>`).join(' ')}</div>
+    <div style="margin-bottom:10px">${(r.traits ?? []).map(t=>`<span class="chip blue" style="font-size:11.5px;padding:2px 8px">${esc(t)}</span>`).join(' ')}</div>
     <div class="muted" style="margin-bottom:8px"><b>${esc(r.archName ?? 'n/d')}</b> — ${esc(r.archDesc ?? '')}</div>
     <div class="muted" style="font-size:12.5px">${r.isPlayer ? tr({ it: 'Questo sei tu: la skill cresce coi risultati reali (vittorie e podi spingono sopra la banda della serie).', en: 'This is you: skill grows with real results (wins and podiums push you above the series baseline).' }) : r.hot ? tr({ it: '🔥 È in forma: in griglia alza il ritmo, attenzione.', en: '🔥 In form: raises the pace on the grid, be careful.' }) : tr({ it: 'Statista in forma normale: dati in tempo reale aggiornati a ogni import di gara.', en: 'Steady performer in normal form: real-time data refreshed at every race import.' })}</div>
     ${r.iconic ? `<div class="banner info" style="margin-top:8px">⭐ ${tr({ it: 'Pilota <b>iconico</b> del World: il suo livello è tra il vertice in assoluto di questa carriera.', en: 'A <b>world-class</b> driver: skill at the very top level of this career.' })}</div>` : ''}`,
@@ -598,14 +598,14 @@ function serieDetail(n){
   modal(`L${n.level} · ${esc(n.display)}`, `
     <div class="muted" style="margin-bottom:10px">${n.gridSize} ${tr({ it: 'auto in griglia · premio stagione ', en: 'cars on the grid · season prize ' })}<b>${money(n.econ.prize)} €</b>${n.access==='closed'?` · <b>${tr({ it: 'parco chiuso', en: 'spec grid' })}</b>: ${tr({ it: 'niente affitto né riscatto, solo contratto', en: 'no rent or buyout, contract only' })}`:`${n.econ.buy?` · ${tr({ it: 'riscatto sedile ', en: 'seat buyout ' })}${money(n.econ.buy)} €`:''}${n.econ.rent?` · ${tr({ it: 'affitto ', en: 'rent ' })}${money(n.econ.rent)} €`:''}`}${n.econ.entry?` · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(n.econ.entry)} € ${tr({ it: 'a gara', en: 'per race' })}`:''}</div>
     <div style="margin-bottom:10px">${tr({ it: 'Reputazione richiesta: ', en: 'Reputation required: ' })}<b style="color:${repOk?'var(--ok,#7bd88f)':'var(--bad,#e05d5d)'}">${n.repRequired??0}</b> <span class="muted">(${tr({ it: 'la tua: ', en: 'yours: ' })}${n.rep})</span></div>
-    <h3 style="margin:10px 0 6px;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim)">${tr({ it: 'Auto della serie', en: 'Series cars' })}</h3>
+    <h3 style="margin:10px 0 6px;font-size:11.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim)">${tr({ it: 'Auto della serie', en: 'Series cars' })}</h3>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${auto}</div>
     ${n.format?.length?`<div class="muted" style="margin-top:10px">${tr({ it: 'Formato weekend: ', en: 'Weekend format: ' })}${n.format.map(esc).join(' · ')}</div>`:''}
     ${n.calendar?.length?`<div class="muted" style="margin-top:4px">${tr({ it: 'Distanza gara piena: ', en: 'Full race distance: ' })}<b>${Math.max(...n.calendar.map(r=>r.laps??0))} ${tr({ it: 'giri', en: 'laps' })}</b> ${tr({ it: 'max — nel cruscotto puoi accorciare al 25/50/75% (i premi scalano con la distanza)', en: 'max — on the Dashboard you can shorten to 25/50/75% (prizes scale with distance)' })}</div>`:''}
     ${n.ai?.length?`<div class="muted" style="margin-top:4px">${tr({ it: 'Difficoltà AI consigliata: ', en: 'Recommended AI difficulty: ' })}<b>${n.ai[0]}–${n.ai[1]}%</b></div>`:''}
     ${pts?`<div class="muted" style="margin-top:4px">${esc(pts)}</div>`:''}
     ${palmares}
-    ${cal?`<h3 style="margin:14px 0 6px;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim)">${tr({ it: 'Calendario (', en: 'Calendar (' })}${(n.calendar??[]).length} ${tr({ it: 'gare)', en: 'races)' })}</h3><table><thead><tr><th></th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Gara', en: 'Race' })}</th><th class="right">${tr({ it: 'Ora', en: 'Time' })}</th><th>${tr({ it: 'Meteo', en: 'Weather' })}</th></tr></thead><tbody>${cal}</tbody></table>`:''}
+    ${cal?`<h3 style="margin:14px 0 6px;font-size:11.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim)">${tr({ it: 'Calendario (', en: 'Calendar (' })}${(n.calendar??[]).length} ${tr({ it: 'gare)', en: 'races)' })}</h3><table><thead><tr><th></th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Gara', en: 'Race' })}</th><th class="right">${tr({ it: 'Ora', en: 'Time' })}</th><th>${tr({ it: 'Meteo', en: 'Weather' })}</th></tr></thead><tbody>${cal}</tbody></table>`:''}
     ${blocked}`, [[tr({ it: 'Chiudi', en: 'Close' }), 'ghost',()=>{}]]);
 }
 
@@ -642,10 +642,10 @@ async function drawOnline(m){
       <tbody>${P.map(riga).join('')}</tbody></table>`
       : `<div class="empty">${tr({ it: 'Nessuna sessione multiplayer ancora: da ogni gara col server EVO scrive i risultati _MP_ qui, e da allora niente va più perso.', en: 'No multiplayer session yet: from your first server race EVO writes _MP_ results here, and from then on nothing is lost.' })}</div>`}
     <div class="muted" style="font-size:11.5px;margin-top:10px">${tr({ it: 'Mostra anche le sessioni nate con un altro slot di carriera (scope per PC).', en: 'Also show sessions born under another career slot (PC-wide scope).' })} <button class="mini" id="b-on-all">${window.__arcAllPc ? tr({ it: 'Solo carriera', en: 'Career only' }) : tr({ it: 'Mostra tutto il PC', en: 'Show the whole PC' })}</button></div>
-    ${R.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px"><b>⚔️ ${tr({ it: 'Libro dei rivali online', en: 'Online rivals book' })}</b> <span class="muted" style="font-size:11px">— ${R.length} ${tr({ it: 'incrociati nelle sessioni multiplayer', en: 'met across multiplayer sessions' })}</span></summary>
+    ${R.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px"><b>⚔️ ${tr({ it: 'Libro dei rivali online', en: 'Online rivals book' })}</b> <span class="muted" style="font-size:11.5px">— ${R.length} ${tr({ it: 'incrociati nelle sessioni multiplayer', en: 'met across multiplayer sessions' })}</span></summary>
       <table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Rivale', en: 'Rival' })}</th><th class="right">${tr({ it: 'Incroci', en: 'Meetings' })}</th><th class="right">${tr({ it: 'Lui davanti', en: 'He finished ahead' })}</th><th class="right">${tr({ it: 'Tu davanti', en: 'You finished ahead' })}</th><th>${tr({ it: 'Ultima forma', en: 'Recent form' })}</th><th>${tr({ it: 'Pista più fitta', en: 'Favoured track' })}</th><th class="muted">${tr({ it: 'Auto abituale', en: 'Usual car' })}</th><th>${tr({ it: 'Ultima volta', en: 'Last seen' })}</th></tr></thead>
       <tbody>${R.slice(0, 20).map((x) => `<tr><td title="${esc(tooltipComm(x))}">${esc(x.name ?? '?')}</td><td class="right">${x.meetings}</td><td class="right" style="color:${x.beats > x.beaten ? '#ff9b9b' : 'var(--ok,#4ade80)'}">${x.beats}</td><td class="right">${x.beaten}</td><td>${forma(x)}</td><td>${x.favTrack ? `${esc(x.favTrack.track)} <span class="faint">×${x.favTrack.n}${x.favTrack.tu ? `, ${x.favTrack.tu} ${tr({ it: 'tue', en: 'yours' })}` : ''}</span>` : '—'}</td><td class="muted">${esc(x.favCar ?? '—')}</td><td class="muted">${esc(String(x.lastWhen ?? '').slice(0,16).replace('T',' '))}</td></tr>`).join('')}</tbody></table>
-      <div class="muted" style="font-size:11px;margin-top:4px">${tr({ it: "Identità presa dal driver_id del gioco: sopravvive ai nickname diversi e ai server diversi. Solo sessioni in cui eravate entrambi in griglia.", en: "Identity taken from the game's driver_id: it survives different nicknames and different servers. Only sessions where you both started." })}</div></details>` : ''}
+      <div class="muted" style="font-size:11.5px;margin-top:4px">${tr({ it: "Identità presa dal driver_id del gioco: sopravvive ai nickname diversi e ai server diversi. Solo sessioni in cui eravate entrambi in griglia.", en: "Identity taken from the game's driver_id: it survives different nicknames and different servers. Only sessions where you both started." })}</div></details>` : ''}
   </div>`;
   $$('.arc-row', m).forEach((tr) => { tr.onclick = () => openResult(tr.dataset.file); });
   $('#b-on-all').onclick = () => { window.__arcAllPc = !window.__arcAllPc; render(); };
@@ -1237,8 +1237,8 @@ async function drawStats(m){
   /* 2) grafici andamento */
   const grafici = s.history.length >= 2 ? `
   <div class="grid2">
-    ${stPan(tr({ it: 'Punti gara per gara', en: 'Points race by race' }), STI.bolt, `${svgLine(s.history.slice().reverse().map(r=>r.points))}<div class="muted" style="font-size:11px;margin-top:6px">${tr({ it: 'dal più vecchio (sinistra) al più recente (destra)', en: 'from oldest (left) to newest (right)' })}</div>`)}
-    ${stPan(tr({ it: 'Posizioni in gara', en: 'Race positions' }), STI.gauge, `${svgLine(s.history.slice().reverse().map(r=>r.dnf?(r.gridSize??10):r.position),{lowerBetter:true,color:'var(--acc)'})}<div class="muted" style="font-size:11px;margin-top:6px">${tr({ it: 'P1 in alto · i ritiri valgono ultima posizione', en: 'P1 at top · retirements score last position' })}</div>`)}
+    ${stPan(tr({ it: 'Punti gara per gara', en: 'Points race by race' }), STI.bolt, `${svgLine(s.history.slice().reverse().map(r=>r.points))}<div class="muted" style="font-size:11.5px;margin-top:6px">${tr({ it: 'dal più vecchio (sinistra) al più recente (destra)', en: 'from oldest (left) to newest (right)' })}</div>`)}
+    ${stPan(tr({ it: 'Posizioni in gara', en: 'Race positions' }), STI.gauge, `${svgLine(s.history.slice().reverse().map(r=>r.dnf?(r.gridSize??10):r.position),{lowerBetter:true,color:'var(--acc)'})}<div class="muted" style="font-size:11.5px;margin-top:6px">${tr({ it: 'P1 in alto · i ritiri valgono ultima posizione', en: 'P1 at top · retirements score last position' })}</div>`)}
   </div>` : '';
   /* 3) carriera in numeri: i quadri grandi */
   const numeri = stPan(tr({ it: 'Carriera in numeri', en: 'Career in numbers' }), STI.flag, stKpis([
