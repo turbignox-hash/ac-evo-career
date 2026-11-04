@@ -2600,8 +2600,8 @@ async function api(context0, _req, res, action, body) {
         } catch (e) {
           return sendJson(res, 409, {
             error: tr({
-              it: "La griglia sul disco è di un'altra serie e non c'è un template con le auto di questa ronda: la gara non parte (sarebbe falsa). " + e.message,
-              en: "The grid on disk belongs to a different series and no template carries this round's cars: the race will not start (it would be fake). " + e.message,
+              it: "La griglia sul disco contiene auto di un'altra serie e non c'è un template con le auto di questa ronda: la gara non parte (sarebbe falsa). " + e.message,
+              en: "The grid on disk carries cars from a different series and no template carries this round's cars: the race will not start (it would be fake). " + e.message,
             }),
             code: 'GRID_SERIES_MISMATCH',
             detail: card.gridAltraSerie,

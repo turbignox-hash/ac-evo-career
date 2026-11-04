@@ -5,6 +5,13 @@ IL RESTO (da fare o da rivedere). Ogni giorno prendiamo qualcuna di queste e la
 eseguiamo; a fine giornata il diario si arricchisce e la lista si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — La griglia mista non passa più: basta UNA auto fuori parco (richiesta Mauro: «guarda cosa hai fatto già e migliora il resto»)
+
+- **Il buco**: `grigliaDiAltraSerie` tornava i nomi solo quando NESSUNA auto del disco era nel parco. Con una sola auto giusta — il caso Hyper_road a Imola: Porsche GT3 RS fra i30/GR86/MX-5 — la card taceva e il preflight non scattava: la gara falsa passava.
+- **La cura**: la funzione ora restituisce le auto FUORI dal parco anche quando altre combaciano (una fonte sola per card e Prepara). Il builder filtra le celle al pool (`poolCells = m.sel`) e la ricostruzione a secco riscrive la griglia pulita; se il template non basta, resta il 409 `GRID_SERIES_MISMATCH`. Messaggi aggiornati: «contiene auto di un'altra serie».
+- **La prova**: `test/griglia-altra-serie.test.mjs` 5/5 (caso misto Hyper_road: 4 auto, 3 ammesse, fuori solo la GT3 RS; e «una sola auto del parco non basta»); `test/race-card.test.mjs` 25/25 (banner anche sulla griglia mista); suite **962/962**; Biome sui 5 file toccati: **0 errori**, resta il solo warning preesistente degli import inutilizzati in `webui.mjs:136`; `git diff --check` pulito.
+- **Nota**: il fix è committato, non pushato. Restano fuori le 5 modifiche preesistenti (map.json, carsetup, tre tool).
+
 ### 4/11 — Numero avversari dal journal (pd-main) e audit fabbrica: 34/34 dal magazzino (richiesta Mauro: «Restano due passi naturali: leggere pd-main per allineare il numero avversari della card al journal, e verificare la fabbrica residua per le 34 serie a classe»)
 
 - **pd-main**: `appRaceInfo()` + `journalRaceForNode()` in [src/app-carriera.mjs](src/app-carriera.mjs) leggono il `pd-main-<hash>.json` più recente (mtime/cache come gli altri journal) e lo accettano solo se la serie combacia col nodo. La card usa la priorità **gamemodesave → journal → ladder**: sul journal reale di Donington, 15 avversari, `single_make`, AI 80–85 → griglia 16.

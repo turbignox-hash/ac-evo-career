@@ -1,7 +1,7 @@
 // Regressione P0.3 (4/11, richiesta Mauro: «procedi» dopo la scansione —
 // «Griglia fuori serie: Hyper_road a Imola, GT3 RS contro Hyundai/GR86/MX-5»).
 // La vigia della card e il preflight del Prepara usano UNA funzione sola:
-// torna i nomi sul disco quando NESSUNA auto è nel parco ammesso della ronda.
+// torna i nomi sul disco quando UNA O PIÙ auto sono fuori dal parco ammesso.
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
@@ -30,9 +30,22 @@ test('nessuna auto del parco: torna i nomi sul disco (la vigia parla)', () => {
   assert.deepEqual(grigliaDiAltraSerie(f, ['Hyundai i30 N', 'Toyota GR86']), ['Mazda MX-5 ND', 'Audi RS 3 Sportback']);
 });
 
-test('una sola auto del parco basta: silenzio', () => {
+test('una sola auto del parco NON basta: la vigia nomina quella fuori parco', () => {
   const f = scrivi([['ks_mazda_mx5_nd', 'Mazda MX-5 ND'], ['ks_audi_rs_3_sportback', 'Audi RS 3 Sportback']]);
-  assert.equal(grigliaDiAltraSerie(f, ['Audi RS 3 Sportback']), null);
+  assert.deepEqual(grigliaDiAltraSerie(f, ['Audi RS 3 Sportback']), ['Mazda MX-5 ND']);
+});
+
+test('griglia mista Hyper_road: nomina SOLO la GT3 RS fuori parco (Imola 31/10)', () => {
+  const f = scrivi([
+    ['ks_porsche_911_gt3_rs', 'Porsche 911 GT3 RS'],
+    ['ks_hyundai_i30n', 'Hyundai i30 N'],
+    ['ks_toyota_gr86', 'Toyota GR86'],
+    ['ks_mazda_mx5_nd', 'Mazda MX-5 ND'],
+  ]);
+  assert.deepEqual(
+    grigliaDiAltraSerie(f, ['Hyundai i30 N', 'Toyota GR86', 'Mazda MX-5 ND']),
+    ['Porsche 911 GT3 RS'],
+  );
 });
 
 test('confronto senza maiuscole e spazi: la stessa auto non allarma', () => {

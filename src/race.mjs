@@ -285,8 +285,8 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
   // di serie sul disco può restare la griglia della SERIE VECCHIA (lezione
   // 23/10: la RX-7 col file GT3 in piedi). Fino a ora la card NON lo diceva:
   // l'amico lo scopriva solo premendo il bottone. Come la vigia del parco
-  // (24/10) qui la card dice SUBITO, APRIRE e SEMPLICE: se nessuna auto in
-  // piedi combacia col parco ammesso della serie, banner gemello del
+  // (24/10) qui la card dice SUBITO, APRIRE e SEMPLICE: se una o più auto in
+  // piedi NON combaciano col parco ammesso della serie, banner gemello del
   // gridRitual — il Prepa la riscrivere dal template del magazzino
   // (prova del 3/11 adesso certificata IN SISTEMA: 16× Ferrari → 17× BMW).
   // Silente: file assente, illeggibile o già combaciante.
@@ -295,8 +295,8 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
     const nomiDisco = grigliaDiAltraSerie(GRID_FILE, parco.ammesse.length ? parco.ammesse : parcoIDs.map(carName));
     if (nomiDisco) {
         gridAltraSerie = tr({
-          it: `la griglia sul disco è di un'altra serie (${nomiDisco.slice(0, 3).join(', ')}${nomiDisco.length > 3 ? '…' : ''}): il «Prepa tutto» la riporta sulla serie — per la monomarca la genera il gioco, per le classi la riscrive dal template — niente da fare a mano`,
-          en: `the grid on disk belongs to a different series (${nomiDisco.slice(0, 3).join(', ')}${nomiDisco.length > 3 ? '…' : ''}): Get everything ready puts it back on the series — for single-make the game generates it, for class series it rewrites it from the template — nothing to do by hand`,
+          it: `la griglia sul disco contiene auto di un'altra serie (${nomiDisco.slice(0, 3).join(', ')}${nomiDisco.length > 3 ? '…' : ''}): il «Prepa tutto» la riporta sulla serie — per la monomarca la genera il gioco, per le classi la riscrive dal template — niente da fare a mano`,
+          en: `the grid on disk carries cars from a different series (${nomiDisco.slice(0, 3).join(', ')}${nomiDisco.length > 3 ? '…' : ''}): Get everything ready puts it back on the series — for single-make the game generates it, for class series it rewrites it from the template — nothing to do by hand`,
         });
     }
   } catch { /* file illeggibile: la vigia resta muta, il Prepa parla da sé */ }

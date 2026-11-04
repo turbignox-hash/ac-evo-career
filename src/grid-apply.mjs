@@ -161,18 +161,20 @@ function missingCarError(mancanti) {
   })), { code: 'CAR_MISSING' });
 }
 
-/** GRIGLIA DI UN'ALTRA SERIE (4/11, P0.3): i nomi delle auto sul disco quando
- *  NESSUNA è nel parco ammesso della ronda. null = file assente/vuoto/illeggibile
- *  o parco non dichiarato: la vigia resta muta e comanda il Prepara. La usano la
- *  card (avviso) e il preflight del Prepara (blocco quando la ricostruzione dal
- *  template non è possibile: Imola 31/10, GT3 RS contro la classe d'epoca). */
+/** GRIGLIA DI UN'ALTRA SERIE (4/11, P0.3): i nomi delle auto sul disco che
+ *  NON sono nel parco ammesso della ronda — anche quando una o più auto
+ *  combaciano (il caso misto Hyper_road a Imola: GT3 RS fra i30/GR86/MX-5).
+ *  null = file assente/vuoto/illeggibile o parco non dichiarato: la vigia
+ *  resta muta e comanda il Prepara. La usano la card (avviso) e il preflight
+ *  del Prepara (blocco quando la ricostruzione dal template non è possibile). */
 export function grigliaDiAltraSerie(file, ammesse) {
   try {
     const pool = (ammesse ?? []).map((s) => String(s ?? '').toLowerCase().trim()).filter(Boolean);
     if (!pool.length || !existsSync(file)) return null;
     const nomi = [...new Set(readCells(readFileSync(file)).cells.map((c) => String(c.name ?? '').trim()).filter(Boolean))];
     if (!nomi.length) return null;
-    return nomi.some((n) => pool.includes(n.toLowerCase().trim())) ? null : nomi;
+    const fuori = nomi.filter((n) => !pool.includes(n.toLowerCase().trim()));
+    return fuori.length ? fuori : null;
   } catch { return null; }
 }
 

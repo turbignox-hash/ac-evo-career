@@ -403,9 +403,17 @@ test('vigia cambio campionato: la card nomina le auto estranee PRIMA del bottone
   const { ladder, state } = mk();
   writeFileSync(GRID_FILE, customgridDiAuto([['ks_f40_lm', 'Ferrari F40 LM']]));
   const c = race.raceCard(ladder, state);
-  assert.ok(typeof c.gridAltraSerie === 'string' && c.gridAltraSerie.includes("griglia sul disco è di un'altra serie"), `banner atteso, suele: «${c.gridAltraSerie}»`);
+  assert.ok(typeof c.gridAltraSerie === 'string' && c.gridAltraSerie.includes("griglia sul disco contiene auto di un'altra serie"), `banner atteso, suele: «${c.gridAltraSerie}»`);
   assert.ok(c.gridAltraSerie.includes('Ferrari F40 LM'), 'la nota nomina la stirpe sul disco');
   assert.ok(c.gridAltraSerie.includes('riscrive dal template'), 'dice cosa fa il Prepa tutto, non solo che non va');
+});
+
+test('vigia cambio campionato: basta UNA auto estranea in una griglia mista', () => {
+  const { ladder, state } = mk();
+  writeFileSync(GRID_FILE, customgridDiAuto([['car_a', 'Azzurra GT'], ['ks_f40_lm', 'Ferrari F40 LM']]));
+  const c = race.raceCard(ladder, state);
+  assert.ok(typeof c.gridAltraSerie === 'string', 'la griglia mista deve accendere la vigia');
+  assert.ok(c.gridAltraSerie.includes('Ferrari F40 LM'), 'la nota nomina la sola auto estranea');
 });
 
 test('vigia silente: griglia già della serie o file assente', () => {
