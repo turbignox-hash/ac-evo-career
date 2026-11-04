@@ -616,12 +616,12 @@ async function drawSetup(m){
     <h2>💡 ${tr({ it: 'Consigli del box', en: 'Garage advice' })} <span class="muted" style="font-size:12px">${tr({ it: 'target ', en: 'target ' })}${tel.target} PSI · ${list.length} ${tr({ it: 'sessioni recenti', en: 'recent sessions' })}</span></h2>
     ${window.mechIdentity(mechStato)}
     ${staleHtml}
-    ${clHtml}
     <div class="row" style="margin-top:12px;align-items:center;gap:10px;flex-wrap:wrap">
       <button class="act" id="b-apply-setup" type="button" style="font-size:15px;padding:10px 18px">⚡ ${tr({ it: 'Applica i consigli al setup', en: 'Apply the advice to the setup' })}</button>
       <span class="muted" style="font-size:11.5px">${tr({ it: 'scrive «(setup) — EVO-consigliato.carsetup» a fianco del tuo file · in EVO, A GIOCO APERTO: CARICA → il gioco rilegge il disco', en: 'writes «(setup) — EVO-advised.carsetup» next to your file · in EVO, WHILE IN GAME: LOAD → the game re-reads the disk' })}</span>
     </div>
     <div id="apply-out" style="margin-top:10px"></div>
+    ${clHtml}
     <details ${cl && !cl.allGood ? 'open' : ''} style="margin-top:6px"><summary style="cursor:pointer;font-size:12px" class="muted">${tr({ it: 'Da fare in EVO + consiglio pressioni completo (', en: 'To do in EVO + full pressure advice (' })}${telLaps} ${tr({ it: 'giri di telemetria)', en: 'telemetry laps)' })}</summary>
     <div class="banner warn" style="padding:10px 12px;margin-top:8px">
       <b>📌 ${tr({ it: 'DA FARE IN EVO A OGNI GARA', en: 'TO DO IN EVO EVERY RACE' })}</b> — ${tr({ it: 'Setup → Elettronica → ', en: 'Setup → Electronics → ' })}<b style="color:var(--warn,#ffb454)">${tr({ it: 'Telemetria', en: 'Telemetry' })}</b>: ${tr({ it: 'imposta ', en: 'set ' })}<b style="color:var(--warn,#ffb454)">${telLaps} ${tr({ it: 'giri', en: 'laps' })}</b> ${tr({ it: 'per questa auto', en: 'for this car' })}${telLaps >= 15 ? tr({ it: ' (è veloce: può registrare a lungo)', en: ' (it is quick: it can record for long)' }) : telLaps <= 8 ? tr({ it: ' (è lenta: ogni giro genera molti dati, non serve di più)', en: ' (it is slow: each lap yields lots of data, no need for more)' }) : ''}. ⚠️ ${tr({ it: 'Da riattivare a ogni gara, e mentre sei GIÀ nel setup, prima di avviare la sessione.', en: 'Re-enable it every race, while you are ALREADY in the setup, before starting the session.' })}
@@ -697,9 +697,9 @@ async function drawSetup(m){
     histHtml = window.__setupHistHtml(hist?.rows ?? []);
   } catch { /* la storia non blocca mai il pannello */ }
   m.innerHTML = telHtml + html;   // telemetria PRIMA degli attrezzi pressione: il grafico del giro è la prima cosa che si vede
-  // la storia compare SOTTO il pulsante ⚡ Applica (e sopra l'output che esce
-  // quando si genera il setup): la innesto qui, ravvicinata, non a fine vista.
-  if (histHtml) document.querySelector('#apply-out')?.insertAdjacentHTML('afterend', histHtml);
+  // La storia resta in basso (dopo gli stint): il pulsante ⚡ e la checklist
+  // ora stanno vicini, non serve spingere 30 righe di archivio in mezzo.
+  if (histHtml) document.querySelector('#stinti-out')?.insertAdjacentHTML('afterend', histHtml);
 
   /* IL QUADRO DI COPERTURA (1/11): un solo colpo d'occhio — ✔ le piste dove
      l'auto ha già i suoi .carsetup (con quanti e quando), ✖ le piste GIRATE
@@ -1061,7 +1061,10 @@ async function drawSetup(m){
       const m = await api('garage', { action: 'meccanico', car: carPanel ?? window.__lcCar ?? null, track: trackPanel ?? null });
       if (!m.ok) { out.innerHTML = ''; return; }
       const tag = { aero: tr({ it: '🪶 aerodinamica', en: '🪶 aero' }), trasmissione: tr({ it: '⚙️ cambio', en: '⚙️ gearbox' }), assetto: tr({ it: '🧱 assetto/altezza', en: '🧱 setup/height' }), camber: tr({ it: '📐 camber', en: '📐 camber' }), freni: tr({ it: '🛑 freni', en: '🛑 brakes' }), pressioni: tr({ it: '🛞 pressioni', en: '🛞 pressures' }), telemetria: tr({ it: '📡 telemetria', en: '📡 telemetry' }), memoria: tr({ it: '🧠 memoria', en: '🧠 memory' }) };
-      const rows = (m.consigli ?? []).map((c) => `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><span style="flex:0 0 130px;font-size:11.5px;color:var(--dim)">${tag[c.vedi] ?? c.vedi}</span><span style="font-size:12.5px;line-height:1.5">${c.text}</span></div>`).join('');
+      /* Ogni consiglio è una PORTA verso l'anteprima: clic (o Enter) apre il
+         preview dell'applicatore e ci porta il focus — non resta testo
+         passivo da rileggere mentre si cerca il campo a mano. */
+      const rows = (m.consigli ?? []).map((c) => `<div class="mech-advice" role="button" tabindex="0" data-vedi="${esc(c.vedi ?? '')}" title="${tr({ it: "apri l'anteprima del setup e vai al campo", en: 'open the setup preview and jump to the field' })}"><span style="flex:0 0 130px;font-size:11.5px;color:var(--dim)">${tag[c.vedi] ?? c.vedi}</span><span style="font-size:12.5px;line-height:1.5">${c.text}</span><span class="go">→</span></div>`).join('');
       /* STORIA DELL'ALLIEVO: i round di consigli chiusi con l'esito (delta del
          giro migliore) e il setup migliore — Mauro 21/10 voleva vederla subito. */
       let storiaHtml = '';
@@ -1082,7 +1085,11 @@ async function drawSetup(m){
           <td>${chip(r.delta)}</td>
           <td style="font-size:11.5px;color:var(--dim)">${(r.campi ?? []).map((c) => esc(tag[c] ?? c)).join(' · ') || '—'}</td>
         </tr>`).join('');
-        storiaHtml = `<details style="margin-top:10px" ${a.rounds?.length ? '' : 'open'}><summary style="cursor:pointer;font-size:12.5px"><b>🧠 ${tr({ it: 'Storia dell\'allievo', en: "Apprentice's history" })}</b> <span class="muted" style="font-size:11.5px">— ${(a.rounds ?? []).length} ${tr({ it: 'round di consigli', en: 'advice rounds' })}${a.best ? ` · ${tr({ it: 'migliore registrato: ', en: 'best on file: ' })}<b>${fmtL(a.best.lap)}</b> (${fmtT(a.best.at)})` : ''}</span></summary>
+        /* ESITO IN VISTA: l'ultimo round non sta più solo dentro il details —
+           chip e giri restano leggibili appena si apre il meccanico. */
+        const ultimo = (a.rounds ?? []).slice().sort((x, y) => String(y.at ?? '').localeCompare(String(x.at ?? '')))[0];
+        const ultimoHtml = ultimo ? `<div style="margin-top:8px;font-size:12.5px">🧠 <b>${tr({ it: 'Ultimo round', en: 'Last round' })}</b> ${chip(ultimo.delta)} <span class="muted">· ${fmtT(ultimo.at)} · ${fmtL(ultimo.bestBefore)} → ${fmtL(ultimo.bestAfter)}</span></div>` : '';
+        storiaHtml = `${ultimoHtml}<details style="margin-top:10px" ${a.rounds?.length ? '' : 'open'}><summary style="cursor:pointer;font-size:12.5px"><b>🧠 ${tr({ it: 'Storia dell\'allievo', en: "Apprentice's history" })}</b> <span class="muted" style="font-size:11.5px">— ${(a.rounds ?? []).length} ${tr({ it: 'round di consigli', en: 'advice rounds' })}${a.best ? ` · ${tr({ it: 'migliore registrato: ', en: 'best on file: ' })}<b>${fmtL(a.best.lap)}</b> (${fmtT(a.best.at)})` : ''}</span></summary>
           ${(a.rounds ?? []).length ? `<table style="margin-top:8px"><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Giro su questa pista', en: 'Lap on this track' })}</th><th>${tr({ it: 'Esito del round', en: 'Round outcome' })}</th><th>${tr({ it: 'Leve promosse', en: 'Levers pulled' })}</th></tr></thead><tbody>${righe}</tbody></table>` : `<div class="muted" style="font-size:12px;margin-top:6px">${tr({ it: "Nessun round chiuso: corri una sessione nuova dopo aver generato consigli e l'esito entra qui.", en: 'No closed rounds: run a new session after generating advice and the outcome lands here.' })}</div>`}
         </details>`;
       }
@@ -1091,6 +1098,15 @@ async function drawSetup(m){
         ${rows || `<div class="muted" style="font-size:12px">${tr({ it: 'Nessun consiglio per questa pista: anagrafica non disponibile.', en: 'No advice for this track: profile not available.' })}</div>`}
         ${storiaHtml}
       </div>`;
+      $$('.mech-advice', out).forEach((r) => {
+        const vai = () => {
+          const btn = document.querySelector('#b-apply-setup');
+          if (btn && !btn.disabled) btn.click();
+          document.querySelector('#apply-out')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+        r.onclick = vai;
+        r.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); vai(); } };
+      });
     } catch { /* il meccanico non deve mai rompere la vista */ }
   };
   window.__stintiDraw ??= async () => {

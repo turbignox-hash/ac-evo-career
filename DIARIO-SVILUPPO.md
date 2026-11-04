@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Meccanico: consigli cliccabili, pulsante in alto e ultimo round in vista
+
+- I consigli non sono più testo passivo: ogni riga è un bottone (role=button, tabindex, Enter/Spazio) che apre l'anteprima dell'applicatore e porta il focus al campo da cambiare.
+- «Applica i consigli al setup» e #apply-out sono saliti sopra la checklist (che resta sotto, come dettaglio da leggere); la storia dei setup resta in basso, dopo gli stint.
+- L'esito dell'ultimo round è una riga sempre visibile (chip guadagnati/persi, giri prima→dopo); la storia completa resta nel details.
+- Verifica: CTA sopra la checklist, anteprima a ridosso del pulsante, clic sul primo consiglio che apre l'anteprima con i PSI, 0 overflow, 0 errori; lint 374 file 0 warning, collaudo tab 19/19.
+
 ### 4/11 — Cruscotto: riepilogo di gara sopra i bottoni di lancio (segnalazione Mauro)
 
 - Il brief #race-brief vive dentro #card-actions, sopra «Prepara tutto»: auto, pista, distanza e meteo delle quattro sessioni (Prove libere, Qualifiche, Warm-up, Gara) si leggono senza scendere. A 800 px si sposta con i bottoni nella barra sticky.
