@@ -401,8 +401,8 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
     // BOLLETTINO (3/11): il piano DETERMINISTICO per sessione + il rituale (una riga)
     weatherPlan,
     weatherRitual: tr({
-      it: 'Il cielo si sistema da solo: al cambio ronda il tool scrive il meteo delle Prove, a fine di ogni sessione quello della successiva — EVO legge il preset del selettore a ogni avvio. Il tasto "Metti" resta il ripiego a mano.',
-      en: 'The weather sets itself: at a round change the tool writes the Practice sky, and after each session it writes the next one — EVO reads the selector preset at every session start. The "Set" button stays as a manual fallback.',
+      it: 'Il cielo si sistema da solo: al cambio ronda il tool scrive il meteo delle Prove, a fine di ogni sessione quello della successiva — EVO legge il preset del selettore a ogni avvio. Qui non c\'è niente da premere: il bollettino si legge.',
+      en: 'The weather sets itself: at a round change the tool writes the Practice sky, and after each session it writes the next one — EVO reads the selector preset at every session start. Nothing to press here: the forecast is read-only.',
     }),
     gridSize: gridsReali,
     opponents: gridsReali - 1,

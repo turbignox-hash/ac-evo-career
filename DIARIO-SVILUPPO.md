@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Bollettino del weekend senza i tasti «Metti» (richiesta Mauro: «🌦 Bollettino del weekend leva quegli orribili metti e vedi se tutto ok»)
+
+- **Tolti**: i bottoni «Metti» per sessione (Prove libere, Qualifiche, Warm-up, Gara) non ci sono più; le righe restano con label, icona, orario e stato («a posto», «al cambio ronda», «in automatico»). Rimosso anche l'handler `#wx-plan .mini[data-wx]` che chiamava `wx-session`.
+- **Testo**: la riga del rituale diceva «Il tasto "Metti" resta il ripiego a mano»; ora dice «Qui non c'è niente da premere: il bollettino si legge» (IT/EN), così non promette un bottone che non esiste. L'API `wx-session` resta sul server per la riga di comando, senza bottone in scheda.
+- **Verifica**: `node --check` su `viste-a.js` e `race.mjs`; `npm run lint` **372 file, 0 warning**; suite **913/913**; dal vivo `#wx-plan` ha **0 bottoni** e le quattro sessioni continuano a mostrare orario e stato.
+- **Nota**: commit e push su `offsite/main`; release invariata (v0.1.57).
+
 ### 4/11 — Costruzione weekend: pannello riparato e arricchito (richiesta Mauro: «il reparto costruzione griglia, auto, meteo, pista, ora giri o tempo, continuiamo a migliorarlo svilupparlo»)
 
 - **La tab Griglia si apriva con l'errore**: `$(...).forEach is not a function`. I sei riquadri usavano `$` (un solo nodo) invece di `$$` (la lista): corretto, ora la tab disegna il pannello completo.

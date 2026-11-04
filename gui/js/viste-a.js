@@ -774,8 +774,8 @@ function drawCardInto(el, card){
               // BOLLETTINO IN AUTOMATICO (3/11 + 4/11): si sistema TUTTO da
               // solo — alla ronda nuova il tool scrive le Prove (wxAutoPrima),
               // a fine di ogni sessione scrive la successiva (wxAutoTick);
-              // attivato dal watcher. Il tasto «Metti» resta il ripiego a mano
-              // (per esempio due ronde di fila sulla stessa pista).
+              // attivato dal watcher. Nessun tasto a mano: il bollettino si
+              // legge e basta (il vecchio «Metti» per sessione è stato tolto).
               const ok = card.weatherNow != null && Number(card.weatherNow) === Number(s.weather);
               const prima = String(s.session).toLowerCase() === 'practice';
               const tag = ok
@@ -786,7 +786,6 @@ function drawCardInto(el, card){
               return `<span style="display:flex;align-items:center;gap:6px;border:1px solid var(--line,#2a3341);border-radius:8px;padding:4px 8px;background:var(--panel2,#121822);font-size:11.5px">
               <b>${esc(s.sessionLabel)}</b> <span style="font-weight:600">${WX_ICON[Number(s.weather)] ?? ''} ${esc(s.label)}</span>${s.hour!=null?`<span class="muted">· ${String(s.hour).padStart(2,'0')}:00</span>`:''}
               ${tag}
-              <button class="mini" data-wx="${esc(s.session.toLowerCase())}" style="padding:2px 8px" title="${tr({ it: 'ripiengo a mano', en: 'manual fallback' })}">${tr({ it: 'Metti', en: 'Set' })}</button>
             </span>`;
             }).join('')}
             <span class="muted" style="font-size:11px;align-self:center">${tr({ it: 'si sistema da solo: al cambio ronda le Prove, a fine di ogni sessione la successiva — sempre PRIMA di entrarci', en: 'sets itself: Prove at a round change, the next session after each one — always BEFORE entering' })}</span>
@@ -1222,28 +1221,9 @@ function drawCardInto(el, card){
       drawCardInto(el, await api('card', { car: $('#sel-car', el)?.value ?? null }));
     } catch(e){ toast(e.message, 'err'); }
   });
-  // BOLLETTINO DEL WEEKEND (3/11): i tasti «Metti» del piano meteo scrivono
-  // sul gamemodesave il cielo della sessione scelta. DETERMINISTICO: qui non
-  // si chiede alcuna scelta — è il server a ricalcolare il piano dalla ronda
-  // (race.mjs weatherPlanFor), il cancello delle scelte a mano resta chiuso.
-  $$('#wx-plan .mini[data-wx]', el).forEach(b => { b.onclick = async () => {
-    if (b.disabled) return;
-    b.disabled = true;
-    try {
-      const r = await api('wx-session', { session: b.dataset.wx, car: $('#sel-car', el)?.value ?? null });
-      // LA VOCE ANCHE NEL TOAST (1/11, «sole su bello»): il codice del meteo
-      // della sessione toccata arriva in r.forecast (il piano che il server
-      // ricalcola) e si mappa con la STESSA WX_ICON dei chip sopra — nessun
-      // doppio registro.
-      const wx = (r.forecast ?? []).find((x) => x.session.toLowerCase() === b.dataset.wx);
-      const ico = WX_ICON[Number(wx?.weather)] ?? '';
-      const dico = ico ? `${ico} ` : '';
-      toast(r.already
-        ? tr({ it: `Meteo già ${dico}${r.label}: nessuna scrittura.`, en: `Weather already ${dico}${r.label}: nothing to write.` })
-        : tr({ it: `Meteo della sessione scritto: ${dico}${r.label}.`, en: `Session weather written: ${dico}${r.label}.` }), 'ok');
-    } catch(e){ toast(e.message, 'err'); }
-    b.disabled = false;
-  }; });
+  // (4/11) Tasti «Metti» tolti dal bollettino: le scritture sono automatiche
+  // (wxAutoPrima / wxAutoTick) e la riga si legge soltanto. L'API «wx-session»
+  // resta sul server per la riga di comando, non ha più un bottone in scheda.
   // REGISTRO DELLE SCRITTURE AUTOMATICHE (4/11): quando e perché il
   // bollettino ha scritto ogni preset (wx-registro.mjs, via API wx-log).
   // Caricamento asincrono dopo il render: il pannello si apre con «…» e si
