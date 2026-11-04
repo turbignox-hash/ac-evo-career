@@ -732,11 +732,21 @@
     ultimoComando = c.id;
     loga('comando ' + c.id + ' (' + c.nome + (c.pista ? ' @ ' + c.pista : '') + '), tentativo ' + (tent + 1));
     const lavoro = c.tipo === 'evento' ? corriEvento(c) : (c.tipo === 'avvia' ? corriAvvia() : corriSetcar(c));
-    Promise.resolve(lavoro).then(function (ok) {
-      inCorso = false;
-      if (ok) { falliti.delete(c.id); ackComando(c, true, c.tipo === 'avvia' ? 'avvia sessione premuto' : 'auto impostata nel menu di EVO'); }
-      else { falliti.set(c.id, tent + 1); /* riprova senza cap: il mock del contatore era mancante e un comando fallito non riprovava mai — RETRY_MS ammorbidisce il giro */ }
-    });
+    Promise.resolve(lavoro).then(async function (ok) {
+      try {
+        if (ok) { falliti.delete(c.id); ackComando(c, true, c.tipo === 'avvia' ? 'avvia sessione premuto' : 'auto impostata nel menu di EVO'); }
+        else { falliti.set(c.id, tent + 1); /* riprova senza cap: il mock del contatore era mancante e un comando fallito non riprovava mai — RETRY_MS ammorbidisce il giro */ }
+        // IL GESTO UNICO (4/11, «prepara tutto e avvia deve lanciare la gara»):
+        // il setcar del «Prepara tutto e avvia» porta avvia:true — auto nel
+        // menu e SUBITO «Avvia sessione», la STESSA sequenza del bottone del
+        // pannello (bottoneCorri). Niente attesa del giro ack→comando avvia:
+        // quel canale resta per il setcar già confermato (finestra armata).
+        if (ok && c.avvia && c.tipo === 'setcar') {
+          const okVia = await corriAvvia();
+          if (okVia) ackComando(Object.assign({}, c, { id: c.id + ':avvia', tipo: 'avvia', pista: null, layout: null }), true, 'avvia dal comando: sessione lanciata');
+        }
+      } finally { inCorso = false; }
+    }).catch(function () { inCorso = false; });
   }
 
   // il risultato del comando si VEDI nel pannello: banda in testa

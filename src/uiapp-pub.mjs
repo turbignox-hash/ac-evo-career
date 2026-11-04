@@ -406,6 +406,15 @@ export function comandoAuto(ladder, state, env = process.env) {
           pista: spec?.name ?? null, layout: spec?.layout ?? null,
           ora: volo ? oraRonda : null, meteo: volo ? codiceMeteo(p.weather ?? null) : null,
         };
+        // GESTO UNICO (4/11, «prepara tutto e avvia deve lanciare la gara, non
+        // solo il gioco»): dentro la finestra armata il setcar porta con sé
+        // `avvia: true` — l'app mette l'auto nel menu e preme «Avvia
+        // sessione» nella STESSA esecuzione (la sequenza del suo bottone,
+        // bottoneCorri), senza aspettare il giro ack→comando «avvia» (che
+        // resta per i casi in cui il setcar era già confermato). Fuori
+        // finestra il campo NON c'è: col solo «Prepara tutto» il via resta
+        // un gesto tuo.
+        if (Date.now() <= Number(p.avviaFino ?? 0)) rondaComando.avvia = true;
         // SCADENZA anche qui (lezione 27/10, la stessa dei ramoscelli più
         // sotto): il pending NON ancora confermato, se ha più di un giorno,
         // lascia il campo all'evento attivo; fresco = la ronda comanda e via.

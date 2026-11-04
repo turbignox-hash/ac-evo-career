@@ -105,7 +105,7 @@ function xhrFinto(fascia) {
 /** Manda SU l'app costruita in una sandbox pulita e ritorna le maniglie:
  *  { log, triggerCalls, store } con il pannello già partito (il codice è un
  *  IIFE: vm.runInContext lo esegue IMMEDIATAMENTE, come la pagina del loader). */
-function avviaApp(fascia) {
+function avviaApp(fascia, rispondi = null) {
   const log = [];
   const consoleFinto = {
     log: (t) => log.push(String(t)),
@@ -134,8 +134,12 @@ function avviaApp(fascia) {
       // facevano vincere il timer «nessuna risposta» del giocoComando sulla
       // consegna posticciata di un tick: la promessa si chiudeva in errore e
       // nessun sentiero poteva arrivare all'ack (visto sul sentiero avvia).
+      // `rispondi` (4/11): il gesto unico setcar+avvia chiede liste vere
+      // (piste, modelli, sessioni) — il test fornisce la risposta giusta per
+      // comando, il resto resta l'OK generico di sempre.
+      const extra = rispondi ? rispondi(String(args[1] ?? '')) : null;
       for (const { f } of engine.__ascolto.slice()) {
-        try { f({ response: OK_RISPOSTA }); } catch (_e) { /* in gioco anche qui */ }
+        try { f({ response: OK_RISPOSTA, ...(extra ?? {}) }); } catch (_e) { /* in gioco anche qui */ }
       }
     },
   };
@@ -311,5 +315,38 @@ test('RUNTIME (controprova) avvia: fascia VIVA — RequestStart sul sentiero ver
     assert.ok(voce, `nessuna voce per il comando: ${JSON.stringify(app.store[0]?.val)}`);
     assert.equal(voce.ok, 1, 'un avvio Ok deve ackare ok:1');
     assert.ok(/avvia sessione premuto/i.test(voce.msg), `il messaggio dell'ack è quello del sentiero avvia: «${voce.msg}»`);
+  } finally { app.drena(); }
+});
+
+test('RUNTIME gesto unico: setcar con avvia:true — auto nel menu e SUBITO RequestStart (due ack)', async () => {
+  // «Prepara tutto e avvia deve lanciare la gara, non solo il gioco» (4/11):
+  // il publisher manda il setcar con avvia:true e l'app fa la STESSA sequenza
+  // del suo bottone — SetCurrentCar, ack del setcar, poi RequestStart e ack
+  // del :avvia. Niente attesa del giro ack→comando avvia.
+  const validaViva = Date.now() + PERIODO_MS * 1000;
+  const GESTO = { id: 'sonda-gesto-1', nome: 'MX-5 Cup', carId: 'ks_mx5_cup', tipo: 'setcar', avvia: true, pista: 'Monza', layout: null, ora: 13, meteo: 'CLEAR' };
+  const risposte = {
+    GameModeSelectionClientRequestTrackList: { track_item: [{ name: 'Monza', layout: 'GP' }] },
+    CarSelectionClientRequestModels: { car_model: [{ name: 'ks_mx5_cup', display_name: 'MX-5 Cup' }] },
+    GameModeSelectionClientRequestGameModeParameters: {
+      sessions: [{ name: 'Practice', time_of_day: { hour: 10 } }, { name: 'Race', time_of_day: { hour: 13 } }],
+      weather_data: [{ type: 'CLEAR' }],
+    },
+  };
+  const app = avviaApp(fasciaDi(validaViva, GESTO), (tipo) => risposte[tipo] ?? null);
+  try {
+    assert.equal(app.errore, null, `l'app costruita non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    const partito = await finoA(() => app.triggerCalls.some((a) =>
+      String(a[0]) === 'OnUICommand' && String(a[1]).includes('GameModeSelectionClientRequestStart')));
+    assert.ok(partito, `il gesto unico non ha premuto «Avvia sessione» in ${app.ms()} ms — ${JSON.stringify(app.triggerCalls).slice(0, 500)}`);
+    const nStart = app.triggerCalls.filter((a) => String(a[1]).includes('GameModeSelectionClientRequestStart')).length;
+    assert.equal(nStart, 1, `RequestStart sparato ${nStart} volte: il gesto unico parte una volta sola`);
+    const ackOk = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === `${GESTO.id}:avvia`));
+    assert.ok(ackOk, `l'ack del via non è uscito: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
+    const tutti = app.store.at(-1)?.val?.commands ?? [];
+    assert.equal(tutti.find((v) => v?.id === GESTO.id)?.ok, 1, 'il setcar va ackato ok:1');
+    const via = tutti.find((v) => v?.id === `${GESTO.id}:avvia`);
+    assert.equal(via?.ok, 1, 'anche il via va ackato ok:1');
+    assert.ok(/sessione lanciata/i.test(via?.msg ?? ''), `il messaggio dell'ack del via: «${via?.msg}»`);
   } finally { app.drena(); }
 });

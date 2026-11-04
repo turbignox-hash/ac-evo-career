@@ -171,6 +171,17 @@ test('pending VECCHIO formato (senza ora/meteo): comando come sempre, ora/meteo 
   assert.equal(cmd?.meteo, null, 'meteo mancante: il Cruscotto non tocca il cielo');
 });
 
+test('finestra ARMATA: il setcar porta avvia:true (gesto unico della GUI)', () => {
+  const t = Date.now() - 30_000;
+  const armato = mkState({ pending: { car: 'r5_touring', node: 'coppa_rx7', trackNames: ['cota', 'cota'], startedAt: t, avviaFino: Date.now() + 10 * 60_000 } });
+  const cmd = comandoAuto(mkLadder(), armato);
+  assert.equal(cmd?.tipo, 'setcar', 'il comando resta il setcar: la gara parte DOPO l\'auto nel menu');
+  assert.equal(cmd?.avvia, true, 'dentro la finestra l\'app mette l\'auto e preme subito «Avvia sessione»');
+
+  const solo = mkState({ pending: { car: 'r5_touring', node: 'coppa_rx7', trackNames: ['cota', 'cota'], startedAt: t } });
+  assert.equal(comandoAuto(mkLadder(), solo)?.avvia, undefined, 'senza finestra il via resta un gesto tuo');
+});
+
 test('comando EVENTO demo: mai ora/meteo (la scheda resta a mano, lezione 23/10)', () => {
   const state = mkState({ vetrinaCustom: { car: 'ks_mini_jcs_1990', startedAt: Date.now() - 60_000 } });
   const cmd = comandoAuto(mkLadder(), state);

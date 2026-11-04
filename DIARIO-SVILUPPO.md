@@ -5,6 +5,14 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — «Prepara tutto e avvia» entra in gara, non solo nel gioco (richiesta Mauro: «prepara tutto e avvia deve lanciare la gara, non solo il gioco»)
+
+- **Il giro in meno**: il via dipendeva dall'ack del setcar (publisher → app mette l'auto → ack → publisher manda `avvia`). Se l'ack non tornava in tempo il gioco restava al menu. Ora il setcar del «Prepara tutto e avvia» porta `avvia: true` (dentro la finestra dei 30 min): l'app fa la STESSA sequenza del suo bottone (`corriSetcar` → `corriAvvia`, `GameModeSelectionClientRequestStart`) e acka anche `:avvia`. Il canale separato resta per il setcar già confermato.
+- **Prepara tutto**: `avviaFino = 0`, nessun `avvia` nel comando, il via resta a mano.
+- **Build**: app rigenerata e reinstallata in gioco (`genera-uiapp`: `cruscotto.js` + `installa-cruscotto`); la copia in memoria del gioco è la vecchia, la nuova entra al prossimo avvio di EVO.
+- **Verifica**: test runtime in sandbox (setcar con `avvia:true` → un solo RequestStart, due ack) + test publisher (`avvia:true` solo dentro la finestra); mirati **63/63**; suite **971/971** (0 fail/skip, EVO aperto); `npm run lint` **371 file, 0 warning**.
+- **Nota**: commit, non push; restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — La scheda dice se l'app Cruscotto è viva (richiesta Mauro: «scegli il prossimo passo e procedi»)
 
 - **Il segnale**: `statoAppInGioco()` in `uiapp-pub.mjs` — «attiva» solo con un ACK negli ultimi 15 minuti (memoria del processo + storia su disco, che sopravvive al riavvio); `installata` è la cartella della mod App Loader. Sorgenti iniettabili per i test, nessun disco nei test.
