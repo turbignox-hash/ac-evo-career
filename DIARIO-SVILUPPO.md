@@ -5,6 +5,15 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Reparto GUI: fuoco da tastiera, stato del menu e annunci (richiesta Mauro: «ora il reparto GUI vedi cosa puoi fare»)
+
+- **Tastiera**: `input:focus` spegneva l'anello e restava solo il bordo; bottoni, link e `summary` non avevano alcun segnale, quindi chi naviga senza mouse non sapeva dove si trovava. Aggiunto `:focus-visible` (contorno `--acc2`, offset 2px) su bottoni/link/summary e 1px sui campi.
+- **Meno movimento**: nuovo blocco `prefers-reduced-motion` che azzera animazioni e transizioni (lampeggio REC, spinner, fade) per chi lo chiede nel sistema.
+- **Menu**: la voce attiva ora porta `aria-current="page"`, non solo la classe `.on`: il lettore di schermo dice in che sezione sei.
+- **Annunci**: `#toast` è `role="status" aria-live="polite"` (gli errori non restano muti) e il modale è `role="dialog" aria-modal="true"` con `aria-label` del titolo.
+- **Verifica**: `node --check` su `core.js`; `npm run lint` **372 file, 0 warning**; suite **913/913**; dal vivo la tab Setup rende 6.954 caratteri (il campione a 900 ms del giro automatico la leggeva a 0: era troppo presto, non un guasto).
+- **Nota**: commit e push su `offsite/main`; release invariata (v0.1.57).
+
 ### 4/11 — Bollettino del weekend senza i tasti «Metti» (richiesta Mauro: «🌦 Bollettino del weekend leva quegli orribili metti e vedi se tutto ok»)
 
 - **Tolti**: i bottoni «Metti» per sessione (Prove libere, Qualifiche, Warm-up, Gara) non ci sono più; le righe restano con label, icona, orario e stato («a posto», «al cambio ronda», «in automatico»). Rimosso anche l'handler `#wx-plan .mini[data-wx]` che chiamava `wx-session`.

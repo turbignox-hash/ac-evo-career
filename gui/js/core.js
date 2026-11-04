@@ -223,7 +223,7 @@ async function drawAggStatus(host){
 
 function modal(title, bodyHtml, buttons){
   const root = $('#modal-root');
-  root.innerHTML = `<div class="modal"><div class="mh">${esc(title)}<button class="x" aria-label="chiudi">×</button></div>
+  root.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="mh">${esc(title)}<button class="x" aria-label="chiudi">×</button></div>
     <div class="mb">${bodyHtml}</div><div class="mf"></div></div>`;
   const foot = $('.mf', root);
   for (const [label, cls, fn] of buttons) {
@@ -383,7 +383,7 @@ function drawNav(){
   const offers = boot?.header?.offers?.length || 0;
   const urgent = boot?.mailUrgent || 0;
   const bottone = ([id,label]) =>
-    `<button data-tab="${id}" class="${tab===id?'on':''}">${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${tr({ it: `${urgent} email urgenti: gare da disputare o conflitti`, en: `${urgent} ${urgent===1?'urgent email':'urgent emails'}: races to run or conflicts` })}">⚠️${urgent}</span>`:''}</button>`;
+    `<button data-tab="${id}" class="${tab===id?'on':''}"${tab===id?' aria-current="page"':''}>${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${tr({ it: `${urgent} email urgenti: gare da disputare o conflitti`, en: `${urgent} ${urgent===1?'urgent email':'urgent emails'}: races to run or conflicts` })}">⚠️${urgent}</span>`:''}</button>`;
   $('#nav').innerHTML = NAV_GROUPS.map((g) =>
     `<div class="nav-grp">${tr(g.label)}</div>`
     + TABS.filter(([id]) => g.ids.includes(id)).map(bottone).join('')).join('') +
