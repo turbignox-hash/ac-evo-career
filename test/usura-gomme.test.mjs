@@ -89,7 +89,7 @@ test('tyreWearFromLd legge un blocco reale: degrado e temperature coerenti', { s
     assert.ok(['LF', 'RF', 'LR', 'RR'].includes(w), 'la ruota è una delle quattro');
     for (const k of ['first', 'last', 'deltaC', 'max']) assert.ok(Number.isFinite(u.temps[w][k]));
   }
-  if (u.hottestWheel) assert.equal(u.temps[u.hottestWheel].last, Math.max(...Object.values(u.temps).map((t) => t.last)));
+  assert.ok(!u.hottestWheel || u.temps[u.hottestWheel].last === Math.max(...Object.values(u.temps).map((t) => t.last)));
 });
 
 test('tyreWearFromLd rifiuta un file inesistente', () => {

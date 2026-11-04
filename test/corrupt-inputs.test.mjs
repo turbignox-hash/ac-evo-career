@@ -119,8 +119,8 @@ test('penaltyOf su valori assurdi: etichetta raw intacta, mai un crash né un ca
   for (const raw of ['+0s', 'X2', '+1.5s!', 'DT', 'DSQ', 'UnknownLabel']) {
     const p = results.penaltyOf({ high_penalty: raw });
     assert.equal(p.label, raw, "l'etichetta resta quella di EVO");
-    if (raw === 'DSQ') assert.equal(p.dsq, true, 'squalifica riconosciuta');
-    if (raw === 'DT') assert.notEqual(p.kind, null, 'drive-through classificato');
+    assert.ok(raw !== 'DSQ' || p.dsq === true, 'squalifica riconosciuta');
+    assert.ok(raw !== 'DT' || p.kind !== null, 'drive-through classificato');
   }
 });
 

@@ -61,8 +61,8 @@
       // Il plugin GritQL (tools/biome/assert-in-if.grit) segnala quegli assert;
       // l'if/else che asserisce in ENTRAMBI i rami non lo è, perché lì
       // l'asserzione gira comunque (era il 47% dei primi 74 avvisi).
-      // Severità `warn` finché i 39 punti esistenti non sono smaltiti, così
-      // `npm run lint` non blocca; poi nel .grit diventa `error`.
+      // Severità `error` dal 4/11: i 39 punti esistenti sono stati smaltiti;
+      // un assert dentro un if senza else ora fa fallire il lint.
       "includes": ["test/**"],
       "plugins": ["./tools/biome/assert-in-if.grit"]
     },

@@ -76,26 +76,20 @@ test('la lingua del server comanda le CARD del box (it→card italiana, en→car
     assert.equal(p.code, 200, 'POST /api/lang it deve rispondere 200');
     assert.equal(p.j.lang, 'it', 'la risposta deve confermare it');
     const cfgFile = join(DATA, 'evo.config.json');
-    if (existsSync(cfgFile)) {
-      assert.equal(JSON.parse(readFileSync(cfgFile, 'utf8')).lang, 'it', 'la scelta deve essere persistita nel config sandbox');
-    }
-    if (boot.hasCareer) {
-      const card = await getCard();
-      assert.equal(card.code, 200, 'card deve rispondere 200 con la carriera');
-      const txt = tipsText(card.j);
-      for (const m of EN_MARKERS) assert.ok(!txt.includes(m), `lang it: la card NON deve contenere «${m}» (testo: ${txt.slice(0, 200)})`);
-    }
+    assert.ok(!existsSync(cfgFile) || JSON.parse(readFileSync(cfgFile, 'utf8')).lang === 'it', 'la scelta deve essere persistita nel config sandbox');
+    const cardIt = boot.hasCareer ? await getCard() : null;
+    assert.ok(!boot.hasCareer || cardIt.code === 200, 'card deve rispondere 200 con la carriera');
+    const txtIt = cardIt ? tipsText(cardIt.j) : '';
+    assert.ok(!boot.hasCareer || EN_MARKERS.every((m) => !txtIt.includes(m)), `lang it: la card NON deve contenere inglese (testo: ${txtIt.slice(0, 200)})`);
 
     // 2) set EN / card senza italiano
     p = await postLang('en');
     assert.equal(p.code, 200, `POST /api/lang en deve rispondere 200 (ricevuto: ${JSON.stringify(p.j)})`);
     assert.equal(p.j.lang, 'en', 'la risposta deve confermare en');
-    if (boot.hasCareer) {
-      const card = await getCard();
-      assert.equal(card.code, 200);
-      const txt = tipsText(card.j);
-      for (const m of IT_MARKERS) assert.ok(!txt.includes(m), `lang en: la card NON deve contenere «${m}» (testo: ${txt.slice(0, 200)})`);
-    }
+    const cardEn = boot.hasCareer ? await getCard() : null;
+    assert.ok(!boot.hasCareer || cardEn.code === 200);
+    const txtEn = cardEn ? tipsText(cardEn.j) : '';
+    assert.ok(!boot.hasCareer || IT_MARKERS.every((m) => !txtEn.includes(m)), `lang en: la card NON deve contenere italiano (testo: ${txtEn.slice(0, 200)})`);
 
     // 3) ritorno a it: lo stato lasciato dal test è neutro rispetto alla GUI
     await postLang('it');

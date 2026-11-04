@@ -281,9 +281,8 @@ test('tabella Tetto teorico in GUI = JSON di /api/tetto, riga per riga', { timeo
         assert.ok(Math.abs((msDi(dopoPicco) ?? 0) - j.picco.deltaMs) <= 10,
           `${dove}: il VALORE del picco diverge (GUI «${g.reparto}» decifra ${msDi(dopoPicco)} vs JSON ${j.picco.deltaMs})`);
         // il settore del picco si ripete SOLO se diverso dalla mediana
-        if (j.picco.sector !== j.worstSector)
-          assert.ok(new RegExp(`(\\b|-)S${j.picco.sector}(\\b|\\s)`).test(dopoPicco),
-            `${dove}: il picco (S${j.picco.sector} ≠ mediana S${j.worstSector}) non nomina il SUO settore (GUI «${g.reparto}»)`);
+        assert.ok(j.picco.sector === j.worstSector || new RegExp(`(\\b|-)S${j.picco.sector}(\\b|\\s)`).test(dopoPicco),
+          `${dove}: il picco (S${j.picco.sector} ≠ mediana S${j.worstSector}) non nomina il SUO settore (GUI «${g.reparto}»)`);
       } else {
         assert.ok(!new RegExp(parolaPicco, 'i').test(g.reparto), `${dove}: la GUI grida «${parolaPicco}» ma il JSON non lo porta (riga: «${g.reparto}»)`);
       }

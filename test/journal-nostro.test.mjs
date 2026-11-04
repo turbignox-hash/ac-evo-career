@@ -29,7 +29,7 @@ process.env.EVO_DATA_DIR = DATA;
 // progetto del modulo root=null, nessuna caduta sui journal veri di QUESTA macchina).
 process.env.APP_JOURNAL_DIR = join(tmpdir(), '__non-esiste-pd-nodo-qui__');
 
-const { journalPathForSave, mirrorJournal, meteoParole,
+const { journalPathForSave, meteoParole,
   calendarioDaLadder, loadLadder } = await import('../src/journal.mjs');
 const { appRoot, appCalendar, appOverview, appNextRace,
   journalNostroCacheClear, appCacheClear, rondaDelCalendario } =

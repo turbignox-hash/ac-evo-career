@@ -98,11 +98,9 @@ test('stintsFromLd legge una sessione REALE: stint coerenti con i giri', { skip 
   assert.equal(st.stints.reduce((s, k) => s + k.nLaps, 0), validLen);
   // il best stint è quello col ritmo medio migliore: definizione = comparazione
   assert.equal(st.bestStint.avgLapSec, Math.min(...st.stints.map((s) => s.avgLapSec)));
-  if (st.fuelPace) {
-    assert.ok(Number.isFinite(st.fuelPace.secPerLiter));
-    assert.equal(st.fuelPace.n, validLen);
-    assert.ok(st.fuelPace.fuelSpread >= 2);
-  }
+  assert.ok(!st.fuelPace || Number.isFinite(st.fuelPace.secPerLiter));
+  assert.ok(!st.fuelPace || st.fuelPace.n === validLen);
+  assert.ok(!st.fuelPace || st.fuelPace.fuelSpread >= 2);
 });
 
 test('stintsFromLd rifiuta un file che non c\'è', () => {

@@ -60,12 +60,10 @@ test('/api/istantanea: sola lettura, 200 sempre, istantanea null NELLA SANDBOX v
       assert.equal(r.j?.ok, true, 'ok deve essere true (il formato è del server)');
       const i1 = r.j?.istantanea;
       assert.ok(i1 === null || i1 === undefined || typeof i1 === 'object', 'istantanea: null oppure un oggetto, mai una stringa/numero');
-      if (i1) {
-        // PC dove le strade del gioco risolvono ai file VERI: la forma giusta
-        assert.ok(i1.durata && ('giri' in i1.durata || 'min' in i1.durata), 'durata: giri o minuti');
-        if (i1.banda != null) assert.match(String(i1.banda), /^\d+–\d+$/, 'banda in forma LO–HI');
-        if (i1.pista != null) assert.equal(typeof i1.pista, 'string', `pista: stringa (ricevuto ${typeof i1.pista})`);
-      }
+      // PC dove le strade del gioco risolvono ai file VERI: la forma giusta
+      assert.ok(!i1 || (i1.durata && ('giri' in i1.durata || 'min' in i1.durata)), 'durata: giri o minuti');
+      assert.ok(!i1 || i1.banda == null || /^\d+–\d+$/.test(String(i1.banda)), 'banda in forma LO–HI');
+      assert.ok(!i1 || i1.pista == null || typeof i1.pista === 'string', 'pista: stringa');
     }
   } finally {
     child.kill();

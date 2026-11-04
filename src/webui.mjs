@@ -133,7 +133,7 @@ import { mailbox } from './mailbox.mjs';
 import {
   agendaDay, prossimoGiornoConGara, avanzaGiorno,
   racesOnDay, calendarStrip, dateLabel, MAX_SCELTE_PER_GIORNO, CADENZA_GIORNI,
-  choicesForDay, canChoose, recordChoice, impegni, shiftSeat,
+  choicesForDay, impegni, shiftSeat,
   scheduledDay, nextUnplayedRound, hasSeat,
   impostaOraRonda, agendaOra, portaGiornata, scegliRonda,
 } from './agenda.mjs';

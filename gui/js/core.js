@@ -485,7 +485,7 @@ async function render(){
     // Il ritardo di generazione NON è un guasto della vista (la corsa che lo
     // fa nascere ha già una vista più nuova inflight): butta la pagina che
     // NON deve proprio mostrare un posto in meno di println. Né con banner.
-    if (e && e.ritardoRender) return;
+    if (e?.ritardoRender) return;
     window.__renderErr = e.stack ?? String(e); m.innerHTML = `<div class="panel"><div class="banner bad">${esc(e.message)}</div></div>`;
   }
 }

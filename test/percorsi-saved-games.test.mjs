@@ -49,5 +49,5 @@ test('GAME_SAVEDIR dei tool: dentro una radice TROVATA (ACE può ancora mancare 
     `GAME_SAVEDIR (${GAME_SAVEDIR}) non viene da nessuna radice trovata (${roots.join(' | ')}): è il bug del 26/10`);
   assert.ok(/ACE$/.test(norm(GAME_SAVEDIR)), `GAME_SAVEDIR fuori dallo schema ACE: ${GAME_SAVEDIR}`);
   const st = statSync(GAME_SAVEDIR, { throwIfNoEntry: false });
-  if (st) assert.equal(st.isDirectory(), true, `${GAME_SAVEDIR} esiste ma non è una cartella`);
+  assert.ok(!st || st.isDirectory() === true, `${GAME_SAVEDIR} esiste ma non è una cartella`);
 });

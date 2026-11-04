@@ -106,28 +106,27 @@ test('il server GUI parte e serve le API chiave (boot, status, card, pagina)', a
     assert.equal(watcher.j.active, true, 'il watcher deve essere attivo');
 
     // 4) scheda gara e stato: SOLO se c'è una carriera da leggere (nel PC di Mauro c'è)
-    if (boot.j.hasCareer) {
-      const status = await getJson('/api/status');
-      assert.equal(status.code, 200, 'status deve rispondere 200 se c\'è una carriera');
-      assert.ok(status.j.header && status.j.econ, 'status deve contenere header ed econ');
+    const hasCareer = boot.j.hasCareer === true;
+    const status = hasCareer ? await getJson('/api/status') : null;
+    assert.ok(!hasCareer || status.code === 200, 'status deve rispondere 200 se c\'è una carriera');
+    assert.ok(!hasCareer || (status.j.header && status.j.econ), 'status deve contenere header ed econ');
 
-      const card = await getJson('/api/card');
-      assert.equal(card.code, 200, 'card deve rispondere 200 se c\'è una carriera');
-      assert.ok(card.j.nodeDisplay, 'card deve avere la serie attiva (nodeDisplay)');
-      assert.ok(Array.isArray(card.j.boxRadio?.tips), 'card boxRadio.tips deve essere un elenco (Consigli dal BOX)');
-      assert.ok(card.j.tyre, 'card.tyre deve esserci (classe gomme dell’auto)');
+    const card = hasCareer ? await getJson('/api/card') : null;
+    assert.ok(!hasCareer || card.code === 200, 'card deve rispondere 200 se c\'è una carriera');
+    assert.ok(!hasCareer || card.j.nodeDisplay, 'card deve avere la serie attiva (nodeDisplay)');
+    assert.ok(!hasCareer || Array.isArray(card.j.boxRadio?.tips), 'card boxRadio.tips deve essere un elenco (Consigli dal BOX)');
+    assert.ok(!hasCareer || card.j.tyre, 'card.tyre deve esserci (classe gomme dell’auto)');
 
-      // 5-bis) VERDETTO DI GIORNATA (/api/verdetto, 29/10): stesso aggregato
-      //    del tool CLI e delle fasce del cruscotto. Con ACE_DATA temporanea
-      //    NON ci sono gare oggi: md gentile «Nessuna gara» e gare [], MAI
-      //    un 500. Anche il prefisso esplicito (body.prefix) risponde uguale.
-      const verd = await getJson('/api/verdetto', 'POST', {});
-      assert.equal(verd.code, 200, 'verdetto deve rispondere 200 (anche senza gare oggi)');
-      assert.ok(verd.j, 'verdetto deve essere JSON');
-      assert.equal(typeof verd.j.md, 'string', 'verdetto.md deve esserci (anche con «Nessuna gara»)');
-      assert.equal(verd.j.gare.length, 0, 'cartella dati temporanea: nessuna gara di oggi');
-      assert.match(verd.j.md, /Nessuna gara/);
-    }
+    // 5-bis) VERDETTO DI GIORNATA (/api/verdetto, 29/10): stesso aggregato
+    //    del tool CLI e delle fasce del cruscotto. Con ACE_DATA temporanea
+    //    NON ci sono gare oggi: md gentile «Nessuna gara» e gare [], MAI
+    //    un 500. Anche il prefisso esplicito (body.prefix) risponde uguale.
+    const verd = hasCareer ? await getJson('/api/verdetto', 'POST', {}) : null;
+    assert.ok(!hasCareer || verd.code === 200, 'verdetto deve rispondere 200 (anche senza gare oggi)');
+    assert.ok(!hasCareer || verd.j, 'verdetto deve essere JSON');
+    assert.ok(!hasCareer || typeof verd.j.md === 'string', 'verdetto.md deve esserci (anche con «Nessuna gara»)');
+    assert.ok(!hasCareer || verd.j.gare.length === 0, 'cartella dati temporanea: nessuna gara di oggi');
+    assert.ok(!hasCareer || /Nessuna gara/.test(verd.j.md));
 
     // 4-bis) stint e gomme dal router garage (lesioni 28/10): con telemetria
     //    rispondono con i dati; senza sessioni ok:false + hint — MAI un 500.

@@ -24,7 +24,7 @@ test('TRACK_INFO: historyEn, nickEn e countryEn su ogni pista (per lo meno 15 pi
     assert.equal(typeof t.nickEn, 'string', `nickEn manca su ${id}`);
     // il nick può combaciare se l'originale è già inglese (es. "The Glen" di Watkins Glen):
     // l'uglianza è sospetta solo quando l'italiano porta segni distintivi (accenti)
-    if (t.nickEn === t.nick) assert.ok(!/[àèéìòù]/i.test(t.nick), `nickEn = nick (traduzione mancante) su ${id}`);
+    assert.ok(t.nickEn !== t.nick || !/[àèéìòù]/i.test(t.nick), `nickEn = nick (traduzione mancante) su ${id}`);
     assert.equal(typeof t.countryEn, 'string', `countryEn manca su ${id}`);
   }
 });

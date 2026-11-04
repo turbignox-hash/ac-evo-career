@@ -171,12 +171,9 @@ test('ab-list: le sessioni senza giri cronometrati NON entrano nei menu (né pre
     }
 
     // la porta posteriore dell'autopuntamento: prefer pesca SOLO fra le buone
-    if (j.prefer) {
-      for (const f of [j.prefer.fileA, j.prefer.fileB]) {
-        assert.ok(proposte.includes(f), `GUARDIA COLPITA: prefer propone «${f}» che non è fra le sessioni CON giri: ${JSON.stringify(j.prefer)}`);
-        assert.ok(!morte.includes(f), `GUARDIA COLPITA: prefer propone «${f}» senza giri cronometrati: ${JSON.stringify(j.prefer)}`);
-      }
-    }
+    const preferiti = j.prefer ? [j.prefer.fileA, j.prefer.fileB] : [];
+    assert.ok(preferiti.every((f) => proposte.includes(f)), `GUARDIA COLPITA: prefer propone una sessione che non è fra quelle CON giri: ${JSON.stringify(j.prefer)}`);
+    assert.ok(preferiti.every((f) => !morte.includes(f)), `GUARDIA COLPITA: prefer propone una sessione senza giri cronometrati: ${JSON.stringify(j.prefer)}`);
 
     // la porta posteriore dell'ULTIMA SCELTA: abBanco punta una senza giri →
     // il banco NON deve risuscitarla da `last`

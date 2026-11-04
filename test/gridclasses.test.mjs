@@ -87,9 +87,7 @@ test('campionato_aperto: classe e nodo ladder combaciano, base 0/0 e tutto sotto
     assert.ok((r.ballastKg ?? 0) <= (caps.ballastMaxKg ?? 100), `ballast ${r.auto} entro cap`);
     assert.ok((r.restrictorPct ?? 0) <= (caps.restrictorMaxPct ?? 20), `restrictor ${r.auto} entro cap (lezione 27/10: niente oltre il 20%)`);
     // non-base senza penalità: solo se documentata (240Z Standard PI sotto base = 0/0 è la sua legge giusta)
-    if ((r.ballastKg ?? 0) === 0 && (r.restrictorPct ?? 0) === 0) {
-      assert.ok(r.nota, `non-base a 0/0 richiede nota di giustificazione: ${r.auto}`);
-    }
+    assert.ok((r.ballastKg ?? 0) !== 0 || (r.restrictorPct ?? 0) !== 0 || r.nota, `non-base a 0/0 richiede nota di giustificazione: ${r.auto}`);
   }
   // preset unici: due regole che toccano lo stesso preset si sorpassano a vicenda
   const presets = cls.regole.filter((r) => r.preset).map((r) => r.preset);
@@ -114,9 +112,7 @@ test('campionato_sport_moderno: classe e nodo ladder combaciano, base 0/0 e rego
     if (r === base) continue;
     assert.ok((r.ballastKg ?? 0) <= (caps.ballastMaxKg ?? 100), `ballast ${r.auto} entro cap`);
     assert.ok((r.restrictorPct ?? 0) <= (caps.restrictorMaxPct ?? 20), `restrictor ${r.auto} entro cap (mai oltre il 20% del gioco)`);
-    if ((r.ballastKg ?? 0) === 0 && (r.restrictorPct ?? 0) === 0) {
-      assert.ok(r.nota, `non-base a 0/0 richiede nota di giustificazione: ${r.auto}`);
-    }
+    assert.ok((r.ballastKg ?? 0) !== 0 || (r.restrictorPct ?? 0) !== 0 || r.nota, `non-base a 0/0 richiede nota di giustificazione: ${r.auto}`);
   }
   const presets = cls.regole.filter((r) => r.preset).map((r) => r.preset);
   assert.equal(new Set(presets).size, presets.length, 'preset non duplicati');
@@ -148,9 +144,7 @@ test('campionati stile (28/10): epoca/moderno/strada/pista/corsa combaciano, bas
       assert.ok((r.ballastKg ?? 0) <= (caps.ballastMaxKg ?? 100), `${id}: ballast ${r.auto} entro cap`);
       assert.ok((r.restrictorPct ?? 0) <= (caps.restrictorMaxPct ?? 20), `${id}: restrictor ${r.auto} entro cap (mai oltre il 20%)`);
       assert.ok((r.restrictorPct ?? 0) % 0.5 === 0, `${id}: restrictor ${r.auto} a passi di 0.5%`);
-      if ((r.ballastKg ?? 0) === 0 && (r.restrictorPct ?? 0) === 0) {
-        assert.ok(r.nota, `${id}: non-base a 0/0 richiede nota di giustificazione: ${r.auto}`);
-      }
+      assert.ok((r.ballastKg ?? 0) !== 0 || (r.restrictorPct ?? 0) !== 0 || r.nota, `${id}: non-base a 0/0 richiede nota di giustificazione: ${r.auto}`);
     }
     const presets = cls.regole.filter((r) => r.preset).map((r) => r.preset);
     assert.equal(new Set(presets).size, presets.length, `${id}: preset non duplicati`);

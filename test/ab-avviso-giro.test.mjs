@@ -41,6 +41,7 @@ const fine = src.indexOf('/* -------------------- 4)');
 const vesta = inizio >= 0 && fine > inizio ? src.slice(inizio, fine) : src;
 
 test('il modale del banco porta il banner dell\'avviso del giro singolo', () => {
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: il segnaposto è il testo cercato nel sorgente, non un template da valutare
   assert.ok(vesta.includes('${avvisoGiro}'), 'GUARDIA COLPITA: il modale A/B non porta più ${avvisoGiro} — l\'avviso del giro singolo è sparito dal confronto');
 });
 

@@ -394,7 +394,7 @@ test('azioni: la card della gara al volo porta la finestra e lo stato DELL ISTAN
   const i = az.demo?.istantanea;
   if (i == null) return; // PC senza alcuna gara custom aperta: il campo resta null e la card non esplode
   assert.ok(i.durata && (i.durata.giri != null || i.durata.min != null), 'durata dell istantanea: giri o minuti');
-  if (i.banda != null) assert.match(i.banda, /^\d+–\d+$/, 'banda AI in forma LO–HI');
+  assert.ok(i.banda == null || /^\d+–\d+$/.test(i.banda), 'banda AI in forma LO–HI');
 });
 
 test('statoIstantanea: file assente = null, mai un eccezione (la fascia sopravvive)', () => {

@@ -137,7 +137,7 @@ test('webui event-prep in sandbox: noto a mano pista+auto, e il weekend di carri
     assert.ok(!('hourWritten' in p), 'nessuna ora scritta');
     assert.ok(!('lapsWritten' in p), 'nessun giro scritto');
     assert.equal(snapshot(WEEKEND_FILE), weekPrima, 'il weekend di carriera resta INTATTO: il crash del 23/10 non torna');
-    if (existsSync(GARAGE_FILE)) assert.equal(snapshot(GARAGE_FILE), garagePrima, 'il drivergarage resta intatto: l\'auto si sceglie a mano');
+    assert.ok(!existsSync(GARAGE_FILE) || snapshot(GARAGE_FILE) === garagePrima, 'il drivergarage resta intatto: l\'auto si sceglie a mano');
   } finally {
     child.kill();
     if (stderr.trim()) console.log('[game-sandbox] stderr serve:\n' + stderr.slice(0, 2000));

@@ -208,12 +208,13 @@ test('finishOrder: i RITIRANTI stanno tutti DOPO i classificati e i punti di chi
   const o = world.finishOrder(grid, node, 1, 0, null, ladder, []);
   // scan: subito dopo l'ultimo non ritirato NON ci sono classificati
   const ultimoClassificato = Math.max(...o.filter((e) => !e.dnf).map((e) => e.position));
-  for (const e of o) if (e.dnf) assert.ok(e.position > ultimoClassificato, 'ritiranti in fondo');
+  for (const e of o) assert.ok(!e.dnf || e.position > ultimoClassificato, 'ritiranti in fondo');
   // e punti: chi non dnf con pos<=10 prende dalla tabella; chi vince porta
   // ANCHE fl + pole (pointsForPos col vincitore di gara: il modello originario
   // lo dà ai round simulati, per il giocatore valgono i flag veri)
   for (const e of o) {
-    if (e.dnf) { assert.equal(e.points, 0, `Rivale ${e.name} ritirato: 0 punti`); continue; }
+    assert.ok(!e.dnf || e.points === 0, `Rivale ${e.name} ritirato: 0 punti`);
+    if (e.dnf) continue;
     const base = e.position < 11 ? ladder.pointsSystems.f1.table[e.position - 1] : 0;
     const bonus = e.position === 1 ? 2 : 0;   // flPoint 1 + polePoint 1
     assert.equal(e.points, base + bonus, `punti Rivale ${e.name}: pos ${e.position}`);
@@ -324,11 +325,9 @@ test('midSeasonPulse: hot/cold SONO membri della griglia e il rookie DEBUTTA sol
   assert.equal(e.rookie, null, 'non a metà: nessun debutto');
   // al round di metà calendario PUÒ entrare un rookie giovane (age <=21 fuori griglia)
   const e1 = world.midSeasonPulse(w, ladder, node, 1, 1);
-  if (e1.rookie != null) {
-    const r = w.drivers.find((d) => d.name === e1.rookie);
-    assert.ok(r.age <= 21, 'il debuttante è un GIOVANE del parco');
-    assert.ok(!nomi.has(e1.rookie), 'non poteva già essere nella griglia');
-  }
+  const r = e1.rookie != null ? w.drivers.find((d) => d.name === e1.rookie) : null;
+  assert.ok(e1.rookie == null || (r && r.age <= 21), 'il debuttante è un GIOVANE del parco');
+  assert.ok(e1.rookie == null || !nomi.has(e1.rookie), 'non poteva già essere nella griglia');
   // e la storia si RIPETE: stesso round = stessi nomi
   const e2 = world.midSeasonPulse(w, ladder, node, 1, 0);
   assert.deepEqual(e2.hot, e.hot, 'stesso round: stessi "in forma" — la storia non si riscrive');

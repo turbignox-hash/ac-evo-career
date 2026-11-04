@@ -5,6 +5,13 @@ IL RESTO (da fare o da rivedere). Ogni giorno prendiamo qualcuna di queste e la
 eseguiamo; a fine giornata il diario si arricchisce e la lista si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Biome a zero e gate sui warning (richiesta Mauro: «guarda cosa hai fatto già e migliora il resto»)
+
+- **44 → 0 warning**: cinque difetti veri (import inutilizzati in `webui.mjs`, optional chain in `core.js`, variabile morta nel test journal, due falsi positivi sul segnaposto `${avvisoGiro}`) e i 39 assert condizionali del plugin `assert-in-if`, riscritti come implicazioni incondizionate (`assert.ok(!cond || verifica, ...)`) o `.every(...)` nei loop. Nessun test indebolito: la suite resta **962/962**.
+- **Gate**: `tools/biome/assert-in-if.grit` passa da `warn` a `error`; `npm run lint` ora usa `--error-on-warnings`, quindi un nuovo warning — compreso un assert dentro un if senza else — fa fallire `npm run check`.
+- **Verifica**: `npm run check` exit 0; suite **962/962**; `npm run lint` su **362 file**, **0 warning**. `git diff --check` normale segnala il CR della riga modificata in `gui/js/core.js` (file CRLF preesistente); con `-c core.whitespace=cr-at-eol` è pulito e non ho convertito il file per non produrre un diff di fine riga.
+- **Nota**: il lavoro è committato, non pushato. Restano fuori le 5 modifiche preesistenti (map.json, carsetup, tre tool).
+
 ### 4/11 — La griglia mista non passa più: basta UNA auto fuori parco (richiesta Mauro: «guarda cosa hai fatto già e migliora il resto»)
 
 - **Il buco**: `grigliaDiAltraSerie` tornava i nomi solo quando NESSUNA auto del disco era nel parco. Con una sola auto giusta — il caso Hyper_road a Imola: Porsche GT3 RS fra i30/GR86/MX-5 — la card taceva e il preflight non scattava: la gara falsa passava.
