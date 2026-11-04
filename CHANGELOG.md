@@ -16,7 +16,7 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 - **Guardia anti-regressione**: nuovo test che scansiona codice e
   documentazione e fallisce se ricompare un riferimento al prodotto
   esterno, con l'unica eccezione del nome reale della curva di Brands Hatch.
-- **Verifica**: `npm test` **891/891**, `npm run lint` **357 file, 0 warning**;
+- **Verifica**: `npm test` **891/891**, `npm run lint` **358 file, 0 warning**;
   app in gioco riallineate (`test/uiapp-installata.test.mjs` 8/8).
 
 ## v0.1.54 — 3/11/2026
