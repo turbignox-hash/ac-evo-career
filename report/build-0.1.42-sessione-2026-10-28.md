@@ -10,7 +10,7 @@ _Data: 2026-10-28 · Aggiornamento prossimo: **v0.1.42** (lo fa salire `sincroni
   round, cambio stagione e copia del foglio. Titoli deterministici.
 - **La classifica sim corre sul campo largo ovunque.** La
   griglia simulata prende il MASSIMO campo visto nelle gare reali
-  (`grigliaSimEstesa`): adesso anche paddock, respiro di metà stagione, viste
+  (`grigliaSimEstesa`): adesso anche i piloti, respiro di metà stagione, viste
   (header, elenco serie, clausole di contratto), duello della stagione,
   montecarlo dei sedili e la **griglia tipica** nelle card (serie, agenda, CLI
   `series`). Re-verifica di realismo a campo largo: vittorie dei primi tre

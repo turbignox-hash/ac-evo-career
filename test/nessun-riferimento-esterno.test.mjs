@@ -4,8 +4,8 @@
 // niente journal, canali, chiavi o tool collegati. L'unica eccezione è
 // «Paddock Hill», il nome reale della curva di Brands Hatch. La guardia gira
 // anche nella cartella estratta dallo zip, quindi non usa git: legge i file
-// di testo del progetto e ignora data/ (save utente), report/ (storia già
-// pubblicata), pacchetti/, dist/ e le risorse grafiche.
+// di testo del progetto e ignora data/ (save utente), pacchetti/, dist/ e le
+// risorse grafiche.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -16,13 +16,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SELF = 'test/nessun-riferimento-esterno.test.mjs';
 const SKIP = new Set([
   '.git', 'node_modules', 'data', 'dist', 'pacchetti', 'archive', 'demo',
-  'tmp', 'report', 'gui/carmaps', 'gui/trackmaps',
+  'tmp', 'gui/carmaps', 'gui/trackmaps',
 ]);
 const TESTO = /\.(?:mjs|js|cjs|json|md|txt|cmd|html|css|ya?ml)$/i;
 // Composto a pezzi: così la guardia non trova sé stessa mentre si legge.
 const MARCHIO = ['pad', 'dock'].join('');
 const CONSENTITO = new RegExp(MARCHIO + ' +Hill', 'gi');
-const VIETATO = new RegExp('\b' + MARCHIO + '\b|\bpd-|APP_JOURNAL_DIR|__pd|rondaPaddock', 'i');
+const VIETATO = new RegExp('\b' + MARCHIO + '\b|\bpd-|APP_JOURNAL_DIR|__pd|ronda' + MARCHIO, 'i');
 
 function raccogli(dir, out = []) {
   for (const voce of readdirSync(dir, { withFileTypes: true })) {

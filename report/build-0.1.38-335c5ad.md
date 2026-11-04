@@ -2,11 +2,11 @@
 _Data: 2026-10-27 · Aggiornamento da **v0.1.37**_
 
 ## Correzioni e novità
-- Copilota di nuovo parlante in italiano (+ prova sul cruscotto) e widget in gioco + Paddock · 3f88f4e
+- Copilota di nuovo parlante in italiano (+ prova sul cruscotto) e widget in gioco + app esterna · 3f88f4e
 - Guide aggiornate: copilota sempre italiano (♪ prova sul cruscotto) e widget in gioco · a1dd68c
 - Statistiche con medie per gara, classifica mondiale spiegata nel README e due bachi Biome · a523ca2
 - Mondiale più visibile dal Cruscotto, economia per serie in Statistiche e soprannomi in blocco · 435ec15
-- Documento di presentazione bilingue IT/EN: punti di forza di Pitwall, con la storiella del confronto su Paddock · facde13
+- Documento di presentazione bilingue IT/EN: punti di forza di Pitwall, con la storiella del confronto con l'app esterna · facde13
 - Widget Cruscotto in gioco: mini-classifica della serie, pannello mondiale e collegamento alla GUI · b631b8f
 - Ore distinte per sessione (prove, qualifica, warm-up, gara): scritti nei blocchi del gamemodesave con setRaceSessions, warm-up e ora gara come override in regole gara, pannello GUI coi due nuovi campi · 086f4c7
 - Navigazione stile Football Manager: tutto cliccabile · a486e67

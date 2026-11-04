@@ -12,7 +12,7 @@
 - **Builder delle tinte intero (DA-10)**: bilancio per famiglia, tinte
   prestate opt-in, vetrina delle livree (CLI `griglia`, WebUI, tab Griglia
   della GUI con grido monocolore «più LIVERIES + APPLICA»).
-- **Celle sintetiche col preset vero** (come Paddock): niente più varianti
+- **Celle sintetiche col preset vero** (come l'app esterna): niente più varianti
   pesanti invischiati — riscossa Standard ovunque, conteggio del CLI
   allineato al gamemodesave, e la volante del centro gare non copre più il
   bottone «scegli per oggi».

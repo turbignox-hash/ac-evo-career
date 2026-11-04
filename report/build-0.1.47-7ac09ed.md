@@ -3,7 +3,7 @@ _Data: 2026-11-01 · Aggiornamento da **v0.1.43**_
 
 ## Correzioni e novità
 - Fabbrica completa: griglia di fabbrica del Campionato Corsa (pool da 2, BMW M4 GT3 vs Ferrari 296 GT3) e regola del builder che rifiuta solo i file che NON portano l'intero pool dichiarato da 2 vetture — le serie, 86 su 86 con calendario, hanno ora la loro griglia in config/griglie-fabbrica. · b4a8e9d
-- Fissata la riga: /api/paddock risponde col JSON composto anche senza carriera (era nell'elenco needsCareer per sbaglio; il case non legge lo stato) — fatalità dell'installazione vergine dell'amico chi riceveva un 400 nudo e crudo al posto di consigli { live:false, tips:[] }. · 5008f99
+- Fissata la riga: /api/app risponde col JSON composto anche senza carriera (era nell'elenco needsCareer per sbaglio; il case non legge lo stato) — fatalità dell'installazione vergine dell'amico chi riceveva un 400 nudo e crudo al posto di consigli { live:false, tips:[] }. · 5008f99
 - Corpo della release v0.1.43: riepilogo delle serie di fabbrica, guardie estese, gara al volo e prove del pacchetto amico. · 9cd4e35
 - Diario: collaudo libero del vergine — carriera falsa via CLI e sim di PC senza ACE, con stato di errore onesto in ogni pannello (nessun 400 nudo); badge Fuoriclasse e barra aggiornamenti nel pacchetto confermati come design. · ab24159
 - Collaudo dal vivo sul vergine senza ACE: /api/system-health 500 a ogni poll e schede Risultati/Piste in errore nudo — paths NULL ora dà liste vuote oneste in listResultFiles e telemScanLocale (test percorsi-null). · b1fc769
@@ -30,10 +30,10 @@ _Data: 2026-11-01 · Aggiornamento da **v0.1.43**_
 - docs: SESSION_REPORT — palestra sazio chiusa (3/3 mutazioni cadute, 660/0) · 83b9e5c
 - docs+build: release 0.1.44 preparata — bump patch, CHANGELOG e diario · e4f805b
 - docs: SESSION_REPORT — release 0.1.44 preparata (check, danza amico, bump) · d3cc411
-- feat(cruscotto): auto sconosciute per ID al volo (come Paddock, la Mini) + meteo/ora della ronda a comando · 0f2982f
+- feat(cruscotto): auto sconosciute per ID al volo (come l'app esterna, la Mini) + meteo/ora della ronda a comando · 0f2982f
 - sessione 31/10: difesa API solo-POST, learn-car formato 3 (spawn del player), verdetto senza prefisso · 52ef20f
-- uiapp-pub: kill-switch meteo/ora al volo (hint crash 0xC0000005) + fasce 500ms del Paddock nel tick · df05ce4
-- griglie: celle sintetiche col preset vero (come Paddock), varianti pesanti tutte Standard, conteggio CLI allineato e volante centro gare esterna — sessione 31/10 · 879b09a
+- uiapp-pub: kill-switch meteo/ora al volo (hint crash 0xC0000005) + fasce 500ms dell'app esterna nel tick · df05ce4
+- griglie: celle sintetiche col preset vero (come l'app esterna), varianti pesanti tutte Standard, conteggio CLI allineato e volante centro gare esterna — sessione 31/10 · 879b09a
 - difesa anti-colpo: la GET /api/life non scrive piu il save (SOLO_POST), sonda promossa e test di regressione — release 0.1.44 · 6a29f8b
 - release 0.1.45: banda di serie nel customgrid (aiBandSerie), cielo per sessione del weekend (wx-session), orologio di giornata nel cruscotto e pitwall, ponte 🌉 anche dal quadro garage (srcFile in all:true) — 697 test verdi · 6f796e1
 - rapporto release 0.1.45: prove complete (697 test,lint,prova live, danza amico 24/24) e zip con impronta · 16abeb4

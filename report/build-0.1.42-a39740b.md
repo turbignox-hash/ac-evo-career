@@ -8,8 +8,8 @@ _Data: 2026-10-28 · Aggiornamento da **v0.1.41**_
 - diario: la gazzetta impara a ricordare (titoli per-round + foglio di stagione) · 7fac658
 - griglia sim: la classifica corre larga quanto il massimo visto nei risultati reali · d36d31b
 - nota di automazione: la griglia sim allargata alla griglia vera (30/10) · 99a1cc8
-- paddock e respiro di metà stagione sul campo largo della classifica · 264ae47
-- nota: completata la coerenza del campo largo (paddock + pulse) · b3ab4d4
+- piloti e respiro di metà stagione sul campo largo della classifica · 264ae47
+- nota: completata la coerenza del campo largo (piloti + pulse) · b3ab4d4
 - nota: verifica del campo largo alla misura di realismo (titoli restano in gioco) · 2ad1a11
 - griglia tipica nelle card: serie, agenda e CLI series sul campo largo · e1a898c
 - test: UCCIDE il flaky del test CAR_MISSING (bak-apply del minutato) · 6c961c5

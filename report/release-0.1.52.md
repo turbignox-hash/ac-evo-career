@@ -40,23 +40,23 @@ i difetti sul vivo.
 **Il dizionario vivente**
 
 - **La fattoria è `ui_storage.uistorage`**: il gioco scrive IN CHIARO
-  `paddock.skins` (car_guid già sdoppiata come chiave del garage + display
+  la chiave skin dell'app esterna (car_guid già sdoppiata come chiave del garage + display
   name ufficiale), senza kspkg cifratura: nuova sorgente
   `learnCarFromStorage` (CLI `--from-storage`) agganciata al boot
   (learn-car 9/9, poi 11/11 col tagliando).
 - **Il tagliando diventa regola comune** (helper `soloRaddoppio` usato da
-  learner e paddock): «Mazda Mazda» → «Mazda», sinonimi con rumore NON
+  learner e app esterna): «Mazda Mazda» → «Mazda», sinonimi con rumore NON
   toccati (learn-car 21/21; import + gara-veloce 17/17).
 - **Auto-correzione**: le voci CONTRADDETTE vengono rietichettate col nome
   vero e il disco riceve le correzioni anche a `added` = 0 (la sera
   dell'Endurance GT4 Audi R8 «Kunos Abarth 695 Biposto»: rientrata;
   learn-car 6/6).
 - **Il watch respira**: il rinfresco del dizionario gira a ogni tick
-  (anche l'apprendimento per iscrizione in paddock), chiamato UNA volta
+  (anche l'apprendimento per iscrizione nell'app esterna), chiamato UNA volta
   per tick, con riga verde quando impara e zitto a vuoto; il battito
   arriva a `status` (8/8) e in gioco. Test cli-watch 18/18.
 - **Le catene di lettura, una volta per tutte**: calendario, garage,
-  dizionario leggono SOLO file scritti dal gioco (pd-calendar con
+  dizionario leggono SOLO file scritti dal gioco (calendario del gioco con
   fall-back sul mirror journal); il magazzino L: esce dal boot, resta solo
   backup zip; la fattoria dei campioni a mano è utensile di emergenza.
 - **Il cerchio col mirror**: la scheda gara segue la ronda del calendario

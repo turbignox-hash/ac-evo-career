@@ -9,7 +9,7 @@ _Data: 2026-10-28 · Aggiornamento da **v0.1.39**_
 - Copilota: impronta di sessione dalla MMF, niente posizioni vecchie all'avvio gara · 10cb3b7
 - Centro gare: la scheda nata dal hover si chiude appena esci dalla card · 2d04125
 - Gamemodesave: lettura di riserva dagli snapshot quando il file vivo resta indecodificabile · b698f02
-- Cambio auto in gioco: sequenza completa di Paddock (tipo gara, pista, auto) e riprova ragionata · 30eb85d
+- Cambio auto in gioco: sequenza completa dell'app esterna (tipo gara, pista, auto) e riprova ragionata · 30eb85d
 - Campionati procedurali: pescaggio a sorte i cinque livelli + schede in GUI (seed, pool, regole, calendario) · build di fine sessione · cca094c
 
 - Biome quality-gate (src + gui): nessuna diagnostica ✅
