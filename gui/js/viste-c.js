@@ -494,6 +494,12 @@ function lapChartSvg(t){
   const zeroY = yDelta(0);
   const dvPath = C ? C.dv.map((dv, i) => `${i ? 'L' : 'M'}${x(P[i].x).toFixed(1)},${yDelta(dv).toFixed(1)}`).join(' ') : '';
   const cmpLine = C ? `<path d="${pol(P.map((p, i) => p.v - C.dv[i]), yV)}" fill="none" stroke="#f96" stroke-width="2" stroke-dasharray="6 4"/>` : '';
+  const co = t.coaching;
+  const coHtml = co?.corners?.length ? `<div style="margin-top:10px">
+    <b>🎯 ${tr({ it: 'Coaching curva per curva', en: 'Corner-by-corner coaching' })}</b> <span class="muted" style="font-size:11.5px">· ${tr({ it: 'giro ', en: 'lap ' })}${co.lap ?? t.lap} vs ${co.compare ?? ''} · ${tr({ it: 'Δ positiva = stacchi più tardi o passi più veloce', en: 'positive delta = you brake later or carry more speed' })}</span>
+    <table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Curva', en: 'Corner' })}</th><th class="right">${tr({ it: 'Apex', en: 'Apex' })}</th><th class="right">Δ apex</th><th class="right">${tr({ it: 'Staccata', en: 'Braking' })}</th><th class="right">Δ staccata</th><th class="right">${tr({ it: 'Uscita', en: 'Exit' })}</th><th class="right">Δ uscita</th></tr></thead><tbody>
+    ${co.corners.map((c) => `<tr><td>#${c.n}</td><td class="right">${c.apexKmh} km/h</td><td class="right"><b style="color:${c.dApexKmh >= 0 ? 'var(--ok,#7f7)' : '#ff9b9b'}">${c.dApexKmh >= 0 ? '+' : ''}${c.dApexKmh}</b></td><td class="right">${c.entryM} m</td><td class="right"><b style="color:${c.dEntryM <= 0 ? 'var(--ok,#7f7)' : '#ff9b9b'}">${c.dEntryM >= 0 ? '+' : ''}${c.dEntryM} m</b></td><td class="right">${c.exitKmh} km/h</td><td class="right">${c.dExitKmh >= 0 ? '+' : ''}${c.dExitKmh}</td></tr>`).join('')}
+    </tbody></table></div>` : '';
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;background:#0d1118;border:1px solid var(--line);border-radius:8px">
     <line x1="${PAD}" y1="${zeroY}" x2="${W - PAD / 2}" y2="${zeroY}" stroke="var(--line2)"/>
     <line x1="${PAD}" y1="${yV(0)}" x2="${PAD}" y2="${yV(maxV)}" stroke="var(--line2)"/>
@@ -507,7 +513,7 @@ function lapChartSvg(t){
     ${C ? `<path d="${dvPath}" fill="none" stroke="#7f7" stroke-width="1.6"/>` : ''}
     ${cmpLine}
     <path d="${pol(P.map((p) => p.v), yV)}" fill="none" stroke="#8fa" stroke-width="2.4"/>
-  </svg>`;
+  </svg>${coHtml}`;
 }
 
 /* -------- setup / pressioni -------- */
@@ -1132,12 +1138,13 @@ async function drawSetup(m){
         <td class="right">${sec(s.bestLapSec)}</td>
         <td class="right">${s.fuelPerLap != null ? s.fuelPerLap + ' L' : '—'}</td>
         <td class="right">${s.degradation ? `<span style="color:${s.degradation.deltaSec > 0.1 ? '#ff9b9b' : 'var(--ok,#7f7)'}">${s.degradation.deltaSec >= 0 ? '+' : ''}${s.degradation.deltaSec.toFixed(2)} s</span>` : '—'}</td>
+        <td class="right">${s.debrief?.consistencyPct != null ? `${s.debrief.consistencyPct}% <span class="muted" style="font-size:11px">±${s.debrief.stdSec.toFixed(2)}s</span>` : '—'}</td>
       </tr>`).join('');
       const fp = st?.fuelPace ?? null;
       const fpHtml = fp ? `<div class="banner info" style="margin-top:8px;padding:8px 10px">⚖️ ${tr({ it: 'Peso del carburante MISURATO sui tuoi giri: ', en: 'Fuel weight MEASURED on your laps: ' })}<b>${fp.secPerLiter >= 0 ? '+' : ''}${fp.secPerLiter.toFixed(3)} ${tr({ it: 's per litro', en: 's per litre' })}</b> <span class="muted" style="font-size:11.5px">(${fp.n} ${tr({ it: 'giri campionati', en: 'laps sampled' })}, ${tr({ it: 'benzina da ', en: 'fuel from ' })}${fp.fuelSpread} L)</span></div>` : '';
       const stintHtml = st?.ok ? `
-        <table><thead><tr><th>${tr({ it: 'Stint', en: 'Stint' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'Num. giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'Media', en: 'Average' })}</th><th class="right">${tr({ it: 'Migliore', en: 'Best' })}</th><th class="right">${tr({ it: 'L/giro', en: 'L/lap' })}</th><th class="right">${tr({ it: 'Degrado', en: 'Degradation' })}</th></tr></thead>
-        <tbody>${stintRows || `<tr><td colspan="8" class="muted">${tr({ it: 'Nessuno stint valido nella sessione.', en: 'No valid stint in the session.' })}</td></tr>`}</tbody></table>${fpHtml}` : '';
+        <table><thead><tr><th>${tr({ it: 'Stint', en: 'Stint' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'Num. giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'Media', en: 'Average' })}</th><th class="right">${tr({ it: 'Migliore', en: 'Best' })}</th><th class="right">${tr({ it: 'L/giro', en: 'L/lap' })}</th><th class="right">${tr({ it: 'Degrado', en: 'Degradation' })}</th><th class="right">${tr({ it: 'Costanza', en: 'Consistency' })}</th></tr></thead>
+        <tbody>${stintRows || `<tr><td colspan="9" class="muted">${tr({ it: 'Nessuno stint valido nella sessione.', en: 'No valid stint in the session.' })}</td></tr>`}</tbody></table>${fpHtml}` : '';
       const RUOTE = ['LF', 'RF', 'LR', 'RR'];
       const ruotaLbl = (w) => ({ LF: tr({ it: 'ant sx', en: 'front left' }), RF: tr({ it: 'ant dx', en: 'front right' }), LR: tr({ it: 'post sx', en: 'rear left' }), RR: tr({ it: 'post dx', en: 'rear right' }) })[w] ?? w;
       const gommaRows = RUOTE.filter((w) => go?.temps?.[w]).map((w) => {

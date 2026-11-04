@@ -336,6 +336,16 @@ export function parseGraphics(buf) {
     raceCutGainedMs: i32(GFX.raceCutGainedMs),
     raceCutDelta: f32(GFX.raceCutCurrentDelta),
     cutDeadline: i32(GFX.distanceToDeadline),
+    // TEMPERATURE FRENO (4/11): brake_temp_c esiste nella struct TyreState
+    // (offset 16, dopo slip/lock/pression/temp) ma non veniva mai letto: ora
+    // esce in °C per ruota [LF, RF, LR, RR]. Fuori da 0–1500 °C è spazzatura
+    // del buffer, non un dato: null.
+    brakeTempC: (() => {
+      const out = ['tyreLF', 'tyreRF', 'tyreLR', 'tyreRR']
+        .map((k) => f32(GFX[k] + 16))
+        .map((v) => (Number.isFinite(v) && v > 0 && v < 1500 ? Math.round(v) : null));
+      return out.some((v) => v != null) ? out : null;
+    })(),
     driverName: str(GFX.driverName),
     driverSurname: str(GFX.driverSurname),
     carModel: str(GFX.carModel),

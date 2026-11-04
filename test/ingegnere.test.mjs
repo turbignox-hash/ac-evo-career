@@ -304,3 +304,37 @@ test('engineerLive: DIAGNOSI DI SETUP DAL VIVO (4/11) — pressioni vs target e 
   assert.ok(!engineerLive({ live: true, session: { type: 'Race' }, player: { ...base, tyreCoreTemp: [95, 98, 96, 97] } }, {}).tips.some((t) => t.icon === '🌡️'), 'spread 3°: il box tace');
   assert.ok(!engineerLive(snap, {}).tips.some((t) => /Pressioni|Gomma .* a \d+°C/.test(t.title)), 'senza dati live: nessun consiglio di setup inventato');
 });
+
+test('undercut: gap 1.4 s e degrado 0.1 s/giro → rientra ora', () => {
+  const snap = { live: true, session: { type: 'Race' }, player: {
+    fuel: 40, lapsTotal: 40, lapsDone: 10, tyreWear: [0.2, 0.2, 0.2, 0.2], tyreCoreTemp: [80, 80, 80, 80],
+    gapAhead: 1.4, gapBehind: null,
+  } };
+  const out = engineerLive(snap, { degSecPerLap: 0.1 });
+  const tip = out.tips.find((t) => /Undercut/.test(t.title));
+  assert.ok(tip, 'la radio deve proporre l undercut');
+  assert.match(tip.text, /esci davanti/);
+  assert.equal(out.gauges.pitBattle.action, 'undercut');
+});
+
+test('overcut: 2 s di cuscinetto e degrado 0.1 → resta fuori 20 giri', () => {
+  const snap = { live: true, session: { type: 'Race' }, player: {
+    fuel: 40, lapsTotal: 40, lapsDone: 10, tyreWear: [0.2, 0.2, 0.2, 0.2], tyreCoreTemp: [80, 80, 80, 80],
+    gapAhead: null, gapBehind: 2,
+  } };
+  const out = engineerLive(snap, { degSecPerLap: 0.1 });
+  const tip = out.tips.find((t) => /Overcut/.test(t.title));
+  assert.ok(tip);
+  assert.match(tip.title, /20 giri/);
+  assert.equal(out.gauges.pitBattle.overcut.holdLaps, 20);
+});
+
+test('senza degrado misurato la radio non inventa la strategia', () => {
+  const snap = { live: true, session: { type: 'Race' }, player: {
+    fuel: 40, lapsTotal: 40, lapsDone: 10, tyreWear: [0.2, 0.2, 0.2, 0.2], tyreCoreTemp: [80, 80, 80, 80],
+    gapAhead: 1.4, gapBehind: null,
+  } };
+  const out = engineerLive(snap, {});
+  assert.equal(out.gauges.pitBattle, undefined);
+  assert.equal(out.tips.find((t) => /Undercut|Overcut/.test(t.title)), undefined);
+});

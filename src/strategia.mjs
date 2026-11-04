@@ -64,3 +64,51 @@ export function weatherScenarios({ lapsLeft, changeLap, slickPenaltySecPerLap = 
   ];
   return scenarios.sort((a, b) => a.extraSec - b.extraSec);
 }
+
+/**
+ * Battaglia ai box: UNDERCUT e OVERCUT dai numeri misurati.
+ *
+ * Modello esplicito, niente dati inventati:
+ *  - `degSecPerLap` è il degrado del ritmo MISURATO da usura-gomme sul tuo .ld;
+ *  - `pitLossSec` è il costo della sosta (default 30 s, come la finestra pit);
+ *  - il break-even è `pitLoss / degrado`: quanti giri di gomma fresca servono
+ *    per ripagare una sosta. Entro quel numero di giri la gomma fresca vale
+ *    `deg * giri` secondi: è la finestra d'attacco.
+ *
+ * UNDERCUT: sei dietro a `gapAheadSec` e la finestra vale più del gap → rientra
+ * ora, esci davanti. OVERCUT: sei davanti a `gapBehindSec`; il cuscinetto diviso
+ * per il degrado dice quanti giri puoi restare fuori prima che l'inseguitore
+ * ti sia addosso — se lui rientra prima, la posizione è tua.
+ * Con dati incompleti (niente degrado, niente giri, niente gap) → null: la
+ * radio tace invece di inventare una strategia.
+ */
+export function pitBattle({ gapAheadSec, gapBehindSec, degSecPerLap, pitLossSec = 30, lapsLeft, maxGapSec = 5 } = {}) {
+  const deg = Number(degSecPerLap);
+  const pit = Number(pitLossSec);
+  const laps = Number(lapsLeft);
+  const gapA = Number(gapAheadSec);
+  const gapB = Number(gapBehindSec);
+  if (!Number.isFinite(deg) || deg <= 0) return null;
+  if (!Number.isFinite(pit) || pit <= 5) return null;
+  if (!Number.isFinite(laps) || laps < 3) return null;
+  if (!Number.isFinite(gapA) && !Number.isFinite(gapB)) return null;
+
+  const breakEvenLaps = Math.ceil(pit / deg);
+  const usableLaps = Math.min(Math.floor(laps), breakEvenLaps);
+  const gainSec = r2(deg * usableLaps);
+
+  const undercut = Number.isFinite(gapA) && gapA > 0 && gapA <= maxGapSec
+    ? { gapSec: r2(gapA), netSec: r2(gainSec - gapA), possible: gainSec - gapA > 0 }
+    : null;
+  const overcutLaps = Number.isFinite(gapB) && gapB > 0 && gapB <= maxGapSec
+    ? Math.floor(gapB / deg)
+    : null;
+  const overcut = overcutLaps != null
+    ? { gapSec: r2(gapB), holdLaps: overcutLaps, possible: overcutLaps >= 1 }
+    : null;
+
+  const action = undercut?.possible ? 'undercut'
+    : overcut?.possible ? 'overcut'
+    : 'stay';
+  return { action, breakEvenLaps, usableLaps, gainSec, undercut, overcut, degSecPerLap: r2(deg), pitLossSec: Math.round(pit), lapsLeft: Math.floor(laps) };
+}

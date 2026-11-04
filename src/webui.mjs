@@ -53,12 +53,13 @@ import { recordHotlaps, hotlapSweep, hotlapsLog, hotlapsStats, hotlapsProgress, 
 import { recordWarning, readWarnings } from './warnings.mjs';
 import { fourPsi, startPsiFromLive, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
 import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, telemDiagnostics, lapTrace, sampleLap, sessionMetaOf, parseLdx } from './motec.mjs';
+import { coachingOfSamples } from './telemetria-curve.mjs';
 // stinti.mjs e usura-gomme.mjs leggono la STESSA telemetria MoTeC: stint
 // spezzati dai rifornimenti veri e usura gomme (degrado ritmo + temperature)
 // entrano nel box e da terminale, sempre da file .ld reali (richiesta 28/10).
 import { stintsFromLd } from './stinti.mjs';
 import { seatStintInputs, stintPlanOf, stintStopAlert } from './stint-plan.mjs';
-import { tyreWearFromLd } from './usura-gomme.mjs';
+import { tyreWearFromLd, lapDegradation } from './usura-gomme.mjs';
 import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
 import { parseSetup, listSetups, writeSetupCopy, brakePlanOf, annotateAllyAdvice, bridgeSetup } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
@@ -603,6 +604,7 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
   let snap = r.snapshot();
   // vigia del lettore sordo (29/10): live ma «sconosciuta» → riciclo al 15 s
   if (await vigiaSordo(r, snap)) snap = r.snapshot();  let raceLaps = null, fuelPerLap = null, telemTrack = null;
+  let degSecPerLap = null;   // degrado del ritmo misurato (usura-gomme), per undercut/overcut
   /* LEGGERO (29/10 sera): quando serve SOLO la voce del Pitwall, niente raceCard
      né albero MoTeC — su disco lento valgono decine di secondi per richiesta e
      il tick radio in gara si incartava dietro la spazzata (così il 28/10 la
@@ -660,6 +662,12 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
         // non «telemetria su ImolaGP» (prettyTrackLabeled del banco A/B).
         telemTrack = sess.track ? (prettyTrackLabeled(ladder, sess.track) ?? sess.track) : null;
       }
+      // DEGRADO MISURATO dalla telemetria della stessa auto: è il numero che
+      // trasforma gap e pit loss in una decisione undercut/overcut.
+      if (Array.isArray(sess?.laps) && sess.laps.length >= 3) {
+        const d = lapDegradation(sess.laps.map((l) => l.durationSec));
+        if (d && Number.isFinite(d.trendPerLap) && d.trendPerLap > 0) degSecPerLap = d.trendPerLap;
+      }
     } catch { /* senza telemetria si stima dal HUD del gioco */ }
   }
   // DIAGNOSI DI SETUP DAL VIVO (4/11): le pressioni a caldo del physics e il
@@ -667,7 +675,7 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
   // correzione da dare alla partenza mentre si gira (stessa regola dei 4 PSI
   // che applica il pannello del box).
   const live = engineerLive(snap, {
-    fuelPerLap, raceLaps,
+    fuelPerLap, raceLaps, degSecPerLap,
     livePsi: r.last?.physics?.wheelPressure ?? null,
     targetPsi: snap.player?.car ? (tyreClassOf(snap.player.car)?.target ?? null) : null,
   });
@@ -3221,6 +3229,18 @@ async function api(context0, _req, res, action, body) {
           const trace = lapTrace(pick.file, { lap: body.lap, compare: body.compare, points: body.points });
           const a = trace ? analyzeLd(pick.file) : null;
           if (!trace) return sendJson(res, 200, { ok: false, hint: 'File MoTeC senza giri validi o senza canale SPEED: ' + pick.name });
+          // COACHING CURVA PER CURVA (4/11): due giri campionati sullo stesso
+          // passo, allineati per distanza → stacco/apex/uscita per curva.
+          let coaching = null;
+          try {
+            const P = Math.max(120, Number(body.points) || 240);
+            const valid = (a?.laps ?? []).filter((l) => l.durationSec > 15);
+            const bestNo = valid.reduce((x, l) => (x == null || l.durationSec < x.durationSec ? l : x), null)?.lap ?? null;
+            const lapA = Number.isFinite(Number(body.lap)) ? Number(body.lap) : (bestNo ?? 'best');
+            const cmp = Number(body.compare);
+            const lapB = Number.isFinite(cmp) ? cmp : (valid.find((l) => l.lap !== lapA)?.lap ?? lapA);
+            coaching = coachingOfSamples(sampleLap(pick.file, lapA, P), sampleLap(pick.file, lapB, P));
+          } catch { coaching = null; }
           // elenco sessioni dell'auto per il SELETTORE (la più recente prima):
           // quando/data/pista + numero giri validi — il client ricade su/lui quando gira il select
           const allSessions = listMotecSessions(root, { car: carName, afterMs: state.createdAt ?? 0 }).slice(0, 30).map((s) => {
@@ -3233,6 +3253,7 @@ async function api(context0, _req, res, action, body) {
             sessions: allSessions,
             laps: (a?.laps ?? []).filter((l) => l.durationSec > 15).map((l) => ({ lap: l.lap, durationSec: l.durationSec })),
             ...trace,
+            coaching,
           });
         }
         if (body.action === 'motec') {

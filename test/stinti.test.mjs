@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { stintsOf, fuelPaceOf, stintsFromLd } from '../src/stinti.mjs';
+import { stintsOf, fuelPaceOf, stintsFromLd, stintDebrief } from '../src/stinti.mjs';
 import { analyzeLd } from '../src/motec.mjs';
 
 // Cartella dei file .ld reali registrati dal gioco (nessun dato di prova).
@@ -105,4 +105,22 @@ test('stintsFromLd legge una sessione REALE: stint coerenti con i giri', { skip 
 
 test('stintsFromLd rifiuta un file che non c\'è', () => {
   assert.equal(stintsFromLd('non-esiste.ld'), null);
+});
+
+test('stintDebrief: media, mediana, costanza e degrado dai giri', () => {
+  const d = stintDebrief([90, 90.5, 91, 92]);
+  assert.ok(d);
+  assert.equal(d.laps, 4);
+  assert.equal(d.meanSec, 90.88);
+  assert.equal(d.medianSec, 90.75);
+  assert.equal(d.bestSec, 90);
+  assert.equal(d.stdSec, 0.74);
+  assert.equal(d.consistencyPct, 0.8);
+  assert.ok(d.degradation);
+});
+
+test('stintDebrief: sotto 3 giri la statistica non esiste', () => {
+  assert.equal(stintDebrief([90, 91]), null);
+  assert.equal(stintDebrief([]), null);
+  assert.equal(stintDebrief(null), null);
 });

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fuelPlan, pitWindow, weatherScenarios, DEFAULT_FUEL_MARGIN } from '../src/strategia.mjs';
+import { fuelPlan, pitWindow, weatherScenarios, pitBattle, DEFAULT_FUEL_MARGIN } from '../src/strategia.mjs';
 
 test('fuelPlan applica il margine di default sul consumo', () => {
   const p = fuelPlan({ lapsLeft: 10, fuelPerLap: 2 });
@@ -43,4 +43,26 @@ test('weatherScenarios ordina per costo crescente', () => {
 
 test('weatherScenarios con input non validi restituisce lista vuota', () => {
   assert.deepEqual(weatherScenarios({ lapsLeft: 0, changeLap: 1 }), []);
+});
+
+test('pitBattle: gap corto e degrado misurato → undercut', () => {
+  const b = pitBattle({ gapAheadSec: 1.4, degSecPerLap: 0.1, pitLossSec: 30, lapsLeft: 30 });
+  assert.equal(b.action, 'undercut');
+  assert.equal(b.breakEvenLaps, 300);
+  assert.equal(b.usableLaps, 30);
+  assert.equal(b.gainSec, 3);
+  assert.equal(b.undercut.netSec, 1.6);
+});
+
+test('pitBattle: davanti con cuscinetto → overcut di 20 giri', () => {
+  const b = pitBattle({ gapBehindSec: 2, degSecPerLap: 0.1, lapsLeft: 30 });
+  assert.equal(b.action, 'overcut');
+  assert.equal(b.overcut.holdLaps, 20);
+});
+
+test('pitBattle: gap troppo grande o degrado mancante → resta fuori / null', () => {
+  const b = pitBattle({ gapAheadSec: 4.5, degSecPerLap: 0.1, lapsLeft: 20 });
+  assert.equal(b.action, 'stay');
+  assert.equal(pitBattle({ gapAheadSec: 1, lapsLeft: 20 }), null);
+  assert.equal(pitBattle({ degSecPerLap: 0.1, lapsLeft: 30 }), null);
 });

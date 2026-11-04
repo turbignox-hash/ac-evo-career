@@ -25,6 +25,35 @@ const r1 = (v) => Math.round(v * 10) / 10;
 const r2 = (v) => Math.round(v * 100) / 100;
 const meanOf = (a) => a.reduce((s, v) => s + v, 0) / a.length;
 
+/**
+ * DEBRIEF DI STINT (4/11): come è andato, dai giri misurati.
+ * Media, migliore, mediana, deviazione standard e costanza percentuale
+ * (deviazione/media): è il ponte fra la gara e il setup successivo. La
+ * degradazione usa la stessa regola di usura-gomme. Sotto 3 giri → null:
+ * con due giri la statistica non esiste.
+ */
+export function stintDebrief(durations) {
+  const ds = (Array.isArray(durations) ? durations : [])
+    .filter((v) => Number.isFinite(v) && v > 15);
+  if (ds.length < 3) return null;
+  const mean = meanOf(ds);
+  const sorted = [...ds].sort((a, b) => a - b);
+  const median = sorted.length % 2
+    ? sorted[(sorted.length - 1) / 2]
+    : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+  const variance = meanOf(ds.map((v) => (v - mean) ** 2));
+  const std = Math.sqrt(variance);
+  return {
+    laps: ds.length,
+    meanSec: r2(mean),
+    bestSec: r1(sorted[0]),
+    medianSec: r2(median),
+    stdSec: r2(std),
+    consistencyPct: r1((std / mean) * 100),
+    degradation: lapDegradation(ds),
+  };
+}
+
 function stintSummary(stintLaps, lapFrom) {
   const ds = stintLaps.map((l) => l.durationSec);
   const fuel = stintLaps.map((l) => l.fuelUsed).filter((v) => v != null && v > 0 && v < 10);
@@ -39,6 +68,7 @@ function stintSummary(stintLaps, lapFrom) {
     endFuel: last.endFuel ?? null,
     // degrado del ritmo DENTRO il stint (stessa regola di usura-gomme)
     degradation: lapDegradation(ds),
+    debrief: stintDebrief(ds),
   };
 }
 

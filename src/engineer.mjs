@@ -10,6 +10,7 @@
 const WHEEL_NAMES = ['LF', 'RF', 'LR', 'RR'];
 
 import { tr } from './lang.mjs';
+import { pitBattle } from './strategia.mjs';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 
@@ -260,8 +261,68 @@ export function engineerLive(snap, ctx = {}) {
     }
   }
 
+  /* ---------- FRENI E DANNI (4/11): dati che c'erano e non parlavano ---------- */
+  // Danni: carDamage del physics [fronte, posteriore, sinistra, destra, centro]
+  // è già in %. 10% = danno che si vede e pesa; sotto è usura da contatto.
+  const dmg = (Array.isArray(player.damage) ? player.damage : []).map(Number);
+  const dmgOk = dmg.length === 5 && dmg.every((v) => Number.isFinite(v) && v >= 0 && v <= 100);
+  if (dmgOk) {
+    const dmgMax = Math.max(...dmg);
+    gauges.damage = dmg.map((v) => Math.round(v));
+    if (dmgMax >= 10) {
+      const parte = ['anteriore', 'posteriore', 'sinistra', 'destra', 'centro'][dmg.indexOf(dmgMax)] ?? 'carrozzeria';
+      tips.push({
+        icon: '🔧',
+        title: tr({ it: `Danni: ${parte} al ${Math.round(dmgMax)}%`, en: `Damage: ${parte} at ${Math.round(dmgMax)}%` }),
+        text: dmgMax >= 40
+          ? tr({ it: `danno grave (${dmg.map((v) => `${Math.round(v)}%`).join(' / ')}): rientra e ripara — l'aero e il ritmo pagano più della sosta.`, en: `heavy damage (${dmg.map((v) => `${Math.round(v)}%`).join(' / ')}): come in and repair — aero and pace cost more than the stop.` })
+          : tr({ it: `danno visibile (${dmg.map((v) => `${Math.round(v)}%`).join(' / ')}): valuta la riparazione alla prossima sosta, non aspettare che peggiori.`, en: `visible damage (${dmg.map((v) => `${Math.round(v)}%`).join(' / ')}): consider repairing at the next stop, don't wait for it to get worse.` }),
+        prio: dmgMax >= 40 ? 1 : 2,
+      });
+    }
+  }
+  // Freni: temperature di carcassa freno dalla graphics. Nessun limite assoluto
+  // inventato: si guarda lo SQUILIBRIO — un asse che scalda più dell'altro o una
+  // ruota molto più calda della gemella.
+  const bt = (Array.isArray(player.brakeTempC) ? player.brakeTempC : []).map(Number);
+  const btOk = bt.length === 4 && bt.every((v) => Number.isFinite(v) && v >= 30 && v <= 1200);
+  if (btOk) {
+    const [lf, rf, lr, rr] = bt;
+    const front = (lf + rf) / 2, rear = (lr + rr) / 2;
+    let hotIdx = 0;
+    for (let i = 1; i < 4; i++) if (bt[i] > bt[hotIdx]) hotIdx = i;
+    const mate = hotIdx % 2 === 0 ? hotIdx + 1 : hotIdx - 1;
+    const spreadCorner = Math.round(bt[hotIdx] - bt[mate]);
+    gauges.brakeTempC = bt.map((v) => Math.round(v));
+    if (rear - front >= 50) {
+      tips.push({ icon: '🛑', title: tr({ it: `Freni: posteriori ${Math.round(rear)}°C contro ${Math.round(front)}°C davanti`, en: `Brakes: rear ${Math.round(rear)}°C vs ${Math.round(front)}°C front` }), text: tr({ it: 'ripartizione troppo indietro: sposta il bias di un passo verso l\'anteriore, il posteriore sta lavorando troppo.', en: 'bias too far rearward: move it one step forward, the rear axle is doing too much work.' }), prio: 2 });
+    } else if (spreadCorner >= 150) {
+      tips.push({ icon: '🌡️', title: tr({ it: `Freno ${WHEEL_NAMES[hotIdx]} a ${Math.round(bt[hotIdx])}°C`, en: `Brake ${WHEEL_NAMES[hotIdx]} at ${Math.round(bt[hotIdx])}°C` }), text: tr({ it: `${spreadCorner}° più della gemella ${WHEEL_NAMES[mate]}: controlla condotto di raffreddamento o pinza di quella ruota alla sosta.`, en: `${spreadCorner}° hotter than its ${WHEEL_NAMES[mate]} twin: check that wheel's cooling duct or caliper at the stop.` }), prio: 2 });
+    }
+  }
+
   /* ---------- gap: attacca o difendi ---------- */
   const gapAhead = Number(player.gapAhead), gapBehind = Number(player.gapBehind);
+  /* ---------- UNDERCUT / OVERCUT (4/11) ---------- */
+  // Il conteggio del race engineer: gap al diretto avversario, degrado del
+  // ritmo MISURATO (usura-gomme) e costo della sosta. La finestra d'attacco è
+  // il tempo che la gomma fresca vale entro il break-even (pitLoss/degrado).
+  const battle = pitBattle({
+    gapAheadSec: gapAhead, gapBehindSec: gapBehind,
+    degSecPerLap: ctx.degSecPerLap, pitLossSec: ctx.pitLossSec, lapsLeft,
+  });
+  if (battle) {
+    gauges.pitBattle = {
+      action: battle.action, breakEvenLaps: battle.breakEvenLaps,
+      gainSec: battle.gainSec, undercut: battle.undercut, overcut: battle.overcut,
+    };
+    if (battle.action === 'undercut') {
+      tips.push({ icon: '🔄', title: tr({ it: `Undercut: rientra ora (gap ${battle.undercut.gapSec} s)`, en: `Undercut: pit now (${battle.undercut.gapSec} s gap)` }), text: tr({ it: `la gomma fresca vale ${battle.gainSec} s in ${battle.usableLaps} giri (degrado ${battle.degSecPerLap} s/giro, sosta ${battle.pitLossSec} s): esci davanti di ${battle.undercut.netSec} s.`, en: `fresh tyres are worth ${battle.gainSec} s over ${battle.usableLaps} laps (${battle.degSecPerLap} s/lap degradation, ${battle.pitLossSec} s stop): you come out ${battle.undercut.netSec} s ahead.` }), prio: 2 });
+    } else if (battle.action === 'overcut') {
+      tips.push({ icon: '🧱', title: tr({ it: `Overcut: resta fuori ${battle.overcut.holdLaps} giri`, en: `Overcut: stay out ${battle.overcut.holdLaps} laps` }), text: tr({ it: `hai ${battle.overcut.gapSec} s di cuscinetto sull'inseguitore: a ${battle.degSecPerLap} s/giro la gomma te lo mangia in ${battle.overcut.holdLaps} giri — se lui rientra prima, la posizione è tua.`, en: `you have ${battle.overcut.gapSec} s of cushion on the car behind: at ${battle.degSecPerLap} s/lap the tyre eats it in ${battle.overcut.holdLaps} laps — if he pits first, the place is yours.` }), prio: 2 });
+    }
+  }
+
   if (Number.isFinite(gapAhead) && gapAhead > 0 && gapAhead < 1.5) {
     tips.push({ icon: '🏁', title: tr({ it: `A ${gapAhead.toFixed(1)}s da chi ti precede`, en: `${gapAhead.toFixed(1)}s behind the car ahead` }), text: tr({ it: "finestra d'attacco: cambia traiettoria in frenata, il sorpasso nasce in staccata", en: "attack window: change lines under braking, the overtake is born under braking" }), prio: 2 });
   }

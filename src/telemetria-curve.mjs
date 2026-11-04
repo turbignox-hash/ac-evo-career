@@ -53,3 +53,45 @@ export function cornersOfLap(ldFile, { lap = 'best', points = 240, thresholdKmh,
     corners: idx.map((i) => ({ index: i, distFrac: n ? i / n : 0, speedKmh: s.vs[i] })),
   };
 }
+
+const r1c = (v) => Math.round(v * 10) / 10;
+const r2c = (v) => Math.round(v * 100) / 100;
+
+/**
+ * COACHING CURVA PER CURVA (4/11): confronta due giri campionati sullo stesso
+ * numero di punti (quindi allineati per distanza) e per ogni curva del giro A
+ * dice apex, metri di staccata e velocità d'uscita, con i delta contro B.
+ * La staccata è la distanza fra il picco di velocità prima della curva e
+ * l'apex: nessuna traiettoria inventata, solo la traccia SPEED del gioco.
+ * entryM più grande = freni prima.
+ */
+export function coachingOfSamples(a, b, { thresholdKmh, window } = {}) {
+  if (!a?.vs?.length || !b?.vs?.length) return null;
+  const n = Math.min(a.vs.length, b.vs.length);
+  if (n < 20) return null;
+  const vsA = a.vs.slice(0, n);
+  const vsB = b.vs.slice(0, n);
+  const distKm = Number(a.distKm ?? a.distanceKm ?? 0);
+  if (!(distKm > 0)) return null;
+  const idx = findCorners(vsA, { thresholdKmh, window });
+  if (!idx.length) return null;
+  const mPerSample = (distKm * 1000) / Math.max(1, n - 1);
+  const brakeLen = (vs, i) => {
+    let peak = i;
+    while (peak > 0 && vs[peak - 1] > vs[peak]) peak--;
+    return Math.round((i - peak) * mPerSample);
+  };
+  const after = Math.max(3, Math.round(n / 50));
+  const corners = idx.map((i, k) => {
+    const entryM = brakeLen(vsA, i);
+    const entryCompareM = brakeLen(vsB, i);
+    const ex = Math.min(n - 1, i + after);
+    return {
+      n: k + 1,
+      apexKmh: r1c(vsA[i]), apexCompareKmh: r1c(vsB[i]), dApexKmh: r1c(vsA[i] - vsB[i]),
+      entryM, entryCompareM, dEntryM: entryM - entryCompareM,
+      exitKmh: r1c(vsA[ex]), exitCompareKmh: r1c(vsB[ex]), dExitKmh: r1c(vsA[ex] - vsB[ex]),
+    };
+  });
+  return { lap: a.lap ?? null, compare: b.lap ?? null, corners, points: n, distKm: r2c(distKm) };
+}
