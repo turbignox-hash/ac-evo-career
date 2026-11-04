@@ -5,6 +5,15 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Pit loss: misura dai giri in/out, con la sorgente dichiarata
+
+- `pitLossFromLaps` (src/strategia.mjs) riconosce una sosta solo da una coppia CONSECUTIVA: il giro d’ingresso deve chiudersi lento (ultimi 8 s sotto 80 km/h per almeno metà del campione), il successivo deve iniziare lento. Il costo è `(inLap − mediana degli altri giri) + (outLap − mediana)`; scarta scarti <2 s, totali <8 s o >120 s e, con più soste, prende la mediana. Un solo lato (out-lap iniziale o in-lap finale) restituisce null: meglio il default dichiarato che metà numero.
+- `motec.mjs` campiona `startSlowPct`/`endSlowPct` dai canali SPEED (80 km/h, primi/ultimi 8 s, con guardia sull’unità), mette `pitLoss` nel risultato di `analyzeLd` e in `collectSessions`; `webui.mjs` lo passa a `engineerLive` SOLO se la sessione è della stessa pista della gara live (`trkSame`), altrimenti resta null.
+- `pitWindow` e `pitBattle` ora dichiarano la sorgente: `measured` solo con un valore >5 s, altrimenti `default`; la radio dice «sosta 30 s (default)» o «sosta 33 s misurata» invece di spacciare il fallback per misura. Il valore misurato entra in break-even, guadagno e undercut/overcut.
+- Verifica: 6 nuovi casi in test/pit-loss.test.mjs (coppia 15+18=33 s, un solo lato, lento condiviso basso, due soste con mediana 33, scarto 430 s, sorgente in pitBattle) + i test esistenti → 37/37; node --check e biome lint sui cinque file; GUI riavviata, HTTP 200.
+- Igiene: la guardia `trim-tile-gui.test.mjs` era rimasta al vecchio tile del modale, rimosso quando il trim è passato alla riga compatta; ora pesa `#card-trim` nella sua posizione (sopra la sfida, prima di «Prepara tutto»), la banda/trim vivi e il server sandbox. Suite completa 944/944.
+- **Dato reale (4/11)**: 286 .ld, 211 analizzabili, 164 con beacon, 19 con un solo lato (es. F40 COTA in-lap 176.1 s, endSlow 56.8%), **0 coppie consecutive complete**; 362 Results, `num_pits` massimo 0. Quindi oggi non esiste una sosta da misurare: l’undercut continua a usare 30 s e la radio lo dice esplicitamente «default». La prima gara con una sosta in un .ld della stessa pista darà il numero reale; fino ad allora non inventiamo.
+
 ### 4/11 — Cruscotto: il trim torna sopra la sfida della ronda (richiesta Mauro)
 
 - Il trim era sparito dal Cruscotto col riquadro #prep-data (commit e64af45). Ora c’è una riga compatta #card-trim dentro #card-actions, sopra la sfida della ronda e prima di «Prepara tutto»: mostra la banda AI (es. 85–86%), il trim corrente (es. +1) e i due pulsanti −1/+1.

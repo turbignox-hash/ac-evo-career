@@ -1,26 +1,18 @@
-// trim-tile-gui.test.mjs — LA GUARDIA DEL TILE «DIFFICOLTÀ AI» DELLA GUI (3/11, richiesta Mauro)
-// «Aggiungi una guardia che fissa il testo «84–85% — trim +N» del modale GUI
-// della scheda gara (viste-a.js, riga 828)».
+// trim-tile-gui.test.mjs — LA GUARDIA DELLA RIGA COMPATTA «DIFFICOLTÀ AI» (4/11)
+// La riga vive in drawCardInto (gui/js/viste-a.js), dentro #card-actions:
+// banda VIVA della serie, trim corrente e pulsanti −1/+1, sopra la sfida e
+// prima di «Prepara tutto». Il vecchio tile del modale è stato sostituito da
+// questa riga: la guardia pesa la riga nuova, non una formula che non c'è più.
 //
-// I fatti: nel modale della scheda gara (drawCardInto, gui/js/viste-a.js circa la riga 834;
-// Mauro l'ha contata 828) il tile
-// 🎚 Difficoltà AI NON legge la riga già risolta della card («min 84% · max 85%
-// (trim +2)») — si costruisce da solo: `${rangeMin}–${rangeMax}%` (trattino EN
-// U+2013, quindi «84–85%») e, SE c'è un trim vivo, « — trim +N» (trattino EM
-// U+2014 con spazi, + solo per il positivo). Le due guardie che già esistono
-// pesano il LATO SERVER (race-card.test.mjs: «min % · max % (trim +N)») e il
-// BANNER del pannello (race.mjs): questo test pesa il LATO BROWSER.
-//
-// Stessa cura delle guardie delle viste (viste-guard.test.mjs, ab-avviso-
-// giro.test.mjs): la sorgente gui/js si legge TESTUALMENTE — e la riga del
-// tile viene PERÒ ANCHE VALUTATA DAVVERO (vm) con la card dell'esempio di
-// Mauro: 84–85 con trim +2 → «84–85% — trim +2», parola per parola.
+// Stessa cura delle guardie delle viste: la sorgente gui/js si legge
+// TESTUALMENTE, ma il pezzo che scrive banda e trim viene PERÒ ANCHE VALUTATO
+// DAVVERO (vm) con la card dell'esempio: 84–85 con trim +2 → «84–85% · trim
+// +2», parola per parola.
 //
 // Terza prova «con server sandbox»: il webui PARTE DAVVERO su porta sua
 // (8732, fuori dalla scala di riserva 8642–8655 e diversa dall'8731 dello smoke)
 // con cartella dati temporanea, e il test PESA /js/viste-a.js DALLA RETE:
-// ciò che arriva al browser DEV'essere la stessa riga, byte a byte. Così una
-// riscrittura (o un bundling) della GUI non passa inosservata.
+// ciò che arriva al browser DEV'essere la stessa riga, byte a byte.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -34,46 +26,45 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = readFileSync(join(ROOT, 'gui', 'js', 'viste-a.js'), 'utf8');
 
-// LA RIGA, al script: una sola sintassi ammessa (trattino EN della banda,
-// trattino EM con spazi del trim, più solo per il positivo, niente suffisso
-// quando il trim non c'è). Cambiare UNA virgola della formula = test rosso.
-// NB: la sorgente usa i trattini UNICODE veri (– e —): la literal qui sotto
-// li porta esattamente.
-// biome-ignore lint/suspicious/noTemplateCurlyInString: i ${ … } qui NON sono un template da valutare: è il CIMEILO della riga 834 di viste-a.js, pesato alla lettera.
-const TILE = "[tr({ it: 'Difficoltà AI', en: 'AI difficulty' }), `${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%${card.difficulty?.trim ? ` — trim ${card.difficulty.trim > 0 ? '+' : ''}${card.difficulty.trim}` : ''}`],";
+// La riga e il pezzo che rende banda/trim, al script. Cambiare UNA virgola
+// della formula = test rosso.
+const ROW = '<div id="card-trim"';
+// biome-ignore lint/suspicious/noTemplateCurlyInString: i ${ … } qui NON sono un template da valutare: è il pezzo di viste-a.js, pesato alla lettera.
+const TITLE = "⚖️ <b>${tr({ it: 'Difficoltà AI', en: 'AI difficulty' })}</b>";
+// biome-ignore lint/suspicious/noTemplateCurlyInString: i ${ … } qui NON sono un template da valutare: è il pezzo di viste-a.js, pesato alla lettera e poi valutato con vm.
+const VALUE = "<b style=\"color:var(--acc)\">${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%</b> · ${tr({ it: 'trim', en: 'trim' })} <b>${Number(card.difficulty.trim ?? 0) > 0 ? '+' : ''}${Number(card.difficulty.trim ?? 0)}</b>";
 
-test('il tile Difficoltà AI del modale scheda gara costruisce il testo dalla banda VIVA', () => {
-  assert.ok(src.includes(TILE), 'GUARDIA COLPITA: la riga del tile «Difficoltà AI» non è più quella — la formula «84–85% — trim +N» è cambiata (guarda drawCardInto in gui/js/viste-a.js)');
-  // una sola copia: il testo del modale nasce QUI, non altrove
-  assert.equal(src.split(TILE).length, 2, 'la formula del tile compare più di una volta in viste-a.js — niente doppi visi');
+test('la riga compatta Difficoltà AI sta nel modale, sopra la sfida e prima di «Prepara tutto»', () => {
+  assert.ok(src.includes(ROW), 'GUARDIA COLPITA: #card-trim non c\'è più in viste-a.js — la riga compatta del trim è sparita');
+  // una sola copia: la riga nasce QUI, non altrove
+  assert.equal(src.split(ROW).length, 2, 'la riga #card-trim compare più di una volta in viste-a.js — niente doppi visi');
   // e sta DENTRO drawCardInto (il modale della scheda gara), non altrove
-  const dove = src.indexOf(TILE);
+  const dove = src.indexOf(ROW);
   assert.ok(src.indexOf('function drawCardInto') >= 0 && dove > src.indexOf('function drawCardInto'),
-    'la formula del tile non sta più dentro drawCardInto — il modale della scheda gara ha perso il testo');
+    'la riga #card-trim non sta più dentro drawCardInto — il modale della scheda gara ha perso il trim');
+  // il titolo e la formula viva (banda + trim) sono quelli che il browser deve vedere
+  assert.ok(src.includes(TITLE), 'il titolo «Difficoltà AI» non è più nella riga compatta');
+  assert.ok(src.includes(VALUE), 'la formula «rangeMin–rangeMax% · trim +N» non è più quella — guarda #card-trim in viste-a.js');
+  // ordine richiesto: trim sopra la sfida e prima di «Prepara tutto»
+  assert.ok(src.indexOf('challenge-flag', dove) > dove, 'la riga del trim non sta più SOPRA la sfida della ronda');
+  assert.ok(src.indexOf('id="b-race"', dove) > dove, 'la riga del trim non sta più PRIMA di «Prepara tutto»');
 });
 
-test('il testo reso è quello di Mauro, parola per parola: «84–85% — trim +N»', () => {
-  // la stringa del valore si prende DALLA RIGA VIVA della sorgente (non da
-  // una copia qui): la guardia valuta ciò che davvero scrive la GUI.
-  const riga = src.split('\n').find((l) => l.includes('Difficoltà AI') && l.includes('trim ${'));
-  assert.ok(riga, 'GUARDIA COLPITA: la riga del tile con trim non si trova più nella sorgente');
-  const sorgente = riga.trim();
-  const dalSegno = sorgente.indexOf("en: 'AI difficulty' }),") + "en: 'AI difficulty' }),".length;
-  const valore = sorgente.slice(dalSegno).trim().replace(/\],\s*$/, '');   // la riga finisce «…`],»
-  assert.ok(valore.startsWith('`') && valore.endsWith('`'), `la formula estratta non è un template literal: ${valore.slice(0, 80)}`);
-
-  const rende = (card) => vm.runInNewContext(valore, { card });
-  // l'esempio del 3/11: banda 84–85, trim +2 → 84–85% — trim +2
-  assert.equal(rende({ difficulty: { rangeMin: 84, rangeMax: 85, trim: 2 } }), '84–85% — trim +2');
-  // segno positivo SOLO se il trim lo è: un getter lieve non spara un "+ secco
-  assert.notEqual(rende({ difficulty: { rangeMin: 84, rangeMax: 85, trim: 2 } }), '84–85% — trim 2');
-  // senza trim: BANDA NUDA — niente « trim », niente spazzatura in fondo
-  assert.equal(rende({ difficulty: { rangeMin: 84, rangeMax: 85, trim: 0 } }), '84–85%');
-  assert.equal(rende({ difficulty: { rangeMin: 84, rangeMax: 85, trim: undefined } }), '84–85%');
+test('il testo reso è banda viva e trim col segno giusto: «84–85% · trim +N»', () => {
+  // VALUE è il pezzo HTML scritto in viste-a.js: qui si valuta DENTRO un
+  // template literal, così ${…} diventa il testo reso e non codice HTML.
+  const rende = (card) => vm.runInNewContext('`' + VALUE + '`', { card, tr: ({ it }) => it });
+  // l'esempio del 3/11: banda 84–85, trim +2 → 84–85% · trim +2
+  assert.equal(rende({ difficulty: { rangeMin: 84, rangeMax: 85, trim: 2 } }), '<b style="color:var(--acc)">84–85%</b> · trim <b>+2</b>');
+  // segno positivo SOLO se il trim lo è: un getter lieve non spara un "+" secco
+  assert.notEqual(rende({ difficulty: { rangeMin: 84, rangeMax: 85, trim: 2 } }), '<b style="color:var(--acc)">84–85%</b> · trim <b>2</b>');
+  // senza trim: il valore c'è ed è 0, non una banda nuda né "undefined"
+  assert.equal(rende({ difficulty: { rangeMin: 84, rangeMax: 85, trim: 0 } }), '<b style="color:var(--acc)">84–85%</b> · trim <b>0</b>');
+  assert.equal(rende({ difficulty: { rangeMin: 84, rangeMax: 85, trim: undefined } }), '<b style="color:var(--acc)">84–85%</b> · trim <b>0</b>');
   // trim negativo (tasto −1): niente "+-1" — il meno lo porta il numero
-  assert.equal(rende({ difficulty: { rangeMin: 84, rangeMax: 85, trim: -1 } }), '84–85% — trim -1');
+  assert.equal(rende({ difficulty: { rangeMin: 84, rangeMax: 85, trim: -1 } }), '<b style="color:var(--acc)">84–85%</b> · trim <b>-1</b>');
   // la banda usa rangeMin/rangeMax (trim attivo sposta la banda, lezione del 1/11):
-  assert.equal(rende({ difficulty: { rangeMin: 28, rangeMax: 29, trim: 2 } }), '28–29% — trim +2');
+  assert.equal(rende({ difficulty: { rangeMin: 28, rangeMax: 29, trim: 2 } }), '<b style="color:var(--acc)">28–29%</b> · trim <b>+2</b>');
 });
 
 /* ---------- la prova col server sandbox ---------- */
@@ -109,8 +100,9 @@ test('il server sandbox serve al browser la STESSA riga, byte a byte', async () 
     // ciò che arriva al browser è la sorgente SCRITTA — nel server non ci può
     // stare una variante «temperata» della GUI
     assert.equal(testa, src, 'ciò che il server manda al browser NON è il file sul disco — niente rifacimenti della GUI tra server e browser');
-    // e la riga del tile è lì: la formula arriva integra alla GUI del browser
-    assert.ok(testa.includes(TILE), 'la riga «84–85% — trim +N» non arriva più al browser nel modale della scheda gara');
+    // e la riga compatta è lì: banda e trim arrivano integri alla GUI del browser
+    assert.ok(testa.includes(ROW), 'la riga #card-trim non arriva più al browser nel modale della scheda gara');
+    assert.ok(testa.includes(VALUE), 'la formula «84–85% · trim +N» non arriva più al browser nel modale della scheda gara');
   } finally {
     child.kill();
     void stderr; // gli stamb del server non sporcano il verdetto del test

@@ -605,6 +605,7 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
   // vigia del lettore sordo (29/10): live ma «sconosciuta» → riciclo al 15 s
   if (await vigiaSordo(r, snap)) snap = r.snapshot();  let raceLaps = null, fuelPerLap = null, telemTrack = null;
   let degSecPerLap = null;   // degrado del ritmo misurato (usura-gomme), per undercut/overcut
+  let pitLossSec = null;     // costo sosta misurato dai giri in/out della stessa pista
   /* LEGGERO (29/10 sera): quando serve SOLO la voce del Pitwall, niente raceCard
      né albero MoTeC — su disco lento valgono decine di secondi per richiesta e
      il tick radio in gara si incartava dietro la spazzata (così il 28/10 la
@@ -668,6 +669,12 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
         const d = lapDegradation(sess.laps.map((l) => l.durationSec));
         if (d && Number.isFinite(d.trendPerLap) && d.trendPerLap > 0) degSecPerLap = d.trendPerLap;
       }
+      // PIT LOSS (4/11): vale solo se la sessione è della STESSA pista della
+      // gara live — un costo misurato altrove non si trasporta qui.
+      if (Number.isFinite(sess?.pitLoss?.sec) && sess.pitLoss.sec > 5
+        && snap.session?.track && trkSame(sess.track, snap.session.track)) {
+        pitLossSec = sess.pitLoss.sec;
+      }
     } catch { /* senza telemetria si stima dal HUD del gioco */ }
   }
   // DIAGNOSI DI SETUP DAL VIVO (4/11): le pressioni a caldo del physics e il
@@ -675,7 +682,7 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
   // correzione da dare alla partenza mentre si gira (stessa regola dei 4 PSI
   // che applica il pannello del box).
   const live = engineerLive(snap, {
-    fuelPerLap, raceLaps, degSecPerLap,
+    fuelPerLap, raceLaps, degSecPerLap, pitLossSec,
     livePsi: r.last?.physics?.wheelPressure ?? null,
     targetPsi: snap.player?.car ? (tyreClassOf(snap.player.car)?.target ?? null) : null,
   });

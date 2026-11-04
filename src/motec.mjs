@@ -20,6 +20,7 @@ import { fourPsi } from './setup.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 import { sameTrack, sameCar } from './tracknames.mjs';
 import { tr } from './lang.mjs';
+import { pitLossFromLaps } from './strategia.mjs';
 
 const WHEELS = ['LF', 'RF', 'LR', 'RR'];
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -146,6 +147,26 @@ function analyzeLdUncached(ldFile) {
     return Number.isFinite(m) ? m : null;
   };
 
+  // PIT LOSS (4/11): quota di tempo sotto gli 80 km/h nei primi/ultimi 8 s
+  // del giro — il segnale che distingue un out-lap/in-lap da un giro lento
+  // qualsiasi. Se SPEED manca resta null e la misura tace.
+  const speedCh = ld.channels.get('SPEED');
+  const speedKmh = (t) => {
+    if (!speedCh) return null;
+    const v = ld.dv.getFloat32(speedCh.off + idxAt(speedCh, t) * 4, true);
+    if (!Number.isFinite(v)) return null;
+    return speedCh.unit && /m|s/i.test(speedCh.unit) && !/km/i.test(speedCh.unit) ? v * 3.6 : v;
+  };
+  const slowShare = (a, b) => {
+    let n = 0, hit = 0;
+    for (let t = a; t <= b; t += 0.1) {
+      const v = speedKmh(t);
+      if (v == null) continue;
+      n++; if (v < 80) hit++;
+    }
+    return n ? Math.round((1000 * hit) / n) / 10 : null;
+  };
+
   const laps = bounds.map(([a, b], gi) => {
     const fuelStart = at('FUEL', a), fuelEnd = at('FUEL', Math.max(a + 1, b - 0.2));
     const pressures = {}, tair = {}, surf = {}, brakes = {};
@@ -163,9 +184,12 @@ function analyzeLdUncached(ldFile) {
       fuelStart: fuelStart != null ? Math.round(fuelStart * 100) / 100 : null,
       fuelEnd: fuelEnd != null ? Math.round(fuelEnd * 100) / 100 : null,
       fuelUsed: (fuelStart != null && fuelEnd != null) ? Math.round((fuelStart - fuelEnd) * 100) / 100 : null,
+      startSlowPct: slowShare(a, a + Math.min(8, (b - a) * 0.25)),
+      endSlowPct: slowShare(b - Math.min(8, (b - a) * 0.25), b),
       pressures, tair, surf, brakes,
     };
   });
+  const pitLoss = pitLossFromLaps(laps);
 
   // pressione a freddo = la più bassa registrata nelle prime battute
   const coldPressures = {};
@@ -228,6 +252,7 @@ function analyzeLdUncached(ldFile) {
     file: basename(ldFile),
     durationSec: Math.round(ld.duration),
     laps,
+    pitLoss,
     validLaps: valid.length,
     fuelPerLap: fuelPerLap.length ? Math.round((fuelPerLap.reduce((a, b) => a + b, 0) / fuelPerLap.length) * 100) / 100 : null,
     coldPressures,
@@ -689,6 +714,7 @@ export function collectSessions(motecRoot, resultsDir, { car = null, track = nul
       gas: a.gas,   // 28/10: % gas giro best vs media di sessione (il piede del pilota)
       airTemp: a.airTemp, roadTemp: a.roadTemp,
       laps: a.laps,
+      pitLoss: a.pitLoss,
     });
   }
   return out;

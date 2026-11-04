@@ -82,7 +82,7 @@ export function weatherScenarios({ lapsLeft, changeLap, slickPenaltySecPerLap = 
  * Con dati incompleti (niente degrado, niente giri, niente gap) → null: la
  * radio tace invece di inventare una strategia.
  */
-export function pitBattle({ gapAheadSec, gapBehindSec, degSecPerLap, pitLossSec = 30, lapsLeft, maxGapSec = 5 } = {}) {
+export function pitBattle({ gapAheadSec, gapBehindSec, degSecPerLap, pitLossSec = 30, pitLossSource = 'default', lapsLeft, maxGapSec = 5 } = {}) {
   const deg = Number(degSecPerLap);
   const pit = Number(pitLossSec);
   const laps = Number(lapsLeft);
@@ -110,5 +110,53 @@ export function pitBattle({ gapAheadSec, gapBehindSec, degSecPerLap, pitLossSec 
   const action = undercut?.possible ? 'undercut'
     : overcut?.possible ? 'overcut'
     : 'stay';
-  return { action, breakEvenLaps, usableLaps, gainSec, undercut, overcut, degSecPerLap: r2(deg), pitLossSec: Math.round(pit), lapsLeft: Math.floor(laps) };
+  return { action, breakEvenLaps, usableLaps, gainSec, undercut, overcut, degSecPerLap: r2(deg), pitLossSec: Math.round(pit), pitLossSource: pitLossSource === 'measured' ? 'measured' : 'default', lapsLeft: Math.floor(laps) };
+}
+
+/**
+ * PIT LOSS MISURATO dai giri di INGRESSO/USCITA (4/11).
+ *
+ * Un giro di ingresso finisce in corsia box (ultimi secondi sotto gli 80 km/h),
+ * il successivo esce dalla corsia (primi secondi sotto gli 80 km/h). Il costo
+ * della sosta è la somma dei due scarti dal ritmo verde di riferimento:
+ * `(inLap − ref) + (outLap − ref)`. Il riferimento è la MEDIANA degli altri
+ * giri della stessa sessione, così una sosta non sporca il ritmo di gara.
+ *
+ * Servono entrambi i lati e una coppia CONSECUTIVA: con un solo lato (out-lap
+ * iniziale o in-lap finale di sessione) non si conosce il costo completo e la
+ * funzione restituisce null — meglio il default dichiarato che un numero
+ * costruito a metà. Con più soste nella stessa sessione restituisce la mediana.
+ */
+export function pitLossFromLaps(laps, { minSlowPct = 50, minDeltaSec = 2, minSec = 8, maxSec = 120 } = {}) {
+  const valid = (Array.isArray(laps) ? laps : [])
+    .filter((l) => Number.isFinite(l?.durationSec) && l.durationSec > 15);
+  if (valid.length < 3) return null;
+  const median = (vals) => {
+    const a = vals.filter(Number.isFinite).sort((x, y) => x - y);
+    return a.length ? a[Math.floor(a.length / 2)] : null;
+  };
+  const samples = [];
+  for (let i = 0; i + 1 < valid.length; i++) {
+    const inLap = valid[i], outLap = valid[i + 1];
+    if ((inLap.endSlowPct ?? 0) < minSlowPct || (outLap.startSlowPct ?? 0) < minSlowPct) continue;
+    const others = valid.filter((_, j) => j !== i && j !== i + 1).map((l) => l.durationSec);
+    const ref = median(others);
+    if (ref == null) continue;
+    const inDelta = inLap.durationSec - ref;
+    const outDelta = outLap.durationSec - ref;
+    if (inDelta < minDeltaSec || outDelta < minDeltaSec) continue;
+    const sec = inDelta + outDelta;
+    if (sec < minSec || sec > maxSec) continue;
+    samples.push({ sec, inLap: inLap.lap ?? i + 1, outLap: outLap.lap ?? i + 2, refSec: Math.round(ref * 10) / 10 });
+    i++; // l'out-lap non può essere anche l'in-lap della sosta successiva
+  }
+  if (!samples.length) return null;
+  const sec = median(samples.map((s) => s.sec));
+  return {
+    sec: Math.round(sec * 10) / 10,
+    samples: samples.length,
+    inLap: samples[0].inLap,
+    outLap: samples[0].outLap,
+    refSec: samples[0].refSec,
+  };
 }

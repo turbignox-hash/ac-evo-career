@@ -46,7 +46,9 @@ export function pitWindow(gauges, opts = {}) {
   const lapsOnFuel = num(gauges?.lapsOnFuel);
   const lapsLeft = num(gauges?.lapsLeft);
   const inRace = !!opts.inRace;
-  const pitLossSec = num(opts.pitLossSec) > 5 ? Math.round(num(opts.pitLossSec)) : 30;
+  const pitLossGiven = num(opts.pitLossSec) > 5;
+  const pitLossSec = pitLossGiven ? Math.round(num(opts.pitLossSec)) : 30;
+  const pitLossSource = pitLossGiven ? 'measured' : 'default';
   if (!inRace || lapsDone == null) return null;
 
   /* ---------- benzina ---------- */
@@ -87,7 +89,7 @@ export function pitWindow(gauges, opts = {}) {
   const scadenze = [fuel?.pitLap, wearOut?.criticalLap].filter((v) => Number.isFinite(v));
   if (!scadenze.length && !fuel && !wearOut) {
     // niente benzina esplicita e niente usura fuori soglia: nessuna sosta prevista
-    return { need: null, reason: tr({ it: 'nessuna sosta prevista', en: 'no stop expected' }), pitLap: null, lapsToWindow: null, window: null, wear: null, fuel: null, pitLossSec };
+    return { need: null, reason: tr({ it: 'nessuna sosta prevista', en: 'no stop expected' }), pitLap: null, lapsToWindow: null, window: null, wear: null, fuel: null, pitLossSec, pitLossSource };
   }
   const pitLap = scadenze.length ? Math.max(lapsDone + 1, Math.min(...scadenze)) : lapsDone + 1;
   const both = fuel && wearOut && Math.abs(fuel.pitLap - wearOut.criticalLap) <= 1;
@@ -101,7 +103,7 @@ export function pitWindow(gauges, opts = {}) {
         : tr({ it: `gomma peggiore (${worst}%) al limite al giro ${wearOut.criticalLap + 1}`, en: `worst tyre (${worst}%) hits the limit on lap ${wearOut.criticalLap + 1}` }));
   // la finestra: si può anticipare di un giro (traction e buon senso), non ritardare
   const window = [Math.max(lapsDone + 1, pitLap - 1), Math.max(lapsDone + 1, pitLap)];
-  return { need, reason, pitLap, lapsToWindow: Math.max(0, pitLap - (lapsDone + 1)), window, wear: wearOut, fuel, pitLossSec };
+  return { need, reason, pitLap, lapsToWindow: Math.max(0, pitLap - (lapsDone + 1)), window, wear: wearOut, fuel, pitLossSec, pitLossSource };
 }
 
 /**
@@ -309,15 +311,17 @@ export function engineerLive(snap, ctx = {}) {
   // il tempo che la gomma fresca vale entro il break-even (pitLoss/degrado).
   const battle = pitBattle({
     gapAheadSec: gapAhead, gapBehindSec: gapBehind,
-    degSecPerLap: ctx.degSecPerLap, pitLossSec: ctx.pitLossSec, lapsLeft,
+    degSecPerLap: ctx.degSecPerLap, pitLossSec: ctx.pitLossSec,
+    pitLossSource: Number(ctx.pitLossSec) > 5 ? 'measured' : 'default', lapsLeft,
   });
   if (battle) {
     gauges.pitBattle = {
       action: battle.action, breakEvenLaps: battle.breakEvenLaps,
       gainSec: battle.gainSec, undercut: battle.undercut, overcut: battle.overcut,
+      pitLossSource: battle.pitLossSource,
     };
     if (battle.action === 'undercut') {
-      tips.push({ icon: '🔄', title: tr({ it: `Undercut: rientra ora (gap ${battle.undercut.gapSec} s)`, en: `Undercut: pit now (${battle.undercut.gapSec} s gap)` }), text: tr({ it: `la gomma fresca vale ${battle.gainSec} s in ${battle.usableLaps} giri (degrado ${battle.degSecPerLap} s/giro, sosta ${battle.pitLossSec} s): esci davanti di ${battle.undercut.netSec} s.`, en: `fresh tyres are worth ${battle.gainSec} s over ${battle.usableLaps} laps (${battle.degSecPerLap} s/lap degradation, ${battle.pitLossSec} s stop): you come out ${battle.undercut.netSec} s ahead.` }), prio: 2 });
+      tips.push({ icon: '🔄', title: tr({ it: `Undercut: rientra ora (gap ${battle.undercut.gapSec} s)`, en: `Undercut: pit now (${battle.undercut.gapSec} s gap)` }), text: tr({ it: `la gomma fresca vale ${battle.gainSec} s in ${battle.usableLaps} giri (degrado ${battle.degSecPerLap} s/giro, sosta ${battle.pitLossSec} s${battle.pitLossSource === 'measured' ? ' misurata' : ' default'}): esci davanti di ${battle.undercut.netSec} s.`, en: `fresh tyres are worth ${battle.gainSec} s over ${battle.usableLaps} laps (${battle.degSecPerLap} s/lap degradation, ${battle.pitLossSec} s stop${battle.pitLossSource === 'measured' ? ', measured' : ', default'}): you come out ${battle.undercut.netSec} s ahead.` }), prio: 2 });
     } else if (battle.action === 'overcut') {
       tips.push({ icon: '🧱', title: tr({ it: `Overcut: resta fuori ${battle.overcut.holdLaps} giri`, en: `Overcut: stay out ${battle.overcut.holdLaps} laps` }), text: tr({ it: `hai ${battle.overcut.gapSec} s di cuscinetto sull'inseguitore: a ${battle.degSecPerLap} s/giro la gomma te lo mangia in ${battle.overcut.holdLaps} giri — se lui rientra prima, la posizione è tua.`, en: `you have ${battle.overcut.gapSec} s of cushion on the car behind: at ${battle.degSecPerLap} s/lap the tyre eats it in ${battle.overcut.holdLaps} laps — if he pits first, the place is yours.` }), prio: 2 });
     }
@@ -410,12 +414,12 @@ export function engineerLive(snap, ctx = {}) {
     ? Math.round(player.cutPenaltyMs / 100) / 10
     : null;
   gauges.fuelPerLap = Number.isFinite(fuelPerLap) ? fuelPerLap : null;
-  const pit = pitWindow(gauges, { inRace, lapsTotal: gauges.lapsTotal });
+  const pit = pitWindow(gauges, { inRace, lapsTotal: gauges.lapsTotal, pitLossSec: ctx.pitLossSec });
   if (pit && Number.isFinite(pit.pitLap) && pit.window) {
     tips.push({
       icon: '🛞',
       title: tr({ it: `Finestra pit: giri ${pit.window[0]}–${pit.window[1]}`, en: `Pit window: laps ${pit.window[0]}–${pit.window[1]}` }),
-      text: tr({ it: `${pit.reason} · la baia costa ≈ ${pit.pitLossSec} s: fermati DENTRO la finestra, ogni giro dopo è tempo perso`, en: `${pit.reason} · the stop costs ≈ ${pit.pitLossSec} s: pit INSIDE the window, every lap after is time lost` }),
+      text: tr({ it: `${pit.reason} · la baia costa ≈ ${pit.pitLossSec} s${pit.pitLossSource === 'measured' ? ' misurati' : ' (default)'}: fermati DENTRO la finestra, ogni giro dopo è tempo perso`, en: `${pit.reason} · the stop costs ≈ ${pit.pitLossSec} s${pit.pitLossSource === 'measured' ? ' measured' : ' (default)'}: pit INSIDE the window, every lap after is time lost` }),
       prio: 1,
     });
     tips.sort((a, b) => (a.prio ?? 9) - (b.prio ?? 9));
