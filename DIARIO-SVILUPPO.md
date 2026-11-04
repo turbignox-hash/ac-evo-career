@@ -5,6 +5,13 @@ IL RESTO (da fare o da rivedere). Ogni giorno prendiamo qualcuna di queste e la
 eseguiamo; a fine giornata il diario si arricchisce e la lista si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — copertura: engineer.mjs ha 17 test, P1.7 è un falso positivo (richiesta Mauro: «P1.7 — copertura: la scansione dice “engineer.mjs 1 test”, ma test/ingegnere.test.mjs ne ha già più di dieci (fasi, pit, bandiere, postalk): non è la priorità che sembrava.»)
+
+- **Verifica**: `test/ingegnere.test.mjs` ha **17 test** e importa direttamente `pitWindow` e `engineerLive` da `src/engineer.mjs`; `node --test test/ingegnere.test.mjs` → **17/17**, exit 0. Copre path/delta, finestra pit, fasi, bandiere e poll con EVO chiuso.
+- **Perché il contatore diceva 1**: il modulo è `engineer.mjs`, il test è `ingegnere.test.mjs`; un match per nome file non li collega. La copertura vera sta negli import, non nel nome.
+- **Decisione**: P1.7 chiusa come falso positivo; **nessun test aggiunto e nessun codice toccato**. La priorità resta su P1.5 (prossimo dominio da estrarre) e sul flake di `potatura-fasce`.
+- **Nota**: diario committato, non pushato. Restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — catch muti: audit di scritture e salvataggi (P1.6) (richiesta Mauro: «P1.6 — catch muti: sono 308, ma molti sono letture opzionali legittime; serve un audit mirato su scritture e salvataggi, non una passata indiscriminata.»)
 
 - **Il taglio**: nessuna passata indiscriminata. L'audit automatico su `src`+`tools` ha isolato **129 catch vicini a una scrittura** (molti falsi positivi: il catch è della lettura successiva); i **13 punti con un effetto su dati/backup** ora non spariscono: **12** passano da `writeOrWarn`, che conserva il fallback e annota il fallimento in `errors.jsonl`; la copia `.corrupt` del ledger usa `recordWarning` e distingue l'esito.
