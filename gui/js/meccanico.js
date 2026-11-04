@@ -27,12 +27,15 @@
     const s = stato ?? {};
     const bad = Number(s.bad) || 0, warn = Number(s.warn) || 0;
     let badge, cls;
-    if (bad > 0) { badge = `${tr({ it: '❗ ', en: '❗ ' })}${bad} ${tr({ it: 'voci rosse: lavoro da fare', en: 'red items: work to do' })}`; cls = 'bad'; }
+    if (bad > 0) { badge = `${tr({ it: '❗ ', en: '❗ ' })}${bad} ${tr({ it: bad === 1 ? 'voce rossa: lavoro da fare' : 'voci rosse: lavoro da fare', en: bad === 1 ? 'red item: work to do' : 'red items: work to do' })}`; cls = 'bad'; }
     else if (warn > 0) { badge = `${tr({ it: '🧰 ', en: '🧰 ' })}${warn} ${tr({ it: 'da leggere, nessun dramma', en: 'to read, no drama' })}`; cls = 'warn'; }
     else { badge = tr({ it: '✔ soddisfatto — la macchina è a punto', en: '✔ satisfied — the car is on point' }); cls = 'ok'; }
     const monitor = [];
-    const live = s.live === 'in pista' ? tr({ it: 'in pista', en: 'out on track' }) : s.live;
-    if (s.live) monitor.push(`<span class="chip ${s.live === 'in pista' ? 'gold' : ''}"><span class="dot ${s.live === 'in pista' ? 'on' : ''}"></span>${live}</span>`);
+    /* s.live viaggia come chiave ('in pista' | 'open'), non come testo già
+       tradotto: in EN il confronto col testo italiano non scattava più e il
+       pallino restava spento. */
+    const liveTxt = s.live === 'in pista' ? tr({ it: 'in pista', en: 'out on track' }) : s.live === 'open' ? tr({ it: 'aperto', en: 'open' }) : s.live;
+    if (s.live) monitor.push(`<span class="chip ${s.live === 'in pista' ? 'gold' : ''}"><span class="dot ${s.live === 'in pista' ? 'on' : ''}"></span>${liveTxt}</span>`);
     /* TELEM: è un PLUS, non un prerequisito (richiesta del 31/10). EVO scrive
        il file .ld di telemetria DA SOLO alla chiusura di ogni sessione; il
        consiglio del box lo legge e diventa più preciso. Il live invece è

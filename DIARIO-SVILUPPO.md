@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Setup: pannelli in ordine, grafico con titolo e meccanico corretto
+
+- **Ordine**: la Diagnostica telemetria (26 riquadri, 4.967 caratteri) stava tra «Consigli del box» e «Salute sistema»: spingeva salute ed errori a 5.580/5.777 px. Ora l'ordine è Grafico → Consigli → PSI → Auto della serie → Salute → Registro → Diagnostica (ultima); il pulsante «Mostra tutto il PC» è riagganciato dopo l'append, quindi funziona ancora.
+- **Grafico**: il titolo è un heading di livello 2; le etichette SVG passano da 10–11 px a 11,5–12 px: gli ultimi 4 testi sotto soglia di Setup sono spariti (0).
+- **Meccanico**: «1 voci rosse» → «1 voce rossa»; lo stato live viaggia come chiave (in pista / open) e non come testo già tradotto — in inglese il chip dice «out on track» e il pallino resta acceso.
+- **Verifica dal vivo**: 7 pannelli, Registro errori a 2.937 px (prima 5.777), telem-diag ultimo, 0 testi sotto 11,5 px, 0 overflow, 0 errori; node --check, lint 374 file 0 warning, collaudo tab 19/19.
+
 ### 4/11 — Focus trap nel modale, skip-link e riquadro diagnostica (punto 5)
 
 - **Modale**: Tab era libero di uscire dietro al dialogo e non c'era Esc. Ora il focus resta dentro (dall'ultimo comando si torna a ×), Esc chiude e il focus torna all'elemento che aveva aperto il modale. Il primo comando riceve il focus all'apertura.

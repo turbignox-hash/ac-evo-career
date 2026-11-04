@@ -195,7 +195,7 @@ async function drawCars(m){
     return `<div style="margin-top:10px">
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;background:#0d1118;border:1px solid var(--line);border-radius:8px">
         <line x1="${PAD}" y1="${H-PAD}" x2="${W-PAD/2}" y2="${H-PAD}" stroke="var(--line2)"/>
-        <text x="${PAD}" y="14" fill="#8fa" font-size="11">${tr({ it: 'potenza kW', en: 'power kW' })}</text>
+        <text x="${PAD}" y="14" fill="#8fa" font-size="12">${tr({ it: 'potenza kW', en: 'power kW' })}</text>
         <text x="${W-110}" y="14" fill="#f96" font-size="11">${tr({ it: 'coppia Nm', en: 'torque Nm' })}</text>
         <text x="${PAD}" y="${H-8}" fill="var(--dim)" font-size="10">${minR} ${tr({ it: 'giri/min', en: 'rpm' })}</text>
         <text x="${W-PAD-60}" y="${H-8}" fill="var(--dim)" font-size="10">${maxR} ${tr({ it: 'giri/min', en: 'rpm' })}</text>
@@ -497,10 +497,10 @@ function lapChartSvg(t){
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;background:#0d1118;border:1px solid var(--line);border-radius:8px">
     <line x1="${PAD}" y1="${zeroY}" x2="${W - PAD / 2}" y2="${zeroY}" stroke="var(--line2)"/>
     <line x1="${PAD}" y1="${yV(0)}" x2="${PAD}" y2="${yV(maxV)}" stroke="var(--line2)"/>
-    <text x="${PAD}" y="14" fill="#8fa" font-size="11">${tr({ it: 'giro ', en: 'lap ' })}${t.lap} (${t.durationSec}s) — km/h</text>
-    ${C ? `<text x="${W - 300}" y="14" fill="#f96" font-size="11">${tr({ it: 'giro ', en: 'lap ' })}${C.lap} (${C.durationSec}s)</text>` : ''}
-    <text x="${PAD}" y="${yV(maxV) + 14}" fill="var(--dim)" font-size="10">${Math.round(maxV)} km/h</text>
-    <text x="${PAD}" y="${H - 6}" fill="#7f7" font-size="10">${tr({ it: 'differenza col confronto: verde = sei più veloce · rosso = più lento', en: 'delta vs comparison: green = you are faster · red = slower' })}</text>
+    <text x="${PAD}" y="14" fill="#8fa" font-size="12">${tr({ it: 'giro ', en: 'lap ' })}${t.lap} (${t.durationSec}s) — km/h</text>
+    ${C ? `<text x="${W - 300}" y="14" fill="#f96" font-size="12">${tr({ it: 'giro ', en: 'lap ' })}${C.lap} (${C.durationSec}s)</text>` : ''}
+    <text x="${PAD}" y="${yV(maxV) + 14}" fill="var(--dim)" font-size="11.5">${Math.round(maxV)} km/h</text>
+    <text x="${PAD}" y="${H - 6}" fill="#7f7" font-size="11.5">${tr({ it: 'differenza col confronto: verde = sei più veloce · rosso = più lento', en: 'delta vs comparison: green = you are faster · red = slower' })}</text>
     ${strip((p) => p.br ?? 0, H - PAD - DBAND + 4, 8, '#f55')}
     ${strip((p) => p.th ?? 0, H - PAD - DBAND + 14, 8, '#6f6')}
     ${C ? `<path d="M${x(P[0].x).toFixed(1)},${zeroY} ${C.dv.map((dv, i) => `L${x(P[i].x).toFixed(1)},${yDelta(dv).toFixed(1)}`).join(' ')} L${x(P[P.length - 1].x).toFixed(1)},${zeroY} Z" fill="#55886655"/>` : ''}
@@ -567,7 +567,7 @@ async function drawSetup(m){
       warn: (cl?.items ?? []).filter((i) => i.level === 'warn').length,
       areas: cl?.items?.length ?? 0,
       stale: !!tel.stale?.changed,
-      live: live?.game ? (live?.live ? tr({ it: 'in pista', en: 'on track' }) : tr({ it: 'aperto', en: 'open' })) : null,
+      live: live?.game ? (live?.live ? 'in pista' : 'open') : null,
       telem: h?.telem?.lastLd ? new Date(h.telem.lastLd.mtimeMs).toLocaleTimeString(window.LOCALE, { hour: '2-digit', minute: '2-digit' }) : null,
     };
     /* SETUP PIÙ NUOVO DELL'ULTIMA SESSIONE: il meccanico giudica i dati vecchi —
@@ -597,7 +597,7 @@ async function drawSetup(m){
        grande e a tutta larghezza; consigli, sessioni, diagnostica sotto. */
     return `<div class="panel setup-hero">
       <div class="setup-hero-head">
-        <span class="setup-hero-title">📈 ${tr({ it: 'GRAFICO DEL GIRO', en: 'LAP CHART' })}</span>
+        <span class="setup-hero-title" role="heading" aria-level="2">📈 ${tr({ it: 'GRAFICO DEL GIRO', en: 'LAP CHART' })}</span>
         <span class="setup-hero-sub">${esc(tel.car ?? s.car ?? '')} · ${esc(s.track ?? tel.trackDisplay ?? '')} · ${tr({ it: 'velocità, gas e freno, confronto fra giri', en: 'speed, throttle and brake, lap comparison' })}</span>
       </div>
     <div id="meccanico-out" style="margin:0 0 10px"></div>
@@ -1173,9 +1173,6 @@ async function drawSetup(m){
     ${diagRows}
     <div class="muted" style="margin-top:8px">${tr({ it: 'Un file valido pesa 2–11 MB e ha 62 canali con dati; uno vuoto pesa ~19 KB (solo intestazione). Aggiorna la pagina per risentonare dopo una sessione.', en: 'A valid file weighs 2–11 MB and has 62 channels with data; an empty one weighs ~19 KB (header only). Refresh the page to re-listen after a session.' })}</div>
   </div>` : `<div class="panel" style="margin-top:14px"><h2>${tr({ it: 'Diagnostica telemetria', en: 'Telemetry diagnostics' })}</h2><div class="muted">${tr({ it: 'Nessun file MoTeC trovato in {P}: fai una sessione e EVO scriverà il primo file.', en: 'No MoTeC file found in {P}: run a session and EVO will write the first one.' }).replace('{P}', esc(diag.root ?? 'Saved Games\\ACE\\MoTec'))}</div></div>`;
-  m.innerHTML += diagHtml;
-  const bDiagAll = $('#b-diag-all');
-  if (bDiagAll) bDiagAll.onclick = () => { window.__diagAllMoTec = !window.__diagAllMoTec; render(); };
 
   // salute sistema + registro errori: diagnostica degli strumenti, non della carriera
   const [health, warns] = await Promise.all([
@@ -1210,7 +1207,12 @@ async function drawSetup(m){
     warnsHtml += mods.map((md) => `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12.5px"><b>${esc(md.module)}</b> <span class="tag" style="font-size:11.5px;padding:1px 7px;background:#3a2a1d;color:#ffc78a">${md.count}</span> <span class="muted" style="font-size:11.5px">${tr({ it: 'ultimo:', en: 'last:' })} ${esc(String(md.last[0]?.at ?? '').slice(0,19).replace('T',' '))}</span></summary><div style="margin-top:4px">${md.last.map((w) => `<div style="padding:2px 0;border-bottom:1px solid var(--line,#222);font-size:12px"><span class="muted">${esc(String(w.at).slice(11,19))}</span> ${esc(w.message)}${w.extra?` <span class="muted">(${esc(w.extra)})</span>`:''}</div>`).join('')}</div></details>`).join('');
   }
   warnsHtml += '</div>';
-  m.innerHTML += healthHtml + warnsHtml;
+  /* ORDINE (4/11): prima i due riquadri brevi (salute, registro errori), poi
+     la diagnostica telemetria — la più lunga, con decine di riquadri: in mezzo
+     spingeva gli altri due a oltre 5.500 px. */
+  m.innerHTML += healthHtml + warnsHtml + diagHtml;
+  const bDiagAll = $('#b-diag-all');
+  if (bDiagAll) bDiagAll.onclick = () => { window.__diagAllMoTec = !window.__diagAllMoTec; render(); };
 
   /* AUTO-REFRESH MENTRE GIRI (Mauro 21/10): ogni 15 s guarda se è cambiato il
      dato che conta — l'ultimo .ld scritto da EVO, il suo numero di giri validi
