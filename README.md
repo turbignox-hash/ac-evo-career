@@ -1,768 +1,163 @@
-# EVO Pitwall (`ac-evo-career`) — automated career for Assetto Corsa EVO
+# EVO Pitwall
 
-🐞 **Bug or idea?** [Open a GitHub issue](https://github.com/turbignox-hash/ac-evo-career/issues/new) — or use the “Report a problem” link in the tool sidebar: it opens the same form *already filled in* with build version, current series, recent errors and difficulty. · ☕ **Support the project:** [Ko-fi](https://ko-fi.com/turbigno) ·
+**A persistent, local-first career for Assetto Corsa EVO.**
 
-A persistent, automated career for **Assetto Corsa EVO**, modelled after a career
-app for Automobilista 2.
+![Build](https://img.shields.io/badge/build-0.1.55-2563eb?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-911%2F911-16a34a?style=flat-square)
+![Lint](https://img.shields.io/badge/lint-0%20warnings-16a34a?style=flat-square)
+![Node](https://img.shields.io/badge/Node-18%2B-339933?style=flat-square)
+![Windows](https://img.shields.io/badge/platform-Windows-0078d4?style=flat-square)
 
-The original is not a content mod: it is an application that lives *outside* the
-game. It decides the race, launches the simulator, then re-reads the results and
-updates money, reputation, standings and the market. EVO works the same way,
-with one important difference stated up front:
+[Releases](https://github.com/turbignox-hash/ac-evo-career/releases) · [Italiano](README.it.md) · [Friend guide](GUIDA-AMICO.md) · [Issues](https://github.com/turbignox-hash/ac-evo-career/issues/new) · [Ko-fi](https://ko-fi.com/turbigno)
 
-> **EVO accepts no command-line arguments and reads no session file written from
-> the outside.** There is no equivalent of Assetto Corsa 1's `race.ini`. So the
-> race is prepared in the game's own interface: the app tells you *exactly* what
-> to set (one screen, two clicks) and opens the game for you. **Everything else
-> is automatic**: the result is read from the game's own native files.
->
-> **The only step still on your shoulders is picking the car by hand:** at the
-> moment it cannot be set automatically, so you choose it in the game's
-> interface — and the race card already tells you *which* one.
+> **Independent project.** EVO Pitwall is not a content mod, is not affiliated with KUNOS, and does not include code, data, text or graphics from other career apps. It runs on your PC, reads the files Assetto Corsa EVO writes, and keeps the career in a local save.
 
-**The career is inspired by Apex to Zero, the Automobilista 2 career app — but
-developed from scratch**: the ladder, economy, points, profiles, classes and
-series are code and data written for EVO, not a reconstruction of the original
-project.
+## What it is
 
-## The four things you should know first
+EVO Pitwall adds a career layer *around* Assetto Corsa EVO: a ladder of **86 series across 6 disciplines and 7 levels**, contracts, entry fees, prize money, sponsors, rival drivers, standings, grids, telemetry-driven setup advice and a co-driver radio. It is a local web app (and CLI) that prepares the race weekend, opens the game and reads the native result when the race is over.
 
-1. **The car is picked manually, for now.** Launching the session itself,
-   calendar, entry fees, AI sliders, result import and everything downstream is
-   automatic; only the car selection stays in the game's interface (see the race
-   card — it lists the exact car).
-2. **The progressive balance system learns while you race.** Multi-class
-   championships that run cars of **the same category** together (e.g. a grid
-   mixing two classes of the same series) get **ballast (kg) and time penalties
-   (%)** calculated by the tool. Every real race result is recorded (append-only
-   log, `data/grid-calibrazione.json`): the more laps you and your rivals
-   complete, the more the system learns how far each car really is from the base
-   and recalibrates the weights — with a per-track confidence score and caps, it
-   never invents numbers out of thin air. You watch it converge on the **Grid**
-   tab.
-3. **The Mechanic computes every improvement currently possible** — tyre
-   pressures with the 4 PSI rule, camber, ride height, bumpstops, brake bias,
-   TC, fuel per lap — and tells you if, and why, a data source is missing (e.g.
-   empty telemetry files): it prefers real telemetry from EVO's `.ld` files and
-   falls back to estimates, and it never changes anything inside the game unless
-   you click **Apply** (it writes a `*-EVO-consigliato.carsetup` file next to
-   yours).
-4. **No wet↔dry dynamic weather races yet — the game cannot do it.**Assetto Corsa EVO does not implement dynamic weather transitions (dry to wet and back) *inside a session* at the time of writing, so the app schedules fixed
-   weather presets per round only. If Kunos adds in-session dynamic weather, the
-   only files to touch are `src/weather.mjs` and the round profiles.
+The game remains the game. EVO Pitwall does not replace AC EVO's career, does not modify its content, and does not need an account, a cloud service or another career application.
 
-## Screenshots (every tab of the real interface)
+**Current main:** build **0.1.55** · **911/911** tests · **370** linted files, 0 warnings.
 
-The interface has 19 tabs. These are live screenshots of the tool running on a
-real career save (interface set to English):
+## Install
 
-**Everything is clickable** (since 28/10, Football-Manager style): a car name
-opens its spec sheet, a driver the rival card, a track the track book, a series
-the Championships tab, and the ruler's date/money/rep/season jump to the right
-tab. Page switches carry parameters: the search prefills itself and, if the
-match is unique, the sheet opens on its own.
+### Option A — published friend package
 
-| Tab | What you get |
+The current published release is **[v0.1.55](https://github.com/turbignox-hash/ac-evo-career/releases/tag/v0.1.55)**. Its asset is the friend ZIP: `installa.cmd`, the guides and the full code. It installs without administrator rights and downloads a portable Node.js if needed.
+
+> The v0.1.55 package was published before the latest installer and report-cleanup commits. The `main` branch is newer.
+
+### Option B — Windows EXE from `main`
+
+From a source checkout:
+
+```bash
+npm run installer          # online: downloads Node/code when needed
+npm run installer:offline  # offline: embeds portable Node and the code (~40 MB)
+```
+
+This produces `dist\EVO-Pitwall-Setup.exe` or `dist\EVO-Pitwall-Setup-Offline.exe`:
+
+- graphical folder picker, install log and **Disinstalla** button;
+- no administrator rights, no Git required;
+- `--silent --dir <path>` for unattended installs;
+- the offline EXE works without a connection; the online one needs internet.
+
+> **Installer status:** the EXE builder is in `main`, but the EXEs are **not attached to the v0.1.55 release yet**. Build them locally or wait for the next release.
+
+<details>
+<summary>Optional Authenticode signing</summary>
+
+Set `EVO_SIGN_PFX` + `EVO_SIGN_PASSWORD`, or `EVO_SIGN_THUMBPRINT` for a certificate already installed in Windows. The builder finds `signtool.exe` in the Windows SDK (or uses `EVO_SIGNTOOL`), signs with SHA-256 and a timestamp, then writes the `.sha256` of the signed file. `npm run verifica-firma` runs the same checks by hand.
+
+A **self-signed certificate does not remove SmartScreen**: it only helps on a PC that trusts that CA. Removing “Unknown publisher” needs an **OV or EV certificate issued to a verified identity**. Signing alone does not guarantee the warning is gone: SmartScreen also weighs the file hash and download reputation.
+
+</details>
+
+### First launch
+
+1. Install and start **Assetto Corsa EVO** once, so its data folders exist.
+2. Run the installer, or extract the friend ZIP and run `installa.cmd`.
+3. The GUI opens the signup form; `setup` finds the game paths automatically.
+4. The in-game **Cruscotto** and **Pitwall** widgets need the optional [ACE UI App Loader](https://github.com/dreasgrech/ACEUIAppLoader). Without it the rest of the tool still works, and the installer tells you so.
+
+Full walkthrough: [GUIDA-AMICO.md](GUIDA-AMICO.md) (Italian, with an English section) or [FRIEND-GUIDE-EN.md](FRIEND-GUIDE-EN.md).
+
+## What's new in 0.1.55
+
+- **Windows installer without administrator rights.** A WinForms EXE wraps the same install rules, with a folder picker, log and uninstaller; online and offline variants.
+- **Loader warning.** If the ACE UI App Loader is missing, the in-game widgets are skipped with a clear message instead of a silent failure.
+- **Release safety.** The release tool stops on a dirty tree, a missing or empty body, a tag that is not on `HEAD` or missing from the remote, and a failed asset upload. The friend package is built only from a completely clean tree.
+- **Optional signing preflight.** When signing variables are present, the preflight verifies the Authenticode chain, the `.sha256` sidecar and the build metadata before attaching anything.
+- **Independent codebase.** The external journal bridge, the channel and the derived rules are gone. Calendar, garage and dictionary read only files written by the game. A guard test scans the project and fails if a reference to the external product comes back.
+- **Current checks:** `npm test` **911/911**, `npm run lint` **370 files, 0 warnings**.
+
+The latest published v0.1.55 notes describe the independence cut; the installer and release-hardening commits are on `main` after that tag.
+
+## Highlights
+
+- **A career, not a race generator.** 86 series, 6 disciplines, 7 levels, 18 tracks; gates by position, open/closed seats, per-series economy, real points systems, iconic races, contracts, sponsors and a season duel.
+- **Automatic weekend preparation.** The race card knows the track, laps, hour, weather preset, grid and car. “Prepara tutto” writes the weekend; you drive. The car is set automatically once the tool has learned it — an unknown car needs one manual pick in EVO, then the garage/dictionary learns it.
+- **Progressive multi-class balance.** Ballast (kg) and time penalties (%) are computed from real results, with per-track confidence and caps. The Grid tab shows the convergence; the system never invents data when the evidence is missing.
+- **A mechanic that reads telemetry.** Tyre pressures with the 4 PSI rule, camber, ride height, bumpstops, brake bias, TC and fuel per lap, from EVO's `.ld` files where available, with an explicit fallback when they are not.
+- **A co-driver radio, not a chatbot.** One narrator nucleus for the page and the server: flags, fuel, tyres, gaps, pit window, last lap and the chequered flag, with four volume levels (`off`, `essential`, `normal`, `full`).
+- **19 tabs.** Dashboard, Race centre, Setup, Messages, Championships, Grid, Rivals, Analysis, Tracks, Cars, Garage, Results, Archive, Online, Free laps, Stats, Finances, Difficulty, Settings. Online sessions are archived without paying career points; Free laps is a separate test-day mode.
+- **Bilingual and local.** Italian and English interface, Italian/English CLI via `EVO_LANG`; the local server is bound to `127.0.0.1:8642`. No accounts, no uploads, no cloud.
+
+## Screenshots
+
+| Dashboard | Race centre |
 | --- | --- |
-| ![Dashboard](docs/screenshots/01-dashboard.png) | **Dashboard** — season stats (wins, podiums, points, round chart), the race card with the exact session to set in EVO, and next-race reminder in the header. |
-| ![Race centre](docs/screenshots/02-race-centre.png) | **Race centre** — the seasonal calendar strip, the rounds you can still run, and the next race sheet. |
-| ![Setup](docs/screenshots/03-setup.png) | **Setup** — the Mechanic's advice (pressures → the 4 PSI rule, camber, ride height, bumpstops, brakes, TC, fuel), the **lap chart** with MoTeC telemetry, setup history, telemetry diagnostics per car. |
-| ![Messages](docs/screenshots/04-messages.png) | **Messages** — the agent's mail: contract offers, challenges, urgent races. |
-| ![Championships](docs/screenshots/05-championships.png) | **Championships** — your series, the seasonal gate and progress; at the bottom the folded **World Ranking — prestige** panel (the 369 drivers of the world, yours included). |
-| ![Grid](docs/screenshots/06-grid.png) | **Grid** — the progressive balance screen: ballast kg and penalty % per car, per-track proposals, AI range, learned calibration. |
-| ![Rivals](docs/screenshots/08-rivals.png) | **Rivals** — head-to-head, form, nemesis and rival classifications. |
-| ![Analysis](docs/screenshots/09-analysis.png) | **Analysis** — lap delta autopsies, rival dossiers, the five pilot tools. |
-| ![Tracks](docs/screenshots/10-tracks.png) | **Tracks** — the track book: history, nicknames, mastery level, personal bests. |
-| ![Cars](docs/screenshots/11-cars.png) | **Cars** — the car book with official renders and performance index. |
-| ![Garage](docs/screenshots/12-garage.png) | **Garage** — cars you own or won, appraisals and sales. |
-| ![Results](docs/screenshots/13-results.png) | **Results** — one-click import of the last compatible race (or manual entry). |
-| ![Archive](docs/screenshots/14-archive.png) | **Archive** — every session written by EVO, searchable, with full classifications. |
-| ![Online](docs/screenshots/20-online.png) | **Online** — the multiplayer races (`_MP_` tag) in a tab of their own: a clickable grid for every online session, plus the **online rivals book** (stable identity via the game's `driver_id`). |
-| ![Free laps](docs/screenshots/19-free-laps.png) | **Free laps** — the pure test-day mode: pick PRACTICE, track and car in EVO and just drive; every session the game writes lands in the hotlap book by itself, with the PB book per car × track and the ideal lap built from your best-ever sectors. The career is never touched. |
-| ![Stats](docs/screenshots/15-stats.png) | **Stats** — trophy hall, sigils, points and position charts. |
-| ![Finances](docs/screenshots/16-finances.png) | **Finances** — the flow ledger: prizes, sponsors, entries. |
-| ![Difficulty](docs/screenshots/17-difficulty.png) | **Difficulty** — per-series AI bands, adaptive trim, everything written to the game sliders. |
-| ![Settings](docs/screenshots/18-settings.png) | **Settings** — career slots, language (Italiano / English), installation checks. |
+| ![Dashboard](docs/screenshots/01-dashboard.png) | ![Race centre](docs/screenshots/02-race-centre.png) |
+| **Setup and telemetry** | **Grid and balance** |
+| ![Setup](docs/screenshots/03-setup.png) | ![Grid](docs/screenshots/06-grid.png) |
+| **Online archive** | **Free laps** |
+| ![Online](docs/screenshots/20-online.png) | ![Free laps](docs/screenshots/19-free-laps.png) |
 
-The interface language is chosen in **Settings** and stored in the browser; the
-CLI honours `EVO_LANG` (`it`/`en`).
+Live screenshots from a real career save, interface in English. The complete tab list is above; the GUI is fully clickable (car names, drivers, tracks, series and header figures all open the matching sheet).
 
-## Screenless-but-simple cycle
+## The race weekend
 
-```
-node ac-evo-career.mjs next      what's next, and what to set in the game
-node ac-evo-career.mjs race      pay the entry fee, mark the race, open EVO
-   ... go race ...
-node ac-evo-career.mjs import    read the native result and update the career
+```text
+node ac-evo-career.mjs next      # what's next, and the exact weekend card
+node ac-evo-career.mjs race      # pay the entry, mark the round, open EVO
+   ... drive ...
+node ac-evo-career.mjs import    # read the native result and update the career
 ```
 
-With the GUI (`apri-gui.cmd`, or voice **1** in `avvia.cmd`) the cycle is still
-simpler: the **Get everything ready and have fun** button writes hour, laps,
-weather, grid, car and rules into EVO for you, the **import is
-automatic** at race end (watcher), and the header shows the countdown to the
-next race.
+In the GUI, **Prepara tutto** does the preparation and the watcher imports the result automatically at the end of the race. The car is prepared by the tool; if EVO does not know it yet, pick it once — the tool learns it from the garage and the game menu.
 
-## Update bar and build version (visible in the GUI)
+The result is read from EVO's native `Results\*.sessionresults.json`. There is no file injection and no command-line session launch: EVO does not expose one, so the app opens the game and prepares the weekend it already writes.
 
-- The side footer of every screen shows the **build version**: `build 0.1.2 ·
-  809ea00` (semver from `package.json` + 7-digit commit hash). It changes on
-  every project save: `sincronizza-git.cmd` bumps the version automatically
-  (tools/bump-versione.mjs) before committing, so a new build can never be
-  mistaken for an old one. `node tools/bump-versione.mjs --check` prints the
-  current number.
-- The **update banner** compares the GitHub `offsite` remote against the disk at
-  every GUI start. Behind the banner: GitHub ahead → yellow banner with "Update
-  now" (git fetch + merge --ff-only + npm test, always with your consent, your
-  save in `data/` untouched); equal or offline → silent. The command-line
-  version is `node tools/aggiornamenti.mjs` (`s/N` prompt, Invio/15 s = no).
+## Privacy and save safety
 
-## What's new in the recent builds
-
-Highlights of the **0.1.13–0.1.41** line (every save writes a readable
-changelog under [report/](report/), with the real test-suite result inside):
-
-- Prize exclusion counts the TOOL garage + showcase only (28/10). The older
-  `SavedCars` disk scan (`.carfinalstatewithconsumable` files) turned out to be
-  wrong for ownership: the files survive car SALES (the F40 LM Mauro sold) and
-  RENTALS from the car pool, while truly owned cars can miss their file (the
-  Countach had none). It fed 13 phantom owned cars into prize choice. The scan
-  `gameOwnedCarIds()` remains as a read-only diagnostic; a car known only to the
-  game is declared by hand from the Garage menu. Test: `test/game-owned.test.mjs`.
-- **Per-second baks and slim backup (28/10, audit).** Grid templates and the
-  customgrid write their `.bak` with the SECOND in the name (two nearby
-  writes no longer overwrite each other, `-r2`/`-r3` suffix; regression test
-  in `test/grid-templates.test.mjs`), `.bak-ripara-*` files prune themselves
-  (the 3 freshest stay), and the save backup excludes
-  MoTec/replay/crashdumps/Logs/mods: zip from 746 MB to 1.1 MB.
-- **Season press, headlines that remember (28/10).** After every race the
-  race press writes a headline tailored to your true story, not just
-  today's race — rarest first: GRAND CHELEM, THE WASTED POLE, ROUGH STREAK
-  ("3 retirements in a row"), BACK FROM THE BOX / BACK ON THE PODIUM,
-  TWO/THREE/FOUR IN A ROW, FIRST TIME AT X, THE FIRST STEP, PODIUM STREAK.
-  And the whole year is bound into the **season press sheet**: a single
-  dashboard page with the summary up top (races, wins, podiums, DNFs) and
-  each masthead in round order, season picker and sheet copy. All headlines
-  are deterministic: same history, same headline.
-- **The simulated standings now race on the wide field (28/10).** EVO's real
-  grids are almost always WIDER than the ladder estimate (Alfa 75: ladder 7,
-  real 17; Golf Mk8: 14 vs 17; R5: 12 vs 16) — and the simulated standings,
-  season duel and seat monte-carlo used to run on the SHORT grid: a real
-  P10/17 got squeezed into a 7-car field and rival points were undersummed.
-  The sim now races as WIDE AS THE MAXIMUM ever seen in real grids
-  (`grigliaSimEstesa`): standings, pit lane, mid-season pulse and series cards
-  tell a championship as crowded as it really is. Deterministic, robust to
-  corrupt truncated files, and the ladder on disk is never touched (the node
-  is mutated IN COPY only); on virgin careers the estimate stays.
-  Checked on the widened field: top-three seats win ~97% and titles split
-  47-11-2 at 17 cars vs 48-11-1 at 14 — the championship stays a meritocracy.
-- **Fully procedural championships, with procedural intelligent balancing.**
-  Five tiers (Epoca → Corsa) come out of a seeded draw (`tools/_genera-stili.mjs`):
-  each level draws at random from the car catalog within its PI band — mono-brand
-  series, multiclass, classics and GTs drawn freely together («what it draws
-  will be completely random»), and `--seed N` reproduces the same draw. The
-  balance is procedural too: ballast and restrictor penalties computed from the
-  PI delta (slope calibrated on real data; the 20% game cap declared for
-  out-of-formula cars — the first race decides), then per-track recalibration
-  learned from your real race results by grid-calib. Even before signing a seat,
-  the Championships tab shows the five draw sheets — seed, pool, rules and
-  calendar, all clickable.
-- **The copilot always speaks Italian — and makes sense.** From 27/10 the
-  voice is always it-IT even with an English interface (English UI serves
-  even with the English interface). At startup it waits a few beats
-  for the browser's asynchronous voice list, only speaks when a *value*
-  actually changes, never repeats a phrase within 20 s and stays silent for
-  the first seconds after a session switch. The **♪ test** chip on the
-  dashboard speaks one line on demand to verify the Italian voice. Since
-  28/10 it also keeps discipline: no more looping the mid-race report
-  ("litres, fuel and laps"), and the last-lap messages arrive on time,
-  positions lost and gained included.
-- **Grids now build themselves for every series.** The "harmonic" variant
-  system (a unique livery per cell — EVO crashes on schedules with repeated
-  cells) applies to **every car** of a series, not a single chosen one. Series
-  templates land in the save's warehouse (`data/grid-templates/`), factory
-  templates fill the gaps, and a fresh PC needs no manual "N liveries + APPLY"
-  ritual anymore. Progress of the learned balance on the **Grid** tab.
-- **Free laps — the test-day mode.** In EVO pick PRACTICE, any track, any car
-  and just drive: every session the game writes lands in the hotlap book by
-  itself, with the PB book per car × track, sector deltas against your best
-  ever, the ideal lap built from best-ever sectors and telemetry analysis.
-  The career is never touched.
-- **One-file install for a friend.** `installa.cmd` (a single file, a few KB)
-  installs everything on a Windows PC — portable Node downloaded if missing or older than 18,
-  code from GitHub, `build-id.txt` written, tests run, desktop shortcut with
-  the program icon and the first-launch wizard. The IN-GAME apps (Cruscotto
-  and Pitwall of the loader) set themselves up on first launch: without the
-  [ACE UI App Loader](https://github.com/dreasgrech/ACEUIAppLoader) mod
-  everything else still works, and the tool says so.
-  `disinstalla.cmd` undoes it cleanly, removes the Apps & Features entry and refuses folders that don't look
-  like an installation. All covered by sandbox tests.
-- **Old closing messages stay readable.** Old grid-calibration notes
-  written back when the career ran in Italian are translated on display in
-  the English interface — the save file is still never modified.
-- **The in-game «Cruscotto» widget (from 27/10).** The first widget inside the
-  game: it quietly reads the server dashboard and shows your driver, today's
-  races and entered series in the ACEUIAppLoader app — it installs itself on
-  first launch (the launcher does it silently) or with one double click on
-  `INSTALLA-GIOCO.cmd`; the publisher (`src/uiapp-pub.mjs`) keeps the data
-  strips fresh. From 28/10 it also shows the mini-standings of your
-  current series and the world-skill panel, plus a button that opens the full
-  Mondiale in the browser GUI — all computed with the same server formulas
-  (`standingsFor`, `playerWorldSkill`) so the numbers can never diverge.
-- **The Cruscotto also kicks the round off (28/10 evening).** A prepared and
-  confirmed round → once the car in EVO's menu is already yours (the
-  `ui_storage` ack of the setcar), the applet presses **«Start session» by
-  itself** — the same command the game uses. The **special event never
-  gets an automatic launch** (its settings are set by hand from the card,
-  lesson of 23/10); a fresh round outranks the event (a pending round
-  expires after ONE day and yields the field), and the car in EVO's menu no
-  longer flips back to the event's car by surprise ("the Ferrari steps
-  back").- **Car classes (26–27/10).** The class engine now pairs series
-  with the car park actually on disk: with the right classes per-track ballast
-  has lost its bite (latest races: zero escapes from the base, no penalty
-  above 8%, the 20% cap never reached).
-
-## Installation
-
-For a friend's install on another PC (first setup, updates from the launcher,
-typical issues) there is a dedicated guide: [GUIDA-AMICO.md](GUIDA-AMICO.md).
-
-Worth reading even for the shortest path: **copy `installa.cmd` to the other
-PC and double-click it** — portable Node (if missing), code, desktop shortcut
-and first-launch wizard are all handled, and `disinstalla.cmd` undoes the
-whole thing later. For the way via clone or ZIP-from-GitHub, **Node.js 18+** is
-the only prerequisite. Either way: Assetto Corsa EVO installed and started
-at least once (so its data folders exist).
-
-For a Windows GUI, `npm run installer` builds `dist\EVO-Pitwall-Setup.exe`: a small unsigned WinForms wrapper around the same `installa.cmd` (same downloads and rules, with a folder picker, Disinstalla button and log). It still needs internet if Node or the code is missing. For PCs with no connection, `npm run installer:offline` builds `dist\EVO-Pitwall-Setup-Offline.exe` (about 40 MB): portable Node and a zip of the current code are embedded, so it installs offline. The first offline build downloads Node once into `dist\offline-cache\`; later builds reuse it. Neither variant is code-signed unless you configure signing: set `EVO_SIGN_PFX` (path to a `.pfx`) + `EVO_SIGN_PASSWORD`, or `EVO_SIGN_THUMBPRINT` for a certificate already in Windows. The builder finds `signtool.exe` in the Windows SDK (or `EVO_SIGNTOOL`), signs with SHA-256 and a timestamp, then writes the `.sha256` of the **signed** file. `EVO_SIGN_TIMESTAMP=""` disables the timestamp for offline signing; with no signing variables the EXE stays unsigned. A **self-signed certificate does not remove SmartScreen**: it only helps on a PC that trusts that CA, not on your friend's. Removing «Unknown publisher» and building reputation needs an **OV** or **EV** certificate issued to a verified identity: EV reputation is immediate, OV reputation grows with downloads. Signing alone still does not guarantee the warning is gone, because SmartScreen also weighs the file hash and URL. The `crea-release` preflight verifies the EXEs present (`signtool verify /pa`, the `.sha256` match and the build version in `.build.json`) as soon as it sees an `EVO_SIGN_*` variable; when they pass, the release attaches the EXEs present and their `.sha256` files automatically, with no `--asset` needed. By hand run `npm run verifica-firma`.
-
-### The automatic save backup (since 25/10)
-
-`tools/salva-save.mjs` zips EVO's data folders on a slot-1/slot-2 rotation
-into `data/salva-save/` (at most 4 zips kept), and runs by itself at every
-launcher start: if the last backup is older than **36 hours** it quietly
-makes a new one, if it is fresh it does nothing at all (launches in a row
-never do I/O for nothing). It also runs in-process for the GUI
-(`statoBackup()` / `forzaBackup()`, the "EVO save backup" section in
-Settings) and from the CLI:
-
-```bash
-node tools/salva-save.mjs          # backup ONLY if the last one is stale
-node tools/salva-save.mjs --check  # exit 0 = fresh, exit 1 = stale/missing
-node tools/salva-save.mjs --force  # backup ALWAYS
-```
-
-Note (updated 28/10): the zip NO LONGER carries MoTec, replays, crashdumps,
-logs or mods — the `ESCLUSIONI_SAVE` list targets save-only content (test
-zip: 746 MB → 1.1 MB). The `2026.ld` unknown remains in the zip (it packs
-to a few MB under deflate; the decision awaits a sandboxed restore test).
-Details in [report/audit-dati-2026-10-28.md](report/audit-dati-2026-10-28.md),
-§5.
-
-```bash
-node ac-evo-career.mjs setup
-```
-
-`setup` finds on its own:
-
-| What | Searched where |
-| --- | --- |
-| data folders | `%USERPROFILE%\Saved Games\ACE` (0.5+) and `%USERPROFILE%\Documents\ACE` (older) |
-| results | `<data folders>\Results\*.sessionresults.json` |
-| logs | `<data folders>\Logs` |
-| executable | `AssettoCorsaEVO.exe` in every Steam library (`libraryfolders.vdf`) |
-
-Different paths? Force them once:
-
-```bash
-node ac-evo-career.mjs setup --data "D:\Data\ACE" --game "D:\Steam\steamapps\common\Assetto Corsa EVO\AssettoCorsaEVO.exe"
-```
-
-Then verify the career ladder mentions content you **actually have**:
-
-```bash
-node ac-evo-career.mjs content --validate   # problems + three nearest IDs for each
-node ac-evo-career.mjs content --list       # all content seen in the install
-node ac-evo-career.mjs content --search gt3
-```
-
-### Starting out
-
-```bash
-node ac-evo-career.mjs new --name "Your Name" --nation ITA
-node ac-evo-career.mjs status
-```
-
-You can also start directly in the interface: it opens on the signup form where
-you write the driver name (the same one used in EVO) and the nation.
-
-You enter on a level-1 series with 6,000 in pocket. The entry discipline is
-chosen with `--discipline entry|touring|single|gt|endurance|strada`, otherwise
-you start in Coppa Città.
-
-```bash
-node ac-evo-career.mjs series --discipline gt    # the ladder: what's open, what's missing
-node ac-evo-career.mjs enter gt4_open            # change series by renting or buying
-node ac-evo-career.mjs enter gt4_open --buy      # buy it instead of renting
-```
-
-**Driver name:** the name you give to `new` is also how the import recognises
-you in the game's results. If EVO knows you under another name, use **the game's
-one** (`new --name "Mauro Turbigno"`, or fix it later with
-`rinomina --name "Mauro Turbigno"`). The game looks for the in-game badge first,
-then the name, then the only driver without the `•` marker (EVO's AIs carry the
-dot) — the name EVO uses for you appears in `Logs\log-*.txt` on the line
-`Creating Car (Name Surname ...)`.
-
-**Your first race, end to end, in five steps:**
-
-1. `next` — read the race card: track, laps, weather, and the car.
-2. `race` — entry fee paid, race marked, EVO launches itself.
-3. In the game, set the fields of the race card and **pick the car by hand** —
-   that is the entire manual part.
-4. ... go race ...
-5. `import` — or let the GUI watcher do it: money, standings, rivals, upgrades
-   and the mechanic's advice all refresh by themselves.
-
-**On a fresh PC, the first-launch dance, in order** (from the friend guide,
-§3-bis — the two gestures the tool cannot do from outside):
-
-1. **In EVO, once only: the round's WEEKEND screen.** Open EVO → Career →
-   current round → **reach the Race Weekend screen** (nothing to play: it is
-   enough that the screen appears) and go back to the EVO menu. The tool
-   writes hour, laps and weather INTO the weekend save file, and on a virgin
-   PC EVO has not created it yet — this very screen generates it.
-2. **Get everything ready and have fun** (the yellow button): hour, laps,
-   weather and grid get written automatically. The red message «EVO has no
-   career weekend yet» means step 1 is missing: enter the weekend once and
-   press the button again.
-3. **Pick the car by hand inside the EVO weekend** — the first race teaches
-   the app which car is yours; from the second race on it picks it alone.
-
-⚠️ **First MULTICLASS race, once only:** in the Race Weekend menu move
-**Grid Type from AUTOMATIC to CUSTOM** and press **Apply**, then never touch
-the selector again. A fresh install starts AUTOMATIC and the tool cannot
-flip it from outside; if the gesture is missing, the red message walks you
-through it. From the next race on the yellow button rewrites the grid,
-ballast and penalties by itself.
-
-## The career: how it is built
-
-**79 series, 6 disciplines, 7 levels, 4 tiers** — not a straight line but a tree
-crossed through seat offers.
-
-| Tier | Levels | What you drive |
-| --- | --- | --- |
-| Rookie | 1–2 | compacts, one-makes, MX-5, GT86 |
-| Semi-pro | 3–4 | classic turbos, touring, GT4, Group B |
-| Pro | 5–6 | GT3, GT2, pro touring, Formula 2004, endurance |
-| Elite | 7 | Formula Elite (SF-25), GT Elite, Endurance Elite, Strada Elite |
-
-The six disciplines are **Entry Level, Touring, Single-seater, Grand Touring,
-Endurance, Road and Rally**.
-
-- **Gates by position.** Each series demands a top-*N* finish in a lower one
-  (e.g. `top: 5`); without it the seat is unavailable, and `series` says what's
-  missing.
-- **Open or closed access.** `open` series are bought or rented; `closed` ones
-  (Formula, GT, Endurance and Strada Elite) are closed parks needing
-  reputation and a contract.
-- **Per-series economy.** `pocket`, `sponsor`, `factory`, `heritage` models with
-  buy price, rent, race fee, per-position prize, champion bonus, and a boosted
-  (×1.5) prize on **iconic races** (Sebring 12h, Bathurst 12h).
-- **Real points systems.** `club`, `one_make`, `f1_2003`, `f1_modern`, `sro_gtwc`,
-  `wec`, `historic_endurance`.
-- **Calendar with format.** Every round has time of day, laps and weather
-  preset; the series profile decides practice, qualifying, start type and
-  mandatory pit.
-- **Living world.** 240 AI drivers with skill, aggression, consistency, character
-  archetype, aging and retirements, hot form and legendary row.
-- **Realistic simulated standings.** Standings for the rounds you skip are no
-  longer a formality: every seat carries a deterministic **seasonal form**
-  (series+season+driver hash) whose amplitude scales with the skill gap between
-  the top two seats (×1.6, capped at 0.10), so any grid size still leaves room
-  for upsets. Reference measurement (`node tools/_misure-realismo.mjs`): seat 1
-  wins ~61% of the races in the GT4 Cup and ~63% in Formula Elite, and titles
-  are shared across the top three seats — before the fix it was 100% to the
-  nose seat. The rounds you do drive remain reality: standings use YOUR true
-  result.
-- **Layered difficulty.** `total = base + trim + offClass + offTrack`, clamped
-  70–120 and mapped to the game's AI slider; adaptive trim adapts to you, and
-  anomalies wait for your accept/reject instead of applying silently.
-- **Progressive multi-class balance.** Same-category championships mixing
-  classes earn **ballast kg and penalty %** that converge as results are
-  recorded — the data-driven calibration described above.
-- **Sponsors, contracts, challenges, sigils.** Reputation-triggered sponsors,
-  season-long contract objectives, per-round mini-challenges, permanent personal
-  sigils — all in the ledger and trophy hall.
-- **Season duel and nemesis.** The tool picks a rival for the season's
-  standings; two losses in a row makes him a nemesis, beating him closes the
-  feud for a trophy.
-- **Flow ledger.** Every prize, sponsor, entry and bonus is written to
-  `data/flows.jsonl`; the checker reconstructs money and reputation from it.
-- **Journal.** Season review exports to `data/journal/stagione-N.md`.
-
-## The co-driver voice: one nucleus, one radio
-
-The co-driver always speaks Italian — and her lines come from a single source of truth.
-
-- **One nucleus only:** `gui/js/narratore-unito.js`. The page loads it as a classic `<script>` (backed by `globalThis.__EVO_NARRATORE`), the server reads the same function, and the tests in `test/copilota-narratori.test.mjs` run on the SAME synthetic races: one fix to the tests covers everything that speaks.
-- **The radio lives in the server** (Pitwall voice, Windows System.Speech: no browser needed, no overlapping lines). During a race the dashboard page does NOT repeat anything while the server radio is on (no double voice); with the radio off and the co-pilot chip on, the page speaks again via the browser's speechSynthesis.
-- **What she says:** the bucketed delta, lap completed, falling fuel, tire wear climbing a step, the gap, the pit window countdown, "Last lap!" and "Chequered flag!" at the cut, position lost/gained, the multi-class blue flag, a car out of the park and — in endurance — the stint window: "Box within N laps".
-- **Rules the tests reprove every race:** an identical line never repeats within 70 seconds (spoken once; the log marks it "said"); the lap counter is monotonic within a session (no more double "half race"); the flag is never shouted before the lap it belongs to; the stint announcement only appears when the plan is in the payload (no ghost windows).
-- **You choose the volume:** the header chip or the Engineer panel dropdown sets `off / essential / normal / full` — persisted in `data/evo.config.json` (`voceCopilota`); "essential" silences the "good narrator" extras, keeping only what matters on track. Test without driving: the `♪ prova` chip in the header.
-### The phrases, level by level
-
-The keys you find in the `data/copilot-voce-24-10.jsonl` log, with the line and the level that deserves it:
-
-- **essential** (the bare minimum on track) — "Flag green: free to go" (`verde`), "Red flag!" (`rossa`), "Black flag: the game is disqualifying you" (`nera`), "Last lap!" (`ultimoGiro`), "Last minute!"/"Thirty seconds!" in timed races (`minuto`), "Chequered flag!" (`bandiera`), "Blue flag" (`blu`), "Pit open/closed" in the pitlane (`boxopen`/`boxclose`), the pit window with its countdown (`pit`, `pitcount`, `finestra` — "Box within N laps" from the stint plan), "Fuel for N laps" and the falling-fuel warning (`benzina`), "Cut penalty: N seconds" (`penalia`).
-- **normal** (the standing default) — everything essential, plus "Lap N done in 1:42.3" with a new best (`giroFatto`), "Half race: fuel X L, N laps" (`metaBenzina`), "Tyres at N percent" when wear climbs a band (`gomme`), "P7, position gained/lost" — at most one every 30 s (`postalk`).
-- **full** — the rhythm extras: "you are faster/slower than your best by ..." (`delta`) and "The car ahead: N seconds" (`gap`).
-- Track orders — green, red, disqualification, blue flag — speak at EVERY level (`off` excepted): they are the start order, not a narrator extra.
-- Nothing is invented on the spot: the level filter lives in `src/voce-copilota.mjs` (`FRASI_LIVELLO`), the living lines in the single narrator `gui/js/narratore-unito.js`.
-
-## Schedule: day and weather per round
-
-The scheduler (tab **Race centre**, CLI `piano`) suggests when to sign, rent and
-run each round so nothing lapses, with per-round time-of-day and weather preset.
-**Fixed presets only:** since EVO cannot yet morph dry weather into wet during
-the session (see note 4 above), rounds are scheduled with one weather target,
-and the race card tells you the exact name to pick in the game's interface.
-
-## Why a race cannot be started via file
-
-Verified on the real install, not hearsay:
-
-- `AssettoCorsaEVO.exe` **accepts no arguments** loading a session or season.
-- The session definition is **binary protobuf** (`last_season.seasondefinition`,
-  `GameModes\GameModeType_*.gamemodesave`). The `.json` twin next to them is a
-  readable copy written by the game, not a documented input.
-- **The result format, on the other hand, is plain reliable JSON**:
-  `Results\<yyyymmdd-hhmmss>_SP_<Session>.sessionresults.json` with standings,
-  laps, fastest lap, gaps, stops and penalties — that is what the app reads
-  (positions are 0-based: first = 0, the import detects it).
-
-So the compromise is: **one settings screen to apply in the game (the race
-card), everything else automatic.** If Kunos ever expose a real input, the only
-piece to replace is `src/race.mjs`.
-
-## Online races (community): the archive that forgets nothing
-
-Recent builds have EVO writing results **for online races too**: every
-multiplayer session drops an `_MP_Race.sessionresults.json` into the same
-`Results` folder. The **Online** tab of the GUI gathers them all — and keeps
-them apart from the rest of the career:
-
-- **No points, no money**: the save in `data/` stays untouched
-  (safeguarded both in the watcher and in manual import, since 31/10). Online
-  races never count toward the career championship: they stay as **memory**.
-- **Every row is the full session**: date/time, community/server, track+layout,
-  weather and in-game time, drivers on the grid, your finish with best lap,
-  the winner. Click a row → the complete classification with timings, gaps
-  and penalties, like in Archive.
-- **Online rivals book** — the part community servers love: who you met most
-  often, how many times they beat you and where, recent form (last meetings,
-  green/red tags), their favoured track, usual car and the last shared
-  session. Identities come from the game's **driver_id**: it survives
-  different nicknames, communities and servers; the normalized name is the
-  fallback. Only sessions where you were BOTH on the grid, so no ghosts.
-- **PC-wide scope**: the "show the whole PC" toggle adds races born under
-  OTHER career slots (Results is per PC), like in Archive.
-
-For community friends: everything runs LOCALLY, on the driver's PC — the tool
-never sends anything online, accepts no inbound connections (the local
-server's Origin/Host defence) and only reads the JSONs the game is already
-writing. The career save stays segregated.
-
-## Commands
-
-| Command | What it does |
-| --- | --- |
-| `setup [--data <path>] [--game <exe>]` | detect and store install paths |
-| `content [--validate\|--list\|--search <text>]` | content seen in the install / ladder check |
-| `new --name "Name" [--nation ITA] [--discipline gt] [--force]` | start a career |
-| `rinomina --name "Name Surname"` | change driver name (must match EVO's) |
-| `status` | dashboard: money, reputation, seat, tier, position |
-| `series [--discipline gt] [--all]` | full ladder with gates and locked series |
-| `enter <nodeId> [--buy] [--force]` | change series by rent or purchase |
-| `calendar` | season calendar with time and weather per round |
-| `standings` | series standings |
-| `rivals [--all]` | rival drivers: archetype, age, difficulty band |
-| `messages` | agent mail and pit-lane news |
-| `next [--car <id>]` | next race with the exact in-game card |
-| `race [--car <id>] [--dry-run] [--no-launch] [--force-launch]` | pay entry, mark the race, open EVO |
-| `import` | read the native result and update the career |
-| `import --position N --cars M [--dnf] [--fl]` | manual entry if the file is not enough |
-| `import --inspect [--full]` / `--ledger` | inspect result files / import log |
-| `import --allow-any` / `--force` | search all races / force re-import (know why first) |
-| `difficulty [--mode adaptive\|fixed\|custom] [--value N]` | how AI is computed |
-| `difficulty --lock <node>` / `--unlock <node>` | lock a series' difficulty |
-| `difficulty --accept` / `--reject` | answer a pending suggestion |
-| `griglia-calib [--convalida]` | the balance calibration: summary, per-track confidence |
-| `season-end [--force]` | close the season, pay titles, open the market |
-| `review [--season N]` | season review: races, rivals, duels, prizes |
-| `dottore [--fix]` | career integrity check (and repair) |
-| `accept <n>` | accept a seat offer |
-
-Language on the CLI: `set EVO_LANG=en` (CMD) / `export EVO_LANG=en` (Bash) —
-English everywhere without touching the save.
-
-## Customizing the ladder
-
-Everything lives in `config/career.evo.ladder.json`: disciplines, levels, gates,
-economy, points systems, session profiles, name pools, and the 79 series. Cars
-and tracks use the folder IDs inside `content\cars` and `content\tracks`
-(e.g. `ks_ferrari_296_gt3`, `imola`).
-
-```json
-{
-  "nodeId": "gt3_serie_a",
-  "display": "GT3 Serie A",
-  "discipline": "gt",
-  "level": 5,
-  "access": "open",
-  "requires": { "nodeId": "gt3_coppa", "top": 5 },
-  "points": "sro_gtwc",
-  "profile": "feature",
-  "gridSize": 20,
-  "ai": [90, 101],
-  "econ": { "buy": 550000, "rent": 55000, "entry": 8000, "prize": 65000, "champion": 190000, "model": "sponsor", "icon": "" },
-  "cars": ["ks_ferrari_296_gt3", "ks_bmw_m4_gt3"],
-  "calendar": [{ "track": "imola", "name": "Imola - Opener", "laps": 11, "hour": 13, "weather": 0 }]
-}
-```
-
-`ai` is the grid band (strongest on top) — the series' average difficulty is
-band centre, plus adaptive trim and offsets; the conversion to the game's slider
-lives in `aiSlider`.
-
-**With modded content**: the catalog is rebuilt from what the game writes, so
-mods installed after the last launch may not show in `content --list`. Write
-their IDs in the ladder anyway; `content --validate` will only tell you it has
-not seen them yet. The mod itself installs as usual (`.kspkg` in
-`Saved Games\ACE\mods`).
-
-## Trying everything without the game
-
-```bash
-node tools/evo-demo.mjs                     # fake install with the ladder's content
-ACE_DATA="demo/ace" node ac-evo-career.mjs content --validate
-ACE_DATA="demo/ace" node ac-evo-career.mjs new --name "Mauro Sgamer" --nation ITA
-ACE_DATA="demo/ace" node ac-evo-career.mjs race --no-launch
-ACE_DATA="demo/ace" node tools/evo-fake-result.mjs --position 3 --cars 12 --track Imola --fl
-ACE_DATA="demo/ace" node ac-evo-career.mjs import
-```
-
-`tools/evo-fake-result.mjs` writes a result file **in the real format**
-(0-based positions, `•` on AIs, empty `total_time` for retirements), with
-`--position N --cars M`, `--fl` and `--dnf` modes. `ACE_DATA` is an exclusive
-override: with it set, the app looks **only** at that folder.
-
-## Test suite and the one-command gate
-
-`npm run check` is the whole gate before any commit: it runs the full test
-suite (`node --test test/*.test.mjs` — 650+ tests) plus the Biome lint below.
-What lives behind it, deliberately:
-
-- **zero runtime dependencies**: the tests are plain ESM files run by Node's
-  own runner, nothing to install;
-- **the tests never touch the real game files**: they run inside sandboxes
-  (`EVO_DATA_DIR`, `ACE_GAME_SAVEDIR`, `test/_game-sandbox.mjs`,
-  `test/_flows-sandbox.mjs`) — breaking-the-source probes are part of the
-  ritual too: a properly guarding test must FALL when the thing it protects
-  is broken;
-- **no GitHub Actions, on purpose**: the same suite runs in-sandbox locally
-  before every push, which is stricter than a generic CI runner can be for a
-  game-integrated app (the friend-PC end-to-end dance,
-  `tools/_collaudo-amico.mjs`, runs on a real virgin install as well).
-## Code quality gate (Biome)
-
-The repo carries its own [biome.jsonc](biome.jsonc): `npx @biomejs/biome@2.3.12 check src gui`
-exits 0 and is the lint gate before any commit. Three deliberate choices are
-written in that file, so nobody re-fights them:
-
-- **the formatter is permanently off** and so is import auto-organizing:
-  the existing style is the project's style (35k working lines are not
-  rewritten by a sentence);
-- the rules that would punish intentional idioms are **off**: the
-  `(m[k] ??= seed).push(…)` pattern, `btn.onclick = () => {}` arrow bodies
-  inside `forEach`, `'use strict'` in the GUI's plain `<script>` files
-  (in a classic script it is **not** redundant, unlike in modules), plus
-  template-literal/exponent/arrow-preference rules that are pure taste;
-- `noUnusedVariables`/`noUnusedImports`/`noUnusedFunctionParameters` stay at
-  **warning** level and honestly report known false positives: the GUI files
-  share globals across `<script>` tags (e.g. `drawAnalisi` is drawn from
-  `gui/js/core.js`), and module helpers keep unused-looking parameters only
-  to keep every helper's signature uniform (`(ladder, state, node)`).
-
-## Project files
-
-The GUI server is `src/webui.mjs` (JSON API + page in `gui/index.html`): same
-views as the CLI, same save file `data/evo-career.save.json`.
-
-```
-ac-evo-career.mjs                      entry point
-config/career.evo.ladder.json         the ladder: disciplines, levels, gates, economy, points, series
-src/paths.mjs                          data folders, executable, game launch
-src/content.mjs                        content catalog, ID check, suggestions
-src/world.mjs                          rival drivers, series band, simulation, evolution
-src/state.mjs                          save, gates, standings, economy, difficulty
-src/results.mjs                        native result file reading
-src/import.mjs                         single import (GUI+CLI+watcher): dup guards, auto backup, log
-src/race.mjs                           race card, entry fee, pending race, launch
-src/motec.mjs / src/lapdelta.mjs       telemetry (.ld) reading, lap comparisons
-src/grid-calib.mjs / grid-apply.mjs    progressive balance: calibration ledger and writes
-src/webui.mjs + gui/                   the graphical interface (local server, 127.0.0.1:8642)
-tools/bump-versione.mjs                build-version bump (called by sincronizza-git.cmd)
-tools/aggiornamenti.mjs                GitHub update check + install
-tools/evo-demo.mjs / evo-fake-result.mjs  fake install and fake results for tests
-data/evo-career.save.json              your career (one file, copy or share freely)
-data/grid-calibrazione.json            append-only balance calibration from real results
-data/results-archive/                  raw result copy of every imported race
-```
-
-## FAQ and troubleshooting
-
-**The import says "result not read / positions wrong".** Check the file is a
-native one (`Results\*.sessionresults.json`, not a re-saved copy) and that your
-driver name matches `Logs\log-*.txt` (`Creating Car (Name ...)`). EVO writes
-positions 0-based and the import handles it, but a manually edited file breaks
-the format — use `import --position N --cars M` to enter the race by hand.
-
-**The copilot calls a wrong position (you are P8, you pass, it says "P6").**
-That was an off-by-one in telemetry, fixed since v0.1.30: the live position
-now matches the in-game HUD (EVO's shared memory counts from 0; the voice and
-dashboard count from 1). If you still hear it: restart the launcher and
-Ctrl+F5 the page.
-
-**"Get everything ready" shows the car "not in the dictionary" in red, yet the
-race is set.** Not a failure: track, hour and laps are written — only the car,
-which the app must know to pick it by itself, is missing (new PC or a reset of
-personal data). Pick the car by hand as usual: at the race end the app learns
-the car from the garage and picks it by itself in later races.
-
-**The dictionary fills itself.** Three sources read what the GAME writes, no
-hand samples and no external tools: the startup logs (`Loaded car`), the car
-menu storage (`ui_storage.uistorage`, read at boot and on every pass of the
-guard) and game sign-ups (pair and calendar written together). The guard
-(`watch`) refreshes everything each cycle and prints a single green line only
-when it really learned something; a label written twice ("Mazda Mazda…") cleans
-itself with the official name, while synonyms carrying foreign noise ("Kunos…")
-stay as they were. Online races (`_MP_`) stay out of the career payout and are
-kept in the online archive.
-
-**The Mechanic says a source is missing.** It means no usable `.ld` telemetry
-for that car yet (or an empty file): drive one clean lap in the game and the
-advice builds on real data at the next scan. It always explains which source is
-missing and what estimate it falls back to.
-
-**Two cars of the same class fight in vain.** Same-category grids get ballast
-and penalties from the calibration, not from guesswork: it needs a few real
-races first, then revises with per-track confidence. Check the convergence on
-the **Grid** tab (`griglia-calib` gives the terminal summary). From 26/10,
-with the class engine, series are born with the right classes
-already: in the latest races no penalty exceeds 8% and no car escapes from
-the base.
-
-**The GUI shows a browser tab instead of a saved folder.** The picker walks the
-whole disk because browser dialogs don't return chosen paths; keep clicking
-through the drives to your results folder and confirm there.
-
-**I changed game version / moved Steam library.** Re-run
-`node ac-evo-career.mjs setup` (or fix the paths live in Settings — no restart
-needed) and `content --validate` to confirm the ladder still matches.
+- **Everything local.** No account, no telemetry upload, no remote career service. The GUI server listens on `127.0.0.1:8642` and rejects foreign origins.
+- **The save is yours.** The career lives in `data/`; updates and friend installs never touch it. The automatic backup keeps a 36-hour rotation of save-only zips in `data/salva-save/`.
+- **No game-process patching.** The tool reads files the game writes and prepares the weekend files the game uses; it does not inject code into `AssettoCorsaEVO.exe`.
+- **Images.** Official car and track images remain KUNOS property and are not redistributable; see [LICENSE.md](LICENSE.md).
 
 ## Limits, stated plainly
 
-- **The race cannot be launched via file.** EVO ignores command-line arguments
-  and reads sessions only from its interface. The app gives you the exact screen
-  to set and opens the game; **the car is picked by hand** (see note 1).
-- **AI difficulty is set in-game.** The app computes it and adapts it per series,
-  but you move the slider: the game takes it from nowhere else. Adaptive
-  suggestions wait for accept/reject.
-- **No in-game overlay or VR panel.** The project never touches the game
-  process; you alternate terminal/GUI and simulator.
-- **No dynamic weather transitions (dry→wet→dry) in races — EVO does not
-  implement it yet.** Rounds use fixed weather presets, and a session keeps the
-  preset it started with. When the game adds it, the app will follow.
-- **EVO's native career stays untouched.** This is a parallel progression, not a
-  replacement.
-- **Weather preset and text names.** The app names EVO's exact preset (e.g.
-  "Scattered clouds" → "Overcast"); exact interface names can change between
-  versions.
-- **Road & Rally disciplines use circuits.** Rally in EVO is not app-drivable;
-  rally and legendary road cars race on tracks with dedicated profiles.
-- **The content catalog is observed, not certified** — official content ships in
-  `content.kspkg`; the app reads IDs the game writes to its own files.
-- **The save format is tied to this version** (`version: 1`): if the model
-  changes, the app tells you and asks to start over instead of breaking midway.
+- EVO accepts no command-line session launch. The race is prepared through the game's own weekend; the app cannot bypass that.
+- The car is automatic only after the tool has learned it; a brand-new car may need one manual pick.
+- Dynamic dry↔wet transitions inside a session are not implemented by the game; rounds use fixed weather presets (now planned per session).
+- No in-game overlay or VR panel. The optional widgets require the ACE UI App Loader.
+- The EXEs are unsigned by default; expect SmartScreen and read the signing note above.
+- EVO's native career is untouched; this is a parallel progression.
+- The content catalog is observed from the game, not certified; the career save format is versioned.
 
-## Backup: the four copies
+## Development
 
-| copy | what it saves | where |
-| --- | --- | --- |
-| disk | code, data, work docs, git history | project folder on the Desktop |
-| OneDrive | full zip (code, git, personal saves, maps) and portable | OneDrive folders |
-| warehouse on L: | the same two zips with SHA-256 fingerprints | L:\CarrieraEVO |
-| off-site (configured) | git history only | private repo on GitHub (`ac-evo-career`) |
-| **automatic save backup** | zips of EVO's data folders in rotation (36-hour threshold) | `data/salva-save/` |
+Requires **Node.js 18+**. The app has zero runtime dependencies; the test/lint toolchain uses Biome and Playwright Core.
 
-`AggiornaMagazzino.cmd` (on L:) refreshes the zips and fingerprints;
-`controlla-magazzino.cmd` warns after 21 days or uncovered commits;
-`avvia.cmd` runs the same check at launch; `aggiornamenti.mjs` is the update
-check; `sincronizza-git.cmd` is the off-site copy **and** the build-version
-bumper. Each full zip contains COME-RIPRISTINARE.txt (restore steps).
+```bash
+npm install
+npm test
+npm run lint
+npm run check
+```
 
-### The `data/` folder: what lives there, what goes to Git (audit 28/10)
+Build the installers:
 
-Measured inventory in [report/audit-dati-2026-10-28.md](report/audit-dati-2026-10-28.md).
-Summary:
+```bash
+npm run installer
+npm run installer:offline
+```
 
-- **Git carries only the static car catalogs** (`car-images.json`,
-  `car-specs*.json`, `car-prices.json`, `car-guids.json`) and
-  `samples/garage/map.json` — 7 files, verified with `git ls-files data`.
-  Everything else in `data/` (career save, backups, calibration logs,
-  snapshots) stays local by design: updates and friend installs never touch
-  it.
-- **The automatic save backup lives in `data/salva-save/`**: rotated
-  slot-1/slot-2 zips (max 4 kept), written by `tools/salva-save.mjs` when the
-  last one is older than 36 hours. Closed (28/10, audit A1): the zip now
-  excludes MoTec/replay/crashdumps/Logs/mods — save-only content, typically
-  ~1 MB instead of hundreds of MB.
-- One-shot `.bak-*` files in `data/` are guard copies of finished repair
-  jobs; they are safe to delete once the tool change is verified. Since
-  28/10 `.bak-ripara-*` files prune themselves (the 3 freshest stay).
-- One-shot `.bak-*` files in `data/` are guard copies of finished repair
-  jobs; they are safe to delete once the tool change is verified.
+The test suite runs entirely in sandboxes and never touches the real game files. The project is plain ESM: `src/` (career, results, web UI, telemetry), `gui/` (browser interface), `uiapp/` (in-game widgets), `config/` (the ladder), `test/` and `tools/` (installer, release, calibration and maintenance).
 
-## References
-
-- **Apex to Zero**, the Automobilista 2 career app the idea comes from
-  (everything else is developed from scratch).
-- **Assetto Corsa EVO**, result format: `Results\*.sessionresults.json`.
-- **ACE Career Mode** (acecareermode.com), a third-party EVO career using `.rpy`
-  replays — a useful comparison; here the native result is read, no uploads nor
-  accounts.
-
-## Language
-
-The whole app (CLI, server, GUI) works in Italian and English; the interface
-choice lives in Settings (browser storage), the CLI in `EVO_LANG`. Saved story
-texts (contract clauses, letters, family-memory chapters) are bilingual by
-design. **The full version of this document in Italian is in
-[README.it.md](README.it.md).**
-
-Guides for a friend:
-
-- **Italian full guide:** [GUIDA-AMICO.md](GUIDA-AMICO.md) — the §3-bis
-  «first-launch dance» is bilingual inside; the English version lives right
-  after the Italian one.
-- **English full guide:** [FRIEND-GUIDE-EN.md](FRIEND-GUIDE-EN.md) — the whole
-  friend guide translated end to end (install, first launch, multiclass
-  gesture, updates, FAQ); it also travels inside the friend package.
+Release tooling lives in `tools/crea-release.mjs`, `tools/pacchetto-amico.mjs` and `tools/release-assets.mjs`; the checklist is [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
 
 ## License
 
-Private work: **© 2026 Mauro Turbigno — all rights reserved** (full text in
-[LICENSE.md](LICENSE.md)). No redistribution, publication or reuse in other
-products without written permission; the official car and track images
-(`gui/carmaps/`, `gui/trackmaps/`) remain KUNOS's and are not redistributable.
+**© 2026 Mauro Turbigno — all rights reserved.** This is a private work: no redistribution, publication, resale or incorporation into other products without written permission. Assetto Corsa EVO is a KUNOS Simulazioni product; this project is not affiliated with or endorsed by KUNOS. The full text is in [LICENSE.md](LICENSE.md).
+
+## Links
+
+- [Issues and ideas](https://github.com/turbignox-hash/ac-evo-career/issues/new)
+- [Releases](https://github.com/turbignox-hash/ac-evo-career/releases)
+- [Changelog](CHANGELOG.md)
+- [Italian README](README.it.md)
+- [Friend guide — Italian](GUIDA-AMICO.md) · [Friend guide — English](FRIEND-GUIDE-EN.md)
+- [Ko-fi](https://ko-fi.com/turbigno)
