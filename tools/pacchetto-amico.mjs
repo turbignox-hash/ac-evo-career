@@ -54,7 +54,8 @@ const versione = pkg.version ?? '0.x';
 const nome = `ac-evo-career-amico-v${versione}-${head}.zip`;
 mkdirSync(PACCHETTI, { recursive: true });
 const zip = join(PACCHETTI, nome);
-execFileSync('git', ['archive', '--format=zip', '--prefix=ac-evo-career/', '-o', zip, 'HEAD',
+// export LF: con core.autocrlf=true l'archivio metterebbe CRLF e le copie in gioco (LF) non tornerebbero.
+execFileSync('git', ['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive', '--format=zip', '--prefix=ac-evo-career/', '-o', zip, 'HEAD',
   ':(exclude)archive',        // script di ricerca interni: non servono a chi usa il programma
   ':(exclude)pacchetti',      // gli zip dentro lo zip, ché schifo
 ], { cwd: RADICE });
