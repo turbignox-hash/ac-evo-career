@@ -5,6 +5,15 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Centro gare: titoli, filtri accessibili e legenda del calendario (richiesta Mauro: «controlla centro gare e poi tutte le altre»)
+
+- **Etichetta**: «⯈ recall: prossimo weekend» era mezzo inglese in una UI italiana; ora è «⯈ salta al prossimo weekend», col `title` che dice che non avanza un giorno alla volta.
+- **Struttura**: i due pannelli non avevano alcun titolo (0 `h2`/`h3` nel DOM). `CENTRO GARE` e `GARE DEL GIORNO` sono ora heading di livello 2 (`role="heading"`), con `aria-labelledby` sul pannello hero.
+- **Filtri**: `aria-pressed` su TUTTE/DISPONIBILI/ISCRITTE/BLOCCATE, sulle discipline e su «nascondi gare già iniziate» (che rendeva `aria-pressed="undefined"`: ora booleano vero); `aria-current="date"` sul giorno di oggi.
+- **Legenda**: sotto la striscia dei giorni, «numero = gare del giorno · +N in oro = gare del tuo campionato».
+- **Verifica dal vivo**: 2 heading, click DISPONIBILI → 9 card con `aria-pressed` corretto, TUTTE → 10 card, 0 overflow, 0 errori. Audit delle altre 19 tab: 0 overflow, 0 id duplicati, 0 bottoni senza nome (i 3 del Cruscotto erano dentro un `<details>` chiuso); Impostazioni rende 6.498 caratteri e 5 titoli dopo il caricamento.
+- **Verifica tecnica**: `node --check`, lint **374 file, 0 warning**, collaudo tab 19/19; commit su `offsite/main`.
+
 ### 4/11 — Release 0.1.58: il collaudo delle schede diventa automatico
 
 - **Release**: bump **0.1.58**, CHANGELOG, README IT/EN con i link e i checksum nuovi, report `report/release-0.1.58.md`, tag `v0.1.58` e release GitHub con ZIP amico, i due EXE (online 109 KB, offline 40 MB) e il bundle `EVO-Pitwall-v0.1.58-Windows.zip` con `LEGGIMI-INSTALLER.txt`.
