@@ -57,7 +57,7 @@ async function importCall(body){
       <b>${e.dnf ? tr({ it: 'Ritiro', en: 'DNF' }) : 'P'+(e.position ?? '?')} ${tr({ it: 'su ', en: 'of ' })}${e.gridSize}</b> · R${r.round} ${tr({ it: 'di ', en: 'of ' })}${esc(r.node)} — ${e.points} ${tr({ it: 'punti · premio ', en: 'points · prize ' })}${money(e.prize)} € · +${e.rep} rep<br>
       <span class="muted">${esc(r.source)}</span><br>
       Classifica: P${r.standing.before ?? '?'} → <b>P${r.standing.after ?? '?'}</b> (${r.standing.points} ${tr({ it: 'punti', en: 'points' })}) · ${tr({ it: 'banca ', en: 'bank ' })}${money(r.money)} €
-      ${r.proposal ? `<br>${tr({ it: 'Difficoltà proposta: ', en: 'Proposed difficulty: ' })}${esc(r.proposal.reason)} — trim ${r.proposal.from} → ${r.proposal.to}. ${tr({ it: 'Accettala in Difficoltà.', en: 'Accept it under Difficulty.' })}` : ''}
+      ${r.proposal ? `<br>${tr({ it: 'Difficoltà proposta: ', en: 'Proposed difficulty: ' })}${esc(r.proposal.reason)} — trim ${r.proposal.from} → ${r.proposal.to} (passo ${r.proposal.to - r.proposal.from > 0 ? '+' : ''}${r.proposal.to - r.proposal.from}). ${tr({ it: 'Accettala in Difficoltà.', en: 'Accept it under Difficulty.' })}` : ''}
       ${r.nudgeSuggested ? `<div class="banner warn" style="margin-top:8px"><b>🚀 ${tr({ it: 'Gara troppo facile?', en: 'Race too easy?' })} ${esc(r.nudgeSuggested.reason)}.<br>
         <button class="mini" id="b-nudge-accept" style="margin-top:6px">${tr({ it: 'Sì, porta la serie a +1', en: 'Yes, move the series up by +1' })}</button>
         <span class="muted" style="font-size:11px;margin-left:6px">${tr({ it: 'no, lascia come sta', en: 'no, leave it as is' })}</span></div>` : ''}

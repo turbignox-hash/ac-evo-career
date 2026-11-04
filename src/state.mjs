@@ -504,6 +504,9 @@ export function seminaRaceSettings(ladder, state) {
   return RS;
 }
 
+/** Il passo del trim adattivo: un punto per volta (4/11). */
+const PASSO_TRIM = 1;
+
 /** Proposta di correzione del trim, in attesa di conferma. */
 export function proposeDifficulty(_ladder, state, node, position, gridSize) {
   if (state.difficulty.mode !== 'adaptive' || state.difficulty.locked.includes(node.nodeId)) return null;
@@ -518,7 +521,7 @@ export function proposeDifficulty(_ladder, state, node, position, gridSize) {
   else if (position >= gridSize * 0.75) change = -2;
   if (change === 0) return null;
   // le fasce decidono solo se dare il consiglio e in che direzione: il passo è sempre ±1
-  change = Math.sign(change);
+  change = Math.sign(change) * PASSO_TRIM;
   const current = state.difficulty.trim[node.nodeId] ?? 0;
   const next = clamp(current + change, -20, 20);
   if (next === current) return null;

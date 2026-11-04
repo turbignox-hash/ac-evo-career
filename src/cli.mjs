@@ -842,7 +842,7 @@ function cmdImport(args) {
   console.log(`  ${tr({ it: 'Banca:', en: 'Bank:' })} ${C.green(money(out.money))}   ${tr({ it: 'Reputazione:', en: 'Reputation:' })} ${out.rep}`);
   if (out.backup) console.log(`  ${C.dim(tr({ it: 'Backup automatico: ', en: 'Automatic backup: ' }) + String(out.backup).replace(/^.*bak-auto-/, ''))}`);
   if (out.proposal) {
-    console.log(`\n  ${C.yellow(tr({ it: 'Suggerimento difficoltà', en: 'Difficulty suggestion' }))}: ${out.proposal.reason} -> trim ${signed(out.proposal.from)} / ${signed(out.proposal.to)}`);
+    console.log(`\n  ${C.yellow(tr({ it: 'Suggerimento difficoltà', en: 'Difficulty suggestion' }))}: ${out.proposal.reason} -> trim ${signed(out.proposal.from)} → ${signed(out.proposal.to)} (passo ${signed(out.proposal.to - out.proposal.from)})`);
     console.log(`  ${C.dim(tr({ it: 'difficulty --accept   oppure   difficulty --reject', en: 'difficulty --accept   or   difficulty --reject' }))}`);
   }
   if (out.file) {
@@ -927,7 +927,7 @@ async function cmdWatch(args) {
         const e = out.imported.entry;
         console.log(C.green(tr({ it: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dsq ? tr({ it: 'squalifica', en: 'DSQ' }) : e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €`, en: tr({ it: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dsq ? tr({ it: 'squalifica', en: 'DSQ' }) : e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €`, en: `\n  ✓ imported: ${out.imported.node} round ${out.imported.round} — ${e.dsq ? tr({ it: 'squalifica', en: 'DSQ' }) : e.dnf ? tr({ it: 'ritiro', en: 'retired' }) : 'P' + e.position}/${e.gridSize}${e.fl ? tr({ it: ' · giro veloce', en: ' · fast lap' }) : ''} · +${e.points} pt · +${e.prize} €` }) })));
         console.log(`  ${C.dim(tr({ it: 'Banca: ', en: 'Bank: ' }) + out.imported.money + ' · rep ' + out.imported.rep)}`);
-        if (out.imported.proposal) console.log(`  ${C.yellow(tr({ it: 'Suggerimento difficoltà', en: 'Difficulty suggestion' }))}: trim ${signed(out.imported.proposal.from)} / ${signed(out.imported.proposal.to)} — ${tr({ it: 'decidilo con difficulty --accept / --reject', en: 'decide with difficulty --accept / --reject' })}\n`);
+        if (out.imported.proposal) console.log(`  ${C.yellow(tr({ it: 'Suggerimento difficoltà', en: 'Difficulty suggestion' }))}: trim ${signed(out.imported.proposal.from)} → ${signed(out.imported.proposal.to)} (passo ${signed(out.imported.proposal.to - out.imported.proposal.from)}) — ${tr({ it: 'decidilo con difficulty --accept / --reject', en: 'decide with difficulty --accept / --reject' })}\n`);
         else console.log();
         if (out.imported.file) {
           const gg = gridGuardProposal(out.imported.file);
