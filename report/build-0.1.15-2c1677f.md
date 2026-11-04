@@ -4,7 +4,7 @@ _Data: 2026-10-24 · Aggiornamento da **v0.1.12**_
 ## Correzioni e novità
 - Cartellina di consegna pacchetto-amico: lo zip dal 24/10 si autoaggiorna · a89e06f
 - Modalità GIRI LIBERI: il quaderno per il simracer puro (24/10) · 8f276a2
-- Icona del tab Giri liberi + README: «ispirato ad Apex to Zero, sviluppato da zero» · 1d56f01
+- Icona del tab Giri liberi + README aggiornati · 1d56f01
 - Icona Pitwall ufficiale: desktop, favicon del browser e analisi dei Giri liberi · 8c686c4
 - Scorciatoia «Carriera EVO» sul desktop creata automaticamente al primo avvio · efc5a0a
 - Bump versione: 0.1.15 · 2c1677f

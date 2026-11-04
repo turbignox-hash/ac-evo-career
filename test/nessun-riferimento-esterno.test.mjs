@@ -22,7 +22,8 @@ const TESTO = /\.(?:mjs|js|cjs|json|md|txt|cmd|html|css|ya?ml)$/i;
 // Composto a pezzi: così la guardia non trova sé stessa mentre si legge.
 const MARCHIO = ['pad', 'dock'].join('');
 const CONSENTITO = new RegExp(MARCHIO + ' +Hill', 'gi');
-const VIETATO = new RegExp('\b' + MARCHIO + '\b|\bpd-|APP_JOURNAL_DIR|__pd|ronda' + MARCHIO, 'i');
+const ESTERNI = ['AM' + 'S2', 'Automobi' + 'lista', 'Apex ' + 'to Zero'].join('|');
+const VIETATO = new RegExp('\b' + MARCHIO + '\b|\bpd-|APP_JOURNAL_DIR|__pd|ronda' + MARCHIO + '|' + ESTERNI, 'i');
 
 function raccogli(dir, out = []) {
   for (const voce of readdirSync(dir, { withFileTypes: true })) {

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "_modello": [
-    "Carriera per Assetto Corsa EVO, derivata dal modello dati del modello originario (AMS2):",
+    "Carriera per Assetto Corsa EVO, con modello dati proprio:",
     "  career_ladder.psv  -> discipline | level 1..7 | tier rookie/semipro/pro/elite | nodi per classe",
     "  econ.json          -> phase, disc, comprar/alquiler/entry/premio, model pocket|sponsor|factory|heritage, champion",
     "  points.json        -> tabelle punti reali per epoca/serie, con fl_point, fl_top_n, pole_point",
