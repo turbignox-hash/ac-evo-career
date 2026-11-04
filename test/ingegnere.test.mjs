@@ -276,6 +276,10 @@ test('engineerLive: DIAGNOSI DI SETUP DAL VIVO (4/11) — pressioni vs target e 
   assert.match(tp.text, /1\.6 PSI PIÙ BASSO/, 'la correzione deve dire di partire più bassi: ' + tp.text);
   assert.equal(tp.prio, 2, 'la pressione è un consiglio operativo, non un urgenza (prio 2)');
   assert.match(tp.title, /28\.6 PSI · target 27/, 'il titolo porta i numeri che l hanno generato');
+  assert.deepEqual(alto.gauges.livePsi, [28.4, 28.8, 28.5, 28.7], 'i valori live restano nei gauges: la diagnosi si puo controllare');
+  assert.equal(alto.gauges.targetPsi, 27, 'il target di classe arriva nei gauges');
+  assert.equal(engineerLive(snap, {}).gauges.livePsi, null, 'senza dati live: null, non undefined (contratto monitor)');
+  assert.equal(engineerLive(snap, {}).gauges.targetPsi, null, 'senza target: null');
 
   // 2) SOTTO target: media 26.2 vs 27.0 → +0.8 → ALLA PARTENZA PIÙ ALTO
   const basso = engineerLive(snap, { livePsi: [26.0, 26.2, 26.1, 26.3], targetPsi: 27 });

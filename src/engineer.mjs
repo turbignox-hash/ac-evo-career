@@ -237,6 +237,8 @@ export function engineerLive(snap, ctx = {}) {
       });
     }
   }
+  gauges.livePsi = livePsi.length ? livePsi.map((v) => r1(v)) : null;
+  gauges.targetPsi = Number.isFinite(targetPsi) && targetPsi > 0 ? targetPsi : null;
   const coreTemps = (Array.isArray(player.tyreCoreTemp) ? player.tyreCoreTemp : []).map(Number);
   if (coreTemps.length === 4 && coreTemps.every((v) => Number.isFinite(v) && v > 10 && v < 200)) {
     let hot = 0, cold = 0;
