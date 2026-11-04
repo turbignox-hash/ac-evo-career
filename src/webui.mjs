@@ -17,7 +17,7 @@ import { resolvePaths, isGameRunning, GAME_EXE, dataDirCandidates, isDir, isFile
 
 import {
   createCareer, nodeById, disciplineName, nomeDisciplina, gateStatus,
-  standingsFor, difficultyFor, bandaSerieSlider, seasonEnd, seminaRaceSettings,
+  standingsFor, difficultyFor, bandaSerieSlider, seasonEnd, seasonProgress, seminaRaceSettings,
   acceptOffer, pushMessage, enterNode, renameDriver, careerStats,
   slotDataDir, grigliaSimEstesa, seasonJustClosed,
 } from './state.mjs';
@@ -3835,7 +3835,7 @@ async function api(context0, _req, res, action, body) {
     case 'flows': return sendJson(res, 200, { flows: recentFlows(40) });
     case 'season-end': {
       const node = nodeById(ladder, state.node);
-      const played = (state.results[node.nodeId] ?? []).filter((r) => r.season === state.season).length;
+      const prog = seasonProgress(state, node);
       // DOPPIO CHIUDI (30/10, MacOS di massa: card stantia + secondo click):
       // dopo una chiusura riuscita la stagione NUOVA ha 0 gare e un «chiudi
       // comunque» la svuoterebbe nell'annuario. Qui la vediamo e la rimandiamo
@@ -3843,8 +3843,8 @@ async function api(context0, _req, res, action, body) {
       if (seasonJustClosed(state, node)) {
         return sendJson(res, 409, { error: tr({ it: `La stagione ${state.season - 1} in ${node.display} è già stata chiusa: questa è la stagione ${state.season} (0/${node.calendar.length} gare disputate). Non devi chiudere nulla.`, en: `Season ${state.season - 1} in ${node.display} is already closed: this is season ${state.season} (0/${node.calendar.length} races run). Nothing to close.` }), code: 'SEASON_ALREADY_CLOSED' });
       }
-      if (played < node.calendar.length && !body.force) {
-        return sendJson(res, 409, { error: tr({ it: `Stagione incompleta: ${played}/${node.calendar.length} gare disputate. Conferma per chiudere comunque.`, en: `Season incomplete: ${played}/${node.calendar.length} races run. Confirm to close anyway.` }), code: 'SEASON_INCOMPLETE' });
+      if (!prog.complete && !body.force) {
+        return sendJson(res, 409, { error: tr({ it: `Stagione incompleta: ${prog.played}/${prog.total} gare disputate. Conferma per chiudere comunque.`, en: `Season incomplete: ${prog.played}/${prog.total} races run. Confirm to close anyway.` }), code: 'SEASON_INCOMPLETE' });
       }
       const result = seasonEnd(ladder, state);
       // chiuso il campionato: invito garantito al Gran Finale dei Campioni

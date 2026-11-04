@@ -1029,6 +1029,22 @@ export function seasonJustClosed(state, node) {
   return !!last && last.season === state.season - 1;
 }
 
+/** Quante ronde della serie risultano corse nella stagione viva, e se il
+ *  calendario è chiuso. UNA SERIE PUÒ ATTRAVERSARE PIÙ STAGIONI: il contatore
+ *  globale avanza chiudendo altre serie, mentre questo sedile continua il suo
+ *  calendario (dtm_legends: ronde 0-2 in stagione 9, 3-8 in stagione 14). Per
+ *  questo «completa» non è solo played/total: la RONDA FINALE corsa chiude il
+ *  calendario (Mauro 4/11: «Stagione completata ma chiudi stagione dice
+ *  incompleta» — contava 6/9 e chiedeva conferma a stagione finita). */
+export function seasonProgress(state, node, season = state.season) {
+  const total = node?.calendar?.length ?? 0;
+  const mine = (state.results?.[node.nodeId] ?? []).filter((r) => r.season === season);
+  const rounds = mine.map((r) => Number(r.round)).filter((n) => Number.isInteger(n) && n >= 0 && n < total);
+  const played = new Set(rounds).size;
+  const lastRound = rounds.length ? Math.max(...rounds) : -1;
+  return { played, total, lastRound, complete: total > 0 && (played >= total || lastRound >= total - 1) };
+}
+
 export function seasonEnd(ladder, state) {
   const node = nodeById(ladder, state.node);
   const table = standingsFor(ladder, state, node, state.season);

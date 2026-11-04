@@ -9,7 +9,7 @@ import { watchOnce, WATCH_INTERVAL_MS, heartbeat, watcherStatus } from './watch.
 import { scanContent, validateLadder, searchContent } from './content.mjs';
 import {
   createCareer, loadState, saveState, nodeById, disciplineName, tierOf, gateStatus,
-  standingsFor, playerStanding, difficultyFor, bandaSerieSlider, seasonEnd,
+  standingsFor, playerStanding, difficultyFor, bandaSerieSlider, seasonEnd, seasonProgress,
   acceptOffer, pushMessage, sponsorTier, enterNode, renameDriver,
   savePath, activeSlot, slotDataDir, grigliaSimEstesa, seasonJustClosed,
 } from './state.mjs';
@@ -1228,14 +1228,14 @@ function cmdSeasonEnd(args) {
   const { ladder } = context();
   const state = requireState();
   const node = nodeById(ladder, state.node);
-  const played = (state.results[node.nodeId] ?? []).filter((r) => r.season === state.season).length;
+  const prog = seasonProgress(state, node);
   // stessa guardia della webui (30/10): dopo una chiusura riuscita, un secondo
   // season-end --force non deve svuotare nell'annuario la stagione appena aperta
   if (seasonJustClosed(state, node)) {
     throw new Error(tr({ it: `La stagione ${state.season - 1} in ${node.display} è già stata chiusa: questa è la stagione ${state.season} (0/${node.calendar.length} gare disputate). Non devi chiudere nulla.`, en: `Season ${state.season - 1} in ${node.display} is already closed: this is season ${state.season} (0/${node.calendar.length} races run). Nothing to close.` }));
   }
-  if (played < node.calendar.length && !args.flags.force) {
-    throw new Error(tr({ it: `Stagione ${state.season} in ${node.display}: ${played}/${node.calendar.length} gare disputate.\nUsa --force per chiudere comunque.`, en: `Season ${state.season} in ${node.display}: ${played}/${node.calendar.length} races run.\nUse --force to close anyway.` }));
+  if (!prog.complete && !args.flags.force) {
+    throw new Error(tr({ it: `Stagione ${state.season} in ${node.display}: ${prog.played}/${prog.total} gare disputate.\nUsa --force per chiudere comunque.`, en: `Season ${state.season} in ${node.display}: ${prog.played}/${prog.total} races run.\nUse --force to close anyway.` }));
   }
   const result = seasonEnd(ladder, state);
   saveState(SAVE_FILE, state);
