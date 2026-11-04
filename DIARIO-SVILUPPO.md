@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Focus trap nel modale, skip-link e riquadro diagnostica (punto 5)
+
+- **Modale**: Tab era libero di uscire dietro al dialogo e non c'era Esc. Ora il focus resta dentro (dall'ultimo comando si torna a ×), Esc chiude e il focus torna all'elemento che aveva aperto il modale. Il primo comando riceve il focus all'apertura.
+- **Skip-link**: «Salta al contenuto» è il primo elemento a Tab, compare solo col focus (`.skip:focus`), Invio porta a `<main tabindex="-1">`. Il testo viene ritradotto al boot, così in EN dice «Skip to content» anche se la lingua ricarica la pagina.
+- **Riquadro diagnostica**: era già in Setup — Diagnostica telemetria, Salute sistema, Registro errori. Verificato dal vivo con attesa piena: **7 pannelli, 12.535 caratteri, 0 overflow**, i tre blocchi ci sono tutti e arrivano in 5,7 s. Nessun pannello duplicato da aggiungere.
+- **Verifica**: Tab → skip-link → Invio → `#main`; nel modale Tab cicla × → Chiudi → ×, Esc chiude; `node --check`, lint **374 file, 0 warning**, collaudo tab 19/19.
+
 ### 4/11 — Setup e Import verificati, Messaggi e Rivali con comandi riconoscibili
 
 - **Setup**: 6.168 caratteri, 4 pannelli, 3 titoli, 0 overflow, caricamento 2,9 s. **Import**: 1.093 caratteri, 1 pannello, 0 overflow, 0,7 s. Entrambe sane: il «vuoto» visto a 250 ms era solo lo spinner.

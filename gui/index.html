@@ -9,6 +9,8 @@
 </head>
 <body>
 
+<a class="skip" id="skip-link" href="#main">Salta al contenuto</a>
+
 <aside id="side">
   <div class="brand">
     <svg class="stripes" viewBox="0 0 26 18" aria-hidden="true">
@@ -56,7 +58,7 @@
        gira con il codice vecchio (Node non ricarica da solo). Nato nascosto:
        lo gestisce core.js (api che fallisce → visibile, server tornato → via). -->
   <div id="filbar" hidden style="padding:8px 14px"></div>
-  <main id="main"></main>
+  <main id="main" tabindex="-1"></main>
 </div>
 
 <div id="modal-root"></div>

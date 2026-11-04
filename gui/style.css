@@ -179,6 +179,10 @@ input:focus,select:focus{outline:none; border-color:var(--acc2)}
    restava solo il bordo; bottoni, link e summary non avevano alcun segnale,
    quindi chi naviga senza mouse non sapeva dove si trovava. */
 :where(button,a,summary,[tabindex]):focus-visible{outline:2px solid var(--acc2); outline-offset:2px}
+/* salto alla prima riga utile: visibile solo quando arriva il Tab */
+.skip{position:fixed; left:10px; top:-60px; z-index:9999; background:var(--acc); color:#101010; padding:8px 14px; border-radius:8px; font-weight:700; text-decoration:none; transition:top .15s}
+.skip:focus{top:10px}
+#main:focus{outline:none}
 input:focus-visible,select:focus-visible{outline:2px solid var(--acc2); outline-offset:1px}
 /* chi chiede meno movimento lo riceve: niente lampeggi, spinner e transizioni */
 @media (prefers-reduced-motion: reduce){

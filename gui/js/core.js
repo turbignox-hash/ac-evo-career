@@ -221,19 +221,47 @@ async function drawAggStatus(host){
   else host.innerHTML = `${tr({ it: 'Aggiornato', en: 'Up to date' })}${tr({ it: ': nessun aggiornamento in attesa', en: ': no update waiting' })}${qundo}${b ? ` · build ${b}` : ''}`;
 }
 
+let modalPrevFocus = null;
 function modal(title, bodyHtml, buttons){
   const root = $('#modal-root');
+  modalPrevFocus = document.activeElement;
   root.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="mh">${esc(title)}<button class="x" aria-label="chiudi">×</button></div>
     <div class="mb">${bodyHtml}</div><div class="mf"></div></div>`;
+  const dlg = $('.modal', root);
+  /* Chiudere riporta il focus dove era: senza questo, dopo un'azione nel
+     modale la tastiera ripartiva dall'inizio della pagina. */
+  const chiudi = () => {
+    root.innerHTML = '';
+    root.onkeydown = null;
+    root.onclick = null;
+    const p = modalPrevFocus;
+    modalPrevFocus = null;
+    if (p && typeof p.focus === 'function' && document.contains(p)) {
+      try { p.focus(); } catch { /* elemento sparito: nessun ripristino */ }
+    }
+  };
   const foot = $('.mf', root);
   for (const [label, cls, fn] of buttons) {
     const b = document.createElement('button');
     b.className = cls; b.textContent = label;
-    b.onclick = () => { if (fn(root, b) !== false) root.innerHTML = ''; };
+    b.onclick = () => { if (fn(root, b) !== false) chiudi(); };
     foot.appendChild(b);
   }
-  $('.x', root).onclick = () => root.innerHTML = '';
-  root.onclick = (e) => { if (e.target === root) root.innerHTML = ''; };
+  $('.x', root).onclick = chiudi;
+  root.onclick = (e) => { if (e.target === root) chiudi(); };
+  /* TRAPPOLA DEL FOCUS: Tab gira solo dentro il dialogo, Esc chiude. */
+  dlg.setAttribute('tabindex', '-1');
+  root.onkeydown = (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); chiudi(); return; }
+    if (e.key !== 'Tab') return;
+    const items = [...dlg.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+      .filter((el) => el.offsetParent !== null || el === document.activeElement);
+    if (!items.length) { e.preventDefault(); dlg.focus(); return; }
+    const first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && (document.activeElement === first || document.activeElement === dlg)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+  (dlg.querySelector('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])') ?? dlg).focus();
   return root;
 }
 
@@ -653,6 +681,10 @@ async function refreshBoot(){
     'In pista': tr({ it: 'In pista', en: 'On track' }),
   };
   $$('#hstats .hstat .l').forEach((el) => { if (HEADER_L[el.textContent.trim()]) el.textContent = HEADER_L[el.textContent.trim()]; });
+  /* lo skip-link è statico in index.html: la lingua ricarica la pagina, quindi
+     va ritradotto qui a ogni boot (in EN resterebbe «Salta al contenuto»). */
+  const sk = document.querySelector('#skip-link');
+  if (sk) sk.textContent = tr({ it: 'Salta al contenuto', en: 'Skip to content' });
 })();
 
 
