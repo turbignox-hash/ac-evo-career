@@ -40,7 +40,7 @@ The current **pre-release** is **[v0.1.57](https://github.com/turbignox-hash/ac-
 >
 > PowerShell: `Get-FileHash .\EVO-Pitwall-v0.1.57-Windows.zip -Algorithm SHA256`
 
-Re-check the published assets after a release: `npm run verifica-release -- v0.1.57`.
+Re-check the published assets after a release: `npm run verifica-release -- v0.1.57`. GitHub Actions runs the same check for every published release.
 
 > **Unsigned preview:** v0.1.57 is a pre-release because the EXEs are not Authenticode-signed yet. Expect SmartScreen; download only from this repository. v0.1.56 is older.
 

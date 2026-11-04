@@ -40,7 +40,7 @@ La **pre-release** corrente è **[v0.1.57](https://github.com/turbignox-hash/ac-
 >
 > PowerShell: `Get-FileHash .\EVO-Pitwall-v0.1.57-Windows.zip -Algorithm SHA256`
 
-Ricontrolla gli asset pubblicati dopo una release: `npm run verifica-release -- v0.1.57`.
+Ricontrolla gli asset pubblicati dopo una release: `npm run verifica-release -- v0.1.57`. GitHub Actions esegue lo stesso controllo a ogni release pubblicata.
 
 > **Anteprima non firmata:** la v0.1.57 è una pre-release perché gli EXE non sono ancora firmati Authenticode. Aspettati SmartScreen; scarica solo da questo repository. La v0.1.56 è più vecchia.
 

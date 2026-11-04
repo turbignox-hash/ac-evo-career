@@ -1,0 +1,33 @@
+name: verifica-release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verifica:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Dipendenze
+        run: npm ci
+      - name: Verifica asset pubblicati
+        shell: bash
+        run: |
+          VERSIONE=$(node -p "require('./package.json').version")
+          TAG="${RELEASE_TAG:-v$VERSIONE}"
+          npm run verifica-release -- "$TAG"
