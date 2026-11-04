@@ -57,6 +57,7 @@ import { setDriverCar, GARAGE_FILE } from './set-driver-car.mjs';
 import { setWeatherPreset, PRESETS } from '../src/weather.mjs';
 import { SAVE_FILE } from '../src/webui-env.mjs';
 import { loadState } from '../src/state.mjs';
+import { riduciSlotRoster } from '../src/weekend-roster.mjs';
 
 const LADDER_FILE = fileURLToPath(new URL('../config/career.evo.ladder.json', import.meta.url));
 
@@ -324,10 +325,19 @@ export async function rondaPaddock(opts = {}) {
   gira('griglia', () => {
     if (salva('griglia')) return { ok: true, note: 'salto: EVO aperto e non --force' };
     const piano = pianoGriglia(node, opts.singleMake);
+    // ROSTER COERENTE (4/11, regola campionato): il 3.7 da solo non toglie le
+    // voci 3.10 oltre gli avversari, e weekendCarCount rilancerebbe il conto
+    // (27 voci contro 13 dichiarate). Stessa cura del gate di
+    // rebuildGridApply: il roster si riduce PRIMA del 3.7 — così o restano
+    // d'accordo, o non si tocca niente. Non blocca mai il passo griglia.
+    let roster = null;
+    if (piano.mode === 'custom' && piano.count) {
+      try { roster = riduciSlotRoster(piano.count, { file: WEEKEND_FILE, force, dry }); } catch { roster = null; }
+    }
     const r = piano.mode === 'automatic'
       ? setWeekendGridAuto({ file: WEEKEND_FILE, dry })
       : setWeekendGridCustom(piano.count, { file: WEEKEND_FILE, dry });
-    return { dati: r, note: `${piano.mode}${piano.count ? ' · avversari ' + piano.count : ''}${piano.mono ? ' · monomarca' : ''}`, ok: true };
+    return { dati: r, roster, note: `${piano.mode}${piano.count ? ' · avversari ' + piano.count : ''}${piano.mono ? ' · monomarca' : ''}`, ok: true };
   });
 
   // 7) AUTO + LIVREA (a gioco aperto va bene, come Paddock)
