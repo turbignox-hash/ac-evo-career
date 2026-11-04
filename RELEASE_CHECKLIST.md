@@ -50,14 +50,34 @@ opzionale; se uno non si può girare, la release non si prepara.
       riallineate) e la guardia `node --test test/uiapp-installata.test.mjs`
       (sagome biome, BUILD_OK, copia .js byte per byte, pagine d'ingresso:
       app.json = sorgente, menu.html assente). Esito non-zero = release NON
-      parte. Se dopo la build restano file non committati lo zip (git
-      archive HEAD) li porta vecchi: committa prima; prova a secco della
-      soglia con `--solo-preflight` (niente GitHub, niente zip).
-- [ ] `node tools/crea-release.mjs <tag> <titolo> corpo.md --con-pacchetto`:
+      parte. Se l'albero non è pulito, `crea-release` si ferma subito
+      (prima della guardia layout) e `pacchetto-amico` NON crea lo zip:
+      i file modificati uscirebbero vecchi, i nuovi resterebbero fuori.
+      Committa o rimuovi prima; prova a secco della soglia con
+      `--solo-preflight` (niente GitHub, niente zip).
+- [ ] Tag = `v` + versione del `package.json` (`npm run bump`), **esistente,
+      che punta a HEAD e presente su offsite**: `crea-release` si ferma se
+      il numero non combacia o se il tag manca/finisce su un altro commit,
+      così una release non porta EXE o codice di un'altra build. Poi
+      `node tools/crea-release.mjs <tag> <titolo> corpo.md --con-pacchetto`:
       la release GitHub esce con la zip del pacchetto-amico CONFEZIONATA
       DOPO il preflight e caricata come asset (sostituzione se il nome
       esiste); `--no-test` salta la prova npm test dentro lo zip, `--asset`
       resta per gli asset extra o per una zip già fabbricata a parte.
+- [ ] EXE firmati, se c'è un certificato Authenticode: `EVO_SIGN_PFX` +
+      `EVO_SIGN_PASSWORD` oppure `EVO_SIGN_THUMBPRINT` al build di
+      `npm run installer` / `npm run installer:offline`; lo `.sha256` deve
+      coprire il file firmato (il builder lo calcola DOPO la firma).
+      Nota: un certificato self-signed NON toglie SmartScreen; serve un
+      certificato OV/EV emesso a un'identità verificata. La firma toglie
+      «Autore sconosciuto» su un PC che si fida della catena, ma SmartScreen
+      può ancora avvisare finché il file non ha reputazione (EV: immediata;
+      OV: cresce con i download). Verifica con `signtool verify /pa`.
+      Il preflight di `crea-release` esegue questa verifica da solo quando
+      una variabile `EVO_SIGN_*` è impostata (catena, corrispondenza dello
+      `.sha256` e versione nel `.build.json`); se è verde, gli EXE e i loro
+      `.sha256` salgono da soli come asset della release. A mano:
+      `npm run verifica-firma`.
 - [ ] NIENTE push a main da solo: la sincronizzazione passa da
       `sincronizza-git.cmd`.
 

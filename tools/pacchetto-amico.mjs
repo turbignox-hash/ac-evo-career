@@ -1,7 +1,10 @@
 // pacchetto-amico.mjs — lo zip di installazione per un amico (24/10).
 //
 // Cosa produce: un pacchetti/ac-evo-career-amico-vX.Y.Z-<hash>.zip che contiene
-// ESATTAMENTE lo stato tracciato del repo al commit corrente (git archive):
+// ESATTAMENTE lo stato tracciato del repo al commit corrente (git archive).
+// GATE (4/11): se c'è un file non committato, lo zip NON si crea:
+// un tracciato modificato uscirebbe vecchio (git archive HEAD), un nuovo
+// non tracciato resterebbe fuori. Committa o rimuovi prima.
 //   DENTRO        → src/ gui/ tools/ test/ config/ docs/ report/ README*,
 //                   LICENSE.md GUIDA-AMICO.md avvia.cmd apri-gui.cmd …
 //   FUORI di sicuro (non tracciati) → data/ (il TUO save), .git/ (la storia),
@@ -41,8 +44,8 @@ const avanti = (() => {
 
 const avvisi = [];
 if (sporco) {
-  console.log('⚠ Git ha modifiche NON committate: lo zip esce dal commit HEAD, non dal tuo disco sporco.\n' + sporco);
-  avvisi.push('c\'erano file non committati al momento dello zip');
+  console.error('❌ File non committati: lo zip uscirebbe dal commit HEAD e lascerebbe fuori i nuovi. Committa o rimuovi prima.\n' + sporco);
+  process.exit(1);
 }
 if (avanti === '-1') avvisi.push('remote `offsite` assente: gli amici clonarono lì non potranno aggiornarsi finché non lo aggiungi');
 else if (avanti !== '0') avvisi.push(avanti + ' commit NON ancora spinti su offsite: l\'amico non li avrà se ora non spingi');

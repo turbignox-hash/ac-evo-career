@@ -10,6 +10,8 @@
 //   node tools/crea-release.mjs v0.1.25 "titolo" corpo.md --asset pacchetti/x.zip --asset y.zip
 //     --asset (ripetibile): carica il file NELL'asset della release; se un
 //     asset con lo stesso nome esiste già, lo CANCELLA e lo ricarica (sostituzione).
+//     Se EVO_SIGN_* è configurata, dopo la verifica gli EXE in dist/ (e gli
+//     eventuali .exe passati con --asset) salgono da soli con i loro .sha256.
 //   node tools/crea-release.mjs v0.1.25 "titolo" corpo.md --con-pacchetto [--no-test]
 //     --con-pacchetto: la zip del pacchetto-amico NON si fa a mano prima:
 //     qui viene CONFEZIONATA (node tools/pacchetto-amico.mjs) e caricata
@@ -30,7 +32,8 @@
 //      PAGINE D'INGRESSO: app.json = sorgente, menu.html assente).
 // Qualunque esito non-zero: la release NON parte. E se la build ha
 // riscritto file non committati lo dico ad alta voce: lo zip esce da
-// git archive HEAD — senza commit il pacchetto porta i costruiti VECCHI.
+// git archive HEAD — senza commit il pacchetto porta i costruiti VECCHI
+// e pacchetto-amico si ferma prima di crearlo.
 //
 // LA LISTA DI CONTROLLO DELLA GUARDIA DI LAYOUT (3/11, richiesta Mauro:
 // "scrivi una lista di controllo di rilascio automatica per la guardia di
@@ -45,13 +48,28 @@
 //      esce 0 — quindi qui non si trasforma uno skip in un rosso: si dice
 //      AD ALTA VOCE che quella release esce senza layout misurato, perché
 //      il silenzio farebbe credere a una prova che non c'è stata.
-//   3) l'AVVISO dei file sporchi: lo zip nasce da `git archive HEAD`, quindi
-//      una GUI (o la sonda) modificata ma non committata esce VECCHIA.
+//   3) IL CANCELLO dei file sporchi: lo zip nasce da `git archive HEAD`.
+//      Con --con-pacchetto crea-release si ferma SUBITO se l'albero non è
+//      pulito (e di nuovo dopo genera-uiapp); pacchetto-amico ripete il
+//      controllo prima di creare lo zip.
+// IL PREFLIGHT FIRMA (4/11): se EVO_SIGN_PFX o EVO_SIGN_THUMBPRINT è
+// impostata, prima di GitHub verifica gli EXE presenti in dist/ e negli
+// --asset con `build-installer-exe --verifica-firma`: catena Authenticode +
+// corrispondenza dello .sha256 e versione nel .build.json. Un EXE non
+// firmato, una firma rotta o una build vecchia fermano la release. Se il
+// controllo passa, gli EXE e i loro .sha256 diventano asset della release
+// senza doverli ripetere con --asset. Senza variabili di firma il controllo
+// si salta (EXE non firmati).
+// LA VERSIONE (4/11): il tag deve essere `v` + il numero in package.json.
+// Una release v0.1.56 col package a 0.1.55 (o con EXE 0.1.55) non parte:
+// il numero si allinea con `npm run bump` e un commit, non a mano.
+//
 // Tag già presente → viene riusato; release già esistente → aggiorna il corpo.
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { basename, join, dirname } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { basename, join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { caricaAssetRelease, pianoAssetRelease } from './release-assets.mjs';
 
 const argv = process.argv.slice(2);
 const SOLO_PREFLIGHT = argv.includes('--solo-preflight');
@@ -63,11 +81,92 @@ const tag = puliti[0];
 const titolo = puliti[1];
 const stopAsset = puliti.indexOf('--asset');
 const rest = (stopAsset === -1 ? puliti.slice(2) : puliti.slice(2, stopAsset)).join(' ');
-const assets = stopAsset === -1 ? [] : puliti.slice(stopAsset + 1);
+const assets = [];
+if (stopAsset !== -1) {
+  for (let i = stopAsset + 1; i < puliti.length; i++) {
+    if (puliti[i] === '--asset') continue;
+    if (puliti[i]) assets.push(puliti[i]);
+  }
+}
 if (!tag || !titolo || !rest) { console.error('uso: node tools/crea-release.mjs <tag> <titolo> <corpo-file|corpo-inline> [--asset file.zip ...] [--con-pacchetto [--no-test]] [--solo-preflight]'); process.exit(1); }
 
 // ---- IL PREFLIGHT delle app in gioco: la soglia di release -------------
 const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..');
+const pkg = JSON.parse(readFileSync(join(RADICE, 'package.json'), 'utf8'));
+const versioneTag = String(tag).replace(/^v/, '');
+if (versioneTag !== pkg.version) {
+  console.error(`✧ tag ${tag} ≠ package.json ${pkg.version}: allinea la versione (npm run bump) e committa prima della release.`);
+  process.exit(1);
+}
+console.log(`✓ tag ${tag} = package.json ${pkg.version}`);
+// L'ALBERO (4/11): con --con-pacchetto la zip nasce da HEAD. Fermarsi qui
+// evita di far girare l'intero preflight per poi fallire nel pacchetto.
+if (CON_PACCHETTO && !SOLO_PREFLIGHT) {
+  const stato = spawnSync('git', ['status', '--porcelain'], { cwd: RADICE, encoding: 'utf8' });
+  const righe = (stato.stdout ?? '').trim();
+  if (stato.status !== 0 || righe) {
+    console.error('✧ albero non pulito: la zip uscirebbe da HEAD e lascerebbe fuori i nuovi. Committa o rimuovi prima.\n'
+      + (righe || `git status exit ${stato.status}`));
+    process.exit(1);
+  }
+}
+// IL CORPO (4/11): leggerlo prima del preflight evita di fare tutto il giro
+// per poi scoprire che il file .md/.txt non esiste.
+let corpo = null;
+if (!SOLO_PREFLIGHT) {
+  const corpoRaw = rest;
+  const isFile = corpoRaw.endsWith('.md') || corpoRaw.endsWith('.txt');
+  try {
+    corpo = isFile ? readFileSync(corpoRaw, 'utf8') : corpoRaw.replace(/\\n/g, '\n');
+  } catch {
+    console.error(`✧ corpo della release non leggibile: ${corpoRaw} (file .md/.txt mancante?)`);
+    process.exit(1);
+  }
+  if (!corpo.trim()) {
+    console.error('✧ corpo della release vuoto: scrivi il corpo (file o inline) prima.');
+    process.exit(1);
+  }
+}
+// IL TAG (4/11): la release vera deve partire da un tag che esiste e punta
+// a HEAD. Senza questo, GitHub potrebbe creare il tag sul commit sbagliato.
+// --solo-preflight può girare anche senza tag (prova a secco).
+if (!SOLO_PREFLIGHT) {
+  const ref = `refs/tags/${tag}`;
+  const trovato = spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], { cwd: RADICE, encoding: 'utf8' });
+  const tagCommit = trovato.status === 0
+    ? spawnSync('git', ['rev-list', '-n', '1', ref], { cwd: RADICE, encoding: 'utf8' }).stdout.trim()
+    : '';
+  const head = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: RADICE, encoding: 'utf8' }).stdout.trim();
+  if (trovato.status !== 0) {
+    console.error(`✧ tag ${tag} non esiste: crealo su HEAD e pushalo prima della release.`);
+    process.exit(1);
+  }
+  if (!tagCommit || tagCommit !== head) {
+    console.error(`✧ tag ${tag} non punta a HEAD (${head.slice(0, 7)}): la release uscirebbe dal commit sbagliato.`);
+    process.exit(1);
+  }
+  // ANCHE SUL REMOTO: un tag solo locale non basta; GitHub potrebbe crearlo
+  // sul commit sbagliato. `ls-remote --exit-code` dà 2 quando non lo trova.
+  const remoto = spawnSync('git', [
+    'ls-remote', '--tags', '--exit-code', 'offsite', `refs/tags/${tag}`,
+  ], { cwd: RADICE, encoding: 'utf8', timeout: 15_000, stdio: ['ignore', 'pipe', 'pipe'] });
+  if (remoto.status === 2) {
+    console.error(`✧ tag ${tag} non è su offsite: pushalo prima della release (git push offsite ${tag}).`);
+    process.exit(1);
+  }
+  if (remoto.status !== 0) {
+    console.error(`✧ non riesco a leggere il tag ${tag} da offsite (git ls-remote, exit ${remoto.status}).`);
+    process.exit(1);
+  }
+  const righeTag = (remoto.stdout ?? '').trim().split(/\r?\n/).filter(Boolean);
+  const esatta = righeTag.find((r) => r.endsWith(`refs/tags/${tag}`));
+  const peeled = righeTag.find((r) => r.endsWith(`refs/tags/${tag}^{}`));
+  const remotoSha = (peeled ?? esatta)?.split(/\s+/)[0] ?? '';
+  if (remotoSha !== head) {
+    console.error(`✧ tag remoto ${tag} punta a ${remotoSha.slice(0, 7) || '?'}, non a HEAD (${head.slice(0, 7)}): pusha il tag giusto.`);
+    process.exit(1);
+  }
+}
 function preghiamo(detta, args, { stdio } = {}) {
   console.log(`↻ ${detta}`);
   const r = spawnSync(process.execPath, args, { cwd: RADICE, encoding: 'utf8', stdio: stdio ?? 'inherit' });
@@ -85,7 +184,11 @@ preghiamo('node --test test/uiapp-installata.test.mjs — la guardia delle app i
 // la build ha riscritto qualcosa? lo zip esce da HEAD: senza commit non entra
 const sporca = spawnSync('git', ['status', '--porcelain', '--', 'uiapp'], { cwd: RADICE, encoding: 'utf8' });
 if ((sporca.stdout ?? '').trim()) {
-  console.log('⚠ la build ha riscritto i costruiti NON committati: il pacchetto (git archive HEAD) li porta VECCHI.\n' + sporca.stdout.trim());
+  console.log('⚠ la build ha riscritto i costruiti NON committati: il pacchetto (git archive HEAD) li porterebbe VECCHI, quindi la release con --con-pacchetto si fermerebbe.\n' + sporca.stdout.trim());
+  if (CON_PACCHETTO && !SOLO_PREFLIGHT) {
+    console.error('✧ la build ha lasciato file non committati: la release NON parte. Committa prima.');
+    process.exit(1);
+  }
 }
 /* ---- LA LISTA DI CONTROLLO DELLA GUARDIA DI LAYOUT (i tre punti sono
  * spiegati in testa al file): due gradi duri, uno che avvisa. */
@@ -106,12 +209,44 @@ if (saltata) {
 // lo zip esce da HEAD: una GUI modificata e non committata esce vecchia
 const sporcaLayout = spawnSync('git', ['status', '--porcelain', '--', 'gui', 'test/layout-impostazioni.test.mjs', 'test/_layout-probe.mjs'], { cwd: RADICE, encoding: 'utf8' });
 if ((sporcaLayout.stdout ?? '').trim()) {
-  console.log('⚠ GUI o sonda della guardia NON committate: lo zip (git archive HEAD) porta i file VECCHI, non il layout appena misurato.\n' + sporcaLayout.stdout.trim());
+  console.log('⚠ GUI o sonda della guardia NON committate: lo zip (git archive HEAD) porterebbe i file VECCHI, non il layout appena misurato; la release con --con-pacchetto si fermerebbe.\n' + sporcaLayout.stdout.trim());
+  if (CON_PACCHETTO && !SOLO_PREFLIGHT) {
+    console.error('✧ GUI o sonda non committate: la release NON parte. Committa prima.');
+    process.exit(1);
+  }
 }
 console.log(saltata
   ? '✓ lista di controllo layout superata a metà: contratto degli skip ✓, guardia SALTATA (vedi sopra) — release possibile, layout non misurato.'
   : '✓ lista di controllo layout superata: contratto degli skip ✓, guardia misurata ✓ (126 misure).');
-if (SOLO_PREFLIGHT) { console.log('✓ preflight superato (--solo-preflight): niente GitHub, niente zip.'); process.exit(0); }
+// ---- PREFLIGHT FIRMA EXE: se c'è un certificato, gli EXE devono essere
+// firmati, coerenti con il loro .sha256 e della versione del progetto. Un EXE
+// non firmato, una firma rotta o una build vecchia non devono partire.
+console.log('—— PREFLIGHT FIRMA EXE: con un certificato, firma e .sha256 devono tornare ——');
+const firmaConfigurata = Boolean(process.env.EVO_SIGN_PFX || process.env.EVO_SIGN_THUMBPRINT);
+let exeFirmati = [];
+if (!firmaConfigurata) {
+  console.log('Firma: non configurata → EXE non verificati (nessun EVO_SIGN_PFX/EVO_SIGN_THUMBPRINT).');
+} else {
+  const candidati = [...new Set([
+    ...assets.filter((a) => /\.exe$/i.test(a)).map((a) => resolve(a)),
+    join(RADICE, 'dist', 'EVO-Pitwall-Setup.exe'),
+    join(RADICE, 'dist', 'EVO-Pitwall-Setup-Offline.exe'),
+  ].filter((f) => existsSync(f)))];
+  if (!candidati.length) {
+    console.log('⚠ firma configurata ma nessun EXE in dist/ o in --asset: niente da verificare in questa release.');
+  } else {
+    preghiamo(`node tools/build-installer-exe.mjs --verifica-firma — catena, .sha256 e versione di ${candidati.length} EXE`, [join('tools', 'build-installer-exe.mjs'), '--verifica-firma', ...candidati]);
+    // Firmati e della build giusta: salgono da soli, col loro .sha256.
+    exeFirmati = candidati.flatMap((f) => [f, `${f}.sha256`]);
+    console.log(`EXE in release: ${exeFirmati.map((f) => basename(f)).join(', ')}`);
+  }
+}
+if (SOLO_PREFLIGHT) {
+  const piano = pianoAssetRelease({ espliciti: assets, firmati: exeFirmati });
+  console.log(`Asset release (${piano.length}): ${piano.map((f) => basename(f)).join(', ')}`);
+  console.log('✓ preflight superato (--solo-preflight): niente GitHub, niente zip.');
+  process.exit(0);
+}
 
 // --con-pacchetto: la zip si confeziona QUI, dopo il preflight, e sale come asset
 let zipFresco = null;
@@ -122,10 +257,7 @@ if (CON_PACCHETTO) {
   if (!zipFresco) { console.error('✧ non ho letto il Percorso dello zip dall\'output del pacchetto: la release NON parte.'); process.exit(1); }
   console.log(`   zip fresca: ${zipFresco}`);
 }
-const corpoRaw = rest;
-const isFile = corpoRaw.endsWith('.md') || corpoRaw.endsWith('.txt');
-const corpo = isFile ? readFileSync(corpoRaw, 'utf8') : corpoRaw.replace(/\\n/g, '\n');
-
+// corpo già letto prima del preflight (fail-fast)
 const fill = spawnSync('git', ['credential', 'fill'], { input: 'protocol=https\nhost=github.com\n\n' });
 const cred = {};
 for (const line of String(fill.stdout).split('\n')) { const eq = line.indexOf('='); if (eq > 0) cred[line.slice(0, eq)] = line.slice(eq + 1); }
@@ -146,29 +278,24 @@ const releaseId = out.id ?? list.id;
 
 // asset: POST binario su uploads.github.com; 422 (nome già preso) → si cancella
 // quello esistente e si ritenta, così la zip della release è SEMPRE l'ultima
-const dallaZip = zipFresco ? [zipFresco, ...assets] : assets;   // la zip di --con-pacchetto sale per prima
+// la zip di --con-pacchetto sale per prima; poi gli asset espliciti e gli EXE
+// firmati, senza doppioni (vedi tools/release-assets.mjs).
+const dallaZip = pianoAssetRelease({ zip: zipFresco, espliciti: assets, firmati: exeFirmati });
+console.log(`Asset release (${dallaZip.length}): ${dallaZip.map((f) => basename(f)).join(', ')}`);
+let assetKo = 0;
 for (const file of dallaZip) {
-  const nome = basename(file);
-  const buf = readFileSync(file);
-  const carica = async () => fetch(`https://uploads.github.com/repos/${repo}/releases/${releaseId}/assets?name=${encodeURIComponent(nome)}`, {
-    method: 'POST',
-    headers: { 'User-Agent': 'evo-tool', Authorization: `token ${token}`, 'Content-Type': 'application/zip' },
-    body: buf,
-  });
-  let up = await carica();
-  if (up.status === 422) {
-    // il nome esisteva: lo svuoto e riprovo UNA volta
-    const dettaglio = await up.json().catch(() => ({}));
-    const idAsset = (dettaglio?.errors?.map((e2) => e2.resource) ?? []).length ? null : null; // senza id diretto: passa dalla lista
-    const lista = await (await fetch(`https://api.github.com/repos/${repo}/releases/${releaseId}/assets`, { headers: h })).json();
-    const presente = (lista ?? []).find((a2) => a2.name === nome);
-    if (presente) {
-      const del = await fetch(`https://api.github.com/repos/${repo}/releases/assets/${presente.id}`, { method: 'DELETE', headers: h });
-      console.log('asset esistente cancellato (' + del.status + '): rischio ' + nome);
-      up = await carica();
-      void idAsset;
-    }
+  const esito = await caricaAssetRelease({ file, repo, releaseId, headers: h });
+  if (esito.sostituito) {
+    console.log('asset esistente cancellato (' + esito.cancellato + '): rischio ' + esito.nome);
   }
-  const o = await up.json().catch(() => ({}));
-  console.log(up.status === 201 ? `asset ok: ${nome} (${Math.round(buf.length / 1024)} KB) → ${o.browser_download_url ?? ''}` : `asset KO (${up.status}): ${nome} — ${o.message ?? ''}`);
+  if (esito.ok) {
+    console.log(`asset ok: ${esito.nome} (${esito.kb} KB) → ${esito.body.browser_download_url ?? ''}`);
+  } else {
+    assetKo++;
+    console.error(`asset KO (${esito.status}): ${esito.nome} — ${esito.body.message ?? ''}`);
+  }
+}
+if (assetKo) {
+  console.error(`✧ ${assetKo} asset NON caricati: la release NON è completa.`);
+  process.exitCode = 1;
 }

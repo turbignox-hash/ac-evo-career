@@ -59,3 +59,17 @@ griglia si prende dal GIOCO. Nel dubbio, il codice qui sotto comanda.
 - Il diario racconta IL FATTO: ogni lavoro fatto e verificato va in
   [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md), in cima, con la richiesta di Mauro
   tra virgolette e le verifiche vere (numeri, non «sembra ok»).
+
+## 5. Chiusura di ogni lavoro
+
+Ogni volta che chiudo un lavoro dico esplicitamente:
+
+- se va **committato ora**, con messaggio proposto e file da mettere in staging;
+- se va **pushato ora**, su quale remoto/branch (di casa: `sincronizza-git.cmd`);
+- se la **release** va preparata ora o cosa manca (albero pulito, tag/versione,
+  firma OV/EV).
+
+Prima di terminare ogni risposta verifico lo stato di commit, push e release
+e, se le condizioni sono verdi, applico senza chiedere conferma. Se manca
+qualcosa (certificato, tag, credenziali, albero pulito), lo dico e non
+invento.
