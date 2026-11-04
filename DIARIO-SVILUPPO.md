@@ -9,12 +9,13 @@ affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo
 
 - **Giri liberi**: la riga dei preset usciva dallo schermo (scrollWidth 1504 su client 1423; bottoni a right 1466/1504 contro main 1380) perché la select ereditava `width:100%` e con `flex:0 0 auto` si prendeva 1030px. Ora riga `flex-wrap:wrap`, select `flex:1 1 220px;min-width:0;width:auto`: document 1423 = client, salva/canc a 1297/1335 dentro il main (1380). Stesso trattamento alla riga della griglia.
 - **Tipografia**: `th`, `.tag`, `.panel h3`, etichette di KPI/header/campi a 11.5px; `--faint` → `--dim` su tutto il testo leggibile (resta solo per punti, separatori e barrati). Elementi sotto 11px: Archivio 321→0, Campionati 176→0, Griglia 146→0.
-- **Prepara tutto**: il blocco dei due bottoni stava in fondo alla scheda, dopo regole e avvisi. Ora è in testa (desktop: scheda a 209px, blocco a 344px, bottone subito in vista). Sotto 860px `estraiAzioniMobile` lo porta in una barra in cima a `main` (primo elemento: 1189 con main a 1157) mentre la scheda resta in fondo; l'estrazione gira a ogni ridisegno della scheda, con una barra sola.
+- **Prepara tutto**: il blocco dei due bottoni stava in fondo alla scheda, dopo regole e avvisi. Ora è in testa (desktop: scheda a 209px, blocco a 344px, bottone subito in vista). Sotto 860px `estraiAzioniMobile` lo porta in una barra in cima a `main`, **sticky sotto l'header** (altezza misurata con ResizeObserver: a 390px header 110px, barra ferma a top 118 anche dopo 2.600px di scroll) mentre la scheda resta in fondo; una barra sola a ogni ridisegno.
+- **Mobile, i due freni tolti**: la nav era ancora in colonna perché l'override a inizio foglio veniva battuto dalla regola base (sidebar 932px: ora 69px, riga orizzontale che scorre); l'header impilava le statistiche su 380px (ora 110px, una riga scorrevole sotto 700px). Senza questi due, la barra sticky viveva sotto un muro.
 - **Griglia**: il pannello Azioni (prima in fondo a 21.696 caratteri) è ora il primo pannello, `#g-apply` a 310px.
 - **Archivio**: filtro per sessione accanto alla ricerca (HotLap/Practice/Qualifying/Race/Warmup) + contatore «N/M sessioni visibili»; prova dal vivo: 157 righe → 1 con HotLap.
 - **Campionati**: la griglia delle 14 carte si piega con un click sul titolo (`<details open>`); le 14 schede serie restano pieghevoli una per una.
 - **Sidebar**: «Studio» (13 voci) spezzato in Campionato (6), Archivio (4), Sistema (3); Gara resta 6.
-- **Verifica**: misure live a 1440×900 e 820×900 (nessun overflow: 1423/1423 e 803/803); `node --check`; suite **971/971** (0 fail/skip, EVO aperto); `npm run lint` **371 file, 0 warning**.
+- **Verifica**: misure live a 1440×900, 820×900 e 390×844 (nessun overflow: 1423/1423, 803/803, 374/374); sticky ferma sotto l'header a 1200 e 2600px di scroll; `node --check`; suite **971/971** (0 fail/skip, EVO aperto); `npm run lint` **371 file, 0 warning**.
 - **Nota**: commit, non push; restano fuori le 5 modifiche preesistenti.
 
 ### 4/11 — «Prepara tutto e avvia» entra in gara, non solo nel gioco (richiesta Mauro: «prepara tutto e avvia deve lanciare la gara, non solo il gioco»)

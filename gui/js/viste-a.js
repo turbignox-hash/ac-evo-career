@@ -655,6 +655,21 @@ function msgRow(m){
    bottoni esce dalla scheda (che in colonna finirebbe in fondo alla pagina)
    e apre la pagina. Una barra sola, riempita a ogni ridisegno della scheda
    (cambio auto, sfida): i bottoni sono gli stessi nodi, handler compresi. */
+/* La barra resta sotto l'header sticky: l'altezza dell'header cambia quando
+   va a capo (mobile stretto), quindi la si misura invece di indovinarla. */
+function posizionaBarraAzioni(){
+  const bar = document.querySelector('.card-actions-bar');
+  const head = document.querySelector('header#top');
+  if (bar && head) bar.style.top = Math.round(head.getBoundingClientRect().height + 8) + 'px';
+}
+window.addEventListener('resize', posizionaBarraAzioni);
+/* l'header cresce quando arrivano le statistiche (o va a capo): il top della
+   barra va riallineato anche senza un resize della finestra. */
+if (typeof ResizeObserver === 'function') {
+  const headTop = document.querySelector('header#top');
+  if (headTop) new ResizeObserver(posizionaBarraAzioni).observe(headTop);
+}
+
 function estraiAzioniMobile(el){
   const mainEl = el?.closest('main');
   if (!mainEl || !matchMedia('(max-width:860px)').matches) return;
@@ -663,6 +678,7 @@ function estraiAzioniMobile(el){
   let bar = mainEl.querySelector('.card-actions-bar');
   if (!bar) { bar = document.createElement('div'); bar.className = 'panel card-actions-bar'; mainEl.prepend(bar); }
   bar.replaceChildren(az);
+  posizionaBarraAzioni();
 }
 
 function drawCardInto(el, card){

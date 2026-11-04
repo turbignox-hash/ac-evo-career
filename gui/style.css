@@ -183,7 +183,12 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 /* 4/11 — il blocco «Prepara tutto» vive in testa alla scheda; su schermo
    stretto drawDashboard lo estrae in una barra che apre la pagina. */
 .card-actions{margin-top:2px}
-.card-actions-bar{margin-bottom:10px}
+.card-actions-bar{margin-bottom:10px; position:sticky; top:64px; z-index:14; background:var(--panel); box-shadow:0 10px 24px #0009; padding:8px 10px}
+/* barra compatta: i due gesti affiancati, la nota lunga resta nella scheda */
+.card-actions-bar #card-actions{display:grid; grid-template-columns:1fr 1fr; gap:6px}
+.card-actions-bar #card-actions .act{margin-top:0 !important}
+.card-actions-bar #card-actions > .muted{grid-column:1/-1; margin-top:2px !important}
+.card-actions-bar #card-actions > .muted:first-of-type{display:none}
 .ckl{display:grid; grid-template-columns:22px 168px 1fr; gap:8px; align-items:center; padding:7px 8px; border-bottom:1px solid #1d2430; cursor:pointer; border-radius:6px}
 .ckl:hover{background:#ffffff05}
 .ckl:last-of-type{border-bottom:0}
@@ -530,3 +535,22 @@ a.kofi-chip{white-space:nowrap}
 .ag-pop table{width:100%;border-collapse:collapse;font-size:12.5px}
 .ag-pop table td{padding:2px 4px;border-top:1px solid var(--line,#232b39)}
 .ag-pop table tr.me td{color:#ffcc66;font-weight:600}
+
+/* 4/11 — la nav mobile era ancora in colonna: l'override a inizio foglio
+   veniva battuto dalla regola base più sotto (stessa specificità). Qui sta
+   dopo, quindi vince: barra orizzontale che scorre, non 932px di voci. */
+@media(max-width:920px){
+  nav#nav{flex-direction:row; padding:6px; overflow-x:auto; overflow-y:hidden}
+  nav#nav button{flex:0 0 auto; white-space:nowrap}
+}
+
+/* 4/11 — telefono: l'header impilava le statistiche su 380px e la barra
+   sticky restava sotto un muro. Su ≤700px sono UNA riga che scorre in
+   orizzontale: l'header torna ~100px e le azioni restano a portata. */
+@media(max-width:700px){
+  header#top .in{gap:10px; padding:8px 12px}
+  .hstats{flex-wrap:nowrap; width:100%; margin-left:0; overflow-x:auto; overflow-y:hidden; padding-bottom:2px; scrollbar-width:none}
+  .hstats::-webkit-scrollbar{display:none}
+  .hstat{flex:0 0 auto; padding:0 10px}
+  .idblock .nm{max-width:170px}
+}
