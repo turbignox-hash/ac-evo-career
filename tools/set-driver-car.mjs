@@ -10,7 +10,7 @@
 import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { encodeMsg, openDataDir, GAME_SAVEDIR, pruneBackups } from './evo-grid.mjs';
-import { decodeGarage, readMap, learnCarFromLogs, learnCarFromStorage } from './set-car-sample.mjs';
+import { decodeGarage, readMap, learnCarFromLogs } from './set-car-sample.mjs';
 
 // BOOT DIZIONARIO automatico (31/10): alla PRIMA ricerca auto in un processo
 // proviamo una volta a imparare le coppie dai log di gioco (learnCarFromLogs):
@@ -19,13 +19,12 @@ import { decodeGarage, readMap, learnCarFromLogs, learnCarFromStorage } from './
 // sola per processo: i log crescono, non serve riscandarli a ogni chiamata.
 // DAL 3/11 c'è la FATTORIA: ui_storage.uistorage scritto dal gioco in chiaro
 // con car_guid+display_name per ogni auto toccata dal menu — la sorgente
-// completa, indipendente dai log e dall'iscrizione a paddock.
+// completa, indipendente dai log e dall'iscrizione esterna.
 let _dizionarioBoot = false;
 function dizionarioBoot() {
   if (_dizionarioBoot) return;
   _dizionarioBoot = true;
   try { learnCarFromLogs(); } catch { /* log assenti o illeggibili: si va col dizionario a campioni */ }
-  try { learnCarFromStorage(); } catch { /* ui_storage assente (game mai aperto): poco male */ }
 }
 
 // il profilo attivo si SCOPRE su disco (ProfileData/<guid>/OpenData): la GUID

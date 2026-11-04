@@ -26,18 +26,13 @@ EVO — gratuita, open source, senza abbonamenti, e si aggiorna da sola:
 Due parole su dove sta, prima dei dettagli, perché la domanda che torna
 sempre è la stessa: «ma invece di X?».
 
-### Dove sta: accanto al gioco e accanto a Paddock, non contro
+### Dove sta: dentro e fuori dal gioco
 
-Pitwall non compete con chi già fa bene la parte «in gioco»: si tiene
-**accanto al gioco e accanto a Paddock**. Fa ciò che Paddock per
-progetto NON fa: **agisce** sul gioco — griglia, setup, automazioni di
-preparazione — e staffetta con te dal desktop. La lettura col gamepad
-dal divano resta di Paddock, e qui ci tengo: da Paddock abbiamo preso
-più di un'idea dichiarata (il ponte ai journal `pd-*.json`, il match
-graduale dei nomi auto, il bonus gara pulita, il tetto reputazione).
-Costruire la carriera, scriverla nel gioco, pilotare il weekend dal PC:
-è il nostro mestiere.
+Pitwall si tiene **accanto al gioco**: prepara la carriera dal desktop —
+griglia, setup, automazioni di preparazione — e staffetta con te durante
+il weekend.
 
+E dentro EVO, oggi, girano **due app nostre**:
 E dentro EVO, oggi, girano **due app nostre** accanto alle altre:
 
 - il **Cruscotto**: piloti, gare del giorno, serie iscritte,
@@ -49,8 +44,7 @@ E dentro EVO, oggi, girano **due app nostre** accanto alle altre:
 
 Entrambe si installano in
 `Saved Games\ACE\mods\uiresources\ACEUIAppLoader` e girano col loader
-che già conoscete, leggendo le stesse fonti del gioco (journal del
-paddock, Results, telemetria) senza scrivere nulla che il gioco non si
+che già conoscete, leggendo le stesse fonti del gioco (Results, telemetria, journal) senza scrivere nulla che il gioco non si
 aspetti.
 
 ---
@@ -72,7 +66,7 @@ Una codebase Node.js, tre superfici:
 
 Nessun account obbligatorio, nessun dato inviato fuori dal PC: le fonti
 sono i file di EVO in `Saved Games` (Results, sessioni MoTeC, journal
-`pd-*.json` dell'app del paddock, ui_storage) e basta quello.
+journal del gioco, ui_storage) e basta quello.
 
 ---
 
@@ -178,7 +172,7 @@ banco di test del progetto oggi gira **895/895 verdi**.
 
 Aggiunta degli ultimi giorni: il dizionario guida↔auto che serve alla
 griglia si riempie SOLO dai file del gioco — i log di sessione, la
-ui_storage (le skin toccate nel menù) e le iscrizioni al paddock — e una
+ui_storage (le skin toccate nel menù) e le iscrizioni del gioco — e una
 guardia lo rinfresca a ogni giro del watcher mentre giochi,
 correggendo anche le etichette sbagliate («Mazda Mazda MX-5» → «Mazda
 MX-5»). Risultato pratico: la prima volta dentro una serie nuova,
@@ -193,7 +187,6 @@ tutto» del giro dopo la seleziona da solo.
   overlay sul rendering, niente di ciò che può andare in conflitto col
   gioco. Leggiamo e scriviamo SOLO file che EVO già usa, con backup e
   verifica prima di ogni scrittura.
-- **La lettura da divano resta di Paddock**, e lo diciamo apertamente.
 - Il fotogramma dell'app «dentro il menù di EVO» è ancora da fotografare
   col gioco aperto: le due immagini sotto sono rese fuori dal gioco sul
   server vero (segnaposto dichiarati) — il bordo «🤖 engine non

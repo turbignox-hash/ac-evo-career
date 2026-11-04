@@ -135,7 +135,7 @@ changelog under [report/](report/), with the real test-suite result inside):
   (the 3 freshest stay), and the save backup excludes
   MoTec/replay/crashdumps/Logs/mods: zip from 746 MB to 1.1 MB.
 - **Season press, headlines that remember (28/10).** After every race the
-  paddock press writes a headline tailored to your true story, not just
+  race press writes a headline tailored to your true story, not just
   today's race — rarest first: GRAND CHELEM, THE WASTED POLE, ROUGH STREAK
   ("3 retirements in a row"), BACK FROM THE BOX / BACK ON THE PODIUM,
   TWO/THREE/FOUR IN A ROW, FIRST TIME AT X, THE FIRST STEP, PODIUM STREAK.
@@ -149,7 +149,7 @@ changelog under [report/](report/), with the real test-suite result inside):
   season duel and seat monte-carlo used to run on the SHORT grid: a real
   P10/17 got squeezed into a 7-car field and rival points were undersummed.
   The sim now races as WIDE AS THE MAXIMUM ever seen in real grids
-  (`grigliaSimEstesa`): standings, paddock, mid-season pulse and series cards
+  (`grigliaSimEstesa`): standings, pit lane, mid-season pulse and series cards
   tell a championship as crowded as it really is. Deterministic, robust to
   corrupt truncated files, and the ladder on disk is never touched (the node
   is mutated IN COPY only); on virgin careers the estimate stays.
@@ -168,7 +168,7 @@ changelog under [report/](report/), with the real test-suite result inside):
   calendar, all clickable.
 - **The copilot always speaks Italian — and makes sense.** From 27/10 the
   voice is always it-IT even with an English interface (English UI serves
-  Paddock, the voice no longer follows it). At startup it waits a few beats
+  even with the English interface). At startup it waits a few beats
   for the browser's asynchronous voice list, only speaks when a *value*
   actually changes, never repeats a phrase within 20 s and stays silent for
   the first seconds after a session switch. The **♪ test** chip on the
@@ -195,7 +195,7 @@ changelog under [report/](report/), with the real test-suite result inside):
   ACE UI App Loader mod everything else still works, and the tool says so.
   `disinstalla.cmd` undoes it cleanly and refuses folders that don't look
   like an installation. All covered by sandbox tests.
-- **Old closing messages stay readable.** Paddock and grid-calibration notes
+- **Old closing messages stay readable.** Old grid-calibration notes
   written back when the career ran in Italian are translated on display in
   the English interface — the save file is still never modified.
 - **The in-game «Cruscotto» widget (from 27/10).** The first widget inside the
@@ -210,12 +210,12 @@ changelog under [report/](report/), with the real test-suite result inside):
 - **The Cruscotto also kicks the round off (28/10 evening).** A prepared and
   confirmed round → once the car in EVO's menu is already yours (the
   `ui_storage` ack of the setcar), the applet presses **«Start session» by
-  itself** — the same command the Paddock uses. The **special event never
+  itself** — the same command the game uses. The **special event never
   gets an automatic launch** (its settings are set by hand from the card,
   lesson of 23/10); a fresh round outranks the event (a pending round
   expires after ONE day and yields the field), and the car in EVO's menu no
   longer flips back to the event's car by surprise ("the Ferrari steps
-  back").- **Paddock and car classes (26–27/10).** The class engine now pairs series
+  back").- **Car classes (26–27/10).** The class engine now pairs series
   with the car park actually on disk: with the right classes per-track ballast
   has lost its bite (latest races: zero escapes from the base, no penalty
   above 8%, the 20% cap never reached).
@@ -483,8 +483,8 @@ writing. The career save stays segregated.
 | `enter <nodeId> [--buy] [--force]` | change series by rent or purchase |
 | `calendar` | season calendar with time and weather per round |
 | `standings` | series standings |
-| `paddock [--all]` | rival drivers: archetype, age, difficulty band |
-| `messages` | agent mail and paddock news |
+| `rivals [--all]` | rival drivers: archetype, age, difficulty band |
+| `messages` | agent mail and pit-lane news |
 | `next [--car <id>]` | next race with the exact in-game card |
 | `race [--car <id>] [--dry-run] [--no-launch] [--force-launch]` | pay entry, mark the race, open EVO |
 | `import` | read the native result and update the career |
@@ -640,7 +640,7 @@ the car from the garage and picks it by itself in later races.
 **The dictionary fills itself.** Three sources read what the GAME writes, no
 hand samples and no external tools: the startup logs (`Loaded car`), the car
 menu storage (`ui_storage.uistorage`, read at boot and on every pass of the
-guard) and paddock sign-ups (pair and calendar written together). The guard
+guard) and game sign-ups (pair and calendar written together). The guard
 (`watch`) refreshes everything each cycle and prints a single green line only
 when it really learned something; a label written twice ("Mazda Mazda…") cleans
 itself with the official name, while synonyms carrying foreign noise ("Kunos…")
@@ -656,7 +656,7 @@ missing and what estimate it falls back to.
 and penalties from the calibration, not from guesswork: it needs a few real
 races first, then revises with per-track confidence. Check the convergence on
 the **Grid** tab (`griglia-calib` gives the terminal summary). From 26/10,
-with the Paddock class engine, series are born with the right classes
+with the class engine, series are born with the right classes
 already: in the latest races no penalty exceeds 8% and no car escapes from
 the base.
 

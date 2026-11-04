@@ -9,14 +9,11 @@
 //     («Pioggia leggera»), done/next/todo ricavati dai results del save;
 //   • mirrorJournal       → RISPECCHIA accanto al save a OGNI saveState
 //     (save `evo-career.save[-N].json` → mirror `evo-calendar[-N].json`);
-//   • appOverview     → root null + mirror → ok:true col `mirror:true`,
-//     la scheda della prossima gara idem il ponte, la card non si nasconde più.
 // Isolazione: EVO_DATA_DIR su tmpdir (niente letture della macchina reale) e
-// APP_JOURNAL_DIR su un nido che NON esiste (l'app di gioco assente per
-// contratto del modulo). L'unica cosa che tocca del progetto reale è il ladder.
+// L'unica cosa che tocca del progetto reale è il ladder.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, existsSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -27,11 +24,9 @@ mkdirSync(DATA, { recursive: true });
 process.env.EVO_DATA_DIR = DATA;
 // App del gioco NON installata: il nido è un percorso che NON esiste (per
 // progetto del modulo root=null, nessuna caduta sui journal veri di QUESTA macchina).
-process.env.APP_JOURNAL_DIR = join(tmpdir(), '__non-esiste-pd-nodo-qui__');
-
 const { journalPathForSave, meteoParole,
   calendarioDaLadder, loadLadder } = await import('../src/journal.mjs');
-const { appRoot, appCalendar, appOverview, appNextRace,
+const { appCalendar, appNextRace,
   journalNostroCacheClear, appCacheClear, rondaDelCalendario } =
   await import('../src/app-carriera.mjs');
 const { saveState } = await import('../src/state.mjs');
@@ -57,7 +52,7 @@ test('journalPathForSave: evo-calendar accanto al save, un nome per slot', () =>
 });
 
 /* ------------------------------------------------------------------ */
-/* la ronda ladder → la ronda alla forma di Paddock                    */
+/* la ronda ladder → la ronda alla forma del calendario                    */
 /* ------------------------------------------------------------------ */
 
 test('calendarioDaLadder: le ronde del ladder col flag mirror:true', () => {
@@ -148,7 +143,6 @@ test('appCalendar: senza ponte e COL mirror → ok:true col mirror:true', () => 
       { season: 1, round: 2, position: 2, points: 20 },
     ] },
   });
-  assert.equal(appRoot(), null, 'l\'app del gioco NON è installata qui');
   appCacheClear();
   journalNostroCacheClear();
   const cal = appCalendar();
@@ -172,35 +166,12 @@ test('appNextRace: il fall-back porta la scheda della prossima', () => {
   assert.equal(n.done, 2);
 });
 
-test('appOverview: senza ponte MA con mirror → ok:true, mirror:true', () => {
-  appCacheClear(); journalNostroCacheClear();
-  const o = appOverview();
-  assert.equal(o.ok, true);
-  assert.equal(o.mirror, true);
-  assert.equal(o.next?.track, 'Oulton Park');
-  assert.equal(o.home, null, 'il profilo del GIOCO resta solo col ponte: non lo inventiamo');
-});
-
-test('appOverview: senza ponte e SENZA mirror → ok:false (come prima)', () => {
-  const vuota = mkdtempSync(join(tmpdir(), 'journal-nostro-vuoto-'));
-  process.env.EVO_DATA_DIR = vuota;
-  appCacheClear(); journalNostroCacheClear();
-  const o = appOverview();
-  assert.equal(o.ok, false);
-  assert.equal(o.reason, 'not-installed');
-  assert.equal(appNextRace(), null);
-  assert.equal(appCalendar().ok, false);
-  rmSync(vuota, { force: true, recursive: true });
-  process.env.EVO_DATA_DIR = DATA;                    // ripristino per gli altri test
-  journalNostroCacheClear();
-});
-
 /* ------------------------------------------------------------------ */
 /* IL CERCHIO col MIRROR (2/11): rondaDelCalendario senza app di gioco   */
 /* ------------------------------------------------------------------ */
 
 // Il preparatutto e la webui chiedono al calendario NOSTRO (mirror) la stessa
-// cosa che chiedevano al pd-calendar dell'app: la ronda «next» con pista id,
+// cosa che chiedevano al calendario: la ronda «next» con pista id,
 // meteo e orari già tradotti. Senza app, la ronda DEVE arrivare dal mirror —
 // con le DUE scale del meteo distinte (weather → ladder, idPreset → preset).
 test('rondaDelCalendario: col MIRROR (senza app) la ronda «next» è quella del journal nostro', () => {
@@ -228,7 +199,7 @@ test('rondaDelCalendario: col MIRROR (senza app) la ronda «next» è quella del
   assert.equal(pd.stagione, 1);
 });
 test('rondaDelCalendario: SENZA mirror E senza app → null (nessuna ronda inventata)', () => {
-  const vuota = mkdtempSync(join(tmpdir(), 'ronda-pd-vuoto-'));
+  const vuota = mkdtempSync(join(tmpdir(), 'ronda-cal-vuoto-'));
   process.env.EVO_DATA_DIR = vuota;
   appCacheClear(); journalNostroCacheClear();
   const ladder = loadLadder();

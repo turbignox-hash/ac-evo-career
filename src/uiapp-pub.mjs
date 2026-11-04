@@ -62,7 +62,6 @@ import { watcherStatus } from './watch.mjs';
 // voce-copilota.mjs; il memo sotto evita una rilettura per fascia.
 import { leggiRadioVoce, LOG_VOCE_FILE } from './voce-copilota.mjs';
 import { statSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 // il VERDETTO DI GIORNATA (29/10, «bottone verdetto sul cruscotto»): la
 // STESSA fonte della CLI e dell'endpoint GUI — un aggregato, nessuna
 // formula da duplicare. La LETTURA dei Results è sola lettura.
@@ -111,9 +110,6 @@ const PENDING_SCADENZA_MS = 24 * 3600 * 1000;
 // validità, poi il canale torna muto e il pannello in gioco (bottone)
 // resta la via a mano.
 const EVENTO_FIDUCIA_MS = PENDING_SCADENZA_MS;   // 24 h, la stessa della ronda
-// Il nome della cartella che l'app di carriera ha su disco nel loader:
-// letterale perché il percorso è quello scritto dall'installazione.
-const APP_PDKEY = 'paddock';
 
 /** La cartella dell'app dentro il loader, o null se la mod non c'è:
  *  si prende il primo base «Saved Games» che ha l'App Loader installato
@@ -918,134 +914,9 @@ export function uiappTick(env = process.env) {
   // LE FASCE RAPIDE DELL'APP DI CARRIERA (1/11, la cura del flood): il tick del
   // Cruscotto compra anche questo canale. Tutto qui sotto è in try:
   // è un plus, mai un ammazzatick.
-  try { fasceApp(cartellaApp(env, APP_PDKEY)); } catch { /* fasce app saltate */ }
   return { ok: true, file: `ui-${fascia}.json` };
 }
 
-/** LE FASCE RAPIDE DELL'APP DI CARRIERA (1/11, la cura del flood).
- *  L'app installata nel gioco chiede una propria `ui-<fascia>.json` OGNI
- *  500 ms — un ritmo che il tick del Cruscotto (2500 ms) da sé non copre.
- *  Il suo editor (il vecchio publisher, morto alle 02:46 di
- *  oggi: stesso giorno del riavvio del server a metà giornata) non è mai
- *  stato sostituito: EVO ha protestato con RICHIESTE FALLITE CONTINUE
- *  (10 398 solo nel log di oggi, ~2 per secondo) che riempivano il log
- *  e spendevano CPU del gioco per niente.
- *  Qui a ogni tick del Cruscotto il canale RESTA VIVO: si scrivono le
- *  5 fasce successive (copertura continua a 500 ms, sei secondi avanzati
- *  per tick) con un SOLO head — i puntatori alle sezioni `pd-*.json`
- *  statiche — tenuto in memoria e ripreso dal disco alla prima fascia.
- *  Le vecchie si potano a 12: il margine resta largo (12 × 500 ms).
- *  La base dei tempi è QUELLA di paddock.js (500 ms, Math.floor(now/500)): qui
- *  si calcola da sé, niente scalifice col periodo del Cruscotto (2,5 s). */
-const testaAppNota = new Map();   // dir -> head letto una volta sul disco
-// LA MEMORIA DI QUELLO GIÀ PUBBLICATO (2/11 sera, «problema iniziato coi 3 giri»):
-// il puntatore cambia SOLO perché il contenuto del journal è VERAMENTE diverso —
-// non perché l'engine ha rispamato lo stesso JSON con un hash nuovo.
-const sezioniPubblicate = new Map();  // dir -> Map(vista -> { file, hash })o
-function testaApp(dir) {
-  if (dir == null || testaAppNota.has(dir)) return testaAppNota.get(dir);
-  let head = null;
-  try {
-    const presenti = readdirSync(dir).filter((f) => /^ui-\d+\.json$/.test(f)).sort().reverse();
-    while (presenti.length && !head) {
-      try { head = JSON.parse(readFileSync(join(dir, presenti.shift()), 'utf8')); } catch { head = null; }
-    }
-  } catch { head = null; }
-  head = head ?? { v: 2, engine: 'Paddock 1.0.2', acks: {}, generatedAt: 0, sections: {} };
-  // LE SEZIONI SMARRITE (1/11): un head senza sezioni (head bech o potatura
-  // scortesa del giorno stesso) non deve ammazzare il canale Mentre esiste
-  // anche UNA sezione `pd-<nome>-<hash>.json` sul disco: si difiquinano i
-  // puntatori direttamente dai file statici (main, home, calendar, garage…).
-  try {
-    if (!Object.keys(head.sections ?? {}).length) {
-      const sezioni = {};
-      for (const f of readdirSync(dir)) {
-        const m = /^pd-([a-z]+)-[0-9a-f]+\.json$/.exec(f);
-        if (m) sezioni[m[1]] = f;
-      }
-      if (Object.keys(sezioni).length) head.sections = sezioni;
-    }
-  } catch { /* senza sezioni il canale resta a sezioni vuote, come oggi */ }
-  testaAppNota.set(dir, head);
-  return head;
-}
-/** I PUNTATORI FRESCHI (2/11): per ogni vista `pd-<vista>-<hash>.json`
- *  presente, il file PIÙ RECENTE (mtime). null se non ce n'è nessuno:
- *  in quel caso restano i puntatori dell'head (comportamento di ieri, per
- *  l'installazione senza journal — l'app ladra non deve morire per questo). */
-function sezioniFresche(dir) {
-  try {
-    const viste = new Map();   // vista -> { file, mtime }
-    for (const f of readdirSync(dir)) {
-      const m = /^pd-([a-z]+)-[0-9a-f]+\.json$/.exec(f);
-      if (!m) continue;
-      let mtime = 0;
-      try { mtime = statSync(join(dir, f)).mtimeMs; } catch { continue; }
-      const era = viste.get(m[1]);
-      if (!era || mtime > era.mtime) viste.set(m[1], { file: f, mtime });
-    }
-    if (!viste.size) return null;
-    const out = {};
-    for (const [vista, v] of viste) out[vista] = v.file;
-    return out;
-  } catch { return null; }
-}
-
-export function fasceApp(dir, fascia = null) {
-  if (!dir || !existsSync(dir)) return { ok: false, motivo: 'app non installata' };
-  // la base a 500 ms dell'app, calcolata QUI (il periodo del Cruscotto è
-  // un altro: passarli sbaglia l'intera scala delle fasce, lezione 1/11)
-  const base = Number.isFinite(Number(fascia)) && fascia != null ? Number(fascia) : Math.floor(Date.now() / 500);
-  // PUNTATORI FRESCHI a ogni tick (2/11, il battito della pagina): l'engine
-  // del gioco riscrive i journal pd-<vista>-<hash>.json dando un hash NUOVO
-  // a ogni scrittura, e paddock.js ricarica una vista SOLO quando il NOME
-  // del suo file cambia. Per questo il puntatore si rilegge DAL DISCO a
-  // ogni tick: per ogni vista vince il pd-<vista>-*.json PIÙ RECENTE (mtime).
-  //
-  // MA IL CAMBIO VERO È IL CONTENUTO (2/11 sera, «iniziato con i 3 giri»):
-  // a gare corte l'engine rigenera i journal a raffiche (arrivo ai box,
-  // classifica, ledger) spesso a CONTENUTO identico, solo con hash nuovo —
-  // e il nome fresco fa ricaricare la pagina ogni volta. Il puntatore per
-  // una vista cambia SOLO quando il contenuto del journal (sha1) è diverso
-  // da quello pubblicato l'ultima volta: stesso JSON, stesso nome, pagina
-  // ferma. Riscritture vere escono comunque, come deve.
-  const baseHead = testaApp(dir);
-  const freschi = sezioniFresche(dir);
-  const sezioni = { ...(baseHead.sections ?? {}) };
-  if (freschi) {
-    const pub = sezioniPubblicate.get(dir) ?? new Map();
-    for (const [vista, file] of Object.entries(freschi)) {
-      let hash = null;
-      try { hash = createHash('sha1').update(readFileSync(join(dir, file))).digest('hex'); } catch { hash = null; }
-      const prima = pub.get(vista);
-      const stessoContenuto = prima != null && hash != null && prima.hash != null && hash === prima.hash;
-      const vecchioVivo = prima != null && existsSync(join(dir, prima.file));
-      if (stessoContenuto && vecchioVivo) {
-        sezioni[vista] = prima.file;            // stesso JSON, stesso nome: la pagina sta ferma
-      } else {
-        pub.set(vista, { file, hash });         // contenuto nuovo (o hash illeggibile): esce il nome fresco
-        sezioni[vista] = file;
-      }
-    }
-    sezioniPubblicate.set(dir, pub);
-  }
-  const head = { ...baseHead, sections: sezioni };
-  const scritte = [];
-  for (let i = 0; i < 5; i++) {
-    const slot = base + i;
-    const dati = { ...head, generatedAt: (slot + 1) * 500, slot };
-    try { writeJsonAtomic(join(dir, `ui-${slot}.json`), dati, { pretty: false }); scritte.push(`ui-${slot}.json`); }
-    catch { /* presa in lettura dal gioco: la copertura rientra al prossimo tick */ }
-  }
-  // la potatura: le ultime 12 restano (6 s di copertura nuova per tick, margine largo)
-  try {
-    const presenti = readdirSync(dir).filter((f) => /^ui-\d+\.json$/.test(f));
-    for (const f of presenti.slice(0, Math.max(0, presenti.length - 12))) { try { unlinkSync(join(dir, f)); } catch { } }
-  } catch { }
-  return { ok: scritte.length > 0, file: scritte };
-}
-
-/** Il percorso dello store del gioco (ack dell'app): null se non c'è. */
 function percorsoStore(env = process.env) {
   for (const root of savedGamesRoots(env)) {
     const file = join(root, 'ACE', 'ui_storage.uistorage');

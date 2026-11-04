@@ -117,7 +117,7 @@ launcher silently copies Cruscotto and Pitwall into
 `Saved Games\ACE\mods\uiresources\ACEUIAppLoader\` — with EVO installed,
 you find them in the APPS drawer of EVO's menu and they refresh themselves
 on each later double-click of avvia.cmd. It does need the **ACE UI App
-Loader** mod installed (the same one in-game apps like Paddock use): if it
+Loader** mod installed (the same one in-game apps use): if it
 is missing, the launcher says so in one line and goes on anyway — the GUI,
 the career and the race preparation do not depend on it. Manual route any
 time: double click `INSTALLA-GIOCO.cmd` in the program folder.
@@ -266,7 +266,7 @@ README has the full section: [README.md](README.md).
 
 **The in-game apps don't appear in EVO's menu.** The **ACE UI App Loader**
 mod is missing from `Saved Games\ACE\mods\uiresources\ACEUIAppLoader\`
-(the same one in-game apps like Paddock use): install it, then double click
+(the same one in-game apps use): install it, then double click
 `INSTALLA-GIOCO.cmd` (or simply restart the launcher, which does it by
 itself). Without the mod nothing breaks: the browser GUI and the whole
 career work as usual.
@@ -320,17 +320,6 @@ confirms there.
 Run `node ac-evo-career.mjs setup` again (or fix the live paths in
 Settings, no restart needed) and run `content --validate` to check that the
 ladder still matches.
-
-**Paddock races finish instantly (1 lap and done).** That is the game's
-default, not a bug: fix it with `node tools/cura-giri-app.mjs` (it looks
-for Paddock.exe in its usual place, `Desktop\Paddock`; if it is not there,
-pass the path explicitly). It sets **3 laps** on every round that had 12 in
-the catalog (Paul Ricard and the special races stay as they are): run it
-with the game CLOSED — if Paddock is on, the tool says the file is locked
-and stops. It is idempotent and writes the backup `Paddock.exe.bak-giri12`
-next to the exe before touching the file: run it again and it replies
-"Already cured. Nothing to do.". If the game updates Paddock, run the cure
-again. Read-only diagnosis: `--verifica`.
 
 **I cloned but the launcher says «offsite does not answer».**
 Missing `git remote rename origin offsite` (chapter 2). Honestly: it starts

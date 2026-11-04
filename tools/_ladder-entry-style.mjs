@@ -1,6 +1,6 @@
 // _ladder-entry-style.mjs — una passata di matita sulle SERIE DI LIVELLO 1.
 //
-// Lezione di Paddock (30/10, analisi della sua carriera onboarding): la prima
+// Lezione appresa (30/10, analisi di una carriera iniziale): la prima
 // serie è monomarca su PISTE CORTE con GARI LUNGHE (12 giri) e la terza
 // sempre BREVE su pista breve e bagnata: la novità è solo la superficie.
 // Noi teniamo 6-8 giri (12 giri Abarth bruciano troppa serata) ma adottiamo
@@ -53,7 +53,7 @@ for (const node of ladder.nodes) {
   if (node.level !== 1) continue;
   const cal = node.calendar ?? [];
   if (!cal.length) continue;
-  // già stile Paddock? (tutte le piste nel pool, giri 6..8, R3 bagnata)
+  // già in stile? (tutte le piste nel pool, giri 6..8, R3 bagnata)
   const giaTutto = cal.every((r) => POOL.includes(r.track)) && cal.every((r) => r.laps >= 6 && r.laps <= 8)
     && cal.length > 2 && [3, 4].includes(cal[2].weather);
   if (giaTutto) { giaOk++; continue; }
@@ -64,7 +64,7 @@ for (const node of ladder.nodes) {
     const ora = r.hour ?? ORE[i % ORE.length];
     let weather;
     if (i === 0 || i === 1) weather = i === 0 ? 0 : (r.weather ?? 1) >= 3 ? 1 : (r.weather ?? 1);
-    else if (i === 2) weather = 4;                       // LA RONDA BAGNATA di Paddock
+    else if (i === 2) weather = 4;                       // LA RONDA BAGNATA
     else if (i === cal.length - 1) weather = 0;          // finale asciutta, sulla pista che adesso conosci
     else weather = METEO_DOPO[i % METEO_DOPO.length];
     return { track, name: r.name ?? `Round ${i + 1}`, laps: i === cal.length - 1 ? Math.min(8, giri + 1) : giri, hour: ora, weather };
@@ -75,14 +75,14 @@ for (const node of ladder.nodes) {
 
 // una nota nel file per il futuro umano (come le altre note del ladder)
 if (!ladder._nota_entry) {
-  ladder._nota_entry = 'Filosofia Paddock sulle SERIE ENTRY (livello 1): solo piste corte/leggibili, 6-8 giri (la pista si impara in 2-3, il resto è gara: ritmo, traffico, gomme), R3 sempre bagnata (la prima novità è la superficie, non la pista), finale asciutta. Passata tools/_ladder-entry-style.mjs, 30/10 — mantiene num round, auto ed economia.';
+  ladder._nota_entry = 'Filosofia delle SERIE ENTRY (livello 1): solo piste corte/leggibili, 6-8 giri (la pista si impara in 2-3, il resto è gara: ritmo, traffico, gomme), R3 sempre bagnata (la prima novità è la superficie, non la pista), finale asciutta. Passata tools/_ladder-entry-style.mjs, 30/10 — mantiene num round, auto ed economia.';
 }
 
 // riscrittura PULITA: roundtrip già provato byte-identico, quindi il diff resta
 // solo sui campi che cambiamo davvero.
 const out = JSON.stringify(ladder, null, 2) + '\n';
 if (out === raw) {
-  console.log('niente da cambiare: entry-level già in stile Paddock (già ok:', giaOk, ')');
+  console.log('niente da cambiare: entry-level già in stile (già ok:', giaOk, ')');
 } else {
   writeFileSync(FILE, out);
   console.log(`serie livello 1 riscritte: ${toccati} · già in stile: ${giaOk}`);

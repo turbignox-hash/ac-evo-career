@@ -1,13 +1,13 @@
 // cruscotto.js — l'app «Cruscotto» in gioco (27/10/2026).
 //
-// PATTERN PADDOCK (27/10 18:40): niente pagina del loader. L'app dichiara
+// PATTERN DELLE APP IN GIOCO (27/10 18:40): niente pagina del loader. L'app dichiara
 // `pages` solo per dirti SU QUALI pagine gira, ma NON spediamo un menu.html:
 // quel file finiva nel cassetto del loader che misura il pannello dal
 // contenuto — con ~30 gare in lista il pannello cresceva oltre lo schermo e
 // spostava il menu di EVO (27/10 18:17), e metà tentativi di fix via CSS/JS
 // fuori scope hanno stretto la PAGINA DEL GIOCO (27/10 18:30: menu sparito).
 // Lo script quindi SI COSTRUISCE il pannello: position:fixed a dimensioni
-// sue, appeso a document.body (esattamente come fa paddock.js), con scorrere
+// sue, appeso a document.body , con scorrere
 // via loader.scroll se il loader lo offre.
 //
 // I dati arrivano come prima: un ui-<fascia>.json ogni 2.5s scritto dal
@@ -60,8 +60,7 @@
   background:#161b26; }
 .crd-thumb { position:absolute; left:0; width:100%; background:#4a5468; }
 /* il pannello PARTE INVISIBILE (lezione 27/10 18:52): si apre solo con la
-   voce CRUSCOTTO nella barra del menu di EVO, come la voce PADDOCK di
-   paddock.js; niente tab fisso che resta sempre in vista */
+   voce CRUSCOTTO nella barra del menu di EVO, come le altre app del drawer; niente tab fisso che resta sempre in vista */
 .crd-nascosto { display:none; }
 /* pannellino interno, stile vecchio cruscotto: sempre prefissato .crd-panel */
 .crd-panel .gruppo { margin-bottom:14px; }
@@ -238,7 +237,7 @@
   // spegne prima ancora che noi lo ritocchiamo.
   let ackSessione = [];
   function ackComando(c, ok, msg) {
-    // L'ACK INVERSO (come Paddock e il suo paddock.py): il persist del loader
+    // L'ACK INVERSO: il persist del loader
     // finisce in ui_storage.uistorage, che il server sa leggere — così il
     // publisher smette di ripubblicare un comando eseguito.
     const voce = { id: c.id, ok: ok ? 1 : 0, msg: String(msg || ''), at: Date.now() };
@@ -329,7 +328,7 @@
     });
   }
 
-  // nome confrontabile: minuscolo, senza accenti, solo lettere e numeri (come in paddock.js)
+  // nome confrontabile: minuscolo, senza accenti, solo lettere e numeri (come nel gioco)
   const ACCENTI = { 'à': 'a', 'á': 'a', 'â': 'a', 'ä': 'a', 'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e', 'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i',
                     'ò': 'o', 'ó': 'o', 'ô': 'o', 'ö': 'o', 'ù': 'u', 'ú': 'u', 'û': 'u', 'ü': 'u', 'ñ': 'n', 'ç': 'c' };
   function chiave(t) { return String(t || '').toLowerCase().replace(/[àáâäèéêëìíîïòóôöùúûüñç]/g, function (c) { return ACCENTI[c] || c; }).replace(/[^a-z0-9]/g, ''); }
@@ -348,7 +347,7 @@
       if (dn && parole.every(function (w) { return dn.indexOf(w) >= 0; }) && (!best || dn.length < chiave(best.display_name).length)) best = cars[i];
     }
     if (best) return best;
-    // RISERVA DELL'ID (1/11, come fa Paddock le auto sconosciute la prima
+    // RISERVA DELL'ID (1/11, per le auto sconosciute la prima
     // volta): ogni car_model del menu porta anche il campo interno name
     // (l'id ks_...), e la ladder può chiamare l'auto col SUO nome ("Mini
     // JCS 1990") mentre il menu la chiama diversamente ("Mini John Cooper
@@ -364,7 +363,7 @@
   }
 
   // IL CIELO nella lista meteo del gioco (weather_data dei GameModeParameters):
-  // il tipo finisce col codice («…_RAIN»), come nella battuta del Paddock.
+  // il tipo finisce col codice («…_RAIN»), come nel codice del gioco.
   // Per la pioggia GENERICA le voci specifiche (_LIGHT_RAIN, _HEAVY_RAIN) non
   // devono catturarla: se solo quelle ci sono, valgono comunque loro (meglio
   // bagnato che niente).
@@ -480,13 +479,13 @@
 
   // LANCIO AUTOMATICO (28/10 sera, richiesta Mauro): quando la ronda è già
   // state impostata nel menu (setcar confermato), il Cruscotto preme «Avvia
-  // sessione» DA SOLO — lo stesso comando che Paddock usa per le sue gare
+  // sessione» DA SOLO — lo stesso comando che il gioco usa per le sessioni
   // (GameModeSelectionClientRequestStart, 15s di attesa: la risposta del
   // caricamento arriva lenta). SOLO la ronda di carriera: per l'EVENTO NO —
   // lì pista/AI/ora/giri si impostano a mano dalla scheda (lezione 23/10) e
   // un avvio automatico partirebbe con le impostazioni sbagliate. Pausa di
   // 1200ms prima della richiesta: il menu si deve ancora sistemare dopo la
-  // scelta dell'auto (lo stesso respiro dei 300ms del Paddock, più largo).
+  // scelta dell'auto (una pausa più larga dei 300 ms standard).
   async function corriAvvia() {
     const eng = window.engine;
     if (!eng || typeof eng.trigger !== 'function') { notaComando('engine non disponibile (pagina aperta fuori dal gioco?)'); return false; }
@@ -505,8 +504,7 @@
   // entrambi, anche eventi speciali»): il publisher spedisce le azioni in
   // azioni {} NELLO stesso fascio delle facce (src/uiapp-pub.mjs). Ciascun
   // bottone riESCE la STESSA sequenza del canale automatico — ronda: SetGameType
-  // → pista → auto → «Avvia sessione» (la STESSA di Paddock installato sul
-  // PC); evento/demo: SOLO auto in gara personalizzata, perché la scheda la
+  // → pista → auto → «Avvia sessione» (la stessa sequenza del gioco); evento/demo: SOLO auto in gara personalizzata, perché la scheda la
   // scrive «Prepara tutto» dalla GUI (pista/griglia/AI/ora/giri, lezione 23/10).
   // Gli ID sono gli STESSI (azioniPulsanti li deriva dagli stessi imprint),
   // così l'ack del bottone sincronizza le ASSETS di lato: il canale
@@ -1045,5 +1043,5 @@
   setInterval(aggiornaConn, 1000);
   setInterval(function () { prendiSlot(Date.now()); }, PERIODO_MS / 2);
   prendiSlot(Date.now());
-  loga('pannello inizializzato (pattern Paddock, niente pagina del loader)');
+  loga('pannello inizializzato (pattern app in gioco, niente pagina del loader)');
 })();

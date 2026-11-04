@@ -1,7 +1,7 @@
-// griglia-paddock.test.mjs — IL MODELLO PADDOCK (4/11/2026, richiesta Mauro:
+// griglia-generata.test.mjs — IL MODELLO DEL GIOCO (4/11/2026, richiesta Mauro:
 // «implementa pure e semplifica se c'è margine»).
 //
-// Paddock non scrive le celle: dichiara il weekend (Single Make + avversari)
+// Il gioco non scrive le celle: dichiara il weekend (Single Make + avversari)
 // e lascia che sia EVO a generare la griglia; poi CONTROLLA il risultato con
 // grid_problem («non era Single Make», «auto di un'altra classe»).
 // Qui si custodiscono le tre parti di quel modello nel nostro sistema:
@@ -67,7 +67,7 @@ test('serieGenerataDalGioco: la monomarca è del gioco, la multiclasse resta nos
     'senza ladder non si decide niente.');
 });
 
-test('grigliaGaraFuori: monomarca con un\'altra auto → il grid_problem di Paddock', () => {
+test('grigliaGaraFuori: monomarca con un\'altra auto → il grid_problem del gioco', () => {
   const pulita = {
     drivers: [
       { car_brand: 'Abarth', car_name: '695 Biposto' },
@@ -108,7 +108,7 @@ test('grigliaGaraFuori: risultato senza auto o parco vuoto → nessun giudizio',
 });
 
 test('Il weekend è il contratto: AUTO toglie il 7, CUSTOM lo rimette, AI resta', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'griglia-paddock-'));
+  const dir = mkdtempSync(join(tmpdir(), 'griglia-generata-'));
   const file = join(dir, 'GameModeType_RACE_WEEKEND.gamemodesave');
   try {
     gamemodesave(file, { mode: 'custom', count: 15 });

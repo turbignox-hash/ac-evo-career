@@ -80,7 +80,7 @@ vetrina eventi la rilascia: non la vedi più in mostra.
 
 ## I premi degli eventi speciali: come si sceglie l'auto in palio
 
-Quando il paddock ti invita a un evento speciale, l'auto in palio non esce
+Quando il calendario ti invita a un evento speciale, l'auto in palio non esce
 dal cappello: il tool la sceglie con una regola a cascata (`choosePrize` in
 `src/events.mjs`), pensata apposta per non metterti in palio auto che hai
 già in garage.

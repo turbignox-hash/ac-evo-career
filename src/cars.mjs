@@ -9,9 +9,6 @@
 import { readFileSync, existsSync} from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-// EXTRA (26/10): le curve mancanti del dataset extra escono dal
-// catalogo scritto dall'app di carriera (letture pure sul disco, memo per mtime).
-import { carAppSpecsOf } from './app-carriera.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const CARS_DIR = join(HERE, '..', 'gui', 'carmaps');
@@ -78,20 +75,6 @@ function specsIndex() {
       if (!_specs[k]) _specs[k] = v;
     }
   } catch { /* extra assente: pazienza */ }
-  // EXTRA (26/10): per le auto senza curva di coppa (dataset extra
-  // nato senza curve) la prende dal catalogo dell'app di carriera — la stessa che
-  // mostra dentro il gioco. Non sovracrive MAI una curva reale di AC1; alle
-  // schede arricchite aggiunge anche le classifiche `versus` dell'app.
-  for (const [k, s] of Object.entries(_specs)) {
-    if (!s || s.torqueCurve?.length) continue;
-    const pd = carAppSpecsOf(k);
-    if (pd?.torqueCurve?.length) {
-      s.torqueCurve = pd.torqueCurve;
-      if (!s.torque && pd.torque != null) s.torque = pd.torque;
-      if (!s.weight && pd.mass != null) s.weight = pd.mass;
-      if (pd.versus?.length) s.appVersus = pd.versus;
-    }
-  }
   return _specs;
 }
 

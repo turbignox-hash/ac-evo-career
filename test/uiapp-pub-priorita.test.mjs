@@ -99,7 +99,7 @@ test('pending con auto NON nota nel ladder: scade in 1 giorno come gli altri', (
   assert.equal(cmdFresca, null, 'fresca con auto ignota: il ramo evento resta soppresso');
 });
 
-// AUTI SCONOSCIUTE AL VOLO (1/11, «come fa Paddock la prima volta»):
+// AUTI SCONOSCIUTE AL VOLO (1/11, «alla prima occasione»):
 // la ladder chiama l'auto col SUO nome («Mini JCS 1990») che nel menu di
 // EVO NON esiste (lì è «Mini John Cooper S»): il libro contentNames non
 // ce l'ha, ma l'ID ks_ sì. Il comando esce LO STESSO con nome derivato
@@ -246,7 +246,7 @@ test('ronda scaduta NON produce avvia: il campo va all\'evento (mai auto-avvio c
 });
 
 // ------------------------------------------------------------------
-// VETRINA CUSTOM (28/10 sera, «deve farlo in automatico come paddock»):
+// VETRINA CUSTOM (28/10 sera, «deve farlo in automatico»):
 // una gara personalizzata preparata col tool ha la PRIORITÀ per la SUA
 // finestra: comanda l'AUTO della demo (tipo «evento»: solo SetCurrentCar,
 // niente sequenza del weekend) e dopo l'ack TACE (la ronda pendente
@@ -331,7 +331,7 @@ const pendingMonza = { car: 'r5_touring', node: 'coppa_rx7', trackNames: ['Monza
 
 test('azioni: ronda fresca espone il bottone CON la pista del libro (Monza → GP Race), evento pure', () => {
   const az = azioniPulsanti(mkLadder(), mkState({ pending: pendingMonza }));
-  assert.equal(az.ronda?.tipo, 'setcar', 'bottone ronda: sequenza COMPLETA di Paddock, tipo setcar');
+  assert.equal(az.ronda?.tipo, 'setcar', 'bottone ronda: sequenza COMPLETA, tipo setcar');
   assert.equal(az.ronda?.nome, 'R5 Touring');
   assert.equal(az.ronda?.pista, 'Monza', 'la pista arriva dal libro TRACK_INFO, non resta null');
   assert.equal(az.ronda?.layout, 'GP Race');

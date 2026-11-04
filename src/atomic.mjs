@@ -9,7 +9,7 @@
 import { writeFileSync, renameSync, unlinkSync } from 'node:fs';
 
 /** `pretty` (3/11): le fasce dell'app in gioco si scrivono ogni 2,5 s (500 ms
- *  per il canale Paddock) e il gioco le rilegge a ogni slot — lì il JSON resta
+ *  per il canale in gioco) e il gioco le rilegge a ogni slot — lì il JSON resta
  *  COMPATTO com'era (`{ pretty: false }`), così la scrittura atomica non
  *  raddoppia il file che il gioco scarica dal disco. I registri che si leggono
  *  a occhio (ledger, archivio, config) continuano belli indentati.

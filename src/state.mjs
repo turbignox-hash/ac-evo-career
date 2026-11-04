@@ -21,9 +21,6 @@ import { recordFlows } from './flows.mjs';
 import { takeLastPair, tr, lang } from './lang.mjs';
 import { ensureLife, ensureContract, settleContract, sponsorFor, sigilDefs, checkSigils } from './life.mjs';
 import { assignNextMemory, checkMemoryProgress, raceCrowdFor } from './memories.mjs';
-// BONUS GARA PULITA (28/10): il +10% del premio (dall'app), incassato qui
-// quando l'import registra una ronda senza penalità né ritiro.
-import { cleanRaceBonusOf } from './app-carriera.mjs';
 // JOURNAL NOSTRO (2/11): ogni saveState rispecchia il calendario del ladder
 // nel journal `evo-calendar[-N].json` accanto al save — la sorgente che dà
 // ronda/calendario/prossima gara anche a chi NON ha l'app del gioco installata.
@@ -981,10 +978,9 @@ export function applyRaceResult(ladder, state, node, payload) {
     }
   }
 
-  // BONUS GARA PULITA (alla maniera dell'app di carriera, 28/10): una gara chiusa senza
-  // penalità né ritiro incassa in più il 10% del premio della ronda — un
-  // incentivo alla pulizia in pista che prima esisteva solo nell'app esterna.
-  const cleanBonus = !dnf && !fuori && !dsq && !penalty && prize > 0 ? cleanRaceBonusOf(prize) : 0;
+  // BONUS GARA PULITA: una gara chiusa senza penalità né ritiro incassa in più
+  // il 10% del premio della ronda.
+  const cleanBonus = !dnf && !fuori && !dsq && !penalty && prize > 0 ? Math.round(prize * 0.1) : 0;
   if (cleanBonus > 0) {
     state.money += cleanBonus;
     recordFlows(state, [{ kind: 'bonus', money: cleanBonus, reason: `gara pulita ${node.display} R${round + 1}` }]);
@@ -1099,7 +1095,7 @@ export function seasonEnd(ladder, state) {
   try {
     publishNotice(
       champion ? `Titolo di ${node.display} al ${state.driver.name}` : `Fine stagione in ${node.display}: P${me.position}`,
-      settle ? settle.text : champion ? `Campionato chiuso con ${me.points} punti: il paddock se ne ricorderà.` : `Stagione chiusa con ${me.points} punti: si riparte con nuove ambizioni.`,
+      settle ? settle.text : champion ? `Campionato chiuso con ${me.points} punti: la griglia se ne ricorderà.` : `Stagione chiusa con ${me.points} punti: si riparte con nuove ambizioni.`,
       { season: state.season, kind: 'season' },
     );
   } catch { /* la gazzetta non deve mai bloccare la chiusura */ }

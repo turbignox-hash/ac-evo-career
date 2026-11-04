@@ -26,11 +26,6 @@ import { nextRound } from './race.mjs';
 import { recordRaceGrid, rivalKey, rivalsForNode } from './rivals.mjs';
 import { settleChallenge } from './life.mjs';
 import { raceCrowdFor } from './memories.mjs';
-// BONUS GARA PULITA + AVVISO REP-CAP (28/10): i due extra portati dal sistema
-// di carriera — l'auto-fix pulito dà un +10% del premio della ronda, il tetto
-// reputazione su una ronda chiusa va ripetuto alla fine come invito alla
-// categoria più alta.
-import { padRepCapNote, appNextRace } from './app-carriera.mjs';
 import { publishRaceNews } from './gazzetta.mjs';
 import { recordFlows } from './flows.mjs';
 import { tr } from './lang.mjs';
@@ -397,7 +392,7 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
   if (autoFuori) {
     payload.autoFuori = { car: autoFuori, ammesse: carPoolOf(ladder, targetNode.nodeId).ammesse };
   }
-  // VALIDAZIONE POST-GARA (modello Paddock, 4/11): il gioco ha generato la
+  // VALIDAZIONE POST-GARA (modello del gioco, 4/11): il gioco ha generato la
   // griglia, noi controlliamo il RISULTATO — non riscriviamo un template. Se
   // una monomarca ha corso con auto diverse, o una classe con un'auto fuori
   // parco, la gara resta valida ma il fatto va a registro (grid_problem).
@@ -431,24 +426,6 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
   const backupFile = writeOrWarn('import.backup', () => backupBeforeImport());
 
   const { entry, proposal, crowdBonus } = applyRaceResult(ladder, state, targetNode, payload);
-  // AVVISO REP-CAP (28/10): se il journal dell'app dice "reputazione al
-  // massimo" per questa serie, la ripeti alla carriera dopo l'import — la
-  // serie chiusa non può far crescere la reputazione: il consiglio è l'invito
-  // a salire in una categoria più alta.
-  try {
-    const pn = appNextRace();
-    if (pn?.repCapped) {
-      // ANTI-DOPPIO (31/10, visto dal vivo: nota in IT alle 15:04 e in EN alle
-      // 15:41 niente lo stesso avviso ripetuto): un solo esemplare in bacheca,
-      // indifferentemente dalla lingua in cui arrivò. pushMessage la firma
-      // bilingue da solo (la 📊 è dentro la coppia di padRepCapNote).
-      const dubbia = (t) => typeof t === 'string'
-        && (t.includes('Reputazione al massimo per questo campionato') || t.includes('Reputation is maxed out for this championship'));
-      const giaPresente = state.messages?.some?.((mm) => dubbia(mm.text) || dubbia(mm.textEn));
-      if (!giaPresente) pushMessage(state, padRepCapNote(), 'info');
-    }
-  } catch { /* mai bloccare l'import */ }
-
   // risultati dei rivali di questa serie (per sfida e gazzetta), letti prima di toccare altro
   let beatenNames = [], beatMeNames = [], rivalCards = [];
   if (ctx.rawResult && !entry.dnf) {
@@ -561,7 +538,7 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
     } catch { /* la calibrazione non ferma mai la carriera */ }
   }
 
-  // gazzetta: la stampa del paddock commenta la gara (solo gare nuove)
+  // gazzetta: la stampa sportiva commenta la gara (solo gare nuove)
   let newsItem = null;
   if (isNew && !manual) {
     try {

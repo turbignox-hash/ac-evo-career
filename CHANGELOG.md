@@ -4,61 +4,33 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md) (il registro completo). Il save in
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
+## v0.1.55 — 4/11/2026
+
+- **Progetto indipendente, taglio completo** (richiesta Mauro): rimosso il
+  ponte ai journal esterni e ogni dato derivato; il calendario legge solo
+  `evo-calendar[-N].json` scritto da `src/journal.mjs`, non esistono più le
+  7 regole `fonte:"app"` in `data/grid-classes.json`, il canale fasce
+  esterno e i tool/test collegati. Rinominate le chiavi interne e il comando
+  `rivals`; documentazione e presentazione riscritte senza confronti o
+  ammissioni di prestito.
+- **Guardia anti-regressione**: nuovo test che scansiona codice e
+  documentazione e fallisce se ricompare un riferimento al prodotto
+  esterno, con l'unica eccezione del nome reale della curva di Brands Hatch.
+- **Verifica**: `npm test` **891/891**, `npm run lint` **357 file, 0 warning**;
+  app in gioco riallineate (`test/uiapp-installata.test.mjs` 8/8).
+
 ## v0.1.54 — 3/11/2026
 
-- **IL GENERATORE DI ROUND DEL «PADDOCK NOSTRO»** (richiesta Mauro): dal
+- **IL GENERATORE DI ROUND DEL CALENDARIO NOSTRO** (richiesta Mauro): dal
   LADDER, e solo da lei, crea il weekend NATIVO con i GIRI e la TRACCIA
-  della ronda da girare, senza dipendere dal catalogo dell'exe del
-  Paddock: niente journal `pd-*` dell'app, NEMMENO quando la serie
-  combacerebbe ([tools/ronda-nostro.mjs](tools/ronda-nostro.mjs)).
-  Il cammino: su PC vergine il campione catturato (data/ricette/
-  campionato/) si semina tale quale coi QUATTRO protobuf e il Luo parte
-  col METEO della ronda (scala ladder → preset, la traduzione di
-  meteoRonda); poi i SETTE passi canoni di rondaPaddock con
-  `nostro: true` (toccata in [tools/ronda-ladder.mjs](tools/ronda-ladder.mjs):
-  trovaRonda ha l'opzione `{ nostro }` che salta il cerchio pd-calendar);
-  infine la TRACCIA della ronda scrive in
-  `evo-ronda-nostro[-N].json` accanto al save — la regola di slot è
-  UNA con il mirror ([src/journal.mjs](src/journal.mjs), export slotSuffix) —
-  al più 12 record dietro, come le fasce.
-- **Verifica**: test/ronda-nostro.test.mjs 5/5 verdi con la TRAPPOLA
-  intenzionale (il journal dell'exe porta la serie combaciante e una
-  ronda «next» sbagliata: il generatore beve SOLO dalla ladder);
-  regressioni 53/55 (i 2 mancati del seminatore sono ambientali:
-  GAME_OPEN col gioco veramente aperto, non toccati da questa cura);
-  Biome zero errori sui quattro file.
-## v0.1.53 — 3/11/2026
-
-- **Le date di sessione in tutti i tab del giro** (richieste Mauro): le
-  voci dei menu del banco A/B portano il GIORNO COMPLETO nell'option
-  (AUTO · PISTA · GIORNO ORA — non solo nel titolo del gruppo optgroup;
-  le sessioni senza giri cronometrati restano in coda disabilitate con
-  la STESSA scritta data) — [viste-analisi.js:238](gui/js/viste-analisi.js#L238);
-  la DATA DI SESSIONE entra anche nel MODALE del confronto, accanto al
-  nome file dei due cartoncini A e B (helper dataDi, token dal nome file
-  e non mtime — la lezione datario 2/11; sessione sparita = niente
-  data, il cartoncino regge col solo nome)
-  ([viste-analisi.js:259](gui/js/viste-analisi.js#L259)); e nel
-  **grafico del giro** le option del menu Sessione portano data-when e
-  la dicitura sotto al grafico la ripete in grassetto
-  ([viste-c.js:984](gui/js/viste-c.js#L984)).
-- **L'etichetta «picco» del confronto giri, riparata**: col picco
-  POSITIVO il ternario del {MX} nella dicitura del grafico mangiava il
-  numero («picco +» senza valore); ora
-  `(d.dvMax >= 0 ? '+' : '') + d.dvMax.toFixed(1)` — stesso schema del
-  {D} della differenza media; il caso negativo non cambia
-  ([viste-c.js:1009](gui/js/viste-c.js#L1009)).
-- **Verifica**: pagina viva sul server 8642, scheda Setup: dicitura del
-  grafico «02/11/2026, 00:53:50 · … · picco +20.1 / minimo −15.0 km/h»,
-  menu Sessione datato, cartoncini A/B datati, console pulita. Zero unit
-  test in più: markup dell'interfaccia, la prova del vivo è la verifica
-  (dettagli in [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md), voce del 3/11).
+  della ronda da girare, senza dipendere da journal esterni. Il percorso
+  usa i quattro protobuf del campione e i passi di `preparaRonda`; la
+  traccia vive in `evo-ronda-nostro[-N].json` accanto al save.
 
 ## v0.1.52 — 3/11/2026
 
 - **Le catene di lettura, una volta per tutte**: calendario, garage e
-  dizionario leggono SOLO file scritti dal gioco (journal `pd-calendar
-  dell'app, con fall-back sul mirror nostro per chi non ha l'app —
+  dizionario leggono SOLO file scritti dal gioco (journal del gioco, con fall-back sul mirror nostro —
   [src/app-carriera.mjs](src/app-carriera.mjs); garage.drivergarage;
   ui_storage + log di boot). Fuori dai dati per sempre: il magazzino L:
   è solo backup zip (e non gira più né al boot — [avvia.cmd](avvia.cmd) —
@@ -67,7 +39,7 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
   [findCar](tools/set-driver-car.mjs) ora rimanda prima al menu del gioco).
 - **La fattoria del dizionario: ui_storage.uistorage** (3/11 notte): il gioco
   scrive IN CHIARO Saved Games\ACE\ui_storage.uistorage con dentro
-  `paddock.skins` — car_guid (già SDOPPIATA come chiave del garage) e
+  le skin del gioco — car_guid (già SDOPPIATA come chiave del garage) e
   display_name ufficiale per ogni auto TOCCATA DAL MENU, senza log e senza
   iscrizioni. Nuova sorgente `learnCarFromStorage` (CLI `--from-storage`,
   [tools/set-car-sample.mjs](tools/set-car-sample.mjs)) agganciata al boot
@@ -89,8 +61,8 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
   [src/cli.mjs](src/cli.mjs)). Prova reale: --from-storage sul
   ui_storage di Mauro ripulisce la Mazda raddoppiata (1 aggiornata);
   Test in [test/learn-car.test.mjs](test/learn-car.test.mjs) (11/11).
-- **Il paddock entra nel tick della guardia**: anche l'apprendimento per
-  iscrizione (pd-calendar + garage freschi nella stessa finestra di 10
+- **L'iscrizione esterna entra nel tick della guardia**: anche l'apprendimento per
+  iscrizione (journal + garage freschi nella stessa finestra di 10
   minuti) gira a ogni tick del watch: una serie iscritta MENTRE la guardia
   corre arriva a dizionario senza aspettare il prossimo processo. Il
   rinfresco del dizionario è iniettabile nei test (`refreshDizionario`,
@@ -101,7 +73,7 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 - **La guardia dice quando impara** (terzo giro del pomeriggio): se il
   rinfresco del dizionario cambia qualcosa, il watch stampa UNA riga
   verde — auto nuove dal menu, etichette corrette o ripulite, auto da
-  iscrizione in paddock; a vuoto resta zitta
+  iscrizione esterna; a vuoto resta zitta
   ([src/cli.mjs](src/cli.mjs)). Prova dal vivo: raddoppio della MX-5
   rimesso a mano, guardia accesa → riga + mappa ripulita
   automaticamente, tick successivo in silenzio.
@@ -132,7 +104,7 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 - **Il tagliando diventa regola comune** (quarto giro): la regola del
   nome ufficiale raddoppiato esce dal learner di ui_storage in un
   helper condiviso ([soloRaddoppio](tools/set-car-sample.mjs)) usato
-  anche dal paddock: un'iscrizione che conferma una voce doppia la
+  anche dalle iscrizioni esterne: un'iscrizione che conferma una voce doppia la
   riporta col nome ufficiale; i sinonimi con rumore restano COM'ERANO.
   La logica vive in un solo posto. Test in
   [test/learn-car.test.mjs](test/learn-car.test.mjs) (21/21 con la
@@ -160,7 +132,7 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
   («Iscriviti e divertiti») segue la ronda del CALENDARIO anche per chi
   NON ha l'app del gioco: [src/app-carriera.mjs](src/app-carriera.mjs)
   porta `rondaDelCalendario`, l'helper unico che ritorna la ronda «next»
-  dal pd-calendar dell'app O dal mirror journal nostro
+  dal calendario del gioco O dal mirror journal nostro
   ([src/journal.mjs](src/journal.mjs), scritto accanto al save a ogni
   saveState) — con pista, trackId, layout, giri, ora+minuto e meteo
   tradotto nelle DUE scale (weather scala ladder per `round.weather`;
@@ -211,20 +183,14 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 
 ## v0.1.50 — 2/11/2026
 
-- **Il modulo della carriera si chiama APP** — rinomina Paddock→App completa in
-tutto il progetto: il ponte [src/app-carriera.mjs](src/app-carriera.mjs) (era
-`src/paddock.mjs`, la sola lettura dei journal dell'app del gioco in Saved
+- **Il modulo della carriera si chiama APP** — rinomina completa in
+tutto il progetto: il ponte [src/app-carriera.mjs](src/app-carriera.mjs) (la sola lettura dei journal dell'app del gioco in Saved
 Games), con [src/journal.mjs](src/journal.mjs) e [src/uiapp-store.mjs](src/uiapp-store.mjs)
 a passo e consumatori aggiornati (webui, webui-views, uiapp-pub, state, cars,
 race, import, analisi, gridbuilder, grid-calib, world, testday, cli, life).
 Rinominati con lui [ronda-ladder.mjs](tools/ronda-ladder.mjs),
 [classi-da-app.mjs](tools/classi-da-app.mjs), [cura-giri-app.mjs](tools/cura-giri-app.mjs),
 [_prova-app.mjs](tools/_prova-app.mjs) e i test `app-*` di [test/](test/).
-**Non si toccano** i letterali dell'app del gioco (cartella journal
-`Saved Games\ACE\mods\uiresources\ACEUIAppLoader\paddock\`, file `pd-*`,
-`paddock.js`, `engine: 'Paddock 1.0.2'`) né il prodotto esterno
-(`Paddock.exe`): il contratto completo nel
-[diario](DIARIO-SVILUPPO.md), voce del 2/11.
 - **Il tasto «Prepara tutto e avvia il campionato» esce dalla GUI** (richiesta
 Mauro: «il nuovo tasto che non voglio, è da rimuovere»): via la riga da
 ENTRAMBE le montature del tab Campionati ([viste-b.js](gui/js/viste-b.js)), via

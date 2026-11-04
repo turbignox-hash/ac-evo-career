@@ -1,28 +1,8 @@
-// journal.mjs — IL CALENDARIO CHE CI AGGANCIAMO NOI (2/11, Mauro).
+// journal.mjs — il calendario nostro, specchiato accanto al save.
 //
-// Finora il calendario delle ronde arrivava dal modulo del ponte (src/app-carriera.mjs,
-// che LEGGE la agenda del gioco in sola lettura). Qui la sorgente è NOSTRA:
-// ad ogni `saveState` riscrivo `evo-calendar[-N].json` accanto al save
-// (stessa cartella dati, stesso slot nel nome file), con le ronde del
-// sedile attivo prese dritto dal career.evo.ladder.json. La cadenza è già
-// la giusta: il save gira a ogni risultato importato, il calendario muta
-// solo così.
-//
-// Cosa NON facciamo: non spacciamo la verità del calendario (chi ha il
-// ponte continua a leggere l'agenda del gioco, che resta la fonte più
-// ricca); e non cloniamo i campi che SOLO il ponte misura (la standings
-// con i punti, i messaggi del team, la scheda auto col `versus`): sono
-// già previsti da altri moduli e il ponte li conserva. Il giornale
-// nostro è SOLO il calendario delle ronde + la scheda della prossima.
-//
-// Forma: la STESSA delle viste del ponte, così i consumatori UNICI
-// (webui.mjs, gui viste-a.js drawAppPanel, ronda-ladder.mjs
-// trovaRonda, import.mjs) NON cambiano riga: ereditano il fall-back con
-// il flag `mirror: true` che marca la copia NOSTRA.
-//
-// Fallimenti: il journal è una copia, non un danno ai dati; writeOrWarn
-// annota però il fallimento in errors.jsonl, così un registro stantio non
-// sparisce. I consumatori delegano al ponte se il file è fuori uso.
+// Ad ogni saveState riscrive `evo-calendar[-N].json` nella stessa cartella del
+// save, con le ronde del sedile attivo prese da career.evo.ladder.json. È una
+// copia: se manca, i consumatori restano sulla ladder. Nessun journal esterno.
 
 import { readFileSync, writeFileSync, renameSync, statSync, mkdirSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
@@ -114,7 +94,8 @@ export function calendarioDaLadder(ladder, state) {
   //car-pool la spogliano comunque per il match (nugno).
   const car = carParole(node.cars?.[0]);
   const cal = {
-    mirror: true,                     // segna: «questa copia è la NOSTRA»
+    mirror: true,
+    car,
     series: node.display ?? node.nodeId,
     season: Number(state?.season ?? 1),
     summary: { done: 0, total: node.calendar.length },
@@ -162,5 +143,4 @@ export function mirrorJournal(saveFile, state, ladder = loadLadder()) {
   });
 }
 
-// La parte che LEGGE — l'hook del fall-back nel ponte — vive in
-// src/app-carriera.mjs in un solo posto: chi chiama il ponte UNA volta sola.
+// Chi legge il mirror: src/app-carriera.mjs.

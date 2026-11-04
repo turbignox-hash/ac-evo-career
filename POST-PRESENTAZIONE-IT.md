@@ -26,19 +26,14 @@ gratuita, open source e aggiornata da sola:
 L'interfaccia esiste sia in italiano sia in inglese; la copilota, quella,
 parla **sempre** italiano.
 
-### Compagno di Paddock, non rivale
+### Dentro e fuori dal gioco
 
-Pitwall si tiene **accanto al gioco e accanto a Paddock**: prepara la carriera
-dal PC (griglia, setup, pianificazione, statistiche), e dentro EVO attacca
-**due app nostre** — il **Cruscotto** (piloti, gare del giorno, serie
-iscritte, mini-classifica della ronda, orologio di giornata) e il **Pitwall**
-in gioco (radio del copilota in sessione, verdetto di fine giornata, finestra
-stint, sincro «Prepara e Divertiti»). Paddock resta il posto comodo per
-*leggere* la carriera col gamepad sul divano — e qui ci tengo: da Paddock
-abbiamo preso più di un'idea (il ponte ai journal `pd-*.json`, il match
-graduale dei nomi auto, il bonus gara pulita e il tetto reputazione); eccone
-una versione che, per progetto, **agisce** sul gioco invece di limitarsi
-a guardarla.
+Pitwall prepara la carriera dal PC (griglia, setup, pianificazione,
+statistiche), e dentro EVO attacca **due app nostre** — il **Cruscotto**
+(piloti, gare del giorno, serie iscritte, mini-classifica della ronda,
+orologio di giornata) e il **Pitwall** in gioco (radio del copilota in
+sessione, verdetto di fine giornata, finestra stint, sincro «Prepara e
+Divertiti»).
 
 ### «Pools sorteggiati a sorte dal catalogo · seed · cap 20%» (Campionati)
 

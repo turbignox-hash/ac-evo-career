@@ -28,12 +28,6 @@ import { recordHotlaps } from './hotlaps.mjs';
 import { recordWarning } from './warnings.mjs';
 import { listResultFiles, readSessionResult, isRaceSession } from './results.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
-// DAL 3/11 (la fattoria): il dizionario auto si RINFRESCA anche a ogni giro
-// della guardia — auto toccate nel menu MENTRE il gioco gira entrano senza
-// aspettare il prossimo processo. Lettura-only da ui_storage: se non c'è o è
-// illeggibile torna nota e non tanto male. La griglia (try/catch) non deve
-// mai rubare il tick alla raccolta gare.
-import { learnCarFromStorage, learnCarFromPaddock } from '../tools/set-car-sample.mjs';
 
 const HEARTBEAT_FILE = join(dirname(SAVE_FILE), 'watcher.json');
 
@@ -74,36 +68,14 @@ export const WATCH_INTERVAL_MS = 15000;
  * online (catalog.mjs onlineArchive) e nel quaderno (le prove MP). */
 const isMpRace = (result, name) => /_MP_/.test(String(name ?? '')) && !!result && !!isRaceSession(result);
 
-/** RIFRESCO DEL DIZIONARIO (3/11, la fattoria): menu + iscrizioni al paddock
- *  entrano anche a guardia accesa, a ogni tick. Iniettabile nei test (i test
- *  del watch non devono guardare né scrivere file veri dello studio). */
-export function refreshDizionario() {
-  const dict = learnCarFromStorage();
-  const pad = learnCarFromPaddock();
-  return {
-    storage: { added: dict.added, corrette: dict.corrette, aggiornate: dict.aggiornate ?? 0 },
-    paddock: { added: pad.added, corrette: pad.corrette, aggiornate: pad.aggiornate ?? 0, nota: pad.nota ?? null },
-  };
-}
-
 /**
  * Un singolo giro di scansione. Non contiene loop né timer: è chiamato dal CLI
  * (cli.mjs, comando watch) e dai test. Ritorna sempre un oggetto riepilogo:
  * { scanned, imported, ignored: [{name, reason}], error }
  * `getBaseline`/`getState` sono intercettabili nei test.
  */
-export function watchOnce(ladder, paths, { baselineMs = 0, stateLoader = () => loadState(SAVE_FILE), persist = undefined, refreshDizionario: refresh = refreshDizionario } = {}) {
+export function watchOnce(ladder, paths, { baselineMs = 0, stateLoader = () => loadState(SAVE_FILE), persist = undefined } = {}) {
   const outcome = { scanned: 0, imported: null, ignored: [], error: null };
-
-  // Dizionario fresco a ogni tick (3/11, la fattoria): il menu che tocca
-  // un'auto e l'ISCRIZIONE al paddock (coppia appena scritta nel garage,
-  // finestra di 10 minuti) entrano entrambi, senza aspettare il prossimo
-  // processo. Se non c'è niente di fresco escono subito con una nota, quindi
-  // il costo per tick è due letture di disco. Un errore qui non tocca la
-  // raccolta gare che segue (la griglia try/catch).
-  try {
-    outcome.dizionario = refresh();
-  } catch { /* ui_storage/paddock assenti o illeggibili: si va avanti */ }
 
   if (!paths?.resultsDirs?.length) {
     outcome.ignored.push({ name: '(nessuna cartella)' , reason: 'cartella Results non trovata: avvia il gioco almeno una volta' });

@@ -28,7 +28,7 @@ Free, open source, self-updating. I've been building it for months between races
 - **The mechanic kills the "what pressure do I run?"**: it reads the telemetry of YOUR laps, advises pressures/aero/fuel and writes the `.carsetup` that EVO accepts hot — no restart.
 - **🌉 Bridge between tracks**: the car's base setup copies over to a track it has never visited — without rebuilding the setup from scratch.
 - **Voice copilot, always in Italian**: deltas, fuel, mid-race, weather — spoken during the session, nothing to read while driving.
-- **TWO of our apps run inside the game**, next to Paddock (which stays the comfy couch/gamepad place to read your career): the **Cruscotto** (dashboard — seat, today's races, live mini-standings of the current round, day clock) and the **Pitwall** (the copilot's live radio during your session).
+- **TWO of our apps run inside the game**: the **Cruscotto** (dashboard — seat, today's races, live mini-standings of the current round, day clock) and the **Pitwall** (the copilot's live radio during your session).
 - **Driver names editable** (single or bulk rename), everything clickable Football-Manager style: cars, drivers, tracks, series.
 - **Save safety**: backup before every import, an anti-double-import ledger, integrity check with safe repairs.
 - **PB book** per car×track, with the ideal lap summed from best-ever sectors.

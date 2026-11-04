@@ -13,7 +13,7 @@ import { rebuildGridApply, GRID_FILE, grigliaDiAltraSerie, serieGenerataDalGioco
 import { contractStatus, challengeFor, trackMastery, sponsorFor, ensureContract, refreshContractTexts } from './life.mjs';
 import { raceCrowdFor } from './memories.mjs';
 import { launchGame } from './paths.mjs';
-import { carAppSpecsOf, rondaDelCalendario, journalRaceForNode } from './app-carriera.mjs';
+import { rondaDelCalendario } from './app-carriera.mjs';
 import { loadCatalog } from './catalog.mjs';
 import { rivalsOutlook } from './rivals.mjs';
 import { recordFlows } from './flows.mjs';
@@ -124,10 +124,10 @@ export function nextRound(ladder, state, node = null) {
   const n = node ?? nodeById(ladder, state.node);
   let roundIndex = Math.min(state.round, n.calendar.length - 1);
   const round = { ...n.calendar[roundIndex] };
-  // IL «CERCHIO» DEL CALENDARIO SEMINATO (4/11, richiesta Mauro: «la griglia
-  // l'ha scritta paddock, che ho usato stasera in campionato»): la serie che
-  // tools/semina-campionato.mjs pianta nell'app sta girando LÀ, e l'app tiene
-  // la sua cronologia (pd-calendar: data, ora, meteo, layout per ronda).
+  // IL «CERCHIO» DEL CALENDARIO SEMINATO (4/11, il weekend del gioco
+  // in corso): la serie che
+  // il weekend del gioco sta girando LÀ, e il gioco tiene
+  // la sua cronologia (data, ora, meteo, layout per ronda).
   // QUANDO la ronda «next» del calendario seminato combacia con la serie del
   // ladder, quella è la ronda da venire: la card, la griglia e l'import
   // la seguono. Se l'app è ferma, o la serie non è seminata, non cambia
@@ -135,17 +135,17 @@ export function nextRound(ladder, state, node = null) {
   // FALL-BACK AUTOMATICO: senza app del gioco, appCalendar() beve dal mirror
   // journal (2/11) — così l'override funziona anche SENZA l'app installata.
   try {
-    const pd = rondaDelCalendario(n);
-    if (pd) {
+    const rondaCal = rondaDelCalendario(n);
+    if (rondaCal) {
       // La ronda dell'app deve puntare a una ronda VERA del ladder
       // (via il numero N dell'app se punta alla STESSA pista; senza N, la
       // prima ronda con la stessa pista) e non può tornare INDIETRO rispetto
       // a state.round: si sposta SOLO in avanti, quando il ladder è in
       // ritardo rispetto al calendario che si sta correndo nell'app.
       let idxApp = null;
-      if (pd.n != null && pd.n >= 1 && pd.n <= n.calendar.length
-        && n.calendar[pd.n - 1].track === pd.trackId) idxApp = pd.n - 1;
-      if (idxApp == null) idxApp = n.calendar.findIndex((r) => r.track === pd.trackId);
+      if (rondaCal.n != null && rondaCal.n >= 1 && rondaCal.n <= n.calendar.length
+        && n.calendar[rondaCal.n - 1].track === rondaCal.trackId) idxApp = rondaCal.n - 1;
+      if (idxApp == null) idxApp = n.calendar.findIndex((r) => r.track === rondaCal.trackId);
       if (idxApp >= 0 && idxApp > roundIndex) {
         roundIndex = idxApp;
         Object.assign(round, n.calendar[idxApp]);
@@ -160,15 +160,15 @@ export function nextRound(ladder, state, node = null) {
       // sulla ronda attiva: il piano bollettino collassava (4/11, sonda
       // ciclo-weekend: ore e meteo di Brands stampati su Donington, wx-auto
       // credeva la Gara «già a posto» e non scriveva).
-      // round.weather resta nella numerazione DELLA LADDER (meteoPdIndex
+      // round.weather resta nella numerazione DELLA LADDER (meteoIndex
       // traduce per NOME, mai per numero): weatherNames, template griglia
       // e card consumano tutti quella numerazione.
       if (idxApp === roundIndex) {
-        if (pd.layout) round.layout = pd.layout;
-        if (Number(pd.laps) > 0) round.laps = Math.round(Number(pd.laps));
-        if (Number.isFinite(pd.hour)) round.hour = pd.hour;
-        if (pd.weather != null) round.weather = pd.weather;
-        round.__pd = true;            // la ronda viene dal calendario seminato
+        if (rondaCal.layout) round.layout = rondaCal.layout;
+        if (Number(rondaCal.laps) > 0) round.laps = Math.round(Number(rondaCal.laps));
+        if (Number.isFinite(rondaCal.hour)) round.hour = rondaCal.hour;
+        if (rondaCal.weather != null) round.weather = rondaCal.weather;
+        round.__calendario = true;            // la ronda viene dal calendario seminato
       }
     }
   } catch { /* senza calendario (app e mirror assenti): la ladder, come sempre */ }
@@ -303,7 +303,7 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
   const trackName = (id) => ladder.contentNames?.tracks?.[id] ?? id;
   const trackDisp = trackName(round.track);
   // LAYOUT DELLA RONDA SEMINATA (3/11, il cerchio «Iscriviti e divertiti» col
-  // mirror): il calendario (pd-calendar dell'app, o il journal nostro) dice
+  // mirror): il calendario nostro dice
   // «National», «Fosters», «International»… per la ronda — quello si corre,
   // NON il layout consigliato dalla tabella GP-default: la card, la riga
   // settings e l'import seguono il layout VERAMENTE seminato. La tabella
@@ -350,8 +350,7 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
   // weekend è ancora su un'altra serie o su una pista vecchia, la stima resta.
   // Niente file / niente corrispondenza → nessuna override, comportamento come
   // prima (PC vergine).
-  // PRIORITA' DEL NUMERO (4/11): gamemodesave della ronda → pd-main/journal →
-  // ladder. Il nativo 3.10 sono gli AVVERSARI: la griglia e' `declared + 1`
+  // PRIORITA' DEL NUMERO (4/11): gamemodesave della ronda → ladder. Il nativo 3.10 sono gli AVVERSARI: la griglia e' `declared + 1`
   // (in CUSTOM) o `cars + 1` (in AUTOMATIC), non `cars` — la card mostrava un
   // avversario in meno (25 → 24 invece di 26 → 25, misurato il 4/11).
   const nato = (() => {
@@ -360,12 +359,9 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
       return n && n.cars > 0 && sameTrack(n.track, trackName(round.track)) ? n : null;
     } catch { return null; }
   })();
-  const journal = journalRaceForNode(node);
-  const journalSullaRonda = journal?.track && sameTrack(journal.track, trackName(round.track)) ? journal : null;
   const natoGrid = nato ? (nato.declared != null ? nato.declared + 1 : nato.cars + 1) : null;
-  const journalGrid = journalSullaRonda?.opponents != null ? journalSullaRonda.opponents + 1 : null;
-  const gridsReali = natoGrid ?? journalGrid ?? node.gridSize;
-  const gridSource = natoGrid != null ? 'gamemodesave' : journalGrid != null ? 'journal' : 'ladder';
+  const gridsReali = natoGrid ?? node.gridSize;
+  const gridSource = natoGrid != null ? 'gamemodesave' : 'ladder';
   // GRIGLIA TIPICA nella card (28/10, «la card vede il campo largo come la
   // classifica»): il massimo gridSize di griglia reale incassato in SERIE
   // (grigliaSimEstesa, la stessa cifra delle card serie e dell'agenda). Il
@@ -376,7 +372,7 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
   // NUMERO DEL CAMPIONATO (4/11): la griglia della serie (celleGrigliaCampionato)
   // accanto a quello che il weekend dichiara ORA. Se divergono la riga
   // «Avversari» lo dice: è il segno che serve «Prepara tutto» per allineare.
-  // Solo multiclasse: le monomarca le genera EVO (modello Paddock).
+  // Solo multiclasse: le monomarca le genera EVO.
   const gridSerie = node.cars.length > 1 ? celleGrigliaCampionato(node) : null;
   const notaSerie = gridSerie && gridSerie !== gridsReali
     ? { it: ` — serie: ${gridSerie - 1} · weekend: ${gridsReali - 1} (Prepara tutto allinea)`, en: ` — series: ${gridSerie - 1} · weekend: ${gridsReali - 1} (Get ready aligns it)` }
@@ -397,8 +393,6 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
     // poolAuto in grid-classes.json, altrimenti le auto della serie del ladder
     carChoices: parcoIDs.map((id) => ({ id, display: carName(id) })),
     carPool: parco,
-    // EXTRA PADDACK (26/10): curva di coppia e versus dell'auto del sedile,     // dal catalogo scritto dall'app di carriera (letture pure, nessuna scrittura).
-     appSpec: carAppSpecsOf(chosenCarName, process.env),
 
     opponentCars: node.cars.map(carName),
     trackId: round.track,
@@ -414,15 +408,6 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
     opponents: gridsReali - 1,
     gridSerie,
     gridSource,
-    journal: journalSullaRonda ? {
-      opponents: journalSullaRonda.opponents,
-      cars: journalSullaRonda.cars,
-      format: journalSullaRonda.format,
-      aiMin: journalSullaRonda.aiMin,
-      aiMax: journalSullaRonda.aiMax,
-      track: journalSullaRonda.track,
-      at: journalSullaRonda.at,
-    } : null,
     profile,
     difficulty: diffShown,
     difficultyBase: diff,

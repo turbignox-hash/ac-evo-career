@@ -147,8 +147,8 @@ export const THEMES = [
     id: 'legend_finale',
     name: 'Il Gran Finale dei Campioni',
     nameEn: 'The Champions’ Grand Finale',
-    intro: "Invito d'onore a fine stagione: i migliori del paddock, una pista leggendaria, un'auto da sogno in palio.",
-    introEn: 'End-of-season honor invite: the best of the paddock, one legendary track, a dream car at stake.',
+    intro: "Invito d'onore a fine stagione: i migliori della griglia, una pista leggendaria, un'auto da sogno in palio.",
+    introEn: 'End-of-season honor invite: the best of the grid, one legendary track, a dream car at stake.',
     prizeCar: { id: 'lamborghini_countach_lp5000_qv', name: 'Lamborghini Countach LP5000 QV' },
     // riserve da sogno per il finale: auto reali di EVO, senza duplicare
     // la Countach già portata a casa l'altra stagione

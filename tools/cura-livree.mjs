@@ -1,7 +1,7 @@
 // cura-livree.mjs — LA CURA DELLE LIVERIE CHE EVO NON HA MAI SCRITTO (2/11;
 // promosso a tool permanente dalla cura-chimera monouso della serata 1/11).
 //
-// IL PRINCIPIO (lezione Paddock): il builder non inventa niente. Nomi (carId,
+// IL PRINCIPIO (principio): il builder non inventa niente. Nomi (carId,
 // mech_N, visual_N) e soprattutto l'INTERO blocco f14 — la livrea vera con i
 // suoi colori interni, non l'etichetta — esistono SOLO dentro le celle che EVO
 // scrive lui. Quando in un file griglia finisce una cella con una coppia mai

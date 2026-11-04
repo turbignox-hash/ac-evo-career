@@ -1,5 +1,5 @@
 // tools/vetrina-custom.mjs — il comando AUTO della GARA PERSONALIZZATA
-// (28/10 sera, «deve farlo in automatico come paddock»).
+// (28/10 sera, «deve farlo in automatico in automatico»).
 //
 // Storia: la griglia di una gara personalizzata (demo endurance multi-classe)
 // il tool la scrive su disco e il gioco la adotta dal menu principale, ma

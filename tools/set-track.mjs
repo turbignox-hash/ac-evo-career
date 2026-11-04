@@ -49,7 +49,7 @@ export function celleGrigliaCampionato(node) {
    scritto a METÀ (forma non decodificabile). Il Prepara allora chiedeva a
    mano «muovi Grid Type su CUSTOM» per un problema che mezzo secondo dopo
    non esisteva più — lo stato sul disco era già a posto («controlla
-   paddock»: il selettore c'era già). Si riprova 3× con pausa di 400 ms:
+   nel gioco»: il selettore c'era già). Si riprova 3× con pausa di 400 ms:
    la riscrittura del gioco dura pochissimo. */
 const GM_TENTATIVI = 10;   // 31/10: 3 non bastavano col gioco che riscrive in corsa («oltrefine» ripetuto), 5 pure
 const GM_PAUSA_MS = 400;
@@ -258,7 +258,7 @@ export function specFor(trackName, over = {}) {
   const key = specialKeyFor(trackName, info);
   if (key) Object.assign(spec, TRACK_SPECIALS[key]);
   // l'override ESPLICITO vince su TUTTO, SPECIALS compresi (2/11, «il cerchio»:
-  // la ronda del pd-calendar porta il layout — Oulton Fosters — e Oulton è
+  // la ronda del calendario porta il layout — Oulton Fosters — e Oulton è
   // pista SPECIAL: è chi chiama che sa la ronda, i SPECIALS restano il ripiego
   // quando nessuno sa di più)
   if (over.tag != null) spec.tag = over.tag;
@@ -376,7 +376,7 @@ export function setTrack(buf, spec) {
  * adopera il file riscritto.
  * opts: { file, dry, over } — over è la spec parziale che SOVRASCRIVE i campi
  * pista (tag/layout/lengthM/pitSlots): è l'aggancio per la ronda del
- * pd-calendar, che sa il layout vero quando il default GP non basta.
+ * calendario, che sa il layout vero quando il default GP non basta.
  */
 export function changeWeekendTrack(trackName, { file = WEEKEND_FILE, dry = false, over = {} } = {}) {
   const spec = specFor(trackName, over);

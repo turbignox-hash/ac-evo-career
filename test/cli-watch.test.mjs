@@ -19,12 +19,11 @@ const LADDER = readFileSync(join(ROOT, 'config', 'career.evo.ladder.json'), 'utf
 
 // NIDO DEI FILE DI GIOCO (3/11, rinforzo dell'inchiesta): watchOnce chiama il
 // rinfresco del dizionario a OGNI tick, e quello VERO legge ui_storage e il
-// journal del paddock dal Saved Games. Senza nido la suite del watcher
+// journal del gioco dal Saved Games. Senza nido la suite del watcher
 // guardava — e poteva scrivere data/samples/garage/map.json — nell'installazione
 // vera. Qui il nido si fissa PRIMA di ogni import di src/: GAME_SAVEDIR è una
 // costante decisa al load, cambiarla dopo non serve a niente.
 process.env.ACE_GAME_SAVEDIR = mkdtempSync(join(tmpdir(), 'evo-watch-game-'));
-process.env.APP_JOURNAL_DIR = mkdtempSync(join(tmpdir(), 'evo-watch-pd-'));
 
 test('comandi CLI di sola lettura girano senza crash (fumo)', async () => {
   // Cartella dati finta + carriera nuova: nessuna dipendenza da EVO né dal tuo salvataggio vero.
@@ -212,76 +211,6 @@ test('watchOnce davanti a una gara MULTIPLAYER (_MP_): carriera intonaca, poi la
   assert.equal(out2.error, null);
   assert.ok(out2.imported, `la stessa gara SENZA il tag online deve invece incassare: ${JSON.stringify(out2)}`);
   assert.equal(out2.imported.entry.position, 2);
-});
-
-// 3/11 pomeriggio: il rinfresco del dizionario (menu + iscrizioni paddock) va
-// iniettato nel tick: i test non devono guardare né scrivere file veri.
-test('watchOnce rinfresca il dizionario a ogni tick, senza toccare la raccolta gare', async () => {
-  const { watchOnce } = await import('../src/watch.mjs?v=dizione');
-  const { resolvePaths } = await import('../src/paths.mjs');
-  const DATA = mkdtempSync(join(tmpdir(), 'evo-dizione-ok-'));
-  mkdirSync(join(DATA, 'Results'), { recursive: true });
-  const calls = [];
-  // il contratto INTERO, zeri compresi — non la versione ridotta che si
-  // controllava prima (due numeri e la nota): così una chiave persa per strada
-  // non passa più liscia (3/11, rinforzo).
-  // oggetto NUOVO a ogni chiamata: il confronto qui sotto misura quello che il
-  // tick restituisce, non sé stesso.
-  const lezione = () => ({
-    storage: { added: 1, corrette: 0, aggiornate: 1 },
-    paddock: { added: 0, corrette: 0, aggiornate: 0, nota: 'paddock installato: nessun journal da leggere' },
-  });
-  const out = watchOnce(JSON.parse(LADDER), resolvePaths(), {
-    baselineMs: Date.now(), // niente di fresco: il tick deve solo rinfrescare
-    stateLoader: () => { throw new Error('lo stato non deve essere toccato senza gare nuove'); },
-    refreshDizionario: () => {
-      calls.push(1);
-      return lezione();
-    },
-  });
-  assert.equal(calls.length, 1, 'il rinfresco va chiamato UNA volta per tick');
-  assert.deepEqual(out.dizionario, lezione(), 'il rinfresco arriva al CLI INTERO, zeri e nota compresi');
-  assert.equal(out.scanned, 0);
-  assert.equal(out.imported, null);
-  assert.equal(out.error, null);
-});
-
-// 3/11 (rinforzo dell'inchiesta): il CONTRATTO di out.dizionario che cli.mjs
-// legge non era mai verificato sul rinfresco VERO — lo stub qui sopra poteva
-// omettere paddock.aggiornate senza che niente protestasse, e la riga
-// «dizionario: …» del CLI sarebbe sparita in silenzio. Qui il rinfresco VERO,
-// nel nido vuoto: le chiavi che il CLI tocca ci sono SEMPRE, con gli zeri al
-// loro posto e la nota sempre definita (mai undefined stampato).
-test('refreshDizionario: il contratto di out.dizionario — chiavi e zeri che cli.mjs legge', async () => {
-  const { refreshDizionario } = await import('../src/watch.mjs?v=dizionario-contratto');
-  const d = refreshDizionario();
-  assert.deepEqual(Object.keys(d).sort(), ['paddock', 'storage'], 'due sorgenti, né una di più né una di meno');
-  assert.deepEqual(Object.keys(d.storage).sort(), ['added', 'aggiornate', 'corrette']);
-  assert.deepEqual(Object.keys(d.paddock).sort(), ['added', 'aggiornate', 'corrette', 'nota']);
-  for (const n of [d.storage.added, d.storage.corrette, d.storage.aggiornate, d.paddock.added, d.paddock.corrette, d.paddock.aggiornate]) {
-    assert.equal(typeof n, 'number', `i contatori sono numeri anche a zero (${n})`);
-    assert.ok(Number.isFinite(n) && n >= 0, `contatore sano: ${n}`);
-  }
-  // nido vuoto: niente da imparare, ma il paddock DEVE dire perché — e la
-  // risposta è una stringa, così chi la mostra non stampa «nota: undefined».
-  assert.equal(typeof d.paddock.nota, 'string', `la nota è sempre definita: ${String(d.paddock.nota)}`);
-  assert.ok(d.paddock.nota.length > 0, 'la nota spiega perché non si è imparato niente');
-});
-
-test('un errore del rinfresco non ruba il tick: la raccolta gare va avanti', async () => {
-  const { watchOnce } = await import('../src/watch.mjs?v=dizione-rotta');
-  const { resolvePaths } = await import('../src/paths.mjs');
-  const DATA = mkdtempSync(join(tmpdir(), 'evo-dizione-rotta-'));
-  const Results = join(DATA, 'Results');
-  mkdirSync(Results, { recursive: true });
-  const out = watchOnce(JSON.parse(LADDER), resolvePaths(), {
-    baselineMs: Date.now(),
-    stateLoader: () => { throw new Error('lo stato non deve essere toccato senza gare nuove'); },
-    refreshDizionario: () => { throw new Error('ui_storage a metà scrittura'); },
-  });
-  assert.equal(out.error, null, 'un errore del rinfresco non deve guastare il tick');
-  assert.equal(out.dizionario, undefined);
-  assert.equal(out.scanned, 0);
 });
 
 // 3/11: il battito porta con sé l'ultima lezione del dizionario: `status` la

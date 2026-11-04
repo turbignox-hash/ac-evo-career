@@ -4,7 +4,7 @@
 //   1) raceAutopsy    — l'AUTOPSIA della gara: il deficit scomposto in cause
 //                       attribuite (partenza, ritmo secco, settori, distanza),
 //                       con i numeri presi dal save carriera + registro rivali.
-//   2) rivalDossier   — lo scouting da paddock di un rivale: ritmo relativo
+//   2) rivalDossier   — lo scouting di un rivale: ritmo relativo
 //                       (best-lap contro te, media e per pista), tendenza nel
 //                       tempo, consistenza di piazzamento, piste deboli/forti.
 //   3) setupAB        — il BANCO A/B dei setup: confronto fra due sessioni

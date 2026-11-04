@@ -109,7 +109,7 @@ avvio il launcher copia in silenzio Cruscotto e Pitwall dentro
 `Saved Games\ACE\mods\uiresources\ACEUIAppLoader\` — quando EVO è
 installato, le trovi nel drawer APPS del menu di EVO e si aggiornano da sole
 a ogni successivo doppio click su avvia.cmd. Serve però la mod **ACE UI App Loader** installata (la
-stessa che usano le app in gioco come Paddock): se manca, il launcher lo dice
+stessa usata dalle app in gioco): se manca, il launcher lo dice
 con una riga e va avanti lo stesso — la GUI, la carriera e la preparazione
 delle gare non dipendono da essa. Via manuale in qualunque momento: doppio
 click su `INSTALLA-GIOCO.cmd` nella cartella del programma.
@@ -331,7 +331,7 @@ tipico del primo avvio su un PC nuovo. Se qui manca il tuo sintomo, il README
 
 **Le app in gioco non appaiono nel menu di EVO.** Manca la mod **ACE UI App
 Loader** in `Saved Games\ACE\mods\uiresources\ACEUIAppLoader\` (la stessa
-che usano le app in gioco come Paddock): installata quella, doppio click su
+usata dalle app in gioco): installata quella, doppio click su
 `INSTALLA-GIOCO.cmd` (o semplicemente riavvia il launcher, che lo fa da
 solo). Senza mod niente si rompe: la GUI nel browser e tutta la carriera
 funzionano normali.
@@ -387,17 +387,6 @@ sfoglia le unità del PC. Arriva fino alla cartella Risultati e conferma lì.
 `node ac-evo-career.mjs setup` (oppure correggi i percorsi vivi in
 Impostazioni, senza riavviare) e passa `content --validate` per verificare che
 la scala combaci ancora.
-
-**Le corse di Paddock si chiudono subito (1 giro e via).** È lo stato di default
-del gioco, non un difetto: il tool lo cura con `node tools/cura-giri-app.mjs`
-(cerca Paddock.exe al posto di consuetudine, `Desktop\Paddock`; se non lo
-trova, passa il percorso a mano come secondo argomento). Fissa **3 giri** su
-tutte le ronde che ne avevano 12 nel catalogo (Paul Ricard e le gare speciali
-restano come sono): esegui con il gioco CHIUSO — se Paddock è acceso il tool
-dice che il file è bloccato e si ferma. È idempotente e fa il backup
-`Paddock.exe.bak-giri12` accanto all'exe prima di toccare il file: rilanciato,
-risponde «Già curato. Niente da fare.». Se il gioco aggiorna Paddock, la cura
-si rifà uguale. La diagnosi senza scrittura: `--verifica`.
 
 **Ho clonato ma il launcher dice «offsite non risponde».** Manca
 `git remote rename origin offsite` (capitolo 2). Onestamente: parte lo stesso,

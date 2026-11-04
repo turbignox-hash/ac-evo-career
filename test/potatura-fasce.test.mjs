@@ -7,7 +7,7 @@
 // disco una fascia prima ancora che il gioco la chiedesse. La cura
 // ([src/uiapp-pub.mjs](../src/uiapp-pub.mjs), `FASCE_DIETRO = 12`): la
 // potatura del tick tiene la fascia CORRENTE + le 12 dietro = AL PIÙ 13
-// fasce per canale (cruscotto e pitwall; il Paddock pota a 12 con la sua
+// fasce per canale (cruscotto e pitwall; il gioco pota a 12 con la sua
 // guardia in test/uiapp-pub-app.test.mjs). Qui la prova con un giro VERO
 // di uiappTick su disco affollato di fasce vecchie: al più 13 sopravvivono,
 // e sono le PIÙ FRESCHE — la copertura dietro (fascia-1, fascia-2) resta a

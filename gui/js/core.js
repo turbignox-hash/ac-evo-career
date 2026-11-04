@@ -325,7 +325,7 @@ const TABS = [
    caricamento automatico import) resta: lo usano telemetria e setup.
 /* un colore per ogni sezione: le icone della nav restano riconoscibili a colpo d'occhio */
 /* una sola regola: GARA è ciò che serve IN giornata, Studio è tutto il resto
-   (30/10, sulle orme di Paddock che ragiona a sezioni). La vista MONDIALE non
+   (30/10, a sezioni). La vista MONDIALE non
    è più scheda da barra: vive DENTRO Campionati come pannello a pieghevole
    (drawChampionships) — funzione intatta, un posto in meno in barra. */
 const NAV_GROUPS = [
@@ -353,7 +353,7 @@ const AIUTO = [
   ['agenda', { it: 'Il calendario: i round da correre, nel weekend con ora, giri e meteo già scritti dal tool.', en: 'The calendar: rounds ahead, with hour, laps and weather written by the tool for each weekend.' }],
   ['setup', { it: 'La scheda del meccanico: assetti, pressioni e benzina consigliati per la gara (si portano a mano in EVO).', en: 'The mechanic sheet: recommended setup, pressures and fuel for the race (entered by hand in EVO).' }],
   ['analisi', { it: 'Telemetria dei tuoi giri: confronto best-lap, settori e curva di guida su sessioni nuove o ricaricate.', en: 'Your lap telemetry: best-lap comparison, sectors and driving curve on fresh or loaded sessions.' }],
-  ['messages', { it: 'Il tavolo delle offerte: contratti, sponsor e mail del paddock da firmare o ignorare.', en: 'The offers table: contracts, sponsors and paddock mail to sign or ignore.' }],
+  ['messages', { it: 'Il tavolo delle offerte: contratti, sponsor e mail del box da firmare o ignorare.', en: 'The offers table: contracts, sponsors and pit-lane mail to sign or ignore.' }],
   ['championships', { it: 'Serie e campionati: stagione in corso, classifiche, premi e contratti di ogni trofeo.', en: 'Series and championships: current season, standings, prizes and contracts of every trophy.' }],
   ['griglia', { it: 'Chi parte davanti: la griglia degli avversari della ronda, scritta nel gioco dal tool.', en: 'Who starts ahead: the race-weekend opponent grid, written into the game by the tool.' }],
   ['rivals', { it: 'I tuoi avversari abituali: storico dei duelli e chi devi battere.', en: 'Your regular rivals: duel history and who you still have to beat.' }],
@@ -500,20 +500,8 @@ function paintHeader(h){
   $('#t-sub').textContent = `${h.nation ?? ''} · ${h.sponsor ?? tr({ it: 'pilota privato', en: 'private driver' })} · ${h.node.display}`;
   $('#t-money').textContent = money(h.money) + ' €';
   $('#t-rep').textContent = String(h.rep);
-  // TESSERA LIVELLO (31/10): Paddock la calcola VERO; se non c'è, la GUI la
-  // nasconde — niente doppia verità. «~» = stima dai journal.
   const lvlEl = $('#hstat-level');
-  const lvl = h.levelBadge ?? null;
-  if (lvl?.name) {
-    lvlEl.style.display = '';
-    const le = $('#t-level');
-    le.textContent = `${lvl.source === 'stima' ? '~' : ''}${lvl.name}`;
-    le.style.color = lvl.color || '';
-    lvlEl.title = lvl.source === 'app'
-      ? tr({ it: 'Livello pilota da Paddock (app installata): reputazione del profilo del gioco', en: 'Driver level from Paddock: the game profile reputation' })
-      : tr({ it: 'Stima: livello pilota dedotto dalla reputazione della carriera (Paddock non parla) — la soglia 490 è quella osservata sul vivo', en: 'Estimate: driver level inferred from the career reputation (Paddock silent) — the 490 threshold is the one observed live' });
-    lvlEl.onclick = () => vai('stats');
-  } else { lvlEl.style.display = 'none'; }
+  if (lvlEl) lvlEl.style.display = 'none';
   $('#t-date').textContent = h.todayLabel ? `${tr({ it: 'OGGI', en: 'TODAY' })} ${h.todayLabel}` : `${tr({ it: 'giorno', en: 'day' })} ${h.day ?? 1}`;
   $('#t-season').textContent = `S${h.season} · R${h.round}/${h.rounds}`;
   // le statistiche chiave diventano scorciatoie: Data → Centro gare, Rep → Statistiche, Finanze → Finanze, Stagione → Campionati

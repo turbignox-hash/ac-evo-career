@@ -19,7 +19,7 @@
 // LA SOGLIA DELLA MOD (1/11): se il loader ACE UI App Loader non è
 // installato, qui si dice SOLO che le app in gioco non possono partire e
 // che va installata la mod (la stessa che serve alle app in gioco del
-// genere Paddock). Senza mod TUTTO il resto funziona: GUI nel browser,
+// genere app in gioco). Senza mod TUTTO il resto funziona: GUI nel browser,
 // carriera, preparazione gare — niente è bloccato.
 //
 // Uso:
@@ -91,7 +91,7 @@ function marcatore(chiave) {
 const loaderDir = baseLoader();
 
 if (!loaderDir) {
-  avviso('', '[i] Le app DENTRO il gioco (Cruscotto e Pitwall) non partono:', '', '    Serve prima la mod ACE UI App Loader (la stessa che usano le app', '    in gioco come Paddock), installata in Saved Games\\ACE\\mods\\uiresources.', '    Senza mod TUTTO il resto funziona: GUI nel browser, carriera, preparazione', '    gare. Dettagli in GUIDA-AMICO.md.');
+  avviso('', '[i] Le app DENTRO il gioco (Cruscotto e Pitwall) non partono:', '', '    Serve prima la mod ACE UI App Loader (la stessa che usano le app', '    in gioco in gioco), installata in Saved Games\\ACE\\mods\\uiresources.', '    Senza mod TUTTO il resto funziona: GUI nel browser, carriera, preparazione', '    gare. Dettagli in GUIDA-AMICO.md.');
   process.exit(0);
 }
 

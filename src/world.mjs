@@ -386,7 +386,7 @@ export function evolveWorld(world, ladder, season) {
 /* ------------------------------------------------------------------ */
 
 /**
- * Tra un round e l'altro il paddock respira: due piloti sono "in forma" (si dice
+ * Tra un round e l'altro la griglia respira: due piloti sono "in forma" (si dice
  * che stanno evoluendo), due sono in declino, e a metà calendario può debuttare
  * un esordiente dal parco piloti. Deterministico per serie+stagione+round: la
  * stessa coppia di gare racconta sempre la stessa storia.

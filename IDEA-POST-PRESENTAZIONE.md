@@ -4,19 +4,10 @@
 Soggetto: **Pitwall** (`ac-evo-career`), la carriera automatizzata per Assetto Corsa EVO.
 Subject: **Pitwall** (`ac-evo-career`), the automated career for Assetto Corsa EVO.
 
-## Perché ce l'abbiamo: il confronto con Paddock — Why we built it: the Paddock comparison
+## Perché ce l'abbiamo — Why we builPitwall nasce per un'esigenza precisa: preparare la carriera dal desktop e agire sul gioco, non solo leggerla.
+Pitwall was built for a specific need: prepare the career from the desktop and act on the game, not just read it.
 
-Paddock fa molto bene la parte «in gioco»: la career si vive dentro EVO, col mouse e col volante.
-Pitwall fa ciò che Paddock per progetto NON fa: **agisce** sul gioco (griglia, setup, automazioni)
-e staffetta con te dal desktop. Sono compagni, non rivali — e ci tengo a dirlo: da Paddock abbiamo
-preso più di un'idea: il ponte ai journal `pd-*.json`, il match graduale dei nomi auto, il bonus gara pulita
-e il tetto reputazione.
-
-Paddock does the in-game part very well: the career lives inside EVO, mouse and wheel only.
-Pitwall does what Paddock by design does NOT: it **acts on the game** (grids, setups, automation)
-and switches with you from the desktop. They are companions, not rivals — and we took our hat off
-to Paddock more than once: the bridge to the `pd-*.json` journals, the gradual car-name matching,
-the clean-race bonus and the reputation cap all came from there.
+came from there.
 
 ## Punti di forza da citare nel post — Strengths to mention in the post
 
@@ -68,10 +59,10 @@ the clean-race bonus and the reputation cap all came from there.
   mini-standings of the current round, with the link to the GUI's World Ranking.
 
 - **La griglia che scrive davvero nel gioco** — The grid that really writes into the game. \
-  Paddock legge la tua carriera; Pitwall la costruisce: sceglie le AI, le mette in macchina \
+  Pitwall costruisce la carriera: sceglie le AI, le mette in macchina \
   (match graduale ESATTA→CONTIENE→PAROLE→ALIAS), applica zavorre per traccia da dati veri e \
   prepara i customgrid per i weekend di gara del gioco, con backup e verifica prima di scrivere. \
-  Paddock reads your career; Pitwall builds it: it picks the AI, puts them in cars (gradual match \
+  Pitwall builds the career: it picks the AI, puts them in cars (gradual match \
   EXACT→CONTAINS→WORDS→ALIAS), applies per-track ballast from real data and prepares the game's \
   race-weekend customgrids — with a backup and a check before every write.
 
@@ -89,7 +80,7 @@ the clean-race bonus and the reputation cap all came from there.
   by Xs: +Y%»), the economy at a glance in Stats (€/race and rep/race per season), a skill-based \
   World Ranking with iconic drivers and form.
 
-- **La copilota non esiste in Paddock** — The copilot exists in no other career app: delta, \
+- **La copilota** — The copilot: delta, \
   fuel, metà gara e meteo in vocale italiano durante la sessione. \
   delta, fuel, half-race and weather in Italian speech during the session.
 
@@ -113,14 +104,11 @@ the clean-race bonus and the reputation cap all came from there.
 - «In gioco c'è solo Cruscotto» NON si dice più (DA-8, verdetto 1/11):
   da 31/10 in gioco girano DUE app nostre — il **Cruscotto** (comandi
   e vetrina) e il **Pitwall** (radio del copilota, verdetto, finestra
-  stint, sincro «Prepara e Divertiti») — più Paddock accanto. La vivacità
-  «da gioco» non è più un limite da nascondere; resta vero che Paddock
-  resta il posto COMODO per leggere la carriera col gamepad sul divano,
-  e quello honesto si può ancora citare.
+  stint, sincro «Prepara e Divertiti»). La vivacità «da gioco» non è più
+  un limite da nascondere.
 - The old claim "inside the game there is only the Dashboard" is DEAD
-  (see above): in-game we now ship TWO apps of ours (Cruscotto + Pitwall)
-  alongside Paddock. The remaining honest note: Paddock still owns the
-  couch/gamepad reading experience — that much we can still say.
+  (see above): in-game we now ship TWO apps of ours (Cruscotto + Pitwall).
+  The in-game experience is no longer a limit to hide.
 
 ## Le foto del post — The post's photos
 

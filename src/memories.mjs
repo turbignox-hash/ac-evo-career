@@ -83,7 +83,7 @@ export const RANKS = [
   { min: 1, label: 'Debuttante', labelEn: 'Rookie' },
   { min: 3, label: 'Timoniere', labelEn: 'Wheelman' },
   { min: 6, label: 'Campionetto', labelEn: 'Club champion' },
-  { min: 10, label: 'Veterano del paddock', labelEn: 'Paddock veteran' },
+  { min: 10, label: 'Veterano della griglia', labelEn: 'Grid veteran' },
   { min: 15, label: 'Signore della carriera', labelEn: 'Career lord' },
   { min: 21, label: 'Leggenda di famiglia', labelEn: 'Family legend' },
   { min: 28, label: 'Mito immortale', labelEn: 'Immortal myth' },
@@ -102,7 +102,7 @@ function fillMemoryEn(mem) {
   return mem;
 }
 
-/** Le "leggende" della griglia: il paddock d'epoca con cui ti confronti. */
+/** Le "leggende" della griglia: lo schieramento d'epoca con cui ti confronti. */
 const LEGENDS = {
   entry: ['K. Stahl (DE)', 'P. Moreau (FR)', 'R. Bianchi (IT)', 'E. Costa (BR)', 'H. Vondel (NL)'],
   touring: ['N. Andersson (SE)', 'L. Bianchi (IT)', 'F. Dubois (FR)', 'J. Palmer (GB)', 'M. Rossi (IT)'],

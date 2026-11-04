@@ -168,7 +168,7 @@ test('celle NUOVE con opt-in: la RS 3 mai in griglia entra nel pool F40 (sintesi
   assert.deepEqual(out.report.sintesi, ['ks_audi_rs_3_sportback'], 'il report dichiara le sintetizzate');
 });
 
-test('preset VERO al posto del token: la 695 manca dal template ma il parco la conosce (lezione 31/10, come Paddock)', async () => {
+test('preset VERO al posto del token: la 695 manca dal template ma il parco la conosce (lezione 31/10, come il gioco)', async () => {
   const bg = await import('../src/gridbuilder.mjs');
   // un template cugino NELLA STESSA dir porta una cella REALE della 695:
   // preset mech_1 (Standard), nome completo del catalogo, PI in f42.

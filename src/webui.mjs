@@ -72,10 +72,6 @@ import { readCells } from '../tools/grid-balance.mjs';
 // GitHub precompilata (versione, serie in corso, errori recenti) e il link
 // Ko-fi dal config. Nessuna rete qui: il POST lo fa il browser.
 import { feedbackLinks } from './report.mjs';
-// app-carriera.mjs: il ponte con l'app di carriera del gioco (read-only): calendario
-// della stagione con METEO/ORÀ scritti a monte, catalogo auto con curva di
-// coppia e versus, registro contabile. Il cruscotto la pesca in `/api/app`.
-import { appOverview } from './app-carriera.mjs';
 // il bridge della gara custom a tempo (POST /api/instantrace): lettura +
 // scrittura dell'INSTANT_RACE a gioco APERTO (force), come il ponte griglia
 import { timedRace, currentInstantRace } from '../tools/set-instantrace.mjs';
@@ -137,7 +133,7 @@ import { resetNews } from './gazzetta.mjs';
 import { loadClasses, buildGridMessage } from './gridbuilder.mjs';
 import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, rebuildGridApply, GRID_FILE, pruneBackups, bakName, templatePathOf } from './grid-apply.mjs';
 // app «Cruscotto» in gioco: publisher della vetrina nella cartella del loader
-import { startUiappPublisher, statoIstantanea, consigliFascia } from './uiapp-pub.mjs';
+import { startUiappPublisher, statoIstantanea } from './uiapp-pub.mjs';
 // I CONSIGLI ANCHE NELL'APP (31/10): la card dell'app nella GUI mostra il
 // medesimo bussollino dell'ingegnere (consigliFascia) — STESSA fonte del
 // cruscotto in fascia, un solo calcolo, nessuna doppia lettura MMF.
@@ -1325,19 +1321,6 @@ async function api(context0, _req, res, action, body) {
       });
     }
     case 'status': return sendJson(res, 200, viewStatus(ladder, state));
-    // APP (richiesta Mauro 26/10 "punti correndo"): la scheda della
-    // prossima gara + il calendario + l'economia dell'app di carriera, LETTA dal
-    // disco (nessun avvio richiesto): gli extra sono ready per il cruscotto.
-    // 31/10 «consigli anche nell'app»: al bridge va ATTACCATO il pacchetto
-    // consigli { live, tips[] } di consigliFascia (il pacchetto del cruscotto
-    // in fascia): il payload resta un unico JSON, la vista lo nasconde da
-    // sola col gioco fermo. appOverview non importa il publisher: la
-    // composizione sta QUI, al confine tra i due moduli (una sola riga).
-    case 'app': {
-      const pd = appOverview(process.env);
-      pd.consigli = consigliFascia();
-      return sendJson(res, 200, pd);
-    }
     case 'catalog': return sendJson(res, 200, loadCatalog(paths, process.env, { driver: state?.driver ?? null, afterMs: body.all ? 0 : (state?.createdAt ?? 0) }));
     case 'mp':
       // ARCHIVIO ONLINE (31/10): sessioni _MP_ + libro dei rivali online, dal
@@ -2454,7 +2437,7 @@ async function api(context0, _req, res, action, body) {
           // riscrittura della griglia al Prepara resta per TUTTE (conteggio
           // allineato al gamemodesave, zavorre/penalità solo dove la classe
           // le chiede) e la cartuccia non si parcheggia più.
-          // MODELLO PADDOCK (4/11): monomarca senza regole di classe = la
+          // MODELLO DEL GIOCO (4/11): monomarca senza regole di classe = la
           // griglia la genera EVO (decisione presa prima del ramo griglia).
           try {
             // BANDA DI SERIE (1/11/2026, richiamo di Mauro sul 82–92 della Peugeot):
@@ -2466,14 +2449,14 @@ async function api(context0, _req, res, action, body) {
             const bandaSeriePrep = (() => {
               try {
                 // LA RONDA DEL CALENDARIO SEMINATO (4/11): la card se l'è
-                // già scelta con nextRound (pd-calendar o mirror) — la banda
+                // già scelta con nextRound (calendario o mirror) — la banda
                 // della serie segue QUELLA pista, non state.round grezzo.
                 const idx = Math.min(card.roundIndex ?? 0, node.calendar.length - 1);
                 return bandaSerieSlider(ladder, state, node, node.calendar[idx]?.track ?? null).banda;
               } catch { return null; }
             })();
             if (monoGioco) {
-              // MODELLO PADDOCK: niente customgrid, niente magazzino, niente
+              // MODELLO DEL GIOCO: niente customgrid, niente magazzino, niente
               // fabbrica — si dichiara il weekend e le celle le mette EVO.
               // La banda AI vive nel gamemodesave (campi 30/31), non nel
               // customgrid: e' quella che il gioco mostra al caricamento.
@@ -2590,7 +2573,7 @@ async function api(context0, _req, res, action, body) {
       if (monoGioco) {
         // Il blocco qui sopra ha sbloccato CUSTOM sul conteggio del customgrid:
         // per la monomarca si torna AUTOMATIC, la forma in cui EVO genera da
-        // se' (modello Paddock). Silente se il file manca.
+        // se' (modello del gioco). Silente se il file manca.
         try {
           setWeekendGridAuto();
           prep.gridMode = tr({ it: 'automatic (single make): la griglia la genera il gioco', en: 'automatic (single make): the game generates the grid' });
@@ -2605,7 +2588,7 @@ async function api(context0, _req, res, action, body) {
       try {
         prep.weather = null;
         // LA RONDA DELLA CARD (4/11): card.round porta già l'override del
-        // calendario seminato (pd-calendar o mirror) fatto in nextRound —
+        // calendario seminato (calendario o mirror) fatto in nextRound —
         // niente state.round grezzo anche qui, o il meteo scritto diverrebbe
         // quello della ronda ladder invece di quella che si sta per correre.
         const round = card.round ?? node?.calendar?.[Math.min(state.round ?? 0, (node?.calendar?.length ?? 1) - 1)];

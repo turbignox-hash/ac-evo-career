@@ -200,7 +200,7 @@ function drawOnboarding(m){
     try {
       await api('new-career', { name: $('#i-name').value.trim(), nation: $('#i-nation').value.trim().toUpperCase() || 'ITA', discipline: $('#i-disc').value || null, force: $('#i-force').checked });
       await refreshBoot(); tab='dashboard'; drawNav(); render();
-      toast(tr({ it: 'Carriera creata: benvenuto nel paddock.', en: 'Career created: welcome to the paddock.' }), 'ok');
+      toast(tr({ it: 'Carriera creata: benvenuto in carriera.', en: 'Career created: welcome to your career.' }), 'ok');
     } catch(err){ toast(err.message, 'err'); }
   };
   /* il wizard: lista di controllo tirata dal server (stato vero, non indovinato) */
@@ -208,45 +208,6 @@ function drawOnboarding(m){
 }
 
 /* -------- cruscotto -------- */
-/* La CARD PADDOCK del cruscotto: la prossima gara scritta dall'app Paddock,
- * con il meteo/orario già deciso a monte (gara bagnata = icona pioggia), la
- * classifica Paddock, il messaggio dell'ingegnere (a fondo % gas) e tutte le
- * ronde con esito. Nascosta se Paddock non gira o non ha dati. */
-async function drawAppPanel(){
-  const el = $('#p-paddock'); if (!el) return;   const pd = await api('app').catch(() => null);
-  if (!pd || !pd.ok || !pd.next)
-    { el.style.display = 'none'; return; }
-  const n = pd.next;
-  const rounds = (pd.calendar?.rounds ?? []).filter(r => r?.track);
-  const stand = (pd.home?.standings ?? pd.calendar?.standings ?? []).slice(0, 5);
-  const wetIcon = n.wet ? '🌧️ ' : '';
-  // TESSERA PROFILO (1.0.2): pd-home porta profile.level.name/color — i
-  // NUOVI colori dei driver level (rosso/lime/giallo); se assente, niente riga.
-  const prof = pd.home?.profile ?? null;
-  const lvl = prof?.level ?? null;
-  el.innerHTML = `
-  <h2>${LI.gauge} ${tr({ it: 'Paddock', en: 'Paddock' })} <span class="h-act">${esc(pd.next.series ?? '')} · ${tr({ it: 'gara', en: 'race' })} ${n.round}/${n.total}</span>${prof?.name ? ` <span class="h-act" title="${tr({ it: 'Livello pilota (da Paddock)', en: 'Driver level (from Paddock)' })}" style="color:${esc(lvl?.color ?? 'var(--dim,#8fa3bd)')}">◆ ${esc(lvl?.name ?? '')}</span>` : ''}</h2>
-  <div class="banner ${n.wet?'warn':'info'}" style="margin-bottom:10px">
-    ${wetIcon}<b>${window.trackLinkHtml(n.track)}${n.layout ? ` — ${esc(n.layout)}` : ''}</b> · ${n.laps ? `${n.laps} ${tr({ it: 'giri', en: 'laps' })}` : ''}
-    ${n.time ? ` · 🕑 ${esc(n.time)}` : ''}${n.weather ? ` · ${esc(n.weather)}` : ''}
-    ${n.car ? `<br>🚘 ${window.carLinkHtml(n.car)}` : ''}
-    ${n.rank != null ? `<br>${tr({ it: 'Sei in classifica: ', en: 'You are standing: ' })}<b>${n.rank ?? '–'}</b> con <b>${n.points ?? '–'}</b> pt (${n.done ?? '–'}/${n.total} gare)` : ''}
-  </div>
-  ${n.wet ? `<div class="banner warn" style="margin-bottom:10px">🌧️ ${tr({ it: '<b>Gara bagnata in agenda:</b> monta l\'assetto pioggia PRIMA di partire. Pressioni sotto il target a caldo e staccate più lunghe: le condizioni asciutte non fungono.', en: '<b>Wet race scheduled:</b> fit the wet setup BEFORE you start. Pressures under hot target, longer braking: dry conditions settings will not work.' })}</div>` : ''}
-  ${(n.tips ?? []).length ? `<div class="panel-inset" style="margin-bottom:10px">
-    ${(n.tips ?? []).map((t) => `<div style="font-size:12.5px;color:var(--dim,#8fa3bd)">💡 ${esc(String(t))}</div>`).join('')}
-  </div>` : ''}
-  ${pd.consigli?.tips?.length ? `<div class="panel-inset" style="margin-bottom:10px">
-    ${pd.consigli.tips.map((t) => `<div style="font-size:12.5px;color:var(--dim,#8fa3bd)">${esc(t.icon ?? '🔧')} <b>${esc(t.title ?? '')}</b> ${esc(t.text ?? '')}</div>`).join('')}
-  </div>` : ''}
-  ${stand.length ? `<table style="margin-top:2px"><thead><tr><th>##</th><th>${tr({ it: 'Classifica Paddock', en: 'Paddock standings' })}</th><th class="right">${tr({ it: 'Punti', en: 'Points' })}</th><th class="right">${tr({ it: 'Vittorie', en: 'Wins' })}</th></tr></thead><tbody>
-    ${stand.map((s) => `<tr class="${s.me ? 'cur' : ''}"><td>${s.rank}</td><td>${s.me ? `<b>${esc(s.name)}</b> (tu)` : esc(s.name)}</td><td class="right">${s.points}</td><td class="right">${s.wins}</td></tr>`).join('')}
-  </tbody></table>` : ''}
-  ${rounds.length ? `<div class="formchips" style="margin-top:8px">${rounds.map((r) => `<span class="chip ${r.state === 'next' ? 'blue' : ''}" title="${esc(r.track ?? '')}${r.laps ? ' · ' + r.laps + ' giri' : ''}">${r.state === 'done' ? '✓' : r.state === 'next' ? '▶' : '·'} R${r.n}</span>`).join('')}</div>` : ''}
-  ${(pd.home?.messages ?? []).length ? `<div style="margin-top:10px"><div class="muted" style="font-size:12px">📻 ${tr({ it: 'Dal team (Paddock)', en: 'From the team (Paddock)' })}</div>
-    ${(pd.home?.messages ?? []).slice(0, 3).map((m) => `<div style="font-size:12.5px;color:var(--dim,#8fa3bd);margin-top:2px"><b>${esc(m.who ?? '')}</b> — ${esc(String(m.text ?? '').slice(0, 160))}</div>`).join('')}</div>` : ''}`;
-}
-
 async function drawDashboard(m){
   const [st, card, sb] = await Promise.all([api('status'), api('card'), api('save-backup').catch(() => null)]);
   const h = st.header, node = h.node;
@@ -298,10 +259,9 @@ async function drawDashboard(m){
       </div>
       <div class="panel">
         <h2>${LI.chat} ${tr({ it: 'Messaggi recenti', en: 'Recent messages' })}</h2>
-        ${st.messages.length ? st.messages.slice(0,6).map(msgRow).join('') : `<div class="empty">${tr({ it: 'Tutto quieto nel paddock.', en: 'All quiet in the paddock.' })}</div>`}
+        ${st.messages.length ? st.messages.slice(0,6).map(msgRow).join('') : `<div class="empty">${tr({ it: 'Tutto quieto nel box.', en: 'All quiet in the pit lane.' })}</div>`}
         ${h.offers.length ? `<div class="banner info" style="margin-top:10px">${tr({ it: 'Ci sono ', en: 'There are ' })}<b>${h.offers.length} ${tr({ it: 'offerte', en: 'offers' })}</b>${tr({ it: ' sul tavolo: sezione Messaggi per firmare.', en: ' on the table: sign them in the Messages section.' })}</div>` : ''}
       </div>
-      <div class="panel" id="p-paddock" style="display:none"><h2>${LI.gauge} Paddock</h2><div class="empty">…</div></div>
       <div class="panel" id="p-life"><h2>${tr({ it: 'Vita fuori pista', en: 'Life off track' })}</h2><div class="empty">…</div></div>
       <div class="panel" id="p-heritage"><h2>${tr({ it: '📜 Eredità di famiglia', en: '📜 Family heritage' })}</h2><div class="empty">…</div></div>
 <div class="panel">
@@ -327,7 +287,6 @@ async function drawDashboard(m){
     <div class="racecard panel" id="card-panel"></div>
   </div>`;
   drawCardInto($('#card-panel'), card);
-  drawAppPanel();
   drawLifePanel();
   drawHeritagePanel();
   drawEventsPanel();
@@ -430,7 +389,7 @@ async function drawLifePanel(){
       ...(v.pulse?.cold ?? []).map(n=>`${esc(n)} ${tr({ it: 'è in declino', en: 'is on the decline' })}`),
       v.pulse?.rookie ? tr({ it: `l'esordiente <b>${esc(v.pulse.rookie)}</b> ha debuttato nel campionato`, en: `rookie <b>${esc(v.pulse.rookie)}</b> debuted in the championship` }) : '',
     ].filter(Boolean);
-    if (voci.length) rows.push(`<div class="liferow"><span class="lico blue">${LI.chat}</span><div class="lt"><b>${tr({ it: 'Voci dal paddock', en: 'Paddock whispers' })}</b><div style="font-size:12.5px">${voci.join(' · ')}</div></div></div>`);
+    if (voci.length) rows.push(`<div class="liferow"><span class="lico blue">${LI.chat}</span><div class="lt"><b>${tr({ it: 'Voci dal box', en: 'Pit-lane whispers' })}</b><div style="font-size:12.5px">${voci.join(' · ')}</div></div></div>`);
     el.innerHTML = `<h2>${LI.compass} ${tr({ it: 'Vita fuori pista', en: 'Life off track' })}</h2>
       ${rows.join('') || `<div class="empty">${tr({ it: 'Il contratto arriva quando firmi il sedile.', en: 'The contract comes when you sign the seat.' })}</div>`}
       ${v.challenge && !v.challenge.verdict ? `<div class="banner ${v.challenge.accepted?'info':'warn'}" style="margin-top:6px">${LI.target} <b>${tr({ it: 'Sfida della ronda', en: 'Round challenge' })}</b> — ${esc(legacyIt(v.challenge.text))}<br><span class="muted">${tr({ it: 'premio ', en: 'reward ' })}${money(v.challenge.reward)} € · ${tr({ it: 'penale −', en: 'penalty −' })}${v.challenge.penalty} rep${v.challenge.accepted?` · ${tr({ it: 'accettata', en: 'accepted' })}`:''}</span>${v.challenge.accepted?'':` <button class="mini" id="b-chal-acc" style="margin-top:6px">${tr({ it: 'accetta', en: 'accept' })}</button>`}</div>` : ''}`;
@@ -491,7 +450,7 @@ async function drawEventsPanel(){
   try {
     const v = await api('events');
     if (!v.active && !(v.showCase ?? []).length && !(v.history ?? []).length){
-      el.innerHTML = `<h2>${tr({ it: 'Eventi speciali', en: 'Special events' })}</h2><div class="empty">${tr({ it: 'Nessun invito per ora: gli organizzatori ti cercano quando il paddock comincia a conoscerti.', en: 'No invites yet: organizers come looking when the paddock starts to know you.' })}</div>`;
+      el.innerHTML = `<h2>${tr({ it: 'Eventi speciali', en: 'Special events' })}</h2><div class="empty">${tr({ it: 'Nessun invito per ora: gli organizzatori ti cercano quando l’ambiente comincia a conoscerti.', en: 'No invites yet: organizers come looking when the pit lane starts to know you.' })}</div>`;
       return;
     }
     let html = `<h2>${tr({ it: 'Eventi speciali', en: 'Special events' })}</h2>`;
@@ -915,7 +874,7 @@ function drawCardInto(el, card){
   window.__copilot ??= { on: localStorage.getItem('evo-copilot') !== 'off', last: {}, at: 0, seenLive: false, grace: 0 };
   const cp = window.__copilot;
   // LINGUA DEL COPILOTA (27/10, Mauro): SEMPRE ITALIANO, anche con UI inglese
-  // («in inglese non capisco bene», e cambiare lingua al gioco rompe Paddock).
+  // («in inglese non capisco bene», e cambiare lingua al gioco rompe l'app esterna).
   // cpT() è tr() che prende sempre il testo «it»: la UI resta inglese, la VOCE
   // no. Tutto ciò che la copilota dice passa da cpT — comodo da tornare indietro.
   const cpT = (p) => (p ? (p.it ?? '') : '');
@@ -961,7 +920,7 @@ function drawCardInto(el, card){
     if (!text) return;
     try {
       // 27/10: SEMPRE it-IT — la lingua dell'interfaccia non la cambia più
-      // (Mauro guida con UI inglese per Paddock, ma vuole la voce italiana).
+      // (Mauro guida con UI inglese per l'app esterna, ma vuole la voce italiana).
       const lv = 'it';
       const norm = (s) => String(s ?? '').toLowerCase().replace('_', '-');
       const vs = vociDi();

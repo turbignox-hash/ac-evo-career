@@ -163,7 +163,7 @@ test('FASCIA ATOMICA: tutte le ui-<slot>.json passano da writeJsonAtomic', () =>
   const dirette = (testoPublisher.match(/writeFileSync\(\s*join\([^)]*ui-\$\{/g) ?? []);
   assert.equal(dirette.length, 0, `publisher: scrittura diretta di una fascia (${dirette.join(' · ')}) — si scrive col tmp e il rename`);
   const atomiche = (testoPublisher.match(/writeJsonAtomic\(\s*join\([^)]*ui-\$\{/g) ?? []);
-  assert.equal(atomiche.length, 3, `publisher: le TRE fasce (cruscotto, pitwall, canale Paddock) devono passare da writeJsonAtomic — trovate ${atomiche.length}`);
+  assert.equal(atomiche.length, 2, `publisher: le DUE fasce (cruscotto, pitwall) devono passare da writeJsonAtomic — trovate ${atomiche.length}`);
   assert.ok(/writeJsonAtomic\(join\(dir, `ui-\$\{fascia\}\.json`\), dati, \{ pretty: false \}\)/.test(testoPublisher),
     'publisher: la fascia principale resta COMPATTA ({ pretty: false }) — il gioco la rilegge ogni slot');
 });

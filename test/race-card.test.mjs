@@ -2,8 +2,7 @@
 // grosso Sensa test unit: costruisce raceCard (tutto quello da impostare in EVO
 // per correre) e chargeEntry (l'iscrizione). Doppio nido: ACE_GAME_SAVEDIR per
 // i file di gioco (via _game-sandbox) e EVO_DATA_DIR per la carriera, entrambi
-// in tmpdir — ma NIENTE che venga davvero avviato. Anche APP_JOURNAL_DIR
-// reindirigto: la scheda chiede le specs Paddock e non deve guardare sul disco vero.
+// in tmpdir — ma NIENTE che venga davvero avviato.
 import { GAME_SANDBOX } from './_game-sandbox.mjs'; // PRIMA: file di gioco finti
 import { appCacheClear } from '../src/app-carriera.mjs';
 import test from 'node:test';
@@ -14,7 +13,6 @@ import { join } from 'node:path';
 
 process.env.EVO_DATA_DIR = mkdtempSync(join(tmpdir(), 'evo-racecard-'));
 process.env.EVO_SENZA_VINCOLI = '0';                // i test descrivono il comportamento canonico: si paga
-process.env.APP_JOURNAL_DIR = mkdtempSync(join(tmpdir(), 'evo-racecard-pd-')); // nido vuoto → specs null
 
 const race = await import('../src/race.mjs');
 import { encodeMsg } from '../tools/evo-grid.mjs';                 // le celle del customgrid finto
@@ -66,7 +64,7 @@ const texto = (t) => typeof t === 'string' ? t : (t?.it || t?.en || '');
 
 // IL TASTO «ISCRIVITI E DIVERTITI» COL MIRROR (3/11): raceCard è quello che
 // la GUI e il Prepara consumano — col NUOVO formato mirror journal (senza app
-// di gioco: APP_JOURNAL_DIR nido vuoto) la ronda «next» del calendario nostro
+// di gioco: nessun journal esterno) la ronda «next» del calendario nostro
 // scritto accanto al save DEVE guidare la card: pista, layout, giri, ore e
 // meteo della ronda seminato, non solo la ladder grezza.
 test('raceCard col MIRROR: la ronda «next» del calendario nostro guida la scheda', () => {
@@ -85,6 +83,7 @@ test('raceCard col MIRROR: la ronda «next» del calendario nostro guida la sche
   // processo) — rmSync in finally, sennò la ronda «next» finta guida ANCHE
   // «la scheda della ronda 0» (lezione del primo run del 3/11: 4 ≠ 8 giri).
   const mirrorFile = join(process.env.EVO_DATA_DIR, 'evo-calendar.json');
+  appCacheClear();
   try {
     writeFileSync(mirrorFile, JSON.stringify({
       mirror: true, series: 'Coppa Città', season: 1, car: 'car a',
@@ -98,7 +97,7 @@ test('raceCard col MIRROR: la ronda «next» del calendario nostro guida la sche
     // la ronda attiva è la 2ª (Imola): IL CALENDARIO SEMINATO LA DICE, non state.round
     assert.equal(c.roundIndex, 1);
     assert.equal(c.trackName, 'Imola');
-    assert.equal(c.round.__pd, true, 'la ronda porta il sigillo del calendario seminato');
+    assert.equal(c.round.__calendario, true, 'la ronda porta il sigillo del calendario seminato');
     // i DETTAGLI del seminato valgono: layout, giri, ore e meteo nella scala LADDER
     assert.equal(c.round.layout, 'GP');
     assert.equal(c.round.laps, 4);
@@ -424,25 +423,6 @@ test('vigia silente: griglia già della serie o file assente', () => {
   // file assente: muta (sempre sotto try/catch)
   rmSync(GRID_FILE);
   assert.equal(race.raceCard(ladder, state).gridAltraSerie, null);
-});
-
-test('raceCard: senza gamemodesave il numero viene dal journal pd-main (Paddock)', () => {
-  const file = join(process.env.APP_JOURNAL_DIR, 'pd-main-test.json');
-  writeFileSync(file, JSON.stringify({
-    career: { series: 'Coppa Città' },
-    race: { track: 'Monza', cars: ['Azzurra GT'], format: 'single_make', opponents: 15, aiMin: 80, aiMax: 85 },
-  }));
-  appCacheClear();
-  try {
-    const { ladder, state } = mk();
-    const c = race.raceCard(ladder, state);
-    assert.equal(c.gridSource, 'journal', 'la card deve usare il journal quando il weekend non c\'è');
-    assert.equal(c.opponents, 15, '15 avversari del journal, non 9 del ladder');
-    assert.equal(c.gridSize, 16, 'la griglia è avversari + il giocatore');
-  } finally {
-    rmSync(file, { force: true });
-    appCacheClear();
-  }
 });
 
 test('raceCard: il nativo 3.10 sono avversari — declared + 1, non cars - 1', () => {

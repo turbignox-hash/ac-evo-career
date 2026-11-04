@@ -1,4 +1,4 @@
-// 2/11 — LA STAMPA DEL PADDOCK senza strumento: review.mjs (la rassegna di fine
+// 2/11 — LA STAMPA SPORTIVA senza strumento: review.mjs (la rassegna di fine
 // stagione, nido per-slot) e gazzetta.mjs (titoli e citazioni deterministici)
 // avevano ZERO test unit. Entrambi leggono/scrivono SOLO dentro EVO_DATA_DIR
 // (impostata qui PRIMA dell'import, come fa rivals.test): i dati veri del

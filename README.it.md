@@ -153,7 +153,7 @@ test:
   (restano i 3 più freschi) e il backup del save esclude
   MoTec/replay/crashdumps/Logs/mods: zip da 746 MB a 1,1 MB.
 - **Gazzetta di stagione, i titoli che ricordano (28/10).** Dopo ogni gara la
-  stampa del paddock scrive un titolo su misura: non guardano solo la gara
+  stampa sportiva scrive un titolo su misura: non guardano solo la gara
   del giorno, ma lo STORICO vero del save — dal più raro in giù: GRANDE
   CHELEM, LA POLE BUTTATA, BRUTTA SERIE («3 ritiri consecutivi»), RITORNO
   DAL BOX / RITORNO SUL PODIO, DUE/TRE/QUATTRO DI FILO, PRIMA VOLTA A X,
@@ -168,7 +168,7 @@ test:
   griglia CORTA: una P10/17 finiva spremuta in un campo da 7 e i punti delle
   rivali venivano sommariati in corto. Ora la sim corre LARGA QUANTO IL
   MASSIMO visto nelle griglie reali (`grigliaSimEstesa`): classifica,
-  paddock, respiro di metà stagione e schede delle serie raccontano il
+  box, respiro di metà stagione e schede delle serie raccontano il
   campionato quando è davvero affollato. Deterministica e robusta a file
   corrotte, senza toccare il ladder su disco (mutato SOLO in copia); su
   carriere vergini resta la stima del ladder. Verifica col campo allargato:
@@ -187,8 +187,7 @@ test:
     cinque schede del pescaggio — seed, pool, regole e calendario, tutto
     cliccabile.
 - **La copilota parla SEMPRE italiano — e ha senso.** Dal 27/10 la voce è
-sempre it-IT anche con l'interfaccia in inglese (l'UI inglese serve a
-Paddock, la voce no). All'avvio aspetta l'elenco voci del browser finché
+sempre it-IT anche con l'interfaccia in inglese (anche con l'interfaccia in inglese). All'avvio aspetta l'elenco voci del browser finché
 c'è una voce italiana da usare; parla solo quando un *valore* cambia
 davvero, non ripete mai la stessa frase entro 20 s e resta muta i primi
 secondi dopo un cambio di sessione. Sul cruscotto il chip **♪ prova**
@@ -226,7 +225,7 @@ tacciono comunque: EVO non popola i campi gap delle gare single-player
   comunque, e lo dice. `disinstalla.cmd` rimuove tutto in pulizia e rifiuta
   le cartelle che non somigliano a un'installazione. Tutto coperto da test
   in sandbox.
-- **I vecchi messaggi si leggono comunque.** Le note di paddock e di
+- **I vecchi messaggi si leggono comunque.** Le vecchie note e di
   calibrazione griglia scritte quando la carriera era in italiano si
   traducono in visualizzazione nell'interfaccia inglese — il save non viene
   comunque mai toccato.
@@ -242,12 +241,12 @@ tacciono comunque: EVO non popola i campi gap delle gare single-player
 - **Il Cruscotto carica anche la gara (28/10 sera).** Ronda preparata e
   confermata → quando l'auto nel menu di EVO è già la tua (riscontro del
   setcar in `ui_storage`) l'applet preme **«Avvia sessione» da sola**, lo
-  stesso comando del Paddock. L'**evento speciale non riceve mai un avvio
+  stesso comando del gioco. L'**evento speciale non riceve mai un avvio
   automatico** (impostazioni a mano dalla scheda, lezione 23/10); la ronda
   comanda sull'evento finché è fresca (un pending scade dopo UN giorno e
   lascia il campo) e l'auto del menu di EVO non torna più a sorpresa quella
   dell'evento («la Ferrari rientra»).
-- **Paddock e classi auto (26–27/10).** Il motore di classi ora accoppia le
+- **Classi auto (26–27/10).** Il motore di classi ora accoppia le
   serie al parco auto davvero presente sul disco: con le classi giuste le
   zavorre per traccia hanno perso il morso (ultime gare: zero sfori dalla
   base, nessuna penalità oltre l'8%, cap del 20% mai raggiunto).
@@ -475,8 +474,8 @@ sta già scrivendo. Il save della carriera resta segregato.
 | `enter <nodeId> [--buy] [--force]` | cambia serie pagando affitto o acquisto |
 | `calendar` | calendario della stagione, con ora e meteo di ogni round |
 | `standings` | classifica della serie |
-| `paddock [--all]` | piloti rivali: archetipo, età, banda di difficoltà |
-| `messages` | messaggi dell'agente e notizie dal paddock |
+| `rivals [--all]` | piloti rivali: archetipo, età, banda di difficoltà |
+| `messages` | messaggi dell'agente e notizie dal box |
 | `next [--car <id>]` | la prossima gara con la scheda da impostare nel gioco |
 | `race [--car <id>] [--dry-run] [--no-launch] [--force-launch]` | paga l'iscrizione, segna la gara attesa, apre EVO |
 | `import` | legge il risultato nativo e aggiorna la carriera |
@@ -638,7 +637,7 @@ sé, senza sampler.
 **Come si riempie il dizionario: da solo.** Tre fonti leggono le scritture del
 GIOCO, senza campionature a mano né tool esterni: i log di avvio (`Loaded car`),
 lo storage del menu delle auto (`ui_storage.uistorage`, al boot e a ogni giro
-della guardia) e le iscrizioni in paddock (coppia e calendario scritti insieme).
+della guardia) e le iscrizioni nel gioco (coppia e calendario scritti insieme).
 La guardia (`watch`) rinfresca tutto a ogni ciclo e stampa una riga verde solo
 quando impara davvero qualcosa; un'etichetta scritta due volte («Mazda Mazda…»)
 si ripulisce da sola col nome ufficiale, mentre i sinonimi con rumore estraneo
@@ -654,7 +653,7 @@ fonte manca e su quale stima ripiega.
 stessa categoria prendono zavorre e penalità dalla calibrazione, non a stima:
 hanno bisogno prima di un po' di gare vere, poi ricalibrano con confidenza per
 pista. La convergenza si segue nel tab **Griglia** (`griglia-calib` è la versione
-da terminale). Dal 26/10, col motore di classi Paddock, le serie nascono già
+da terminale). Dal 26/10, col motore di classi, le serie nascono già
 con le classi giuste: nelle ultime gare nessuna penalità supera l'8% e
 nessuna auto sfugge dalla base.
 

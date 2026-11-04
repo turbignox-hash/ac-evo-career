@@ -92,7 +92,7 @@ async function importCall(body){
 }
 
 /* -------- debrief di fine gara (30/10) --------
-   La scheda che Paddock appoggia fra i round, qui DENTRO il banner verde
+   La scheda che il gioco appoggia fra i round, qui DENTRO il banner verde
 dell'import: esito scomposto, i numeri che muoiono alla chiusura del gioco
 (benzina rimasta, gomma andata, partenza) e il consiglio del meccanico. */
 function debriefHtml(d){
@@ -233,7 +233,7 @@ async function drawCars(m){
       ${row(tr({ it: 'Anno', en: 'Year' }), s.year??null)}
       ${row(tr({ it: 'Nazione', en: 'Country' }), s.country?esc(s.country):null)}
       ${curveChart(s)}       ${s.appVersus?.length ? `<div style="margin-top:10px">
-        <div class="muted" style="font-size:11px;margin-bottom:4px">📊 ${tr({ it: 'Versus sulla flotta (da Paddock)', en: 'Fleet versus (from Paddock)' })} · <span class="faint">${tr({ it: 'percentile su tutte le auto del catalogo', en: 'percentile across the whole car catalog' })}</span></div>         ${s.appVersus.map(v => `<div style="display:flex;align-items:center;gap:8px;font-size:11.5px;margin-top:3px"><span style="min-width:118px" class="muted">${esc(v.label)}</span><div style="flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden"><div style="height:100%;width:${Number(v.pos)||0}%;background:var(--acc)"></div></div><b style="min-width:34px;text-align:right">${v.pos}%</b><span class="faint" style="font-size:10px">${tr({ it: 'media ', en: 'avg ' })}${v.avg}%</span></div>`).join('')}
+        <div class="muted" style="font-size:11px;margin-bottom:4px">📊 ${tr({ it: 'Versus sulla flotta', en: 'Fleet versus' })} · <span class="faint">${tr({ it: 'percentile su tutte le auto del catalogo', en: 'percentile across the whole car catalog' })}</span></div>         ${s.appVersus.map(v => `<div style="display:flex;align-items:center;gap:8px;font-size:11.5px;margin-top:3px"><span style="min-width:118px" class="muted">${esc(v.label)}</span><div style="flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden"><div style="height:100%;width:${Number(v.pos)||0}%;background:var(--acc)"></div></div><b style="min-width:34px;text-align:right">${v.pos}%</b><span class="faint" style="font-size:10px">${tr({ it: 'media ', en: 'avg ' })}${v.avg}%</span></div>`).join('')}
       </div>` : ''}` : `<div class="muted" style="margin-top:8px;font-size:12px">${tr({ it: 'Scheda tecnica non disponibile per questo modello.', en: 'No tech specs available for this model.' })}</div>`}
       <h3 style="margin:14px 0 2px;font-size:13px">${tr({ it: 'Nella carriera', en: 'In the career' })}</h3>
       ${row(tr({ it: 'Nome nella carriera', en: 'Name in the career' }), r.ladderName ? esc(r.ladderName) : (r.ladderId ? esc(r.ladderId) : null))}

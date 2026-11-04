@@ -21,19 +21,14 @@ free, open source and self-updating:
 The interface comes in both Italian and English. The copilot, however, only
 speaks **Italian** — for now.
 
-### A paddock companion, not a rival
+### Inside and outside the game
 
-Pitwall sits **next to the game and next to Paddock**: it prepares the career
-from your PC (grid, setups, planning, statistics), and inside EVO it plugs in
-**two companion apps** — the **Cruscotto** (dash board: drivers, races of the
-day, series you signed up for, a mini-standings of the round, session clock)
-and the in-game **Pitwall** (radio from the copilot during sessions, the end
-of day verdict, the stint window, and the «Prepare & Have Fun» sync). Paddock
-stays the comfy couch place to *read* the career on a gamepad — and to be
-fair, we borrowed more than one idea from it (the journal bridge
-`pd-*.json`, gradual car-name matching, the clean race bonus and the
-reputation cap); our version is one that, by design, **acts** on the game
-instead of just watching it.
+Pitwall prepares the career from your PC (grid, setups, planning,
+statistics), and inside EVO it plugs in **two companion apps** — the
+**Cruscotto** (drivers, races of the day, series you signed up for, a
+mini-standings of the round, session clock) and the in-game **Pitwall**
+(radio from the copilot during sessions, the end of day verdict, the
+stint window, and the «Prepare & Have Fun» sync).
 
 ### «Pools drawn by seed · cap 20%» (Championships)
 

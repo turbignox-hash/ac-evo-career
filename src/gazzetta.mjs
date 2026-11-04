@@ -1,4 +1,4 @@
-// gazzetta.mjs — la stampa del paddock: dopo ogni gara un titolo, con citazioni
+// gazzetta.mjs — la stampa sportiva: dopo ogni gara un titolo, con citazioni
 // dei rivali costruite sui dati veri (h2h, forma, duelli). Testi da template
 // deterministici: stesso risultato, stessa pagina. Tutto vive in data/news.json
 // per restare leggibile anche a mesi di distanza.

@@ -70,7 +70,7 @@ if (rimuovi) {
 if (!existsSync(SORGENTE)) { console.error('Cartella sorgente uiapp/pitwall mancante.'); process.exit(1); }
 if (!destinazione) {
   console.error('Nessuna base «Saved Games» con la mod ACE UI App Loader installata.');
-  console.error('Installa prima il loader (la stessa cosa che serve a Paddock e Cruscotto).');
+  console.error('Installa prima il loader (la stessa cosa che serve al Cruscotto).');
   process.exit(1);
 }
 mkdirSync(destinazione, { recursive: true });

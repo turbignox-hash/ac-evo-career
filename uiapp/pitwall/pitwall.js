@@ -11,7 +11,7 @@
 //     (src/uiapp-pub.mjs) scrive nella STESSA fascia anche la mini-payload
 //     della Pitwall ui-<slot>.json in QUESTA cartella; qui sola lettura.
 //
-// PATTERN PADDOCK + CRUSCOTTO (lezioni 27/10 18:40 e 18:52, valide qui):
+// PATTERN DELLE APP IN GIOCO + CRUSCOTTO (lezioni 27/10 18:40 e 18:52, valide qui):
 // niente pagina del loader, lo script SI COSTRUISCE il pannello (position:
 // fixed, appeso a document.body), niente query-string nell'XHR su coui://,
 // il pannello nasce invisibile e si apre dalla voce del drawer APPS.

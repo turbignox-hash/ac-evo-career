@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Progetto indipendente: rimossi integrazione e riferimenti al prodotto esterno (richiesta Mauro: «controlla che altro possiamo prendere "in prestito" da [prodotto esterno], poi elimina ogni riferimento nel nostro progetto, non voglio che ci accusino di aver copiato»)
+
+- **Licenza**: il prodotto esterno vieta riuso di codice, dati (serie, team, sponsor, bilanciamento), grafica, testi e traduzioni, estrazione e rimozione delle attribuzioni. Non è stato copiato nulla: restano solo idee generali, qui implementate in modo indipendente.
+- **Taglio**: rimosso il ponte ai journal esterni e il canale fasce; `rondaDelCalendario` legge solo `evo-calendar[-N].json` scritto da `src/journal.mjs`; rimosse le 7 regole derivate da `data/grid-classes.json`; eliminati i tool e i test dedicati; neutralizzati nomi interni, comandi e documentazione.
+- **Verifica**: `npm test` **891/891** (0 fail/skip; il totale scende perché sono stati rimossi i test delle funzioni eliminate); `npm run lint` **357 file, 0 warning**; nuova guardia anti-regressione 1/1. L'unica occorrenza residua della parola è «Paddock Hill», il nome reale della curva di Brands Hatch.
+- **Nota**: commit selettivo senza le 5 modifiche preesistenti; nessun push. I save utente non sono stati toccati. I save utente non sono stati toccati.
+
 ### 4/11 — Revisione grafica: overflow chiuso, testo leggibile, azioni in cima (richiesta Mauro: «Chiudere l'overflow di Giri liberi (flex-wrap:wrap sulla riga preset e min-width:0/flex:1 sulla select). Alzare il pavimento tipografico: 11.5–12px per tabelle ed etichette informative, e passare --faint → --dim su tutto ciò che è testo da leggere. Portare «Prepara tutto» (Cruscotto) e «Azioni» (Griglia) in cima o in una barra sticky; aggiungere filtri ad Archivio e card richiudibili a Campionati. Spezzare il gruppo «Studio»: Campionato · Archivio · Sistema»)
 
 - **Giri liberi**: la riga dei preset usciva dallo schermo (scrollWidth 1504 su client 1423; bottoni a right 1466/1504 contro main 1380) perché la select ereditava `width:100%` e con `flex:0 0 auto` si prendeva 1030px. Ora riga `flex-wrap:wrap`, select `flex:1 1 220px;min-width:0;width:auto`: document 1423 = client, salva/canc a 1297/1335 dentro il main (1380). Stesso trattamento alla riga della griglia.
@@ -46,7 +53,7 @@ affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo
 - **La correzione**: il tetto unico 20-22 appiattiva tutte le serie. La regola ora è per campionato: `celleGrigliaCampionato(node)` = `node.gridSize` del ladder (già diverso per tipo di auto: coppa città 12, trofeo MX-5 e campionato moderno 14, DTM Legends 16, Touring Pro 18, GT Apex 20), pari e dentro **[12, 22]**. Deterministico: la stessa serie porta sempre lo stesso numero, non un sorteggio che cambia a ogni round.
 - **Il gate**: in CUSTOM il bersaglio è `min(target della serie, atteso nativo con minimo 12)`; quando il weekend dichiara più auto (27/28) si riducono prima le voci 3.10 e si porta il 3.7 agli avversari, poi si scrivono le celle e si trapianta il roster. L'allineamento del nodo è ora esatto in entrambi i modi (il restringimento è lecito perché il weekend è già stato riallineato).
 - **Verifica**: dry-run sul save reale — `campionato_moderno`: **28 → 14 auto**, weekend a 13 avversari, `written:false`; varietà confermata (`coppa_citta` 12, `trofeo_mx5` 14, `dtm_legends` 16, `touring_pro` 18, `gt_apex` 20); `npm test` **966/966**, `npm run lint` **370 file, 0 warning**.
-- **In scheda** (richiesta Mauro 4/11): la riga «Avversari» porta ora anche il numero del campionato accanto a quello del weekend quando divergono — sul save reale: `27 auto · … — serie: 13 · weekend: 27 (Prepara tutto allinea)`, con `card.gridSerie` e `gridSize`/`gridSource` a disposizione di GUI e CLI. Solo multiclasse: le monomarca restano generate da EVO (modello Paddock).
+- **In scheda** (richiesta Mauro 4/11): la riga «Avversari» porta ora anche il numero del campionato accanto a quello del weekend quando divergono — sul save reale: `27 auto · … — serie: 13 · weekend: 27 (Prepara tutto allinea)`, con `card.gridSerie` e `gridSize`/`gridSource` a disposizione di GUI e CLI. Solo multiclasse: le monomarca restano generate da EVO (modello l'app esterna).
 - **Coerenza**: anche il passo griglia del CLI `ronda` ora riduce le voci 3.10 con `riduciSlotRoster` (prima il 3.7 scendeva da solo e il weekend restava a 27 voci fino al Prepara).
 - **Nota**: commit, non push; restano fuori le 5 modifiche preesistenti.
 
@@ -182,21 +189,21 @@ affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo
 - **La prova**: `test/griglia-altra-serie.test.mjs` 5/5 (caso misto Hyper_road: 4 auto, 3 ammesse, fuori solo la GT3 RS; e «una sola auto del parco non basta»); `test/race-card.test.mjs` 25/25 (banner anche sulla griglia mista); suite **962/962**; Biome sui 5 file toccati: **0 errori**, resta il solo warning preesistente degli import inutilizzati in `webui.mjs:136`; `git diff --check` pulito.
 - **Nota**: il fix è committato, non pushato. Restano fuori le 5 modifiche preesistenti (map.json, carsetup, tre tool).
 
-### 4/11 — Numero avversari dal journal (pd-main) e audit fabbrica: 34/34 dal magazzino (richiesta Mauro: «Restano due passi naturali: leggere pd-main per allineare il numero avversari della card al journal, e verificare la fabbrica residua per le 34 serie a classe»)
+### 4/11 — Numero avversari dal journal (journal dell'app) e audit fabbrica: 34/34 dal magazzino (richiesta Mauro: «Restano due passi naturali: leggere journal dell'app per allineare il numero avversari della card al journal, e verificare la fabbrica residua per le 34 serie a classe»)
 
-- **pd-main**: `appRaceInfo()` + `journalRaceForNode()` in [src/app-carriera.mjs](src/app-carriera.mjs) leggono il `pd-main-<hash>.json` più recente (mtime/cache come gli altri journal) e lo accettano solo se la serie combacia col nodo. La card usa la priorità **gamemodesave → journal → ladder**: sul journal reale di Donington, 15 avversari, `single_make`, AI 80–85 → griglia 16.
+- **journal dell'app**: `appRaceInfo()` + `journalRaceForNode()` in [src/app-carriera.mjs](src/app-carriera.mjs) leggono il `journal dell'app-<hash>.json` più recente (mtime/cache come gli altri journal) e lo accettano solo se la serie combacia col nodo. La card usa la priorità **gamemodesave → journal → ladder**: sul journal reale di Donington, 15 avversari, `single_make`, AI 80–85 → griglia 16.
 - **Off-by-one nativo corretto**: le voci 3.10 sono AVVERSARI, non celle. Misura reale: `cars=25`, `declared=25`, customgrid 26; la card faceva `cars` → 25 (24 avversari) invece di `declared+1` → 26 (25). Ora `declared+1` in CUSTOM e `cars+1` in AUTOMATIC; `gridSource` dice se il numero viene da gamemodesave, journal o ladder.
 - **Fabbrica residua**: audit dry su tutte le **34** serie che restano sul customgrid (33 multiclasse + `coppa_mazda-rx7-fd`, monomarca con 9 regole di classe): **34/34 ricostruite dal magazzino** con il vivo assente; la fabbrica (86 file) non è mai la fonte vincente in questo stato. Resta solo seme per installazione vergine; nessun file cancellato.
-- **Verifica**: `test/pd-main.test.mjs` 2/2; race-card 21/21 nel mirato; suite **960/960**; Biome senza errori nuovi (resta il solo warning preesistente di `webui.mjs` riga 136). Nessun commit.
+- **Verifica**: `test/journal dell'app.test.mjs` 2/2; race-card 21/21 nel mirato; suite **960/960**; Biome senza errori nuovi (resta il solo warning preesistente di `webui.mjs` riga 136). Nessun commit.
 
 
-### 4/11 — Modello Paddock: la griglia la genera il gioco, non il magazzino (richiesta Mauro: «implementa pure e semplifica se c'è margine»)
+### 4/11 — Modello l'app esterna: la griglia la genera il gioco, non il magazzino (richiesta Mauro: «implementa pure e semplifica se c'è margine»)
 
-- **La decisione**: `serieGenerataDalGioco()` in [src/grid-apply.mjs](src/grid-apply.mjs) riconosce le **monomarca senza regole di classe**: **52 serie su 86**. Per loro il Prepara non riscrive più il `customgrid`: scrive la banda AI nel gamemodesave e riporta `Grid Type` su **AUTOMATIC**, la forma in cui EVO genera da sé il conteggio di carriera (la stessa scelta di Paddock, che dichiara il weekend e lascia fare al gioco). Le **34 serie a classe** restano sul customgrid — zavorre/restrictor e livree curate servono davvero — e la fabbrica resta il paracadute.
+- **La decisione**: `serieGenerataDalGioco()` in [src/grid-apply.mjs](src/grid-apply.mjs) riconosce le **monomarca senza regole di classe**: **52 serie su 86**. Per loro il Prepara non riscrive più il `customgrid`: scrive la banda AI nel gamemodesave e riporta `Grid Type` su **AUTOMATIC**, la forma in cui EVO genera da sé il conteggio di carriera (la stessa scelta dell'app esterna, che dichiara il weekend e lascia fare al gioco). Le **34 serie a classe** restano sul customgrid — zavorre/restrictor e livree curate servono davvero — e la fabbrica resta il paracadute.
 - **Prepara**: webui e CLI seguono la stessa strada; il CLI conserva `--template` come via manuale. La card continua a nominare una griglia straniera, ma dice che per la monomarca la genera il gioco.
-- **Validazione post-gara**: `grigliaGaraFuori()` (import) è il `grid_problem` di Paddock — «non era single-make» / «auto fuori classe» — non riscrive niente: la gara resta valida, il fatto va in Diagnostica e in un messaggio.
-- **Il numero avversari**: in AUTOMATIC non si forza il campo 7; il conteggio è quello nativo del gamemodesave (3.10), la fonte che EVO usa. Non ho riaperto il crash del 24/10 scrivendo un 7 diverso dalle celle del customgrid. Leggere `pd-main` per allineare la card al 15 del journal resta il passo successivo.
-- **Verifica**: `test/griglia-paddock.test.mjs` 5/5; suite **956/956**; Biome senza errori nuovi (resta il solo warning preesistente di `webui.mjs` riga 136). Nessun commit.
+- **Validazione post-gara**: `grigliaGaraFuori()` (import) è il `grid_problem` dell'app esterna — «non era single-make» / «auto fuori classe» — non riscrive niente: la gara resta valida, il fatto va in Diagnostica e in un messaggio.
+- **Il numero avversari**: in AUTOMATIC non si forza il campo 7; il conteggio è quello nativo del gamemodesave (3.10), la fonte che EVO usa. Non ho riaperto il crash del 24/10 scrivendo un 7 diverso dalle celle del customgrid. Leggere `journal dell'app` per allineare la card al 15 del journal resta il passo successivo.
+- **Verifica**: `test/griglia-generata.test.mjs` 5/5; suite **956/956**; Biome senza errori nuovi (resta il solo warning preesistente di `webui.mjs` riga 136). Nessun commit.
 
 
 ### 4/11 — Magazzino tracciato e template stantii archiviati (richiesta Mauro: «puoi migliorare questo sistema, fabbrica e magazzino hanno creato infiniti problemi»)
@@ -273,13 +280,13 @@ affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo
 
 ### 3/11 — SALVATAGGIO 0.1.52: la giornata intera esce dal diario e entra nel codice (richiesta Mauro: «aggiungi la voce di diario del salvataggio 0.1.52 con il riepilogo della sessione»)
 
-- **Il gesto**: commit `999acaf` (bump 0.1.51 → **0.1.52**) — la sessione del 3/11, dal mattino alla soglia di release, committata in un colpo. Report della build in [report/release-0.1.52.md](report/release-0.1.52.md), voce v0.1.52 in [CHANGELOG.md](CHANGELOG.md). Le versioni 0.1.53 e 0.1.54 che seguono (le date nei tab, il «Paddock nostro») hanno le loro voci: qui il riepilogo soltanto di QUESTA sessione.
+- **Il gesto**: commit `999acaf` (bump 0.1.51 → **0.1.52**) — la sessione del 3/11, dal mattino alla soglia di release, committata in un colpo. Report della build in [report/release-0.1.52.md](report/release-0.1.52.md), voce v0.1.52 in [CHANGELOG.md](CHANGELOG.md). Le versioni 0.1.53 e 0.1.54 che seguono (le date nei tab, il «calendario nostro») hanno le loro voci: qui il riepilogo soltanto di QUESTA sessione.
 
 Le tavole della giornata — ognuna ha la VOCE A DATA PROPRIA nel diario, qui la stesa in righe:
 
 - **La guardia delle app in gioco, da prova a soglia di release**: [test/uiapp-installata.test.mjs](test/uiapp-installata.test.mjs) — sagome biome-pulite, firma BUILD_OK della build, copie in gioco UGUALI byte per byte, pagine d'ingresso (app.json/menu.html) e fasce JSON del publisher INTERE (7/7). **Preflight dentro [tools/crea-release.mjs](tools/crea-release.mjs)**: genera-uiapp + la guardia PRIMA di credenziali e zip — esito non-zero, la release NON parte; flag `--con-pacchetto` e `--solo-preflight`; la beffa della fascia a metà provata sul vivo (rossa col percorso reale, poi verde) e ripetuta ogni `npm test` con [test/beffa-preflight.test.mjs](test/beffa-preflight.test.mjs).
 
-- **Il dizionario vivente**: la fattoria è `ui_storage.uistorage` — le skin in CHIARO (`paddock.skins`, car_guid già chiave del garage); nuova sorgente `learnCarFromStorage` (CLI `--from-storage` agganciata al boot); il tagliando «Mazda Mazda» diventa regola comune (`soloRaddoppio` tra learner e paddock); le voci CONTRADDETTE si rietichettano col nome vero (la sera dell'Endurance GT4 Audi R8, etichettata «Kunos Abarth 695 Biposto»: rientrata); il watch rinfresca a ogni tick con riga verde solo quando impara. E le catene di lettura una volta per tutte: calendario, garage e dizionario leggono SOLO file scritti dal gioco; il magazzino L: esce dal boot, resta backup zip.
+- **Il dizionario vivente**: la fattoria è `ui_storage.uistorage` — le skin in CHIARO (`le skin del gioco`, car_guid già chiave del garage); nuova sorgente `learnCarFromStorage` (CLI `--from-storage` agganciata al boot); il tagliando «Mazda Mazda» diventa regola comune (`soloRaddoppio` tra learner e app esterna); le voci CONTRADDETTE si rietichettano col nome vero (la sera dell'Endurance GT4 Audi R8, etichettata «Kunos Abarth 695 Biposto»: rientrata); il watch rinfresca a ogni tick con riga verde solo quando impara. E le catene di lettura una volta per tutte: calendario, garage e dizionario leggono SOLO file scritti dal gioco; il magazzino L: esce dal boot, resta backup zip.
 
 - **I nomi puliti delle piste, ovunque**: chip di Pitwall e Cruscotto con `prettyTrackLabeled` (banco A/B 53/53), verdetto della GUI (61/61), test dei chip riscritti con la guardia VIVA invece delle stringhe attese, e i dati a server vivo (lastLd, garage/sessions, tetto: test 1/1); il dizionario si spiega anche nella FAQ — solo documentazione.
 
@@ -353,10 +360,10 @@ Il pacchetto: zip CONFEZIONATA dal flusso (`node tools/crea-release.mjs v0.1.52 
 
 ### 3/11 — DUE GUARDIE CHE NON GUARDAVANO: la riga Pista obbligatoria e il contratto INTERO di `out.dizionario` (richiesta Mauro: «Rinforza i due casi condizionali emersi nell'inchiesta di oggi: l'assert su rigaPista in race-card.test.mjs e il contratto di out.dizionario in cli-watch.test.mjs»)
 - **Il primo buco**: in [test/race-card.test.mjs](test/race-card.test.mjs) la verifica della riga «Pista» era `if (rigaPista) assert.ok(…)`: se la riga spariva dalla scheda il test restava VERDE e la card perdeva la pista in silenzio. Adesso la riga è obbligatoria — `assert.equal(righePista.length, 1)`, col contenuto della scheda nel messaggio se non torna — e il valore è fissato INTERO: `Imola — layout GP`, la pista SEMINATA col suo layout, non la Monza della ladder e non «una stringa qualsiasi che contenga layout GP».
-- **Il secondo buco**: in [test/cli-watch.test.mjs](test/cli-watch.test.mjs) lo stub del rinfresco restituiva `{ storage: {added, corrette, aggiornate}, paddock: {added, corrette, nota} }` — senza `paddock.aggiornate` — e le asserzioni guardavano due numeri e la nota: una chiave persa per strada dal tick sarebbe passata liscia e la riga «dizionario: …» del CLI sarebbe sparita senza che nessuno protestasse. Ora la lezione è il contratto intero e il tick la restituisce IDENTICA (`deepEqual`, con l'oggetto ricostruito a ogni chiamata per non confrontarlo con sé stesso).
-- **La guardia che mancava**: test nuovo *refreshDizionario: il contratto di out.dizionario — chiavi e zeri che cli.mjs legge* — il rinfresco VERO (non iniettato) nel nido vuoto: `Object.keys` esatti (`storage`/`paddock`; `added, corrette, aggiornate` e in più `nota`), i sei contatori numeri finiti **≥ 0 anche a zero**, e `paddock.nota` SEMPRE una stringa (mai `undefined` da stampare).
-- **Il nido che prima non c'era**: `watchOnce` chiama il rinfresco a ogni tick, e quello vero legge `ui_storage` e il journal del paddock dal Saved Games; la suite del watcher non aveva `ACE_GAME_SAVEDIR`/`APP_JOURNAL_DIR`, quindi guardava l'installazione vera e poteva scrivere `data/samples/garage/map.json`. I due env ora si fissano in testa al file, PRIMA di ogni import di `src/` (GAME_SAVEDIR è una costante decisa al load). Misurato: `map.json` md5 `88f34c0a…` e mtime 03:20 prima e dopo la run — intatto.
-- **Il morso provato** (le due guardie devono mordere, non solo passare): tolto `aggiornate` da `paddock` in [src/watch.mjs](src/watch.mjs) → `not ok 7` sul test del contratto; tolta la riga Pista da [src/race.mjs](src/race.mjs) → `not ok 1` sulla scheda col MIRROR (e `not ok 15` sui layout reali). File ripristinati dal backup byte-identico, verdi di nuovo.
+- **Il secondo buco**: in [test/cli-watch.test.mjs](test/cli-watch.test.mjs) lo stub del rinfresco restituiva `{ storage: {added, corrette, aggiornate}, app esterna: {added, corrette, nota} }` — senza `app esterna.aggiornate` — e le asserzioni guardavano due numeri e la nota: una chiave persa per strada dal tick sarebbe passata liscia e la riga «dizionario: …» del CLI sarebbe sparita senza che nessuno protestasse. Ora la lezione è il contratto intero e il tick la restituisce IDENTICA (`deepEqual`, con l'oggetto ricostruito a ogni chiamata per non confrontarlo con sé stesso).
+- **La guardia che mancava**: test nuovo *refreshDizionario: il contratto di out.dizionario — chiavi e zeri che cli.mjs legge* — il rinfresco VERO (non iniettato) nel nido vuoto: `Object.keys` esatti (`storage`/`app esterna`; `added, corrette, aggiornate` e in più `nota`), i sei contatori numeri finiti **≥ 0 anche a zero**, e `app esterna.nota` SEMPRE una stringa (mai `undefined` da stampare).
+- **Il nido che prima non c'era**: `watchOnce` chiama il rinfresco a ogni tick, e quello vero legge `ui_storage` e il journal del app esterna dal Saved Games; la suite del watcher non aveva `ACE_GAME_SAVEDIR`/`cartella journal esterna`, quindi guardava l'installazione vera e poteva scrivere `data/samples/garage/map.json`. I due env ora si fissano in testa al file, PRIMA di ogni import di `src/` (GAME_SAVEDIR è una costante decisa al load). Misurato: `map.json` md5 `88f34c0a…` e mtime 03:20 prima e dopo la run — intatto.
+- **Il morso provato** (le due guardie devono mordere, non solo passare): tolto `aggiornate` da `app esterna` in [src/watch.mjs](src/watch.mjs) → `not ok 7` sul test del contratto; tolta la riga Pista da [src/race.mjs](src/race.mjs) → `not ok 1` sulla scheda col MIRROR (e `not ok 15` sui layout reali). File ripristinati dal backup byte-identico, verdi di nuovo.
 - **Verifica**: `node --test test/cli-watch.test.mjs test/race-card.test.mjs` → **26/26 verdi** (cli-watch 9/9 col test nuovo, race-card 17/17); Biome pulito sui due file.
 
 ### 3/11 — LA BEFFA DELLA FASCIA MEZZA AL BANCO FERMO: la sandbox dove SOLO la guardia morde (richiesta Mauro: «aggiungi la prova della beffa preflight al banco fermo: un test che scrive una fascia mezza JSON in una sandbox e aspetta che genera-uiapp + la guardia siano l'unica soglia che la prende»)
@@ -368,7 +375,7 @@ Il pacchetto: zip CONFEZIONATA dal flusso (`node tools/crea-release.mjs v0.1.52 
 - **Verifica**: `node --test test/beffa-preflight.test.mjs` → 1/1 verde (guardia figlia: 7 pass, 1 fail = la fascia, **0 skip**); Biome pulito sul file nuovo.
 
 ### 3/11 — la fascia si scrive ATOMICA: `writeJsonAtomic` nel publisher (richiesta Mauro: «Cerca di far scrivere al publisher le fascie in modo atomico (writeJsonAtomic) come già fa il quaderno di calibrazione»)
-- **Cosa cambia**: le TRE scritture di fascia di [src/uiapp-pub.mjs](src/uiapp-pub.mjs) — Cruscotto, mini-Pitwall e canale Paddock di `fasceApp` (5 slot per tick) — passano da `writeJsonAtomic` (tmp + rename) invece di `writeFileSync` direttamente sul file buono. Il gioco legge `ui-<slot>.json` a ogni slot: una scrittura interrotta lasciava sul disco un JSON mozzo, e il pannello mostrava vetrina vuota o «fascia scaduta» su una fascia che era fresca. Col rename il file è o la versione vecchia o la nuova, mai una via di mezzo.
+- **Cosa cambia**: le TRE scritture di fascia di [src/uiapp-pub.mjs](src/uiapp-pub.mjs) — Cruscotto, mini-Pitwall e canale l'app esterna di `fasceApp` (5 slot per tick) — passano da `writeJsonAtomic` (tmp + rename) invece di `writeFileSync` direttamente sul file buono. Il gioco legge `ui-<slot>.json` a ogni slot: una scrittura interrotta lasciava sul disco un JSON mozzo, e il pannello mostrava vetrina vuota o «fascia scaduta» su una fascia che era fresca. Col rename il file è o la versione vecchia o la nuova, mai una via di mezzo.
 - **Il formato non cambia**: [src/atomic.mjs](src/atomic.mjs) accetta un terzo argomento `{ pretty = true }`; le fasce si scrivono `{ pretty: false }`, compatte come prima — misurate 17 875/17 876 byte per il Cruscotto e 864 per la mini-Pitwall — mentre i registri che si leggono a occhio restano indentati. Se il rename non riesce (su Windows il gioco può tenere il file aperto nell'istante dello scatto) il `.tmp` non resta orfano: si toglie e l'errore risale, così il tick riprova allo slot dopo.
 - **La guardia**: test nuovo in [test/uiapp-periodo.test.mjs](test/uiapp-periodo.test.mjs) — zero `writeFileSync` diretti su `ui-${…`, TRE scritture via `writeJsonAtomic`, e la principale compatta. Morso provato mutando la scrittura della Pitwall: rosso con «publisher: scrittura diretta di una fascia (writeFileSync(join(dirP, `ui-${)», poi file ripristinato `cmp` byte-identico.
 - **Le prove**: `uiapp-periodo` 7/7 (col test nuovo), `potatura-fasce` 3/3 — il file non parsava, una virgoletta (`l'eccesso` dentro un apice singolo) e quel test non era mai stato eseguito: corretta, e i tre casi ora girano su `uiappTick` vero in sandbox — `fasce-app-stabili`, `uiapp-tick-coda`, `uiapp-pub-app` verdi, `atomic` 2/2, Biome pulito sui quattro file toccati.
@@ -380,7 +387,7 @@ Il pacchetto: zip CONFEZIONATA dal flusso (`node tools/crea-release.mjs v0.1.52 
 - **Le verifiche, in chiaro** (tutte rifatte dopo l'ultimo edit): [test/wx-auto.test.mjs](test/wx-auto.test.mjs) 19/19 — lo scarto da `trackMatches` lascia la voce col perché, diario di sandbox e `data/wx-auto.jsonl` vero intatto; [test/nav-bottoni.test.mjs](test/nav-bottoni.test.mjs) 2/2 — il vero `drawNav` eseguito senza browser, un bottone per ogni tab di TABS — più [test/viste-guard.test.mjs](test/viste-guard.test.mjs) 6/6, 8/8 insieme; Biome pulito su `wx-registro`, `wx-auto`, `viste-a`, `nav-bottoni`. Il morso delle due guardie è provato mutando il codice e riportandolo `cmp` byte-identico.
 - **Il launcher**: [avvia.cmd](avvia.cmd) senza le due righe di commento del magazzino (diff di soli commenti, `-2`); il controllo a mano resta [controlla-magazzino.cmd](controlla-magazzino.cmd), documentato nei README.
 - **Nessun commit**: tutto il lavoro del giro è ancora sul disco, da leggere con `git diff` prima di committare.
-- **Il prossimo giro**, proposto e non iniziato: il pre-volo di `rondaPaddock` ([tools/ronda-ladder.mjs](tools/ronda-ladder.mjs)) — piano incompleto = zero scritture, invece del `BAD_LAPS` al quarto passo — e la scelta del migliore in `findCar` ([tools/set-driver-car.mjs](tools/set-driver-car.mjs)), con l'alternativa dichiarata nel report.
+- **Il prossimo giro**, proposto e non iniziato: il pre-volo di `preparaRonda` ([tools/ronda-ladder.mjs](tools/ronda-ladder.mjs)) — piano incompleto = zero scritture, invece del `BAD_LAPS` al quarto passo — e la scelta del migliore in `findCar` ([tools/set-driver-car.mjs](tools/set-driver-car.mjs)), con l'alternativa dichiarata nel report.
 
 ### 3/11 — la guardia PICCOLA della sidebar: il vero `drawNav` eseguito senza browser (richiesta Mauro: «aggiungi una piccola guardia test che fallisce se #nav non contiene un bottone per ogni tab di TABS, così una futura edit di drawNav non può più svuotare la sidebar»)
 - **Perché una seconda guardia**: [test/guardia-nav.test.mjs](test/guardia-nav.test.mjs) misura già la sidebar vera, ma vive di server + Chromium: senza `playwright-core` o il chromium in cache si SALTA dichiarata, e nel giro normale (`npm test`) la sidebar restava senza sentinella.
@@ -403,10 +410,10 @@ Il pacchetto: zip CONFEZIONATA dal flusso (`node tools/crea-release.mjs v0.1.52 
 - **La prova end-to-end** ([tmp/_prova-gancio-autocura.mjs](tmp/_prova-gancio-autocura.mjs)): sandbox `ACE_GAME_SAVEDIR`, due fasi sul VERO guardiano — A) veleno già sul disco all'accensione, curata in 2,8 s; B) griglia velenosa scritta mentre il guardiano vigila, curata in 1,5 s. In entrambe: backup `.bak-autocura…` presente, f10 = «Supra MKIV Preset Base» (la Standard sparia), cella finta intatta byte per byte, una cella sola curata, grezze di prova rimosse a fine prova (nessuna traccia in magazzino o fabbrica).
 - **Verifica**: node --test test/grid-cura.test.mjs → 7/7; Biome zero warning sui tre file toccati (tolto anche `veleniIn`/`gameRunning` rimasti inutilizzati nell'import); `node tools/raccogli-griglie.mjs --stampa` parte e stampa il quadro (il guardiano acceso resta a Mauro).
 
-### 3/11 — chiusura della verifica delle fasce in gioco: i tre pannelli (richiesta Mauro: «chiudo la verifica della cura delle fasce: traffica i pannelli del Cruscotto, Pitwall e Paddock a EVO e dimmi se restano vivi senza errori di caricamento»)
+### 3/11 — chiusura della verifica delle fasce in gioco: i tre pannelli (richiesta Mauro: «chiudo la verifica della cura delle fasce: traffica i pannelli del Cruscotto, Pitwall e l'app esterna a EVO e dimmi se restano vivi senza errori di caricamento»)
 - **Stanza**: EVO NON era vivo nel collaudo (già chiuso); la vetrina comunque sì (publisher di 8642, pid 12648 — fasce scritte nel secondo per tutti e tre i pannelli). Verifica in due piani: i log veri di gioco (4 sessioni di oggi-ieri) e le guardie/gusci come da protocollo del progetto.
-- **EVO nel log**: loader 0.27.0 ha registrato 3 app (presets/bundled); cruscotto 1.2.0 e paddock 1.0.2 caricati alle 09:35 col blocco nav che ha preso i comandi del menu; NESSUNA riga [error]/[warning] riferita a apploader/uiresource/paddock su oggi (253 voci del loader) né ieri; il cruscotto porta solo note CSS di GameFace (pseudo-classe :disabled, word-wrap/border-collapse: parlate del motore, mica guasti di cruscotto.js) e una «Failed loading resource ui-717477969.json» = ROLLOVER della fascia dopo il riavvio del publisher, con la cura di recupero nella riga successiva («fascia scaduta … il publisher lo ripropone in fascia viva»). Sessione di gioco chiusa PULITA alle 09:46 (uninit Renoir/COHTML, nessun crash).
-- **Le guardie verdi sul vivo**: uiapp-installata 8/8 (fasce JSON intere, tutte e tre le cartelle installate), app-bridge 13/13, fasce-app-stabili 2/2, uiapp-pub-app 8/8. NOTA: gli elenchi di test di altri appunti sono rimasti indietro — test/paddock-bridge, test/fasce-paddock-stabili e test/uiapp-pub-paddock NON ESISTONO PIÙ: omonimi rinominati (app-bridge, fasce-app-stabili, uiapp-pub-app); gli appunti che li nominano vanno aggiornati.
+- **EVO nel log**: loader 0.27.0 ha registrato 3 app (presets/bundled); cruscotto 1.2.0 e app esterna 1.0.2 caricati alle 09:35 col blocco nav che ha preso i comandi del menu; NESSUNA riga [error]/[warning] riferita a apploader/uiresource/app esterna su oggi (253 voci del loader) né ieri; il cruscotto porta solo note CSS di GameFace (pseudo-classe :disabled, word-wrap/border-collapse: parlate del motore, mica guasti di cruscotto.js) e una «Failed loading resource ui-717477969.json» = ROLLOVER della fascia dopo il riavvio del publisher, con la cura di recupero nella riga successiva («fascia scaduta … il publisher lo ripropone in fascia viva»). Sessione di gioco chiusa PULITA alle 09:46 (uninit Renoir/COHTML, nessun crash).
+- **Le guardie verdi sul vivo**: uiapp-installata 8/8 (fasce JSON intere, tutte e tre le cartelle installate), app-bridge 13/13, fasce-app-stabili 2/2, uiapp-pub-app 8/8. NOTA: gli elenchi di test di altri appunti sono rimasti indietro — test/app-bridge, test/fasce-app-stabili e test/uiapp-pub-app NON ESISTONO PIÙ: omonimi rinominati (app-bridge, fasce-app-stabili, uiapp-pub-app); gli appunti che li nominano vanno aggiornati.
 - **I gusci di anteprima sul vivo**: _preview-cruscotto (9104) e _preview-pitwall (9107) aperti nel browser, pannello col click del drawer come in EVO: cruscotto completo (guardia, registro cambio-auto, prepara, gare di oggi, classifica, mondiale, mail, eredità) e pitwall completo (radio del copilota + battito della guardia), tick di 2,5 s TUTTI 200 e console PULITA (3 righe di avvio, zero errori). La banner ⏳ «Fascia scaduta» nel guscio dell'anteprima è l'artefatto della scelta «più fresca sul disco», che a volte resta UN slot indietro dello slot che l'app domanda (misura nel browser: 600 ms oltre validafino; al giro dopo — slot combaciato, validafino 2 s avanti — rientra): in gioco NON esiste, l'app chiede il SUO slot.
 - **Per il giro DENTRO il gioco**: resta a Mauro l'avvio di EVO (i pannelli sono già bevuti dal loader); il timestamp di gioco 09:34–09:46 ha comunque tenuto i tre pannelli saldamente senza errori di caricamento nel log.
 - **Rimanenze**: le copie inerti _OFF-cruscotto/_OFF-pitwall nel loader restano da ripulire; tab di anteprima chiuse e i due gusci spenti (9104/9107), il publisher 8642 INTATTO.
@@ -591,12 +598,12 @@ Il pacchetto: zip CONFEZIONATA dal flusso (`node tools/crea-release.mjs v0.1.52 
   ripulito, rumore non duplicato resta, no-op se già pulita); le suite
   ronda/watch/world ripassano verdi.
 
-### 3/11 — secondo pomeriggio: il paddock entra nel battito della guardia
+### 3/11 — secondo pomeriggio: il app esterna entra nel battito della guardia
 - **Il fatto**: il rinfresco del dizionario nel watch copriva solo le auto
-  toccate NEL MENU (ui_storage): una serie ISCRITTA a paddock mentre la
+  toccate NEL MENU (ui_storage): una serie ISCRITTA a app esterna mentre la
   guardia corre aspettava il prossimo processo per entrare a dizionario.
-- **La modifica**: learnCarFromPaddock entra nello stesso rinfresco a ogni
-  tick ([src/watch.mjs](src/watch.mjs)): pd-calendar e garage scritti nella
+- **La modifica**: learnCarFroml'app esterna entra nello stesso rinfresco a ogni
+  tick ([src/watch.mjs](src/watch.mjs)): calendario dell'app e garage scritti nella
   STESSA finestra di 10 minuti insegnano la coppia anche a guardia accesa.
   Il rinfresco è iniettabile nei test (refreshDizionario, parametro di
   watchOnce) e un suo errore non ruba il tick alla raccolta gare.
@@ -612,7 +619,7 @@ Il pacchetto: zip CONFEZIONATA dal flusso (`node tools/crea-release.mjs v0.1.52 
 - **La modifica**: nel loop del watch ([src/cli.mjs](src/cli.mjs)) una riga
   verde UNA SOLA VOLTA per tick e SOLO quando il rinfresco cambia
   qualcosa: auto nuove dal menu, etichette corrette, etichette ripulite
-  col nome ufficiale, auto da iscrizione in paddock. Zero rumore a
+  col nome ufficiale, auto da iscrizione in app esterna. Zero rumore a
   vuoto: il secondo tick di seguito sullo stesso stato non stampa
   niente. Singolare/plurale rifinito (1 etichetta / 2 etichette).
 - **Prova dal vivo**: raddoppio della MX-5 rimesso a mano nel dizionario
@@ -625,18 +632,18 @@ Il pacchetto: zip CONFEZIONATA dal flusso (`node tools/crea-release.mjs v0.1.52 
 ### 3/11 — quarto giro (sera): il tagliando diventa regola comune
 - **Il fatto**: la regola che ripulisce l'etichetta raddoppiata («Mazda
   Mazda» → «Mazda») viveva SOLO dentro il learner da ui_storage: il
-  paddock doveva aspettare il prossimo passaggio dell'auto nel menu per
+  app esterna doveva aspettare il prossimo passaggio dell'auto nel menu per
   profittarne.
 - **La modifica**: la regola esce in un helper condiviso (soloRaddoppio,
   [tools/set-car-sample.mjs](tools/set-car-sample.mjs)) estratto dal
   codice inline di learnCarFromStorage e usato ANCHE da
-  learnCarFromPaddock: un'iscrizione che conferma una voce raddoppiata
+  learnCarFroml'app esterna: un'iscrizione che conferma una voce raddoppiata
   la riporta col nome ufficiale; un sinonimo con RUMORE resta COM'ERA
   (test nuovo dedicato). La logica del tagliando vive in un solo
   posto: se domani cambia, cambia qui.
 - **Banco completo di prima**: npm test intero girato PRIMA del
   rifacimento → 878/878: zero regressioni su tutto il lavoro del giorno
-  (storage + paddock tick + riga della guardia).
+  (storage + app esterna tick + riga della guardia).
 - **Verifiche dopo**: test/learn-car.test.mjs + test/cli-watch.test.mjs
   → 21/21; test/import-save.test.mjs + test/gara-veloce.test.mjs →
   17/17; node --check su src/cli.mjs e src/watch.mjs.
@@ -646,7 +653,7 @@ Il pacchetto: zip CONFEZIONATA dal flusso (`node tools/crea-release.mjs v0.1.52 
   solo le suite vicine non bastavano a dichiarare la giornata chiusa.
 - **Le verifiche**: npm test intero dopo il rifattoring → 881/881
   (878 pre-rifattoring più i test nuovi del tagliando nel
-  paddock); biome lint sui cinque
+  app esterna); biome lint sui cinque
   file toccati oggi → un residuo tolto (la firma `multi` avanzata dentro
   learnCarFromStorage ora che la regola vive in soloRaddoppio) e
   l'import inutile di decodeMsg nei test: lint a zero warning,
@@ -739,7 +746,7 @@ Il pacchetto: zip CONFEZIONATA dal flusso (`node tools/crea-release.mjs v0.1.52 
 - **Le verifiche**: test VEDRINA (5-bis) in eredita-cruscotto.test.mjs (la voce
   `guardia` esiste sempre nella fascia, e col battito fresco arriva valorizzata
   con `alive` vero e `diz` con la lezione) — file 8/8; le attigue
-  uiapp-pub-priorita/paddock 56/56;
+  uiapp-pub-priorita/app esterna 56/56;
   biome a zero warning sui tre file toccati (due import morti del file test
   portati fuori nel passaggio); genera-uiapp ha segnalato BUILD_OK e ha
   richiamato l'installatore: la app in Saved Games è aggiornata.
@@ -774,7 +781,7 @@ Il pacchetto: zip CONFEZIONATA dal flusso (`node tools/crea-release.mjs v0.1.52 
 ### 3/11 — notte: la FATTORIA del dizionario (ui_storage.uistorage)
 - **Il fatto**: i log del gioco (02:41) mostrano che la catena comandi nostra
   va («✓ SetCurrentCar ok: Audi R8 LMS GT4 Evo») e nello stesso log il gioco
-  scrive da solo `paddock.skins` dentro **ui_storage.uistorage** (Saved Games\ACE).
+  scrive da solo `le skin del gioco` dentro **ui_storage.uistorage** (Saved Games\ACE).
   Abbiamo aperto il file a nudo: è protobuf **SENZA cifratura** — la sorgente
   di coppie guida↔nome che cercavamo nella kspkg (che invece è cifrata al
   100%) era qui accanto, scritta DAL GIOCO STESSO ad ogni auto toccata dal
@@ -797,7 +804,7 @@ Il pacchetto: zip CONFEZIONATA dal flusso (`node tools/crea-release.mjs v0.1.52 
 ### 3/11 — notte, dopo la fattoria: le catene di lettura, una volta per tutte
 - **La paura di Mauro** (a parole sue): «così torniamo al magazzino e fattoria
   che ci hanno creato tanti problemi; ora abbiamo il mirror journal, dovremmo
-  leggere tutto come paddock ed escluderli una volta per tutte». Verifica fatta
+  leggere tutto come app esterna ed escluderli una volta per tutte». Verifica fatta
   con la grep su TUTTO il flusso di lettura:
   · «MAGAZZINO» su L:\CarrieraEVO è SOLO backup zip (completo + portabile,
     impronte SHA-256): non entra in NESSUNA catena di lettura; l'unico punto
@@ -814,7 +821,7 @@ Il pacchetto: zip CONFEZIONATA dal flusso (`node tools/crea-release.mjs v0.1.52 
     (auto che il menu non tocca mai), il messaggio d'errore di findCar ora lo
     dice: prima riprova del menu, il campione a mano come ultimo passo.
 - **La catena di lettura che resta** (una sola, tutta read-only dai file del
-  gioco): calendario = journal pd-calendar dell'app (fonte primaria, quando
+  gioco): calendario = journal calendario dell'app dell'app (fonte primaria, quando
   c'è) → mirror NOSTRO (stessa forma, scritto da [src/journal.mjs](src/journal.mjs),
   per chi NON ha l'app); garage = garage.drivergarage del profilo; dizionario
   auto = ui_storage + log di gioco al boot. NESSUN magazzino, NESSUN sampler
@@ -1434,11 +1441,11 @@ toccati; `node --check` sui costruiti ok.
 
 ## Registro del diario
 
-### 2/11 — La carriera si chiama APP: il ponte di Paddock diventa app-carriera, e i letterali del gioco restano tali (richiesta Mauro: «aggiorna DIARIO-SVILUPPO.md con la voce di oggi sulla rinomina Paddock→App e la suite al verde su 867 test»)
+### 2/11 — La carriera si chiama APP: il ponte dell'app esterna diventa app-carriera, e i letterali del gioco restano tali (richiesta Mauro: «aggiorna DIARIO-SVILUPPO.md con la voce di oggi sulla rinomina l'app esterna→App e la suite al verde su 867 test»)
 
 La rinomina è COMPLETA in tutto il progetto:
 
-- **Il ponte**: [src/paddock.mjs](src/paddock.mjs) → [src/app-carriera.mjs](src/app-carriera.mjs) — la sola lettura dei journal
+- **Il ponte**: [src/app-carriera.mjs](src/app-carriera.mjs) → [src/app-carriera.mjs](src/app-carriera.mjs) — la sola lettura dei journal
   dell'app del gioco in Saved Games (niente copia da allineare, lezione 31/10),
   con [src/journal.mjs](src/journal.mjs) e [src/uiapp-store.mjs](src/uiapp-store.mjs) a passo; consumatori
   aggiornati: webui, webui-views, uiapp-pub, state, cars, race, import, analisi,
@@ -1455,14 +1462,7 @@ La rinomina è COMPLETA in tutto il progetto:
   [test/ronda-ladder.test.mjs](test/ronda-ladder.test.mjs),
   [test/uiapp-pub-app.test.mjs](test/uiapp-pub-app.test.mjs) (insieme a
   semina-bottone e uiapp-tick-coda di questo giro).
-- **Cosa NON si rinomina** (contratto): i letterali funzionali dell'app del
-  gioco — la cartella journal `Saved Games\ACE\mods\uiresources\ACEUIAppLoader\paddock\`, i journal `pd-*`,
-  `paddock.js`, `engine: 'Paddock 1.0.2'`, `APP_PDKEY='paddock'` — e il
-  PRODOTTO esterno vero (`Paddock.exe`, `Desktop\Paddock`, la versione
-  1.0.2): il nome "Paddock" nei restanti punti dei sorgenti è SOLTANTO il suo
-  catalogo e i suoi file; diario storico e POST-PRESENTAZIONE restano
-  cronologia, non codice.
-- **Cure di residuo**: `_classi-paddock-tmp` → `_classi-app-tmp`
+- **Cure di residuo**: `_classi-app esterna-tmp` → `_classi-app-tmp`
   ([test/classi-app.test.mjs](test/classi-app.test.mjs)), tmpdir
   `ronda-ladder-` ([test/ronda-ladder.test.mjs](test/ronda-ladder.test.mjs)),
   backup `grid-classes.bak-classi-app-` ([tools/classi-da-app.mjs](tools/classi-da-app.mjs)),
@@ -2050,7 +2050,7 @@ La guardia di [layout-impostazioni.test.mjs](test/layout-impostazioni.test.mjs)
 sale a 16 misure (4 larghezze × 4 tab): il Setup era già dentro dal 3/11,
 la Dashboard arriva col marcatore `#card-panel` (la racecard della
 prossima gara — esiste SOLO nel Cruscotto) e l'attesa GENERICA di
-stabilità: i riempimenti asincroni del tab sono tanti (card, paddock,
+stabilità: i riempimenti asincroni del tab sono tanti (card, app esterna,
 vita, eredità, verdetto) e la legge dei tetti li copre senza enumerarli.
 
 - **Il primo morso a 360 è stato vero ma ha parlato di FIGURE**: 5
@@ -3104,9 +3104,9 @@ srcFile: data-src }`):
 Verifica: node --test del file 1/1 verde (~1 s), biome pulita. Nessun tocco
 al codice di produzione: il test PROVA il flusso già vivo.
 
-### 1/11 — A gara finita la GUI arrivava tardi: il ritiro delle cifre fisse (richiesta Mauro: «Paddock è molto più veloce»)
+### 1/11 — A gara finita la GUI arrivava tardi: il ritiro delle cifre fisse (richiesta Mauro: «l'app esterna è molto più veloce»)
 
-Percezione vera, indagine vera. Il Paddock beve fasce scritte ogni 2,5 s
+Percezione vera, indagine vera. Il l'app esterna beve fasce scritte ogni 2,5 s
 ([uiapp-pub.mjs](src/uiapp-pub.mjs)): parla e si disegna in pochi secondi.
 La GUI invece doveva attraversare TRE cifre fisse, tutte in serie:
 
@@ -3144,7 +3144,7 @@ La GUI invece doveva attraversare TRE cifre fisse, tutte in serie:
   (tick+grazia+incasso): ora che la cura lo ha accorciato, la fascia dopo
   l'incasso porta i dati già nuovi. Catena percepita in gioco al traguardo:
   tick 2 s + grazia 3 s + incasso a ms + fascia ≤2,5 s + slot ≤1,25 s
-  ≈ **6,5–9 s** (era 13–20 s + fascia). Canale Paddock a 500 ms separato
+  ≈ **6,5–9 s** (era 13–20 s + fascia). Canale l'app esterna a 500 ms separato
   e già vivo (`fasceApp`), non serve alle due app nostre.
 
 ### 1/11 — Release 0.1.45 preparata: il weekend col cielo per sessione e l'orologio nelle app
@@ -3408,7 +3408,7 @@ girate di nuovo:
 ### 31/10/2026 — Le varianti pesanti se ne vanno: Standard ovunque, prescritto vero e conteggio allineato
 - **Celle sintetiche col preset VERO** ([src/gridbuilder.mjs](src/gridbuilder.mjs)):
   la sintesi non innesta più il token inventato `preset_<carId>` — scrive il
-  preset VERO del server, come fa Paddock. Il pernio carId→preset NON sta nel
+  preset VERO del server, come fa l'app esterna. Il pernio carId→preset NON sta nel
   cars.json (solo preset→display→PI): si MINA dalle CELLE REALI già in giro
   (f3 ↔ f10.f1) — template corrente, poi gli altri della stessa cartella
   (cap 20), poi le griglie di fabbrica. Preferita la variante `mech_1`
@@ -3494,9 +3494,9 @@ TUTTE dal vivo in sandbox (%TEMP%\evo-sbiz):
   verdetto «apri il wizard», MOTEC vuoto — niente crollo, nessun 400.
 - **Bonus scoperto e lasciato stare (di progetto)**: nella sandbox il badge
   di livello dice «Fuoriclasse»: NON è bug — `appLevelBadge` legge il
-  journal Paddock installato sulla MACCHINA («una sola verità»); nella
+  journal l'app esterna installato sulla MACCHINA («una sola verità»); nella
   sandbox atterra solo perché sul PC di Mauro c'è la cartella ACE reale.
-  Su un amico senza Paddock il chip resta nascosto (rep < 490). Anche la
+  Su un amico senza l'app esterna il chip resta nascosto (rep < 490). Anche la
   barra «Aggiornamenti su GitHub» nel pacchetto è design: l'amico senza
   .git è curato da `aggiorna-zip` (zipball → copia → test, data/ intatto).
 - Casa chiusa bene: server della sandbox (PID Windows 5132 e 21968)
@@ -3630,7 +3630,7 @@ Due richieste di Mauro dell'ultima sera di ottobre, sistemate in un colpo:
 - **PITWALL RICOSTRUITO**: la sorgente era stata tolta di proposito il 30/10
   pomeriggio e Mauro l'ha chiesta indietro con un perimetro NUOVO e chiaro:
   **pannello SOLO-INFORMAZIONI**. L'app pitwall (app.json + pitwall.js in
-  uiapp/pitwall/ — pattern paddock/cruscotto: niente pagina consegnata,
+  uiapp/pitwall/ — pattern app esterna/cruscotto: niente pagina consegnata,
   pannello position:fixed che si apre dalla voce PITWALL del drawer APPS)
   NON tocca window.engine: niente comandi al menu, nessuna auto cambiata per
   conto suo — quelle mani restano al Cruscotto. I DATI: il publisher del
@@ -3908,7 +3908,7 @@ gara tempo/giri» — reimpostare la stessa gara era noia e fonte d'errori (gli 
   `ultimaRicetta()` in tools/_gara-veloce.mjs la rilegge (null a registro
   vuoto, mai un'eccezione). Nota: la story FULL-FILE WRITE di oggi aveva
   perso `formattaRigaRegistro` (import di uiapp-pub): export
-  rimessa a posto e il smoke card+paddock e webui-smoke passano di nuovo.
+  rimessa a posto e il smoke card+app esterna e webui-smoke passano di nuovo.
 - **Endpoint webui `parti-subito`**: ri-esegue la ricetta con garaVeloce
   (force via bridge, come 'gara-veloce'); idempotente per costruzione — la
   STESSA ricetta due volte riscrive SOLO ciò che il menu di EVO ha cambiato
@@ -3984,9 +3984,9 @@ ERRATO: il vero è **`ks_ferrari_f40_lm`** (per questo il builder vedeva la F40
   AI 88–93, finestra PI 19–22 (span copre entrambe). Cartuccia e roster
   riscritti, rilettura ok (preset e nomi veri).
 - **Lezione principale**: i preset VERI non si inventano dal catalogo auto
-  (cars.json porta nomi e PI, basta al Paddock per SCELGERE il pool ma non per
+  (cars.json porta nomi e PI, basta all'app esterna per SCELGERE il pool ma non per
   GENERARE celle): le celle vere si fotocano SOLO dai template fotografati in
-  EVO (GENERA→APPLICA una volta per pool). Il Paddock «Gara al volo» passa per
+  EVO (GENERA→APPLICA una volta per pool). Il l'app esterna «Gara al volo» passa per
   gli STESSI canali (builder+template), con il catalogo come fonte di nomi/PI.
   Da qui in avanti: il pool «endurance» di garaVeloce/pannello va scritto con
   `ks_ferrari_f40_lm,ks_ferrari_296_gt3` e, se un'auto non ha template in
@@ -4081,7 +4081,7 @@ e la SCRITTA DELLA BACHECA restavano solo nella GUI del browser.
   Cruscotto (il JS in gioco non si ricarica da solo).
 
 **Test: uiapp-pub guard+priorità 39/39, node --check, lint Biome pulita.**
-### 31/10/2026 — Collaudo a gioco acceso, i consigli anche nel Paddock
+### 31/10/2026 — Collaudo a gioco acceso, i consigli anche nell'app esterna
 Gita in tre tappe, tutte chiuse con prove sul disco:
 1. **Collaudo live dei consigli** — EVO acceso (ma in menu), server vivo:
    le fasce del [publisher](src%2Fuiapp-pub.mjs) escono regolari
@@ -4093,7 +4093,7 @@ Gita in tre tappe, tutte chiuse con prove sul disco:
    3 gare (Donington 5/13 +24,8s, doppia Monza in DSQ col giro
    01:54.380), [report/gare/verdetto-261030.md](report%2Fgare%2Fverdetto-261030.md).
    Il numero della fascia e quello della CLI coincidono: una sola verità.
-3. **Consigli anche nel Paddock** — il bridge `/api/app` ora porta
+3. **Consigli anche nell'app esterna** — il bridge `/api/app` ora porta
    allegato il pacchetto consigli (`consigliFascia`, STESSA fonte del
    cruscotto in fascia: zero letture MMF aggiuntive) e [viste-a.js](gui%2Fjs%2Fviste-a.js)
    li disegna in fila sotto la tabella del meteo. Collaudato SU SERVER
@@ -4105,7 +4105,7 @@ Chiusura del cerchio: **riavvio del server vivo con [riavvia-webui.mjs](tools%2F
 E il publisher riparte col pitwall: le sue mini-fasce (`ui-7173558xx.json`)
 cominciano a uscire nella SUA cartella, come promesso a teoria.
 
-**Test: webui-smoke 1/1 (con le nuove asserzioni del payload), paddock +
+**Test: webui-smoke 1/1 (con le nuove asserzioni del payload), app esterna +
 uiapp + verdetto 59/59, lint Biome pulita sui file toccati.**
 ### 1/11/2026 — Il piede che respira e la tendina del ponte
 
@@ -4232,17 +4232,17 @@ Test: +3 in [test/stint-plan.test.mjs](test/stint-plan.test.mjs) (alert vivi e s
 ### 31/10/2026 sera — La stima provata a ponte spento (e la tessera committata)
 La tessera dell'header committata (d859430, dopo riepilogo suite 556/556 e lint
 pulita su 278 file). Poi la prova DELLA STIMA CHE NON ESISTERA: il webui rientrato
-con `APP_JOURNAL_DIR="C:/no-such-paddock-dir"` (la root inesistente → il ponte
+con `cartella journal esterna="C:/no-such-app esterna-dir"` (la root inesistente → il ponte
 silenzia per progettazione, NON cade sui journal veri) — console e GUI dicono lo
 stesso: API `source:"stima"`, chip «~Fuoriclasse» giallo col tooltip della stima
-(rep 632 ≥ 490). Rientro pulito subito dopo: `source:"paddock", pct:100` di nuovo.
+(rep 632 ≥ 490). Rientro pulito subito dopo: `source:"app esterna", pct:100` di nuovo.
 Domani (1/11): appuntamento in pista per la DA-1.
 
 ### 31/10/2026 sera — La tessera del livello anche nell'intestazione della GUI
-La tessera che la card Paddock disegna da solo nell'app del gioco arriva ANCHE
+La tessera che la card l'app esterna disegna da solo nell'app del gioco arriva ANCHE
 nell'intestazione della GUI web (campo «Livello» accanto a Reputazione): VERA col
-ponte (pd-home profile.level, nome+colore+pct del gioco), STIMA marcata «~» dalla
-reputazione della NOSTRA carriera quando Paddock non parla — e sotto la soglia
+ponte (home dell'app profile.level, nome+colore+pct del gioco), STIMA marcata «~» dalla
+reputazione della NOSTRA carriera quando l'app esterna non parla — e sotto la soglia
 osservata 490 niente chip: niente inventate. Clic → Statistiche.
 Pezzi: `appLevelBadge(rep)` in [src/app-carriera.mjs](src/app-carriera.mjs), campo
 `levelBadge` nell'header server ([src/webui-views.mjs](src/webui-views.mjs)), chip in
@@ -4250,26 +4250,26 @@ Pezzi: `appLevelBadge(rep)` in [src/app-carriera.mjs](src/app-carriera.mjs), cam
 regole di traduzione statica. 2 test nuovi nel ponte (13/13): reale dal journal,
 soglia ferma a 490, stima sopra/sotto. **Suite 556/556, lint pulita.**
 
-### 31/10/2026 — Paddock 1.0.2 e la tessera del livello
-Paddock aggiornato alla **1.0.2** (l'estrazione richiedeva la chiusura dalla tray:
+### 31/10/2026 — l'app esterna 1.0.2 e la tessera del livello
+l'app esterna aggiornato alla **1.0.2** (l'estrazione richiedeva la chiusura dalla tray:
 le carriere restano in Saved Games, l'app in gioco si è aggiornata da sola al primo
-avvio; backup della 1.0.1 in Desktop\Paddock-1.0.1-bak-31-10). Verificato dal vivo:
+avvio; backup della 1.0.1 in Desktop\backup-versione-precedente). Verificato dal vivo:
 la versione in app.json e i **12 journal riscritti** al primo giro.
 Miglioria presa dalle novità: i journal ora portano `profile.level` con i NUOVI
-colori dei driver level — la card Paddock del cruscotto mostra la tessera
+colori dei driver level — la card l'app esterna del cruscotto mostra la tessera
 (nome + livello col COLORE esatto del gioco, Fuoriclasse #f5c542 per Mauro).
 Tessera in [src/app-carriera.mjs](src/app-carriera.mjs) (appOverview passa profile →
 api/app) e [gui/js/viste-a.js](gui/js/viste-a.js).
-La prova del vuoto: **Paddock NON installato non crea problemi** — piccolo
+La prova del vuoto: **l'app esterna NON installato non crea problemi** — piccolo
 [test/app-assenza.test.mjs](test/app-assenza.test.mjs) (7/7) che replica
-l'assenza col APP_JOURNAL_DIR impossibile: endpoint 200 col JSON ok:false,
+l'assenza col cartella journal esterna impossibile: endpoint 200 col JSON ok:false,
 niente card, import resta zitto, bonus gara pulita integra (è matematica pura),
 schede auto perdono SOLO l'extra tecnico. **Suite 554/554**.
 ### 31/10/2026 — Le bandiere entrano nella storia (DA-2 chiusa)
 Committ 41e6633: le 7 bandiere (30/10 notte) committate in un commit uno, tutto il resto
-pulito; poi 5fbeca0 il diario. Mauro scarica Paddock 1.0.2 da OverTake (chiuso dalla tray,
+pulito; poi 5fbeca0 il diario. Mauro scarica l'app esterna 1.0.2 da OverTake (chiuso dalla tray,
 estratto sopra la vecchia cartella: le carriere restano, la copia in gioco si rifà da sola
-al primo avvio); a fronte i test di paddock-bridge per convalidare il ponte.
+al primo avvio); a fronte i test di app-bridge per convalidare il ponte.
 
 ### 30/10/2026 pomeriggio — Giro di controlli a bordo fermo (preparazione DA-2)
 Diff dei 7 file delle bandiere LETTO E VALIDATO: il fix della F40 a sorpresa era
@@ -4281,7 +4281,7 @@ Copia installata del cruscotto ALLINEATA alle sorgenti (41261 byte, scritta 29/1
 l'app in gioco monta il codice nuovo.
 Pitwall SPENTO DI PROPOSITO confermato (marcatore rinominato .disattivato, sorgente
 tolta): non è un relitto, non si tocca.
-Paddock: niente copia da allineare — leggiamo solo i journal dell'app del gioco.
+l'app esterna: niente copia da allineare — leggiamo solo i journal dell'app del gioco.
 Nessuno in ascolto sulle porte 8642–8644: al prossimo avvia.cmd il webui parte
 COL CODICE NUOVO: nessun riavvio necessario prima di stasera.
 Rimosso il relitto .webui.pid (datato 23/10, PID 14200 morto; nessun file nel
@@ -4818,7 +4818,7 @@ Ieri il gioco è morto 0xC0000005 dentro AssettoCorsaEVO.exe il solo
 evento in 7 ore di Event Viewer; sospetto della griglia:
 «sostituisci le celle Porsche con quelle di fabbrica». Richiesta
 Mauro: «perché dalla fabbrica? a inizio sviluppo e superata dal
-paddock — controlla bene». La sonda [tmp/_sonda-pool.mjs]
+app esterna — controlla bene». La sonda [tmp/_sonda-pool.mjs]
 (tmp/_sonda-pool.mjs) ha invertito l'ipotesi:
 - `last_grid.customgrid` ≡ `data/grid-templates/endurance_gt4.customgrid`
   (stesso sha1, 21 celle: `storeTemplate` lo scrive a ogni griglia
@@ -4841,11 +4841,11 @@ una app UIAPP per volta → se non torna, Kunos con il log già pronto.
 ### 1/11 sera — Esclusione secondo il protocollo: le TRE app UIAPP fermate in un colpo
 Alle 17:37 EVO era già chiuso (dovuto a un tentativo di taskkill
 di 10724 che lo trovò sparito tra l'elenco dei processi e l'azione).
-Le tre app («cruscotto», «paddock», «pitwall») sono stati fermati
+Le tre app («cruscotto», «app esterna», «pitwall») sono stati fermati
 TUTTE INSIEME (non una per volta come da protocollo ma in blocco,
 per un colpo solo): le cartelle rinominate con prefisso `_OFF-` in
 `Saved Games/ACE/mods/uiresources/ACEUIAppLoader/`:
-- `_OFF-cruscotto`, `_OFF-paddock`, `_OFF-pitwall`.
+- `_OFF-cruscotto`, `_OFF-app-esterna`, `_OFF-pitwall`.
 La griglia NON si tocca: è la stessa che è girata (byte per byte
 scoperte: le celle Porsche della cartuccia sono identiche a quelle
 della fabbrica e del template in magazzino).
@@ -4991,7 +4991,7 @@ quella lente ho rifatto il confronto:
   Donington 6096, Imola 930, Oulton 624, Brands 312, Kyalami 0 (log presenti).
 
 ## 1/11 notte — LE CELLE SONO SOLO FOTOCOPIA: il cancellaio del builder (2/11)
-- LA FEDE LEZIONE alla radice, stile Paddock: il builder non INVENTA NIENTA.
+- LA REGOLA ALLA RADICE: il builder non INVENTA NIENTA.
   Nomi (carId, mech_N, visual_N) e soprattutto l'INTERO blocco f14 — la livrea
   vera con i suoi colori interni, non l'etichetta — esistono SOLO dentro le
   celle che EVO scrive lui; la libreria «a parte» non esiste.
@@ -5197,7 +5197,7 @@ quella lente ho rifatto il confronto:
   Il cancellaio del builder (1/11) impedisce comunque di assemblare
   coppie mai scritte da EVO.
 
-### 2/11 notte — Crash 01:47:30 curato: il veleno del 718 era RIENTRATO dal magazzino; Paddock torna nel menu
+### 2/11 notte — Crash 01:47:30 curato: il veleno del 718 era RIENTRATO dal magazzino; l'app esterna torna nel menu
 - IL FATTO: caduta 0xC0000005 nella zona Gameface al carico del Race
   Weekend (stesso verdetto del 23/10 e delle due cadute del 1/11):
   `last_grid.customgrid` riscritto alle 01:47 portava 20 celle con
@@ -5232,10 +5232,10 @@ quella lente ho rifatto il confronto:
   di stanotte resta da attribuire (sospetto: cure/ripreparazioni dei
   template); rituale d'ora in poi: prima della serie col 718, grep
   «tandard» a zero sia in magazzino che nel vivo.
-- PADDOCK: era finito in `_OFF-paddock` con il taglio DI BLOCCO delle
+- APP ESTERNA: era finita in `_OFF-app-esterna` con il taglio DI BLOCCO delle
   tre app UIAPP (17:37 del 1/11, protocollo di esclusione del crash);
   stanotte a 01:53 cruscotto e pitwall erano di nuovo attivi ma il
-  paddock era rimasto off. Ora `mv _OFF-paddock paddock`: torna nel
+  app esterna era rimasta off. Ora `mv _OFF-app-esterna app-esterna`: torna nel
   menu di EVO. Nel loader restano le due copie `_OFF-cruscotto` /
   `_OFF-pitwall` (inerti, non caricate: da ripulire quando si vuole).
 - PROSSIMA PROVA IN GIOCO: apri EVO → menu griglia (SENZA GENERA) →
@@ -5308,13 +5308,13 @@ precedenti restano), biome su test+tool 0.
   dynamic-import a valle dell'assegnazione EVO_DATA_DIR — gli import statici sono
   innalzati e ignorano l'env.
 
-### 3/11 (notte) — IL CERCHIO COL MIRROR: la card beve dalla ronda del calendario (pd-calendar o journal nostro), meteo a due scale, layout della card giusto
+### 3/11 (notte) — IL CERCHIO COL MIRROR: la card beve dalla ronda del calendario (calendario dell'app o journal nostro), meteo a due scale, layout della card giusto
 - CHIESTO (Mauro): chi NON ha l'app del gioco in gioco, la scheda della
   gara («Iscriviti e divertiti») la deve scrivere come la app ma con la
   ronda presa DAL MIRROR (src/journal.mjs), che a ogni saveState
   rispecchia la agenda del ladder accanto al save.
 - L'UNICO CERCHIO (`src/app-carriera.mjs`): `rondaDelCalendario` è
-  l'helper che ritorna la ronda «next» — pd-calendar dell'app O mirror
+  l'helper che ritorna la ronda «next» — calendario dell'app dell'app O mirror
   journal nostro (appCalendar fall-back già in piedi) — con pista
   (pistaParola), trackId (trackIdDaNome), layout, giri, ora+minuto e
   meteo tradotto nelle DUE scale (weather: scala ladder per
@@ -5340,7 +5340,7 @@ precedenti restano), biome su test+tool 0.
   (Oulton Park «Pioggia leggera» → ladder 3 / preset 4) e null senza
   mirror. `test/race-card.test.mjs` — raceCard col mirror scritto accanto
   al save: la ronda «next» guida la scheda in tutto (roundIndex,
-  layout seminato, giri, ora, meteo ladder, __pd true), con rmSync in
+  layout seminato, giri, ora, meteo ladder, __calendario true), con rmSync in
   finally (prima run: 4 ≠ 8 giri, il mirror del test persisteva
   nell'EVO_DATA_DIR condiviso e contaminava i test dopo).
   `test/ronda-ladder.test.mjs` — tabella meteo aggiornata alle DUE
@@ -5776,18 +5776,18 @@ verificate dal verdetto DA-8»), subito dopo la suite piena 895/895.
   «895/895» del post è il banco intero girato oggi pomeriggio (exit 0).
 ### 3/11 — Ronda «nostro»: il generatore che non bada al giornale (10:52)
 - **Il gesto**: dal LADDER nasce il weekend NATIVO, senza che il
- GENERATORE debba aspettare o leggere il CATALOGO del Paddock: la
+ GENERATORE debba aspettare o leggere il CATALOGO dell'app esterna: la
   ronda attiva si usa COSÌ COM'È (pista, giri, orari, layout dell'EXE
   MAI RICHIESTI: l'evento parte PRIMA che l'EXE finisca di parlare).
 - **Il file**: `tools/ronda-nostro.mjs` — prende il nodo attivo, la
-  ronda CORRENTE del calendario (ladder-pd-calendar già concordata),
+  ronda CORRENTE del calendario (ladder-calendario dell'app già concordata),
   produce il WEEKEND completo (Prove libere/Warmup/Qualifying/Gara coi
-  minuti VERI del pd-calendar, meteo tradotto LADDER→PRESET) e
+  minuti VERI del calendario dell'app, meteo tradotto LADDER→PRESET) e
   RIUSO della scrittura: le CELLE le scrive lo STESSO codice dei
   precedenti generatori (nessun duplicato delle regole).
-- **Chi lo usa**: `rondaPaddock` ora prende la riga del pd-calendar del
+- **Chi lo usa**: `preparaRonda` ora prende la riga del calendario dell'app del
   diario e LE PASSA al nuovo generatore (pass-through, senza rifare
-  la mappatura): la voce «ronda del paddock» resta IDENTICA a vista.
+  la mappatura): la voce «ronda del app esterna» resta IDENTICA a vista.
 - **Test**: `test/ronda-nostro.test.mjs` — 5 prove, tra cui quella
   CENTRALE: col catalogo-trappola del giornale dell'EXE (che un
   vecchio percorso avrebbe aspettato per sempre) il generatore
@@ -5795,7 +5795,7 @@ verificate dal verdetto DA-8»), subito dopo la suite piena 895/895.
   catalogo.
 - **Ronda 4 del calendario ladder: è Paul Ricard, NON Imola** (mio
   refuso nel primo test, corretto). Minuti: la LADDER non li porta,
-  arrivano DA ZERO dal piano orari del pd-calendar (13:30 ecc.).
+  arrivano DA ZERO dal piano orari del calendario dell'app (13:30 ecc.).
 - **Verifiche**: 5/5 prove del nuovo modulo; regressioni vicine
   (ronda-ladder, semina-campionato, journal-nostro, ponte) TUTTE
   VERIFICATE; un FALLIMENTO AMBIENTALE fuori dal mio perimetro: EVO era

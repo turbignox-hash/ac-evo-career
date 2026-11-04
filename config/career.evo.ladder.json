@@ -8132,5 +8132,5 @@
   ],
   "_nota_espansione": "Coppa monomarca per ogni auto: access='open' senza requires/rep (access=0), id piste abbreviati ok per il matcher; generati da tools/expand-ladder.py",
   "_nota_gates": "Accesso con soldi + reputazione (repRequired per livello; F1 400). Catene 'top N' rimosse: si firma dove il budget e la rep lo permettono. Generato da tools/ladder-gates.py",
-  "_nota_entry": "Filosofia Paddock sulle SERIE ENTRY (livello 1): solo piste corte/leggibili, 6-8 giri (la pista si impara in 2-3, il resto è gara: ritmo, traffico, gomme), R3 sempre bagnata (la prima novità è la superficie, non la pista), finale asciutta. Passata tools/_ladder-entry-style.mjs, 30/10 — mantiene num round, auto ed economia."
+  "_nota_entry": "Entry level: piste corte e leggibili, 6-8 giri, terza ronda bagnata, finale asciutta. Passata tools/_ladder-entry-style.mjs; mantiene numero round, auto ed economia."
 }

@@ -553,7 +553,7 @@ export function gridStatus({ track = null, file = GRID_FILE } = {}) {
 }
 
 
-/* ---------- MODELLO PADDOCK (4/11): il gioco genera, noi controlliamo ---------- */
+/* ---------- MODELLO DEL GIOCO (4/11): il gioco genera, noi controlliamo ---------- */
 
 /**
  * Una serie e' «generata dal gioco» quando e' MONOMARCA e non ha regole di
@@ -571,7 +571,7 @@ export function serieGenerataDalGioco(ladder, nodeId) {
 }
 
 /**
- * Validazione post-gara della griglia (il `grid_problem` di Paddock): non
+ * Validazione post-gara della griglia (il `grid_problem` del gioco): non
  * riscrive niente, guarda il risultato. Ritorna null se tutte le auto in gara
  * rientrano nel parco della serie, altrimenti { tipo, fuori, ammesse }.
  * `tipo` distingue la monomarca («non era Single Make») dalla classe.

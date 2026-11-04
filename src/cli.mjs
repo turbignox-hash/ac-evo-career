@@ -144,8 +144,8 @@ function cmdHelp() {
     ['calendar', tr({ it: 'calendario della stagione con ora e meteo di ogni round', en: 'season calendar with time and weather of each round' })],
     ['agenda [--fattibili] [--salta|--prossima] [--corri <nodeId>]', tr({ it: ' calendario a GIORNI: gare di ogni campionato iscritto, le fattibili per livello, salto di giornata', en: ' DAILY calendar: races of each joined championship, the level-feasible ones, day skip' })],
     ['standings', tr({ it: 'classifica della serie', en: 'series standings' })],
-    ['paddock [--all]', tr({ it: "piloti rivali: archetipo, eta', banda di difficolta'", en: "rival drivers: archetype, age, difficulty band" })],
-    ['messages', tr({ it: 'messaggi e notizie dal paddock', en: 'messages and news from the paddock' })],
+    ['rivals [--all]', tr({ it: "piloti rivali: archetipo, eta', banda di difficolta'", en: "rival drivers: archetype, age, difficulty band" })],
+    ['messages', tr({ it: 'messaggi e notizie dal box', en: 'messages and news from the pit lane' })],
     ['next [--car <id>]', tr({ it: 'la prossima gara in dettaglio: cosa impostare nel gioco', en: 'the next race in detail: what to set in the game' })],
     ['race [--car <id>] [--dry-run] [--no-launch]', tr({ it: "paga l'iscrizione, segna la gara attesa e apre il gioco", en: 'pays the entry, marks the awaited race and opens the game' })],
     ['prepara [--car <id>] [--dry] [--serie <nodeId>] [--round N] [--pista] [--auto]', tr({ it: 'iscrizione ronda + griglia zavorrata + vigia + card in un gesto; con --pista/--auto (o --tutto) scrive anche pista e auto del garage (di default si scelgono a mano in EVO)', en: 'round entry + ballasted grid + checker + card in one move; with --pista/--auto (or --tutto) it also writes track and garage car (by default you set them by hand in EVO)' })],
@@ -154,7 +154,7 @@ function cmdHelp() {
     ['difficulty [--mode adaptive|fixed|custom] [--value N] [--trim <serie|all> <valore>] [--lock/--unlock <node>] [--accept|--reject]', tr({ it: "difficolta' AI di tutte le serie (trim manuale -20..+20)", en: 'AI difficulty of all series (manual trim -20..+20)' })],
     ['season-end', tr({ it: "chiude l'anno, paga il titolo e apre il mercato", en: 'closes the year, pays the title and opens the market' })],
     ['review [--season N] [--export]', tr({ it: 'la rassegna della stagione: gare, rivali, duelli', en: 'the season review: races, rivals, duels' })],
-    ['gazzetta', tr({ it: 'la stampa del paddock: titoli e voci dopo ogni gara', en: 'the paddock press: headlines and voices after each race' })],
+    ['gazzetta', tr({ it: 'la stampa del box: titoli e voci dopo ogni gara', en: 'the race press: headlines and voices after each race' })],
     ['piano', tr({ it: "pianificatore: dove puoi correre l'anno prossimo", en: 'planner: where you can race next year' })],
     ['sfida [--accept]', tr({ it: 'la mini-sfida facoltativa della prossima gara', en: 'the optional mini-challenge of the next race' })],
     ['dottore', tr({ it: 'verifica l\'integrità della carriera (e --fix corregge)', en: 'checks the career integrity (and --fix repairs)' })],
@@ -508,7 +508,7 @@ function cmdStandings() {
   return 0;
 }
 
-function cmdApp(args) {
+function cmdRivals(args) {
   const { ladder } = context();
   const state = requireState();
   const node = nodeById(ladder, state.node);
@@ -904,14 +904,11 @@ async function cmdWatch(args) {
       // gira ogni 15 secondi e non deve fare rumore a vuoto.
       const diz = out.dizionario;
       if (diz) {
-        const dS = diz.storage, dP = diz.paddock;
+        const dS = diz.storage;
         const parti = [];
         if (dS.added) parti.push(tr({ it: dS.added === 1 ? '1 auto nuova dal menu' : `${dS.added} auto nuove dal menu`, en: dS.added === 1 ? '1 new car from the menu' : `${dS.added} new cars from the menu` }));
         if (dS.corrette) parti.push(tr({ it: dS.corrette === 1 ? '1 etichetta corretta dal menu' : `${dS.corrette} etichette corrette dal menu`, en: dS.corrette === 1 ? '1 label fixed from the menu' : `${dS.corrette} labels fixed from the menu` }));
         if (dS.aggiornate) parti.push(tr({ it: dS.aggiornate === 1 ? '1 etichetta ripulita col nome ufficiale' : `${dS.aggiornate} etichette ripulite col nome ufficiale`, en: dS.aggiornate === 1 ? '1 label cleaned to the official name' : `${dS.aggiornate} labels cleaned to the official name` }));
-        if (dP.added) parti.push(tr({ it: dP.added === 1 ? "1 auto da un'iscrizione paddock" : `${dP.added} auto da iscrizioni paddock`, en: dP.added === 1 ? "1 car from a paddock signup" : `${dP.added} cars from paddock signups` }));
-        if (dP.corrette) parti.push(tr({ it: dP.corrette === 1 ? '1 etichetta corretta da iscrizione' : `${dP.corrette} etichette corrette da iscrizione`, en: dP.corrette === 1 ? '1 label fixed from a signup' : `${dP.corrette} labels fixed from a signup` }));
-        if (dP.aggiornate) parti.push(tr({ it: dP.aggiornate === 1 ? "1 etichetta ripulita da un'iscrizione" : `${dP.aggiornate} etichette ripulite da iscrizioni`, en: dP.aggiornate === 1 ? '1 label cleaned from a signup' : `${dP.aggiornate} labels cleaned from signups` }));
         if (parti.length) {
           const msg = parti.join(' · ');
           console.log(C.green(tr({ it: `\n  ✓ dizionario: ${msg}\n`, en: `\n  ✓ dictionary: ${msg}\n` })));
@@ -1002,7 +999,7 @@ function cmdReview(args) {
 
 function cmdGazzetta() {
   const items = newsFeed(15);
-  console.log(C.bold(tr({ it: '\n📰 Gazzetta del paddock\n', en: '\n📰 Paddock gazette\n' })));
+  console.log(C.bold(tr({ it: '\n📰 Gazzetta del box\n', en: '\n📰 Race gazette\n' })));
   if (!items.length) { console.log(C.dim(tr({ it: '  Nessuna notizia: arrivano dopo la prima gara importata.\n', en: '  No news yet: they arrive after the first imported race.\n' }))); return 0; }
   for (const n of items) {
     console.log(`  ${C.dim(String(n.at ?? '').slice(0, 10))}  ${C.bold(n.title)}`);
@@ -1320,7 +1317,7 @@ async function cmdGriglia(args) {
   const file = join(GAME_MODES_DIR, 'last_grid.customgrid');
   const tplFile = typeof args.flags.template === 'string' ? args.flags.template : file;
 
-  // MODELLO PADDOCK (4/11/2026): la monomarca senza regole di classe non
+  // MODELLO EVO (4/11/2026): la monomarca senza regole di classe non
   // riscrive il customgrid — si dichiara il weekend (AUTO + banda AI) e la
   // griglia la genera EVO. --template resta la via per costruirla a mano.
   if (typeof args.flags.template !== 'string' && serieGenerataDalGioco(ladder, nodeId)) {
@@ -1329,7 +1326,7 @@ async function cmdGriglia(args) {
       const gm = setWeekendGridAuto({ dry });
       const ai = bandaSeriePrep ? setWeekendAi(bandaSeriePrep[0], bandaSeriePrep[1], { dry }) : null;
       console.log(C.bold(tr({ it: `\nGriglia della gara del giorno\n`, en: `\nGrid of the race of the day\n` })));
-      console.log(tr({ it: '  modalita  single make: la griglia la genera il gioco (modello Paddock)', en: '  mode      single make: the game generates the grid (Paddock model)' }));
+      console.log(tr({ it: '  modalita  single make: la griglia la genera il gioco (modello EVO)', en: '  mode      single make: the game generates the grid (game model)' }));
       if (ai) console.log(tr({ it: `  abilita   AI ${bandaSeriePrep[0]}-${bandaSeriePrep[1]} nel gamemodesave`, en: `  skill     AI ${bandaSeriePrep[0]}-${bandaSeriePrep[1]} in the gamemodesave` }));
       console.log(tr({ it: `  celle     nessun customgrid scritto${dry ? ' (dry)' : ''}`, en: `  cells     no customgrid written${dry ? ' (dry)' : ''}` }));
       if (gm?.written) console.log(C.dim(tr({ it: '  selettore AUTOMATIC: EVO sceglie il conteggio di carriera', en: '  AUTOMATIC selector: EVO picks the career count' })));
@@ -1566,7 +1563,7 @@ export async function main(argv) {
       case 'series': return cmdSeries(args);
       case 'calendar': return cmdCalendar(args);
       case 'standings': return cmdStandings(args);
-      case 'app': return cmdApp(args);
+      case 'rivals': return cmdRivals(args);
       case 'messages': return cmdMessages(args);
       case 'next': return cmdNext(args);
       case 'race': return await cmdRace(args);

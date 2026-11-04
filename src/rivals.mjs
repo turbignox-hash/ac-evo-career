@@ -179,7 +179,7 @@ export function recordRaceGrid(result, playerPayload, { season, round, nodeId, n
 /** I rivali già incontrati in questa serie, per la scheda gara.
  * Oltre a testa-a-testa e best, porta FORMA (ultime 5 gare) e MOMENTUM
  * (media ultime 3 vs precedenti), così la riga è leggibile come «voci dal
- * paddock»: chi va forte, chi crolla, chi ti batte — senza aprire la scheda. */
+ * griglia»: chi va forte, chi crolla, chi ti batte — senza aprire la scheda. */
 export function rivalsOutlook(_ladder, state, nodeId) {
   const store = loadStore();
   const races = store.races.filter((r) => r.nodeId === nodeId);

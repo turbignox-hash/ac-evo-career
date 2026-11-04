@@ -51,7 +51,7 @@ export function sessionsOf(buf) {
   });
 }
 
-/* ---------- SINGLE MAKE (26/10, importato dal Gufo Paddock) ----------
+/* ---------- SINGLE MAKE (26/10, importato dal server dedicato) ----------
  * Il boolean single-make NON ha un nome stabile fra le versioni di EVO, ma ha
  * una POSIZIONE stabile: è il primo varint 0/1 che arriva DOPO la lista degli
  * avversari (f11 × 14 nel vero gambling del 26/10: f12 = 1 sulla Coppa
@@ -113,7 +113,7 @@ export function raceBlockIndex(ses) {
 }
 
 /**
- * Scrive il SINGLE MAKE (26/10, stesso gesto di Paddock): il flag è dentro
+ * Scrive il SINGLE MAKE (26/10, stesso gesto): il flag è dentro
  * OGNI blocco sessione — il campo subito dopo la lista avversari (f12 nel
  * layout del 26/10).
  *

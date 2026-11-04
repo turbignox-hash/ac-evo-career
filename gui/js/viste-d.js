@@ -1021,7 +1021,7 @@ drawCopilotStrip();
 
 /* auto-aggiornamento: quando il watcher importa un risultato (o la pagina resta
    in background e i dati cambiano), il cruscotto si ricarica da solo.
-   1/11 (Mauro: «a gara finita la GUI arriva tardi, Paddock è più veloce»):
+   1/11 (Mauro: «a gara finita la GUI arriva tardi»):
      il poll scende 5 s → 2 s — la chiamata /api/watcher misurata a 30–140 ms,
      e fino a gara finita il seq non cambia: niente ridisegni spaiati, solo
      un poll leggero più spesso, così l'incasso della gara esce davvero
