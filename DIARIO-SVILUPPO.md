@@ -5,6 +5,14 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — webui.mjs: estratte le sei rotte del Garage (P1.5, terzo dominio) (richiesta Mauro: «scegli autonomamente cosa migliorare e procedi,»)
+
+- **Il taglio**: `my-garage`, `garage-catalog`, `garage-add`, `garage-remove`, `garage-note` e `garage-sell` vivono in `src/webui-actions-garage.mjs`; il dispatcher le intercetta prima dello switch. Status, payload e `persist` sono identici: nessun cambio di comportamento.
+- **Confine**: il `case 'garage'` rimasto in webui **non** è il garage personale, è l'aiuto-meccanico (pressioni/telemetria); `addCar` e `garageOverview` restano importati per il relic di famiglia.
+- **Contratto statico**: il test generico riconosce ora **3 moduli / 17 azioni** e verifica anche `garage-add`, `garage-remove`, `garage-note` e `garage-sell`; nessuna modifica al test è stata necessaria.
+- **Verifica**: `npm run check` exit 0; suite **963/963**; lint **367 file, 0 warning**; `node --check` e Biome sui due file modificati puliti.
+- **Misure**: `webui.mjs` da **4.499 a 4.466 righe** (−33); nuovo modulo **61 righe**. Commit, non push. Restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — webui.mjs: estratte le azioni Evento (P1.5, secondo dominio) (richiesta Mauro: «scegli autonomamente cosa migliorare e procedi,»)
 
 - **Il taglio**: le cinque rotte di stato (`event-accept`, `event-decline`, `event-finish`, `event-abandon`, `event-prize-refresh`) vivono in `src/webui-actions-events.mjs`; il dispatcher le intercetta prima dello switch. Status, payload e `persist` sono identici: nessun cambio di comportamento.

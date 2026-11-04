@@ -126,7 +126,7 @@ import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
 import { sameTrack as trkSame, sameCar as carSame } from './tracknames.mjs';
 import { tr, lang, setLang, hasEnvOverride } from './lang.mjs';
 import { carsBook, carImageOf } from './cars.mjs';
-import { garageOverview, catalogPicker, addCar, removeCar, setNote, sellCar } from './garage.mjs';
+import { garageOverview, addCar } from './garage.mjs';
 import { ensureFlowsSeeded, recentFlows, resetFlows } from './flows.mjs';
 import { scanCareer, autoRepair, clearBacheca, resetLedger, reseedFlows, flowDedup } from './maintenance.mjs';
 import { mailbox } from './mailbox.mjs';
@@ -177,6 +177,7 @@ import { PROJECT, DATA_DIR, SAVE_FILE, CONFIG_FILE, GUI_DIR, BACKUP_DIR, SLOT, l
 import { viewHeader, viewStatus, viewCalendar, viewStandings, viewMessages, viewCard, viewDifficulty, viewSetup } from './webui-views.mjs';
 import { AGENDA_ACTIONS, agendaAction } from './webui-actions-agenda.mjs';
 import { EVENT_ACTIONS, eventAction } from './webui-actions-events.mjs';
+import { GARAGE_ACTIONS, garageAction } from './webui-actions-garage.mjs';
 
 /* GRIGLIA EVENTO GIÀ IN PIEDI (esito prova 23/10): la griglia a 14 F40 scritta
  * sul disco è VALIDATA in gioco (log EVO 20:47: 14 avversari, zero eccezioni);
@@ -884,6 +885,14 @@ async function api(context0, _req, res, action, body) {
   // lancio) restano nello switch: non sono azioni di stato pure.
   if (EVENT_ACTIONS.has(action)) {
     const handled = eventAction(action, { ladder, state, body, persist, sendJson, res });
+    if (handled !== false) return handled;
+  }
+
+  // GARAGE (4/11, P1.5): le sei rotte del garage personale vivono in
+  // webui-actions-garage.mjs. Il `case 'garage'` che resta nello switch è
+  // l'aiuto-meccanico (pressioni/telemetria), non il garage.
+  if (GARAGE_ACTIONS.has(action)) {
+    const handled = garageAction(action, { ladder, state, body, paths, persist, sendJson, res });
     if (handled !== false) return handled;
   }
 
@@ -1905,18 +1914,6 @@ async function api(context0, _req, res, action, body) {
       ev.grigliaRonda = avvisoGrigliaEvento(!!ev.active?.acceptedAt, ev.card);
       return sendJson(res, 200, ev);
     }
-    case 'my-garage': {
-      // il garage personale: importa le auto vinte dagli eventi e arricchisce col catalogo
-      try {
-        const out = garageOverview(ladder, state, { paths });
-        if (out.justImported.length) {
-          for (const name of out.justImported) pushMessage(state, `🏆 ${name} entra nel garage (vinta in un evento speciale).`, 'title');
-          persist(state);
-        }
-        return sendJson(res, 200, out);
-      }
-      catch (e) { recordWarning('webui.garage', 'vista garage non riuscita: ' + (e?.message ?? '')); return sendJson(res, 200, { cars: [], total: 0, won: 0, bought: 0, totalWins: 0, justImported: [] }); }
-    }
     case 'mechanic': {
       // segna al meccanico (Mauro 23/10): la scheda freno dell'auto scelta.
       // Niente consulti in più: zona dal bias di carriera, torque, e la memoria
@@ -1945,36 +1942,6 @@ async function api(context0, _req, res, action, body) {
       // test/cap-dati-guard.test.mjs).
       try { return sendJson(res, 200, stileOverview(ladder, state)); }
       catch (e) { return sendJson(res, 500, { error: e?.message ?? String(e) }); }
-    }
-    case 'garage-catalog': return sendJson(res, 200, { cars: catalogPicker(ladder, { paths }) });
-    case 'garage-add': {
-      try {
-        const out = addCar(state, { carId: body.carId, carName: body.carName, how: body.how === 'won' ? 'won' : 'bought', note: body.note ?? null });
-        if (!out.reused) pushMessage(state, out.car.how === 'won' ? tr({ it: `🏆 ${out.car.carName} entra nel garage (vinta).`, en: `🏆 ${out.car.carName} joins the garage (won).` }) : tr({ it: `${out.car.carName} entra nel garage (comprata a ${out.price.toLocaleString('it-IT')} €).`, en: `${out.car.carName} joins the garage (bought for ${out.price.toLocaleString('it-IT')} €).` }), 'money');
-        persist(state);
-        return sendJson(res, 200, { ok: true, reused: out.reused, garage: garageOverview(ladder, state, { paths }), header: viewHeader(ladder, state) });
-      } catch (e) { return sendJson(res, 400, { error: e.message }); }
-    }
-    case 'garage-remove': {
-      try {
-        const n = removeCar(state, String(body.carId ?? ''));
-        if (n) persist(state);
-        return sendJson(res, 200, { ok: n > 0, garage: garageOverview(ladder, state, { paths }) });
-      } catch (e) { return sendJson(res, 400, { error: e.message }); }
-    }
-    case 'garage-note': {
-      try {
-        setNote(state, String(body.carId ?? ''), body.note != null ? String(body.note) : null);
-        persist(state);
-        return sendJson(res, 200, { ok: true, garage: garageOverview(ladder, state, { paths }) });
-      } catch (e) { return sendJson(res, 400, { error: e.message }); }
-    }
-    case 'garage-sell': {
-      try {
-        const out = sellCar(ladder, state, String(body.carId ?? ''));
-        persist(state);
-        return sendJson(res, 200, { ok: true, sold: out, garage: garageOverview(ladder, state, { paths }), header: viewHeader(ladder, state) });
-      } catch (e) { return sendJson(res, 400, { error: e.message }); }
     }
     case 'difficulty-nudge': {
       // trim manuale dal cruscotto: ±1, ±2 o ±3 sulla banda della serie corrente
