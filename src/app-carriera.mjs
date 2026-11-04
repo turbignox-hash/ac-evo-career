@@ -250,6 +250,66 @@ export function appNextRace(env = process.env) {
   };
 }
 
+/**
+ * Il journal `pd-main` (la vista «Race» dell'app): l'ultima gara preparata,
+ * con auto, formato, avversari e banda AI. E' la stessa sorgente di Paddock
+ * per il numero avversari; il chiamante decide se la ronda combacia.
+ */
+export function appRaceInfo(env = process.env) {
+  const main = readJournal('main', env);
+  const r = main?.race;
+  if (!r) return null;
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+  return {
+    ok: true,
+    track: r.track ?? null,
+    layout: r.layout ?? null,
+    laps: num(r.laps),
+    time: r.time ?? null,
+    weather: r.weather ?? null,
+    cars: Array.isArray(r.cars) ? r.cars.map(String).filter(Boolean) : [],
+    format: r.format ?? null,
+    singleMake: r.singleMake === true || r.format === 'single_make',
+    opponents: num(r.opponents),
+    aiMin: num(r.aiMin),
+    aiMax: num(r.aiMax),
+    series: main.career?.series ?? null,
+    seriesId: main.career?.series_id ?? null,
+    at: journalStamp('main', env),
+  };
+}
+
+/**
+ * La gara del journal che appartiene a QUESTO nodo ladder (serie combaciante),
+ * oppure null. Preferisce pd-main (piu' ricco); se manca, ripiega su
+ * pd-home.next, che porta gia' il numero avversari.
+ */
+export function journalRaceForNode(node, env = process.env) {
+  const r = appRaceInfo(env);
+  if (r && stessaSerie(node, { car: r.cars?.[0] ?? null, series: r.series ?? '' })) return r;
+  const home = appNextRace(env);
+  if (home?.opponents != null && stessaSerie(node, { car: home.car, series: home.series })) {
+    return {
+      ok: true,
+      track: home.track ?? null,
+      layout: home.layout ?? null,
+      laps: home.laps ?? null,
+      time: home.time ?? null,
+      weather: home.weather ?? null,
+      cars: home.car ? [home.car] : [],
+      format: null,
+      singleMake: null,
+      opponents: home.opponents,
+      aiMin: null,
+      aiMax: null,
+      series: home.series ?? null,
+      seriesId: null,
+      at: home.at ?? null,
+    };
+  }
+  return null;
+}
+
 /* ------------------------------------------------------------------ */
 /* scheda auto arricchita: curva di coppia e versus dal catalogo        */
 /* ------------------------------------------------------------------ */

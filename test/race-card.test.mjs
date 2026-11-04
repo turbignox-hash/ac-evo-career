@@ -4,7 +4,8 @@
 // i file di gioco (via _game-sandbox) e EVO_DATA_DIR per la carriera, entrambi
 // in tmpdir — ma NIENTE che venga davvero avviato. Anche APP_JOURNAL_DIR
 // reindirigto: la scheda chiede le specs Paddock e non deve guardare sul disco vero.
-import './_game-sandbox.mjs';                       // PRIMA: file di gioco finti
+import { GAME_SANDBOX } from './_game-sandbox.mjs'; // PRIMA: file di gioco finti
+import { appCacheClear } from '../src/app-carriera.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
@@ -415,4 +416,42 @@ test('vigia silente: griglia già della serie o file assente', () => {
   // file assente: muta (sempre sotto try/catch)
   rmSync(GRID_FILE);
   assert.equal(race.raceCard(ladder, state).gridAltraSerie, null);
+});
+
+test('raceCard: senza gamemodesave il numero viene dal journal pd-main (Paddock)', () => {
+  const file = join(process.env.APP_JOURNAL_DIR, 'pd-main-test.json');
+  writeFileSync(file, JSON.stringify({
+    career: { series: 'Coppa Città' },
+    race: { track: 'Monza', cars: ['Azzurra GT'], format: 'single_make', opponents: 15, aiMin: 80, aiMax: 85 },
+  }));
+  appCacheClear();
+  try {
+    const { ladder, state } = mk();
+    const c = race.raceCard(ladder, state);
+    assert.equal(c.gridSource, 'journal', 'la card deve usare il journal quando il weekend non c\'è');
+    assert.equal(c.opponents, 15, '15 avversari del journal, non 9 del ladder');
+    assert.equal(c.gridSize, 16, 'la griglia è avversari + il giocatore');
+  } finally {
+    rmSync(file, { force: true });
+    appCacheClear();
+  }
+});
+
+test('raceCard: il nativo 3.10 sono avversari — declared + 1, non cars - 1', () => {
+  const file = join(GAME_SANDBOX, 'GameModes', 'GameModeType_RACE_WEEKEND.gamemodesave');
+  const sessione = encodeMsg([
+    { field: 5, wire: 2, bytes: encodeMsg([{ field: 2, wire: 2, bytes: Buffer.from('Monza') }]) },
+    { field: 7, wire: 0, varint: BigInt(12) },
+    ...Array.from({ length: 12 }, () => ({ field: 10, wire: 2, bytes: Buffer.from('car_a') })),
+  ]);
+  writeFileSync(file, encodeMsg([{ field: 3, wire: 2, bytes: sessione }]));
+  try {
+    const { ladder, state } = mk();
+    const c = race.raceCard(ladder, state);
+    assert.equal(c.gridSource, 'gamemodesave');
+    assert.equal(c.opponents, 12, '12 avversari dichiarati = 12, non 11');
+    assert.equal(c.gridSize, 13, '12 avversari + il giocatore');
+  } finally {
+    rmSync(file, { force: true });
+  }
 });

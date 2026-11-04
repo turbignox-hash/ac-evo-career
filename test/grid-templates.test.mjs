@@ -163,7 +163,7 @@ test('celle NUOVE con opt-in: la RS 3 mai in griglia entra nel pool F40 (sintesi
   assert.equal(celleOut.length, 4, '4 celle come gridSize');
   assert.equal(celleTxt.filter((t) => t.includes('ks_f40_lm')).length, 3, '3 celle F40');
   assert.ok(celleTxt.some((t) => t.includes('ks_audi_rs_3_sportback')), 'la RS 3 entra in griglia (round-robin per modello)');
-  assert.ok(celleTxt.some((t) => t.includes('preset_ks_audi_rs_3_sportback')), 'preset synth dichiarato nella cella');
+  assert.ok(celleTxt.some((t) => t.includes('preset_')), 'la cella sintetica dichiara un preset (vero se il parco lo conosce, altrimenti il token)');
   assert.equal(new Set(celleOut.map((f) => Buffer.from(f.bytes).toString('hex'))).size, 4, 'tutte byte-uniche (lezione anti-crash)');
   assert.deepEqual(out.report.sintesi, ['ks_audi_rs_3_sportback'], 'il report dichiara le sintetizzate');
 });
@@ -365,6 +365,28 @@ test('installazione non giudicabile (catalogo vuoto): nessun blocco, la corsa de
   const out = ga.rebuildGridApply({ ladder: LADDER, nodeId: 'serie_rs_3_test', roundIndex: 0, file, force: true, dry: true });
   assert.equal(out.written, false);
   assert.ok(String(out.source).includes('griglia di fabbrica'), 'catalogo vuoto = gate silenzioso');
+  ga.setInstallSnapshot(null);
+});
+
+/* ---------- MAGAZZINO STANTIO (4/11) ---------- */
+test('magazzino di un altra serie: archiviato, vince la fabbrica e il magazzino si riscrive', () => {
+  rmSync(join(TMP, 'grid-templates'), { recursive: true, force: true });
+  pulisciBak();
+  mkdirSync(join(TMP, 'fabbrica'), { recursive: true });
+  writeFileSync(FABBRICA('serie_rs_3_test'), templateF40(4, 'ks_audi_rs_3_sportback'));
+  ga.storeTemplate('serie_rs_3_test', templateF40(4));   // SBAGLIATO: F40 per la serie RS 3
+  ga.setInstallSnapshot({ cars: new Set(['ks_audi_rs_3_sportback']), carNames: new Set() });
+  const file = scrivi(templateF40(4, 'ks_mazda_mx5_nd'));
+  const out = ga.rebuildGridApply({ ladder: LADDER, nodeId: 'serie_rs_3_test', roundIndex: 0, file, force: true });
+  assert.equal(out.written, true);
+  assert.ok(String(out.source ?? '').includes('fabbrica'), 'vince la fabbrica dopo l archivio');
+  const storeFile = join(TMP, 'grid-templates', 'serie_rs_3_test.customgrid');
+  assert.ok(Buffer.from(readFileSync(storeFile)).toString('latin1').includes('ks_audi_rs_3_sportback'), 'il magazzino ora è della serie (buffer costruito, non la copia grezza)');
+  const meta = JSON.parse(readFileSync(join(TMP, 'grid-templates', 'serie_rs_3_test.json'), 'utf8'));
+  assert.equal(meta.cells, 4);
+  assert.ok(String(meta.source).includes('fabbrica'), 'la provenienza dice la fabbrica');
+  const stale = readdirSync(join(TMP, 'grid-templates')).filter((n) => n.includes('.bak-stale-'));
+  assert.equal(stale.length, 1, 'il vecchio magazzino è archiviato, non cancellato');
   ga.setInstallSnapshot(null);
 });
 

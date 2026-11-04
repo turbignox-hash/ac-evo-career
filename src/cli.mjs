@@ -32,13 +32,13 @@ import { writeJsonAtomic } from './atomic.mjs';
 import { buildGridMessage } from './gridbuilder.mjs';
 import { gridGuardProposal } from './grid-guard.mjs';
 import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
-import { applyBalance, applyAi, pruneBackups, bakName, rebuildGridApply } from './grid-apply.mjs';
+import { applyBalance, applyAi, pruneBackups, bakName, rebuildGridApply, serieGenerataDalGioco } from './grid-apply.mjs';
 import { calibSummary, calibFile, resetCalib, appuntaConvalida } from './grid-calib.mjs';
 import { gameRunning, GAME_MODES_DIR } from '../tools/evo-grid.mjs';
 import { testModeBanner, testModeOn, testModeOff } from './test-mode.mjs';
 import { PIANI, applyPianoToCalendar } from './orario.mjs';
 import { setRaceTime, currentRaceTime } from '../tools/set-racetime.mjs';
-import { changeWeekendTrack, currentWeekendTrack } from '../tools/set-track.mjs';
+import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, setWeekendGridAuto } from '../tools/set-track.mjs';
 import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
 import { renameSync, copyFileSync as copySyncGrid, statSync } from 'node:fs';
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -699,7 +699,7 @@ async function cmdPrepara(args) {
   }
   // Pista e auto SOLO se chieste a voce (--pista/--auto): senza, com'era prima
   // dell'automatismo — si impostano a mano in EVO e il flusso di lancio resta
-  // quello_HW1 clearfixЧЕ che funzionava sattura.
+  // quello dell'HW1: esattamente il flusso che funzionava già così.
   if (wantPista) try {
     if (card.trackName) {
       const t = changeWeekendTrack(card.trackName, { dry });
@@ -1319,6 +1319,27 @@ async function cmdGriglia(args) {
   // giro il flag sovrascriveva il template stesso — recuperato dal backup).
   const file = join(GAME_MODES_DIR, 'last_grid.customgrid');
   const tplFile = typeof args.flags.template === 'string' ? args.flags.template : file;
+
+  // MODELLO PADDOCK (4/11/2026): la monomarca senza regole di classe non
+  // riscrive il customgrid — si dichiara il weekend (AUTO + banda AI) e la
+  // griglia la genera EVO. --template resta la via per costruirla a mano.
+  if (typeof args.flags.template !== 'string' && serieGenerataDalGioco(ladder, nodeId)) {
+    const dry = !!args.flags.dry;
+    try {
+      const gm = setWeekendGridAuto({ dry });
+      const ai = bandaSeriePrep ? setWeekendAi(bandaSeriePrep[0], bandaSeriePrep[1], { dry }) : null;
+      console.log(C.bold(tr({ it: `\nGriglia della gara del giorno\n`, en: `\nGrid of the race of the day\n` })));
+      console.log(tr({ it: '  modalita  single make: la griglia la genera il gioco (modello Paddock)', en: '  mode      single make: the game generates the grid (Paddock model)' }));
+      if (ai) console.log(tr({ it: `  abilita   AI ${bandaSeriePrep[0]}-${bandaSeriePrep[1]} nel gamemodesave`, en: `  skill     AI ${bandaSeriePrep[0]}-${bandaSeriePrep[1]} in the gamemodesave` }));
+      console.log(tr({ it: `  celle     nessun customgrid scritto${dry ? ' (dry)' : ''}`, en: `  cells     no customgrid written${dry ? ' (dry)' : ''}` }));
+      if (gm?.written) console.log(C.dim(tr({ it: '  selettore AUTOMATIC: EVO sceglie il conteggio di carriera', en: '  AUTOMATIC selector: EVO picks the career count' })));
+      if (dry) console.log(C.dim(tr({ it: '\nDRY: niente scritto.\n', en: '\nDRY: nothing written.\n' })));
+      return 0;
+    } catch (e) {
+      console.log(C.dim(tr({ it: `Griglia: il gamemodesave non si tocca (${e.message})`, en: `Grid: cannot touch the gamemodesave (${e.message})` })));
+      return 1;
+    }
+  }
 
   // MAGAZZINO AUTOMATICO (27/10, col gap visto in prova su R7 Kyalami):
   // prima la costruzione dal file CURRENT (come sempre), ma se il resto del

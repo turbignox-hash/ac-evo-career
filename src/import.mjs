@@ -38,6 +38,7 @@ import { recordWarning } from './warnings.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 import { slotDataDir, savePath, activeSlot } from './state.mjs';
 import { recordRaceFromResult } from './grid-calib.mjs';
+import { grigliaGaraFuori } from './grid-apply.mjs';
 // IL TEORICO VERO (3/11, notte — stesso margine-log del rapporto gara, del
 // tetto e del quaderno hotlaps): la somma dei splits del file ripete il best
 // per costruzione (i splits di EVO sono i settori del GIRO MIGLIORE). Il
@@ -387,6 +388,23 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
   }
   if (autoFuori) {
     payload.autoFuori = { car: autoFuori, ammesse: carPoolOf(ladder, targetNode.nodeId).ammesse };
+  }
+  // VALIDAZIONE POST-GARA (modello Paddock, 4/11): il gioco ha generato la
+  // griglia, noi controlliamo il RISULTATO — non riscriviamo un template. Se
+  // una monomarca ha corso con auto diverse, o una classe con un'auto fuori
+  // parco, la gara resta valida ma il fatto va a registro (grid_problem).
+  if (!manual) {
+    const griglia = grigliaGaraFuori(ctx.rawResult, { ladder, node: targetNode });
+    if (griglia) {
+      payload.grigliaFuori = griglia;
+      recordWarning('import.griglia', `griglia ${griglia.tipo === 'single_make' ? 'non single-make' : 'con auto fuori classe'}: ${griglia.fuori.slice(0, 3).join(', ')}`, `node ${targetNode.nodeId} round ${payload.round}`);
+      try {
+        pushMessage(state, tr({
+          it: `Griglia non coerente (${griglia.fuori.slice(0, 2).join(', ')}): la gara resta valida, ma controlla il tipo di griglia.`,
+          en: `Grid mismatch (${griglia.fuori.slice(0, 2).join(', ')}): the race still counts, but check the grid type.`,
+        }), 'warn');
+      } catch { /* un messaggio non deve mai fermare l'import */ }
+    }
   }
   const before = playerStanding(ladder, state, targetNode);
   const isNew = !state.results[targetNode.nodeId]?.some((r) => r.season === state.season && r.round === payload.round);

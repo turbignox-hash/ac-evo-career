@@ -49,7 +49,11 @@ export const GAME_MODES_DIR = join(GAME_SAVEDIR, 'GameModes');
  * voce non poteva stare in nessuno dei due) ed entrambi importano già da qui.
  * Il sand-box dei test è sempre env EVO_FACTORY_DIR, come per ACE_GAME_SAVEDIR. */
 const PROJECT_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));   // tools/ → progetto
-export const FACTORY_DIR = process.env.EVO_FACTORY_DIR ?? join(PROJECT_ROOT, 'config', 'griglie-fabbrica');
+// LETTA A OGNI USO (4/11, P0.4): era una const di modulo e chi redirige
+// EVO_FACTORY_DIR dopo il caricamento (runner dei test) restava sulla fabbrica
+// vera → NO_TEMPLATE al posto della griglia di fabbrica. La funzione legge
+// l'ambiente quando serve davvero.
+export const factoryDir = () => process.env.EVO_FACTORY_DIR ?? join(PROJECT_ROOT, 'config', 'griglie-fabbrica');
 
 /* Trova la cartella OpenData del profilo attivo: ProfileData/<guid>/OpenData*/
 export function openDataDir(root = GAME_SAVEDIR) {

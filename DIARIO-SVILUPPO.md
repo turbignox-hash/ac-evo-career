@@ -5,6 +5,34 @@ IL RESTO (da fare o da rivedere). Ogni giorno prendiamo qualcuna di queste e la
 eseguiamo; a fine giornata il diario si arricchisce e la lista si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Numero avversari dal journal (pd-main) e audit fabbrica: 34/34 dal magazzino (richiesta Mauro: «Restano due passi naturali: leggere pd-main per allineare il numero avversari della card al journal, e verificare la fabbrica residua per le 34 serie a classe»)
+
+- **pd-main**: `appRaceInfo()` + `journalRaceForNode()` in [src/app-carriera.mjs](src/app-carriera.mjs) leggono il `pd-main-<hash>.json` più recente (mtime/cache come gli altri journal) e lo accettano solo se la serie combacia col nodo. La card usa la priorità **gamemodesave → journal → ladder**: sul journal reale di Donington, 15 avversari, `single_make`, AI 80–85 → griglia 16.
+- **Off-by-one nativo corretto**: le voci 3.10 sono AVVERSARI, non celle. Misura reale: `cars=25`, `declared=25`, customgrid 26; la card faceva `cars` → 25 (24 avversari) invece di `declared+1` → 26 (25). Ora `declared+1` in CUSTOM e `cars+1` in AUTOMATIC; `gridSource` dice se il numero viene da gamemodesave, journal o ladder.
+- **Fabbrica residua**: audit dry su tutte le **34** serie che restano sul customgrid (33 multiclasse + `coppa_mazda-rx7-fd`, monomarca con 9 regole di classe): **34/34 ricostruite dal magazzino** con il vivo assente; la fabbrica (86 file) non è mai la fonte vincente in questo stato. Resta solo seme per installazione vergine; nessun file cancellato.
+- **Verifica**: `test/pd-main.test.mjs` 2/2; race-card 21/21 nel mirato; suite **960/960**; Biome senza errori nuovi (resta il solo warning preesistente di `webui.mjs` riga 136). Nessun commit.
+
+
+### 4/11 — Modello Paddock: la griglia la genera il gioco, non il magazzino (richiesta Mauro: «implementa pure e semplifica se c'è margine»)
+
+- **La decisione**: `serieGenerataDalGioco()` in [src/grid-apply.mjs](src/grid-apply.mjs) riconosce le **monomarca senza regole di classe**: **52 serie su 86**. Per loro il Prepara non riscrive più il `customgrid`: scrive la banda AI nel gamemodesave e riporta `Grid Type` su **AUTOMATIC**, la forma in cui EVO genera da sé il conteggio di carriera (la stessa scelta di Paddock, che dichiara il weekend e lascia fare al gioco). Le **34 serie a classe** restano sul customgrid — zavorre/restrictor e livree curate servono davvero — e la fabbrica resta il paracadute.
+- **Prepara**: webui e CLI seguono la stessa strada; il CLI conserva `--template` come via manuale. La card continua a nominare una griglia straniera, ma dice che per la monomarca la genera il gioco.
+- **Validazione post-gara**: `grigliaGaraFuori()` (import) è il `grid_problem` di Paddock — «non era single-make» / «auto fuori classe» — non riscrive niente: la gara resta valida, il fatto va in Diagnostica e in un messaggio.
+- **Il numero avversari**: in AUTOMATIC non si forza il campo 7; il conteggio è quello nativo del gamemodesave (3.10), la fonte che EVO usa. Non ho riaperto il crash del 24/10 scrivendo un 7 diverso dalle celle del customgrid. Leggere `pd-main` per allineare la card al 15 del journal resta il passo successivo.
+- **Verifica**: `test/griglia-paddock.test.mjs` 5/5; suite **956/956**; Biome senza errori nuovi (resta il solo warning preesistente di `webui.mjs` riga 136). Nessun commit.
+
+
+### 4/11 — Magazzino tracciato e template stantii archiviati (richiesta Mauro: «puoi migliorare questo sistema, fabbrica e magazzino hanno creato infiniti problemi»)
+
+- **Provenienza**: ogni `storeTemplate` scrive accanto al `.customgrid` un `.json` con `savedAt`, `cells`, `tintes` e `source` (file corrente, bak, fabbrica). Niente più «da dove viene questo template?»: lo dice il file.
+- **Stantio archiviato**: se il template della serie non contiene più le auto della serie (pool cambiato), la corsa dei candidati lo archivia come `.bak-stale-*` (recuperabile) e prosegue su bak/snapshot/fabbrica, invece di riprovarlo a ogni build. Solo in scrittura: i dry-run non toccano niente.
+- **Test**: `test/grid-templates.test.mjs` — il caso «magazzino F40 per la serie RS 3» viene archiviato, la fabbrica vince, il magazzino si riscrive e il meta dichiara la provenienza.
+- **Nota**: i 39 `.bak-*` dentro `config/griglie-fabbrica` sono untracked (non nel git): non li ho cancellati, sono recuperabili solo a mano. La fabbrica resta un seme di prima installazione, non una seconda memoria viva.
+### 4/11 — Griglia fuori serie bloccante e fabbrica letta a ogni uso (richiesta Mauro: «guarda cosa hai fatto già e migliora il resto» — punti P0.3 e P0.4 della scansione)
+
+- **P0.3 — preflight griglia**: la card avvisava già, ma il «Prepara» inghiottiva l'errore di ricostruzione e partiva lo stesso. Ora `grigliaDiAltraSerie(file, ammesse)` (una fonte sola, usata da card e server) dice se sul disco non c'è NEMMENO un'auto del parco; il caso `race` della webui, PRIMA di addebitare l'iscrizione, prova la ricostruzione a secco e se nessun template ha le auto della serie risponde 409 `GRID_SERIES_MISMATCH` col rimedio. `force` resta la via di fuga. Test: `test/griglia-altra-serie.test.mjs` (4 casi).
+- **P0.4 — fabbrica**: `FACTORY_DIR` era una const di modulo: chi redirige `EVO_FACTORY_DIR` dopo il caricamento (runner dei test) restava sulla fabbrica vera e i tre casi «griglia di fabbrica» finivano su `NO_TEMPLATE`. Ora è `factoryDir()`, letta a ogni uso (grid-apply + gridbuilder). Il quarto rosso era un'attesa vecchia: dal 31/10 la cella sintetica usa il preset VERO del parco quando lo conosce, non più il token `preset_<carId>`; l'assert guarda che un preset ci sia.
+- **Prova**: `node --test test/grid-templates.test.mjs test/griglia-altra-serie.test.mjs` → 20/20 verdi (i 4 rossi storici spariti).
 ### 4/11 — Posizione ufficiale a blocchi e classifica del sedile (audit delle 88 gare) (richiesta Mauro: «procedi» dopo la scansione del progetto — punti P0.1 e P0.2)
 
 - **P0.1 — posizione ufficiale a blocchi**: `officialPositionOf` riordinava TUTTO il campo per `total_time`, ma il tempo vale solo dentro la classe. A Donington il 18/10 i primi 5 avevano 38-45 s più del giocatore (Pro-Am/altra classe): il file diceva P7, il ricalcolo P2 — e così in **16 gare su 88**. Ora `graduatoriaUfficiale` spezza l'ordine del file in blocchi (nuovo blocco quando i giri cambiano o il tempo scende, tolleranza 0,5 s) e ordina per giri e tempo+penalità **dentro** il blocco; fra blocchi non si scavalca. Cache WeakMap per gara.

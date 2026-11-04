@@ -9,11 +9,11 @@
 // Il resto, cioe' la lettura del risultato, e' automatico: lo fa il file nativo del gioco.
 
 import { difficultyFor, entryFee, pushMessage, nodeById, playerStanding, isClosedNode, senzaVincoli, grigliaSimEstesa } from './state.mjs';
-import { rebuildGridApply, GRID_FILE } from './grid-apply.mjs';
+import { rebuildGridApply, GRID_FILE, grigliaDiAltraSerie, serieGenerataDalGioco } from './grid-apply.mjs';
 import { contractStatus, challengeFor, trackMastery, sponsorFor, ensureContract, refreshContractTexts } from './life.mjs';
 import { raceCrowdFor } from './memories.mjs';
 import { launchGame } from './paths.mjs';
-import { carAppSpecsOf, rondaDelCalendario } from './app-carriera.mjs';
+import { carAppSpecsOf, rondaDelCalendario, journalRaceForNode } from './app-carriera.mjs';
 import { loadCatalog } from './catalog.mjs';
 import { rivalsOutlook } from './rivals.mjs';
 import { recordFlows } from './flows.mjs';
@@ -21,8 +21,7 @@ import { recordWarning } from './warnings.mjs';
 import { tr, lang } from './lang.mjs';
 import { carPoolOf } from './car-pool.mjs';
 import { sameTrack } from './tracknames.mjs';
-import { existsSync, readFileSync } from 'node:fs';
-import { readCells } from '../tools/grid-balance.mjs';
+import { existsSync } from 'node:fs';
 import { weekendCarCount, WEEKEND_FILE } from '../tools/set-track.mjs';
 // ORE SPOSTABILI (1/11): l'ora override per-ronda dichiarata in agenda.mjs.
 // agenda.mjs non importa race.mjs: nessun ciclo.
@@ -149,7 +148,8 @@ export function nextRound(ladder, state, node = null) {
       if (idxApp == null) idxApp = n.calendar.findIndex((r) => r.track === pd.trackId);
       if (idxApp >= 0 && idxApp > roundIndex) {
         roundIndex = idxApp;
-        Object.assign(round, n.calendar[idxApp]);      }
+        Object.assign(round, n.calendar[idxApp]);
+      }
       // OVERRIDE dei DETTAGLI (vale anche se roundIndex NON si sposta):
       // l'app (o il mirror) detta layout, giri, ora, meteo della ronda — ma
       // SOLO quando la sua «next» È la ronda attiva (idxApp === roundIndex).
@@ -279,6 +279,7 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
   const chosenCar = sceltaParcheggiabile ?? adviceCar;
   const fuoriParco = parco.ammesse.length && !!car && !sceltaParcheggiabile;
   const chosenCarName = carName(chosenCar);
+  const gridDalGioco = serieGenerataDalGioco(ladder, node.nodeId);
   // VIGIA DEL CAMBIO DI CAMPIONATO (3/11, la prova in sandbox richiesta Mauro
   // «che succede se cambio campionato e lancio Prepa tutto?»): dopo il cambio
   // di serie sul disco può restare la griglia della SERIE VECCHIA (lezione
@@ -291,17 +292,12 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
   // Silente: file assente, illeggibile o già combaciante.
   let gridAltraSerie = null;
   try {
-    const celle = existsSync(GRID_FILE) ? (readCells(readFileSync(GRID_FILE))?.cells ?? []) : [];
-    const nomiDisco = [...new Set(celle.map((c) => String(c.name ?? '').trim()).filter(Boolean))];
-    if (nomiDisco.length) {
-      const ammesse = (parco.ammesse.length ? parco.ammesse : parcoIDs.map(carName))
-        .map((s) => String(s ?? '').toLowerCase().trim());
-      if (!nomiDisco.some((n) => ammesse.includes(n.toLowerCase().trim()))) {
+    const nomiDisco = grigliaDiAltraSerie(GRID_FILE, parco.ammesse.length ? parco.ammesse : parcoIDs.map(carName));
+    if (nomiDisco) {
         gridAltraSerie = tr({
-          it: `la griglia sul disco è di un'altra serie (${nomiDisco.slice(0, 3).join(', ')}${nomiDisco.length > 3 ? '…' : ''}): premendo «Prepa tutto» la riscrive dal template della serie — niente da fare a mano`,
-          en: `the grid on disk belongs to a different series (${nomiDisco.slice(0, 3).join(', ')}${nomiDisco.length > 3 ? '…' : ''}): Get everything ready rewrites it from the series template — nothing to do by hand`,
+          it: `la griglia sul disco è di un'altra serie (${nomiDisco.slice(0, 3).join(', ')}${nomiDisco.length > 3 ? '…' : ''}): il «Prepa tutto» la riporta sulla serie — per la monomarca la genera il gioco, per le classi la riscrive dal template — niente da fare a mano`,
+          en: `the grid on disk belongs to a different series (${nomiDisco.slice(0, 3).join(', ')}${nomiDisco.length > 3 ? '…' : ''}): Get everything ready puts it back on the series — for single-make the game generates it, for class series it rewrites it from the template — nothing to do by hand`,
         });
-      }
     }
   } catch { /* file illeggibile: la vigia resta muta, il Prepa parla da sé */ }
   const trackName = (id) => ladder.contentNames?.tracks?.[id] ?? id;
@@ -354,13 +350,22 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
   // weekend è ancora su un'altra serie o su una pista vecchia, la stima resta.
   // Niente file / niente corrispondenza → nessuna override, comportamento come
   // prima (PC vergine).
+  // PRIORITA' DEL NUMERO (4/11): gamemodesave della ronda → pd-main/journal →
+  // ladder. Il nativo 3.10 sono gli AVVERSARI: la griglia e' `declared + 1`
+  // (in CUSTOM) o `cars + 1` (in AUTOMATIC), non `cars` — la card mostrava un
+  // avversario in meno (25 → 24 invece di 26 → 25, misurato il 4/11).
   const nato = (() => {
     try {
       const n = weekendCarCount();
       return n && n.cars > 0 && sameTrack(n.track, trackName(round.track)) ? n : null;
     } catch { return null; }
   })();
-  const gridsReali = nato ? nato.cars : node.gridSize;
+  const journal = journalRaceForNode(node);
+  const journalSullaRonda = journal?.track && sameTrack(journal.track, trackName(round.track)) ? journal : null;
+  const natoGrid = nato ? (nato.declared != null ? nato.declared + 1 : nato.cars + 1) : null;
+  const journalGrid = journalSullaRonda?.opponents != null ? journalSullaRonda.opponents + 1 : null;
+  const gridsReali = natoGrid ?? journalGrid ?? node.gridSize;
+  const gridSource = natoGrid != null ? 'gamemodesave' : journalGrid != null ? 'journal' : 'ladder';
   // GRIGLIA TIPICA nella card (28/10, «la card vede il campo largo come la
   // classifica»): il massimo gridSize di griglia reale incassato in SERIE
   // (grigliaSimEstesa, la stessa cifra delle card serie e dell'agenda). Il
@@ -399,6 +404,16 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
     }),
     gridSize: gridsReali,
     opponents: gridsReali - 1,
+    gridSource,
+    journal: journalSullaRonda ? {
+      opponents: journalSullaRonda.opponents,
+      cars: journalSullaRonda.cars,
+      format: journalSullaRonda.format,
+      aiMin: journalSullaRonda.aiMin,
+      aiMax: journalSullaRonda.aiMax,
+      track: journalSullaRonda.track,
+      at: journalSullaRonda.at,
+    } : null,
     profile,
     difficulty: diffShown,
     difficultyBase: diff,
@@ -448,6 +463,7 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
     warnings: buildWarnings(node, round, profile, diffShown, laps),
     gridRitual,
     gridAltraSerie,
+    gridDalGioco,
     weekendSeen,
     outlook: (() => {
       // report pre-gara: obiettivo pista (miglior giro personale su questo tracciato),

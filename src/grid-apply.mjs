@@ -16,7 +16,7 @@ import { readFileSync, writeFileSync, renameSync, copyFileSync, existsSync, read
 import { dirname, join, basename } from 'node:path';
 import { sameTrack } from './tracknames.mjs';
 import { tr } from './lang.mjs';
-import { gameRunning, encodeMsg, gridFileOf, bakName, pruneBackups, FACTORY_DIR } from '../tools/evo-grid.mjs';
+import { gameRunning, encodeMsg, gridFileOf, bakName, pruneBackups, factoryDir } from '../tools/evo-grid.mjs';
 // compat: cli.mjs e corrupt-inputs.test mordono pruneBackups da qua — ma la
 // fonte è UNA (evo-grid, 31/10): re-export e NULLA si duplica più. Dal 3/11
 // anche bakName passa di qui: webui (bak-evento) e cli (bak-griglia) sono passati
@@ -28,6 +28,7 @@ import { loadClasses, pickClassInfo, buildGridMessage, classeMulticlasseSuPoolMo
 import { resolvePaths } from './paths.mjs';
 import { scanContentCached, carExists } from './content.mjs';
 import { slotDataDir } from './state.mjs';
+import { carPoolOf, carInPool } from './car-pool.mjs';
 import { syncRoster, celleDiGrid } from './weekend-roster.mjs';
 
 export const GRID_FILE = DEFAULT_FILE;
@@ -58,26 +59,42 @@ const SNAPSHOTS_DIR = join(APPLY_DATA_DIR, 'customgrid-snapshots');
 // QUI e non se lo ricostruisce più: due ricostruzioni dello stesso path erano
 // due occasioni di split al primo cambio di fonte (slot, veste, magazzino).
 export const templatePathOf = (nodeId) => join(TEMPLATES_DIR, String(nodeId).replace(/[^a-zA-Z0-9_.-]/g, '_') + '.customgrid');
-const factoryFileOf = (nodeId) => join(FACTORY_DIR, basename(templatePathOf(nodeId)));
+const factoryFileOf = (nodeId) => join(factoryDir(), basename(templatePathOf(nodeId)));
 
 /* bak e POTATURA: stessa ferrea memoria della lezione 28/10, ma la fonte è
  * UNA da 31/10 — tools/evo-grid.mjs (bakName + pruneBackups importati sopra).
  * Tutto il vecchio commento resta là col codice. */
 
+/* ---------- PROVENIENZA DEL MAGAZZINO (4/11) ---------- */
+// Ogni template appuntato porta accanto un .json con data, celle, tinte e
+// provenienza: si sa da dove viene, e un magazzino stantio (pool cambiato)
+// viene archiviato invece di essere riprovato a ogni build.
+export const storeMetaPathOf = (nodeId) => templatePathOf(nodeId).replace(/\.customgrid$/, '.json');
+function scriviMetaStore(nodeId, buf, meta = {}) {
+  try {
+    const info = readCells(buf);
+    const tinte = new Set(info.cells.map((c) => c.tinta).filter(Boolean)).size;
+    writeFileSync(storeMetaPathOf(nodeId), JSON.stringify({
+      nodeId, savedAt: new Date().toISOString(), cells: info.cells.length, tintes: tinte, source: meta.source ?? 'build',
+    }, null, 2) + '\n');
+  } catch { /* la provenienza non è un blocco: il template resta valido */ }
+}
+
 /** Appunta il buffer come template della serie. riscritture successive con byte
  *  identici non toccano nulla (a ogni giro di poll il file non cambia).
  *  Esportata SOLO per il test anti-regressione dei bak. */
-export function storeTemplate(nodeId, buf) {
+export function storeTemplate(nodeId, buf, meta = {}) {
   try {
     mkdirSync(TEMPLATES_DIR, { recursive: true });
     const f = templatePathOf(nodeId);
     const nuovo = Buffer.from(buf);
-    if (existsSync(f) && Buffer.compare(readFileSync(f), nuovo) === 0) return f;
+    if (existsSync(f) && Buffer.compare(readFileSync(f), nuovo) === 0) { scriviMetaStore(nodeId, nuovo, meta); return f; }
     if (existsSync(f)) {
       copyFileSync(f, bakName(f));
       pruneBackups(f, { keep: 10 });
     }
     writeFileSync(f, nuovo);
+    scriviMetaStore(nodeId, nuovo, meta);
     return f;
   } catch { return null; }
 }
@@ -91,7 +108,7 @@ export function storeTemplate(nodeId, buf) {
 // curato). Sta FUORI da storeTemplate perché il test anti-regressione dei bak
 // (28/10) lo chiama direttamente e vuole la scrittura libera: la pila dei bak
 // al secondo è già la memoria di tutte le versioni attraversate.
-export function storeTemplateSeNonRidotto(nodeId, buf) {
+export function storeTemplateSeNonRidotto(nodeId, buf, meta = {}) {
   try {
     const f = templatePathOf(nodeId);
     if (existsSync(f)) {
@@ -100,7 +117,7 @@ export function storeTemplateSeNonRidotto(nodeId, buf) {
       if (cellaNuova < cellaVecchia) return f;   // il magazzino resta com'era
     }
   } catch { /* se non si legge il vecchio, si appunta come prima: i bak proteggono */ }
-  return storeTemplate(nodeId, buf);
+  return storeTemplate(nodeId, buf, meta);
 }
 
 /* ---------- DISCARICA DEI BACKUP ---------- */
@@ -142,6 +159,21 @@ function missingCarError(mancanti) {
     it: `La griglia di fabbrica cita auto che NON ci sono in questa installazione (${elenco}). Installa il contenuto, oppure costruisci la griglia a mano UNA volta: menu griglia del round in EVO → GENERA con le auto della serie → APPLICA — da lì il tool la appunta da solo.`,
     en: `The factory grid cites cars MISSING from this installation (${elenco}). Install the car content, or build the grid by hand ONCE: the round's grid menu in EVO → GENERATE with the series' cars → APPLY — the tool records it from there.`,
   })), { code: 'CAR_MISSING' });
+}
+
+/** GRIGLIA DI UN'ALTRA SERIE (4/11, P0.3): i nomi delle auto sul disco quando
+ *  NESSUNA è nel parco ammesso della ronda. null = file assente/vuoto/illeggibile
+ *  o parco non dichiarato: la vigia resta muta e comanda il Prepara. La usano la
+ *  card (avviso) e il preflight del Prepara (blocco quando la ricostruzione dal
+ *  template non è possibile: Imola 31/10, GT3 RS contro la classe d'epoca). */
+export function grigliaDiAltraSerie(file, ammesse) {
+  try {
+    const pool = (ammesse ?? []).map((s) => String(s ?? '').toLowerCase().trim()).filter(Boolean);
+    if (!pool.length || !existsSync(file)) return null;
+    const nomi = [...new Set(readCells(readFileSync(file)).cells.map((c) => String(c.name ?? '').trim()).filter(Boolean))];
+    if (!nomi.length) return null;
+    return nomi.some((n) => pool.includes(n.toLowerCase().trim())) ? null : nomi;
+  } catch { return null; }
 }
 
 /** Il messaggio builder "il template non contiene le auto della serie" diventa
@@ -367,7 +399,7 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
       const first = buildGridMessage({ ladder, nodeId, roundIndex, file, aiBandSerie });
       if (dry) return { report: first.report, written: false };
       const backup = writeSafe(first.buffer, file, { force });
-      storeTemplateSeNonRidotto(nodeId, first.buffer);   // la griglia riuscita resta la memoria della serie (guardia: niente sovrascritture con meno celle)
+      storeTemplateSeNonRidotto(nodeId, first.buffer, { source: 'file corrente' });   // la griglia riuscita resta la memoria della serie (guardia: niente sovrascritture con meno celle)
       if (rosterVale) first.report.roster = trapiantaRoster(first.buffer, { force, dry });
       return { report: first.report, written: true, backup, countAlign: bridge };
     } catch (e) { firstErr = e; }
@@ -425,10 +457,23 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
           const { buffer, report } = buildGridMessage({ ladder, nodeId, roundIndex, file: nomeFile, aiBandSerie });
           if (dry) return { report, written: false, source: label };
           const backup = writeSafe(buffer, file, { force });
-          storeTemplateSeNonRidotto(nodeId, buffer);
+          storeTemplateSeNonRidotto(nodeId, buffer, { source: label });
           if (rosterVale) report.roster = trapiantaRoster(buffer, { force, dry });
           return { report, written: true, backup, source: label, countAlign: bridge };
-        } catch (e) { lastErr = e; }
+        } catch (e) {
+          lastErr = e;
+          // MAGAZZINO STANTIO (4/11): se il template della serie non contiene più
+          // le auto della serie (pool cambiato) non si riprova a ogni build: si
+          // archivia come bak (recuperabile) e la corsa continua su bak/snapshot/
+          // fabbrica. Solo in scrittura: i dry-run della card non toccano niente.
+          if (!dry && nomeFile === tPath && /non contiene le auto/.test(String(e?.message ?? ''))) {
+            try {
+              const arch = bakName(nomeFile, 'stale-');
+              renameSync(nomeFile, arch);
+              console.log(`[griglia] magazzino stantio archiviato (${basename(arch)}): ${String(e.message).slice(0, 120)}`);
+            } catch { /* niente archivio: si continua come prima */ }
+          }
+        }
       }
       // La fabbrica era l'unica strada e qui l'installazione manca di auto:
       // il messaggio giusto è QUESTO, non il rituale generico.
@@ -466,4 +511,44 @@ export function gridStatus({ track = null, file = GRID_FILE } = {}) {
     }
   }
   return { file, exists: true, ...info, classe, perTraccia, convalidato, escluseClasse, escluseTraccia };
+}
+
+
+/* ---------- MODELLO PADDOCK (4/11): il gioco genera, noi controlliamo ---------- */
+
+/**
+ * Una serie e' «generata dal gioco» quando e' MONOMARCA e non ha regole di
+ * classe da applicare (zavorra/restrictor). In quel caso EVO sa gia' costruire
+ * la griglia dal weekend (Single Make + conteggio nativo): scrivere le celle
+ * e' il lavoro in piu' che ci ha portato magazzino e fabbrica. Le multiclasse
+ * restano sul customgrid, dove le regole di classe servono davvero.
+ */
+export function serieGenerataDalGioco(ladder, nodeId) {
+  const node = (ladder?.nodes ?? []).find((n) => n.nodeId === String(nodeId ?? '')) ?? null;
+  if (!node || !Array.isArray(node.cars) || node.cars.length !== 1) return false;
+  const cls = loadClasses().classi?.[String(nodeId ?? '')] ?? null;
+  if (Array.isArray(cls?.regole) && cls.regole.length) return false;
+  return true;
+}
+
+/**
+ * Validazione post-gara della griglia (il `grid_problem` di Paddock): non
+ * riscrive niente, guarda il risultato. Ritorna null se tutte le auto in gara
+ * rientrano nel parco della serie, altrimenti { tipo, fuori, ammesse }.
+ * `tipo` distingue la monomarca («non era Single Make») dalla classe.
+ */
+export function grigliaGaraFuori(result, { ladder, node }) {
+  const auto = [...new Set((result?.drivers ?? [])
+    .map((d) => `${d.car_brand ?? ''} ${d.car_name ?? ''}`.trim())
+    .filter(Boolean))];
+  if (!auto.length) return null;
+  const parco = carPoolOf(ladder, node?.nodeId);
+  if (!parco.ammesse.length) return null;
+  const fuori = auto.filter((a) => !carInPool(a, parco.ammesse));
+  if (!fuori.length) return null;
+  return {
+    tipo: (node?.cars ?? []).length === 1 ? 'single_make' : 'classe',
+    fuori,
+    ammesse: parco.ammesse,
+  };
 }

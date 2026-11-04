@@ -64,7 +64,7 @@ import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
 import { parseSetup, listSetups, writeSetupCopy, brakePlanOf, annotateAllyAdvice, bridgeSetup } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
 import { carPoolOf, carInPool, poolNodeForLive } from './car-pool.mjs';
-import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, setWeekendGridCustom, WEEKEND_FILE } from '../tools/set-track.mjs';
+import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, setWeekendGridCustom, setWeekendGridAuto, WEEKEND_FILE } from '../tools/set-track.mjs';
 import { currentRaceTime, currentSessionTimes, setRaceSessions } from '../tools/set-racetime.mjs';
 import { setWeekendAirTemp } from '../tools/set-weekend.mjs';
 import { setWeekendLaps, setWeekendTimed, weekendLaps, raceBlockIndex } from '../tools/weekend-laps.mjs';
@@ -2589,6 +2589,26 @@ async function api(context0, _req, res, action, body) {
       const node = nodeById(ladder, state.node);
       if (state.round >= node.calendar.length) return sendJson(res, 400, { error: 'Stagione completata: chiudi l\'anno dalla schermata Carriera.' });
       const card = raceCard(ladder, state, { car: typeof body.car === 'string' ? body.car : null });
+      // PREFLIGHT GRIGLIA (4/11, P0.3): la card avvisa già quando il customgrid è
+      // di un'altra serie; qui, PRIMA di addebitare l'iscrizione, si prova la
+      // ricostruzione a secco. Se nessun template ha le auto della serie la gara
+      // non parte: sarebbe falsa (Imola 31/10, GT3 RS contro la classe d'epoca).
+      // body.force resta la via di fuga per diagnosi e test.
+      if (!body.noLaunch && card.gridAltraSerie && !body.force && !card.gridDalGioco) {
+        try {
+          rebuildGridApply({ ladder, nodeId: state.node, roundIndex: Math.min(card.roundIndex ?? 0, node.calendar.length - 1), force: true, dry: true });
+        } catch (e) {
+          return sendJson(res, 409, {
+            error: tr({
+              it: "La griglia sul disco è di un'altra serie e non c'è un template con le auto di questa ronda: la gara non parte (sarebbe falsa). " + e.message,
+              en: "The grid on disk belongs to a different series and no template carries this round's cars: the race will not start (it would be fake). " + e.message,
+            }),
+            code: 'GRID_SERIES_MISMATCH',
+            detail: card.gridAltraSerie,
+          });
+        }
+      }
+      const monoGioco = card.gridDalGioco === true && !body.forceGrid;
       const running = await isGameRunning();
       state.pendingSettings = { ...(state.raceSettings?.[node.nodeId] ?? {}) };
       const fee = chargeEntry(ladder, state, node);
@@ -2669,6 +2689,8 @@ async function api(context0, _req, res, action, body) {
           // riscrittura della griglia al Prepara resta per TUTTE (conteggio
           // allineato al gamemodesave, zavorre/penalità solo dove la classe
           // le chiede) e la cartuccia non si parcheggia più.
+          // MODELLO PADDOCK (4/11): monomarca senza regole di classe = la
+          // griglia la genera EVO (decisione presa prima del ramo griglia).
           try {
             // BANDA DI SERIE (1/11/2026, richiamo di Mauro sul 82–92 della Peugeot):
             // la banda VIVA dei cursori del weekend segue il builder, così anche
@@ -2685,14 +2707,28 @@ async function api(context0, _req, res, action, body) {
                 return bandaSerieSlider(ladder, state, node, node.calendar[idx]?.track ?? null).banda;
               } catch { return null; }
             })();
-            const rb = rebuildGridApply({
+            if (monoGioco) {
+              // MODELLO PADDOCK: niente customgrid, niente magazzino, niente
+              // fabbrica — si dichiara il weekend e le celle le mette EVO.
+              // La banda AI vive nel gamemodesave (campi 30/31), non nel
+              // customgrid: e' quella che il gioco mostra al caricamento.
+              prep.grid = prep.grid ?? {};
+              try { if (bandaSeriePrep) setWeekendAi(bandaSeriePrep[0], bandaSeriePrep[1]); } catch { /* il gamemodesave puo' mancare */ }
+              prep.grid.mode = 'gioco';
+              prep.grid.rebuild = tr({
+                it: `griglia generata dal gioco (single make, ${card.opponents ?? '?'} avversari): nessun template, nessuna fabbrica`,
+                en: `the game generates the grid (single make, ${card.opponents ?? '?'} opponents): no template, no factory`,
+              });
+              prep.grid.written = true;
+            }
+            const rb = monoGioco ? null : rebuildGridApply({
               ladder,
               nodeId: state.node,
               roundIndex: Math.min(card.roundIndex ?? 0, node.calendar.length - 1),   // la ronda del calendario seminato (4/11), come per la card
               force: true,   // a EVO aperto si può scrivere dal menu principale (7ª prova 19/10, certificata in NOTE-AUTOMAZIONE)
               aiBandSerie: bandaSeriePrep,            // banda VIVA della serie (cursori/trim) al posto del ladder preistorico
             });
-            if (rb.written) {
+            if (rb?.written) {
               prep.grid = prep.grid ?? {};
               const tinteMonoRb = (rb.report.tinte ?? []).filter((s) => s.includes('MONOCOLORE'));
               prep.grid.rebuild = `riscritta per "${rb.report.serie}" — ${rb.report.gridSize} celle${rb.report.poolMulti ? ` (${rb.report.poolMulti})` : ''}${rb.source ? ` · template: ${rb.source}` : ''}${rb.report.tintePrestate ? ` · ${rb.report.tintePrestate} tinte prestate` : ''}${tinteMonoRb.length ? ` · avviso: ${tinteMonoRb.join('; ')}` : ''}`;
@@ -2702,7 +2738,7 @@ async function api(context0, _req, res, action, body) {
             prep.grid = prep.grid ?? {};
             prep.grid.rebuild = `non riuscita (${e.message})`;
           }
-          if (existsSync(GRID_FILE)) {
+          if (!monoGioco && existsSync(GRID_FILE)) {
             const zp = zeroBalanceProposal(GRID_FILE, { track: card.trackName ?? null });
             if (zp) {
               const out = applyBalance({ track: card.trackName ?? null, force: true });
@@ -2785,6 +2821,16 @@ async function api(context0, _req, res, action, body) {
           it: `il selettore Grid Type non è stato scritto da fuori (${e.message}) — apri in EVO il menu Race Weekend del round: muovi Grid Type su CUSTOM e premi Applica (così le zavorre e le penalità di classe arrivano al via)`,
           en: `the Grid Type selector was not written from outside (${e.message}) — open the round's Race Weekend menu in EVO: move Grid Type to CUSTOM and press Apply (this brings the class ballast and penalties to the start)`,
         });
+      }
+      if (monoGioco) {
+        // Il blocco qui sopra ha sbloccato CUSTOM sul conteggio del customgrid:
+        // per la monomarca si torna AUTOMATIC, la forma in cui EVO genera da
+        // se' (modello Paddock). Silente se il file manca.
+        try {
+          setWeekendGridAuto();
+          prep.gridMode = tr({ it: 'automatic (single make): la griglia la genera il gioco', en: 'automatic (single make): the game generates the grid' });
+          prep.gridModeError = null;
+        } catch (e) { prep.gridModeError = e.message; }
       }
       // meteo della ronda: FUORI dal cancello !running — la scrittura del selettore
       // in gamemode.lastgamemode è accettata anche a EVO aperto (verificato 20/10/2026:
