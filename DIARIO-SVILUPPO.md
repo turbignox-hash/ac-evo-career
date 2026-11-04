@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Prova live Cruscotto: evento F40 e gesto unico avviati davvero
+
+- **Evento**: accettato l’invito `ev_6_1792531249531` con il campo giusto `eventId` (21:01:08) e armato il canale con `event-prep` (`noLaunch:true`). Il publisher ha emesso `evento:legend_finale:Ferrari F40 LM`; il log EVO delle 21:02:13 riporta `auto evento trovata: Ferrari F40 LM`, `✓ evento SetCurrentCar ok` e l’ack `evento:legend_finale:Ferrari F40 LM` con `ok:1`. Catena reale server → payload → app installata, non un payload sintetico.
+- **Gesto unico**: alle 21:02:28 è nato il pending Supra/Laguna Seca con `avviaFino`; il log riporta `✓ SetCurrentCar ok: Toyota Supra MKIV`, `GameModeSelectionClientRequestStart`, `Game Started! ... Laguna Seca ... ks_toyota_supra_mkiv` e `✓ RequestStart ok: sessione avviata`. L’ack `1793822548236:ks_toyota_supra_mkiv:campionato_moderno:avvia` è `ok:1` alle 21:02:34. La sessione è partita davvero e non è stata interrotta.
+- **Bug trovato e corretto**: `event-prep` rispondeva con `guestsError: readdirSync is not defined` — l’import di `node:fs` non era stato aggiornato dopo l’estrazione dei moduli, quindi la griglia evento non veniva riscritta. Aggiunto `readdirSync` all’import di `webui.mjs`; `node --check` pulito, `test/game-sandbox.test.mjs` 2/2, Biome pulito. La riscrittura della griglia non è stata riprovata dal vivo perché la sessione era già in corso.
+- **Save**: backup pre-prova in `tmp/evo-career.save.pre-live-20261104-205945.json` (più storia e `ui_storage`). Release `v0.1.58` invariata.
+
 ### 4/11 — MoTeC: i Results si indicizzano una volta per collectSessions (scansione + ottimizzazione, richiesta Mauro)
 
 - Scansione: il percorso caldo era `collectSessions` → `readResultMeta`: per OGNI sessione rileggeva e riparsava TUTTI i 362 JSON di Results. Con 10 sessioni erano 3.620 parse dello stesso contenuto; il costo misurato era 1.269 ms a freddo e 1.148 ms a caldo (286 .ld, 362 Results reali, sola lettura).

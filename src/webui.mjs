@@ -8,7 +8,7 @@
 import { createServer } from 'node:http';
 import { execFileSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { readFileSync, writeFileSync, appendFileSync, existsSync, copyFileSync, renameSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, existsSync, readdirSync, copyFileSync, renameSync, statSync } from 'node:fs';
 import { dirname, join, extname, basename, relative, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { telemScanLocale } from './webui-telem.mjs';
