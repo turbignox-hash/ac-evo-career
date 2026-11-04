@@ -5,6 +5,12 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Cruscotto: riepilogo di gara sopra i bottoni di lancio (segnalazione Mauro)
+
+- Il brief #race-brief vive dentro #card-actions, sopra «Prepara tutto»: auto, pista, distanza e meteo delle quattro sessioni (Prove libere, Qualifiche, Warm-up, Gara) si leggono senza scendere. A 800 px si sposta con i bottoni nella barra sticky.
+- La sfida della ronda è salita lì con l'Accetta; la copia nel pannello «Vita fuori pista» viene omessa quando la card la mostra già, quindi niente doppioni.
+- Verifica: brief a 345 px, primo bottone a 514 px, sfida sopra i bottoni, 0 id duplicati, 0 overflow, 0 errori JS; collaudo tab 19/19.
+
 ### 4/11 — Setup: pannelli in ordine, grafico con titolo e meccanico corretto
 
 - **Ordine**: la Diagnostica telemetria (26 riquadri, 4.967 caratteri) stava tra «Consigli del box» e «Salute sistema»: spingeva salute ed errori a 5.580/5.777 px. Ora l'ordine è Grafico → Consigli → PSI → Auto della serie → Salute → Registro → Diagnostica (ultima); il pulsante «Mostra tutto il PC» è riagganciato dopo l'append, quindi funziona ancora.
