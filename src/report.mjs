@@ -26,16 +26,24 @@ function gitRun(args, timeout = 8000) {
   }).toString().trim();
 }
 
+/* I due dati git qui sotto non cambiano durante la vita del processo: leggerli
+ * a OGNI boot costava ~95 ms (tre `git remote` + `rev-parse`) per costruire un
+ * link che cambia solo quando cambia la build. Memo per processo, zero stato
+ * persistente: un riavvio del server li rilegge. */
+let _repoCache;
+let _buildCache = null;
+
 /** owner/repo da GitHub, leggendo i remote git (prima "offsite", poi "origin"). */
 export function githubRepo() {
+  if (_repoCache !== undefined) return _repoCache;
   for (const remote of ['offsite', 'origin', 'upstream']) {
     try {
       const url = gitRun(['remote', 'get-url', remote]);
       const m = String(url).match(/github\.com[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/i);
-      if (m) return `${m[1]}/${m[2]}`;
+      if (m) return (_repoCache = `${m[1]}/${m[2]}`);
     } catch { /* remote assente o git assente: si prova il prossimo */ }
   }
-  return null;
+  return (_repoCache = null);
 }
 
 /** URL Ko-fi da config (evo.config.json). Null se non impostato o se il campo è segnaposto. */
@@ -92,11 +100,12 @@ function formatDiff(state) {
 
 /** { semver, hash } da package.json + git, corazzato: in test potrebbe mancare git. */
 export function buildVersion() {
+  if (_buildCache) return _buildCache;
   let semver = '?';
   try { semver = JSON.parse(readFileSync(join(RADICE, 'package.json'), 'utf8')).version ?? '?'; } catch { /* pazienza */ }
   let hash = '';
   try { hash = gitRun(['rev-parse', '--short', 'HEAD']); } catch { /* senza git: tutto qui */ }
-  return { semver, hash };
+  return (_buildCache = { semver, hash });
 }
 
 function versionLine() {

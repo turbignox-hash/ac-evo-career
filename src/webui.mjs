@@ -360,7 +360,7 @@ async function readBody(req) {
    sondaggio inceppato resta in coda alle richieste del server: se un
    sondaggio costa più di 3s la finestra cresce a 30s — meno tasklist,
    fila più libera. */
-let _grAt = 0, _grVal = false, _grMs = 0;
+let _grAt = 0, _grVal = false, _grMs = 0, _grFlight = null;
 // sessione telemetrica dell'ingegnere LIVE: memo 30s per auto (vedi case 'ingegnere')
 let _engSess = null, _engSessAt = 0;
 const _stintPlanCache = new Map();
@@ -413,10 +413,12 @@ function stintPlanFor(state, { car = null, durEff = null, paths = null, caldo = 
 async function gameRunningMemo() {
   const finestra = _grMs > 3000 ? 30000 : 10000;
   if (Date.now() - _grAt < finestra) return _grVal;
+  if (_grFlight) return _grFlight;   // boot e watcher chiedono insieme: una sola tasklist
   const t0 = Date.now(); _grAt = t0;
-  _grVal = await isGameRunning();
-  _grMs = Date.now() - t0;
-  return _grVal;
+  _grFlight = isGameRunning()
+    .then((v) => { _grVal = v; _grMs = Date.now() - t0; return v; })
+    .finally(() => { _grFlight = null; });
+  return _grFlight;
 }
 
 /* ---------- LIVE: modalità del lettore shared memory (richiesta Mauro 21/10) ----------
@@ -1230,21 +1232,30 @@ async function api(context0, _req, res, action, body) {
       return sendJson(res, 200, { ok: true, port: PORT, build: buildVersion() });
     }
     case 'boot': {
+      // Il controllo "gioco aperto" è una tasklist: parte SUBITO e corre in
+      // parallelo a setup/header/mailbox/feedback, poi si aspetta solo il suo
+      // esito. Prima stava in mezzo alla costruzione dell'oggetto: ~80 ms
+      // sommati a ogni boot, con la stessa risposta già pronta.
+      const gameRunningP = gameRunningMemo();
+      const setup = viewSetup(ladder, paths);
+      const header = state ? viewHeader(ladder, state) : null;
+      // badge urgente sul menu Messaggi: email priorità alta della posta del pilota
+      const mailUrgent = state ? mailbox(ladder, state).mails.filter((m) => m.priorita === 'urgente').length : 0;
+      // footer: "Segnala un problema" (issue precompilata) + link donazioni (config)
+      const feedback = state ? feedbackLinks({ ladder, state }) : feedbackLinks(null);
       return sendJson(res, 200, {
         hasCareer: hasCareer(),
-        header: state ? viewHeader(ladder, state) : null,
-        setup: viewSetup(ladder, paths),
-        gameRunning: await isGameRunning(),
+        header,
+        setup,
+        gameRunning: await gameRunningP,
         // barra aggiornamenti: FUORI dal boot (freeze 23/10) — la GUI la pesca
         // in contorno con /api/agg-info (drawAggBar(null) ultimata), così il
         // primo pannello non aspetta la rete di GitHub.
         aggiornamenti: null,
-        // badge urgente sul menu Messaggi: email priorità alta della posta del pilota
-        mailUrgent: state ? mailbox(ladder, state).mails.filter((m) => m.priorita === 'urgente').length : 0,
+        mailUrgent,
         // versione della build visibile in GUI (sidebar): package.json + breve hash git
         versione: buildVersion(),
-        // footer: "Segnala un problema" (issue precompilata) + link donazioni (config)
-        feedback: state ? feedbackLinks({ ladder, state }) : feedbackLinks(null),
+        feedback,
       });
     }
     case 'agg-info': {

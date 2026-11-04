@@ -96,12 +96,14 @@ export function scanContent(paths) {
  * scanContent cammina RICORSIVAMENTE l'intera cartella dati di EVO leggendo e
  * analizzando con regex ogni file <40MB: costoso, e /api/boot lo chiamava ad
  * OGNI caricamento di pagina. Per la GUI basta una copia fresca: qui una cache
- * TTL breve (default 30s, regolabile con ACE_CONTENT_TTL), chiave = cartelle
- * dati scandite. La CLI NON lo usa (comandi di consapevolezza: vogliono il
- * ritorno fresco) e continua su scanContent diretto.
+ * TTL (default 5 min, regolabile con ACE_CONTENT_TTL), chiave = cartelle dati
+ * scandite. I 30 s di prima facevano ripagare la scansione a ogni riapertura
+ * della GUI dopo mezzo minuto; 5 min coprono l'uso reale e restano forzabili
+ * con ACE_CONTENT_TTL. La CLI NON lo usa (comandi di consapevolezza: vogliono
+ * il ritorno fresco) e continua su scanContent diretto.
  */
 const _contentCache = new Map(); // key (dirs) → { at, val }
-export function scanContentCached(paths, { ttlMs = Number(process.env.ACE_CONTENT_TTL) * 1000 || 30_000 } = {}) {
+export function scanContentCached(paths, { ttlMs = Number(process.env.ACE_CONTENT_TTL) * 1000 || 300_000 } = {}) {
   const key = (paths.dataDirs ?? []).join('|');
   const hit = _contentCache.get(key);
   if (hit && Date.now() - hit.at < ttlMs) return hit.val;

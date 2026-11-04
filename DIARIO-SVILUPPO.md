@@ -5,6 +5,15 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — webUI: boot parallelo e cache, prima schermata più veloce (richiesta Mauro: «controlla la webUI, migliora velocità di avvio e risposta»)
+
+- **Misure** (3 avvii, sandbox con copia del save): server pronto **341→332 ms** (sostanzialmente stabile); `/api/boot` a freddo **248→178 ms**; a caldo **159→15 ms**; status **9,1→9,1**; card **73,8→73,7** e **37,4→36,5**; ping **6,3→5,9**. Tempo fino al primo boot **589→510 ms** (−13,4%).
+- **Boot**: `gameRunningMemo()` parte prima di setup/header/mailbox/feedback, così la tasklist (70–85 ms) corre in parallelo; il memo in-flight evita una seconda tasklist se watcher e boot coincidono.
+- **Report**: memo per processo di `githubRepo` e `buildVersion`; il link di segnalazione non rilancia `git remote`/`rev-parse` (95 ms) a ogni boot.
+- **Contenuti**: `scanContentCached` passa da 30 s a 5 min. Sul dataset di prova la scansione fredda è ~2,3 s, quella in cache 3,6 ms. Il primo scan a freddo può ancora costare; il TTL evita di ripagarlo a ogni riapertura ravvicinata.
+- **Verifica**: `npm run check` exit 0; suite **963/963**; lint **368 file, 0 warning**; `node --check` e Biome sui tre file puliti.
+- **Nota**: nessun cambio di payload o status. Commit, non push. Restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — test: contratto dei moduli azioni blindato (richiesta Mauro: «scegli autonomamente cosa migliorare e procedi,»)
 
 - **Gap**: il test controllava solo le rotte di `SOLO_POST`; una rotta senza case, un case fuori dal set o una rotta condivisa da due moduli poteva passare inosservata.
