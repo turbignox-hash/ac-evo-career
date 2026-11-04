@@ -2,7 +2,7 @@
 
 **A persistent, local-first career for Assetto Corsa EVO.**
 
-![Build](https://img.shields.io/badge/build-0.1.56-2563eb?style=flat-square)
+![Build](https://img.shields.io/badge/build-0.1.57-2563eb?style=flat-square)
 ![Tests](https://img.shields.io/badge/tests-911%2F911-16a34a?style=flat-square)
 ![Lint](https://img.shields.io/badge/lint-0%20warnings-16a34a?style=flat-square)
 ![Node](https://img.shields.io/badge/Node-18%2B-339933?style=flat-square)
@@ -18,15 +18,15 @@ EVO Pitwall adds a career layer *around* Assetto Corsa EVO: a ladder of **86 ser
 
 The game remains the game. EVO Pitwall does not replace AC EVO's career, does not modify its content, and does not need an account, a cloud service or another career application.
 
-**Current main:** build **0.1.56** · **911/911** tests · **370** linted files, 0 warnings.
+**Current main:** build **0.1.57** · **911/911** tests · **370** linted files, 0 warnings.
 
 ## Install
 
 ### Option A — published friend package
 
-The current **pre-release** is **[v0.1.56](https://github.com/turbignox-hash/ac-evo-career/releases/tag/v0.1.56)**. It ships the friend ZIP, both Windows installers and the `EVO-Pitwall-v0.1.56-Windows.zip` bundle with both EXEs, checksums and a short install guide. No administrator rights; the offline EXE includes portable Node and works without a connection.
+The current **pre-release** is **[v0.1.57](https://github.com/turbignox-hash/ac-evo-career/releases/tag/v0.1.57)**. It ships the friend ZIP, both Windows installers and the `EVO-Pitwall-v0.1.57-Windows.zip` bundle with both EXEs, checksums and a short install guide. No administrator rights; the offline EXE includes portable Node and works without a connection.
 
-> **Unsigned preview:** v0.1.56 is a pre-release because the EXEs are not Authenticode-signed yet. Expect SmartScreen; download only from this repository. v0.1.55 is older.
+> **Unsigned preview:** v0.1.57 is a pre-release because the EXEs are not Authenticode-signed yet. Expect SmartScreen; download only from this repository. v0.1.56 is older.
 
 ### Option B — Windows EXE from `main`
 
@@ -44,7 +44,7 @@ This produces `dist\EVO-Pitwall-Setup.exe` or `dist\EVO-Pitwall-Setup-Offline.ex
 - `--silent --dir <path>` for unattended installs;
 - the offline EXE works without a connection; the online one needs internet.
 
-> **Installer status:** both EXEs are attached to the **v0.1.56 pre-release**. They are unsigned; a stable signed release needs an OV or EV certificate.
+> **Installer status:** both EXEs are attached to the **v0.1.57 pre-release**. They are unsigned; a stable signed release needs an OV or EV certificate.
 
 <details>
 <summary>Optional Authenticode signing</summary>
@@ -64,9 +64,9 @@ A **self-signed certificate does not remove SmartScreen**: it only helps on a PC
 
 Full walkthrough: [GUIDA-AMICO.md](GUIDA-AMICO.md) (Italian, with an English section) or [FRIEND-GUIDE-EN.md](FRIEND-GUIDE-EN.md).
 
-## v0.1.56 installer preview
+## v0.1.57 installer preview
 
-The first public build with both Windows installers attached. The online EXE downloads Node and the code; the offline EXE embeds portable Node and the full source. Both are unsigned, so SmartScreen is expected; this is a pre-release, not the signed stable build.
+This build bakes in the five-file cleanup and ships the Windows bundle ZIP with both EXEs. The online EXE downloads Node and the code; the offline EXE embeds portable Node and the full source. Both are unsigned, so SmartScreen is expected; this is a pre-release, not the signed stable build.
 
 ## What's new in 0.1.55
 
@@ -77,7 +77,7 @@ The first public build with both Windows installers attached. The online EXE dow
 - **Independent codebase.** The external journal bridge, the channel and the derived rules are gone. Calendar, garage and dictionary read only files written by the game. A guard test scans the project and fails if a reference to the external product comes back.
 - **Current checks:** `npm test` **911/911**, `npm run lint` **370 files, 0 warnings**.
 
-The v0.1.55 notes describe the independence cut; v0.1.56 adds the unsigned installer preview built from clean `main`.
+The v0.1.55 notes describe the independence cut; v0.1.57 adds the unsigned installer preview built from clean `main`.
 
 ## Highlights
 
