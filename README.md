@@ -18,7 +18,7 @@ EVO Pitwall adds a career layer *around* Assetto Corsa EVO: a ladder of **86 ser
 
 The game remains the game. EVO Pitwall does not replace AC EVO's career, does not modify its content, and does not need an account, a cloud service or another career application.
 
-**Current main:** build **0.1.57** · **913/913** tests · **370** linted files, 0 warnings.
+**Current main:** build **0.1.57** · **913/913** tests · **372** linted files, 0 warnings.
 
 ## Install
 
@@ -91,7 +91,7 @@ This build bakes in the five-file cleanup and ships the Windows bundle ZIP with 
 - **Release safety.** The release tool stops on a dirty tree, a missing or empty body, a tag that is not on `HEAD` or missing from the remote, and a failed asset upload. The friend package is built only from a completely clean tree.
 - **Optional signing preflight.** When signing variables are present, the preflight verifies the Authenticode chain, the `.sha256` sidecar and the build metadata before attaching anything.
 - **Independent codebase.** The external journal bridge, the channel and the derived rules are gone. Calendar, garage and dictionary read only files written by the game. A guard test scans the project and fails if a reference to the external product comes back.
-- **Current checks:** `npm test` **913/913**, `npm run lint` **370 files, 0 warnings**.
+- **Current checks:** `npm test` **913/913**, `npm run lint` **372 files, 0 warnings**.
 
 The v0.1.55 notes describe the independence cut; v0.1.57 adds the unsigned installer preview built from clean `main`.
 

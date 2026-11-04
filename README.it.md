@@ -18,7 +18,7 @@ EVO Pitwall aggiunge uno strato di carriera *attorno* ad Assetto Corsa EVO: una 
 
 Il gioco resta il gioco. EVO Pitwall non sostituisce la carriera nativa di AC EVO, non modifica i suoi contenuti e non richiede account, cloud o altre applicazioni di carriera.
 
-**Ramo main:** build **0.1.57** · **913/913** test · **370** file lint, 0 warning.
+**Ramo main:** build **0.1.57** · **913/913** test · **372** file lint, 0 warning.
 
 ## Installazione
 
@@ -91,7 +91,7 @@ Questa build include la pulizia dei cinque file e il bundle ZIP Windows con entr
 - **Sicurezza release.** Il tool si ferma su albero sporco, corpo mancante o vuoto, tag non su `HEAD` o assente dal remoto e upload di un asset fallito. Il pacchetto amico nasce solo da un albero completamente pulito.
 - **Preflight di firma opzionale.** Con le variabili di firma attive verifica catena Authenticode, sidecar `.sha256` e metadati di build prima di allegare qualcosa.
 - **Codice indipendente.** Rimossi il ponte ai journal esterni, il canale e le regole derivate. Calendario, garage e dizionario leggono solo file scritti dal gioco. Una guardia scansiona il progetto e fallisce se ricompare un riferimento al prodotto esterno.
-- **Controlli attuali:** `npm test` **913/913**, `npm run lint` **370 file, 0 warning**.
+- **Controlli attuali:** `npm test` **913/913**, `npm run lint` **372 file, 0 warning**.
 
 Le note della v0.1.55 descrivono il taglio di indipendenza; la v0.1.57 aggiunge l'anteprima installer non firmata, costruita da `main` pulito.
 
