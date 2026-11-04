@@ -12,6 +12,13 @@ affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo
 - Griglia, «Costruzione weekend»: dei sei riquadri solo Auto e Pista portavano a una scheda; gli altri quattro (Meteo, Ora, Giri/tempo, Griglia) e il pulsante «Apri scheda gara e regole» aprivano proprio il pannello rimosso. Ora i quattro sono etichette non cliccabili, il pulsante non c'è più e la funzione apriRegole è stata eliminata.
 - Verifica: 192 righe rimosse da viste-a.js (1280 rimaste) e 46 righe cambiate in viste-griglia.js; node --check ok; lint 374 file, 0 warning; collaudo delle 19 schede passato; prova dal vivo a 1366×900 su 127.0.0.1:8642 → Cruscotto con 7 pannelli, «Regole di questo weekend», «Tutte le impostazioni del round» e «Difficoltà AI» assenti, #rs-panel/#prep-data/.d-nudge assenti, 0 overflow orizzontale, 0 errori JS; Griglia con 6 riquadri (2 bottoni: car, track; 4 div), #wb-open assente e hint «Auto e pista aprono le rispettive schede.».
 
+### 4/11 — Ai box l'«EVO-consigliato» si scrive dalla correzione live
+
+- La regola che l'ingegnere usa in radio ora vive anche nell'applicatore: `startPsiFromLive` (src/setup.mjs) prende le pressioni a caldo lette dal physics, il target della classe e la partenza del file, e restituisce la partenza a freddo con la regola dei 4 PSI (nuova = vecchia + target − caldo). Scarta i valori fuori da 15–60 PSI, vuole almeno 3 gomme valide, stima la partenza a −4 PSI se il file non la dichiara e restituisce null se il risultato è fuori scala (12–45 PSI): meglio nessun consiglio che un numero inventato.
+- `setup-apply` ora mette il LIVE davanti alla telemetria: se EVO è in sessione (pista live) il consiglio parte dalle pressioni di adesso e il .ld resta il ripiego. L'anteprima dichiara la base («live (4 gomme a caldo, media X PSI)») e il testo riporta i valori a caldo, il target e la partenza da freddo.
+- Verifica: nuovo test/psi-live.test.mjs con 5 casi (4 gomme + target, stima termica senza pressione nel file, valori fuori scala, dati incompleti, partenza assurda rifiutata); assieme a meccanico e ingegnere e al collaudo delle 19 schede → 29/29; lint 375 file 0 warning; node --check su setup.mjs e webui.mjs; GUI riavviata e risponde 200.
+- Limite dichiarato: durante la prova EVO non era in sessione (`live:false`), quindi il percorso live non è stato visto sul gioco — il calcolo è coperto dai test, il collegamento dal controllo statico e dal riavvio della GUI.
+
 ### 4/11 — Meccanico in pista: diagnosi di setup dal vivo
 
 - Finora il meccanico leggeva solo sessioni CHIUSE (file .ld): mentre giravi taceva sul setup, e la radio dell’ingegnere parlava solo di benzina, usura gomme, gap e bandiere. Ora `engineerLive` (src/engineer.mjs) aggiunge due diagnosi dai dati che EVO espone in pista.

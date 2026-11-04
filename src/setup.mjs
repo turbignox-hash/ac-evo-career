@@ -98,6 +98,29 @@ export function fourPsi({ cold, hot, target }) {
   return { ok: true, rise, newCold, target: t, hot: h, cold: c, advice: lines.join(' ') };
 }
 
+/**
+ * Correzione dai DATI LIVE: le pressioni a caldo che il gioco espone (physics) e
+ * il target della classe danno la partenza a freddo con la STESSA regola dei
+ * 4 PSI del box (nuova partenza = vecchia + target − caldo). Serve quando sei
+ * appena rientrato: l'«EVO-consigliato» si scrive da qui, non dal .ld di ieri.
+ * null se i dati non bastano (meno di 3 gomme valide, target assente, valore
+ * fuori scala): meglio nessun consiglio che un numero inventato.
+ */
+export function startPsiFromLive({ livePsi, target, coldNow } = {}) {
+  const hot = (Array.isArray(livePsi) ? livePsi : [])
+    .map(Number).filter((v) => Number.isFinite(v) && v > 15 && v < 60);
+  const t = Number(target);
+  if (hot.length < 3 || !Number.isFinite(t) || t <= 0) return null;
+  const hotAvg = Math.round((hot.reduce((a, b) => a + b, 0) / hot.length) * 10) / 10;
+  const delta = Math.round((t - hotAvg) * 10) / 10;
+  const c = Number(coldNow);
+  // se il file non dichiara la partenza, stima termica: a caldo sale di ~4 PSI
+  const cold = Number.isFinite(c) && c > 10 ? c : Math.round((hotAvg - 4) * 10) / 10;
+  const startPsi = Math.round((cold + delta) * 10) / 10;
+  if (startPsi < 12 || startPsi > 45) return null;   // fuori scala: non scrivere
+  return { startPsi, coldNow: cold, hotAvg, delta, hot };
+}
+
 /* ------------------------------------------------------------------ */
 /* IL MECCANICO: consigli di setup per pista, dal carattere + telemetria */
 /* ------------------------------------------------------------------ */

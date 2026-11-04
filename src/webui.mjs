@@ -51,7 +51,7 @@ import { newsFeed, seasonPress } from './gazzetta.mjs';
 import { recordTestDay, testDayLog, calibrationSummary, prettyTrackLabeled } from './testday.mjs';
 import { recordHotlaps, hotlapSweep, hotlapsLog, hotlapsStats, hotlapsProgress, hotlapsPistaGiro } from './hotlaps.mjs';
 import { recordWarning, readWarnings } from './warnings.mjs';
-import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
+import { fourPsi, startPsiFromLive, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
 import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, telemDiagnostics, lapTrace, sampleLap, sessionMetaOf, parseLdx } from './motec.mjs';
 // stinti.mjs e usura-gomme.mjs leggono la STESSA telemetria MoTeC: stint
 // spezzati dai rifornimenti veri e usura gomme (degrado ritmo + temperature)
@@ -3313,14 +3313,14 @@ async function api(context0, _req, res, action, body) {
         // con una sessione attiva, la pista VERA del gioco comanda — richiesta per
         // un'altra pista ⇒ NON scrivo (il gioco non mostra i setup salvati di una
         // pista diversa); richiesta senza pista ⇒ uso quella live.
-        {
-          let liveTrack = null;
+        // liveTrack serve anche al consiglio: con EVO in sessione la correzione
+        // LIVE comanda su quella da telemetria (vedi startPsiFromLive più sotto).
+        let liveTrack = null;
           try { if (await syncLiveReader() !== 'off') liveTrack = liveReader()?.snapshot?.()?.session?.track ?? null; } catch { /* live non disponibile: si decide senza */ }
           if (liveTrack) {
             if (trackName && !trkSame(liveTrack, trackName)) return sendJson(res, 200, { ok: false, track: trackName, liveTrack, hint: tr({ it: `Il gioco è su «${liveTrack}» ma la richiesta mira a «${trackName}»: non scrivo la copia «EVO-consigliato» su una pista diversa (in gioco la lista CARICA mostra solo auto + pista corrente). Aggiorna il pannello se la pista è cambiata.`, en: `The game is at «${liveTrack}» but the request targets «${trackName}»: I won't write the «EVO-consigliato» copy on a different track (in game the LOAD list shows only current car+track). Refresh the panel if the track changed.` }) });
             trackName = trackName || liveTrack;
           }
-        }
         // listSetups aggiunge già "Car Setups": gli va la radice di Saved Games
         const setupsRootDir = savedDir.replace(/[\\/]$/, '');
         let setups = carName ? listSetups(setupsRootDir, { car: carName, track: trackName }) : listSetups(setupsRootDir);
@@ -3361,23 +3361,22 @@ async function api(context0, _req, res, action, body) {
         const tyre = tyreClassOf(carEff);
         const raceAdvice = sessions.length ? racePressureAdvice(sessions, { target: tyre?.target ?? null, raceLaps: Number(body.raceLaps) || 10 }) : null;
         const advice = sessions.length ? pressureAdvice(sessions, { target: tyre?.target ?? null }) : null;
-        let startPsi = raceAdvice?.raceStartPsi ?? advice?.suggestedStartPsi ?? null;
-        let basis = raceAdvice?.basis?.kindLabel ?? advice?.basis?.kindLabel ?? (sessions.length ? 'telemetria' : null);
-        let livePsi = null, liveHot = null;
-        if (startPsi == null || !Number.isFinite(startPsi)) {
-          // fallback LIVE: gira ora + pressioni a caldo esposte dal gioco (physics)
-          livePsi = liveReader()?.last?.physics?.wheelPressure ?? null;
-          const pOk = Array.isArray(livePsi) && livePsi.filter((v) => Number.isFinite(v) && v > 15).length >= 3;
-          if (pOk && tyre?.target != null) {
-            liveHot = livePsi.filter((v) => Number.isFinite(v) && v > 15);
-            const hotAvg = liveHot.reduce((a, b) => a + b, 0) / liveHot.length;
-            // la regola dei 4 PSI: nuova partenza = vecchia + (target − hot)
-            const curPsi = Number(parseSetup(srcBuf).tires?.[0]?.pressure);
-            const coldNow = Number.isFinite(curPsi) && curPsi > 10 ? curPsi : hotAvg - 4;   // stima termica se il file non la dichiara
-            startPsi = Math.round((coldNow + (tyre.target - hotAvg)) * 10) / 10;
-            basis = 'live (stai girando ora)';
-          }
-        }
+        // AI BOX COMANDA IL LIVE (4/11): la correzione dai dati di adesso
+        // (pressioni a caldo + target classe, regola dei 4 PSI) scrive
+        // l'«EVO-consigliato» anche quando esiste una telemetria vecchia: decide
+        // il giro appena fatto, non il .ld di un'altra sessione.
+        const liveFix = liveTrack
+          ? startPsiFromLive({
+            livePsi: liveReader()?.last?.physics?.wheelPressure ?? null,
+            target: tyre?.target ?? null,
+            coldNow: Number(cur.tires?.[0]?.pressure),
+          })
+          : null;
+        const liveHot = liveFix?.hot ?? null;
+        const startPsi = liveFix?.startPsi ?? raceAdvice?.raceStartPsi ?? advice?.suggestedStartPsi ?? null;
+        const basis = liveFix
+          ? tr({ it: `live (${liveFix.hot.length} gomme a caldo, media ${liveFix.hotAvg} PSI)`, en: `live (${liveFix.hot.length} hot tyres, avg ${liveFix.hotAvg} PSI)` })
+          : raceAdvice?.basis?.kindLabel ?? advice?.basis?.kindLabel ?? (sessions.length ? 'telemetria' : null);
         if (startPsi == null || !Number.isFinite(startPsi)) {
           return sendJson(res, 200, { ok: false, hint: tr({ it: 'Serve una base per la pressione: O scarica una telemetria valida (sessione con registrazione attiva), O fai un giro adesso con questa auto (consiglio DAI DATI LIVE del gioco).', en: 'A base lap is needed for pressure: either download valid telemetry (a session with recording on), or do a lap now with this car (advised from the game LIVE DATA).' }) });
         }
@@ -3436,7 +3435,9 @@ async function api(context0, _req, res, action, body) {
             before: { pressures: cur.tires.map((t) => t.pressure) },
             after: { pressures: dopo },
             extraChanges,
-            adviceText: raceAdvice?.raceAdvice ?? advice?.advice ?? (liveHot ? `Consiglio DAI DATI LIVE: a caldo ora ${liveHot.map((v) => v.toFixed(1)).join('/')} PSI (media ${(liveHot.reduce((a, b) => a + b, 0) / liveHot.length).toFixed(1)}), target ${tyre?.target ?? '?'} PSI a caldo.` : ''),
+            adviceText: (liveFix
+              ? `Consiglio DAI DATI LIVE: a caldo ${liveFix.hot.map((v) => v.toFixed(1)).join('/')} PSI (media ${liveFix.hotAvg}), target ${tyre?.target ?? '?'} PSI a caldo → parti ${liveFix.startPsi} PSI da freddo (regola dei 4 PSI).`
+              : null) ?? raceAdvice?.raceAdvice ?? advice?.advice ?? '',
           });
         }
         const dest = join(dirname(src.file), src.name + ' — EVO-consigliato.carsetup');
@@ -3450,7 +3451,9 @@ async function api(context0, _req, res, action, body) {
           aero: { before: { heightRear: cur.aero?.heightRear ?? null, wingRear: cur.aero?.wingRear ?? null }, after: { heightRear: after.aero?.heightRear ?? null, wingRear: after.aero?.wingRear ?? null } },
           before: { pressures: cur.tires.map((t) => t.pressure) },
           after: { pressures: after.tires.map((t) => t.pressure) },
-          adviceText: raceAdvice?.raceAdvice ?? advice?.advice ?? (liveHot ? `Consiglio DAI DATI LIVE: a caldo ora ${liveHot.map((v) => v.toFixed(1)).join('/')} PSI (media ${(liveHot.reduce((a, b) => a + b, 0) / liveHot.length).toFixed(1)}), target ${tyre?.target ?? '?'} PSI a caldo.` : ''),
+          adviceText: (liveFix
+            ? `Consiglio DAI DATI LIVE: a caldo ${liveFix.hot.map((v) => v.toFixed(1)).join('/')} PSI (media ${liveFix.hotAvg}), target ${tyre?.target ?? '?'} PSI a caldo → parti ${liveFix.startPsi} PSI da freddo (regola dei 4 PSI).`
+            : null) ?? raceAdvice?.raceAdvice ?? advice?.advice ?? '',
           basis: basis ?? advice?.basis?.kindLabel ?? raceAdvice?.basis?.kindLabel ?? null,
           liveHot: liveHot ?? null,
         });
