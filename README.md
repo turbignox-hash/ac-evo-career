@@ -18,7 +18,7 @@ EVO Pitwall adds a career layer *around* Assetto Corsa EVO: a ladder of **86 ser
 
 The game remains the game. EVO Pitwall does not replace AC EVO's career, does not modify its content, and does not need an account, a cloud service or another career application.
 
-**Current main:** build **0.1.57** · **911/911** tests · **370** linted files, 0 warnings.
+**Current main:** build **0.1.57** · **913/913** tests · **370** linted files, 0 warnings.
 
 ## Install
 
@@ -39,6 +39,8 @@ The current **pre-release** is **[v0.1.57](https://github.com/turbignox-hash/ac-
 > **SHA-256:** bundle `a9f0e67e0d2cb9b80339f97ac30d2de99b524d739c525158a441cdd71903b42c` · online `dcc4c85db627cee2f2f89bef254047755ce40ab82e5925b3590a963bca7d574f` · offline `6d44c5dbfabac7fbd582b287a38a0d3c3945e3207a84466eec0d4ed6ac616431`
 >
 > PowerShell: `Get-FileHash .\EVO-Pitwall-v0.1.57-Windows.zip -Algorithm SHA256`
+
+Re-check the published assets after a release: `npm run verifica-release -- v0.1.57`.
 
 > **Unsigned preview:** v0.1.57 is a pre-release because the EXEs are not Authenticode-signed yet. Expect SmartScreen; download only from this repository. v0.1.56 is older.
 
@@ -89,7 +91,7 @@ This build bakes in the five-file cleanup and ships the Windows bundle ZIP with 
 - **Release safety.** The release tool stops on a dirty tree, a missing or empty body, a tag that is not on `HEAD` or missing from the remote, and a failed asset upload. The friend package is built only from a completely clean tree.
 - **Optional signing preflight.** When signing variables are present, the preflight verifies the Authenticode chain, the `.sha256` sidecar and the build metadata before attaching anything.
 - **Independent codebase.** The external journal bridge, the channel and the derived rules are gone. Calendar, garage and dictionary read only files written by the game. A guard test scans the project and fails if a reference to the external product comes back.
-- **Current checks:** `npm test` **911/911**, `npm run lint` **370 files, 0 warnings**.
+- **Current checks:** `npm test` **913/913**, `npm run lint` **370 files, 0 warnings**.
 
 The v0.1.55 notes describe the independence cut; v0.1.57 adds the unsigned installer preview built from clean `main`.
 

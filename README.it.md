@@ -18,7 +18,7 @@ EVO Pitwall aggiunge uno strato di carriera *attorno* ad Assetto Corsa EVO: una 
 
 Il gioco resta il gioco. EVO Pitwall non sostituisce la carriera nativa di AC EVO, non modifica i suoi contenuti e non richiede account, cloud o altre applicazioni di carriera.
 
-**Ramo main:** build **0.1.57** · **911/911** test · **370** file lint, 0 warning.
+**Ramo main:** build **0.1.57** · **913/913** test · **370** file lint, 0 warning.
 
 ## Installazione
 
@@ -39,6 +39,8 @@ La **pre-release** corrente è **[v0.1.57](https://github.com/turbignox-hash/ac-
 > **SHA-256:** bundle `a9f0e67e0d2cb9b80339f97ac30d2de99b524d739c525158a441cdd71903b42c` · online `dcc4c85db627cee2f2f89bef254047755ce40ab82e5925b3590a963bca7d574f` · offline `6d44c5dbfabac7fbd582b287a38a0d3c3945e3207a84466eec0d4ed6ac616431`
 >
 > PowerShell: `Get-FileHash .\EVO-Pitwall-v0.1.57-Windows.zip -Algorithm SHA256`
+
+Ricontrolla gli asset pubblicati dopo una release: `npm run verifica-release -- v0.1.57`.
 
 > **Anteprima non firmata:** la v0.1.57 è una pre-release perché gli EXE non sono ancora firmati Authenticode. Aspettati SmartScreen; scarica solo da questo repository. La v0.1.56 è più vecchia.
 
@@ -89,7 +91,7 @@ Questa build include la pulizia dei cinque file e il bundle ZIP Windows con entr
 - **Sicurezza release.** Il tool si ferma su albero sporco, corpo mancante o vuoto, tag non su `HEAD` o assente dal remoto e upload di un asset fallito. Il pacchetto amico nasce solo da un albero completamente pulito.
 - **Preflight di firma opzionale.** Con le variabili di firma attive verifica catena Authenticode, sidecar `.sha256` e metadati di build prima di allegare qualcosa.
 - **Codice indipendente.** Rimossi il ponte ai journal esterni, il canale e le regole derivate. Calendario, garage e dizionario leggono solo file scritti dal gioco. Una guardia scansiona il progetto e fallisce se ricompare un riferimento al prodotto esterno.
-- **Controlli attuali:** `npm test` **911/911**, `npm run lint` **370 file, 0 warning**.
+- **Controlli attuali:** `npm test` **913/913**, `npm run lint` **370 file, 0 warning**.
 
 Le note della v0.1.55 descrivono il taglio di indipendenza; la v0.1.57 aggiunge l'anteprima installer non firmata, costruita da `main` pulito.
 
