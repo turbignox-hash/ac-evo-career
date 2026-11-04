@@ -11,7 +11,8 @@ affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo
 - PRESSIONI: media delle quattro a caldo (physics) contro il target della classe gomme — la stessa tabella del box (`tyreClassOf`). Fuori di ≥0.8 PSI il consiglio dà la correzione da dare alla PARTENZA con la regola dei 4 PSI (nuova partenza = vecchia + target − caldo) e il verso esplicito («parti 1.6 PSI più basso»).
 - TERMICO: ruota più calda contro la più fredda, dalle temperature di carcassa. Con ≥10 °C di scarto la radio dice quale ruota, di quanto, su quale asse e cosa controllare alla sosta (pressione e camber di quella ruota); sotto i 10 °C tace, perché è rumore.
 - Collegamento: `payloadIngegnere` in webui.mjs (tick leggero e completo) e il publisher della vetrina in gioco (uiapp-pub.mjs) passano `livePsi` + `targetPsi`: la frase arriva nel pannello, nella radio del copilota e nell’HUD dentro EVO.
-- Verifica: test/ingegnere.test.mjs → 18/18 (nuovo caso: sopra e sotto target, spread 22 °C, silenzio a 3 °C, valori implausibili scartati, nessun consiglio senza dati); lint 374 file 0 warning; node --check su engineer/webui/uiapp-pub/test. NON provato in pista: serve EVO in sessione, e qui non c’è un giro live.
+- Verifica: test/ingegnere.test.mjs → 18/18 (nuovo caso: sopra e sotto target, spread 22 °C, silenzio a 3 °C, valori implausibili scartati, nessun consiglio senza dati, gauges null quando i dati mancano); lint 374 file 0 warning; node --check su engineer/webui/uiapp-pub/test.
+- Prova in pista (EVO acceso, sessione TimeAttack, 4/11 sera): `/api/ingegnere` risponde live con `gauges.livePsi [30.5, 29.6, 30.4, 29.5]` e `targetPsi 30` → media 30.0, dentro la finestra, quindi NESSUN consiglio pressioni (giusto così); temperature `[66, 56, 65, 55]` → scarto 11 °C → radio «🌡️ Gomma LF a 66°C». Il resto della radio (benzina, gomme sane) resta al suo posto.
 
 ### 4/11 — Meccanico: consigli cliccabili, pulsante in alto e ultimo round in vista
 
