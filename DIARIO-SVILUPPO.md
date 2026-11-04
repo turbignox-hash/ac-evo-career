@@ -5,6 +5,15 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — webui.mjs: estratta la Manutenzione col suo tick (P1.5, quinto dominio) (richiesta Mauro: «Ora che il contratto è protetto, il passo successivo più naturale è completare l’estrazione di maintenance con il suo tick periodico.»)
+
+- **Il taglio**: maintenance vive in src/webui-actions-maintenance.mjs con la rotta, maintenanceTick, autoRepairEnabled, lastAutoRepairAt e startMaintenanceTicker (primo giro a 2,5 s, poi ogni 10 minuti). webui.mjs conserva il dispatcher e chiama solo l'avvio.
+- **Confine**: nessun cambio a status, payload, conferme, persist o cadenze; il modulo integrità/backup aggiorna il commento che indicava la vecchia casa.
+- **Contratto**: il test generico riconosce ora **5 moduli / 22 azioni**; maintenance ha il suo case e resta in SOLO_POST. Nessuna modifica al test.
+- **Sonda HTTP** (sandbox con save copiato): scan 200 con 3 issue, auto-status 200 true, tick 200 skipped:true (sandbox), clear-messages senza conferma 409, op invalida 400, toggle off/on coerente.
+- **Verifica**: node --check pulito; lint **369 file, 0 warning**. npm run check **non verde**: 962/963; l'unico rosso è layout-impostazioni a 256 px (due chip della Dashboard), riprodotto in isolamento e con una sola corsia. Nessun file GUI/CSS è stato toccato da questo refactor; il difetto va trattato a parte.
+- **Misure**: webui.mjs **4.457 → 4.391 righe** (−66); nuovo modulo **96 righe**. Commit, non push. Restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — webUI: boot leggero con carriera, contenuti solo in Impostazioni (richiesta Mauro: «scegli autonomamente cosa migliorare e procedi,»)
 
 - **Problema**: con una carriera attiva il boot pagava la scansione contenuti dentro viewSetup, ma quei dati servono solo a Impostazioni (banner scala carriera); il primo boot con dati grandi restava il pezzo più lento.

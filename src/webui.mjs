@@ -126,7 +126,6 @@ import { tr, lang, setLang, hasEnvOverride } from './lang.mjs';
 import { carsBook, carImageOf } from './cars.mjs';
 import { garageOverview, addCar } from './garage.mjs';
 import { ensureFlowsSeeded, recentFlows, resetFlows } from './flows.mjs';
-import { scanCareer, autoRepair, clearBacheca, resetLedger, reseedFlows, flowDedup } from './maintenance.mjs';
 import { mailbox } from './mailbox.mjs';
 import {
   agendaDay, racesOnDay, dateLabel, CADENZA_GIORNI,
@@ -177,6 +176,7 @@ import { AGENDA_ACTIONS, agendaAction } from './webui-actions-agenda.mjs';
 import { EVENT_ACTIONS, eventAction } from './webui-actions-events.mjs';
 import { GARAGE_ACTIONS, garageAction } from './webui-actions-garage.mjs';
 import { INTEGRITY_BACKUP_ACTIONS, integrityBackupAction } from './webui-actions-integrity-backup.mjs';
+import { MAINTENANCE_ACTIONS, maintenanceAction, startMaintenanceTicker } from './webui-actions-maintenance.mjs';
 
 /* GRIGLIA EVENTO GIÀ IN PIEDI (esito prova 23/10): la griglia a 14 F40 scritta
  * sul disco è VALIDATA in gioco (log EVO 20:47: 14 avversari, zero eccezioni);
@@ -440,41 +440,6 @@ function liveMode() {
   let m = null;
   try { m = JSON.parse(readFileSync(CONFIG_FILE, 'utf8')).liveMode; } catch { /* prima volta */ }
   return LIVE_MODES.includes(m) ? m : 'auto';
-}
-// Auto-riparazione (23/10): ON di default (tutto il specchio del dottore, ma in
-// gratuito). Si spegne da Impostazioni → Manutenzione. Letta A OGNI USO dal
-// config: il toggle sopravvive al riavvio come il liveMode.
-function autoRepairEnabled() {
-  try { return JSON.parse(readFileSync(CONFIG_FILE, 'utf8')).autoRepair !== false; }
-  catch { return true; }
-}
-
-let lastAutoRepairAt = 0;
-/** Un giro del dottore: scansiona la carriera e ripara SaFAMENTE ciò che si
- *  può correggere senza domande. Chiamato all'avvio del pannello e poi ogni
- *  10 minuti — con cache delle scansioni: al massimo una al periodo. */
-function maintenanceTick({ force = false } = {}) {
-  if (!existsSync(SAVE_FILE)) return null;
-  if (!autoRepairEnabled()) return null;
-  // Processo di test/sandbox (var d'ambiente per i test): niente auto-riparazione
-  // su file veri — il 23/10 il boot della webui di un test ha percorso
-  // fixIntegrity sul salvataggio reale del PC leggendo totali immaginari.
-  if (process.env.EVO_DATA_DIR || process.env.EVO_FLOWS_DIR) return null;
-  if (!force && Date.now() - lastAutoRepairAt < 10 * 60 * 1000) return null;
-  lastAutoRepairAt = Date.now();
-  try {
-    const { ladder } = context();
-    const state = requireState();
-    ensureFlowsSeeded(state);
-    const { issues } = scanCareer(ladder, state);
-    if (!issues.length) return { issues, fixed: [] };
-    const out = autoRepair(ladder, state, { persist });
-    if (out.fixed.length) recordWarning('maintenance.auto', 'auto-riparazione applicata', out.fixed.join(', '));
-    return out;
-  } catch (e) {
-    recordWarning('maintenance.auto', 'auto-riparazione non riuscita', e?.message ?? null);
-    return null;
-  }
 }
 async function syncLiveReader() {
   const mode = liveMode();
@@ -898,10 +863,16 @@ async function api(context0, _req, res, action, body) {
   }
 
   // INTEGRITÀ E BACKUP (4/11, P1.5): le quattro rotte vivono in
-  // webui-actions-integrity-backup.mjs. `maintenance` resta nello switch:
-  // possiede maintenanceTick (auto-riparazione ogni 10 minuti).
+  // webui-actions-integrity-backup.mjs. La Manutenzione ha il suo modulo.
   if (INTEGRITY_BACKUP_ACTIONS.has(action)) {
     const handled = integrityBackupAction(action, { ladder, state, body, sendJson, res, listBackups });
+    if (handled !== false) return handled;
+  }
+
+  // MANUTENZIONE (4/11, P1.5): rotta, tick periodico e timer vivono in
+  // webui-actions-maintenance.mjs. Il dispatcher resta qui.
+  if (MAINTENANCE_ACTIONS.has(action)) {
+    const handled = maintenanceAction(action, { ladder, state, body, persist, sendJson, res });
     if (handled !== false) return handled;
   }
 
@@ -1851,38 +1822,6 @@ async function api(context0, _req, res, action, body) {
             : 'R1: e questo campionato parte alla pari il giorno scelto — puoi firmare e correre la prima gara insieme a tutti.',
         mine: mieGare,
       });
-    }
-    // MANUTENZIONE (4/11, P1.5): resta qui perché possiede maintenanceTick
-    // (auto-riparazione ogni 10 minuti) e i suoi helper; integrità e backup
-    // sono nel modulo webui-actions-integrity-backup.mjs.
-    case 'maintenance': {
-      // Il rione MANUTENZIONE (richiesta Mauro 23/10: "il tool si ripari da solo,
-      // con scansioni manuali e opzioni per togliere le liste sporche"):
-      //   scan          → scansione completa (cache flussi svuotata, valori veri dal disco)
-      //   fix/auto      → scansione + riparazione di ciò che si corregge senza chiedere
-      //   auto-toggle   → lei parte da sola all'avvio e ogni 10 minuti (writeConfig)
-      // e le pulizie CON CONFERMA (body.confirm === true, la GUI apre la modale):
-      //   clear-messages (svuota bacheca) · reset-ledger (registro anti-doppioni)
-      //   reseed-flows (ricalcola flussi dal salvataggio) · dedup-flows (doppio esatti)
-      const op = String(body.op ?? 'scan');
-      if (['clear-messages', 'reset-ledger', 'reseed-flows', 'dedup-flows'].includes(op) && body.confirm !== true) {
-        return sendJson(res, 409, { error: tr({ it: 'Operazione irreversibile: serve la conferma (confirm=true).', en: 'This action cannot be undone: pass confirm=true.' }), needConfirm: true });
-      }
-      if (op === 'scan') return sendJson(res, 200, scanCareer(ladder, state));
-      if (op === 'fix') { const out = autoRepair(ladder, state, { persist }); return sendJson(res, 200, out); }
-      if (op === 'tick') { const out = maintenanceTick({ force: true }); return sendJson(res, 200, out ?? { issues: [], fixed: [], skipped: true }); }
-      if (op === 'auto-toggle') {
-        const on = !!body.on;
-        writeConfig({ autoRepair: on });
-        if (on) lastAutoRepairAt = 0;
-        return sendJson(res, 200, { ok: true, autoRepair: on });
-      }
-      if (op === 'auto-status') return sendJson(res, 200, { autoRepair: autoRepairEnabled() });
-      if (op === 'clear-messages') return sendJson(res, 200, clearBacheca(state, { persist }));
-      if (op === 'reset-ledger') return sendJson(res, 200, resetLedger());
-      if (op === 'reseed-flows') { reseedFlows(state, { persist }); return sendJson(res, 200, { ok: true }); }
-      if (op === 'dedup-flows') return sendJson(res, 200, flowDedup());
-      return sendJson(res, 400, { error: tr({ it: 'Operazione di manutenzione non valida.', en: 'Invalid maintenance op.' }) });
     }
     case 'season-review': {
       const seasons = reviewableSeasons(state);
@@ -4441,14 +4380,9 @@ setInterval(() => {                                                  // vigilant
     } catch { /* il vigilante non deve rompere il server */ }
   }
 }, 5000);
-// Auto-riparazione: un giro del dottore all'avvio e poi ogni 10 minuti (con la
-// cache delle scansioni, e solo se la carriera esiste e l'auto-riparazione è ON
-// — si può spegnere da Impostazioni → Manutenzione). Silence se è tutto pulito.
-// AUDIT FREEZE 23/10: lo scavo sincrono non sta più A IMPORT (prima eseguiva
-// ancora prima del listen: il primo click della GUI aspettava il dottore);
-// parte dopo 2.5s di server aperto, quando il cruscotto è già dipinto.
-setTimeout(() => maintenanceTick({ force: true }), 2500).unref();
-setInterval(() => maintenanceTick(), 10 * 60 * 1000);  // App «Cruscotto» in gioco (27/10): il publisher scrive la vetrina del giorno
+// La manutenzione periodica vive nel suo modulo: tick di avvio e ogni 10 minuti.
+startMaintenanceTicker();
+  // App «Cruscotto» in gioco (27/10): il publisher scrive la vetrina del giorno
   // nella cartella della mod (loader ACE), stessa aerodinamica dell'app installata —
   // file statico JSON nuovo ogni 2.5s, il gioco non deve fare richiesta alcuna.
   // Passo anche l'URL della GUI: serve per il collegamento «Mondiale completo»

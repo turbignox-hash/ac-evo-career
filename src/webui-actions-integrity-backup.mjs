@@ -1,7 +1,7 @@
 // webui-actions-integrity-backup.mjs — integrità e backup della webui (4/11, P1.5).
 // Estratto da webui.mjs senza cambiare rotte, payload o status. La rotta
-// `maintenance` resta in webui.mjs: possiede maintenanceTick (auto-riparazione
-// ogni 10 minuti) e i suoi helper, quindi non è una semplice azione HTTP.
+// `maintenance` ha il suo modulo webui-actions-maintenance.mjs: possiede
+// maintenanceTick e i timer, quindi non è una semplice azione HTTP.
 import { copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { checkIntegrity, fixIntegrity } from './integrity.mjs';
