@@ -5,6 +5,14 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — webui.mjs: estratte le azioni Evento (P1.5, secondo dominio) (richiesta Mauro: «scegli autonomamente cosa migliorare e procedi,»)
+
+- **Il taglio**: le cinque rotte di stato (`event-accept`, `event-decline`, `event-finish`, `event-abandon`, `event-prize-refresh`) vivono in `src/webui-actions-events.mjs`; il dispatcher le intercetta prima dello switch. Status, payload e `persist` sono identici: nessun cambio di comportamento.
+- **Perché non tutto**: `events` è una vista e `event-prep` orchestra gridbuilder, backup, meteo e launcher; restano in `webui.mjs`, non sono azioni di stato pure. Estrarli avrebbe richiesto un passaggio di dipendenze troppo largo.
+- **Contratto statico**: `test/diffesa-sonda.test.mjs` ora legge tutti i `webui-actions-*.mjs`, incrocia `*_ACTIONS` e i `case` e verifica che ogni rotta di `SOLO_POST` abbia un case vero. Copre **2 moduli / 11 azioni**.
+- **Verifica**: `npm run check` exit 0; suite **963/963**; lint **366 file, 0 warning**; `node --check` e Biome sui tre file modificati puliti.
+- **Misure**: `webui.mjs` da **4.524 a 4.499 righe** (−25); nuovo modulo **52 righe**; test da **95 a 105 righe**. Commit, non push. Restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — potatura-fasce: il confine 2,5 s non falsa la finestra (richiesta Mauro: «scegli autonomamente cosa migliorare e procedi, sei autorizzato a modificare se porta benefici»)
 
 - **Il flake**: il test seminava `attorno-1…attorno-40`. Se il tick attraversava il confine, scriveva `attorno+1` e le 12 fasce dietro restavano `attorno-12…attorno-1`: la più vecchia era 13 dietro il nuovo corrente. Non era la potatura rotta: era la semina che non conteneva lo slot corrente.

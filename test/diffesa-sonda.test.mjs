@@ -3,8 +3,9 @@
 // sopra GET doveva stare nel set SOLO_POST — e una sonda NON isolata toccava il
 // save vero del PC. Due rinforzi qui:
 //   1) statico: ogni rotta nel set SOLO_POST deve essere un `case` VERO del
-//      dispatcher (un refuso nel set sarebbe un 405 mai dato, invisibile) e
-//      'life' deve restare nel set (era la GET che persisteva il save).
+//      dispatcher (webui o un modulo webui-actions-*; un refuso nel set sarebbe
+//      un 405 mai dato, invisibile) e 'life' deve restare nel set (era la GET
+//      che persisteva il save).
 //   2) banco vivo: la sonda completa tools/_difesa-probe.mjs deve uscire 0 —
 //      sweep GET su TUTTE le rotte con sandbox composta e carriera di MARCA.
 import test from 'node:test';
@@ -16,7 +17,18 @@ import { spawnSync } from 'node:child_process';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fonte = readFileSync(join(ROOT, 'src', 'webui.mjs'), 'utf8');
-const fonteAgenda = readFileSync(join(ROOT, 'src', 'webui-actions-agenda.mjs'), 'utf8');
+const MODULI_AZIONI = readdirSync(join(ROOT, 'src'))
+  .filter((f) => /^webui-actions-.*\.mjs$/.test(f))
+  .map((file) => {
+    const src = readFileSync(join(ROOT, 'src', file), 'utf8');
+    const m = src.match(/const ([A-Z][A-Z0-9_]*_ACTIONS) = new Set\(\[([\s\S]*?)\]\);/);
+    assert.ok(m, `${file}: set *_ACTIONS non trovato`);
+    return {
+      file,
+      azioni: new Set([...m[2].matchAll(/'([\w-]+)'/g)].map((x) => x[1])),
+      casi: new Set([...src.matchAll(/case '([\w-]+)':/g)].map((x) => x[1])),
+    };
+  });
 
 /** Le rotte dichiarate scrivere dal source: solo ciò che sta tra
  *  `const SOLO_POST = new Set([` e `]);`. */
@@ -26,18 +38,16 @@ function soloPostDaFonte(src) {
   return [...m[1].matchAll(/'([\w-]+)'/g)].map((x) => x[1]);
 }
 
-test('statico: ogni rotta del set SOLO_POST è un case vero del dispatcher (webui o agenda)', () => {
+test('statico: ogni rotta del set SOLO_POST è un case vero del dispatcher (webui o moduli azioni)', () => {
   const casiWebui = new Set([...fonte.matchAll(/case '([\w-]+)':/g)].map((m) => m[1]));
-  const casiAgenda = new Set([...fonteAgenda.matchAll(/case '([\w-]+)':/g)].map((m) => m[1]));
-  const casi = new Set([...casiWebui, ...casiAgenda]);
+  const casi = new Set([...casiWebui, ...MODULI_AZIONI.flatMap((m) => [...m.casi])]);
   assert.ok(casi.size >= 100, `dispatcher: ${casi.size} case — la lettura dei fonti non ha degradato`);
-  const mAgenda = fonteAgenda.match(/const AGENDA_ACTIONS = new Set\(\[([\s\S]*?)\]\);/);
-  assert.ok(mAgenda, 'AGENDA_ACTIONS non trovato in webui-actions-agenda.mjs');
-  const agendaSet = new Set([...mAgenda[1].matchAll(/'([\w-]+)'/g)].map((x) => x[1]));
-  assert.ok(agendaSet.size >= 6, `AGENDA_ACTIONS: ${agendaSet.size} rotte — il set del modulo è degradato`);
+  assert.ok(MODULI_AZIONI.length >= 2, `moduli azioni: ${MODULI_AZIONI.length} — agenda ed eventi devono esserci`);
+  const azioniTotali = MODULI_AZIONI.reduce((n, m) => n + m.azioni.size, 0);
+  assert.ok(azioniTotali >= 11, `azioni esterne: ${azioniTotali} — i set dei moduli sono degradati`);
   const set = soloPostDaFonte(fonte);
   assert.ok(set.length >= 44, `set: ${set.length} rotte — il set nel fonte lette male o si è accorciato`);
-  const fantasma = set.filter((r) => !casi.has(r) && !(agendaSet.has(r) && casiAgenda.has(r)));
+  const fantasma = set.filter((r) => !casiWebui.has(r) && !MODULI_AZIONI.some((m) => m.azioni.has(r) && m.casi.has(r)));
   assert.deepEqual(fantasma, [], `rotte nel set senza case (405 mai dati): ${fantasma.join(', ')}`);
 });
 

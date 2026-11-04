@@ -45,7 +45,7 @@ import { alreadyImportedHash, importedFiles, importLog, resetImportRegistry } fr
 import { hot } from './hot.mjs';
 import { checkIntegrity, fixIntegrity } from './integrity.mjs';
 import { stileOverview } from './stile-webui.mjs';
-import { maybeSpawnEvent, acceptEvent, declineEvent, finishEvent, eventCard, eventsOverview, expireEvents, ensureEvents, refreshActivePrize, autoFinishEventFromFile, eventTrackReal } from './events.mjs';
+import { maybeSpawnEvent, eventCard, eventsOverview, expireEvents, ensureEvents, autoFinishEventFromFile, eventTrackReal } from './events.mjs';
 import { seasonReview, reviewableSeasons, exportReview } from './review.mjs';
 import { contractStatus, sponsorOffers, acceptSponsor, declineSponsor, challengeFor, acceptChallenge, sigilDefs, ensureLife, sponsorFor, ensureContract, checkSigils } from './life.mjs';
 import { newsFeed, seasonPress } from './gazzetta.mjs';
@@ -176,6 +176,7 @@ import { memoOf, registraRound, annotaAdvice, semaforoAdvice } from './allievo.m
 import { PROJECT, DATA_DIR, SAVE_FILE, CONFIG_FILE, GUI_DIR, BACKUP_DIR, SLOT, loadLadder, appEnv, context, writeConfig, configLang, requireState, persist } from './webui-env.mjs';
 import { viewHeader, viewStatus, viewCalendar, viewStandings, viewMessages, viewCard, viewDifficulty, viewSetup } from './webui-views.mjs';
 import { AGENDA_ACTIONS, agendaAction } from './webui-actions-agenda.mjs';
+import { EVENT_ACTIONS, eventAction } from './webui-actions-events.mjs';
 
 /* GRIGLIA EVENTO GIÀ IN PIEDI (esito prova 23/10): la griglia a 14 F40 scritta
  * sul disco è VALIDATA in gioco (log EVO 20:47: 14 avversari, zero eccezioni);
@@ -875,6 +876,14 @@ async function api(context0, _req, res, action, body) {
   // è sua (oggi tutte le AGENDA_ACTIONS lo sono).
   if (AGENDA_ACTIONS.has(action)) {
     const handled = agendaAction(action, { ladder, state, body, persist, gridLabel: tipoGriglia, sendJson, res });
+    if (handled !== false) return handled;
+  }
+
+  // AZIONI EVENTO (4/11, P1.5): le cinque rotte di stato vivono in
+  // webui-actions-events.mjs. `events` (vista) ed `event-prep` (griglia +
+  // lancio) restano nello switch: non sono azioni di stato pure.
+  if (EVENT_ACTIONS.has(action)) {
+    const handled = eventAction(action, { ladder, state, body, persist, sendJson, res });
     if (handled !== false) return handled;
   }
 
@@ -2004,10 +2013,6 @@ async function api(context0, _req, res, action, body) {
         return sendJson(res, 200, { ok: true });
       } catch (e) { return sendJson(res, 400, { error: e.message }); }
     }
-    case 'event-accept': {
-      try { acceptEvent(ladder, state, String(body.eventId ?? '')); persist(state); return sendJson(res, 200, { ok: true, events: eventsOverview(ladder, state) }); }
-      catch (e) { return sendJson(res, 400, { error: e.message }); }
-    }
     case 'event-prep': {
       // «Prepara tutto e divertiti» per l'evento speciale: le AUTOMAZIONI
       // dell'evento scrivono SOLO griglia (customgrid) e meteo (selettore
@@ -2153,36 +2158,6 @@ async function api(context0, _req, res, action, body) {
         persist(state);
         return sendJson(res, 200, { ok: true, prep, gameRunning: running, launched, events: eventsOverview(ladder, state) });
       } catch (e) { return sendJson(res, 500, { error: e.message }); }
-    }
-    case 'event-prize-refresh': {
-      // correzione premio del vecchio invito attivo: se l'auto in palio è già
-      // posseduta e il tema ha riserve, sostituisce il premio (richiesta Mauro
-      // 23/10: "un'auto diversa che non ho già in garage"). Idempotente e scritta
-      // subito su disco (persist), come gli altri comandi evento.
-      // giudizio del possesso: SOLO garage del tool + vetrina (28/10). Lo scan
-      // disco è uscito: i .carfinalstate restano anche per auto vendute e
-      // noleggiate, e spingevano 13 falsi «già tua» nella scelta premio.
-      try { const out = refreshActivePrize(ladder, state); persist(state); return sendJson(res, 200, { ok: true, ...out, events: eventsOverview(ladder, state) }); }
-      catch (e) { return sendJson(res, 400, { ok: false, error: String(e.message ?? e) }); }
-    }
-    case 'event-decline': {
-      try { declineEvent(ladder, state, String(body.eventId ?? '')); persist(state); return sendJson(res, 200, { ok: true, events: eventsOverview(ladder, state) }); }
-      catch (e) { return sendJson(res, 400, { error: e.message }); }
-    }
-    case 'event-finish': {
-      try {
-        const out = finishEvent(ladder, state, { position: Number(body.position), bestLapSec: body.bestLapSec != null ? Number(body.bestLapSec) : null });
-        persist(state);
-        return sendJson(res, 200, { ok: true, result: out, events: eventsOverview(ladder, state), header: viewHeader(ladder, state) });
-      } catch (e) { return sendJson(res, 400, { error: e.message }); }
-    }
-    case 'event-abandon': {
-      // ripensamento: l'invito accettato torna libero (senza penali)
-      try {
-        const ev = ensureEvents(state);
-        if (ev.active?.acceptedAt) { delete ev.active.acceptedAt; persist(state); }
-        return sendJson(res, 200, { ok: true, events: eventsOverview(ladder, state) });
-      } catch (e) { return sendJson(res, 400, { error: e.message }); }
     }
     case 'warnings':
       return sendJson(res, 200, readWarnings());
