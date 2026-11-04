@@ -1,14 +1,13 @@
 // test/griglia-campionato.test.mjs — REGOLA DELLE GRIGLIE DI CAMPIONATO
-// (4/11/2026, richiesta Mauro: «26-28 auto sono troppe, fai in modo che i
-// campionati generino griglie da 20-22»).
+// (4/11/2026. Prima richiesta Mauro: «26-28 auto sono troppe»; poi la
+// correzione: «non per tutti 20-22: differenzia, alcuni partono con 12, 14,
+// 16, 18, 20 — varia in base al tipo di auto e al campionato»).
 //
-// Il 27/28 non nasceva dal ladder (max gridSize 20): nasceva dal gate di
-// rebuildGridApply, che allineava il customgrid al conteggio NATIVO del
-// weekend. Per scendere servono DUE scritture coerenti — le voci 3.10
-// (roster AI) e il 3.7 dichiarato — altrimenti il gate rilancia il conto e
-// 22 celle contro 27 attese sono il 0xC0000005 della lezione 24/10.
-// Qui si custodiscono: la regola unica, il tetto del ladder e la riduzione
-// del roster. Fixture sintetica in tmp: mai il save vero.
+// Il 27/28 non nasceva dal ladder (che già varia: 12, 14, 16, 18, 20): nasceva
+// dal gate di rebuildGridApply, che allineava il customgrid al conteggio
+// NATIVO del weekend. La griglia giusta è quella DEL campionato (gridSize del
+// nodo), con tetto 22 e minimo 12; per scendere servono DUE scritture coerenti
+// — voci 3.10 (roster AI) e 3.7 dichiarato. Fixture sintetica in tmp.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -44,19 +43,25 @@ const scriviWeekend = (file, { declared = 27, cars = 27 } = {}) => writeFileSync
   sessione({ nome: 'Race', cars }),
 ]));
 
-test('la regola di campionato è una sola: 20-22 auto', () => {
-  assert.deepEqual(GRIGLIA_CAMPIONATO, { min: 20, max: 22 });
-  assert.equal(celleGrigliaCampionato(28), 22, 'i 28 del weekend scendono a 22');
-  assert.equal(celleGrigliaCampionato(27), 22);
-  assert.equal(celleGrigliaCampionato(23), 22);
-  assert.equal(celleGrigliaCampionato(22), 22);
-  assert.equal(celleGrigliaCampionato(21), 21);
-  assert.equal(celleGrigliaCampionato(20), 20);
-  assert.equal(celleGrigliaCampionato(14), 20, 'sotto il minimo la griglia sale a 20');
-  assert.equal(celleGrigliaCampionato(null), 20, 'senza numero vale il minimo, non zero');
+test('ogni campionato porta IL SUO numero: 12, 14, 16, 18, 20 (tetto 22)', () => {
+  assert.deepEqual(GRIGLIA_CAMPIONATO, { min: 12, max: 22 });
+  const serie = [
+    ['coppa_citta', 12], ['trofeo_mx5', 14], ['dtm_legends', 16],
+    ['touring_pro', 18], ['gt_apex', 20],
+  ];
+  for (const [nodeId, atteso] of serie) {
+    assert.equal(celleGrigliaCampionato({ nodeId, gridSize: atteso }), atteso,
+      `${nodeId} deve partire con ${atteso} auto, non con un numero unico`);
+  }
+  assert.ok(new Set(serie.map(([, n]) => n)).size > 1, 'le griglie non devono avere tutte lo stesso numero');
+  assert.equal(celleGrigliaCampionato({ gridSize: 28 }), 22, 'i 28 nativi scendono al tetto');
+  assert.equal(celleGrigliaCampionato({ gridSize: 10 }), 12, 'sotto il minimo si sale a 12');
+  assert.equal(celleGrigliaCampionato({ gridSize: 13 }), 14, 'la griglia ha numero pari');
+  assert.equal(celleGrigliaCampionato({}), 14, 'serie senza stima: il valore più diffuso');
+  assert.equal(celleGrigliaCampionato(null), 14, 'anche senza nodo non si torna a zero');
 });
 
-test('riduciSlotRoster + 3.7: il weekend scende a 21 avversari, 22 celle', () => {
+test('riduciSlotRoster + 3.7: il weekend scende a 13 avversari, 14 celle', () => {
   const dir = mkdtempSync(join(tmpdir(), 'griglia-campionato-'));
   const file = join(dir, 'GameModeType_RACE_WEEKEND.gamemodesave');
   try {
@@ -66,25 +71,28 @@ test('riduciSlotRoster + 3.7: il weekend scende a 21 avversari, 22 celle', () =>
     assert.equal(prima.declared, 27);
 
     // force: la suite gira anche con EVO aperto (stessa regola di syncRoster)
-    const rid = riduciSlotRoster(21, { file, force: true });
+    const rid = riduciSlotRoster(13, { file, force: true });
     assert.equal(rid.written, true, 'le voci 3.10 oltre gli avversari si tolgono');
-    assert.equal(setWeekendGridCustom(21, { file }).written, true);
+    assert.equal(setWeekendGridCustom(13, { file }).written, true);
 
     const dopo = weekendCarCount(file);
-    assert.equal(dopo.cars, 21, 'roster allineato agli avversari');
-    assert.equal(dopo.declared, 21, '3.7 = avversari');
-    assert.equal(dopo.declared + 1, 22, 'la griglia è declared + te: 22 celle');
-    assert.deepEqual(weekendGridMode(file), { mode: 'custom', count: 21 });
-    assert.equal(riduciSlotRoster(21, { file, force: true }).written, false, 'idempotente');
+    assert.equal(dopo.cars, 13, 'roster allineato agli avversari');
+    assert.equal(dopo.declared, 13, '3.7 = avversari');
+    assert.equal(dopo.declared + 1, 14, 'la griglia è declared + te: 14 celle');
+    assert.deepEqual(weekendGridMode(file), { mode: 'custom', count: 13 });
+    assert.equal(riduciSlotRoster(13, { file, force: true }).written, false, 'idempotente');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('pianoGriglia non supera mai il tetto di campionato', async () => {
+test('pianoGriglia segue il campionato, non un numero unico', async () => {
   const { pianoGriglia } = await import('../tools/ronda-ladder.mjs');
-  const nodo = { cars: ['a', 'b'], gridSize: 26 };
-  assert.equal(pianoGriglia(nodo, 'off').count, 21, 'una scala a 26 auto resta a 22 in griglia');
-  assert.equal(pianoGriglia(nodo, 'off').count + 1, GRIGLIA_CAMPIONATO.max);
-  assert.equal(pianoGriglia({ cars: ['a', 'b'], gridSize: 20 }, 'off').count, 19);
+  const nodo = (gridSize) => ({ cars: ['a', 'b'], gridSize });
+  assert.equal(pianoGriglia(nodo(12), 'off').count, 11);
+  assert.equal(pianoGriglia(nodo(14), 'off').count, 13);
+  assert.equal(pianoGriglia(nodo(18), 'off').count, 17);
+  assert.equal(pianoGriglia(nodo(20), 'off').count, 19);
+  assert.equal(pianoGriglia(nodo(26), 'off').count, 21, 'sopra il tetto resta 22 auto');
+  assert.equal(pianoGriglia(nodo(26), 'off').count + 1, GRIGLIA_CAMPIONATO.max);
 });

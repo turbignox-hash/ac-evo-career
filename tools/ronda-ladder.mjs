@@ -40,7 +40,7 @@ import { fileURLToPath } from 'node:url';
 import { gameRunning, pruneBackups, encodeMsg } from './evo-grid.mjs';
 import {
   WEEKEND_FILE, changeWeekendTrack, setWeekendAi, setWeekendGridAuto, setWeekendGridCustom,
-  currentWeekendTrack, weekendAi, GRIGLIA_CAMPIONATO,
+  currentWeekendTrack, weekendAi, celleGrigliaCampionato,
 } from './set-track.mjs';
 // IL RONDA UNICO (2/11): la parte del cerchio (il pd-calendar che decide la
 // ronda, i suoi match di serie/pista e il meteo a PAROLE del gioco) vive in
@@ -173,10 +173,10 @@ export function trovaRonda(overrides = {}, { nostro = false } = {}) {
  *  26/10: «tutti alla pari, zavorre e penalità non servono»). */
 export function pianoGriglia(node, overrideSingleMake = null) {
   const mono = (node.cars ?? []).length === 1;
-  // REGOLA CAMPIONATO (4/11/2026): mai sopra 22 auto in griglia → al massimo
-  // max − 1 avversari. Le serie piccole restano piccole: il minimo non si
-  // impone qui (il weekend può già stare sotto i 20 e non lo si gonfia).
-  const avversari = () => Math.max(1, Math.min(GRIGLIA_CAMPIONATO.max - 1, (node.gridSize ?? 14) - 1));
+  // REGOLA CAMPIONATO (4/11/2026): ogni serie porta IL SUO numero di auto
+  // (12, 14, 16, 18, 20… dal gridSize del nodo, tetto 22) → gli avversari
+  // sono una in meno. Niente tetto unico: la griglia varia col campionato.
+  const avversari = () => Math.max(1, celleGrigliaCampionato(node) - 1);
   if (overrideSingleMake === 'on') return { mode: 'automatic', count: null, mono: true };
   if (overrideSingleMake === 'off') return { mode: 'custom', count: avversari(), mono };
   return mono

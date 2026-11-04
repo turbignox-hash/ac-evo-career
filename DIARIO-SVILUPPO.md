@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Griglie per campionato: ognuna il suo numero (12, 14, 16, 18, 20), tetto 22 (richiesta Mauro: «aspetta, non per tutti i campionati 20-22 differenzia random, alcuni possono partire con 12,14,16,18,20 dipende dal tipo di auto e campionato scelto, non voglio tutte le griglie con lo stesso numero, varia in base al campionato»)
+
+- **La correzione**: il tetto unico 20-22 appiattiva tutte le serie. La regola ora è per campionato: `celleGrigliaCampionato(node)` = `node.gridSize` del ladder (già diverso per tipo di auto: coppa città 12, trofeo MX-5 e campionato moderno 14, DTM Legends 16, Touring Pro 18, GT Apex 20), pari e dentro **[12, 22]**. Deterministico: la stessa serie porta sempre lo stesso numero, non un sorteggio che cambia a ogni round.
+- **Il gate**: in CUSTOM il bersaglio è `min(target della serie, atteso nativo con minimo 12)`; quando il weekend dichiara più auto (27/28) si riducono prima le voci 3.10 e si porta il 3.7 agli avversari, poi si scrivono le celle e si trapianta il roster. L'allineamento del nodo è ora esatto in entrambi i modi (il restringimento è lecito perché il weekend è già stato riallineato).
+- **Verifica**: dry-run sul save reale — `campionato_moderno`: **28 → 14 auto**, weekend a 13 avversari, `written:false`; varietà confermata (`coppa_citta` 12, `trofeo_mx5` 14, `dtm_legends` 16, `touring_pro` 18, `gt_apex` 20); `npm test` **966/966**, `npm run lint` **370 file, 0 warning**.
+- **Nota**: commit, non push; restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — Griglie di campionato 20-22 auto (richiesta Mauro: «26-28 auto sono troppe, fai in modo che i campionati generino griglie da 20-22»)
 
 - **Da dove nascevano i 27/28**: non dal ladder (`gridSize` massimo 20), ma dal gate di `rebuildGridApply` che allineava il customgrid al conteggio NATIVO del weekend. Sul save reale (Monza): `3.7 = 27`, voci 3.10 = 27 → bersaglio 28 celle.

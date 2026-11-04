@@ -22,20 +22,25 @@ import { sameTrack } from '../src/tracknames.mjs';
 export const WEEKEND_FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 
 /* ---------- LA REGOLA DELLE GRIGLIE DI CAMPIONATO (4/11/2026) ---------- */
-// Mauro: «26-28 auto sono troppe, fai in modo che i campionati generino
-// griglie da 20-22». La griglia di campionato sta in [min, max] CELLE
-// (avversari = celle − 1). In CUSTOM EVO dimensiona il via su 3.7 + la tua
-// auto (race.mjs), ma il gate del builder conta anche le voci 3.10: per
-// scendere bisogna allineare il weekend PRIMA delle celle (lezione 24/10:
-// griglia diversa dall'atteso = 0xC0000005). Una regola sola: questa.
-export const GRIGLIA_CAMPIONATO = Object.freeze({ min: 20, max: 22 });
+// Mauro: «26-28 auto sono troppe» e poi «non per tutti 20-22: differenzia,
+// alcuni partono con 12, 14, 16, 18, 20 — varia in base al tipo di auto e al
+// campionato». Il numero giusto è quello DEL CAMPIONATO (node.gridSize del
+// ladder, già diverso per serie), pari e dentro [min, max]: 22 è il tetto (i
+// 26-28 nativi erano troppi), 12 il minimo. Deterministico: la stessa serie
+// porta sempre lo stesso numero, round dopo round — non un sorteggio che
+// cambia la griglia sotto i piedi.
+// In CUSTOM EVO dimensiona il via su 3.7 + la tua auto (race.mjs), ma il gate
+// del builder conta anche le voci 3.10: per scendere bisogna allineare il
+// weekend PRIMA delle celle (lezione 24/10: griglia diversa = 0xC0000005).
+export const GRIGLIA_CAMPIONATO = Object.freeze({ min: 12, max: 22 });
 
-/** Il conteggio CELLE dentro la regola di campionato (20-22). Riporta
- *  nell'intervallo anche un numero fuori scala (i 27/28 nativi del weekend). */
-export function celleGrigliaCampionato(celle) {
-  const n = Math.round(Number(celle));
-  if (!Number.isFinite(n)) return GRIGLIA_CAMPIONATO.min;
-  return Math.max(GRIGLIA_CAMPIONATO.min, Math.min(GRIGLIA_CAMPIONATO.max, n));
+/** Le auto in griglia DEL CAMPIONATO di `node`: il suo gridSize (12, 14, 16,
+ *  18, 20… secondo tipo di auto e serie), pari e dentro [min, max]. */
+export function celleGrigliaCampionato(node) {
+  const base = Math.round(Number(node?.gridSize));
+  if (!Number.isFinite(base)) return 14;          // serie senza stima: il valore più diffuso
+  const pari = Math.round(base / 2) * 2;
+  return Math.max(GRIGLIA_CAMPIONATO.min, Math.min(GRIGLIA_CAMPIONATO.max, pari));
 }
 
 /* ---------- lettura robusta del gamemodesave (27/10, Mauro) ----------

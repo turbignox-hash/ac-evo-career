@@ -23,7 +23,7 @@ import { gameRunning, encodeMsg, gridFileOf, bakName, pruneBackups, factoryDir }
 // dal nome a MINUTO ricostruito a mano al backup al SECONDO dell'unico bakName.
 export { pruneBackups, bakName };
 import { balanceCells, dropCells, setAiRange, planFromClass, readCells, DEFAULT_FILE } from '../tools/grid-balance.mjs';
-import { weekendCarCount, weekendGridMode, setWeekendGridCustom, WEEKEND_FILE, celleGrigliaCampionato } from '../tools/set-track.mjs';
+import { weekendCarCount, weekendGridMode, setWeekendGridCustom, WEEKEND_FILE, GRIGLIA_CAMPIONATO, celleGrigliaCampionato } from '../tools/set-track.mjs';
 import { loadClasses, pickClassInfo, buildGridMessage, classeMulticlasseSuPoolMono } from './gridbuilder.mjs';
 import { resolvePaths } from './paths.mjs';
 import { scanContentCached, carExists } from './content.mjs';
@@ -331,23 +331,26 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
         // gridSize della scala (12 vs 14, lezione 24/10 = crash 0xC0000005) si
         // allinea — il restringimento 16 → 1 di stamattina era questa strada
         // mancante. In AUTOMATIC resta l'allineamento ESATTO della lezione 24/10.
+        const node0 = (ladder.nodes ?? []).find((n) => n.nodeId === nodeId);
         let bersaglio, dato;
         const modo = (() => { try { return weekendGridMode(); } catch { return null; } })();
         if (modo?.mode === 'custom') {
           const atteso = Math.max(nativo.cars, (Number.isFinite(nativo.declared) ? nativo.declared : 0) + 1);
-          bersaglio = celleGrigliaCampionato(atteso);
-          dato = `riga 3.7 = ${nativo.declared} (+1: sei tu), voci 3.10 native ${nativo.cars}`;
+          const target = celleGrigliaCampionato(node0);   // IL numero della serie (12, 14, 16, 18, 20…)
+          bersaglio = Math.min(target, Math.max(GRIGLIA_CAMPIONATO.min, atteso));
+          dato = `riga 3.7 = ${nativo.declared} (+1: sei tu), voci 3.10 native ${nativo.cars}, griglia della serie ${target}`;
           if (bersaglio !== atteso) {
-            // REGOLA CAMPIONATO (4/11/2026, Mauro: «26-28 auto sono troppe, fai
-            // in modo che i campionati generino griglie da 20-22»): la griglia di
-            // campionato sta in 20-22 CELLE. Il weekend deve ASPETTARSI la griglia
-            // nuova PRIMA che le celle cambino: in CUSTOM EVO dimensiona il via su
-            // 3.7 + la tua auto (race.mjs), ma weekendCarCount scandisce anche le
-            // voci 3.10 — se restano 27 il gate rilancerebbe il conto a 28, e 22
-            // celle contro 27 attese è il 0xC0000005 della lezione 24/10. Quindi
-            // roster ridotto agli stessi avversari e 3.7 = avversari, POI il
-            // builder scrive declared + 1 celle e syncRoster le trapianta.
-            // Se il weekend non si lascia scrivere, NON si rimpicciolisce.
+            // REGOLA CAMPIONATO (4/11/2026): ogni campionato porta IL SUO numero
+            // di auto (gridSize della serie, 12-22) — niente tetto unico. Se il
+            // weekend ne dichiara di più (i 26-28 nativi) deve ASPETTARSI la
+            // griglia nuova PRIMA che le celle cambino: in CUSTOM EVO dimensiona
+            // il via su 3.7 + la tua auto (race.mjs), ma weekendCarCount
+            // scandisce anche le voci 3.10 — se restano 27 il gate rilancerebbe
+            // il conto, e celle diverse dall'atteso sono il 0xC0000005 della
+            // lezione 24/10. Quindi roster ridotto agli stessi avversari e
+            // 3.7 = avversari, POI il builder scrive declared + 1 celle e
+            // syncRoster le trapianta. Se il weekend non si lascia scrivere,
+            // NON si cambia il conteggio.
             const avversari = bersaglio - 1;
             let allineato = !!dry;   // in dry si prova il piano, senza toccare il save
             if (!dry) {
@@ -356,15 +359,15 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
                 if (Number(modo.count) !== avversari) setWeekendGridCustom(avversari);
                 allineato = true;
               } catch (e) {
-                console.log(`[griglia] regola campionato non applicata (${e.message}): resto a ${atteso} auto, weekend non toccato`);
+                console.log(`[griglia] griglia di campionato non applicata (${e.message}): resto a ${atteso} auto, weekend non toccato`);
               }
             }
             if (allineato) {
-              dato += ` · regola campionato: ${avversari} avversari (${bersaglio} auto)`;
+              dato += ` · serie ${target}: ${avversari} avversari (${bersaglio} auto)`;
               const chiaveCap = `cap:${atteso}→${bersaglio}`;
               if (_ultimoAllineamento.get(`${nodeId}#cap`) !== chiaveCap) {
                 _ultimoAllineamento.set(`${nodeId}#cap`, chiaveCap);
-                console.log(`[griglia] regola campionato 20-22: griglia ${atteso} → ${bersaglio} auto («${nodeId}»), weekend riallineato a ${avversari} avversari`);
+                console.log(`[griglia] griglia di campionato: ${atteso} → ${bersaglio} auto («${nodeId}»), weekend riallineato a ${avversari} avversari`);
               }
             } else {
               bersaglio = atteso;
@@ -374,11 +377,10 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
           bersaglio = nativo.cars;
           dato = `vetture native ${nativo.cars}`;
         }
-        const node0 = (ladder.nodes ?? []).find((n) => n.nodeId === nodeId);
-        // CUSTOM: SOLO SPOSTAMENTO IN ALTO (mai sotto) — la lezione 24/10 dice
-        // «scrivere MENO celle di quante il gioco aspetta = crash»: l'aggiorna-
-        // mento verso l'alto serve, il restringimento (16 → 1 di stamattina) no.
-        const daAllineare = node0 ? (modo?.mode === 'custom' ? bersaglio > node0.gridSize : bersaglio !== node0.gridSize) : false;
+        // Allineamento ESATTO in entrambi i modi: in CUSTOM il restringimento è
+        // lecito da quando il weekend viene riallineato PRIMA (sopra); senza,
+        // celle diverse dall'atteso = crash (lezione 24/10).
+        const daAllineare = node0 ? bersaglio !== node0.gridSize : false;
         if (node0 && daAllineare) {
           const prima = node0.gridSize;
           ladderUsa = { ...ladder, nodes: ladder.nodes.map((n) => (n === node0 ? { ...n, gridSize: bersaglio } : n)) };
