@@ -77,10 +77,11 @@ The latest published v0.1.55 notes describe the independence cut; the installer 
 
 ## Highlights
 
-- **A career, not a race generator.** 86 series, 6 disciplines, 7 levels, 18 tracks; gates by position, open/closed seats, per-series economy, real points systems, iconic races, contracts, sponsors and a season duel.
+- **A career, not a race generator.** 86 series, 6 disciplines, 7 levels, 18 tracks; gates by position, open/closed seats, per-series economy, real points systems, iconic races, contracts, sponsors and a season duel. The calendar is procedural: named series are the backbone, but new rounds and championships keep appearing over time.
 - **Automatic weekend preparation.** The race card knows the track, laps, hour, weather preset, grid and car. “Prepara tutto” writes the weekend; you drive. The car is set automatically once the tool has learned it — an unknown car needs one manual pick in EVO, then the garage/dictionary learns it.
-- **Progressive multi-class balance.** Ballast (kg) and time penalties (%) are computed from real results, with per-track confidence and caps. The Grid tab shows the convergence; the system never invents data when the evidence is missing.
-- **A mechanic that reads telemetry.** Tyre pressures with the 4 PSI rule, camber, ride height, bumpstops, brake bias, TC and fuel per lap, from EVO's `.ld` files where available, with an explicit fallback when they are not.
+- **Endurance and progressive multi-class balance.** Endurance GT4, GT3 Endurance and Endurance Elite bring mixed-class grids; ballast (kg) and time penalties (%) are computed from real results, with per-track confidence and caps. The Grid tab shows the convergence; the system never invents data when the evidence is missing.
+- **A mechanic that reads telemetry and writes setups.** Tyre pressures with the 4 PSI rule, camber, ride height, bumpstops, brake bias, TC and fuel per lap, from EVO's `.ld` files where available. It can apply the advice to a new `EVO-consigliato.carsetup` copy next to your setup; load it in EVO while the game is open.
+- **Advanced analysis and lap comparison.** Race autopsy, rival dossier, setup A/B bench, best-lap and sector comparison, lap trace and seat Monte Carlo, all built from the files EVO and the tool already write.
 - **A co-driver radio, not a chatbot.** One narrator nucleus for the page and the server: flags, fuel, tyres, gaps, pit window, last lap and the chequered flag, with four volume levels (`off`, `essential`, `normal`, `full`).
 - **19 tabs.** Dashboard, Race centre, Setup, Messages, Championships, Grid, Rivals, Analysis, Tracks, Cars, Garage, Results, Archive, Online, Free laps, Stats, Finances, Difficulty, Settings. Online sessions are archived without paying career points; Free laps is a separate test-day mode.
 - **Bilingual and local.** Italian and English interface, Italian/English CLI via `EVO_LANG`; the local server is bound to `127.0.0.1:8642`. No accounts, no uploads, no cloud.
