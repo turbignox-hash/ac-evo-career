@@ -2,7 +2,7 @@
 rem ============================================================
 rem  disinstalla.cmd — l'inverso di installa.cmd (26/10). UN file
 rem  solo: chiede la cartella (Invio = %USERPROFILE%\EVO-Pitwall),
-rem  passa due guardie, toglie scorciatoia + cartella.
+rem  passa due guardie, toglie scorciatoia, voce App e cartella.
 rem
 rem  Le guardie, dette in chiaro:
 rem    1. se la cartella non assomiglia a un'installazione (manca
@@ -16,15 +16,22 @@ rem  alla cartella che si disinstalla: altrimenti sta al suo posto.
 rem
 rem  --- override d'ambiente (per il test sandbox):
 rem    EVO_DISINSTALLA_DIR      cartella di destinazione (niente domande)
+rem    disinstalla.cmd [dir]   la stessa cartella, passata come primo argomento
 rem    EVO_DISINSTALLA_OK       niente conferme: via tutto (carriera inclusa)
 rem    EVO_DISINSTALLA_KEEP     tengo la carriera (data\ traslocata)
 rem    EVO_DISINSTALLA_DESKTOP  desktop-vacanze del test (lista ';': se manca, i veri)
+rem    EVO_DISINSTALLA_STARTMENU  menu Start-vacanze del test (lista ';': se manca, il vero)
+rem    EVO_DISINSTALLA_REGKEY  chiave HKCU alternativa per il test della registrazione
 rem    EVO_DISINSTALLA_RELAY    interno: la copia-servizio aspetta 2 s prima
 rem                             cancellare, per lasciare finire il padre
 rem ============================================================
 setlocal enabledelayedexpansion
 set "TARGET=%USERPROFILE%\EVO-Pitwall"
+if not defined EVO_DISINSTALLA_DIR if not "%~1"=="" set "EVO_DISINSTALLA_DIR=%~1"
 if defined EVO_DISINSTALLA_DIR set "TARGET=%EVO_DISINSTALLA_DIR%"
+if "%TARGET:~-1%"=="\" set "TARGET=%TARGET:~0,-1%"
+set "REGKEY=HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\EVO-Pitwall"
+if defined EVO_DISINSTALLA_REGKEY set "REGKEY=%EVO_DISINSTALLA_REGKEY%"
 rem copia-servizio: se la copia da cancellare contiene anche il file del
 rem padre (che muore tra poco), do tempo al padre di uscire prima di pulire
 rem — senza tempo, il suo file apetto versa la rmdir fuori (verificato)
@@ -84,9 +91,9 @@ if defined TENIMI if exist "%TARGET%\data" (
 rem --------------- scorciatoia: via SOLO se punta qua ---------------
 set "EVO_TARGET=%TARGET%"
 echo.
-echo   Scorciatoia «Carriera EVO» sul Desktop: la tolgo solo se punta qua...
+echo   Scorciatoie «Carriera EVO» (Desktop e menu Start): le tolgo solo se puntano qua...
 powershell -NoProfile -ExecutionPolicy Bypass -Command^
-  "$sh=New-Object -ComObject WScript.Shell;$t=Join-Path $env:EVO_TARGET 'avvia.cmd';$desktops=@();if($env:EVO_DISINSTALLA_DESKTOP){$desktops+=($env:EVO_DISINSTALLA_DESKTOP -split ';'|Where-Object {$_})}else{$desktops+=[Environment]::GetFolderPath('Desktop');$desktops+=($env:USERPROFILE+'\\Desktop')};$viste=@();foreach($d in $desktops){$x=Join-Path $d 'Carriera EVO.lnk';if((Test-Path -LiteralPath $x) -and -not ($viste -contains $x)){$viste+=$x;$s=$sh.CreateShortcut($x);if($s.TargetPath -ieq $t){Remove-Item -LiteralPath $x -Force;Write-Output '   - tolta: puntava a questa installazione'}else{Write-Output '   - resta: non punta a questa installazione'}}}"
+  "$sh=New-Object -ComObject WScript.Shell;$t=Join-Path $env:EVO_TARGET 'avvia.cmd';$cart=@();if($env:EVO_DISINSTALLA_DESKTOP){$cart+=($env:EVO_DISINSTALLA_DESKTOP -split ';'|Where-Object {$_})}else{$cart+=[Environment]::GetFolderPath('Desktop');$cart+=($env:USERPROFILE+'\\Desktop')};if($env:EVO_DISINSTALLA_STARTMENU){$cart+=($env:EVO_DISINSTALLA_STARTMENU -split ';'|Where-Object {$_})}else{$cart+=[Environment]::GetFolderPath('Programs')};$viste=@();foreach($d in $cart){$x=Join-Path $d 'Carriera EVO.lnk';if((Test-Path -LiteralPath $x) -and -not ($viste -contains $x)){$viste+=$x;$s=$sh.CreateShortcut($x);if($s.TargetPath -ieq $t){Remove-Item -LiteralPath $x -Force;Write-Output '   - tolta: puntava a questa installazione'}else{Write-Output '   - resta: non punta a questa installazione'}}}"
 
 rem --------------- via la cartella ---------------
 echo.
@@ -108,6 +115,12 @@ exit /b 1
 echo   Tolgo "%TARGET%"...
 rmdir /S /Q "%TARGET%" 2>nul
 if exist "%TARGET%" goto hpersomacchia
+set "REGINST="
+for /f "tokens=2,*" %%A in ('reg query "%REGKEY%" /v InstallLocation 2^>nul ^| findstr /i "InstallLocation"') do set "REGINST=%%B"
+if /i "%REGINST%"=="%TARGET%" (
+  reg delete "%REGKEY%" /f >nul 2>nul
+  echo   -  voce «App e funzionalità» tolta.
+)
 echo.
 echo   [x] Disinstallata: tolta la cartella [e la sua scorciatoia se c'era per lei].
 rem nota onesta: la copia-servizio in TEMP rimane (qualche KB): il batch

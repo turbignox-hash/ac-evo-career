@@ -89,40 +89,56 @@ const baseEnv = (extra) => ({
   EVO_DISINSTALLA_DIR: extra.DIR,
   EVO_DISINSTALLA_KEEP: extra.KEEP ? '1' : undefined,
   EVO_DISINSTALLA_DESKTOP: extra.DESKTOP,
+  // percorso inesistente: i test che non lo passano non devono mai guardare
+  // nel menu Start vero della macchina
+  EVO_DISINSTALLA_STARTMENU: extra.START ?? join(tmpdir(), `evo-start-vuoto-${process.pid}`),
+  EVO_DISINSTALLA_REGKEY: extra.REGKEY,
 });
 
 test('disinstalla: pulita «via tutto», scorciatoia puntata qua → tolta', { skip: process.platform !== 'win32' }, async (t) => {
   const DESK = mkdtempSync(join(tmpdir(), 'dis-desk-'));
+  const START = mkdtempSync(join(tmpdir(), 'dis-start-'));
   const TARGET = mkdtempSync(join(tmpdir(), 'dis-inst-'));
   const PORTA = TARGET + '-data'; // come la scrive il disinstallatore (fratello accanto)
-  t.after(() => { for (const d of [DESK, TARGET, PORTA]) rmSync(d, { recursive: true, force: true }); });
+  t.after(() => { for (const d of [DESK, START, TARGET, PORTA]) rmSync(d, { recursive: true, force: true }); });
   fintaInstallazione(TARGET);
+  const REGKEY = `HKCU\\Software\\EVO-Pitwall-DisTest-${process.pid}-${Date.now()}`;
+  const crea = spawnSync('reg', ['add', REGKEY, '/v', 'InstallLocation', '/t', 'REG_SZ', '/d', TARGET, '/f'], { encoding: 'utf8' });
+  assert.equal(crea.status, 0, `chiave di test non creata: ${crea.stderr ?? ''}`);
+  t.after(() => { spawnSync('reg', ['delete', REGKEY, '/f']); });
   const lnk = scorciatoia(DESK, join(TARGET, 'avvia.cmd'));
+  const lnkStart = scorciatoia(START, join(TARGET, 'avvia.cmd'));
   const r = await cmdAsync('cmd.exe', ['/d', '/c', DISINSTALLA], {
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: baseEnv({ OK: true, DIR: TARGET, DESKTOP: DESK }),
+    env: baseEnv({ OK: true, DIR: TARGET, DESKTOP: DESK, START, REGKEY }),
   });
   assert.equal(r.signal, null, `watchdog: impalato\n${r.stdout}\n${r.stderr}`);
   assert.equal(r.status, 0, `uscita ${r.status}\n${r.stdout}\n${r.stderr}`);
   assert.ok(!existsSync(TARGET), `la cartella deve andare via:\n${r.stdout}\n${r.stderr}`);
   assert.ok(!existsSync(lnk), `la scorciatoia puntata qua deve andare:\n${r.stdout}`);
+  assert.ok(!existsSync(lnkStart), `la scorciatoia del menu Start puntata qua deve andare:\n${r.stdout}`);
   assert.ok(!existsSync(PORTA), `nessuna copia di data inaspettata:\n${r.stdout}\n${r.stderr}`);
+  const reg = spawnSync('reg', ['query', REGKEY], { encoding: 'utf8' });
+  assert.notEqual(reg.status, 0, `la voce App e funzionalità doveva sparire:\n${reg.stdout}`);
 });
 
 test('disinstalla: scorciatoia di un\'ALTRA installazione → resta', { skip: process.platform !== 'win32' }, async (t) => {
   const DESK = mkdtempSync(join(tmpdir(), 'dis-desk2-'));
+  const START = mkdtempSync(join(tmpdir(), 'dis-start2-'));
   const TARGET = mkdtempSync(join(tmpdir(), 'dis-inst2-'));
   const ALTRO = mkdtempSync(join(tmpdir(), 'dis-altro-'));
-  t.after(() => { for (const d of [DESK, TARGET, ALTRO + '-data']) rmSync(d, { recursive: true, force: true }); });
+  t.after(() => { for (const d of [DESK, START, TARGET, ALTRO + '-data']) rmSync(d, { recursive: true, force: true }); });
   fintaInstallazione(TARGET);
   const lnk = scorciatoia(DESK, join(ALTRO, 'avvia.cmd')); // punta altrove
+  const lnkStart = scorciatoia(START, join(ALTRO, 'avvia.cmd')); // anche nel menu Start
   const r = await cmdAsync('cmd.exe', ['/d', '/c', DISINSTALLA], {
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: baseEnv({ OK: true, DIR: TARGET, DESKTOP: DESK }),
+    env: baseEnv({ OK: true, DIR: TARGET, DESKTOP: DESK, START }),
   });
   assert.equal(r.status, 0, `uscita ${r.status}\n${r.stdout}\n${r.stderr}`);
   assert.ok(!existsSync(TARGET), 'la cartella va via comunque');
   assert.ok(existsSync(lnk), `la scorciatoia di un'altra installazione sta al suo posto:\n${r.stdout}`);
+  assert.ok(existsSync(lnkStart), `la scorciatoia del menu Start di un'altra installazione sta al suo posto:\n${r.stdout}`);
   assert.ok(r.stdout.includes('resta'), `il disinstallatore lo dice:\n${r.stdout}`);
 });
 

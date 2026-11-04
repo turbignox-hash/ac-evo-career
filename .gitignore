@@ -69,3 +69,7 @@ report/_pyinstxtractor.py
 http_code
 *.bak-*
 node_modules/
+
+# certificati di firma: MAI nel repo (chiavi private, password fuori da Git)
+*.pfx
+*.p12

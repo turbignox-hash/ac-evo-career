@@ -103,6 +103,9 @@ test('insta-gioco: senza la mod esce 0 e dice che il resto funziona', () => {
   assert.equal(parlato.status, 0, `la mod mancante non deve bloccare: ${parlato.out}`);
   assert.ok(parlato.out.includes('ACE UI App Loader'), `non nomina la mod: ${parlato.out}`);
   assert.ok(parlato.out.includes('funziona'), `non rassicura sul resto: ${parlato.out}`);
+  assert.ok(parlato.out.includes('https://github.com/dreasgrech/ACEUIAppLoader/releases/latest'), `non dice dove prenderla: ${parlato.out}`);
+  assert.ok(parlato.out.includes(join(root, 'ACE', 'mods', 'uiresources', 'ACEUIAppLoader')), `non dice la cartella attesa: ${parlato.out}`);
+  assert.ok(parlato.out.includes('Unisci'), `non dice come si installa: ${parlato.out}`);
 
   // anche in silenzioso l'avviso passa: è una cosa da sapere, non un rumore
   const mutus = giro(root, ['--silenzioso']);

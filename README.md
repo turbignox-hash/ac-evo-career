@@ -188,12 +188,13 @@ changelog under [report/](report/), with the real test-suite result inside):
   ever, the ideal lap built from best-ever sectors and telemetry analysis.
   The career is never touched.
 - **One-file install for a friend.** `installa.cmd` (a single file, a few KB)
-  installs everything on a Windows PC — portable Node downloaded if missing,
+  installs everything on a Windows PC — portable Node downloaded if missing or older than 18,
   code from GitHub, `build-id.txt` written, tests run, desktop shortcut with
   the program icon and the first-launch wizard. The IN-GAME apps (Cruscotto
   and Pitwall of the loader) set themselves up on first launch: without the
-  ACE UI App Loader mod everything else still works, and the tool says so.
-  `disinstalla.cmd` undoes it cleanly and refuses folders that don't look
+  [ACE UI App Loader](https://github.com/dreasgrech/ACEUIAppLoader) mod
+  everything else still works, and the tool says so.
+  `disinstalla.cmd` undoes it cleanly, removes the Apps & Features entry and refuses folders that don't look
   like an installation. All covered by sandbox tests.
 - **Old closing messages stay readable.** Old grid-calibration notes
   written back when the career ran in Italian are translated on display in
@@ -231,6 +232,8 @@ and first-launch wizard are all handled, and `disinstalla.cmd` undoes the
 whole thing later. For the way via clone or ZIP-from-GitHub, **Node.js 18+** is
 the only prerequisite. Either way: Assetto Corsa EVO installed and started
 at least once (so its data folders exist).
+
+For a Windows GUI, `npm run installer` builds `dist\EVO-Pitwall-Setup.exe`: a small unsigned WinForms wrapper around the same `installa.cmd` (same downloads and rules, with a folder picker, Disinstalla button and log). It still needs internet if Node or the code is missing. For PCs with no connection, `npm run installer:offline` builds `dist\EVO-Pitwall-Setup-Offline.exe` (about 40 MB): portable Node and a zip of the current code are embedded, so it installs offline. The first offline build downloads Node once into `dist\offline-cache\`; later builds reuse it. Neither variant is code-signed unless you configure signing: set `EVO_SIGN_PFX` (path to a `.pfx`) + `EVO_SIGN_PASSWORD`, or `EVO_SIGN_THUMBPRINT` for a certificate already in Windows. The builder finds `signtool.exe` in the Windows SDK (or `EVO_SIGNTOOL`), signs with SHA-256 and a timestamp, then writes the `.sha256` of the **signed** file. `EVO_SIGN_TIMESTAMP=""` disables the timestamp for offline signing; with no signing variables the EXE stays unsigned. A **self-signed certificate does not remove SmartScreen**: it only helps on a PC that trusts that CA, not on your friend's. Removing «Unknown publisher» and building reputation needs an **OV** or **EV** certificate issued to a verified identity: EV reputation is immediate, OV reputation grows with downloads. Signing alone still does not guarantee the warning is gone, because SmartScreen also weighs the file hash and URL. The `crea-release` preflight verifies the EXEs present (`signtool verify /pa`, the `.sha256` match and the build version in `.build.json`) as soon as it sees an `EVO_SIGN_*` variable; when they pass, the release attaches the EXEs present and their `.sha256` files automatically, with no `--asset` needed. By hand run `npm run verifica-firma`.
 
 ### The automatic save backup (since 25/10)
 

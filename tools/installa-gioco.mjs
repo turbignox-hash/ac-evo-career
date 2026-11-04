@@ -28,6 +28,7 @@
 //   INSTALLA-GIOCO.cmd                          (la via manuale, doppio click)
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { savedGamesRoots } from '../src/paths.mjs';
@@ -38,6 +39,9 @@ const APPS = [
   { chiave: 'pitwall', cartella: join(PROGETTO, 'uiapp', 'pitwall'), files: ['app.json', 'pitwall.js'] },
 ];
 
+const DOWNLOAD_URL = 'https://github.com/dreasgrech/ACEUIAppLoader/releases/latest';
+const radici = savedGamesRoots();
+
 const silenzioso = process.argv.includes('--silenzioso');
 // parla: solo fuori dal modo silenzioso. avviso: sempre — cose da sapere,
 // installato o meno (mod mancante, copia riuscita).
@@ -45,7 +49,7 @@ const parla = (...righe) => { if (!silenzioso) console.log(righe.join('\n')); };
 const avviso = (...righe) => console.log(righe.join('\n'));
 
 function baseLoader() {
-  for (const root of savedGamesRoots()) {
+  for (const root of radici) {
     const loader = join(root, 'ACE', 'mods', 'uiresources', 'ACEUIAppLoader');
     if (existsSync(loader)) return loader;
   }
@@ -78,7 +82,7 @@ function installaApp(app, loaderDir) {
 }
 
 function marcatore(chiave) {
-  for (const root of savedGamesRoots()) {
+  for (const root of radici) {
     const dir = join(root, 'ACE', 'Video');
     if (!existsSync(dir)) continue;
     const file = join(dir, `ACEUIAppLoader-${chiave}.settingspreset`);
@@ -91,7 +95,23 @@ function marcatore(chiave) {
 const loaderDir = baseLoader();
 
 if (!loaderDir) {
-  avviso('', '[i] Le app DENTRO il gioco (Cruscotto e Pitwall) non partono:', '', '    Serve prima la mod ACE UI App Loader (la stessa che usano le app', '    in gioco in gioco), installata in Saved Games\\ACE\\mods\\uiresources.', '    Senza mod TUTTO il resto funziona: GUI nel browser, carriera, preparazione', '    gare. Dettagli in GUIDA-AMICO.md.');
+  const attesa = join(radici[0] ?? join(homedir(), 'Saved Games'), 'ACE', 'mods', 'uiresources', 'ACEUIAppLoader');
+  avviso(
+    '',
+    '[i] Le app DENTRO il gioco (Cruscotto e Pitwall) non partono:',
+    '    manca la mod ACE UI App Loader.',
+    '',
+    '    Dove si prende: ' + DOWNLOAD_URL,
+    '    (oppure OverTake → ACE Apps → ACE UI App Loader)',
+    '',
+    '    Come si installa: apri lo zip e trascina la cartella "mods" in',
+    '    Saved Games\\ACE, scegliendo "Unisci" se Windows lo chiede.',
+    '',
+    '    Cartella attesa: ' + attesa,
+    '',
+    '    Senza mod TUTTO il resto funziona: GUI, carriera, preparazione gare.',
+    '    Guida: GUIDA-AMICO.md, sezione «App in gioco».',
+  );
   process.exit(0);
 }
 

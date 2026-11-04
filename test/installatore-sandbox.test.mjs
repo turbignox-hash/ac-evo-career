@@ -25,7 +25,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync, copyFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readdirSync, rmSync, writeFileSync, readFileSync, existsSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -73,6 +73,7 @@ test('installatore: installazione completa in sandbox, con zipball locale', { sk
     JSON.stringify({ name: 'ac-evo-career', version: '0.0.0-sandbox' }), 'utf8');
   writeFileSync(join(stage, RADICE_ZIP, 'ac-evo-career.mjs'), 'console.log("sandbox")\n', 'utf8');
   writeFileSync(join(stage, RADICE_ZIP, 'avvia.cmd'), '@echo off\nrem sandbox stub\n', 'utf8');
+  writeFileSync(join(stage, RADICE_ZIP, 'disinstalla.cmd'), '@echo off\nrem sandbox stub\n', 'utf8');
   copyFileSync(join(QUI, 'tools', 'crea-scorciatoia.mjs'), join(stage, RADICE_ZIP, 'tools', 'crea-scorciatoia.mjs'));
   const zipPath = join(blob, 'zipball.zip');
   const z = spawnSync(TAR, ['-a', '-cf', zipPath, '-C', stage, RADICE_ZIP], { encoding: 'utf8' });
@@ -101,6 +102,9 @@ test('installatore: installazione completa in sandbox, con zipball locale', { sk
   const destinazione = mkdtempSync(join(tmpdir(), 'installer-target-'));
   t.after(() => rmSync(destinazione, { recursive: true, force: true }));
 
+  const REGKEY = `HKCU\\Software\\EVO-Pitwall-Test-${process.pid}-${Date.now()}`;
+  t.after(() => { spawnSync('reg', ['delete', REGKEY, '/f']); });
+
   const r = await cmdAsync('cmd.exe', ['/d', '/c', INSTALLATORE], {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
@@ -111,6 +115,7 @@ test('installatore: installazione completa in sandbox, con zipball locale', { sk
       EVO_INSTALLER_API: `http://127.0.0.1:${httpPort}/repos/turbignox-hash/ac-evo-career`,
       EVO_INSTALLER_AUTO: '1',
       EVO_INSTALLER_FAST: '1',
+      EVO_INSTALLER_REGKEY: REGKEY,
       EVO_INSTALLER_NOSCORCIATOIA: '1',
       EVO_INSTALLER_NOAVVIO: '1',
     },
@@ -151,4 +156,15 @@ test('installatore: installazione completa in sandbox, con zipball locale', { sk
     'con modo veloce non deve esserci node_modules');
   // 6) richiesta unica: il server finto colpito una volta sola
   assert.equal(chiestiZipball, 1, `zipball chiesta ${chiestiZipball} volte: attesa 1`);
+  // 7) la registrazione App e funzionalità è stata scritta su una chiave di test
+  const reg = spawnSync('reg', ['query', REGKEY], { encoding: 'utf8' });
+  assert.equal(reg.status, 0, `registrazione assente: ${reg.stderr ?? ''}`);
+  assert.ok(reg.stdout.includes('InstallLocation') && reg.stdout.includes(destinazione),
+    'InstallLocation non punta alla destinazione:\n' + reg.stdout);
+  assert.ok(reg.stdout.includes('UninstallString') && reg.stdout.includes('disinstalla.cmd') && reg.stdout.includes(destinazione),
+    'UninstallString non invoca disinstalla.cmd con la destinazione:\n' + reg.stdout);
+  assert.ok(reg.stdout.includes('DisplayName'), 'DisplayName assente:\n' + reg.stdout);
+  // 8) la workspace temporanea univoca viene rimossa a fine installazione
+  assert.deepEqual(readdirSync(blob).filter((n) => n.startsWith('pitwall-install-')), [],
+    'la cartella temporanea pitwall-install-* è rimasta');
 });

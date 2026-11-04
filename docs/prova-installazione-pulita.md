@@ -33,7 +33,7 @@ griglia sul save 3 di questo PC. Spuntare a mano mentre si va.
 
 ### Primo avvio (il vero test dell'amico)
 - [ ] doppio click su `avvia.cmd` → l'installazione gira
-- [ ] **scorciatoia «Carriera EVO» sul Desktop** creata da solo, con
+- [ ] **scorciatoia «Carriera EVO» sul Desktop e nel menu Start** creata da solo, con
       l'icona del programma (non il verde di Node) — se manca, vedi
       `tools/crea-scorciatoia.mjs`
 - [ ] **wizard di prima apertura** trova da solo `Saved Games\ACE` e il gioco in

@@ -16,17 +16,33 @@ KB) and it does the whole install with one command:
 
 1. double click (from any folder: it can sit on the Desktop);
 2. Enter for the default folder (`%USERPROFILE%\EVO-Pitwall`);
-3. if the PC has no Node, it downloads a **portable Node** inside that same
+3. if the PC has no Node (or one older than 18), it downloads a **portable Node** inside that same
    folder — no admin rights, no winget;
 4. it asks **once** for the read token (§5-bis) and saves it into
    `data\.github-token`: the launcher's automatic updates work from day one;
 5. it downloads the code (zipball of `main`), extracts it, writes
    `build-id.txt` and runs `npm test`;
-6. it creates the «Carriera EVO» shortcut on the Desktop (icon included) and
-   starts the **first-run wizard**.
+6. it creates the «Carriera EVO» shortcut on the Desktop and in the Start menu (icon included), registers the
+   Apps & Features entry and starts the **first-run wizard**.
 
 The friend touches no terminal, no git, no zip: GitHub is only the download
 channel and then the update channel.
+
+## 0-bis. The `.exe` variant (optional)
+
+`npm run installer` builds `dist\EVO-Pitwall-Setup.exe`: a WinForms GUI around
+the same `installa.cmd` (folder picker, Disinstalla and **Copy log** buttons —
+the copied text includes the build — readable log, no black window). The top-right corner shows version, build and variant
+(online/offline) — the first thing to check when something looks off. The
+downloaded Node is verified against the SHA-256 pinned in `installa.cmd`
+(certutil), so a mirror or proxy cannot swap it. It still needs a connection
+when Node or the code is missing.
+
+For a PC with no internet, `npm run installer:offline` builds
+`dist\EVO-Pitwall-Setup-Offline.exe` (about 40 MB) with portable Node and a zip
+of the current code embedded: it downloads nothing. The first offline build
+downloads Node once into `dist\offline-cache\`; later builds reuse it. Neither
+variant is code-signed, so SmartScreen may ask for «More info» → «Run anyway».
 
 ## 0-ter. Uninstalling (since 26/10)
 
@@ -36,10 +52,12 @@ into the installed folder; it manages installations on its own):
 1. Enter for the default folder (`%USERPROFILE%\EVO-Pitwall`);
 2. if `data\` contains a **career**, it asks what to do with it:
    `[k]` keep it (moves it to `<folder>-data`, next door) or `[b]` delete all;
-3. it removes the «Carriera EVO» shortcut **only if it points to that folder**
-   (a shortcut belonging to another installation stays where it is);
+3. it removes the «Carriera EVO» shortcuts from the Desktop and the Start menu
+   **only if they point to that folder** (shortcuts belonging to another installation stay where they are);
 4. if the launcher is still open it tells you so: close it (system tray icon)
    and run it again.
+
+The Apps & Features entry is removed only if it points to that folder; the EXE also has a **Disinstalla…** button that runs the same `disinstalla.cmd`.
 
 The uninstaller is guarded: a folder that does not look like a Carriera EVO
 installation (`ac-evo-career.mjs` missing inside) is not touched on its own.
@@ -121,6 +139,26 @@ Loader** mod installed (the same one in-game apps use): if it
 is missing, the launcher says so in one line and goes on anyway — the GUI,
 the career and the race preparation do not depend on it. Manual route any
 time: double click `INSTALLA-GIOCO.cmd` in the program folder.
+
+#### Installing the ACE UI App Loader mod (in-game apps only)
+
+If the installer or launcher says the mod is missing, everything else still
+works: without it Cruscotto and Pitwall do not appear in EVO's menu. It is
+free and has no installer.
+
+1. Download `ACEUIAppLoader-….zip` — the one **without** `-alternate` — from
+   [github.com/dreasgrech/ACEUIAppLoader/releases/latest](https://github.com/dreasgrech/ACEUIAppLoader/releases/latest)
+   or from the OverTake page [ACE UI App Loader](https://www.overtake.gg/downloads/ace-ui-app-loader-running-custom-ui-apps-in-evo.86867/).
+2. Open the zip: inside there is a `mods` folder.
+3. `Win+R`, paste `%USERPROFILE%\Saved Games\ACE`, press Enter.
+4. Drag `mods` into that window; if Windows asks, choose **Merge**.
+5. Reopen the launcher (or double click `INSTALLA-GIOCO.cmd`) and restart
+   EVO: the apps are in the APPS drawer (right edge of the screen).
+
+You should end up with `Saved Games\ACE\mods\ACEUIAppLoader.kspkg` and the
+folder `Saved Games\ACE\mods\uiresources\ACEUIAppLoader\`. The loader is
+tied to the game version: after an EVO update, if the apps disappear,
+download the loader release for the new version.
 
 At first open the GUI shows the **wizard**: it finds the data folders on its
 own (`%USERPROFILE%\Saved Games\ACE`), the game in Steam
@@ -266,10 +304,12 @@ README has the full section: [README.md](README.md).
 
 **The in-game apps don't appear in EVO's menu.** The **ACE UI App Loader**
 mod is missing from `Saved Games\ACE\mods\uiresources\ACEUIAppLoader\`
-(the same one in-game apps use): install it, then double click
-`INSTALLA-GIOCO.cmd` (or simply restart the launcher, which does it by
-itself). Without the mod nothing breaks: the browser GUI and the whole
-career work as usual.
+(the same one in-game apps use). Download it from
+[github.com/dreasgrech/ACEUIAppLoader/releases/latest](https://github.com/dreasgrech/ACEUIAppLoader/releases/latest)
+and install it by dragging its `mods` folder into `Saved Games\ACE` (the
+steps are in section 3). Then double click `INSTALLA-GIOCO.cmd` (or simply
+restart the launcher, which does it by itself). Without the mod nothing
+breaks: the browser GUI and the whole career work as usual.
 
 **I installed on a virgin PC and «Get everything ready» says «hour/laps to be set by hand».**
 On a new save EVO does not have the career weekend file YET: the round's

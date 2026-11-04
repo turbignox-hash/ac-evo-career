@@ -107,6 +107,40 @@ la scheda si apre da sola.
 
 Detto breve: **l'amico → un solo file `installa.cmd`**; **sviluppatore sincero → clone**.
 
+Se preferisci un doppio click «da Windows», `npm run installer` costruisce
+`dist\EVO-Pitwall-Setup.exe`: una GUI che incorpora lo stesso `installa.cmd`
+(stessi download e stesse regole, con scelta cartella, pulsante Disinstalla e log). Non è un
+pacchetto offline e non è firmata: SmartScreen può chiedere «Ulteriori
+informazioni» → «Esegui comunque».
+
+Per i PC senza rete c'è la variante `npm run installer:offline`:
+`dist\EVO-Pitwall-Setup-Offline.exe` (circa 40 MB) incorpora il Node portatile
+e uno zip del codice preso dai file correnti (modifiche non committate comprese),
+quindi installa senza scaricare nulla. Il primo build scarica Node una volta e lo
+tiene in `dist\offline-cache\`; le build successive riusano quella copia. Anche
+questa variante non è firmata: SmartScreen si comporta come sopra.
+
+Per firmare gli EXE (serve un certificato Authenticode) il builder accetta due
+strade, senza salvare segreti nel progetto: `EVO_SIGN_PFX` (percorso del `.pfx`)
++ `EVO_SIGN_PASSWORD`, oppure `EVO_SIGN_THUMBPRINT` per un certificato già
+installato in Windows. Trova `signtool.exe` dal Windows SDK (o da `EVO_SIGNTOOL`),
+firma con SHA-256 e timestamp, poi calcola lo `.sha256` del file **firmato**.
+Senza queste variabili l'EXE esce non firmato, esattamente come prima;
+`EVO_SIGN_TIMESTAMP=""` disattiva il timestamp per una firma solo offline.
+
+Un certificato **self-signed non toglie SmartScreen**: toglie l'avviso solo
+su un PC che si fida di quella CA, non su quello dell'amico. Per togliere
+«Autore sconosciuto» e avere una reputazione serve un certificato **OV** o
+**EV** emesso a un'identità verificata: con l'EV la reputazione è immediata,
+con l'OV cresce con i download. La firma da sola non garantisce comunque
+l'assenza dell'avviso, perché SmartScreen valuta anche hash e URL del file.
+
+Il preflight di `tools/crea-release.mjs` verifica da solo gli EXE presenti
+(`signtool verify /pa`, corrispondenza dello `.sha256` e versione della build
+nel `.build.json`) appena vede una variabile `EVO_SIGN_*`; se sono a posto,
+la release carica da sola gli EXE presenti con i loro `.sha256` (niente
+`--asset` a mano). A mano si lancia `npm run verifica-firma`.
+
 (Vie storiche, ancora valide: il **pacchetto-amico zip** di `tools/pacchetto-amico.mjs`
 e il **Download ZIP dal sito** — entrambi si auto-regolano al primo avvio.)
 
@@ -217,12 +251,13 @@ tacciono comunque: EVO non popola i campi gap delle gare single-player
   per settore contro i tuoi migliori di sempre, il giro ideale sommato dai
   settori e l'analisi telemetrica. La carriera non si tocca.
 - **Installazione un-file per l'amico.** `installa.cmd` (un file solo, pochi
-  KB) installa tutto su un PC Windows — Node portatile scaricato se manca,
+  KB) installa tutto su un PC Windows — Node portatile scaricato se manca o è più vecchio di 18,
   codice da GitHub,  `build-id.txt` scritto, test passati, scorciatoia sul
   desktop con l'icona del programma e wizard di prima apertura. Le app
   DENTRO il gioco (Cruscotto e Pitwall del loader) si mettono a posto da sole
-  al primo avvio: senza l'apposita mod ACE UI App Loader il resto funziona
-  comunque, e lo dice. `disinstalla.cmd` rimuove tutto in pulizia e rifiuta
+  al primo avvio: senza l'apposita mod
+  [ACE UI App Loader](https://github.com/dreasgrech/ACEUIAppLoader) il resto
+  funziona comunque, e lo dice. `disinstalla.cmd` rimuove tutto in pulizia, toglie la voce «App e funzionalità» e rifiuta
   le cartelle che non somigliano a un'installazione. Tutto coperto da test
   in sandbox.
 - **I vecchi messaggi si leggono comunque.** Le vecchie note e di

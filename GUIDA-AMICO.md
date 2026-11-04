@@ -13,18 +13,37 @@ doppioclick `installa.cmd`** (uno solo, in radice del progetto, pochi KB) e
 
 1. doppio click (da qualunque cartella: può stare sul Desktop);
 2. Invio per la cartella di default (`%USERPROFILE%\EVO-Pitwall`);
-3. se il PC non ha Node, scarica un **Node portatile** dentro quella stessa
+3. se il PC non ha Node (o ha un Node più vecchio di 18), scarica un **Node portatile** dentro quella stessa
    cartella — niente admin, niente winget;
 4. chiede **una volta** il token di lettura (§5-bis) e lo salva in
    `data\.github-token`: gli aggiornamenti automatici del launcher sono
    già a posto da subito;
 5. scarica il codice (zipball di `main`), lo estrae, scrive `build-id.txt`
    e fa passare `npm test`;
-6. crea la scorciatoia «Carriera EVO» sul Desktop (icona compresa) e avvia
-   il **wizard** di prima apertura.
+6. crea la scorciatoia «Carriera EVO» sul Desktop e nel menu Start (icona compresa), registra la voce in App e
+   funzionalità e avvia il **wizard** di prima apertura.
 
 Il friend non tocca terminali, git né zip: GitHub viene usato solo come
 mezzo di scarico e poi per gli aggiornamenti.
+
+## 0-bis. La variante `.exe` (facoltativa)
+
+Dalla cartella del progetto, `npm run installer` costruisce
+`dist\EVO-Pitwall-Setup.exe` (un file singolo, circa 90 KB): è una GUI WinForms
+che incorpora lo stesso `installa.cmd`, quindi usa gli stessi download e le
+stesse regole, ma offre scelta della cartella, pulsanti Disinstalla e **Copia log**
+(negli appunti finisce anche la build), log leggibile e nessuna finestra nera. In alto a destra mostra versione, build e variante (online/offline): è la
+prima cosa da guardare se qualcosa non torna. Il Node scaricato viene verificato
+con lo SHA-256 fissato in `installa.cmd` (certutil): un mirror o un proxy che
+provasse a sostituirlo viene fermato prima dell'estrazione. Non è firmato: al primo avvio
+SmartScreen può chiedere «Ulteriori informazioni» → «Esegui comunque».
+
+Se il PC dell'amico non ha rete, `npm run installer:offline` costruisce
+`dist\EVO-Pitwall-Setup-Offline.exe` (circa 40 MB): dentro ci sono il Node
+portatile e lo zip del codice preso dai file correnti, quindi l'installazione
+non scarica nulla. Il primo build scarica Node una volta in
+`dist\offline-cache\`; le build successive riusano quella copia. Anche questa
+variante non è firmata (SmartScreen come sopra).
 
 ## 0-ter. Disinstallare (da 26/10)
 
@@ -34,10 +53,12 @@ la cartella installata, si gestisce da solo le installazioni):
 1. Invio per la cartella di default (`%USERPROFILE%\EVO-Pitwall`);
 2. se dentro `data\` c'è una **carriera**, chiede cosa farne:
    `[k]` la tiene (la sposta in `<cartella>-data`, accanto) o `[b]` via tutto;
-3. toglie la scorciatoia «Carriera EVO» **solo se punta a quella cartella**
-   (una scorciatoia di un'altra installazione resta al suo posto);
+3. toglie le scorciatoie «Carriera EVO» dal Desktop e dal menu Start **solo se
+   puntano a quella cartella** (quelle di un'altra installazione restano al loro posto);
 4. se il launcher è ancora aperto, te lo dice: chiudi (icona nella barra
    delle applicazioni) e ri-lanciate.
+
+La voce in **App e funzionalità** viene tolta solo se punta a quella cartella; dall'EXE il pulsante **Disinstalla…** avvia lo stesso `disinstalla.cmd`.
 
 Il disinstallatore è protetto: una cartella che non assomiglia a un'installazione
 di Carriera EVO (dentro manca `ac-evo-career.mjs`) non si tocca di suo gusto.
@@ -113,6 +134,26 @@ stessa usata dalle app in gioco): se manca, il launcher lo dice
 con una riga e va avanti lo stesso — la GUI, la carriera e la preparazione
 delle gare non dipendono da essa. Via manuale in qualunque momento: doppio
 click su `INSTALLA-GIOCO.cmd` nella cartella del programma.
+
+#### Installare la mod ACE UI App Loader (serve solo alle app in gioco)
+
+Se l'installer o il launcher ti avvisano che la mod manca, il resto
+funziona lo stesso: senza di lei Cruscotto e Pitwall non compaiono nel
+menu di EVO. Si scarica gratis e non ha installatore.
+
+1. Scarica `ACEUIAppLoader-….zip` — quello **senza** `-alternate` — da
+   [github.com/dreasgrech/ACEUIAppLoader/releases/latest](https://github.com/dreasgrech/ACEUIAppLoader/releases/latest)
+   oppure dalla pagina OverTake [ACE UI App Loader](https://www.overtake.gg/downloads/ace-ui-app-loader-running-custom-ui-apps-in-evo.86867/).
+2. Apri lo zip: dentro c'è una cartella `mods`.
+3. `Win+R`, incolla `%USERPROFILE%\Saved Games\ACE`, premi Invio.
+4. Trascina `mods` nella finestra; se Windows chiede, scegli **Unisci**.
+5. Riapri il launcher (o doppio click su `INSTALLA-GIOCO.cmd`) e riavvia
+   EVO: le app sono nel cassetto APPS (bordo destro dello schermo).
+
+Devi ritrovarti con `Saved Games\ACE\mods\ACEUIAppLoader.kspkg` e la
+cartella `Saved Games\ACE\mods\uiresources\ACEUIAppLoader\`. Il loader è
+legato alla versione del gioco: dopo un aggiornamento di EVO, se le app
+spariscono, riscarica la release del loader per la nuova versione.
 
 **Tutto è cliccabile** (28/10, stile Football Manager): il nome di un'auto
 apre la sua scheda nel Libro delle auto, il nome di una pista la scheda
@@ -331,10 +372,12 @@ tipico del primo avvio su un PC nuovo. Se qui manca il tuo sintomo, il README
 
 **Le app in gioco non appaiono nel menu di EVO.** Manca la mod **ACE UI App
 Loader** in `Saved Games\ACE\mods\uiresources\ACEUIAppLoader\` (la stessa
-usata dalle app in gioco): installata quella, doppio click su
-`INSTALLA-GIOCO.cmd` (o semplicemente riavvia il launcher, che lo fa da
-solo). Senza mod niente si rompe: la GUI nel browser e tutta la carriera
-funzionano normali.
+usata dalle app in gioco). Si scarica da
+[github.com/dreasgrech/ACEUIAppLoader/releases/latest](https://github.com/dreasgrech/ACEUIAppLoader/releases/latest)
+e si installa trascinando la sua cartella `mods` in `Saved Games\ACE`
+(i passi sono nella sezione 3). Poi doppio click su `INSTALLA-GIOCO.cmd`
+(o semplicemente riavvia il launcher, che lo fa da solo). Senza mod niente
+si rompe: la GUI nel browser e tutta la carriera funzionano normali.
 
 **Ho installato su un PC vergine e «Prepara tutto» dice «ora/giri da impostare a mano».**
 In un save nuovo EVO non ha ANCORA il file del weekend di carriera: le

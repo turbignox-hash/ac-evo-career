@@ -1,19 +1,25 @@
-// crea-scorciatoia.mjs — la scorciatoia «Carriera EVO» sul Desktop, da solo.
+// crea-scorciatoia.mjs — la scorciatoia «Carriera EVO» su Desktop e menu Start, da solo.
 //
 // Perché: l'amico che installa lo zip trova `avvia.cmd` dentro la cartella
 // estratta, non sul Desktop (GUIDA-AMICO.md a 24/10). Questo strumento, ogni
 // volta che il launcher parte, se ne accerta: se manca la crea con l'icona
 // Pitwall (gui/pitwall.ico, tracciata nel repo), se esiste con l'icona
-// sbagliata la aggiorna. Se C'È GIÀ la scorciatoia con l'icona giusta, non
-// tocca NIENTE (zero scritture, spawn PowerShell solo per la verifica: ogni
-// avvio deve volare).
+// sbagliata la aggiorna, e ora ne tiene una anche nel menu Start. Se ci sono
+// già entrambe con l'icona giusta, non tocca NIENTE (zero scritture, un solo
+// spawn PowerShell per la verifica: ogni avvio deve volare).
+//
+// Regola importante: una scorciatoia con lo stesso nome ma puntata a UN'ALTRA
+// installazione non si tocca (né target né icona): l'ultima installazione non
+// deve rubare il collegamento alla prima.
 //
 // Regole del launcher: mai un blocco, mai un errore spinoso — falla o zittisci.
 //
-// uso:  node tools/crea-scorciatoia.mjs [--desktop <dir>]   (dir: solo test)
+// uso:  node tools/crea-scorciatoia.mjs [--desktop <dir>] [--startmenu <dir>]
+//       (le dir servono solo ai test; con almeno un flag si toccano SOLO quelle,
+//        mai il Desktop o il menu Start veri)
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -22,10 +28,12 @@ const NOME = 'Carriera EVO.lnk';
 const ICO = join(RADICE, 'gui', 'pitwall.ico');
 const TARGET = join(RADICE, 'avvia.cmd');
 
+function argDir(flag) {
+  const i = process.argv.indexOf(flag);
+  return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : null;
+}
+
 function desktopDir() {
-  // il test passa la dir a mano
-  const flag = process.argv.indexOf('--desktop');
-  if (flag !== -1 && process.argv[flag + 1]) return process.argv[flag + 1];
   // il classico: sempre presente anche quando il Desktop vero vive su OneDrive
   const semplice = join(process.env.USERPROFILE ?? '', 'Desktop');
   if (process.env.USERPROFILE && existsSync(semplice)) return semplice;
@@ -36,48 +44,68 @@ function desktopDir() {
   return d || semplice;
 }
 
-/** Lo script PowerShell, base64-UTF16LE encoded: niente inferno di virgolette. */
-function psCommand(lnk) {
+function startMenuDir() {
+  const appData = process.env.APPDATA || join(process.env.USERPROFILE ?? '', 'AppData', 'Roaming');
+  return join(appData, 'Microsoft', 'Windows', 'Start Menu', 'Programs');
+}
+
+/** Letterale PowerShell fra apici singoli: raddoppia gli apici interni. */
+function psq(value) {
+  return String(value).replaceAll("'", "''");
+}
+
+/**
+ * Un solo script per tutti i collegamenti: crea quelli mancanti, ripara
+ * l'icona di quelli nostri, lascia stare quelli di altre installazioni.
+ * Restituisce per ognuno: created / fixed / ok / other.
+ */
+function psCommand(links) {
+  const elenco = links.map((x) => `'${psq(x)}'`).join(',');
   const ps = `
 $shell = New-Object -ComObject WScript.Shell
-if (Test-Path -LiteralPath '${lnk}') {
-  $s = $shell.CreateShortcut('${lnk}')
-  if ("$($s.IconLocation)" -notlike '*pitwall.ico*') {
-    $s.IconLocation = '${ICO},0'
+$esiti = @()
+foreach ($x in @(${elenco})) {
+  if (Test-Path -LiteralPath $x) {
+    $s = $shell.CreateShortcut($x)
+    if ("$($s.TargetPath)" -ieq '${psq(TARGET)}') {
+      if ("$($s.IconLocation)" -notlike '*pitwall.ico*') {
+        $s.IconLocation = '${psq(ICO)},0'
+        $s.Save()
+        $esiti += 'fixed'
+      } else { $esiti += 'ok' }
+    } else { $esiti += 'other' }
+  } else {
+    $s = $shell.CreateShortcut($x)
+    $s.TargetPath = '${psq(TARGET)}'
+    $s.WorkingDirectory = '${psq(RADICE)}'
+    $s.IconLocation = '${psq(ICO)},0'
     $s.Save()
-    Write-Output 'fixed'
-  } else { Write-Output 'ok' }
-} else {
-  $s = $shell.CreateShortcut('${lnk}')
-  $s.TargetPath = '${TARGET}'
-  $s.WorkingDirectory = '${RADICE}'
-  $s.IconLocation = '${ICO},0'
-  $s.Save()
-  Write-Output 'created'
+    $esiti += 'created'
+  }
 }
+Write-Output ($esiti -join ',')
 `;
   return Buffer.from(ps, 'utf16le').toString('base64');
 }
 
 if (process.platform !== 'win32') process.exit(0); // fuori da Windows: silenzioso
 
-const dir = desktopDir();
-if (!dir || !existsSync(dir)) process.exit(0);  // desktop non trovato: pazienza, l'app parte lo stesso
-const lnk = join(dir, NOME);
+const testDesktop = argDir('--desktop');
+const testStart = argDir('--startmenu');
+const testMode = testDesktop !== null || testStart !== null;
+const dirs = testMode ? [testDesktop, testStart].filter(Boolean) : [desktopDir(), startMenuDir()];
 
-// korto circuito: già a posto → uscita silenziosa
-if (existsSync(lnk)) {
-  const s = spawnSync('powershell', ['-NoProfile', '-Command',
-    "(New-Object -ComObject WScript.Shell).CreateShortcut('" + lnk + "').IconLocation"],
-    { encoding: 'utf8' });
-  if ((s.stdout ?? '').includes('pitwall.ico')) process.exit(0);
+const links = [];
+for (const dir of [...new Set(dirs)]) {
+  if (dir && existsSync(dir)) links.push(join(dir, NOME));
 }
+if (links.length === 0) process.exit(0); // nessuna cartella: pazienza, l'app parte lo stesso
 
 const r = spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass',
-  '-EncodedCommand', psCommand(lnk)], { encoding: 'utf8', timeout: 20_000 });
-if (r.status !== 0 || (r.stdout ?? '').trim() === '') process.exit(0); // fallimento: doppio click manuale è la via di scorta, l'app non deve bloccarsi
+  '-EncodedCommand', psCommand(links)], { encoding: 'utf8', timeout: 20_000 });
+if (r.status !== 0) process.exit(0); // fallimento: doppio click manuale è la via di scorta, l'app non deve bloccarsi
 
-const esito = (r.stdout ?? '').trim().split('\n').pop();
-if (esito === 'created' || esito === 'fixed') {
-  console.log('Scorciatoia "Carriera EVO" sul desktop: creata con l\'icona del programma.');
+const esiti = (r.stdout ?? '').trim().split(',').map((x) => x.trim());
+if (esiti.includes('created') || esiti.includes('fixed')) {
+  console.log('Scorciatoia "Carriera EVO" pronta (Desktop e menu Start), con l\'icona del programma.');
 }
