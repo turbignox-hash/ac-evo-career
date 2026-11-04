@@ -5,6 +5,14 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — webui.mjs: estratte integrità e backup (P1.5, quarto dominio) (richiesta Mauro: «scegli autonomamente cosa migliorare e procedi,»)
+
+- **Il taglio**: `integrity`, `integrity-fix`, `backup` e `save-backup` vivono in `src/webui-actions-integrity-backup.mjs`; il dispatcher le intercetta prima dello switch. Status, payload e comportamento sono identici.
+- **Confine**: `maintenance` resta in webui perché possiede `maintenanceTick` (auto-riparazione ogni 10 minuti) e i suoi helper; `listBackups` resta locale e viene passato al modulo.
+- **Contratto statico**: il test generico riconosce ora **4 moduli / 21 azioni** e verifica anche `backup`, `save-backup` e `integrity-fix`; nessuna modifica al test è stata necessaria.
+- **Verifica**: `npm run check` exit 0; suite **963/963**; lint **368 file, 0 warning**; `node --check` e Biome sui due file modificati puliti.
+- **Misure**: `webui.mjs` da **4.466 a 4.444 righe** (−22); nuovo modulo **54 righe**. Commit, non push. Restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — webui.mjs: estratte le sei rotte del Garage (P1.5, terzo dominio) (richiesta Mauro: «scegli autonomamente cosa migliorare e procedi,»)
 
 - **Il taglio**: `my-garage`, `garage-catalog`, `garage-add`, `garage-remove`, `garage-note` e `garage-sell` vivono in `src/webui-actions-garage.mjs`; il dispatcher le intercetta prima dello switch. Status, payload e `persist` sono identici: nessun cambio di comportamento.

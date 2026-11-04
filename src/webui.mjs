@@ -43,7 +43,6 @@ import { rivalsOverview, rivalDetail } from './rivals.mjs';
 // incollate staticamente non c'è nulla di vivo da ricaricare.
 import { alreadyImportedHash, importedFiles, importLog, resetImportRegistry } from './import.mjs';
 import { hot } from './hot.mjs';
-import { checkIntegrity, fixIntegrity } from './integrity.mjs';
 import { stileOverview } from './stile-webui.mjs';
 import { maybeSpawnEvent, eventCard, eventsOverview, expireEvents, ensureEvents, autoFinishEventFromFile, eventTrackReal } from './events.mjs';
 import { seasonReview, reviewableSeasons, exportReview } from './review.mjs';
@@ -121,7 +120,6 @@ import { currentWeatherPreset, setWeatherPreset, PRESETS, presetForLabel } from 
 // a fine ogni sessione del weekend il meteo della PROSSIMA si scrive solo.
 import { wxAutoTick, wxAutoPrima } from './wx-auto.mjs';
 import { leggi as leggiWx } from './wx-registro.mjs';   // registro delle scritture del bollettino (case wx-log)
-import { statoBackup, forzaBackup } from '../tools/salva-save.mjs';
 import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
 import { sameTrack as trkSame, sameCar as carSame } from './tracknames.mjs';
 import { tr, lang, setLang, hasEnvOverride } from './lang.mjs';
@@ -178,6 +176,7 @@ import { viewHeader, viewStatus, viewCalendar, viewStandings, viewMessages, view
 import { AGENDA_ACTIONS, agendaAction } from './webui-actions-agenda.mjs';
 import { EVENT_ACTIONS, eventAction } from './webui-actions-events.mjs';
 import { GARAGE_ACTIONS, garageAction } from './webui-actions-garage.mjs';
+import { INTEGRITY_BACKUP_ACTIONS, integrityBackupAction } from './webui-actions-integrity-backup.mjs';
 
 /* GRIGLIA EVENTO GIÀ IN PIEDI (esito prova 23/10): la griglia a 14 F40 scritta
  * sul disco è VALIDATA in gioco (log EVO 20:47: 14 avversari, zero eccezioni);
@@ -893,6 +892,14 @@ async function api(context0, _req, res, action, body) {
   // l'aiuto-meccanico (pressioni/telemetria), non il garage.
   if (GARAGE_ACTIONS.has(action)) {
     const handled = garageAction(action, { ladder, state, body, paths, persist, sendJson, res });
+    if (handled !== false) return handled;
+  }
+
+  // INTEGRITÀ E BACKUP (4/11, P1.5): le quattro rotte vivono in
+  // webui-actions-integrity-backup.mjs. `maintenance` resta nello switch:
+  // possiede maintenanceTick (auto-riparazione ogni 10 minuti).
+  if (INTEGRITY_BACKUP_ACTIONS.has(action)) {
+    const handled = integrityBackupAction(action, { ladder, state, body, sendJson, res, listBackups });
     if (handled !== false) return handled;
   }
 
@@ -1832,11 +1839,9 @@ async function api(context0, _req, res, action, body) {
         mine: mieGare,
       });
     }
-    case 'integrity': return sendJson(res, 200, { issues: checkIntegrity(ladder, state), seasons: reviewableSeasons(state) });
-    case 'integrity-fix': {
-      const out = fixIntegrity(ladder, state);
-      return sendJson(res, 200, { ...out, header: viewHeader(ladder, state) });
-    }
+    // MANUTENZIONE (4/11, P1.5): resta qui perché possiede maintenanceTick
+    // (auto-riparazione ogni 10 minuti) e i suoi helper; integrità e backup
+    // sono nel modulo webui-actions-integrity-backup.mjs.
     case 'maintenance': {
       // Il rione MANUTENZIONE (richiesta Mauro 23/10: "il tool si ripari da solo,
       // con scansioni manuali e opzioni per togliere le liste sporche"):
@@ -1879,33 +1884,6 @@ async function api(context0, _req, res, action, body) {
       const wanted = Number.isFinite(Number(body.season)) && Number(body.season) > 0 ? Number(body.season) : seasons[0] ?? state.season;
       if (!seasons.includes(wanted)) return sendJson(res, 400, { error: tr({ it: `Nessuna gara registrata per la stagione ${wanted}.`, en: `No race recorded for season ${wanted}.` }) });
       return sendJson(res, 200, seasonPress(state, { season: wanted }));
-    }
-    case 'backup': {
-      try {
-        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        const target = join(BACKUP_DIR, `evo-career.save.bak-${stamp}.json`);
-        copyFileSync(SAVE_FILE, target);
-        const backups = listBackups(8);
-        return sendJson(res, 200, { ok: true, created: target, backups });
-      } catch (e) { return sendJson(res, 500, { error: e.message }); }
-    }
-    case 'save-backup': {
-      // Stato del backup del SAVE di EVO (quello del gioco, non della
-      // carriera): vive in data/salva-save/ e si accomoda con tools/
-      // salva-save.mjs — libreria usata IN-PROCESS (26/10): lo stato e'
-      // uno scan solo-lettura, il forza chiama la stessa tar dell'avvio.
-      try {
-        const op = String(body.op ?? 'status');
-        let esito = null; // (scope, bug al vivo 26/10: const dentro l'if era invisibile a lastRun)
-        if (op === 'force') {
-          esito = forzaBackup({ force: true });
-          if (!esito.ok && esito.motivo !== 'save-dir-mancante') {
-            return sendJson(res, 500, { error: tr({ it: `backup non riuscito (${esito.motivo}): ${esito.errore ?? ''}`, en: `backup failed (${esito.motivo}): ${esito.errore ?? ''}` }), ...esito.stato, forced: true, lastRun: esito });
-          }
-        }
-        const st = statoBackup();
-        return sendJson(res, 200, { ...st, forced: op === 'force', lastRun: esito });
-      } catch (e) { return sendJson(res, 500, { error: e.message }); }
     }
     case 'events': {
       // avviso griglia ronda (28/10, lezione bak-evento 27/10): la vetrina porta
