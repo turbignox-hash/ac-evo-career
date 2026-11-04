@@ -30,6 +30,10 @@ process.env.ACE_GAME_SAVEDIR = SANDBOX;
 const { RICETTA, seminaCampionato, caricaCampione, leggiPresetLgm, applicaPresetLgm } =
   await import('../tools/semina-campionato.mjs');
 
+/** La sandbox esplicita non deve dipendere dal processo EVO vivo: il test
+ *  inietta gameOpen false. La guardia vera resta il default del seminatore. */
+const seminaSandbox = (opts = {}) => seminaCampionato({ root: SANDBOX, gameOpen: () => false, ...opts });
+
 const campione = caricaCampione();
 const destDi = (chiave) => join(SANDBOX, RICETTA.find((r) => r.chiave === chiave).dest);
 const uguali = (a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b)) === 0;
@@ -44,7 +48,7 @@ test('Il campione è in casa: i quattro protobuf della lanciata vera girano indi
 });
 
 test('Seminata su PC vergine: i 4 protobuf finiscono ESATTAMENTE come il campione', () => {
-  const esito = seminaCampionato({ root: SANDBOX });
+  const esito = seminaSandbox();
   assert.equal(esito.scritti.length, 4, 'su un PC vergine si scrivono tutti e quattro');
   for (const r of RICETTA) {
     assert.ok(existsSync(destDi(r.chiave)), r.chiave + ': mancante sul PC vergine');
@@ -54,7 +58,7 @@ test('Seminata su PC vergine: i 4 protobuf finiscono ESATTAMENTE come il campion
 });
 
 test('Il Luo seminato è la forma del gioco: sereno = campo 2 OMISSO', () => {
-  seminaCampionato({ root: SANDBOX, preset: 'sereno', force: true });
+  seminaSandbox({ preset: 'sereno', force: true });
   const buf = readFileSync(destDi('luo'));
   assert.equal(leggiPresetLgm(buf), 0);
   assert.ok(!decodeMsg(buf).some((f) => f.field === 2 && f.wire === 0),
@@ -75,8 +79,8 @@ test('Preset meteo con nome non riconosciuto: rifiuto senza scrivere', () => {
 });
 
 test("L'idempotenza della semina: al secondo giro si salta tutto", () => {
-  seminaCampionato({ root: SANDBOX });
-  const dopo = seminaCampionato({ root: SANDBOX });
+  seminaSandbox();
+  const dopo = seminaSandbox();
   assert.deepEqual(dopo.scritti, [], 'file identici al campione: nessuna riscrittura');
   assert.equal(dopo.saltati.length, 4);
   assert.deepEqual(dopo.saltati.slice().sort(), RICETTA.map((r) => r.chiave).sort(),
@@ -86,14 +90,14 @@ test("L'idempotenza della semina: al secondo giro si salta tutto", () => {
 test('File esistenti DIVERSI dal campione: rifiuto senza --force (la tua gara vera non si tocca)', () => {
   const buf = readFileSync(destDi('weekend'));
   writeFileSync(destDi('weekend'), Buffer.concat([buf, Buffer.from([0x08, 0x01])])); // un campo in più
-  assert.throws(() => seminaCampionato({ root: SANDBOX }), /FILE_DIFFERENTI|--force/s,
+  assert.throws(() => seminaSandbox(), /FILE_DIFFERENTI|--force/s,
     'senza --force il seminatore non tocca una versione diversa: potrebbe essere la gara vera.');
-  const esito = seminaCampionato({ root: SANDBOX, force: true });
+  const esito = seminaSandbox({ force: true });
   assert.ok(esito.rimpiazzati.includes('weekend'));
   assert.ok(uguali(readFileSync(destDi('weekend')), campione.weekend), 'col --force il file torna il campione.');
 });
 
 test('Il Luo col meteo scelto arriva SEMPRE patchato (anche sulle riscritture col --force)', () => {
-  seminaCampionato({ root: SANDBOX, preset: 'pioggia', force: true });
+  seminaSandbox({ preset: 'pioggia', force: true });
   assert.equal(leggiPresetLgm(readFileSync(destDi('luo'))), 5, 'pioggia = preset 5');
 });

@@ -5,6 +5,14 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — suite con EVO aperto: test isolati dal save reale (richiesta Mauro: «Il passo successivo più utile sarebbe rendere la suite affidabile anche con EVO aperto, isolando i test che oggi leggono il save reale.»)
+
+- **Griglie**: `test/grid-templates.test.mjs` aveva un `import { readCells }` statico in fondo; per l'hoisting ESM veniva valutato prima di `ACE_GAME_SAVEDIR`, caricava `evo-grid` col save vero e il gate leggeva 27 vetture. L'import è ora dinamico dopo l'ambiente sandbox; il test passa 17/17.
+- **Semina**: la guardia `EVO è APERTO` bloccava anche la sandbox. `seminaCampionato` accetta ora `gameOpen` iniettabile (default `gameRunning`); il test passa `() => false` solo nella sua sandbox. CLI e chiamanti di produzione restano identici.
+- **Sonda**: `diffesa-sonda` scambiava per colpo il battito `voce-panello.json`, aggiornato dal timer del server durante lo sweep lento; è ora rumore di fondo riconosciuto, mentre ogni altra scrittura resta sotto la lente.
+- **Verifica**: `npm test` → **963/963**, 0 fail/skip in 45,6 s con `AssettoCorsaEVO.exe` aperto; `npm run lint` → **369 file, 0 warning**; `grid-templates` 17/17 e `diffesa-sonda` 4/4 in isolamento.
+- **Nota**: commit di test/tool + diario, non push; restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — Dashboard a 256 px: le chip dei rivali restano dentro la scheda (richiesta Mauro: «scegli autonomamente cosa migliorare e procedi,»)
 
 - **Il difetto**: il test `layout-impostazioni` era l'unico rosso della suite. A 256 px rilevava due sovrapposizioni `span.chip.gold ⟂ span.chip` dentro `#card-panel`: la chip esterna dei rivali era larga 144 px, ma il blocco «forma: 7 2 2 2 2» (un `inline-flex` senza wrap) arrivava a 219 px e usciva dal bordo destro (192 px). A 320, 360, 480, 1250 e 1920 px non succedeva.

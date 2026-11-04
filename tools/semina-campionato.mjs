@@ -106,8 +106,11 @@ export function caricaCampione(outDir = RICETTE_DIR) {
  * PC vergine: i file non esistono → si scrivono. PC abituato: un file ESISTENTE
  * e DIVERSO dal campione si tocca solo con --force (potrebbe essere la tua vera
  * gara in corso); identico → si salta, come il gioco risemina uguale. */
-export function seminaCampionato({ root = GAME_SAVEDIR, preset = null, dry = false, force = false } = {}) {
-  if (gameRunning() && !force) {
+export function seminaCampionato({ root = GAME_SAVEDIR, preset = null, dry = false, force = false, gameOpen = gameRunning } = {}) {
+  // gameOpen è iniettabile: i test sandbox non devono dipendere dal processo
+  // EVO vivo (sulla macchina di sviluppo può essere aperto). Il default resta
+  // la guardia vera, identica per CLI e chiamanti di produzione.
+  if (gameOpen() && !force) {
     throw Object.assign(new Error('EVO è APERTO: chiudi il gioco prima di seminare (o usa --force sapendolo).'), { code: 'GAME_OPEN' });
   }
   const campione = caricaCampione();

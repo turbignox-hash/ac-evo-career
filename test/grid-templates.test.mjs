@@ -418,7 +418,10 @@ test('BAK AL SECONDO: tre riscritture ravvicinate dello stesso template restano 
 // partivano mai. La misura della guardia è la TINTA (campo 11), NON il
 // byte-distinto: i cloni armonici lo sono per costruzione. Se il magazzino
 // della serie ha più tinte del vivo, la prima corsa SALTA: vince il magazzino.
-import { readCells } from '../tools/grid-balance.mjs';
+// Import DINAMICO dopo ACE_GAME_SAVEDIR: un import statico qui verrebbe
+// valutato PRIMA del corpo del test (hoisting ESM), caricando evo-grid col
+// save vero e facendo leggere al gate le 27 vetture della partita aperta.
+const { readCells } = await import('../tools/grid-balance.mjs');
 // cella con la TINTA in formato GIOCO (preset visuale nel segmento PRECEDENTE a \x18)
 const cellaTinta = (id, i, visio) => encodeMsg([
   { field: 3, wire: 2, bytes: B(id) },

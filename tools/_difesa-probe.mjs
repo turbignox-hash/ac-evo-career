@@ -80,8 +80,10 @@ writeFileSync(SAVE_SANDBOX, JSON.stringify(MARCA, null, 2));
 /** Regole di RUMORE consentito: log diagnostici APPEND-ONLY che le VISTE
  *  legacy scovano in EVO_DATA_DIR (la stessa regola di casa: test e server di
  *  prova non toccano il registro vero, ma LEGGERE può appendere una riga di
- *  log). SAVE/config/flussi non sono rumore: se muoiano, è un colpo vero. */
-const LOG_CONSENTITO = /(^|[\\/])(copilot-voce-[\w-]+\.jsonl|errors\.jsonl)$/;
+ *  log). voce-panello.json è il battito del pannello voce, aggiornato dal
+ *  timer del server: non è la risposta di una GET. SAVE/config/flussi non
+ *  sono rumore: se muoiano, è un colpo vero. */
+const LOG_CONSENTITO = /(^|[\\/])(copilot-voce-[\w-]+\.jsonl|errors\.jsonl|voce-panello\.json)$/;
 /** Impronta ricorsiva delle cartelle della sandbox: la mappa {percorso → hash}
  *  di ogni file presente. Così anche una rotta che scrive un file dimenticato
  *  (backup, journal, marker ..bak) finisce nella rete, non solo il save. */
