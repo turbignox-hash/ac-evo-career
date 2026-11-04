@@ -10,7 +10,9 @@ affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo
 - I consigli non sono più testo passivo: ogni riga è un bottone (role=button, tabindex, Enter/Spazio) che apre l'anteprima dell'applicatore e porta il focus al campo da cambiare.
 - «Applica i consigli al setup» e #apply-out sono saliti sopra la checklist (che resta sotto, come dettaglio da leggere); la storia dei setup resta in basso, dopo gli stint.
 - L'esito dell'ultimo round è una riga sempre visibile (chip guadagnati/persi, giri prima→dopo); la storia completa resta nel details.
-- Verifica: CTA sopra la checklist, anteprima a ridosso del pulsante, clic sul primo consiglio che apre l'anteprima con i PSI, 0 overflow, 0 errori; lint 374 file 0 warning, collaudo tab 19/19.
+- Trovato lungo la strada: il blocco consigli non si vedeva affatto — `sessSel` era una variabile locale del grafico, non del meccanico (ReferenceError inghiottito dal catch). Ora `__lcMech` legge `#lc-session` dal DOM e il catch mostra l'errore invece di tacere.
+- Verifica dal vivo (4/11, 1280×900): 5 consigli tutti `role=button` e raggiungibili da tastiera, CTA ⚡ a 1262 px e checklist a 1315 px (dunque sopra), anteprima `#apply-out` a 53 px dal pulsante, «Ultimo round» visibile e fuori dal details, storia setup subito dopo `#stinti-out`, 0 overflow, 0 errori JS. Clic sul primo consiglio: su Red Bull Ring (nessun base .carsetup) arriva il banner col pulsante 🌉 PONTALO QUI; con base presente (Brands Hatch) l'anteprima torna 4 pressioni prima→dopo e la base «190 EVo default».
+- Resta com'era: `setup-cover` con `all:true` non riempie `sources` (serve solo al pannello della singola auto), quindi il quadro «tutto il garage» usa `srcFile` delle chip, non l'elenco sorgenti. Non toccato in questo giro.
 
 ### 4/11 — Cruscotto: riepilogo di gara sopra i bottoni di lancio (segnalazione Mauro)
 

@@ -1054,10 +1054,12 @@ async function drawSetup(m){
     try {
       // pista del PANNELLO (dalla sessione scelta, non dalla serie): il meccanico
       // valuta e registra l'allievo sulla pista che stai realmente guardando
-      const trackPanel = sessSel?.selectedOptions?.[0] ? (sessSel.selectedOptions[0].dataset.track ?? null) : (cur?.track ?? null);
+      const selMech = document.querySelector('#lc-session');
+      /* sessSel è locale al GRAFICO: qui si rilegge il select dal DOM. */
+      const trackPanel = selMech?.selectedOptions?.[0] ? (selMech.selectedOptions[0].dataset.track ?? null) : (cur?.track ?? null);
       // auto della SESSIONE SCELTA (con il filtro «tutte le auto» può essere
       // un'altra macchina del garage, non solo quella che il pannello segue)
-      const carPanel = sessSel?.selectedOptions?.[0] ? (sessSel.selectedOptions[0].dataset.car ?? null) : null;
+      const carPanel = selMech?.selectedOptions?.[0] ? (selMech.selectedOptions[0].dataset.car ?? null) : null;
       const m = await api('garage', { action: 'meccanico', car: carPanel ?? window.__lcCar ?? null, track: trackPanel ?? null });
       if (!m.ok) { out.innerHTML = ''; return; }
       const tag = { aero: tr({ it: '🪶 aerodinamica', en: '🪶 aero' }), trasmissione: tr({ it: '⚙️ cambio', en: '⚙️ gearbox' }), assetto: tr({ it: '🧱 assetto/altezza', en: '🧱 setup/height' }), camber: tr({ it: '📐 camber', en: '📐 camber' }), freni: tr({ it: '🛑 freni', en: '🛑 brakes' }), pressioni: tr({ it: '🛞 pressioni', en: '🛞 pressures' }), telemetria: tr({ it: '📡 telemetria', en: '📡 telemetry' }), memoria: tr({ it: '🧠 memoria', en: '🧠 memory' }) };
@@ -1107,7 +1109,7 @@ async function drawSetup(m){
         r.onclick = vai;
         r.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); vai(); } };
       });
-    } catch { /* il meccanico non deve mai rompere la vista */ }
+    } catch (e) { /* mai rompere la vista, ma nemmeno tacere: l'errore si legge */ out.innerHTML = `<div class="banner bad" style="margin:0 0 10px">🔧 ${esc(e?.message ?? String(e))}</div>`; }
   };
   window.__stintiDraw ??= async () => {
     // STINT + USURA GOMME dalla stessa telemetria: stint spezzati dai
