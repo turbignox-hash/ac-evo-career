@@ -13,10 +13,35 @@
   const safe = (v) => (v == null || v === '' ? '—' : esc(String(v)));
   const auto = safe(card.carName ?? card.car);
   const pista = safe(card.trackName);
-  const pistaDett = card.round?.layout
-    ? `${t('layout', 'layout')} ${esc(card.round.layout)}`
+  // roundIndex è 0-based (la scheda gara scrive R${roundIndex+1}): qui si mostra
+  // la stessa numerazione, così «ronda 2 di 4» combacia con la dashboard.
+  const ronda = card.roundIndex != null
+    ? `${t('ronda', 'round')} ${card.roundIndex + 1}${card.totalRounds ? ` ${t('di', 'of')} ${card.totalRounds}` : ''}`
     : esc(card.roundName ?? '');
-  const meteo = safe(card.weather);
+  // etichetta della GARA dal piano meteo (già tradotta dal server: «nuvoloso»),
+  // non il preset grezzo della ladder («Overcast») che parlerebbe un'altra lingua
+  const raceWx = (card.weatherPlan ?? []).find((s) => s.session === 'Race');
+  const meteo = safe(raceWx?.label ?? card.weather);
+  const WX = { 0: '☀️', 1: '🌤️', 2: '☁️', 3: '🌦️', 4: '🌧️', 5: '⛈️' };
+  // ALLINEAMENTO: il meteo che EVO ha ORA nel selettore (weatherNow) contro quello
+  // che la ronda chiede. Se non combaciano il weekend non è ancora «preparato».
+  const wxAligned = raceWx && card.weatherNow != null && card.weatherNow !== ''
+    ? Number(card.weatherNow) === Number(raceWx.weather) : null;
+  const nowLabel = (card.weatherPlan ?? []).find((s) => Number(s.weather) === Number(card.weatherNow))?.label;
+  const stato = wxAligned === true
+    ? `<span class="tag green">${t('meteo allineato', 'weather aligned')}</span>`
+    : wxAligned === false
+      ? `<span class="tag warn">${t('meteo da preparare', 'weather to prepare')}</span>` : '';
+  const meteoDett = () => {
+    if (wxAligned == null) return t('preset della ronda', 'round preset');
+    if (wxAligned) return t('gara · EVO allineato', 'race · EVO aligned');
+    return `${t('gara', 'race')} · EVO: ${safe(nowLabel)}`;
+  };
+  const chip = (s) => {
+    const h = s.hour != null ? `${String(s.hour).padStart(2, '0')}:00` : '—';
+    const gara = s.session === 'Race';
+    return `<span class="tag" style="font-size:10.5px;padding:2px 7px${gara ? ';font-weight:700' : ''}">${WX[Number(s.weather)] ?? '🌡️'} ${esc(s.sessionLabel)} ${h} · ${esc(s.label)}</span>`;
+  };
   const ora = card.raceHour != null ? `${String(card.raceHour).padStart(2, '0')}:00` : '—';
   const distanza = card.laps != null
     ? `${card.laps} ${t('giri', 'laps')}`
@@ -37,14 +62,20 @@
     </button>`;
   return `
   <div class="panel" id="weekend-builder">
-    <h2>${t('Costruzione weekend', 'Weekend build')} <span class="muted" style="font-size:12px">${t('i sei parametri che «Prepara tutto» scrive in EVO', 'the six settings “Get everything ready” writes into EVO')}</span></h2>
+    <h2>${t('Costruzione weekend', 'Weekend build')} <span class="muted" style="font-size:12px">${t('i sei parametri che «Prepara tutto» scrive in EVO', 'the six settings “Get everything ready” writes into EVO')}</span> ${stato}</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px">
-      ${tile('car', '🚗', t('Auto', 'Car'), auto, card.carChoices?.length > 1 ? t('più auto ammesse: scegli nella scheda', 'multiple cars allowed: choose in the sheet') : t('auto della giornata', 'today’s car'))}
-      ${tile('track', '🏁', t('Pista', 'Track'), pista, pistaDett || t('pista della ronda', 'round track'))}
-      ${tile('weather', '🌦', t('Meteo', 'Weather'), meteo, t('preset della ronda', 'round preset'))}
-      ${tile('hour', '🕒', t('Ora', 'Time'), ora, t('ora del gioco', 'game time'))}
-      ${tile('distance', '📏', t('Giri / tempo', 'Laps / time'), distanza, `${t('distanza scelta', 'selected distance')}${pieno}`)}
-      ${tile('grid', '🧱', t('Griglia', 'Grid'), griglia, ai || t('AI da definire', 'AI to define'), gridExtra)}
+      ${tile('car', '🚗', t('Auto', 'Car'), auto, card.carChoices?.length > 1
+        ? `${card.carChoices.length} ${t('ammesse: scegli nella scheda', 'allowed: choose in the sheet')}`
+        : t('auto della giornata', 'today’s car'))}
+      ${tile('track', '🏁', t('Pista', 'Track'), pista, ronda || t('pista della ronda', 'round track'))}
+      ${tile('weather', '🌦', t('Meteo', 'Weather'), meteo, meteoDett())}
+      ${tile('hour', '🕒', t('Ora', 'Time'), ora, t('ora della gara', 'race time'))}
+      ${tile('distance', '📏', t('Giri / tempo', 'Laps / time'), distanza, `${t('distanza', 'distance')} ${card.distPct != null ? `${card.distPct}%` : '—'}${pieno}`)}
+      ${tile('grid', '🧱', t('Griglia', 'Grid'), griglia, ai ? `${ai}${card.difficulty?.trim ? ` · ${t('trim', 'trim')} +${card.difficulty.trim}` : ''}` : t('AI da definire', 'AI to define'), gridExtra)}
+    </div>
+    <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap;align-items:center">
+      <span class="muted" style="font-size:11px">${t('Sessioni e meteo del weekend:', 'Weekend sessions and weather:')}</span>
+      ${(card.weatherPlan ?? []).map(chip).join('')}
     </div>
     <div class="row" style="margin-top:10px;flex-wrap:wrap">
       <button class="mini" id="wb-open">${t('Apri scheda gara e regole', 'Open race sheet and rules')}</button>
@@ -318,12 +349,23 @@ async function drawGridTab(m){
 
   const apriRegole = () => {
     vai('dashboard');
-    setTimeout(() => {
+    // la scheda gara si disegna DOPO le sue api: un timer fisso la cercava
+    // troppo presto e il pannello restava chiuso. Si aspetta il nodo e si apre;
+    // niente 'smooth' (il ridisegno della scheda interrompeva l'animazione e la
+    // pagina restava in cima): scroll istantaneo, ripetuto finché è in cima.
+    let giri = 0;
+    const apri = () => {
       const p = document.querySelector('#rs-panel');
-      if (p) { p.open = true; p.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-    }, 450);
+      if (p) {
+        p.open = true;
+        if (Math.abs(p.getBoundingClientRect().top) > 8) p.scrollIntoView({ block: 'start' });
+        else return;
+      }
+      if (++giri < 25) setTimeout(apri, 100);
+    };
+    setTimeout(apri, 80);
   };
-  $('[data-wb]', m).forEach((b) => {
+  $$('[data-wb]', m).forEach((b) => {
     b.onclick = () => {
       if (b.dataset.wb === 'car') vai('cars', { search: card?.carName ?? '' });
       else if (b.dataset.wb === 'track') vai('tracks', { search: card?.trackName ?? '' });

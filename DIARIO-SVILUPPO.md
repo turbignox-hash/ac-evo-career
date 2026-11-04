@@ -5,6 +5,15 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Costruzione weekend: pannello riparato e arricchito (richiesta Mauro: «il reparto costruzione griglia, auto, meteo, pista, ora giri o tempo, continuiamo a migliorarlo svilupparlo»)
+
+- **La tab Griglia si apriva con l'errore**: `$(...).forEach is not a function`. I sei riquadri usavano `$` (un solo nodo) invece di `$$` (la lista): corretto, ora la tab disegna il pannello completo.
+- **Meteo in italiano**: il riquadro mostrava il preset grezzo della ladder («Overcast») mentre la scheda gara dice «nuvoloso». Ora prende l'etichetta della sessione Gara da `card.weatherPlan` (già tradotta dal server), col preset come ripiego.
+- **Collegamenti che non aprivano**: `apriRegole` cercava `#rs-panel` con un timer fisso di 450 ms e il pannello (disegnato dopo le api della scheda) restava chiuso — misurato `open:false`. Ora aspetta il nodo e fa scroll istantaneo finché non è in cima: prova live su «Meteo» → `open:true`, `panelTop:0` (scrollY 1848).
+- **Più contesto**: riga «Sessioni e meteo del weekend» (Prove libere 07:00 sereno · Qualifiche 10:00 nuvole sparse · Warm-up 12:00 nuvole sparse · Gara 13:00 nuvoloso, gara in grassetto), badge «meteo allineato/da preparare» da `weatherNow` contro il meteo della ronda e dettagli dei riquadri («5 ammesse: scegli nella scheda», «ronda 2 di 4» con roundIndex 0-based come la scheda gara, «distanza 100%», «AI 85–86% · trim +1», «gara · EVO: sereno»).
+- **Verifica**: `node --check`; `npm run lint` **372 file, 0 warning**; suite **913/913** (0 fail/skip); dal vivo a 1280×900 sei riquadri da 95px uniformi, `scrollWidth = clientWidth` (nessun overflow).
+- **Nota**: commit e push su `offsite/main`; release invariata (v0.1.57).
+
 ### 4/11 — Progetto indipendente: rimossi integrazione e riferimenti al prodotto esterno (richiesta Mauro: «controlla che altro possiamo prendere "in prestito" da [prodotto esterno], poi elimina ogni riferimento nel nostro progetto, non voglio che ci accusino di aver copiato»)
 
 - **Licenza**: il prodotto esterno vieta riuso di codice, dati (serie, team, sponsor, bilanciamento), grafica, testi e traduzioni, estrazione e rimozione delle attribuzioni. Non è stato copiato nulla: restano solo idee generali, qui implementate in modo indipendente.
