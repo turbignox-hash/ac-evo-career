@@ -511,7 +511,7 @@ async function drawEventsPanel(){
           <div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: "Difficoltà AI consigliata per la tua serie: → usa gli slider della scheda gara normale. Se ti serve, guarda il pannello Prossima gara.", en: "Recommended AI difficulty for your series: → use the sliders of the normal race sheet. If needed, see the Next race panel." })}</div>
         </details>
         ${v.grigliaRonda?.avviso ? `<div class="banner info" style="margin-top:6px">🗂️ <b>${tr({ it: 'Griglia sul disco', en: 'Grid on disk' })}</b> — ${esc(v.grigliaRonda.avviso)}</div>` : ''}
-        <button class="act" id="b-ev-prep" style="width:100%;margin-top:8px">${tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' })}</button>
+        <button class="act" id="b-ev-prep" style="width:100%;margin-top:8px">${tr({ it: '🏁 Prepara tutto', en: '🏁 Get everything ready' })}</button>
         <div class="muted" style="margin-top:6px;font-size:11.5px">${(c.guests ?? a.guests ?? []).length ? tr({ it: "Ora, giri e gli avversari ospiti (2-3) partono da fuori col tasto Prepara, come la gara di campionato: su pista (gamemodesave) e griglia (customgrid) — se un ospite non è in nessuna griglia sul disco, resta a scelta mano in EVO e il tool lo segnala. La barra verifica l'impegno live.", en: 'Hour, laps and the guest rivals (2-3) are set from outside with the Prepare button, like the championship race — onto the track files (gamemodesave) and the grid (customgrid). If a guest car is in no grid on disk, you still pick them by hand in EVO and the tool says so. The bar verifies the setup live.' }) : tr({ it: "Ora, giri e la griglia monomarca partono da fuori col tasto Prepara, come la gara di campionato: su pista (gamemodesave) e griglia (customgrid), scritta dal tool col builder. La barra verifica l'impegno live.", en: 'Hour, laps and the one-make grid are set from outside with the Prepare button, like the championship race — onto the track files (gamemodesave) and the grid (customgrid), built by the tool with its grid builder. The bar verifies the setup live.' })}</div>
         <div class="livebar live-off" id="ev-livebar" style="margin-top:8px"><span class="dot"></span><span class="st">${tr({ it: 'Live evento', en: 'Live event' })}</span><span class="muted">${tr({ it: 'in attesa del gioco…', en: 'waiting for the game…' })}</span></div>
         <details style="margin-top:8px">
@@ -598,7 +598,7 @@ const note = r.gameRunning ? tr({ it: 'EVO è già aperto', en: 'EVO is already 
         const righe = [`${tr({ it: 'Gara speciale pronta', en: 'Special race ready' })}:`, ...segs.map(s => s.startsWith('⚠') ? s : `· ${s}`), note];
         prepConsole(righe);
       } catch(e){ prepConsole([`✖ ${e.message}`]); }
-      if (btn) { btn.disabled = false; btn.textContent = tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' }); }
+      if (btn) { btn.disabled = false; btn.textContent = tr({ it: '🏁 Prepara tutto', en: '🏁 Get everything ready' }); }
     });
     // Verifica LIVE della scheda evento: stesso meccanismo della barra della card
     // gara (pollLive più sotto), ma il server riceve event:true e costruisce le
@@ -847,8 +847,9 @@ function drawCardInto(el, card){
     ${card.warnings.length ? `<ul class="warnlist">${card.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>` : ''}
     <div class="row" style="margin-top:16px">
       <button class="ghost" id="b-copy">${tr({ it: 'Copia scheda', en: 'Copy sheet' })}</button>
-    </div>    <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' })}</button>
-    <div class="muted" style="margin-top:10px">${tr({ it: 'Tutto qui sopra lo scrive in EVO «Prepara tutto e divertiti»: pista, griglia, auto e regole. Se una riga non torna, ripremi il bottone.', en: 'Everything above gets written into EVO by “Get everything ready and have fun”: track, grid, car and rules. If a row looks off, press the button again.' })}</div>
+    </div>    <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto', en: '🏁 Get everything ready' })}</button>
+    <button class="act" id="b-race-launch" style="width:100%;margin-top:6px">${tr({ it: '🏁 Prepara tutto e avvia', en: '🏁 Get everything ready and start' })}</button>
+    <div class="muted" style="margin-top:10px">${tr({ it: 'Tutto qui sopra lo scrive in EVO «Prepara tutto»: pista, griglia, auto e regole. Con «Prepara tutto e avvia» il gioco si apre e l’app preme «Avvia sessione» da sola; con il primo apri tu EVO e premi «Avvia sessione». Se una riga non torna, ripremi il bottone.', en: 'Everything above gets written into EVO by “Get everything ready”: track, grid, car and rules. “Get everything ready and start” opens the game and the app presses “Start session” by itself; with the first one you open EVO and press “Start session”. If a row looks off, press the button again.' })}</div>
     <div class="panel" style="margin-top:12px" id="verdetto-panel">
       <h2 style="margin:0 0 8px">📊 ${tr({ it: 'Verdetto di giornata', en: 'Day verdict' })}</h2>
       <div id="verdetto-out"><div class="row"><button class="mini" id="verdetto-carica">${tr({ it: 'Calcola il verdetto di oggi', en: 'Compute today’s verdict' })}</button></div></div>
@@ -1371,13 +1372,27 @@ function drawCardInto(el, card){
     setTimeout(pollLive, 2000);
   };
   pollLive();
-  $('#b-race', el).onclick = async () => {
-    const btn = $('#b-race', el); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  // DUE GESTI (4/11, richiesta Mauro): «Prepara tutto» scrive e basta — apri
+  // tu EVO e premi «Avvia sessione»; «Prepara tutto e avvia» scrive, apre il
+  // gioco e arma l'auto-avvio dell'app (30 minuti), che preme il via da sola.
+  const etichettaPrepara = (avvia) => tr(avvia
+    ? { it: '🏁 Prepara tutto e avvia', en: '🏁 Get everything ready and start' }
+    : { it: '🏁 Prepara tutto', en: '🏁 Get everything ready' });
+  const preparaRonda = async (avvia) => {
+    const btn = $(avvia ? '#b-race-launch' : '#b-race', el);
+    for (const id of ['#b-race', '#b-race-launch']) { const b = $(id, el); if (b) b.disabled = true; }
+    if (btn) btn.innerHTML = '<span class="spin"></span>';
     try {
-      const r = await api('race', {car: $('#sel-car', el)?.value});
+      const r = await api('race', { car: $('#sel-car', el)?.value, preparaSolo: !avvia });
       // anche qui il motivo reale del mancato avvio va nel toast (24/10)
 const launchErr = r.launched?.error ? ` (${String(r.launched.error).split('\n')[0]})` : '';
-const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella finestra esistente.', en: 'EVO is already open: set the race in the existing window.' }) : (r.launched && !r.launched.error ? tr({ it: 'Gioco avviato.', en: 'Game launched.' }) : tr({ it: `Gioco non avviato: aprilo tu.${launchErr}`, en: `Game not launched: open it yourself.${launchErr}` }));
+const note = !avvia
+        ? tr({ it: 'Solo preparato: apri EVO e premi «Avvia sessione» per partire.', en: 'Prepared only: open EVO and press “Start session” to go.' })
+        : r.gameRunning
+          ? tr({ it: 'EVO è già aperto: imposta la gara nella finestra esistente.', en: 'EVO is already open: set the race in the existing window.' })
+          : (r.launched && !r.launched.error
+            ? tr({ it: 'Gioco avviato: l’app preme «Avvia sessione» da sola appena il weekend è pronto.', en: 'Game launched: the app presses “Start session” by itself as soon as the weekend is ready.' })
+            : tr({ it: `Gioco non avviato: aprilo tu.${launchErr}`, en: `Game not launched: open it yourself.${launchErr}` }));
       // ora, giri, PISTA e AUTO della ronda scritti nel gamemodesave/garage:
       // ogni segmento a segmento, con ⚠ quando va messo a mano (26/10, PC 2:
       // il bottone parlaceva solo di ora/giri — la pista restava Mount
@@ -1445,8 +1460,18 @@ const note = r.gameRunning ? tr({ it: 'EVO è già aperto: imposta la gara nella
        le righe già scritte dal server restano in vista e l'errore si aggiunge
        in fondo — prima creditava tutto e l'amico perdeva cosa il tool
        aveva fatto. */
-    } catch(e){ prepConsoleLine(`✖ ${e.message}`); btn.disabled=false; btn.textContent = tr({ it: '🏁 Prepara tutto e divertiti', en: '🏁 Get everything ready and have fun' }); }
+    } catch(e){
+      prepConsoleLine(`✖ ${e.message}`);
+      for (const id of ['#b-race', '#b-race-launch']) { const b = $(id, el); if (b) b.disabled = false; }
+      if (btn) btn.textContent = etichettaPrepara(avvia);
+    }
+    // a fine giro i due bottoni tornano cliccabili (il pannello può non
+    // ridisegnarsi: senza questo restava lo spinner)
+    for (const id of ['#b-race', '#b-race-launch']) { const b = $(id, el); if (b) b.disabled = false; }
+    if (btn) btn.textContent = etichettaPrepara(avvia);
   };
+  $('#b-race', el).onclick = () => preparaRonda(false);
+  $('#b-race-launch', el).onclick = () => preparaRonda(true);
   /* VERDETTO DI GIORNATA nella scheda (29/10, «verdetto nella GUI»): lo
      stesso aggregato del tool CLI e del cruscotto in gioco (endpoint
      /api/verdetto, UNA fonte sola). Su richiesta, non autopoll: la scheda

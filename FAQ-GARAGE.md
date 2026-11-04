@@ -111,7 +111,7 @@ sempre l'auto in palio: se l'auto del premio è una tua (vinta in un evento
 passato) vedrai la dicitura *«la tua, vinta in …»* — segno che l'invito è
 nato prima della correzione, vedi sotto. Se il premio è ancora da vincere
 leggi *«… è il premio: chi vince la porta a casa»*. L'auto che correrai è
-quella che il tasto **Prepara tutto e divertiti** seleziona: la tua già in
+quella che il tasto **Prepara tutto** seleziona: la tua già in
 vetrina, oppure la vincenda.
 
 **Invito vecchio, premio doppione: la correzione a caldo.** Gli inviti nati

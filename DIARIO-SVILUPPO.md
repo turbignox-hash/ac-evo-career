@@ -5,6 +5,14 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Due bottoni: «Prepara tutto» e «Prepara tutto e avvia» (richiesta Mauro: «rinomina il pulsante prepara tutto e divertiti in Prepara tutto, e aggiungi sotto un bottone identico “prepara tutto e avvia” ma con una differenza, il primo prepara tutto e basta, dal gioco bisogna premere avvia sessione per partire, il secondo invece ti porta direttamente in pista»)
+
+- **Le etichette**: «Prepara tutto e divertiti» → «Prepara tutto» nella scheda gara, nel pannello eventi, nei testi di reset e nelle guide (GUIDA-AMICO, FAQ-GARAGE).
+- **I due gesti**: il primo chiama `race` con `preparaSolo: true` — iscrizione, weekend, griglia e card, NESSUN lancio, e `markPending(..., { autoAvvio: false })` lascia `avviaFino = 0` (l'app Cruscotto non preme mai «Avvia sessione»: il via è a mano). Il secondo chiama `race` senza flag — apre il gioco e arma la finestra di 30 minuti, così l'app preme «Avvia sessione» da sola appena il weekend è pronto.
+- **Preflight**: il controllo della griglia di un'altra serie vale per entrambi i bottoni (il `noLaunch` interno del CLI resta esente).
+- **Verifica**: `node --check` su race/webui/viste-a/test; test mirati **24/24**; suite **967/967** (0 fail/skip, con EVO aperto); `npm run lint` **370 file, 0 warning**.
+- **Nota**: commit, non push; restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — Griglie per campionato: ognuna il suo numero (12, 14, 16, 18, 20), tetto 22 (richiesta Mauro: «aspetta, non per tutti i campionati 20-22 differenzia random, alcuni possono partire con 12,14,16,18,20 dipende dal tipo di auto e campionato scelto, non voglio tutte le griglie con lo stesso numero, varia in base al campionato»)
 
 - **La correzione**: il tetto unico 20-22 appiattiva tutte le serie. La regola ora è per campionato: `celleGrigliaCampionato(node)` = `node.gridSize` del ladder (già diverso per tipo di auto: coppa città 12, trofeo MX-5 e campionato moderno 14, DTM Legends 16, Touring Pro 18, GT Apex 20), pari e dentro **[12, 22]**. Deterministico: la stessa serie porta sempre lo stesso numero, non un sorteggio che cambia a ogni round.

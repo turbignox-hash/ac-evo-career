@@ -463,3 +463,16 @@ test('raceCard: il nativo 3.10 sono avversari — declared + 1, non cars - 1', (
     rmSync(file, { force: true });
   }
 });
+
+// DUE GESTI (4/11): «Prepara tutto» prepara e basta — il via lo premi tu in
+// EVO; «Prepara tutto e avvia» arma anche l'auto-avvio dell'app Cruscotto
+// (avviaFino, finestra di 30 minuti). La differenza vive TUTTA in markPending:
+// con autoAvvio:false la finestra resta a 0 e l'app non preme mai il via.
+test('markPending: il via automatico si arma solo col «Prepara tutto e avvia»', () => {
+  const { ladder, state } = mk();
+  const c = race.raceCard(ladder, state);
+  const armato = race.markPending(ladder, state, c);
+  assert.ok(armato.avviaFino > Date.now(), 'default: finestra di 30 minuti armata (Prepara tutto e avvia)');
+  const solo = race.markPending(ladder, state, c, { autoAvvio: false });
+  assert.equal(solo.avviaFino, 0, 'Prepara tutto: nessun auto-avvio, il via resta a mano');
+});

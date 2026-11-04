@@ -164,7 +164,7 @@ due schermate nella GUI:
    menu di EVO. Serve perché il tool scrive ora, giri e meteo DENTRO il file
    del weekend, e su un PC vergine EVO non l'ha ancora creato: questa
    schermata lo genera.
-3. **GUI → Prepara tutto e divertiti** (bottone giallo): ora, giri, meteo e
+3. **GUI → Prepara tutto** (bottone giallo): ora, giri, meteo e
    griglia finiscono nel file da soli. Se appare il messaggio rosso «EVO non
    ha ancora un career weekend», significa che il passo 2 non è fatto: entra
    una volta nel weekend del round e ri-premi il bottone.
@@ -266,7 +266,7 @@ riconoscimento dei risultati si aggancia a quel nome) e nazione a 3 lettere.
 Da lì il ciclo di una gara è sempre lo stesso:
 
 ```
-scheda gara → bottone «Prepara tutto e divertiti»: pista, griglia, auto e
+scheda gara → bottone «Prepara tutto»: pista, griglia, auto e
 regole finiscono in EVO da soli → corri
 → la guardia (watcher) importa il risultato da sola
 ```
@@ -341,7 +341,7 @@ In un save nuovo EVO non ha ANCORA il file del weekend di carriera: le
 impostazioni della ronda (ora, giri, meteo) si scrivono SOLO dentro quello.
 Fai una volta questa danza: apri EVO → Carriera → il round attuale → arrivare
 alla schermata del WEEKEND (niente da giocare, basta che il file nasca) →
-chiudi o torna al menu → ri-premi **Prepara tutto e divertiti** nella GUI:
+chiudi o torna al menu → ri-premi **Prepara tutto** nella GUI:
 di nuovo ora e giri finiscono nel file da soli (a schermata giusta la
 verifica live ti dice «Configurazione corretta!»).
 Stesso rimedio se il PC ha profilo o gioco su un disco diverso da C: e vedi

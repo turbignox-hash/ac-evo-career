@@ -2354,7 +2354,10 @@ async function api(context0, _req, res, action, body) {
       // ricostruzione a secco. Se nessun template ha le auto della serie la gara
       // non parte: sarebbe falsa (Imola 31/10, GT3 RS contro la classe d'epoca).
       // body.force resta la via di fuga per diagnosi e test.
-      if (!body.noLaunch && card.gridAltraSerie && !body.force && !card.gridDalGioco) {
+      // PREPARA SOLO (4/11): il preflight della griglia vale anche per il
+      // «Prepara tutto» senza lancio — è comunque un gesto tuo, non il
+      // cmdRace interno del CLI (che resta esente).
+      if (!body.noLaunch && !body.preparaSolo && card.gridAltraSerie && !body.force && !card.gridDalGioco) {
         try {
           rebuildGridApply({ ladder, nodeId: state.node, roundIndex: Math.min(card.roundIndex ?? 0, node.calendar.length - 1), force: true, dry: true });
         } catch (e) {
@@ -2372,7 +2375,9 @@ async function api(context0, _req, res, action, body) {
       const running = await isGameRunning();
       state.pendingSettings = { ...(state.raceSettings?.[node.nodeId] ?? {}) };
       const fee = chargeEntry(ladder, state, node);
-      markPending(ladder, state, card);
+      // Il via automatico dell'app (Cruscotto) si arma SOLO con «Prepara
+      // tutto e avvia»: prepara-solo lascia avviaFino a 0.
+      markPending(ladder, state, card, { autoAvvio: !body.preparaSolo });
       persist(state);
       // PREPARAZIONE DEL WEEKEND prima del lancio: pista della ronda nel
       // gamemodesave + auto della ronda selezionata nel garage (rilegge all'avvio
@@ -2735,7 +2740,7 @@ async function api(context0, _req, res, action, body) {
         }
       } catch (e) { prep.aiError = e.message; }
       let launched = null;
-      if (!body.noLaunch) {
+      if (!body.noLaunch && !body.preparaSolo) {
         try {
           const r = await launch(paths, { force: !!body.forceLaunch });
           launched = r;

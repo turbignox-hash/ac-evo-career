@@ -642,7 +642,7 @@ export function chargeEntry(ladder, state, node) {
  *  ronda vive anche nel canale dell'auto (24 h) ma il VIA resta a mano. */
 export const FINESTRA_AVVIA_MS = 30 * 60 * 1000;
 
-export function markPending(_ladder, state, card) {
+export function markPending(_ladder, state, card, { autoAvvio = true } = {}) {
   state.pending = {
     node: card.node.nodeId,
     round: card.roundIndex,
@@ -655,7 +655,10 @@ export function markPending(_ladder, state, card) {
     car: card.car,
     gridSize: card.gridSize,
     startedAt: Date.now(),
-    avviaFino: Date.now() + FINESTRA_AVVIA_MS,
+    // L'AUTO-AVVIO SI ARMA SOLO COL «Prepara tutto e avvia» (4/11): col
+    // «Prepara tutto» resta a 0 e l'app non preme mai «Avvia sessione» —
+    // il via è un gesto tuo, dal menù di EVO.
+    avviaFino: autoAvvio ? Date.now() + FINESTRA_AVVIA_MS : 0,
   };
   return state.pending;
 }
