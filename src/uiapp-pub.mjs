@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { savedGamesRoots, resolvePaths } from './paths.mjs';
 import { agendaDay, agendaOra, portaGiornata, racesOnDay, dateLabel, prossimoGiornoConGara, impegni, scegliRonda } from './agenda.mjs';
 import { context, SAVE_FILE, PROJECT, persist } from './webui-env.mjs';
+import { writeOrWarn } from './safe-write.mjs';
 import { loadState, nodeById, standingsFor, playerStanding } from './state.mjs';
 import { playerWorldSkill } from './world.mjs';
 import { tr } from './lang.mjs';
@@ -1120,7 +1121,7 @@ export function giraRichiesteEredità(ladder, state, richieste = []) {
     } else {
       const es = scegliRonda(ladder, state, nodeId, null);
       if (es.ok) {
-        try { persist(state); } catch { /* il resto per il prossimo tick */ }
+        writeOrWarn('uiapp.persist', () => persist(state)); // il resto per il prossimo tick
         esito = { ok: true, msg: tr({ it: `Ronda dell'impresa punta per oggi: ${panel.titolo} R${(es.roundIndex ?? 0) + 1}.`, en: `Feat round picked for today: ${panel.titolo} R${(es.roundIndex ?? 0) + 1}.` }) };
       } else {
         esito = { ok: false, msg: es.error };

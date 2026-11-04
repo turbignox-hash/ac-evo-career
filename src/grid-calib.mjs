@@ -32,6 +32,7 @@ import { lapToMs, positionBase } from './results.mjs';
 import { loadClasses, perTrackKey, classesFile } from './gridbuilder.mjs';
 import { readCells, DEFAULT_FILE as GRID_FILE } from '../tools/grid-balance.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
+import { writeOrWarn } from './safe-write.mjs';
 import { tr } from './lang.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -467,7 +468,7 @@ export function recordEvent(evento, { classesNow = null } = {}) {
     if (stesso) return brief(stesso, classesNow ?? loadClasses());
   }
   log.eventi.push(evento);
-  try { writeJsonAtomic(CALIB_FILE(), log); } catch { /* mai bloccare l'import */ }
+  writeOrWarn('grid-calib.log', () => writeJsonAtomic(CALIB_FILE(), log)); // mai bloccare l'import
   return brief(evento, classesNow ?? loadClasses());
 }
 
@@ -607,7 +608,10 @@ export function appuntaConvalida({ classe = null, trkKey = null, dry = false } =
     messaggio.push(`✓ ${g.classe} · ${g.trkKey}: convalidato: true (${g.obs} gare coerenti)`);
   }
   if (!dry && applicate.length) {
-    try { mkdirs(BACKUP_DIR); copyFileSync(CLASSES_FILE(), join(BACKUP_DIR, `grid-classes.bak-${stamp()}.json`)); } catch { /* il backup non deve bloccare */ }
+    writeOrWarn('grid-calib.backup', () => {
+      mkdirs(BACKUP_DIR);
+      copyFileSync(CLASSES_FILE(), join(BACKUP_DIR, `grid-classes.bak-${stamp()}.json`));
+    }); // il backup non deve bloccare
     writeJsonAtomic(CLASSES_FILE(), classes);
   }
   return { applicate, messaggio };

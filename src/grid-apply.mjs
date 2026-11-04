@@ -30,6 +30,7 @@ import { scanContentCached, carExists } from './content.mjs';
 import { slotDataDir } from './state.mjs';
 import { carPoolOf, carInPool } from './car-pool.mjs';
 import { syncRoster, celleDiGrid } from './weekend-roster.mjs';
+import { writeOrWarn } from './safe-write.mjs';
 
 export const GRID_FILE = DEFAULT_FILE;
 
@@ -71,20 +72,20 @@ const factoryFileOf = (nodeId) => join(factoryDir(), basename(templatePathOf(nod
 // viene archiviato invece di essere riprovato a ogni build.
 export const storeMetaPathOf = (nodeId) => templatePathOf(nodeId).replace(/\.customgrid$/, '.json');
 function scriviMetaStore(nodeId, buf, meta = {}) {
-  try {
+  writeOrWarn('grid.meta', () => {
     const info = readCells(buf);
     const tinte = new Set(info.cells.map((c) => c.tinta).filter(Boolean)).size;
     writeFileSync(storeMetaPathOf(nodeId), JSON.stringify({
       nodeId, savedAt: new Date().toISOString(), cells: info.cells.length, tintes: tinte, source: meta.source ?? 'build',
     }, null, 2) + '\n');
-  } catch { /* la provenienza non è un blocco: il template resta valido */ }
+  }); // la provenienza non è un blocco: il template resta valido
 }
 
 /** Appunta il buffer come template della serie. riscritture successive con byte
  *  identici non toccano nulla (a ogni giro di poll il file non cambia).
  *  Esportata SOLO per il test anti-regressione dei bak. */
 export function storeTemplate(nodeId, buf, meta = {}) {
-  try {
+  return writeOrWarn('grid.template', () => {
     mkdirSync(TEMPLATES_DIR, { recursive: true });
     const f = templatePathOf(nodeId);
     const nuovo = Buffer.from(buf);
@@ -96,7 +97,7 @@ export function storeTemplate(nodeId, buf, meta = {}) {
     writeFileSync(f, nuovo);
     scriviMetaStore(nodeId, nuovo, meta);
     return f;
-  } catch { return null; }
+  });
 }
 
 /* ---------- GUARDIA CONTEGGIO (1/11 sera, Coppa MX-5 ND Cup) ---------- */
@@ -469,11 +470,11 @@ export function rebuildGridApply({ ladder, nodeId, roundIndex, file = GRID_FILE,
           // archivia come bak (recuperabile) e la corsa continua su bak/snapshot/
           // fabbrica. Solo in scrittura: i dry-run della card non toccano niente.
           if (!dry && nomeFile === tPath && /non contiene le auto/.test(String(e?.message ?? ''))) {
-            try {
+            writeOrWarn('grid.stale', () => {
               const arch = bakName(nomeFile, 'stale-');
               renameSync(nomeFile, arch);
               console.log(`[griglia] magazzino stantio archiviato (${basename(arch)}): ${String(e.message).slice(0, 120)}`);
-            } catch { /* niente archivio: si continua come prima */ }
+            }); // niente archivio: si continua come prima
           }
         }
       }

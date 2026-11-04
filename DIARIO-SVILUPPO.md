@@ -5,6 +5,15 @@ IL RESTO (da fare o da rivedere). Ogni giorno prendiamo qualcuna di queste e la
 eseguiamo; a fine giornata il diario si arricchisce e la lista si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — catch muti: audit di scritture e salvataggi (P1.6) (richiesta Mauro: «P1.6 — catch muti: sono 308, ma molti sono letture opzionali legittime; serve un audit mirato su scritture e salvataggi, non una passata indiscriminata.»)
+
+- **Il taglio**: nessuna passata indiscriminata. L'audit automatico su `src`+`tools` ha isolato **129 catch vicini a una scrittura** (molti falsi positivi: il catch è della lettura successiva); i **13 punti con un effetto su dati/backup** ora non spariscono: **12** passano da `writeOrWarn`, che conserva il fallback e annota il fallimento in `errors.jsonl`; la copia `.corrupt` del ledger usa `recordWarning` e distingue l'esito.
+- **Salvataggi e registri coperti**: `journal.mirror` (calendario specchio), `uiapp.persist` (tick eredità), `import.backup`, `import.log`, `import.learn-car`, `grid.template`, `grid.meta`, `grid.stale`, `grid-calib.log`, `grid-calib.backup`, `orario.backup`, `report.markdown`. La copia `.corrupt` del ledger ora distingue anche il caso in cui la copia **non** riesce, invece di dire sempre «salvata».
+- **Niente percorsi fantasma**: se il rapporto `.md` non si scrive, `rapportoGara` restituisce `salvatoMd: null`; prima restituiva un percorso che sul disco non esisteva.
+- **Cosa resta muto per scelta**: tick delle fasce uiapp (ritenta al tick dopo), log di servizio (`flows`, `car-match`, `wx-registro`, voce webui), pulizie `unlink` e letture opzionali. Non sono salvataggi della carriera: allargarli produrrebbe rumore, non diagnosi.
+- **Verifica**: `npm run check` exit 0; suite **963/963**; lint **365 file, 0 warning**; test mirati **85/85**; test del helper **1/1**; `node --check` e Biome puliti sui file toccati.
+- **Nota**: committato, non pushato. Restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — webui.mjs: estratto il dominio Agenda (P1.5) (richiesta Mauro: «P1.5 — webui.mjs: 4.636 righe e 127 case; è il debito strutturale più grande. Va estratto un dominio per commit, senza cambiare le rotte.»)
 
 - **Il taglio**: le sei rotte `agenda`, `agenda-advance`, `agenda-skip-to-next`, `agenda-shift`, `agenda-hour`, `agenda-choose` vivono in `src/webui-actions-agenda.mjs` (140 righe). `webui.mjs` scende da **4.636 a 4.524 righe** (−112) e conserva solo il dispatcher prima dello switch: `AGENDA_ACTIONS` + `agendaAction`, con `sendJson`, `persist` e `gridLabel` iniettati. Percorsi, payload e status identici; `agenda-detail` resta in webui.

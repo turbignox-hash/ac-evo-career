@@ -35,6 +35,7 @@ import { publishRaceNews } from './gazzetta.mjs';
 import { recordFlows } from './flows.mjs';
 import { tr } from './lang.mjs';
 import { recordWarning } from './warnings.mjs';
+import { writeOrWarn } from './safe-write.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 import { slotDataDir, savePath, activeSlot } from './state.mjs';
 import { recordRaceFromResult } from './grid-calib.mjs';
@@ -94,9 +95,16 @@ function loadLedger() {
     if (l && typeof l === 'object' && l.imported && typeof l.imported === 'object') return l;
     throw new Error('struttura inattesa');
   } catch (e) {
-    // copia di recupero prima di ripartire da vuoto: il registro non si butta via in silenzio
-    try { copyFileSync(LEDGER_FILE, `${LEDGER_FILE}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}`); } catch { /* pazienza */ }
-    recordWarning('import.ledger', 'registro anti-doppioni illeggibile (copia .corrupt salvata): riparto da vuoto', e?.message ?? null);
+    // copia di recupero prima di ripartire da vuoto: il registro non si butta via
+    // in silenzio; se anche la copia fallisce, la diagnosi lo dice.
+    let copiato = false;
+    let erroreCopia = null;
+    try {
+      copyFileSync(LEDGER_FILE, `${LEDGER_FILE}.corrupt-${new Date().toISOString().replace(/[:.]/g, '-')}`);
+      copiato = true;
+    } catch (copia) { erroreCopia = copia; }
+    const dettaglio = [e?.message, erroreCopia ? `copia .corrupt: ${erroreCopia?.message ?? String(erroreCopia)}` : null].filter(Boolean).join(' · ');
+    recordWarning('import.ledger', copiato ? 'registro anti-doppioni illeggibile (copia .corrupt salvata): riparto da vuoto' : 'registro anti-doppioni illeggibile (copia .corrupt NON riuscita): riparto da vuoto', dettaglio || null);
   }
   return { imported: {} };
 }
@@ -160,10 +168,10 @@ export function backupBeforeImport() {
 /* ------------------------------------------------------------------ */
 
 function appendLog(entry) {
-  try {
+  writeOrWarn('import.log', () => {
     mkdirSync(DATA_DIR, { recursive: true });
     appendFileSync(LOG_FILE, JSON.stringify(entry) + '\n', 'utf8');
-  } catch { /* il log non deve mai rompere l'import */ }
+  }); // il log non deve mai rompere l'import
 }
 
 /** Ultimi n eventi di import, dal più recente. Per la GUI. */
@@ -280,9 +288,9 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
       // IMPARIAMO L'AUTO qui, non nel Prepara: in gara è appena passata su
       // quella macchina e il garage sul disco combacia. È il rimedio al
       // dizionario perso di un'installazione pulita (25/10): alla gara dopo
-      // il Prepara la seleziona da solo. Fallo SILENZIOSO: un fallimento qui
-      // non deve sospendere un import di gara.
-      try { learnCar(`${driver.car_brand ?? ''} ${driver.car_name ?? ''}`.trim() || null); } catch { /* mai bloccare l'import */ }
+      // il Prepara la seleziona da solo. Un fallimento qui non deve sospendere
+      // un import di gara, ma writeOrWarn lo annota invece di sparire.
+      writeOrWarn('import.learn-car', () => learnCar(`${driver.car_brand ?? ''} ${driver.car_name ?? ''}`.trim() || null));
     }
     if (!driver) {
       const err = new Error(`Non ho riconosciuto il tuo pilota in ${candidate.name}.`);
@@ -420,8 +428,7 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
   }
 
   // RETE 2 — backup automatico appena prima di toccare la carriera
-  let backupFile = null;
-  try { backupFile = backupBeforeImport(); } catch { /* mai bloccare l'import per un backup */ }
+  const backupFile = writeOrWarn('import.backup', () => backupBeforeImport());
 
   const { entry, proposal, crowdBonus } = applyRaceResult(ladder, state, targetNode, payload);
   // AVVISO REP-CAP (28/10): se il journal dell'app dice "reputazione al

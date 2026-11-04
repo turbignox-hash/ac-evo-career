@@ -20,15 +20,16 @@
 // trovaRonda, import.mjs) NON cambiano riga: ereditano il fall-back con
 // il flag `mirror: true` che marca la copia NOSTRA.
 //
-// Fallimenti: mirrorJournal è silenzioso per costruzione — un centro non
-// scritto NON è un danno ai dati (il journal è una copia): lo salvano i
-// consumatori delegando al ponte se il file è fuori uso.
+// Fallimenti: il journal è una copia, non un danno ai dati; writeOrWarn
+// annota però il fallimento in errors.jsonl, così un registro stantio non
+// sparisce. I consumatori delegano al ponte se il file è fuori uso.
 
 import { readFileSync, writeFileSync, renameSync, statSync, mkdirSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TRACK_INFO } from './tracks.mjs';
 import { PRESETS } from './weather.mjs';
+import { writeOrWarn } from './safe-write.mjs';
 
 const THIS_DIR = dirname(fileURLToPath(import.meta.url));
 const LADDER_FILE = join(THIS_DIR, '..', 'config', 'career.evo.ladder.json');
@@ -135,9 +136,9 @@ export function calendarioDaLadder(ladder, state) {
 /* ------------------------------------------------------------------ */
 
 /** L'HOOK: lo chiama `saveState` DOPO il rename del save (state.mjs).
- *  Silenzioso per costruzione: un record non salvato NON è un danno ai dati
- *  (il journal è una copia, i consumatori delegano al ponte se non lo
- *  trovano). Il ladder si diceva una sola volta per processo. */
+ *  Un record non salvato NON è un danno ai dati (il journal è una copia, i
+ *  consumatori delegano al ponte se non lo trovano), ma writeOrWarn lo
+ *  annota in errors.jsonl. Il ladder si diceva una sola volta per processo. */
 let _ladder = null;  // { mtime, data } — riletto solo se il file muta
 export function loadLadder() {
   try {
@@ -149,7 +150,7 @@ export function loadLadder() {
 }
 
 export function mirrorJournal(saveFile, state, ladder = loadLadder()) {
-  try {
+  writeOrWarn('journal.mirror', () => {
     const path = saveFile ? journalPathForSave(saveFile) : null;
     if (!path) return;
     const cal = calendarioDaLadder(ladder, state);
@@ -158,7 +159,7 @@ export function mirrorJournal(saveFile, state, ladder = loadLadder()) {
     const tmp = `${path}.tmp`;
     writeFileSync(tmp, JSON.stringify(cal, null, 2) + '\n', 'utf8');
     renameSync(tmp, path);
-  } catch { /* silenzioso: v. header */ }
+  });
 }
 
 // La parte che LEGGE — l'hook del fall-back nel ponte — vive in

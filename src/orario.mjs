@@ -29,6 +29,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeJsonAtomic } from './atomic.mjs';
+import { writeOrWarn } from './safe-write.mjs';
 import { mkdirSync, copyFileSync } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -135,7 +136,10 @@ export function applyPianoToCalendar(ladder, nodeId, pianoId, { da = 0, a = null
     righe.push({ round: i, name: r.name ?? `R${i + 1}`, piano: piano ?? 'override', prima: before, dopo: { hour: spec.hour, timeScale: spec.timeScale ?? null } });
   }    if (!dry) {
       if (backup) {
-        try { mkdirSync(BACKUP_DIR, { recursive: true }); copyFileSync(file, join(BACKUP_DIR, `career.evo.ladder.bak-orario-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}.json`)); } catch { /* il backup non deve bloccare */ }
+        writeOrWarn('orario.backup', () => {
+          mkdirSync(BACKUP_DIR, { recursive: true });
+          copyFileSync(file, join(BACKUP_DIR, `career.evo.ladder.bak-orario-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}.json`));
+        }); // il backup non deve bloccare
       }
       // Il ladder in ingresso può essere localizzato (EVO_LANG=en): rileggo la
       // base dal disco e sopra scrivo SOLO il calendario toccato, cosi' i testi

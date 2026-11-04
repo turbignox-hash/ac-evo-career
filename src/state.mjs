@@ -249,7 +249,8 @@ export function saveState(file, state) {
     throw e;
   }
   // specchio del calendario (2/11): rileggere il save riscrive il journal;
-  // silenzioso — un errore qui è un registro stantio, non un danno al save.
+  // un errore qui è un registro stantio, non un danno al save: writeOrWarn
+  // lo annota e la carriera continua.
   mirrorJournal(file, state);
 }
 

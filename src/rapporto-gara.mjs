@@ -24,6 +24,7 @@ import { riepilogoPerClasse } from './classi-gt.mjs';
 import { sameTrack } from './tracknames.mjs';
 import { buildVersion } from './report.mjs';
 import { tr } from './lang.mjs';
+import { writeOrWarn } from './safe-write.mjs';
 import { listMotecSessions, analyzeLd } from './motec.mjs';
 import { margineVeroDaLog } from './margine-log.mjs';
 
@@ -461,11 +462,12 @@ export function rapportoGara(paths, fileName, { driver = null, salva = true } = 
 
   let salvatoMd = null;
   if (salva) {
-    try {
+    const target = join(OUT_DIR, `${baseDi(safe)}.rapporto.md`);
+    salvatoMd = writeOrWarn('report.markdown', () => {
       mkdirSync(OUT_DIR, { recursive: true });
-      salvatoMd = join(OUT_DIR, `${baseDi(safe)}.rapporto.md`);
-      writeFileSync(salvatoMd, md, 'utf8');
-    } catch { /* il salvataggio non deve bloccare la copia col clipboard */ }
+      writeFileSync(target, md, 'utf8');
+      return target;
+    }); // il salvataggio non deve bloccare la copia col clipboard
   }
   return { md, html, salvatoMd, is_mp: d.is_mp, track: `${d.track}${d.layout ? ` — ${d.layout}` : ''}` };
 }
