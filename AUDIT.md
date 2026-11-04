@@ -1,6 +1,11 @@
-# AUDIT.md — audit non distruttivo · turbignox-hash/ac-evo-career (EVO Pitwall)
+> **DOCUMENTO STORICO — fotografia al 1/11/2026.**
+>
+> Allora la suite era 650/650 e `npm run check` non esisteva. Oggi è 963/963 e lo script c'è.
+> Non aggiornare questo file: per i DA aperti vedi [ROADMAP.md](ROADMAP.md), per il lavoro svolto [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md).
 
-Data: 1/11/2026 · metodo: lettura di README/package.json/struttura/diario
+# AUDIT.md — audit non distruttivo del 1/11/2026 (STORICO) · turbignox-hash/ac-evo-career (EVO Pitwall)
+
+Data: 1/11/2026 · **STORICO** · metodo: lettura di README/package.json/struttura/diario
 (+ collaudi e suite già girati nella stessa giornata). **Nessun file di
 codice toccato.** Dove un punto non è stato verificato da fatto diretto c'è
 il marcatore **DA VERIFICARE**.

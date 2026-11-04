@@ -1,9 +1,16 @@
 # Diario di sviluppo
 
-Il diario racconta IL FATTO (ciò che è fatto e verificato), la lista di sopra racconta
-IL RESTO (da fare o da rivedere). Ogni giorno prendiamo qualcuna di queste e la
-eseguiamo; a fine giornata il diario si arricchisce e la lista si accorcia o si
+Il diario racconta IL FATTO (ciò che è fatto e verificato); la lista dei DA aperti
+vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci e la
+eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
+
+### 4/11 — documenti: AUDIT storico e ROADMAP dei soli DA aperti (P2.9) (richiesta Mauro: «P2.9 — documenti: AUDIT.md è fermo a “650 test, non esiste check”; andrebbe marcato storico e affiancato da un ROADMAP.md con i soli DA aperti.»)
+
+- **AUDIT.md**: titolo e testa marcati **STORICO** — fotografia al 1/11/2026, quando la suite era 650/650 e `npm run check` non esisteva. Il corpo non è stato riscritto: resta la base dell'audit.
+- **ROADMAP.md**: nuovo file con **soli 8 DA aperti** — DA-1, DA-3, DA-4, DA-5, DA-6, DA-7, DA-10, DA-19 — divisi in «in pista», «bloccate/dipendenze» e «periodiche», ognuno con prossimo passo e criterio di chiusura. Le DA chiuse restano nel diario.
+- **Verifica**: `npm run check` exit 0; suite **963/963**; lint **365 file, 0 warning**; `git diff --check` pulito. Nessun codice toccato.
+- **Nota**: committato, non pushato. Restano fuori le 5 modifiche preesistenti.
 
 ### 4/11 — copertura: engineer.mjs ha 17 test, P1.7 è un falso positivo (richiesta Mauro: «P1.7 — copertura: la scansione dice “engineer.mjs 1 test”, ma test/ingegnere.test.mjs ne ha già più di dieci (fasi, pit, bandiere, postalk): non è la priorità che sembrava.»)
 
