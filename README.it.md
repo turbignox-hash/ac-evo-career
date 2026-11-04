@@ -2,8 +2,8 @@
 
 **Una carriera persistente e locale per Assetto Corsa EVO.**
 
-![Build](https://img.shields.io/badge/build-0.1.57-2563eb?style=flat-square)
-![Test](https://img.shields.io/badge/test-911%2F911-16a34a?style=flat-square)
+![Build](https://img.shields.io/badge/build-0.1.58-2563eb?style=flat-square)
+![Test](https://img.shields.io/badge/test-916%2F916-16a34a?style=flat-square)
 ![Lint](https://img.shields.io/badge/lint-0%20warning-16a34a?style=flat-square)
 ![Node](https://img.shields.io/badge/Node-18%2B-339933?style=flat-square)
 ![Windows](https://img.shields.io/badge/platform-Windows-0078d4?style=flat-square)
@@ -18,31 +18,31 @@ EVO Pitwall aggiunge uno strato di carriera *attorno* ad Assetto Corsa EVO: una 
 
 Il gioco resta il gioco. EVO Pitwall non sostituisce la carriera nativa di AC EVO, non modifica i suoi contenuti e non richiede account, cloud o altre applicazioni di carriera.
 
-**Ramo main:** build **0.1.57** · **913/913** test · **372** file lint, 0 warning.
+**Ramo main:** build **0.1.58** · **916/916** test · **374** file lint, 0 warning.
 
 ## Installazione
 
 ### Opzione A — pacchetto amico pubblicato
 
-La **pre-release** corrente è **[v0.1.57](https://github.com/turbignox-hash/ac-evo-career/releases/tag/v0.1.57)**. Include lo ZIP amico, entrambi gli installer Windows e il bundle `EVO-Pitwall-v0.1.57-Windows.zip` con i due EXE, i checksum e una guida breve. Nessun privilegio di amministratore; l'EXE offline include Node portatile e funziona senza connessione.
+La **pre-release** corrente è **[v0.1.58](https://github.com/turbignox-hash/ac-evo-career/releases/tag/v0.1.58)**. Include lo ZIP amico, entrambi gli installer Windows e il bundle `EVO-Pitwall-v0.1.58-Windows.zip` con i due EXE, i checksum e una guida breve. Nessun privilegio di amministratore; l'EXE offline include Node portatile e funziona senza connessione.
 
 
 
 | Download | Cosa contiene |
 | --- | --- |
-| **[Bundle Windows ZIP](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.57/EVO-Pitwall-v0.1.57-Windows.zip)** | Entrambi gli EXE, i due checksum e `LEGGIMI-INSTALLER.txt`; download unico consigliato |
-| [EXE offline](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.57/EVO-Pitwall-Setup-Offline.exe) | Autonomo, Node e codice inclusi; nessuna connessione |
-| [EXE online](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.57/EVO-Pitwall-Setup.exe) | Scarica Node portatile e il codice corrente |
-| [SHA-256 del bundle](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.57/EVO-Pitwall-v0.1.57-Windows.zip.sha256) | Checksum dello ZIP stesso |
-| [ZIP amico](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.57/ac-evo-career-amico-v0.1.57-8e641b0.zip) | Pacchetto sorgente con guide e `installa.cmd` |
+| **[Bundle Windows ZIP](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.58/EVO-Pitwall-v0.1.58-Windows.zip)** | Entrambi gli EXE, i due checksum e `LEGGIMI-INSTALLER.txt`; download unico consigliato |
+| [EXE offline](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.58/EVO-Pitwall-Setup-Offline.exe) | Autonomo, Node e codice inclusi; nessuna connessione |
+| [EXE online](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.58/EVO-Pitwall-Setup.exe) | Scarica Node portatile e il codice corrente |
+| [SHA-256 del bundle](https://github.com/turbignox-hash/ac-evo-career/releases/download/v0.1.58/EVO-Pitwall-v0.1.58-Windows.zip.sha256) | Checksum dello ZIP stesso |
+| [ZIP amico](https://github.com/turbignox-hash/ac-evo-career/releases/tag/v0.1.58) | Pacchetto sorgente con guide e `installa.cmd` |
 
-> **SHA-256:** bundle `a9f0e67e0d2cb9b80339f97ac30d2de99b524d739c525158a441cdd71903b42c` · online `dcc4c85db627cee2f2f89bef254047755ce40ab82e5925b3590a963bca7d574f` · offline `6d44c5dbfabac7fbd582b287a38a0d3c3945e3207a84466eec0d4ed6ac616431`
+> **SHA-256:** bundle `7f6f7c92073a95788b97598325d23ab85e2dc4fda06ff00fa77f827be810f060` · online `3313264e7790904953cfc3d90db51741da0d2d0db45a1545ad750f1cee56b8ef` · offline `396fb589262c562cda5e879c0ea78e0f3cafdb952ba6880774d84aa6017818a8`
 >
-> PowerShell: `Get-FileHash .\EVO-Pitwall-v0.1.57-Windows.zip -Algorithm SHA256`
+> PowerShell: `Get-FileHash .\EVO-Pitwall-v0.1.58-Windows.zip -Algorithm SHA256`
 
-Ricontrolla gli asset pubblicati dopo una release: `npm run verifica-release -- v0.1.57`. GitHub Actions esegue lo stesso controllo a ogni release pubblicata.
+Ricontrolla gli asset pubblicati dopo una release: `npm run verifica-release -- v0.1.58`. GitHub Actions esegue lo stesso controllo a ogni release pubblicata.
 
-> **Anteprima non firmata:** la v0.1.57 è una pre-release perché gli EXE non sono ancora firmati Authenticode. Aspettati SmartScreen; scarica solo da questo repository. La v0.1.56 è più vecchia.
+> **Anteprima non firmata:** la v0.1.58 è una pre-release perché gli EXE non sono ancora firmati Authenticode. Aspettati SmartScreen; scarica solo da questo repository. La v0.1.56 è più vecchia.
 
 ### Opzione B — EXE Windows dal ramo `main`
 
@@ -60,7 +60,7 @@ Produce `dist\EVO-Pitwall-Setup.exe` oppure `dist\EVO-Pitwall-Setup-Offline.exe`
 - `--silent --dir <percorso>` per l'installazione senza interfaccia;
 - l'EXE offline funziona senza connessione; quello online richiede internet.
 
-> **Stato installer:** entrambi gli EXE sono allegati alla **pre-release v0.1.57**. Non sono firmati; una release stabile firmata richiede un certificato OV o EV.
+> **Stato installer:** entrambi gli EXE sono allegati alla **pre-release v0.1.58**. Non sono firmati; una release stabile firmata richiede un certificato OV o EV.
 
 <details>
 <summary>Firma Authenticode opzionale</summary>
@@ -80,9 +80,9 @@ Un **certificato self-signed non toglie SmartScreen**: aiuta solo su un PC che s
 
 Guida completa: [GUIDA-AMICO.md](GUIDA-AMICO.md), con la sezione inglese in fondo; versione inglese intera in [FRIEND-GUIDE-EN.md](FRIEND-GUIDE-EN.md).
 
-## Anteprima installer 0.1.57
+## Anteprima installer 0.1.58
 
-Questa build include la pulizia dei cinque file e il bundle ZIP Windows con entrambi gli EXE. L'EXE online scarica Node e il codice; quello offline include Node portatile e tutto il sorgente. Entrambi sono non firmati, quindi aspettati SmartScreen: è una pre-release, non la build stabile firmata.
+Questa build chiude i fix del 4/11 sulla GUI: tab Griglia di nuovo viva, bollettino senza i tasti «Metti», un solo verdetto nel Cruscotto e tipografia leggibile su tutte le schede. Aggiunge il collaudo automatico delle 19 tab e la guardia statica su `$(...).forEach`: le due prove che avrebbero fermato il crash di Griglia prima del commit. Il bundle Windows contiene entrambi gli EXE; quello online scarica Node e il codice, quello offline include Node portatile e tutto il sorgente. Entrambi sono non firmati: aspettati SmartScreen, è una pre-release.
 
 ## Novità della 0.1.55
 
@@ -91,9 +91,9 @@ Questa build include la pulizia dei cinque file e il bundle ZIP Windows con entr
 - **Sicurezza release.** Il tool si ferma su albero sporco, corpo mancante o vuoto, tag non su `HEAD` o assente dal remoto e upload di un asset fallito. Il pacchetto amico nasce solo da un albero completamente pulito.
 - **Preflight di firma opzionale.** Con le variabili di firma attive verifica catena Authenticode, sidecar `.sha256` e metadati di build prima di allegare qualcosa.
 - **Codice indipendente.** Rimossi il ponte ai journal esterni, il canale e le regole derivate. Calendario, garage e dizionario leggono solo file scritti dal gioco. Una guardia scansiona il progetto e fallisce se ricompare un riferimento al prodotto esterno.
-- **Controlli attuali:** `npm test` **913/913**, `npm run lint` **372 file, 0 warning**.
+- **Controlli attuali:** `npm test` **916/916**, `npm run lint` **372 file, 0 warning**.
 
-Le note della v0.1.55 descrivono il taglio di indipendenza; la v0.1.57 aggiunge l'anteprima installer non firmata, costruita da `main` pulito.
+Le note della v0.1.55 descrivono il taglio di indipendenza; la v0.1.58 aggiunge l'anteprima installer non firmata, costruita da `main` pulito.
 
 ## In evidenza
 

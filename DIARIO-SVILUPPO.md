@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Release 0.1.58: il collaudo delle schede diventa automatico
+
+- **Release**: bump **0.1.58**, CHANGELOG, README IT/EN con i link e i checksum nuovi, report `report/release-0.1.58.md`, tag `v0.1.58` e release GitHub con ZIP amico, i due EXE (online 109 KB, offline 40 MB) e il bundle `EVO-Pitwall-v0.1.58-Windows.zip` con `LEGGIMI-INSTALLER.txt`.
+- **Collaudo GUI automatico**: `test/tab-sane-gui.test.mjs` legge i tab da `TABS` in `core.js`, apre ognuna delle 19 schede su server vero con save temporaneo e pretende contenuto, zero errori JS e zero overflow orizzontale — 13,5 s, la riga §3 della release checklist in automatico.
+- **Guardia statica**: `test/guardia-dollar-lista.test.mjs` fallisce su `$(...).forEach/.map/.filter` (escluso `$$`), con prova di rottura nel test stesso: la classe di errore della tab Griglia non torna in silenzio.
+- **Verifica**: `npm test` **916/916**, `npm run lint` **374 file, 0 warning**; noto un fail non riprodotto di `tetto-gui-json` (P1/P2 su carriera finta) nella prima run, verde alla riprova.
+
 ### 4/11 — Tutte le schede: pavimento tipografico e tabelle larghe
 
 - **Tipografia**: 117 token `font-size` sotto 11.5px in `gui/js/*.js` e `gui/style.css` (Campionati 63, Analisi 13, Griglia 10, viste-b 9, viste-d 5, core 1, CSS 16) portati a 11.5px, chip con padding 1px 7px. Nei file GUI restano **0 token** sotto il pavimento.

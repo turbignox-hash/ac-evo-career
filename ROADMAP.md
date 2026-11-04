@@ -5,7 +5,7 @@ Contiene **solo i DA non chiusi**; le voci chiuse restano nel diario. Le P0/P1/P
 della scansione non sono DA e non entrano qui. L'audit del 1/11 è storico:
 [AUDIT.md](AUDIT.md).
 
-Stato di riferimento: versione **0.1.54**, suite **963/963**, `npm run check`
+Stato di riferimento: versione **0.1.58**, suite **916/916**, `npm run check`
 esiste ed è la leva unica test + lint.
 
 ## In pista / da verificare
@@ -22,7 +22,7 @@ esiste ed è la leva unica test + lint.
 
 | ID | Cosa manca | Dipende da | Chiusura |
 |---|---|---|---|
-| **DA-7** | Release del pacchetto amico (versione corrente 0.1.54). | DA-1, DA-3, DA-4 verdi. | Pacchetto creato con zip asset e checklist di release completata. |
+| **DA-7** | Release del pacchetto amico (versione corrente 0.1.58). | DA-1, DA-3, DA-4 verdi. | Pacchetto creato con zip asset e checklist di release completata. |
 | **DA-19** | Post di presentazione: dalla bozza al post pubblico. | DA-7; screenshot e nomi degli schermi allineati; canale IT/EN scelto. | Post pubblicato sul canale scelto. |
 
 ## Periodiche

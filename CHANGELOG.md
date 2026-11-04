@@ -4,6 +4,24 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md) (il registro completo). Il save in
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
+## v0.1.58 — 4/11/2026
+
+- **La tab Griglia torna viva** (difetto arrivato fino alla v0.1.57):
+  `$(...).forEach is not a function` — `$` restituisce un nodo, la lista è
+  `$$`. Corretti i sei riquadri; il pannello Costruzione weekend riassume
+  sessioni, meteo, ronde e dettagli.
+- **Bollettino del weekend senza «Metti»**: le quattro sessioni restano con
+  etichetta, orario e stato; il rituale non promette più un tasto rimosso.
+- **Cruscotto**: via il secondo pannello «Verdetto di giornata» (stesso
+  titolo, azione doppia); resta quello che si calcola da solo.
+- **Leggibilità**: 117 token `font-size` sotto 11.5px portati al pavimento in
+  viste e CSS; in Analisi la tabella dei sedili sfondava di 38px e ora scorre
+  in `.tscroll`. Misurate 16 schede con 0 overflow.
+- **Collaudo GUI automatico**: `test/tab-sane-gui.test.mjs` apre le 19 tab e
+  pretende contenuto, zero errori JS e zero overflow; `test/guardia-dollar-lista.test.mjs`
+  blocca `$(...).forEach/.map/.filter`, la classe di errore della Griglia.
+- **Verifica**: `npm test` **916/916**, `npm run lint` **374 file, 0 warning**.
+
 ## v0.1.55 — 4/11/2026
 
 - **Progetto indipendente, taglio completo** (richiesta Mauro): rimosso il
