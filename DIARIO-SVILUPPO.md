@@ -5,6 +5,11 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Cruscotto: via il riquadro dorato del suggerimento trim (richiesta Mauro)
+
+- Dalla scheda gara è uscito il banner `card.pendingProposal` («Il tool suggerisce il trim», con Accetta/Rifiuta) e i due handler `b-prop-accept`/`b-prop-reject`. La riga compatta `#card-trim` resta sopra la sfida e prima di «Prepara tutto»; il suggerimento resta nella pagina Difficoltà.
+- Verifica: `node --check`, Biome lint, guardia `trim-passo-uno` aggiornata (ora pesa l’assenza del riquadro e il passo +1 nelle schermate restanti), `trim-tile-gui` e `tab-sane-gui` 6/6; suite completa 944/944; `GET /js/viste-a.js` risponde 200 e non contiene più `b-prop-accept`; nessun comando al gioco.
+
 ### 4/11 — Pit loss: misura dai giri in/out, con la sorgente dichiarata
 
 - `pitLossFromLaps` (src/strategia.mjs) riconosce una sosta solo da una coppia CONSECUTIVA: il giro d’ingresso deve chiudersi lento (ultimi 8 s sotto 80 km/h per almeno metà del campione), il successivo deve iniziare lento. Il costo è `(inLap − mediana degli altri giri) + (outLap − mediana)`; scarta scarti <2 s, totali <8 s o >120 s e, con più soste, prende la mediana. Un solo lato (out-lap iniziale o in-lap finale) restituisce null: meglio il default dichiarato che metà numero.

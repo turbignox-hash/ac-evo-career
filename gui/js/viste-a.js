@@ -750,15 +750,6 @@ function drawCardInto(el, card){
     </div>` : ''}
     ${card.heritageActive ? `<div class="banner warn" style="margin-top:10px">📜 <b>${tr({ it: 'Impresa di famiglia: ', en: 'Family feat: ' })}${esc(tr({ it: card.heritageActive.title, en: card.heritageActive.titleEn ?? card.heritageActive.title }))}</b> — ${esc(card.heritageActive.ancestor)}, ${tr({ it: 'tuo ', en: 'your ' })}${esc(tr({ it: card.heritageActive.relation, en: card.heritageActive.relationEn ?? card.heritageActive.relation }))} (${esc(card.heritageActive.era)}). ${tr({ it: 'Questa gara vale per l\'obiettivo «', en: 'This race counts for the goal «' })}${esc(tr({ it: card.heritageActive.objective, en: card.heritageActive.objectiveEn ?? card.heritageActive.objective }))}» (${card.heritageActive.done}/${card.heritageActive.total} ${tr({ it: 'superate · eredità ', en: 'done · inheritance ' })}${money(card.heritageActive.inherit)} €).</div>` : ''}
     ${!card.heritageActive && card.heritageHint ? `<div class="banner info" style="margin-top:10px">📜 ${tr({ it: "L'impresa di famiglia ", en: 'The family feat ' })}${card.heritageHint ? tr({ it: 'prosegue a <b>', en: 'continues at <b>' })+esc(card.heritageHint)+'</b>' : ''}${tr({ it: ': corri la ronda indicata per farla contare (vedi pannello Eredità).', en: ': run the listed round to make it count (see the Heritage panel).' })}</div>` : ''}
-    ${/* SLITTAMENTO ONESTO (3/11): la cifra si calcola col trim CORRENTE
-         della serie (payload «cur», letto dal vivo del save), non col
-         «from» fissato nella proposta: se il trim è mosso dopo la nascita
-         del suggerimento il vecchio calcolo prometteva punti che
-         l'accettazione non farebbe. La legge dell'accept = (to − trim
-         corrente) × 1, e il banner adesso parla la stessa lingua. */ ``}
-    ${card.pendingProposal ? `<div class="banner warn" style="margin-top:10px"><b>${tr({ it: '🎯 Il tool suggerisce il trim', en: '🎯 The tool suggests the trim' })}</b> ${esc(card.pendingProposal.reason)}: ${tr({ it: 'trim ', en: 'trim ' })}${card.pendingProposal.from >= 0 ? '+' : ''}${card.pendingProposal.from} → <b>${card.pendingProposal.to >= 0 ? '+' : ''}${card.pendingProposal.to}</b> (${tr({ it: 'passo', en: 'step' })} ${card.pendingProposal.to - card.pendingProposal.from > 0 ? '+' : ''}${card.pendingProposal.to - card.pendingProposal.from}). ${tr({ it: 'Accettare sposta anche la banda EVO della serie di ', en: 'Accepting also moves the series EVO band by ' })}${Math.abs((card.pendingProposal.to - card.pendingProposal.cur) * 1)} ${tr({ it: 'punti (', en: 'points (' })}${card.pendingProposal.to > card.pendingProposal.cur ? tr({ it: 'in salita', en: 'upward' }) : tr({ it: 'in discesa', en: 'downward' })}).<br>
-      <button class="mini" id="b-prop-accept" style="margin-top:6px">${tr({ it: 'Accetta (trim ', en: 'Accept (trim ' })}${card.pendingProposal.to >= 0 ? '+' : ''}${card.pendingProposal.to})</button>
-      <button class="mini" id="b-prop-reject" style="margin-top:6px;margin-left:6px">${tr({ it: 'Rifiuta', en: 'Reject' })}</button></div>` : ''}
     ${card.difficulty?.trim >= (20) ? `<div class="banner warn" style="margin-top:10px"><b>${tr({ it: 'Difficoltà al massimo', en: 'Difficulty at the max' })}</b> — ${tr({ it: 'il trim adattivo è arrivato a +20 e la serie resta troppo facile: il passo successivo è passare a una serie più alta (bottone 🎯 nel cruscotto).', en: 'the adaptive trim reached +20 and the series still feels too easy: the next step is moving up to a higher series (the 🎯 button in the dashboard).' })}</div>` : ''}
     ${card.warnings.length ? `<ul class="warnlist">${card.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>` : ''}
     <div class="row" style="margin-top:16px">
@@ -1111,21 +1102,6 @@ function drawCardInto(el, card){
   $('#b-accept-chal', el)?.addEventListener('click', async () => {
     try { await api('challenge-accept', {}); toast(tr({ it: 'Sfida accettata: in bocca al lupo.', en: 'Challenge accepted: good luck.' }), 'ok'); drawCardInto(el, await api('card', { car: $('#sel-car', el)?.value ?? null })); }
     catch(e){ toast(e.message, 'err'); }
-  });
-  $('#b-prop-accept', el)?.addEventListener('click', async () => {
-    try {
-      await api('difficulty-action', { op: 'accept' });
-      drawCardInto(el, await api('card', { car: $('#sel-car', el)?.value ?? null }));
-      toast(tr({ it: 'Suggerimento accettato: trim aggiornato, banda EVO spostata.', en: 'Suggestion accepted: trim updated, EVO band moved.' }), 'ok');
-      await refreshBoot();
-    } catch(err){ toast(err.message, 'err'); }
-  });
-  $('#b-prop-reject', el)?.addEventListener('click', async () => {
-    try {
-      await api('difficulty-action', { op: 'reject' });
-      drawCardInto(el, await api('card', { car: $('#sel-car', el)?.value ?? null }));
-      toast(tr({ it: 'Suggerimento rifiutato.', en: 'Suggestion rejected.' }), 'info');
-    } catch(err){ toast(err.message, 'err'); }
   });
   /* 27/10 (gara preparata verso mezzogiorno): il selettore auto esiste SOLO
      nella card che ha il render (`card.carImage`) — quando l'auto della card

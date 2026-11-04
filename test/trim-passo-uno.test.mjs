@@ -30,12 +30,12 @@ test('proposeDifficulty muove il trim di ESATTAMENTE un punto, in ogni fascia', 
   assert.ok(mossi >= 4, 'servono almeno quattro casi che propongono davvero, mossi=' + mossi);
 });
 
-test('le schermate dicono il PASSO accanto ai due valori', () => {
+test('le schermate restanti dicono il PASSO accanto ai due valori', () => {
   const a = readFileSync(new URL('../gui/js/viste-a.js', import.meta.url), 'utf8');
   const d = readFileSync(new URL('../gui/js/viste-d.js', import.meta.url), 'utf8');
   const c = readFileSync(new URL('../gui/js/viste-c.js', import.meta.url), 'utf8');
   const cli = readFileSync(new URL('../src/cli.mjs', import.meta.url), 'utf8');
-  assert.ok(a.includes("passo', en: 'step' })} ${card.pendingProposal.to - card.pendingProposal.from"), 'card senza passo');
+  assert.ok(!a.includes('b-prop-accept') && !a.includes('Il tool suggerisce il trim'), 'la scheda mostra ancora il riquadro del suggerimento trim');
   assert.ok(d.includes("passo', en: 'step' })} ${v.pending.to - v.pending.from"), 'pannello senza passo');
   assert.ok(c.includes('passo ${r.proposal.to - r.proposal.from'), 'risultati senza passo');
   // biome-ignore lint/suspicious/noTemplateCurlyInString: e il testo della CLI, non un template da valutare
