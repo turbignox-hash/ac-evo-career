@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Cruscotto: via le regole del weekend e il riquadro dati (segnalazione Mauro)
+
+- Dal Cruscotto sono usciti tre blocchi: il pannello «Regole di questo weekend · meteo» (#rs-panel), il riquadro con Auto, Avversari, Gara, Ora, Meteo, Partenza e Difficoltà AI col trim −1/+1 (#prep-data) e la riga «ⓘ Tutte le impostazioni del round».
+- Con i blocchi se ne sono andati anche gli handler che li tenevano vivi: salvataggio delle regole, caricamento del registro meteo, ripristino e trim dei cursori AI. Nessun pulsante resta senza destinazione.
+- Griglia, «Costruzione weekend»: dei sei riquadri solo Auto e Pista portavano a una scheda; gli altri quattro (Meteo, Ora, Giri/tempo, Griglia) e il pulsante «Apri scheda gara e regole» aprivano proprio il pannello rimosso. Ora i quattro sono etichette non cliccabili, il pulsante non c'è più e la funzione apriRegole è stata eliminata.
+- Verifica: 192 righe rimosse da viste-a.js (1280 rimaste) e 46 righe cambiate in viste-griglia.js; node --check ok; lint 374 file, 0 warning; collaudo delle 19 schede passato; prova dal vivo a 1366×900 su 127.0.0.1:8642 → Cruscotto con 7 pannelli, «Regole di questo weekend», «Tutte le impostazioni del round» e «Difficoltà AI» assenti, #rs-panel/#prep-data/.d-nudge assenti, 0 overflow orizzontale, 0 errori JS; Griglia con 6 riquadri (2 bottoni: car, track; 4 div), #wb-open assente e hint «Auto e pista aprono le rispettive schede.».
+
 ### 4/11 — Meccanico in pista: diagnosi di setup dal vivo
 
 - Finora il meccanico leggeva solo sessioni CHIUSE (file .ld): mentre giravi taceva sul setup, e la radio dell’ingegnere parlava solo di benzina, usura gomme, gap e bandiere. Ora `engineerLive` (src/engineer.mjs) aggiunge due diagnosi dai dati che EVO espone in pista.

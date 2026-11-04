@@ -54,12 +54,17 @@
   const ai = card.difficulty ? `AI ${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%` : '';
   const gridExtra = card.gridAltraSerie
     ? `<br><span class="tag warn" style="font-size:11.5px;padding:1px 5px">${t('griglia di un’altra serie', 'grid from another series')}</span>` : '';
-  const tile = (key, icon, label, value, detail, extra = '') => `
-    <button type="button" data-wb="${key}" style="text-align:left;display:flex;flex-direction:column;gap:2px;background:var(--panel2,#121822);border:1px solid var(--line,#2a3341);border-radius:8px;padding:8px 10px;color:inherit;cursor:pointer;font:inherit;min-height:74px">
+  const tile = (key, icon, label, value, detail, extra = '') => {
+    const stile = 'text-align:left;display:flex;flex-direction:column;gap:2px;background:var(--panel2,#121822);border:1px solid var(--line,#2a3341);border-radius:8px;padding:8px 10px;color:inherit;font:inherit;min-height:74px';
+    const corpo = `
       <span class="muted" style="font-size:11.5px">${icon} ${label}</span>
       <b style="font-size:14px">${value}</b>
-      <span class="muted" style="font-size:11.5px;line-height:1.25">${detail}${extra}</span>
-    </button>`;
+      <span class="muted" style="font-size:11.5px;line-height:1.25">${detail}${extra}</span>`;
+    const apre = key === 'car' || key === 'track';
+    return apre
+      ? `<button type="button" data-wb="${key}" style="${stile};cursor:pointer">${corpo}</button>`
+      : `<div style="${stile}">${corpo}</div>`;
+  };
   return `
   <div class="panel" id="weekend-builder">
     <h2>${t('Costruzione weekend', 'Weekend build')} <span class="muted" style="font-size:12px">${t('i sei parametri che «Prepara tutto» scrive in EVO', 'the six settings “Get everything ready” writes into EVO')}</span> ${stato}</h2>
@@ -77,10 +82,7 @@
       <span class="muted" style="font-size:11.5px">${t('Sessioni e meteo del weekend:', 'Weekend sessions and weather:')}</span>
       ${(card.weatherPlan ?? []).map(chip).join('')}
     </div>
-    <div class="row" style="margin-top:10px;flex-wrap:wrap">
-      <button class="mini" id="wb-open">${t('Apri scheda gara e regole', 'Open race sheet and rules')}</button>
-      <span class="muted" style="font-size:11.5px">${t('Auto e pista aprono le schede; meteo, ora, distanza e griglia aprono le regole del weekend.', 'Car and track open their sheets; weather, time, distance and grid open the weekend rules.')}</span>
-    </div>
+    <div class="muted" style="margin-top:10px;font-size:11.5px">${t('Auto e pista aprono le rispettive schede.', 'Car and track open their sheets.')}</div>
   </div>`;
 }
 
@@ -347,33 +349,11 @@ async function drawGridTab(m){
     }
   } catch { /* il pannello sede non deve mai rompere la tab */ }
 
-  const apriRegole = () => {
-    vai('dashboard');
-    // la scheda gara si disegna DOPO le sue api: un timer fisso la cercava
-    // troppo presto e il pannello restava chiuso. Si aspetta il nodo e si apre;
-    // niente 'smooth' (il ridisegno della scheda interrompeva l'animazione e la
-    // pagina restava in cima): scroll istantaneo, ripetuto finché è in cima.
-    let giri = 0;
-    const apri = () => {
-      const p = document.querySelector('#rs-panel');
-      if (p) {
-        p.open = true;
-        if (Math.abs(p.getBoundingClientRect().top) > 8) p.scrollIntoView({ block: 'start' });
-        else return;
-      }
-      if (++giri < 25) setTimeout(apri, 100);
-    };
-    setTimeout(apri, 80);
-  };
   $$('[data-wb]', m).forEach((b) => {
-    b.onclick = () => {
-      if (b.dataset.wb === 'car') vai('cars', { search: card?.carName ?? '' });
-      else if (b.dataset.wb === 'track') vai('tracks', { search: card?.trackName ?? '' });
-      else apriRegole();
-    };
+    b.onclick = () => (b.dataset.wb === 'car'
+      ? vai('cars', { search: card?.carName ?? '' })
+      : vai('tracks', { search: card?.trackName ?? '' }));
   });
-  const wbOpen = $('#wb-open');
-  if (wbOpen) wbOpen.onclick = apriRegole;
 $('#g-drop').onclick = async () => {
     const b = $('#g-drop'); busy(b, true, tr({ it: 'Rimuovi', en: 'Remove' }));
     try {
