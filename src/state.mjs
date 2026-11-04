@@ -330,6 +330,27 @@ export function grigliaSimEstesa(_ladder, state, node) {
 }
 
 /** Classifica della serie: i punti dei rivali sono simulati con la loro banda, i tuoi sono i tuoi. */
+/** Le ronde del SEDILE (4/11): una serie può attraversare più stagioni
+ *  globali (dtm_legends: ronde 0-2 in stagione 9, 3-8 in stagione 14). Se si
+ *  guarda solo `season`, le ronde vecchie spariscono e la classifica le
+ *  SIMULA per i rivali (Ruben 177 contro i 150 veri). Si prendono le ronde
+ *  della stagione viva e, per le ronde PRECEDENTI alla prima corsa, l'ultima
+ *  versione da una stagione anteriore: sono lo stesso calendario del sedile.
+ *  Stagione nuova appena aperta (0 risultati): niente riempimento. */
+export function rondeDellaSerie(state, node, season = state.season) {
+  const tutto = state.results?.[node?.nodeId] ?? [];
+  const vive = tutto.filter((r) => r.season === season);
+  if (!vive.length) return [];
+  const prima = Math.min(...vive.map((r) => r.round));
+  const riempi = new Map();
+  for (const r of tutto) {
+    if (r.season >= season || r.round >= prima) continue;
+    const gia = riempi.get(r.round);
+    if (!gia || r.season > gia.season) riempi.set(r.round, r);
+  }
+  return [...vive, ...riempi.values()];
+}
+
 export function standingsFor(ladder, state, node, season = state.season) {
   const grid = gridFor(state.world, ladder, grigliaSimEstesa(ladder, state, node), season);
   const totals = new Map();
@@ -337,7 +358,7 @@ export function standingsFor(ladder, state, node, season = state.season) {
   grid.forEach((s) => { totals.set(s.driverId, 0); });
   totals.set('player', 0);
 
-  const mine = (state.results[node.nodeId] ?? []).filter((r) => r.season === season);
+  const mine = rondeDellaSerie(state, node, season);
   const roundsPlayed = new Set(mine.map((r) => r.round));
 
   // la classifica conta solo le ronde GIÀ CORSE nel calendario a giorni:
@@ -348,7 +369,10 @@ export function standingsFor(ladder, state, node, season = state.season) {
   const seatDay = Number(state.seats?.[node.nodeId]?.day) || null;
   const today = Math.max(1, Math.floor(Number(state.agenda?.day) || 1));
   const elapsed = seatDay ? Math.floor((today - seatDay) / 7) + 1 : (mine.length ? Math.max(...mine.map((r) => r.round)) + 1 : 0);
-  const upTo = Math.min(totalRounds, Math.max(0, elapsed));
+  // la classifica non può ignorare una ronda già corsa: se il calendario a
+  // giorni è indietro (ronde corse in anticipo), vince l'ultima ronda vera
+  const ultimaCorsa = mine.length ? Math.max(...mine.map((r) => r.round)) + 1 : 0;
+  const upTo = Math.min(totalRounds, Math.max(0, elapsed, ultimaCorsa));
 
   for (let r = 0; r < upTo; r++) {
     const mineRound = mine.find((x) => x.round === r);

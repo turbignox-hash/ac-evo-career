@@ -5,6 +5,25 @@ IL RESTO (da fare o da rivedere). Ogni giorno prendiamo qualcuna di queste e la
 eseguiamo; a fine giornata il diario si arricchisce e la lista si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Posizione ufficiale a blocchi e classifica del sedile (audit delle 88 gare) (richiesta Mauro: «procedi» dopo la scansione del progetto — punti P0.1 e P0.2)
+
+- **P0.1 — posizione ufficiale a blocchi**: `officialPositionOf` riordinava TUTTO il campo per `total_time`, ma il tempo vale solo dentro la classe. A Donington il 18/10 i primi 5 avevano 38-45 s più del giocatore (Pro-Am/altra classe): il file diceva P7, il ricalcolo P2 — e così in **16 gare su 88**. Ora `graduatoriaUfficiale` spezza l'ordine del file in blocchi (nuovo blocco quando i giri cambiano o il tempo scende, tolleranza 0,5 s) e ordina per giri e tempo+penalità **dentro** il blocco; fra blocchi non si scavalca. Cache WeakMap per gara.
+- **P0.2 — classifica del sedile**: `standingsFor` filtrava le gare per `state.season`. dtm_legends ha 9 ronde a cavallo di stagione 9 (0-2) e 14 (3-8): la classifica ne vedeva 6, simulava le altre 3 per i rivali (Ruben 177 contro i 150 veri) e ignorava una ronda già corsa se il calendario a giorni era indietro. Nuova `rondeDellaSerie(state, node, season)`: ronde della stagione viva + le ronde precedenti alla prima corsa prese dall'ultima stagione anteriore (mai su una stagione appena aperta). `upTo` include l'ultima ronda vera.
+- **La prova**: `test/posizione-blocchi.test.mjs` (blocchi: il giocatore resta P7; +5s dentro il blocco scende; senza penalità l'ordine del file resta; DSQ/giri zero fuori) e `test/classifica-sedile.test.mjs` (9 ronde a cavallo; stagione nuova vuota; nessun doppione; ronda ripetuta → la più recente).
+
+
+### 4/11 — «Chiudi stagione» non dice più incompleta a calendario finito (richiesta Mauro: «Stagione completata ma chiudi stagione dice incompleta»)
+
+- **La causa**: il gate contava `results[node].filter(r => r.season === state.season)`. dtm_legends ha 9 ronde ma il sedile le ha corse a cavallo di due stagioni globali (0-2 in stagione 9, 3-8 in stagione 14): il conteggio diceva **6/9** e chiedeva conferma a calendario finito. Stesso conteggio in [src/cli.mjs](src/cli.mjs).
+- **La cura**: `seasonProgress(state, node)` in [src/state.mjs](src/state.mjs) — conta le ronde distinte della stagione viva e chiude il calendario anche quando è stata corsa la **ronda finale** (`lastRound >= total - 1`). Una stagione nuova appena aperta (0 risultati) resta incompleta: le gare vecchie non la chiudono. Webui e CLI usano entrambi la funzione.
+- **La prova**: [test/season-progress.test.mjs](test/season-progress.test.mjs) — serie a cavallo di due stagioni (6 ronde, ultima la 8 → completa), stagione intera 9/9, stagione nuova 0 risultati (incompleta), stagione a metà (incompleta), ronde doppie contate una volta, e i due gate migrati (nessun `played < node.calendar.length` rimasto).
+
+### 4/11 — Trim adattivo: il passo è UN punto, e adesso si legge (richiesta Mauro: «Il trim difficoltà non è sempre chiaro, per esempio ora ha proposto trim ++5 e non capivo se alzava la difficoltà di 1 punto o 5, poi ho visto 1... direi di lasciare solo +1 così a lungo andare si calibra più precisamente»)
+
+- **Il motore faceva già ±1** (`proposeDifficulty` chiude le fasce con `Math.sign`): il salto non era di cinque, era il **trim assoluto** mostrato accanto al nuovo valore («trim +5 → +6») a sembrare il passo. Ora il passo è una costante nominata (`PASSO_TRIM = 1` in [src/state.mjs](src/state.mjs)) e non può scappare.
+- **Le schermate dicono il passo**: card della scheda gara, banner del pannello Difficoltà, scheda risultati e CLI mostrano «trim +5 → +6 (passo +1)»: il numero grande non si confonde più col salto.
+- **La prova**: [test/trim-passo-uno.test.mjs](test/trim-passo-uno.test.mjs) — sette casi di fascia (P1, podio, quartile, fondo griglia) con trim 5, 0, −5, 2, 4, 1: ogni proposta mossa vale **esattamente un punto**, e le quattro schermate devono citare il passo.
+
 ### 3/11 — Audit delle ultime gare: rivali, forma, classifica, distacchi, zavorre, penalità (richiesta Mauro: «Analizza le ultime gare e controlla che tutto funzioni alla perfezione, dai rivali, alla forma pilota, dalle classifiche ai distacchi, controllo generale approfondito. Vedi anche le zavorre e penalizzazioni se stanno funzionando in maniera ottimale.»)
 
 - **Fonti controllate**: 88 file `.sessionresults.json` (18/9 → 3/11), `data/rivals.json` (88 gare, 77 rivali), `data/evo-career.save.json` (88 gare, 17 serie), `data/grid-classes.json` (17 classi), la classifica via CLI e i test.
