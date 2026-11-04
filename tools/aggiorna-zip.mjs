@@ -151,7 +151,7 @@ export async function installaZip(radice = RADICE) {
       // 403 con quota API azzerata NON è «repo privato»: il limite anonimo è
       // 60 richieste/ora per IP e lo hanno bevuto i controlli anzichè il
       // download — dire «metti un token» spingerebbe l'amico a crearne uno
-      // per niente (26/10, появи sul PC vergine).
+      // per niente (26/10, apparì su un PC vergine).
       if (r.status === 403 && r.headers.get('x-ratelimit-remaining') === '0') {
         const reset = r.headers.get('x-ratelimit-reset');
         const ora = reset ? new Date(Number(reset) * 1000).toLocaleTimeString('it-IT') : null;

@@ -309,7 +309,7 @@ const normKey = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ')
 
 /**
  * Da un nome scritto liberamente (modello, parola nel nome, id garage) prende
- * il nome AUTO noto al progetto (garage/мена карри/каталог). Mai un id grezzo.
+ * il nome AUTO noto al progetto (garage/menù/carriera/catalogo). Mai un id grezzo.
  */
 export function normalizeNameMaybe(value, ladder, state) {
   const raw = String(value ?? '').trim();

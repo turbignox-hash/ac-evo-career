@@ -303,7 +303,7 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     if (dry) return `dry: costruirei ${built.report.gridSize} celle dal pool (${pool.join(', ')})`;
     // IDEMPOTENZA DELLA GRIGLIA (lezione 30/10, gara 30′): ripetere la STESSA
     // ricetta col pool NON deve riscrivere ("Prova senza scrivere" e le celle
-    // ricollate di nuovo еди condizione). Se i byte risultanti sono UGUALI ai
+    // ricollate di nuovo — identica condizione). Se i byte risultanti sono UGUALI ai
     // byte sul disco, il pool si considera già montato: niente scritture.
     try {
       if (readFileSync(GRID_FILE).equals(built.buffer)) return `${built.report.gridSize} celle già identiche sul disco (idempotente, niente scritto)`;

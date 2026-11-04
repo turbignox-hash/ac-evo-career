@@ -24,7 +24,7 @@ The game remains the game. EVO Pitwall does not replace AC EVO's career, does no
 
 ### Option A — published friend package
 
-The current **pre-release** is **[v0.1.56](https://github.com/turbignox-hash/ac-evo-career/releases/tag/v0.1.56)**. It ships the friend ZIP and both Windows installers, online and offline. No administrator rights; the offline EXE includes portable Node and works without a connection.
+The current **pre-release** is **[v0.1.56](https://github.com/turbignox-hash/ac-evo-career/releases/tag/v0.1.56)**. It ships the friend ZIP, both Windows installers and the `EVO-Pitwall-v0.1.56-Windows.zip` bundle with both EXEs, checksums and a short install guide. No administrator rights; the offline EXE includes portable Node and works without a connection.
 
 > **Unsigned preview:** v0.1.56 is a pre-release because the EXEs are not Authenticode-signed yet. Expect SmartScreen; download only from this repository. v0.1.55 is older.
 

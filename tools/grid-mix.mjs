@@ -17,7 +17,7 @@ const _HERE = dirname(fileURLToPath(import.meta.url));
 const FILE = 'C:/Users/Mauro/Saved Games/ACE/GameModes/last_grid.customgrid';
 
 // le 9 varianti nei intorni della finestra 15–17 (da cars.json del server dedicato)
-// Днell    
+// elenco completo nel CATALOG qui sotto (le 9 varianti della finestra 15–17).
 const CATALOG = [
   { preset: 'preset_sp3_mech_1',      id: 'ks_ferrari_daytona_sp3',      name: 'Ferrari Daytona SP3',        brand: 'Ferrari',      year: 2022, variant: 'Standard' },
   { preset: 'preset_mcgt2_mech_1',    id: 'ks_maserati_gt2',             name: 'Maserati GT2',               brand: 'Maserati',     year: 2023, variant: 'GT2' },
