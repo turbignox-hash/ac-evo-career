@@ -35,3 +35,19 @@ test('la storia su disco vale quanto la memoria, e senza app si dice', () => {
   assert.equal(senza.attiva, false);
   assert.equal(senza.ultimoAck, null);
 });
+
+test('lo stato unico tiene distinti loader, app, publisher e ack', () => {
+  const pieno = statoAppInGioco({
+    acks: new Map([['x', 1_000]]), righe: [], installata: true, loader: true, publisher: true, ora: 2_000,
+  });
+  assert.deepEqual(
+    { loader: pieno.loader, installata: pieno.installata, publisher: pieno.publisher, attiva: pieno.attiva },
+    { loader: true, installata: true, publisher: true, attiva: true },
+  );
+
+  const senzaLoader = statoAppInGioco({ acks: new Map(), righe: [], installata: false, loader: false, publisher: false });
+  assert.equal(senzaLoader.loader, false);
+  assert.equal(senzaLoader.installata, false);
+  assert.equal(senzaLoader.publisher, false);
+  assert.equal(senzaLoader.attiva, false);
+});

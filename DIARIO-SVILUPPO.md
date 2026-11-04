@@ -5,6 +5,15 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Fase A: un solo installer, publisher che aspetta l'app, stato unico in GUI
+
+- **Un solo installer**: `tools/installa-gioco.mjs` assorbe installazione e rimozione (`--rimuovi`) di Cruscotto e Pitwall; `genera-uiapp` lo richiama una volta sola. Rimossi `tools/installa-cruscotto.mjs`, `tools/installa-pitwall.mjs` e il residuo `uiapp/cruscotto/menu.html`; `avvia.cmd` e `INSTALLA-GIOCO.cmd` restano le vie d'ingresso.
+- **Publisher**: `startUiappPublisher` non muore più se la cartella app non esiste al boot; resta in attesa (5 s) e parte da solo appena compare. `test/uiapp-publisher-avvio.test.mjs` lo prova con `ACE_SAVEDIR` finto.
+- **Stato unico**: `statoAppInGioco` espone `loader`, `installata`, `publisher`, `attiva` (ack entro 15 min); la card gara mostra i quattro segnali e dice quale manca.
+- **Pitwall**: tenuto, secondario. È la sola app di sola lettura per il muro, già installata e caricata; non entra nel nuovo stato unico.
+- **Fabbrica e magazzino**: non toccati. Il vivo resta la prima fonte; loro restano i ripieghi secondari, non la strada normale.
+- **Verifica**: mirati **21/21**; suite completa `npm test` **949/949**; Biome **377 file, 0 warning**; `node --check` sui file toccati. Release `v0.1.58` invariata.
+
 ### 4/11 — Prova live Cruscotto: evento F40 e gesto unico avviati davvero
 
 - **Evento**: accettato l’invito `ev_6_1792531249531` con il campo giusto `eventId` (21:01:08) e armato il canale con `event-prep` (`noLaunch:true`). Il publisher ha emesso `evento:legend_finale:Ferrari F40 LM`; il log EVO delle 21:02:13 riporta `auto evento trovata: Ferrari F40 LM`, `✓ evento SetCurrentCar ok` e l’ack `evento:legend_finale:Ferrari F40 LM` con `ok:1`. Catena reale server → payload → app installata, non un payload sintetico.

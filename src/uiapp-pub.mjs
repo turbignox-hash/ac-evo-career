@@ -92,6 +92,10 @@ export const PERIODO_MS = 2500;          // il ritmo delle fasce: 2.5 secondi es
 // saltato del publisher non lascia più una fascia persa che il gioco 404a.
 export const FASCE_DIETRO = 12;
 export const APP_KEY = 'cruscotto';      // il nome della cartella-app nel loader
+// IL PUBLISHER ASPETTA L'APP (4/11): se il server nasce prima che la cartella
+// dell'app esista, non si spegne per sempre — riprova a questo ritmo e parte
+// da solo appena il loader/la copia compaiono.
+const ATTESA_APP_MS = 5000;
 
 // la scadenza di un «fresco»: il pending della ronda e la finestra della
 // demo (vetrinaCustom = gara al volo) valgono UNO STESSO giorno — la
@@ -123,6 +127,18 @@ export function cartellaApp(env = process.env, appKey = APP_KEY) {
     if (existsSync(dir)) return dir;
   }
   return null;
+}
+
+/** La mod ACE UI App Loader è presente, anche se la cartella di una singola
+ *  app non c'è ancora? Serve allo stato unico della GUI per distinguere
+ *  «loader assente» da «loader presente, app non installata». */
+export function loaderPresente(env = process.env) {
+  try {
+    for (const root of savedGamesRoots(env)) {
+      if (existsSync(join(root, 'ACE', 'mods', 'uiresources', 'ACEUIAppLoader'))) return true;
+    }
+  } catch { /* percorso illeggibile: si dice assente, la scheda non si rompe */ }
+  return false;
 }
 
 let guiBaseUrl = null;
@@ -906,7 +922,7 @@ export function uiappTick(env = process.env) {
   // LA PITWALL (ricostruzione 31/10): seconda app in gioco, pannello SOLO-IN
   // FORMAZIONI. Stessa fascia, mini-payload (consigli · verdetto · lasincro
   // «Prepare e Divertiti») in CARTELLA SUA: installata con
-  // tools/installa-pitwall.mjs, qui si scrive SOLO se la cartella esiste —
+  // tools/installa-gioco.mjs, qui si scrive SOLO se la cartella esiste —
   // senza la mod il tick resta quello di sempre. La scrittura è tutta in
   // try: la Pitwall è un plus, mai un ammazzatick.
   try {
@@ -941,27 +957,32 @@ const confermati = new Map();
 // dall'app in gioco via ui_storage). Nessun uso di produzione.
 export function confermaAck(id, { at = Date.now() } = {}) { confermati.set(String(id), at); }
 
+// timer del publisher e attesa della cartella app: lo stato unico della GUI
+// deve poter dire «publisher vivo» senza inventare un secondo stato.
+let timer = null;
+let attesaApp = null;
+
 /** L'app App Loader («Cruscotto») è installata? Un throw non deve rompere la scheda. */
 function appInstallata() {
   try { return !!cartellaApp(); } catch { return false; }
 }
 
 /**
- * STATO DELL'APP IN GIOCO (4/11, «il via automatico partirà davvero?»): il
- * segnale VERO è un ACK recente — l'app Cruscotto conferma i comandi nello
- * store del gioco e `assorbiAck` lo registra in `confermati` (memoria del
- * processo) e nella storia (disco, ultime 12 voci). Niente ack recente =
- * nessuna prova che il via sarà premuto da solo: la scheda lo dice e ti
- * lascia il gesto. `installata` è la cartella della mod App Loader.
- * Parametri iniettabili (acks/righe/ora/installata) per i test.
+ * STATO UNICO DELL'APP IN GIOCO (4/11): loader presente → app installata →
+ * publisher vivo → ack recente. Il segnale VERO del via automatico resta
+ * l'ACK — l'app Cruscotto conferma i comandi nello store del gioco e
+ * `assorbiAck` lo registra in `confermati` (memoria del processo) e nella
+ * storia (disco, ultime 12 voci). Niente ack recente = nessuna prova che il
+ * via sarà premuto da solo. Parametri iniettabili (acks/righe/ora/installata/
+ * loader/publisher) per i test.
  */
-export function statoAppInGioco({ ora = Date.now(), finestraMs = 15 * 60 * 1000, acks = confermati, righe = storiaLeggi(), installata = appInstallata() } = {}) {
+export function statoAppInGioco({ ora = Date.now(), finestraMs = 15 * 60 * 1000, acks = confermati, righe = storiaLeggi(), installata = appInstallata(), loader = loaderPresente(), publisher = Boolean(timer) } = {}) {
   let ultimo = 0;
   for (const at of acks.values()) { const t = Number(at); if (t > ultimo) ultimo = t; }
   // le righe «inviato» NON sono ack: contano solo le «confermato» scritte
   // dall'app quando il comando è entrato in gioco.
   for (const r of righe) if (r?.stato === 'confermato') { const t = Number(r.t); if (t > ultimo) ultimo = t; }
-  return { installata, attiva: ultimo > 0 && (ora - ultimo) <= finestraMs, ultimoAck: ultimo || null };
+  return { loader, installata, publisher, attiva: ultimo > 0 && (ora - ultimo) <= finestraMs, ultimoAck: ultimo || null };
 }
 
 // ============ IL PANNELLO DELL'EREDITÀ E IL SUO BOTTONE (2/11) ===========
@@ -1083,14 +1104,25 @@ function assorbiAck(dati) {
   if (colpo.ok) dati.comando = null;      // eseguita: niente ripubblicazione
 }
 
-let timer = null;
-export function startUiappPublisher(baseUrl = null) {
+export function startUiappPublisher(baseUrl = null, { attesaMs = ATTESA_APP_MS } = {}) {
   if (baseUrl) setGuiBaseUrl(baseUrl);
   if (timer) return timer;
   if (!cartellaApp()) {
-    console.log('  App «Cruscotto» in gioco: la mod App Loader non è installata — publisher fermo (installa con tools/installa-cruscotto.mjs).');
+    if (!attesaApp) {
+      console.log(`  App «Cruscotto» in gioco: ${loaderPresente() ? 'cartella app non ancora installata' : 'mod App Loader non installata'} — publisher in attesa, parte da solo appena compare.`);
+      attesaApp = setInterval(() => {
+        try {
+          if (!cartellaApp()) return;
+          clearInterval(attesaApp);
+          attesaApp = null;
+          startUiappPublisher(baseUrl, { attesaMs });
+        } catch { /* si riprova al prossimo giro */ }
+      }, attesaMs);
+      attesaApp.unref?.();
+    }
     return null;
   }
+  if (attesaApp) { clearInterval(attesaApp); attesaApp = null; }
   if (!voloMeteoOra()) console.log('  Cruscotto: meteo/ora AL VOLO SPENTI (AC_EVO_METEO_ORA_VOLO=0) — i valori restano su disco e si applicano a mano nel menu.');
   uiappTick();
   timer = setInterval(() => { try { uiappTick(); } catch { /* mai bloccare il server per la vetrina */ } }, PERIODO_MS);

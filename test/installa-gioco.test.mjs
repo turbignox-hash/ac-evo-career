@@ -10,7 +10,8 @@
 // secondo giro «già a giorno» senza alcuna copia; (2) modo silenzioso senza
 // niente da fare → rasente al muto; (3) sorgente cambiata → aggiorne solo
 // il file toccato; (4) mod assente → uscita 0 e un avviso che parla chiaro
-// (anche in silenzioso: è una cosa da sapere, non rumore).
+// (anche in silenzioso: è una cosa da sapere, non rumore); (5) --rimuovi
+// porta via entrambe le app e i marcatori, e un secondo giro non trova nulla.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -95,6 +96,25 @@ test('insta-gioco: aggiornamento selettivo — tocca solo il file realmente camb
   } finally {
     writeFileSync(sorgente, vecchio, 'utf8');   // la sorgente torna com'era, niente sporcare
   }
+});
+
+test('insta-gioco: --rimuovi toglie app e marcatori, e un secondo giro non trova nulla', () => {
+  const root = palude();
+  assert.equal(giro(root).status, 0);
+  const loader = join(root, 'ACE', 'mods', 'uiresources', 'ACEUIAppLoader');
+
+  const r = giro(root, ['--rimuovi']);
+  assert.equal(r.status, 0, `uscita ${r.status}: ${r.out}`);
+  assert.ok(!existsSync(join(loader, 'cruscotto')), 'la cartella Cruscotto è rimasta');
+  assert.ok(!existsSync(join(loader, 'pitwall')), 'la cartella Pitwall è rimasta');
+  for (const chiave of ['cruscotto', 'pitwall']) {
+    assert.ok(!existsSync(join(root, 'ACE', 'Video', `ACEUIAppLoader-${chiave}.settingspreset`)),
+      `il marcatore di ${chiave} è rimasto`);
+  }
+
+  const dopo = giro(root, ['--rimuovi']);
+  assert.equal(dopo.status, 0, `la seconda rimozione non deve fallire: ${dopo.out}`);
+  assert.ok(dopo.out.includes('Nessuna app in gioco da rimuovere'), `non è idempotente: ${dopo.out}`);
 });
 
 test('insta-gioco: senza la mod esce 0 e dice che il resto funziona', () => {

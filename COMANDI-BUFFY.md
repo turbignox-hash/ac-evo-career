@@ -243,12 +243,12 @@ quel punto, REPORT puro.
 > le app costruite e le copie in gioco sono al passo.
 
 Cosa fa l'agente: la SPUNTA STANDARD dopo OGNI modifica alle app in
-gioco (`uiapp/`: sagome `.src.js`, `app.json`, `menu.html` o il valore
-`PERIODO_MS` del publisher). Due passi, nell'ordine:
+gioco (`uiapp/`: sagome `.src.js`, `app.json` o il valore `PERIODO_MS` del
+publisher; `menu.html` non si consegna più). Due passi, nell'ordine:
 
 1. `node tools/genera-uiapp.mjs` — costruiti freschi (PERIODO_MS dal
    publisher + firma BUILD_OK); se il costruito cambia, il generatore
-   richiama da solo gli installatori e le copie in gioco seguono;
+   richiama da solo l'installatore e le copie in gioco seguono;
 2. `node --test test/uiapp-installata.test.mjs` — la guardia intera:
    biome sulle sagome, firma BUILD_OK nel costruito, copia installata
    BYTE PER BYTE, le PAGINE D'INGRESSO (`app.json` installato =

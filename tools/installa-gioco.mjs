@@ -6,11 +6,11 @@
 //   Saved Games/ACE/mods/uiresources/ACEUIAppLoader/<app>/
 // e scrive i marcatori ACEUIAppLoader-<app>.settingspreset in
 //   Saved Games/ACE/Video/
-// — lo stesso gesto fatto a parte da tools/installa-cruscotto.mjs e
-// tools/installa-pitwall.mjs (che restano validi per l'uso manuale). Il
-// confronto è sui CONTENTI: se il file già installato è identico, non si
-// rimette mano — così avvia.cmd può chiamarlo in modo silenzioso a OGNI
-// apertura della GUI senza rumore né scritture inutili.
+// È l'UNICO installatore delle app in gioco: avvia.cmd lo chiama a ogni
+// apertura della GUI, INSTALLA-GIOCO.cmd è la via manuale, la build lo
+// richiama quando un costruito cambia. Il confronto è sui CONTENTI: se il
+// file già installato è identico, non si rimette mano — così può girare in
+// modo silenzioso a ogni avvio senza rumore né scritture inutili.
 //
 // IL MARCATORE (lezione 27/10 ore 17:55): un'app senza il file vuoto
 //   Saved Games/ACE/Video/ACEUIAppLoader-<nome>.settingspreset
@@ -25,6 +25,7 @@
 // Uso:
 //   node tools/installa-gioco.mjs               (installa o aggiorna, parlato)
 //   node tools/installa-gioco.mjs --silenzioso  (avvia.cmd: parla solo se fa qualcosa)
+//   node tools/installa-gioco.mjs --rimuovi     (toglie entrambe le app e i marcatori)
 //   INSTALLA-GIOCO.cmd                          (la via manuale, doppio click)
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -43,6 +44,7 @@ const DOWNLOAD_URL = 'https://github.com/dreasgrech/ACEUIAppLoader/releases/late
 const radici = savedGamesRoots();
 
 const silenzioso = process.argv.includes('--silenzioso');
+const rimuovi = process.argv.includes('--rimuovi');
 // parla: solo fuori dal modo silenzioso. avviso: sempre — cose da sapere,
 // installato o meno (mod mancante, copia riuscita).
 const parla = (...righe) => { if (!silenzioso) console.log(righe.join('\n')); };
@@ -93,6 +95,32 @@ function marcatore(chiave) {
 }
 
 const loaderDir = baseLoader();
+
+// LA RIMOZIONE (4/11): un solo installatore significa anche un solo comando
+// per togliere le app. Si portano via entrambe le cartelle (fasce del
+// publisher comprese) e i marcatori in TUTTE le basi Saved Games.
+if (rimuovi) {
+  if (!loaderDir) {
+    console.log('Nessuna app in gioco da rimuovere: la mod App Loader non è installata.');
+    process.exit(0);
+  }
+  let rimosse = 0;
+  let errori = 0;
+  for (const app of APPS) {
+    const dest = join(loaderDir, app.chiave);
+    if (existsSync(dest)) {
+      try { rmSync(dest, { recursive: true, force: true }); rimosse++; }
+      catch (e) { errori++; console.error(`[!] «${app.chiave}» non rimossa (${e.message}).`); }
+    }
+    for (const root of radici) {
+      try { rmSync(join(root, 'ACE', 'Video', `ACEUIAppLoader-${app.chiave}.settingspreset`), { force: true }); } catch { /* niente marcatore: va bene */ }
+    }
+  }
+  console.log(rimosse
+    ? `Rimosse ${rimosse} app in gioco (Cruscotto/Pitwall) e i marcatori del loader.`
+    : 'Nessuna app in gioco da rimuovere.');
+  process.exit(errori ? 1 : 0);
+}
 
 if (!loaderDir) {
   const attesa = join(radici[0] ?? join(homedir(), 'Saved Games'), 'ACE', 'mods', 'uiresources', 'ACEUIAppLoader');

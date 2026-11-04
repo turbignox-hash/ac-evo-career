@@ -16,7 +16,7 @@
 //      __PERIODO_MS_DAL_PUBLISHER__ al posto del numero;
 //   3. questo tool legge il valore dal publisher (import vero, non regex) e
 //      scrive i file costruiti uiapp/<app>/<app>.js — la STESSA cosa poi
-//      copiata in gioco da tools/installa-cruscotto.mjs / installa-pitwall.mjs.
+//      copiata in gioco da tools/installa-gioco.mjs (l'unico installatore).
 //
 // (1/11) IL SUCCESSO SI LEGGE (richiesta Mauro): il segnaposto non si limita
 // a ricevere il numero — la build da due cose: la costante E la firma
@@ -31,7 +31,7 @@
 // normale — e da oggi (3/11) L'INSTALLAZIONE NON RICHIENDE PUNCTI: quando il
 // file costruito si scambia a disco (o la copia in gioco non corrisponde alle
 // costruite), il generatore richiama da solo l'installatore dell'app
-// (installa-cruscotto.mjs / installa-pitwall.mjs): il valore cambia → le app
+// (installa-gioco.mjs): il valore cambia → le app
 // in gioco seguono nella STESSA run. Se il loader non è installato, il
 // richiamo esce non-zero e la build lo dice (non passa come fatta).
 //
@@ -125,14 +125,15 @@ if (!uscita) {
     // (3/11) il RICHIAMO: il valore cambia → l'installatore gira NELLA STESSA
     // run, con il SUO output e un esito che la build rispetta (non-zero =
     // fallisce qui): mai più «copiati a mano dopo».
-    for (const chiave of daInstallare) {
-      const via = join(RADICE, 'tools', `installa-${chiave}.mjs`);
-      console.log(`  ↻ richiamo l'installatore: node tools/installa-${chiave}.mjs`);
-      const r = spawnSync(process.execPath, [via], { stdio: 'inherit', cwd: RADICE });
-      if (r.status !== 0) {
-        console.error(`  [!] installa-${chiave}.mjs è uscito con codice ${r.status}: app NON aggiornata in gioco.`);
-        uscita = 1;
-      }
+    // UN SOLO INSTALLATORE (4/11): anche se cambia una sola app, il gesto è
+    // uno — installa-gioco aggiorna le due copie e i marcatori, senza due
+    // percorsi che possono divergere.
+    const via = join(RADICE, 'tools', 'installa-gioco.mjs');
+    console.log("  ↻ richiamo l'installatore: node tools/installa-gioco.mjs");
+    const r = spawnSync(process.execPath, [via], { stdio: 'inherit', cwd: RADICE });
+    if (r.status !== 0) {
+      console.error(`  [!] installa-gioco.mjs è uscito con codice ${r.status}: app NON aggiornate in gioco.`);
+      uscita = 1;
     }
   } else {
     console.log('  niente da reinstallare: costruite e copie in gioco sono al passo');

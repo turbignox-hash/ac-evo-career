@@ -60,9 +60,8 @@ function creaSandbox(t, { sagomaCruscotto = sagomaSana('cruscotto'), sagomaPitwa
   copyFileSync(GENERA, join(qu, 'tools', 'genera-uiapp.mjs'));
   copyFileSync(join(QUI, 'src', 'paths.mjs'), join(qu, 'src', 'paths.mjs'));
   writeFileSync(join(qu, 'src', 'uiapp-pub.mjs'), `// stub sandbox\nexport const PERIODO_MS = ${VALORE_STUB};\n`, 'utf8');
-  // gli installer STUB: i richiami del generatore arrivano QUI, mai sui veri
-  writeFileSync(join(qu, 'tools', 'installa-cruscotto.mjs'), 'process.exit(0);\n', 'utf8');
-  writeFileSync(join(qu, 'tools', 'installa-pitwall.mjs'), 'process.exit(0);\n', 'utf8');
+  // l'UNICO installer STUB: i richiami del generatore arrivano QUI, mai sul vero
+  writeFileSync(join(qu, 'tools', 'installa-gioco.mjs'), 'process.exit(0);\n', 'utf8');
   writeFileSync(join(qu, 'uiapp', 'cruscotto', 'cruscotto.src.js'), sagomaCruscotto, 'utf8');
   writeFileSync(join(qu, 'uiapp', 'pitwall', 'pitwall.src.js'), sagomaPitwall, 'utf8');
   return qu;
@@ -94,7 +93,9 @@ test('VIA FELICE + IDEMPOTENZA: numero dello stub, firma, niente reinstallare al
       `${chiave}: segno residuo nel costruito`);
   }
   assert.ok(prima.stdout.includes('richiamo l\'installatore'),
-    'al primo giro i costruiti sono nuovi: il richiamo degli installer deve partire\n' + prima.stdout);
+    'al primo giro i costruiti sono nuovi: il richiamo dell\'installatore deve partire\n' + prima.stdout);
+  assert.ok(prima.stdout.includes('node tools/installa-gioco.mjs'),
+    'il richiamo deve passare dall\'unico installatore delle app\n' + prima.stdout);
   // il SECONDO giro: niente da riscrivere, niente da reinstallare (idempotente alla pari)
   const dopo = lancia(qu);
   assert.equal(dopo.status, 0, `seconda uscita ${dopo.status}\n${dopo.stdout}\n${dopo.stderr}`);

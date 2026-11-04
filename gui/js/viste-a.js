@@ -700,14 +700,21 @@ function drawCardInto(el, card){
     <button class="act" id="b-race-launch" style="width:100%;margin-top:6px">${tr({ it: '🏁 Prepara tutto e avvia', en: '🏁 Get everything ready and start' })}</button>
     <div class="muted" style="margin-top:10px">${tr({ it: 'Il round intero lo scrive in EVO «Prepara tutto»: pista, griglia, auto e regole. Con «Prepara tutto e avvia» il gioco si apre e l’app preme «Avvia sessione» da sola; con il primo apri tu EVO e premi «Avvia sessione». Se una riga non torna, ripremi il bottone.', en: 'The whole round gets written into EVO by “Get everything ready”: track, grid, car and rules. “Get everything ready and start” opens the game and the app presses “Start session” by itself; with the first one you open EVO and press “Start session”. If a row looks off, press the button again.' })}</div>
     <div class="muted" style="margin-top:6px;font-size:11.5px">${(() => {
-      // STATO DELL'APP (4/11): «Prepara tutto e avvia» preme il via da solo
-      // SOLO con l'app Cruscotto viva (ack recenti). Se non lo è, la scheda
-      // lo dice: niente promesse che il via partirà da sé.
+      // STATO UNICO (4/11): loader presente → app installata → publisher vivo
+      // → ack recente. «Prepara tutto e avvia» preme il via da solo SOLO con
+      // l'app Cruscotto viva; se un anello manca, la scheda dice quale e
+      // niente promesse che il via partirà da sé.
       const u = card.uiapp;
       if (!u) return '';
-      if (u.attiva) return tr({ it: '🕹️ App Cruscotto attiva: «Prepara tutto e avvia» preme «Avvia sessione» da sola.', en: '🕹️ Cruscotto app active: “Get everything ready and start” presses “Start session” by itself.' });
-      if (u.installata) return tr({ it: '🕹️ App Cruscotto installata, ma nessun comando confermato negli ultimi 15 minuti: il via potresti doverlo premere tu.', en: '🕹️ Cruscotto app installed, but no command confirmed in the last 15 minutes: you may have to press start yourself.' });
-      return tr({ it: '🕹️ App Cruscotto non installata: «Prepara tutto e avvia» apre il gioco al menu, il via lo premi tu.', en: '🕹️ Cruscotto app not installed: “Get everything ready and start” opens the game at the menu, you press start.' });
+      const ok = (v) => v ? '✓' : '✗';
+      const riga = `${tr({ it: 'Loader', en: 'Loader' })} ${ok(u.loader)} · ${tr({ it: 'App', en: 'App' })} ${ok(u.installata)} · ${tr({ it: 'Publisher', en: 'Publisher' })} ${ok(u.publisher)} · ${tr({ it: 'Ack recente', en: 'Recent ack' })} ${ok(u.attiva)}`;
+      let msg;
+      if (u.attiva && u.loader && u.installata && u.publisher) msg = tr({ it: '«Prepara tutto e avvia» preme «Avvia sessione» da sola.', en: '“Get everything ready and start” presses “Start session” by itself.' });
+      else if (!u.loader) msg = tr({ it: 'Manca la mod ACE UI App Loader: installala, poi riavvia il launcher.', en: 'The ACE UI App Loader mod is missing: install it, then relaunch.' });
+      else if (!u.installata) msg = tr({ it: 'Loader presente, app Cruscotto non installata: riavvia il launcher o esegui INSTALLA-GIOCO.', en: 'Loader present, Cruscotto app not installed: relaunch or run INSTALLA-GIOCO.' });
+      else if (!u.publisher) msg = tr({ it: 'App installata, ma il publisher è fermo: riavvia la GUI.', en: 'App installed, but the publisher is stopped: restart the GUI.' });
+      else msg = tr({ it: 'App e publisher attivi, ma nessun comando confermato negli ultimi 15 minuti: apri il Cruscotto in EVO.', en: 'App and publisher active, but no command confirmed in the last 15 minutes: open Cruscotto in EVO.' });
+      return `🕹️ <b>${tr({ it: 'App in gioco', en: 'In-game app' })}</b> ${riga}<br><span class="muted">${msg}</span>`;
     })()}</div>
     </div>
     ${card.carImage ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:8px 0 4px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2,#121822)">

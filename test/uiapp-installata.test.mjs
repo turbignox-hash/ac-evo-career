@@ -30,7 +30,7 @@
 //      drawer spostando il menu di EVO, la beffa appunto.
 //   5) (3/11, richiesta Mauro: «estendi la stessa regola (firma con data,
 //      niente markup sepolto) ai file uiapp delle app in gioco») — i
-//      COMMENTI HTML di menu.html e delle sagome .src.js valgono come nel
+//      COMMENTI HTML delle sagome .src.js valgono come nel
 //      gui (test/viste-guard.test.mjs): o MEMORIA con la firma della casa
 //      (una data «3/11» nel corpo) o dubbia spazzatura da cancellare, e
 //      NESSUN tag dentro il commento (markup sepolto che il browser non
@@ -137,10 +137,10 @@ test('PAGINE D\'INGRESSO IN GIOCO: app.json = sorgente, menu.html assente', (t) 
     const sorgente = join(ROOT, 'uiapp', chiave, 'app.json');
     assert.ok(existsSync(sorgente), `manca uiapp/${chiave}/app.json nel workspace: senza sorgente la guardia non può dire nulla`);
     assert.ok(readFileSync(join(cartella, 'app.json')).equals(readFileSync(sorgente)),
-      `la carta d'identità in gioco (${chiave}) NON è la sorgente uiapp/${chiave}/app.json — il loader la rilegge a ogni avvio: node tools/installa-${chiave}.mjs`);
+      `la carta d'identità in gioco (${chiave}) NON è la sorgente uiapp/${chiave}/app.json — il loader la rilegge a ogni avvio: node tools/installa-gioco.mjs`);
     const vecchiaPagina = join(cartella, 'menu.html');
     assert.ok(!existsSync(vecchiaPagina),
-      `${chiave}: menu.html stantio in gioco (${vecchiaPagina}) — il loader lo rilegge a ogni avvio e rimonta l'app nel SUO drawer spostando il menu di EVO (lezione 27/10 ore 18:40): node tools/installa-${chiave}.mjs lo cancella`);
+      `${chiave}: menu.html stantio in gioco (${vecchiaPagina}) — il loader lo rilegge a ogni avvio e rimonta l'app nel SUO drawer spostando il menu di EVO (lezione 27/10 ore 18:40): node tools/installa-gioco.mjs lo cancella`);
   }
 });
 
@@ -169,11 +169,11 @@ test('FASCE DEL PUBLISHER IN GIOCO: ogni ui-<slot>.json è un JSON intero (nient
 });
 
 // 3/11 — LA STESSA REGOLA dei commenti HTML della GUI (viste-guard.test.mjs)
-// arriva alle app: menu.html e le sagome .src.js portano anch'esse markup.
+// arriva alle app: le sagome .src.js portano anch'esse markup.
 test('COMMENTI HTML DELLE APP: firma con data e niente markup sepolto', () => {
   const fuorilegge = [];
   for (const { chiave } of APP) {
-    for (const f of ['menu.html', `${chiave}.src.js`]) {
+    for (const f of [`${chiave}.src.js`]) {
       const via = join(ROOT, 'uiapp', chiave, f);
       if (!existsSync(via)) continue; // pitwall non porta la pagina (lezione 27/10)
       const testo = readFileSync(via, 'utf8');
@@ -212,7 +212,7 @@ test('COMMENTI HTML DEL PACCHETTO: firma con data e niente markup sepolto su TUT
     .filter((f) => vetrina.has(f) === false)          // le leggi non si sorvegliano con se stesse
     .filter((f) => diTesto.some((e) => f.toLowerCase().endsWith(e)));
   // niente falso-verde: la scansione deve avere visto il markup vero del pacchetto
-  for (const dovuto of ['gui/index.html', 'gui/js/viste-a.js', 'uiapp/cruscotto/menu.html', 'README.md']) {
+  for (const dovuto of ['gui/index.html', 'gui/js/viste-a.js', 'uiapp/cruscotto/cruscotto.src.js', 'README.md']) {
     assert.ok(file.includes(dovuto), `la scansione del pacchetto non ha visto ${dovuto}: troppi pochi o filtro sbagliato (visti ${file.length})`);
   }
   assert.ok(file.length >= 20, `almeno 20 file di testo tracciati dentro lo zip, visti ${file.length}`);
