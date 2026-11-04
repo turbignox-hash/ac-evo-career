@@ -22,7 +22,7 @@ import { tr, lang } from './lang.mjs';
 import { carPoolOf } from './car-pool.mjs';
 import { sameTrack } from './tracknames.mjs';
 import { existsSync } from 'node:fs';
-import { weekendCarCount, WEEKEND_FILE } from '../tools/set-track.mjs';
+import { weekendCarCount, WEEKEND_FILE, celleGrigliaCampionato } from '../tools/set-track.mjs';
 // ORE SPOSTABILI (1/11): l'ora override per-ronda dichiarata in agenda.mjs.
 // agenda.mjs non importa race.mjs: nessun ciclo.
 import { oraRonda } from './agenda.mjs';
@@ -373,6 +373,14 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
   // diverge avvisa, così in EVO non sembra che manchino avversari.
   const tipica = grigliaSimEstesa(ladder, state, node);
   const gridsTipica = Math.max(tipica?.gridSize ?? 0, node.gridSize);
+  // NUMERO DEL CAMPIONATO (4/11): la griglia della serie (celleGrigliaCampionato)
+  // accanto a quello che il weekend dichiara ORA. Se divergono la riga
+  // «Avversari» lo dice: è il segno che serve «Prepara tutto» per allineare.
+  // Solo multiclasse: le monomarca le genera EVO (modello Paddock).
+  const gridSerie = node.cars.length > 1 ? celleGrigliaCampionato(node) : null;
+  const notaSerie = gridSerie && gridSerie !== gridsReali
+    ? { it: ` — serie: ${gridSerie - 1} · weekend: ${gridsReali - 1} (Prepara tutto allinea)`, en: ` — series: ${gridSerie - 1} · weekend: ${gridsReali - 1} (Get ready aligns it)` }
+    : { it: '', en: '' };
 
   // BOLLETTINO DEL WEEKEND (3/11): il piano meteo per sessione accenna
   // già in scheda (vedi weatherPlanFor sopra) e la GUI lo disegna col
@@ -404,6 +412,7 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
     }),
     gridSize: gridsReali,
     opponents: gridsReali - 1,
+    gridSerie,
     gridSource,
     journal: journalSullaRonda ? {
       opponents: journalSullaRonda.opponents,
@@ -433,7 +442,7 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
       ...(grigliaRow ? [grigliaRow] : []),
       [tr({ it: 'Pista', en: 'Track' }), tr({ it: `${trackDisp} — layout ${layout}`, en: `${trackDisp} — ${layout} layout` })],
       [tr({ it: 'Auto', en: 'Car' }), chosenCarName],
-      [tr({ it: 'Avversari', en: 'Opponents' }), tr({ it: `${gridsReali - 1} auto · ${node.cars.length > 1 ? 'multiclasse: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}${gridsTipica > gridsReali ? ` — griglia tipica di serie: ${gridsTipica}` : ''}`, en: `${gridsReali - 1} cars · ${node.cars.length > 1 ? 'multiclass: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}${gridsTipica > gridsReali ? ` — series typical grid: ${gridsTipica}` : ''}` })],
+      [tr({ it: 'Avversari', en: 'Opponents' }), tr({ it: `${gridsReali - 1} auto · ${node.cars.length > 1 ? 'multiclasse: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}${notaSerie.it}${gridsTipica > gridsReali ? ` — griglia tipica di serie: ${gridsTipica}` : ''}`, en: `${gridsReali - 1} cars · ${node.cars.length > 1 ? 'multiclass: ' + node.cars.map(carName).join(', ') : carName(node.cars[0])}${notaSerie.en}${gridsTipica > gridsReali ? ` — series typical grid: ${gridsTipica}` : ''}` })],
       // TRIM VIVO (1/11, richiesta Mauro): la riga porta anche il trim attivo
       // accanto alla banda — così la stampa CTRL-C dal CLI (card.settings) e il
       // copia-testo della GUI segnano la banda VIVA, non solo l'intervallo.
