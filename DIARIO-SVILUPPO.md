@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — La scheda dice se l'app Cruscotto è viva (richiesta Mauro: «scegli il prossimo passo e procedi»)
+
+- **Il segnale**: `statoAppInGioco()` in `uiapp-pub.mjs` — «attiva» solo con un ACK negli ultimi 15 minuti (memoria del processo + storia su disco, che sopravvive al riavvio); `installata` è la cartella della mod App Loader. Sorgenti iniettabili per i test, nessun disco nei test.
+- **Dove si vede**: `viewCard` espone `uiapp`; la scheda gara mostra una riga sotto i due bottoni — attiva → «Prepara tutto e avvia» premerà «Avvia sessione» da sola; installata ma senza ack → il via potresti doverlo premere tu; non installata → il gioco si apre al menu.
+- **Verifica**: nuovo test `uiapp-stato` (2 casi) + `node --check`; test mirati **26/26**; suite **969/969** (0 fail/skip, EVO aperto); `npm run lint` **371 file, 0 warning**.
+- **Nota**: commit, non push; restano fuori le 5 modifiche preesistenti.
+
 ### 4/11 — Due bottoni: «Prepara tutto» e «Prepara tutto e avvia» (richiesta Mauro: «rinomina il pulsante prepara tutto e divertiti in Prepara tutto, e aggiungi sotto un bottone identico “prepara tutto e avvia” ma con una differenza, il primo prepara tutto e basta, dal gioco bisogna premere avvia sessione per partire, il secondo invece ti porta direttamente in pista»)
 
 - **Le etichette**: «Prepara tutto e divertiti» → «Prepara tutto» nella scheda gara, nel pannello eventi, nei testi di reset e nelle guide (GUIDA-AMICO, FAQ-GARAGE).

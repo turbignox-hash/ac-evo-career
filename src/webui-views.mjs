@@ -22,6 +22,7 @@ import {
 } from './state.mjs';
 import { agendaDay, dateLabel, scheduledDay, racesOnDay } from './agenda.mjs';
 import { raceCard } from './race.mjs';
+import { statoAppInGioco } from './uiapp-pub.mjs';
 import { eventCard } from './events.mjs';
 import { PIANI } from './orario.mjs';
 import { currentWeatherPreset } from './weather.mjs';
@@ -292,6 +293,10 @@ function viewCard(ladder, state, car = null) {
     // scheda lo mostra come chip e il tasto lo scrive sul gamemodesave
     // (case wx-session in webui.mjs) prima di ogni sessione.
     weatherPlan: card.weatherPlan ?? null,
+    // STATO DELL'APP IN GIOCO (4/11): la scheda può dire se «Prepara tutto e
+    // avvia» troverà l'app Cruscotto pronta a premere il via (ack recenti),
+    // oppure no — niente promesse che il via partirà da sé.
+    uiapp: statoAppInGioco(),
     // IL PRESET ATTUALE sul selettore (3/11): la GUI lo aggiunge ai chip del
     // bollettino — «a posto» quando già combacia col piano, così si vede che
     // il cielo della prossima sessione è già scritto (a mano o in automatico).

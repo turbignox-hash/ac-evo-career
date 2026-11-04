@@ -1053,6 +1053,29 @@ const confermati = new Map();
 // dall'app in gioco via ui_storage). Nessun uso di produzione.
 export function confermaAck(id, { at = Date.now() } = {}) { confermati.set(String(id), at); }
 
+/** L'app App Loader («Cruscotto») è installata? Un throw non deve rompere la scheda. */
+function appInstallata() {
+  try { return !!cartellaApp(); } catch { return false; }
+}
+
+/**
+ * STATO DELL'APP IN GIOCO (4/11, «il via automatico partirà davvero?»): il
+ * segnale VERO è un ACK recente — l'app Cruscotto conferma i comandi nello
+ * store del gioco e `assorbiAck` lo registra in `confermati` (memoria del
+ * processo) e nella storia (disco, ultime 12 voci). Niente ack recente =
+ * nessuna prova che il via sarà premuto da solo: la scheda lo dice e ti
+ * lascia il gesto. `installata` è la cartella della mod App Loader.
+ * Parametri iniettabili (acks/righe/ora/installata) per i test.
+ */
+export function statoAppInGioco({ ora = Date.now(), finestraMs = 15 * 60 * 1000, acks = confermati, righe = storiaLeggi(), installata = appInstallata() } = {}) {
+  let ultimo = 0;
+  for (const at of acks.values()) { const t = Number(at); if (t > ultimo) ultimo = t; }
+  // le righe «inviato» NON sono ack: contano solo le «confermato» scritte
+  // dall'app quando il comando è entrato in gioco.
+  for (const r of righe) if (r?.stato === 'confermato') { const t = Number(r.t); if (t > ultimo) ultimo = t; }
+  return { installata, attiva: ultimo > 0 && (ora - ultimo) <= finestraMs, ultimoAck: ultimo || null };
+}
+
 // ============ IL PANNELLO DELL'EREDITÀ E IL SUO BOTTONE (2/11) ===========
 // Il pannello «Eredità di famiglia» della GUI conduce già il bottone
 // «Punta la ronda in Agenda» (viste-a.js): il cruscotto DENTRO EVO no,

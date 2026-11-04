@@ -850,6 +850,16 @@ function drawCardInto(el, card){
     </div>    <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto', en: '🏁 Get everything ready' })}</button>
     <button class="act" id="b-race-launch" style="width:100%;margin-top:6px">${tr({ it: '🏁 Prepara tutto e avvia', en: '🏁 Get everything ready and start' })}</button>
     <div class="muted" style="margin-top:10px">${tr({ it: 'Tutto qui sopra lo scrive in EVO «Prepara tutto»: pista, griglia, auto e regole. Con «Prepara tutto e avvia» il gioco si apre e l’app preme «Avvia sessione» da sola; con il primo apri tu EVO e premi «Avvia sessione». Se una riga non torna, ripremi il bottone.', en: 'Everything above gets written into EVO by “Get everything ready”: track, grid, car and rules. “Get everything ready and start” opens the game and the app presses “Start session” by itself; with the first one you open EVO and press “Start session”. If a row looks off, press the button again.' })}</div>
+    <div class="muted" style="margin-top:6px;font-size:11.5px">${(() => {
+      // STATO DELL'APP (4/11): «Prepara tutto e avvia» preme il via da solo
+      // SOLO con l'app Cruscotto viva (ack recenti). Se non lo è, la scheda
+      // lo dice: niente promesse che il via partirà da sé.
+      const u = card.uiapp;
+      if (!u) return '';
+      if (u.attiva) return tr({ it: '🕹️ App Cruscotto attiva: «Prepara tutto e avvia» preme «Avvia sessione» da sola.', en: '🕹️ Cruscotto app active: “Get everything ready and start” presses “Start session” by itself.' });
+      if (u.installata) return tr({ it: '🕹️ App Cruscotto installata, ma nessun comando confermato negli ultimi 15 minuti: il via potresti doverlo premere tu.', en: '🕹️ Cruscotto app installed, but no command confirmed in the last 15 minutes: you may have to press start yourself.' });
+      return tr({ it: '🕹️ App Cruscotto non installata: «Prepara tutto e avvia» apre il gioco al menu, il via lo premi tu.', en: '🕹️ Cruscotto app not installed: “Get everything ready and start” opens the game at the menu, you press start.' });
+    })()}</div>
     <div class="panel" style="margin-top:12px" id="verdetto-panel">
       <h2 style="margin:0 0 8px">📊 ${tr({ it: 'Verdetto di giornata', en: 'Day verdict' })}</h2>
       <div id="verdetto-out"><div class="row"><button class="mini" id="verdetto-carica">${tr({ it: 'Calcola il verdetto di oggi', en: 'Compute today’s verdict' })}</button></div></div>
