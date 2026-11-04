@@ -5,6 +5,13 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 4/11 — Cruscotto: il trim torna sopra la sfida della ronda (richiesta Mauro)
+
+- Il trim era sparito dal Cruscotto col riquadro #prep-data (commit e64af45). Ora c’è una riga compatta #card-trim dentro #card-actions, sopra la sfida della ronda e prima di «Prepara tutto»: mostra la banda AI (es. 85–86%), il trim corrente (es. +1) e i due pulsanti −1/+1.
+- I pulsanti chiamano lo stesso `difficulty-nudge` di prima (banda della serie + registro globale, limitato a ±3 per click), ridisegnano la scheda e confermano la banda col toast. L’handler .d-nudge è stato ripristinato accanto a quelli della scheda.
+- Su desktop la riga prende tutta la larghezza della scheda (486 px, 41 px di altezza) e sta sopra la sfida; a 431 px la scheda passa nella barra azioni a due colonne e la riga resta compatta accanto al brief (177×86 px, align-self:start), sempre sopra la sfida. Zero overflow orizzontale e zero errori JS in entrambe le misure.
+- Verifica: node --check su viste-a.js, biome lint sul file, node --test test/tab-sane-gui.test.mjs (1/1, tutte le tab, 0 errori JS, 0 overflow); prova dal vivo su 127.0.0.1:8642 a 1366×900 e 431×900. Non ho premuto −1/+1 per non toccare il save: l’endpoint è quello già esistente, ripristinato dal commit precedente.
+
 ### 4/11 — Cruscotto: via le regole del weekend e il riquadro dati (segnalazione Mauro)
 
 - Dal Cruscotto sono usciti tre blocchi: il pannello «Regole di questo weekend · meteo» (#rs-panel), il riquadro con Auto, Avversari, Gara, Ora, Meteo, Partenza e Difficoltà AI col trim −1/+1 (#prep-data) e la riga «ⓘ Tutte le impostazioni del round».

@@ -688,6 +688,13 @@ function drawCardInto(el, card){
     <div class="sub">${window.serLinkHtml(card.nodeDisplay, { node: card.nodeId })} · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(card.entryFee)} € · ${tr({ it: 'si paga una volta per round', en: 'paid once per round' })}${card.agendaDay ? (card.agendaDay <= (boot.header?.day ?? 0) ? '' : ' · ' + tr({ it: 'in calendario per il ', en: 'scheduled for ' }) + esc(card.agendaDayLabel ?? (tr({ it: 'giorno ', en: 'day ' }) + card.agendaDay))) : ''}</div>
     <div id="card-actions" class="card-actions">
     ${briefHtml}
+    ${card.difficulty ? `<div id="card-trim" style="margin-top:10px;align-self:start;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2,#121822);font-size:12px">
+      <span title="${tr({ it: '1 punto di trim = 1 punto di banda AI', en: '1 trim point = 1 AI band point' })}">⚖️ <b>${tr({ it: 'Difficoltà AI', en: 'AI difficulty' })}</b> <b style="color:var(--acc)">${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%</b> · ${tr({ it: 'trim', en: 'trim' })} <b>${Number(card.difficulty.trim ?? 0) > 0 ? '+' : ''}${Number(card.difficulty.trim ?? 0)}</b></span>
+      <span style="margin-left:auto;display:inline-flex;gap:5px">
+        <button class="mini d-nudge" data-d="-1" title="${tr({ it: 'gara troppo dura? scendi di 1 punto la banda della serie: vale per le prossime gare e si vede anche nel pannello Difficoltà', en: 'race too hard? drop the series band by 1 point: it applies to upcoming races and shows also in the Difficulty panel' })}">−1</button>
+        <button class="mini d-nudge" data-d="+1" title="${tr({ it: 'gara troppo facile? sali di 1 punto la banda della serie: vale per le prossime gare e si vede anche nel pannello Difficoltà', en: 'race too easy? raise the series band by 1 point: it applies to upcoming races and shows also in the Difficulty panel' })}">+1</button>
+      </span>
+    </div>` : ''}
     ${card.challenge && !card.challenge.verdict ? `<div class="banner challenge-flag ${card.challenge.accepted?'info':'warn'}" style="margin-top:10px">${LI.target} <b>${tr({ it: 'Sfida della ronda', en: 'Round challenge' })}</b> — ${esc(legacyIt(card.challenge.text))}<br><span class="muted">${tr({ it: 'facoltativa · premio ', en: 'optional · reward ' })}${money(card.challenge.reward)} € ${tr({ it: 'se ci riesci · −', en: 'if you make it · −' })}${card.challenge.penalty} rep ${tr({ it: 'se fallisci', en: 'if you fail' })}${card.challenge.accepted?` · <b>${tr({ it: 'accettata', en: 'accepted' })}</b>`:''}</span>${card.challenge.accepted?'':` <button class="mini" id="b-accept-chal" style="margin-top:6px">${tr({ it: 'Accetta la sfida', en: 'Accept the challenge' })}</button>`}</div>` : ''}
     <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto', en: '🏁 Get everything ready' })}</button>
     <button class="act" id="b-race-launch" style="width:100%;margin-top:6px">${tr({ it: '🏁 Prepara tutto e avvia', en: '🏁 Get everything ready and start' })}</button>
@@ -1133,6 +1140,16 @@ function drawCardInto(el, card){
     try { await navigator.clipboard.writeText(text); toast(tr({ it: 'Scheda copia negli appunti.', en: 'Sheet copied to the clipboard.' }), 'ok'); }
     catch { toast(tr({ it: 'Il browser ha negato gli appunti.', en: 'The browser denied the clipboard.' }), 'err'); }
   };
+  $$('.d-nudge', el).forEach((b) => {
+    b.onclick = async (e) => {
+      e.preventDefault();
+      try {
+        const out = await api('difficulty-nudge', { delta: Number(b.dataset.d), car: $('#sel-car', el)?.value ?? null });
+        drawCardInto(el, out.card);
+        toast(`Difficoltà serie: ${out.card.difficulty.rangeMin}–${out.card.difficulty.rangeMax}%.`, 'ok');
+      } catch (err) { toast(err.message, 'err'); }
+    };
+  });
   // banda live: stato della memoria condivisa + verifica automatica della config
   const liveBox = document.createElement('div');
   liveBox.className = 'livebar live-off';
