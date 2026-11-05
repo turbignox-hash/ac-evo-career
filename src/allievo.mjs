@@ -127,6 +127,55 @@ export function annotaAdvice(consigli, { rounds }) {
   return { consigli: out, storie };
 }
 
+/* ------------------------------------------------------------------ */
+/* Il PENTIMENTO (6/11, Mauro: «deve imparare dai propri errori»):      */
+/* quando una leva già provata ha fatto PERDERE tempo, il meccanico     */
+/* se ne accorge, si ammette colpevole e propone la rettifica UNA       */
+/* volta sola: niente scuse ripetute a ogni apertura del pannello.      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * PURA: dai round chiusi in perdita genera le correzioni. Il peggiore in
+ * testa, al massimo due scuse; un round già pentito (pentAt) non torna.
+ * `best` serve a dire ESATTAMENTE dove si torna (giro e data del setup buono).
+ */
+export function computaCorrezioni(rounds, { best = null } = {}) {
+  const scuse = [];
+  for (const r of [...(rounds ?? [])].reverse()) {
+    if (r.delta == null || !(r.delta > 0.15)) continue;   // pendenti e rumore: no
+    if (r.pentAt) continue;                               // già ammesso: non si insiste
+    const campi = [...new Set((r.advice ?? []).map((a) => a.campo))].filter((c) => c && c !== '?');
+    if (!campi.length) continue;
+    const data = String(r.at ?? '').slice(0, 10);
+    const quandoBest = best?.at ? String(best.at).slice(0, 10) : null;
+    scuse.push({
+      vedi: 'memoria', prio: 1,
+      round: { at: r.at, delta: r.delta, campi },
+      text: `🩹 Ho sbagliato IO: la leva ${campi.join(' ⟶ ')} del ${data} ha fatto perdere ${r.delta.toFixed(2)}s. Correzione: ${quandoBest ? `riparti dal setup del ${quandoBest} (quello del giro ${best.lap.toFixed(2)}s) e riprova a mezzo gradino, una leva per volta.` : 'azzera quel campo e riprova a mezzo gradino, una leva per volta.'}`,
+    });
+    if (scuse.length >= 2) break;
+  }
+  return scuse;
+}
+
+/**
+ * STORATE: come computaCorrezioni ma marca `pentAt` sul disco — la scusa
+ * si mostra una volta sola, poi la carta resta nell'archivio del round.
+ */
+export function correzioniDiStoria(carName, trackDisplay) {
+  const j = load();
+  const e = j.memo[keyOf(carName, trackDisplay)];
+  const scuse = computaCorrezioni(e?.rounds ?? [], { best: e?.best ?? null });
+  if (scuse.length) {
+    for (const s of scuse) {
+      const r = (e.rounds ?? []).find((x) => x.at === s.round.at && x.delta === s.round.delta);
+      if (r) r.pentAt = nowIso();
+    }
+    writeJsonAtomic(FILE, j);
+  }
+  return scuse.map(({ round, ...resto }) => resto);
+}
+
 /** Il semaforo: consiglio EXTRA in testa quando il giro di oggi è peggio del
  *  migliore di sempre — ricorda ESATTAMENTE quanto manca e da dove si torna. */
 export function semaforoAdvice({ best, bestLap }) {

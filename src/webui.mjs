@@ -163,7 +163,7 @@ function tipoGriglia(node) {
 import { midSeasonPulse } from './world.mjs';
 // allievo: la memoria del meccanico — i round di consigli incassano l'esito del
 // giro successivo e la generazione seguente annota la storia su ogni campo
-import { memoOf, registraRound, annotaAdvice, semaforoAdvice } from './allievo.mjs';
+import { memoOf, registraRound, annotaAdvice, semaforoAdvice, correzioniDiStoria } from './allievo.mjs';
 
 // costanti di sessione, ladder e percorsi + appEnv/context stanno in webui-env.mjs;
 // le VISTE (oggetti JSON per la GUI) stanno in webui-views.mjs
@@ -173,6 +173,8 @@ import { viewHeader, viewStatus, viewCalendar, viewStandings, viewMessages, view
 import { classificheRecenti } from './classifiche-gioco.mjs';
 // meccanico dal vivo: i campi VERI della MMF + consigli con soglie in chiaro (5/11)
 import { vivoDaSnapshot, consigliVivo } from './meccanico-vivo.mjs';
+// il meccanico a voce (6/11): chiedi «qualifica», «gara con N giri», «bagnato» → il file col nome VERO
+import { leggiIntenzione, pianoSetup, nomeSetup } from './meccanico-parla.mjs';
 import { AGENDA_ACTIONS, agendaAction } from './webui-actions-agenda.mjs';
 import { EVENT_ACTIONS, eventAction } from './webui-actions-events.mjs';
 import { GARAGE_ACTIONS, garageAction } from './webui-actions-garage.mjs';
@@ -3229,6 +3231,14 @@ async function api(context0, _req, res, action, body) {
             semaforo = semaforoAdvice({ best: mem.best, bestLap });
             if (semaforo) consigli.unshift(semaforo);
           }
+          /* IL PENTIMENTO (6/11, Mauro: «deve imparare dai propri errori»):
+             le leve già provate che hanno fatto perdere tempo tornano UNA
+             volta sola, la peggiore per prima, col meccanico che ammette il
+             fallo e indica ESATTAMENTE dove tornare (setup del best). */
+          try {
+            const scuse = correzioniDiStoria(carName, trackDisplay);
+            if (scuse.length) consigli.splice(semaforo ? 1 : 0, 0, ...scuse);
+          } catch { /* una scusa nata male non ferma il pannello */ }
           const allievo = mem ? {
             best: mem.best,
             rounds: mem.rounds.slice().reverse().map((r) => ({
@@ -3376,6 +3386,109 @@ async function api(context0, _req, res, action, body) {
         return sendJson(res, 200, { ok: true, log: hotlapsLog(40, { logsDirs: paths?.logsDirs ?? [] }), stats: hotlapsStats(), progress: hotlapsProgress() });
       } catch (e) {
         return sendJson(res, 500, { error: e.message });
+      }
+    }
+    /* IL MECCANICO A VOCE (6/11, richiesta Mauro: «interagire con lui per
+       chiedere aggiustamenti… li prepara già con il nome giusto»): la
+       richiesta in parole («qualifica», «gara con 8 giri», «bagnato»)
+       diventa un file .carsetup VERO col nome GIUSTO — «Qualifica»,
+
+       «Gara 8 giri», «Bagnato» — niente più «EVO-consigliato». Il piano
+       tocca benzina e pressioni SOLO con dati veri (consumo misurato,
+       vivo o fourPsi); il composto pioggia resta una scelta di gioco e la
+       risposta lo dice. Con `esegui` scrive il file: niente sovrascritture,
+       il contatore « (2)» protegge quello che già c'è; il piano entra nel
+       ciclo dell'allievo così anche le richieste a voce incassano l'esito. */
+    case 'meccanico-parla': {
+      try {
+        const cartella = paths.dataDirs?.[0] ?? '';
+        if (!cartella) return sendJson(res, 409, { error: tr({ it: 'Cartella Saved Games/ACE non impostata (Impostazioni).', en: 'Saved Games/ACE folder not set (Settings).' }) });
+        const carName = String(body.car ?? '').trim();
+        let trackName = String(body.track ?? '').trim();
+        const esegui = !!body.esegui;
+        const int = leggiIntenzione(String(body.richiesta ?? ''), body.preset ?? null);
+        if (int.tipo === 'pentito') {
+          // «correggiti»: la scusa del meccanico senza toccare nessun file
+          const scuse = correzioniDiStoria(carName, trackName);
+          return sendJson(res, 200, { ok: scuse.length > 0, tipo: 'pentito', car: carName, track: trackName, risposta: scuse.length ? scuse[0].text : tr({ it: 'Nessuna leva passata ha perso tempo: non ho scuse da fare.', en: 'No past lever lost time: nothing to apologise for.' }), righe: [], note: [] });
+        }
+        if (!int.tipo || !carName) return sendJson(res, 200, { ok: false, hint: tr({ it: "Dimmelo in parole: «qualifica», «gara con N giri» o «bagnato» — con l'auto e la pista della scheda in vista.", en: 'Say it in words: qualifying, race with N laps, or wet - with the car and track of the sheet visible.' }) });
+        // la PISTA VIVA comanda (lezione 22/10 ore 20:49): stessa guardia di setup-apply
+        let liveNow = null;
+        try {
+          if (await syncLiveReader() !== 'off') liveNow = liveReader()?.snapshot?.({ raw: true }) ?? null;
+        } catch { /* il dialogo nasce anche a gioco spento */ }
+        if (liveNow?.session?.track) {
+          if (trackName && !trkSame(liveNow.session.track, trackName)) return sendJson(res, 200, { ok: false, hint: tr({ it: `Il gioco è su «${liveNow.session.track}» ma la richiesta mira a «${trackName}»: non scrivo setup su una pista diversa (in gioco si vedono solo i setup della pista corrente).`, en: `The game is at «${liveNow.session.track}» but the request targets «${trackName}»: I won't write a setup for a different track.` }) });
+          trackName = trackName || liveNow.session.track;
+        }
+        // il BASE è sempre il TUO setup (le copie generate dalle richieste si escludono)
+        const radice = cartella.replace(/[\\/]$/, '');
+        let setups = listSetups(radice, { car: carName, track: trackName });
+        if (!setups.length) {
+          const tutti = listSetups(radice);
+          const fuzzy = tutti.filter((s) => carSame(s.car, carName) && (!trackName || trkSame(s.track, trackName)));
+          if (fuzzy.length) setups = fuzzy;
+        }
+        setups = setups.filter((s) => !s.name.includes('EVO-consigliato'));
+        if (!setups.length) return sendJson(res, 200, { ok: false, hint: tr({ it: `Nessun .carsetup tuo per «${carName}»: dentro EVO salva una volta il setup (CARICA/SALVA, anche i valori default) e riprova — il meccanico parte sempre dal TUO file.`, en: `No .carsetup of your own for «${carName}»: inside EVO save the setup once (LOAD/SAVE) and try again — the mechanic always starts from YOUR file.` }) });
+        setups.sort((a, b) => statSync(b.file).mtimeMs - statSync(a.file).mtimeMs);
+        const src = body.file ? (setups.find((s) => s.file === body.file) ?? setups[0]) : setups[0];
+        const bufBase = readFileSync(src.file);
+        const cur = parseSetup(bufBase);
+        const carEf = src.car || carName;
+        // i DATI VERI: consumo dall'ultima telemetria (o dal vivo) + pressioni dal vivo
+        const radiceTelem = join(cartella, 'MoTec');
+        const dirRes = paths.resultsDirs?.[0] ?? join(cartella, 'Results');
+        let sessions = collectSessions(radiceTelem, dirRes, { car: carEf, track: trackName || undefined, limit: 4 });
+        if (!sessions.length) sessions = collectSessions(radiceTelem, dirRes, { car: carEf, limit: 4 });
+        const tyre = tyreClassOf(carEf);
+        let fixViva = null;
+        if (liveNow?.live) {
+          try {
+            fixViva = startPsiFromLive({
+              livePsi: liveSetupSignals({ raw: liveNow.raw, player: liveNow.player })?.livePsi ?? null,
+              target: tyre?.target ?? null,
+              coldNow: Number(cur.tires?.[0]?.pressure),
+              coldByWheel: (cur.tires ?? []).map((t) => Number(t.pressure)),
+            });
+          } catch { /* senza vivo si va di telemetria */ }
+        }
+        const sess = sessions[0] ?? null;
+        const fuelPerLap = (liveNow?.live && Number(liveNow.player?.fuelPerLap) > 0) ? Number(liveNow.player.fuelPerLap) : (sess?.fuelPerLap ?? null);
+        const piano = pianoSetup({
+          tipo: int.tipo,
+          raceLaps: int.raceLaps ?? (Number(body.raceLaps) >= 3 ? Number(body.raceLaps) : null),
+          cur,
+          sessione: Number(fuelPerLap) > 0 ? { fuelPerLap } : null,
+          live: fixViva?.pressures ? { psi: fixViva.pressures } : null,
+          tyreTarget: tyre?.target ?? null,
+        });
+        if (!piano) return sendJson(res, 200, { ok: false, hint: tr({ it: 'Non sono riuscito a costruire il piano: apri il pannello del meccanico e riprova.', en: 'Could not build the plan: open the mechanic panel and retry.' }) });
+        const nomeBase = nomeSetup(int.tipo, int.raceLaps);
+        let scritto = null;
+        if (esegui) {
+          // NOME GIUSTO e MAI distruzione: se «Qualifica.carsetup» esiste già
+          // si sale col contatore « (2)», « (3)»… il file vecchio resta al posto suo.
+          let nome = nomeBase;
+          let dest = join(dirname(src.file), `${nome}.carsetup`);
+          for (let i = 2; existsSync(dest); i++) {
+            nome = `${nomeBase} (${i})`;
+            dest = join(dirname(src.file), `${nome}.carsetup`);
+          }
+          const out = writeSetupCopy(bufBase, dest, piano.edits);
+          scritto = { nome, file: dest, changes: out.changes };
+          // il piano entra nel ciclo dell'allievo: con la sessione nuova il
+          // round si chiude e il meccanico impara ANCHE dalle richieste a voce
+          try {
+            const giri = (sess?.laps ?? []).filter((l) => l.durationSec > 15);
+            const bestLap = giri.length ? Math.min(...giri.map((l) => l.durationSec)) : null;
+            if (bestLap > 0) registraRound({ carName: carEf, trackDisplay: trackName, advices: [{ vedi: int.tipo, prio: 1, text: `Setup «${nome}»: ${piano.note.join(' ')}` }], sessFile: sess?.file ?? null, bestLap });
+          } catch { /* la memoria non ferma la scrittura */ }
+        }
+        return sendJson(res, 200, { ok: true, tipo: int.tipo, car: carEf, track: trackName, base: { file: src.file, nome: src.name }, nome: nomeBase, risposta: piano.risposta, righe: piano.righe, note: piano.note, scritto });
+      } catch (e) {
+        return sendJson(res, 500, { error: tr({ it: 'Il meccanico ha inciampato: ', en: 'The mechanic stumbled: ' }) + String(e?.message ?? e) });
       }
     }
     case 'setup-apply': {

@@ -1123,11 +1123,63 @@ async function drawSetup(m){
           ${(a.rounds ?? []).length ? `<table style="margin-top:8px"><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Giro su questa pista', en: 'Lap on this track' })}</th><th>${tr({ it: 'Esito del round', en: 'Round outcome' })}</th><th>${tr({ it: 'Leve promosse', en: 'Levers pulled' })}</th></tr></thead><tbody>${righe}</tbody></table>` : `<div class="muted" style="font-size:12px;margin-top:6px">${tr({ it: "Nessun round chiuso: corri una sessione nuova dopo aver generato consigli e l'esito entra qui.", en: 'No closed rounds: run a new session after generating advice and the outcome lands here.' })}</div>`}
         </details>`;
       }
+      /* IL DIALOGO (6/11, Mauro: «interagire con lui per chiedere
+         aggiustamenti… li prepara già con il nome giusto»): casella +
+         quattro chip, risposta in scheda e conferma «Scrivi nel gioco»
+         che manda il file sul disco col nome VERO («Qualifica»,
+         «Gara 8 giri», «Bagnato»), non «consigliato». */
+      const dialogoHtml = `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+        <div style="font-size:12px;margin-bottom:4px"><b>🗣️ ${tr({ it: 'Parla col meccanico', en: 'Talk to the mechanic' })}</b> <span class="muted" style="font-size:11.5px">— ${tr({ it: 'chiedi un setup col tipo di uscita: «preparami il setup da gara a 12 giri»', en: 'ask for a setup by session type: e.g. prep the race setup for 12 laps' })}</span></div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+          <input id="mech-parla" placeholder="${tr({ it: 'es. preparami il setup da gara a 12 giri', en: 'e.g. prep the race setup for 12 laps' })}" style="flex:1 1 220px;min-width:0">
+          <button class="mini acc" id="b-mech-parla" type="button">${tr({ it: 'Chiedi', en: 'Ask' })}</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+          <button class="mini" data-mech="qualifica" type="button">🚀 ${tr({ it: 'Qualifica', en: 'Qualifying' })}</button>
+          <button class="mini" data-mech="gara" type="button">🏁 ${tr({ it: 'Gara', en: 'Race' })}</button>
+          <button class="mini" data-mech="bagnato" type="button">🌧️ ${tr({ it: 'Pioggia', en: 'Wet' })}</button>
+          <button class="mini" data-mech="correggiti" type="button">🩹 ${tr({ it: 'Correggiti', en: 'Fix yourself' })}</button>
+        </div>
+        <div id="mech-parla-out" style="margin-top:8px"></div>
+      </div>`;
+      window.__mechParla ??= async (richiesta, esegui = false) => {
+        const outParl = document.querySelector('#mech-parla-out');
+        if (!outParl) return;
+        outParl.dataset.richiesta = String(richiesta ?? '');
+        outParl.innerHTML = `<div class="muted" style="font-size:12px">🧰 ${tr({ it: 'Il meccanico sta preparando il piano…', en: 'The mechanic is drawing the plan…' })}</div>`;
+        try {
+          const selP = document.querySelector('#lc-session');
+          const carP = selP?.selectedOptions?.[0] ? (selP.selectedOptions[0].dataset.car ?? null) : (window.__lcCar ?? null);
+          const trackP = selP?.selectedOptions?.[0] ? (selP.selectedOptions[0].dataset.track ?? null) : null;
+          const rr = await api('garage', { action: 'meccanico-parla', car: carP, track: trackP, richiesta, esegui });
+          if (!rr?.ok) {
+            outParl.innerHTML = `<div class="banner warn" style="padding:8px 10px">🗣️ ${esc(rr?.hint ?? rr?.error ?? tr({ it: 'risposta assente', en: 'no answer' }))}</div>`;
+            return;
+          }
+          const righePiano = (rr.righe ?? []).map((x) => `<tr><td>${esc(x.campo ?? '')}</td><td class="right">${x.da != null ? esc(String(x.da)) : '—'} → <b>${esc(String(x.a))}${esc(x.unita ?? '')}</b></td></tr>`).join('');
+          outParl.innerHTML = `<div class="banner info" style="padding:8px 10px">🗣️ ${esc(rr.risposta)}</div>
+            ${righePiano ? `<table style="margin-top:6px"><tbody>${righePiano}</tbody></table>` : ''}
+            ${(rr.note ?? []).length ? `<div class="muted" style="font-size:11.5px;margin-top:4px">${rr.note.map((n) => esc(n)).join(' · ')}</div>` : ''}
+            ${rr.scritto ? `<div style="font-size:12px;margin-top:4px">💾 ${tr({ it: 'File scritto:', en: 'File written:' })} <b>${esc(rr.scritto.nome)}</b>.carsetup</div>` : (!esegui && (rr.righe ?? []).length ? `<button class="mini acc" id="b-mech-scrivi" type="button" style="margin-top:6px">✍️ ${tr({ it: 'Scrivi nel gioco', en: 'Write to the game' })}</button>` : '')}`;
+          if (rr.scritto && typeof toast === 'function') toast(tr({ it: `Setup «${rr.scritto.nome}» scritto: in EVO lo trovi in CARICA col nome nuovo.`, en: `Setup «${rr.scritto.nome}» written: in the EVO load list it is under its new name.` }), 'good');
+          const btnScrivi = document.querySelector('#b-mech-scrivi');
+          if (btnScrivi) btnScrivi.onclick = () => window.__mechParla(outParl.dataset.richiesta, true);
+        } catch (e) {
+          outParl.innerHTML = `<div class="banner bad" style="padding:8px 10px">🗣️ ${esc(e?.message ?? String(e))}</div>`;
+        }
+      };
       out.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 10px;background:#0d1118">
         <div style="font-size:12px;margin-bottom:6px"><b>🔧 ${tr({ it: 'Il meccanico', en: 'The mechanic' })}</b> — ${tr({ it: 'setup consigliato per ', en: 'advised setup for ' })}<b>${esc(m.track ?? '')}</b> <span class="muted" style="font-size:11.5px">· ${tr({ it: 'tracciato ', en: 'track type ' })}${esc(m.tipo ?? '?')}${m.densita ? ` · ${m.densita} ${tr({ it: 'curve/km', en: 'corners/km' })}` : ''}${m.sessFile ? tr({ it: ' · correzione su telemetria veri', en: ' · corrected on real telemetry' }) : tr({ it: ' · senza telemetria (solo pista)', en: ' · no telemetry (track profile only)' })}</span></div>
         ${rows || `<div class="muted" style="font-size:12px">${tr({ it: 'Nessun consiglio per questa pista: anagrafica non disponibile.', en: 'No advice for this track: profile not available.' })}</div>`}
-        ${vivoHtml}${storiaHtml}
+        ${vivoHtml}${dialogoHtml}${storiaHtml}
       </div>`;
+      /* AGGANCI del dialogo: invia col bottone o col tasto INVIO, i menu
+         di abitudini portano direttamente le domande tipiche. */
+      const inpParla = document.querySelector('#mech-parla');
+      const bParla = document.querySelector('#b-mech-parla');
+      if (bParla) bParla.onclick = () => { const t = inpParla?.value?.trim(); if (t) window.__mechParla(t); };
+      if (inpParla) inpParla.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); bParla?.click(); } });
+      document.querySelectorAll('[data-mech]').forEach((b) => { b.onclick = () => window.__mechParla(b.dataset.mech); });
       $$('.mech-advice', out).forEach((r) => {
         const vai = () => {
           const btn = document.querySelector('#b-apply-setup');
