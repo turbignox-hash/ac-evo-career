@@ -643,18 +643,29 @@ export function scegliRonda(ladder, state, nodeId, day = null) {
   let day0 = richiesto >= oggi ? Math.max(oggi, richiesto) : oggi;
   const griglia = racesOnDay(ladder, state, day0);
   let g = griglia.find((x) => x.node.nodeId === id);
-  // ROBUSTEZZA: se nel giorno richiesto la serie non è a programma, cerco la sua
-  // prossima gara nei giorni a venire (max 7): se la trovo, iscrivo con anchor
-  // sul VERO giorno di gara — niente più "non ha gare oggi" ambiguo.
+  // ROBUSTEZZA: se nel giorno richiesto la serie non è a programma, cerco la
+  // sua prossima gara nei giorni a venire e la iscrivo con anchor sul VERO
+  // giorno di gara — niente più "non ha gare oggi" ambiguo.
+  // RAGGIO DEL CICLO (5/11 sera, «punta la ronda non va»): il vecchio raggio
+  // di 7 giorni (e l'avviso in finestra di 30) poteva restare TUTTO fuori dal
+  // ciclo di una serie a cadenza lunga: Endurance GT4, ciclo = 8 ronde ×
+  // cadenza = 40-80 giorni, e il bottone dell'eredità moriva per sempre col
+  // «nei prossimi 30 giorni». La finestra ora si allinea al CICLO REALE della
+  // serie; il «quando cade» resta il ripiego, con la data scritta.
+  const contatoreSerie = ladder.nodes.findIndex((n) => n.nodeId === id) + 1;
+  const nodoSerie = contatoreSerie > 0 ? ladder.nodes[contatoreSerie - 1] : null;
+  const rondeSerie = Array.isArray(nodoSerie?.calendar) ? nodoSerie.calendar.length : 0;
+  const cicloSerie = rondeSerie > 0 ? rondeSerie * cadenzaSerie(contatoreSerie) : 0;
+  const raggioFuturo = Math.min(Math.max(CADENZA_GIORNI, cicloSerie + 2), 94);
   if (!g) {
-    for (let dd = day0 + 1; dd <= day0 + 7 && !g; dd++) {
+    for (let dd = day0 + 1; dd <= day0 + raggioFuturo && !g; dd++) {
       const cand = racesOnDay(ladder, state, dd).find((x) => x.node.nodeId === id);
       if (cand?.fattibile) { g = cand; day0 = dd; }
     }
     if (!g) {
-      // da ULTIMA risorsa dico QUANDO cade: la sua prossima disputa entro 30 giorni
+      // da ULTIMA risorsa dico QUANDO cade: la sua prossima disputa nel ciclo
       let quando = null;
-      for (let dd = day0; dd <= day0 + 30 && !quando; dd++) {
+      for (let dd = day0; dd <= day0 + raggioFuturo && !quando; dd++) {
         if (racesOnDay(ladder, state, dd).some((x) => x.node.nodeId === id)) quando = dateLabel(dd);
       }
       return { ok: false, status: 400, error: quando
@@ -663,8 +674,8 @@ export function scegliRonda(ladder, state, nodeId, day = null) {
             en: `The next race of this series lands on ${quando}: open that day in the calendar strip and press "pick for today".`,
           })
         : tr({
-            it: 'Nessuna gara programmata di questa serie nei prossimi 30 giorni.',
-            en: 'No race of this series scheduled in the next 30 days.',
+            it: 'Nessuna gara programmata di questa serie.',
+            en: 'No race of this series scheduled.',
           }) };
     }
   }
