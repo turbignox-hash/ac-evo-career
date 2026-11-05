@@ -38,7 +38,27 @@ export function sha256(buffer) {
   return createHash('sha256').update(buffer).digest('hex');
 }
 
-export async function verificaRelease({ tag, repo = REPO_DEFAULT, fetchImpl = globalThis.fetch, log = console.log } = {}) {
+/** Motivi per cui gli asset attesi non sono pronti, così li si può aspettare. */
+function assetNonPronti(assets, versione) {
+  const piano = pianoAtteso(versione);
+  const perNome = new Map(Array.isArray(assets) ? assets.map((a) => [a.name, a]) : []);
+  const amico = Array.isArray(assets)
+    ? assets.filter((a) => a.name.startsWith(piano.at(-1).prefisso) && a.name.endsWith('.zip'))
+    : [];
+  const motivi = [];
+  if (amico.length !== 1) motivi.push('pacchetto amico');
+  for (const voce of piano) {
+    if (voce.kind === 'friend') continue;
+    for (const nome of [voce.nome, voce.sidecar]) {
+      const asset = perNome.get(nome);
+      if (!asset) motivi.push(`${nome} (mancante)`);
+      else if (asset.state !== 'uploaded' || !(asset.size > 0)) motivi.push(`${nome} (${asset.state}, ${asset.size})`);
+    }
+  }
+  return motivi;
+}
+
+export async function verificaRelease({ tag, repo = REPO_DEFAULT, fetchImpl = globalThis.fetch, log = console.log, attesaMassimaMs = 180000, intervalloMs = 15000 } = {}) {
   const versione = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
   const tagAtteso = `v${versione}`;
   const tagFinale = tag ?? tagAtteso;
@@ -52,12 +72,29 @@ export async function verificaRelease({ tag, repo = REPO_DEFAULT, fetchImpl = gl
     Accept: 'application/vnd.github+json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
-  const risposta = await fetchImpl(`https://api.github.com/repos/${repo}/releases/tags/${tagFinale}`, { headers });
-  if (!risposta.ok) throw new Error(`API release ${tagFinale}: HTTP ${risposta.status}`);
-  const release = await risposta.json();
+  async function leggiRelease() {
+    const risposta = await fetchImpl(`https://api.github.com/repos/${repo}/releases/tags/${tagFinale}`, { headers });
+    if (!risposta.ok) throw new Error(`API release ${tagFinale}: HTTP ${risposta.status}`);
+    return risposta.json();
+  }
+
+  // Gli upload grossi finiscono dopo l'evento di pubblicazione: si aspetta
+  // con sondaggi invece di dichiarare subito l'assenza (la run CI del
+  // 5/11 è caduta così: v0.1.60 verificata a meno di un minuto dalla
+  // pubblicazione, con l'EXE da 40 MB ancora in salita).
+  let release = await leggiRelease();
+  const termine = Date.now() + attesaMassimaMs;
+  let motivi = assetNonPronti(release.assets, versione);
+  while (motivi.length > 0 && Date.now() < termine) {
+    log(`⏳ asset di ${tagFinale} ancora in arrivo: ${motivi.join(', ')} — nuovo sondaggio tra ${Math.round(intervalloMs / 1000)} s`);
+    await new Promise((attesa) => setTimeout(attesa, intervalloMs));
+    release = await leggiRelease();
+    motivi = assetNonPronti(release.assets, versione);
+  }
   if (release.tag_name !== tagFinale) throw new Error(`tag remoto ${release.tag_name}, atteso ${tagFinale}`);
   if (release.draft) throw new Error('la release è ancora una bozza');
   if (!release.prerelease) log('⚠ release non marcata pre-release');
+  if (motivi.length > 0) throw new Error(`asset mancanti dopo l'attesa: ${motivi.join(', ')}`);
 
   const assets = Array.isArray(release.assets) ? release.assets : [];
   const perNome = new Map(assets.map((a) => [a.name, a]));
