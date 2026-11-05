@@ -632,15 +632,16 @@ async function drawSetup(m){
     <div class="banner warn" style="padding:10px 12px;margin-top:8px">
       <b>📌 ${tr({ it: 'DA FARE IN EVO A OGNI GARA', en: 'TO DO IN EVO EVERY RACE' })}</b> — ${tr({ it: 'Setup → Elettronica → ', en: 'Setup → Electronics → ' })}<b style="color:var(--warn,#ffb454)">${tr({ it: 'Telemetria', en: 'Telemetry' })}</b>: ${tr({ it: 'imposta ', en: 'set ' })}<b style="color:var(--warn,#ffb454)">${telLaps} ${tr({ it: 'giri', en: 'laps' })}</b> ${tr({ it: 'per questa auto', en: 'for this car' })}${telLaps >= 15 ? tr({ it: ' (è veloce: può registrare a lungo)', en: ' (it is quick: it can record for long)' }) : telLaps <= 8 ? tr({ it: ' (è lenta: ogni giro genera molti dati, non serve di più)', en: ' (it is slow: each lap yields lots of data, no need for more)' }) : ''}. ⚠️ ${tr({ it: 'Da riattivare a ogni gara, e mentre sei GIÀ nel setup, prima di avviare la sessione.', en: 'Re-enable it every race, while you are ALREADY in the setup, before starting the session.' })}
     </div>
-    ${advHtml}
     </details>
+    ${advHtml}
+    <details style="margin-top:10px"><summary class="muted" style="cursor:pointer">↕ ${tr({ it: 'Sessioni recenti — pressioni, tempi, consumo, meteo', en: 'Recent sessions — pressures, lap times, fuel, weather' })}</summary>
     <table style="margin-top:10px"><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Sessione', en: 'Session' })}</th><th class="right">${tr({ it: 'Fredda LF/RF', en: 'Cold LF/RF' })}</th><th class="right">${tr({ it: 'Calda LF/RF', en: 'Hot LF/RF' })}</th><th class="right">${tr({ it: 'Best lap', en: 'Best lap' })}</th><th class="right">${tr({ it: 'L/giro', en: 'L/lap' })}</th><th class="right">${tr({ it: 'Bumpstop RF', en: 'Bumpstop RF' })}</th><th class="right">${tr({ it: 'Δ int/ext RF', en: 'Δ in/out RF' })}</th><th>${tr({ it: 'Preset', en: 'Preset' })}</th><th>${tr({ it: 'Meteo', en: 'Weather' })}</th></tr></thead>
-    <tbody>${list.map((r) => `<tr><td class="muted">${esc(r.when ?? '')}</td><td>${esc(r.kindLabel ?? 'n/d')}</td><td class="right"><b>${psi(r.cold?.LF)}</b> / ${psi(r.cold?.RF)}</td><td class="right">${psi(r.hot?.LF)} / ${psi(r.hot?.RF)}</td><td class="right">${fmtLapS(r.bestLapSec)}</td><td class="right">${r.fuelPerLap!=null?r.fuelPerLap+' L':'—'}</td><td class="right">${r.bump?.RF?.contactPct!=null?r.bump.RF.contactPct+'%':'—'}</td><td class="right">${r.camberProxy?.RF!=null?(r.camberProxy.RF>0?'+':'')+r.camberProxy.RF+'°':'—'}</td><td class="muted">${esc(r.preset ?? '—')}</td><td class="muted">${esc(r.weather ? r.weather.replace(/^.*_/,'') : '—')}</td></tr>`).join('')}</tbody></table>
+    <tbody>${list.map((r) => `<tr><td class="muted">${esc(r.when ?? '')}</td><td>${esc(r.kindLabel ?? 'n/d')}</td><td class="right"><b>${psi(r.cold?.LF)}</b> / ${psi(r.cold?.RF)}</td><td class="right">${psi(r.hot?.LF)} / ${psi(r.hot?.RF)}</td><td class="right">${fmtLapS(r.bestLapSec)}</td><td class="right">${r.fuelPerLap!=null?r.fuelPerLap+' L':'—'}</td><td class="right">${r.bump?.RF?.contactPct!=null?r.bump.RF.contactPct+'%':'—'}</td><td class="right">${r.camberProxy?.RF!=null?(r.camberProxy.RF>0?'+':'')+r.camberProxy.RF+'°':'—'}</td><td class="muted">${esc(r.preset ?? '—')}</td><td class="muted">${esc(r.weather ? r.weather.replace(/^.*_/,'') : '—')}</td></tr>`).join('')}</tbody></table></details>
     <details style="margin-top:10px"><summary class="muted">${tr({ it: 'Ultima sessione — dettaglio per giro (pressioni e temperature)', en: 'Last session — lap-by-lap detail (pressures and temperatures)' })}</summary>
     <table><thead><tr><th>${tr({ it: 'Giro', en: 'Lap' })}</th><th class="right">${tr({ it: 'Durata', en: 'Duration' })}</th><th class="right">${tr({ it: 'Benzina usata', en: 'Fuel used' })}</th><th class="right">${tr({ it: 'PSI LF (fine)', en: 'PSI LF (end)' })}</th><th class="right">${tr({ it: 'Temp gomma LF', en: 'Tyre temp LF' })}</th><th class="right">${tr({ it: 'Max bordo RF', en: 'Max edge RF' })}</th></tr></thead>
     <tbody>${(s.laps ?? []).filter(l=>l.durationSec>15).map(l=>`<tr><td>${l.lap}</td><td class="right">${l.durationSec}s</td><td class="right">${l.fuelUsed!=null?l.fuelUsed+' L':'—'}</td><td class="right">${l.pressures?.LF!=null?Number(l.pressures.LF).toFixed(1):'—'}</td><td class="right">${l.tair?.LF!=null?Number(l.tair.LF).toFixed(0)+'°':'—'}</td><td class="right">${l.surf?.RF?l.surf.RF.map(v=>Number(v).toFixed(0)).join('/'):'—'}°</td></tr>`).join('')}</tbody></table>
     </details>
-    <div id="stinti-out"></div>
+    <details id="stinti-wrap" style="margin-top:8px"><summary class="muted" style="cursor:pointer">🏁 ${tr({ it: 'Stint e usura gomme (da telemetria reale)', en: 'Stints and tyre wear (from real telemetry)' })}</summary><div id="stinti-out"></div></details>
     <div class="muted" style="margin-top:6px">${tr({ it: 'Bumpstop = % di tempo con la sospensione a fine corsa (alto → assetto troppo basso o molle troppo morbide) · Δ int/ext = differenza termica interno–esterno della gomma RF (effetto camber in pista) · condizioni ultima sessione: aria ', en: 'Bumpstop = % of time the suspension is at full travel (high → ride height too low or springs too soft) · Δ in/out = inner–outer thermal difference of the RF tyre (camber effect on track) · last session conditions: air ' })}${s.airTemp ?? '—'}° · ${tr({ it: 'pista ', en: 'track ' })}${s.roadTemp ?? '—'}° · ${tr({ it: 'scritta da EVO in Saved Games\\ACE\\MoTec', en: 'written by EVO in Saved Games\\ACE\\MoTec' })}</div>
     ${logRows ? `<details style="margin-top:10px"><summary class="muted">${tr({ it: 'Consigli già dati', en: 'Advice already given' })}</summary><table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Partenza consigliata', en: 'Suggested start' })}</th><th>${tr({ it: 'Base', en: 'Basis' })}</th></tr></thead><tbody>${logRows}</tbody></table></details>` : ''}
     </div>`;
@@ -702,10 +703,27 @@ async function drawSetup(m){
     const hist = await api('setup-history', { car: tel.car ?? carSel?.carName ?? null, track: tel.sessions?.[0]?.track ?? tel.trackDisplay ?? null }).catch(() => null);
     histHtml = window.__setupHistHtml(hist?.rows ?? []);
   } catch { /* la storia non blocca mai il pannello */ }
-  m.innerHTML = telHtml + html;   // telemetria PRIMA degli attrezzi pressione: il grafico del giro è la prima cosa che si vede
+  m.innerHTML = telHtml + html;   // il grafico nasce per primo nel template; subito sotto lo mette a posto il riordino
+  /* RIORDINO (5/11, richiesta Mauro «ogni cosa al posto giusto»): nel box si
+     DECIDE prima — meccanico, checklist, applicatore ⚡ — e si VERIFICA dopo:
+     il GRAFICO DEL GIRO diventa la conferma visiva, non la porta d'ingresso.
+     In template il grafico nasce davanti (scelta del 23/10); qui sposto SOLO
+     i contenitori, senza toccare nessun id: la scheda del meccanico
+     (#meccanico-out) sale nel pannello dei consigli, in cima, e quel pannello
+     gli si mette davanti. Tutti i legami (#lc-*, #apply-out, #meccanico-out)
+     restano esattamente dov'erano. */
+  const hero0 = m.querySelector('.setup-hero');
+  const cons0 = hero0?.nextElementSibling;
+  if (hero0 && cons0 && cons0.querySelector('#apply-out')) {
+    const mech0 = hero0.querySelector('#meccanico-out');
+    if (mech0) cons0.insertBefore(mech0, cons0.querySelector('h2')?.nextSibling ?? null);
+    cons0.style.marginTop = '0';
+    m.insertBefore(cons0, hero0);
+    hero0.style.marginTop = '14px';
+  }
   // La storia resta in basso (dopo gli stint): il pulsante ⚡ e la checklist
   // ora stanno vicini, non serve spingere 30 righe di archivio in mezzo.
-  if (histHtml) document.querySelector('#stinti-out')?.insertAdjacentHTML('afterend', histHtml);
+  if (histHtml) document.querySelector('#stinti-wrap')?.insertAdjacentHTML('afterend', histHtml);
 
   /* IL QUADRO DI COPERTURA (1/11): un solo colpo d'occhio — ✔ le piste dove
      l'auto ha già i suoi .carsetup (con quanti e quando), ✖ le piste GIRATE
@@ -1266,6 +1284,7 @@ async function drawSetup(m){
       out.innerHTML = `<div style="margin-top:10px"><b>🏁 ${tr({ it: 'Stint e usura gomme (da telemetria reale)', en: 'Stints and tyre wear (from real telemetry)' })}</b> <span class="muted" style="font-size:11.5px">· ${esc(st?.file ?? go?.file ?? '')}</span></div>
         ${st?.ok ? `${stintHtml}` : `<div class="muted" style="font-size:12px;margin-top:4px">${esc(st?.hint ?? '')}</div>`}
         ${gommaHtml}`;
+      document.querySelector('#stinti-wrap')?.setAttribute('open', 'open');
     } catch { /* stint e usura non devono mai rompere la vista */ }
   };
   window.__lcMech();
