@@ -568,7 +568,12 @@ let _settScanAt = 0;
 function settoreDeboleQualifica(paths, state, live, tipo) {
   try {
     const fase = String(live?.gauges?.sessionPhase ?? tipo ?? live?.sessionType ?? '').trim();
-    if (!/qualif/i.test(fase)) return null;            // SOLO qualifica
+    /* SOLO qualifica (6/11, il copilota muta): il tipo static già mentiva
+       in gara SP («TimeAttack» 178/178), quindi la marca NON si prende dal
+       tipo: la fase la dichiara («Qualify»…), oppure NON è gara
+       (inRace === false, il server la calcola dai dati del round) e la fase
+       parla da hotlap/pratica/timeattack — qualifica ai sensi della casa. */
+    if (!(/qualif/i.test(fase) || (live?.inRace === false && /timeattack|hotlap|pratic/i.test(fase)))) return null;
     // scansione leggera: il tick gira ogni ~2 s e il menu Risultati puo avere
     // centinaia di file — si rilegge la cartella al piu ogni 15 s
     if (Date.now() - (_settScanAt ?? 0) < 15000) return _settMemo.val;
@@ -613,7 +618,7 @@ function settoreQualifica(snap, live0, paths, state, tipo) {
   const ultimo = snap?.settoreUltimo ?? null;
   if (ultimo && Date.now() - (ultimo.at ?? 0) <= 8000) {
     const fase = String(live0?.gauges?.sessionPhase ?? tipo ?? snap?.session?.type ?? '').trim();
-    if (/qualif/i.test(fase)) return { indice: ultimo.indice, deltaMs: ultimo.deltaMs, migliore: null, dalVivo: true };
+    if (/qualif/i.test(fase) || (live0?.inRace === false && /timeattack|hotlap|pratic/i.test(fase))) return { indice: ultimo.indice, deltaMs: ultimo.deltaMs, migliore: null, dalVivo: true };
     return null;
   }
   return settoreDeboleQualifica(paths, state, live0, tipo);
@@ -785,6 +790,8 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
 let _voceSilAt = 0;
 let _voceTickN = 0;
 let _voceTickAt = 0;      // 29/10 sera: quando l'ULTIMO tick è finito DAVVERO
+let _voceFase = null;     // 6/11: l'ultima FASE vista dal tick — la prova va nel registro SILENZIO (la muta non si dice più senza dati)
+let _voceTipo = null;     // 6/11: l'ultimo TIPO static visto dal tick ('TimeAttack'/'Race'…)
 async function copilotaServerTick() {
   const n = ++_voceTickN;
   // diagnostica 29/10: i primi 3 tick di ogni partenza del server scrivono che
@@ -798,7 +805,7 @@ async function copilotaServerTickInterno() {
   const PERCHE = [];
   const tacchio = () => {
     const ora = Date.now();
-    if (PERCHE.length && ora - _voceSilAt > 60000) { _voceSilAt = ora; logaVoce({ evento: 'SILENZIO', motivi: PERCHE.join(' + ') }); }
+    if (PERCHE.length && ora - _voceSilAt > 60000) { _voceSilAt = ora; logaVoce({ evento: 'SILENZIO', motivi: PERCHE.join(' + '), fase: _voceFase, tipo: _voceTipo }); }
   };
   if (!voceServerAttiva()) { PERCHE.push('voce config OFF'); tacchio(); return; }
   /* GUARDIA DEL PANNELLO (1/11, «ritornello» di Mauro): se un ALTRO Pitwall
@@ -841,6 +848,7 @@ async function copilotaServerTickInterno() {
   try {
     const state0 = existsSync(SAVE_FILE) ? requireState() : null;
     const m = await payloadIngegnere(context(), state0, null, { leggero: true });
+    _voceFase = m?.phase ?? null; _voceTipo = m?.sessionType ?? null;   // 6/11: fase e tipo nel registro, non nel dubbio
     if (!m?.live) logaVoce({ evento: "PAYLOAD NON VIVO", type: m?.sessionType ?? null, snapLiveOk: true });      // 30/10 BUG visto qui: prima il 4° argomento di giroVoce era il FILE di registro passato fuori posto (l'opzione {log} non c'era): giroVoce lo scartava ({log} restava a default null) e il registro dei narratori NON riceveva né SESSIONE VIVA né le righe voce/it — una gara parlata restava indistinguibile da una muta nel diario. Adesso passa { log } e il registro arriva.
       giroVoce(m, slotVoceServo, voceSrv, { log: LOGUE_VOCE, livello: voceServerLivello() });
   } catch (e) {
@@ -3477,7 +3485,12 @@ async function api(context0, _req, res, action, body) {
         });
         if (!piano) return sendJson(res, 200, { ok: false, hint: tr({ it: 'Non sono riuscito a costruire il piano: apri il pannello del meccanico e riprova.', en: 'Could not build the plan: open the mechanic panel and retry.' }) });
         let scritto = null;
-        if (esegui) {
+        /* 6/11 (la benzina che restava a 30 L): il piano SENZA nessuna leva
+           reale NON tocca il disco — un file di soli 30 L col nome della sera
+           era una promessa falsa. La risposta di pianoSetup lo spiega già:
+           qui basta non scrivere. Il file nuovo (quando c'è) non sovrascrive
+           mai: contatore « (2)» davanti all'esistente. */
+        if (esegui && Object.keys(piano.edits).length) {
           // NOME GIUSTO e MAI distruzione: se «Qualifica.carsetup» esiste già
           // si sale col contatore « (2)», « (3)»… il file vecchio resta al posto suo.
           let nome = nomeBase;

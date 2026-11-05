@@ -32,6 +32,23 @@ function lapTxtMs(txt) {
   return null;
 }
 
+/* IL GATE DI QUALIFICA (6/11, il copilota muta in qualifica, richiesta Mauro:
+   «niente delta»): le tre frasi (primo best, miglioramento, settore peggiore)
+   valgono SOLO in qualifica — regola del 3/11 — ma riconoscerla da UNA stringa
+   sola era la mela marcia: il tipo static mente («TimeAttack» 178 tick su 178
+   nelle gare SP, lezione del 29/10) e in CARRIERA la qualifica si presenta
+   proprio come «TimeAttack». Il nucleo: la qualifica c'è SE la fase la
+   dichiara («Qualify» e simili, SMEvoSessionState.phase_name) OPPURE se NON
+   è gara (inRace === false, che il server consegna coi dati del round) e la
+   fase parla da hotlap/pratica/timeattack. Con inRace assente (test e
+   vecchi chiamanti) la regola vecchia resta: solo la fase esplicita. In
+   gara il gate resta chiuso qualunque cosa dica il tipo static. */
+function qualificaOra(m) {
+  const fase = String(m.phase ?? m.sessionType ?? '').trim();
+  if (/qualif/i.test(fase)) return true;
+  return m.inRace === false && /timeattack|hotlap|pratic/i.test(fase);
+}
+
 function narratore(m, slot, ora = Date.now()) {
   const parla = [];
   /* 8d) LA BANDIERA NON GRIDÌ PRIMA DEL GIRO (31/10, gara delle 14:24):
@@ -128,19 +145,18 @@ function narratore(m, slot, ora = Date.now()) {
      tempo HUD: il primo best lo dice, ogni miglioramento lo dice col
      guadagno, e se la frase del giro ha già detto «nuovo best» non si
      ripete. Solo qualifica, la regola di Mauro del 3/11. */
-  const faseQ = String(m.phase ?? m.sessionType ?? '').trim();
   const bestTxt = m.timing?.bestLap ?? null;
   const bestMsOra = lapTxtMs(bestTxt);
   if (bestMsOra != null) {
     const prima = slot.last.bestMs ?? null;
     if (prima == null) {
       slot.last.bestMs = bestMsOra;
-      if (/qualif/i.test(faseQ)) {
+      if (qualificaOra(m)) {
         parla.push({ chi: 'best', it: `Primo best della qualifica: ${bestTxt}` });
       }
     } else if (bestMsOra < prima - 10) {
       slot.last.bestMs = bestMsOra;
-      if (/qualif/i.test(faseQ) && !parla.some((p) => p.chi === 'giroFatto' && /nuovo best/i.test(p.it))) {
+      if (qualificaOra(m) && !parla.some((p) => p.chi === 'giroFatto' && /nuovo best/i.test(p.it))) {
         parla.push({ chi: 'best', it: `Nuovo best: ${bestTxt} — ${((prima - bestMsOra) / 1000).toFixed(1)} meglio` });
       }
     }
@@ -452,7 +468,7 @@ function narratore(m, slot, ora = Date.now()) {
      parlarne. Solo qualifica — fase o tipo devono dichiararla, altrimenti
      tace anche col campo presente — e UNA volta per risultato (chiave
      settore+distacco+migliore: la stessa qualifica non si ripete). */
-  if (m.settore && m.settore.deltaMs > 0 && m.settore.deltaMs <= 3000 && /qualif/i.test(String(m.phase ?? m.sessionType ?? ''))) {
+  if (m.settore && m.settore.deltaMs > 0 && m.settore.deltaMs <= 3000 && qualificaOra(m)) {
     const st = m.settore;
     const chiave = `${st.indice}|${Math.round(st.deltaMs)}|${st.migliore ?? ''}`;
     if (slot.last.settoreKey !== chiave) {

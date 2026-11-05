@@ -1195,6 +1195,9 @@ async function drawSetup(m){
           const verificaHtml = (rr.scritto?.verifica ?? []).filter((v) => !v.ok).length
             ? `<div style="margin-top:4px;font-size:12px;color:#ff9b9b">⚠️ ${(rr.scritto.verifica ?? []).filter((v) => !v.ok).map((v) => `${esc(v.campo)}: ${esc(String(v.scritto ?? '?'))} ${tr({ it: 'invece di', en: 'instead of' })} ${esc(String(v.voluto))}`).join(' · ')}</div>`
             : '';
+          /* 6/11: il piano già SCRIVE al primo gesto — il bottone ✍️ qui sotto
+             non compare più nei flussi normali (via stantia del vecchio a due
+             tappe; il ramo resta per non rompere i vecchi flussi). */
           const scrittoHtml = rr.scritto
             ? `<div class="banner good" style="margin-top:8px;padding:8px 10px;font-size:12.5px">💾 <b>${tr({ it: 'Setup creato', en: 'Setup created' })}: <span style="color:var(--acc)">${esc(rr.scritto.nome)}.carsetup</span></b><div class="muted" style="font-size:11.5px;margin-top:2px">${tr({ it: 'cartella di questa pista · in EVO: CARICA e scegli quel nome', en: 'this track folder · in EVO: LOAD and pick that name' })}</div>${verificaHtml}<div class="row" style="margin-top:6px;gap:6px"><button class="mini" id="b-mech-lista" type="button">📋 ${tr({ it: 'Vedi nella lista dei setup', en: 'Show in the setup list' })}</button></div></div>`
             : (!esegui && (rr.righe ?? []).length ? `<button class="mini acc" id="b-mech-scrivi" type="button" style="margin-top:6px">✍️ ${tr({ it: 'Scrivi nel gioco', en: 'Write to the game' })}</button>` : '');
@@ -1211,8 +1214,8 @@ async function drawSetup(m){
             const btnLista = document.querySelector('#b-mech-lista');
             if (btnLista) btnLista.onclick = () => document.querySelector('#setup-hist')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
-          const btnScrivi = document.querySelector('#b-mech-scrivi');
-          if (btnScrivi) btnScrivi.onclick = () => window.__mechParla(outParl.dataset.richiesta, true);
+          /* «✍️ Scrivi nel gioco» è coperto dalla delega document (6/11):
+             attaccarlo qui facingga doppio (flusso legacy a esegui=false). */
         } catch (e) {
           outParl.innerHTML = `<div class="banner bad" style="padding:8px 10px">🗣️ ${esc(e?.message ?? String(e))}</div>`;
         }
@@ -1222,13 +1225,43 @@ async function drawSetup(m){
         ${rows || `<div class="muted" style="font-size:12px">${tr({ it: 'Nessun consiglio per questa pista: anagrafica non disponibile.', en: 'No advice for this track: profile not available.' })}</div>`}
         ${vivoHtml}${dialogoHtml}${storiaHtml}
       </div>`;
-      /* AGGANCI del dialogo: invia col bottone o col tasto INVIO, i menu
-         di abitudini portano direttamente le domande tipiche. */
-      const inpParla = document.querySelector('#mech-parla');
-      const bParla = document.querySelector('#b-mech-parla');
-      if (bParla) bParla.onclick = () => { const t = inpParla?.value?.trim(); if (t) window.__mechParla(t); };
-      if (inpParla) inpParla.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); bParla?.click(); } });
-      document.querySelectorAll('[data-mech]').forEach((b) => { b.onclick = () => window.__mechParla(b.dataset.mech); });
+      /* AGGANCI STABILI (6/11, il guasto VERo che Mauro vide: «clicco su gara o
+         qualifica ma niente»): il pannello del meccanico vive nel cruscotto e
+         il vivo ricrea l'HTML del dialogo a ogni giro — drawSetup partì UNA
+         volta sola per scheda e ogni re-render ammazzava gli onclick attaccati
+         ai nodi vecchi: il click dell'utente cadeva su un bottone SENZA
+         gestore (haClick=false, niente richiesta, nessun file). La delega
+         sul document (UNA volta sola per pagina, bandiera window.__mechDeleg)
+         sopravvive a ogni sostituzione di innerHTML: chips, «Chiedi», INVIO e
+         «✍️ Scrivi nel gioco» rispondono SEMPRE. La richiesta a voce
+         («prepara una gara con 3 giri») prepara E SCRIVE al primo gesto e il
+         file NUOVO non sovrascrive mai (contatore « (2)»); «Correggiti» resta
+         chiacchiera a voce alta, niente file. */
+      window.__mechDeleg ??= true;
+      if (!document.__mechDelegMessa) {
+        document.__mechDelegMessa = true;
+        document.addEventListener('click', (e) => {
+          const chip = e.target.closest('[data-mech]');
+          if (chip) { window.__mechParla(chip.dataset.mech, chip.dataset.mech !== 'correggiti'); return; }
+          if (e.target.closest('#b-mech-parla')) {
+            const t = document.querySelector('#mech-parla')?.value?.trim();
+            if (t) window.__mechParla(t, true);
+            return;
+          }
+          if (e.target.closest('#b-mech-scrivi')) {
+            const richiesta = e.target.closest('#mech-parla-out')?.dataset?.richiesta;
+            if (richiesta) window.__mechParla(richiesta, true);
+          }
+        });
+        document.addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter') return;
+          const i = e.target.closest('#mech-parla');
+          if (!i) return;
+          e.preventDefault();
+          const t = i.value.trim();
+          if (t) window.__mechParla(t, true);
+        });
+      }
       $$('.mech-advice', out).forEach((r) => {
         const vai = () => {
           const btn = document.querySelector('#b-apply-setup');

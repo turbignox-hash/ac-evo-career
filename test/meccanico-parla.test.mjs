@@ -121,3 +121,26 @@ test('pianoSetup: senza cur o tipo → null (mai scoppio)', () => {
   assert.equal(pianoSetup({ tipo: 'gara' }), null);
   assert.equal(pianoSetup({ cur: curBase }), null);
 });
+
+/* 6/11 (la benzina che restava a 30 L): senza numeri veri il piano NON ha
+   modifiche e la risposta lo dice al chiaro — mai un «Fatto: ti preparo…»
+   che il disco non mantiene. Il server (webui.mjs) nel flusso esegui salta
+   la scrittura quando edits è vuoto: qui la regola del piano. */
+test('pianoSetup senza numeri veri: zero leve, risposta onesta', () => {
+  const piano = pianoSetup({ tipo: 'gara', raceLaps: 3, cur: { tires: [], fuel: null }, nome: 'Gara 3 giri' });
+  assert.deepStrictEqual(piano.edits, {});
+  assert.equal(piano.righe.length, 0);
+  assert.match(piano.risposta, /Non scrivo niente/);
+  assert.doesNotMatch(piano.risposta, /Fatto:/);
+});
+
+test('pianoSetup coi numeri veri: benzina da gara a 3 giri = 8 L e «Fatto» resta', () => {
+  const piano = pianoSetup({
+    tipo: 'gara', raceLaps: 3,
+    cur: { tires: [{ pressure: 31 }, { pressure: 31 }, { pressure: 31 }, { pressure: 31 }], fuel: { liters: 30 } },
+    sessione: { fuelPerLap: 1.47 },
+    live: null, tyreTarget: 31, nome: 'Gara 3 giri',
+  });
+  assert.equal(piano.edits.fuel.liters, 8, 'ceil(1.47×3×1.05)+3 = 8');
+  assert.match(piano.risposta, /^Fatto: ti preparo/);
+});

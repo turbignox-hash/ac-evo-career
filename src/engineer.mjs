@@ -158,7 +158,7 @@ export function engineerLive(snap, ctx = {}) {
     position: null, drivers: null, timeLeft: null,
     raceLaps: ctx.raceLaps ?? null, fuelPerLap: ctx.fuelPerLap ?? null,
   };
-  if (!player || !inSession) return { ok: true, live: false, tips: [], gauges, pit: null };
+  if (!player || !inSession) return { ok: true, live: false, tips: [], gauges, pit: null, inRace: false };
 
   const tips = [];
   // Il consumo e le pressioni possono arrivare dallo snapshot compatto:
@@ -426,5 +426,9 @@ export function engineerLive(snap, ctx = {}) {
     });
     tips.sort((a, b) => (a.prio ?? 9) - (b.prio ?? 9));
   }
-  return { ok: true, live: true, tips, gauges, pit };
+  /* INRACE nel ritorno (6/11, il copilota muta in qualifica): il payload
+     leggero lo propaga — il narratore lo usa per distinguere la QUALIFICA
+     di carriera dal TimeAttack puro quando la fase non parla (il tipo static
+     già mentiva in gara SP, lezione 29/10). */
+  return { ok: true, live: true, tips, gauges, pit, inRace };
 }

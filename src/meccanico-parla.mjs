@@ -141,10 +141,16 @@ export function pianoSetup({ tipo, raceLaps = null, cur, sessione = null, live =
     note.push('Il COMPOSTO NON vive nel file: nel menu del setup in EVO passa alla gomma pioggia PRIMA di uscire, le pressioni in questo file sono già da pioggia.');
   }
   const nomeDetto = nome ?? nomeSetup(tipo, raceLaps);
-  const risposta = tipo === 'qualifica'
-    ? `Fatto: ti preparo «${nomeDetto}» con il tuo nome. Benzina da ${QUALI_GIRI} giri di verifica e pressioni fredde dal calcolo del vivo. In pista fai ${QUALI_GIRI} giri di assaggio e poi di nuovo a lui.`
-    : tipo === 'gara'
-      ? `Fatto: ti preparo «${nomeDetto}» con il tuo nome: benzina del piano completo${raceLaps >= 3 ? ' a ' + raceLaps : ''} e pressioni del vivo.`
-      : `Fatto: ti preparo «${nomeDetto}» con il tuo nome — pressioni scaricate di 1,5 psi e benzina del piano; il composto pioggia lo scegli nel menu del setup dentro EVO prima di uscire.`;
+  /* 6/11 (la benzina che non si muove): la risposta è ONESTA alla prima —
+     senza NESSUNA leva reale non c'è «Fatto: ti preparo…»: si dice che il
+     file NON lo tocca e cosa manca. Invenzione zero, la regola della casa. */
+  const nessunaLeva = !Object.keys(edits).length;
+  const risposta = nessunaLeva
+    ? `Non scrivo niente: con i dati di oggi «${nomeDetto}» non avrebbe NESSUNA modifica (benzina e pressioni restano quelle del tuo base). Mi servono numeri veri — fai un giro o scarica una telemetria — e chiedimi di nuovo: allora il file nasce col nome giusto.`
+    : tipo === 'qualifica'
+      ? `Fatto: ti preparo «${nomeDetto}» con il tuo nome. Benzina da ${QUALI_GIRI} giri di verifica e pressioni fredde dal calcolo del vivo. In pista fai ${QUALI_GIRI} giri di assaggio e poi di nuovo a lui.`
+      : tipo === 'gara'
+        ? `Fatto: ti preparo «${nomeDetto}» con il tuo nome: benzina del piano completo${raceLaps >= 3 ? ' a ' + raceLaps : ''} e pressioni del vivo.`
+        : `Fatto: ti preparo «${nomeDetto}» con il tuo nome — pressioni scaricate di 1,5 psi e benzina del piano; il composto pioggia lo scegli nel menu del setup dentro EVO prima di uscire.`;
   return { edits, righe, note, risposta, psiBersaglio: tyreTarget ?? null };
 }

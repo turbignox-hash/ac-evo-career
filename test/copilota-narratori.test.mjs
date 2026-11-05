@@ -760,3 +760,49 @@ test('il BEST della qualifica parla dal tempo HUD: primo, miglioramento, mai dop
   }), slotGara, 1000).filter((f) => !f.detto);
   assert.equal(e.filter((f) => f.chi === 'best').length, 0, 'in gara il best non entra: solo qualifica');
 });
+
+/* 6/11 (il copilota muta in qualifica): la QUALIFICA di carriera EVO si
+   presenta in MMF come sessionType «TimeAttack» (il tipo static mentiva già
+   in gara SP — 178 tick su 178, lezione 29/10) e il phase_name vero vale e
+   viene. Il gate ora legge ANCHE inRace (il server la calcola con i dati
+   del round): in qualifica best e settore parlano; nella gara che si
+   etichetta «TimeAttack» tacciono come in gara (regola del 3/11). */
+test('qualifica carriera (TimeAttack, inRace false): primo best detto e miglioramento col guadagno', () => {
+  const frames = [
+    [0, MMF(0, { sessionType: 'TimeAttack', inRace: false, timing: { lastLap: null, bestLap: '1:10.196' } })],
+    [31000, MMF(31000, { sessionType: 'TimeAttack', inRace: false, timing: { lastLap: null, bestLap: '1:09.880' } })],
+  ];
+  const dette = gara(frames);
+  const best = dette.filter((f) => !f.detto && f.chi === 'best');
+  assert.equal(best.length, 2, 'primo + miglioramento: ' + JSON.stringify(trascrizione(dette)));
+  assert.match(best[0].it, /Primo best della qualifica: 1:10\.196/);
+  assert.match(best[1].it, /Nuovo best: 1:09\.880 — 0\.3 meglio/);
+});
+
+test('gara SP etichettata «TimeAttack» (inRace true): ZERO frasi best — regola del 3/11', () => {
+  const frames = [
+    [0, MMF(0, { sessionType: 'TimeAttack', inRace: true, timing: { bestLap: '1:10.196' } })],
+    [31000, MMF(31000, { sessionType: 'TimeAttack', inRace: true, timing: { bestLap: '1:09.880' } })],
+  ];
+  assert.equal(voce(gara(frames), 'best'), 0);
+});
+
+test('qualifica con la fase esatta («Qualify»): primo best anche senza inRace', () => {
+  const frames = [
+    [0, MMF(0, { phase: 'Qualify', timing: { bestLap: '1:10.196' } })],
+  ];
+  const dette = gara(frames);
+  assert.ok(dette.some((f) => !f.detto && f.chi === 'best' && /Primo best della qualifica/.test(f.it)),
+    JSON.stringify(trascrizione(dette)));
+});
+
+test('settore peggiore dal vivo in qualifica (TimeAttack, inRace false): una frase sola per la stessa chiave', () => {
+  const frames = [
+    [1000, MMF(1000, { sessionType: 'TimeAttack', inRace: false, settore: { indice: 2, deltaMs: 412, migliore: 'V. Rossi' } })],
+    [34000, MMF(34000, { sessionType: 'TimeAttack', inRace: false, settore: { indice: 2, deltaMs: 412, migliore: 'V. Rossi' } })],
+  ];
+  const dette = gara(frames);
+  const s = dette.filter((f) => !f.detto && f.chi === 'settore');
+  assert.equal(s.length, 1, JSON.stringify(trascrizione(dette)));
+  assert.match(s[0].it, /Perdi 0\.4 nel settore 2 — lì il migliore è V\. Rossi/);
+});

@@ -28,3 +28,14 @@ test('webui: il case meccanico-parla esiste al top-level del dispatcher', () => 
   assert.match(server, /case 'meccanico-parla': \{\s*\n\s*try \{/,
     'il server deve avere il case dedicato (il test e2e lo pesa altrove)');
 });
+
+/* 6/11 (il gesto unico): i chip Quali/Gara/Pioggia e la richiesta a voce
+   SCRIVONO al primo gesto (esegui true) — «Correggiti» resta chiacchiera a
+   voce. Finché il piano della GUI chiamava con esegui=false l'utente
+   no vedeva mai il tasto «✍️ Scrivi nel gioco» e il file non nasceva. */
+test('viste-c: i chip scrivono al primo gesto (correggiti no), la richiesta a voce pure', () => {
+  assert.match(gui, /window\.__mechParla\(chip\.dataset\.mech, chip\.dataset\.mech !== 'correggiti'\)/,
+    'i chip che preparano scrivono al primo gesto (delega document): esegui true, tranne correggiti');
+  assert.match(gui, /window\.__mechParla\(t, true\)/,
+    'la richiesta a voce («prepara una gara con 3 giri») scrive al primo gesto');
+});
