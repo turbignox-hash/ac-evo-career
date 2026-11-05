@@ -4,6 +4,23 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md) (il registro completo). Il save in
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
+
+## v0.1.59 — 5/11/2026
+
+- **Griglia allineata al parco che EVO accetta**: la preparazione «Prepara tutto»
+  accosta la lista modelli al numero di avversari che il gioco accetta (17 modelli
+  → 16, tetto o posto del giocatore) e riempie i posti scoperti a giro dal parco
+  (17 modelli → 18 posti), solo con echo completo e scarto piccolo; il via è
+  bloccato su QUALSIASI griglia sbilanciata — lo stato che uccideva EVO alla
+  creazione della griglia (0xC0000005, Brands Hatch multiclasse).
+- **Ripiego meteo**: se la variante della ronda non è nella lista del gioco
+  (LIGHT_RAIN assente a Brands Hatch), si sceglie la famiglia più vicina
+  (RAIN/CLOUDY) e l'ack dichiara «ripiego» al posto di lasciare il cielo invariato.
+- **Riquadro del suggerimento trim di ritorno**: il banner con Accetta/Rifiuta
+  torna nella scheda gara dopo le gare; la guardia trim-passo-uno ne pesa la presenza.
+- Suite completa **983/983**; Biome 385 file, 0 warning.
+- Nota: l'exe offline in `dist/` va rigenerata con `crea-release` per portare v0.1.59.
+
 ## v0.1.58 — 4/11/2026
 
 - **La tab Griglia torna viva** (difetto arrivato fino alla v0.1.57):
