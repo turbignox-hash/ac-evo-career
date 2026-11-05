@@ -699,7 +699,7 @@ function drawCardInto(el, card){
 
     <div class="title">${CFLAG} ${esc(card.roundName)}</div>
     <div class="sub">${window.serLinkHtml(card.nodeDisplay, { node: card.nodeId })} · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(card.entryFee)} € · ${tr({ it: 'si paga una volta per round', en: 'paid once per round' })}${card.agendaDay ? (card.agendaDay <= (boot.header?.day ?? 0) ? '' : ' · ' + tr({ it: 'in calendario per il ', en: 'scheduled for ' }) + esc(card.agendaDayLabel ?? (tr({ it: 'giorno ', en: 'day ' }) + card.agendaDay))) : ''}</div>
-    <div id="card-actions" class="card-actions">
+
     ${briefHtml}
     ${/* RIQUADRO DEL SUGGERIMENTO TRIM RIPRISTINATO (5/11, richiesta Mauro:
          dopo le gare torna il banner con Accetta/Rifiuta). SLITTAMENTO ONESTO:
@@ -712,27 +712,7 @@ function drawCardInto(el, card){
       <button class="mini" id="b-prop-accept" style="margin-top:6px">${tr({ it: 'Accetta (trim ', en: 'Accept (trim ' })}${card.pendingProposal.to >= 0 ? '+' : ''}${card.pendingProposal.to})</button>
       <button class="mini" id="b-prop-reject" style="margin-top:6px;margin-left:6px">${tr({ it: 'Rifiuta', en: 'Reject' })}</button></div>` : ''}
     ${card.challenge && !card.challenge.verdict ? `<div class="banner challenge-flag ${card.challenge.accepted?'info':'warn'}" style="margin-top:10px">${LI.target} <b>${tr({ it: 'Sfida della ronda', en: 'Round challenge' })}</b> — ${esc(legacyIt(card.challenge.text))}<br><span class="muted">${tr({ it: 'facoltativa · premio ', en: 'optional · reward ' })}${money(card.challenge.reward)} € ${tr({ it: 'se ci riesci · −', en: 'if you make it · −' })}${card.challenge.penalty} rep ${tr({ it: 'se fallisci', en: 'if you fail' })}${card.challenge.accepted?` · <b>${tr({ it: 'accettata', en: 'accepted' })}</b>`:''}</span>${card.challenge.accepted?'':` <button class="mini" id="b-accept-chal" style="margin-top:6px">${tr({ it: 'Accetta la sfida', en: 'Accept the challenge' })}</button>`}</div>` : ''}
-    <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto', en: '🏁 Get everything ready' })}</button>
-    <button class="act" id="b-race-launch" style="width:100%;margin-top:6px">${tr({ it: '🏁 Prepara tutto e avvia', en: '🏁 Get everything ready and start' })}</button>
-    <div class="muted" style="margin-top:10px">${tr({ it: 'Il round intero lo scrive in EVO «Prepara tutto»: pista, auto, griglia, meteo e orari. Con «Prepara tutto e avvia» il gioco si apre e l’app preme «Avvia sessione» da sola; con il primo apri tu EVO e premi «Avvia sessione». Se una riga non torna, ripremi il bottone.', en: 'The whole round gets written into EVO by “Get everything ready”: track, car, grid, weather and session times. “Get everything ready and start” opens the game and the app presses “Start session” by itself; with the first one you open EVO and press “Start session”. If a row looks off, press the button again.' })}</div>
-    <div class="muted" style="margin-top:6px;font-size:11.5px">${(() => {
-      // STATO UNICO (4/11): loader presente → app installata → publisher vivo
-      // → ack recente. «Prepara tutto e avvia» preme il via da solo SOLO con
-      // l'app Cruscotto viva; se un anello manca, la scheda dice quale e
-      // niente promesse che il via partirà da sé.
-      const u = card.uiapp;
-      if (!u) return '';
-      const ok = (v) => v ? '✓' : '✗';
-      const riga = `${tr({ it: 'Loader', en: 'Loader' })} ${ok(u.loader)} · ${tr({ it: 'App', en: 'App' })} ${ok(u.installata)} · ${tr({ it: 'Publisher', en: 'Publisher' })} ${ok(u.publisher)} · ${tr({ it: 'Ack recente', en: 'Recent ack' })} ${ok(u.attiva)}`;
-      let msg;
-      if (u.attiva && u.loader && u.installata && u.publisher) msg = tr({ it: '«Prepara tutto e avvia» preme «Avvia sessione» da sola.', en: '“Get everything ready and start” presses “Start session” by itself.' });
-      else if (!u.loader) msg = tr({ it: 'Manca la mod ACE UI App Loader: installala, poi riavvia il launcher.', en: 'The ACE UI App Loader mod is missing: install it, then relaunch.' });
-      else if (!u.installata) msg = tr({ it: 'Loader presente, app Cruscotto non installata: riavvia il launcher o esegui INSTALLA-GIOCO.', en: 'Loader present, Cruscotto app not installed: relaunch or run INSTALLA-GIOCO.' });
-      else if (!u.publisher) msg = tr({ it: 'App installata, ma il publisher è fermo: riavvia la GUI.', en: 'App installed, but the publisher is stopped: restart the GUI.' });
-      else msg = tr({ it: 'App e publisher attivi, ma nessun comando confermato negli ultimi 15 minuti: apri il Cruscotto in EVO.', en: 'App and publisher active, but no command confirmed in the last 15 minutes: open Cruscotto in EVO.' });
-      return `🕹️ <b>${tr({ it: 'App in gioco', en: 'In-game app' })}</b> ${riga}<br><span class="muted">${msg}</span>`;
-    })()}</div>
-    </div>
+
     ${card.carImage ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:8px 0 4px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2,#121822)">
       <img src="${card.carImage}" alt="${esc(card.carName ?? '')}" style="width:150px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#0d1118">
       <div style="font-size:12.5px;flex:none;min-width:180px;max-width:250px"><b>${tr({ it: 'Auto della giornata', en: "Today's car" })}</b><br>${window.carLinkHtml(card.carName)}
@@ -775,6 +755,28 @@ function drawCardInto(el, card){
     ${!card.heritageActive && card.heritageHint ? `<div class="banner info" style="margin-top:10px">📜 ${tr({ it: "L'impresa di famiglia ", en: 'The family feat ' })}${card.heritageHint ? tr({ it: 'prosegue a <b>', en: 'continues at <b>' })+esc(card.heritageHint)+'</b>' : ''}${tr({ it: ': corri la ronda indicata per farla contare (vedi pannello Eredità).', en: ': run the listed round to make it count (see the Heritage panel).' })}</div>` : ''}
     ${card.difficulty?.trim >= (20) ? `<div class="banner warn" style="margin-top:10px"><b>${tr({ it: 'Difficoltà al massimo', en: 'Difficulty at the max' })}</b> — ${tr({ it: 'il trim adattivo è arrivato a +20 e la serie resta troppo facile: il passo successivo è passare a una serie più alta (bottone 🎯 nel cruscotto).', en: 'the adaptive trim reached +20 and the series still feels too easy: the next step is moving up to a higher series (the 🎯 button in the dashboard).' })}</div>` : ''}
     ${card.warnings.length ? `<ul class="warnlist">${card.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>` : ''}
+    <div id="card-actions" class="card-actions" style="margin-top:12px">
+    <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto', en: '🏁 Get everything ready' })}</button>
+    <button class="act" id="b-race-launch" style="width:100%;margin-top:6px">${tr({ it: '🏁 Prepara tutto e avvia', en: '🏁 Get everything ready and start' })}</button>
+    <div class="muted" style="margin-top:10px">${tr({ it: 'Il round intero lo scrive in EVO «Prepara tutto»: pista, auto, griglia, meteo e orari. Con «Prepara tutto e avvia» il gioco si apre e l’app preme «Avvia sessione» da sola; con il primo apri tu EVO e premi «Avvia sessione». Se una riga non torna, ripremi il bottone.', en: 'The whole round gets written into EVO by “Get everything ready”: track, car, grid, weather and session times. “Get everything ready and start” opens the game and the app presses “Start session” by itself; with the first one you open EVO and press “Start session”. If a row looks off, press the button again.' })}</div>
+    <div class="muted" style="margin-top:6px;font-size:11.5px">${(() => {
+      // STATO UNICO (4/11): loader presente → app installata → publisher vivo
+      // → ack recente. «Prepara tutto e avvia» preme il via da solo SOLO con
+      // l'app Cruscotto viva; se un anello manca, la scheda dice quale e
+      // niente promesse che il via partirà da sé.
+      const u = card.uiapp;
+      if (!u) return '';
+      const ok = (v) => v ? '✓' : '✗';
+      const riga = `${tr({ it: 'Loader', en: 'Loader' })} ${ok(u.loader)} · ${tr({ it: 'App', en: 'App' })} ${ok(u.installata)} · ${tr({ it: 'Publisher', en: 'Publisher' })} ${ok(u.publisher)} · ${tr({ it: 'Ack recente', en: 'Recent ack' })} ${ok(u.attiva)}`;
+      let msg;
+      if (u.attiva && u.loader && u.installata && u.publisher) msg = tr({ it: '«Prepara tutto e avvia» preme «Avvia sessione» da sola.', en: '“Get everything ready and start” presses “Start session” by itself.' });
+      else if (!u.loader) msg = tr({ it: 'Manca la mod ACE UI App Loader: installala, poi riavvia il launcher.', en: 'The ACE UI App Loader mod is missing: install it, then relaunch.' });
+      else if (!u.installata) msg = tr({ it: 'Loader presente, app Cruscotto non installata: riavvia il launcher o esegui INSTALLA-GIOCO.', en: 'Loader present, Cruscotto app not installed: relaunch or run INSTALLA-GIOCO.' });
+      else if (!u.publisher) msg = tr({ it: 'App installata, ma il publisher è fermo: riavvia la GUI.', en: 'App installed, but the publisher is stopped: restart the GUI.' });
+      else msg = tr({ it: 'App e publisher attivi, ma nessun comando confermato negli ultimi 15 minuti: apri il Cruscotto in EVO.', en: 'App and publisher active, but no command confirmed in the last 15 minutes: open Cruscotto in EVO.' });
+      return `🕹️ <b>${tr({ it: 'App in gioco', en: 'In-game app' })}</b> ${riga}<br><span class="muted">${msg}</span>`;
+    })()}</div>
+    </div>
     <div class="row" style="margin-top:16px">
       <button class="ghost" id="b-copy">${tr({ it: 'Copia scheda', en: 'Copy sheet' })}</button>
     </div>`;
