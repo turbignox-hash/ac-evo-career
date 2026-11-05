@@ -21,8 +21,16 @@ const snap = () => ({
         lr: { slip: 0.203, lock: true, compoundRear: 'S3' },
         rr: { slip: 0.18, lock: false, compoundRear: 'S3' },
       },
+      tcActive: true, absActive: false, escActive: false,
+      electronics: { tcLevel: 3, absLevel: 2, escLevel: 1, ebbLevel: 4, engineMapLevel: 2,
+        turboLevel: 1.5, diffPowerLevel: 5, diffCoastLevel: 4,
+        frontBumpDamperLevel: 6, frontReboundDamperLevel: 5, rearBumpDamperLevel: 8, rearReboundDamperLevel: 7 },
+      waterTempC: 92, oilTempC: 104.4, oilPressureBar: 6.35,
     },
-    physics: { padLife: [0.6, 0.61, 0.35, 0.34], discLife: [0.8, 0.8, 0.7, 0.7], brakeBias: 0.545 },
+    physics: { padLife: [0.6, 0.61, 0.35, 0.34], discLife: [0.8, 0.8, 0.7, 0.7], brakeBias: 0.545,
+      wheelLoad: [4200, 4180, 5100, 5080], slipRatio: [0.12, 0.05, 0.2, 0.18], slipAngle: [0.031, -0.028, 0.05, -0.045],
+      suspensionDamage: [0, 0.02, 0.35, 0.3], mz: [4100, 4080, 5200, 5190], fy: [120, -90, 340, -310],
+    },
   },
   player: {
     airTempC: 24, roadTempC: 37,
@@ -56,6 +64,15 @@ test('vivoDaSnapshot: i dati reali passano verbatim (arrotondamenti da GUI)', ()
   // usura gomma 0.98 nel gioco = 98% nel payload del meccanico
   assert.equal(v.gomme.LR.usuraPct, 96);
   assert.equal(v.gomme.LF.usuraPct, 98);
+  // CANALI VIVI AGGIUNTIVI: carico/slittamento/angolo/forze/danno sospensioni per ruota
+  assert.deepEqual(v.gomme.LF.caricoN, 4200);
+  assert.equal(v.gomme.LR.slittPct, 20);          // slipRatio 0.2 → 20%
+  assert.equal(v.gomme.LR.angoloDeg, 3);          // slipAngle 0.05 rad → 2.86 + round → 3
+  assert.equal(v.gomme.RF.angoloDeg, -2);         // -0.028 rad → -1.6 → round -2
+  assert.equal(v.gomme.LR.soffrPct, 35);          // suspensionDamage 0.35 → 35%
+  assert.equal(v.gomme.LF.soffrPct, 0);
+  assert.deepEqual(v.gomme.LR.vertN, 5200);
+  assert.deepEqual(v.gomme.RR.latN, -310);
   // freni: bilanciere 0.545 = 54.5 -> 55, pastiglie in %
   assert.equal(v.freni.bilancierePct, 55);
   assert.deepEqual(v.freni.pastigliePct, [60, 61, 35, 34]);
@@ -67,6 +84,19 @@ test('vivoDaSnapshot: i dati reali passano verbatim (arrotondamenti da GUI)', ()
   assert.equal(v.assetto.dannoPct, null);
   assert.equal(v.benzina.litri, 100.4);
   assert.equal(v.benzina.perGiro, 3.12);
+  // ELETTRONICA di bordo: livelli correnti e flag di attenzione
+  assert.equal(v.elettronica.tc, 3);
+  assert.equal(v.elettronica.abs, 2);
+  assert.equal(v.elettronica.ebb, 4);
+  assert.equal(v.elettronica.mappa, 2);
+  assert.equal(v.elettronica.diffPotenza, 5);
+  assert.equal(v.elettronica.damperAntBump, 6);
+  assert.equal(v.elettronica.tcAttiva, true);
+  assert.equal(v.elettronica.absAttiva, false);
+  // MOTORE: acqua, olio e pressione
+  assert.equal(v.motore.acquaC, 92);
+  assert.equal(v.motore.olioC, 104);
+  assert.equal(v.motore.olioBar, 6.4);
 });
 
 test('vivoDaSnapshot: senza gioco LIVE restituisce null (nulla di inventato)', () => {

@@ -15,7 +15,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/* RADICE (6/11): due test qui leggono il ladder REALE per pesare le distanze
+   del calendario. Se l'utente ha la modalità test accesa, la distanza nel
+   ladder è CAMBIATA di proposito (tutte le gare a N giri) e le attese fisse
+   (Oulton a 8 giri…) non sono più quelle del dato nudo. Salto onesto col
+   motivo scritto: quando l'utente spegne (`test-mode --off`) il ladder
+   torna dal backup e i test ripassano da solo. La CI non tocca data/:
+   qui la modalità è sempre spenta e i test girano. */
+const REGISTRO_MODE = join(dirname(fileURLToPath(import.meta.url)), '..', 'data', 'mode-test-3giri.json');
+let IN_TEST = false;
+try { IN_TEST = JSON.parse(readFileSync(REGISTRO_MODE, 'utf8'))?.attivo === true; } catch { /* il registro manca: modalità spenta */ }
 
 // --- sandbox PRIMA di ogni lettura (lezione del 2/11: env PRIMA dell'import) ---
 const TREE = mkdtempSync(join(tmpdir(), 'journal-nostro-'));
@@ -154,7 +166,7 @@ test('appCalendar: senza ponte e COL mirror → ok:true col mirror:true', () => 
   assert.equal(cal.rounds[1].state, 'done');
 });
 
-test('appNextRace: il fall-back porta la scheda della prossima', () => {
+test('appNextRace: il fall-back porta la scheda della prossima', { skip: IN_TEST ? 'modalità test accesa: le distanze del calendario reale sono cambiate di proposito (tornano con test-mode --off)' : false }, () => {
   appCacheClear(); journalNostroCacheClear();
   const n = appNextRace();
   assert.equal(n?.ok, true);
@@ -174,7 +186,7 @@ test('appNextRace: il fall-back porta la scheda della prossima', () => {
 // cosa che chiedevano al calendario: la ronda «next» con pista id,
 // meteo e orari già tradotti. Senza app, la ronda DEVE arrivare dal mirror —
 // con le DUE scale del meteo distinte (weather → ladder, idPreset → preset).
-test('rondaDelCalendario: col MIRROR (senza app) la ronda «next» è quella del journal nostro', () => {
+test('rondaDelCalendario: col MIRROR (senza app) la ronda «next» è quella del journal nostro', { skip: IN_TEST ? 'modalità test accesa: le distanze del calendario reale sono cambiate di proposito (tornano con test-mode --off)' : false }, () => {
   const ladder = loadLadder();
   const node = (ladder?.nodes ?? []).find((nd) => nd?.nodeId === 'coppa_citta');
   assert.ok(node, 'il ladder del progetto ha il nodo coppa_citta');

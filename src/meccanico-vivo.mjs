@@ -25,6 +25,7 @@ export function vivoDaSnapshot(snap) {
   const p = snap.player;
   const g = snap.raw?.graphics?.tyres ?? {};
   const phys = snap.raw?.physics ?? {};
+  const grafica = snap.raw?.graphics ?? {};   // l'oggetto GRAPHICS intero (elettronica, motore)
   const at = (arr, i) => (Array.isArray(arr) ? arr[i] ?? null : null);
 
   const gomme = {};
@@ -36,11 +37,17 @@ export function vivoDaSnapshot(snap) {
       centroC: at(p.tyreTempC, i),
       extC: at(p.tyreOuterC, i),
       frenoC: at(p.brakeTempC, i),
-      // la gomma è 0–1 nel gioco (1 = perfetta): la scena in % REALE
       usuraPct: (() => { const v = at(p.tyreWear, i); return Number.isFinite(v) && v <= 1 ? Math.round(v * 100) : num(v); })(),
       bloccata: t.lock === true,
       slittamento: num(t.slip, 3),
       composto: (t.compoundFront || t.compoundRear || '') || null,
+      // CANALI VIVI AGGIUNTIVI (6/11): carico, slittamento, angolo e forze
+      caricoN: at(phys.wheelLoad, i),
+      slittPct: (() => { const v = at(phys.slipRatio, i); return Number.isFinite(v) ? Math.round(v * 100) : null; })(),
+      angoloDeg: (() => { const v = at(phys.slipAngle, i); return Number.isFinite(v) ? Math.round(v * 57.296) : null; })(),
+      vertN: at(phys.mz, i),
+      latN: at(phys.fy, i),
+      soffrPct: (() => { const v = at(phys.suspensionDamage, i); return Number.isFinite(v) ? Math.round(v * 100) : null; })(),
     };
   });
 
@@ -71,6 +78,26 @@ export function vivoDaSnapshot(snap) {
         : null,             // intatta: non la sceno, il cruscotto la sa già
     },
     benzina: { litri: num(p.fuel, 1), perGiro: num(p.fuelPerLap, 2) },
+    // ELETTRONICA di bordo: i livelli CORRENTI letti dal gioco (non un
+    // ripensamento): si vede cosa sta sostando realmente la macchina.
+    elettronica: (() => {
+      const elettr = grafica.electronics ?? {};
+      const giusto = (v) => (v == null || !Number.isFinite(v) ? null : v);
+      return {
+        tc: giusto(elettr.tcLevel), abs: giusto(elettr.absLevel), esc: giusto(elettr.escLevel), ebb: giusto(elettr.ebbLevel),
+        mappa: giusto(elettr.engineMapLevel), turbo: giusto(elettr.turboLevel),
+        diffPotenza: giusto(elettr.diffPowerLevel), diffRilascio: giusto(elettr.diffCoastLevel),
+        damperAntBump: giusto(elettr.frontBumpDamperLevel), damperAntRit: giusto(elettr.frontReboundDamperLevel),
+        damperPostBump: giusto(elettr.rearBumpDamperLevel), damperPostRit: giusto(elettr.rearReboundDamperLevel),
+        tcAttiva: grafica.tcActive === true, absAttiva: grafica.absActive === true, escAttiva: grafica.escActive === true,
+      };
+    })(),
+    // MOTORE: temperature e pressione olio, dal pannello dell'HUD di EVO.
+    motore: {
+      acquaC: Number.isFinite(grafica.waterTempC) ? grafica.waterTempC : null,
+      olioC: Number.isFinite(grafica.oilTempC) ? Math.round(grafica.oilTempC) : null,
+      olioBar: Number.isFinite(grafica.oilPressureBar) ? Math.round(grafica.oilPressureBar * 10) / 10 : null,
+    },
   };
 }
 
