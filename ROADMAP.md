@@ -1,12 +1,14 @@
 # ROADMAP.md — DA aperti
 
-Aggiornata al **4/11/2026**. Fonte: [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md).
+Aggiornata al **5/11/2026**. Fonte: [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md).
 Contiene **solo i DA non chiusi**; le voci chiuse restano nel diario. Le P0/P1/P2
 della scansione non sono DA e non entrano qui. L'audit del 1/11 è storico:
 [AUDIT.md](AUDIT.md).
 
-Stato di riferimento: versione **0.1.58**, suite **916/916**, `npm run check`
-esiste ed è la leva unica test + lint.
+Stato di riferimento: versione **0.1.59**, suite **983/983**, `npm run check`
+esiste ed è la leva unica test + lint. In CI su GitHub: `quality` (test + lint su
+push) e `verifica-release` (dopo la pubblicazione: 2 EXE con sidecar + pacchetto
+amico, SHA-256 ricalcolati — piano riallineato il 5/11, run verde).
 
 ## In pista / da verificare
 
@@ -22,7 +24,7 @@ esiste ed è la leva unica test + lint.
 
 | ID | Cosa manca | Dipende da | Chiusura |
 |---|---|---|---|
-| **DA-7** | Release del pacchetto amico (versione corrente 0.1.58). | DA-1, DA-3, DA-4 verdi. | Pacchetto creato con zip asset e checklist di release completata. |
+| **DA-7** | Pacchetto amico 0.1.59 GIÀ in release (5/11, tag `v0.1.59`): zip amico + due EXE offline/online con sidecar SHA-256, verificatore in CI verde. Restano le prove in pista (DA-1, DA-3) prima di chiamarle «distribuibile a un amico» e agganciare il post (DA-19). | DA-1, DA-3, DA-4 verdi. | Checklist release 5/11 ripetuta e registrata nel diario, asset tutti verificati. |
 | **DA-19** | Post di presentazione: dalla bozza al post pubblico. | DA-7; screenshot e nomi degli schermi allineati; canale IT/EN scelto. | Post pubblicato sul canale scelto. |
 
 ## Periodiche

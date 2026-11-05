@@ -688,13 +688,7 @@ function drawCardInto(el, card){
     ${briefWx ? `<div><b>🌦 ${tr({ it: 'Meteo', en: 'Weather' })}</b> ${briefWx}</div>` : ''}
   </div>`;
   el.innerHTML = `
-    ${card.difficulty ? `<div id="card-trim" style="margin:0 0 10px;align-self:start;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2,#121822);font-size:12px">
-      <span title="${tr({ it: '1 punto di trim = 1 punto di banda AI', en: '1 trim point = 1 AI band point' })}">⚖️ <b>${tr({ it: 'Difficoltà AI', en: 'AI difficulty' })}</b> <b style="color:var(--acc)">${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%</b> · ${tr({ it: 'trim', en: 'trim' })} <b>${Number(card.difficulty.trim ?? 0) > 0 ? '+' : ''}${Number(card.difficulty.trim ?? 0)}</b></span>
-      <span style="margin-left:auto;display:inline-flex;gap:5px">
-        <button class="mini d-nudge" data-d="-1" title="${tr({ it: 'gara troppo dura? scendi di 1 punto la banda della serie: vale per le prossime gare e si vede anche nel pannello Difficoltà', en: 'race too hard? drop the series band by 1 point: it applies to upcoming races and shows also in the Difficulty panel' })}">−1</button>
-        <button class="mini d-nudge" data-d="+1" title="${tr({ it: 'gara troppo facile? sali di 1 punto la banda della serie: vale per le prossime gare e si vede anche nel pannello Difficoltà', en: 'race too easy? raise the series band by 1 point: it applies to upcoming races and shows also in the Difficulty panel' })}">+1</button>
-      </span>
-    </div>` : ''}
+
 <h2>${LI.flag} ${tr({ it: 'Prossima gara', en: 'Next race' })} <span class="h-act">R${card.roundIndex+1} ${tr({ it: 'di', en: 'of' })} ${card.totalRounds}${card.agendaDayLabel ? ` · ${esc(card.agendaDayLabel)}` : ''}</span></h2>
 
     <div class="title">${CFLAG} ${esc(card.roundName)}</div>
@@ -720,7 +714,6 @@ function drawCardInto(el, card){
       </div>
     </div>` : ''}
     ${card.gridRitual ? `<div class="banner info" style="margin-top:8px">🏁 <b>${tr({ it: 'Nuova serie, griglia da sbloccare (una volta sola)', en: 'New series, grid to unlock (once only)' })}</b> — <span style="font-size:11.5px">${esc(card.gridRitual)}</span></div>` : ''}
-    ${card.gridAltraSerie ? `<div class="banner info" style="margin-top:8px">🔁 <b>${tr({ it: 'Griglia sul disco di un\'altra serie', en: "Grid on disk is from a different series" })}</b> — <span style="font-size:11.5px">${esc(card.gridAltraSerie)}</span></div>` : ''}
 
     ${card.boxRadio?.tips?.length ? `<details style="margin-top:8px" open><summary style="cursor:pointer;font-size:12px"><b>${window.mechIcon ? window.mechIcon(13) : '📻'} ${tr({ it: 'Consigli dal BOX', en: 'BOX tips' })}</b> <span class="muted" style="font-size:11.5px">— ${tr({ it: "la scheda dell'ingegnere di gara, personale del meccanico", en: "the race engineer's sheet, the mechanic's staff" })}</span></summary>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${card.boxRadio.tips.map(t=>`<div style="display:flex;gap:10px;align-items:flex-start;background:var(--panel2,#121822);border:1px solid var(--line);border-radius:8px;padding:7px 10px"><span style="flex:none;font-size:15px">${t.icon}</span><div style="font-size:12px;line-height:1.45"><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></div></div>`).join('')}</div></details>` : ''}
@@ -759,23 +752,7 @@ function drawCardInto(el, card){
     <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto', en: '🏁 Get everything ready' })}</button>
     <button class="act" id="b-race-launch" style="width:100%;margin-top:6px">${tr({ it: '🏁 Prepara tutto e avvia', en: '🏁 Get everything ready and start' })}</button>
     <div class="muted" style="margin-top:10px">${tr({ it: 'Il round intero lo scrive in EVO «Prepara tutto»: pista, auto, griglia, meteo e orari. Con «Prepara tutto e avvia» il gioco si apre e l’app preme «Avvia sessione» da sola; con il primo apri tu EVO e premi «Avvia sessione». Se una riga non torna, ripremi il bottone.', en: 'The whole round gets written into EVO by “Get everything ready”: track, car, grid, weather and session times. “Get everything ready and start” opens the game and the app presses “Start session” by itself; with the first one you open EVO and press “Start session”. If a row looks off, press the button again.' })}</div>
-    <div class="muted" style="margin-top:6px;font-size:11.5px">${(() => {
-      // STATO UNICO (4/11): loader presente → app installata → publisher vivo
-      // → ack recente. «Prepara tutto e avvia» preme il via da solo SOLO con
-      // l'app Cruscotto viva; se un anello manca, la scheda dice quale e
-      // niente promesse che il via partirà da sé.
-      const u = card.uiapp;
-      if (!u) return '';
-      const ok = (v) => v ? '✓' : '✗';
-      const riga = `${tr({ it: 'Loader', en: 'Loader' })} ${ok(u.loader)} · ${tr({ it: 'App', en: 'App' })} ${ok(u.installata)} · ${tr({ it: 'Publisher', en: 'Publisher' })} ${ok(u.publisher)} · ${tr({ it: 'Ack recente', en: 'Recent ack' })} ${ok(u.attiva)}`;
-      let msg;
-      if (u.attiva && u.loader && u.installata && u.publisher) msg = tr({ it: '«Prepara tutto e avvia» preme «Avvia sessione» da sola.', en: '“Get everything ready and start” presses “Start session” by itself.' });
-      else if (!u.loader) msg = tr({ it: 'Manca la mod ACE UI App Loader: installala, poi riavvia il launcher.', en: 'The ACE UI App Loader mod is missing: install it, then relaunch.' });
-      else if (!u.installata) msg = tr({ it: 'Loader presente, app Cruscotto non installata: riavvia il launcher o esegui INSTALLA-GIOCO.', en: 'Loader present, Cruscotto app not installed: relaunch or run INSTALLA-GIOCO.' });
-      else if (!u.publisher) msg = tr({ it: 'App installata, ma il publisher è fermo: riavvia la GUI.', en: 'App installed, but the publisher is stopped: restart the GUI.' });
-      else msg = tr({ it: 'App e publisher attivi, ma nessun comando confermato negli ultimi 15 minuti: apri il Cruscotto in EVO.', en: 'App and publisher active, but no command confirmed in the last 15 minutes: open Cruscotto in EVO.' });
-      return `🕹️ <b>${tr({ it: 'App in gioco', en: 'In-game app' })}</b> ${riga}<br><span class="muted">${msg}</span>`;
-    })()}</div>
+
     </div>
     <div class="row" style="margin-top:16px">
       <button class="ghost" id="b-copy">${tr({ it: 'Copia scheda', en: 'Copy sheet' })}</button>
@@ -1141,17 +1118,7 @@ function drawCardInto(el, card){
     try { await navigator.clipboard.writeText(text); toast(tr({ it: 'Scheda copia negli appunti.', en: 'Sheet copied to the clipboard.' }), 'ok'); }
     catch { toast(tr({ it: 'Il browser ha negato gli appunti.', en: 'The browser denied the clipboard.' }), 'err'); }
   };
-  $$('.d-nudge', el).forEach((b) => {
-    b.onclick = async (e) => {
-      e.preventDefault();
-      try {
-        const out = await api('difficulty-nudge', { delta: Number(b.dataset.d), car: $('#sel-car', el)?.value ?? null });
-        drawCardInto(el, out.card);
-        toast(`Difficoltà serie: ${out.card.difficulty.rangeMin}–${out.card.difficulty.rangeMax}%.`, 'ok');
-      } catch (err) { toast(err.message, 'err'); }
-    };
-  });
-  // RIQUADRO SUGGERIMENTO TRIM: ripristinato (5/11, richiesta Mauro) —
+    // RIQUADRO SUGGERIMENTO TRIM: ripristinato (5/11, richiesta Mauro) —
   // accept = (to − trim corrente) × 1, stesso contratto del commit bd8ce33.
   $('#b-prop-accept', el)?.addEventListener('click', async () => {
     try {
