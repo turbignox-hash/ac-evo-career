@@ -174,7 +174,7 @@ import { classificheRecenti } from './classifiche-gioco.mjs';
 // meccanico dal vivo: i campi VERI della MMF + consigli con soglie in chiaro (5/11)
 import { vivoDaSnapshot, consigliVivo } from './meccanico-vivo.mjs';
 // il meccanico a voce (6/11): chiedi «qualifica», «gara con N giri», «bagnato» → il file col nome VERO
-import { leggiIntenzione, pianoSetup, nomeSetup } from './meccanico-parla.mjs';
+import { leggiIntenzione, pianoSetup, nomeFileSetup } from './meccanico-parla.mjs';
 import { AGENDA_ACTIONS, agendaAction } from './webui-actions-agenda.mjs';
 import { EVENT_ACTIONS, eventAction } from './webui-actions-events.mjs';
 import { GARAGE_ACTIONS, garageAction } from './webui-actions-garage.mjs';
@@ -3456,6 +3456,16 @@ async function api(context0, _req, res, action, body) {
         }
         const sess = sessions[0] ?? null;
         const fuelPerLap = (liveNow?.live && Number(liveNow.player?.fuelPerLap) > 0) ? Number(liveNow.player.fuelPerLap) : (sess?.fuelPerLap ?? null);
+        /* NOME AUTO-PISTA-SESSIONE (5/11 sera, richiesta Mauro: «vorrei che lo
+           creasse con il nome auto-pista: gara o qualifica, pioggia etc»): il
+           file si chiama «Ferrari 296 GT3 - Brands Hatch - Qualifica», la
+           forma che si legge al volo nella lista CARICA di EVO. */
+        const nomeBase = nomeFileSetup({
+          car: carEf,
+          track: trackName || src.track || null,
+          tipo: int.tipo,
+          raceLaps: int.raceLaps ?? (Number(body.raceLaps) >= 3 ? Number(body.raceLaps) : null),
+        });
         const piano = pianoSetup({
           tipo: int.tipo,
           raceLaps: int.raceLaps ?? (Number(body.raceLaps) >= 3 ? Number(body.raceLaps) : null),
@@ -3463,9 +3473,9 @@ async function api(context0, _req, res, action, body) {
           sessione: Number(fuelPerLap) > 0 ? { fuelPerLap } : null,
           live: fixViva?.pressures ? { psi: fixViva.pressures } : null,
           tyreTarget: tyre?.target ?? null,
+          nome: nomeBase,
         });
         if (!piano) return sendJson(res, 200, { ok: false, hint: tr({ it: 'Non sono riuscito a costruire il piano: apri il pannello del meccanico e riprova.', en: 'Could not build the plan: open the mechanic panel and retry.' }) });
-        const nomeBase = nomeSetup(int.tipo, int.raceLaps);
         let scritto = null;
         if (esegui) {
           // NOME GIUSTO e MAI distruzione: se «Qualifica.carsetup» esiste già
@@ -3477,7 +3487,33 @@ async function api(context0, _req, res, action, body) {
             dest = join(dirname(src.file), `${nome}.carsetup`);
           }
           const out = writeSetupCopy(bufBase, dest, piano.edits);
-          scritto = { nome, file: dest, changes: out.changes };
+          /* VERIFICA SUL FILE SCRITTO (5/11 sera, «la benzina è rimasta 30 L»):
+             non basta che il piano chieda i litri — si rilegge il file appena
+             scritto e si confronta ogni campo toccato. Se un campo non è
+             atterrato lo si dice nella risposta: mai una promessa che il disco
+             non mantiene. */
+          const dopoFile = out.setup ?? parseSetup(readFileSync(dest));
+          const dec1v = (v) => Math.round(Number(v) * 10) / 10;
+          const verifica = [];
+          if (piano.edits.fuel?.liters != null) {
+            const voluto = Number(piano.edits.fuel.liters);
+            const atterrato = Number(dopoFile.fuel?.liters);
+            verifica.push({ campo: 'benzina', voluto: dec1v(voluto), scritto: Number.isFinite(atterrato) ? dec1v(atterrato) : null, ok: Number.isFinite(atterrato) && Math.abs(atterrato - voluto) <= 0.06 });
+          }
+          (piano.edits.tires ?? []).forEach((t, i) => {
+            if (t?.pressure == null) return;
+            const voluto = Number(t.pressure);
+            const atterrato = Number(dopoFile.tires?.[i]?.pressure);
+            verifica.push({ campo: `gomma ${['LF', 'RF', 'LR', 'RR'][i] ?? i}`, voluto: dec1v(voluto), scritto: Number.isFinite(atterrato) ? dec1v(atterrato) : null, ok: Number.isFinite(atterrato) && Math.abs(atterrato - voluto) <= 0.06 });
+          });
+          const falliti = verifica.filter((v) => !v.ok);
+          scritto = { nome, file: dest, changes: out.changes, verifica };
+          if (falliti.length) {
+            piano.risposta += tr({
+              it: ` ⚠️ Ma ATTENZIONE: nel file scritto non tornano ${falliti.map((v) => `${v.campo} (${v.scritto ?? '?'} invece di ${v.voluto})`).join(', ')} — non fidarti di quei valori, li rivediamo insieme.`,
+              en: ` ⚠️ But CAREFUL: in the written file ${falliti.map((v) => `${v.campo} (${v.scritto ?? '?'} instead of ${v.voluto})`).join(', ')} did not stick — do not trust those values.`,
+            });
+          }
           // il piano entra nel ciclo dell'allievo: con la sessione nuova il
           // round si chiude e il meccanico impara ANCHE dalle richieste a voce
           try {

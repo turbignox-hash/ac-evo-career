@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computaCorrezioni } from '../src/allievo.mjs';
+import { computaCorrezioni, storiePerCampo } from '../src/allievo.mjs';
 
 const roundPerso = {
   at: '2026-11-05T10:00:00.000Z', sessFile: 'a.ld',
@@ -64,4 +64,22 @@ test('computaCorrezioni: la voce porta il nome vero in tavola per il narratore',
   assert.equal(scusa.vedi, 'memoria');
   assert.equal(scusa.prio, 1);
   assert.ok(scusa.text.includes('loading') === false); // niente stringhe inglesi
+});
+
+/* 5/11 sera, trovato dal vivo aprendo la scheda Setup: la storia dell'allievo
+   si rompeva con «r.advices is not iterable» — i round sul disco portano la
+   lista in `advice` (singolare, la scrive registraRound) e il lettore chiedeva
+   `advices`. Il pannello del meccanico (dialogo compreso) non si disegnava. */
+test('storiePerCampo: la chiave vera `advice` è letta, il round senza lista non ferma gli altri', () => {
+  const storie = storiePerCampo([
+    { delta: 0.3, advice: [{ campo: 'camber', text: 'Camber fronte…' }] },
+    { delta: -0.2, advice: [{ campo: 'aero', text: 'Aero…' }] },
+    { delta: 0.1 },                                   // round senza lista: si salta, non scoppia
+    { delta: null, advice: [{ campo: 'freni', text: 'pendente' }] },  // pendente: non giudica
+  ]);
+  assert.deepEqual(Object.keys(storie).sort(), ['aero', 'camber']);
+  assert.equal(storie.camber.provati, 1);
+  assert.equal(storie.camber.persi, 1);
+  assert.equal(storie.aero.guadagnati, 1);
+  assert.equal(storie.aero.ultimoText, 'Aero…');
 });

@@ -55,6 +55,21 @@ export function nomeSetup(tipo, raceLaps = null) {
   return null;
 }
 
+/**
+ * Il nome del FILE sul disco: AUTO + PISTA + tipo di uscita, la forma chiesta
+ * da Mauro («vorrei che lo creasse con il nome auto-pista: gara o qualifica,
+ * pioggia etc»): «Ferrari 296 GT3 - Brands Hatch - Qualifica» si ritrova a
+ * colpo d'occhio nella lista CARICA di EVO, dove il nome del file è l'unica
+ * cosa che si legge. I caratteri vietati da Windows diventano '-', gli spazi
+ * si comprimono e il nome si ferma a 110 caratteri; senza un pezzo mancante
+ * resta il solo tipo di uscita (mai un nome vuoto).
+ */
+export function nomeFileSetup({ car = null, track = null, tipo, raceLaps = null } = {}) {
+  const pulisci = (s) => String(s ?? '').replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim();
+  const parti = [pulisci(car), pulisci(track), pulisci(nomeSetup(tipo, raceLaps))].filter(Boolean);
+  return parti.join(' - ').slice(0, 110).trim() || null;
+}
+
 /* ------------------------------------------------------------------ */
 /* il piano di lavorazione: patch sul file .carsetup, SOLO veri        */
 /* ------------------------------------------------------------------ */
@@ -76,7 +91,7 @@ const FILO_PSI = 0.05;       // sotto questo scarto di psi non tocco il file
  * Ritorno { edits, righe, note, risposta } — edits già pronto per
  * applyEdits (carsetup.mjs). NULL se manca il file di partenza.
  */
-export function pianoSetup({ tipo, raceLaps = null, cur, sessione = null, live = null, tyreTarget = null } = {}) {
+export function pianoSetup({ tipo, raceLaps = null, cur, sessione = null, live = null, tyreTarget = null, nome = null } = {}) {
   if (!cur || !tipo) return null;
   const note = [];
   const righe = [];
@@ -117,15 +132,19 @@ export function pianoSetup({ tipo, raceLaps = null, cur, sessione = null, live =
         ? `Benzina da gara: ${dec1(rom)} L (${laps} giri × consumo misurato ${dec1(fuelPerLap)} L/giro, +5% per il degrado, +${RISERVA_L} L di riserva).`
         : `Benzina bagnato: ${dec1(rom)} L (${laps} giri del piano + 5% per il degrado della pista).`);
   } else {
-    note.push("Benzina invariata: non ho ancora un consumo REALE misurato per questa auto (fai un giro o scarica una telemetria); il serbatoio del tuo base setup resta com'è.");
+    /* ONESTO E CHIARO (5/11 sera, la benzina che non si muove): se non c'è un
+       consumo REALE la benzina resta quella del file di partenza, e lo si dice
+       col numero — non con un «com'è» che sembra un silenzio. */
+    note.push(`Benzina invariata${num(cur?.fuel?.liters) ? ` a ${dec1(Number(cur.fuel.liters))} L` : ''}: non ho ancora un consumo REALE misurato per questa auto (fai un giro o scarica una telemetria); il serbatoio del tuo base setup resta com'è.`);
   }
   if (tipo === 'bagnato') {
     note.push('Il COMPOSTO NON vive nel file: nel menu del setup in EVO passa alla gomma pioggia PRIMA di uscire, le pressioni in questo file sono già da pioggia.');
   }
+  const nomeDetto = nome ?? nomeSetup(tipo, raceLaps);
   const risposta = tipo === 'qualifica'
-    ? `Fatto: ti preparo «${nomeSetup(tipo)}» con il tuo nome. Benzina da ${QUALI_GIRI} giri di verifica e pressioni fredde dal calcolo del vivo. In pista fai ${QUALI_GIRI} giri di assaggio e poi di nuovo a lui.`
+    ? `Fatto: ti preparo «${nomeDetto}» con il tuo nome. Benzina da ${QUALI_GIRI} giri di verifica e pressioni fredde dal calcolo del vivo. In pista fai ${QUALI_GIRI} giri di assaggio e poi di nuovo a lui.`
     : tipo === 'gara'
-      ? `Fatto: ti preparo «${nomeSetup(tipo, raceLaps)}» con il tuo nome: benzina del piano completo${raceLaps >= 3 ? ' a ' + raceLaps : ''} e pressioni del vivo.`
-      : 'Fatto: ti preparo «Bagnato» con il tuo nome — pressioni scaricate di 1,5 psi e benzina del piano; il composto pioggia lo scegli nel menu del setup dentro EVO prima di uscire.';
+      ? `Fatto: ti preparo «${nomeDetto}» con il tuo nome: benzina del piano completo${raceLaps >= 3 ? ' a ' + raceLaps : ''} e pressioni del vivo.`
+      : `Fatto: ti preparo «${nomeDetto}» con il tuo nome — pressioni scaricate di 1,5 psi e benzina del piano; il composto pioggia lo scegli nel menu del setup dentro EVO prima di uscire.`;
   return { edits, righe, note, risposta, psiBersaglio: tyreTarget ?? null };
 }

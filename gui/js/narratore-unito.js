@@ -20,6 +20,18 @@
  * i distanzelli (20 s delta, 70 s anti-ripetizione) li scandisce il test
  * con `ora` esplicito.
  */
+/** Tempo giro dal TESTO del gioco («1:23.456» o «83.456» o «1.23,456») in
+ *  millisecondi; null se la stringa non è un tempo. Serve al best di
+ *  qualifica: il confronto si fa sui numeri, mai sulle stringhe. */
+function lapTxtMs(txt) {
+  const s = String(txt ?? '').trim();
+  let m = s.match(/^(\d{1,2}):(\d{1,2})[.,](\d{1,3})$/);
+  if (m) return (Number(m[1]) * 60 + Number(m[2])) * 1000 + Number(m[3].padEnd(3, '0'));
+  m = s.match(/^(\d{1,3})[.,](\d{1,3})$/);
+  if (m) return Number(m[1]) * 1000 + Number(m[2].padEnd(3, '0'));
+  return null;
+}
+
 function narratore(m, slot, ora = Date.now()) {
   const parla = [];
   /* 8d) LA BANDIERA NON GRIDÌ PRIMA DEL GIRO (31/10, gara delle 14:24):
@@ -106,6 +118,33 @@ function narratore(m, slot, ora = Date.now()) {
   const croceFinale = compiuto != null && lastLapTxt != null && lastLapTxt !== slot.last.lastLapTxt;
   if (compiuto != null && lastLapTxt && lastLapTxt !== slot.last.lastLapTxt) slot.last.giro = compiuto;
   if (lastLapTxt != null) slot.last.lastLapTxt = lastLapTxt;
+  /* IL BEST DELLA QUALIFICA (5/11 tarda sera, richiesta Mauro: «il copilot in
+     qualifica non dice i best»): il gioco scrive il miglior giro della
+     sessione nella stringa HUD timing.bestLap — la stessa del cruscotto. Due
+     buchi tenevano la voce muta: il PRIMO giro entra in memoria in silenzio
+     (la frase «Giro N fatto» ha bisogno del giro precedente) e il «nuovo
+     best» usciva solo quando la sorgente delta segnava bestLapNo, che in
+     qualifica spesso non è 'tracked'. Qui il best si legge DIRETTAMENTE dal
+     tempo HUD: il primo best lo dice, ogni miglioramento lo dice col
+     guadagno, e se la frase del giro ha già detto «nuovo best» non si
+     ripete. Solo qualifica, la regola di Mauro del 3/11. */
+  const faseQ = String(m.phase ?? m.sessionType ?? '').trim();
+  const bestTxt = m.timing?.bestLap ?? null;
+  const bestMsOra = lapTxtMs(bestTxt);
+  if (bestMsOra != null) {
+    const prima = slot.last.bestMs ?? null;
+    if (prima == null) {
+      slot.last.bestMs = bestMsOra;
+      if (/qualif/i.test(faseQ)) {
+        parla.push({ chi: 'best', it: `Primo best della qualifica: ${bestTxt}` });
+      }
+    } else if (bestMsOra < prima - 10) {
+      slot.last.bestMs = bestMsOra;
+      if (/qualif/i.test(faseQ) && !parla.some((p) => p.chi === 'giroFatto' && /nuovo best/i.test(p.it))) {
+        parla.push({ chi: 'best', it: `Nuovo best: ${bestTxt} — ${((prima - bestMsOra) / 1000).toFixed(1)} meglio` });
+      }
+    }
+  }
   if (lapNo != null) slot.last.lapNo = lapNo;
   if (g.lapsOnFuel != null && slot.last.fuel != null && g.lapsOnFuel < slot.last.fuel - 0.49) {
     parla.push(g.lapsLeft != null && g.lapsOnFuel < g.lapsLeft + 1

@@ -701,3 +701,62 @@ test("settore debole: parla SOLO in qualifica, una volta per risultato", () => {
   const rovinato = gara([[0, frame(0, { sessionType: 'Qualify', phase: 'Qualify', settore: { indice: 3, deltaMs: 12546, migliore: 'Derek Morrison' } })]]);
   assert.equal(rovinato.filter((f) => f.chi === 'settore').length, 0, 'un delta da giro rovinato (12,5 s) non è un settore debole: tace');
 });
+
+/* 5/11 tarda sera, richiesta Mauro: «il copilot in qualifica non dice i best».
+   Il tempo migliore lo scrive il gioco in timing.bestLap (la stringa del
+   cruscotto): il primo giro prima entrava in memoria in silenzio e il «nuovo
+   best» usciva solo dalla sorgente delta — in qualifica spesso muta. Ora:
+   primo best detto, miglioramento detto col guadagno, nessuna doppia voce
+   con la frase del giro, e solo qualifica. */
+test('il BEST della qualifica parla dal tempo HUD: primo, miglioramento, mai doppio col giro', () => {
+  const slot = { last: {}, at: 0, said: {}, firma: 'q-best' };
+  const passo = (t, over) => narratore(MMF(t, {
+    phase: 'Qualify', sessionType: 'Qualify',
+    gauges: { lapsDone: 0, lapsTotal: 0, flag: 'nessuna' },
+    delta: { lapNo: 0, dv: 0 },
+    ...over,
+  }), slot, t).filter((f) => !f.detto);
+
+  // PRIMO GIRO OSSERVATO: è la semina del contatore (la frase del giro tace)
+  // — ed è esattamente il caso in cui il best restava muto: qui lo dice.
+  const a = passo(2000, { timing: { lastLap: '1:25.500', bestLap: '1:25.500' }, gauges: { lapsDone: 1, lapsTotal: 0, flag: 'nessuna' } });
+  assert.ok(a.some((f) => f.chi === 'best' && /Primo best della qualifica: 1:25\.500/.test(f.it)),
+    'il PRIMO best della sessione lo dice (era il buco: il primo giro entrava muto)');
+
+  // giro nuovo best con la frase del giro che dice già «nuovo best»: il canale best non si sovrappone
+  const b = passo(90000, {
+    timing: { lastLap: '1:24.800', bestLap: '1:24.800' },
+    gauges: { lapsDone: 2, lapsTotal: 0, flag: 'nessuna' },
+    delta: { lapNo: 2, dv: -400, bestLapNo: 2 },
+  });
+  assert.ok(b.some((f) => f.chi === 'giroFatto' && /nuovo best/.test(f.it)), 'la frase del giro dice il nuovo best');
+  assert.equal(b.filter((f) => f.chi === 'best').length, 0, '«nuovo best» già nella frase del giro: niente doppione');
+
+  // miglioramento col delta NON tracciato: il best parla lo stesso, col guadagno
+  const c = passo(190000, {
+    timing: { lastLap: '1:24.200', bestLap: '1:24.200' },
+    gauges: { lapsDone: 3, lapsTotal: 0, flag: 'nessuna' },
+    delta: { lapNo: 3, dv: -300, bestLapNo: null },
+  });
+  const cBest = c.find((f) => f.chi === 'best');
+  assert.ok(cBest, 'col bestLapNo assente il best HUD parla comunque');
+  assert.match(cBest.it, /Nuovo best: 1:24\.200 — 0\.6 meglio/);
+
+  // giro lento: il best non cambia → nessuna voce
+  const d = passo(280000, {
+    timing: { lastLap: '1:25.000', bestLap: '1:24.200' },
+    gauges: { lapsDone: 4, lapsTotal: 0, flag: 'nessuna' },
+    delta: { lapNo: 4, dv: 800 },
+  });
+  assert.equal(d.filter((f) => f.chi === 'best').length, 0, 'giro sopra il best: tace');
+
+  // FUORI qualifica il canale tace (gara: resta la frase del giro di sempre)
+  const slotGara = { last: {}, at: 0, said: {}, firma: 'g-best' };
+  const e = narratore(MMF(1000, {
+    phase: 'Race', sessionType: 'Race',
+    gauges: { lapsDone: 0, lapsTotal: 3, flag: 'nessuna' },
+    delta: { lapNo: 0, dv: 0 },
+    timing: { lastLap: '1:24.500', bestLap: '1:24.500' },
+  }), slotGara, 1000).filter((f) => !f.detto);
+  assert.equal(e.filter((f) => f.chi === 'best').length, 0, 'in gara il best non entra: solo qualifica');
+});

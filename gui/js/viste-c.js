@@ -1156,17 +1156,43 @@ async function drawSetup(m){
           const selP = document.querySelector('#lc-session');
           const carP = selP?.selectedOptions?.[0] ? (selP.selectedOptions[0].dataset.car ?? null) : (window.__lcCar ?? null);
           const trackP = selP?.selectedOptions?.[0] ? (selP.selectedOptions[0].dataset.track ?? null) : null;
-          const rr = await api('garage', { action: 'meccanico-parla', car: carP, track: trackP, richiesta, esegui });
+          /* L'AZIONE È AL TOP-LEVEL (5/11 sera, la benzina che restava a 30 L):
+             prima si chiamava api('garage', {action:'meccanico-parla'}) — e il
+             garage rispondeva con l'overview delle pressioni: il piano non
+             veniva mai scritto e in gioco si applicava il vecchio file. La
+             rotta vera è /api/meccanico-parla. */
+          const rr = await api('meccanico-parla', { car: carP, track: trackP, richiesta, esegui });
           if (!rr?.ok) {
             outParl.innerHTML = `<div class="banner warn" style="padding:8px 10px">🗣️ ${esc(rr?.hint ?? rr?.error ?? tr({ it: 'risposta assente', en: 'no answer' }))}</div>`;
             return;
           }
           const righePiano = (rr.righe ?? []).map((x) => `<tr><td>${esc(x.campo ?? '')}</td><td class="right">${x.da != null ? esc(String(x.da)) : '—'} → <b>${esc(String(x.a))}${esc(x.unita ?? '')}</b></td></tr>`).join('');
+          /* IL SETUP APPENA CREATO VIVE QUI, SOTTO LA SCHEDA DEL MECCANICO
+             (5/11 sera, richiesta Mauro: «il setup venga creato appena sotto la
+             scheda stessa in WEBUI, non sotto scorrendo la pagina»): il file
+             scritto non è più un trafiletto né solo il toast in fondo allo
+             schermo — è una scheda verde con nome VERO, cartella, i campi
+             atterrati (verifica sul disco) e il bottone per la lista, senza
+             salti di pagina. */
+          const verificaHtml = (rr.scritto?.verifica ?? []).filter((v) => !v.ok).length
+            ? `<div style="margin-top:4px;font-size:12px;color:#ff9b9b">⚠️ ${(rr.scritto.verifica ?? []).filter((v) => !v.ok).map((v) => `${esc(v.campo)}: ${esc(String(v.scritto ?? '?'))} ${tr({ it: 'invece di', en: 'instead of' })} ${esc(String(v.voluto))}`).join(' · ')}</div>`
+            : '';
+          const scrittoHtml = rr.scritto
+            ? `<div class="banner good" style="margin-top:8px;padding:8px 10px;font-size:12.5px">💾 <b>${tr({ it: 'Setup creato', en: 'Setup created' })}: <span style="color:var(--acc)">${esc(rr.scritto.nome)}.carsetup</span></b><div class="muted" style="font-size:11.5px;margin-top:2px">${tr({ it: 'cartella di questa pista · in EVO: CARICA e scegli quel nome', en: 'this track folder · in EVO: LOAD and pick that name' })}</div>${verificaHtml}<div class="row" style="margin-top:6px;gap:6px"><button class="mini" id="b-mech-lista" type="button">📋 ${tr({ it: 'Vedi nella lista dei setup', en: 'Show in the setup list' })}</button></div></div>`
+            : (!esegui && (rr.righe ?? []).length ? `<button class="mini acc" id="b-mech-scrivi" type="button" style="margin-top:6px">✍️ ${tr({ it: 'Scrivi nel gioco', en: 'Write to the game' })}</button>` : '');
           outParl.innerHTML = `<div class="banner info" style="padding:8px 10px">🗣️ ${esc(rr.risposta)}</div>
             ${righePiano ? `<table style="margin-top:6px"><tbody>${righePiano}</tbody></table>` : ''}
-            ${(rr.note ?? []).length ? `<div class="muted" style="font-size:11.5px;margin-top:4px">${rr.note.map((n) => esc(n)).join(' · ')}</div>` : ''}
-            ${rr.scritto ? `<div style="font-size:12px;margin-top:4px">💾 ${tr({ it: 'File scritto:', en: 'File written:' })} <b>${esc(rr.scritto.nome)}</b>.carsetup</div>` : (!esegui && (rr.righe ?? []).length ? `<button class="mini acc" id="b-mech-scrivi" type="button" style="margin-top:6px">✍️ ${tr({ it: 'Scrivi nel gioco', en: 'Write to the game' })}</button>` : '')}`;
-          if (rr.scritto && typeof toast === 'function') toast(tr({ it: `Setup «${rr.scritto.nome}» scritto: in EVO lo trovi in CARICA col nome nuovo.`, en: `Setup «${rr.scritto.nome}» written: in the EVO load list it is under its new name.` }), 'good');
+            ${(rr.note ?? []).length ? `<div class="muted" style="font-size:11.5px;margin-top:4px">${(rr.note ?? []).map((n) => esc(n)).join(' · ')}</div>` : ''}
+            ${scrittoHtml}`;
+          // niente salti a fondo pagina: il riquadro resta sotto la scheda, al massimo si porta in vista
+          outParl.scrollIntoView({ block: 'nearest' });
+          if (rr.scritto) {
+            // la lista e la copertura si ridisegnano da sole: il file nuovo è GIÀ dentro
+            try { window.__drawSetupHist?.(); window.__drawSetupCover?.(); } catch { /* la lista si ridisegna al prossimo giro */ }
+            if (typeof toast === 'function') toast(tr({ it: `Setup «${rr.scritto.nome}» scritto: in EVO lo trovi in CARICA col nome nuovo.`, en: `Setup «${rr.scritto.nome}» written: in the EVO load list it is under its new name.` }), 'good');
+            const btnLista = document.querySelector('#b-mech-lista');
+            if (btnLista) btnLista.onclick = () => document.querySelector('#setup-hist')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
           const btnScrivi = document.querySelector('#b-mech-scrivi');
           if (btnScrivi) btnScrivi.onclick = () => window.__mechParla(outParl.dataset.richiesta, true);
         } catch (e) {

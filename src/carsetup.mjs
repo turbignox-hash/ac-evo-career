@@ -293,6 +293,17 @@ export function applyEdits(buf, edits) {
   if (edits.fuel?.liters != null) {
     const e7 = fields.find((x) => x.field === 7);
     if (e7) touch(e7, { 1: Number(edits.fuel.liters) }, (m) => `Benzina: ${r3(m.old)}→${r3(m.val)} L`);
+    else {
+      /* IL FILE NON HA IL BLOCCO CARBURANTE (5/11 sera, la benzina che in gioco
+         restava a 30 L): touch() senza il campo non scrive e il piano taceva
+         sulla differenza — in pista EVO ripartiva dal serbatoio di default.
+         Qui il blocco si CREA (root.7 = nested {1: f32 litri}), la stessa forma
+         che i salvataggi del gioco portano: la benzina del piano non resta mai
+         fuori dal file. */
+      const litri = Number(edits.fuel.liters);
+      fields.push({ field: 7, wire: 2, bytes: Buffer.from(encodeMsg([{ field: 1, wire: 5, bytes: setF32(litri) }])) });
+      changes.push(`Benzina: creata a ${r3(litri)} L (il file non aveva il blocco carburante)`);
+    }
   }
 
   return { bytes: Buffer.from(encodeMsg(fields)), changes };

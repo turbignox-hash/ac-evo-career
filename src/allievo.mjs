@@ -47,7 +47,13 @@ export function storiePerCampo(rounds) {
   const m = {};
   for (const r of rounds) {
     if (r.delta == null) continue;          // round pendente: non giudica
-    for (const a of r.advices) {
+    /* LA CHIAVE VERA è `advice` (singolare: la scrive registraRound qui sotto);
+       i dati vecchi di setup-allievo.json la portano così. Il lettore chiedeva
+       `advices` e la scheda Setup si rompeva con «r.advices is not iterable»
+       (trovato dal vivo il 5/11 aprendo la scheda): si accettano tutte e due le
+       grafie e il round senza lista non ferma la storia degli altri. */
+    const lista = Array.isArray(r.advice) ? r.advice : (Array.isArray(r.advices) ? r.advices : []);
+    for (const a of lista) {
       const e = (m[a.campo] ??= { provati: 0, guadagnati: 0, persi: 0, ultimoDelta: null, ultimoText: null });
       e.provati += 1;
       if (r.delta < -0.05) e.guadagnati += 1;

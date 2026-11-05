@@ -5,7 +5,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { leggiIntenzione, nomeSetup, pianoSetup } from '../src/meccanico-parla.mjs';
+import { leggiIntenzione, nomeSetup, nomeFileSetup, pianoSetup } from '../src/meccanico-parla.mjs';
 
 test('leggiIntenzione: parole chiare, giri presi dal testo, preset esplicito', () => {
   assert.deepEqual(leggiIntenzione('preparami il setup da qualifica'), { tipo: 'qualifica', raceLaps: null });
@@ -26,6 +26,28 @@ test('nomeSetup: nomi VERO senza il vocale «consigliato»', () => {
   assert.equal(nomeSetup('gara', 8), 'Gara 8 giri');
   assert.equal(nomeSetup('bagnato'), 'Bagnato');
   assert.equal(nomeSetup(null), null);
+});
+
+test('nomeFileSetup: AUTO - PISTA - uscita, senza caratteri vietati (5/11, richiesta Mauro)', () => {
+  assert.equal(nomeFileSetup({ car: 'Ferrari 296 GT3', track: 'Brands Hatch', tipo: 'qualifica' }),
+    'Ferrari 296 GT3 - Brands Hatch - Qualifica');
+  assert.equal(nomeFileSetup({ car: 'Mini', track: 'Donington Park', tipo: 'gara', raceLaps: 12 }),
+    'Mini - Donington Park - Gara 12 giri');
+  assert.equal(nomeFileSetup({ car: 'X', tipo: 'bagnato' }), 'X - Bagnato');
+  // i caratteri vietati da Windows diventano '-' e gli spazi si comprimono
+  assert.equal(nomeFileSetup({ car: 'A/B:C', track: 'D*E', tipo: 'gara' }), 'A-B-C - D-E - Gara');
+  // nome lunghissimo: tagliato, mai vuoto
+  assert.ok(nomeFileSetup({ car: 'Auto '.repeat(60), track: 'Pista', tipo: 'gara' }).length <= 110);
+  assert.equal(nomeFileSetup({}), null);
+});
+
+test('pianoSetup: la risposta parla col nome del FILE auto-pista', () => {
+  const p = pianoSetup({
+    tipo: 'gara', raceLaps: 8, cur: curBase,
+    sessione: { fuelPerLap: 2.1 },
+    nome: 'Ferrari 296 GT3 - Brands Hatch - Gara 8 giri',
+  });
+  assert.match(p.risposta, /Ferrari 296 GT3 - Brands Hatch - Gara 8 giri/);
 });
 
 const curBase = {
@@ -88,6 +110,8 @@ test('pianoSetup: SENZA dato reale, nessuna cifra inventata (benzina e psi tocca
   assert.equal(p.edits.fuel, undefined);
   assert.equal(p.edits.tires, undefined);
   assert.ok(p.note.length >= 2);
+  // la nota dice PROPRIO i litri che restano nel file (il 30 L che non si muoveva)
+  assert.ok(p.note.some((n) => n.includes('Benzina invariata a 34 L')));
   // ci sono le due spiegazioni sui dati mancanti
   assert.ok(p.note.some((n) => n.includes('Pressioni invariate')));
   assert.ok(p.note.some((n) => n.includes('Benzina invariata')));
