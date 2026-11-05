@@ -112,7 +112,7 @@ test('disinstalla: pulita «via tutto», scorciatoia puntata qua → tolta', { s
   // le scorciatoie del nuovo avvio (6/11): wscript + avvia-gui.vbs NOSTRO
   const DESK2 = mkdtempSync(join(tmpdir(), 'dis-desk1b-'));
   t.after(() => { rmSync(DESK2, { recursive: true, force: true }); });
-  const wscript = join(process.env.SystemRoot || 'C:\Windows', 'System32', 'wscript.exe');
+  const wscript = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'wscript.exe');
   const lnkNuovo = scorciatoia(DESK2, wscript, '//nologo "' + join(TARGET, 'tools', 'avvia-gui.vbs') + '"');
   const dueDesk = DESK + ';' + DESK2;
   const r = await cmdAsync('cmd.exe', ['/d', '/c', DISINSTALLA], {
@@ -124,6 +124,7 @@ test('disinstalla: pulita «via tutto», scorciatoia puntata qua → tolta', { s
   assert.ok(!existsSync(TARGET), `la cartella deve andare via:\n${r.stdout}\n${r.stderr}`);
   assert.ok(!existsSync(lnk), `la scorciatoia puntata qua deve andare:\n${r.stdout}`);
   assert.ok(!existsSync(lnkStart), `la scorciatoia del menu Start puntata qua deve andare:\n${r.stdout}`);
+  assert.ok(!existsSync(lnkNuovo), `la scorciatoia del nuovo avvio (wscript+VBS) deve andare:`);
   assert.ok(!existsSync(PORTA), `nessuna copia di data inaspettata:\n${r.stdout}\n${r.stderr}`);
   const reg = spawnSync('reg', ['query', REGKEY], { encoding: 'utf8' });
   assert.notEqual(reg.status, 0, `la voce App e funzionalità doveva sparire:\n${reg.stdout}`);
@@ -141,7 +142,7 @@ test('disinstalla: scorciatoia di un\'ALTRA installazione → resta', { skip: pr
   // la versione NUOVA altrui: gli argomenti portano un altro percorso, resta
   const DESK3 = mkdtempSync(join(tmpdir(), 'dis-desk2b-'));
   t.after(() => { rmSync(DESK3, { recursive: true, force: true }); });
-  const wscript2 = join(process.env.SystemRoot || 'C:\Windows', 'System32', 'wscript.exe');
+  const wscript2 = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'wscript.exe');
   const lnkNuovoAltrui = scorciatoia(DESK3, wscript2, '//nologo "' + join(ALTRO, 'tools', 'avvia-gui.vbs') + '"');
   const dueDesk2 = DESK + ';' + DESK3;
   const r = await cmdAsync('cmd.exe', ['/d', '/c', DISINSTALLA], {
@@ -151,6 +152,7 @@ test('disinstalla: scorciatoia di un\'ALTRA installazione → resta', { skip: pr
   assert.equal(r.status, 0, `uscita ${r.status}\n${r.stdout}\n${r.stderr}`);
   assert.ok(!existsSync(TARGET), 'la cartella va via comunque');
   assert.ok(existsSync(lnk), `la scorciatoia di un'altra installazione sta al suo posto:\n${r.stdout}`);
+  assert.ok(existsSync(lnkNuovoAltrui), `la scorciatoia nuova di un'altra installazione sta al suo posto:`);
   assert.ok(existsSync(lnkStart), `la scorciatoia del menu Start di un'altra installazione sta al suo posto:\n${r.stdout}`);
   assert.ok(r.stdout.includes('resta'), `il disinstallatore lo dice:\n${r.stdout}`);
 });

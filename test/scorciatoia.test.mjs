@@ -74,7 +74,7 @@ test('scorciatoia VECCHIA (puntava a avvia.cmd): portata al nuovo avvio senza co
   const DESK = mkdtempSync(join(tmpdir(), 'scorciatoia-vecchia-'));
   const START = mkdtempSync(join(tmpdir(), 'scorciatoia-vecchia-start-'));
   try {
-    for (const [cartella, nome] of [[DESK, 'desktop'], [START, 'menu Start']]) {
+    for (const cartella of [DESK, START]) {
       creaLnk(join(cartella, 'Carriera EVO.lnk'), join(RADICE, 'avvia.cmd'));
     }
     const r = spawnSync(process.execPath, [TOOL, '--desktop', DESK, '--startmenu', START], { encoding: 'utf8' });
