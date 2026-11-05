@@ -5,6 +5,30 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
 
+## v0.1.62 — 5/11/2026
+
+- **Le 3 rondi della Coppa Mini Vintage tornano a valere**: il vigia «auto fuori dal
+  parco ammesso» le aveva azzerate per un ALIAS di nome, non per un'auto fuori: EVO
+  scrive «Mini John Cooper S», l'elenco delle ammesse diceva «Mini JCS 1990». Le
+  etichette del ladder parlano ora come EVO (anche «BMW M3 E30 Sport Evo
+  (Evolution III)»); nel commit solo quelle 2 righe, i dati di carriera del ladder
+  restano fuori da git.
+- **Il medico della carriera ha gli strumenti**: tools/riabilita-ronda.mjs guida la
+  riabilitazione con la regola UNA di src/repair-ronda.mjs (ricalcolaEntry produce
+  ESATTAMENTE i numeri di applyRaceResult, provato nel test d'identità) e il
+  GOVERNO del parco di oggi: se il parco corrente non ammette l'auto della entry,
+  la ronda si resta ferma. Backup del save automatico in data/backups prima del
+  tocco. Infusione: +5.458 €, rep +16, vittorie +1, podi +3, giri veloci +3.
+- **Scheda Setup riordinata (ogni cosa al posto giusto)**: il CONSIGLIO del
+  meccanico apre la vista (identità, checklist, ⚡ Applica, banner «PER LA GARA»
+  fuori dai dettagli richiusi), il GRAFICO DEL GIRO scende a conferma visiva, le
+  tabelle sessioni/stint-gomme restano richiuse nei tendine. Nessun id toccato:
+  spostati solo i contenitori (swap DOM nel render).
+- Suite **1031 pass, 0 guasti, 2 salti onesti**; Biome 0 warning; collaudo in
+  pagina reale (ordine pannelli verificato nel DOM e a schermo); CI quality
+  verde sul commit del fix. Dettagli nel diario 5/11 serata.
+
+
 ## v0.1.61 — 5/11/2026
 
 - **Meccanico vivo, parlante e pentito**: la sezione «Dal vivo» legge i veri
