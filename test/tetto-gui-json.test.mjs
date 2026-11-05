@@ -153,6 +153,7 @@ async function avviaServerAnalisi(port, data) {
 
 test('tabella Tetto teorico in GUI = JSON di /api/tetto, riga per riga', { timeout: 180_000 }, async (t) => {
   const CHROMIUM = await presuppostiBrowser(t);
+  if (!CHROMIUM) return;   // skip dichiarato: senza browser non si avvia neanche il server
   // carriera FINTA (l'assetto del test unit di tettoReport): Monza due gare
   // — mediana S1 250 ms, picco S2 400 ms al round 0, busta 400, margine vero
   // assente (niente log del gioco nella finta cartella) — e «Vuota Seca»: solo
@@ -318,6 +319,7 @@ test('tabella Tetto teorico in GUI = JSON di /api/tetto, riga per riga', { timeo
  * hasRaceRow:false, la GUI NON deve fingere confronti sul giro. */ 
 test('Autopsia della gara in GUI = JSON di /api/autopsy, KPI e cause a confronto (it ed EN)', { timeout: 180_000 }, async (t) => {
   const CHROMIUM = await presuppostiBrowser(t);
+  if (!CHROMIUM) return;   // skip dichiarato: senza browser non si avvia neanche il server
   const ladder = JSON.parse(readFileSync(join(ROOT, 'config', 'career.evo.ladder.json'), 'utf8'));
   const node0 = ladder.nodes.slice().sort((a, b) => a.level - b.level)[0];
   const { chromium } = await import('playwright-core');
@@ -433,6 +435,7 @@ test('Autopsia della gara in GUI = JSON di /api/autopsy, KPI e cause a confronto
  * alla STESSA lingua). Server e browser SUA per lingua. */
 test('Autopsia del vuoto: «Nessuna gara ancora in <serie>» nomina la serie corrente, JSON = GUI (it ed EN)', { timeout: 180_000 }, async (t) => {
   const CHROMIUM = await presuppostiBrowser(t);
+  if (!CHROMIUM) return;   // skip dichiarato: senza browser non si avvia neanche il server
   const ladder = JSON.parse(readFileSync(join(ROOT, 'config', 'career.evo.ladder.json'), 'utf8'));
   const node0 = ladder.nodes.slice().sort((a, b) => a.level - b.level)[0];
   const { chromium } = await import('playwright-core');
@@ -497,6 +500,7 @@ test('Autopsia del vuoto: «Nessuna gara ancora in <serie>» nomina la serie cor
  * sedile (griglia · ronde · parco chiuso) e la base (dal, σ, DNF). */
 test('tabella Monte Carlo del sedile in GUI = JSON di /api/seat-mc, riga per riga (it ed EN)', { timeout: 180_000 }, async (t) => {
   const CHROMIUM = await presuppostiBrowser(t);
+  if (!CHROMIUM) return;   // skip dichiarato: senza browser non si avvia neanche il server
   const ladder = JSON.parse(readFileSync(join(ROOT, 'config', 'career.evo.ladder.json'), 'utf8'));
   const node0 = ladder.nodes.slice().sort((a, b) => a.level - b.level)[0];
   const { chromium } = await import('playwright-core');
