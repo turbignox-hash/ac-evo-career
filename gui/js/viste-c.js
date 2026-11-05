@@ -1075,6 +1075,28 @@ async function drawSetup(m){
       const rows = (m.consigli ?? []).map((c) => `<div class="mech-advice" role="button" tabindex="0" data-vedi="${esc(c.vedi ?? '')}" title="${tr({ it: "apri l'anteprima del setup e vai al campo", en: 'open the setup preview and jump to the field' })}"><span style="flex:0 0 130px;font-size:11.5px;color:var(--dim)">${tag[c.vedi] ?? c.vedi}</span><span style="font-size:12.5px;line-height:1.5">${c.text}</span><span class="go">→</span></div>`).join('');
       /* STORIA DELL'ALLIEVO: i round di consigli chiusi con l'esito (delta del
          giro migliore) e il setup migliore — Mauro 21/10 voleva vederla subito. */
+      /* DAL VIVO — i dati REALI del gioco (5/11, richiesta Mauro): gomme con
+         temperatura per bordo, psi, usura e composto; freni (bilanciere,
+         pastiglie, dischi); assetto (camber, altezza, danni); benzina; più le
+         levate del meccanicoBox a soglie chiare. Solo se il gioco sta
+         scrivendo: fuori sessione il pannello resta com'era. */
+      let vivoHtml = '';
+      const v = m.vivo ?? null;
+      if (v?.gomme) {
+        const RUOTE = ['LF', 'RF', 'LR', 'RR'];
+        const ruotaLbl = (w) => ({ LF: tr({ it: 'ant sx', en: 'front left' }), RF: tr({ it: 'ant dx', en: 'front right' }), LR: tr({ it: 'post sx', en: 'rear left' }), RR: tr({ it: 'post dx', en: 'rear right' }) })[w] ?? w;
+        const nn = (x, s = '') => (x == null ? '—' : `${Number(x)}${s}`);
+        const tGomme = RUOTE.map((w) => { const t = v.gomme[w] ?? {}; return `<tr><td><b>${ruotaLbl(w)}</b></td><td class="right">${nn(t.psi, ' psi')}</td><td class="right">${nn(t.intC, '°')}</td><td class="right">${nn(t.centroC, '°')}</td><td class="right">${nn(t.extC, '°')}</td><td class="right">${t.usuraPct != null ? t.usuraPct + '%' : '—'}</td><td class="right">${t.bloccata ? '🔒' : (t.slittamento != null ? t.slittamento : '—')}</td><td class="right muted" style="font-size:11.5px">${esc(t.composto ?? '')}</td></tr>`; }).join('');
+        const as = v.assetto ?? {}; const fr = as.camberGradi ?? []; const fe = v.freni ?? {};
+        const laLista = (a, s) => (Array.isArray(a) && a.some((x) => x != null) ? a.map((x) => (x == null ? '—' : x + s)).join(' / ') : '—');
+        const sugViv = (v.consigli ?? []).map((c) => `<div class="mech-advice" role="button" tabindex="0" data-vedi="${esc(c.vedi ?? '')}" title="${tr({ it: 'regole a soglie fisse calcolate sui dati veri del gioco', en: 'fixed-threshold rules computed on real game data' })}"><span style="flex:0 0 130px;font-size:11.5px;color:${c.severita === 'alta' ? '#ff9b9b' : c.severita === 'media' ? '#ffd166' : 'var(--dim)'}">${tag[c.vedi] ?? esc(c.vedi)}</span><span style="font-size:12.5px;line-height:1.5">${esc(c.text)}</span><span class="go">→</span></div>`).join('');
+        vivoHtml = `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+          <div class="muted" style="font-size:12px;margin-bottom:4px"><b style="color:var(--text)">🎯 ${tr({ it: 'Dal vivo — dati del gioco', en: 'Live — game data' })}</b> · ${esc(v.sessione?.tipo ?? '')} @ ${esc(v.sessione?.pista ?? '')} · ${tr({ it: 'aria ', en: 'air ' })}${nn(v.ambiente?.ariaC, '°')} · ${tr({ it: 'asfalto ', en: 'track ' })}${nn(v.ambiente?.asfaltoC, '°')} · ⛽ ${nn(v.benzina?.litri, ' L')}${v.benzina?.perGiro ? ` (${nn(v.benzina.perGiro, ' L/giro')})` : ''}</div>
+          <table style="margin-top:4px"><thead><tr><th>${tr({ it: 'Gomma', en: 'Tyre' })}</th><th class="right">psi</th><th class="right">${tr({ it: 'int', en: 'in' })}</th><th class="right">${tr({ it: 'centro', en: 'mid' })}</th><th class="right">${tr({ it: 'est', en: 'out' })}</th><th class="right">${tr({ it: 'usura', en: 'wear' })}</th><th class="right">${tr({ it: 'slip', en: 'slip' })}</th><th class="right">${tr({ it: 'composto', en: 'compound' })}</th></tr></thead><tbody>${tGomme}</tbody></table>
+          <div class="muted" style="font-size:11.5px;margin-top:6px">⚙️ ${tr({ it: 'bilanciere ', en: 'brake bias ' })}${fe.bilancierePct != null ? fe.bilancierePct + '%' : '—'} · ${tr({ it: 'pastiglie ', en: 'pads ' })}${laLista(fe.pastigliePct, '%')} · ${tr({ it: 'dischi ', en: 'discs ' })}${laLista(fe.dischiPct, '%')} · ${tr({ it: 'camber ', en: 'camber ' })}${laLista(fr, '°')}${as.dannoPct ? ` · 🩹 ${tr({ it: 'danno ', en: 'damage ' })}${as.dannoPct.map((x) => (x == null ? '0' : x)).join('/')}${tr({ it: '% (fronte/post/sx/dx/centro)', en: '% (front/rear/l/r/centre)' })}` : ''}</div>
+          ${sugViv ? `<div style="margin-top:8px">${sugViv}</div>` : tr({ it: '✔ dati reali a posto: nessun intervento richiesto a soglie fisse.', en: '✔ real data in range: no fixed-threshold fix needed.' })}
+        </div>`;
+      }
       let storiaHtml = '';
       const a = m.allievo ?? null;
       if (a && (a.rounds?.length || a.best)) {
@@ -1104,7 +1126,7 @@ async function drawSetup(m){
       out.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 10px;background:#0d1118">
         <div style="font-size:12px;margin-bottom:6px"><b>🔧 ${tr({ it: 'Il meccanico', en: 'The mechanic' })}</b> — ${tr({ it: 'setup consigliato per ', en: 'advised setup for ' })}<b>${esc(m.track ?? '')}</b> <span class="muted" style="font-size:11.5px">· ${tr({ it: 'tracciato ', en: 'track type ' })}${esc(m.tipo ?? '?')}${m.densita ? ` · ${m.densita} ${tr({ it: 'curve/km', en: 'corners/km' })}` : ''}${m.sessFile ? tr({ it: ' · correzione su telemetria veri', en: ' · corrected on real telemetry' }) : tr({ it: ' · senza telemetria (solo pista)', en: ' · no telemetry (track profile only)' })}</span></div>
         ${rows || `<div class="muted" style="font-size:12px">${tr({ it: 'Nessun consiglio per questa pista: anagrafica non disponibile.', en: 'No advice for this track: profile not available.' })}</div>`}
-        ${storiaHtml}
+        ${vivoHtml}${storiaHtml}
       </div>`;
       $$('.mech-advice', out).forEach((r) => {
         const vai = () => {

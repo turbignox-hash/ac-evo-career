@@ -169,6 +169,10 @@ import { memoOf, registraRound, annotaAdvice, semaforoAdvice } from './allievo.m
 // le VISTE (oggetti JSON per la GUI) stanno in webui-views.mjs
 import { PROJECT, DATA_DIR, SAVE_FILE, CONFIG_FILE, GUI_DIR, BACKUP_DIR, SLOT, loadLadder, appEnv, context, writeConfig, configLang, requireState, persist } from './webui-env.mjs';
 import { viewHeader, viewStatus, viewCalendar, viewStandings, viewMessages, viewCard, viewDifficulty, viewSetup } from './webui-views.mjs';
+// classifiche reali: le sessioni che EVO ha già scritto sul disco (5/11)
+import { classificheRecenti } from './classifiche-gioco.mjs';
+// meccanico dal vivo: i campi VERI della MMF + consigli con soglie in chiaro (5/11)
+import { vivoDaSnapshot, consigliVivo } from './meccanico-vivo.mjs';
 import { AGENDA_ACTIONS, agendaAction } from './webui-actions-agenda.mjs';
 import { EVENT_ACTIONS, eventAction } from './webui-actions-events.mjs';
 import { GARAGE_ACTIONS, garageAction } from './webui-actions-garage.mjs';
@@ -1539,7 +1543,14 @@ async function api(context0, _req, res, action, body) {
       persist(state);
       return sendJson(res, 200, { ok: true });
     }
-    case 'rivals': return sendJson(res, 200, rivalsOverview(ladder, state, { q: typeof body.q === 'string' ? body.q : null }));
+    case 'rivals': {
+      // 5/11 (Mauro: «tutte le classifiche coi dati reali del gioco»): la
+      // scheda rivali riceve anche le ultime classifiche scritte
+      // dal GIOCO a fine di ogni sessione — con i piloti e le auto veri.
+      const pipe = rivalsOverview(ladder, state, { q: typeof body.q === 'string' ? body.q : null });
+      pipe.gioco = classificheRecenti(paths, { limite: 3 });
+      return sendJson(res, 200, pipe);
+    }
     case 'imports': return sendJson(res, 200, { ledger: importedFiles().slice(0, 30), log: importLog(20) });
     case 'rival-detail': return sendJson(res, 200, rivalDetail(String(body.key ?? ''), state) ?? { error: tr({ it: 'Rivale non trovato.', en: 'Rival not found.' }) });
     case 'rival-dossier': return sendJson(res, 200, rivalDossier(String(body.key ?? ''), state) ?? { error: tr({ it: 'Rivale non trovato.', en: 'Rival not found.' }) });
@@ -2104,7 +2115,9 @@ async function api(context0, _req, res, action, body) {
     // AGENDA (4/11, P1.5): le sei rotte sono in webui-actions-agenda.mjs;
     // il dispatcher qui sopra le intercetta prima dello switch.
     case 'calendar': return sendJson(res, 200, viewCalendar(ladder, state));
-    case 'standings': return sendJson(res, 200, viewStandings(ladder, state));
+    // 5/11: accanto alla classifica della carriera parte anche l'ULTIMA
+    // classifica reale scritta dal gioco (file più recente nel disco).
+    case 'standings': return sendJson(res, 200, { ...viewStandings(ladder, state), gioco: classificheRecenti(paths, { limite: 3 }) });
     case 'messages': return sendJson(res, 200, viewMessages(ladder, state));
     case 'card': {
       // (28/10) la vista parte dalla lingua GIÀ IMPPOSTATA dal dispatcher:
@@ -3223,7 +3236,18 @@ async function api(context0, _req, res, action, body) {
               delta: r.delta, campi: [...new Set(r.advice.map((a) => a.campo))],
             })),
           } : null;
-          return sendJson(res, 200, { ok: true, car: carName, track: trackDisplay, sessFile, tipo: adv.tipo, densita: adv.densita, consigli, storie, allievo, bestLap: bestLap != null ? Math.round(bestLap * 1000) / 1000 : null, hasTelem: !!telem });
+          /* I DATI REALI DEL GIOCO (5/11, Mauro): mentre il gioco è APERTO e
+             in pista, la MMF ha già pressioni per gomma, temperature
+             interno/centro/esterno, freni, bilanciere, pastiglie, dischi,
+             camber, altezza di marcia, danni e benzina. Il pannello del
+             meccanicoBox-lavorato consulta anche quelle (meccanico-vivo.mjs);
+             senza gioco resta tutto com'era. */
+          let vivo = null;
+          try {
+            const datiVivi = vivoDaSnapshot(liveReader().snapshot({ raw: true }));
+            if (datiVivi) vivo = { ...datiVivi, consigli: consigliVivo(datiVivi) };
+          } catch { /* il meccanico lavora anche senza il gioco acceso */ }
+          return sendJson(res, 200, { ok: true, car: carName, track: trackDisplay, sessFile, tipo: adv.tipo, densita: adv.densita, consigli, storie, allievo, vivo, bestLap: bestLap != null ? Math.round(bestLap * 1000) / 1000 : null, hasTelem: !!telem });
         }
         if (body.action === 'stinti') {
           // analisi dei stint dalla telemetria REALE: blocco dei rifornimenti,

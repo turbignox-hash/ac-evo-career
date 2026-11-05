@@ -736,7 +736,17 @@ async function drawRivals(m){
       <td class="right">${r.wins}</td>
       <td class="right">${r.podiums}</td>
     </tr>`).join('')}</tbody></table>
-  </div>` : ''}`;
+  </div>` : ''}${realiGioco(d)}`;
+  /* I REALI DEL GIOCO (5/11, richiesta Mauro): accanto al registro della
+     carriera arrivano le ultime classifiche che EVO ha scritto a fine
+     sessione — con i piloti e le auto VERI — non solo le gare: anche
+     qualifiche, prove e uscite libere. Vuoto quando non c'è ancora nulla
+     (installazione vergine, disco senza file risultato). */
+  function realiGioco(d) {
+    const tipoLbl = (t) => ({ race: tr({ it: 'Gara', en: 'Race' }), qualifying: tr({ it: 'Qualifica', en: 'Qualifying' }), 'time attack': tr({ it: 'Time attack', en: 'Time attack' }), practice: tr({ it: 'Prove', en: 'Practice' }), 'hot stint': tr({ it: 'Stint', en: 'Stint' }) })[String(t ?? '').toLowerCase()] ?? t;
+    const blocchi = (d.gioco?.sessions ?? []).slice(0, 3).map((s) => `<div style="margin-top:8px"><div class="muted" style="font-size:12px">${esc(tipoLbl(s.tipo) ?? '?')} · ${esc(s.pista ?? '?')} · ${esc(String(s.quando ?? '').replace('T', ' ').slice(0, 16))} · ${s.pilotiTot ?? (s.righe ?? []).length} ${tr({ it: 'piloti', en: 'drivers' })}</div><table style="margin-top:4px"><thead><tr><th>${tr({ it: 'P', en: 'P' })}</th><th>${tr({ it: 'Pilota', en: 'Driver' })}</th><th>${tr({ it: 'Auto', en: 'Car' })}</th></tr></thead><tbody>${(s.righe ?? []).slice(0, 10).map((r) => `<tr><td class="muted" style="white-space:nowrap">${r.pos ?? '—'}</td><td>${esc(r.nome)}</td><td class="muted" style="font-size:11.5px">${esc(r.auto ?? '')}</td></tr>`).join('')}${(s.pilotiTot ?? 0) > 10 ? `<tr><td colspan="3" class="faint" style="font-size:11.5px">… ${tr({ it: 'e altri', en: 'more drivers' })} ${s.pilotiTot - 10}</td></tr>` : ''}</tbody></table></div>`).join('');
+    return blocchi ? `<div class="panel" id="rv-gioco"><h2>🏁 ${tr({ it: 'Classifiche reali del gioco', en: 'Real standings from the game' })} <span class="h-act">${tr({ it: 'scritte da EVO a fine sessione', en: 'written by EVO at session end' })}</span></h2>${blocchi}</div>` : '';
+  }
   $$('.rival-link', m).forEach((trr)=>{ trr.onclick=()=>showRival(trr.dataset.key); trr.onkeydown=(e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showRival(trr.dataset.key); } }; });
   /* 3/11, richiesta Mauro («non funziona»): il bottone esisteva ma NIENTE lo
      agganciava — la funzione c'era (27/10) e l'aggancio era sparito. Ora il
