@@ -17,11 +17,9 @@ const REPO_DEFAULT = process.env.ACE_REPO ?? 'turbignox-hash/ac-evo-career';
 
 /** Gli asset che una release Windows deve contenere, oltre al pacchetto amico. */
 export function pianoAtteso(versione) {
-  const bundle = `EVO-Pitwall-v${versione}-Windows.zip`;
   return [
     { kind: 'exe', nome: 'EVO-Pitwall-Setup.exe', sidecar: 'EVO-Pitwall-Setup.exe.sha256' },
     { kind: 'exe', nome: 'EVO-Pitwall-Setup-Offline.exe', sidecar: 'EVO-Pitwall-Setup-Offline.exe.sha256' },
-    { kind: 'bundle', nome: bundle, sidecar: `${bundle}.sha256` },
     { kind: 'friend', prefisso: `ac-evo-career-amico-v${versione}-`, suffisso: '.zip' },
   ];
 }
