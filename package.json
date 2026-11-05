@@ -1,6 +1,6 @@
 {
   "name": "ac-evo-career",
-  "version": "0.1.59",
+  "version": "0.1.60",
   "private": true,
   "type": "module",
   "description": "Carriera persistente e locale per Assetto Corsa EVO: nessuna mod ai dati di gioco, nessuna app esterna richiesta.",

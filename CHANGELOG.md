@@ -5,6 +5,30 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
 
+## v0.1.60 — 5/11/2026
+
+- **«Punta la ronda in Agenda» riparato**: il bottone del pannello Eredità
+  restava col 400 «Nessuna gara programmata di questa serie nei prossimi 30
+  giorni» mentendo la verità: la ricerca copriva solo 7 giorni (30 per
+  l'avviso) mentre le serie non iscritte proiettano a ciclo completo (fino
+  a 80). La finestra si allinea al ciclo reale e il sedile parte sul VERO
+  giorno di gara; col gate chiuso dice la data vera. Guardia nuova
+  `agenda-punta-lontano` (3/3).
+- **Cruscotto tostato**: i due «Prepara tutto» tornano in fondo alla scheda
+  (il gesto della gara riporta a leggere obiettivo, rivali, mappa ed
+  eredità); spariti la riga fissa del trim (−1/+1), lo stato «App in gioco»
+  e il banner «Griglia sul disco di un'altra serie» — resta la finestra oro
+  del suggerimento, solo quando c'è una proposta. Le guardie pesano le
+  regole nuove (trim-tile-gui riscritta).
+- **Agenda**: il 400 col messaggio cheto quando non c'è proprio niente non
+  nomina più «30 giorni»; e il taglio del marchio di terzi è completo: la
+  guardia `nessun-riferimento-esterno` era CIECA dal 4/11 (confine parola
+  scritto col backspace) — riparata, e con lei chiusi i riferimenti in
+  diario, commenti, ps1 e build; nel game loader restano solo Cruscotto e
+  Pitwall. «Paddock Hill» resta: è la curva di Brands Hatch.
+- Verifica release in CI riallineata (niente più bundle unico nel piano).
+- Suite completa **986/986**; Biome 0 warning.
+
 ## v0.1.59 — 5/11/2026
 
 - **Griglia allineata al parco che EVO accetta**: la preparazione «Prepara tutto»
