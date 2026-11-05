@@ -430,7 +430,7 @@ export function comandoAuto(ladder, state, env = process.env) {
           ora: volo ? oraRonda : null, meteo: volo ? codiceMeteo(p.weather ?? null) : null,
           // GRIGLIA E PARAMETRI DEL WEEKEND (4/11): il Cruscotto li applica
           // con SetGameModeParameters nella stessa sequenza dell'auto, come
-          // Paddock — il weekend non resta più solo sui file del disco.
+          // il weekend non resta più solo sui file del disco.
           weekend: p.weekend ?? null,
         };
         // GESTO UNICO (4/11, «prepara tutto e avvia deve lanciare la gara, non

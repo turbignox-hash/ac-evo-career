@@ -456,11 +456,11 @@
     return scorta;
   }
 
-  // IL WEEKEND IN MANO AL GIOCO (4/11, «come fa Paddock»): le impostazioni
+  // IL WEEKEND IN MANO AL GIOCO (4/11): le impostazioni
   // della scheda non restano sul disco — la stessa sessione di comandi che
   // mette l'auto aggiorna anche avversari, Single Make, banda AI, giri e
   // modelli della griglia. Il campo Single Make non ha un nome stabile nel
-  // menu: Paddock lo prende subito dopo `opponents` quando è booleano/0-1,
+  // menu: il gioco lo prende subito dopo `opponents` quando è booleano/0-1,
   // qui si fa lo stesso senza dizionari.
   function chiaviSingleMake(sess, on) {
     const keys = [];
@@ -576,7 +576,7 @@
             loga('weekend: GameModeParameters senza sessions');
             return false;
           }
-          // UNA VOCE PER AVVERSARIO (4/11): Paddock con models=[car] e
+          // UNA VOCE PER AVVERSARIO (4/11): sul campo models=[car] e
           // num_opponents=15 ha creato UN avversario; il menu usa
           // models.length per riempire la griglia. Quindi 15 copie della R5;
           // per le multiclasse i modelli del parco si ripetono fino a `quanti`.
@@ -613,7 +613,7 @@
           // tiene l'elenco avversari della volta prima. Con models=[15] ma
           // opponents=[1] la schermata mostra UNA auto con la foto e le altre
           // vuote, e «Avvia» crasha (0xC0000005): è lo stato in cui è morto il
-          // weekend delle 00:16. Paddock è passato al secondo giro, quando
+          // weekend delle 00:16. il secondo giro è arrivato quando
           // opponents è tornato [15]. Qui si rilegge la sessione e si riapplica
           // finché l'elenco avversari non combacia: solo allora si parte.
           let rp = await giocoComando('GameModeSelectionClientRequestSetGameModeParameters', { mode: MODO_SINGLE, sessions: sess }, 10000);

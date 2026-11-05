@@ -1,6 +1,6 @@
 # evo-tray.ps1 - EVO Pitwall vive vicino all'orologio (4/11/2026).
 #
-# Il gemello «immediato» di Paddock.exe: un'icona nella tray di Windows,
+# L'immediatezza voluta: un'icona nella tray di Windows,
 # niente finestra del server nella barra delle applicazioni. Un clic apre
 # la GUI; il menu dell'icona permette di riaprirla, riavviare il server o
 # uscire. Lo script avvia il server se non c'e' gia', aspetta che risponda

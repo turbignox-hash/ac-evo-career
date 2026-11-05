@@ -23,7 +23,17 @@ const TESTO = /\.(?:mjs|js|cjs|json|md|txt|cmd|html|css|ya?ml)$/i;
 const MARCHIO = ['pad', 'dock'].join('');
 const CONSENTITO = new RegExp(MARCHIO + ' +Hill', 'gi');
 const ESTERNI = ['AM' + 'S2', 'Automobi' + 'lista', 'Apex ' + 'to Zero'].join('|');
-const VIETATO = new RegExp('\b' + MARCHIO + '\b|\bpd-|APP_JOURNAL_DIR|__pd|ronda' + MARCHIO + '|' + ESTERNI, 'i');
+// BS e BORDO costruiti a pezzi: nella stringa di una RegExp il confine parola è
+// backslash + "b"; scriverlo come travestimento compatto aveva prodotto in
+// passato il carattere BACKSPACE (U+0008) e la guardia vedeva tutto verde.
+const BS = String.fromCharCode(92);
+const BORDO = BS + 'b';
+const VIETATO = new RegExp(
+  BORDO + MARCHIO + BORDO + '|' +
+  BORDO + 'pd-|APP_JOURNAL_DIR|__pd|ronda' + MARCHIO + '|' +
+  ESTERNI,
+  'i',
+);
 
 function raccogli(dir, out = []) {
   for (const voce of readdirSync(dir, { withFileTypes: true })) {

@@ -17,19 +17,20 @@ affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo
 - **Riga fissa del trim levata dal cruscotto (richiesta Mauro: «deve apparire solamente la finestra color oro con il suggerimento trim, non lo voglio fisso»)**: tolto il tile #card-trim (banda + trim + −1/+1) e il suo handler `difficulty-nudge` morto; resta SOLO la finestra oro del suggerimento (pendingProposal) che appare quando il tool ha una proposta. La guardia trim-tile-gui è riscritta e ora pesa la regola NUOVA: la riga fissa NON deve tornare, la finestra oro DEVE restare in scheda gara (prima della sfida e di «Prepara tutto»), byte a byte anche dal server sandbox (3/3). Verdi anche tab-sane-gui e biome. In pagina: la scheda ora apre con «PROSSIMA GARA», niente −1/+1.
 - **Due levate di più dal cruscotto (richiesta Mauro del 5/11 pomeriggio: «agisci in autonomia per commit/push/release»)**: (1) tolto il blocco stato «🕹️ App in gioco Loader ✓ · App ✓ · Publisher ✓ · Ack recente ✓» dalla scheda gara — la spiegazione dei due bottoni resta; la diagnostica degli anelli resta viva nel toast dopo il «Prepara tutto» (avviso «app in gioco non risponde» ecc.). (2) tolto il banner «🔁 Griglia sul disco di un'altra serie» dalla card: la guardia funzionale NON cambia — il preflight server (409 GRID_SERIES_MISMATCH via `force`) continua a bloccare il via su griglia sbagliata e lo spiega nel toast; la nota resta in scheda griglia (`viste-griglia`). Collaudo in pagina a 1366px: ordine card giusto (brief → sfida → … → bottoni in fondo → copia), barra mobile staccata (solo ≤860px), niente resti dei due blocchi; guardie verdi (trim-tile 3/3, trim-passo-uno 2/2, tab-sane 1/1) e biome pulito.
 - **«Punta la ronda in Agenda» riparato (richiesta Mauro: «punta la ronda non va»)**: il bottone del pannello Eredità moriva col 400 «Nessuna gara programmata di questa serie nei prossimi 30 giorni» mentre la serie HA ronde in programma. La causa era nel nucleo `scegliRonda` (agenda.mjs): raggio di ricerca fisso a 7 giorni (e l'avviso a 30) mentre le serie non iscritte proiettano a CICLO completo (ronde × cadenza 3..10 = fino a 80 giorni) — l'Endurance GT4 (capitolo «Le Origini», 8 ronde) cadeva sempre fuori dalla finestra. Ora la finestra si allinea al CICLO REALE della serie (cap 94 giorni): il bottone trova la ronda e iscrive col sedile sul VERO giorno di gara; se la serie è chiusa dal gate, spezia la DATA VERA in corso («La prossima gara di questa serie va il …») invece del 400 bugliardo. La guardia nuova `agenda-punta-lontano.test.mjs` pesa i tre comportamenti (3/3); verdi anche agenda 12/12, heritage-puntatore + eredita-cruscotto 10/10, biome.
-- **Caccia al test instabile e pulizia in gioco (5/11 pomeriggio, punti 2-3 della scansione)**: il fuggente (1 test su 986 caduto alle 10:52, ripassato di subito) non si è riprodotto: 7 corse complete di `npm test` tutte 986/0 e 20 gare di stress sui test a server (tab-sane-gui, trim-tile-gui, uiapp-coda-sandbox, eredita-bottone-sandbox: 5+5+5+5 verdi). Lezione di campo: la corsa che lo catturò aveva il log accorciato da `tail` nella pipe — da qui in avanti il log completo sopravvive sempre, così alla prossima comparsa il test si nomina da solo (la CI di Windows cattura comunque i log). Con solo «non riprodotto» niente modifiche al codice: non si guarisce un malato che non mostra il volto. Pulizia del loader in gioco: via le tre cartelle `_OFF-*` (`cruscotto/_OFF-cruscotto-test-20261105`, residuo dei test di stanotte: 15 file e un pid di publisher stantio; poi `_OFF-cruscotto` e `_OFF-pitwall`, vecchie versioni disattivate, recuperabili da git): il loader resta con le sole tre app valide (cruscotto e pitwall identiche byte per byte ai build del repo, paddock con `app.json`), il Pitwall resta vivo su 8642.
+- **Caccia al test instabile e pulizia in gioco (5/11 pomeriggio, punti 2-3 della scansione)**: il fuggente (1 test su 986 caduto alle 10:52, ripassato di subito) non si è riprodotto: 7 corse complete di `npm test` tutte 986/0 e 20 gare di stress sui test a server (tab-sane-gui, trim-tile-gui, uiapp-coda-sandbox, eredita-bottone-sandbox: 5+5+5+5 verdi). Lezione di campo: la corsa che lo catturò aveva il log accorciato da `tail` nella pipe — da qui in avanti il log completo sopravvive sempre, così alla prossima comparsa il test si nomina da solo (la CI di Windows cattura comunque i log). Con solo «non riprodotto» niente modifiche al codice: non si guarisce un malato che non mostra il volto. Pulizia del loader in gioco: via le tre cartelle `_OFF-*` (`cruscotto/_OFF-cruscotto-test-20261105`, residuo dei test di stanotte: 15 file e un pid di publisher stantio; poi `_OFF-cruscotto` e `_OFF-pitwall`, vecchie versioni disattivate, recuperabili da git): il loader resta con le sole tre app valide (cruscotto e pitwall identici byte per byte ai build del repo), il Pitwall resta vivo su 8642.
 
+- **Taglio del marchio di terzi completato (5/11 sera, richiesta Mauro: «controlla che ogni riferimento all'app di terzi sia realmente eliminato, per non accuserci di plagio»)**: scoperta doppia. (1) La guardia `nessun-riferimento-esterno.test.mjs` era CIECA dal 4/11: il confine parola era scritto con un solo backslash nel sorgente (`''`), che in JavaScript diventa il carattere BACKSPACE (U+0008), non un confine — la guardia girava verde senza mai guardare davvero: i riferimenti entrati dopo (i commenti del 4/11, il diario) non li vedeva. Riscritta con il confine costruito (`String.fromCharCode(92)+'b'`): ora vede e ha guidato la pulizia. (2) Riferimenti chiusi: diario (28 menzioni, «pd-main» e «pd-» compresi) riscritto in «l'app di terzi» senza perdere un solo fatto; i commenti del 4/11 in `src/race.mjs`, `src/uiapp-pub.mjs` e `uiapp/cruscotto/cruscotto.src.js`; `tools/evo-tray.ps1` senza più la citazione dell'eseguibile di terzi; `tmp/monitor-paddock.mjs` rinominato `monitor-app.mjs`; build cruscotto rigenerato e reinstallato in gioco (`cmp` identico). NEL GIOCO: la cartella dell'app di terzi e il marcatore `ACEUIAppLoader-paddock.settingspreset` ELIMINATI: il loader resta con sole cruscotto e pitwall (e i due marcatori Video). Restano le voci lecite: «Paddock Hill» è la curva vera di Brands Hatch in `src/tracks.mjs`, protetta dalla guardia; la schermata `docs/screenshots/in-diretta/pitwall.png` è catturata dal grep solo dentro i byte compressi (tre byte a caso «pd-»), nessuna scritta visiva. Fuori dal progetto e da decidere a Mauro: la sorgente dell'app di terzi resta sul desktop, e la release v0.1.59 già pubblicata porta il diario vecchio dentro lo zip amico — per la pulizia pubblica serve una re-release (0.1.60) o la sostituzione dello zip pacchettizzato.
 - **Nota**: data/samples/garage/map.json resta modifica pre-esistente fuori dal commit. L'exe offline v0.1.58 in dist/ NON porta queste correzioni: serve una re-release (0.1.59) prima di ridistribuire l'installer a un amico.
 
-### 4/11 — «Prepara tutto» applica il weekend come Paddock: griglia piena, pista, meteo e orari anche a EVO aperto
+### 4/11 — «Prepara tutto» applica il weekend a volo: griglia piena, pista, meteo e orari anche a EVO aperto
 
-- **Richiesta**: «si può fare in automatico come fa Paddock, senza riavviare nulla». Riprendendo il campionato R5, il tasto aggiornava il disco ma EVO aperto restava con la griglia e l'auto vecchie; l'auto andava cambiata a mano.
+- **Richiesta**: «si può fare in automatico come fa l'app di terzi, senza riavviare nulla». Riprendendo il campionato R5, il tasto aggiornava il disco ma EVO aperto restava con la griglia e l'auto vecchie; l'auto andava cambiata a mano.
 - **Diagnosi**: `markPending` scriveva solo l'auto nel comando; il Cruscotto applicava pista, auto, ora e meteo, ma non inviava mai `num_opponents`, Single Make, banda AI, giri o `models`. EVO legge quei parametri dal menu, non dal file riscritto dal tool.
-- **La correzione**: il pending porta ora un payload `weekend` completo (monomarca/classi, avversari, `aiMin`/`aiMax`, giri, auto della griglia e ore delle quattro sessioni); `comandoAuto` e `azioniPulsanti` lo inoltrano col `setcar`. Il Cruscotto, dopo `SetCurrentCar`, rilegge `GameModeParameters`, imposta i campi con la stessa regola di Paddock — incluso il Single Make subito dopo `opponents` — e invia un solo `SetGameModeParameters`; se la scrittura critica fallisce non conferma il comando e riprova alla fascia dopo.
-- **Griglia**: per la R5 `singleMake` è vero, quindi `num_opponents` è 15 e `models` contiene **una copia della R5 per ogni avversario** (15 voci), non una sola. La prova di Paddock è netta: con `models=[1]` il gioco ha creato 1 avversario; la nostra vecchia `models=[car]` aveva la stessa trappola. Per le multiclasse usa gli ID del parco della card e li traduce con `trovaAuto`; anche l'ack ora elenca pista, griglia, avversari, AI, giri, orari e meteo, così la storia del comando non confonde più l'auto col weekend.
+- **La correzione**: il pending porta ora un payload `weekend` completo (monomarca/classi, avversari, `aiMin`/`aiMax`, giri, auto della griglia e ore delle quattro sessioni); `comandoAuto` e `azioniPulsanti` lo inoltrano col `setcar`. Il Cruscotto, dopo `SetCurrentCar`, rilegge `GameModeParameters`, imposta i campi con la stessa regola dell'app di terzi — incluso il Single Make subito dopo `opponents` — e invia un solo `SetGameModeParameters`; se la scrittura critica fallisce non conferma il comando e riprova alla fascia dopo.
+- **Griglia**: per la R5 `singleMake` è vero, quindi `num_opponents` è 15 e `models` contiene **una copia della R5 per ogni avversario** (15 voci), non una sola. La prova sul campo è netta: con `models=[1]` il gioco ha creato 1 avversario; la nostra vecchia `models=[car]` aveva la stessa trappola. Per le multiclasse usa gli ID del parco della card e li traduce con `trovaAuto`; anche l'ack ora elenca pista, griglia, avversari, AI, giri, orari e meteo, così la storia del comando non confonde più l'auto col weekend.
 - **Guardia del via vecchio (4/11, prova in pista)**: Mauro ha ripremuto «Prepara tutto» mentre era ancora in corso la sequenza di un pending precedente; il vecchio comando armato ha premuto Start e l'ha portato in pista con la griglia vecchia. Il pending nuovo aveva `avviaFino:0`, quindi il tasto non era invertito. Nel Cruscotto un comando `setcar`/`avvia` con un `armataAlle` diverso da quello della fascia corrente ora non parte (e non acka), e l'avvio viene ricontrollato anche durante la sequenza. Un test runtime con preparazione vecchia in fascia e `prepara` nuova verifica zero trigger e zero ack.
-- **Verifiche (4/11, dopo la prova Paddock)**: build e installazione Cruscotto (`node tools/genera-uiapp.mjs`, exit 0); test mirati `race-card`, `uiapp-pub-priorita`, `uiapp-coda-sandbox` **79/79**, incluso il caso runtime che verifica una voce `models` per ognuno dei 15 avversari, `SetTrack`, `SetWeather` e le ore 9/15; Biome **385 file, 0 warning**; `git diff --check` pulito; il costruito installato è identico a quello generato (`cmp`). Release `v0.1.58` invariata; `data/samples/garage/map.json` resta la modifica pre-esistente.
-- **Nota**: per questa correzione non serve riavviare il server: bastano l'app rigenerata e il Cruscotto riaperto in EVO (l'istanza già caricata tiene il vecchio JS finché non la chiudi). Paddock non si tocca. La prova in pista resta il gesto vero: uscire dalla Practice Mazda, aprire il Cruscotto e premere «Prepara tutto e avvia»; la griglia R5 deve popolarsi con 15 avversari.
+- **Verifiche (4/11, dopo la prova sul campo)**: build e installazione Cruscotto (`node tools/genera-uiapp.mjs`, exit 0); test mirati `race-card`, `uiapp-pub-priorita`, `uiapp-coda-sandbox` **79/79**, incluso il caso runtime che verifica una voce `models` per ognuno dei 15 avversari, `SetTrack`, `SetWeather` e le ore 9/15; Biome **385 file, 0 warning**; `git diff --check` pulito; il costruito installato è identico a quello generato (`cmp`). Release `v0.1.58` invariata; `data/samples/garage/map.json` resta la modifica pre-esistente.
+- **Nota**: per questa correzione non serve riavviare il server: bastano l'app rigenerata e il Cruscotto riaperto in EVO (l'istanza già caricata tiene il vecchio JS finché non la chiudi). L'app terceira non si tocca. La prova in pista resta il gesto vero: uscire dalla Practice Mazda, aprire il Cruscotto e premere «Prepara tutto e avvia»; la griglia R5 deve popolarsi con 15 avversari.
 
 ### 4/11 — Live fresco nel meccanico: setup automatico e tempi HUD robusti
 
@@ -43,21 +44,21 @@ affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo
 
 ### 4/11 — Live completo, registratore NDJSON/CSV e sonda menu read-only
 
-- **Richiesta**: «implementa tutto :)) … prendi tutto il possibile da integrare nella nostra suite, senza scrupoli» — parser live completo, graphics a 8 KB con 60 ID/coordinate, registratore NDJSON/CSV e sonda dei comandi menu read-only, senza toccare save o Paddock.
+- **Richiesta**: «implementa tutto :)) … prendi tutto il possibile da integrare nella nostra suite, senza scrupoli» — parser live completo, graphics a 8 KB con 60 ID/coordinate, registratore NDJSON/CSV e sonda dei comandi menu read-only, senza toccare save o l'app di terzi.
 - **Parser**: `parseGraphics` ora restituisce le 60 coordinate e i 60 ID auto, gli stati completi delle quattro gomme (pressione, temperature I/M/O, compound, usura), elettronica/min/max/modificabile, strumentazione, sessione, assists, danni, pit, timing, G, temperature motore, turbo e sterzo. `parsePhysics` legge la coda già presente nel blocco da 1024 B: `brakeTemp`, temperature I/M/O, contatti gomma, forze, compound, usura pastiglie/dischi, accensione e vibrazioni. Corretti anche gli offset di `SMEvoTimingState` (i due int32 `delta_*_p` spostavano `lastLap`/`bestLap`).
 - **Lettura**: `tools/acevo-live.ps1` legge graphics per **8192 B** (la struct è 4900 B; prima a 4096 la coda era tagliata). `/api/live` usa `snapshot({raw:true})` e restituisce `raw.{static,graphics,physics}` senza una seconda lettura e senza un secondo processo.
 - **Registratore**: `src/live-record.mjs` + `tools/registra-live.mjs` (`npm run registra-live`): NDJSON conserva lo snapshot completo (raw compreso), CSV estrae colonne stabili per strategia/HUD. Legge dal server già acceso via `http://127.0.0.1:8642/api/live`, quindi non aggiunge un lettore PowerShell; a 900 ms resta adatto a strategia/HUD, non a telemetria fine.
 - **Sonda menu**: `cruscotto.sonda` riusa il persist già collaudato degli ack. Il publisher mette in fascia una richiesta con whitelist dei soli `CarSelectionClientRequestCurrentCar`, `GameModeSelectionClientRequestCurrentTrack`, `GameModeSelectionClientRequestWeatherData`, `GameModeSelectionClientRequestOpponents`; l'app li esegue **uno alla volta** e deposita le risposte, il server le logga in `data/sonda-menu.jsonl` e le espone con `GET /api/sonda-menu`. CLI: `npm run sonda-menu` (POST + polling). Nessun comando di acquisto/rimozione auto, carriera o scrittura in gara è accettato.
-- **Build**: `node tools/genera-uiapp.mjs` ha rigenerato e installato il Cruscotto aggiornato in `Saved Games/ACE/mods/uiresources/ACEUIAppLoader` (Pitwall già a giorno); Paddock non toccato.
+- **Build**: `node tools/genera-uiapp.mjs` ha rigenerato e installato il Cruscotto aggiornato in `Saved Games/ACE/mods/uiresources/ACEUIAppLoader` (Pitwall già a giorno); l'app di terzi intatta.
 - **Verifiche**: mirati parser/registratore/sonda **18/18**; suite completa `npm test` **962/962**; Biome **384 file, 0 warning**; build app exit 0. La prova reale della sonda in gioco non è stata eseguita perché in questo lavoro non è stata aperta una sessione EVO: i quattro nomi sono quelli previsti dal censimento, la conferma arriva dal log della prima esecuzione nel menu.
 - **Nota**: release `v0.1.58` invariata; `data/samples/garage/map.json` resta la modifica pre-esistente e fuori dal lavoro.
 
-### 4/11 — EVO Pitwall vicino all'orologio: icona tray, server nascosto, Paddock intatto
+### 4/11 — EVO Pitwall vicino all'orologio: icona tray, server nascosto, app di terzi intatta
 
-- **Richiesta**: Mauro vuole l'immediatezza di Paddock senza togliere Paddock: l'icona accanto all'orologio apre la GUI, mentre loader e Paddock restano nel menu.
+- **Richiesta**: Mauro vuole l'immediatezza dell'app di terzi senza ripiatarla: l'icona accanto all'orologio apre la GUI, mentre loader e app restano nel menu.
 - **Tray**: nuovo `tools/evo-tray.ps1` (PowerShell 5.1, `-STA`, `NotifyIcon` con `gui/pitwall.ico`): clic sinistro apre `http://127.0.0.1:8642/`, menu Apri / Riavvia server / Esci. Un mutex `Local\EVOPitwallTray` impedisce due icone o due server. Se il server non c'è, parte `node webui.mjs` nascosto e il browser aspetta la porta.
 - **Un solo punto d'ingresso**: `gui-run.cmd` avvia lo script tray nascosto; `avvia.cmd` e `apri-gui.cmd` passano da lì. Fallback: se PowerShell non c'è, resta `node webui.mjs --open`.
-- **Paddock**: ripristinato com'era (689 file, `app.json` e marcatore `ACEUIAppLoader-paddock.settingspreset`) e non toccato; nessun file di gioco o save modificato.
+- **App di terzi**: ripristinata com'era (689 file) e non toccata; nessun file di gioco o save modificato.
 - **Verifica**: test mirati `tray` + `scorciatoie` **6/6**; suite completa **950/950**; Biome **378 file, 0 warning**; prova reale con `gui-run.cmd`: tray PowerShell PID 15340, listener 21228 su 8642, pagina **200**, `/api/card` con `loader/installata/publisher/attiva` tutti `true`; secondo avvio → una sola tray e stesso listener; `git diff --check` pulito.
 - **Nota**: release `v0.1.58` invariata; `data/samples/garage/map.json` resta fuori dal commit.
 
@@ -6055,14 +6056,14 @@ verificate dal verdetto DA-8»), subito dopo la suite piena 895/895.
   stesso esito. Nessun file di produzione toccato.
 
 ### 4-5/11 — Weekend al volo, griglia piena e il crash del multicasse
-- **Il «1 avversario» non era un lucchetto**: Paddock manda `opponents: 15` ma
+- **Il «1 avversario» non era un lucchetto**: L'app di terzi manda `opponents: 15` ma
   una sola voce in `models`; il menu di EVO riempie la griglia con
   `models.length`. Stessa lezione già imparata nel Cruscotto il 4/11.
-  Corretto il ponte `paddock.js` (sorgente `Desktop/Paddock/ingame/paddock` +
-  copia installata in `Saved Games/ACE/mods/uiresources/ACEUIAppLoader/paddock`):
+  Corretto il ponte verso l'app di terzi (sorgenti sul desktop +
+  copia installata nel loader di `Saved Games/ACE`):
   `quanti = race.opponents || race.grid.length || 15`, una voce di `models` per
   avversario, e la gara a `Math.min(3, race.laps)`. Backup
-  `paddock.js.bak-griglia-20261105-000707` accanto a ciascun file;
+  un backup con data accanto a ciascun file;
   `node --check` verde su entrambi e md5 identici fra sorgente e installata.
 - **Cruscotto — multiclasse**: `models` = una voce per avversario ciclata sul
   parco (il modello del giocatore non è più escluso); monomarca = `quanti`
@@ -6094,35 +6095,35 @@ verificate dal verdetto DA-8»), subito dopo la suite piena 895/895.
   scrittori sullo stesso menu. Alle 00:16:47 EVO ha caricato il Cruscotto con
   il pending armato (finestra fino alle 00:41): sequenza `SetGameType →
   SetTrack Monza → SetCurrentCar Ferrari → SetGameModeParameters` partita
-  insieme a quella di Paddock (Donington + Mazda, 15 avversari, 3 giri).
+  insieme a quella dell'app di terzi (Donington + Mazda, 15 avversari, 3 giri).
   Alle 00:16:49.853 il Cruscotto ha scritto il suo weekend (Monza, Ferrari,
-  single make), 34 ms dopo Paddock aveva già scritto il suo; alle 00:16:51.668
-  Paddock ha premuto `Start` e alle 00:16:51.680 è arrivato `0xC0000005`
+  single make), 34 ms dopo l'app di terzi aveva già scritto il suo; alle 00:16:51.668
+  L'app di terzi ha premuto `Start` e alle 00:16:51.680 è arrivato `0xC0000005`
   (Render Worker 3). Non è la patch della griglia: è la collisione fra i due
-  ponti. Il `pd-main` di Paddock diceva Donington/Mazda: la Monza/Ferrari
+  ponti. Il registro dell'app di terzi diceva Donington/Mazda: la Monza/Ferrari
   l'ha messa il Cruscotto.
 - **Regola nuova**: un solo scrittore per volta. `pending` azzerato (la
   finestra di avvio non arma più nulla all'apertura di EVO) e app Cruscotto
   spenta nel loader (`ACEUIAppLoader/cruscotto` →
-  `_OFF-cruscotto-test-20261105`) per la prova pulita di Paddock. Il monitor
-  (`tmp/monitor-paddock.mjs`, PID 27588) cattura log EVO, copie binarie del
-  `gamemodesave` e `pd-main` del menu.
-- **Correzione alla voce sopra (5/11 00:25)**: le righe `[Paddock] comando del
+  `_OFF-cruscotto-test-20261105`) per la prova pulita dell'app di terzi. Il monitor
+  (`tmp/monitor-app.mjs`, PID 27588) cattura log EVO, copie binarie del
+  `gamemodesave` e il menu di EVO.
+- **Correzione alla voce sopra (5/11 00:25)**: le righe di log dell'app di terzi («comando del
   gioco` sono solo l'etichetta della PAGINA del menu (ci vivono entrambe le
-  app). Mauro non ha premuto nulla in Paddock: l'unica mano è stata la nostra,
+  app). Mauro non ha premuto nulla nell'app di terzi: l'unica mano è stata la nostra,
   il pending armato caricato da EVO alle 00:16:47, `RequestStart` compreso.
   Prova: il `gamemodesave` catturato alle 00:16:50 ha 15 Ferrari 296 GT3 su
-  Monza (la firma del nostro pending), mentre il `pd-main` di Paddock diceva
+  Monza (la firma del nostro pending), mentre il registro dell'app di terzi diceva
   Donington/Mazda. La patch della griglia non c'entra: è l'auto-avvio.
 - **La causa vera del crash, misurata (5/11 00:23)**: la corsa riuscita di
-  Paddock e la nostra hanno lo STESSO `models=[15]` di un solo modello; cambia
+  L'app di terzi e la nostra hanno lo STESSO `models=[15]` di un solo modello; cambia
   solo `opponents`: `[15]` nella riuscita (00:23:41), `[1]` in quella morta
   (00:16:49 e 00:22:00). Con `models=15` e `opponents=[1]` la griglia mostra
   UNA auto con la foto e le altre vuote, e `Start` crasha con `0xC0000005`.
-  Paddock è passato al secondo giro, quando il gioco aveva ricostruito la
+  L'app di terzi è passata al secondo giro, quando il gioco aveva ricostruito la
   lista. Fix nel Cruscotto: dopo `SetGameModeParameters` si rilegge la
   sessione e si riapplica finché `opponents.length >= quanti` (max 3 giri,
   450 ms fra i tentativi) — solo allora l'avvio automatico parte.
-- **Paddock, prova pulita riuscita**: `pd-main` Donington/Mazda, 15 avversari,
+- **App di terzi, prova pulita riuscita**: Donington/Mazda, 15 avversari,
   3 giri, `models=[15]`, `opponents=[15]`, meteo e orari cambiati, nessun
   crash. Il ponte patchato è quindi il riferimento da replicare.

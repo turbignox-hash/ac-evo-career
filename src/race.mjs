@@ -639,7 +639,7 @@ export function markPending(_ladder, state, card, { autoAvvio = true } = {}) {
     laps: card.laps ?? card.round.laps ?? null,
     car: card.car,
     gridSize: card.gridSize,
-    // IL WEEKEND DA APPLICARE AL VOLO (4/11, «come fa Paddock»): non basta
+    // IL WEEKEND DA APPLICARE AL VOLO (4/11): non basta
     // scrivere griglia e auto sul disco — EVO aperto legge quei file solo
     // all'avvio. Il Cruscotto riceve qui TUTTO quello che serve a
     // SetGameModeParameters e lo applica nella stessa sequenza dell'auto.
