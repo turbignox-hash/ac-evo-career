@@ -203,7 +203,20 @@ function narratore(m, slot, ora = Date.now()) {
     const meta = Math.ceil(g.lapsTotal / 2);
     if (compiuto + 1 >= meta) {
       slot.last.meta = true;
-      parla.push({ chi: 'metaBenzina', it: `Meta gara: benzina ${g.fuel ?? '?'} L, per ${g.lapsOnFuel ?? '?'} giri${g.lapsLeft != null ? `, restano ${g.lapsLeft}` : ''}` });
+      /* 6/11 NOTTE (registro 00:12:02, «Meta gara: benzina 3.8 L, per ? giri»):
+         al tick della meta l'HUD può non avere lapsOnFuel (lapsPossible vuoto,
+         fuelPerLap non ancora misurato lato server) e la frase usciva col «?».
+         Il narratore ha PERO' fuel e fuelPerLap nel gauges: li usa come scorta
+         — floor(fuel / fuelPerLap), i giri SICURI (mai un mezzo giro al radio).
+         Se mancano pure loro, il '?' resta: un puntino onesto vale più di un
+         numero inventato. */
+      const giriBenzina = g.lapsOnFuel != null
+        ? g.lapsOnFuel
+        : (Number.isFinite(Number(g.fuel)) && Number(g.fuel) > 0
+          && Number.isFinite(Number(g.fuelPerLap)) && Number(g.fuelPerLap) > 0
+          ? Math.max(0, Math.floor(Number(g.fuel) / Number(g.fuelPerLap)))
+          : null);
+      parla.push({ chi: 'metaBenzina', it: `Meta gara: benzina ${g.fuel ?? '?'} L, per ${giriBenzina ?? '?'} giri${g.lapsLeft != null ? `, restano ${g.lapsLeft}` : ''}` });
     }
   }
   const worst = (g.wear ?? []).filter(Number.isFinite).reduce((a, v) => Math.max(a, v), 0);

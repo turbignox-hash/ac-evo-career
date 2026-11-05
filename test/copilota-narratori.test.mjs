@@ -807,6 +807,20 @@ test('settore peggiore dal vivo in qualifica (TimeAttack, inRace false): una fra
   assert.match(s[0].it, /Perdi 0\.4 nel settore 2 — lì il migliore è V\. Rossi/);
 });
 
+/* 6/11 NOTTE, registro 00:12:02: «Meta gara: benzina 3.8 L, per ? giri» —
+   al tick della meta lapsOnFuel manca (lapsPossible vuoto + fuelPerLap non
+   misurato lato server) e la frase usciva col «?». La scorta: fuel /
+   fuelPerLap, arrotondato per difetto (i giri SICURI). Se mancano anche
+   fuel e fuelPerLap, il '?' resta onesto. */
+test('meta gara senza lapsOnFuel: la scorta fuel/fuelPerLap dice i giri — mai «?» quando il numero esiste', () => {
+  const frames = [
+    [1000, MMF(1000, { phase: 'Race', gauges: { lapsDone: 1, lapsTotal: 3, fuel: 3.8, lapsLeft: 2, fuelPerLap: 1.47 }, delta: { lapNo: 1, dv: 0 } })],
+  ];
+  const meta = gara(frames).filter((f) => !f.detto && f.chi === 'metaBenzina');
+  assert.equal(meta.length, 1);
+  assert.ok(meta[0].it.includes('per 2 giri') && meta[0].it.includes('restano 2'), JSON.stringify(meta[0]));
+});
+
 /* 6/11 NOTTE, la gara di Oulton muto sui giri (registro vero 00:31:56–00:46:47):
    16 frasi dall'ingaggio, zero «Giro N fatto» e zero «Bandiera» in una GARA
    INTERA. La cause: EVO alle volte tiene LA STESSA sessionId da qualifica a
