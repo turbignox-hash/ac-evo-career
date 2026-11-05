@@ -1,6 +1,7 @@
 // test/scorciatoia.test.mjs — collaudo delle scorciatoie automatiche (26/10,
 // richiesta Mauro: «l'amico che installa deve trovare l'icona già fatta»;
-// 4/11: anche nel menu Start, senza rubare i collegamenti altrui).
+// 4/11: anche nel menu Start, senza rubare i collegamenti altrui; 6/11: il
+// bersaglio diventa l'avvio senza finestre: wscript + tools/avvia-gui.vbs).
 // Il tool va esercitato COME lo usa il launcher: con un Desktop-vacanze e un
 // menu Start-vacanze in dir temporanee (--desktop/--startmenu), mai toccando
 // quelli veri dell'utente.
@@ -12,38 +13,43 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const BS = String.fromCharCode(92); // un backslash, così i confronti restano leggibili
 
 // nel .lnk (binario) i blocchi di testo sono UTF-16 ma NON allineati a parity
 // fissa: la decodifica dell'intero file come utf16le sbacia a seconda della
-// lunghezza del percorso (26/10: passava su "Desktop\\Mod ac evo" e moriva su
-// "EVO-Pitwall"). Si cerca la SEQUENZA DI BYTE della parola, alignment-proof.
+// lunghezza del percorso. Si cerca la SEQUENZA DI BYTE della parola,
+// alignment-proof: decodifica a offset pari e a offset dispari.
 function contSiraw(lnk, par) {
   const raw = readFileSync(lnk);
-  // prova la decodifica a offerta pari e a offerta dispari: una delle due
-  // allinea i blocchi UTF-16 interni al .lnk, sempre
   const pari = raw.toString('utf16le');
   const dispari = Buffer.concat([Buffer.from([0]), raw]).toString('utf16le');
   return pari.includes(par) || dispari.includes(par);
 }
 
-/** Crea un .lnk "straniero" (altra installazione) nel menu Start di prova. */
-function creaLnk(lnk, target) {
-  const ps = [
+/** Crea un .lnk (target senza apici strani) da collaudo. */
+function creaLnk(lnk, target, extra) {
+  const pezzi = [
     '$shell = New-Object -ComObject WScript.Shell',
-    `$s = $shell.CreateShortcut('${lnk}')`,
-    `$s.TargetPath = '${target}'`,
-    '$s.Save()',
-  ].join('; ');
+    `$s = $shell.CreateShortcut('${lnk.replaceAll("'", "''")}')`,
+    `$s.TargetPath = '${target.replaceAll("'", "''")}'`,
+  ];
+  if (extra?.arguments) pezzi.push(`$s.Arguments = ${extra.arguments}`);
+  if (extra?.workdir) pezzi.push(`$s.WorkingDirectory = '${extra.workdir.replaceAll("'", "''")}'`);
+  pezzi.push('$s.Save()');
   const r = spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass',
-    '-EncodedCommand', Buffer.from(ps, 'utf16le').toString('base64')], { encoding: 'utf8' });
+    '-EncodedCommand', Buffer.from(pezzi.join('; '), 'utf16le').toString('base64')], { encoding: 'utf8' });
   assert.equal(r.status, 0, 'il test non riesce a costruire il finto .lnk: ' + (r.stderr ?? ''));
 }
 
-const TOOL = join(import.meta.dirname, '..', 'tools', 'crea-scorciatoia.mjs');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const TOOL = join(ROOT, 'tools', 'crea-scorciatoia.mjs');
+const RADICE = join(ROOT);
 const WIN = process.platform === 'win32';
 
-test('scorciatoie ASSENTI: create su Desktop e menu Start, icona Pitwall, target avvia.cmd', { skip: !WIN && 'solo Windows' }, () => {
+test('scorciatoie ASSENTI: create su Desktop e menu Start, apertura senza finestre', { skip: !WIN && 'solo Windows' }, () => {
   const DESK = mkdtempSync(join(tmpdir(), 'scorciatoia-'));
   const START = mkdtempSync(join(tmpdir(), 'scorciatoia-start-'));
   try {
@@ -52,9 +58,33 @@ test('scorciatoie ASSENTI: create su Desktop e menu Start, icona Pitwall, target
     for (const [cartella, nome] of [[DESK, 'desktop'], [START, 'menu Start']]) {
       const lnk = join(cartella, 'Carriera EVO.lnk');
       assert.equal(existsSync(lnk), true, `il .lnk deve esistere nel ${nome} di prova`);
-      // dentro il .lnk (binario UTF-16) ci devono stare i percorsi del progetto
-      assert.ok(contSiraw(lnk, 'avvia.cmd'), `target = avvia.cmd del progetto (${nome})`);
+      // wscript + avvia-gui.vbs: il doppio click non apre più una console
+      assert.ok(contSiraw(lnk, 'wscript'), `bisogno di wscript nel bersaglio (${nome})`);
+      assert.ok(contSiraw(lnk, 'avvia-gui.vbs'), `bisogno di tools/avvia-gui.vbs negli argomenti (${nome})`);
       assert.ok(contSiraw(lnk, 'pitwall.ico'), `icona = gui/pitwall.ico del repo, non il node.exe verde (${nome})`);
+      assert.ok(!contSiraw(lnk, 'avvia.cmd'), `non deve più puntare a avvia.cmd, che apre una console (${nome})`);
+    }
+  } finally {
+    rmSync(DESK, { recursive: true, force: true });
+    rmSync(START, { recursive: true, force: true });
+  }
+});
+
+test('scorciatoia VECCHIA (puntava a avvia.cmd): portata al nuovo avvio senza console', { skip: !WIN && 'solo Windows' }, () => {
+  const DESK = mkdtempSync(join(tmpdir(), 'scorciatoia-vecchia-'));
+  const START = mkdtempSync(join(tmpdir(), 'scorciatoia-vecchia-start-'));
+  try {
+    for (const [cartella, nome] of [[DESK, 'desktop'], [START, 'menu Start']]) {
+      creaLnk(join(cartella, 'Carriera EVO.lnk'), join(RADICE, 'avvia.cmd'));
+    }
+    const r = spawnSync(process.execPath, [TOOL, '--desktop', DESK, '--startmenu', START], { encoding: 'utf8' });
+    assert.equal(r.status, 0, `stdout: ${r.stdout} stderr: ${r.stderr}`);
+    for (const [cartella, nome] of [[DESK, 'desktop'], [START, 'menu Start']]) {
+      const lnk = join(cartella, 'Carriera EVO.lnk');
+      assert.ok(contSiraw(lnk, 'wscript'), `bersaglio aggiornato a wscript (${nome})`);
+      assert.ok(contSiraw(lnk, 'avvia-gui.vbs'), `argomenti aggiornati al VBS nascosto (${nome})`);
+      assert.ok(contSiraw(lnk, 'pitwall.ico'), `icona resta il Pitwall (${nome})`);
+      assert.ok(!contSiraw(lnk, 'avvia.cmd'), `il vecchio avvia.cmd non deve restare (${nome})`);
     }
   } finally {
     rmSync(DESK, { recursive: true, force: true });
@@ -77,12 +107,12 @@ test('scorciatoie GIÀ A POSTO: secondo giro idempotente, esce 0 e non dice nien
   }
 });
 
-test('menu Start di UN\'ALTRA installazione: non viene toccato né rinominato', { skip: !WIN && 'solo Windows' }, () => {
+test("menu Start di UN'ALTRA installazione: non viene toccato né rinominato", { skip: !WIN && "solo Windows" }, () => {
   const DESK = mkdtempSync(join(tmpdir(), 'scorciatoia3-'));
   const START = mkdtempSync(join(tmpdir(), 'scorciatoia3-start-'));
   try {
     const lnk = join(START, 'Carriera EVO.lnk');
-    creaLnk(lnk, 'C:\\altra-installazione\\avvia.cmd');
+    creaLnk(lnk, 'C:' + BS + BS + 'altra-installazione' + BS + 'avvia.cmd');
     const r = spawnSync(process.execPath, [TOOL, '--desktop', DESK, '--startmenu', START], { encoding: 'utf8' });
     assert.equal(r.status, 0, `stdout: ${r.stdout} stderr: ${r.stderr}`);
     assert.ok(contSiraw(lnk, 'altra-installazione'), 'target della scorciatoia altrui cambiato');
@@ -98,7 +128,7 @@ test('desktop INESISTENTE: esce 0 senza crash, niente scorciatoia', () => {
   const fanta = join(tmpdir(), 'fantasma-non-esiste-xyz');
   rmSync(fanta, { recursive: true, force: true });
   const r = spawnSync(process.execPath, [TOOL, '--desktop', fanta], { encoding: 'utf8' });
-  assert.equal(r.status, 0, 'mai un errore spinoso: l\'app deve partire lo stesso');
+  assert.equal(r.status, 0, "mai un errore spinoso: l'app deve partire lo stesso");
 });
 
 test('menu Start INESISTENTE: esce 0 e crea solo il Desktop indicato', { skip: !WIN && 'solo Windows' }, () => {

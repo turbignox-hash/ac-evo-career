@@ -4,9 +4,14 @@
 // estratta, non sul Desktop (GUIDA-AMICO.md a 24/10). Questo strumento, ogni
 // volta che il launcher parte, se ne accerta: se manca la crea con l'icona
 // Pitwall (gui/pitwall.ico, tracciata nel repo), se esiste con l'icona
-// sbagliata la aggiorna, e ora ne tiene una anche nel menu Start. Se ci sono
-// già entrambe con l'icona giusta, non tocca NIENTE (zero scritture, un solo
-// spawn PowerShell per la verifica: ogni avvio deve volare).
+// sbagliata la aggiorna, e ne tiene una anche nel menu Start. Se ci sono
+// già entrambe a posto, non tocca NIENTE (zero scritture, un solo spawn
+// PowerShell per la verifica: ogni avvio deve volare).
+//
+// 6/11/2026, il lancio senza finestre: la scorciatoia non punta più a
+// `avvia.cmd` (un .cmd al doppio click apre sempre una console), ma a
+// `wscript` con `tools\avvia-gui.vbs`, che fa tutto nascosto. Le vecchie
+// scorciatoie nostre che puntano a `avvia.cmd` vengono portate su, una volta.
 //
 // Regola importante: una scorciatoia con lo stesso nome ma puntata a UN'ALTRA
 // installazione non si tocca (né target né icona): l'ultima installazione non
@@ -26,7 +31,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const RADICE = join(HERE, '..');
 const NOME = 'Carriera EVO.lnk';
 const ICO = join(RADICE, 'gui', 'pitwall.ico');
-const TARGET = join(RADICE, 'avvia.cmd');
+const TARGET = join(RADICE, 'avvia.cmd'); // vecchio bersaglio: serve a riconoscerlo e portarlo su
+const VBS = join(RADICE, 'tools', 'avvia-gui.vbs');
+const WINROOT = process.env.SystemRoot || join('C:', 'Windows');
+const WSCRIPT = join(WINROOT, 'System32', 'wscript.exe');
 
 function argDir(flag) {
   const i = process.argv.indexOf(flag);
@@ -55,9 +63,10 @@ function psq(value) {
 }
 
 /**
- * Un solo script per tutti i collegamenti: crea quelli mancanti, ripara
- * l'icona di quelli nostri, lascia stare quelli di altre installazioni.
- * Restituisce per ognuno: created / fixed / ok / other.
+ * Un solo script per tutti i collegamenti: crea quelli mancanti, aggiorna
+ * i nostri vecchi (che partivano da avvia.cmd) al nuovo avvio nascosto,
+ * ripara l'icona di quelli nostri già attuali, lascia stare quello di altre
+ * installazioni. Restituisce per ognuno: created / updated / fixed / ok / other.
  */
 function psCommand(links) {
   const elenco = links.map((x) => `'${psq(x)}'`).join(',');
@@ -67,16 +76,23 @@ $esiti = @()
 foreach ($x in @(${elenco})) {
   if (Test-Path -LiteralPath $x) {
     $s = $shell.CreateShortcut($x)
-    if ("$($s.TargetPath)" -ieq '${psq(TARGET)}') {
+    if ("$($s.TargetPath)" -ieq '${psq(WSCRIPT)}' -and "$($s.Arguments)" -like '*avvia-gui.vbs*') {
       if ("$($s.IconLocation)" -notlike '*pitwall.ico*') {
         $s.IconLocation = '${psq(ICO)},0'
         $s.Save()
         $esiti += 'fixed'
       } else { $esiti += 'ok' }
+    } elseif ("$($s.TargetPath)" -ieq '${psq(TARGET)}') {
+      $s.TargetPath = '${psq(WSCRIPT)}'
+      $s.Arguments = '//nologo "' + '${psq(VBS)}' + '"'
+      $s.IconLocation = '${psq(ICO)},0'
+      $s.Save()
+      $esiti += 'updated'
     } else { $esiti += 'other' }
   } else {
     $s = $shell.CreateShortcut($x)
-    $s.TargetPath = '${psq(TARGET)}'
+    $s.TargetPath = '${psq(WSCRIPT)}'
+    $s.Arguments = '//nologo "' + '${psq(VBS)}' + '"'
     $s.WorkingDirectory = '${psq(RADICE)}'
     $s.IconLocation = '${psq(ICO)},0'
     $s.Save()
@@ -106,6 +122,6 @@ const r = spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass',
 if (r.status !== 0) process.exit(0); // fallimento: doppio click manuale è la via di scorta, l'app non deve bloccarsi
 
 const esiti = (r.stdout ?? '').trim().split(',').map((x) => x.trim());
-if (esiti.includes('created') || esiti.includes('fixed')) {
-  console.log('Scorciatoia "Carriera EVO" pronta (Desktop e menu Start), con l\'icona del programma.');
+if (esiti.includes('created') || esiti.includes('updated') || esiti.includes('fixed')) {
+  console.log('Scorciatoia "Carriera EVO" pronta (Desktop e menu Start): apre la GUI senza finestre nere.');
 }
