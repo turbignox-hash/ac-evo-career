@@ -192,15 +192,20 @@ test('RITMO MONTATO: il polling dei costruiti vale PERIODO_MS/2 a NUMERO, non so
 
 test('VALIDITÀ DELLA FASCIA: validaFino scritto dal publisher e rispettato dalle app', () => {
   // la promessa del publisher: ogni fascia porta la SUA scadenza
-  assert.ok(testoPublisher.includes('dati.validaFino = new Date((fascia + 1) * PERIODO_MS).toISOString();'),
-    'publisher: la fascia porta validaFino = (slot+1)·PERIODO_MS — la scadenza è scritta, non una convenzione');
+  assert.ok(testoPublisher.includes('dati.validaFino = new Date((fascia + 1) * PERIODO_MS + VALIDITA_EXTRA_MS).toISOString();'),
+    'publisher: la fascia porta validaFino = (slot+1)·PERIODO_MS + tolleranza — la scadenza è scritta, non una convenzione');
+  assert.ok(/export const VALIDITA_EXTRA_MS = \d+;/.test(testoPublisher),
+    'publisher: la tolleranza oltre lo slot è una costante dichiarata (5/11: undici «fascia scaduta» di fila con comando mai applicato)');
   for (const { chiave } of APP) {
     assert.ok(/fasciaValidaFino\s*=\s*Date\.parse\(dati\.validaFino\)/.test(testoApp[chiave].costruito),
       `${chiave}: adotta cattura la scadenza della fascia adottata (il momento d'arrivo non vale come freschezza)`);
   }
   // CRUSCOTTO: nessun comando da una fascia morta — la guardia sta PRIMA
   // di ogni effetto (dopo il disco di c.sconosciuta, prima del lock inCorso)
-  assert.ok(/function applicaComando\(c\) \{\s*if \(!c \|\| !c\.id \|\| !c\.nome\) return;\s*if \(fasciaScaduta\(\)\)/.test(testoApp.cruscotto.costruito),
+  // La guardia «comando della preparazione corrente» sta in mezzo (5/11): è
+  // anch'essa un ritorno senza effetti, quindi la scadenza resta PRIMA di
+  // ogni effetto. Il test pesa l'ordine, non l'adiacenza delle righe.
+  assert.ok(/function applicaComando\(c\) \{\s*if \(!c \|\| !c\.id \|\| !c\.nome\) return;[\s\S]{0,400}?if \(fasciaScaduta\(\)\)/.test(testoApp.cruscotto.costruito),
     'cruscotto: applicaComando rifiuta il comando di una fascia scaduta (riprovengono in fascia viva)');
   // ENTAMBE: la scadenza si VISTE a schermo (dati passati mai venduti per freschi)
   assert.ok(testoApp.cruscotto.costruito.includes('Fascia scaduta'),

@@ -2233,7 +2233,7 @@
       "repRequired": 1600,
       "points": "sro_gtwc",
       "profile": "feature",
-      "gridSize": 20,
+      "gridSize": 16,
       "ai": [
         94,
         106
@@ -2250,9 +2250,7 @@
         "icon": ""
       },
       "cars": [
-        "ks_ferrari_296_gt3",
-        "ks_porsche_992_gt3_r_rennsport",
-        "ks_mercedes_amg_gt2"
+        "ks_ferrari_296_gt3"
       ],
       "calendar": [
         {

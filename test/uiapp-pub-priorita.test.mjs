@@ -163,6 +163,19 @@ test('ronda con ora e meteo: il comando le porta entrambe, evento NON le porta',
   assert.equal(cmd?.meteo, 'HEAVY_RAIN');
 });
 
+test('ronda col WEEKEND: comando automatico e bottone portano griglia e parametri', () => {
+  const weekend = {
+    singleMake: true, opponents: 15, aiMin: 85, aiMax: 86, laps: 7,
+    gridCars: ['r5_touring'],
+    sessions: { Practice: { hour: 9 }, Qualifying: { hour: 12 }, Warmup: { hour: 14 }, Race: { hour: 15 } },
+  };
+  const state = mkState({ pending: { ...pendingRonda, startedAt: Date.now() - 60_000, weekend } });
+  const cmd = comandoAuto(mkLadder(), state);
+  assert.deepEqual(cmd?.weekend, weekend, 'il payload weekend viaggia col setcar automatico');
+  const az = azioniPulsanti(mkLadder(), state);
+  assert.deepEqual(az.ronda?.weekend, weekend, 'anche il bottone in gioco riceve lo stesso weekend');
+});
+
 test('pending VECCHIO formato (senza ora/meteo): comando come sempre, ora/meteo null', () => {
   const state = mkState({ pending: { car: 'r5_touring', startedAt: Date.now() - 60_000, trackNames: ['cota', 'cota'] } });
   const cmd = comandoAuto(mkLadder(), state);

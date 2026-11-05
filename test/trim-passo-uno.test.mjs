@@ -35,7 +35,9 @@ test('le schermate restanti dicono il PASSO accanto ai due valori', () => {
   const d = readFileSync(new URL('../gui/js/viste-d.js', import.meta.url), 'utf8');
   const c = readFileSync(new URL('../gui/js/viste-c.js', import.meta.url), 'utf8');
   const cli = readFileSync(new URL('../src/cli.mjs', import.meta.url), 'utf8');
-  assert.ok(!a.includes('b-prop-accept') && !a.includes('Il tool suggerisce il trim'), 'la scheda mostra ancora il riquadro del suggerimento trim');
+  // RIQUADRO RIPRISTINATO (5/11, richiesta Mauro): il banner con Accetta/Rifiuta
+  // torna sulla scheda gara dopo le gare; la guardia ora pesa la sua PRESENZA.
+  assert.ok(a.includes('b-prop-accept') && a.includes('Il tool suggerisce il trim'), 'il riquadro del suggerimento trim manca dalla scheda gara');
   assert.ok(d.includes("passo', en: 'step' })} ${v.pending.to - v.pending.from"), 'pannello senza passo');
   assert.ok(c.includes('passo ${r.proposal.to - r.proposal.from'), 'risultati senza passo');
   // biome-ignore lint/suspicious/noTemplateCurlyInString: e il testo della CLI, non un template da valutare

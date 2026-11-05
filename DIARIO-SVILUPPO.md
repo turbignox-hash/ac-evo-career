@@ -5,6 +5,46 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 5/11 — «Prepara tutto» allinea la griglia al parco che EVO accetta: chiuso il crash delle 01:16, ripiego meteo e riquadro trim di ritorno
+
+- **Il crash (richiesta Mauro: «crash controlla :( sono sicuro proviene dalla griglia o auto»)**: Brands Hatch multiclasse, sessione con modelli=[17] e avversari=[16]. EVO muore alla creazione della griglia (0xC0000005, RVA 0x15B8CD5, thread Render), subito dopo «Opponent [16] found». La stessa firma (stesso RVA, stessa catena di simboli) era già comparsa alle 00:22 in una sessione MX-5 PRIMA di qualsiasi scrittura della sera: fragilità propria di EVO alla generazione della griglia; lo stato sbilanciato 17/16 è l'attivatore certo che dipendeva da noi.
+- **Le regole della griglia (adattamento/riempimento)**: l'app accosta l'elenco modelli al numero che il gioco accetta quando lo scarto è di 1-2 posti CON echo completo (il conteggio dei modelli combacia con quelli inviati) — 17 modelli → avversari=[16] diventa 16/16 (un posto è del giocatore). Posti IN PIÙ (avversari=[18] con modelli=[17], il posto scoperto che crasha insieme): si riempiono a giro dal parco (la scuola del monomarca), fino a 8. Gli scarti GROSSI (15→1 delle 00:16) sono l'echo stantio del menu: si riapplica e si aspetta la convergenza, NON si taglia (il test del weekend multiclasse ha rifiutato la versione «adatta sempre»). E grigliaIncompleta blocca il via su QUALSIASI griglia sbilanciata letta (modelli ≠ avversari, con almeno 4 modelli letti) — prima ammetteva il via su 17/16.
+- **Ripiego meteo**: la ronda chiedeva LIGHT_RAIN e la lista del gioco non lo aveva («il cielo invariato» fino a ieri). Ora sceglie la FAMIGLIA più vicina nella lista del gioco (LIGHT_RAIN→RAIN, PARTLY_CLOUDY→CLOUDY, vincente il tipo pulito); il RAIN richiesto resta sul piano vecchio degli scarti (mai scambiare LIGHT per HEAVY). Prova sul campo 01:24: «meteo LIGHT_RAIN: ok — ripiego RAIN» e l'ack dice «meteo RAIN (ripiego da LIGHT_RAIN)».
+- **Riquadro del suggerimento trim di ritorno (richiesta Mauro: «lo rivoglio ripristina»)**: il banner pendingProposal con Accetta/Rifiuta torna in scheda gara (era uscito con bd8ce33 su richiesta del 4/11); stesso contratto dell'accept (slittamento onesto col trim corrente). La guardia trim-passo-uno ora pesa la sua PRESENZA. Il server ha sempre calcolato card.pendingProposal — la vista non lo leggeva più: filo riattaccato.
+- **Verifiche**: sandbox uiapp-coda-sandbox 36/36 con i tre casi nuovi (adattata 17→16 con UNA riscrittura oltre la prima e via premuto; riempita 17→18 col parco a giro fino a 18; corta 5/17 con via bloccato); periodo/installata/trim verdi; suite completa npm test 983/983; npm run check verde (983 test, 385 file, 0 warning); build e copia in gioco identiche (cmp) a ogni passo. Sequenza misurata 01:24:13,6 → 01:24:16,8 = 3,2 s comando→ack con il ripiego meteo incluso.
+- **Nota**: data/samples/garage/map.json resta modifica pre-esistente fuori dal commit. L'exe offline v0.1.58 in dist/ NON porta queste correzioni: serve una re-release (0.1.59) prima di ridistribuire l'installer a un amico.
+
+### 4/11 — «Prepara tutto» applica il weekend come Paddock: griglia piena, pista, meteo e orari anche a EVO aperto
+
+- **Richiesta**: «si può fare in automatico come fa Paddock, senza riavviare nulla». Riprendendo il campionato R5, il tasto aggiornava il disco ma EVO aperto restava con la griglia e l'auto vecchie; l'auto andava cambiata a mano.
+- **Diagnosi**: `markPending` scriveva solo l'auto nel comando; il Cruscotto applicava pista, auto, ora e meteo, ma non inviava mai `num_opponents`, Single Make, banda AI, giri o `models`. EVO legge quei parametri dal menu, non dal file riscritto dal tool.
+- **La correzione**: il pending porta ora un payload `weekend` completo (monomarca/classi, avversari, `aiMin`/`aiMax`, giri, auto della griglia e ore delle quattro sessioni); `comandoAuto` e `azioniPulsanti` lo inoltrano col `setcar`. Il Cruscotto, dopo `SetCurrentCar`, rilegge `GameModeParameters`, imposta i campi con la stessa regola di Paddock — incluso il Single Make subito dopo `opponents` — e invia un solo `SetGameModeParameters`; se la scrittura critica fallisce non conferma il comando e riprova alla fascia dopo.
+- **Griglia**: per la R5 `singleMake` è vero, quindi `num_opponents` è 15 e `models` contiene **una copia della R5 per ogni avversario** (15 voci), non una sola. La prova di Paddock è netta: con `models=[1]` il gioco ha creato 1 avversario; la nostra vecchia `models=[car]` aveva la stessa trappola. Per le multiclasse usa gli ID del parco della card e li traduce con `trovaAuto`; anche l'ack ora elenca pista, griglia, avversari, AI, giri, orari e meteo, così la storia del comando non confonde più l'auto col weekend.
+- **Guardia del via vecchio (4/11, prova in pista)**: Mauro ha ripremuto «Prepara tutto» mentre era ancora in corso la sequenza di un pending precedente; il vecchio comando armato ha premuto Start e l'ha portato in pista con la griglia vecchia. Il pending nuovo aveva `avviaFino:0`, quindi il tasto non era invertito. Nel Cruscotto un comando `setcar`/`avvia` con un `armataAlle` diverso da quello della fascia corrente ora non parte (e non acka), e l'avvio viene ricontrollato anche durante la sequenza. Un test runtime con preparazione vecchia in fascia e `prepara` nuova verifica zero trigger e zero ack.
+- **Verifiche (4/11, dopo la prova Paddock)**: build e installazione Cruscotto (`node tools/genera-uiapp.mjs`, exit 0); test mirati `race-card`, `uiapp-pub-priorita`, `uiapp-coda-sandbox` **79/79**, incluso il caso runtime che verifica una voce `models` per ognuno dei 15 avversari, `SetTrack`, `SetWeather` e le ore 9/15; Biome **385 file, 0 warning**; `git diff --check` pulito; il costruito installato è identico a quello generato (`cmp`). Release `v0.1.58` invariata; `data/samples/garage/map.json` resta la modifica pre-esistente.
+- **Nota**: per questa correzione non serve riavviare il server: bastano l'app rigenerata e il Cruscotto riaperto in EVO (l'istanza già caricata tiene il vecchio JS finché non la chiudi). Paddock non si tocca. La prova in pista resta il gesto vero: uscire dalla Practice Mazda, aprire il Cruscotto e premere «Prepara tutto e avvia»; la griglia R5 deve popolarsi con 15 avversari.
+
+### 4/11 — Live fresco nel meccanico: setup automatico e tempi HUD robusti
+
+- **Richiesta**: «controlla dove finiscono questi dati nuovi e freschi e se tutto funziona, implementa le nuove scoperte sul meccanico che agisce sul setup reale, deve calcolare anche i nuovi parametri in automatico … poi controlla i tempi giro, delta best, se tutto viene preso in diretta se no correggi».
+- **Dati ai consumatori**: lo snapshot compatto ora porta `brakeTempC`, pressioni e temperature I/M/O delle gomme, `fuelPerLap`, `lapMs`/`lapTimes` e i campi fisici già parsati (`camberRAD`, `suspensionTravel`, `rideHeight`, G). La radio dell'ingegnere riceve finalmente i freni dal vivo: prima li cercava in `player.brakeTempC`, che il payload compatto non esponeva.
+- **Tempi e delta**: aggiunti `parseLapText` e `lapMsOr`; se l'int32 di `current/last/bestLapMs` è a zero o palesemente fuori scala, si usano le stringhe HUD corrette (`SMEvoTimingState`). `parseHudDelta` accetta anche il delta senza segno (`0.123`) e i ms `deltaCurrentP` restano il fallback. Il delta di ritmo e il best tracciato usano gli stessi tempi normalizzati.
+- **Meccanico sul setup reale**: `liveSetupSignals` estrae dal tick solo valori plausibili — pressioni a caldo, freni per ruota, Δ termico int/est per il camber e consumo per giro. `setup-apply` li sovrappone alla telemetria vecchia per freni, camber e benzina, mentre bumpstop/TC restano dal `.ld` (il live non ha la finestra del giro). Le pressioni di partenza sono calcolate **ruota per ruota** con la regola dei 4 PSI, non più equalizzate sulla media.
+- **Verifiche**: nuovi casi in `test/live-fresh.test.mjs` (tempi HUD, snapshot, segnali live, pressioni per ruota, patch automatiche, `fuelPerLap`, posizione fisica e delta HUD); suite completa `npm test` **972/972**; Biome **385 file, 0 warning**.
+- **Collaudo reale (4/11, Laguna Seca, TimeAttack)**: registrati 561 tick; ricostruiti 4 giri (l'ultimo parziale), best **1:47.337** e delta credibile **+2.317 s** sul giro 2. Scoperti due difetti veri: `graphics.carCoords[0]` non è affidabile in questa build (garbage/1e30) e `fuelPerLap` non veniva letto. Ora la posizione del giocatore viene dai quattro `physics.tyreContactPoint` (`map.playerSource:"physics"`), il consumo è letto dalla MMF con fallback litri/giri, e il delta HUD ignora `deltaCurrentP=0` usando `deltaMs` quando la stringa è vuota. Dopo il riavvio finale la live ha mostrato `fuelPerLap:2.53`, `mapCur:[-202,-337]` e `deltaText:null`; i giri di questa sessione risultano `invalid` (`isValidLap:false`, `bestLap:null`), quindi il best live non è stato preso da lì.
+- **Nota**: release `v0.1.58` invariata; `data/samples/garage/map.json` resta la modifica pre-esistente e fuori dal lavoro.
+
+### 4/11 — Live completo, registratore NDJSON/CSV e sonda menu read-only
+
+- **Richiesta**: «implementa tutto :)) … prendi tutto il possibile da integrare nella nostra suite, senza scrupoli» — parser live completo, graphics a 8 KB con 60 ID/coordinate, registratore NDJSON/CSV e sonda dei comandi menu read-only, senza toccare save o Paddock.
+- **Parser**: `parseGraphics` ora restituisce le 60 coordinate e i 60 ID auto, gli stati completi delle quattro gomme (pressione, temperature I/M/O, compound, usura), elettronica/min/max/modificabile, strumentazione, sessione, assists, danni, pit, timing, G, temperature motore, turbo e sterzo. `parsePhysics` legge la coda già presente nel blocco da 1024 B: `brakeTemp`, temperature I/M/O, contatti gomma, forze, compound, usura pastiglie/dischi, accensione e vibrazioni. Corretti anche gli offset di `SMEvoTimingState` (i due int32 `delta_*_p` spostavano `lastLap`/`bestLap`).
+- **Lettura**: `tools/acevo-live.ps1` legge graphics per **8192 B** (la struct è 4900 B; prima a 4096 la coda era tagliata). `/api/live` usa `snapshot({raw:true})` e restituisce `raw.{static,graphics,physics}` senza una seconda lettura e senza un secondo processo.
+- **Registratore**: `src/live-record.mjs` + `tools/registra-live.mjs` (`npm run registra-live`): NDJSON conserva lo snapshot completo (raw compreso), CSV estrae colonne stabili per strategia/HUD. Legge dal server già acceso via `http://127.0.0.1:8642/api/live`, quindi non aggiunge un lettore PowerShell; a 900 ms resta adatto a strategia/HUD, non a telemetria fine.
+- **Sonda menu**: `cruscotto.sonda` riusa il persist già collaudato degli ack. Il publisher mette in fascia una richiesta con whitelist dei soli `CarSelectionClientRequestCurrentCar`, `GameModeSelectionClientRequestCurrentTrack`, `GameModeSelectionClientRequestWeatherData`, `GameModeSelectionClientRequestOpponents`; l'app li esegue **uno alla volta** e deposita le risposte, il server le logga in `data/sonda-menu.jsonl` e le espone con `GET /api/sonda-menu`. CLI: `npm run sonda-menu` (POST + polling). Nessun comando di acquisto/rimozione auto, carriera o scrittura in gara è accettato.
+- **Build**: `node tools/genera-uiapp.mjs` ha rigenerato e installato il Cruscotto aggiornato in `Saved Games/ACE/mods/uiresources/ACEUIAppLoader` (Pitwall già a giorno); Paddock non toccato.
+- **Verifiche**: mirati parser/registratore/sonda **18/18**; suite completa `npm test` **962/962**; Biome **384 file, 0 warning**; build app exit 0. La prova reale della sonda in gioco non è stata eseguita perché in questo lavoro non è stata aperta una sessione EVO: i quattro nomi sono quelli previsti dal censimento, la conferma arriva dal log della prima esecuzione nel menu.
+- **Nota**: release `v0.1.58` invariata; `data/samples/garage/map.json` resta la modifica pre-esistente e fuori dal lavoro.
+
 ### 4/11 — EVO Pitwall vicino all'orologio: icona tray, server nascosto, Paddock intatto
 
 - **Richiesta**: Mauro vuole l'immediatezza di Paddock senza togliere Paddock: l'icona accanto all'orologio apre la GUI, mentre loader e Paddock restano nel menu.
@@ -6006,3 +6046,76 @@ verificate dal verdetto DA-8»), subito dopo la suite piena 895/895.
 - **Verifiche**: guardia di layout verde in 35,5 s cronometrati (126
   misure, exit 0); i numeri della proposta riprodotti due volte con lo
   stesso esito. Nessun file di produzione toccato.
+
+### 4-5/11 — Weekend al volo, griglia piena e il crash del multicasse
+- **Il «1 avversario» non era un lucchetto**: Paddock manda `opponents: 15` ma
+  una sola voce in `models`; il menu di EVO riempie la griglia con
+  `models.length`. Stessa lezione già imparata nel Cruscotto il 4/11.
+  Corretto il ponte `paddock.js` (sorgente `Desktop/Paddock/ingame/paddock` +
+  copia installata in `Saved Games/ACE/mods/uiresources/ACEUIAppLoader/paddock`):
+  `quanti = race.opponents || race.grid.length || 15`, una voce di `models` per
+  avversario, e la gara a `Math.min(3, race.laps)`. Backup
+  `paddock.js.bak-griglia-20261105-000707` accanto a ciascun file;
+  `node --check` verde su entrambi e md5 identici fra sorgente e installata.
+- **Cruscotto — multiclasse**: `models` = una voce per avversario ciclata sul
+  parco (il modello del giocatore non è più escluso); monomarca = `quanti`
+  copie dell'auto. Test 80/80 (nuovo caso 11 modelli su 3 del parco), Biome
+  385 file 0 warning, `git diff --check` pulito, build e copia installata
+  identiche (`cmp`).
+- **GT Elite preparato**: backup `data/backups/evo-career.save.bak-avanzato-…`
+  e `career.evo.ladder.bak-avanzato-…`; `enter gt_apex --force` (banca
+  769.042), `prepara --round 0 --pista --auto` → Monza, Ferrari 296 GT3,
+  3 giri, AI 84-85, iscrizione 14.000 pagata.
+- **Il crash**: 5/11 00:00:43, `0xE06D7363` sul thread Physics all'avvio della
+  sessione col weekend a 20 auto MISTE (Ferrari 296 GT3 + Porsche 911 GT3 R
+  Rennsport + Mercedes-AMG GT2) — dump
+  `crashdumps/dump-0.9.1+release.6-2026-11-04-23-00-43.dmp`. Il pending è
+  stato riportato a **16 auto di un solo modello** (Ferrari 296 GT3, 15
+  avversari, 3 giri, Monza, monomarca): il profilo che il gioco accetta da
+  solo, senza mescolare classi. Backup
+  `data/backups/evo-career.save.bak-pre-crash-safe-*.json`.
+- **Da fare**: la prova in pista del weekend avanzato (16 auto, 3 giri) e la
+  verifica del log `num_opponents`/`models` dopo il riavvio di EVO.
+- **Profilo sicuro nel ladder** (5/11 00:20): `gt_apex` in
+  `config/career.evo.ladder.json` riportato a `cars: ["ks_ferrari_296_gt3"]` e
+  `gridSize: 16` (backup `data/backups/career.evo.ladder.bak-profilo-sicuro-…`),
+  così card, `prepara` e ponte in gioco dicono tutti 15 avversari e un solo
+  modello. Il pending è riarmato a mano sulla stessa forma (la finestra di
+  avvio è di 30 minuti); il gamemodesave del gioco riporta ancora 20 celle e
+  verrà allineato dal primo «Prepara tutto».
+- **Perché crashava (5/11 00:16, la prova vera)**: il monitor ha catturato DUE
+  scrittori sullo stesso menu. Alle 00:16:47 EVO ha caricato il Cruscotto con
+  il pending armato (finestra fino alle 00:41): sequenza `SetGameType →
+  SetTrack Monza → SetCurrentCar Ferrari → SetGameModeParameters` partita
+  insieme a quella di Paddock (Donington + Mazda, 15 avversari, 3 giri).
+  Alle 00:16:49.853 il Cruscotto ha scritto il suo weekend (Monza, Ferrari,
+  single make), 34 ms dopo Paddock aveva già scritto il suo; alle 00:16:51.668
+  Paddock ha premuto `Start` e alle 00:16:51.680 è arrivato `0xC0000005`
+  (Render Worker 3). Non è la patch della griglia: è la collisione fra i due
+  ponti. Il `pd-main` di Paddock diceva Donington/Mazda: la Monza/Ferrari
+  l'ha messa il Cruscotto.
+- **Regola nuova**: un solo scrittore per volta. `pending` azzerato (la
+  finestra di avvio non arma più nulla all'apertura di EVO) e app Cruscotto
+  spenta nel loader (`ACEUIAppLoader/cruscotto` →
+  `_OFF-cruscotto-test-20261105`) per la prova pulita di Paddock. Il monitor
+  (`tmp/monitor-paddock.mjs`, PID 27588) cattura log EVO, copie binarie del
+  `gamemodesave` e `pd-main` del menu.
+- **Correzione alla voce sopra (5/11 00:25)**: le righe `[Paddock] comando del
+  gioco` sono solo l'etichetta della PAGINA del menu (ci vivono entrambe le
+  app). Mauro non ha premuto nulla in Paddock: l'unica mano è stata la nostra,
+  il pending armato caricato da EVO alle 00:16:47, `RequestStart` compreso.
+  Prova: il `gamemodesave` catturato alle 00:16:50 ha 15 Ferrari 296 GT3 su
+  Monza (la firma del nostro pending), mentre il `pd-main` di Paddock diceva
+  Donington/Mazda. La patch della griglia non c'entra: è l'auto-avvio.
+- **La causa vera del crash, misurata (5/11 00:23)**: la corsa riuscita di
+  Paddock e la nostra hanno lo STESSO `models=[15]` di un solo modello; cambia
+  solo `opponents`: `[15]` nella riuscita (00:23:41), `[1]` in quella morta
+  (00:16:49 e 00:22:00). Con `models=15` e `opponents=[1]` la griglia mostra
+  UNA auto con la foto e le altre vuote, e `Start` crasha con `0xC0000005`.
+  Paddock è passato al secondo giro, quando il gioco aveva ricostruito la
+  lista. Fix nel Cruscotto: dopo `SetGameModeParameters` si rilegge la
+  sessione e si riapplica finché `opponents.length >= quanti` (max 3 giri,
+  450 ms fra i tentativi) — solo allora l'avvio automatico parte.
+- **Paddock, prova pulita riuscita**: `pd-main` Donington/Mazda, 15 avversari,
+  3 giri, `models=[15]`, `opponents=[15]`, meteo e orari cambiati, nessun
+  crash. Il ponte patchato è quindi il riferimento da replicare.

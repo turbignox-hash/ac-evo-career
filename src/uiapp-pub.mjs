@@ -13,7 +13,7 @@
 // (ladder + stato, in processo) la vetrina di oggi e la scrive sul disco.
 // Se la cartella del loader manca (mod non installata) resta zitto.
 
-import { writeFileSync, readdirSync, unlinkSync, existsSync, readFileSync } from 'node:fs';
+import { writeFileSync, appendFileSync, readdirSync, unlinkSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { savedGamesRoots, resolvePaths } from './paths.mjs';
 import { agendaDay, agendaOra, portaGiornata, racesOnDay, dateLabel, prossimoGiornoConGara, impegni, scegliRonda } from './agenda.mjs';
@@ -87,6 +87,14 @@ import { legacyMessageEn } from './webui-views.mjs';
 import { heritageOverview, memoryRoundHint } from './memories.mjs';
 
 export const PERIODO_MS = 2500;          // il ritmo delle fasce: 2.5 secondi esatti
+// LA FINESTRA OLTRE LO SLOT (5/11, prova sul campo): la fascia scadeva al
+// confine dello slot (0–2500 ms di vita) mentre l'app la legge 1–2 volte per
+// slot: una lettura in ritardo (menu occupato, frame perso) trovava il
+// comando già morto — undici «fascia scaduta» di fila alle 00:34, auto e
+// griglia mai applicate, solo pista/weekend scritti sul gamemodesave. La
+// scadenza porta ora una tolleranza: il comando ha lo stesso id finché il
+// pending vive, quindi riapplicarlo è idempotente.
+export const VALIDITA_EXTRA_MS = 8000;
 // LE FASCE DIETRO che la potatura lascia in casa (3/11, la cura del buco):
 // 12 × 2,5 s = 30 s di copertura, allineato al canale dell'app. Un tick
 // saltato del publisher non lascia più una fascia persa che il gioco 404a.
@@ -420,6 +428,10 @@ export function comandoAuto(ladder, state, env = process.env) {
           id: idP, tipo: 'setcar', nome, carId: p.car,
           pista: spec?.name ?? null, layout: spec?.layout ?? null,
           ora: volo ? oraRonda : null, meteo: volo ? codiceMeteo(p.weather ?? null) : null,
+          // GRIGLIA E PARAMETRI DEL WEEKEND (4/11): il Cruscotto li applica
+          // con SetGameModeParameters nella stessa sequenza dell'auto, come
+          // Paddock — il weekend non resta più solo sui file del disco.
+          weekend: p.weekend ?? null,
         };
         // GESTO UNICO (4/11, «prepara tutto e avvia deve lanciare la gara, non
         // solo il gioco»): dentro la finestra armata il setcar porta con sé
@@ -724,7 +736,7 @@ export function azioniPulsanti(ladder, state, env = process.env) {
         const ov = state?.raceSettings?.[p.node] ?? {};
         const banda = [ov?.sliderMin, ov?.sliderMax].every((x) => Number.isFinite(Number(x))) ? `${Number(ov.sliderMin)}–${Number(ov.sliderMax)}` : null;
         const voloB = voloMeteoOra(env);   // lo stesso kill-switch / meteo/ora del comando diretto
-        az.ronda = { id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome, carId: p.car, pista: spec?.name ?? null, layout: spec?.layout ?? null, ora: voloB && Number.isFinite(Number(p.hour)) && p.hour != null ? Number(p.hour) : null, meteo: voloB ? codiceMeteo(p.weather ?? null) : null, serie: p.node ?? null, scadeIn: scadeIn(p.startedAt), banda };
+        az.ronda = { id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome, carId: p.car, pista: spec?.name ?? null, layout: spec?.layout ?? null, ora: voloB && Number.isFinite(Number(p.hour)) && p.hour != null ? Number(p.hour) : null, meteo: voloB ? codiceMeteo(p.weather ?? null) : null, weekend: p.weekend ?? null, serie: p.node ?? null, scadeIn: scadeIn(p.startedAt), banda };
       }
     }
     if (!az.demo) {
@@ -886,6 +898,17 @@ export function uiappTick(env = process.env) {
     }
   } catch { /* il bottone in gioco è un plus: mai rompere il tick */ }
   const dati = vetrina(ladder, stato);
+  // La sonda viaggia NELLA stessa fascia del Cruscotto: l'app la esegue nel
+  // menu e risponde col persist `cruscotto.sonda`; qui si legge l'esito.
+  try {
+    const store = percorsoStore();
+    if (store) {
+      const esito = leggiStoreJson(store, 'cruscotto.sonda');
+      if (esito) assorbiSonda(esito);
+    }
+  } catch { /* la sonda è un plus: mai rompere il tick */ }
+  const sonda = sondaFascia();
+  if (sonda) dati.sonda = sonda;
   dati.slot = fascia;
   try { assorbiAck(dati); } catch { /* l'ack è un plus: mai rompere il tick */ }
   // STORIA (31/10 notte): il comando che esce ORA in fascia va in memoria UNA
@@ -899,7 +922,7 @@ export function uiappTick(env = process.env) {
     const oraT = Date.now();
     for (const [id2, at] of storiaInviata) { if (oraT - at > 3_600_000) storiaInviata.delete(id2); }
   } catch { /* la storia è un plus: mai rompere il tick */ }
-  dati.validaFino = new Date((fascia + 1) * PERIODO_MS).toISOString();
+  dati.validaFino = new Date((fascia + 1) * PERIODO_MS + VALIDITA_EXTRA_MS).toISOString();
   writeJsonAtomic(join(dir, `ui-${fascia}.json`), dati, { pretty: false });
   // la spazzatura va a casa: un ack consumato dopo un'ora si dimentica, e le
   // vecchie fasce si tolgono.
@@ -1102,6 +1125,138 @@ function assorbiAck(dati) {
     console.log(`  Cruscotto in gioco — ${(c.tipo ?? 'setcar').toUpperCase()} ✓ ${c.nome} (${colpo.msg || 'ok'}) — ${voce}.`);
   }
   if (colpo.ok) dati.comando = null;      // eseguita: niente ripubblicazione
+}
+
+/* ============================ LA SONDA DEL MENU ============================
+ * Richiesta dell'utente (4/11): sondare i comandi read-only del menu, UNO per
+ * volta, partendo da CurrentCar, CurrentTrack, WeatherData e Opponents. La
+ * sonda NON scrive nel gioco: il server mette la richiesta nella fascia, l'app
+ * Cruscotto (che vive nel menu) esegue i comandi col suo motore `OnUICommand`
+ * e deposita le risposte nel persist `cruscotto.sonda`. Il server le legge e
+ * le logga. Nessun secondo canale, nessun processo in più: la stessa strada
+ * già collaudata di `cruscotto.acks` e `cruscotto.richieste`.
+ *
+ * I comandi sono una WHITELIST: qui non possono entrare acquisto/rimozione
+ * auto, carriera o altre scritture. Per aggiungerne uno bisogna modificare
+ * questa lista a mano, dopo averlo verificato nel binario del loader.
+ */
+const SONDA_TIMEOUT_MS = 60_000;
+const SONDA_MODO = 'ClientCommandsMode_SINGLEPLAYER';
+
+/** I quattro comandi read-only richiesti, con i parametri minimi del menu. */
+export const COMANDI_SONDA = [
+  { cmd: 'CarSelectionClientRequestCurrentCar', args: { mode: SONDA_MODO } },
+  { cmd: 'GameModeSelectionClientRequestCurrentTrack', args: { mode: SONDA_MODO } },
+  { cmd: 'GameModeSelectionClientRequestWeatherData', args: { mode: SONDA_MODO } },
+  { cmd: 'GameModeSelectionClientRequestOpponents', args: { mode: SONDA_MODO } },
+];
+const SONDA_AMMESSI = new Map(COMANDI_SONDA.map((c) => [c.cmd, c]));
+// Le scorciatoie della CLI (`--comandi CurrentCar,CurrentTrack,...`) non
+// cambiano il comando vero: restano solo nomi più corti per i quattro read-only.
+const SONDA_ALIAS = new Map([
+  ['CurrentCar', 'CarSelectionClientRequestCurrentCar'],
+  ['CurrentTrack', 'GameModeSelectionClientRequestCurrentTrack'],
+  ['WeatherData', 'GameModeSelectionClientRequestWeatherData'],
+  ['Opponents', 'GameModeSelectionClientRequestOpponents'],
+]);
+
+let sondaPending = null;
+let sondaUltima = null;
+let sondaSeq = 0;
+const sondaViste = new Set();
+
+function normalizzaSonda(comandi) {
+  const lista = Array.isArray(comandi) && comandi.length ? comandi : COMANDI_SONDA;
+  const out = [];
+  const visti = new Set();
+  for (const c of lista) {
+    const nome = typeof c === 'string' ? c : c?.cmd ?? c?.comando;
+    const base = SONDA_AMMESSI.get(String(nome)) ?? SONDA_AMMESSI.get(SONDA_ALIAS.get(String(nome)));
+    if (!base || visti.has(base.cmd)) continue;
+    visti.add(base.cmd);
+    out.push({ ...base });
+  }
+  return out;
+}
+
+/** Lo stato per l'endpoint e per la CLI (sempre un oggetto, mai undefined). */
+export function statoSonda() {
+  const ora = Date.now();
+  const pending = sondaPending && ora <= sondaPending.scade
+    ? { ...sondaPending, comandi: sondaPending.comandi.map((c) => ({ ...c })) }
+    : null;
+  if (!pending && sondaPending) sondaPending = null;   // scaduta: libera il canale
+  return {
+    pending,
+    ultima: sondaUltima,
+    disponibili: COMANDI_SONDA.map((c) => ({ ...c })),
+    timeoutMs: SONDA_TIMEOUT_MS,
+  };
+}
+
+/** Mette in coda UNA sonda sequenziale. Una già in corso non viene accavallata. */
+export function avviaSonda(comandi = null) {
+  const lista = normalizzaSonda(comandi);
+  if (!lista.length) return { ok: false, motivo: 'nessun comando read-only riconosciuto', ...statoSonda() };
+  if (sondaPending && Date.now() <= sondaPending.scade) {
+    return { ok: false, motivo: 'sonda già in corso: aspetta la risposta', ...statoSonda() };
+  }
+  const ora = Date.now();
+  sondaPending = {
+    id: `sonda:${ora}:${++sondaSeq}`,
+    comandi: lista,
+    creato: ora,
+    scade: ora + SONDA_TIMEOUT_MS,
+  };
+  console.log(`  Sonda menu — in coda ${lista.length} comandi read-only (${lista.map((c) => c.cmd).join(', ')}).`);
+  return { ok: true, ...statoSonda() };
+}
+
+/** La parte da mettere nella fascia: null quando non c'è una sonda viva. */
+export function sondaFascia() {
+  if (!sondaPending) return null;
+  if (Date.now() > sondaPending.scade) { sondaPending = null; return null; }
+  return {
+    id: sondaPending.id,
+    comandi: sondaPending.comandi.map((c) => ({ ...c })),
+    creato: sondaPending.creato,
+    scade: sondaPending.scade,
+  };
+}
+
+/** Legge l'esito depositato dall'app, lo logga e lo rende disponibile alla CLI. */
+export function assorbiSonda(esito) {
+  if (!esito || typeof esito !== 'object' || !esito.id) return null;
+  const id = String(esito.id);
+  if (!sondaPending || id !== sondaPending.id || sondaViste.has(id)) return null;
+  sondaViste.add(id);
+  const risposte = Array.isArray(esito.risposte) ? esito.risposte : [];
+  sondaUltima = {
+    id,
+    ricevuta: Date.now(),
+    eseguita: esito.eseguita ?? null,
+    risposte,
+  };
+  sondaPending = null;
+  console.log(`  Sonda menu — risposta ricevuta (${risposte.length} comandi):`);
+  for (const r of risposte) {
+    const stato = r?.ok ? 'OK' : 'KO';
+    const ms = Number.isFinite(Number(r?.ms)) ? `${r.ms} ms` : 'tempo n/d';
+    console.log(`    ${stato} ${r?.cmd ?? '?'} (${ms})${r?.error ? ' — ' + r.error : ''}`);
+  }
+  try {
+    const file = join(process.env.EVO_DATA_DIR ?? join(PROJECT, 'data'), 'sonda-menu.jsonl');
+    appendFileSync(file, JSON.stringify({ t: new Date().toISOString(), ...sondaUltima }) + '\n', 'utf8');
+  } catch { /* il log è un plus: la risposta resta in memoria */ }
+  return sondaUltima;
+}
+
+/** Solo per i test: azzera la coda e la memoria delle risposte. */
+export function sondaReset() {
+  sondaPending = null;
+  sondaUltima = null;
+  sondaViste.clear();
+  sondaSeq = 0;
 }
 
 export function startUiappPublisher(baseUrl = null, { attesaMs = ATTESA_APP_MS } = {}) {

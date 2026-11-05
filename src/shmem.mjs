@@ -195,6 +195,13 @@ _chk('SMEvoElectronics', ELECTRONICS.__size, 128);
 _chk('SMEvoSessionState', SESSION_STATE.__size, 256);
 _chk('SMEvoTimingState', TIMING.__size, 256);
 
+const ASSISTS = structLayout([
+  ['autoGear', 'u8'], ['autoBlip', 'u8'], ['autoClutch', 'u8'], ['autoClutchOnStart', 'u8'],
+  ['manualIgnition', 'u8'], ['autoPitLimiter', 'u8'], ['standingStart', 'u8'],
+  ['autoSteer', 'f32'], ['arcadeStability', 'f32'], ['placeholder', 'raw(48)'],
+]);
+_chk('SMEvoAssistsState', ASSISTS.__size, 64);
+
 const GFX_LAYOUT = structLayout([
   ['packetId', 'i32'], ['status', 'i32'],
   ['focusedA', 'u64'], ['focusedB', 'u64'], ['playerA', 'u64'], ['playerB', 'u64'],
@@ -248,109 +255,330 @@ const GFX_LAYOUT = structLayout([
   // come se fossero i gap, mostrando distacchi senza senso.
   ['carCoordinates', 'raw(720)'],
   ['gapAhead', 'f32'], ['gapBehind', 'f32'],
+  // La coda della struct (header ufficiale): prima i campi singoli, poi i 960
+  // byte dei 60 ID auto. `padCarIds` rappresenta i 3 byte di padding che il
+  // pack(4) mette prima del primo uint64_t.
+  ['activeCars', 'u8'], ['fuelPerLapTarget', 'f32'], ['fuelEstimatedLaps', 'f32'],
+  ['assistsState', 'raw(64)'], ['maxFuel', 'f32'], ['maxTurboBoost', 'f32'],
+  ['useSingleCompound', 'bool'], ['padCarIds', 'raw(3)'], ['carIds', 'raw(960)'],
 ]);
 
 /* DATI di timing ONLINE-dash: dentro graphics c'è raw(256) del timingState
    (SMEvoTimingState) con i tempi di giro come STRINGHE HH:MM:SS.mmm
 dell'HUD. Layout confermato dall'header: currentLap, deltaCurrent, lastLap,
 deltaLast, bestLap, idealLap, totalTime, invalid bool. */
-const TIMOFF = { currentLap: 0, deltaCurrent: 15, lastLap: 34, bestLap: 68, idealLap: 83, totalTime: 98, invalid: 113 };
+// Offset VERI di SMEvoTimingState (header ufficiale, pack(4)): i due int32
+// delta_current_p/delta_last_p occupano 4 byte e spostano le stringhe dopo.
+// La versione precedente leggeva last_laptime a 34 e best_laptime a 68: erano
+// dentro i due int32, non nelle stringhe. Qui la correzione sta alla fonte,
+// così HUD, radio e API leggono gli stessi byte giusti.
+const TIMOFF = {
+  currentLap: 0, deltaCurrent: 15, deltaCurrentP: 32,
+  lastLap: 36, deltaLast: 51, deltaLastP: 68,
+  bestLap: 72, idealLap: 87, totalTime: 102, invalid: 117,
+};
 export function parseTimingState(buf, base) {
   if (!buf || buf.length < base + 128) return null;
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   const at = (o, n = 15) => {
-    const s = buf.slice(base + o, base + o + n);
+    const start = base + o;
+    const s = buf.slice(start, start + n);
     let end = 0; while (end < s.length && s[end] !== 0) end++;
     return s.slice(0, end).toString('utf8').trim() || null;
   };
   return {
     currentLap: at(TIMOFF.currentLap), delta: at(TIMOFF.deltaCurrent),
-    lastLap: at(TIMOFF.lastLap), bestLap: at(TIMOFF.bestLap),
-    idealLap: at(TIMOFF.idealLap), invalid: buf[base + TIMOFF.invalid] !== 0,
+    deltaCurrentP: dv.getInt32(base + TIMOFF.deltaCurrentP, true),
+    lastLap: at(TIMOFF.lastLap), deltaLast: at(TIMOFF.deltaLast),
+    deltaLastP: dv.getInt32(base + TIMOFF.deltaLastP, true),
+    bestLap: at(TIMOFF.bestLap), idealLap: at(TIMOFF.idealLap),
+    totalTime: at(TIMOFF.totalTime), invalid: buf[base + TIMOFF.invalid] !== 0,
   };
 }
 
 export const GFX = GFX_LAYOUT;
 
+/* ------------------------------------------------------------------ */
+/* letture delle sotto-struct della graphics                           */
+/* ------------------------------------------------------------------ */
+
+function readCString(buf, offset, length) {
+  const start = Math.max(0, offset);
+  const end = Math.min(buf.length, start + length);
+  let p = start;
+  while (p < end && buf[p] !== 0) p++;
+  return buf.slice(start, p).toString('utf8');
+}
+
+function parseTyreState(buf, base) {
+  const f = (o) => buf.readFloatLE(base + o);
+  return {
+    slip: f(TYRE.slip),
+    lock: buf[base + TYRE.lock] !== 0,
+    pressurePsi: f(TYRE.pression),
+    temperatureC: f(TYRE.tempC),
+    brakeTempC: f(TYRE.brakeTempC),
+    brakePressure: f(TYRE.brakePressure),
+    temperatureInnerC: f(TYRE.tempLeft),
+    temperatureCenterC: f(TYRE.tempCenter),
+    temperatureOuterC: f(TYRE.tempRight),
+    compoundFront: readCString(buf, base + TYRE.compoundFront, 33),
+    compoundRear: readCString(buf, base + TYRE.compoundRear, 33),
+    normalizedPressure: f(TYRE.normPressure),
+    normalizedTemperatureInner: f(TYRE.normTempLeft),
+    normalizedTemperatureCenter: f(TYRE.normTempCenter),
+    normalizedTemperatureOuter: f(TYRE.normTempRight),
+    normalizedBrakeTemperature: f(TYRE.normBrakeTemp),
+    normalizedTemperatureCore: f(TYRE.normTempCore),
+  };
+}
+
+function parseDamageState(buf, base) {
+  const f = (o) => buf.readFloatLE(base + o);
+  return {
+    front: f(DAMAGE.front), rear: f(DAMAGE.rear), left: f(DAMAGE.left), right: f(DAMAGE.right), center: f(DAMAGE.center),
+    suspension: { lf: f(DAMAGE.suspLF), rf: f(DAMAGE.suspRF), lr: f(DAMAGE.suspLR), rr: f(DAMAGE.suspRR) },
+  };
+}
+
+function parsePitInfo(buf, base) {
+  return {
+    damage: buf.readInt8(base + PITINFO.damage), fuel: buf.readInt8(base + PITINFO.fuel),
+    tyres: {
+      lf: buf.readInt8(base + PITINFO.tyreLF), rf: buf.readInt8(base + PITINFO.tyreRF),
+      lr: buf.readInt8(base + PITINFO.tyreLR), rr: buf.readInt8(base + PITINFO.tyreRR),
+    },
+  };
+}
+
+function parseInstrumentation(buf, base) {
+  const pagesStart = base + INSTR.pages;
+  return {
+    mainLights: buf.readInt8(base + INSTR.mainLights), specialLights: buf.readInt8(base + INSTR.specialLights),
+    cockpitLights: buf.readInt8(base + INSTR.cockpitLights), wipers: buf.readInt8(base + INSTR.wipers),
+    rainLights: buf[base + INSTR.rainLights] !== 0, turnLeft: buf[base + INSTR.turnL] !== 0,
+    turnRight: buf[base + INSTR.turnR] !== 0, flashing: buf[base + INSTR.flashing] !== 0,
+    warning: buf[base + INSTR.warning] !== 0, selectedDisplayIndex: buf.readInt8(base + INSTR.displayIndex),
+    pages: Array.from(buf.subarray(pagesStart, pagesStart + 16)),
+    headlightsVisible: buf[base + INSTR.headlightsVisible] !== 0,
+  };
+}
+
+function parseElectronics(buf, base) {
+  const i8 = (o) => buf.readInt8(base + o);
+  const f = (o) => buf.readFloatLE(base + o);
+  const bool = (o) => buf[base + o] !== 0;
+  return {
+    tcLevel: i8(ELECTRONICS.tc), tcCutLevel: i8(ELECTRONICS.tcCut), absLevel: i8(ELECTRONICS.abs),
+    escLevel: i8(ELECTRONICS.esc), ebbLevel: i8(ELECTRONICS.ebb), brakeBias: f(ELECTRONICS.brakeBias),
+    engineMapLevel: i8(ELECTRONICS.engineMap), turboLevel: f(ELECTRONICS.turbo),
+    ersDeploymentMap: i8(ELECTRONICS.ersMap), ersRechargeMap: f(ELECTRONICS.ersRecharge),
+    ersHeatCharging: bool(ELECTRONICS.ersHeat), ersOvertakeMode: bool(ELECTRONICS.ersOvertake),
+    drsOpen: bool(ELECTRONICS.drsOpen), diffPowerLevel: i8(ELECTRONICS.diffPower),
+    diffCoastLevel: i8(ELECTRONICS.diffCoast), frontBumpDamperLevel: i8(ELECTRONICS.frontBump),
+    frontReboundDamperLevel: i8(ELECTRONICS.frontRebound), rearBumpDamperLevel: i8(ELECTRONICS.rearBump),
+    rearReboundDamperLevel: i8(ELECTRONICS.rearRebound), ignitionOn: bool(ELECTRONICS.ignition),
+    pitLimiterOn: bool(ELECTRONICS.pitLimiter), activePerformanceMode: i8(ELECTRONICS.performanceMode),
+  };
+}
+
+function parseSessionState(buf, base) {
+  const i32 = (o) => buf.readInt32LE(base + o);
+  const bool = (o) => buf[base + o] !== 0;
+  return {
+    phaseName: readCString(buf, base + SESSION_STATE.phaseName, 33),
+    timeLeft: readCString(buf, base + SESSION_STATE.timeLeft, 15), timeLeftMs: i32(SESSION_STATE.timeLeftMs),
+    waitTime: readCString(buf, base + SESSION_STATE.waitTime, 15), totalLap: i32(SESSION_STATE.totalLap),
+    currentLap: i32(SESSION_STATE.currentLap), lightsOn: i32(SESSION_STATE.lightsOn), lightsMode: i32(SESSION_STATE.lightsMode),
+    lapLengthKm: buf.readFloatLE(base + SESSION_STATE.lapLengthKm), endSessionFlag: i32(SESSION_STATE.endFlag),
+    timeToNextSession: readCString(buf, base + SESSION_STATE.timeToNext, 15), disconnectedFromServer: bool(SESSION_STATE.disconnected),
+    restartSeasonEnabled: bool(SESSION_STATE.restartSeason), uiEnableDrive: bool(SESSION_STATE.uiDrive),
+    uiEnableSetup: bool(SESSION_STATE.uiSetup), isReadyToNextBlinking: bool(SESSION_STATE.readyBlink),
+    showWaitingForPlayers: bool(SESSION_STATE.waitingPlayers),
+  };
+}
+
+function parseAssists(buf, base) {
+  const i8 = (o) => buf.readInt8(base + o);
+  return {
+    autoGear: i8(ASSISTS.autoGear), autoBlip: i8(ASSISTS.autoBlip), autoClutch: i8(ASSISTS.autoClutch),
+    autoClutchOnStart: i8(ASSISTS.autoClutchOnStart), manualIgnitionEStart: i8(ASSISTS.manualIgnition),
+    autoPitLimiter: i8(ASSISTS.autoPitLimiter), standingStartAssist: i8(ASSISTS.standingStart),
+    autoSteer: buf.readFloatLE(base + ASSISTS.autoSteer), arcadeStabilityControl: buf.readFloatLE(base + ASSISTS.arcadeStability),
+  };
+}
+
 export function parseGraphics(buf) {
   if (!buf || buf.length < GFX_LAYOUT.gapBehind + 4) return null;
   const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-  const f32 = (o) => dv.getFloat32(o, true);
-  const i32 = (o) => dv.getInt32(o, true);
-  const u32 = (o) => dv.getUint32(o, true);
-  const i16 = (o) => dv.getInt16(o, true);
-  const str = (o, n = 33) => {
-    const s = buf.slice(o, o + n);
-    let end = 0; while (end < s.length && s[end] !== 0) end++;
-    return s.slice(0, end).toString('utf8');
+  const has = (offset, size = 4) => offset >= 0 && offset + size <= buf.length;
+  const f32 = (o) => (has(o) ? dv.getFloat32(o, true) : null);
+  const i32 = (o) => (has(o) ? dv.getInt32(o, true) : null);
+  const u32 = (o) => (has(o) ? dv.getUint32(o, true) : null);
+  const i16 = (o) => (has(o, 2) ? dv.getInt16(o, true) : null);
+  const u16 = (o) => (has(o, 2) ? dv.getUint16(o, true) : null);
+  const u8 = (o) => (has(o, 1) ? dv.getUint8(o) : null);
+  const i8 = (o) => (has(o, 1) ? dv.getInt8(o) : null);
+  const str = (o, n = 33) => (has(o, n) ? readCString(buf, o, n) : null);
+  const pair = (a, b) => ({ a: has(a, 8) ? String(dv.getBigUint64(a, true)) : null, b: has(b, 8) ? String(dv.getBigUint64(b, true)) : null });
+  const tyres = {
+    lf: parseTyreState(buf, GFX.tyreLF), rf: parseTyreState(buf, GFX.tyreRF),
+    lr: parseTyreState(buf, GFX.tyreLR), rr: parseTyreState(buf, GFX.tyreRR),
+  };
+  const brakeTempC = ['lf', 'rf', 'lr', 'rr']
+    .map((k) => tyres[k].brakeTempC)
+    .map((v) => (Number.isFinite(v) && v > 0 && v < 1500 ? Math.round(v) : null));
+  const carCoords = (() => {
+    if (!has(GFX.carCoordinates, 60 * 12)) return null;
+    const out = [];
+    for (let i = 0; i < 60; i++) {
+      const x = dv.getFloat32(GFX.carCoordinates + i * 12, true);
+      const y = dv.getFloat32(GFX.carCoordinates + i * 12 + 4, true);
+      const z = dv.getFloat32(GFX.carCoordinates + i * 12 + 8, true);
+      out.push(Number.isFinite(x) ? [Math.round(x), Math.round(y), Math.round(z)] : null);
+    }
+    return out;
+  })();
+  const carIds = has(GFX.carIds, 60 * 16)
+    ? Array.from({ length: 60 }, (_, i) => [
+      String(dv.getBigUint64(GFX.carIds + i * 16, true)),
+      String(dv.getBigUint64(GFX.carIds + i * 16 + 8, true)),
+    ])
+    : null;
+  const timing = parseTimingState(buf, GFX.timingState);
+  // I ms numerici e le stringhe HUD sono due sensori dello stesso tempo: se
+  // l'int32 è a zero o palesemente sbagliato (offset cambiato), la stringa
+  // corretta resta la fonte di verità per HUD, delta e registratore.
+  const lapMs = {
+    current: lapMsOr(i32(GFX.currentLapMs), timing?.currentLap),
+    last: lapMsOr(i32(GFX.lastLapMs), timing?.lastLap),
+    best: lapMsOr(i32(GFX.bestLapMs), timing?.bestLap),
+    predicted: Number.isFinite(i32(GFX.predictedLapMs)) && i32(GFX.predictedLapMs) > 0 ? i32(GFX.predictedLapMs) : null,
   };
   return {
     packetId: i32(GFX.packetId),
     status: i32(GFX.status),              // 0 off, 1 replay, 2 live, 3 pause
+    focusedCarId: pair(GFX.focusedA, GFX.focusedB),
+    playerCarId: pair(GFX.playerA, GFX.playerB),
     speedKmh: i16(GFX.speedKmh),
+    speedMph: i16(GFX.speedMph), speedMs: i16(GFX.speedMs),
     gear: i16(GFX.gearInt),
-    rpm: dv.getUint16(GFX.rpm, true),
-    gasPercent: f32(GFX.gasPercent),
-    brakePercent: f32(GFX.brakePercent),
+    rpm: u16(GFX.rpm), rpmPercent: f32(GFX.rpmPercent), rpmLimiter: u8(GFX.rpmLimiter) !== 0,
+    changeUp: u8(GFX.changeUp) !== 0, changeDown: u8(GFX.changeDown) !== 0,
+    tcActive: u8(GFX.tcActive) !== 0, absActive: u8(GFX.absActive) !== 0,
+    escActive: u8(GFX.escActive) !== 0, launchActive: u8(GFX.launchActive) !== 0,
+    ignitionOn: u8(GFX.ignitionOn) !== 0, engineRunning: u8(GFX.engineRunning) !== 0,
+    kersCharging: u8(GFX.kersCharging) !== 0, wrongWay: u8(GFX.wrongWay) !== 0,
+    drsAvailable: u8(GFX.drsAvailable) !== 0, batteryCharging: u8(GFX.batteryCharging) !== 0,
+    maxKjPerLap: u8(GFX.maxKjPerLap) !== 0, maxChargeKj: u8(GFX.maxChargeKj) !== 0,
+    gasPercent: f32(GFX.gasPercent), brakePercent: f32(GFX.brakePercent),
+    handbrakePercent: f32(GFX.handbrakePercent), clutchPercent: f32(GFX.clutchPercent),
+    steeringPercent: f32(GFX.steeringPercent), steerDegrees: i32(GFX.steerDegrees), pitspeedDelta: f32(GFX.pitspeedDelta),
+    ffbStrength: f32(GFX.ffbStrength), carFfbMultiplier: f32(GFX.carFfbMultiplier),
+    waterTempPercent: f32(GFX.waterTempPercent), waterPressureBar: f32(GFX.waterPressureBar),
+    fuelPressureBar: f32(GFX.fuelPressureBar), waterTempC: i8(GFX.waterTempC), airTempC: i8(GFX.airTempC),
+    oilTempC: f32(GFX.oilTempC), oilPressureBar: f32(GFX.oilPressureBar), exhaustTempC: f32(GFX.exhaustTempC),
+    gForces: { x: f32(GFX.gForceX), y: f32(GFX.gForceY), z: f32(GFX.gForceZ) },
+    turboBoost: f32(GFX.turboBoost), turboBoostLevel: f32(GFX.turboBoostLevel), turboBoostPerc: f32(GFX.turboBoostPerc),
+    currentKm: f32(GFX.currentKm), totalKm: u32(GFX.totalKm), totalDriveTimeS: u32(GFX.totalDriveTimeS),
+    timeOfDayH: i32(GFX.timeOfDayH), timeOfDayM: i32(GFX.timeOfDayM), timeOfDayS: i32(GFX.timeOfDayS),
     timeOfDay: `${i32(GFX.timeOfDayH)}:${String(i32(GFX.timeOfDayM)).padStart(2, '0')}`,
-    currentLapMs: i32(GFX.currentLapMs),
-    lastLapMs: i32(GFX.lastLapMs),
-    bestLapMs: i32(GFX.bestLapMs),
-    deltaMs: i32(GFX.deltaTimeMs),
-    isValidLap: dv.getUint8(GFX.isValidLap) !== 0,
-    fuelLiters: f32(GFX.fuelLiters),
-    lapsPossibleFuel: f32(GFX.lapsPossibleFuel),   // giri stimati col fuel residuo (HUD del gioco)
-    totalLaps: i32(GFX.totalLapCount),
+    currentLapMs: lapMs.current, lastLapMs: lapMs.last, bestLapMs: lapMs.best,
+    predictedLapMs: lapMs.predicted, deltaMs: i32(GFX.deltaTimeMs), lapMs,
+    isValidLap: u8(GFX.isValidLap) !== 0,
+    fuelLiters: f32(GFX.fuelLiters), fuelPercent: f32(GFX.fuelPercent),
+    fuelPerKm: f32(GFX.fuelPerKm), kmPerLiter: f32(GFX.kmPerLiter),
+    lapsPossibleFuel: f32(GFX.lapsPossibleFuel),
+    totalLaps: i32(GFX.totalLapCount), totalLapCount: i32(GFX.totalLapCount),
     totalLapsSession: i32(GFX.sessionState + SESSION_STATE.totalLap),
     currentLapNo: i32(GFX.sessionState + SESSION_STATE.currentLap),
     sessionPhase: str(GFX.sessionState + SESSION_STATE.phaseName, 33),
     timeLeftStr: str(GFX.sessionState + SESSION_STATE.timeLeft, 15),
-    currentPos: u32(GFX.currentPos),
-    totalDrivers: u32(GFX.totalDrivers),
-    gapAhead: f32(GFX.gapAhead),
-    gapBehind: f32(GFX.gapBehind),
-    isLastLap: dv.getUint8(GFX.isLastLap) !== 0,
-    flag: i32(GFX.flag),
-    globalFlag: i32(GFX.globalFlag),
-    wrongWay: dv.getUint8(GFX.wrongWay) !== 0,
-    // timingState: tempi di giro come stringhe dell'HUD ("1:12.456") + delta live
-    timing: parseTimingState(buf, GFX.timingState),
-    // monitor stile/default RF2: coordinate (x,y,z) delle prime 20 auto (60 in totale):
-    // per ogni auto un BUBBLE in griglia con la sua distanza dal tuo e la posizione
-    carCoords: (() => {
-      const n = Math.min(20, 60);
-      const out = [];
-      const b = Buffer.from(buf.buffer, buf.byteOffset + GFX.carCoordinates, n * 12);
-      for (let i = 0; i < n; i++) {
-        const x = b.readFloatLE(i * 12), y = b.readFloatLE(i * 12 + 4), z = b.readFloatLE(i * 12 + 8);
-        out.push(Number.isFinite(x) ? [Math.round(x), Math.round(y), Math.round(z)] : null);
-      }
-      return out;
-    })(),
-    carLocation: i32(GFX.carLocation),    // 1 pitlane, 4 track
-    // PENALITÀ TAGLI PISTA (30/10, richiesta Mauro: «penalità a voce»):
-    // race_cut_gained_time_ms = tempo CUmulativo guadagnato tagliando
-    // (l'header lo chiama «penalità da tagli»), distance_to_deadline =
-    // metri da percorrere PRIMA che il taglio scali, race_cut_current_delta
-    // = il taglio in muro quest'istante. Nel layout da SEMPRE ma mai
-    // letti qui: i tagli di pista non facevano MAI parlare il copilota.
-    raceCutGainedMs: i32(GFX.raceCutGainedMs),
-    raceCutDelta: f32(GFX.raceCutCurrentDelta),
-    cutDeadline: i32(GFX.distanceToDeadline),
-    // TEMPERATURE FRENO (4/11): brake_temp_c esiste nella struct TyreState
-    // (offset 16, dopo slip/lock/pression/temp) ma non veniva mai letto: ora
-    // esce in °C per ruota [LF, RF, LR, RR]. Fuori da 0–1500 °C è spazzatura
-    // del buffer, non un dato: null.
-    brakeTempC: (() => {
-      const out = ['tyreLF', 'tyreRF', 'tyreLR', 'tyreRR']
-        .map((k) => f32(GFX[k] + 16))
-        .map((v) => (Number.isFinite(v) && v > 0 && v < 1500 ? Math.round(v) : null));
-      return out.some((v) => v != null) ? out : null;
-    })(),
-    driverName: str(GFX.driverName),
-    driverSurname: str(GFX.driverSurname),
-    carModel: str(GFX.carModel),
-    fps: i32(GFX.playerFps),
+    currentPos: u32(GFX.currentPos), totalDrivers: u32(GFX.totalDrivers),
+    gapAhead: f32(GFX.gapAhead), gapBehind: f32(GFX.gapBehind),
+    isLastLap: u8(GFX.isLastLap) !== 0, flag: i32(GFX.flag), globalFlag: i32(GFX.globalFlag),
+    timing,
+    carCoords, carIds,
+    carLocation: i32(GFX.carLocation),
+    raceCutGainedMs: i32(GFX.raceCutGainedMs), raceCutDelta: f32(GFX.raceCutCurrentDelta), cutDeadline: i32(GFX.distanceToDeadline),
+    brakeTempC: brakeTempC.some((v) => v != null) ? brakeTempC : null,
+    tyres, tyrePressure: ['lf', 'rf', 'lr', 'rr'].map((k) => tyres[k].pressurePsi),
+    driverName: str(GFX.driverName), driverSurname: str(GFX.driverSurname), carModel: str(GFX.carModel),
+    fps: i32(GFX.playerFps), playerFps: i32(GFX.playerFps), playerFpsAvg: i32(GFX.playerFpsAvg),
+    playerPing: i32(GFX.playerPing), playerLatency: i32(GFX.playerLatency),
+    playerCpu: i32(GFX.playerCpu), playerCpuAvg: i32(GFX.playerCpuAvg),
+    playerQos: i32(GFX.playerQos), playerQosAvg: i32(GFX.playerQosAvg),
+    isInPitBox: u8(GFX.isInPitBox) !== 0, isInPitLane: u8(GFX.isInPitLane) !== 0,
+    activeCars: u8(GFX.activeCars), fuelPerLapTarget: f32(GFX.fuelPerLapTarget), fuelEstimatedLaps: f32(GFX.fuelEstimatedLaps),
+    maxFuel: f32(GFX.maxFuel), maxTurboBoost: f32(GFX.maxTurboBoost), useSingleCompound: u8(GFX.useSingleCompound) !== 0,
+    npos: f32(GFX.npos), kersChargePerc: f32(GFX.kersChargePerc), kersCurrentPerc: f32(GFX.kersCurrentPerc),
+    controlLockTime: f32(GFX.controlLockTime),
+    currentTorque: f32(GFX.currentTorque), currentBhp: i32(GFX.currentBhp),
+    fuelUsed: f32(GFX.fuelUsed), fuelPerLap: f32(GFX.fuelPerLap),
+    lapsPossibleFuelHud: f32(GFX.lapsPossibleFuel),
+    batteryTemp: f32(GFX.batteryTemp), batteryVoltage: f32(GFX.batteryVoltage),
+    instantaneousFuelPerKm: f32(GFX.instFuelPerKm), instantaneousKmPerLiter: f32(GFX.instKmPerLiter),
+    gearRpmWindow: f32(GFX.gearRpmWindow),
+    carDamage: parseDamageState(buf, GFX.carDamage), pitInfo: parsePitInfo(buf, GFX.pitInfo),
+    instrumentation: parseInstrumentation(buf, GFX.instr),
+    instrumentationMin: parseInstrumentation(buf, GFX.instrMin),
+    instrumentationMax: parseInstrumentation(buf, GFX.instrMax),
+    electronics: parseElectronics(buf, GFX.electronics),
+    electronicsMin: parseElectronics(buf, GFX.electronicsMin),
+    electronicsMax: parseElectronics(buf, GFX.electronicsMax),
+    electronicsModifiable: parseElectronics(buf, GFX.electronicsMod),
+    sessionState: parseSessionState(buf, GFX.sessionState),
+    assists: has(GFX.assistsState, 64) ? parseAssists(buf, GFX.assistsState) : null,
+    maxGears: u32(GFX.maxGears), engineType: i32(GFX.engineType), hasKers: u8(GFX.hasKers) !== 0,
+    performanceModeName: str(GFX.performanceModeName), diffCoastRaw: f32(GFX.diffCoastRaw), diffPowerRaw: f32(GFX.diffPowerRaw),
+    truncated: buf.length < GFX.carIds + 60 * 16,
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* posizione e consumo del GIOCATORE                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Posizione XZ dell'auto del giocatore.
+ *
+ * La build live di EVO può lasciare `graphics.car_coordinates[0]` con memoria
+ * non inizializzata (valori enormi o zeri): non è una posizione. La fisica
+ * invece porta i quattro punti di contatto delle gomme, che sono specifici
+ * dell'auto del giocatore e sono sempre coerenti. Preferiamo quelli; le
+ * graphics restano solo un fallback per i payload vecchi/sintetici.
+ */
+export function currentCarPosition(g, p) {
+  const pts = Array.isArray(p?.tyreContactPoint) ? p.tyreContactPoint : [];
+  const valid = pts.filter((q) => Array.isArray(q) && q.length >= 3
+    && Number.isFinite(q[0]) && Number.isFinite(q[2]));
+  if (valid.length >= 2) {
+    const x = valid.reduce((s, q) => s + q[0], 0) / valid.length;
+    const z = valid.reduce((s, q) => s + q[2], 0) / valid.length;
+    const r = Math.hypot(x, z);
+    if (Number.isFinite(x) && Number.isFinite(z) && r > 0.01 && r < 100000) {
+      return { x, z, source: 'physics' };
+    }
+  }
+  const fallback = (g?.carCoords ?? []).find((c) => Array.isArray(c) && c.length >= 3
+    && Number.isFinite(c[0]) && Number.isFinite(c[2])
+    && Math.hypot(c[0], c[2]) > 0.5 && Math.hypot(c[0], c[2]) < 100000);
+  return fallback ? { x: fallback[0], z: fallback[2], source: 'graphics' } : null;
+}
+
+/** Consumo per giro: campo diretto del gioco, altrimenti litri / giri stimati. */
+export function liveFuelPerLap(g) {
+  const direct = Number(g?.fuelPerLap);
+  if (Number.isFinite(direct) && direct >= 0.3 && direct <= 20) {
+    return Math.round(direct * 100) / 100;
+  }
+  const liters = Number(g?.fuelLiters);
+  const laps = Number(g?.lapsPossibleFuel);
+  if (Number.isFinite(liters) && liters > 0 && Number.isFinite(laps) && laps > 0) {
+    const ratio = liters / laps;
+    if (ratio >= 0.3 && ratio <= 20) return Math.round(ratio * 100) / 100;
+  }
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -399,8 +627,62 @@ export function parsePhysics(buf) {
   out.airDensity = c.f32();
   out.airTemp = c.f32();
   out.roadTemp = c.f32();
-  out.brakeTemp = null;
-  // da qui in poi ci fermiamo: il resto serve solo a telemetrie complete
+  // Da qui in poi la struct continua: brakeTemp, contatti gomma, forze,
+  // compound, usura pastiglie/dischi, accensione e vibrazioni. La MMF fisica
+  // viene letta per 1024 byte, quindi questi campi sono già a bordo: prima
+  // venivano buttati. La coda si legge solo se il buffer è abbastanza lungo,
+  // così un blocco troncato non fa esplodere il lettore.
+  // La struct fisica completa finisce a 800 B: sotto quella soglia la coda
+  // non c'è e brakeTemp resta null (compatibilità col vecchio payload).
+  out.truncated = buf.length < 800;
+  if (out.truncated) { out.brakeTemp = null; return out; }
+  out.localAngularVel = [c.f32(), c.f32(), c.f32()];
+  out.finalFF = c.f32();
+  out.performanceMeter = c.f32();
+  out.engineBrake = c.i32();
+  out.ersRecoveryLevel = c.i32();
+  out.ersPowerLevel = c.i32();
+  out.ersHeatCharging = c.i32();
+  out.ersIsCharging = c.i32();
+  out.kersCurrentKJ = c.f32();
+  out.drsAvailable = c.i32();
+  out.drsEnabled = c.i32();
+  out.brakeTemp = [c.f32(), c.f32(), c.f32(), c.f32()];
+  out.clutch = c.f32();
+  out.tyreTempI = [c.f32(), c.f32(), c.f32(), c.f32()];
+  out.tyreTempM = [c.f32(), c.f32(), c.f32(), c.f32()];
+  out.tyreTempO = [c.f32(), c.f32(), c.f32(), c.f32()];
+  out.isAIControlled = c.i32();
+  out.tyreContactPoint = [[c.f32(), c.f32(), c.f32()], [c.f32(), c.f32(), c.f32()], [c.f32(), c.f32(), c.f32()], [c.f32(), c.f32(), c.f32()]];
+  out.tyreContactNormal = [[c.f32(), c.f32(), c.f32()], [c.f32(), c.f32(), c.f32()], [c.f32(), c.f32(), c.f32()], [c.f32(), c.f32(), c.f32()]];
+  out.tyreContactHeading = [[c.f32(), c.f32(), c.f32()], [c.f32(), c.f32(), c.f32()], [c.f32(), c.f32(), c.f32()], [c.f32(), c.f32(), c.f32()]];
+  out.brakeBias = c.f32();
+  out.localVelocity = [c.f32(), c.f32(), c.f32()];
+  out.P2PActivations = c.i32();
+  out.P2PStatus = c.i32();
+  out.currentMaxRpm = c.i32();
+  out.mz = [c.f32(), c.f32(), c.f32(), c.f32()];
+  out.fx = [c.f32(), c.f32(), c.f32(), c.f32()];
+  out.fy = [c.f32(), c.f32(), c.f32(), c.f32()];
+  out.slipRatio = [c.f32(), c.f32(), c.f32(), c.f32()];
+  out.slipAngle = [c.f32(), c.f32(), c.f32(), c.f32()];
+  out.tcinAction = c.i32();
+  out.absInAction = c.i32();
+  out.suspensionDamage = [c.f32(), c.f32(), c.f32(), c.f32()];
+  out.tyreTemp = [c.f32(), c.f32(), c.f32(), c.f32()];
+  out.waterTemp = c.f32();
+  out.brakeTorque = [c.f32(), c.f32(), c.f32(), c.f32()];
+  out.frontBrakeCompound = c.i32();
+  out.rearBrakeCompound = c.i32();
+  out.padLife = [c.f32(), c.f32(), c.f32(), c.f32()];
+  out.discLife = [c.f32(), c.f32(), c.f32(), c.f32()];
+  out.ignitionOn = c.i32();
+  out.starterEngineOn = c.i32();
+  out.isEngineRunning = c.i32();
+  out.kerbVibration = c.f32();
+  out.slipVibrations = c.f32();
+  out.roadVibrations = c.f32();
+  out.absVibrations = c.f32();
   return out;
 }
 
@@ -421,13 +703,50 @@ export function fmtMs(ms) {
   return `${m}:${String(s).padStart(2, '0')}.${String(r).padStart(3, '0')}`;
 }
 
-/** il delta dell'HUD del gioco («+0.456» / «-0.123», millisecondi con il segno) */
-export function parseHudDelta(text) {
-  if (!text) return null;
-  const m = /^([+-])\s*(\d+[.,]\d+)$/.exec(String(text).trim());
+/** Delta numerico (ms) come testo HUD, per quando la stringa del gioco è vuota. */
+export function fmtDeltaText(ms) {
+  if (ms == null) return null;
+  const n = Number(ms);
+  if (!Number.isFinite(n)) return null;
+  return `${n > 0 ? '+' : ''}${(n / 1000).toFixed(3)}`;
+}
+
+/**
+ * Tempo giro HUD («1:23.456», «23.456», «1:23,4») in millisecondi.
+ * null per vuoto, «—», DNF o testo non numerico: il chiamante distingue
+ * «campo assente» da «zero».
+ */
+export function parseLapText(text) {
+  if (text == null) return null;
+  const s = String(text).trim().replace(',', '.');
+  const m = /^(?:(\d+):)?(\d{1,2})(?:\.(\d{1,3}))?$/.exec(s);
   if (!m) return null;
-  const v = Number(m[2].replace(',', '.')) * 1000;
-  return Number.isFinite(v) ? (m[1] === '-' ? -Math.round(v) : Math.round(v)) : null;
+  if (m[1] != null && Number(m[2]) >= 60) return null;
+  const min = Number(m[1] ?? 0);
+  const sec = Number(m[2]);
+  if (!Number.isFinite(min) || !Number.isFinite(sec)) return null;
+  const frac = (m[3] ?? '').padEnd(3, '0').slice(0, 3);
+  return min * 60000 + sec * 1000 + Number(frac);
+}
+
+/** Sceglie il numero dei ms se sano, altrimenti la stringa HUD (fonte corretta). */
+function lapMsOr(numeric, text) {
+  const n = Number(numeric);
+  const t = parseLapText(text);
+  if (!Number.isFinite(n) || n < 0) return t;
+  if (n === 0) return t;
+  // un int32 che non somiglia né al current né al last HUD è un offset in fumo
+  if (t != null && Math.abs(n - t) > 2000) return t;
+  return n;
+}
+
+/** Il delta dell'HUD («+0.456», «-0.123» o «0.123») in millisecondi. */
+export function parseHudDelta(text) {
+  if (text == null) return null;
+  const m = /^([+-])?\s*(\d+)[.,](\d{1,3})$/.exec(String(text).trim());
+  if (!m) return null;
+  const v = Number(m[2]) * 1000 + Number(m[3].padEnd(3, '0').slice(0, 3));
+  return Number.isFinite(v) ? (m[1] === '-' ? -v : v) : null;
 }
 
 export class LiveReader {
@@ -447,6 +766,8 @@ export class LiveReader {
     this._bestPath = null;   // buildPathProg della traccia del best (memo)
     this._deltaCache = null; // segments memo: una chiave = il giro corrente|len traccia
     this._deltaKey = '';
+    this.trail = [];         // contorno della sessione in corso
+    this._sessionKey = null; // firma eventId:sessionId:tipo dell'ultima sessione vista
   }
   start() {
     // auto-riparazione: se il processo PowerShell è vivo ma da troppo tempo non
@@ -504,12 +825,24 @@ export class LiveReader {
     });
     child.on('exit', () => { if (this.child === child) this.child = null; });
   }
+  /** cambio sessione (menu → campionato, pista nuova): niente best o mappa vecchi. */
+  _resetSession() {
+    this.trail = [];
+    this.lapTrack = [];
+    this.lapNoSeen = null;
+    this.bestTrack = null;
+    this.bestLapNo = null;
+    this.bestLapMs = null;
+    this._bestPath = null;
+    this._deltaCache = null;
+    this._deltaKey = '';
+  }
   /** cambio giro: il giro appena chiuso diventa il nuovo best della sessione? */
   _commitLap(lapNo) {
     const g = this.last.graphics;
     const track = this.lapTrack;
     // serve una traccia lunga (min 10 campioni) e un giro completo (≥ 15 s)
-    const lapMs = Number(g?.lastLapMs);
+    const lapMs = Number(g?.lapMs?.last ?? g?.lastLapMs);
     if (track.length >= 10 && Number.isFinite(lapMs) && lapMs > 15000
       && g?.isValidLap && (this.bestLapMs == null || lapMs < this.bestLapMs)) {
       this.bestTrack = track.slice();
@@ -525,30 +858,60 @@ export class LiveReader {
   /** il delta «adesso» + i tagli per fascia (memo: li ricalcola a cambio di giro o di traccia) */
   _deltaInfo() {
     const g = this.last.graphics;
-    const hud = parseHudDelta(g?.timing?.delta ?? null);
+    // Il testo HUD è la fonte primaria; i due int32 sono il fallback quando il
+    // gioco non scrive la stringa. `deltaCurrentP = 0` a inizio giro NON è un
+    // delta zero: è il campo ancora vuoto. In quel caso vale il deltaTimeMs del
+    // gioco, che nei dati reali di Laguna Seca era già negativo e plausibile.
+    const hudText = parseHudDelta(g?.timing?.delta ?? null);
+    const hudP = Number(g?.timing?.deltaCurrentP);
+    const hudRaw = Number(g?.deltaMs);
+    const hud = hudText
+      ?? (Number.isFinite(hudP) && hudP !== 0 && Math.abs(hudP) < 300000 ? hudP : null)
+      ?? (Number.isFinite(hudRaw) && hudRaw !== 0 && Math.abs(hudRaw) < 300000 ? hudRaw : null);
     // lapNo ANCHE in 'hud': senza di lui il narratore «giro finito» della copilota
     // tace finché non entra 'tracked' (best committato) — lezione 24/10 sera:
     // «altra gara ma ho sentito solo la benzina, niente tempi sul giro».
     const lapNo = this.lapNoSeen ?? null;
+    const bestLapMs = this.bestLapMs ?? g?.lapMs?.best ?? g?.bestLapMs ?? null;
     if (!this.bestTrack || this.bestTrack.length < 4) {
-      return { source: 'hud', dv: hud, bestLapMs: this.bestLapMs ?? g?.bestLapMs ?? null, bestLapNo: this.bestLapNo ?? null, lapNo };
+      return { source: 'hud', dv: hud, bestLapMs, bestLapNo: this.bestLapNo ?? null, lapNo };
     }
     this._bestPath ??= buildPathProg(this.bestTrack);
-    if (!this._bestPath) return { source: 'hud', dv: hud, bestLapMs: this.bestLapMs, bestLapNo: this.bestLapNo, lapNo };
+    if (!this._bestPath) return { source: 'hud', dv: hud, bestLapMs, bestLapNo: this.bestLapNo, lapNo };
+    const currentLapMs = Number(g?.lapMs?.current ?? g?.currentLapMs);
     const key = `${this.bestLapMs}|${this.lapNoSeen}|${this.lapTrack.length}`;
     if (this._deltaKey !== key) {
       this._deltaCache = {
-        live: liveDelta(this.lapTrack, this._bestPath, Number(g?.currentLapMs)),
+        live: liveDelta(this.lapTrack, this._bestPath, currentLapMs),
         segments: deltaSegments(this.lapTrack, this._bestPath, 48),
       };
       this._deltaKey = key;
     }
+    const trackedDv = this._deltaCache.live?.deltaMs ?? null;
+    // Un delta non può essere più negativo del tempo già trascorso nel giro:
+    // se lo è, la traccia del best è ancorata a un punto sbagliato (es. giro
+    // d'uscita dai box) e il numero non va mostrato come se fosse vero.
+    const impossible = trackedDv != null && (
+      Math.abs(trackedDv) > 300000
+      || (Number.isFinite(currentLapMs) && currentLapMs >= 0 && trackedDv < -currentLapMs - 1000)
+    );
+    if (impossible) {
+      return {
+        source: 'hud',
+        dv: hud,
+        bestLapMs,
+        bestLapNo: this.bestLapNo,
+        lapNo,
+        hudDv: hud,
+        segments: null,
+      };
+    }
     return {
       source: 'tracked',
-      bestLapMs: this.bestLapMs,
+      bestLapMs,
       bestLapNo: this.bestLapNo,
       lapNo: this.lapNoSeen ?? null,
-      dv: this._deltaCache.live?.deltaMs ?? null,     // ms
+      dv: trackedDv,     // ms
       prog: this._deltaCache.live?.prog ?? null,
       hudDv: hud,
       segments: this._deltaCache.segments,
@@ -562,33 +925,44 @@ export class LiveReader {
     this.last.at = Date.now();
     const dec = (b64) => (b64 ? Buffer.from(b64, 'base64') : null);
     this.last.static = parseStatic(dec(msg.static)) ?? this.last.static;
+    // La firma della sessione cambia quando si esce in menu o si carica un
+    // altro evento: best, delta e contorno della pista precedente NON devono
+    // sopravvivere nel campionato nuovo.
+    const st = this.last.static;
+    if (st) {
+      const key = `${st.eventId ?? ''}:${st.sessionId ?? ''}:${st.sessionType ?? ''}`;
+      if (this._sessionKey !== null && key !== this._sessionKey) this._resetSession();
+      this._sessionKey = key;
+    }
     // BUG 21/10 (verificato IN GIOCO su Practice/Imola): il flag game non veniva
     // MAI settato a true su 'data' — lo snapshot usciva subito su !game e la GUI
     // diceva «EVO chiuso» anche con la sessione in pista (MMF vive, parser OK).
     this.last.game = true;
     this.last.graphics = parseGraphics(dec(msg.graphics)) ?? this.last.graphics;
     this.last.physics = parsePhysics(dec(msg.physics)) ?? this.last.physics;
-    // MA essi del giro (per la mappa live): il punto dell'auto 0 (la tua) disegna
-    // il contorno pista, un punto ogni 60 m; oltre 1500 campioni si compatta.
-    const pt0 = this.last.graphics?.carCoords?.[0];
-    if (pt0) {
+    // LA TUA posizione: i punti di contatto delle gomme dalla fisica (le
+    // graphics possono avere car_coordinates[0] non inizializzato in questa
+    // build). Il contorno pista usa un punto ogni ~60 m; oltre 1500 si compatta.
+    const g = this.last.graphics;
+    const p = this.last.physics;
+    const pos = currentCarPosition(g, p);
+    if (pos) {
       const tr = (this.trail ??= []);
       const last = tr.length ? tr[tr.length - 1] : null;
-      if (!last || Math.hypot(pt0[0] - last[0], pt0[2] - last[2]) > 60) {
-        tr.push([pt0[0], pt0[2]]);
+      if (!last || Math.hypot(pos.x - last[0], pos.z - last[1]) > 60) {
+        tr.push([pos.x, pos.z]);
         if (tr.length > 1500) this.trail = tr.filter((_, i) => i % 2 === 0);
       }
     }
     /* --- tracking del giro per il delta di ritmo (lapdelta.mjs) --- */
-    const g = this.last.graphics;
-    if (g?.carCoords?.[0]) {
-      const [x,, z] = g.carCoords[0];
+    if (pos) {
+      const x = pos.x, z = pos.z;
       const lapNo = g.currentLapNo;
       if (Number.isFinite(lapNo) && this.lapNoSeen != null && lapNo !== this.lapNoSeen) {
         this._commitLap(this.lapNoSeen);       // il giro appena chiuso va in campagna per il best
       }
       if (Number.isFinite(lapNo)) this.lapNoSeen = lapNo;
-      const lapMs = Number(g.currentLapMs);
+      const lapMs = Number(g.lapMs?.current ?? g.currentLapMs);
       if (Number.isFinite(x) && Number.isFinite(z) && Number.isFinite(lapMs) && lapMs > 0 && g.status === 2) {
         const kt = this.lapTrack;
         const lp = kt.length ? kt[kt.length - 1] : null;
@@ -597,13 +971,22 @@ export class LiveReader {
     }
   }
   stop() { try { this.child?.kill(); } catch {} this.child = null; }
-  snapshot() {
+  /**
+   * Istantanea per i consumatori. `raw:true` aggiunge i tre blocchi PARSATI
+   * COMPLETI (static, graphics, physics): la GUI e il copilota continuano a
+   * usare il payload compatto, mentre /api/live può mostrare ogni campo già
+   * letto dalla MMF senza una seconda lettura né un secondo processo.
+   */
+  snapshot({ raw = false } = {}) {
     const { static: st, graphics: g, physics: p, game } = this.last;
     if (!game || !st) return { game: false };
     // dati vecchi = dati inaffidabili: se il lettore non aggiorna da oltre 20s
     // (gioco chiuso senza 'nogame', lettore impallato) non fidarci mai
     if (this.last.at && Date.now() - this.last.at > 20000) return { game: false, stale: true };
-    return {
+    const deltaInfo = this._deltaInfo();
+    const playerPos = currentCarPosition(g, p);
+    const fuelPerLapLive = liveFuelPerLap(g);
+    const snap = {
       game: true,
       live: !!g && g.status === 2,
       paused: !!g && g.status === 3,
@@ -627,8 +1010,11 @@ export class LiveReader {
         timedRace: !!st.timedRace,
       },
       timing: g?.timing ?? null,
+      // tempi numerici normalizzati (stringa HUD come fallback): il cruscotto
+      // non deve mostrare «—» quando il gioco ha il tempo ma l'int32 è a zero.
+      lapTimes: g?.lapMs ?? null,
       // delta di ritmo: il giro di adesso contro il best della sessione (o l'HUD del gioco)
-      delta: this._deltaInfo(),
+      delta: deltaInfo,
       // mappa live: contorno raccolto dai tuoi giri + coordinate delle auto in griglia
       // + la traccia del BEST (per la mappa «dove perdo tempo») e il punto auto di adesso
       map: {
@@ -636,7 +1022,8 @@ export class LiveReader {
         cars: g?.carCoords ?? null,
         best: this.bestTrack ? this.bestTrack.map((p) => [Math.round(p.x), Math.round(p.z)]) : null,
         bestLap: this.bestLapMs != null ? { no: this.bestLapNo, ms: this.bestLapMs } : null,
-        cur: g?.carCoords?.[0] ? [Math.round(g.carCoords[0][0]), Math.round(g.carCoords[0][2])] : null,
+        cur: playerPos ? [Math.round(playerPos.x), Math.round(playerPos.z)] : null,
+        playerSource: playerPos?.source ?? null,
       },
       player: g ? {
         car: g.carModel?.trim() || p?.car || null,
@@ -677,8 +1064,12 @@ export class LiveReader {
         isLastLap: !!g.isLastLap,
         lapNo: g.currentLapNo ?? null,
         lapsTotal: g.totalLapsSession ?? null,
-        bestLap: fmtMs(g.bestLapMs),
-        lastLap: fmtMs(g.lastLapMs),
+        bestLap: fmtMs(g.lapMs?.best ?? g.bestLapMs),
+        lastLap: fmtMs(g.lapMs?.last ?? g.lastLapMs),
+        currentLapMs: g.lapMs?.current ?? g.currentLapMs ?? null,
+        lastLapMs: g.lapMs?.last ?? g.lastLapMs ?? null,
+        bestLapMs: g.lapMs?.best ?? g.bestLapMs ?? null,
+        deltaMs: Number.isFinite(Number(g.deltaMs)) ? Number(g.deltaMs) : null,
         gapAhead: Number.isFinite(g.gapAhead) && g.gapAhead > 0 ? g.gapAhead : null,
         gapBehind: Number.isFinite(g.gapBehind) && g.gapBehind > 0 ? g.gapBehind : null,
         // GREZZI (31/10 pomeriggio, carta bianca): il valore scritto dal gioco
@@ -714,8 +1105,8 @@ export class LiveReader {
         // 0 o assente = nessun taglio contabilizzato (non è un errore:
         // qualifiche e TimeAttack li lasciano a zero).
         cutPenaltyMs: Number.isFinite(g.raceCutGainedMs) ? g.raceCutGainedMs : null,
-        currentLapText: g.timing?.currentLap ?? null,
-        deltaText: g.timing?.delta ?? null,
+        currentLapText: g.timing?.currentLap ?? fmtMs(g.lapMs?.current ?? null),
+        deltaText: g.timing?.delta ?? fmtDeltaText(deltaInfo?.dv),
         idealLapText: g.timing?.idealLap ?? null,
         sessionPhase: g.sessionPhase ?? null,
         timeLeftAll: g.timeLeftStr?.trim() || null,
@@ -730,9 +1121,33 @@ export class LiveReader {
         damage: (p?.carDamage ?? []).map((v) => (Number.isFinite(v) ? Math.round(v * 100) : null)) ?? null,
         tyreWear: (p?.tyreWear ?? []).map((v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null)) ?? null,
         tyreCoreTemp: (p?.tyreCoreTemp ?? []).map((v) => (Number.isFinite(v) ? Math.round(v) : null)) ?? null,
+        // I nuovi campi della MMF non restano chiusi in raw: la radio e il
+        // meccanico li ricevono anche dallo snapshot compatto.
+        tyreTempC: ['lf', 'rf', 'lr', 'rr'].map((k) => {
+          const v = g.tyres?.[k]?.temperatureC;
+          return Number.isFinite(v) && v > 0 ? Math.round(v) : null;
+        }),
+        tyreInnerC: ['lf', 'rf', 'lr', 'rr'].map((k) => {
+          const v = g.tyres?.[k]?.temperatureInnerC;
+          return Number.isFinite(v) && v > 0 ? Math.round(v) : null;
+        }),
+        tyreOuterC: ['lf', 'rf', 'lr', 'rr'].map((k) => {
+          const v = g.tyres?.[k]?.temperatureOuterC;
+          return Number.isFinite(v) && v > 0 ? Math.round(v) : null;
+        }),
+        tyrePressure: (p?.wheelPressure ?? g.tyrePressure ?? []).map((v) => (Number.isFinite(v) && v > 0 ? Math.round(v * 10) / 10 : null)),
+        brakeTempC: (g?.brakeTempC ?? p?.brakeTemp ?? []).map((v) => (Number.isFinite(v) && v > 0 ? Math.round(v) : null)),
+        fuelPerLap: fuelPerLapLive,
+        tcActive: !!g.tcActive,
+        gForces: p?.accG ?? g?.gForces ?? null,
+        camberRAD: p?.camberRAD ?? null,
+        suspensionTravel: p?.suspensionTravel ?? null,
+        rideHeight: p?.rideHeight ?? null,
         timeLeft: !!st.timedRace && g.timeLeftStr?.trim() ? g.timeLeftStr.trim() : null,
       } : null,
     };
+    if (raw) snap.raw = { static: st, graphics: g, physics: p };
+    return snap;
   }
 
   /**

@@ -2,7 +2,8 @@
   "version": "1.2.0",
   "title": "Cruscotto",
   "pages": [
-    "menu.html"
+    "menu.html",
+    "singleplayer.html"
   ],
   "scripts": [
     "cruscotto.js"

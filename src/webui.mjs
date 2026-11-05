@@ -51,7 +51,7 @@ import { newsFeed, seasonPress } from './gazzetta.mjs';
 import { recordTestDay, testDayLog, calibrationSummary, prettyTrackLabeled } from './testday.mjs';
 import { recordHotlaps, hotlapSweep, hotlapsLog, hotlapsStats, hotlapsProgress, hotlapsPistaGiro } from './hotlaps.mjs';
 import { recordWarning, readWarnings } from './warnings.mjs';
-import { fourPsi, startPsiFromLive, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
+import { fourPsi, startPsiFromLive, liveSetupSignals, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, setupAdvice, boxChecklist, mechanicExtraEdits } from './setup.mjs';
 import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, telemDiagnostics, lapTrace, sampleLap, sessionMetaOf, parseLdx } from './motec.mjs';
 import { coachingOfSamples } from './telemetria-curve.mjs';
 // stinti.mjs e usura-gomme.mjs leggono la STESSA telemetria MoTeC: stint
@@ -134,7 +134,7 @@ import { resetNews } from './gazzetta.mjs';
 import { loadClasses, buildGridMessage } from './gridbuilder.mjs';
 import { gridStatus, applyBalance, applyAi, dropCellsApply, matchCurrentClass, rebuildGridApply, GRID_FILE, pruneBackups, bakName, templatePathOf } from './grid-apply.mjs';
 // app «Cruscotto» in gioco: publisher della vetrina nella cartella del loader
-import { startUiappPublisher, statoIstantanea } from './uiapp-pub.mjs';
+import { startUiappPublisher, statoIstantanea, avviaSonda, statoSonda } from './uiapp-pub.mjs';
 // I CONSIGLI ANCHE NELL'APP (31/10): la card dell'app nella GUI mostra il
 // medesimo bussollino dell'ingegnere (consigliFascia) — STESSA fonte del
 // cruscotto in fascia, un solo calcolo, nessuna doppia lettura MMF.
@@ -1368,18 +1368,18 @@ async function api(context0, _req, res, action, body) {
       const mode = await syncLiveReader();
       if (mode === 'off') return sendJson(res, 200, { game:false, liveMode:'off' });
       const r = liveReader();
-      let snap = r.snapshot();
+      let snap = r.snapshot({ raw: true });
       // RECUPERO: il lettore PowerShell può restare "inciappato" in nogame (genere
       // avviato mentre EVO era chiuso, MMF già passate): se il PROCESSO del gioco
       // è vivo ma il lettore non lo vede, lo riciclo al volo e riprovo.
       if (!snap.game && await gameRunningMemo()) {
         r.stop();
         r.start();
-        snap = r.snapshot();
+        snap = r.snapshot({ raw: true });
       }
       // RECUPERO SORDO (29/10): vivo ma senza dati (sessione sconosciuta,stale)
       // per più di 15 s col gioco avviato → stesso riciclo, automatico.
-      if (await vigiaSordo(r, snap)) snap = r.snapshot();
+      if (await vigiaSordo(r, snap)) snap = r.snapshot({ raw: true });
       // verifica della configurazione: confronta la sessione live con la scheda gara attesa
       let check = null;
       if (snap.game && state) {
@@ -1422,6 +1422,16 @@ async function api(context0, _req, res, action, body) {
         }
       }
       return sendJson(res, 200, { ...snap, check, liveMode: mode });
+    }
+    case 'sonda-menu': {
+      // SONDA READ-ONLY DEL MENU (4/11): la richiesta viaggia nella fascia del
+      // Cruscotto (src/uiapp-pub.mjs), l'app la esegue e deposita le risposte.
+      // GET = stato; POST = avvia (body.comandi opzionale, whitelist nel publisher).
+      if (req.method === 'POST' && body.stato !== true) {
+        const es = avviaSonda(body.comandi ?? null);
+        return sendJson(res, es.ok ? 200 : 409, es);
+      }
+      return sendJson(res, 200, { ok: true, ...statoSonda() });
     }
     case 'live-toggle': {
       /* accende/spegne il lettore LIVE a comando (strip + Impostazioni):
@@ -3344,7 +3354,15 @@ async function api(context0, _req, res, action, body) {
         // liveTrack serve anche al consiglio: con EVO in sessione la correzione
         // LIVE comanda su quella da telemetria (vedi startPsiFromLive più sotto).
         let liveTrack = null;
-          try { if (await syncLiveReader() !== 'off') liveTrack = liveReader()?.snapshot?.()?.session?.track ?? null; } catch { /* live non disponibile: si decide senza */ }
+        let liveNow = null;
+        try {
+          if (await syncLiveReader() !== 'off') {
+            // UN solo snapshot con i blocchi raw: pista, pressioni, freni,
+            // temperature e consumo vengono dallo stesso tick.
+            liveNow = liveReader()?.snapshot?.({ raw: true }) ?? null;
+            liveTrack = liveNow?.session?.track ?? null;
+          }
+        } catch { /* live non disponibile: si decide senza */ }
           if (liveTrack) {
             if (trackName && !trkSame(liveTrack, trackName)) return sendJson(res, 200, { ok: false, track: trackName, liveTrack, hint: tr({ it: `Il gioco è su «${liveTrack}» ma la richiesta mira a «${trackName}»: non scrivo la copia «EVO-consigliato» su una pista diversa (in gioco la lista CARICA mostra solo auto + pista corrente). Aggiorna il pannello se la pista è cambiata.`, en: `The game is at «${liveTrack}» but the request targets «${trackName}»: I won't write the «EVO-consigliato» copy on a different track (in game the LOAD list shows only current car+track). Refresh the panel if the track changed.` }) });
             trackName = trackName || liveTrack;
@@ -3393,11 +3411,13 @@ async function api(context0, _req, res, action, body) {
         // (pressioni a caldo + target classe, regola dei 4 PSI) scrive
         // l'«EVO-consigliato» anche quando esiste una telemetria vecchia: decide
         // il giro appena fatto, non il .ld di un'altra sessione.
-        const liveFix = liveTrack
+        const liveSignals = liveNow?.live ? liveSetupSignals({ raw: liveNow.raw, player: liveNow.player }) : null;
+        const liveFix = liveNow?.live
           ? startPsiFromLive({
-            livePsi: liveReader()?.last?.physics?.wheelPressure ?? null,
+            livePsi: liveSignals?.livePsi ?? null,
             target: tyre?.target ?? null,
             coldNow: Number(cur.tires?.[0]?.pressure),
+            coldByWheel: cur.tires?.map((t) => Number(t.pressure)),
           })
           : null;
         const liveHot = liveFix?.hot ?? null;
@@ -3412,7 +3432,9 @@ async function api(context0, _req, res, action, body) {
         const tires = [];
         for (let i = 0; i < nTire; i++) {
           const now = Number(cur.tires[i]?.pressure);
-          tires.push(Math.abs(now - startPsi) < 0.05 ? {} : { pressure: Math.round(startPsi * 10) / 10 });
+          const perWheel = Number(liveFix?.pressures?.[i]);
+          const want = Number.isFinite(perWheel) ? perWheel : startPsi;
+          tires.push(Math.abs(now - want) < 0.05 ? {} : { pressure: Math.round(want * 10) / 10 });
         }
         /* OLTRE LE PRESSIONI (Mauro 21/10: «applica tutto assieme»): le regole
           SIONO dentro mechanicExtraEdits (setup.mjs) — ognuna legata a un SEEGNALO
@@ -3436,6 +3458,15 @@ async function api(context0, _req, res, action, body) {
           fuelPerLap: s0?.fuelPerLap ?? lastLap?.fuelUsed ?? null,
           raceLaps: raceAdvice?.raceLaps ?? (Number(body.raceLaps) >= 3 ? Number(body.raceLaps) : null),
         };
+        // LIVE sopra la telemetria vecchia: freni, camber-proxy e consumo di
+        // ADESSO decidono le patch; bumpstop/TC restano dal .ld perché il live
+        // non ha la finestra del giro necessaria a misurarli.
+        if (liveSignals) {
+          if (liveSignals.brakes) latest.brakes = liveSignals.brakes;
+          if (liveSignals.camberProxy) latest.camberProxy = liveSignals.camberProxy;
+          if (liveSignals.fuelPerLap != null) latest.fuelPerLap = liveSignals.fuelPerLap;
+          latest.live = true;
+        }
         const tKey = trackName || src.track || null;
         const TRACK = tKey ? (TRACK_INFO[tKey] ?? Object.values(TRACK_INFO).find((t) => trkSame(t.name, tKey))) : null;
         // base di fabbrica per la regola 'raddrizzo l'asimmetria' (21/10)
@@ -3460,6 +3491,7 @@ async function api(context0, _req, res, action, body) {
             ok: true, preview: true, car: carEff, track: trackName || src.track,
             baseFile: src.file, baseName: src.name,
             startPsi, basis: basis ?? null,
+            live: liveSignals,
             before: { pressures: cur.tires.map((t) => t.pressure) },
             after: { pressures: dopo },
             extraChanges,
@@ -3475,6 +3507,7 @@ async function api(context0, _req, res, action, body) {
           ok: true, file: dest, fileShort: `${src.name} — EVO-consigliato.carsetup`,
           car: carEff, track: trackName || src.track, baseFile: src.file,
           startPsi, changes: out.changes,
+          live: liveSignals,
           extraChanges,
           aero: { before: { heightRear: cur.aero?.heightRear ?? null, wingRear: cur.aero?.wingRear ?? null }, after: { heightRear: after.aero?.heightRear ?? null, wingRear: after.aero?.wingRear ?? null } },
           before: { pressures: cur.tires.map((t) => t.pressure) },

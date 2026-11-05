@@ -11,6 +11,7 @@ import { readFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeJsonAtomic } from './atomic.mjs';
+import { liveFuelPerLap } from './shmem.mjs';
 import { tr } from './lang.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -106,9 +107,13 @@ export function fourPsi({ cold, hot, target }) {
  * null se i dati non bastano (meno di 3 gomme valide, target assente, valore
  * fuori scala): meglio nessun consiglio che un numero inventato.
  */
-export function startPsiFromLive({ livePsi, target, coldNow } = {}) {
-  const hot = (Array.isArray(livePsi) ? livePsi : [])
-    .map(Number).filter((v) => Number.isFinite(v) && v > 15 && v < 60);
+export function startPsiFromLive({ livePsi, target, coldNow, coldByWheel = null } = {}) {
+  const raw = Array.isArray(livePsi) ? livePsi : [];
+  const valid = raw.map((v) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 15 && n < 60;
+  });
+  const hot = raw.map(Number).filter((_, i) => valid[i]);
   const t = Number(target);
   if (hot.length < 3 || !Number.isFinite(t) || t <= 0) return null;
   const hotAvg = Math.round((hot.reduce((a, b) => a + b, 0) / hot.length) * 10) / 10;
@@ -118,7 +123,74 @@ export function startPsiFromLive({ livePsi, target, coldNow } = {}) {
   const cold = Number.isFinite(c) && c > 10 ? c : Math.round((hotAvg - 4) * 10) / 10;
   const startPsi = Math.round((cold + delta) * 10) / 10;
   if (startPsi < 12 || startPsi > 45) return null;   // fuori scala: non scrivere
-  return { startPsi, coldNow: cold, hotAvg, delta, hot };
+  // Le quattro gomme hanno pressioni a caldo diverse: la stessa regola dei
+  // 4 PSI applicata ruota per ruota evita di equalizzare un asse che in pista
+  // sta lavorando a temperature diverse. Se il file non ha la pressione di
+  // quella ruota, si usa la media (coldNow) come prima.
+  const colds = Array.isArray(coldByWheel) ? coldByWheel.map(Number) : [];
+  const pressures = raw.map((v, i) => {
+    if (!valid[i]) return null;
+    const cw = Number(colds[i]);
+    const base = Number.isFinite(cw) && cw > 10 ? cw : cold;
+    const want = Math.round((base + (t - Number(v))) * 10) / 10;
+    return want >= 12 && want <= 45 ? want : null;
+  });
+  return { startPsi, coldNow: cold, hotAvg, delta, hot, pressures };
+}
+
+/**
+ * I segnali del LIVE che il meccanico può usare senza inventare nulla.
+ * Legge i blocchi già parsati (graphics + physics) e restituisce solo valori
+ * plausibili: pressioni a caldo, temperature freno, delta termico int/est
+ * delle gomme e consumo per giro. Non produce bumpstop/percentuali di
+ * contatto perché il live non espone la finestra del giro come il .ld: quelli
+ * restano dalla telemetria chiusa.
+ */
+export function liveSetupSignals({ raw = null, player = null } = {}) {
+  const g = raw?.graphics ?? raw?.raw?.graphics ?? null;
+  const p = raw?.physics ?? raw?.raw?.physics ?? null;
+  const wheels = ['lf', 'rf', 'lr', 'rr'];
+  const ok = (v, min, max) => Number.isFinite(Number(v)) && Number(v) >= min && Number(v) <= max;
+
+  const pressureRaw = p?.wheelPressure ?? g?.tyrePressure ?? player?.tyrePressure ?? [];
+  const livePsi = Array.from({ length: 4 }, (_, i) => (ok(pressureRaw?.[i], 15, 60) ? Math.round(Number(pressureRaw[i]) * 10) / 10 : null));
+
+  const brakes = {};
+  for (const w of wheels) {
+    const v = g?.tyres?.[w]?.brakeTempC;
+    if (ok(v, 30, 1200)) brakes[w.toUpperCase()] = Math.round(Number(v));
+  }
+  if (Object.keys(brakes).length < 3) {
+    for (let i = 0; i < 4; i++) {
+      const v = p?.brakeTemp?.[i];
+      if (ok(v, 30, 1200)) brakes[wheels[i].toUpperCase()] = Math.round(Number(v));
+    }
+  }
+
+  const camberProxy = {};
+  for (const w of wheels) {
+    const inner = g?.tyres?.[w]?.temperatureInnerC;
+    const outer = g?.tyres?.[w]?.temperatureOuterC;
+    let d = null;
+    if (ok(inner, 20, 250) && ok(outer, 20, 250)) d = Number(inner) - Number(outer);
+    else {
+      const i = wheels.indexOf(w);
+      if (ok(p?.tyreTempI?.[i], 20, 250) && ok(p?.tyreTempO?.[i], 20, 250)) {
+        d = Number(p.tyreTempI[i]) - Number(p.tyreTempO[i]);
+      }
+    }
+    if (d != null) camberProxy[w.toUpperCase()] = Math.round(d * 10) / 10;
+  }
+
+  const fuelPerLap = liveFuelPerLap(g);
+  return {
+    livePsi,
+    brakes: Object.keys(brakes).length >= 3 ? brakes : null,
+    camberProxy: Object.keys(camberProxy).length ? camberProxy : null,
+    fuelPerLap,
+    tyreTempC: wheels.map((w) => (ok(g?.tyres?.[w]?.temperatureC, 0, 250) ? Math.round(Number(g.tyres[w].temperatureC)) : null)),
+    at: Number.isFinite(Number(player?.at)) ? Number(player.at) : null,
+  };
 }
 
 /* ------------------------------------------------------------------ */

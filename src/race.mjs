@@ -639,6 +639,25 @@ export function markPending(_ladder, state, card, { autoAvvio = true } = {}) {
     laps: card.laps ?? card.round.laps ?? null,
     car: card.car,
     gridSize: card.gridSize,
+    // IL WEEKEND DA APPLICARE AL VOLO (4/11, «come fa Paddock»): non basta
+    // scrivere griglia e auto sul disco — EVO aperto legge quei file solo
+    // all'avvio. Il Cruscotto riceve qui TUTTO quello che serve a
+    // SetGameModeParameters e lo applica nella stessa sequenza dell'auto.
+    weekend: {
+      // una sola auto in serie = monomarca: la griglia la genera il gioco
+      singleMake: (card.node?.cars?.length ?? 0) === 1,
+      opponents: Number.isFinite(Number(card.opponents)) ? Number(card.opponents) : null,
+      aiMin: Number.isFinite(Number(card.difficulty?.rangeMin)) ? Number(card.difficulty.rangeMin) : null,
+      aiMax: Number.isFinite(Number(card.difficulty?.rangeMax)) ? Number(card.difficulty.rangeMax) : null,
+      laps: Number.isFinite(Number(card.laps)) ? Number(card.laps) : null,
+      gridCars: (card.carPool?.ids?.length ? card.carPool.ids : (card.carChoices ?? []).map((x) => x.id)).slice(0, 30),
+      sessions: {
+        Practice: { hour: card.practiceStart ?? null },
+        Qualifying: { hour: card.qualifyStart ?? null },
+        Warmup: { hour: card.warmupStart ?? null },
+        Race: { hour: card.raceHour ?? card.round?.hour ?? null },
+      },
+    },
     startedAt: Date.now(),
     // L'AUTO-AVVIO SI ARMA SOLO COL «Prepara tutto e avvia» (4/11): col
     // «Prepara tutto» resta a 0 e l'app non preme mai «Avvia sessione» —

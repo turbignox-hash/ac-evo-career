@@ -11,6 +11,8 @@
     "start": "node ./ac-evo-career.mjs",
     "test": "node --test \"test/*.test.mjs\"",
     "uiapp": "node tools/genera-uiapp.mjs",
+    "registra-live": "node tools/registra-live.mjs",
+    "sonda-menu": "node tools/sonda-menu.mjs",
     "magazzino": "node tools/magazzino-check.mjs",
     "bump": "node tools/bump-versione.mjs",
     "lint": "biome lint src tools test gui/js uiapp ac-evo-career.mjs --error-on-warnings",

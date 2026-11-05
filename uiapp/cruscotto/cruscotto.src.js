@@ -210,7 +210,7 @@
     });
   }
   function adotta(dati, slot) {
-    if (dati) { S.slot = slot; S.dati = dati; fasciaValidaFino = Date.parse(dati.validaFino) || 0; fasciaTs = Date.now(); try { applicaComando(dati.comando); } catch (_e) { } disegna(); }
+    if (dati) { S.slot = slot; S.dati = dati; fasciaValidaFino = Date.parse(dati.validaFino) || 0; fasciaTs = Date.now(); try { applicaComando(dati.comando); } catch (_e) { } try { if (dati.sonda) corriSonda(dati.sonda); } catch (_e) { } disegna(); }
   }
 
   // ------------------------------------------------------------------ COMANDI IN DIRETTA
@@ -218,6 +218,7 @@
   const MODO_RACE_WEEKEND = 'GameModeType_RACE_WEEKEND';
   const OK_RISPOSTA = 'ClientCommandsResponse_OK';
   let ultimoComando = null;
+  let sondaEseguita = null;   // id dell'ultima sonda: la fascia la ripete finché non risponde
   // SOBRIETÀ: UNA sequenza per volta + riprova senza cap (le lezioni 27/10
   // restano: le risposte si scambiano le mani se due sequenze corrono insieme)
   const RETRY_MS = 5000;
@@ -327,6 +328,49 @@
     });
   }
 
+  // SONDA DEL MENU (4/11): comandi read-only ricevuti dal server nella fascia.
+  // Esegue UNO alla volta e deposita TUTTE le risposte nel persist, così il
+  // server le legge e le logga senza aprire un secondo canale. Nessuna
+  // scrittura nel gioco: la whitelist vive nel publisher, qui si esegue solo
+  // ciò che arriva. Il timeout corto evita di tenere il menu occupato.
+  function sondaDati(r) {
+    try {
+      const testo = JSON.stringify(r ?? null);
+      if (testo.length <= 12000) return r ?? null;
+      return { troncato: true, bytes: testo.length, chiavi: Object.keys(r || {}), anteprima: testo.slice(0, 12000) };
+    } catch (_e) { return { errore: 'risposta non serializzabile' }; }
+  }
+  async function corriSonda(req) {
+    if (!req || !req.id || req.id === sondaEseguita) return;
+    sondaEseguita = req.id;
+    const lista = Array.isArray(req.comandi) ? req.comandi : [];
+    const risposte = [];
+    let scritto = false;
+    for (let i = 0; i < lista.length; i++) {
+      const c = lista[i] || {};
+      const t0 = Date.now();
+      const r = await giocoComando(c.cmd, c.args || { mode: MODO_SINGLE }, c.timeoutMs || 8000);
+      const voce = {
+        cmd: c.cmd || '?',
+        ok: !!r && r.response === OK_RISPOSTA,
+        ms: Date.now() - t0,
+        response: r?.response ?? null,
+        error: r?.error ?? null,
+        dati: sondaDati(r),
+      };
+      risposte.push(voce);
+      loga('sonda ' + voce.cmd + ': ' + (voce.ok ? 'OK' : 'KO') + ' (' + voce.ms + ' ms)' + (voce.error ? ' — ' + voce.error : ''));
+    }
+    try {
+      const l = window.ACEUIAppLoader;
+      if (l?.persist && typeof l.persist.writeStore === 'function') {
+        l.persist.writeStore('cruscotto.sonda', { id: req.id, eseguita: Date.now(), risposte: risposte });
+        scritto = true;
+      }
+    } catch (e) { loga('sonda: risposta non scritta: ' + e); }
+    if (!scritto) sondaEseguita = null;   // la prossima fascia riprova
+  }
+
   // nome confrontabile: minuscolo, senza accenti, solo lettere e numeri (come nel gioco)
   const ACCENTI = { 'à': 'a', 'á': 'a', 'â': 'a', 'ä': 'a', 'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e', 'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i',
                     'ò': 'o', 'ó': 'o', 'ô': 'o', 'ö': 'o', 'ù': 'u', 'ú': 'u', 'û': 'u', 'ü': 'u', 'ñ': 'n', 'ç': 'c' };
@@ -377,6 +421,21 @@
       if (want === 'RAIN' && (t.endsWith('_LIGHT_RAIN') || t.endsWith('_HEAVY_RAIN'))) { scarti.push(cieli[i]); continue; }
       return cieli[i];
     }
+    // VARIANTE PIÙ VICINA (5/11, Brands Hatch): la lista del gioco può mancare
+    // della variante esatta della ronda (LIGHT_RAIN assente). Meglio la
+    // FAMIGLIA più vicina che il cielo invariato: LIGHT_RAIN → RAIN,
+    // HEAVY_RAIN → RAIN, PARTLY_CLOUDY → CLOUDY. Vince il tipo pulito (senza
+    // modificatori), altrimenti quello con meno modificatori (nome più corto).
+    // Il RAIN richiesto resta sul vecchio piano degli scarti (LIGHT/HEAVY).
+    const famiglia = want.split('_').pop();
+    if (famiglia && famiglia !== want) {
+      const parentela = cieli.filter((c) => {
+        const t = String(c?.type || '').toUpperCase();
+        return t.indexOf(famiglia) >= 0;
+      }).sort((a, b) => String(a.type).length - String(b.type).length);
+      const pulito = parentela.find((c) => String(c.type).toUpperCase() === 'GameModeSelectionWeatherType_' + famiglia);
+      return pulito ?? parentela[0] ?? (scarti[0] || null);
+    }
     return scarti[0] || null;
   }
 
@@ -396,19 +455,93 @@
     return scorta;
   }
 
-  // SEQUENZA COMPLETA (gara di carriera): SetGameType → pista → Models → SetCurrentCar
+  // IL WEEKEND IN MANO AL GIOCO (4/11, «come fa Paddock»): le impostazioni
+  // della scheda non restano sul disco — la stessa sessione di comandi che
+  // mette l'auto aggiorna anche avversari, Single Make, banda AI, giri e
+  // modelli della griglia. Il campo Single Make non ha un nome stabile nel
+  // menu: Paddock lo prende subito dopo `opponents` quando è booleano/0-1,
+  // qui si fa lo stesso senza dizionari.
+  function chiaviSingleMake(sess, on) {
+    const keys = [];
+    sess.forEach(function (x) {
+      if (!x || typeof x !== 'object') return;
+      const ks = Object.keys(x);
+      const i = ks.indexOf('opponents');
+      let dopo = null;
+      if (i >= 0 && i + 1 < ks.length) {
+        const v = x[ks[i + 1]];
+        if (typeof v === 'boolean' || v === 0 || v === 1) dopo = ks[i + 1];
+      }
+      ks.forEach(function (k) {
+        if (!(k === dopo || /single.?make|one.?make|same.?car|mono.?make/i.test(k))) return;
+        if (keys.indexOf(k) < 0) keys.push(k);
+        if (typeof x[k] === 'number') x[k] = on ? 1 : 0;
+        else if (typeof x[k] === 'string') x[k] = on ? 'true' : 'false';
+        else x[k] = !!on;
+      });
+    });
+    return keys;
+  }
+
+  function autoWeekend(cars, ids) {
+    const out = [];
+    (Array.isArray(ids) ? ids : []).forEach(function (id) {
+      const m = trovaAuto(cars, id, id);
+      if (!m) return;
+      // dedupe per MODELLO (name), non per nome mostrato: due auto diverse
+      // possono chiamarsi uguale, e una stessa auto può avere più etichette.
+      const k = chiave(m.name || m.display_name);
+      for (let i = 0; i < out.length; i++) if (chiave(out[i].name || out[i].display_name) === k) return;
+      out.push(m);
+    });
+    return out;
+  }
+
+  // UNA LIVREA PER AVVERSARIO (5/11): il gioco elenca una voce per OGNI skin
+  // (stesso `name`, `preset.name` diverso). Copiando 15 volte lo stesso
+  // oggetto la griglia monomarca esce tutta dello stesso colore: qui si
+  // distribuiscono le skin del modello a giro, senza inventare preset (se il
+  // modello ne ha una sola, resta quella di sempre).
+  function variantiLivrea(cars, modello) {
+    const out = [];
+    const visti = {};
+    (Array.isArray(cars) ? cars : []).forEach(function (x) {
+      if (!x || x.name !== modello.name || !x.preset || !x.preset.name) return;
+      if (visti[x.preset.name]) return;
+      visti[x.preset.name] = 1;
+      out.push(x);
+    });
+    return out.length ? out : [modello];
+  }
+
+  function grigliaConLivree(cars, base, quanti) {
+    const b = (Array.isArray(base) && base.length) ? base : [];
+    if (!b.length) return [];
+    const out = [];
+    for (let i = 0; i < quanti; i++) {
+      const m = b[i % b.length];
+      const v = variantiLivrea(cars, m);
+      out.push(Object.assign({}, v[Math.floor(i / b.length) % v.length]));
+    }
+    return out;
+  }
+
+  // SEQUENZA COMPLETA (gara di carriera): SetGameType → pista → Models → SetCurrentCar → weekend → SetWeather
   async function corriSetcar(c) {
     const eng = window.engine;
     if (!eng || typeof eng.trigger !== 'function') { notaComando('engine non disponibile (pagina aperta fuori dal gioco?)'); return false; }
+    const fatti = [];
     const r1 = await giocoComando('GameModeSelectionClientRequestSetGameType', { mode: MODO_SINGLE, type: MODO_RACE_WEEKEND }, 8000);
     if (!r1 || r1.response !== OK_RISPOSTA) { notaComando('Race Weekend: ' + okTesto(r1)); loga('SetGameType: ' + okTesto(r1)); return false; }
+    let pista = null;
     if (c.pista) {
       const tl = await giocoComando('GameModeSelectionClientRequestTrackList', { mode: MODO_SINGLE }, 10000);
       const items = (tl?.track_item) || [];
-      const pista = trovaPista(items, c.pista, c.layout);
+      pista = trovaPista(items, c.pista, c.layout);
       if (pista) {
         const r2 = await giocoComando('GameModeSelectionClientRequestSetTrack', { mode: MODO_SINGLE, track_item: pista }, 8000);
         if (!r2 || r2.response !== OK_RISPOSTA) { notaComando('Pista ' + (pista.name || c.pista) + ': ' + okTesto(r2)); loga('SetTrack: ' + okTesto(r2)); return false; }
+        fatti.push('pista ' + (pista.name || c.pista) + (pista.layout ? ' ' + pista.layout : ''));
       }
     }
     const cl = await giocoComando('CarSelectionClientRequestModels', { mode: MODO_SINGLE, brand: '' }, 10000);
@@ -425,13 +558,163 @@
     // della ronda restano comunque sul disco (stesso piano del Prepara) —
     // se il menu non risponde, la vetrina dell'auto resta e l'ack esce uguale.
     // NIENTE GIRI: la durata resta quella scritta su disco.
-    const fatti = [];
+    let weekendOk = false;
     try {
       const gp = await giocoComando('GameModeSelectionClientRequestGameModeParameters', { mode: MODO_SINGLE }, 8000);
+      const w = c.weekend && typeof c.weekend === 'object' ? c.weekend : null;
+      if (!gp && w) {
+        notaComando('Weekend: il gioco non ha risposto con le impostazioni — riprovo.');
+        loga('weekend: GameModeParameters senza risposta');
+        return false;
+      }
       if (gp) {
-        const sess = gp.sessions || [];
-        // ORA: lo stesso piano orario del Prepara su disco (P −6h, Q −3h, W −1h, gara all'ora esatta)
-        if (c.ora != null) {
+        const sess = Array.isArray(gp.sessions) ? gp.sessions : [];
+        if (w) {
+          if (!sess.length) {
+            notaComando('Weekend: il gioco non ha dato le sessioni del Race Weekend — riprovo.');
+            loga('weekend: GameModeParameters senza sessions');
+            return false;
+          }
+          // UNA VOCE PER AVVERSARIO (4/11): Paddock con models=[car] e
+          // num_opponents=15 ha creato UN avversario; il menu usa
+          // models.length per riempire la griglia. Quindi 15 copie della R5;
+          // per le multiclasse i modelli del parco si ripetono fino a `quanti`.
+          const sm = !!w.singleMake;
+          const quanti = Math.max(1, Math.min(63, Number.isFinite(Number(w.opponents)) ? Math.floor(Number(w.opponents)) : 1));
+          const grid = autoWeekend(cars, w.gridCars);
+          const base = grid.length ? grid : [car];
+          const smKeys = chiaviSingleMake(sess, sm);
+          try {
+            loga('sessione ' + sess[0].name + ': ' + Object.keys(sess[0]).map(function (k) {
+              const v = sess[0][k];
+              return k + '=' + (v && typeof v === 'object' ? (Array.isArray(v) ? '[' + v.length + ']' : '{…}') : String(v));
+            }).join(', '));
+          } catch (_e) { }
+          const ore = w.sessions && typeof w.sessions === 'object' ? w.sessions : {};
+          const off = (sn) => { const s = String(sn || '').toLowerCase(); return /practice/.test(s) ? 6 : /qualif/.test(s) ? 3 : /warm/.test(s) ? 1 : 0; };
+          sess.forEach(function (s) {
+            if (!s || typeof s !== 'object') return;
+            if (Number.isFinite(Number(w.opponents)) && Number(w.opponents) >= 0) s.num_opponents = Number(w.opponents);
+            if (Number.isFinite(Number(w.aiMin))) s.min_strength = Number(w.aiMin);
+            if (Number.isFinite(Number(w.aiMax))) s.max_strength = Number(w.aiMax);
+            const oh = ore[s.name] && ore[s.name].hour;
+            const hh = oh != null && Number.isFinite(Number(oh)) ? Number(oh)
+              : (c.ora != null ? Math.max(0, Number(c.ora) - off(s.name)) : null);
+            if (hh != null && s.time_of_day && typeof s.time_of_day === 'object') s.time_of_day.hour = Math.max(0, Math.min(23, hh));
+            if (/race|gara/i.test(String(s.name || '')) && Number.isFinite(Number(w.laps)) && Number(w.laps) > 0) {
+              s.duration = Number(w.laps);
+              s.duration_type = 'GameModeSelectionDuration_LAPS';
+            }
+            if (sm) s.models = grigliaConLivree(cars, [car], quanti);
+            else s.models = grigliaConLivree(cars, base, quanti);
+          });
+          // LA GRIGLIA VA CONFERMATA DUE VOLTE (5/11, prova sul campo): il gioco
+          // tiene l'elenco avversari della volta prima. Con models=[15] ma
+          // opponents=[1] la schermata mostra UNA auto con la foto e le altre
+          // vuote, e «Avvia» crasha (0xC0000005): è lo stato in cui è morto il
+          // weekend delle 00:16. Paddock è passato al secondo giro, quando
+          // opponents è tornato [15]. Qui si rilegge la sessione e si riapplica
+          // finché l'elenco avversari non combacia: solo allora si parte.
+          let rp = await giocoComando('GameModeSelectionClientRequestSetGameModeParameters', { mode: MODO_SINGLE, sessions: sess }, 10000);
+          if (!rp || rp.response !== OK_RISPOSTA) {
+            notaComando('Weekend (griglia/avversari): ' + okTesto(rp) + ' — riprovo.');
+            loga('weekend SetGameModeParameters: ' + okTesto(rp));
+            return false;
+          }
+          let ultimaOpp = -1;
+          let ultimoMod = 0;
+          for (let conferma = 0; conferma < 3; conferma++) {
+            await new Promise(function (dai) { window.setTimeout(dai, 450); });
+            const chk = await giocoComando('GameModeSelectionClientRequestGameModeParameters', { mode: MODO_SINGLE }, 8000);
+            const s0 = (chk && Array.isArray(chk.sessions) ? chk.sessions[0] : null) || null;
+            const opp = s0 && Array.isArray(s0.opponents) ? s0.opponents.length : (s0 ? Number(s0.num_opponents) || 0 : 0);
+            const mod = s0 && Array.isArray(s0.models) ? s0.models.length : 0;
+            ultimaOpp = opp;
+            ultimoMod = mod;
+            loga('conferma griglia ' + (conferma + 1) + ': opponents=[' + opp + '] models=[' + mod + '] (attesi ' + quanti + ')');
+            // GRIGLIA SBILANCIATA NON SI GUIDA (5/11, il crash 01:16 di Brands
+            // Hatch): models=[17] con avversari=[16] ha ucciso EVO alla creazione
+            // della griglia (0xC0000005, stesso RVA 0x15B8CD5 del 00:22).
+            // Si adatta SOLO con uno scarto di 1-2 posti (il tetto del giuco, il
+            // posto del giocatore) e con l'eco COMPLETO — `mod` combacia coi
+            // modelli davvero inviati. Gli scarti GROSSI (il 15→1 delle 00:16)
+            // sono l'eco vecchio del menu che passa: non si taglia la griglia
+            // fresca per un elenco stantio — si riapplica e si aspetta che il
+            // gioco converga (l'idea è la stessa del test weekend multiclasse).
+            const inviati = Array.isArray(sess[0]?.models) ? sess[0].models.length : quanti;
+            if (mod === inviati && mod > opp && opp >= 4 && mod - opp <= 2) {
+              loga('griglia adattata: models ' + mod + ' → ' + opp + ' (il gioco assegna ' + (mod - opp) + ' posti in meno)');
+              sess.forEach(function (s) {
+                if (Array.isArray(s.models) && s.models.length > opp) s.models = s.models.slice(0, opp);
+              });
+              rp = await giocoComando('GameModeSelectionClientRequestSetGameModeParameters', { mode: MODO_SINGLE, sessions: sess }, 10000);
+              if (!rp || rp.response !== OK_RISPOSTA) {
+                notaComando('Weekend (griglia adattata): ' + okTesto(rp) + ' — riprovo.');
+                loga('weekend SetGameModeParameters (adattata): ' + okTesto(rp));
+                return false;
+              }
+              continue;
+            }
+            // POSTI IN PIÙ (5/11, Brands Hatch a 01:24): il gioco può avere più
+            // POSTI che modelli (opponents=[18] con models=[17]): un posto che
+            // resta scoperto alla creazione della griglia è lo stesso crash.
+            // Il parco si RIEMPIE a giro fino al numero di posti che il gioco
+            // tiene (la stessa scuola del monomarca: una voce per avversario).
+            if (mod === inviati && opp > mod && mod >= 4 && opp - mod <= 8) {
+              loga('griglia riempita: models ' + mod + ' → ' + opp + ' (il gioco ha ' + (opp - mod) + ' posti in più)');
+              sess.forEach(function (s) {
+                if (!Array.isArray(s.models) || s.models.length >= opp) return;
+                const parco = s.models.slice();
+                for (let k = s.models.length; k < opp; k++) s.models.push(parco[k % parco.length]);
+              });
+              rp = await giocoComando('GameModeSelectionClientRequestSetGameModeParameters', { mode: MODO_SINGLE, sessions: sess }, 10000);
+              if (!rp || rp.response !== OK_RISPOSTA) {
+                notaComando('Weekend (griglia riempita): ' + okTesto(rp) + ' — riprovo.');
+                loga('weekend SetGameModeParameters (riempita): ' + okTesto(rp));
+                return false;
+              }
+              continue;
+            }
+            if (opp >= quanti) break;
+            // UN POSTO È DEL GIOCATORE / TETTO DEL GIOCO: lo scarto di UNO è la
+            // griglia che il gioco considera piena; lo scarto GROSSO resta non
+            // confermato (il caso 15 modelli → opponents=[1] delle 00:16).
+            if (opp >= quanti - 1) {
+              loga('griglia accettata: ' + mod + ' modelli, ' + opp + ' avversari (tetto del gioco, un posto è del giocatore)');
+              break;
+            }
+            rp = await giocoComando('GameModeSelectionClientRequestSetGameModeParameters', { mode: MODO_SINGLE, sessions: sess }, 10000);
+            if (!rp || rp.response !== OK_RISPOSTA) {
+              notaComando('Weekend (griglia/avversari): ' + okTesto(rp) + ' — riprovo.');
+              loga('weekend SetGameModeParameters (conferma): ' + okTesto(rp));
+              return false;
+            }
+          }
+          weekendOk = true;
+          // LA GRIGLIA CHE NON SI CONFERMA NON SI GUIDA (5/11): se dopo i tre
+          // tentativi il gioco tiene ancora una lista avversari corta (il caso
+          // «una foto e le altre vuote»), non si dichiara un successo pieno e
+          // corriAvvia non preme Start: una griglia a metà è il crash delle
+          // 00:16 (0xC0000005), non un weekend pronto.
+          // stessa tolleranza della conferma: griglia allineata (tetto del gioco
+          // con un posto del giocatore) o modelli completi
+          const tolleranzaGriglia = (ultimoMod >= quanti || ultimoMod === ultimaOpp) ? 1 : 0;
+          if (ultimaOpp >= 0 && ultimaOpp + tolleranzaGriglia < quanti) {
+            loga('griglia NON confermata dopo 3 tentativi: ' + ultimaOpp + '/' + quanti + ' — niente avvio automatico');
+            fatti.push('griglia NON confermata ' + ultimaOpp + '/' + quanti);
+          }
+          fatti.push(sm ? 'griglia monomarca' : 'griglia multiclasse');
+          if (Number.isFinite(Number(w.opponents))) fatti.push(Number(w.opponents) + ' avversari');
+          if (Number.isFinite(Number(w.aiMin)) && Number.isFinite(Number(w.aiMax))) fatti.push('AI ' + Number(w.aiMin) + '–' + Number(w.aiMax));
+          if (Number.isFinite(Number(w.laps))) fatti.push(Number(w.laps) + ' giri');
+          const orari = sess
+            .map((s) => (s?.time_of_day && Number.isFinite(Number(s.time_of_day.hour)) ? Number(s.time_of_day.hour) : null))
+            .filter((h) => h != null);
+          if (orari.length) fatti.push('orari ' + orari.join('/'));
+          loga('weekend applicato: ' + (sm ? 'single make' : grid.length + ' modelli') + ', ' + fatti.join(', ') + ', campi Single Make: ' + (smKeys.join(', ') || 'nessuno'));
+          if (!smKeys.length) loga('weekend: campo Single Make non riconosciuto — restano opponents/models');
+        } else if (c.ora != null) {
+          // ORA: lo stesso piano orario del Prepara su disco (P −6h, Q −3h, W −1h, gara all'ora esatta)
           const off = (sn) => { const s = String(sn || '').toLowerCase(); return /practice/.test(s) ? 6 : /qualif/.test(s) ? 3 : /warm/.test(s) ? 1 : 0; };
           let toc = 0;
           sess.forEach((s) => { if (s?.time_of_day && typeof s.time_of_day === 'object') { s.time_of_day.hour = Math.max(0, Math.min(23, Number(c.ora) - off(s.name))); toc++; } });
@@ -446,13 +729,14 @@
           const ciel = scegliCielo(gp.weather_data, c.meteo);
           if (ciel) {
             const rw = await giocoComando('GameModeSelectionClientRequestSetWeather', { weather_data: ciel }, 8000);
-            if (rw && rw.response === OK_RISPOSTA) fatti.push('meteo ' + c.meteo);
-            loga('meteo ' + c.meteo + ': ' + okTesto(rw));
+            const cieloUsato = String(ciel?.type || '').replace(/^GameModeSelectionWeatherType_/, '');
+            if (rw && rw.response === OK_RISPOSTA) fatti.push('meteo ' + cieloUsato + (cieloUsato !== c.meteo ? ' (ripiego da ' + c.meteo + ')' : ''));
+            loga('meteo ' + c.meteo + ': ' + okTesto(rw) + (cieloUsato !== c.meteo ? ' — ripiego ' + cieloUsato : ''));
           } else { loga('meteo ' + c.meteo + ': il gioco non lo ha nella lista'); }
         }
       }
-    } catch (e) { loga('meteo/ora al volo: ' + e); }
-    notaComando('✓ ' + car.display_name + ' nel menu di EVO' + (fatti.length ? ' · ' + fatti.join(' · ') : ', senza riavvio') + '.');
+    } catch (e) { loga('meteo/ora/weekend al volo: ' + e); }
+    notaComando('✓ ' + (weekendOk ? 'weekend e auto applicati' : car.display_name + ' nel menu di EVO') + (fatti.length ? ' · ' + fatti.join(' · ') : ', senza riavvio') + '.');
     loga('✓ SetCurrentCar ok: ' + car.display_name);
     return true;
   }
@@ -485,10 +769,50 @@
   // un avvio automatico partirebbe con le impostazioni sbagliate. Pausa di
   // 1200ms prima della richiesta: il menu si deve ancora sistemare dopo la
   // scelta dell'auto (una pausa più larga dei 300 ms standard).
+  // LA PORTA DELL'AVVIO (5/11, il crash delle 00:16): prima di premere
+  // «Avvia sessione» si rilegge la griglia del gioco. Se il weekend armato
+  // chiede N avversari e la sessione ne tiene meno (opponents=[1] con
+  // models=[15]: una foto e il resto vuoto), il via NON si preme — si
+  // torna in menu e si ripreme «Prepara tutto». Se il gioco non risponde o
+  // la fascia non porta una griglia, il comportamento resta quello di prima
+  // (niente blocchi inventati).
+  async function grigliaIncompleta() {
+    let attesi = 0;
+    try {
+      const w = azioni().ronda?.weekend;
+      const n = Number(w?.opponents);
+      if (Number.isFinite(n) && n > 0) attesi = Math.floor(n);
+    } catch (_e) { }
+    if (!attesi) return null;
+    const gp = await giocoComando('GameModeSelectionClientRequestGameModeParameters', { mode: MODO_SINGLE }, 8000);
+    const s0 = gp && Array.isArray(gp.sessions) ? gp.sessions[0] : null;
+    if (!s0) return null;
+    const opp = Array.isArray(s0.opponents) ? s0.opponents.length : (Number(s0.num_opponents) || 0);
+    const mod = Array.isArray(s0.models) ? s0.models.length : 0;
+    // MODELLI E AVVERSARI DIVERGENTI NON SI GUIDANO (5/11, il crash 01:16 di
+    // Brands Hatch): una sessione con models > avversari è lo stato che uccide
+    // EVO alla creazione della griglia (0xC0000005, stesso RVA del 00:22).
+    // Il via resta solo su griglia allineata: 16 modelli/16 avversari su 17
+    // chiesti va bene (tetto del gioco), 17 su 16 no.
+    if (mod >= 4 && mod !== opp) {
+      loga('avvio bloccato: models ' + mod + ' vs avversari ' + opp + ' — griglia non allineata è il crash delle 01:16');
+      return { opp: opp, attesi: attesi };
+    }
+    const tolleranza = opp === mod ? 1 : 0;
+    if (opp < attesi && opp + tolleranza >= attesi) loga('avvio: ' + opp + ' avversari su ' + attesi + ' chiesti (tetto del gioco, griglia allineata)');
+    return opp + tolleranza >= attesi ? null : { opp: opp, attesi: attesi };
+  }
+
   async function corriAvvia() {
     const eng = window.engine;
     if (!eng || typeof eng.trigger !== 'function') { notaComando('engine non disponibile (pagina aperta fuori dal gioco?)'); return false; }
     await new Promise(function (dai) { window.setTimeout(dai, 1200); });
+    const g = await grigliaIncompleta();
+    if (g) {
+      notaComando('Avvio bloccato: griglia ' + g.opp + '/' + g.attesi + ' — ripremi «Prepara tutto» e aspetta che l\'auto cambi.');
+      loga('avvio bloccato: griglia ' + g.opp + '/' + g.attesi + ' (il via su una griglia corta è il crash delle 00:16)');
+      return false;
+    }
     const r = await giocoComando('GameModeSelectionClientRequestStart', { mode: MODO_SINGLE }, 15000);
     if (!r || r.response !== OK_RISPOSTA) {
       notaComando('Avvia sessione: ' + okTesto(r)); loga('RequestStart: ' + okTesto(r)); return false;
@@ -525,7 +849,8 @@
     if (cmd.tipo !== 'setcar') return corriEvento(cmd);
     const ok = await corriSetcar(cmd);
     if (!ok) return false;
-    ackComando(cmd, true, 'ronda pronta dal bottone (tipo gara/pista/auto)');
+    ackComando(cmd, true, cmd.weekend ? 'weekend e auto applicati dal bottone' : 'ronda pronta dal bottone (tipo gara/pista/auto)');
+    if (!comandoDellaPreparazioneCorrente(cmd)) { loga('avvio dal bottone annullato: la preparazione è cambiata'); return true; }
     const okVia = await corriAvvia();
     if (okVia) ackComando(Object.assign({}, cmd, { id: cmd.id + ':avvia', tipo: 'avvia', pista: null, layout: null }), true, 'avvia dal bottone: sessione lanciata');
     // «Avvia» non riuscita: NESSUN ack del :avvia — il canale automatico
@@ -573,7 +898,7 @@
     ultimoTentativoAt = Date.now();   // anche il canale automatico si aspetta durante il bottone
     try { b.disabled = true; } catch (_e) { }
     loga('bottone ' + k + ': sequenza del ponte (' + a.id + ')');
-    const cmd = { id: a.id, tipo: a.tipo, nome: a.nome, pista: a.pista ?? null, layout: a.layout ?? null };
+    const cmd = { id: a.id, tipo: a.tipo, nome: a.nome, carId: a.carId ?? null, pista: a.pista ?? null, layout: a.layout ?? null, ora: a.ora ?? null, meteo: a.meteo ?? null, weekend: a.weekend ?? null };
     Promise.resolve(bottoneCorri(k, cmd)).then(function (ok) {
       inCorso = false;
       if (ok) falliti.delete(cmd.id);   // riuscito: le risposte del canale automatico ripubblicano da sole
@@ -717,8 +1042,21 @@
     return h;
   }
 
+  // UN COMANDO VECCHIO NON SCAVALCA UN «Prepara tutto» NUOVO (4/11): se il
+  // giocatore ripreme il tasto senza avvio mentre la sequenza precedente è
+  // ancora in corso, quest'ultima non deve premere «Avvia sessione». Il
+  // pending nuovo ha un `armataAlle` nuovo: il comando della preparazione
+  // vecchia non combacia più e si ferma prima di toccare il menu.
+  function comandoDellaPreparazioneCorrente(c) {
+    if (!c || (c.tipo !== 'setcar' && c.tipo !== 'avvia')) return true;
+    const p = S.dati?.prepara;
+    if (!p || !Number(p.armataAlle)) return true;   // fascia vecchia: comportamento di sempre
+    return p.tipo === 'ronda' && String(c.id).indexOf(String(p.armataAlle) + ':') === 0;
+  }
+
   function applicaComando(c) {
     if (!c || !c.id || !c.nome) return;
+    if (!comandoDellaPreparazioneCorrente(c)) { loga('comando ' + c.id + ' non è della preparazione corrente: non parte'); return; }
     if (fasciaScaduta()) { loga('fascia scaduta: comando ' + c.id + ' non parte — il publisher lo ripropone in fascia viva'); return; }
     if (inCorso) return;
     const tent = falliti.get(c.id) ?? 0;
@@ -731,7 +1069,7 @@
     const lavoro = c.tipo === 'evento' ? corriEvento(c) : (c.tipo === 'avvia' ? corriAvvia() : corriSetcar(c));
     Promise.resolve(lavoro).then(async function (ok) {
       try {
-        if (ok) { falliti.delete(c.id); ackComando(c, true, c.tipo === 'avvia' ? 'avvia sessione premuto' : 'auto impostata nel menu di EVO'); }
+        if (ok) { falliti.delete(c.id); ackComando(c, true, c.tipo === 'avvia' ? 'avvia sessione premuto' : (c.weekend ? 'weekend e auto applicati' : 'auto impostata nel menu di EVO')); }
         else { falliti.set(c.id, tent + 1); /* riprova senza cap: il mock del contatore era mancante e un comando fallito non riprovava mai — RETRY_MS ammorbidisce il giro */ }
         // IL GESTO UNICO (4/11, «prepara tutto e avvia deve lanciare la gara»):
         // il setcar del «Prepara tutto e avvia» porta avvia:true — auto nel
@@ -739,6 +1077,7 @@
         // pannello (bottoneCorri). Niente attesa del giro ack→comando avvia:
         // quel canale resta per il setcar già confermato (finestra armata).
         if (ok && c.avvia && c.tipo === 'setcar') {
+          if (!comandoDellaPreparazioneCorrente(c)) { loga('avvio annullato: la preparazione è cambiata durante la sequenza'); return; }
           const okVia = await corriAvvia();
           if (okVia) ackComando(Object.assign({}, c, { id: c.id + ':avvia', tipo: 'avvia', pista: null, layout: null }), true, 'avvia dal comando: sessione lanciata');
         }

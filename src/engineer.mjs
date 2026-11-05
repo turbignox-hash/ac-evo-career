@@ -161,7 +161,9 @@ export function engineerLive(snap, ctx = {}) {
   if (!player || !inSession) return { ok: true, live: false, tips: [], gauges, pit: null };
 
   const tips = [];
-  const fuelPerLap = Number(ctx.fuelPerLap);
+  // Il consumo e le pressioni possono arrivare dallo snapshot compatto:
+  // se il chiamante non li passa, la radio usa comunque i dati freschi.
+  const fuelPerLap = Number(ctx.fuelPerLap ?? player.fuelPerLap);
   const fuel = Number(player.fuel);
 
   /* ---------- benzina ---------- */
@@ -222,7 +224,7 @@ export function engineerLive(snap, ctx = {}) {
   // Due voci sole, ognuna col numero che l'ha generata: la correzione a freddo
   // e' quella della regola dei 4 PSI (nuova partenza = vecchia + target - caldo),
   // cosi' il consiglio in pista e il pannello del box dicono la stessa cosa.
-  const livePsi = (Array.isArray(ctx.livePsi) ? ctx.livePsi : [])
+  const livePsi = (Array.isArray(ctx.livePsi ?? player.tyrePressure) ? (ctx.livePsi ?? player.tyrePressure) : [])
     .map(Number).filter((v) => Number.isFinite(v) && v > 15 && v < 60);
   const targetPsi = Number(ctx.targetPsi);
   if (livePsi.length >= 3 && Number.isFinite(targetPsi) && targetPsi > 0) {

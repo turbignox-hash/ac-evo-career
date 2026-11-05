@@ -42,12 +42,12 @@ function Read-Block([string]$Name, [int]$Size) {
     } finally { [void][AcevoMap]::CloseHandle($h) }
 }
 
-# Le sezioni Windows sono a granularità di pagina (4 KB): coprire fino a 4096 byte
-# è sicuro per tutti e tre i blocchi (struct reali: static ~208 B, physics ~804 B,
-# graphics 4900 B ma i campi che leggiamo in Node finiscono a gap_behind ≈ 3852 B).
+# Le sezioni Windows sono a granularità di pagina (4 KB): si leggono 8192 byte
+# per la graphics perché la struct vera è 4900 B e i 60 ID auto finiscono a
+# 4900 (prima a 4096 si perdevano coda, assists e tutti gli ID).
 $blocks = [ordered]@{
     static   = @{ name = 'Local\acevo_pmf_static';   size = 512 }
-    graphics = @{ name = 'Local\acevo_pmf_graphics'; size = 4096 }
+    graphics = @{ name = 'Local\acevo_pmf_graphics'; size = 8192 }
     physics  = @{ name = 'Local\acevo_pmf_physics';  size = 1024 }
 }
 

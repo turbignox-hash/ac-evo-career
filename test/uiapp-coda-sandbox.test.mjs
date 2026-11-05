@@ -216,10 +216,11 @@ async function finoA(condizione, tettoMs = 3000) {
 
 /** La FASCIA del sondaggio: solo ciò che la legge tocca (validaFino, coda)
  *  e il minimo che il pannello sente a schermo (pilota/gare opzionali). */
-function fasciaDi(validaFinoMs, comando) {
+function fasciaDi(validaFinoMs, comando, prepara = null) {
   return {
     validaFino: new Date(validaFinoMs).toISOString(),
     comando: comando ?? null,
+    prepara,
     pilota: { nome: 'Sonda della sandbox', saldo: 0, rep: 0 },
     gare: [],
   };
@@ -228,6 +229,79 @@ function fasciaDi(validaFinoMs, comando) {
 const COMANDO_IN_CODA = { id: 'sonda-coda-1', nome: 'MX-5 Cup', tipo: 'setcar' };
 const COMANDO_EVENTO = { id: 'sonda-coda-evento', nome: 'F40 Competizione', tipo: 'evento' };
 const COMANDO_AVVIA = { id: 'sonda-coda-avvia', nome: 'Avvia sessione', tipo: 'avvia' };
+
+// LA GRIGLIA DI UN POSTO CORTA (5/11, Brands Hatch): 17 modelli → 16 avversari
+// è la griglia che il gioco considera giusta (un posto è del giocatore). Non
+// deve far riprovare la conferma e non deve bloccare «Prepara tutto e avvia».
+function rondaMulticlasse() {
+  return {
+    id: 'sonda-multiclasse-17', nome: 'Touring Pro', carId: 'ks_a', tipo: 'setcar', avvia: true,
+    pista: 'Brands Hatch', layout: 'GP', ora: 13, meteo: 'CLEAR',
+    weekend: { singleMake: false, opponents: 17, aiMin: 84, aiMax: 85, laps: 3, gridCars: ['ks_a', 'ks_b'], sessions: { Practice: { hour: 8 }, Race: { hour: 14 } } },
+  };
+}
+function risposteMulticlasse(opponents, modelli = 17) {
+  return {
+    GameModeSelectionClientRequestTrackList: { track_item: [{ name: 'Brands Hatch', layout: 'GP' }] },
+    CarSelectionClientRequestModels: { car_model: [{ name: 'ks_a', display_name: 'Auto A' }, { name: 'ks_b', display_name: 'Auto B' }] },
+    GameModeSelectionClientRequestGameModeParameters: {
+      sessions: [
+        { name: 'Practice', opponents: Array.from({ length: opponents }, () => 1), models: Array.from({ length: modelli }, () => ({ name: 'ks_a' })), time_of_day: { hour: 8 } },
+        { name: 'Race', opponents: Array.from({ length: opponents }, () => 1), models: Array.from({ length: modelli }, () => ({ name: 'ks_a' })), time_of_day: { hour: 14 } },
+      ],
+      weather_data: [{ type: 'CLEAR' }],
+    },
+  };
+}
+function fasciaMulticlasse() {
+  const GESTO = rondaMulticlasse();
+  const fascia = fasciaDi(Date.now() + PERIODO_MS * 1000, GESTO);
+  fascia.azioni = { ronda: { weekend: GESTO.weekend } };
+  return { GESTO, fascia };
+}
+
+test('RUNTIME griglia 17 modelli / 16 avversari: adattata a 16/16 e avvio permesso', async () => {
+  // 5/11 — il crash 01:16 di Brands Hatch: una sessione con 17 modelli ma solo
+  // 16 avversari ha ucciso EVO alla creazione della griglia (0xC0000005, stesso
+  // RVA del 00:22). Il Cruscotto adatta la lista modelli al numero che il
+  // gioco accetta, riscrive una volta sola e il via torna permesso: 16/16 su
+  // 17 chiesti è la griglia piena (un posto è del giocatore).
+  const { GESTO, fascia } = fasciaMulticlasse();
+  let letture = 0;
+  const app = avviaApp(fascia, (tipo) => {
+    if (tipo !== 'GameModeSelectionClientRequestGameModeParameters') return risposteMulticlasse(16)[tipo] ?? null;
+    letture++;
+    // le prime DUE letture (gp iniziale + prima conferma) sono ancora 17/16:
+    // il gioco rimanda il suo elenco finché il Cruscotto non riscrive.
+    return risposteMulticlasse(16, letture <= 2 ? 17 : 16).GameModeSelectionClientRequestGameModeParameters;
+  });
+  try {
+    assert.equal(app.errore, null, `l'app non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    const partito = await finoA(() => app.triggerCalls.some((a) =>
+      String(a[0]) === 'OnUICommand' && String(a[1]).includes('GameModeSelectionClientRequestStart')));
+    assert.ok(partito, `«Prepara tutto e avvia» non ha premuto Start — ${JSON.stringify(app.triggerCalls).slice(0, 700)}`);
+    const set = app.triggerCalls.filter((a) => String(a[1]).includes('GameModeSelectionClientRequestSetGameModeParameters'));
+    assert.equal(set.length, 2, `la griglia doveva essere riscritta UNA volta solo oltre alla prima: ${set.length} Set`);
+    const adattata = set[1];
+    const garaAdattata = (adattata?.[2]?.sessions ?? []).find((s) => s?.name === 'Race');
+    assert.equal(garaAdattata?.models?.length, 16, `una griglia adattata ha 16 modelli, non ${garaAdattata?.models?.length}`);
+    const ackOk = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === `${GESTO.id}:avvia` && v.ok === 1));
+    assert.ok(ackOk, `manca l'ack del via: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
+  } finally { app.drena(); }
+});
+
+test('RUNTIME griglia corta (5/17): il via NON si preme', async () => {
+  const { GESTO, fascia } = fasciaMulticlasse();
+  const app = avviaApp(fascia, (tipo) => risposteMulticlasse(5)[tipo] ?? null);
+  try {
+    assert.equal(app.errore, null, `l'app non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    const setOk = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id));
+    assert.ok(setOk, `il setcar non è stato ackato: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
+    await new Promise((r) => setTimeout(r, 400));
+    const start = app.triggerCalls.filter((a) => String(a[1]).includes('GameModeSelectionClientRequestStart')).length;
+    assert.equal(start, 0, `il via è partito su una griglia 5/17: ${JSON.stringify(app.triggerCalls.slice(-6))}`);
+  } finally { app.drena(); }
+});
 
 /** Il CUORE comune delle sonde scadute: fascia nel passato + comando in coda.
  *  Stessa legge, tre sentieri: nessun trigger, nessun ack, e il pannello
@@ -348,5 +422,307 @@ test('RUNTIME gesto unico: setcar con avvia:true — auto nel menu e SUBITO Requ
     const via = tutti.find((v) => v?.id === `${GESTO.id}:avvia`);
     assert.equal(via?.ok, 1, 'anche il via va ackato ok:1');
     assert.ok(/sessione lanciata/i.test(via?.msg ?? ''), `il messaggio dell'ack del via: «${via?.msg}»`);
+  } finally { app.drena(); }
+});
+
+test('RUNTIME: un comando della preparazione VECCHIA non scavalca un «Prepara tutto» nuovo', async () => {
+  // Il caso del 4/11: il giocatore ripreme Prepara tutto (senza avvio) mentre
+  // la sequenza del pending precedente è ancora in corso. Il comando vecchio
+  // non deve partire né toccare il menu: la fascia nuova ha gia` un'altra
+  // armataAlle. Zero trigger e zero ack.
+  const validaViva = Date.now() + PERIODO_MS * 1000;
+  const VECCHIO = { id: '111:ks_mx5_cup:coppa_rx7', nome: 'MX-5 Cup', carId: 'ks_mx5_cup', tipo: 'setcar', avvia: true };
+  const app = avviaApp(fasciaDi(validaViva, VECCHIO, { tipo: 'ronda', armataAlle: 222, viaFino: 0 }));
+  try {
+    assert.equal(app.errore, null, `l'app costruita non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    await new Promise((fatto) => setTimeout(fatto, 450));
+    assert.equal(app.triggerCalls.length, 0, `il comando vecchio è partito: ${JSON.stringify(app.triggerCalls).slice(0, 400)}`);
+    assert.equal(app.store.length, 0, 'un comando vecchio non deve nemmeno ackare');
+    assert.ok(app.log.some((t) => t.includes('non è della preparazione corrente')),
+      `il pannello non spiega il rifiuto: ${app.log.join(' | ')}`);
+  } finally { app.drena(); }
+});
+
+test('RUNTIME weekend multiclasse: models pieni per ogni avversario, non solo i modelli del parco', async () => {
+  // Il caso di un campionato avanzato (GT Elite): il parco ha tre modelli ma
+  // la griglia ha 11 avversari. `models` deve avere 11 voci, non 3: il gioco
+  // usa la lunghezza dell'array per decidere quante auto AI creare.
+  const validaViva = Date.now() + PERIODO_MS * 1000;
+  const WEEKEND = {
+    singleMake: false, opponents: 11, aiMin: 82, aiMax: 90, laps: 3,
+    gridCars: ['ks_renault_5_gt_turbo', 'ks_abarth_595', 'ks_alfa_romeo_junior'],
+    sessions: { Practice: { hour: 10 }, Race: { hour: 14 } },
+  };
+  const GESTO = {
+    id: '7100:ks_renault_5_gt_turbo:gt_elite', nome: 'Renault 5 GT Turbo', carId: 'ks_renault_5_gt_turbo',
+    tipo: 'setcar', pista: 'Monza', layout: null, ora: 14, meteo: 'CLEAR', weekend: WEEKEND,
+  };
+  const risposte = {
+    GameModeSelectionClientRequestTrackList: { track_item: [{ name: 'Monza', layout: 'GP' }] },
+    CarSelectionClientRequestModels: { car_model: [
+      { name: 'ks_renault_5_gt_turbo', display_name: 'Renault 5 GT Turbo' },
+      { name: 'ks_abarth_595', display_name: 'Abarth 595' },
+      { name: 'ks_alfa_romeo_junior', display_name: 'Alfa Romeo Junior' },
+    ] },
+    GameModeSelectionClientRequestGameModeParameters: {
+      sessions: [
+        { name: 'Practice', opponents: ['x'], single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 10, minute: 30 } },
+        { name: 'Race', opponents: ['x'], single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 13, minute: 30 }, duration: 5, duration_type: 'GameModeSelectionDuration_LAPS' },
+      ],
+      weather_data: [{ type: 'CLEAR' }],
+    },
+  };
+  const app = avviaApp(fasciaDi(validaViva, GESTO, { tipo: 'ronda', armataAlle: 7100, viaFino: 0 }), (tipo) => risposte[tipo] ?? null);
+  try {
+    assert.equal(app.errore, null, `l'app costruita non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    const ack = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id && v?.ok === 1));
+    assert.ok(ack, `il setcar multiclasse non è stato confermato: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
+    const chiamata = app.triggerCalls.find((a) => String(a[1]).includes('GameModeSelectionClientRequestSetGameModeParameters'));
+    const sessions = chiamata?.[2]?.sessions ?? [];
+    const gara = sessions.find((s) => s?.name === 'Race');
+    const prove = sessions.find((s) => s?.name === 'Practice');
+    assert.ok(gara && prove, `sessioni mancanti nel comando: ${JSON.stringify(sessions)}`);
+    assert.equal(gara.num_opponents, 11);
+    assert.equal(gara.models.length, 11, 'una voce per avversario anche in multiclasse');
+    assert.equal(prove.models.length, 11, 'la Practice deve avere la stessa griglia piena');
+    const nomi = new Set(gara.models.map((m) => m.name));
+    assert.ok(nomi.has('ks_renault_5_gt_turbo') && nomi.has('ks_abarth_595') && nomi.has('ks_alfa_romeo_junior'), 'tutti i modelli del parco devono essere presenti');
+  } finally { app.drena(); }
+});
+
+test('RUNTIME weekend: il setcar applica Single Make, avversari, AI, giri e griglia AL VOLO', async () => {
+  // Il caso R5 (4/11): si riprende un campionato, il save cambia, ma EVO aperto
+  // tiene la vecchia griglia. Il comando deve portare il weekend al gioco e
+  // applicarlo con SetGameModeParameters — non solo scriverlo su disco.
+  const validaViva = Date.now() + PERIODO_MS * 1000;
+  const WEEKEND = {
+    singleMake: true, opponents: 15, aiMin: 85, aiMax: 86, laps: 7,
+    gridCars: ['ks_renault_5_gt_turbo'],
+    sessions: { Practice: { hour: 9 }, Qualifying: { hour: 12 }, Warmup: { hour: 14 }, Race: { hour: 15 } },
+  };
+  const GESTO = {
+    id: '7001:ks_renault_5_gt_turbo:coppa_r5-turbo', nome: 'Renault 5 GT Turbo', carId: 'ks_renault_5_gt_turbo',
+    tipo: 'setcar', pista: 'Oulton Park', layout: null, ora: 15, meteo: 'CLEAR', weekend: WEEKEND,
+  };
+  const risposte = {
+    GameModeSelectionClientRequestTrackList: { track_item: [{ name: 'Oulton Park', layout: 'GP' }] },
+    CarSelectionClientRequestModels: { car_model: [
+      { name: 'ks_renault_5_gt_turbo', display_name: 'Renault 5 GT Turbo' },
+      { name: 'ks_abarth_595', display_name: 'Abarth 595' },
+    ] },
+    GameModeSelectionClientRequestGameModeParameters: {
+      sessions: [
+        { name: 'Practice', opponents: ['x'], single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 10, minute: 30 } },
+        { name: 'Race', opponents: ['x'], single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 13, minute: 30 }, duration: 5, duration_type: 'GameModeSelectionDuration_LAPS' },
+      ],
+      weather_data: [{ type: 'CLEAR' }],
+    },
+  };
+  const app = avviaApp(fasciaDi(validaViva, GESTO, { tipo: 'ronda', armataAlle: 7001, viaFino: 0 }), (tipo) => risposte[tipo] ?? null);
+  try {
+    assert.equal(app.errore, null, `l'app costruita non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    const arrivato = await finoA(() => app.triggerCalls.some((a) =>
+      String(a[1]).includes('GameModeSelectionClientRequestSetGameModeParameters')));
+    assert.ok(arrivato, `il weekend non è mai arrivato a SetGameModeParameters: ${JSON.stringify(app.triggerCalls).slice(0, 500)}`);
+    const chiamata = app.triggerCalls.find((a) => String(a[1]).includes('GameModeSelectionClientRequestSetGameModeParameters'));
+    const sessions = chiamata?.[2]?.sessions ?? [];
+    const gara = sessions.find((s) => s?.name === 'Race');
+    const prove = sessions.find((s) => s?.name === 'Practice');
+    assert.ok(gara && prove, `sessioni mancanti nel comando: ${JSON.stringify(sessions)}`);
+    assert.equal(gara.single_make, true, 'Single Make ON: la R5 deve correre contro le R5');
+    assert.equal(gara.num_opponents, 15, '15 avversari, non la griglia vecchia');
+    assert.equal(gara.min_strength, 85);
+    assert.equal(gara.max_strength, 86);
+    assert.equal(gara.duration, 7, 'i giri della card, non quelli vecchi');
+    assert.equal(gara.duration_type, 'GameModeSelectionDuration_LAPS');
+    assert.equal(gara.models.length, 15, 'una voce per avversario: la griglia monomarca deve avere 15 R5');
+    assert.ok(gara.models.every((m) => m.name === 'ks_renault_5_gt_turbo'), 'tutti i modelli della griglia devono essere R5');
+    assert.equal(gara.time_of_day.hour, 15);
+    assert.equal(prove.single_make, true);
+    assert.equal(prove.num_opponents, 15);
+    assert.equal(prove.models.length, 15, 'anche la Practice deve avere la griglia monomarca piena');
+    assert.equal(prove.time_of_day.hour, 9);
+    const ack = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id && v?.ok === 1));
+    assert.ok(ack, `il setcar weekend non è stato confermato: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
+    const voce = (app.store.at(-1)?.val?.commands ?? []).find((v) => v?.id === GESTO.id);
+    assert.ok(/weekend e auto applicati/i.test(voce?.msg ?? ''), `l'ack deve dire che è stato applicato: «${voce?.msg}»`);
+    // La sequenza si chiude con pista e meteo: qui l'ack è già arrivato, quindi
+    // `SetWeather` ha avuto il suo giro dopo la risposta di `SetGameModeParameters`.
+    const tipi = app.triggerCalls.map((a) => String(a[1]));
+    assert.ok(tipi.some((t) => t.includes('GameModeSelectionClientRequestSetTrack')), 'la pista deve essere applicata al volo');
+    assert.ok(tipi.some((t) => t.includes('GameModeSelectionClientRequestSetWeather')), 'il meteo deve essere applicato al volo');
+  } finally { app.drena(); }
+});
+
+test('RUNTIME livree: la griglia monomarca alterna le skin del modello, non 15 auto identiche', async () => {
+  // 5/11: il gioco elenca una voce per ogni skin (stesso `name`, `preset`
+  // diverso). Copiando 15 volte lo stesso oggetto la griglia usciva tutta di
+  // un colore: le skin disponibili si distribuiscono a giro, senza inventarne.
+  const validaViva = Date.now() + PERIODO_MS * 1000;
+  const WEEKEND = {
+    singleMake: true, opponents: 15, aiMin: 84, aiMax: 85, laps: 3,
+    gridCars: ['ks_mazda_mx5_nd_cup'],
+    sessions: { Practice: { hour: 10 }, Race: { hour: 16 } },
+  };
+  const GESTO = {
+    id: '7200:ks_mazda_mx5_nd_cup:gt_apex', nome: 'Mazda MX-5 ND Cup', carId: 'ks_mazda_mx5_nd_cup',
+    tipo: 'setcar', pista: 'Monza', layout: null, ora: 16, meteo: 'CLEAR', weekend: WEEKEND,
+  };
+  const base = { name: 'ks_mazda_mx5_nd_cup', display_name: 'Mazda MX-5 ND Cup' };
+  const risposte = {
+    GameModeSelectionClientRequestTrackList: { track_item: [{ name: 'Monza', layout: 'GP' }] },
+    CarSelectionClientRequestModels: { car_model: [
+      Object.assign({}, base, { preset: { name: 'preset_mx5ndcup_visual_1' } }),
+      Object.assign({}, base, { preset: { name: 'preset_mx5ndcup_visual_2' } }),
+      Object.assign({}, base, { preset: { name: 'preset_mx5ndcup_visual_3' } }),
+    ] },
+    GameModeSelectionClientRequestGameModeParameters: {
+      sessions: [
+        { name: 'Practice', opponents: ['x'], single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 10, minute: 30 } },
+        { name: 'Race', opponents: ['x'], single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 13, minute: 30 }, duration: 5, duration_type: 'GameModeSelectionDuration_LAPS' },
+      ],
+      weather_data: [{ type: 'CLEAR' }],
+    },
+  };
+  const app = avviaApp(fasciaDi(validaViva, GESTO, { tipo: 'ronda', armataAlle: 7200, viaFino: 0 }), (tipo) => risposte[tipo] ?? null);
+  try {
+    assert.equal(app.errore, null, `l'app costruita non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    const arrivato = await finoA(() => app.triggerCalls.some((a) =>
+      String(a[1]).includes('GameModeSelectionClientRequestSetGameModeParameters')));
+    assert.ok(arrivato, `il weekend non è mai arrivato a SetGameModeParameters: ${JSON.stringify(app.triggerCalls).slice(0, 500)}`);
+    const chiamata = app.triggerCalls.find((a) => String(a[1]).includes('GameModeSelectionClientRequestSetGameModeParameters'));
+    const gara = (chiamata?.[2]?.sessions ?? []).find((s) => s?.name === 'Race');
+    assert.equal(gara.models.length, 15, 'una voce per avversario');
+    const livree = new Set(gara.models.map((m) => m.preset?.name));
+    assert.equal(livree.size, 3, `la griglia deve alternare le tre skin del modello: ${JSON.stringify([...livree])}`);
+    assert.ok(gara.models.every((m) => m.name === 'ks_mazda_mx5_nd_cup'), 'tutte MX-5: cambia solo la livrea');
+  } finally { app.drena(); }
+});
+
+test('RUNTIME griglie di tipi diversi: una skin, multiclasse multi-livrea, senza skin, id sconosciuto', async () => {
+  // 5/11 — la griglia non è solo la R5: si prova la stessa costruzione su
+  // quattro parchi diversi, perché un caso solo non copre i modelli senza
+  // skin, il multiclasse con più livree e il fallback quando un id del parco
+  // non esiste più nel menu del gioco.
+  const sessione = (n) => [
+    { name: 'Practice', opponents: Array.from({ length: n }, () => 1), single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 10, minute: 30 } },
+    { name: 'Race', opponents: Array.from({ length: n }, () => 1), single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 13, minute: 30 }, duration: 5, duration_type: 'GameModeSelectionDuration_LAPS' },
+  ];
+  const CASI = [
+    {
+      nome: 'monomarca con una sola skin',
+      weekend: { singleMake: true, opponents: 15, aiMin: 84, aiMax: 85, laps: 3, gridCars: ['ks_a'], sessions: { Practice: { hour: 10 }, Race: { hour: 16 } } },
+      cars: [{ name: 'ks_a', display_name: 'Auto A' }],
+      carId: 'ks_a', nomeAuto: 'Auto A', attesi: 15,
+      verifica: (g) => { assert.equal(g.models.length, 15); assert.ok(g.models.every((m) => m.name === 'ks_a')); },
+    },
+    {
+      nome: 'multiclasse con due livree per modello',
+      weekend: { singleMake: false, opponents: 11, aiMin: 82, aiMax: 88, laps: 4, gridCars: ['ks_a', 'ks_b', 'ks_c'], sessions: { Practice: { hour: 10 }, Race: { hour: 14 } } },
+      cars: [
+        { name: 'ks_a', display_name: 'Auto A', preset: { name: 'a_1' } }, { name: 'ks_a', display_name: 'Auto A', preset: { name: 'a_2' } },
+        { name: 'ks_b', display_name: 'Auto B', preset: { name: 'b_1' } }, { name: 'ks_b', display_name: 'Auto B', preset: { name: 'b_2' } },
+        { name: 'ks_c', display_name: 'Auto C', preset: { name: 'c_1' } }, { name: 'ks_c', display_name: 'Auto C', preset: { name: 'c_2' } },
+      ],
+      carId: 'ks_a', nomeAuto: 'Auto A', attesi: 11,
+      verifica: (g) => {
+        assert.equal(g.models.length, 11);
+        assert.deepEqual([...new Set(g.models.map((m) => m.name))].sort(), ['ks_a', 'ks_b', 'ks_c'], 'tutti i modelli del parco in griglia');
+        assert.equal(new Set(g.models.map((m) => m.preset?.name)).size, 6, 'due skin per modello = sei livree distinte');
+      },
+    },
+    {
+      nome: 'multiclasse senza skin dichiarate',
+      weekend: { singleMake: false, opponents: 7, aiMin: 80, aiMax: 84, laps: 3, gridCars: ['ks_a', 'ks_b'], sessions: { Practice: { hour: 10 }, Race: { hour: 15 } } },
+      cars: [{ name: 'ks_a', display_name: 'Auto A' }, { name: 'ks_b', display_name: 'Auto B' }],
+      carId: 'ks_a', nomeAuto: 'Auto A', attesi: 7,
+      verifica: (g) => { assert.equal(g.models.length, 7); assert.deepEqual([...new Set(g.models.map((m) => m.name))].sort(), ['ks_a', 'ks_b']); },
+    },
+    {
+      nome: 'gridCars con id non più nel menu',
+      weekend: { singleMake: true, opponents: 5, aiMin: 80, aiMax: 82, laps: 3, gridCars: ['ks_inesistente'], sessions: { Practice: { hour: 10 }, Race: { hour: 12 } } },
+      cars: [{ name: 'ks_a', display_name: 'Auto A' }],
+      carId: 'ks_a', nomeAuto: 'Auto A', attesi: 5,
+      verifica: (g) => { assert.equal(g.models.length, 5); assert.ok(g.models.every((m) => m.name === 'ks_a'), 'fallback: resta l\'auto della ronda'); },
+    },
+  ];
+  let seq = 8100;
+  for (const caso of CASI) {
+    seq += 1;
+    const GESTO = {
+      id: `${seq}:${caso.carId}:serie_prova`, nome: caso.nomeAuto, carId: caso.carId, tipo: 'setcar',
+      pista: 'Monza', layout: null, ora: 15, meteo: 'CLEAR', weekend: caso.weekend,
+    };
+    const risposte = {
+      GameModeSelectionClientRequestTrackList: { track_item: [{ name: 'Monza', layout: 'GP' }] },
+      CarSelectionClientRequestModels: { car_model: caso.cars },
+      GameModeSelectionClientRequestGameModeParameters: { sessions: sessione(caso.attesi), weather_data: [{ type: 'CLEAR' }] },
+    };
+    const app = avviaApp(fasciaDi(Date.now() + PERIODO_MS * 1000, GESTO, { tipo: 'ronda', armataAlle: seq, viaFino: 0 }), (tipo) => risposte[tipo] ?? null);
+    try {
+      assert.equal(app.errore, null, `${caso.nome}: l'app non parte — ${app.errore?.stack ?? app.errore}`);
+      const arrivato = await finoA(() => app.triggerCalls.some((a) => String(a[1]).includes('GameModeSelectionClientRequestSetGameModeParameters')));
+      assert.ok(arrivato, `${caso.nome}: il weekend non è mai arrivato al gioco — ${JSON.stringify(app.triggerCalls).slice(0, 400)}`);
+      const chiamata = app.triggerCalls.find((a) => String(a[1]).includes('GameModeSelectionClientRequestSetGameModeParameters'));
+      const gara = (chiamata?.[2]?.sessions ?? []).find((s) => s?.name === 'Race');
+      assert.ok(gara, `${caso.nome}: manca la sessione Race nel comando`);
+      caso.verifica(gara);
+    } finally { app.drena(); }
+  }
+});
+
+test('RUNTIME meteo di ripiego: LIGHT_RAIN assente → RAIN della famiglia (non più cielo invariato)', async () => {
+  // 5/11 — Brands Hatch: la lista del gioco non portava LIGHT_RAIN e il
+  // weekend restava col cielo della sessione prima. Ora la famiglia vince:
+  // LIGHT_RAIN deve atterrare su RAIN (non su HEAVY_RAIN).
+  const GESTO = { id: 'sonda-meteo-ripiego', nome: 'MX-5 Cup', carId: 'ks_mx5_cup', tipo: 'setcar', pista: 'Monza', layout: null, ora: 14, meteo: 'LIGHT_RAIN', weekend: { singleMake: true, opponents: 5, aiMin: 80, aiMax: 82, laps: 3, gridCars: ['ks_mx5_cup'], sessions: { Practice: { hour: 9 }, Race: { hour: 15 } } } };
+  const risposte = {
+    GameModeSelectionClientRequestTrackList: { track_item: [{ name: 'Monza', layout: 'GP' }] },
+    CarSelectionClientRequestModels: { car_model: [{ name: 'ks_mx5_cup', display_name: 'MX-5 Cup' }] },
+    GameModeSelectionClientRequestGameModeParameters: {
+      sessions: [
+        { name: 'Practice', opponents: [1, 1, 1, 1, 1], time_of_day: { hour: 9 } },
+        { name: 'Race', opponents: [1, 1, 1, 1, 1], time_of_day: { hour: 15 }, duration: 3, duration_type: 'GameModeSelectionDuration_LAPS' },
+      ],
+      weather_data: [{ type: 'GameModeSelectionWeatherType_CLEAR' }, { type: 'GameModeSelectionWeatherType_RAIN' }],
+    },
+  };
+  const app = avviaApp(fasciaDi(Date.now() + PERIODO_MS * 1000, GESTO), (tipo) => risposte[tipo] ?? null);
+  try {
+    assert.equal(app.errore, null, `l'app non parte: ${app.errore?.stack ?? app.errore}`);
+    const arrivato = await finoA(() => app.triggerCalls.some((a) => String(a[1]) === 'GameModeSelectionClientRequestSetWeather'));
+    assert.ok(arrivato, `SetWeather mai chiamato — ${JSON.stringify(app.triggerCalls).slice(-4)}`);
+    const sw = app.triggerCalls.find((a) => String(a[1]) === 'GameModeSelectionClientRequestSetWeather');
+    const tipo = String(sw?.[2]?.weather_data?.type ?? '');
+    assert.ok(tipo.endsWith('_RAIN'), `il ripiego doveva atterrare su RAIN, dato «${tipo}»`);
+    assert.ok(!tipo.endsWith('_HEAVY_RAIN'), `il meno modificato deve vincere, non HEAVY_RAIN: «${tipo}»`);
+  } finally { app.drena(); }
+});
+
+test('RUNTIME posti in più (18 avversari, 17 modelli): il parco si riempie e il via torna permesso', async () => {
+  // 5/11 — Brands Hatch alle 01:24: la conferma leggeva opponents=[18] con
+  // models=[17]: un posto che EVO non sa riempire è il posto vuoto che crasha
+  // alla creazione della griglia. Il Cruscotto riempie il parco a giro fino
+  // ai posti che il gioco tiene (la stessa scuola del monomarca).
+  const GESTO = rondaMulticlasse();
+  const fascia = fasciaDi(Date.now() + PERIODO_MS * 1000, GESTO);
+  fascia.azioni = { ronda: { weekend: GESTO.weekend } };
+  let letture = 0;
+  const app = avviaApp(fascia, (tipo) => {
+    if (tipo !== 'GameModeSelectionClientRequestGameModeParameters') return risposteMulticlasse(18, 17)[tipo] ?? null;
+    letture++;
+    // le prime DUE letture (gp iniziale + prima conferma) vengono fuori con
+    // un posto scoperto; dopo la riscrittura il gioco risponde allineato.
+    return risposteMulticlasse(18, letture <= 2 ? 17 : 18).GameModeSelectionClientRequestGameModeParameters;
+  });
+  try {
+    assert.equal(app.errore, null, `l'app non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    const partito = await finoA(() => app.triggerCalls.some((a) =>
+      String(a[0]) === 'OnUICommand' && String(a[1]).includes('GameModeSelectionClientRequestStart')));
+    assert.ok(partito, `Start mai premuto — ${JSON.stringify(app.triggerCalls).slice(0, 700)}`);
+    const set = app.triggerCalls.filter((a) => String(a[1]).includes('GameModeSelectionClientRequestSetGameModeParameters'));
+    assert.equal(set.length, 2, `una riscrittura sola oltre la prima: ${set.length}`);
+    const gara = (set[1]?.[2]?.sessions ?? []).find((s) => s?.name === 'Race');
+    assert.equal(gara?.models?.length, 18, `models riempito a 18, non ${gara?.models?.length}`);
   } finally { app.drena(); }
 });

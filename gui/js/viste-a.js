@@ -390,7 +390,8 @@ async function drawLifePanel(){
       v.pulse?.rookie ? tr({ it: `l'esordiente <b>${esc(v.pulse.rookie)}</b> ha debuttato nel campionato`, en: `rookie <b>${esc(v.pulse.rookie)}</b> debuted in the championship` }) : '',
     ].filter(Boolean);
     if (voci.length) rows.push(`<div class="liferow"><span class="lico blue">${LI.chat}</span><div class="lt"><b>${tr({ it: 'Voci dal box', en: 'Pit-lane whispers' })}</b><div style="font-size:12.5px">${voci.join(' · ')}</div></div></div>`);
-    el.innerHTML = `<h2>${LI.compass} ${tr({ it: 'Vita fuori pista', en: 'Life off track' })}</h2>
+    el.innerHTML = `
+<h2>${LI.compass} ${tr({ it: 'Vita fuori pista', en: 'Life off track' })}</h2>
       ${rows.join('') || `<div class="empty">${tr({ it: 'Il contratto arriva quando firmi il sedile.', en: 'The contract comes when you sign the seat.' })}</div>`}
       ${v.challenge && !v.challenge.verdict && !document.querySelector('#card-actions .challenge-flag') ? `<div class="banner ${v.challenge.accepted?'info':'warn'}" style="margin-top:6px">${LI.target} <b>${tr({ it: 'Sfida della ronda', en: 'Round challenge' })}</b> — ${esc(legacyIt(v.challenge.text))}<br><span class="muted">${tr({ it: 'premio ', en: 'reward ' })}${money(v.challenge.reward)} € · ${tr({ it: 'penale −', en: 'penalty −' })}${v.challenge.penalty} rep${v.challenge.accepted?` · ${tr({ it: 'accettata', en: 'accepted' })}`:''}</span>${v.challenge.accepted?'':` <button class="mini" id="b-chal-acc" style="margin-top:6px">${tr({ it: 'accetta', en: 'accept' })}</button>`}</div>` : ''}`;
     $('#b-sponsor-sign')?.addEventListener('click', async ()=>{ try{ await api('sponsor-accept',{tier:999}); toast(tr({ it: 'Sponsor firmato.', en: 'Sponsor signed.' }),'ok'); drawLifePanel(); }catch(e){toast(e.message,'err')} });
@@ -670,7 +671,11 @@ function drawCardInto(el, card){
      espandibile — la scheda mostra la gara, le regole si aprono a
      richiesta. I controlli restano gli stessi (id rs-*), solo chiusi
      di default: la scheda resta compatta anche con l'orario in vista. */
-  /* RIEPILOGO DI GARA IN CIMA (4/11, richiesta Mauro): auto, pista, meteo,
+  /* TRIM IN CIMA AL FOGLIO (5/11, richiesta Mauro): la riga dorata della
+     difficoltà (banda + trim, con −1/+1) è la PRIMA riga della scheda,
+     sopra il titolo «Prossima gara»: il blocco azioni può finire nella
+     barra in basso su mobile, quindi il trim non ci vive più dentro. */
+  /* RIEPILOGO DI GARA (4/11, richiesta Mauro): auto, pista, meteo,
      distanza e sfida stavano sotto i bottoni di lancio — si scendeva a
      controllare e si risaliva per partire. Il brief vive DENTRO il blocco
      azioni, sopra i bottoni (su mobile si sposta con loro nella barra). */
@@ -682,23 +687,34 @@ function drawCardInto(el, card){
     <div><b>🚗 ${tr({ it: 'Auto', en: 'Car' })}</b> ${window.carLinkHtml(card.carName)} · <b>🏁 ${tr({ it: 'Pista', en: 'Track' })}</b> ${window.trackLinkHtml(card.trackName)} · <b>🔁 ${tr({ it: 'Distanza', en: 'Distance' })}</b> ${briefDist}${(card.distPct ?? 100) !== 100 ? ` (${card.distPct}%)` : ''}</div>
     ${briefWx ? `<div><b>🌦 ${tr({ it: 'Meteo', en: 'Weather' })}</b> ${briefWx}</div>` : ''}
   </div>`;
-  el.innerHTML = `<h2>${LI.flag} ${tr({ it: 'Prossima gara', en: 'Next race' })} <span class="h-act">R${card.roundIndex+1} ${tr({ it: 'di', en: 'of' })} ${card.totalRounds}${card.agendaDayLabel ? ` · ${esc(card.agendaDayLabel)}` : ''}</span></h2>
-
-    <div class="title">${CFLAG} ${esc(card.roundName)}</div>
-    <div class="sub">${window.serLinkHtml(card.nodeDisplay, { node: card.nodeId })} · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(card.entryFee)} € · ${tr({ it: 'si paga una volta per round', en: 'paid once per round' })}${card.agendaDay ? (card.agendaDay <= (boot.header?.day ?? 0) ? '' : ' · ' + tr({ it: 'in calendario per il ', en: 'scheduled for ' }) + esc(card.agendaDayLabel ?? (tr({ it: 'giorno ', en: 'day ' }) + card.agendaDay))) : ''}</div>
-    <div id="card-actions" class="card-actions">
-    ${briefHtml}
-    ${card.difficulty ? `<div id="card-trim" style="margin-top:10px;align-self:start;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2,#121822);font-size:12px">
+  el.innerHTML = `
+    ${card.difficulty ? `<div id="card-trim" style="margin:0 0 10px;align-self:start;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2,#121822);font-size:12px">
       <span title="${tr({ it: '1 punto di trim = 1 punto di banda AI', en: '1 trim point = 1 AI band point' })}">⚖️ <b>${tr({ it: 'Difficoltà AI', en: 'AI difficulty' })}</b> <b style="color:var(--acc)">${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%</b> · ${tr({ it: 'trim', en: 'trim' })} <b>${Number(card.difficulty.trim ?? 0) > 0 ? '+' : ''}${Number(card.difficulty.trim ?? 0)}</b></span>
       <span style="margin-left:auto;display:inline-flex;gap:5px">
         <button class="mini d-nudge" data-d="-1" title="${tr({ it: 'gara troppo dura? scendi di 1 punto la banda della serie: vale per le prossime gare e si vede anche nel pannello Difficoltà', en: 'race too hard? drop the series band by 1 point: it applies to upcoming races and shows also in the Difficulty panel' })}">−1</button>
         <button class="mini d-nudge" data-d="+1" title="${tr({ it: 'gara troppo facile? sali di 1 punto la banda della serie: vale per le prossime gare e si vede anche nel pannello Difficoltà', en: 'race too easy? raise the series band by 1 point: it applies to upcoming races and shows also in the Difficulty panel' })}">+1</button>
       </span>
     </div>` : ''}
+<h2>${LI.flag} ${tr({ it: 'Prossima gara', en: 'Next race' })} <span class="h-act">R${card.roundIndex+1} ${tr({ it: 'di', en: 'of' })} ${card.totalRounds}${card.agendaDayLabel ? ` · ${esc(card.agendaDayLabel)}` : ''}</span></h2>
+
+    <div class="title">${CFLAG} ${esc(card.roundName)}</div>
+    <div class="sub">${window.serLinkHtml(card.nodeDisplay, { node: card.nodeId })} · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(card.entryFee)} € · ${tr({ it: 'si paga una volta per round', en: 'paid once per round' })}${card.agendaDay ? (card.agendaDay <= (boot.header?.day ?? 0) ? '' : ' · ' + tr({ it: 'in calendario per il ', en: 'scheduled for ' }) + esc(card.agendaDayLabel ?? (tr({ it: 'giorno ', en: 'day ' }) + card.agendaDay))) : ''}</div>
+    <div id="card-actions" class="card-actions">
+    ${briefHtml}
+    ${/* RIQUADRO DEL SUGGERIMENTO TRIM RIPRISTINATO (5/11, richiesta Mauro:
+         dopo le gare torna il banner con Accetta/Rifiuta). SLITTAMENTO ONESTO:
+         la cifra si calcola col trim CORRENTE della serie (payload «cur»,
+         letto dal vivo del save), non col «from» fissato nella proposta: se
+         il trim è mosso dopo la nascita del suggerimento il vecchio calcolo
+         prometteva punti che l'accettazione non farebbe. La legge
+         dell'accept = (to − trim corrente) × 1. */ ``}
+    ${card.pendingProposal ? `<div class="banner warn" style="margin-top:10px"><b>${tr({ it: '🎯 Il tool suggerisce il trim', en: '🎯 The tool suggests the trim' })}</b> ${esc(card.pendingProposal.reason)}: ${tr({ it: 'trim ', en: 'trim ' })}${card.pendingProposal.from >= 0 ? '+' : ''}${card.pendingProposal.from} → <b>${card.pendingProposal.to >= 0 ? '+' : ''}${card.pendingProposal.to}</b> (${tr({ it: 'passo', en: 'step' })} ${card.pendingProposal.to - card.pendingProposal.from > 0 ? '+' : ''}${card.pendingProposal.to - card.pendingProposal.from}). ${tr({ it: 'Accettare sposta anche la banda EVO della serie di ', en: 'Accepting also moves the series EVO band by ' })}${Math.abs((card.pendingProposal.to - card.pendingProposal.cur) * 1)} ${tr({ it: 'punti (', en: 'points (' })}${card.pendingProposal.to > card.pendingProposal.cur ? tr({ it: 'in salita', en: 'upward' }) : tr({ it: 'in discesa', en: 'downward' })}).<br>
+      <button class="mini" id="b-prop-accept" style="margin-top:6px">${tr({ it: 'Accetta (trim ', en: 'Accept (trim ' })}${card.pendingProposal.to >= 0 ? '+' : ''}${card.pendingProposal.to})</button>
+      <button class="mini" id="b-prop-reject" style="margin-top:6px;margin-left:6px">${tr({ it: 'Rifiuta', en: 'Reject' })}</button></div>` : ''}
     ${card.challenge && !card.challenge.verdict ? `<div class="banner challenge-flag ${card.challenge.accepted?'info':'warn'}" style="margin-top:10px">${LI.target} <b>${tr({ it: 'Sfida della ronda', en: 'Round challenge' })}</b> — ${esc(legacyIt(card.challenge.text))}<br><span class="muted">${tr({ it: 'facoltativa · premio ', en: 'optional · reward ' })}${money(card.challenge.reward)} € ${tr({ it: 'se ci riesci · −', en: 'if you make it · −' })}${card.challenge.penalty} rep ${tr({ it: 'se fallisci', en: 'if you fail' })}${card.challenge.accepted?` · <b>${tr({ it: 'accettata', en: 'accepted' })}</b>`:''}</span>${card.challenge.accepted?'':` <button class="mini" id="b-accept-chal" style="margin-top:6px">${tr({ it: 'Accetta la sfida', en: 'Accept the challenge' })}</button>`}</div>` : ''}
     <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto', en: '🏁 Get everything ready' })}</button>
     <button class="act" id="b-race-launch" style="width:100%;margin-top:6px">${tr({ it: '🏁 Prepara tutto e avvia', en: '🏁 Get everything ready and start' })}</button>
-    <div class="muted" style="margin-top:10px">${tr({ it: 'Il round intero lo scrive in EVO «Prepara tutto»: pista, griglia, auto e regole. Con «Prepara tutto e avvia» il gioco si apre e l’app preme «Avvia sessione» da sola; con il primo apri tu EVO e premi «Avvia sessione». Se una riga non torna, ripremi il bottone.', en: 'The whole round gets written into EVO by “Get everything ready”: track, grid, car and rules. “Get everything ready and start” opens the game and the app presses “Start session” by itself; with the first one you open EVO and press “Start session”. If a row looks off, press the button again.' })}</div>
+    <div class="muted" style="margin-top:10px">${tr({ it: 'Il round intero lo scrive in EVO «Prepara tutto»: pista, auto, griglia, meteo e orari. Con «Prepara tutto e avvia» il gioco si apre e l’app preme «Avvia sessione» da sola; con il primo apri tu EVO e premi «Avvia sessione». Se una riga non torna, ripremi il bottone.', en: 'The whole round gets written into EVO by “Get everything ready”: track, car, grid, weather and session times. “Get everything ready and start” opens the game and the app presses “Start session” by itself; with the first one you open EVO and press “Start session”. If a row looks off, press the button again.' })}</div>
     <div class="muted" style="margin-top:6px;font-size:11.5px">${(() => {
       // STATO UNICO (4/11): loader presente → app installata → publisher vivo
       // → ack recente. «Prepara tutto e avvia» preme il via da solo SOLO con
@@ -1133,6 +1149,23 @@ function drawCardInto(el, card){
       } catch (err) { toast(err.message, 'err'); }
     };
   });
+  // RIQUADRO SUGGERIMENTO TRIM: ripristinato (5/11, richiesta Mauro) —
+  // accept = (to − trim corrente) × 1, stesso contratto del commit bd8ce33.
+  $('#b-prop-accept', el)?.addEventListener('click', async () => {
+    try {
+      await api('difficulty-action', { op: 'accept' });
+      drawCardInto(el, await api('card', { car: $('#sel-car', el)?.value ?? null }));
+      toast(tr({ it: 'Suggerimento accettato: trim aggiornato, banda EVO spostata.', en: 'Suggestion accepted: trim updated, EVO band moved.' }), 'ok');
+      await refreshBoot();
+    } catch(err){ toast(err.message, 'err'); }
+  });
+  $('#b-prop-reject', el)?.addEventListener('click', async () => {
+    try {
+      await api('difficulty-action', { op: 'reject' });
+      drawCardInto(el, await api('card', { car: $('#sel-car', el)?.value ?? null }));
+      toast(tr({ it: 'Suggerimento rifiutato.', en: 'Suggestion rejected.' }), 'info');
+    } catch(err){ toast(err.message, 'err'); }
+  });
   // banda live: stato della memoria condivisa + verifica automatica della config
   const liveBox = document.createElement('div');
   liveBox.className = 'livebar live-off';
@@ -1198,6 +1231,14 @@ const note = !avvia
       // Panorama e il cruscotto non diceva se «Prepara» l'avesse toccata)
       const p = r.prep ?? {};
       const segs = [];
+      // AUTO E GRIGLIA VIVE (5/11, il caso «cambia solo la pista»): il file
+      // del weekend porta pista/orari/avversari, ma l'auto e i modelli della
+      // griglia li scrive SOLO l'app nel menu di EVO. Se il gioco è aperto e
+      // l'app non risponde, il toast lo dice invece di lasciare l'auto vecchia.
+      const uapp = r.card?.uiapp;
+      if (r.gameRunning && uapp && !uapp.attiva) {
+        segs.push(`⚠ ${tr({ it: 'auto e griglia NON applicate: l\u2019app in gioco non risponde — resta nel menu principale di EVO e ripremi «Prepara tutto»', en: 'car and grid NOT applied: the in-game app is not responding — stay on EVO main menu and press “Get everything ready” again' })}`);
+      }
       if (p.trackError) segs.push(`⚠ ${p.trackError.startsWith('ENOENT') ? tr({ it: 'pista da impostare a mano', en: 'track to set by hand' }) : p.trackError}`);
       else if (p.trackWritten) segs.push(tr({ it: `pista ${p.track} scritta: rientra nel weekend dal menu di EVO`, en: `track ${p.track} written: re-enter the weekend from EVO's menu` }));
       else if (p.trackSame) segs.push(tr({ it: `pista già ${p.track}: nulla da scrivere`, en: `track already ${p.track}: nothing to write` }));

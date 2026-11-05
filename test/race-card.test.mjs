@@ -322,6 +322,18 @@ test('markPending: la ronda corrente della scheda va in state.pending per il flu
   assert.deepEqual(p.trackNames, ['Monza', 'track_monza']);
   assert.equal(p.car, 'car_a');
   assert.equal(p.laps, 8);
+  // IL WEEKEND DA APPLICARE AL VOLO (4/11): non basta l'auto — il Cruscotto
+  // riceve anche griglia, avversari, Single Make, banda AI e ore di sessione.
+  assert.equal(p.weekend.singleMake, true, 'una sola auto in serie = griglia monomarca');
+  assert.equal(p.weekend.laps, 8);
+  assert.deepEqual(p.weekend.gridCars, ['car_a']);
+  assert.equal(p.weekend.opponents, c.opponents);
+  assert.equal(p.weekend.aiMin, c.difficulty.rangeMin);
+  assert.equal(p.weekend.aiMax, c.difficulty.rangeMax);
+  assert.equal(p.weekend.sessions.Practice.hour, 9);
+  assert.equal(p.weekend.sessions.Qualifying.hour, 12);
+  assert.equal(p.weekend.sessions.Warmup.hour, 14);
+  assert.equal(p.weekend.sessions.Race.hour, 15);
   assert.ok(Number.isFinite(p.startedAt));
   // FINESTRA DELL'AVVIO (29/10, «riparte la stessa gara: solo da Prepara e
   // Divertiti»): il preparato arma la finestra — un'ora di via automatiz-
