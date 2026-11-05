@@ -33,7 +33,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -140,8 +140,13 @@ test('File classi CORROTTO (JSON invalido): errore CHIARO che nomina il file, no
   assert.equal(capPer('campionato_epoca'), 10, 'la lettura BUONA deve passare: il corrotto è un altro scenario, non un nuovo fallback.');
 
   // STESSO percorso, il file viene marcito SOTTO: il memo non deve mascherare
-  // il marcio (il mtime cambia, la rilettura deve esplodere in modo normale).
+  // il marcio. Il mtime si SPINGE avanti a mano: due scritture nello stesso
+  // millisecondo (su un disco veloce, o nella CI) hanno lo stesso mtime e il
+  // memo non rileggerebbe — il test deve decidere QUANDO il file è nuovo, non
+  // dipendere dalla granularità del filesystem.
   writeFileSync(leggibile, '{ "classi": { "campionato_epoca": { "LIMITI_GIOCO": { "restrictorMaxPct"', 'utf8');
+  const futuro = new Date(Date.now() + 2000);
+  utimesSync(leggibile, futuro, futuro);
   try {
     assert.throws(() => stileOverview(LADDER, STATE),
       'un file corrotto non deve né riempire il tab con classi mezze né passare in silenzio: errore che parla.');

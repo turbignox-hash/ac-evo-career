@@ -283,9 +283,12 @@ test('COPPIA STANTIA: genera-uiapp vede la copia vecchia e la riprova con una ra
     `il generatore non ha gridato la copia stantia nel log:\n${r.stdout}`);
   assert.ok(r.stdout.includes('richiamo l\'installatore'),
     `il generatore non ha richiamato l'installatore nella sua run:\n${r.stdout}`);
-  // in radice FINTA la copia adesso è il costruito IDENTICO (byte per byte)
+  // in radice FINTA la copia adesso è il costruito IDENTICO (a meno del
+  // fine-riga, che il check-out di git può piegare su uno dei due versanti:
+  // la SOSTANZA è la stessa build, non un testo ancora vecchio)
   const consegnata = readFileSync(join(appCartella, app.costruito), 'utf8');
-  assert.equal(consegnata, costruito,
+  const senzaEol = (t) => String(t).replace(/\r\n/g, '\n');
+  assert.equal(senzaEol(consegnata), senzaEol(costruito),
     'la copia stantia in radice finta non è stata sostituita col costruito: flusso richiamo rotto');
 
   // idempotente: alla SECONDA run, con le copie fresche, niente da reinstallare

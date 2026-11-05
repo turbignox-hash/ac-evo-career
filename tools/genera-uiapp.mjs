@@ -46,6 +46,12 @@ import { savedGamesRoots } from '../src/paths.mjs';
 
 const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SEGNAPOSTO = '__PERIODO_MS_DAL_PUBLISHER__';
+// Confronto dei testi a prova di fine-riga: il check-out di git può cambiare
+// LF in CRLF (Windows, autocrlf) e la copia in gioco può nascere da un albero
+// diverso dal costruito. La differenza di SOLO fine-riga non è una copia
+// stantia: un vecchio JS vero porta testo diverso, e quello continua a
+// scattare. Serve a non far ballare la build tra il PC di casa e la CI.
+const normalizza = (t) => String(t ?? '').replace(/\r\n/g, '\n');
 
 const APP = [
   { chiave: 'cruscotto', cartella: join(RADICE, 'uiapp', 'cruscotto') },
@@ -92,7 +98,7 @@ for (const app of APP) {
     continue;
   }
   const prima = (() => { try { return readFileSync(costruito, 'utf8'); } catch { return null; } })();
-  if (prima !== testo) { writeFileSync(costruito, testo, 'utf8'); daInstallare.add(app.chiave); }
+  if (normalizza(prima) !== normalizza(testo)) { writeFileSync(costruito, testo, 'utf8'); daInstallare.add(app.chiave); }
   // superviora A DISCO (1/11, «fallisci se il segnaposto non rimbanca»): quello
   // che è finito sul disco deve avere la firma e NESSUN segnaposto residuo
   const sulDisco = readFileSync(costruito, 'utf8');
@@ -107,7 +113,7 @@ for (const app of APP) {
     continue;
   }
   console.log(`  [x] ${relative(RADICE, costruito)}: PERIODO_MS = ${PERIODO_MS} + firma BUILD_OK (da src/uiapp-pub.mjs)`
-    + (prima === testo ? ' — già al passo, niente riscrittura' : ''));
+    + (normalizza(prima) === normalizza(testo) ? ' — già al passo, niente riscrittura' : ''));
   // la copia in gioco stantia ha lo stesso effetto del valore che cambia: si
   // reinstalla (il numero può essere pari, ma il file diverso per altro motivo)
   const inGioco = copiaInGioco(app.chiave);
@@ -118,7 +124,7 @@ for (const app of APP) {
     // «COPPIA STANTIA» la pretende nel log della stessa run.
     let costruitoVivo = testo;
     try { costruitoVivo = readFileSync(inGioco, 'utf8'); } catch { /* la copia è irraggiungibile: la reinstallazione lo dirà */ }
-    if (costruitoVivo !== testo) {
+    if (normalizza(costruitoVivo) !== normalizza(testo)) {
       daInstallare.add(app.chiave);
       console.log(`  [!] la copia in gioco (${relative(RADICE, inGioco)}) non corrisponde alla costruita`);
     }
