@@ -130,6 +130,14 @@ Double click **`avvia.cmd`**:
 3. it opens the graphical interface in the browser at
    `http://127.0.0.1:8642`.
 
+**The GUI at a glance** (photos from 5/11, v0.1.60; 19 bilingual tabs):
+
+| Dashboard | Race centre |
+| --- | --- |
+| ![Dashboard](docs/screenshots/01-dashboard.png) | ![Race centre](docs/screenshots/02-race-centre.png) |
+| **Grid** | **Setup** |
+| ![Grid](docs/screenshots/07-grid.png) | ![Setup](docs/screenshots/03-setup.png) |
+
 **The IN-GAME apps set themselves up (from 1/11).** On first launch the
 launcher silently copies Cruscotto and Pitwall into
 `Saved Games\ACE\mods\uiresources\ACEUIAppLoader\` — with EVO installed,

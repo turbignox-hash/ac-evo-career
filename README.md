@@ -113,11 +113,11 @@ The v0.1.55 notes describe the independence cut; v0.1.58 adds the unsigned insta
 | --- | --- |
 | ![Dashboard](docs/screenshots/01-dashboard.png) | ![Race centre](docs/screenshots/02-race-centre.png) |
 | **Setup and telemetry** | **Grid and balance** |
-| ![Setup](docs/screenshots/03-setup.png) | ![Grid](docs/screenshots/06-grid.png) |
+| ![Setup](docs/screenshots/03-setup.png) | ![Grid](docs/screenshots/07-grid.png) |
 | **Online archive** | **Free laps** |
-| ![Online](docs/screenshots/20-online.png) | ![Free laps](docs/screenshots/19-free-laps.png) |
+| ![Online](docs/screenshots/14-online.png) | ![Free laps](docs/screenshots/15-free-laps.png) |
 
-Live screenshots from a real career save, interface in English. The complete tab list is above; the GUI is fully clickable (car names, drivers, tracks, series and header figures all open the matching sheet).
+Live screenshots from a real career save, interface in Italian (switchable to English). The complete tab list is above; the GUI is fully clickable (car names, drivers, tracks, series and header figures all open the matching sheet).
 
 ## The race weekend
 

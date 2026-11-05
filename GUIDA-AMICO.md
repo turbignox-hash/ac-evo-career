@@ -160,6 +160,14 @@ apre la sua scheda nel Libro delle auto, il nome di una pista la scheda
 nel Libro delle piste, il nome di una serie porta al tab Campionati, la
 data/soldi/reputazione/stagione del righello saltano al tab giusto.
 
+**La GUI a colpo d'occhio** (foto del 5/11, v0.1.60; 19 schede bilingui):
+
+| Cruscotto | Centro gare |
+| --- | --- |
+| ![Cruscotto](docs/screenshots/01-dashboard.png) | ![Centro gare](docs/screenshots/02-race-centre.png) |
+| **Griglia** | **Setup** |
+| ![Griglia](docs/screenshots/07-grid.png) | ![Setup](docs/screenshots/03-setup.png) |
+
 🛡️ **Le pagine del giorno di gara sono sorvegliate già dal 2/11.** Tutto il
 gruppo che un weekend di gara tocca — **Messaggi, Centro gare, Griglia,
 Garage, Risultati/Import** — e i vicini che il giorno di gara guarda

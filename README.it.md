@@ -113,11 +113,11 @@ Le note della v0.1.55 descrivono il taglio di indipendenza; la v0.1.58 aggiunge 
 | --- | --- |
 | ![Cruscotto](docs/screenshots/01-dashboard.png) | ![Centro gare](docs/screenshots/02-race-centre.png) |
 | **Setup e telemetria** | **Griglia e bilanciamento** |
-| ![Setup](docs/screenshots/03-setup.png) | ![Griglia](docs/screenshots/06-grid.png) |
+| ![Setup](docs/screenshots/03-setup.png) | ![Griglia](docs/screenshots/07-grid.png) |
 | **Archivio online** | **Giri liberi** |
-| ![Online](docs/screenshots/20-online.png) | ![Giri liberi](docs/screenshots/19-free-laps.png) |
+| ![Online](docs/screenshots/14-online.png) | ![Giri liberi](docs/screenshots/15-free-laps.png) |
 
-Schermate live da una carriera reale, interfaccia in inglese. L'elenco completo dei tab è qui sopra; la GUI è tutta cliccabile (nomi auto, piloti, piste, serie e cifre dell'intestazione aprono la scheda giusta).
+Schermate live da una carriera reale, interfaccia in italiano (cambiabile in inglese). L'elenco completo dei tab è qui sopra; la GUI è tutta cliccabile (nomi auto, piloti, piste, serie e cifre dell'intestazione aprono la scheda giusta).
 
 ## Il weekend di gara
 
