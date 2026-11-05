@@ -53,9 +53,18 @@ const costruisci = () => ({ piano, pistaNomi: MONZA, lgmFile: LGM, push: (...a) 
 
 /* Un Risultati finto: il NOME conta (il gioco trasporta la sessione nel file
    stesso), il JSON conta per session/track. mtime: adesso = fresco. */
+/* RADICE DEL FLAKE (6/11, il test cadde SOLO in CI, run 42067340164 e
+   42087035486): `AVVIO` è il battito d'import del modulo e un file appena
+   scritto può avere un mtime NON superiore a quella soglia (risoluzione
+   dell'orologio del runner): wxAutoTick allora non lo vede mai e lo scarto
+   non entra nel registro — `voci[0]` mostra la voce vecchia e il test crolla.
+   Qui il mtime dei file di test sale a +250 ms di ADESSO con utimesSync:
+   sempre sopra la soglia, e monotono crescente da un test all'altro. */
 const scriviResult = (nome, corpo) => {
   const f = join(Results, nome);
   writeFileSync(f, JSON.stringify(corpo));
+  const at = new Date(Date.now() + 250);
+  utimesSync(f, at, at);
   return f;
 };
 const resultSP = (session, track) => ({ session, track, layout: 'GP', drivers: [] });
