@@ -157,7 +157,11 @@ export function leggiRegistro(limit = 20) {
  *  un riepilogo (i rami che la mostrano stanno in GUI e in uiapp-pub). */
 export function formattaRigaRegistro(r) {
   try {
-    const when = r?.at ? new Date(r.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
+    // ORA SEMPRE A 24 ORE (forma uguale su ogni PC): col locale di sistema il
+    // registro usciva «02:35 PM» sui runner in inglese e «14:35» da noi —
+    // la stessa riga in due lingue diverse. La riga è un dato, non una
+    // traduzione: hour12 spento e locale italiano come il resto della GUI.
+    const when = r?.at ? new Date(r.at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', hour12: false }) : null;
     const dur = r?.giri != null ? `${Number(r.giri)} giri`
       : (r?.tempo != null ? `${Number(r.tempo)} min a tempo` : null);
     const banda = r?.aiMin != null && r?.aiMax != null ? `AI ${Number(r.aiMin)}–${Number(r.aiMax)}` : null;

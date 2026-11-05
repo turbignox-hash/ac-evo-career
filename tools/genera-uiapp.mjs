@@ -111,7 +111,11 @@ for (const app of APP) {
   // la copia in gioco stantia ha lo stesso effetto del valore che cambia: si
   // reinstalla (il numero può essere pari, ma il file diverso per altro motivo)
   const inGioco = copiaInGioco(app.chiave);
-  if (inGioco && !daInstallare.has(app.chiave)) {
+  if (inGioco) {
+    // Il grido della copia stantia si stampa SEMPRE, anche quando il costruito
+    // è appena stato riscritto (la reinstallazione ci sarebbe comunque): è
+    // l'unica riga che dice PERCHÉ l'installatore sta girando, e il test di
+    // «COPPIA STANTIA» la pretende nel log della stessa run.
     let costruitoVivo = testo;
     try { costruitoVivo = readFileSync(inGioco, 'utf8'); } catch { /* la copia è irraggiungibile: la reinstallazione lo dirà */ }
     if (costruitoVivo !== testo) {

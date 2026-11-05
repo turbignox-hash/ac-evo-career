@@ -13,8 +13,18 @@ import { existsSync, mkdtempSync, mkdirSync, readdirSync, rmSync } from 'node:fs
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startUiappPublisher } from '../src/uiapp-pub.mjs';
+import { SAVE_FILE } from '../src/webui-env.mjs';
 
 test('publisher: attende la cartella app e parte appena compare', async (t) => {
+  // La fascia del Cruscotto nasce dalla CARRIERA del progetto (SAVE_FILE, in
+  // data/ e fuori dal repo): su un checkout pulito manca e il publisher non ha
+  // NIENTE da pubblicare (esce «no app o no carriera» prima di scrivere).
+  // Saltare qui è l'onestà, non il perdono: sul PC con la carriera il test gira
+  // e pesa tutto il patto d'attesa.
+  if (!existsSync(SAVE_FILE)) {
+    t.skip('carriera del progetto assente (checkout senza data/): niente fasce da pubblicare');
+    return;
+  }
   const root = mkdtempSync(join(tmpdir(), 'evo-pub-attesa-'));
   // L'env resta puntato alla radice finta per tutto il processo di test: così
   // il timer (unref) non può svegliarsi dopo e scrivere nell'app vera.

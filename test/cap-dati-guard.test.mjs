@@ -171,7 +171,16 @@ test('File classi CORROTTO (JSON invalido): errore CHIARO che nomina il file, no
 
 test('LADDER VIVO del progetto: capPct è un NUMERO SANO per OGNI campionato, e combacia col file classi', () => {
   const ladder = JSON.parse(readFileSync(join(ROOT, 'config', 'career.evo.ladder.json'), 'utf8'));
-  const classiVive = JSON.parse(readFileSync(join(ROOT, 'data', 'grid-classes.json'), 'utf8')).classi ?? {};
+  // Il file classi VIVO vive in data/ e NON è nel repo (.gitignore: carriera
+  // dell'utente). Su un checkout pulito (la CI) si legge il campione
+  // committato: stesso contratto ladder→classi, senza dati privati.
+  const vivi = join(ROOT, 'data', 'grid-classes.json');
+  const classiFile = existsSync(vivi) ? vivi : join(ROOT, 'test', 'fixtures', 'grid-classes-sample.json');
+  // stileOverview legge lo STESSO file (EVO_CLASSES_FILE): senza questo,
+  // fuori dalla cartella di casa il badge uscirebbe dal fallback 20 e il
+  // paragone col file sarebbe una bugia.
+  process.env.EVO_CLASSES_FILE = classiFile;
+  const classiVive = JSON.parse(readFileSync(classiFile, 'utf8')).classi ?? {};
   const { stili } = stileOverview(ladder, STATE);
   assert.ok(stili.length >= 5, 'nel ladder vivo i 5 campionati devono uscire (almeno).');
   for (const s of stili) {
@@ -204,4 +213,5 @@ test('LADDER VIVO del progetto: capPct è un NUMERO SANO per OGNI campionato, e 
     assert.ok(classiVive[n.nodeId].LIMITI_GIOCO != null,
       `${n.nodeId}: classe VIVA nel file ma SENZA LIMITI_GIOCO — il cap della sua serie non ha dato, solo fallback 20 silenzioso.`);
   }
+  delete process.env.EVO_CLASSES_FILE;
 });
