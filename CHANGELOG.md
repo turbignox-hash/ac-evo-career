@@ -5,6 +5,45 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
 
+## v0.1.61 — 5/11/2026
+
+- **Meccanico vivo, parlante e pentito**: la sezione «Dal vivo» legge i veri
+  che EVO scrive in memoria (gomme con pressioni e temperature per bordo,
+  carico, slittamento e angolo di deriva, danno sospensioni, freni,
+  elettronica di bordo, motore, aria/asfalto — niente stime: campo mancante
+  = casella a vuoto). Parla: nel pannello del meccanico si chiede a voce
+  «qualifica», «gara con N giri», «bagnato» e il file `.carsetup` nasce col
+  nome auto-pista («Ferrari 296 GT3 - Brands Hatch - Qualifica»), non più
+  «EVO-consigliato». Si corregge: se una leva consigliata ha perso tempo,
+  lo ammette una volta sola e indica dove tornare. Classifiche reali di
+  EVO (ultime 3 sessioni con piloti) nella scheda Rivali.
+- **Copilota in qualifica**: settore peggiore detto dal vivo a cambio giro
+  e i «best» letti dalla HUD del gioco (primo best e miglioramenti con il
+  guadagno, mai doppietta con la frase del giro).
+- **Benzina onesta**: il dialogo del meccanico chiamava l'endpoint
+  sbagliato e il setup non veniva mai scritto (in gioco restava il file
+  vecchio a 30 L) — ora la rotta è giusta (con guardia regressione), il
+  server rilegge il file scritto e verifica i campi (avviso visibile se
+  qualcosa non atterra), e il blocco carburante si crea quando il file
+  non lo ha. Senza consumo misurato la nota dice i litri che restano,
+  non un «com'è».
+- **Scheda Setup**: la scheda del setup creato appare subito sotto la
+  scheda del meccanico (nome VERO, verifica, «Vedi nella lista») senza
+  scrollare a fondo pagina; riparato il guasto «r.advices is not
+  iterable» che toglieva di mezzo tutto il pannello.
+- **Installazione**: l'icona parte da un VBS nascosto (più finestre nere
+  all'avvio) e il disinstallatore riconosce le scorciatoie nuove di
+  altre installazioni senza toccarle.
+- **CI**: la quality di Windows esce sotto i 45 minuti spaccando la suite
+  in 3 frammenti paralleli con la lint in un job suo; riparati i quattro
+  guasti veri (ora di registro, copia stantia, LADDER col campione,
+  publisher senza carriera) e il flake del bollettino alla radice
+  (mtime dei test). Verificatore release paziente sui caricamenti lenti.
+  In modalità test i due test che leggono il ladder reale saltano col
+  motivo scritto.
+- Suite completa **1031 test, 1028 pass, 0 guasti** (2 salti onesti con
+  la modalità test); Biome 0 warning; collaudo in pagina con scrittura
+  reale del setup verificata a disco.
 ## v0.1.60 — 5/11/2026
 
 - **«Punta la ronda in Agenda» riparato**: il bottone del pannello Eredità
