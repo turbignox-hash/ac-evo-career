@@ -806,3 +806,65 @@ test('settore peggiore dal vivo in qualifica (TimeAttack, inRace false): una fra
   assert.equal(s.length, 1, JSON.stringify(trascrizione(dette)));
   assert.match(s[0].it, /Perdi 0\.4 nel settore 2 — lì il migliore è V\. Rossi/);
 });
+
+/* 6/11 NOTTE, la gara di Oulton muto sui giri (registro vero 00:31:56–00:46:47):
+   16 frasi dall'ingaggio, zero «Giro N fatto» e zero «Bandiera» in una GARA
+   INTERA. La cause: EVO alle volte tiene LA STESSA sessionId da qualifica a
+   gara (la firma non cambia, la memoria dei giri sopravvive al cambio di
+   sessione) e la cura monotona congela compiuto al giro della sessione prima.
+   La cura nuova (narratore-unito.js): la fase vera 'Ended' arriva dal vivo
+   alla chiusura di OGNI sessione (registro 00:46:47, fase:Ended) e quando la
+   pista riparte COI GIRI ALTRE — sessione vera nuova della stessa firma — i
+   giri ripartono da capo. L'HUD graffiato DENTRO una stessa sessione (stesso
+   fase Race) resta invece sotto la cura monotona: compiuto clamped, la
+   memoria non gridisce. */
+test("firma ferma ma fase 'Ended' vista: la gara nuova (stessa sessionId) riannuncia i giri", () => {
+  const nEvo = (t, lapsDone, lap, fase, extra = {}) => MMF(t, {
+    phase: fase,
+    gauges: { lapsDone, lapsTotal: 3, fuel: 26.8, lapsOnFuel: 9.2, lapsLeft: Math.max(3 - lapsDone, 0) },
+    delta: { lapNo: lapsDone, dv: 0 },
+    ...(lap ? { timing: { lastLap: lap } } : {}),
+    ...extra,
+  });
+  const frames = [
+    [1000,   nEvo(1000,   0, null,        'Race')],
+    [31000,  nEvo(31000,  1, '1:30.500',  'Race')],   // Giro 1 fatto (semilla: la frase nasce col giro dopo)
+    [91000,  nEvo(91000,  2, '1:30.100',  'Race')],   // Giro 2 fatto
+    [151000, nEvo(151000, 3, '1:29.900',  'Race')],   // Giro 3 fatto
+    [156000, nEvo(156000, 3, null,        'Ended')],  // chiusura: la fase vera passa a 'Ended' (00:46:47)
+    [600000, nEvo(600000, 0, null,        'Session')], // gara B, STESSA sessionId: lapsDone riparte da 0
+    [630000, nEvo(630000, 1, '1:32.000',  'Session')],
+    [690000, nEvo(690000, 2, '1:31.700',  'Session')],
+    [750000, nEvo(750000, 3, '1:31.400',  'Session')],
+  ];
+  // slotFisso: la vocentral successiva con itself allenamiento (firma lunica)
+  const slotFisso = { last: {}, at: 0, said: {}, firma: 'un-solo-evento-SP' };
+  const dette = [];
+  for (const [t, m] of frames) dette.push(...narratore(m, slotFisso, t));
+  const giri = dette.filter((f) => !f.detto && f.chi === 'giroFatto');
+  assert.ok(giri.some((f) => f.it.includes('Giro 3 fatto in 1:29.900')), 'gara A: ' + JSON.stringify(trascrizione(dette)));
+  assert.ok(giri.some((f) => f.it.includes('Giro 3 fatto in 1:31.400')), 'gara B annuncia i suoi giri: ' + JSON.stringify(trascrizione(dette)));
+  assert.equal(giri.filter((f) => f.it.includes('Giro 2')).length, 2, 'gara A e gara B annunciano ENTRAMBE il giro 2: ' + JSON.stringify(trascrizione(dette)));
+});
+
+test("sessione segue sessione con la STESSA firma: la cura monotona resta dentro la sessione", () => {
+  const frame = (t, lapsDone, fase) => MMF(t, {
+    phase: fase,
+    gauges: { lapsDone, lapsTotal: 3, fuel: 26.8 },
+    delta: { lapNo: lapsDone, dv: 0 },
+  });
+  const frames = [
+    [1000,   frame(1000,   0, 'Race')],
+    [31000,  frame(31000,  2, 'Race')],
+    [35000,  frame(35000,  1, 'Race')],   // HUD che sbaglia in GIÙ dentro la stessa sessione (no 'Ended' in mezzo)
+    [91000,  frame(91000,  2, 'Race')],
+  ];
+  const slotFisso = { last: {}, at: 0, said: {}, firma: 'ahah-stessa-sessione' };
+  const dette = [];
+  for (const [t, m] of frames) dette.push(...narratore(m, slotFisso, t));
+  const giri = dette.filter((f) => !f.detto && f.chi === 'giroFatto');
+  assert.equal(giri.length, 0, 'senza lastLap nuovo (timing assente) nessun giro la frase: ' + JSON.stringify(trascrizione(dette)));
+  // e soprattutto MAI un annuncino in GIÙ (dalla mentalità giro 1 dipende l'annuncio che torna indietro)
+  // e soprattutto nessun annuncio che torna indietro: un «Giro 1» dopo il giro 2 non esiste
+  assert.ok(giri.every((f) => !/Giro 1/.test(f.it)));
+});

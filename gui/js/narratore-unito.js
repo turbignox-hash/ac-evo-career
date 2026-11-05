@@ -121,7 +121,35 @@ function narratore(m, slot, ora = Date.now()) {
   // giri NON torna mai indietro — l'HUD che fallisce un istante perde contro
   // la memoria; solo la FIRMA (sessione vera nuova, gestita dal chiamante)
   // azzera. Vecchio reset in giù → meta da capo = il loop di Mauro.
-  if (compiuto != null && slot.last.giro != null && compiuto < slot.last.giro) compiuto = slot.last.giro;
+  /* 6/11 NOTTE (gara Oulton muto sui giri, registro 00:31:56–00:46:47):
+     16 frasi dall'ingaggio, zero «Giro N fatto», zero «Bandiera a scacchi!»
+     in una GARA INTERA. La cause: EVO alle volte tiene LA STESSA sessionId per
+     tutte le sessioni di un event SP (practice → qualifica → gara), quindi
+     la FIRMA non si riconette e la memoria dei giri della sessione prima
+     (giro 3 della qualifica test) sopravvive: la cura monotona del sotto
+     congela compiuto al giro vecchio per tutta la gara — nessun giro che
+     SCAIA mai sopra. La reportistica vera della sessione però è inequivocabile:
+     SMEvoSessionState.phase_name attraversa «Ended» alla chiusura di OGNI
+     sessione (registro 00:46:47, fase:Ended, titiplang vivo) e quando la
+     pista riparte viene col dato dei giri alza la memoria dei giri. Regola:
+     Ended vista + compiuto che scende sotto la memoria = SESSIONE NUOVA
+     dello stessa firma → la memoria dei giri si azzera, i giri ripartono da
+     capo di quella vera. HUD graffiato DENTRO una stessa sessione (fase non
+     Ended) resta con la cura monotona qui sotto (lezione 28/10, il loop). */
+  const faseVera = String(m.phase ?? '').trim();
+  if (/ended/i.test(faseVera)) slot.faseEnded = true;
+  if (compiuto != null && slot.last.giro != null && compiuto < slot.last.giro) {
+    if (slot.faseEnded === true && faseVera && !/ended/i.test(faseVera)) {
+      // La sessione è finita (fase Ended vista) e la pista riparma COI preti:
+      // i giri della sessione chiusa non contano più. La nuova spetta.
+      slot.faseEnded = false;
+      slot.last.giro = null;
+      slot.last.lastLapTxt = null;
+      slot.last.meta = false;   // metaBenzina parla anche nel la sessione nuova
+    } else {
+      compiuto = slot.last.giro;   // HUD graffiato nella STESSA sessione: la memoria fa fede
+    }
+  }
   if (compiuto != null && slot.last.giro != null && compiuto > slot.last.giro && lastLapTxt && lastLapTxt !== slot.last.lastLapTxt) {
     parla.push(m.delta?.bestLapNo === compiuto
       ? { chi: 'giroFatto', it: `Giro ${compiuto} fatto in ${lastLapTxt} — nuovo best` }
