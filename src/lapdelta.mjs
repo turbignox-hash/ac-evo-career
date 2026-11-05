@@ -127,3 +127,27 @@ export function deltaSegments(curTrack, bestPath, n = 48) {
   }
   return grid.map((g, i) => ({ p: r((i + 0.5) / n, 4), dv: g.k ? r(g.sum / g.k, 2) : null }));
 }
+
+/**
+ * Il PEGGIORE SETTORE di un giro, dai segmenti di deltaSegments (6/11):
+ * divide le fette di progresso 0..1 in `fette` gruppi (3 = settori
+ * approssimati in terzi del giro: la geometria dei settori veri non viaggia
+ * nella memoria del gioco) e restituisce { indice, deltaMs } del gruppo con
+ * la perdita media più alta — SOLO se sta perdendo (media sopra zero) e
+ * dentro i limiti leggibili (100 ms..3 s, come già filtrava il server).
+ * Ritorna null quando non c'è perdita da dire.
+ */
+export function settorePeggiore(segments, { fette = 3, minMs = 100, maxMs = 3000 } = {}) {
+  if (!Array.isArray(segments) || segments.length === 0) return null;
+  let peggio = null;
+  for (let k = 0; k < fette; k++) {
+    const da = Math.floor(k * segments.length / fette);
+    const a = Math.floor((k + 1) * segments.length / fette);
+    const valori = segments.slice(da, a).filter((x) => Number.isFinite(x?.dv)).map((x) => x.dv);
+    if (!valori.length) continue;
+    const ms = Math.round((valori.reduce((x, y) => x + y, 0) / valori.length) * 1000);
+    if (ms > 0 && (!peggio || ms > peggio.deltaMs)) peggio = { indice: k + 1, deltaMs: ms };
+  }
+  if (!peggio || peggio.deltaMs < minMs || peggio.deltaMs > maxMs) return null;
+  return peggio;
+}

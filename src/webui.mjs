@@ -596,6 +596,23 @@ function settoreDeboleQualifica(paths, state, live, tipo) {
   } catch { return null; }   // senza risultato leggibile la radio tace, non mente
 }
 
+/* SETTORE DEBOLE DAL VIVO (6/11, richiesta Mauro: «leggiamo anche i delta dal
+   vivo, vedi se puoi inserirlo in qualifica nel copilot»): a cambio giro il
+   lettore congela il settore peggiore del giro uscito rispetto al best della
+   sessione (lapdelta.mjs, terzi di giro). SOLO qualifica — la stessa regola
+   di Mauro del 3/11 — e SOLO se è fresco (8 s di finestra: una frase per
+   giro, non un coro). Fuori qualifica, oppure senza vivo fresco, si casca
+   sul canale del 3/11 (settore dal file risultato, calcolato a fine sessione). */
+function settoreQualifica(snap, live0, paths, state, tipo) {
+  const ultimo = snap?.settoreUltimo ?? null;
+  if (ultimo && Date.now() - (ultimo.at ?? 0) <= 8000) {
+    const fase = String(live0?.gauges?.sessionPhase ?? tipo ?? snap?.session?.type ?? '').trim();
+    if (/qualif/i.test(fase)) return { indice: ultimo.indice, deltaMs: ultimo.deltaMs, migliore: null, dalVivo: true };
+    return null;
+  }
+  return settoreDeboleQualifica(paths, state, live0, tipo);
+}
+
 async function payloadIngegnere(context0, state, body, { leggero = false } = {}) {
 
   const { ladder, paths } = context0;
@@ -625,7 +642,7 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
     } catch { /* senza piano il narratore tace, non è un errore */ }
     return {
       ...live0, auto: null, stintAlert,
-      settore: settoreDeboleQualifica(paths, state, live0, snap?.session?.type),
+      settore: settoreQualifica(snap, live0, paths, state, snap?.session?.type),
     sessionId: snap.session?.id ?? null,
     sessionType: snap.session?.type ?? null,
     // 29/10: la FASE VERA della sessione (SMEvoSessionState.phase_name, es.

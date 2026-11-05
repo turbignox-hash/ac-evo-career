@@ -55,12 +55,13 @@ function fintaInstallazione(root, { conCarriera = false } = {}) {
 }
 
 /** Finto .lnk sul desktop-vacanze, costruito con WScript.Shell (come fa il tool vero). */
-function scorciatoia(dirDesktop, targetAvvia) {
+function scorciatoia(dirDesktop, targetAvvia, argomenti = null) {
   const lnk = join(dirDesktop, 'Carriera EVO.lnk');
   const ps = [
     '$shell = New-Object -ComObject WScript.Shell',
     `$s = $shell.CreateShortcut('${lnk}')`,
     `$s.TargetPath = '${targetAvvia}'`,
+    ...(argomenti ? [`$s.Arguments = '${argomenti}'`] : []),
     '$s.Save()',
   ].join('; ');
   const r = spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass',
@@ -108,9 +109,15 @@ test('disinstalla: pulita «via tutto», scorciatoia puntata qua → tolta', { s
   t.after(() => { spawnSync('reg', ['delete', REGKEY, '/f']); });
   const lnk = scorciatoia(DESK, join(TARGET, 'avvia.cmd'));
   const lnkStart = scorciatoia(START, join(TARGET, 'avvia.cmd'));
+  // le scorciatoie del nuovo avvio (6/11): wscript + avvia-gui.vbs NOSTRO
+  const DESK2 = mkdtempSync(join(tmpdir(), 'dis-desk1b-'));
+  t.after(() => { rmSync(DESK2, { recursive: true, force: true }); });
+  const wscript = join(process.env.SystemRoot || 'C:\Windows', 'System32', 'wscript.exe');
+  const lnkNuovo = scorciatoia(DESK2, wscript, '//nologo "' + join(TARGET, 'tools', 'avvia-gui.vbs') + '"');
+  const dueDesk = DESK + ';' + DESK2;
   const r = await cmdAsync('cmd.exe', ['/d', '/c', DISINSTALLA], {
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: baseEnv({ OK: true, DIR: TARGET, DESKTOP: DESK, START, REGKEY }),
+    env: baseEnv({ OK: true, DIR: TARGET, DESKTOP: dueDesk, START, REGKEY }),
   });
   assert.equal(r.signal, null, `watchdog: impalato\n${r.stdout}\n${r.stderr}`);
   assert.equal(r.status, 0, `uscita ${r.status}\n${r.stdout}\n${r.stderr}`);
@@ -131,9 +138,15 @@ test('disinstalla: scorciatoia di un\'ALTRA installazione → resta', { skip: pr
   fintaInstallazione(TARGET);
   const lnk = scorciatoia(DESK, join(ALTRO, 'avvia.cmd')); // punta altrove
   const lnkStart = scorciatoia(START, join(ALTRO, 'avvia.cmd')); // anche nel menu Start
+  // la versione NUOVA altrui: gli argomenti portano un altro percorso, resta
+  const DESK3 = mkdtempSync(join(tmpdir(), 'dis-desk2b-'));
+  t.after(() => { rmSync(DESK3, { recursive: true, force: true }); });
+  const wscript2 = join(process.env.SystemRoot || 'C:\Windows', 'System32', 'wscript.exe');
+  const lnkNuovoAltrui = scorciatoia(DESK3, wscript2, '//nologo "' + join(ALTRO, 'tools', 'avvia-gui.vbs') + '"');
+  const dueDesk2 = DESK + ';' + DESK3;
   const r = await cmdAsync('cmd.exe', ['/d', '/c', DISINSTALLA], {
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: baseEnv({ OK: true, DIR: TARGET, DESKTOP: DESK, START }),
+    env: baseEnv({ OK: true, DIR: TARGET, DESKTOP: dueDesk2, START }),
   });
   assert.equal(r.status, 0, `uscita ${r.status}\n${r.stdout}\n${r.stderr}`);
   assert.ok(!existsSync(TARGET), 'la cartella va via comunque');

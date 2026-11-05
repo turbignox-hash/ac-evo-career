@@ -12,7 +12,7 @@ import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { recordWarning } from './warnings.mjs';
-import { buildPathProg, liveDelta, deltaSegments } from './lapdelta.mjs';
+import { buildPathProg, liveDelta, deltaSegments, settorePeggiore } from './lapdelta.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PS1 = join(HERE, '..', 'tools', 'acevo-live.ps1');
@@ -768,6 +768,7 @@ export class LiveReader {
     this._deltaKey = '';
     this.trail = [];         // contorno della sessione in corso
     this._sessionKey = null; // firma eventId:sessionId:tipo dell'ultima sessione vista
+    this.settoreUltimo = null; // il settore peggiore del giro appena chiuso (dal vivo, per la qualifica del copilota)
   }
   start() {
     // auto-riparazione: se il processo PowerShell è vivo ma da troppo tempo non
@@ -828,6 +829,7 @@ export class LiveReader {
   /** cambio sessione (menu → campionato, pista nuova): niente best o mappa vecchi. */
   _resetSession() {
     this.trail = [];
+    this.settoreUltimo = null;
     this.lapTrack = [];
     this.lapNoSeen = null;
     this.bestTrack = null;
@@ -852,6 +854,20 @@ export class LiveReader {
       this._deltaCache = null;
       this._deltaKey = '';
     }
+    // SETTORE PEGGIORE DEL GIRO CHE ESCE (6/11, dal vivo — richiesta Mauro:
+    // «leggiamo anche i delta dal vivo, inseriscili in qualifica nel copilot»).
+    // Si confronta col best che c'era PRIMA: se il giro uscito È il nuovo best
+    // il confronto sarebbe «perdere contro se stesso» e non si dice.
+    try {
+      if (track.length >= 10 && Number.isFinite(this.bestLapMs) && Number.isFinite(lapMs)
+        && lapMs > this.bestLapMs && this.bestTrack && this.bestTrack.length >= 4) {
+        const percorso = buildPathProg(this.bestTrack);
+        if (percorso) {
+          const peggio = settorePeggiore(deltaSegments(track, percorso, 48));
+          if (peggio) this.settoreUltimo = { ...peggio, lapNo, at: Date.now() };
+        }
+      }
+    } catch { /* senza percorso il settore non grida: non è un errore */ }
     this.lapTrack = [];              // riparte il campionamento del giro nuovo
   }
 
@@ -1015,6 +1031,7 @@ export class LiveReader {
       lapTimes: g?.lapMs ?? null,
       // delta di ritmo: il giro di adesso contro il best della sessione (o l'HUD del gioco)
       delta: deltaInfo,
+      settoreUltimo: this.settoreUltimo ?? null,
       // mappa live: contorno raccolto dai tuoi giri + coordinate delle auto in griglia
       // + la traccia del BEST (per la mappa «dove perdo tempo») e il punto auto di adesso
       map: {
