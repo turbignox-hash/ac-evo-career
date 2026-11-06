@@ -97,13 +97,31 @@ test('coverage: le piste con dati insufficienti dicono cosa manca (indicatore Cr
     telemetry: { files: 3, bytes: 300, cars: 1, tracks: [{ name: 'Monza GP', files: 3, bytes: 300 }] },
   }));
   const perPista = new Map(g.incomplete.map((r) => [r.name, r.mancano]));
-  assert.deepEqual(perPista.get('Monza'), ['settori'], 'Monza ha telemetria e giri, ma nessun settore');
-  assert.deepEqual(perPista.get('Laguna Seca'), ['telemetria'], 'Laguna ha il giro e i settori, ma nessun .ld');
-  assert.deepEqual(perPista.get('pista_ignota'), ['telemetria', 'cronometrati', 'settori'], 'pista ignota non ha nulla');
+  assert.deepEqual(perPista.get('Monza'), ['settori'], 'Monza supera le soglie ma non ha settori');
+  assert.deepEqual(perPista.get('Laguna Seca'), ['telemetria-insufficiente'], 'Laguna ha giri e settori ma nessun .ld');
+  assert.deepEqual(perPista.get('pista_ignota'), ['telemetria-insufficiente', 'cronometrati', 'settori'], 'pista ignota ha pochi dati utili');
   assert.equal(g.piste, 19, '4 piste corse (una fuori catalogo) + le 15 di catalogo mai corse');
   assert.equal(g.scoperte.length, 15, 'le 15 piste di catalogo mai corse restano fuori dal conto delle pronte');
-  assert.equal(g.pronte, 0, 'in questo fixture nessuna pista ha tutto');
+  assert.equal(g.pronte, 1, 'Monza supera le soglie numeriche ed è pronta anche se mancano i settori');
+  assert.deepEqual(g.soglia, { giri: 3, fileTelemetria: 2 });
   assert.ok(!g.incomplete.some((r) => r.never), 'le mai corse non finiscono fra le incomplete: hanno un conto loro');
+});
+
+test('coverage: pronte solo da 3 giri e 2 file .ld (soglie incluse)', () => {
+  const g = analysisGaps({ byTrack: [
+    { name: 'Esattamente alla soglia', laps: 3, timed: 1, sectors: 1, telemetry: { files: 2 }, never: false },
+    { name: 'Un giro in meno', laps: 2, timed: 1, sectors: 1, telemetry: { files: 2 }, never: false },
+    { name: 'Un solo giro e un file', laps: 1, timed: 1, sectors: 1, telemetry: { files: 1 }, never: false },
+    { name: 'Un file in meno', laps: 3, timed: 1, sectors: 1, telemetry: { files: 1 }, never: false },
+    { name: 'Mai corsa', laps: 0, timed: 0, sectors: 0, telemetry: { files: 0 }, never: true },
+  ] });
+  assert.equal(g.pronte, 1, '3 giri + 2 .ld + un giro cronometrato bastano');
+  assert.equal(g.incomplete.length, 3);
+  const mancanti = new Map(g.incomplete.map((r) => [r.name, r.mancano]));
+  assert.deepEqual(mancanti.get('Un giro in meno'), ['pochi-giri']);
+  assert.deepEqual(mancanti.get('Un file in meno'), ['telemetria-insufficiente']);
+  assert.deepEqual(mancanti.get('Un solo giro e un file'), ['telemetria-insufficiente', 'pochi-giri']);
+  assert.deepEqual(g.scoperte, ['Mai corsa']);
 });
 
 test('coverage: telemetrie contate dai .ld, cartella assente = zero', () => {

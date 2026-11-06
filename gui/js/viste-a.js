@@ -214,21 +214,27 @@ function drawOnboarding(m){
 function covHtml(g){
   if (!g) return `<div class="muted" style="font-size:12.5px">${tr({ it: 'Copertura non disponibile ora.', en: 'Coverage not available right now.' })}</div>`;
   const fmtInt = (v) => Number(v || 0).toLocaleString('it-IT');
-  const nome = (m) => ({ telemetria: tr({ it: 'telemetria', en: 'telemetry' }), cronometrati: tr({ it: 'giri cronometrati', en: 'timed laps' }), settori: tr({ it: 'settori', en: 'sectors' }) })[m] ?? m;
+  const nome = (m) => ({
+    'telemetria-insufficiente': tr({ it: 'meno di 2 file .ld', en: 'fewer than 2 .ld files' }),
+    cronometrati: tr({ it: 'giri cronometrati', en: 'timed laps' }),
+    'pochi-giri': tr({ it: 'meno di 3 giri', en: 'fewer than 3 laps' }),
+    settori: tr({ it: 'settori', en: 'sectors' }),
+  })[m] ?? m;
   const chip = (m) => `<span class="tag" style="color:var(--warn)">${esc(nome(m))}</span>`;
   const righe = g.incomplete.slice(0, 6).map((r) => `<tr>
       <td>${esc(r.name)}</td>
       <td class="right">${fmtInt(r.laps)}</td>
+      <td class="right">${fmtInt(r.telemetryFiles)}</td>
       <td>${r.mancano.map(chip).join(' ')}</td>
     </tr>`).join('');
   return stKpis([
-    [tr({ it: 'Pronte', en: 'Ready' }), fmtInt(g.pronte), 'good', tr({ it: 'piste con telemetria e almeno un giro cronometrato', en: 'tracks with telemetry and at least one timed lap' })],
+    [tr({ it: 'Pronte', en: 'Ready' }), fmtInt(g.pronte), 'good', tr({ it: 'almeno 3 giri, 2 file .ld e un giro cronometrato', en: 'at least 3 laps, 2 .ld files and one timed lap' })],
     [tr({ it: 'Incomplete', en: 'Incomplete' }), fmtInt(g.incomplete.length), g.incomplete.length ? 'acc2' : '', tr({ it: 'piste con dati parziali: sotto c’è cosa manca', en: 'tracks with partial data: what is missing is listed below' })],
     [tr({ it: 'Mai corse', en: 'Never driven' }), fmtInt(g.scoperte.length), '', g.scoperte.slice(0, 4).join(' · ') || tr({ it: 'nessuna', en: 'none' })],
   ])
     + (g.incomplete.length
-      ? `<table style="margin-top:10px"><thead><tr><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th>${tr({ it: 'Manca', en: 'Missing' })}</th></tr></thead><tbody>${righe}</tbody></table>`
-      : `<div class="empty" style="margin-top:10px">${tr({ it: 'Tutte le piste corse hanno telemetria e un giro cronometrato.', en: 'Every driven track has telemetry and a timed lap.' })}</div>`)
+      ? `<table style="margin-top:10px"><thead><tr><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">.ld</th><th>${tr({ it: 'Manca', en: 'Missing' })}</th></tr></thead><tbody>${righe}</tbody></table>`
+      : `<div class="empty" style="margin-top:10px">${tr({ it: 'Tutte le piste corse hanno almeno 3 giri, 2 file .ld e un giro cronometrato.', en: 'Every driven track has at least 3 laps, 2 .ld files and one timed lap.' })}</div>`)
     + (g.incomplete.length > 6 ? `<div class="muted" style="font-size:12px;margin-top:4px">${tr({ it: `e altre ${g.incomplete.length - 6}`, en: `and ${g.incomplete.length - 6} more` })}</div>` : '')
     + `<div class="row" style="margin-top:8px"><button class="mini" id="b-cov">${tr({ it: 'Apri la copertura completa', en: 'Open full coverage' })}</button></div>`;
 }

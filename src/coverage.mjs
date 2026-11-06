@@ -220,21 +220,28 @@ export function coverageReport({ results = {}, freeSessions = [], resultSectors 
   };
 }
 
+export const ANALYSIS_MIN_LAPS = 3;
+export const ANALYSIS_MIN_TELEMETRY_FILES = 2;
+
 /**
  * LE PISTE DOVE I DATI NON BASTANO (6/11, per il Cruscotto).
- * Una pista è «pronta per l'analisi» quando ha almeno una telemetria `.ld` E
- * almeno una sessione con un giro cronometrato; i settori mancanti si
+ * Una pista è «pronta per l'analisi» quando ha almeno 3 giri complessivi,
+ * almeno 2 file `.ld` e almeno un giro cronometrato. I settori mancanti si
  * segnalano a parte (senza settori l'analisi per tratti non si fa, ma il resto
  * sì). Niente punteggi: solo cosa manca, pista per pista.
  */
 export function analysisGaps(report) {
   const righe = (report?.byTrack ?? []).map((r) => {
     const mancano = [];
-    if (r.never) return { name: r.name, never: true, laps: 0, mancano: ['dati'] };
-    if (!(r.telemetry?.files > 0)) mancano.push('telemetria');
+    const nGiri = Number(r.laps) || 0;
+    const nLd = Number(r.telemetry?.files) || 0;
+    if (r.never) return { name: r.name, never: true, laps: 0, telemetryFiles: 0, mancano: ['dati'] };
+    if (nLd < ANALYSIS_MIN_TELEMETRY_FILES) mancano.push('telemetria-insufficiente');
     if (!(r.timed > 0)) mancano.push('cronometrati');
+    if (nGiri < ANALYSIS_MIN_LAPS) mancano.push('pochi-giri');
     if (!(r.sectors > 0) && !r.sectorsCalc) mancano.push('settori');
-    return { name: r.name, never: false, laps: r.laps ?? 0, mancano };
+    const pronta = nLd >= ANALYSIS_MIN_TELEMETRY_FILES && nGiri >= ANALYSIS_MIN_LAPS && r.timed > 0;
+    return { name: r.name, never: false, laps: nGiri, telemetryFiles: nLd, pronta, mancano };
   });
   const scoperte = righe.filter((x) => x.never);
   const incomplete = righe
@@ -242,7 +249,8 @@ export function analysisGaps(report) {
     .sort((a, b) => b.mancano.length - a.mancano.length || a.name.localeCompare(b.name));
   return {
     piste: righe.length,
-    pronte: righe.length - incomplete.length - scoperte.length,
+    pronte: righe.filter((x) => !x.never && x.pronta).length,
+    soglia: { giri: ANALYSIS_MIN_LAPS, fileTelemetria: ANALYSIS_MIN_TELEMETRY_FILES },
     incomplete,
     scoperte: scoperte.map((x) => x.name),
   };
