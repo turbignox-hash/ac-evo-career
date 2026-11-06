@@ -892,18 +892,12 @@ test("delta di ritmo: griglia sfasata non paga più la fetta intera", async () =
   const { liveDelta, buildPathProg } = await import('../src/lapdelta.mjs');
   const V = 50, NPT = 160, PASSO = 25;   // cerchio 4 km, 25 m a 50 m/s
 
-  const segnatura = (fino) => {
-    let se = 42;
-    return () => { se = (se * 1103515245 + 12345) % 2 ** 31; return ((se % 65536) / 65536) * 2 - 1; };
-  };
-
   const bestPath = buildPathProg(Array.from({ length: NPT }, (_, i) => ({
     x: Math.cos((i * PASSO) / 637) * 637, z: Math.sin((i * PASSO) / 637) * 637,
     t: (i * PASSO * 1000) / V,
   })));
 
   // caso A: griglie identiche, il giro corrente in ritardo di ESATTAMENTE 1000 ms
-  const randA = segnatura();
   const finoA = 1000 + (80 * PASSO * 1000) / V;
   const curA = Array.from({ length: 81 }, (_, j) => ({
     x: Math.cos((j * PASSO) / 637) * 637, z: Math.sin((j * PASSO) / 637) * 637,
