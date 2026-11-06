@@ -13,11 +13,11 @@
 //     .21 f32 (43 = forse pressione o indice meteo)
 //
 // uso:
-//   node tools/set-weekend.mjs --show
-//   node tools/set-weekend.mjs --session Practice --duration-min 20 --hour 11
-//   node tools/set-weekend.mjs --race-laps 5 --race-hour 15
-//   node tools/set-weekend.mjs --air-temp 22 --clear            (meteo: sempre sereno = fixed)
-//   node tools/set-weekend.mjs --date 2025-05-12               (data del weekend)
+//   node src/set-weekend.mjs --show
+//   node src/set-weekend.mjs --session Practice --duration-min 20 --hour 11
+//   node src/set-weekend.mjs --race-laps 5 --race-hour 15
+//   node src/set-weekend.mjs --air-temp 22 --clear            (meteo: sempre sereno = fixed)
+//   node src/set-weekend.mjs --date 2025-05-12               (data del weekend)
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodeMsg, encodeMsg, gameRunning, GAME_MODES_DIR, pruneBackups } from './evo-grid.mjs';

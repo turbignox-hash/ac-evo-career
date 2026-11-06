@@ -19,11 +19,11 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { serieGenerataDalGioco, grigliaGaraFuori } from '../src/grid-apply.mjs';
-import { encodeMsg } from '../tools/evo-grid.mjs';
+import { encodeMsg } from '../src/evo-grid.mjs';
 import {
   setWeekendAi, weekendAi, setWeekendGridAuto, setWeekendGridCustom,
   weekendGridMode,
-} from '../tools/set-track.mjs';
+} from '../src/set-track.mjs';
 
 const LADDER = {
   nodes: [

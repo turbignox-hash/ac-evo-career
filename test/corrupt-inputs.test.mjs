@@ -14,7 +14,7 @@ import { join } from 'node:path';
 
 const g = await import('../src/gridbuilder.mjs');
 const results = await import('../src/results.mjs');
-const { encodeMsg } = await import('../tools/evo-grid.mjs');
+const { encodeMsg } = await import('../src/evo-grid.mjs');
 const B = (s) => Buffer.from(String(s), 'utf8');
 
 const TMP = mkdtempSync(join(tmpdir(), 'corrupt-inputs-'));

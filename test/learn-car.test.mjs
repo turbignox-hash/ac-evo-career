@@ -7,8 +7,8 @@ import assert from 'node:assert/strict';
 import { writeFileSync, mkdtempSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { garageBuf } from '../tools/set-driver-car.mjs';
-import { decodeGarage, learnCar, learnCarFromLogs, soloRaddoppio } from '../tools/set-car-sample.mjs';
+import { garageBuf } from '../src/set-driver-car.mjs';
+import { decodeGarage, learnCar, learnCarFromLogs, soloRaddoppio } from '../src/set-car-sample.mjs';
 
 function casa() {
   const dir = mkdtempSync(join(tmpdir(), 'learn-car-'));

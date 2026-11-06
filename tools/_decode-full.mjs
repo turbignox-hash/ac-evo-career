@@ -1,7 +1,7 @@
 // _decode-full.mjs — parsa il gamemodesave campo per campo, CON offset di
 // ogni tag, e stampa struttura annidata (per capire il campo del gridType).
 import { readFileSync, } from 'node:fs';
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 
 const file = process.argv[2] ?? 'data/samples/gridtype/gt-190933-476.hex';
 

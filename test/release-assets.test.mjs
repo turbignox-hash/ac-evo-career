@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { caricaAssetRelease, pianoAssetRelease, tipoAssetRelease } from '../tools/release-assets.mjs';
+import { caricaAssetRelease, pianoAssetRelease, tipoAssetRelease } from '../src/release-assets.mjs';
 
 const risposta = (status, body) => ({ status, json: async () => body });
 

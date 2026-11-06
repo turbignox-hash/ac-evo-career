@@ -9,8 +9,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { encodeMsg } from '../tools/evo-grid.mjs';
-import { currentSessionTimes } from '../tools/set-racetime.mjs';
+import { encodeMsg } from '../src/evo-grid.mjs';
+import { currentSessionTimes } from '../src/set-racetime.mjs';
 
 const TMP = mkdtempSync(join(tmpdir(), 'evo-modal-'));
 const mkFile = () => {

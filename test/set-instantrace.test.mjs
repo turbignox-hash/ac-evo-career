@@ -13,8 +13,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, basename } from 'node:path';
-import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
-import { currentInstantRace, setInstantAi, timedRace } from '../tools/set-instantrace.mjs';
+import { decodeMsg, encodeMsg } from '../src/evo-grid.mjs';
+import { currentInstantRace, setInstantAi, timedRace } from '../src/set-instantrace.mjs';
 
 const TMP = mkdtempSync(join(tmpdir(), 'evo-instant-'));
 const mkBuf = (giri = 7, mode = 2) => {

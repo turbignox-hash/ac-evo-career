@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const g = await import('../src/gridbuilder.mjs');
-const ev = await import('../tools/evo-grid.mjs');
+const ev = await import('../src/evo-grid.mjs');
 const { encodeMsg, decodeMsg } = ev;
 
 const TMP = mkdtempSync(join(tmpdir(), 'grid-tinte-test-'));

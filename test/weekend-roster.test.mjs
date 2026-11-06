@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, basename } from 'node:path';
-import { encodeMsg } from '../tools/evo-grid.mjs';
+import { encodeMsg } from '../src/evo-grid.mjs';
 import { syncRoster, rosterInfo, celleDiGrid } from '../src/weekend-roster.mjs';
 
 const TMP = mkdtempSync(join(tmpdir(), 'evo-roster-'));

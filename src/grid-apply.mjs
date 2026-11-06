@@ -16,14 +16,14 @@ import { readFileSync, writeFileSync, renameSync, copyFileSync, existsSync, read
 import { dirname, join, basename } from 'node:path';
 import { sameTrack } from './tracknames.mjs';
 import { tr } from './lang.mjs';
-import { gameRunning, encodeMsg, gridFileOf, bakName, pruneBackups, factoryDir } from '../tools/evo-grid.mjs';
+import { gameRunning, encodeMsg, gridFileOf, bakName, pruneBackups, factoryDir } from './evo-grid.mjs';
 // compat: cli.mjs e corrupt-inputs.test mordono pruneBackups da qua — ma la
 // fonte è UNA (evo-grid, 31/10): re-export e NULLA si duplica più. Dal 3/11
 // anche bakName passa di qui: webui (bak-evento) e cli (bak-griglia) sono passati
 // dal nome a MINUTO ricostruito a mano al backup al SECONDO dell'unico bakName.
 export { pruneBackups, bakName };
-import { balanceCells, dropCells, setAiRange, planFromClass, readCells, DEFAULT_FILE } from '../tools/grid-balance.mjs';
-import { weekendCarCount, weekendGridMode, setWeekendGridCustom, WEEKEND_FILE, GRIGLIA_CAMPIONATO, celleGrigliaCampionato } from '../tools/set-track.mjs';
+import { balanceCells, dropCells, setAiRange, planFromClass, readCells, DEFAULT_FILE } from './grid-balance.mjs';
+import { weekendCarCount, weekendGridMode, setWeekendGridCustom, WEEKEND_FILE, GRIGLIA_CAMPIONATO, celleGrigliaCampionato } from './set-track.mjs';
 import { loadClasses, pickClassInfo, buildGridMessage, classeMulticlasseSuPoolMono } from './gridbuilder.mjs';
 import { resolvePaths } from './paths.mjs';
 import { scanContentCached, carExists } from './content.mjs';
@@ -63,7 +63,7 @@ export const templatePathOf = (nodeId) => join(TEMPLATES_DIR, String(nodeId).rep
 const factoryFileOf = (nodeId) => join(factoryDir(), basename(templatePathOf(nodeId)));
 
 /* bak e POTATURA: stessa ferrea memoria della lezione 28/10, ma la fonte è
- * UNA da 31/10 — tools/evo-grid.mjs (bakName + pruneBackups importati sopra).
+ * UNA da 31/10 — src/evo-grid.mjs (bakName + pruneBackups importati sopra).
  * Tutto il vecchio commento resta là col codice. */
 
 /* ---------- PROVENIENZA DEL MAGAZZINO (4/11) ---------- */
@@ -122,7 +122,7 @@ export function storeTemplateSeNonRidotto(nodeId, buf, meta = {}) {
 }
 
 /* ---------- DISCARICA DEI BACKUP ---------- */
-// La potatura della pila dei bak è in tools/evo-grid.mjs (pruneBackups,
+// La potatura della pila dei bak è in src/evo-grid.mjs (pruneBackups,
 // importato e re-exportato in cima quì: UNA fonte per tutti dal 31/10). Il suo
 // commento-calla di lezione resta là col codice.
 

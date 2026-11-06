@@ -27,9 +27,9 @@ import { join } from 'node:path';
 // PRIMA degli import dinamici (SAVE_FILE nasce a import di webui-env.mjs).
 process.env.EVO_DATA_DIR = mkdtempSync(join(tmpdir(), 'evo-garavolo-'));
 
-const { encodeMsg, GAME_MODES_DIR } = await import('../tools/evo-grid.mjs');
+const { encodeMsg, GAME_MODES_DIR } = await import('../src/evo-grid.mjs');
 const { garaVeloce } = await import('../tools/_gara-veloce.mjs');
-const { currentInstantRace, INSTANT_FILE } = await import('../tools/set-instantrace.mjs');
+const { currentInstantRace, INSTANT_FILE } = await import('../src/set-instantrace.mjs');
 
 const mkInstant = (giri = 7, mode = 2, aiMin = 60, aiMax = 90, { conPista = false } = {}) => {
   const race = encodeMsg([
@@ -110,7 +110,7 @@ const pistaIst = () => {
   return sub.find((x) => x.field === 2) ? Buffer.from(sub.find((x) => x.field === 2).bytes).toString('utf8') : null;
 };
 
-const { decodeMsg } = await import('../tools/evo-grid.mjs');
+const { decodeMsg } = await import('../src/evo-grid.mjs');
 
 test('pista in dry: esito «dry:», nessun byte toccato', () => {
   mkInstant(7, 2, 60, 90, { conPista: true });

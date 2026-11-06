@@ -16,7 +16,7 @@ import { join } from 'node:path';
 
 const g = await import('../src/gridbuilder.mjs');
 const stateMod = await import('../src/state.mjs');
-const ev = await import('../tools/evo-grid.mjs');
+const ev = await import('../src/evo-grid.mjs');
 const { encodeMsg } = ev;
 const { buildGridMessage } = g;
 const { bandaSerieSlider } = stateMod;

@@ -14,11 +14,11 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { encodeMsg } from '../tools/evo-grid.mjs';
+import { encodeMsg } from '../src/evo-grid.mjs';
 import {
   GRIGLIA_CAMPIONATO, celleGrigliaCampionato, weekendCarCount,
   weekendGridMode, setWeekendGridCustom,
-} from '../tools/set-track.mjs';
+} from '../src/set-track.mjs';
 import { riduciSlotRoster } from '../src/weekend-roster.mjs';
 
 const B = (s) => Buffer.from(String(s), 'utf8');

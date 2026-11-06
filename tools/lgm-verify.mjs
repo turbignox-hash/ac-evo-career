@@ -1,6 +1,6 @@
 // Verifica della timeline patchata: riepilogo dei float meteo di ogni sub
 import { readFileSync } from 'node:fs';
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 const b = readFileSync('C:/Users/Mauro/Saved Games/ACE/GameModes/gamemode.lastgamemode');
 const d = decodeMsg(b);
 function floatsOf(bytes) {

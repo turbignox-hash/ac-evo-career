@@ -3,8 +3,8 @@
 // leggeva (la forma certificata di stanotte).
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, basename } from 'node:path';
-import { decodeMsg } from './evo-grid.mjs';
-import { GAME_MODES_DIR } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
+import { GAME_MODES_DIR } from '../src/evo-grid.mjs';
 
 const ATTUALE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 const baks = readdirSync(GAME_MODES_DIR)

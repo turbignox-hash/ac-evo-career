@@ -18,10 +18,10 @@ const ROOT = join(HERE, '..');
 const ladder = JSON.parse(readFileSync(join(ROOT, 'config', 'career.evo.ladder.json'), 'utf8'));
 
 const mod = (p) => import(pathToFileURL(join(ROOT, p)));
-const { changeWeekendTrack, currentWeekendTrack, weekendCarCount } = await mod('tools/set-track.mjs');
-const { currentRaceTime, setRaceTime } = await mod('tools/set-racetime.mjs');
+const { changeWeekendTrack, currentWeekendTrack, weekendCarCount } = await mod('src/set-track.mjs');
+const { currentRaceTime, setRaceTime } = await mod('src/set-racetime.mjs');
 const { rebuildGridApply } = await mod('src/grid-apply.mjs');
-const { garageCurrent } = await mod('tools/set-driver-car.mjs');
+const { garageCurrent } = await mod('src/set-driver-car.mjs');
 const { currentWeatherPreset } = await mod('src/weather.mjs');
 
 // la serie della carriera di test dell'app (Coppa 500, come negli screenshot PC2)

@@ -65,7 +65,7 @@ execFileSync('git', ['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'archive'
 
 // 2b) BUILD-ID DENTRO LO ZIP (24/10): l'installazione-zip DEVE scoprire da
 // sola che committò ha a bordo, iltrimenti l'auto-aggiornamento
-// (tools/aggiorna-zip.mjs) non ha un predicato per il confronto. Estraggo
+// (src/aggiorna-zip.mjs) non ha un predicato per il confronto. Estraggo
 // l'archivio, inietto il commit e lo re-imballo con tar (bsdtar -a crea lo
 // zip dal solo suffisso .zip).
 {

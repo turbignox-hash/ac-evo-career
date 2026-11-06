@@ -12,11 +12,11 @@
 
 import { readFileSync, copyFileSync, writeFileSync, renameSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { gameRunning, pruneBackups, encodeMsg } from './evo-grid.mjs';
+import { gameRunning, pruneBackups, encodeMsg } from '../src/evo-grid.mjs';
 import {
   WEEKEND_FILE, changeWeekendTrack, setWeekendAi, setWeekendGridAuto, setWeekendGridCustom,
   currentWeekendTrack, weekendAi, celleGrigliaCampionato,
-} from './set-track.mjs';
+} from '../src/set-track.mjs';
 // IL RONDA UNICO (2/11): la parte del cerchio (il calendario che decide la
 // ronda, i suoi match di serie/pista e il meteo a PAROLE del gioco) vive in
 // src/app-carriera.mjs e QUI si riusa — niente copieSecond: una sorgente, i
@@ -24,9 +24,9 @@ import {
 import { trackIdDaNome } from '../src/app-carriera.mjs';
 import {
   setWeekend,
-} from './set-weekend.mjs';
-import { setWeekendLaps, sessionsOf } from './weekend-laps.mjs';
-import { setDriverCar, GARAGE_FILE } from './set-driver-car.mjs';
+} from '../src/set-weekend.mjs';
+import { setWeekendLaps, sessionsOf } from '../src/weekend-laps.mjs';
+import { setDriverCar, GARAGE_FILE } from '../src/set-driver-car.mjs';
 import { setWeatherPreset, PRESETS } from '../src/weather.mjs';
 import { SAVE_FILE } from '../src/webui-env.mjs';
 import { loadState } from '../src/state.mjs';

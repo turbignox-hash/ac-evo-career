@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { encodeMsg, decodeMsg } from '../tools/evo-grid.mjs';
+import { encodeMsg, decodeMsg } from '../src/evo-grid.mjs';
 
 const GAME = mkdtempSync(join(tmpdir(), 'evo-wx-game-'));
 process.env.ACE_GAME_SAVEDIR = GAME;          // prima dell'import: niente LGM reale

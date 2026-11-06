@@ -1,5 +1,5 @@
 // _celle-confronto.mjs — i campi di UNA cella nei due file (forma compatibile?)
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 

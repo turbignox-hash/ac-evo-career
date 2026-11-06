@@ -12,9 +12,9 @@
 // creare file a caso.
 //
 // uso:
-//   node tools/ricrea-indici-auto.mjs            (ricrea car-images.json se assente)
-//   node tools/ricrea-indici-auto.mjs --force    (ricostruisce anche se c'è già)
-//   node tools/ricrea-indici-auto.mjs --check    (solo verifica, nessuna scrittura)
+//   node src/ricrea-indici-auto.mjs            (ricrea car-images.json se assente)
+//   node src/ricrea-indici-auto.mjs --force    (ricostruisce anche se c'è già)
+//   node src/ricrea-indici-auto.mjs --check    (solo verifica, nessuna scrittura)
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';

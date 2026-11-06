@@ -21,14 +21,14 @@
 // libreria (usata da webui):
 //   import { setRaceTime, currentRaceTime } from './set-racetime.mjs';
 // CLI:
-//   node tools/set-racetime.mjs                 // legge e mostra
-//   node tools/set-racetime.mjs --hour 2        // gara di notte, scala invariata
-//   node tools/set-racetime.mjs --hour 21 --scale 48   // tramonto -> alba
-//   node tools/set-racetime.mjs --hour 2 --scale 2 --dry
+//   node src/set-racetime.mjs                 // legge e mostra
+//   node src/set-racetime.mjs --hour 2        // gara di notte, scala invariata
+//   node src/set-racetime.mjs --hour 21 --scale 48   // tramonto -> alba
+//   node src/set-racetime.mjs --hour 2 --scale 2 --dry
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { decodeMsg, encodeMsg, GAME_MODES_DIR, pruneBackups } from './evo-grid.mjs';
 import { join } from 'node:path';
-import { cancelloOrario } from '../src/test-mode.mjs';
+import { cancelloOrario } from './test-mode.mjs';
 
 export const WEEKEND_FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 
@@ -161,7 +161,7 @@ export function setRaceSessions({ sessions = {}, scale = null, file = WEEKEND_FI
     const o = typeof v === 'object' && v != null ? v : { hour: v };
     if (o.hour == null && o.minute == null && o.scale == null && o.durationSec == null) continue;
     const dSec = o.durationSec != null ? Math.max(60, Math.min(24 * 3600, Math.round(Number(o.durationSec)))) : null;
-    if (dSec != null && name === 'Race') throw Object.assign(new Error('durationSec nella Race lo fa il tool della GARA CUSTOM a tempo (tools/set-instantrace.mjs --tempo N): qui i giri restano quelli del weekend'), { code: 'RACE_NOT_TIMED' });
+    if (dSec != null && name === 'Race') throw Object.assign(new Error('durationSec nella Race lo fa il tool della GARA CUSTOM a tempo (src/set-instantrace.mjs --tempo N): qui i giri restano quelli del weekend'), { code: 'RACE_NOT_TIMED' });
     want.set(name, { hour: o.hour != null ? Math.max(0, Math.min(23, Math.round(Number(o.hour)))) : null, minute: o.minute != null ? Math.max(0, Math.min(59, Math.round(Number(o.minute)))) : null, scale: o.scale != null ? Math.max(1, Math.min(60, Number(o.scale))) : null, durationSec: dSec });
   }
   const buf = readFileSync(file);

@@ -25,11 +25,11 @@ import { tr } from './lang.mjs';
 // il libro delle piste (TRACK_INFO): il comando di cambio auto porta anche
 // pista+layout come «Prepara tutto» li ha scritti — in gioco l'applet fa
 // la SEQUENZA COMPLETA di avvio (tipo di gara → pista → auto) (28/10 PM)
-import { specFor, currentWeekendTrack } from '../tools/set-track.mjs';
+import { specFor, currentWeekendTrack } from './set-track.mjs';
 // l'istantanea della gara al volo: la LETTURA del blocco Race è sempre
 // innocua (anche a gioco aperto) e vale alla card del cruscotto i FATTI
 // veri (durata, banda AI, pista) invece dei soli promé.
-import { currentInstantRace, INSTANT_FILE } from '../tools/set-instantrace.mjs';
+import { currentInstantRace, INSTANT_FILE } from './set-instantrace.mjs';
 // IL REGISTRO DELLA DURATA (4/11, card arricchite): l'ultima scrittura vera
 // del bottone «Gara al volo» arriva anche alla card demo del Cruscotto — la
 // STESSA fonte della GUI (endpoint gara-veloce-registro), un solo formatter.
@@ -68,7 +68,7 @@ import { statSync } from 'node:fs';
 // il VERDETTO DI GIORNATA (29/10, «bottone verdetto sul cruscotto»): la
 // STESSA fonte della CLI e dell'endpoint GUI — un aggregato, nessuna
 // formula da duplicare. La LETTURA dei Results è sola lettura.
-import { verdettoGiornata } from '../tools/verdetto-giornata.mjs';
+import { verdettoGiornata } from './verdetto-giornata.mjs';
 // I NOMI BELLI DELLE PISTE (2/11, «nome pulito anche nei chip del Pitwall»):
 // le righe del verdetto leggono LA PISTA grezza dal file Results (token di
 // cartella tipo «OultonParkInternational») — stessa voce di prettyTrackLabeled

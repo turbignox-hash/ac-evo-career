@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg } from '../src/evo-grid.mjs';
 import { veleniIn, curaBuf, trovaDonore, dimenticaDonore } from '../src/grid-cura.mjs';
 
 /* ---- le forme V assertThat del DONATORE e del VELENO (da EVO, commisurate il 23/10 e non solo) ---- */

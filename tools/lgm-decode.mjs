@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 const float = (b, o) => b.readFloatLE(o);
 // decodifica payload f3: seq di campi wire 5 (float) dopo i len-delim vuoti
 function floatsOf(bytes) {

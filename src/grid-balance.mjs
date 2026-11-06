@@ -9,17 +9,17 @@
 // non offre (es. 8%), e in automatico per ogni classe del file convenzioni.
 //
 // uso:
-//   node tools/grid-balance.mjs                       → dump ballast/restrictor attuali
-//   node tools/grid-balance.mjs --serie <id> --dry    → anteprima dalla convenzione
-//   node tools/grid-balance.mjs --serie <id> --track "Circuit Of The Americas" --apply
+//   node src/grid-balance.mjs                       → dump ballast/restrictor attuali
+//   node src/grid-balance.mjs --serie <id> --dry    → anteprima dalla convenzione
+//   node src/grid-balance.mjs --serie <id> --track "Circuit Of The Americas" --apply
 //                                                     → traccia = supplementi perTraccia
-//   node tools/grid-balance.mjs --rule "Ford Escort RS Cosworth=100,8" --apply
+//   node src/grid-balance.mjs --rule "Ford Escort RS Cosworth=100,8" --apply
 //       (override a mano; formato "Nome auto=kg,penalità%", regole ripetibili)
-//   node tools/grid-balance.mjs --drop preset_mk8gti_mech_1 --drop "Nome auto" --apply
+//   node src/grid-balance.mjs --drop preset_mk8gti_mech_1 --drop "Nome auto" --apply
 //       (RIMUOVE le celle di quell'auto — e il pilota legato alla stessa posizione
 //        ordinale — e aggiorna il conteggio nel config: l'unico modo per togliere
 //        un'auto a un customgrid costruito dal menu di EVO)
-//   node tools/grid-balance.mjs --ai 94-99 --apply    → riscrive l'intervallo AI (21/22)
+//   node src/grid-balance.mjs --ai 94-99 --apply    → riscrive l'intervallo AI (21/22)
 //
 // Il modulo è import-safe: la CLI gira solo quando eseguito direttamente
 // (lezione 19/10: il primo import da webui/grid-apply eseguiva la CLI e leggeva
@@ -28,7 +28,7 @@ import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { decodeMsg, encodeMsg, gridFileOf, gameRunning, GAME_MODES_DIR, pruneBackups } from './evo-grid.mjs';
-import { patchPerTrack } from '../src/gridbuilder.mjs';   // supplementi per-traccia della classe (cls.perTraccia)
+import { patchPerTrack } from './gridbuilder.mjs';   // supplementi per-traccia della classe (cls.perTraccia)
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const DEFAULT_FILE = join(GAME_MODES_DIR, 'last_grid.customgrid');
@@ -199,7 +199,7 @@ export function planFromClass(classes, serieId, trackRef) {
   const rules = c.regole.map((r) => ({ match: r.preset ? { preset: r.preset } : { carName: r.auto }, ballastKg: r.ballastKg ?? 0, restrictorPct: r.restrictorPct ?? 0 }));
   // supplementi per-traccia (cls.perTraccia): le regole di Brands non tengono
   // sulle piste con rettilinei lunghi — vedi COTA 19/10. Per risultato:
-  //   node tools/grid-balance.mjs --serie <id> --track "Circuit Of The Americas"
+  //   node src/grid-balance.mjs --serie <id> --track "Circuit Of The Americas"
   let trkMsg = '';
   if (trackRef) {
     const flat = rules.map((r) => ({ rule: r.match, kg: r.ballastKg, pct: r.restrictorPct }));

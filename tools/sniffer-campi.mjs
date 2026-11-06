@@ -18,7 +18,7 @@
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync, statSync, existsSync, } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
-import { decodeMsg, GAME_MODES_DIR } from './evo-grid.mjs';
+import { decodeMsg, GAME_MODES_DIR } from '../src/evo-grid.mjs';
 
 const HERE = join(import.meta.dirname ?? '.');
 const OUT_DIR = join(HERE, '..', 'data', 'sniffer-campi');

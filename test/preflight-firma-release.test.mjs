@@ -61,6 +61,7 @@ test('preflight release: firma stub verde, rossa e assente', { skip: SKIP }, (t)
   const log = join(blob, 'signtool.log');
   const radice = join(blob, 'repo');
   mkdirSync(join(radice, 'tools'), { recursive: true });
+  mkdirSync(join(radice, 'src'), { recursive: true });   // release-assets.mjs vive qui (6/11)
   mkdirSync(join(radice, 'test'), { recursive: true });
   mkdirSync(join(radice, 'dist'), { recursive: true });
 
@@ -68,7 +69,7 @@ test('preflight release: firma stub verde, rossa e assente', { skip: SKIP }, (t)
   // che il preflight comanda (UIAPP/layout) e gli EXE.
   copyFileSync(join(QUI, 'tools', 'crea-release.mjs'), join(radice, 'tools', 'crea-release.mjs'));
   copyFileSync(join(QUI, 'tools', 'build-installer-exe.mjs'), join(radice, 'tools', 'build-installer-exe.mjs'));
-  copyFileSync(join(QUI, 'tools', 'release-assets.mjs'), join(radice, 'tools', 'release-assets.mjs'));
+  copyFileSync(join(QUI, 'src', 'release-assets.mjs'), join(radice, 'src', 'release-assets.mjs'));
   writeFileSync(join(radice, 'package.json'), JSON.stringify({ name: 'sandbox', version: '0.0.0' }), 'utf8');
   writeFileSync(join(radice, 'tools', 'genera-uiapp.mjs'), 'process.exit(0);\n', 'utf8');
   for (const file of ['uiapp-installata.test.mjs', 'skip-guardia-layout.test.mjs', 'layout-impostazioni.test.mjs']) {

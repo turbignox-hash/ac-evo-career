@@ -23,14 +23,14 @@ const TMP = mkdtempSync(join(tmpdir(), 'grid-templates-test-'));
 process.env.EVO_DATA_DIR = TMP;               // magazzino e snapshot redirigono qua
 process.env.EVO_FACTORY_DIR = join(TMP, 'fabbrica');   // griglie di fabbrica redirigono qua
 // anche i FILE DI GIOCO (24/10): il gate del conteggio legge il VERO
-// gamemodesave (weekendCarCount → tools/set-track.mjs); senza sabbia, sul PC
+// gamemodesave (weekendCarCount → src/set-track.mjs); senza sabbia, sul PC
 // di sviluppo i cinque test che montano nodeName/track «Red Bull Ring» si
 // allineavano ALLA GARA REALE in corso (gridSize → 14) e si spezzavano
 // (servono 14, il fixture ne ha 6/8/4). Con la redirezione il file non c'è →
 // nativo null → nessun align, come su un EVO vergine.
 process.env.ACE_GAME_SAVEDIR = join(TMP, 'giochi-salvati');
 const ga = await import('../src/grid-apply.mjs');
-const ev = await import('../tools/evo-grid.mjs');
+const ev = await import('../src/evo-grid.mjs');
 const { encodeMsg } = ev;
 
 const B = (s) => Buffer.from(String(s), 'utf8');
@@ -137,7 +137,7 @@ test('serie mai messa in griglia da nessuna parte: errore col RITUALE (NO_TEMPLA
 /* ---------- CELLE SINTETICHE (1/11, gara al volo) ---------- */
 test('celle NUOVE con opt-in: la RS 3 mai in griglia entra nel pool F40 (sintesi dal donatore + round-robin per modello)', async () => {
   const bg = await import('../src/gridbuilder.mjs');
-  const ev = await import('../tools/evo-grid.mjs');
+  const ev = await import('../src/evo-grid.mjs');
   // nodo MIXTO (caso reale del pool della gara al volo): F40 (sul disco,
   // 4 varianti byte-uniche) + RS 3 (mai state in NESSUNA griglia)
   LADDER.nodes.push({
@@ -421,7 +421,7 @@ test('BAK AL SECONDO: tre riscritture ravvicinate dello stesso template restano 
 // Import DINAMICO dopo ACE_GAME_SAVEDIR: un import statico qui verrebbe
 // valutato PRIMA del corpo del test (hoisting ESM), caricando evo-grid col
 // save vero e facendo leggere al gate le 27 vetture della partita aperta.
-const { readCells } = await import('../tools/grid-balance.mjs');
+const { readCells } = await import('../src/grid-balance.mjs');
 // cella con la TINTA in formato GIOCO (preset visuale nel segmento PRECEDENTE a \x18)
 const cellaTinta = (id, i, visio) => encodeMsg([
   { field: 3, wire: 2, bytes: B(id) },

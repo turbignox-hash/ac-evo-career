@@ -19,7 +19,7 @@
 import { readFileSync, writeFileSync, renameSync, copyFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodeMsg, encodeMsg, bakName, gameRunning, GAME_MODES_DIR } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg, bakName, gameRunning, GAME_MODES_DIR } from './evo-grid.mjs';
 import { celleDiGrid, syncRoster } from './weekend-roster.mjs';
 
 const QUI = dirname(fileURLToPath(import.meta.url));

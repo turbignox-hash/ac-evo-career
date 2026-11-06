@@ -31,7 +31,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { lapToMs, positionBase } from './results.mjs';
 import { loadClasses, perTrackKey, classesFile } from './gridbuilder.mjs';
-import { readCells, DEFAULT_FILE as GRID_FILE } from '../tools/grid-balance.mjs';
+import { readCells, DEFAULT_FILE as GRID_FILE } from './grid-balance.mjs';
 import { writeJsonAtomic } from './atomic.mjs';
 import { writeOrWarn } from './safe-write.mjs';
 import { tr } from './lang.mjs';
@@ -308,7 +308,7 @@ function buildProposte(evento, cls, track) {
   const aiRange = aiRangeOf(cls, track);
   const ai = (evento.aiCampo?.visA != null) ? [evento.aiCampo.visDa, evento.aiCampo.visA] : (aiRange?.ai ?? null);
   const trackArg = track ? ` --track "${track}"` : '';
-  const cmdAi = (lo, hi) => `node tools/grid-balance.mjs --serie ${evento.classe}${trackArg} --ai ${lo}-${hi}`;
+  const cmdAi = (lo, hi) => `node src/grid-balance.mjs --serie ${evento.classe}${trackArg} --ai ${lo}-${hi}`;
 
   // A) CAMPO TROPPO FORTE: la mediana best dell'AI scappa davanti a te E almeno 2 AI
   // ti hanno battuto in gara (non è questione di auto: è lo slider)
@@ -344,7 +344,7 @@ function buildProposte(evento, cls, track) {
       if (r.deltaVsBaseSec < -2 && r.preset) prop.push({
         leva: 'escludi', auto: r.auto, preset: r.preset, da: `${r.kg}kg/${capPct}% (cap)`, a: 'escludi dal pool di QUESTA pista',
         perche: tr({ it: `al cap e sfugge ancora: ${fmt(r.deltaVsBaseSec)} dalla base su ${evento.pista ?? '?'} — prima esclusione SOLO per questa pista; quando ≥2 piste la confermano, l'analisi proporrà l'esclusione di CLASSE`, en: `already at the cap and still escaping: ${fmt(r.deltaVsBaseSec)} from the base at ${evento.pista ?? '?'} — first exclusion ONLY for this track; once ≥2 tracks confirm it, the analysis will propose the CLASS exclusion` }),
-        comando: `grid-classes.json → perTraccia["${track}"].escludiAuto += "${r.preset}" · poi nel file: node tools/grid-balance.mjs --drop ${r.preset}`,
+        comando: `grid-classes.json → perTraccia["${track}"].escludiAuto += "${r.preset}" · poi nel file: node src/grid-balance.mjs --drop ${r.preset}`,
       });
       continue;
     }
@@ -393,7 +393,7 @@ function buildProposte(evento, cls, track) {
     prop.push({
       leva: 'regola-classe', auto: r.auto, classe: evento.classe, da: `regola classe ${r.kg}kg/${basePct}%`, a: `${r.kg}kg/${valore}%`,
       perche: tr({ it: `${conferme.length} piste confermano la stessa carica su ${r.auto} (e.g. ${conferme.slice(0, 2).map(([k]) => k).join(', ')}): il default di classe ${basePct}% lascia l'auto forte OVUNQUE, non solo là dove è stato calibrato`, en: `${conferme.length} tracks confirm the same handicap on ${r.auto}: the class default of ${basePct}% leaves the car strong EVERYWHERE, not only where it was calibrated` }),
-      comando: `node tools/grid-balance.mjs --rule "${r.auto}=${r.kg},${valore}" --apply`,
+      comando: `node src/grid-balance.mjs --rule "${r.auto}=${r.kg},${valore}" --apply`,
     });
   }
 
@@ -419,7 +419,7 @@ function buildProposte(evento, cls, track) {
       da: `${r.kg}kg/${capPct}% (cap) · già esclusa su ${conferme.length} piste`,
       a: 'escludi dal campionato',
       perche: tr({ it: `${conferme.length} piste hanno già esteso ${r.auto} fuori dal pool (${conferme.slice(0, 2).map(([k]) => k).join(', ')}) e qui al cap sfugge di ${fmt(r.deltaVsBaseSec)}: il cap non basta sulla PROVA — esclusione di classe dimostrata dai dati, non dal sospetto`, en: `${conferme.length} tracks already removed ${r.auto} from their pool and it still escapes at the cap by ${fmt(r.deltaVsBaseSec)}: the cap is proven insufficient — class exclusion backed by data, not suspicion` }),
-      comando: `grid-classes.json → classi["${evento.classe}"].escludiAuto += "${r.preset}" · poi nel file: node tools/grid-balance.mjs --drop ${r.preset} --apply`,
+      comando: `grid-classes.json → classi["${evento.classe}"].escludiAuto += "${r.preset}" · poi nel file: node src/grid-balance.mjs --drop ${r.preset} --apply`,
     });
   }
   return prop;

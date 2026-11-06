@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, utimesSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { encodeMsg } from '../tools/evo-grid.mjs';
+import { encodeMsg } from '../src/evo-grid.mjs';
 
 const GAME = mkdtempSync(join(tmpdir(), 'evo-wxauto-game-'));
 const Results = mkdtempSync(join(tmpdir(), 'evo-wxauto-results-'));
@@ -30,7 +30,7 @@ const LGM = join(GAME, 'gamemode.lastgamemode');
 const steps = Array.from({ length: 9 }, () => ({ field: 3, wire: 2, bytes: step(0.2, 0.5, 0) }));
 writeFileSync(LGM, encodeMsg([{ field: 2, wire: 0, varint: BigInt(0) }, ...steps]));
 
-const { decodeMsg } = await import('../tools/evo-grid.mjs');
+const { decodeMsg } = await import('../src/evo-grid.mjs');
 const leggiPreset = () => {
   const p = decodeMsg(readFileSync(LGM)).find((x) => x.field === 2 && x.wire === 0);
   return p != null ? Number(p.varint) : 0;

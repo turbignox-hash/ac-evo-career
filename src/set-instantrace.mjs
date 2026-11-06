@@ -11,9 +11,9 @@
 // Quindi la gara custom a 5 minuti = blocco Race con f3=1 e f2=300.
 //
 // Uso:
-//   node tools/set-instantrace.mjs                    legge e mostra lo stato
-//   node tools/set-instantrace.mjs --tempo 5 [--dry]  gara a 5 minuti
-//   node tools/set-instantrace.mjs --giri 7 [--dry]   torna a giri
+//   node src/set-instantrace.mjs                    legge e mostra lo stato
+//   node src/set-instantrace.mjs --tempo 5 [--dry]  gara a 5 minuti
+//   node src/set-instantrace.mjs --giri 7 [--dry]   torna a giri
 //   (+ --force per scrivere col gioco aperto, sapendolo)
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';

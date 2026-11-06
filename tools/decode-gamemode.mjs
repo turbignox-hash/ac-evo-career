@@ -2,7 +2,7 @@
 // struttura protobuf (stesso schema wire del customgrid) per trovare il CAMPO
 // che porta la pista del weekend — prelude al cambio pista a gioco aperto.
 import { readFileSync } from 'node:fs';
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 const utf8 = (b) => Buffer.from(b).toString('utf8');
 
 const file = process.argv[2] ?? 'C:/Users/Mauro/Saved Games/ACE/GameModes/GameModeType_RACE_WEEKEND.gamemodesave';

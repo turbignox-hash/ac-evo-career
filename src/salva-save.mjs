@@ -17,11 +17,11 @@
 //
 // DUE MODI DI USARE IL MOTORE (26/10, sezione GUI «Backup del save di EVO»
 // in viste-d.js vivace in-process, senza spine l'CLI):
-//   import { statoBackup, forzaBackup } from '../tools/salva-save.mjs';
+//   import { statoBackup, forzaBackup } from './salva-save.mjs';
 //   statoBackup() → { saveDirFound, zips: [], ultimo, ageHours, fresh, ... }
 //   forzaBackup() → { ok, zip, size, slot, zip_vivi, stato }
 //
-// CLI (node tools/salva-save.mjs):
+// CLI (node src/salva-save.mjs):
 //   (senza arg) backup SOLO se l'ultimo e' stantio (> 36 ore). Silenzioso:
 //   se stantio zippa; se fresco esce 0 senza fare una piega.
 //   --check        exit 0 = backup fresco, exit 1 = stantio/assen/corrotto
@@ -34,7 +34,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { join, dirname } from 'node:path';
 import { fileURLToPath, } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { dataDirCandidates } from '../src/paths.mjs';
+import { dataDirCandidates } from './paths.mjs';
 
 const RADICE = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DEST_BASE = join(RADICE, 'data', 'salva-save');

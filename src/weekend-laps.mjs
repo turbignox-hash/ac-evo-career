@@ -8,10 +8,10 @@
 //   f30/f31 = AI min/max, f32 = aggressività
 //
 // uso:
-//   node tools/weekend-laps.mjs                        → elenco sessioni + giri
-//   node tools/weekend-laps.mjs --race N               → imposta N giri alla GARA (EVO chiuso)
-//   node tools/weekend-laps.mjs --session "<nome>" N   → imposta N alla sessione col nome dato
-//   node tools/weekend-laps.mjs --singlemake off|on     → griglia CUSTOM (N=13) / AUTOMATIC (mono)
+//   node src/weekend-laps.mjs                        → elenco sessioni + giri
+//   node src/weekend-laps.mjs --race N               → imposta N giri alla GARA (EVO chiuso)
+//   node src/weekend-laps.mjs --session "<nome>" N   → imposta N alla sessione col nome dato
+//   node src/weekend-laps.mjs --singlemake off|on     → griglia CUSTOM (N=13) / AUTOMATIC (mono)
 //
 // Lezione (19/10): la prima versione faceva la riscrittura a mano e HA CORROTTO
 // il file (tag/lunghezze ricalcolati male) → ripristinato dal .bak e riscritta
@@ -22,9 +22,9 @@
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
-import { decodeMsg, encodeMsg, GAME_MODES_DIR, pruneBackups } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg, GAME_MODES_DIR, pruneBackups } from './evo-grid.mjs';
 import { setWeekendGridMode } from './set-track.mjs';
-import { cancelloDistanza } from '../src/test-mode.mjs';
+import { cancelloDistanza } from './test-mode.mjs';
 
 const FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 const gameIsRunning = () => /AssettoCorsaEVO/i.test(execSync('tasklist', { encoding: 'utf8' }) ?? '');
@@ -119,7 +119,7 @@ export function raceBlockIndex(ses) {
  *
  * 27/10, ripensamento: NEI TEST il flag ha girato, ma la STRADA GIUSTA per
  * girarlo è già canonica da prima: `setWeekendGridMode('automatic'|'custom')`
- * in tools/set-track.mjs (la forma 6=1+7=N osservata toggle vivo, richiesta
+ * in src/set-track.mjs (la forma 6=1+7=N osservata toggle vivo, richiesta
  * Mauro «tutti alla pari, zavorre e penalità non servono»). Il WRITER qui
  * sotto resta solo come spia dei campi veri; l'AZIONE delega a quella
  * funzione, così niente due scrittori che possono discostarsi.

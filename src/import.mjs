@@ -47,7 +47,7 @@ import { carPoolOf, carInPool } from './car-pool.mjs';
 // APPRENDIMENTO AUTO (25/10): a fine gara coppiamo il garage sul disco con il
 // nome dell'auto corsa — così il dizionario perso da un'installazione pulita
 // si ricostruisce da solo, senza sampler a mano.
-import { learnCar } from '../tools/set-car-sample.mjs';
+import { learnCar } from './set-car-sample.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJECT = dirname(HERE);

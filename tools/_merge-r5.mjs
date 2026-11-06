@@ -9,7 +9,7 @@
 import { readFileSync, writeFileSync, copyFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodeMsg, encodeMsg, gridFileOf } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, gridFileOf } from '../src/evo-grid.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PROJ = join(HERE, '..');

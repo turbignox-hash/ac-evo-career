@@ -4,7 +4,7 @@
 // dimensione dichiarata e ricalcola lo SHA-256. Per EXE e bundle legge anche
 // il sidecar e pretende che il nome dentro il sidecar sia quello giusto.
 //
-// Uso: node tools/verifica-release.mjs v0.1.57
+// Uso: node src/verifica-release.mjs v0.1.57
 //      (senza tag usa la versione di package.json)
 // Se il repository è privato, esporta GITHUB_TOKEN con accesso in lettura.
 

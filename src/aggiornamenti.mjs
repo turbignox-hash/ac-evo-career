@@ -5,7 +5,7 @@
 //
 //   statoAggiornamenti()     confronto HEAD vs remote (senza toccare nulla)
 //   installaAggiornamenti()  fetch + merge --ff-only + npm test
-//   lancio diretto:          node tools/aggiornamenti.mjs [--breve]
+//   lancio diretto:          node src/aggiornamenti.mjs [--breve]
 //
 // Il save carriera NON si tocca: `data/` resta locale perche' e' fuori dal repo.
 // Senza rete il check si tace in forma breve e il launcher prosegue uguale.
@@ -51,7 +51,7 @@ async function gitOkAsync(args) {
 export async function statoAggiornamentiAsync() {
   // VIA ZIP (24/10): senza .git non c'è cosa mergeta — il confronto è
   // build-id.txt vs l'ultimo commit di GitHub via API, e l'installazione
-  // scarica la zipball (tools/aggiorna-zip.mjs). STESSA forma di risultato:
+  // scarica la zipball (src/aggiorna-zip.mjs). STESSA forma di risultato:
   // GUI, launcher e CLI non sanno la differenza.
   if (!viaGit()) return statoZipAsync();
   let head = '';

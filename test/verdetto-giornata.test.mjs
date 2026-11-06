@@ -12,7 +12,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { verdettoGiornata } from '../tools/verdetto-giornata.mjs';
+import { verdettoGiornata } from '../src/verdetto-giornata.mjs';
 
 const DRIVER = { first: 'Mauro', last: 'Turbigno', name: 'Mauro Turbigno', nation: 'ITA' };
 

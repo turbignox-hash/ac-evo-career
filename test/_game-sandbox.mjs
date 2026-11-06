@@ -1,7 +1,7 @@
 // Helper di test (23/10/2026): isola i FILE DI GIOCO (quelli dentro
 // Saved Games/ACE — weekend gamemodesave, customgrid, lastgamemode,
 // drivergarage) in una cartella temporanea, via ACE_GAME_SAVEDIR
-// (il modificatore di tools/evo-grid.mjs). Importarlo come PRIMA riga
+// (il modificatore di src/evo-grid.mjs). Importarlo come PRIMA riga
 // di un file di test: i moduli dopo girano solo dentro la sandbox, e un
 // flusso webui di prova (event-prep, race) non può più cancellare o
 // riscrivere i file veri di EVO sul PC di nessuno.

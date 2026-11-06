@@ -15,7 +15,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { encodeMsg } from '../tools/evo-grid.mjs';
+import { encodeMsg } from '../src/evo-grid.mjs';
 import { REGISTRO_FILE } from '../tools/_gara-veloce.mjs';
 import { azioniPulsanti } from '../src/uiapp-pub.mjs';
 

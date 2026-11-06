@@ -1,5 +1,5 @@
 // _weekend-celle.mjs — dove vivono le CELLE (auto/opponenti) nei gamemodesave e nel customgrid
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 

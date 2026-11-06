@@ -1,4 +1,4 @@
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 import fs from 'node:fs';
 const file = process.argv[2] ?? 'C:/Users/Mauro/Saved Games/ACE/GameModes/GameModeType_RACE_WEEKEND.gamemodesave';
 const buf = fs.readFileSync(file);

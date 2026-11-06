@@ -38,7 +38,7 @@
 import { readFileSync, writeFileSync, renameSync, copyFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodeMsg, encodeMsg, bakName, gameRunning, GAME_MODES_DIR } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, bakName, gameRunning, GAME_MODES_DIR } from '../src/evo-grid.mjs';
 import { syncRoster, celleDiGrid } from '../src/weekend-roster.mjs';
 
 const RADICE = dirname(dirname(fileURLToPath(import.meta.url)));

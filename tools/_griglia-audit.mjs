@@ -1,5 +1,5 @@
 // _griglia-audit.mjs — sonda temporanea: cosa c'è davvero nelle griglie del gioco
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 

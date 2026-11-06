@@ -14,7 +14,7 @@
 //   3. se GitHub è avanti → GET .../zipball/main, estrazione in temp e copia
 //      a livello file: si sovrascrive SOLO il codice — data/ (il save, la
 //      config locale, i MoTec) non si tocca, come col clone.
-// Poi npm test, come nel flusso git. tools/aggiornamenti.mjs delega qui
+// Poi npm test, come nel flusso git. src/aggiornamenti.mjs delega qui
 // quando nella cartella non c'è .git: l'amico vede la stessa barra
 // «Aggiorna ora» della GUI e lo stesso prompt del launcher, senza saperlo.
 //
@@ -24,7 +24,7 @@
 // zip è il comportamento giusto.
 //
 // Uso: invocato da aggiornamenti.mjs (delega automatica quando manca .git) e
-// anche da solo: node tools/aggiorna-zip.mjs [--breve] (--installa per applicare)
+// anche da solo: node src/aggiorna-zip.mjs [--breve] (--installa per applicare)
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync, copyFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
@@ -73,7 +73,7 @@ export function scriviBuildId(sha, radice = RADICE) {
 }
 
 /** Confronto disco (build-id) vs GitHub (commits/main): STESSA forma di
- *  risultato di tools/aggiornamenti.mjs — skip / equal / remotoAvanti — così
+ *  risultato di src/aggiornamenti.mjs — skip / equal / remotoAvanti — così
  *  la GUI e il launcher non fanno nessun reformato. */
 export async function statoZipAsync(radice = RADICE) {
   const locale = leggiBuildId(radice);

@@ -1,5 +1,5 @@
 // _celle-sessioni.mjs — i QUATTRO blocchi sessione del weekend: quanti slot-cella ha ciascuno?
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 

@@ -16,9 +16,9 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { encodeMsg } from '../tools/evo-grid.mjs';
-import { setWeekendLaps, setWeekendTimed, sessionsOf, raceBlockIndex } from '../tools/weekend-laps.mjs';
-import { setRaceSessions, setRaceTime, currentRaceTime } from '../tools/set-racetime.mjs';
+import { encodeMsg } from '../src/evo-grid.mjs';
+import { setWeekendLaps, setWeekendTimed, sessionsOf, raceBlockIndex } from '../src/weekend-laps.mjs';
+import { setRaceSessions, setRaceTime, currentRaceTime } from '../src/set-racetime.mjs';
 import { cancelloOrario, cancelloDistanza } from '../src/test-mode.mjs';
 
 const TMP = mkdtempSync(join(tmpdir(), 'evo-cancelli-'));

@@ -4,7 +4,7 @@
 // Copie su data/samples/gridtype2/<tag>__<percorso-appiattito>.
 import { statSync, copyFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { GAME_SAVEDIR } from './evo-grid.mjs';
+import { GAME_SAVEDIR } from '../src/evo-grid.mjs';
 
 const EXCLUDED = new Set(['Replay', 'MoTec', 'Logs', 'Results']);
 const OUT = 'data/samples/gridtype2';

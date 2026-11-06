@@ -10,7 +10,7 @@ import assert from 'node:assert';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { nomeDaFoto, rebuildCarImages } from '../tools/ricrea-indici-auto.mjs';
+import { nomeDaFoto, rebuildCarImages } from '../src/ricrea-indici-auto.mjs';
 
 test('nomeDaFoto: slug lungo con anno → nome presentabile con anno tra parentesi', () => {
   assert.equal(nomeDaFoto('abarth_695_biposto_2022.jpg'), 'Abarth 695 Biposto (2022)');

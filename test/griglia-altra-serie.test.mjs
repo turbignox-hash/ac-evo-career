@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const TMP = mkdtempSync(join(tmpdir(), 'altra-serie-'));
-const ev = await import('../tools/evo-grid.mjs');
+const ev = await import('../src/evo-grid.mjs');
 const { grigliaDiAltraSerie } = await import('../src/grid-apply.mjs');
 const { encodeMsg } = ev;
 const B = (s) => Buffer.from(String(s), 'utf8');

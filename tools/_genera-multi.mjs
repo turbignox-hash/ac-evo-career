@@ -21,7 +21,7 @@ import { readFileSync, writeFileSync, copyFileSync, existsSync, mkdirSync, readd
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { gridFileOf, encodeMsg, decodeMsg } from './evo-grid.mjs';
+import { gridFileOf, encodeMsg, decodeMsg } from '../src/evo-grid.mjs';
 import { buildGridMessage, loadClasses } from '../src/gridbuilder.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));

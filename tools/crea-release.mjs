@@ -69,7 +69,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { caricaAssetRelease, pianoAssetRelease } from './release-assets.mjs';
+import { caricaAssetRelease, pianoAssetRelease } from '../src/release-assets.mjs';
 
 const argv = process.argv.slice(2);
 const SOLO_PREFLIGHT = argv.includes('--solo-preflight');
@@ -279,7 +279,7 @@ const releaseId = out.id ?? list.id;
 // asset: POST binario su uploads.github.com; 422 (nome già preso) → si cancella
 // quello esistente e si ritenta, così la zip della release è SEMPRE l'ultima
 // la zip di --con-pacchetto sale per prima; poi gli asset espliciti e gli EXE
-// firmati, senza doppioni (vedi tools/release-assets.mjs).
+// firmati, senza doppioni (vedi src/release-assets.mjs).
 const dallaZip = pianoAssetRelease({ zip: zipFresco, espliciti: assets, firmati: exeFirmati });
 console.log(`Asset release (${dallaZip.length}): ${dallaZip.map((f) => basename(f)).join(', ')}`);
 let assetKo = 0;

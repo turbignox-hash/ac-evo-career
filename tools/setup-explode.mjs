@@ -5,7 +5,7 @@
 //
 // Uso: node tools/setup-explode.mjs "<percorso .carsetup>" [--corti]
 import { readFileSync } from 'node:fs';
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 
 const file = process.argv[2];
 if (!file) { console.error('uso: node tools/setup-explode.mjs <file.carsetup>'); process.exit(1); }

@@ -32,11 +32,11 @@ const snapshot = (p) => (existsSync(p) ? sha256(readFileSync(p)) : 'assente');
 
 /* ---------- 1) la sandbox reindirizza TUTTI i percorsi dei tool ---------- */
 const { GAME_SANDBOX } = await import('./_game-sandbox.mjs');
-const evo = await import('../tools/evo-grid.mjs');
-const { WEEKEND_FILE } = await import('../tools/set-track.mjs');
+const evo = await import('../src/evo-grid.mjs');
+const { WEEKEND_FILE } = await import('../src/set-track.mjs');
 const { GRID_FILE } = await import('../tools/set-car.mjs');
-const { GARAGE_FILE } = await import('../tools/set-driver-car.mjs');
-const { WEEKEND_FILE: WEEKEND_FILE2 } = await import('../tools/set-racetime.mjs');
+const { GARAGE_FILE } = await import('../src/set-driver-car.mjs');
+const { WEEKEND_FILE: WEEKEND_FILE2 } = await import('../src/set-racetime.mjs');
 
 test('sandbox: WEEKEND/GRID/GARAGE vivono dentro ACE_GAME_SAVEDIR, non nel PC vero', () => {
   const GAME_SAVEDIR = process.env.ACE_GAME_SAVEDIR;

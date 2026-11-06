@@ -22,7 +22,7 @@ import { tr, lang } from './lang.mjs';
 import { carPoolOf } from './car-pool.mjs';
 import { sameTrack } from './tracknames.mjs';
 import { existsSync } from 'node:fs';
-import { weekendCarCount, WEEKEND_FILE, celleGrigliaCampionato } from '../tools/set-track.mjs';
+import { weekendCarCount, WEEKEND_FILE, celleGrigliaCampionato } from './set-track.mjs';
 // ORE SPOSTABILI (1/11): l'ora override per-ronda dichiarata in agenda.mjs.
 // agenda.mjs non importa race.mjs: nessun ciclo.
 import { oraRonda } from './agenda.mjs';

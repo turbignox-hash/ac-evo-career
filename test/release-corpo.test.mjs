@@ -20,7 +20,8 @@ function creaSandbox(t) {
 
   mkdirSync(join(blob, 'tools'), { recursive: true });
   copyFileSync(join(QUI, 'tools', 'crea-release.mjs'), join(blob, 'tools', 'crea-release.mjs'));
-  copyFileSync(join(QUI, 'tools', 'release-assets.mjs'), join(blob, 'tools', 'release-assets.mjs'));
+  mkdirSync(join(blob, 'src'), { recursive: true });   // release-assets.mjs vive qui (6/11)
+  copyFileSync(join(QUI, 'src', 'release-assets.mjs'), join(blob, 'src', 'release-assets.mjs'));
   writeFileSync(join(blob, 'package.json'), JSON.stringify({ name: 'sandbox', version: '0.0.0' }), 'utf8');
   writeFileSync(join(blob, 'README.md'), '# sandbox\n', 'utf8');
 

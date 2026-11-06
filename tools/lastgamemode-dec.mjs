@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 const b = readFileSync('data/samples/lastgamemode-1742.hex');
 const d = decodeMsg(b);
 console.log('top:', d.map((f) => f.field + ':' + f.wire + ':' + (f.varint != null ? f.varint : Buffer.from(f.bytes).length)).join('|'));

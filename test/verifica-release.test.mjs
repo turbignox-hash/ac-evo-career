@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { pianoAtteso, leggiSidecar, sha256, verificaRelease } from '../tools/verifica-release.mjs';
+import { pianoAtteso, leggiSidecar, sha256, verificaRelease } from '../src/verifica-release.mjs';
 
 test('piano release: due EXE e pacchetto amico (dal 0.1.59 niente bundle unico)', () => {
   const piano = pianoAtteso('0.1.59');

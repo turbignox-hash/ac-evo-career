@@ -2,7 +2,7 @@
 // uso: node tools/dump-block.mjs <file> <percorso.tipo> [prof]
 //   es: node tools/dump-block.mjs <gamemodesave> 3.11 3   → il primo pilota completo
 import { readFileSync } from 'node:fs';
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 const file = process.argv[2];
 const pathStr = process.argv[3] ?? '3';
 const prof = Number(process.argv[4] ?? 3);

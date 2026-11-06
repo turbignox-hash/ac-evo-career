@@ -47,9 +47,9 @@
 import { existsSync, readdirSync, copyFileSync, writeFileSync, renameSync, appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 
-import { GAME_MODES_DIR, gameRunning, bakName, pruneBackups } from './evo-grid.mjs';
-import { timedRace, setInstantAi, currentInstantRace, INSTANT_FILE } from './set-instantrace.mjs';
-import { specFor, changeWeekendTrack, currentWeekendTrack } from './set-track.mjs';
+import { GAME_MODES_DIR, gameRunning, bakName, pruneBackups } from '../src/evo-grid.mjs';
+import { timedRace, setInstantAi, currentInstantRace, INSTANT_FILE } from '../src/set-instantrace.mjs';
+import { specFor, changeWeekendTrack, currentWeekendTrack } from '../src/set-track.mjs';
 import { fileURLToPath } from 'node:url';
 import { loadState, saveState } from '../src/state.mjs';
 import { loadLadder, SAVE_FILE } from '../src/webui-env.mjs';

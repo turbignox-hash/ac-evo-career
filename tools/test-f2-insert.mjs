@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg } from '../src/evo-grid.mjs';
 const path = 'C:/Users/Mauro/Saved Games/ACE/GameModes/gamemode.lastgamemode';
 const buf = readFileSync(path);
 const fields = decodeMsg(buf);

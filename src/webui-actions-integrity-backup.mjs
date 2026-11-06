@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { checkIntegrity, fixIntegrity } from './integrity.mjs';
 import { reviewableSeasons } from './review.mjs';
 import { BACKUP_DIR, SAVE_FILE } from './webui-env.mjs';
-import { forzaBackup, statoBackup } from '../tools/salva-save.mjs';
+import { forzaBackup, statoBackup } from './salva-save.mjs';
 import { tr } from './lang.mjs';
 import { viewHeader } from './webui-views.mjs';
 

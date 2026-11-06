@@ -15,7 +15,7 @@ process.env.EVO_DATA_DIR = mkdtempSync(join(tmpdir(), 'evo-racecard-'));
 process.env.EVO_SENZA_VINCOLI = '0';                // i test descrivono il comportamento canonico: si paga
 
 const race = await import('../src/race.mjs');
-import { encodeMsg } from '../tools/evo-grid.mjs';                 // le celle del customgrid finto
+import { encodeMsg } from '../src/evo-grid.mjs';                 // le celle del customgrid finto
 import { GRID_FILE } from '../src/grid-apply.mjs';                 // lo STESSO file che la vigia guarda
 
 /* ---- fixture: stessa scala di life.test.mjs (gridFor vuole 30 piloti attivi) ---- */

@@ -3,7 +3,7 @@
 // (sessione di registro 26/10): poi si fa diff a campo per trovare
 // il protobuf del gridType AUTOMATIC→CUSTOM, come weather-diff.mjs.
 import { statSync, copyFileSync, mkdirSync } from 'node:fs';
-import { GAME_MODES_DIR } from './evo-grid.mjs';
+import { GAME_MODES_DIR } from '../src/evo-grid.mjs';
 import { join } from 'node:path';
 
 const SRC = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');

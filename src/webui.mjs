@@ -26,7 +26,7 @@ import { loadCatalog, resultDetail, onlineArchive } from './catalog.mjs';
 import { rapportoGara } from './rapporto-gara.mjs';
 // IL VERDETTO DI GIORNATA (29/10, «verdetto nella GUI»): stesso aggregato del
 // tool CLI e dei fasce del cruscotto in gioco — UNA fonte sola.
-import { verdettoGiornata } from '../tools/verdetto-giornata.mjs';
+import { verdettoGiornata } from './verdetto-giornata.mjs';
 import { liveReader } from './shmem.mjs';
 import { creaVoceCopilota, nuovoSlotVoce, giroVoce, pannelloVoce, VOCE_LIVELLI, LOG_VOCE_FILE } from './voce-copilota.mjs';
 import { raceCard, markPending, chargeEntry, launch, nextRound } from './race.mjs';
@@ -64,21 +64,21 @@ import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
 import { listSetups, brakePlanOf, annotateAllyAdvice, } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
 import { carPoolOf, carInPool, poolNodeForLive } from './car-pool.mjs';
-import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, setWeekendGridCustom, setWeekendGridAuto, WEEKEND_FILE } from '../tools/set-track.mjs';
-import { currentRaceTime, currentSessionTimes, setRaceSessions } from '../tools/set-racetime.mjs';
-import { setWeekendAirTemp } from '../tools/set-weekend.mjs';
-import { setWeekendLaps, setWeekendTimed, weekendLaps, raceBlockIndex } from '../tools/weekend-laps.mjs';
-import { readCells } from '../tools/grid-balance.mjs';
+import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, setWeekendGridCustom, setWeekendGridAuto, WEEKEND_FILE } from './set-track.mjs';
+import { currentRaceTime, currentSessionTimes, setRaceSessions } from './set-racetime.mjs';
+import { setWeekendAirTemp } from './set-weekend.mjs';
+import { setWeekendLaps, setWeekendTimed, weekendLaps, raceBlockIndex } from './weekend-laps.mjs';
+import { readCells } from './grid-balance.mjs';
 // report.mjs: il bottone "Segnala un problema" costruisce l'URL della issue
 // GitHub precompilata (versione, serie in corso, errori recenti) e il link
 // Ko-fi dal config. Nessuna rete qui: il POST lo fa il browser.
 import { feedbackLinks } from './report.mjs';
 // il bridge della gara custom a tempo (POST /api/instantrace): lettura +
 // scrittura dell'INSTANT_RACE a gioco APERTO (force), come il ponte griglia
-import { timedRace, currentInstantRace } from '../tools/set-instantrace.mjs';
+import { timedRace, currentInstantRace } from './set-instantrace.mjs';
 import { garaVeloce, leggiRegistro, formattaRigaRegistro, ultimaRicetta, salvaPreset, elencoPreset, leggiPreset, cancellaPreset } from '../tools/_gara-veloce.mjs';
 import { classeAuto, griglieConClassiVive } from './classi-gt.mjs';
-import { statoAggiornamentiAsync, installaAggiornamenti } from '../tools/aggiornamenti.mjs';
+import { statoAggiornamentiAsync, installaAggiornamenti } from './aggiornamenti.mjs';
 
 // check degli aggiornamenti FUORI dal boot (audit freeze 23/10): qui prima
 // girava statoAggiornamenti() sincrono (execFileSync · git ls-remote → fino a
@@ -117,7 +117,7 @@ import { currentWeatherPreset, setWeatherPreset, PRESETS, presetForLabel } from 
 // a fine ogni sessione del weekend il meteo della PROSSIMA si scrive solo.
 import { wxAutoTick, wxAutoPrima } from './wx-auto.mjs';
 import { leggi as leggiWx } from './wx-registro.mjs';   // registro delle scritture del bollettino (case wx-log)
-import { setDriverCar, garageCurrent } from '../tools/set-driver-car.mjs';
+import { setDriverCar, garageCurrent } from './set-driver-car.mjs';
 import { sameTrack as trkSame, } from './tracknames.mjs';
 import { tr, lang, setLang, hasEnvOverride } from './lang.mjs';
 import { carsBook, carImageOf } from './cars.mjs';
@@ -138,7 +138,7 @@ import { startUiappPublisher, statoIstantanea, avviaSonda, statoSonda } from './
 // I CONSIGLI ANCHE NELL'APP (31/10): la card dell'app nella GUI mostra il
 // medesimo bussollino dell'ingegnere (consigliFascia) — STESSA fonte del
 // cruscotto in fascia, un solo calcolo, nessuna doppia lettura MMF.
-import { gridFileOf } from '../tools/evo-grid.mjs';
+import { gridFileOf } from './evo-grid.mjs';
 import { zeroBalanceProposal, aiRangeProposal } from './grid-restore.mjs';
 // analisi.mjs: i cinque strumenti del pilota (autopsia, dossier rivali, banco
 // A/B, Monte Carlo sedili, tetto teorico) — letture pure, niente scritture.

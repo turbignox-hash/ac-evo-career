@@ -21,7 +21,7 @@ import { taci } from './warnings.mjs';
 import { readFileSync, existsSync, statSync, copyFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodeMsg, encodeMsg, factoryDir } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg, factoryDir } from './evo-grid.mjs';
 import { sameTrack } from './tracknames.mjs';
 import { tr } from './lang.mjs';
 import { matchPool, logMatch, normKey } from './car-match.mjs';

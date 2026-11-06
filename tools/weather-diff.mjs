@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 const PATH = 'C:/Users/Mauro/Saved Games/ACE/GameModes/GameModeType_RACE_WEEKEND.gamemodesave';
 const A = readFileSync('data/samples/weather-current.hex');
 const B = readFileSync(PATH);

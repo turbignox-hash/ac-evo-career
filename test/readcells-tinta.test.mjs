@@ -13,9 +13,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const ev = await import('../tools/evo-grid.mjs');
+const ev = await import('../src/evo-grid.mjs');
 const { encodeMsg } = ev;
-const { readCells } = await import('../tools/grid-balance.mjs');
+const { readCells } = await import('../src/grid-balance.mjs');
 
 const B = (s) => Buffer.from(String(s), 'utf8');
 const f2 = () => { const b = Buffer.alloc(4); b.writeFloatLE(0.6, 0); return b; };

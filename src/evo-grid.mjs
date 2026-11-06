@@ -13,16 +13,17 @@
 //   campo 4             = workaround per i campi f2 residui (wire 2 finale)
 //
 // Uso:
-//   node tools/evo-grid.mjs [file]            → stampa le celle in breve
-//   node tools/evo-grid.mjs --dump file       → albero JSON completo
-//   node tools/evo-grid.mjs --verify file     → round-trip: decode→encode byte-identico
-//   node tools/evo-grid.mjs --pi 16 17 file   → cambia la finestra PI (con backup)
+//   node src/evo-grid.mjs [file]            → stampa le celle in breve
+//   node src/evo-grid.mjs --dump file       → albero JSON completo
+//   node src/evo-grid.mjs --verify file     → round-trip: decode→encode byte-identico
+//   node src/evo-grid.mjs --pi 16 17 file   → cambia la finestra PI (con backup)
 //
 import { readFileSync, writeFileSync, renameSync, copyFileSync, statSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
-import { savedGamesRoots } from '../src/paths.mjs';
+import { homedir } from 'node:os';
+import { savedGamesRoots } from './paths.mjs';
 
 // Percorsi di base dei salvataggi AC EVO dell'utente: la stessa scoperta di
 // src/paths.mjs (Saved Games di Windows, anche ricollocato nel registro — profili
@@ -34,7 +35,10 @@ import { savedGamesRoots } from '../src/paths.mjs';
 // toccati dai test che lanciano i flussi webui (race/event-prep). Ne derivano
 // TUTTE le costanti dei tool (Weekend gamemodesave, customgrid, LGM,
 // drivergarage): un solo interruttore.
-export const USER_HOME = process.env.USERPROFILE || 'C:/Users/Mauro';
+// USER_HOME è la casa dell'utente vero: USERPROFILE quando c'è (i test lo
+// spostano in sandbox), altrimenti la casa che il sistema dichiara — MAI un
+// percorso col nome di una persona scritto nel codice (audit 6/11).
+export const USER_HOME = process.env.USERPROFILE || homedir();
 export const GAME_SAVEDIR = process.env.ACE_GAME_SAVEDIR
   || join(savedGamesRoots(process.env)[0] ?? join(USER_HOME, 'Saved Games'), 'ACE');
 export const GAME_MODES_DIR = join(GAME_SAVEDIR, 'GameModes');

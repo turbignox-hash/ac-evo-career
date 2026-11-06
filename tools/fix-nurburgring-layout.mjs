@@ -3,7 +3,7 @@
 // (Results 260929-*): nome "Nurburgring" (SENZA ü — gli asset/texture del gioco
 // sono ASCII: col "ü" la texture "n%C3%BCrburgring_gp-gp.texture" non esiste →
 // path vuoto → crash al load), tag "GP", layout "Gp Strecke Time Attack".
-import { decodeMsg, encodeMsg } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg } from '../src/evo-grid.mjs';
 import { readFileSync, writeFileSync, copyFileSync, renameSync } from 'node:fs';
 
 const FILE = 'C:/Users/Mauro/Saved Games/ACE/GameModes/GameModeType_RACE_WEEKEND.gamemodesave';

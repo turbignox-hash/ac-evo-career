@@ -15,7 +15,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { specFor } = await import('../tools/set-track.mjs');
+const { specFor } = await import('../src/set-track.mjs');
 
 test('oulton: i valori che il GIOCO scrive al pick manuale, non i default GP', () => {
   const s = specFor('Oulton Park');

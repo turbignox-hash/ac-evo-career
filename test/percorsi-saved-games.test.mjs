@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import { savedGamesRoots, dataDirCandidates } from '../src/paths.mjs';
-import { GAME_SAVEDIR } from '../tools/evo-grid.mjs';
+import { GAME_SAVEDIR } from '../src/evo-grid.mjs';
 
 test('savedGamesRoots: almeno una radice e ogni voce è una cartella vera', () => {
   const roots = savedGamesRoots();

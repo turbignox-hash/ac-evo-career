@@ -21,7 +21,7 @@
 //   const p = zeroBalanceProposal(GRID_FILE, { track });
 //   if (p) console.log(p.msg);
 import { readFileSync } from 'node:fs';
-import { decodeMsg, gridFileOf } from '../tools/evo-grid.mjs';
+import { decodeMsg, gridFileOf } from './evo-grid.mjs';
 import { loadClasses } from './gridbuilder.mjs';
 
 const f32of = (b) => (b && b.length >= 4) ? Buffer.from(b).readFloatLE(0) : null;
@@ -84,7 +84,7 @@ export function zeroBalanceProposal(file, { track = null, minCells = 3 } = {}) {
     `⚠  BILANCIO PERSO sul customgrid: ${perse.length}/${cells.length} celle della classe "${best.id}" sono a 0/0`,
     `   (il menu di EVO, risalvando il file, può perdere zavorre/penalità — verificato 19/10 a Sebring)`,
     `   auto nude: ${elenco}`,
-    `   → chiudi EVO e rilancia:  node tools/grid-balance.mjs --serie ${best.id}${trackArg} --apply`,
+    `   → chiudi EVO e rilancia:  node src/grid-balance.mjs --serie ${best.id}${trackArg} --apply`,
   ].join('\n');
   return { classe: best.id, perse: perse.length, celle: cells.length, track, msg };
 }
@@ -115,7 +115,7 @@ export function aiRangeProposal(file) {
     if (atteso[0] === found[0] && atteso[1] === found[1]) return null;   // in piedi
     const msg = [
       `⚠  CAMPO AI PERSO sul customgrid: trovato ${found[0]}-${found[1]}, la classe "${best.id}" pinna ${atteso[0]}-${atteso[1]}`,
-      `   → chiudi EVO e rilancia:  node tools/grid-balance.mjs --ai ${atteso[0]} ${atteso[1]} --apply`,
+      `   → chiudi EVO e rilancia:  node src/grid-balance.mjs --ai ${atteso[0]} ${atteso[1]} --apply`,
     ].join('\n');
     return { classe: best.id, atteso, trovato: found, msg };
   } catch { return null; }

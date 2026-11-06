@@ -2,7 +2,7 @@
 // richiesta Mauro: «merge case-insensitive, con backup di guardia e verifica»).
 //
 // Il difetto custodito: l'anomalia A1 dell'audit 1/11 — «imola» (23/9) e
-// «Imola» (31/10) nella stessa mappa. La leva (tools/normalizza-bestlaps.mjs)
+// «Imola» (31/10) nella stessa mappa. La leva (src/normalizza-bestlaps.mjs)
 // fonde i gruppi case-insensitive; qui si fissa il PATTO della fusione,
 // in puro (nessun disco):
 //   gruppo in doppia grafia → una chiave sola, col CANONE del ladder;
@@ -13,7 +13,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizzaBestLaps, lapMs, grafiaNorma, chiaveBestLaps } from '../tools/normalizza-bestlaps.mjs';
+import { normalizzaBestLaps, lapMs, grafiaNorma, chiaveBestLaps } from '../src/normalizza-bestlaps.mjs';
 
 const IMPOLA_VECCHIA = { time: '02:17.115', car: 'Abarth 695 Biposto', season: 1, round: 0, at: '2026-09-23T18:21:00.103Z' };
 const IMPOLA_VIVA = { time: '02:05.382', car: 'Porsche 911 GT3 RS (992)', season: 13, round: 5, at: '2026-10-31T14:46:24.242Z' };

@@ -3,7 +3,7 @@
 // l'enum AUTOMATIC/CUSTOM della griglia.
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 
 const dir = 'data/samples/gridtype';
 const files = readdirSync(dir).sort().map((f) => join(dir, f));

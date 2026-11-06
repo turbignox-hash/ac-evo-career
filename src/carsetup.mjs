@@ -25,7 +25,7 @@
 //   3. Si patchano solo campi wire5 (f32) dentro blocchi nested già decodificati.
 import { readFileSync, writeFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, basename } from 'node:path';
-import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg } from './evo-grid.mjs';
 import { tr } from './lang.mjs';
 import { memoOf, storiePerCampo } from './allievo.mjs';
 

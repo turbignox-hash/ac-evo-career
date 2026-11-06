@@ -27,7 +27,7 @@
 //   node src/weather.mjs --custom 0.35 0.45 0.1   // preset 7 + float timeline
 import { readFileSync, writeFileSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { decodeMsg, encodeMsg, GAME_MODES_DIR, pruneBackups } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg, GAME_MODES_DIR, pruneBackups } from './evo-grid.mjs';
 import { meteoLibero } from './test-mode.mjs';
 import { tr } from './lang.mjs';
 

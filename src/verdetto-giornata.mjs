@@ -1,12 +1,12 @@
-// tools/verdetto-giornata.mjs — IL VERDETTO DI GIORNATA (29/10, richiesta
+// src/verdetto-giornata.mjs — IL VERDETTO DI GIORNATA (29/10, richiesta
 // Mauro: «estrai il verdetto di oggi»). Come il rapporto di gara
 // (src/rapporto-gara.mjs) ma in scala giornata: TUTTE le gare di un giorno
 // (prefisso aammgg dei file Results, oggi di default) in un dossier compatto
 // — una riga per gara + il conto totale (vittorie, podi, posizione media,
 // giro migliore globale) — salvato in report/gare/verdetto-aammgg.md.
 //
-//   node tools/verdetto-giornata.mjs            # la GIORNATA di oggi
-//   node tools/verdetto-giornata.mjs 291026     # un giorno preciso (prefisso nome file)
+//   node src/verdetto-giornata.mjs            # la GIORNATA di oggi
+//   node src/verdetto-giornata.mjs 291026     # un giorno preciso (prefisso nome file)
 //
 // Niente dati fittizi: ogni numero esce da resultDetail (catalog.mjs) sui
 // file nativi di EVO; il pilota è quello del save di carriera (stesso
@@ -20,11 +20,11 @@
 import { writeFileSync, mkdirSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolvePaths } from '../src/paths.mjs';
-import { pistaPulita } from '../src/testday.mjs';
-import { resultDetail, resultDirs } from '../src/catalog.mjs';
-import { lapToMs, isRaceSession } from '../src/results.mjs';
-import { tr } from '../src/lang.mjs';
+import { resolvePaths } from './paths.mjs';
+import { pistaPulita } from './testday.mjs';
+import { resultDetail, resultDirs } from './catalog.mjs';
+import { lapToMs, isRaceSession } from './results.mjs';
+import { tr } from './lang.mjs';
 // I NOMI PULITI (3/11, richiesta Mauro: «il verdetto della GUI col nome
 // pulito, come le fasce del Pitwall»): la stessa pistaPulita del banco
 // (testday.mjs) — con il ladder le righe montano il nome bello, senza gira

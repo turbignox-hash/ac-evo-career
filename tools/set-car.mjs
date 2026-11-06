@@ -11,7 +11,7 @@
 //   node tools/set-car.mjs --list                              (celle correnti + template disponibili nel sorgente)
 //   node tools/set-car.mjs --cell 0 --car "Ferrari Daytona SP3" [--dry]
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
-import { decodeMsg, encodeMsg, gameRunning, GAME_MODES_DIR, pruneBackups } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, gameRunning, GAME_MODES_DIR, pruneBackups } from '../src/evo-grid.mjs';
 import { join } from 'node:path';
 
 export const GRID_FILE = join(GAME_MODES_DIR, 'last_grid.customgrid');

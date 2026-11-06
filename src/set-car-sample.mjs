@@ -14,11 +14,11 @@
 // la tabella auto→hash del tool set-driver-car.
 //
 // uso:
-//   node tools/set-car-sample.mjs            (fa il sampling mentre provi auto in gioco)
-//   node tools/set-car-sample.mjs --from-logs (impara le coppie dai log di gioco)
-//   node tools/set-car-sample.mjs --dump     (mostra i campioni legati ai timestamp spia)
-//   node tools/set-car-sample.mjs --map "<nome auto>=<file>"  (assegna un nome a un campione)
-//   node tools/set-car-sample.mjs --clear
+//   node src/set-car-sample.mjs            (fa il sampling mentre provi auto in gioco)
+//   node src/set-car-sample.mjs --from-logs (impara le coppie dai log di gioco)
+//   node src/set-car-sample.mjs --dump     (mostra i campioni legati ai timestamp spia)
+//   node src/set-car-sample.mjs --map "<nome auto>=<file>"  (assegna un nome a un campione)
+//   node src/set-car-sample.mjs --clear
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodeMsg, GAME_SAVEDIR } from './evo-grid.mjs';
@@ -243,7 +243,7 @@ if (isMain) {
     }
     process.exit(0);
   }
-  if (args.includes('--clear')) { try { rmSync(SAMPLES, { recursive: true, force: true }); } catch {} console.log('campioni azzerati.'); process.exit(0); }
+  if (args.includes('--clear')) { try { rmSync(SAMPLES, { recursive: true, force: true }); } catch { /* campioni già assenti: lo svuotamento ha fatto il suo */ } console.log('campioni azzerati.'); process.exit(0); }
   const mapIdx = args.indexOf('--map');
   if (mapIdx >= 0) {
     const [name, file] = String(args[mapIdx + 1]).split('=');

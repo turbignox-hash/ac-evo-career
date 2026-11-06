@@ -44,8 +44,8 @@ import { pathToFileURL } from 'node:url';
 // cura delle doppie GRAFIE GIA IN SAVE, arrivate prima del canone.
 import {
   activeSlot, loadState, savePath, saveState, slotDataDir, grafiaNorma, chiaveBestLaps,
-} from '../src/state.mjs';
-import { LADDER_FILE } from '../src/orario.mjs';
+} from './state.mjs';
+import { LADDER_FILE } from './orario.mjs';
 
 const ROOT = join(import.meta.dirname, '..');
 
@@ -191,7 +191,7 @@ export function eseguiCura({ dry = false } = {}) {
   return { log, scritto: true, FILE, ok: true, bak };
 }
 
-// CLI diretta: node tools/normalizza-bestlaps.mjs [--dry]
+// CLI diretta: node src/normalizza-bestlaps.mjs [--dry]
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const dry = process.argv.slice(2).includes('--dry');
   try {

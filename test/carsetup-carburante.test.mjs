@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { applyEdits } from '../src/carsetup.mjs';
-import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg } from '../src/evo-grid.mjs';
 
 const f32 = (v) => { const b = Buffer.alloc(4); b.writeFloatLE(v, 0); return b; };
 const senzaCarburante = () => Buffer.from(encodeMsg([

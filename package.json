@@ -20,7 +20,7 @@
     "installer": "node tools/build-installer-exe.mjs",
     "installer:offline": "node tools/build-installer-exe.mjs --offline",
     "verifica-firma": "node tools/build-installer-exe.mjs --verifica-firma",
-    "verifica-release": "node tools/verifica-release.mjs"
+    "verifica-release": "node src/verifica-release.mjs"
   },
   "engines": {
     "node": ">=18"

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { copiaAlbero, leggiBuildId, scriviBuildId, viaGit, statoZipAsync } from '../tools/aggiorna-zip.mjs';
+import { copiaAlbero, leggiBuildId, scriviBuildId, viaGit, statoZipAsync } from '../src/aggiorna-zip.mjs';
 
 const TMP = () => mkdtempSync(join(tmpdir(), 'evo-aggiornazip-test-'));
 

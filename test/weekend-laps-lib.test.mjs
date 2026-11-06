@@ -13,8 +13,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { decodeMsg, encodeMsg } from '../tools/evo-grid.mjs';
-import { setWeekendLaps, setWeekendTimed, weekendLaps, raceBlockIndex } from '../tools/weekend-laps.mjs';
+import { decodeMsg, encodeMsg } from '../src/evo-grid.mjs';
+import { setWeekendLaps, setWeekendTimed, weekendLaps, raceBlockIndex } from '../src/weekend-laps.mjs';
 
 // 31/10: i cancelli anti-cheat (orario + distanza) presidiano anche queste
 // scritture. I test girano in MODO TEST isolato (registro della modalità

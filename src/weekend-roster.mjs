@@ -23,7 +23,7 @@
 //   • i blocchi SENZA celle (Race oggi: 0 slot, il gioco se le fabbrica da
 //     solo) non si toccano.
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
-import { decodeMsg, encodeMsg, gameRunning, bakName, pruneBackups } from '../tools/evo-grid.mjs';
+import { decodeMsg, encodeMsg, gameRunning, bakName, pruneBackups } from './evo-grid.mjs';
 // bak al secondo + potatura: UNA fonte da 31/10 (evo-grid), niente più copie
 // "stesso pattern": le due qui sotto erano la terza e la quarta rivisita del
 // codice di grid-apply. La potatura interna resta chiamata allo stesso modo

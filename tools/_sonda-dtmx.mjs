@@ -2,7 +2,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodeMsg } from './evo-grid.mjs';
+import { decodeMsg } from '../src/evo-grid.mjs';
 
 const PROJ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const carIdOf = (b) => { for (const g of decodeMsg(b)) if (g.field === 3) return g.bytes.toString('utf8'); return null; };

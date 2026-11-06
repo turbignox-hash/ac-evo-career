@@ -33,7 +33,7 @@ import { basename } from 'node:path';
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { GAME_MODES_DIR, gridFileOf } from './evo-grid.mjs';
+import { GAME_MODES_DIR, gridFileOf } from '../src/evo-grid.mjs';
 import { buildGridMessage, loadClasses } from '../src/gridbuilder.mjs';
 import { autocuraVivo } from '../src/grid-cura.mjs';
 import { resolvePaths } from '../src/paths.mjs';

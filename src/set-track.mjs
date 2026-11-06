@@ -12,12 +12,12 @@
 // libreria (usata da webui):
 //   import { changeWeekendTrack, currentWeekendTrack, specFor } from './set-track.mjs';
 // CLI:
-//   node tools/set-track.mjs --track "Red Bull Ring" [--dry] [--file <path>]
+//   node src/set-track.mjs --track "Red Bull Ring" [--dry] [--file <path>]
 import { readFileSync, writeFileSync, renameSync, copyFileSync, readdirSync, statSync } from 'node:fs';
 import { decodeMsg, encodeMsg, GAME_MODES_DIR, pruneBackups } from './evo-grid.mjs';
 import { join, dirname, basename } from 'node:path';
-import { TRACK_INFO } from '../src/tracks.mjs';
-import { sameTrack } from '../src/tracknames.mjs';
+import { TRACK_INFO } from './tracks.mjs';
+import { sameTrack } from './tracknames.mjs';
 
 export const WEEKEND_FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 

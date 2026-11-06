@@ -17,7 +17,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const g = await import('../src/gridbuilder.mjs');
-const ev = await import('../tools/evo-grid.mjs');
+const ev = await import('../src/evo-grid.mjs');
 const { encodeMsg } = ev;
 
 const TMP = mkdtempSync(join(tmpdir(), 'grid-uniche-test-'));
@@ -65,7 +65,7 @@ const costruisce = (visuals, gridSize) => {
 
 test('griglia al numero esatto delle varianti uniche: 5 uniche → 5 celle DISTINTE', async () => {
   const out = costruisce([1, 2, 3, 4, 5], 5);
-  const ev = await import('../tools/evo-grid.mjs');
+  const ev = await import('../src/evo-grid.mjs');
   const top = ev.decodeMsg(out.buffer);
   const cells = top.filter((f) => f.field === 1).map((f) => Buffer.from(f.bytes).toString('hex'));
   assert.equal(cells.length, 5);
@@ -76,7 +76,7 @@ test('griglia al numero esatto delle varianti uniche: 5 uniche → 5 celle DISTI
 
 test('pool più ricco del necessario: celle non ripetute e count pescata dal target', async () => {
   const out = costruisce([1, 2, 3, 4, 5, 6], 5);
-  const ev = await import('../tools/evo-grid.mjs');
+  const ev = await import('../src/evo-grid.mjs');
   const top = ev.decodeMsg(out.buffer);
   const cells = top.filter((f) => f.field === 1).map((f) => Buffer.from(f.bytes).toString('hex'));
   assert.equal(cells.length, 5, 'target rispettato anche con pool da 6');
@@ -109,7 +109,7 @@ test('ARMONICA (default per tutte le serie): pool corto senza voce in grid-class
   process.env.EVO_CLASSES_FILE = fixtureCls;
   try {
     const out = costruisce([1, 2], 4);   // 2 reali + 2 cloni armonici
-    const ev = await import('../tools/evo-grid.mjs');
+    const ev = await import('../src/evo-grid.mjs');
     const top = ev.decodeMsg(out.buffer);
     const celle = top.filter((f) => f.field === 1).map((f) => Buffer.from(f.bytes).toString('hex'));
     assert.equal(celle.length, 4, 'campo pieno a 4');
