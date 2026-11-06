@@ -4,6 +4,41 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md) (il registro completo). Il save in
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
+## v0.1.64 — 6/11/2026
+
+- **La manutenzione è strutturale, non cosmetica** (audit del progetto del 6/11):
+  `src/webui.mjs` scende da 4.697 a 4.062 righe — il file più toccato del repo,
+  52 volte negli ultimi 200 commit — perché setup/meccanico (7 rotte) e
+  live/copilota (6) diventano `src/webui-actions-setup.mjs` e
+  `src/webui-actions-live.mjs`, con lo stesso contratto dei cinque moduli già
+  estratti. Nessuna rotta, payload o status cambia: il dispatcher resta in
+  `webui.mjs`, che ora è più piccolo della somma dei suoi domini.
+- **Nessun `catch` muto in `src/`**: `warnings.mjs` esporta
+  `taci(etichetta, e)` — il catch che non urla ma scrive una riga nel registro.
+  I 18 silenzi senza nemmeno un commento (preset e celle della griglia, reset
+  della calibrazione, registro rivali per le rimonte, voce PowerShell) ora
+  firmano o dichiarano perché tacciono, e `test/catch-muti.test.mjs` rompe la
+  build se ne ricompare uno.
+- **La soglia del delta è una sola** (`src/soglie.mjs`): -0,05 s guadagno e
+  0,15 s perdita non sono più scritti a mano in tre posti (allievo, prova A/B,
+  chip del pannello). Un test confronta i numeri del server con quelli del
+  browser: chi cambia la soglia senza il pannello rompe la build.
+- **Le librerie escono da `tools/`**: 17 moduli (decoder della griglia, setter
+  del weekend, bilanciatore, verdetto della giornata…) ora vivono in `src/` e
+  `src/` non dipende più dalla cartella degli script; `USER_HOME` non ha più
+  `C:/Users/Mauro` come fallback (USERPROFILE o la casa dichiarata dal sistema).
+- **`tools/archivio/`**: 77 script su 118 non erano citati da nessuno (né da
+  `src`, né dai test, né da `package.json`, né da altri script). In `tools/`
+  restano i 32 che qualcuno lancia davvero; gli altri sono archiviati con un
+  LEGGIMI, non cancellati.
+- **Primi test dei moduli che scrivono** (`test/webui-azioni-contratto.test.mjs`):
+  i sette `webui-actions-*` e `webui-static.mjs` erano gli unici moduli senza
+  test. Si pesa il cablaggio (azione altrui → `false`, set consultato dal
+  dispatcher, ogni parametro di `ctx` passato al call site) più Host/Origin
+  di `webui-static` (DNS rebinding e CSRF), finora protetti e non provati.
+- Verifiche: suite **1.063 pass, 0 guasti, 2 salti onesti, 1 todo**; Biome
+  pulito su 407 file; CI quality verde.
+
 
 ## v0.1.63 — 6/11/2026
 
