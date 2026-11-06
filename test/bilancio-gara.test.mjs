@@ -52,6 +52,19 @@ function gara(righe) {
   };
 }
 
+// la classe serve SOLO al comando di ripristino (grid-balance --serie vuole un
+// id di classe): il preteso resta quello del template.
+const CLASSI = {
+  classi: {
+    'pi-10-11-moderna': {
+      regole: [
+        { auto: 'Alfa Romeo Junior', ballastKg: 0, restrictorPct: 0 },
+        { auto: 'Volkswagen Golf 8 GTI', ballastKg: 100, restrictorPct: 1 },
+      ],
+    },
+  },
+};
+
 const TEMPLATE = () => templateCon([
   cella('Alfa Romeo Junior', 'preset_mln_mech_1', 0, 0),
   cella('Volkswagen Golf 8 GTI', 'preset_mk8gti_mech_1', 100, 1),
@@ -61,7 +74,7 @@ test('zavorra persa: il gioco dichiara 0/0 su tutte le auto, il template ne pret
   const b = bilancioDaGara(gara([
     ['Alfa Romeo Junior', 0, 0],
     ['Volkswagen Golf 8 GTI', 0, 0],
-  ]), { nodeId: 'coppa_citta', track: 'Brands Hatch', templateFile: TEMPLATE() });
+  ]), { nodeId: 'coppa_citta', track: 'Brands Hatch', templateFile: TEMPLATE(), classes: CLASSI });
   assert.ok(b, 'la zavorra mancante deve produrre un avviso');
   assert.match(b.fonte, /template della serie/);
   assert.equal(b.mancanti.length, 1);
@@ -71,7 +84,7 @@ test('zavorra persa: il gioco dichiara 0/0 su tutte le auto, il template ne pret
   assert.equal(b.mancanti[0].corsaKg, 0);
   assert.match(b.msg, /ZAVORRE NON ARRIVATE AL VIA/);
   assert.match(b.msg, /100 kg \/ 1%/, 'la % si stampa arrotondata (il restrictor è un float32)');
-  assert.match(b.msg, /--serie coppa_citta/);
+  assert.match(b.msg, /--serie pi-10-11-moderna/, 'il comando cita la CLASSE (grid-balance --serie vuole quella, non il nodo)');
   assert.match(b.msg, /Brands Hatch/);
 });
 

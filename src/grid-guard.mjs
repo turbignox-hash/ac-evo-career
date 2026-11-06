@@ -114,17 +114,26 @@ export function bilancioDaGara(result, { nodeId = null, track = null, classes = 
 
     // il restrictor del gioco esce 0.009999999776 (float32): si arrotonda prima
     // di stampare, o un 1% diventerebbe "1.0%" e un 2% "2.0%"
+    // il comando di ripristino vuole l'id di una CLASSE (grid-balance --serie
+    // legge classes.classi[serie]): il nodo non basta ("coppa_citta" non è una
+    // classe), quindi si risolve per overlap delle auto della griglia.
+    const classeRip = (() => {
+      try {
+        const doc = classes ?? loadClasses();
+        if (nodeId && doc.classi?.[nodeId]) return nodeId;
+        return matchClasse([...attese.keys()].map((auto) => ({ auto })), doc)?.id ?? null;
+      } catch { return null; }
+    })();
     const num = (v, u) => {
       const r = Math.round(Number(v) * 100) / 100;
       return (Number.isInteger(r) ? r : r.toFixed(2).replace(/\.?0+$/, '')) + u;
     };
     const elenco = mancanti.map((m) => `${m.auto} ${num(m.kg, ' kg')} / ${num(m.pct, '%')} (corsa: ${num(m.corsaKg, ' kg')} / ${num(m.corsaPct, '%')})`);
-    const serie = nodeId ?? (fonte.match(/“([^”]+)”/)?.[1] ?? null);
     const msg = [
       `⚠  ZAVORRE NON ARRIVATE AL VIA — la gara ha girato senza il bilancio della serie (fonte: ${fonte})`,
       `    preteso: ${elenco.join(' · ')}`,
       '    lo dichiara il file dei risultati (ballast/restrictor per pilota): è il menu di EVO che, risalvando il customgrid, azzera le celle',
-      `    → prima di entrare in pista: chiudi EVO, node src/grid-balance.mjs --serie ${serie ?? '<serie>'}${track ? ` --track "${track}"` : ''} --apply, riapri il weekend senza toccare l'editor griglia`,
+      `    → chiudi EVO e rilancia il Prepara della ronda${classeRip ? ` (oppure: node src/grid-balance.mjs --serie ${classeRip}${track ? ` --track "${track}"` : ''} --apply)` : ''}, poi riapri il weekend senza toccare l'editor griglia`,
     ].join(String.fromCharCode(10));
     return { fonte, track: track ?? result?.track ?? null, atteso, mancanti, msg };
   } catch { return null; }
