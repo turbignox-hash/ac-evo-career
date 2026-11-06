@@ -73,3 +73,7 @@ node_modules/
 # certificati di firma: MAI nel repo (chiavi private, password fuori da Git)
 *.pfx
 *.p12
+
+# monitor live: uscite e riepiloghi generati (dati di sessione, non sorgenti)
+.live-monitor.out
+.live-monitor*.txt
