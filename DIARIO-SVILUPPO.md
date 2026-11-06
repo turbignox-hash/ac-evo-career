@@ -1,5 +1,15 @@
 # Diario di sviluppo
 
+### 6/11 — Guardia .cmd: anche i comandi dell'altra shell, con l'equivalente cmd nel messaggio
+
+- **Richiesta di Mauro**: «aggiungi alla guardia anche i comandi Unix più comuni (chmod, mkdir -p, rm -rf, cp -r) con un elenco di comandi cmd equivalenti nel messaggio d'errore».
+- **Cosa cerca ora** (`test/script-cmd-sintassi.test.mjs`): accanto a null device, redirect in cartelle Unix e shebang, una famiglia nuova di regole sui comandi che in un `.cmd` non esistono o hanno un'altra opzione — chmod, chown, ln -s, `mkdir -p`/`--parents`, rm (con `-rf`), mv, cp (con `-r`), touch, cat, ls, grep, sed/awk, which, `export VAR=`, bash/sh, sudo. Ogni regola porta **l'equivalente cmd** nel messaggio: `icacls`/`attrib`, `mklink`, `mkdir` senza -p, `del /F /Q` e `rmdir /S /Q`, `move`, `copy /Y` e `xcopy /E /I`/`robocopy`, `type nul > file`, `type`, `dir`, `findstr`, `where`, `set "VAR=valore"`.
+- **Niente falsi positivi**: il comando conta solo a **inizio comando** (inizio riga o dopo `&`, `|`, `(`, `)`), quindi un nome citato in un `echo`, dentro un percorso (`%TEMP%\ls\out`, `set "PATH=…;C:\cp"`) o in un commento non fa scattare niente; e `mkdir` DA SOLO non è un errore, perché in cmd è valido e crea già le cartelle intermedie — lo script vero (`installa.cmd`, `mkdir "%WORK%" >nul 2>nul`) resta pulito.
+- **Verifiche**: 6/6 test della guardia, con due prove nuove — 17 casi che devono cadere (ognuno col suo equivalente controllato nel messaggio) e una lista di comandi cmd legittimi che NON devono cadere; la scansione del progetto resta verde. **Prova di non-cecità**: un `tmp/_probe-unix.cmd` con `rm -rf` e `cp -r` ha reso rossa la suite con `rm → rmdir /S /Q` e `cp → xcopy /E /I`, e rimuovendolo è tornata verde (nessun file di prova lasciato in giro). Biome pulito; suite intera **1.172 test, 1.170 pass, 0 fail**, 2 skip dichiarati.
+- **Limiti**: è un elenco di forme note, non un parser di cmd.exe: non cerca comandi Unix senza equivalente ovvio (per esempio `diff`) né le opzioni lunghe di ogni comando; `;` non è trattato come separatore di comandi (in cmd non lo è), quindi su una riga con `;` viene segnalato solo il comando di testa.
+- **Chiusura**: commit e push su `offsite/main` come per il resto della giornata; nessun commit separato di release, la release resta bloccata dal collaudo amico mancante.
+
+
 ### 6/11 — Riepilogo: il testo di una sessione chiusa si compone una volta sola
 
 - **Richiesta di Mauro**: «componi il testo del riepilogo una volta sola per sessione chiusa, così un poll con una riga nuova non ricompone tutto».
