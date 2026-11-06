@@ -6,10 +6,11 @@
 //   /repos/turbignox-hash/ac-evo-career/zipball/main
 // restituendo un mini-zip costruito al momento con il tar di Windows, dal
 // nome radice <repo>-<commit> finto: il test non dipende dallo stato del repo.
-// Node non si scarica: la sandbox usa il Node del PC (where node). All'installatore
-// arrivano SOLO override da ambiente, attesi dallo stesso script (vedi il
-// blocco «PRESA DI PROVA» dentro installa.cmd): EVO_INSTALLER_DIR/API/AUTO/
-// FAST/NOSCORCIATOIA/NOAVVIO.
+// La sandbox copre repo pubblico, rifiuto anonimo del privato, retry con token e
+// un HTTP 500 che non deve suggerire credenziali. Node non si scarica: la sandbox
+// usa il Node del PC (where node). All'installatore arrivano SOLO override da
+// ambiente, attesi dallo stesso script (vedi il blocco «PRESA DI PROVA» dentro
+// installa.cmd): EVO_INSTALLER_DIR/API/AUTO/FAST/GHTOKEN/NOSCORCIATOIA/NOAVVIO.
 //
 // NOTA (26/10): si lancia con spawn ASINCRONO e promessa, NON spawnSync —
 // spawnSync rimane impalato a metà installazione con lo stesso script, stesso
@@ -37,13 +38,16 @@ const TAR = process.env.SystemRoot ? join(process.env.SystemRoot, 'System32', 't
 const COMMIT_FINTO = 'sandbox0x1a2b3';
 
 /** spawn con promessa + watchdog: uccide il processo se eccede il tetto. */
-function cmdAsync(file, args, opts, tettoMs) {
+function cmdAsync(file, args, opts, tettoMs, onStdout) {
   return new Promise((fine) => {
     const processo = spawn(file, args, opts);
     let chiuso = false;
     const t0 = Date.now();
     let stdout = '', stderr = '';
-    processo.stdout.on('data', (d) => { stdout += d; });
+    processo.stdout.on('data', (d) => {
+      stdout += d;
+      onStdout?.(stdout, processo);
+    });
     processo.stderr.on('data', (d) => { stderr += d; });
     processo.on('exit', (code, signal) => {
       if (chiuso) return;
@@ -81,11 +85,32 @@ test('installatore: installazione completa in sandbox, con zipball locale', { sk
 
   // --- server finto con SOLO l'endpoint che l'installatore usa ---
   let chiestiZipball = 0;
+  let repoPrivato = false;
+  let erroreGenerico = false;
+  let rifiutiGenerici = 0;
+  let anonimeRifiutate = 0;
+  let autenticate = 0;
+  const headerAutorizzazione = [];
   const server = createServer((req, res) => {
     if (req.url?.endsWith('/zipball/main')) {
       if (req.headers['user-agent'] !== 'evo-installer') {
         res.writeHead(418); res.end('chi vi porta?'); return;
       }
+      if (erroreGenerico) {
+        rifiutiGenerici++;
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end('{"message":"Server Error"}');
+        return;
+      }
+      const auth = req.headers.authorization ?? '';
+      headerAutorizzazione.push(auth);
+      if (repoPrivato && !auth) {
+        anonimeRifiutate++;
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end('{"message":"Not Found"}');
+        return;
+      }
+      if (repoPrivato && auth) autenticate++;
       chiestiZipball++;
       res.writeHead(200, { 'Content-Type': 'application/zip' });
       res.end(readFileSync(zipPath));
@@ -114,7 +139,8 @@ test('installatore: installazione completa in sandbox, con zipball locale', { sk
       EVO_INSTALLER_DIR: destinazione,
       EVO_INSTALLER_API: `http://127.0.0.1:${httpPort}/repos/turbignox-hash/ac-evo-career`,
       EVO_INSTALLER_AUTO: '1',
-      EVO_INSTALLER_FAST: '1',
+      EVO_INSTALLER_FAST: '',
+      EVO_INSTALLER_GHTOKEN: '',
       EVO_INSTALLER_REGKEY: REGKEY,
       EVO_INSTALLER_NOSCORCIATOIA: '1',
       EVO_INSTALLER_NOAVVIO: '1',
@@ -154,9 +180,91 @@ test('installatore: installazione completa in sandbox, con zipball locale', { sk
   // 5) niente node_modules attesi dal modo veloce
   assert.ok(!existsSync(join(destinazione, 'node_modules')),
     'con modo veloce non deve esserci node_modules');
-  // 6) richiesta unica: il server finto colpito una volta sola
-  assert.equal(chiestiZipball, 1, `zipball chiesta ${chiestiZipball} volte: attesa 1`);
-  // 7) la registrazione App e funzionalità è stata scritta su una chiave di test
+  // 6) repo pubblico: una sola richiesta anonima, nessuna domanda o token
+  assert.equal(chiestiZipball, 1, `zipball pubblica completata ${chiestiZipball} volte: attesa 1`);
+  assert.equal(anonimeRifiutate, 0, 'il server pubblico non deve rifiutare la richiesta anonima');
+  assert.equal(autenticate, 0, 'il repo pubblico non deve ricevere un header Authorization');
+  assert.deepEqual(headerAutorizzazione, [''], 'la richiesta pubblica deve essere anonima');
+  assert.ok(!r.stdout.includes('Token GitHub'), 'l’installatore pubblico non deve chiedere un token');
+
+  // 7) un errore del server non deve essere scambiato per richiesta di token
+  erroreGenerico = true;
+  const destinazioneErrore = mkdtempSync(join(tmpdir(), 'installer-error-target-'));
+  t.after(() => rmSync(destinazioneErrore, { recursive: true, force: true }));
+  const errore = await cmdAsync('cmd.exe', ['/d', '/c', INSTALLATORE], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: {
+      ...process.env,
+      TMP: blob,
+      TEMP: blob,
+      EVO_INSTALLER_DIR: destinazioneErrore,
+      EVO_INSTALLER_API: `http://127.0.0.1:${httpPort}/repos/turbignox-hash/ac-evo-career`,
+      EVO_INSTALLER_AUTO: '1',
+      EVO_INSTALLER_FAST: '',
+      EVO_INSTALLER_GHTOKEN: '',
+      EVO_INSTALLER_NOSCORCIATOIA: '1',
+      EVO_INSTALLER_NOAVVIO: '1',
+    },
+  }, 120_000);
+  assert.equal(errore.status, 1, `HTTP 500 deve fallire senza token:\n${errore.stdout}\n${errore.stderr}`);
+  assert.ok(errore.stdout.includes('HTTP 500'), `manca il codice HTTP dell’errore generico:\n${errore.stdout}`);
+  assert.ok(!errore.stdout.includes('Token GitHub'), `HTTP 500 non deve chiedere un token:\n${errore.stdout}`);
+  assert.ok(rifiutiGenerici > 0, 'il server finto non ha ricevuto la richiesta HTTP 500');
+
+  // 8) repo privato: rifiuta anonimo, chiede token soltanto a quel punto e riprova
+  erroreGenerico = false;
+  const indiceRichiestePrivate = headerAutorizzazione.length;
+  repoPrivato = true;
+  const destinazionePrivata = mkdtempSync(join(tmpdir(), 'installer-private-target-'));
+  t.after(() => rmSync(destinazionePrivata, { recursive: true, force: true }));
+  const REGKEY_PRIVATO = `${REGKEY}-private`;
+  t.after(() => { spawnSync('reg', ['delete', REGKEY_PRIVATO, '/f']); });
+  let sceltaVeloceInviata = false;
+  let tokenInviato = false;
+  const privato = await cmdAsync('cmd.exe', ['/d', '/c', INSTALLATORE], {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    env: {
+      ...process.env,
+      TMP: blob,
+      TEMP: blob,
+      EVO_INSTALLER_DIR: destinazionePrivata,
+      EVO_INSTALLER_API: `http://127.0.0.1:${httpPort}/repos/turbignox-hash/ac-evo-career`,
+      EVO_INSTALLER_AUTO: '',
+      EVO_INSTALLER_FAST: '',
+      EVO_INSTALLER_GHTOKEN: '',
+      EVO_INSTALLER_REGKEY: REGKEY_PRIVATO,
+      EVO_INSTALLER_NOSCORCIATOIA: '1',
+      EVO_INSTALLER_NOAVVIO: '1',
+    },
+  }, 120_000, (output, processo) => {
+    if (!sceltaVeloceInviata && output.includes('MODO VELOCE')) {
+      sceltaVeloceInviata = true;
+      processo.stdin.write('\n');
+    }
+    if (!tokenInviato && output.includes('Token GitHub')) {
+      tokenInviato = true;
+      processo.stdin.write('token-finto\n');
+    }
+  });
+  assert.equal(privato.signal, null, `watchdog repo privato\n${privato.stdout}\n${privato.stderr}`);
+  assert.equal(privato.status, 0, `repo privato fallito\n${privato.stdout}\n${privato.stderr}`);
+  assert.ok(sceltaVeloceInviata, 'il test non ha premuto Invio per accettare il modo veloce predefinito');
+  assert.ok(privato.stdout.includes('Modo veloce: salto la prova npm test.'),
+    `Invio sul modo veloce non ha saltato npm test:\n${privato.stdout}`);
+  assert.ok(privato.stdout.includes('GitHub ha negato l’accesso') || privato.stdout.includes('GitHub ha negato l\'accesso'),
+    `non è stata mostrata la richiesta condizionale del token:\n${privato.stdout}`);
+  assert.ok(privato.stdout.includes('Token GitHub (Invio per annullare)'), `manca il prompt interattivo del token:\n${privato.stdout}`);
+  assert.ok(privato.stdout.includes('Riprovo il download autenticato'), `manca il retry autenticato:\n${privato.stdout}`);
+  assert.ok(tokenInviato, 'il test non ha fornito il token dopo il rifiuto anonimo');
+  assert.ok(!privato.stdout.includes('token-finto'), 'il token non deve comparire nell’output');
+  assert.equal(anonimeRifiutate, 1, 'il repo privato deve ricevere prima una richiesta anonima');
+  assert.equal(autenticate, 1, 'il repo privato deve ricevere un retry con token');
+  assert.deepEqual(headerAutorizzazione.slice(indiceRichiestePrivate), ['', 'Bearer token-finto'],
+    'il repository privato deve essere prima richiesto anonimamente e poi col token');
+  assert.ok(readFileSync(join(destinazionePrivata, 'data', '.github-token'), 'utf8').trim() === 'token-finto',
+    'il token fornito non è stato salvato per gli aggiornamenti');
+
+  // 9) la registrazione App e funzionalità è stata scritta su una chiave di test
   const reg = spawnSync('reg', ['query', REGKEY], { encoding: 'utf8' });
   assert.equal(reg.status, 0, `registrazione assente: ${reg.stderr ?? ''}`);
   assert.ok(reg.stdout.includes('InstallLocation') && reg.stdout.includes(destinazione),

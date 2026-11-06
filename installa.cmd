@@ -10,12 +10,11 @@ rem  friend lo lancia e l'installer fa TUTTO da solo:
 rem    1. chiede la cartella di installazione (Invio = %USERPROFILE%\EVO-Pitwall);
 rem    2. usa il Node del PC solo se e' almeno 18, altrimenti scarica un Node PORTATILE
 rem       dentro la cartella (niente admin, niente winget);
-rem    3. chiede UNA volta il token di LETTURA GitHub (solo se il repo
-rem       ri-passe privato) e lo salva in data\.github-token: da li',
-rem       gli aggiornamenti automatici del launcher sono gia' a posto;
+rem    3. prova a scaricare il codice senza token; lo chiede SOLO se GitHub
+rem       nega l'accesso (repo privato) e, se riesce, lo salva in data\.github-token;
 rem    4. scarica il codice (zipball di main), lo estrae nella cartella e
 rem       scrive build-id.txt: la build nasce allineata a GitHub;
-rem    5. una passata di npm test (o MODO VELOCE: 'v' alla domanda salti);
+rem    5. MODO VELOCE predefinito: salta npm test; si puo' scegliere la prova;
 rem    6. scorciatoia «Carriera EVO», icona compresa, + voce «App e funzionalità»;
 rem    7. avvia il launcher (wizard di prima apertura incluso).
 rem  data\ non si copia: nasce vergine sul PC nuovo.
@@ -29,8 +28,9 @@ rem    EVO_INSTALLER_NODEURL       URL alternativo per lo zip di Node (test/mirr
 rem    EVO_INSTALLER_NODESHA       SHA-256 atteso del Node (test/mirror; di default quello fissato)
 rem    EVO_INSTALLER_NODEZIP      zip Node locale (installer offline)
 rem    EVO_INSTALLER_CODEZIP      zip codice locale (installer offline)
-rem    EVO_INSTALLER_AUTO=1        salta le domande (cartella e token)
-rem    EVO_INSTALLER_FAST=1        modo veloce: salta npm test
+rem    EVO_INSTALLER_AUTO=1        salta le domande interattive
+rem    EVO_INSTALLER_FAST=1        modo veloce: salta npm test (default)
+rem    EVO_INSTALLER_GHTOKEN       token di test per simulare il repo privato
 rem    EVO_INSTALLER_NOSCORCIATOIA non creare la scorciatoia sul Desktop
 rem    EVO_INSTALLER_NOAVVIO       non avviare il launcher alla fine
 rem    EVO_INSTALLER_NOREGISTRO    non registrare in App e funzionalità (test/manuale)
@@ -67,13 +67,15 @@ if "%TARGET:~-1%"=="\" set "TARGET=%TARGET:~0,-1%"
 :cartella_ok
 if "%TARGET:~-1%"=="\" set "TARGET=%TARGET:~0,-1%"
 
-rem il modo veloce vale SI da env (sandbox) SI alla domanda: v = salta il test
-set "VEL="
-if defined EVO_INSTALLER_FAST set "VEL=v"
+rem Il modo veloce e' il default. La prova completa e' esplicita (t).
+set "VEL=v"
+if defined EVO_INSTALLER_FAST goto dopo_veloce
 if defined AUTO goto dopo_veloce
 echo.
-echo   MODO VELOCE? [v = salto la prova npm, Invio = la faccio]
+echo   MODO VELOCE (predefinito) [Invio = salto npm test, t = eseguo i test]
+set "VEL="
 set /p "VEL=   > "
+if not defined VEL set "VEL=v"
 :dopo_veloce
 
 if exist "%TARGET%\ac-evo-career.mjs" (
@@ -163,43 +165,70 @@ if errorlevel 1 ( echo   [!] Il Node scaricato non e' almeno 18: fermo tutto. & 
 echo   [x] Node pronto portatile, dentro la cartella di installazione.
 :node_ok
 
-rem ------------------- 2. token GitHub -------------------
-if defined AUTO goto dopo_token
-echo.
-echo   Il repository e' pubblico al 26/10: token NON necessario, INVIO per saltare.
-echo   Se ri-passasse privato, serve un token di lettura:
-echo   GitHub ^> Settings ^> Developer settings ^> Personal access tokens,
-echo   Fine-grained: solo questo repo, permesso "Contents: Read-only".
-echo   Lo stesso token e' valido per tutti i PC: chi lo ha gia' lo passa ancora.
-echo.
-set "GHTOKEN="
-set /p "GHTOKEN=   Token se ri-passa privato [INVIO = nessun token]: "
-:dopo_token
-
-rem ------------------- 3. scarico il codice -------------------
+rem ------------------- 2/3. scarico il codice (prima senza token) -------------------
 set "ZIPCOD=%WORK%\codice.zip"
+set "GHTOKEN="
+if defined EVO_INSTALLER_CODEZIP goto codice_locale
+
 echo.
-if defined EVO_INSTALLER_CODEZIP (
-  echo   Uso il codice incluso nell'installer offline...
-  copy /Y "%EVO_INSTALLER_CODEZIP%" "%ZIPCOD%" >nul
-  if errorlevel 1 (
-    echo   [!] Copia del codice incluso non riuscita: installer offline incompleto.
-    goto fallito
-  )
-) else (
-  echo   Scarico il codice da GitHub [zipball di main]...
-  rem curl di System32 anzire PowerShell: stesso motivo del passo Node (proxy
-  rem WinINET). Il token, solo se dato, vola nell'header Authorization.
-  set "LHAUT="
-  if defined GHTOKEN set "LHAUT=-H "Authorization: Bearer %GHTOKEN%""
-  %SystemRoot%\System32\curl.exe -L -sS --fail --connect-timeout 20 --retry 2 --retry-delay 2 -w "HTTP %%{http_code}\n" -H "User-Agent: evo-installer" -H "Accept: application/vnd.github+json" %LHAUT% -o "%ZIPCOD%" "%API%/zipball/main" 2>"%WORK%\curl-codice.txt"
-  if errorlevel 1 (
-    if defined GHTOKEN echo   [!] Download rifiutato da GitHub: token scaduto o senza accesso al repo.
-    if not defined GHTOKEN echo   [!] Download non riuscito: rete down? oppure repo privato e senza token.
-    if exist "%WORK%\curl-codice.txt" type "%WORK%\curl-codice.txt"
-    goto fallito
-  )
+echo   Scarico il codice da GitHub [zipball di main]...
+goto scarica_codice
+
+:codice_locale
+echo.
+echo   Uso il codice incluso nell'installer offline...
+rem niente /dev/null qui: in un .cmd il redirect a un percorso Unix fa fallire la
+rem riga PRIMA di copy, e senza controllo del file il guasto si vedeva solo dal
+rem tar («Impossibile trovare il percorso specificato»).
+copy /Y "%EVO_INSTALLER_CODEZIP%" "%ZIPCOD%" >nul
+if errorlevel 1 (
+  echo   [!] Copia del codice incluso non riuscita: installer offline incompleto.
+  goto fallito
 )
+if not exist "%ZIPCOD%" (
+  echo   [!] Copia del codice incluso non riuscita: installer offline incompleto.
+  goto fallito
+)
+goto codice_pronto
+
+:scarica_codice
+set "LHAUT="
+if defined GHTOKEN set "LHAUT=-H "Authorization: Bearer %GHTOKEN%""
+set "HTTP_FILE=%WORK%\http-codice.txt"
+%SystemRoot%\System32\curl.exe -L -sS --fail --connect-timeout 20 --retry 2 --retry-delay 2 -w "%%{http_code}" -H "User-Agent: evo-installer" -H "Accept: application/vnd.github+json" %LHAUT% -o "%ZIPCOD%" "%API%/zipball/main" >"%HTTP_FILE%" 2>"%WORK%\curl-codice.txt"
+if not errorlevel 1 goto codice_pronto
+
+set "HTTP_CODE=000"
+if exist "%HTTP_FILE%" set /p "HTTP_CODE="<"%HTTP_FILE%"
+if defined GHTOKEN goto token_rifiutato
+if "%HTTP_CODE%"=="401" goto token_richiesto
+if "%HTTP_CODE%"=="403" goto token_richiesto
+if "%HTTP_CODE%"=="404" goto token_richiesto
+echo   [!] Download non riuscito (HTTP %HTTP_CODE%): controlla rete o proxy.
+if exist "%WORK%\curl-codice.txt" type "%WORK%\curl-codice.txt"
+goto fallito
+
+:token_richiesto
+echo.
+echo   GitHub ha negato l'accesso al repository (HTTP %HTTP_CODE%).
+echo   Se il repo e' privato, inserisci un token Fine-grained con Contents: Read-only.
+if defined EVO_INSTALLER_GHTOKEN set "GHTOKEN=%EVO_INSTALLER_GHTOKEN%"
+if not defined GHTOKEN if defined AUTO goto token_assente
+if not defined GHTOKEN set /p "GHTOKEN=   Token GitHub (Invio per annullare): "
+if not defined GHTOKEN goto token_assente
+echo   Riprovo il download autenticato...
+goto scarica_codice
+
+:token_assente
+echo   [!] Serve un token per questo repository privato; non ne e' stato fornito uno.
+goto fallito
+
+:token_rifiutato
+echo   [!] GitHub ha rifiutato il token (scaduto o senza accesso al repo).
+if exist "%WORK%\curl-codice.txt" type "%WORK%\curl-codice.txt"
+goto fallito
+
+:codice_pronto
 
 rem ------------------- 4. estrazione + installazione -------------------
 %SystemRoot%\System32\tar.exe -xf "%ZIPCOD%" -C "%WORK%"

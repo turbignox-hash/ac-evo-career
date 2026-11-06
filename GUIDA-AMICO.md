@@ -15,11 +15,11 @@ doppioclick `installa.cmd`** (uno solo, in radice del progetto, pochi KB) e
 2. Invio per la cartella di default (`%USERPROFILE%\EVO-Pitwall`);
 3. se il PC non ha Node (o ha un Node più vecchio di 18), scarica un **Node portatile** dentro quella stessa
    cartella — niente admin, niente winget;
-4. chiede **una volta** il token di lettura (§5-bis) e lo salva in
-   `data\.github-token`: gli aggiornamenti automatici del launcher sono
-   già a posto da subito;
-5. scarica il codice (zipball di `main`), lo estrae, scrive `build-id.txt`
-   e fa passare `npm test`;
+4. scarica il codice (zipball di `main`) senza credenziali; chiede un token
+   solo se GitHub nega l’accesso perché il repository è privato, poi lo salva
+   in `data\.github-token` per gli aggiornamenti automatici;
+5. estrae il codice, scrive `build-id.txt` e salta `npm test` per default;
+   durante l’installazione si può scegliere di eseguire la prova completa;
 6. crea la scorciatoia «Carriera EVO» sul Desktop e nel menu Start (icona compresa), registra la voce in App e
    funzionalità e avvia il **wizard** di prima apertura.
 
@@ -99,11 +99,11 @@ vale lo stesso auto-aggiornamento — senza `build-id.txt` il PRIMO avvio guarda
 main su GitHub e porta da solo l'installazione al passo (serve il token di
 lettura su repo privato, §5-bis); da quel momento è identica alla via zip.
 
-## 5-bis. Token di lettura (solo se il repo ri-passa privato)
+## 5-bis. Token di lettura (solo se GitHub nega il download)
 
-Stato al 26/10: il repo è **pubblico** e non serve nessun token — l'installatore
-accetta pure INVIO alla domanda. Se ripassasse privato: l'installatore chiede il
-token, lo salva in `data\.github-token` e l'updater zip guasta da quel file.
+Il repo pubblico si scarica senza token né domanda. Se GitHub nega il download
+(401/403/404, per esempio perché il repo è privato), l’installatore chiede un
+token di lettura, lo salva in `data\.github-token` e l’updater lo riusa.
 
 1. Su GitHub: **Settings → Developer settings → Personal access tokens →
    Fine-grained** → *Generate new token*: repository solo ac-evo-career,
