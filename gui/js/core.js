@@ -421,7 +421,7 @@ function drawNav(){
   /* 6/11 — telefono: la nav è una striscia che scorre e con 19 voci la scheda
      aperta può restare fuori vista. La si riporta al centro da soli, così il
      menu dice sempre dove sei. Solo su schermo stretto (dove scorre davvero). */
-  if (window.matchMedia?.('(max-width:920px)').matches) {
+  if (typeof matchMedia === 'function' && matchMedia('(max-width:920px)').matches) {
     $('#nav button.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
 }
