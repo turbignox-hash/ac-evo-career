@@ -72,7 +72,7 @@ import { stintsFromLd } from './stinti.mjs';
 import { seatStintInputs, stintPlanOf, stintStopAlert } from './stint-plan.mjs';
 import { tyreWearFromLd, lapDegradation } from './usura-gomme.mjs';
 import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
-import { listSetups, brakePlanOf, annotateAllyAdvice, } from './carsetup.mjs';
+import { listSetups, brakePlanOf, annotateAllyAdvice, autoConAli, } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
 import { carPoolOf, carInPool, poolNodeForLive } from './car-pool.mjs';
 import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, setWeekendGridCustom, setWeekendGridAuto, WEEKEND_FILE } from './set-track.mjs';
@@ -3197,7 +3197,17 @@ async function api(context0, _req, res, action, body) {
             const sess = collectSessions(root, paths.resultsDirs?.[0] ?? '', { car: carName, limit: 1, afterMs: state.createdAt ?? 0 })[0] ?? null;
             if (sess) { telem = sess; sessFile = sess.file; }
           } catch { /* senza telemetria la base resta pista-solo */ }
-          const adv = setupAdvice(TRACK && { ...TRACK, car: carName }, telem && {
+          /* LE ALI DELL'AUTO (7/11): il carattere della pista non basta — il
+             consiglio «ala a metà carica / carica-scarica gli alettoni» vale solo
+             per chi ha le ali regolabili (vero con un numero in wingFront/wingRear
+             del .carsetup più recente, falso su stradali e turismo, null senza
+             nessun setup salvato: «non lo so» non è «non ce le ha»). */
+          let ali = null;
+          try {
+            const saved = paths.dataDirs?.[0] ?? paths.dataDirs?.[1] ?? '';
+            if (carName && saved) ali = autoConAli(saved, carName);
+          } catch { /* senza setup la base resta quella di prima */ }
+          const adv = setupAdvice(TRACK && { ...TRACK, car: carName, ali }, telem && {
             bump: telem.bump, camberProxy: telem.camberProxy, lastPressures: telem.hotPressures,
           }, { laps: telem?.laps ?? null });
           /* -- IL CICLO D'APPRENDIMENTO (allievo.mjs, richiesta Mauro 21/10): --

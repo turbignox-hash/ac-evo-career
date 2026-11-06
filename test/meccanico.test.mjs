@@ -22,7 +22,8 @@ test('profilo pista: densità di curve decide il tipo', () => {
 });
 
 test('base pista-solo: alettoni e cambio per tipo (senza telemetria)', () => {
-  const m = setupAdvice(monza, null);
+  // ali: true = l'auto ha le ali regolabili (dal .carsetup, vedi autoConAli)
+  const m = setupAdvice({ ...monza, ali: true }, null);
   assert.equal(m.tipo, 'power');
   const txt = m.consigli.map((c) => c.text).join(' ');
   assert.match(txt, /alettoni/i);
@@ -30,7 +31,7 @@ test('base pista-solo: alettoni e cambio per tipo (senza telemetria)', () => {
   // con pista-solo c'è il consiglio che la telemetria aggiunge lo strato 2
   assert.match(m.consigli.map((c) => c.vedi).join(' '), /telemetria/);
 
-  const t = setupAdvice(imola, null);
+  const t = setupAdvice({ ...imola, ali: true }, null);
   assert.match(t.consigli.map((c) => c.text).join(' '), /Cambio CORTO/);
 });
 
@@ -41,7 +42,7 @@ const telemBase = () => ({
   lastPressures: { LF: 27, RF: 27, RR: 27, LR: 27 },
 });
 // con l'auto nella scheda pista la classe gomme (target) è nota: GT3RS → slicks 27
-const suzukaGt3 = { ...suzuka, car: 'Porsche 911 GT3 RS (992)' };
+const suzukaGt3 = { ...suzuka, car: 'Porsche 911 GT3 RS (992)', ali: true };
 
 test('correzione telemetria: bumpstop alto → alza, camber squilibrato → rih', () => {
   // RBB non in TRACK_INFO nel fixture? Verifichiamo con info minime

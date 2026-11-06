@@ -28,6 +28,7 @@ import { dirname, join, basename } from 'node:path';
 import { decodeMsg, encodeMsg } from './evo-grid.mjs';
 import { tr } from './lang.mjs';
 import { memoOf, storiePerCampo } from './allievo.mjs';
+import { sameCar, sameTrack } from './tracknames.mjs';
 
 /* ---------- primitivi ---------- */
 const decode = (buf) => decodeMsg(Buffer.isBuffer(buf) ? buf : Buffer.from(buf));
@@ -444,6 +445,37 @@ export function readSetupFile(file) {
   if (!existsSync(file)) return null;
   const buf = readFileSync(file);
   return { buf, setup: parseSetup(buf) };
+}
+
+/* LE ALI (7/11, richiesta di Mauro: «per le auto che lo possiedono»).
+   Nel .carsetup la sezione aero (root.6) c'è su TUTTE le auto — le altezze da
+   terra servono a chiunque — ma `wingFront`/`wingRear` restano VUOTI su stradali
+   e turismo (Golf 8 GTI Clubsport, i30 N, Mini, 190E…) e hanno un numero solo
+   dove l'ala è regolabile (296 GT3, F2004, F40 LM, MX-5 Cup, RX-7 FD, GT3 RS).
+   Senza ali un consiglio «carica/scarica gli alettoni / ala a metà carica» è
+   parlare a vuoto: setupAdvice lo tace (vedi `ali` in src/setup.mjs). */
+export function haAlettoni(setup) {
+  const a = setup?.aero;
+  if (!a) return false;
+  const num = (v) => v != null && Number.isFinite(Number(v));
+  return num(a.wingFront) || num(a.wingRear);
+}
+
+/** L'auto ha le ali regolabili? Legge il .carsetup PIÙ RECENTE dell'auto (l'ultimo
+ *  file è la firma attuale del setup). Ritorna true/false, oppure null se per
+ *  quell'auto non c'è nessun setup salvato: «non lo so» non è «non ce le ha». */
+export function autoConAli(savedDir, carName, { track = null } = {}) {
+  if (!savedDir || !carName) return null;
+  let ss = listSetups(savedDir, { car: carName });
+  if (!ss.length) {
+    ss = listSetups(savedDir).filter((s) => sameCar(s.car, carName) && (!track || sameTrack(s.track, track)));
+  }
+  if (!ss.length) return null;
+  ss.sort((a, b) => statSync(b.file).mtimeMs - statSync(a.file).mtimeMs);
+  for (const s of ss) {
+    try { return haAlettoni(parseSetup(readFileSync(s.file))); } catch { /* file illeggibile: si prova il precedente */ }
+  }
+  return null;
 }
 
 /* PONTE FRA PISTE (1/11): in EVO i setup vivono SOLO per auto+pista — niente

@@ -228,9 +228,17 @@ export function setupAdvice(info, telem) {
   const prof = trackProfile(info, telem);
   const label = info?.name ?? 'pista';
 
+  /* SOLO PER LE AUTO CHE LE ALI LE HANNO (7/11, richiesta di Mauro: «per le auto
+     che lo possiedono»): `info.ali` arriva dal .carsetup dell'auto (autoConAli in
+     carsetup.mjs — true con ali regolabili, false senza, null se non c'è un setup
+     salvato). Il carattere della pista resta, ma «ala a metà carica» su una Golf
+     8 GTI senza alettoni è un consiglio che non si può applicare: si tace. Le
+     altre voci (cambio, telemetria) restano per tutti. */
+  const parlaDiAli = info?.ali === true;
+
   /* -- base dal carattere della pista -- */
   if (prof.tipo === 'power') {
-    add('aero', 1, tr({
+    if (parlaDiAli) add('aero', 1, tr({
       it: `**${label}** (${info?.lengthKm} km, ${info?.corners} curve · tracciato POWER): scarica GLI ALETTONI al minimo drag — il tempo si guadagna sui rettilinei. Se il fondo è stabile in curva, un gradino d'ala in meno vale più di una mano di camber.`,
       en: `**${label}** (${info?.lengthKm} km, ${info?.corners} corners · POWER track): unload the WINGS to minimum drag — time is made on the straights. If the floor is stable in corners, one wing step down is worth more than a camber tweak.`,
     }));
@@ -239,7 +247,7 @@ export function setupAdvice(info, telem) {
       en: `LONG gearing (top gear you can almost pull on the longest straight): at ${label} top speed pays the quarters of the lap.`,
     }));
   } else if (prof.tipo === 'tecnica') {
-    add('aero', 1, tr({
+    if (parlaDiAli) add('aero', 1, tr({
       it: `**${label}** (${info?.corners} curve in ${info?.lengthKm} km · tracciato TECNICO): carica GLI ALETTONI (2-3 gradini sopra il minimo) — il tempo è in frenata e in uscita dalle curve strette.`,
       en: `**${label}** (${info?.corners} corners in ${info?.lengthKm} km · TECHNICAL track): load the WINGS (2-3 steps above minimum) — time is in braking and corner exit.`,
     }));
@@ -248,7 +256,7 @@ export function setupAdvice(info, telem) {
       en: `SHORT gearing: average power matters more than the peak (${label} has no straight long enough to justify a long top gear).`,
     }));
   } else if (prof.tipo === 'bilanciata') {
-    add('aero', 1, tr({
+    if (parlaDiAli) add('aero', 1, tr({
       it: `**${label}** (${info?.corners} curve in ${info?.lengthKm} km · tracciato BILANCIATO): ala a metà carica — il compromesso giusto fra i tratti veloci e le curve medi-lente.`,
       en: `**${label}** (${info?.corners} corners in ${info?.lengthKm} km · BALANCED track): wing at half load — the right compromise between fast sections and medium-slow corners.`,
     }));
