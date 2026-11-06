@@ -148,7 +148,11 @@ export function engineerLive(snap, ctx = {}) {
   // SOLO se il pilota c'è; con null la fase resta una stringa vuota (risposta
   // onesta { live:false }) e né pannello né radio tirano un 500 a ogni tick.
   const faseGioco = player ? String(player.sessionPhase ?? '').trim() : '';
-  const inRace = sessionType === 'Race' || /race/i.test(faseGioco);
+  // 6/11 (gara di Laguna Seca): la fase arrivava VUOTA e il tipo «TimeAttack»,
+  // quindi inRace restava falso per tutta la gara. La firma vera la calcola lo
+  // snapshot (session.race: sessione a giri senza timer) — una sola regola per
+  // live, verifica scheda e copilota.
+  const inRace = snap?.session?.race === true || sessionType === 'Race' || /race/i.test(faseGioco);
   const gauges = {
     lapsDone: null, lapsTotal: null, fuel: null, lapsOnFuel: null, lapsLeft: null,
     wear: null, temp: null, gapAhead: null, gapBehind: null,
@@ -191,8 +195,10 @@ export function engineerLive(snap, ctx = {}) {
   } else if (lapsOnFuel != null && lapsLeft != null && lapsLeft > 0) {
     tips.push({
       icon: '⛽',
-      title: tr({ it: `Benzina per ${lapsOnFuel} giri`, en: `Fuel for ${lapsOnFuel} laps` }),
-      text: tr({ it: `giri da coprire ${lapsLeft} — margine ${r1(lapsOnFuel - lapsLeft)} giri: benzina ok`, en: `${lapsLeft} laps to cover — margin ${r1(lapsOnFuel - lapsLeft)} laps: fuel ok` }),
+      // 6/11: in gara il numero che conta è il MARGINE sui giri che restano, non
+      // l'autonomia in sè («Benzina per 11.6 giri» con 1 giro da fare).
+      title: tr({ it: `Benzina: margine ${r1(lapsOnFuel - lapsLeft)} giri, ne restano ${lapsLeft}`, en: `Fuel: ${r1(lapsOnFuel - lapsLeft)} laps in hand, ${lapsLeft} to go` }),
+      text: tr({ it: `autonomia ${lapsOnFuel} giri su ${lapsLeft} da coprire: benzina ok`, en: `${lapsOnFuel} laps of fuel for ${lapsLeft} to cover: fuel ok` }),
       prio: 3,
     });
   }
@@ -379,7 +385,12 @@ export function engineerLive(snap, ctx = {}) {
   // grafica, già parseato in shmem.mjs — arriva ai narratori del copilota
   // (narratore 8 di viste-a.js, «Ultimo giro!») che prima dipendevano SOLO
   // dal contatore giri, fermo a 0 per tutta la gara del 24/10.
-  gauges.isLastLap = player.isLastLap ?? null;
+  // 6/11: in gara il flag della MMF è rimasto FALSO per tutto l'ultimo giro
+  // (Laguna Seca) e la radio non ha detto «Ultimo giro!». Scorta col contatore:
+  // ultimo giro quando i compiuti + 1 toccano il totale. Fuori gara (prove e
+  // qualifiche a tempo) il totale non c'è e la scorta tace da sola.
+  const ultimoDaGiri = inRace && Number(player.lapsTotal) > 0 && Number(player.lapsDone) + 1 === Number(player.lapsTotal);
+  gauges.isLastLap = player.isLastLap === true || ultimoDaGiri ? true : (player.isLastLap ?? null);
   // SENSORE BOX (28/10 sera, richiesta Mauro: «per il copilot implementa la
   // voce quando apre/chiude i box»): il flag pitlane della MMF (carLocation 1,
   // già arrivato in player.inPit dalla SM) passa nei gauges come isLastLap:

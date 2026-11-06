@@ -1024,6 +1024,11 @@ export class LiveReader {
         ambientTempC: st.ambientTempC ?? null,
         online: !!st.online,
         timedRace: !!st.timedRace,
+        // È GARA? (6/11, la gara di Laguna Seca): il tipo STATIC di EVO scrive
+        // «TimeAttack» anche in gara e la fase può arrivare vuota, quindi la
+        // riga di verifica scheda non poteva MAI dire «pronto» e inRace restava
+        // falso mentre si correva. La firma vera: gara A GIRI senza timer.
+        race: eGaraSessione({ tipo: SESSION_T[st.sessionType] ?? 'sconosciuta', giriTotali: g?.totalLapsSession, tempoRimanente: g?.timeLeftStr }),
       },
       timing: g?.timing ?? null,
       // tempi numerici normalizzati (stringa HUD come fallback): il cruscotto
@@ -1135,7 +1140,7 @@ export class LiveReader {
         airTempC: Number.isFinite(p?.airTemp) ? Math.round(p.airTemp) : null,
         roadTempC: Number.isFinite(p?.roadTemp) ? Math.round(p.roadTemp) : null,
         // danni auto dal physics: [fronte, post, sx, dx, centro] come % (0=intatto)
-        damage: (p?.carDamage ?? []).map((v) => (Number.isFinite(v) ? Math.round(v * 100) : null)) ?? null,
+        damage: danniPercent(p?.carDamage),
         tyreWear: (p?.tyreWear ?? []).map((v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null)) ?? null,
         tyreCoreTemp: (p?.tyreCoreTemp ?? []).map((v) => (Number.isFinite(v) ? Math.round(v) : null)) ?? null,
         // I nuovi campi della MMF non restano chiusi in raw: la radio e il
@@ -1189,6 +1194,29 @@ export class LiveReader {
 
 /* singleton per il server */
 let reader = null;
+/** È GARA? (6/11): il tipo STATIC di EVO scrive «TimeAttack» anche in gara e la
+ *  fase può arrivare vuota, quindi non basta nessuno dei due. La firma vera è
+ *  la coppia: sessione A GIRI e NESSUN timer — prove e qualifiche sono a tempo
+ *  e la gara no. Una sola regola per live, verifica scheda e copilota. */
+export function eGaraSessione({ tipo = null, giriTotali = null, tempoRimanente = null } = {}) {
+  if (String(tipo ?? '') === 'Race') return true;
+  const giri = Number(giriTotali);
+  const timer = tempoRimanente == null ? '' : String(tempoRimanente).trim();
+  return Number.isFinite(giri) && giri > 0 && timer === '';
+}
+
+/** Danni per area in % [fronte, post, sx, dx, centro]. Il gioco scrive di norma
+ *  frazioni 0..1, ma in certi frame il blocco arriva GIÀ in percentuale
+ *  (6.76 = 6.76%): la scala si riconosce dal blocco intero — la stessa regola
+ *  dell'usura gomme in engineer.mjs — e il risultato non passa mai il 100.
+ *  Prima ogni valore era × 100 a prescindere: la gara di Laguna Seca ha
+ *  mostrato «676 %» e «964 %». */
+export function danniPercent(damage) {
+  const vals = (Array.isArray(damage) ? damage : []).map((v) => (Number.isFinite(Number(v)) ? Number(v) : null));
+  const scala = vals.some((v) => v != null && v > 1.5) ? 1 : 100;
+  return vals.map((v) => (v == null ? null : Math.min(100, Math.round(scala === 1 ? v : v * 100))));
+}
+
 export function liveReader() {
   if (!reader) reader = new LiveReader({ intervalMs: 900 });
   return reader;

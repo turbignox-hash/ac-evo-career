@@ -1,5 +1,15 @@
 # Diario di sviluppo
 
+### 6/11 — Le quattro letture sbagliate della gara di Laguna Seca, corrette
+
+- **Richiesta di Mauro**: «procedi con questo» sulle quattro voci emerse dalla gara: benzina fuori contesto, «Ultimo giro!» mancato, danni oltre il 100 %, etichetta di gara scambiata per prove.
+- **1) La gara si riconosce**: `eGaraSessione()` in [src/shmem.mjs](src/shmem.mjs) — è gara con tipo `Race` **oppure** sessione a giri senza timer (prove e qualifiche sono a tempo) — e lo snapshot espone `session.race`. Da lì lo usano `engineerLive` per `inRace` e la verifica scheda in [src/webui-actions-live.mjs](src/webui-actions-live.mjs) per la riga «sessione», che prima aspettava un tipo `Race` che EVO non scrive mai nel weekend.
+- **2) L'ultimo giro**: in [src/engineer.mjs](src/engineer.mjs) il flag della MMF ha ora la scorta del contatore (`giri fatti + 1 = totale`, solo in gara); in [gui/js/narratore-unito.js](gui/js/narratore-unito.js) il ramo tace fuori gara e **azzera il latch** quando `inRace === false`, così la fine delle prove non consuma più la frase della gara vera.
+- **3) La benzina**: la radio dice «Benzina ok: 9.9 giri di margine, ne restano 1» (o l'allarme «per X giri, ne restano Y» quando è corta) invece della sola autonomia; anche il consiglio dell'ingegnere porta il margine nel titolo.
+- **4) I danni**: `danniPercent()` riconosce il blocco in frazioni 0..1 o già in percentuale — la stessa regola dell'usura gomme — e non passa mai il 100. I «676 % e 964 %» della gara diventano 7 / 3 / 10 %, i 12 / 5 / 17 % di fine sessione restano quelli.
+- **Verifica**: nuovo `test/sessione-gara.test.mjs` **5/5**; **103 test verdi** sulle suite toccate (narratori, ingegnere, shmem, live-fresh, posizione, voce, riepilogo, sessione-gara); Biome pulito sui cinque file; server riavviato (PID 17116), `/api/live` risponde `session.race:false` nei menu e la sonda menu 200.
+- **Limite**: la prova udibile delle nuove frasi arriva alla prossima sessione in pista — adesso il gioco è fuori sessione.
+
 ### 6/11 — La gara di Laguna Seca corsa e sorvegliata: la radio è in tempo reale, tre letture no
 
 - **Richiesta di Mauro**: «eseguo la gara monitorizza tutto, e verifica che le frasi del copilot siano realmente in tempo reale e giusti, poi controlla tutto il resto. sto per partire.»

@@ -70,7 +70,11 @@ export async function liveAction(action, ctx) {
           const rows = [
             { key: 'pista', expected: expectedTrack, live: live.track, ok: has(live.track, expectedTrack) },
             { key: 'layout', expected: expectedLayout, live: live.layout, ok: has(live.layout, expectedLayout) },
-            { key: 'sessione', expected: 'Gara', live: live.type, ok: live.type === 'Race' },
+            // 6/11: il tipo STATIC mente («TimeAttack» anche in gara) e la fase può
+            // essere vuota — la riga restava rossa per tutta la gara vera. La gara
+            // la dichiara lo snapshot (session.race: giri senza timer), la stessa
+            // regola che alimenta inRace e la copilota.
+            { key: 'sessione', expected: 'Gara', live: live.race ? 'Gara' : live.type, ok: live.race === true },
             { key: 'auto', expected: choices.join(', ') || null, live: liveCar, ok: carOk },
           ];
           const allOk = rows.every((r) => r.ok);

@@ -191,9 +191,18 @@ function narratore(m, slot, ora = Date.now()) {
   }
   if (lapNo != null) slot.last.lapNo = lapNo;
   if (g.lapsOnFuel != null && slot.last.fuel != null && g.lapsOnFuel < slot.last.fuel - 0.49) {
-    parla.push(g.lapsLeft != null && g.lapsOnFuel < g.lapsLeft + 1
-      ? { chi: 'benzina', it: `Attenzione benzina: per ${g.lapsOnFuel} giri, ne restano ${g.lapsLeft}` }
-      : { chi: 'benzina', it: `Benzina per ${g.lapsOnFuel} giri` });
+    /* 6/11: in gara conta il MARGINE sui giri che restano. «Benzina per 11.6
+       giri» con un giro da fare era vero e inutile: la frase ora parte dai
+       giri da coprire, e il numero dell'autonomia resta solo fuori gara. */
+    const resta = Number.isFinite(Number(g.lapsLeft)) && Number(g.lapsLeft) > 0 ? Number(g.lapsLeft) : null;
+    if (resta != null && g.lapsOnFuel < resta + 1) {
+      parla.push({ chi: 'benzina', it: `Attenzione benzina: per ${g.lapsOnFuel} giri, ne restano ${resta}` });
+    } else if (resta != null) {
+      const margine = +(g.lapsOnFuel - resta).toFixed(1);
+      parla.push({ chi: 'benzina', it: `Benzina ok: ${margine} giri di margine, ne restano ${resta}` });
+    } else {
+      parla.push({ chi: 'benzina', it: `Benzina per ${g.lapsOnFuel} giri` });
+    }
   }
   if (g.lapsOnFuel != null) slot.last.fuel = g.lapsOnFuel;
   /* 3b) META GARA: la soglia si legge da compiuto (contatore filtrato), non
@@ -350,13 +359,21 @@ function narratore(m, slot, ora = Date.now()) {
        cambia mai il lastLap). */
   const lt = g.lapsTotal, ld = compiuto;
   const ltOk = Number.isFinite(lt) && lt > 0;
+  /* 6/11 (gara di Laguna Seca): il weekend riusa la STESSA firma per prove,
+     qualifica e gara e nelle prove il totale giri è di già quello della gara:
+     il latch «ultimo giro» scattava a fine prove, restava acceso, e in gara
+     la frase vera non usciva più. Fuori gara il ramo tace e il latch si
+     azzera, così la gara riparte pulita. `inRace` assente = comportamento
+     storico (test e chiamanti vecchi). */
+  const garaOra = m.inRace !== false;
+  if (!garaOra) slot.last.ultimo = false;
   if (Number.isFinite(ld)) {
-    if ((g.isLastLap || (ltOk && ld + 1 === lt)) && !slot.last.ultimo) {
+    if (garaOra && (g.isLastLap || (ltOk && ld + 1 === lt)) && !slot.last.ultimo) {
       slot.last.ultimo = true;
       slot.last.ultimoGiro = ld;           // il giro in corso quando parlò: la crocetta conta da dopo questo
       parla.push({ chi: 'ultimoGiro', it: 'Ultimo giro!' });
     }
-    if (ltOk && ld >= lt && !slot.last.bandiera) { slot.last.bandiera = true; bandParla(); }
+    if (garaOra && ltOk && ld >= lt && !slot.last.bandiera) { slot.last.bandiera = true; bandParla(); }
     else if (!ltOk && slot.last.ultimo && croceFinale && !slot.last.bandiera
              && Number.isFinite(slot.last.ultimoGiro) && ld > slot.last.ultimoGiro) {
       // senza totale: il traguardo che CHIUDE l'ultimo giro = un giro in più
