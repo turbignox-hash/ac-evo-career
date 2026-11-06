@@ -16,6 +16,9 @@ import { fileURLToPath } from 'node:url';
 const qui = dirname(fileURLToPath(import.meta.url));
 const gui = readFileSync(join(qui, '..', 'gui', 'js', 'viste-c.js'), 'utf8');
 const server = readFileSync(join(qui, '..', 'src', 'webui.mjs'), 'utf8');
+// 6/11: il dominio setup è estratto — il case vive nel modulo azioni, il
+// dispatcher di webui.mjs deve consegnarglielo (stessa guardia, nuovo indirizzo).
+const azioniSetup = readFileSync(join(qui, '..', 'src', 'webui-actions-setup.mjs'), 'utf8');
 
 test('viste-c: il dialogo del meccanico chiama /api/meccanico-parla, non il garage', () => {
   assert.ok(gui.includes("api('meccanico-parla'"),
@@ -24,9 +27,11 @@ test('viste-c: il dialogo del meccanico chiama /api/meccanico-parla, non il gara
     'la forma vecchia (garage con action dentro) NON deve tornare: rispondeva l’overview delle pressioni');
 });
 
-test('webui: il case meccanico-parla esiste al top-level del dispatcher', () => {
-  assert.match(server, /case 'meccanico-parla': \{\s*\n\s*try \{/,
-    'il server deve avere il case dedicato (il test e2e lo pesa altrove)');
+test('webui: il case meccanico-parla vive nel dominio setup e il dispatcher lo raggiunge', () => {
+  assert.match(azioniSetup, /case 'meccanico-parla': \{\s*\n\s*try \{/,
+    'il modulo setup deve avere il case dedicato (il test e2e lo pesa altrove)');
+  assert.match(server, /if \(SETUP_ACTIONS\.has\(action\)\)/,
+    'webui.mjs deve consegnare il dominio setup al modulo (senza dispatch la rotta sparisce)');
 });
 
 /* 6/11 (il gesto unico): i chip Quali/Gara/Pioggia e la richiesta a voce
