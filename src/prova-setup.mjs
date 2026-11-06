@@ -30,12 +30,14 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeJsonAtomic } from './atomic.mjs';
+import { DELTA_PERDITA_S } from './soglie.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const FILE = join(HERE, '..', 'data', 'prove-setup.json');
 
-/** Miglioramento minimo perché una prova dica qualcosa (secondi). */
-export const SOGLIA_S = 0.15;
+/** Miglioramento minimo perché una prova dica qualcosa (secondi): la STESSA
+ *  soglia dell'allievo e del pannello — vive in soglie.mjs, non qui. */
+export const SOGLIA_S = DELTA_PERDITA_S;
 /** Oltre questo scarto la leva si considera chiaramente da buttare. */
 export const SOGLIA_FORTE_S = 0.35;
 /** Massimo di prove tenute in memoria (le più vecchie escono). */

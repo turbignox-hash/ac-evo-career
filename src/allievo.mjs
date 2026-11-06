@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeJsonAtomic } from './atomic.mjs';
+import { DELTA_GUADAGNO_S, DELTA_PERDITA_S } from './soglie.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const FILE = join(HERE, '..', 'data', 'setup-allievo.json');
@@ -56,8 +57,8 @@ export function storiePerCampo(rounds) {
     for (const a of lista) {
       const e = (m[a.campo] ??= { provati: 0, guadagnati: 0, persi: 0, ultimoDelta: null, ultimoText: null });
       e.provati += 1;
-      if (r.delta < -0.05) e.guadagnati += 1;
-      else if (r.delta > 0.15) e.persi += 1;
+      if (r.delta < DELTA_GUADAGNO_S) e.guadagnati += 1;
+      else if (r.delta > DELTA_PERDITA_S) e.persi += 1;
       e.ultimoDelta = r.delta;
       e.ultimoText = a.text;
     }
@@ -121,9 +122,9 @@ export function annotaAdvice(consigli, { rounds }) {
     const st = storie[c.vedi];
     if (!st) return c;
     let nota;
-    if (st.ultimoDelta < -0.05) {
+    if (st.ultimoDelta < DELTA_GUADAGNO_S) {
       nota = `Storia: l'ultima proposta su ${c.vedi} ha GUADAGNATO ${(-st.ultimoDelta).toFixed(2)}s · ${st.guadagnati}/${st.provati} giri guadagnati — prosegui in quella direzione o raffina il gradino.`;
-    } else if (st.ultimoDelta > 0.15) {
+    } else if (st.ultimoDelta > DELTA_PERDITA_S) {
       nota = `Storia: l'ultima proposta su ${c.vedi} ha PERSO ${st.ultimoDelta.toFixed(2)}s · ${st.persi}/${st.provati} giri persi — se il dato di oggi è lo stesso, riduci il passo alla metà o considera che non era quella la leva giusta.`;
     } else {
       nota = `Storia: l'ultima proposta su ${c.vedi} è stata neutra (${st.ultimoDelta >= 0 ? '+' : ''}${st.ultimoDelta.toFixed(2)}s).`;
@@ -148,7 +149,7 @@ export function annotaAdvice(consigli, { rounds }) {
 export function computaCorrezioni(rounds, { best = null } = {}) {
   const scuse = [];
   for (const r of [...(rounds ?? [])].reverse()) {
-    if (r.delta == null || !(r.delta > 0.15)) continue;   // pendenti e rumore: no
+    if (r.delta == null || !(r.delta > DELTA_PERDITA_S)) continue;   // pendenti e rumore: no
     if (r.pentAt) continue;                               // già ammesso: non si insiste
     const campi = [...new Set((r.advice ?? []).map((a) => a.campo))].filter((c) => c && c !== '?');
     if (!campi.length) continue;
