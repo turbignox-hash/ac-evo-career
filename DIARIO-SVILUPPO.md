@@ -5,6 +5,14 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 6/11 — Fix launcher da screenshot: il doppio click si fermava prima del server
+
+- **Segnalazione Mauro con screenshot Windows Script Host**: `tools/avvia-gui.vbs`, riga 22, errore 800A01A8 «Necessario oggetto: 'WScript'».
+- **Causa**: VBScript è case-insensitive. La variabile locale `wscript` (eseguibile `wscript.exe`) oscurava l'oggetto globale `WScript`; la lettura di `WScript.ScriptFullName` quindi cercava una proprietà su una variabile non impostata. Rinominata in `wshExe`.
+- **Secondo guasto trovato nello stesso percorso**: il refactoring aveva spostato `aggiornamenti.mjs` e `salva-save.mjs` in `src/`, ma il nuovo VBS li cercava ancora in `tools/`. Aggiornati i due riferimenti.
+- **Regressione**: `test/avvia-gui.test.mjs` protegge l'assenza di una variabile che oscura `WScript` e verifica i percorsi script corretti. `cscript //nologo` ha eseguito il VBS in copia con le quattro chiamate `sh.Run` disattivate: nessun aggiornamento, backup, installazione o tray è stato avviato durante il controllo.
+- Verifiche: test launcher 2/2; suite 1.065/1.065 (0 fail, 2 skip, 1 todo); Biome 408 file pulito.
+
 ### 6/11 — Scansione del progetto, sei riparazioni strutturali: il monolite tagliato, i silenzi firmati, le librerie fuori da tools/
 
 - **L'audit (richiesta Mauro: «fai una scansione dell'intero progetto, dimmi che ne pensi, cosa miglioreresti»)**: 404 file, 80.580 righe, 175 file di test, 1.054 test verdi, zero dipendenze a runtime. I punti di forza misurati: 76 moduli su 86 con un test che li importa, commenti che raccontano il PERCHÉ con la data, disciplina anti-invenzione (il meccanico tace senza dati), difese concrete (`SOLO_POST`, `.gitignore`, nessun `eval`). I debiti misurati, in ordine di rischio: `webui.mjs` 4.697 righe e 102 rotte (file più toccato del repo), 352 `catch` vuoti (18 senza nemmeno un commento), 15 moduli di `src/` che importano da `../tools/`, 76 script su 118 mai citati, moduli di scrittura senza test, soglie duplicate fra server e browser. Su questi sei punti è stato fatto l'intervento, uno per commit.

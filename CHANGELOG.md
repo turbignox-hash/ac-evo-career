@@ -1,5 +1,11 @@
 # CHANGELOG — EVO Pitwall (ac-evo-career)
 
+## v0.1.65 — 6/11/2026
+
+- **Riparato il doppio click «Carriera EVO»**: in VBScript il nome non distingue maiuscole, quindi la variabile locale `wscript` oscurava l'oggetto globale `WScript`; `WScript.ScriptFullName` falliva con «Necessario oggetto» prima di avviare il launcher. Ora l'eseguibile ha il nome `wshExe`.
+- Riallineati anche i percorsi di `aggiornamenti.mjs` e `salva-save.mjs`, spostati in `src/` nel refactoring precedente ma ancora invocati da `tools/`.
+- Verifiche: VBS eseguito con `cscript` in copia senza le azioni di avvio; 2 test launcher; suite **1.065 pass, 0 fail**; Biome pulito su 408 file.
+
 Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 [DIARIO-SVILUPPO.md](DIARIO-SVILUPPO.md) (il registro completo). Il save in
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
