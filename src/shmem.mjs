@@ -889,6 +889,32 @@ export class LiveReader {
     // «altra gara ma ho sentito solo la benzina, niente tempi sul giro».
     const lapNo = this.lapNoSeen ?? null;
     const bestLapMs = this.bestLapMs ?? g?.lapMs?.best ?? g?.bestLapMs ?? null;
+    /* AI BOX (6/11 sera, segnalazione Mauro: «quando sono ai box dice che sono
+       più veloce del best»). La pit lane corre PARALLELA al rettifilo e la
+       piazzola sta lì: il punto più vicino della traccia del best cade vicino
+       al traguardo (p≈0, t≈0) mentre il giro corrente è appena cominciato, e
+       il delta «tracciato» esce a −0.5 s da fermo — un raffronto geometrico,
+       non di ritmo. Passava tutte le guardie: la finestra ±15 s del narratore
+       lo accettava e il «non più negativo del tempo trascorso» non scattava
+       (−0.5 s è poco). In pit non si pubblica un delta tracciato: la fonte
+       non è più 'tracked', la radio tace, e il numero grande resta quello del
+       gioco (o il trattino se anche lui muto).
+       Il confine è TUTTO il pit, non la sola pitlane: l'header scrive
+       ACEVO_PITLANE 1 / PITENTRY 2 / PITEXIT 3 / TRACK 4 (docs/acevo-wrapper.hpp),
+       e la piazzola del rifornimento — dove Mauro l'ha visto — è dentro il
+       pitlane ma l'ingresso e l'uscita sono codici a parte. Il bridge dà anche
+       i due booleani espliciti (is_in_pit_lane / is_in_pit_box): si guardano
+       tutti, così un cambio di codice del gioco non riapre il buco. Lo 0
+       («non assegnato») NON è pit: se il gioco non scrive il campo, il delta
+       tracciato resta com'era. */
+    const inPit = g?.isInPitLane === true || g?.isInPitBox === true
+      || g?.carLocation === 1 || g?.carLocation === 2 || g?.carLocation === 3;
+    if (inPit) {
+      return {
+        source: 'hud', dv: null, bestLapMs, bestLapNo: this.bestLapNo ?? null, lapNo,
+        hudDv: hud, inPit: true, segments: null,
+      };
+    }
     if (!this.bestTrack || this.bestTrack.length < 4) {
       return { source: 'hud', dv: hud, bestLapMs, bestLapNo: this.bestLapNo ?? null, lapNo };
     }

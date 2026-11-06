@@ -95,7 +95,18 @@ function narratore(m, slot, ora = Date.now()) {
      antichi) tace pure: da oggi la copilota raffronta SOLO col best che HA
      tracciato lei. La finestra ±15 s e la cadenza 45 s restano le guardie
      di legno sopra la norma. */
-  const dv = m.delta?.source === 'tracked' ? (m.delta?.dv ?? null) : null;
+  /* AI BOX (6/11 sera, «quando sono ai box dice che sono più veloce del
+     best»): il server già non pubblica più un delta tracciato in pit (shmem
+     _deltaInfo, carLocation 1), ma la radio ha la sua guardia perché il
+     payload può arrivare da un server vecchio o da un altro percorso: dentro
+     la pit lane/box il raffronto col best non esiste, e il bucket si aggiorna
+     in silenzio così all'uscita il primo numero buono non è «nuovo» solo
+     perché il box l'aveva mosso. Il server manda inPit nel delta (tutto il
+     pit: pitlane, ingresso, uscita); i gauges restano la scorta per i payload
+     vecchi, dove però il sensore è la sola pitlane (carLocation 1). */
+  const inPit = m.delta?.inPit === true || m.gauges?.inPit === true;
+  const dv = !inPit && m.delta?.source === 'tracked' ? (m.delta?.dv ?? null) : null;
+  if (dv == null && inPit && m.delta?.dv != null) slot.last.dvBucket = Math.round(m.delta.dv / 400);
   if (dv != null && Math.abs(dv) <= 15000) {
     const bucket = Math.round(dv / 400);
     if (slot.last.dvBucket == null) slot.last.dvBucket = bucket;   // semina senza voce
