@@ -45,7 +45,7 @@ function filKO() {
   b.hidden = false;
   b.innerHTML = `<div class="banner warn" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
     <span>⚠ ${esc(tr({ it: 'Il server del Pitwall non risponde', en: 'The Pitwall server is not responding' }))} (<span id="fil-age">0</span> s) — ${esc(tr({ it: 'le viste restano ferme: riparte col codice nuovo.', en: 'views are frozen: restart with the new code.' }))}</span>
-    <button id="fil-restart" style="margin-left:auto;border:1px solid #e8a23a40;background:#e8a23a12;color:#f0dcb8;border-radius:8px;padding:6px 12px;font:inherit;font-weight:700;cursor:pointer">↻ ${esc(tr({ it: 'Riavvia il server', en: 'Restart the server' }))}</button>
+    <button id="fil-restart" style="margin-left:auto;border:1px solid #ec8b3c40;background:#ec8b3c12;color:#f4dcc6;border-radius:8px;padding:6px 12px;font:inherit;font-weight:700;cursor:pointer">↻ ${esc(tr({ it: 'Riavvia il server', en: 'Restart the server' }))}</button>
   </div>`;
   $('#fil-restart').onclick = async () => {
     try {
@@ -176,7 +176,7 @@ async function drawAggBar(agg){
   const n = a.remotoAvanti;
   host.innerHTML = `<div class="banner warn" style="margin:10px 0 2px">
     ↑ <b>${tr({ it: `Aggiornamenti di progetto pronti su GitHub: ${n}`, en: `Project updates ready on GitHub: ${n}` })}</b>
-    <span class="muted" style="font-size:12px">${tr({ it: 'si aggiorna solo il codice: il tuo save non si tocca.', en: 'only the code updates; your save is never touched.' })}</span>
+    <span class="muted" style="font-size:12.5px">${tr({ it: 'si aggiorna solo il codice: il tuo save non si tocca.', en: 'only the code updates; your save is never touched.' })}</span>
     <button class="mini" id="agg-now" style="margin-left:10px">${tr({ it: 'Aggiorna ora', en: 'Update now' })}</button>
     <button class="link" id="agg-later" style="margin-left:6px">${tr({ it: 'più tardi', en: 'later' })}</button></div>`;
   $('#agg-now', host).onclick = async () => {
@@ -388,7 +388,7 @@ const AIUTO = [
   ['tracks', { it: 'Il libro delle piste: record personali, layout e storie di ogni tracciato.', en: 'The track book: personal records, layouts and stories for every circuit.' }],
   ['cars', { it: 'Le auto: schede tecniche e compatibilità, anche di quelle viste nel content di EVO.', en: 'The cars: spec sheets and compatibility, including cars found in the EVO content.' }],
   ['garage', { it: 'Il tuo box: auto possedute e setup registrati.', en: 'Your garage: owned cars and saved setups.' }],
-  ['import', { it: 'Gli incassi: i risultati delle gare di EVO si importano nella carriera (dopo la gara premi qui).', en: 'The bookkeeper: race results are imported from EVO into the career (press it after a race).' }],
+  ['import', { it: 'Risultati: le gare di EVO si importano nella carriera (dopo la gara premi qui) — è il libro incassi e piazzamenti.', en: 'Results: EVO races are imported into the career (press here after a race) — it is the book of takings and finishes.' }],
   ['archive', { it: 'La memoria di tutto quello che hai corso: risultati storici e statistiche passate.', en: 'Everything you ever raced: historical results and past stats.' }],
   ['online', { it: 'Le gare multiplayer: ogni sessione online resta qui come memoria (zero punti, zero soldi), col libro di chi hai incrociato online.', en: 'Multiplayer races: every online session stays here as memory (no points, no money), with the book of who you met online.' }],
   ['gironi', { it: 'I giri liberi: scegli pista e auto, gira a piacere — ogni giro è registrato e analizzato (best lap, settori, progresso).', en: 'Free laps: pick track and car, drive freely — each lap is recorded and analysed (best lap, sectors, progress).' }],
@@ -400,30 +400,119 @@ const AIUTO = [
 function drawAiuto(){
   const riga = (id) => {
     const d = (AIUTO.find(([k]) => k === id) ?? [])[1] ?? { it: '', en: '' };
-    return `<div style="padding:7px 0;border-bottom:1px solid var(--line,#283046)"><b style="font-size:13px">${esc((TABS.find(([k]) => k === id) ?? [undefined,''])[1])}</b><div class="muted" style="font-size:12px;margin-top:2px">${esc(tr(d))}</div></div>`;
+    return `<div style="padding:7px 0;border-bottom:1px solid var(--line,#283046)"><b style="font-size:13px">${esc((TABS.find(([k]) => k === id) ?? [undefined,''])[1])}</b><div class="muted" style="font-size:12.5px;margin-top:2px">${esc(tr(d))}</div></div>`;
   };
   modal(tr({ it: 'Che fa ogni menu', en: 'What each menu does' }),
-    `<div class="muted" style="font-size:12px;margin-bottom:6px">${tr({ it: 'Due righe per menu, niente da configurare: un riepilogo che gira con te.', en: 'Two lines per menu, nothing to configure: a summary that travels with you.' })}</div>` +
+    `<div class="muted" style="font-size:12.5px;margin-bottom:6px">${tr({ it: 'Due righe per menu, niente da configurare: un riepilogo che gira con te.', en: 'Two lines per menu, nothing to configure: a summary that travels with you.' })}</div>` +
     TABS.map(([id]) => riga(id)).join(''),
     [[tr({ it: 'Chiudi', en: 'Close' }), 'act', () => {}]]);
 }
+/* ===================== MENU A SCOMPARSA (6/11) =====================
+   Richiesta Mauro: «a 390 px si vedono due voci su diciannove». Sotto i 920 px
+   la nav è un cassetto che si apre dal pulsante «Menu»; sopra, resta la colonna
+   di sempre. Il cassetto porta anche lo stato che l'header stretto non mostra
+   più (data, reputazione, eredità, MoTeC, voce): i valori si leggono dal vivo
+   dall'header al momento dell'apertura, così non esistono due copie da tenere
+   allineate. */
+function riempiMenuStato(){
+  const host = $('#menu-stato');
+  if (!host) return;
+  // le emoji di testa dell'header (📜, 🔊, …) non servono nel riepilogo: qui
+  // l'icona è il testo, non il simbolo
+  const testo = (sel) => (document.querySelector(sel)?.textContent ?? '').replace(/^(?:\p{Extended_Pictographic}\uFE0F?|\s)+/u, '').trim();
+  const riga = (k, v) => (v && v !== '–' && v !== '—' ? `<div class="ms-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>` : '');
+  const kofi = document.querySelector('#kofi-chip');
+  const kofiHref = kofi?.getAttribute('href') && kofi.getAttribute('href') !== '#' ? kofi.getAttribute('href') : null;
+  host.innerHTML = `<div class="ms-t">${tr({ it: 'Stato carriera', en: 'Career status' })}</div>`
+    + riga(tr({ it: 'Data', en: 'Date' }), testo('#t-date'))
+    + riga(tr({ it: 'Reputazione', en: 'Reputation' }), testo('#t-rep'))
+    + riga(tr({ it: 'Eredità', en: 'Heritage' }), testo('#t-heritage'))
+    + riga('MoTeC', testo('#motec-strip'))
+    + riga(tr({ it: 'Voce', en: 'Voice' }), testo('#copilot-strip'))
+    + (kofiHref ? `<div class="ms-foot"><a href="${esc(kofiHref)}" target="_blank" rel="noopener">☕ ${tr({ it: 'Offri un caffè', en: 'Buy me a coffee' })}</a></div>` : '');
+}
+function menuApri(apri){
+  const b = $('#nav-toggle'), velo = $('#menu-backdrop');
+  const on = document.body.classList.toggle('menu-open', apri);
+  if (b) {
+    b.setAttribute('aria-expanded', on ? 'true' : 'false');
+    b.setAttribute('aria-label', on ? tr({ it: 'Chiudi il menu delle sezioni', en: 'Close the sections menu' }) : tr({ it: 'Apri il menu delle sezioni', en: 'Open the sections menu' }));
+  }
+  if (velo) velo.hidden = !on;
+  if (on) {
+    riempiMenuStato();
+    const nav = $('#nav');
+    if (nav) nav.scrollTop = 0;
+    $('#nav button.on')?.focus({ preventScroll: true });
+  }
+}
+function collegaMenu(){
+  const b = $('#nav-toggle');
+  if (!b || b.dataset.wired) return;
+  b.dataset.wired = '1';
+  b.onclick = () => menuApri(!document.body.classList.contains('menu-open'));
+  $('#menu-backdrop')?.addEventListener('click', () => { menuApri(false); b.focus(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('menu-open')) { menuApri(false); b.focus(); }
+  });
+  // tornando larghi il cassetto non serve più: si chiude da solo
+  matchMedia('(max-width:920px)').addEventListener?.('change', (e) => { if (!e.matches) menuApri(false); });
+}
+
+/* PASTIGLIA DEL RIEPILOGO (6/11, richiesta Mauro: «avvisami anche quando il
+   monitor rileva una sessione nuova mentre sono su un altro tab, con una
+   pastiglia sul Cruscotto»). La scheda del Cruscotto fa polling solo mentre è
+   in pagina; da un altro tab nessuno guardava il monitor. Qui lo sguardo è
+   GLOBALE (ogni 10 s, anche fuori dal Cruscotto) e la legge sta in una funzione
+   pura, così la guardia la prova senza browser. */
+let rlFirmaVista = null;   // `totale|fine` dell'ultimo riepilogo già visto (null = primo giro)
+let rlNovita = 0;          // sessioni chiuse mentre eri altrove, non ancora lette
+
+/** C'è una novità da annunciare? Solo una sessione CHIUSA e mai vista: al
+ *  primo giro nessuna pastiglia (i riepiloghi già in archivio non sono nuovi),
+ *  e una sessione ancora aperta non è una novità — il riepilogo si legge alla
+ *  chiusura, ed è quella che la scheda del Cruscotto mostra. */
+function novitaRiepilogo(r, visto) {
+  const s = Array.isArray(r?.sessioni) && r.sessioni.length ? r.sessioni[r.sessioni.length - 1] : null;
+  const firma = `${r?.totale ?? 0}|${s?.fine ?? ''}`;
+  return { firma, nuova: !!r?.chiusa && visto != null && firma !== visto };
+}
+
+async function pollRiepilogoNav() {
+  // NIENTE guardia su document.hidden: la finestra dietro o minimizzata è
+  // esattamente il caso in cui l'avviso serve, e la risposta del server è uno
+  // stat quando il log non è cambiato. Il ciclo gira sempre, anche di là.
+  try {
+    const r = await api('live-riepilogo', {});
+    const { firma, nuova } = novitaRiepilogo(r, rlFirmaVista);
+    if (rlFirmaVista == null) { rlFirmaVista = firma; return; }   // primo giro: solo base
+    if (!nuova) return;
+    rlFirmaVista = firma;
+    if (tab === 'dashboard') return;   // sei già lì: se ne occupa la scheda
+    rlNovita = Math.min(9, rlNovita + 1);
+    drawNav();
+  } catch { /* server occupato (o monitor spento): si riprova al giro dopo */ }
+}
+setInterval(pollRiepilogoNav, 10000);
+
 function drawNav(){
   const offers = boot?.header?.offers?.length || 0;
   const urgent = boot?.mailUrgent || 0;
+  const novita = rlNovita
+    ? `<span class="badge" title="${tr({ it: rlNovita === 1 ? 'Riepilogo di fine sessione da leggere' : `${rlNovita} riepiloghi di fine sessione da leggere`, en: rlNovita === 1 ? 'End-of-session summary to read' : `${rlNovita} end-of-session summaries to read` })}">${rlNovita}</span>`
+    : '';
   const bottone = ([id,label]) =>
-    `<button data-tab="${id}" class="${tab===id?'on':''}"${tab===id?' aria-current="page"':''}>${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${tr({ it: `${urgent} email urgenti: gare da disputare o conflitti`, en: `${urgent} ${urgent===1?'urgent email':'urgent emails'}: races to run or conflicts` })}">⚠️${urgent}</span>`:''}</button>`;
-  $('#nav').innerHTML = NAV_GROUPS.map((g) =>
+    `<button data-tab="${id}" class="${tab===id?'on':''}"${tab===id?' aria-current="page"':''}>${ICONS[id]?`<span class="nico" style="color:${TAB_COLORS[id]||'var(--acc)'}">${ICONS[id]}</span>`:''}<span>${label}</span>${id==='dashboard'?novita:''}${id==='messages'&&offers?`<span class="badge">${offers}</span>`:''}${id==='messages'&&urgent?`<span class="badge urgent" title="${tr({ it: `${urgent} email urgenti: gare da disputare o conflitti`, en: `${urgent} ${urgent===1?'urgent email':'urgent emails'}: races to run or conflicts` })}">⚠️${urgent}</span>`:''}</button>`;
+  $('#nav').innerHTML = `<div class="menu-head"><span>${tr({ it: 'Sezioni', en: 'Sections' })}</span><button id="menu-close" type="button" aria-label="${tr({ it: 'Chiudi il menu', en: 'Close the menu' })}">✕</button></div>`
+    + NAV_GROUPS.map((g) =>
     `<div class="nav-grp">${tr(g.label)}</div>`
     + TABS.filter(([id]) => g.ids.includes(id)).map(bottone).join('')).join('') +
+    `<div class="menu-stato" id="menu-stato"></div>` +
     `<button id="b-aiuto" title="${tr({ it: 'Che fa ogni menu', en: 'What each menu does' })}" style="margin-top:auto;border-top:1px solid var(--line,#283046)">❓ ${tr({ it: 'Aiuto', en: 'Help' })}</button>`;
-  $('#b-aiuto')?.addEventListener('click', drawAiuto);
-  $$('#nav button[data-tab]').forEach(b => { b.onclick = () => { tab = b.dataset.tab; drawNav(); render(); }; });
-  /* 6/11 — telefono: la nav è una striscia che scorre e con 19 voci la scheda
-     aperta può restare fuori vista. La si riporta al centro da soli, così il
-     menu dice sempre dove sei. Solo su schermo stretto (dove scorre davvero). */
-  if (typeof matchMedia === 'function' && matchMedia('(max-width:920px)').matches) {
-    $('#nav button.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
-  }
+  $('#b-aiuto')?.addEventListener('click', () => { menuApri(false); drawAiuto(); });
+  $('#menu-close')?.addEventListener('click', () => { menuApri(false); $('#nav-toggle')?.focus(); });
+  $$('#nav button[data-tab]').forEach(b => { b.onclick = () => { tab = b.dataset.tab; menuApri(false); drawNav(); render(); }; });
+  collegaMenu();
 }
 
 /* Cambio pagina con PARAMETRI (28/10, stile Football Manager su richiesta Mauro:
@@ -456,6 +545,9 @@ window.trackLinkHtml = (nome) => nome
 async function render(){
   const m = $('#main');
   if (!boot) return;
+  // aprire il Cruscotto È leggerlo (6/11): la pastiglia si spegne qui, così
+  // non resta accesa su una novità che hai già davanti agli occhi
+  if (tab === 'dashboard' && rlNovita) { rlNovita = 0; drawNav(); }
   // il timer LIVE resta attivo SOLO mentre la vista LIVE è in primo piano:
   // qui lo ammazziamo PRIMA di disegnare l'altro tab (altrimenti continihva
   // a sovrascrivere il pannello del tab aperto)
@@ -593,6 +685,8 @@ function paintHeader(h){
   if (lvlEl) lvlEl.style.display = 'none';
   $('#t-date').textContent = h.todayLabel ? `${tr({ it: 'OGGI', en: 'TODAY' })} ${h.todayLabel}` : `${tr({ it: 'giorno', en: 'day' })} ${h.day ?? 1}`;
   $('#t-season').textContent = `S${h.season} · R${h.round}/${h.rounds}`;
+  // 6/11 — le sigle si spiegano da sole: S/R sono stagione e ronda
+  $('#t-season').title = tr({ it: `Stagione ${h.season} · ronda ${h.round} di ${h.rounds}`, en: `Season ${h.season} · round ${h.round} of ${h.rounds}` });
   // le statistiche chiave diventano scorciatoie: Data → Centro gare, Rep → Statistiche, Finanze → Finanze, Stagione → Campionati
   $('#t-date').style.cursor = 'pointer';
   $('#t-date').onclick = () => vai('agenda');
@@ -702,7 +796,7 @@ async function refreshBoot(){
   // (tools/bump-versione.mjs) — package.json + hash breve del commit.
   if (boot.versione?.semver && boot.versione.semver !== '?') {
     const sf = $('.side-foot');
-    if (sf) sf.innerHTML = `${tr({ it: 'Assetto Corsa EVO · tool locale', en: 'Assetto Corsa EVO · local tool' })}<br>${tr({ it: 'tutto resta sul tuo PC', en: 'everything stays on your PC' })}<br><span id="build-ver" title="versione della build (si aggiorna a ogni salvataggio del progetto su GitHub)">build ${esc(boot.versione.semver)}${boot.versione.hash ? ` · ${esc(boot.versione.hash)}` : ''}</span><br><span id="srv-live">…</span> <button class="mini" id="lang-foot" style="margin-left:6px;font-size:11.5px;padding:2px 7px" title="${esc(tr({ it: "cambia la lingua dell'interfaccia: vale per la GUI, il server in locale e il cruscotto in gioco", en: "switch the interface language: applies to the GUI, the local server and the in-game dashboard" }))}">${window.LINGUA === 'en' ? '🇬🇧 EN' : '🇮🇹 IT'}</button>`;
+    if (sf) sf.innerHTML = `${tr({ it: 'Assetto Corsa EVO · tool locale', en: 'Assetto Corsa EVO · local tool' })}<br>${tr({ it: 'tutto resta sul tuo PC', en: 'everything stays on your PC' })}<br><span id="build-ver" title="versione della build (si aggiorna a ogni salvataggio del progetto su GitHub)">build ${esc(boot.versione.semver)}${boot.versione.hash ? ` · ${esc(boot.versione.hash)}` : ''}</span><br><span id="srv-live">…</span> <button class="mini" id="lang-foot" style="margin-left:6px;font-size:12.5px;padding:2px 7px" title="${esc(tr({ it: "cambia la lingua dell'interfaccia: vale per la GUI, il server in locale e il cruscotto in gioco", en: "switch the interface language: applies to the GUI, the local server and the in-game dashboard" }))}">${window.LINGUA === 'en' ? '🇬🇧 EN' : '🇮🇹 IT'}</button>`;
     // footer: contatto (issue GitHub precompilata). 10/11 (richiesta Mauro:
     // «leva la donazione dalla barra laterale così guadagniamo spazio» —
     // il caffè è salito nell'INTESTAZIONE, chip accanto a MoTeC.)
@@ -755,45 +849,103 @@ async function refreshBoot(){
    ogni h2 di pannello senza emoji/icona prende una piccola faccina coerente col senso
    del pannello (mappa per PAROLA CHIAVE, con fallback per tab). Funziona anche per le
    viste future: niente da ricordarsi quando si aggiunge un pannello. */
+/* 6/11 — UNA SOLA FAMIGLIA DI ICONE (richiesta Mauro): prima i titoli mescolavano
+   SVG (Messaggi, Strumenti) ed emoji a colori, che cambiano disegno fra Windows 10
+   e 11 e non prendono il colore d'accento. Ora la decorazione centrale converte in
+   SVG anche le emoji già scritte nei titoli: una famiglia sola, stessa misura,
+   stesso oro. Le emoji restano solo nel testo discorsivo e nei pulsanti. */
+const ICON_SVG = {
+  flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 5h12l-2 4 2 4H5"/></svg>',
+  chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-6"/></svg>',
+  scroll: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h11a2 2 0 0 1 2 2v12a2 2 0 0 0 2 2H8a2 2 0 0 1-2-2z"/><path d="M9 8h6M9 12h6"/></svg>',
+  bulb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3 11v2h6v-2a6 6 0 0 0-3-11z"/></svg>',
+  lens: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.3-4.3"/></svg>',
+  stetho: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v6a3 3 0 0 0 6 0V4"/><path d="M9 13v3a4 4 0 0 0 8 0v-2"/><circle cx="17" cy="11" r="2"/></svg>',
+  peak: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19l6-9 4 5 3-4 5 8z"/></svg>',
+  scale: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 8h12"/><path d="M6 8l-2 5h4zM18 8l-2 5h4z"/></svg>',
+  dice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="15" r="1"/><circle cx="12" cy="12" r="1"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16"/></svg>',
+  map: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5L4 7v12l5-2 6 2 5-2V5l-5 2-6-2z"/><path d="M9 5v12M15 7v12"/></svg>',
+  wrench: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7a3.5 3.5 0 1 0 4 4l-9 9-4-4 9-9z"/></svg>',
+  tools: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19l7-7"/><path d="M14 5l5 5-3 3-5-5z"/></svg>',
+  bolt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>',
+  tyre: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>',
+  flask: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/></svg>',
+  target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg>',
+  signal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19a14 14 0 0 1 14-14"/><path d="M5 14a9 9 0 0 1 9-9"/><circle cx="6" cy="18" r="1.4"/></svg>',
+  clipboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 4h6M9 10h6M9 14h4"/></svg>',
+  mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 8l9 6 9-6"/></svg>',
+  city: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M6 19V9h4v10M14 19V5h4v14"/></svg>',
+  car: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16h16M5 16l2-5h10l2 5"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg>',
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/></svg>',
+  inbox: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l2-8h12l2 8v5H4z"/><path d="M4 13h5l1 2h4l1-2h5"/></svg>',
+  archive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v10h14V9M10 13h4"/></svg>',
+  calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/></svg>',
+  trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v6a4 4 0 0 1-8 0z"/><path d="M8 6H5v2a3 3 0 0 0 3 3M16 6h3v2a3 3 0 0 1-3 3M12 14v4M9 21h6"/></svg>',
+  handshake: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l4-4 4 4-4 4z"/><path d="M12 12l4-4 4 4-4 4z"/></svg>',
+  money: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M15 9a3 3 0 0 0-3-2c-2 0-3 1-3 2s1 2 3 2 3 1 3 2-1 2-3 2a3 3 0 0 1-3-2M12 6v12"/></svg>',
+  slider: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h14M5 12h14M5 18h14"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="18" r="2"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>',
+  heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.5-7-9a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 4.5-7 9-7 9z"/></svg>',
+  extinguisher: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="7" height="11" rx="2"/><path d="M11 8V5h4M9 5l4-1"/></svg>',
+  tent: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19l9-14 9 14z"/><path d="M12 5v14"/></svg>',
+};
+/* emoji → icona: quelle già scritte nei titoli vengono sostituite, non ripetute */
+const EMO_ICON = {
+  '🏁':'flag', '📊':'chart', '📈':'chart', '📜':'scroll', '📖':'scroll', '💡':'bulb',
+  '🔬':'lens', '🩺':'stetho', '🏔️':'peak', '⚖️':'scale', '🎲':'dice', '🌐':'globe',
+  '🗺️':'map', '🗺':'map', '🔧':'wrench', '⚒️':'tools', '⚡':'bolt', '🛞':'tyre',
+  '🧪':'flask', '🎯':'target', '📡':'signal', '📋':'clipboard', '📬':'mail', '📨':'mail',
+  '🌆':'city', '🚗':'car', '🚘':'car', '🏠':'home', '📥':'inbox', '🗃️':'archive',
+  '🗓️':'calendar', '🏆':'trophy', '🤝':'handshake', '💰':'money', '🎚️':'slider',
+  '⚙️':'gear', '🫀':'heart', '🧯':'extinguisher', '🎪':'tent',
+};
 const H2_ICONS = [
-  [/regola dei 4 psi/i, '🛞'],
-  [/auto della serie/i, '🚗'],
-  [/diagnostica telemetria/i, '🩺'],
-  [/salute sistema/i, '🫀'],
-  [/registro errori/i, '🧯'],
-  [/prossima gara/i, '🏁'],
-  [/eredità/i, '📜'],
-  [/regole .*(weekend|week-end)/i, '📋'],
-  [/strumenti rapidi/i, '⚒️'],
-  [/eventi speciali/i, '🎪'],
-  [/messaggi recenti/i, '📬'],
-  [/vita fuori pista/i, '🌆'],
-  [/consigli del box/i, '🔧'],
-  [/storia/i, '📜'],
-  [/statistiche/i, '📈'],
-  [/finanz/i, '💰'],
-  [/difficoltà/i, '🎚️'],
-  [/impostazion/i, '⚙️'],
+  [/regola dei 4 psi/i, 'tyre'],
+  [/auto della serie/i, 'car'],
+  [/diagnostica telemetria/i, 'stetho'],
+  [/salute sistema/i, 'heart'],
+  [/registro errori/i, 'extinguisher'],
+  [/prossima gara/i, 'flag'],
+  [/eredità/i, 'scroll'],
+  [/regole .*(weekend|week-end)/i, 'clipboard'],
+  [/strumenti rapidi/i, 'tools'],
+  [/eventi speciali/i, 'tent'],
+  [/messaggi recenti/i, 'mail'],
+  [/vita fuori pista/i, 'city'],
+  [/consigli del box/i, 'wrench'],
+  [/storia/i, 'scroll'],
+  [/statistiche/i, 'chart'],
+  [/finanz/i, 'money'],
+  [/difficoltà/i, 'slider'],
+  [/impostazion/i, 'gear'],
 ];
 const TAB_FALL_ICON = {
-  live:'📡', dashboard:'📊', agenda:'🗓️', setup:'🔧', messages:'📨',
-  championships:'🏆', griglia:'🏁', standings:'🌐', rivals:'🤝',
-  tracks:'🗺️', cars:'🚘', garage:'🏠', import:'📥',
-  archive:'🗃️', online:'🌐', stats:'📈', banca:'💰', difficulty:'🎚️', settings:'⚙️', analisi:'🔬',
+  live:'signal', dashboard:'chart', agenda:'calendar', setup:'wrench', messages:'mail',
+  championships:'trophy', griglia:'flag', standings:'globe', rivals:'handshake',
+  tracks:'map', cars:'car', garage:'home', import:'inbox',
+  archive:'archive', online:'globe', stats:'chart', banca:'money', difficulty:'slider', settings:'gear', analisi:'lens',
 };
-const HAS_EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]|\u{FE0F}/u;
 function decoratePanels(scope) {
   if (!scope) return;
-  scope.querySelectorAll('.panel h2').forEach(h => {
+  scope.querySelectorAll('h2, .setup-hero-title').forEach(h => {
     if (h.dataset.enriched) return;
     h.dataset.enriched = '1';
-    // se il titolo ha già un'emoji o un'icona SVG (es. LI.flag), non tocca
-    if (HAS_EMOJI.test(h.textContent) || h.querySelector('svg') || h.querySelector('.st-ico')) return;
-    const key = H2_ICONS.find(([re]) => re.test(h.textContent));
-    const emo = key ? key[1] : (TAB_FALL_ICON[tab] ?? '🏁');
+    // l'emoji di testa si TOGLIE sempre: se il titolo ha già un'icona SVG sua
+    // (es. LI.flag) quella resta, altrimenti si aggiunge la stessa famiglia SVG
+    let nome = null;
+    const primo = [...h.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+    if (primo) {
+      const m = /^\s*(\p{Extended_Pictographic}(?:\uFE0F)?)\s*/u.exec(primo.textContent);
+      if (m) { nome = EMO_ICON[m[1]] ?? 'flag'; primo.textContent = primo.textContent.slice(m[0].length); }
+    }
+    // il titolo ha già un'icona propria (LI.flag, icona statistica): emoji via, nessun doppione
+    if (h.querySelector('svg') || h.querySelector('.st-ico')) return;
+    if (!nome) { const key = H2_ICONS.find(([re]) => re.test(h.textContent)); nome = key ? key[1] : (TAB_FALL_ICON[tab] ?? 'flag'); }
     const span = document.createElement('span');
-    span.className = 'h-emoji';
-    span.textContent = emo + ' ';
+    span.className = 'h-ico';
+    span.setAttribute('aria-hidden', 'true');
+    span.innerHTML = ICON_SVG[nome] ?? ICON_SVG.flag;
     h.insertBefore(span, h.firstChild);
   });
 }

@@ -68,3 +68,17 @@ test('il formato della lista è pronto per data/car-images.json (JSON.parse dell
     assert.deepEqual(Object.keys(parsed[0]).sort(), ['category', 'file', 'name']);
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
+
+/* MINIATURA DELL'AUTO DELLA GIORNATA (6/11): la Golf GTI Mk8 di EVO restava
+   senza foto (il catalogo ufficiale ha la Clubsport, stessa carrozzeria Mk8),
+   e con lei spariva il riquadro dell'auto nel Cruscotto. L'alias nuovo deve
+   prendere la Mk8 senza rubare la Mk1 né la 8 R, che hanno le loro foto. */
+test('carImageOf: la Golf GTI Mk8 trova la foto senza rubare Mk1 e 8 R', async () => {
+  const { carImageOf } = await import('../src/cars.mjs');
+  const club = '/carmaps/volkswagen_golf_8_gti_clubsport_2022.jpg';
+  assert.equal(carImageOf('Volkswagen Golf GTI Mk8'), club);
+  assert.equal(carImageOf('ks_volkswagen_golf_gti_mk8'), club);
+  assert.equal(carImageOf('Volkswagen Golf 8 GTI'), club);
+  assert.equal(carImageOf('Volkswagen Golf GTI MK1'), '/carmaps/volkswagen_golf_gti_mk1.jpg', 'la Mk1 resta la sua');
+  assert.equal(carImageOf('Volkswagen Golf 8 R'), '/carmaps/volkswagen_golf_8_r.jpg', 'la 8 R resta la sua');
+});

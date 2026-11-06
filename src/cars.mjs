@@ -55,6 +55,9 @@ const CAR_ALIASES = [
   { re: /rennsport/i, file: 'porsche_992_gt3_r_rennsport.jpg' },
   { re: /gt2\s*rs.*clubsport/i, file: 'porsche_991ii_gt2_rs_clubsport_evo.jpg' },
   { re: /golf\s*gti.*mk1|gti.*mk1/i, file: 'volkswagen_golf_gti_mk1.jpg' },
+  // MK8 (6/11): EVO ha la Golf GTI Mk8, il catalogo ufficiale ha la Clubsport
+  // (stessa carrozzeria Mk8): senza questo alias la card restava senza foto.
+  { re: /golf.*gti.*(mk\s*8|8\s*gti)|golf.*8\s*gti/i, file: 'volkswagen_golf_8_gti_clubsport_2022.jpg' },
   { re: /golf.*8\s*r(?!s)/i, file: 'volkswagen_golf_8_r.jpg' },
   { re: /m3\s*e30|sport\s*evo/i, file: 'bmw_m3_sport_evo_e30.jpg' },
   { re: /75\s*turbo|alfa.*75/i, file: 'alfa_romeo_75_1_8_turbo_evoluzione_1987.jpg' },

@@ -168,7 +168,9 @@ test('tutti i 21 tab della GUI (19 in nav + 2 nascosti): niente sovrapposizioni 
 
   const child = spawn(process.execPath, [SERVER], {
     cwd: ROOT,
-    env: { ...process.env, ACE_UI_PORT: String(PORT), ACE_DATA: DATA },
+    // EVO_DATA_DIR: save e config del TOOL vivono nella copia temporanea (il
+    // save vero non si tocca: lezione del 23/10).
+    env: { ...process.env, ACE_UI_PORT: String(PORT), ACE_DATA: DATA, EVO_DATA_DIR: DATA },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let stderr = '';

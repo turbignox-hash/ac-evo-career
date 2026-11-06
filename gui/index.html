@@ -19,10 +19,12 @@
       <rect x="20" y="6" width="6" height="12" rx="1.5" fill="#4d9fdb"/>
     </svg>
     <div class="t"><b>EVO Pitwall</b><span>Carriera · Setup · Telemetria</span></div>
+    <button id="nav-toggle" type="button" aria-controls="nav" aria-expanded="false" aria-label="Apri il menu delle sezioni"><span class="nt-ico" aria-hidden="true">☰</span><span class="nt-txt">Menu</span></button>
   </div>
-  <nav id="nav"></nav>
+  <nav id="nav" aria-label="Sezioni del Pitwall"></nav>
   <div class="side-foot">Assetto Corsa EVO · tool locale<br>tutto resta sul tuo PC</div>
 </aside>
+<div id="menu-backdrop" hidden></div>
 
 <div id="shell">
   <header id="top">
@@ -39,21 +41,21 @@
              CALENDARIO della carriera (parte dal 13 apr 2025 e avanza a ogni
              gara); le date di telemetria, sessioni e registro errori sono
              l'ora reale del PC. Il nome lo dice, non solo il tooltip. -->
-        <div class="hstat"><span class="l">Data carriera</span><span class="v" id="t-date" title="data del calendario di carriera (continua: avanza a ogni gara, parte dal 13 apr 2025). Le date di telemetria e registro errori sono invece l'ora reale del PC.">–</span></div>
-        <div class="hstat"><span class="l">Finanze</span><span class="v money" id="t-money">–</span></div>
-        <div class="hstat"><span class="l">Reputazione</span><span class="v rep" id="t-rep">–</span></div>
+        <div class="hstat" data-mob="off"><span class="l">Data carriera</span><span class="v" id="t-date" title="data del calendario di carriera (continua: avanza a ogni gara, parte dal 13 apr 2025). Le date di telemetria e registro errori sono invece l'ora reale del PC.">–</span></div>
+        <div class="hstat"><span class="l" title="Saldo della carriera gestito dal Pitwall: non è il portafoglio interno di EVO.">Cassa Pitwall</span><span class="v money" id="t-money" title="Economia della carriera del tool Pitwall; non letta dal saldo interno di EVO.">–</span></div>
+        <div class="hstat" data-mob="off"><span class="l" title="Reputazione della carriera calcolata dal Pitwall, non un valore letto da EVO.">Rep Pitwall</span><span class="v rep" id="t-rep" title="Reputazione della carriera calcolata dal Pitwall, non un valore letto da EVO.">–</span></div>
         <div class="hstat" id="hstat-level" style="display:none;cursor:pointer"><span class="l">Livello</span><span class="v" id="t-level" style="font-size:12.5px;font-weight:700"></span></div>
         <div class="hstat"><span class="l">Stagione</span><span class="v" id="t-season">–</span></div>
-        <div class="hstat" id="hstat-heritage" style="display:none"><span class="l">Eredità</span><span class="v" id="t-heritage" title="capitoli di famiglia completati">–</span></div>
-        <div class="hstat" id="hstat-nextrace" style="display:none;cursor:pointer"><span class="l">Prossima gara</span><span class="v" id="t-nextrace" style="font-size:12.5px;font-weight:600">–</span></div>
+        <div class="hstat" id="hstat-heritage" data-mob="off" style="display:none"><span class="l">Eredità</span><span class="v" id="t-heritage" title="capitoli di famiglia completati">–</span></div>
+        <div class="hstat" id="hstat-nextrace" data-mob="off" style="display:none;cursor:pointer"><span class="l">Prossima gara</span><span class="v" id="t-nextrace" style="font-size:12.5px;font-weight:600">–</span></div>
         <div class="hstat"><span class="l">Gioco</span><span class="v" style="font-size:12.5px;font-weight:500"><span class="dot" id="dot-evo"></span><span id="t-evo">chiuso</span></span></div>
-        <div class="hstat"><span class="l">MoTeC</span><span class="v" style="font-size:12.5px;font-weight:500"><span class="chip hidden" id="motec-strip"></span></span></div>
+        <div class="hstat" data-mob="off"><span class="l" title="MoTeC: la cartella di telemetria che Assetto Corsa EVO scrive in Saved Games\\ACE\\MoTec">MoTeC</span><span class="v" style="font-size:12.5px;font-weight:500"><span class="chip hidden" id="motec-strip"></span></span></div>
         <!-- DONAZIONE IN TESTA (10/11, richiesta Mauro): esce dalla sidebar
              (spazio guadagnato) e vive qui, accanto a MoTeC: il quadro resta
              nascosto finché la build non porta il link Ko-fi. -->
-        <div class="hstat" id="hstat-kofi" style="display:none"><span class="l">Caffè</span><span class="v" style="font-size:12.5px;font-weight:500"><a class="chip kofi-chip" id="kofi-chip" href="#" target="_blank" rel="noopener" title="Offri un caffè: sostieni lo sviluppo del tool — apre Ko-fi">☕ Offri un caffè</a></span></div>
-        <div class="hstat"><span class="l">Voce</span><span class="v" style="font-size:12.5px;font-weight:500"><span class="chip" id="copilot-strip" style="cursor:pointer"></span> <span class="chip" id="copilot-prova" style="cursor:pointer" title="Prova la radio VERA della gara (voce del Pitwall) e, se è spenta, la voce della copilota del browser: dice una frase in italiano e ti mostra quale voce del sistema ha usato.">♪ prova</span></span></div>
-      <div class="hstat" style="border-right:0"><span class="l">In pista</span><span class="v" style="font-size:12.5px;font-weight:500"><span class="chip hidden" id="live-strip"></span></span></div>
+        <div class="hstat" id="hstat-kofi" data-mob="off" style="display:none"><span class="l">Caffè</span><span class="v" style="font-size:12.5px;font-weight:500"><a class="chip kofi-chip" id="kofi-chip" href="#" target="_blank" rel="noopener" title="Offri un caffè: sostieni lo sviluppo del tool — apre Ko-fi">☕ Offri un caffè</a></span></div>
+        <div class="hstat" data-mob="off"><span class="l">Voce</span><span class="v" style="font-size:12.5px;font-weight:500"><span class="chip" id="copilot-strip" style="cursor:pointer"></span> <span class="chip" id="copilot-prova" style="cursor:pointer" title="Prova la radio VERA della gara (voce del Pitwall) e, se è spenta, la voce della copilota del browser: dice una frase in italiano e ti mostra quale voce del sistema ha usato.">♪ prova</span></span></div>
+      <div class="hstat" id="hstat-live" style="border-right:0"><span class="l">In pista</span><span class="v" style="font-size:12.5px;font-weight:500"><span class="chip hidden" id="live-strip"></span></span></div>
       </div>
     </div>
   </header>

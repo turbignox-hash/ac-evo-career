@@ -53,7 +53,7 @@ async function wizardChecklist(box, opts = {}){
   const WRN = '<span style="color:var(--warn,#ffb454);font-size:15px;margin-right:2px">⚠</span>';
   const boxRow = (ico, tol, title, sub, warn) =>
     `<div class="wz-status" style="padding:9px 12px;border:1px solid ${warn ? '#4a3a2a' : 'var(--line,#283046)'};border-radius:9px;margin-bottom:8px;display:flex;gap:10px;align-items:center;background:${warn ? '#171310' : '#0f1420'}">${ico}
-     <div class="wz-status-text"><b style="font-size:13.5px">${title}</b>${sub ? `<div class="muted" style="font-size:12px;margin-top:1px">${sub}</div>` : ''}</div>${tol ? `<span class="muted" style="margin-left:auto;font-size:11.5px">${tol}</span>` : ''}</div>`;
+     <div class="wz-status-text"><b style="font-size:13.5px">${title}</b>${sub ? `<div class="muted" style="font-size:12.5px;margin-top:1px">${sub}</div>` : ''}</div>${tol ? `<span class="muted" style="margin-left:auto;font-size:12.5px">${tol}</span>` : ''}</div>`;
   const rows = [];
   /* 0 — azioni rapide:  📂 apre la cartella dati in Esplora risorse (selezionata
      dentro la sua cartella madre),  ▶ avvia EVO tramite l'URI ufficiale Steam
@@ -61,21 +61,21 @@ async function wizardChecklist(box, opts = {}){
   rows.push(`<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px">
     <button class="ghost" id="wz-open-exp" type="button">${tr({ it: '📂 Apri la cartella in Esplora risorse', en: '📂 Open the folder in File Explorer' })}</button>
     <button class="ghost" id="wz-launch" type="button">${tr({ it: '▶ Avvia EVO (Steam)', en: '▶ Launch EVO (Steam)' })}</button>
-    <span class="muted" style="font-size:11.5px">${tr({ it: 'azioni locali, affidate al server: nessun download', en: 'local actions, handled by the server: no downloads' })}</span>
+    <span class="muted" style="font-size:12.5px">${tr({ it: 'azioni locali, affidate al server: nessun download', en: 'local actions, handled by the server: no downloads' })}</span>
   </div>`);
   /* 1 — cartella dati EVO: la spunta verde che serve */
   if (w.dataDir) {
     rows.push(boxRow(OKI, 'ok', tr({ it: 'Cartella dati EVO', en: 'EVO data folder' }), esc(w.dataDir)));
   } else {
-    const cercati = (w.candidates ?? []).map((c) => `${c.ok ? OKI : MIS} <code style="font-size:11.5px">${esc(c.dir)}</code>`).join(' · ');
+    const cercati = (w.candidates ?? []).map((c) => `${c.ok ? OKI : MIS} <code style="font-size:12.5px">${esc(c.dir)}</code>`).join(' · ');
     rows.push(`<div class="wz-status" style="padding:10px 12px;border:1px solid #4a3a2a;border-radius:9px;margin-bottom:8px;background:#171310">${MIS}
       <b style="font-size:13.5px">${tr({ it: 'Cartella dati EVO non trovata', en: 'EVO data folder not found' })}</b>
-      <div class="muted" style="font-size:12px;margin-top:3px">${tr({ it: 'ho guardato: ', en: 'I checked: ' })}${cercati || tr({ it: 'nessun percorso standard', en: 'no standard path' })}</div>
+      <div class="muted" style="font-size:12.5px;margin-top:3px">${tr({ it: 'ho guardato: ', en: 'I checked: ' })}${cercati || tr({ it: 'nessun percorso standard', en: 'no standard path' })}</div>
       <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap">
         <input type="text" id="wz-dir" placeholder="${tr({ it: 'incolla qui il percorso (es. C:/Users/Tu/Saved Games/ACE)', en: 'paste the path here (e.g. C:/Users/You/Saved Games/ACE)' })}" style="flex:1;min-width:300px">
         <button class="act" id="wz-dir-save" type="button">${tr({ it: '💾 Registra percorso', en: '💾 Save path' })}</button>
       </div>
-      <div class="muted" style="font-size:11.5px;margin-top:6px">${tr({ it: "Copia l'indirizzo dalla barra di Esplora risorse. Se l'EVO non è mai partito, avvialo una volta: crea la cartella da solo.", en: "Copy the address from the File Explorer bar. If EVO has never started, launch it once: it creates the folder by itself." })}</div>
+      <div class="muted" style="font-size:12.5px;margin-top:6px">${tr({ it: "Copia l'indirizzo dalla barra di Esplora risorse. Se l'EVO non è mai partito, avvialo una volta: crea la cartella da solo.", en: "Copy the address from the File Explorer bar. If EVO has never started, launch it once: it creates the folder by itself." })}</div>
     </div>`);
   }
   /* 2 — exe del gioco: spunta, NON blocca (senza exe si parte via Steam URI) */
@@ -211,16 +211,80 @@ function drawOnboarding(m){
 /* L'INDICATORE DI COPERTURA del Cruscotto (6/11): tre numeri (piste pronte,
    incomplete, mai corse) e le prime sei piste con quello che manca. La
    classifica arriva dal server, qui si disegna e basta. */
-function covHtml(g){
-  if (!g) return `<div class="muted" style="font-size:12.5px">${tr({ it: 'Copertura non disponibile ora.', en: 'Coverage not available right now.' })}</div>`;
-  const fmtInt = (v) => Number(v || 0).toLocaleString('it-IT');
-  const nome = (m) => ({
+/* I MOTIVI di un buco di copertura, in parole: un'unica mappa per il pannello
+   e per l'avviso in testa al Cruscotto, così i due non si contraddicono. */
+function motivoCopertura(m) {
+  return ({
     'telemetria-insufficiente': tr({ it: 'meno di 2 file .ld', en: 'fewer than 2 .ld files' }),
     cronometrati: tr({ it: 'giri cronometrati', en: 'timed laps' }),
     'pochi-giri': tr({ it: 'meno di 3 giri', en: 'fewer than 3 laps' }),
+    'giri-sessione': tr({ it: 'meno di 3 giri in una sessione', en: 'fewer than 3 laps in one session' }),
     settori: tr({ it: 'settori', en: 'sectors' }),
   })[m] ?? m;
-  const chip = (m) => `<span class="tag" style="color:var(--warn)">${esc(nome(m))}</span>`;
+}
+
+/* L'avviso si può CHIUDERE (6/11): la scelta resta finché la situazione non
+   cambia. La firma è l'elenco delle piste e dei loro buchi: se una pista
+   nuova scende sotto soglia (o una viene sistemata) la firma cambia e
+   l'avviso torna, senza doverlo andare a cercare. */
+const FIRMA_AVVISO_COV = 'evo.covAvvisoChiudi';
+/* RINVIO DI UN GIORNO (6/11, richiesta Mauro: «un pulsante per rimandare solo
+   di oggi, così torna domani senza dover cambiare i dati»). La ✕ tace finché
+   la situazione non cambia; questo pulsante tace SOLO per il giorno di
+   calendario: la chiave è la data locale `AAAA-MM-GG`, così domani la firma
+   torna diversa e l'avviso si riaccende da solo, senza toccare piste o dati. */
+const RIMANDA_AVVISO_COV = 'evo.covAvvisoDomani';
+function oggiChiave(d = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+/** Il rinvio vale ancora? Puro apposta: la guardia lo prova senza browser.
+ *  Un valore di ieri (o spazzatura) non è «oggi», quindi l'avviso torna. */
+function rimandatoOggi(salvato, oggi) {
+  return !!salvato && salvato === oggi;
+}
+function firmaCopertura(g) {
+  const inc = Array.isArray(g?.incomplete) ? g.incomplete : [];
+  return inc.map((r) => `${r.name}:${(r.mancano ?? []).join('+')}`).sort().join('|');
+}
+
+/* L'AVVISO DI COPERTURA IN TESTA AL CRUSCOTTO (6/11, richiesta Mauro: «un
+   avviso quando una pista corsa scende sotto le soglie, invece di scoprirlo
+   aprendo Statistiche»). Si accende SOLO per le piste CORSE e incomplete: le
+   mai corse non sono un allarme e restano nel pannello. Soglie e motivi
+   arrivano da gaps (analysisGaps): qui non si ricalcola nessuna soglia, e
+   nemmeno la gravità — si ordina sul `gravita` del server. */
+function avvisoCoperturaHtml(g) {
+  const inc = Array.isArray(g?.incomplete) ? g.incomplete : [];
+  if (!inc.length) return '';
+  const firma = firmaCopertura(g);
+  try { if (localStorage.getItem(FIRMA_AVVISO_COV) === firma) return ''; } catch { /* storage negato: l'avviso si mostra sempre */ }
+  try { if (rimandatoOggi(localStorage.getItem(RIMANDA_AVVISO_COV), oggiChiave())) return ''; } catch { /* idem */ }
+  // le piste messe peggio per prime; a pari gravità, meno giri davanti
+  const ordinate = [...inc].sort((a, b) => (b.gravita ?? 0) - (a.gravita ?? 0)
+    || (b.mancano?.length ?? 0) - (a.mancano?.length ?? 0)
+    || (a.laps ?? 0) - (b.laps ?? 0)
+    || String(a.name).localeCompare(String(b.name)));
+  const s = g.soglia ?? {};
+  const giri = Number(s.giri) || 3;
+  const ld = Number(s.fileTelemetria) || 2;
+  const sess = Number(s.giriSessione) || 3;
+  const dettaglio = (r) => [...new Set((r.mancano ?? []).map(motivoCopertura))].slice(0, 3).join(' · ');
+  const nomi = ordinate.slice(0, 3).map((r) => `<b>${esc(r.name)}</b>${dettaglio(r) ? ` <span class="muted">(${esc(dettaglio(r))})</span>` : ''}`);
+  const titolo = inc.length === 1
+    ? tr({ it: '1 pista corsa è sotto le soglie di analisi', en: '1 driven track is below the analysis thresholds' })
+    : tr({ it: `${inc.length} piste corse sono sotto le soglie di analisi`, en: `${inc.length} driven tracks are below the analysis thresholds` });
+  return `<div class="banner warn" data-firma="${esc(firma)}" style="margin-bottom:10px;position:relative;padding-right:44px">📉 <b>${esc(titolo)}</b> — ${nomi.join(', ')}${inc.length > 3 ? ` ${tr({ it: `e altre ${inc.length - 3}`, en: `and ${inc.length - 3} more` })}` : ''}.
+    <button class="mini" id="cov-banner-chiudi" title="${tr({ it: 'chiudi finché la situazione non cambia: se una pista scende sotto soglia (o una viene sistemata) l’avviso torna', en: 'dismiss until the situation changes: if a track drops below the threshold (or one is fixed) the warning comes back' })}" style="position:absolute;top:8px;right:8px;padding:2px 8px">✕</button>
+    <div class="muted" style="font-size:12.5px;margin-top:4px">${tr({ it: `Soglie: almeno ${giri} giri, ${ld} file .ld, un giro cronometrato e ${sess} giri in una sessione. Le piste mai corse non entrano in questo avviso · le peggiori sono nominate per prime.`, en: `Thresholds: at least ${giri} laps, ${ld} .ld files, one timed lap and ${sess} laps in a session. Tracks never driven are not part of this warning · the worst are named first.` })}</div>
+    <div class="row" style="margin-top:6px"><button class="mini" id="cov-banner-apri">${tr({ it: 'Apri la copertura completa', en: 'Open full coverage' })}</button><button class="mini" id="cov-banner-domani" title="${tr({ it: 'nascondi l’avviso solo per oggi: torna domani da solo, senza cambiare i dati', en: 'hide the warning just for today: it comes back tomorrow by itself, without touching the data' })}">${tr({ it: 'Rimanda a domani', en: 'Remind me tomorrow' })}</button></div>
+  </div>`;
+}
+
+function covHtml(g){
+  if (!g) return `<div class="muted" style="font-size:12.5px">${tr({ it: 'Copertura non disponibile ora.', en: 'Coverage not available right now.' })}</div>`;
+  const fmtInt = (v) => Number(v || 0).toLocaleString('it-IT');
+  const chip = (m) => `<span class="tag" style="color:var(--warn)">${esc(motivoCopertura(m))}</span>`;
   const righe = g.incomplete.slice(0, 6).map((r) => `<tr>
       <td>${esc(r.name)}</td>
       <td class="right">${fmtInt(r.laps)}</td>
@@ -228,15 +292,112 @@ function covHtml(g){
       <td>${r.mancano.map(chip).join(' ')}</td>
     </tr>`).join('');
   return stKpis([
-    [tr({ it: 'Pronte', en: 'Ready' }), fmtInt(g.pronte), 'good', tr({ it: 'almeno 3 giri, 2 file .ld e un giro cronometrato', en: 'at least 3 laps, 2 .ld files and one timed lap' })],
+    [tr({ it: 'Pronte', en: 'Ready' }), fmtInt(g.pronte), 'good', tr({ it: 'almeno 3 giri, 2 file .ld, un giro cronometrato e 3 giri nella stessa sessione', en: 'at least 3 laps, 2 .ld files, one timed lap and 3 laps in the same session' })],
     [tr({ it: 'Incomplete', en: 'Incomplete' }), fmtInt(g.incomplete.length), g.incomplete.length ? 'acc2' : '', tr({ it: 'piste con dati parziali: sotto c’è cosa manca', en: 'tracks with partial data: what is missing is listed below' })],
     [tr({ it: 'Mai corse', en: 'Never driven' }), fmtInt(g.scoperte.length), '', g.scoperte.slice(0, 4).join(' · ') || tr({ it: 'nessuna', en: 'none' })],
   ])
     + (g.incomplete.length
       ? `<table style="margin-top:10px"><thead><tr><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">.ld</th><th>${tr({ it: 'Manca', en: 'Missing' })}</th></tr></thead><tbody>${righe}</tbody></table>`
-      : `<div class="empty" style="margin-top:10px">${tr({ it: 'Tutte le piste corse hanno almeno 3 giri, 2 file .ld e un giro cronometrato.', en: 'Every driven track has at least 3 laps, 2 .ld files and one timed lap.' })}</div>`)
+      : `<div class="empty" style="margin-top:10px">${tr({ it: 'Tutte le piste corse hanno almeno 3 giri, 2 file .ld, un giro cronometrato e 3 giri nella stessa sessione.', en: 'Every driven track has at least 3 laps, 2 .ld files, one timed lap and 3 laps in the same session.' })}</div>`)
     + (g.incomplete.length > 6 ? `<div class="muted" style="font-size:12px;margin-top:4px">${tr({ it: `e altre ${g.incomplete.length - 6}`, en: `and ${g.incomplete.length - 6} more` })}</div>` : '')
     + `<div class="row" style="margin-top:8px"><button class="mini" id="b-cov">${tr({ it: 'Apri la copertura completa', en: 'Open full coverage' })}</button></div>`;
+}
+
+/* ---- RIEPILOGO DI FINE SESSIONE: scheda, copia e PNG (6/11) ----
+   Il testo arriva dal server già composto (stessa funzione del monitor live):
+   qui si rende in scheda, si copia negli appunti o si disegna su canvas per
+   il PNG da allegare su Discord. Nessun numero ricalcolato nel browser. */
+function riepilogoLiveHtml(r) {
+  if (!r || r.error) return `<div class="empty">${esc(r?.error ?? tr({ it: 'Riepilogo non disponibile.', en: 'Summary not available.' }))}</div>`;
+  const ss = Array.isArray(r.sessioni) ? r.sessioni : [];
+  if (!ss.length) return `<div class="muted" style="font-size:12.5px">${esc(r.motivo ?? tr({ it: 'Nessuna sessione nel log del monitor live.', en: 'No session in the live monitor log.' }))}</div>`;
+  const s = ss[ss.length - 1];
+  let quando = null;
+  try { quando = s.fine ? new Date(s.fine).toLocaleString(window.LOCALE === 'en' ? 'en-GB' : 'it-IT', { dateStyle: 'medium', timeStyle: 'short' }) : null; } catch { quando = null; }
+  return `<div class="muted" style="font-size:12.5px;margin-bottom:6px">${esc(s.tipo ?? '?')} · ${esc(s.track ?? tr({ it: 'pista n/d', en: 'track n/a' }))}${quando ? ` · ${esc(quando)}` : ''}${s.giriConTempo ? ` · ${s.giriFatti} ${tr({ it: 'giri', en: 'laps' })}` : ''}</div>
+    <pre id="rl-testo" style="margin:0;padding:10px 12px;background:var(--bg2,#141924);border:1px solid var(--line,#2b3345);border-radius:6px;overflow-x:auto;font-family:var(--mono,ui-monospace,monospace);font-size:12px;line-height:1.5;white-space:pre">${esc(s.testo)}</pre>
+    <div class="row" style="margin-top:8px">
+      <button class="mini acc" id="rl-copia">⧉ ${tr({ it: 'Copia testo', en: 'Copy text' })}</button>
+      <button class="mini" id="rl-png">🖼 ${tr({ it: 'Salva immagine', en: 'Save image' })}</button>
+      <span class="muted" style="font-size:12px">${r.totale > 1 ? tr({ it: `${r.totale} sessioni nel log · mostrata l'ultima`, en: `${r.totale} sessions in the log · showing the latest` }) : tr({ it: 'ultima sessione del monitor', en: 'latest monitor session' })}</span>
+    </div>`;
+}
+
+/** Copia negli appunti con il fallback textarea (browser vecchi/webview EVO). */
+async function copiaRiepilogo(testo) {
+  const ok = tr({ it: 'Riepilogo copiato: incollalo su Discord.', en: 'Summary copied: paste it on Discord.' });
+  try { await navigator.clipboard.writeText(String(testo ?? '')); toast(ok, 'ok'); return; } catch { /* si prova il fallback */ }
+  const ta = document.createElement('textarea');
+  ta.value = String(testo ?? '');
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  let fatto = false;
+  try { fatto = document.execCommand('copy'); } catch { fatto = false; }
+  ta.remove();
+  toast(fatto ? ok : tr({ it: 'Appunti negati: copia a mano dalla casella.', en: 'Clipboard denied: copy it by hand from the box.' }), fatto ? 'ok' : 'err');
+}
+
+/** Il PNG per Discord: il riepilogo disegnato su canvas, senza librerie. */
+function salvaRiepilogoPng(s) {
+  const testo = String(s?.testo ?? '');
+  if (!testo.trim()) { toast(tr({ it: 'Riepilogo vuoto: niente da salvare.', en: 'Empty summary: nothing to save.' }), 'err'); return; }
+  const W = 1200;
+  const PAD = 46;
+  const LH = 25;
+  const MONO = '15px "Consolas","Menlo",ui-monospace,monospace';
+  const cv = document.createElement('canvas');
+  const ctx = cv.getContext('2d');
+  const maxW = W - PAD * 2;
+  ctx.font = MONO;
+  // impaginazione PRIMA dell'altezza: il canvas si dimensiona sul testo avvolto
+  const righe = [];
+  for (const grezza of testo.split('\n')) {
+    if (!grezza.trim()) { righe.push(''); continue; }
+    const rientro = /^\s*/.exec(grezza)[0];
+    let cur = rientro;
+    for (const parola of grezza.trim().split(/\s+/)) {
+      const prova = cur === rientro ? `${cur}${parola}` : `${cur} ${parola}`;
+      if (ctx.measureText(prova).width > maxW && cur !== rientro) { righe.push(cur); cur = `${rientro}${parola}`; }
+      else cur = prova;
+    }
+    righe.push(cur);
+  }
+  let quando = '';
+  try { quando = new Date(s?.fine ?? Date.now()).toLocaleString(window.LOCALE === 'en' ? 'en-GB' : 'it-IT', { dateStyle: 'medium', timeStyle: 'short' }); } catch { quando = ''; }
+  const H = PAD * 2 + 94 + righe.length * LH + 34;
+  cv.width = W; cv.height = H;
+  ctx.fillStyle = '#0f131c'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#ffcc66'; ctx.fillRect(0, 0, W, 6);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '600 27px system-ui,"Segoe UI",Roboto,sans-serif';
+  ctx.fillText(tr({ it: 'RIEPILOGO DI FINE SESSIONE', en: 'END-OF-SESSION SUMMARY' }), PAD, PAD + 26);
+  ctx.font = '15px system-ui,"Segoe UI",Roboto,sans-serif';
+  ctx.fillStyle = '#8fa3bd';
+  ctx.fillText([s?.tipo, s?.track].filter(Boolean).join(' · '), PAD, PAD + 52);
+  ctx.textAlign = 'right';
+  ctx.fillText(quando, W - PAD, PAD + 26);
+  ctx.textAlign = 'left';
+  let y = PAD + 94;
+  ctx.font = MONO;
+  for (const riga of righe) {
+    const chiave = /^\s*(Sessione|Contatto|Giri:|vibrazioni)/.test(riga);
+    ctx.fillStyle = chiave ? '#ffd985' : '#e6ecf7';
+    ctx.fillText(riga, PAD, y);
+    y += LH;
+  }
+  ctx.fillStyle = '#6f7f96';
+  ctx.font = '13px system-ui,"Segoe UI",Roboto,sans-serif';
+  ctx.fillText(`EVO Pitwall · ${tr({ it: 'dati dal log del monitor live', en: 'data from the live monitor log' })}`, PAD, H - 22);
+  cv.toBlob((blob) => {
+    if (!blob) { toast(tr({ it: 'PNG non generato dal browser.', en: 'The browser did not produce the PNG.' }), 'err'); return; }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const data = String(s?.fine ?? new Date().toISOString()).slice(0, 10);
+    a.download = `riepilogo-evo-${data}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast(tr({ it: 'Immagine pronta: allegala su Discord.', en: 'Image ready: attach it on Discord.' }), 'ok');
+  }, 'image/png');
 }
 
 async function drawDashboard(m){
@@ -266,6 +427,7 @@ async function drawDashboard(m){
   <div class="grid2">
     <div>
       ${sbBanner}
+      ${avvisoCoperturaHtml(cov?.gaps)}
       <!-- CONTATTO E VOLANTE (6/11): acceso solo con EVO in pista (lo nasconde
            paintContatto in viste-d): vibrazioni, FFB, carico e sospensioni
            letti dalla shared memory, valori grezzi con le unità dichiarate. -->
@@ -278,6 +440,22 @@ async function drawDashboard(m){
       <div class="panel" id="live-engine" style="display:none">
         <h2>🔧 ${tr({ it: 'Motore ed elettronica', en: 'Engine and electronics' })} <span class="h-act">${tr({ it: 'live dalla shared memory di EVO', en: 'live from EVO shared memory' })}</span></h2>
         <div id="le-body"><div class="muted" style="font-size:12.5px">…</div></div>
+      </div>
+      <!-- DANNI DAL DAMAGE STATE (6/11): cinque zone della carrozzeria e le
+           quattro sospensioni per angolo, invece del solo aggregato. Acceso
+           solo con EVO in pista (lo nasconde paintDanni in viste-d). -->
+      <div class="panel" id="live-damage" style="display:none">
+        <h2>🩹 ${tr({ it: 'Danni', en: 'Damage' })} <span class="h-act">${tr({ it: 'zone e sospensioni, live dalla shared memory di EVO', en: 'zones and suspension, live from EVO shared memory' })}</span></h2>
+        <div id="ldam-body"><div class="muted" style="font-size:12.5px">…</div></div>
+      </div>
+      <!-- RIEPILOGO DI FINE SESSIONE (6/11): la scheda del monitor live, con
+           copia testo e PNG per Discord. Il testo arriva già composto dal
+           server (/api/live-riepilogo, stessa funzione del monitor): qui solo
+           resa e comandi. -->
+      <div class="panel" id="p-riepilogo-live">
+        <h2>🏁 ${tr({ it: 'Riepilogo di fine sessione', en: 'End-of-session summary' })} <span class="h-act">${tr({ it: 'l’ultima sessione del monitor live', en: 'the latest live-monitor session' })}</span></h2>
+        <div id="riepilogo-live-body"><div class="muted" style="font-size:12.5px">…</div></div>
+        <div class="row" style="margin-top:8px"><button class="mini" id="rl-ric">↻ ${tr({ it: 'Ricarica', en: 'Reload' })}</button></div>
       </div>
       <!-- COPERTURA PER L'ANALISI (6/11): segnala le piste dove i dati non
            bastano, con cosa manca. Classifica calcolata dal server
@@ -341,6 +519,19 @@ async function drawDashboard(m){
   if (covBox) covBox.innerHTML = covHtml(cov?.gaps);
   const bCov = $('#b-cov');
   if (bCov) bCov.onclick = () => vai('stats');
+  $('#cov-banner-apri')?.addEventListener('click', () => vai('stats'));
+  $('#cov-banner-chiudi')?.addEventListener('click', (e) => {
+    const b = e.currentTarget.closest('.banner');
+    try { localStorage.setItem(FIRMA_AVVISO_COV, b?.dataset.firma ?? ''); } catch { /* niente memoria: si chiude solo ora */ }
+    b?.remove();
+  });
+  /* Rinvio di un giorno: si salva la DATA, non la firma — domani la data
+     cambia e l'avviso torna anche se piste e buchi sono identici. */
+  $('#cov-banner-domani')?.addEventListener('click', (e) => {
+    const b = e.currentTarget.closest('.banner');
+    try { localStorage.setItem(RIMANDA_AVVISO_COV, oggiChiave()); } catch { /* niente memoria: si chiude solo ora */ }
+    b?.remove();
+  });
   drawCardInto($('#card-panel'), card);
   drawLifePanel();
   drawHeritagePanel();
@@ -361,6 +552,48 @@ async function drawDashboard(m){
   };
   caricaVerdettoDash();
   $('#verdetto-dash-ric')?.addEventListener('click', caricaVerdettoDash);
+
+  /* RIEPILOGO DI FINE SESSIONE (6/11): lo legge dal server, che lo ricava dal
+     log del monitor con la STESSA funzione che lo scrive su file; qui si
+     aggiungono copia e PNG. Il refresh manuale serve dopo una sessione nuova. */
+  /* FIRMA dell'ultima sessione: cambia quando il monitor ne CHIUDE una
+     (`chiusa`) o quando ne comincia una nuova (`totale`). Durante la sessione
+     il log cresce ma la scheda resta ferma: niente ridisegni mentre leggi. */
+  let firmaRiepilogo = null;
+  const caricaRiepilogoLive = async ({ auto = false } = {}) => {
+    const zona = $('#riepilogo-live-body');
+    if (!zona) return;
+    try {
+      const r = await api('live-riepilogo', {});
+      const s = Array.isArray(r.sessioni) && r.sessioni.length ? r.sessioni[r.sessioni.length - 1] : null;
+      const firma = `${r.totale ?? 0}|${r.chiusa ? 1 : 0}`;
+      if (auto && firma === firmaRiepilogo) return;      // niente di nuovo: nessun ridisegno
+      const eraChiusa = !!firmaRiepilogo?.endsWith('|1');
+      firmaRiepilogo = firma;
+      zona.innerHTML = riepilogoLiveHtml(r);
+      if (!s) return;
+      $('#rl-copia')?.addEventListener('click', () => copiaRiepilogo(s.testo));
+      $('#rl-png')?.addEventListener('click', () => salvaRiepilogoPng(s));
+      if (auto && r.chiusa && !eraChiusa) {
+        toast(tr({ it: 'Riepilogo di fine sessione aggiornato.', en: 'End-of-session summary updated.' }), 'ok');
+      }
+    } catch {
+      zona.innerHTML = `<div class="empty">${esc(tr({ it: 'Server fuori: riprova col bottone.', en: 'Server away: retry with the button.' }))}</div>`;
+    }
+  };
+  caricaRiepilogoLive();
+  $('#rl-ric')?.addEventListener('click', () => caricaRiepilogoLive());
+  /* POLL (6/11): ogni 5 s, finché la scheda è in pagina. Il server risponde
+     con uno stat quando il log non è cambiato, quindi il costo è minimo; la
+     scheda si ridisegna solo alla chiusura di una sessione. Al cambio tab il
+     nodo sparisce e il ciclo si ferma da solo. */
+  const pollRiepilogo = async () => {
+    const zona = $('#riepilogo-live-body');
+    if (!zona || !document.body.contains(zona)) return;
+    try { await caricaRiepilogoLive({ auto: true }); } catch { /* si riprova al giro dopo */ }
+    setTimeout(pollRiepilogo, 5000);
+  };
+  setTimeout(pollRiepilogo, 5000);
 
   $('#b-review').onclick = () => showReview();
   $('#b-gazzetta').onclick = () => showGazzetta();
@@ -415,9 +648,9 @@ async function showGazzetta(){
           ${!g.races ? `<div class="empty">${tr({ it: 'Il registro della stampa per quest\'anno è vuoto: i titoli arrivano con le gare importate.', en: "The season's press registry is empty: headlines arrive with imported races." })}</div>`
           : g.heads.map((h) => `
             <div style="border-left:2px solid var(--line,#283046);padding:6px 10px;margin-bottom:8px">
-              <span class="chip ${h.outcome === 'P1' ? 'gold' : h.outcome === 'dnf' ? 'red' : ''}" style="font-size:11.5px;padding:1px 7px">R${h.round} · ${esc(h.track ?? '')}</span>
+              <span class="chip ${h.outcome === 'P1' ? 'gold' : h.outcome === 'dnf' ? 'red' : ''}" style="font-size:12.5px;padding:1px 7px">R${h.round} · ${esc(h.track ?? '')}</span>
               <b style="font-size:12.5px;display:block;margin-top:3px">${esc(h.title)}</b>
-              <div class="muted" style="font-size:12px;white-space:pre-wrap">${esc(h.body ?? '')}</div>
+              <div class="muted" style="font-size:12.5px;white-space:pre-wrap">${esc(h.body ?? '')}</div>
             </div>`).join('')}
         </div>`,
         [ ...seasons.filter((s) => s !== g.season).slice(0, 2).map((s) => [`${tr({ it: 'Stagione', en: 'Season' })} ${s}`, 'ghost', () => { api('gazzetta-season', { season: s }).then(draw).catch((e) => toast(e.message, 'err')); }]),
@@ -448,10 +681,13 @@ async function drawLifePanel(){
     el.innerHTML = `
 <h2>${LI.compass} ${tr({ it: 'Vita fuori pista', en: 'Life off track' })}</h2>
       ${rows.join('') || `<div class="empty">${tr({ it: 'Il contratto arriva quando firmi il sedile.', en: 'The contract comes when you sign the seat.' })}</div>`}
-      ${v.challenge && !v.challenge.verdict && !document.querySelector('#card-actions .challenge-flag') ? `<div class="banner ${v.challenge.accepted?'info':'warn'}" style="margin-top:6px">${LI.target} <b>${tr({ it: 'Sfida della ronda', en: 'Round challenge' })}</b> — ${esc(legacyIt(v.challenge.text))}<br><span class="muted">${tr({ it: 'premio ', en: 'reward ' })}${money(v.challenge.reward)} € · ${tr({ it: 'penale −', en: 'penalty −' })}${v.challenge.penalty} rep${v.challenge.accepted?` · ${tr({ it: 'accettata', en: 'accepted' })}`:''}</span>${v.challenge.accepted?'':` <button class="mini" id="b-chal-acc" style="margin-top:6px">${tr({ it: 'accetta', en: 'accept' })}</button>`}</div>` : ''}`;
+      ${/* 6/11 — UNA SOLA DECISIONE (richiesta Mauro): la sfida comparve due volte
+           nel Cruscotto, qui e nella scheda Prossima gara, entrambe col bottone.
+           Il punto decisionale è la scheda gara (dove si prepara il weekend):
+           qui resta il promemoria, in sola lettura. */ ''}
+      ${v.challenge && !v.challenge.verdict ? `<div class="banner ${v.challenge.accepted?'info':'warn'}" style="margin-top:6px">${LI.target} <b>${tr({ it: 'Sfida della ronda', en: 'Round challenge' })}</b> — ${esc(legacyIt(v.challenge.text))}<br><span class="muted">${tr({ it: 'premio ', en: 'reward ' })}${money(v.challenge.reward)} € · ${tr({ it: 'penale −', en: 'penalty −' })}${v.challenge.penalty} rep${v.challenge.accepted?` · ${tr({ it: 'accettata', en: 'accepted' })}`:''}${v.challenge.accepted?'':` · ${tr({ it: 'si accetta dalla scheda gara', en: 'accept it from the race sheet' })}`}</span></div>` : ''}`;
     $('#b-sponsor-sign')?.addEventListener('click', async ()=>{ try{ await api('sponsor-accept',{tier:999}); toast(tr({ it: 'Sponsor firmato.', en: 'Sponsor signed.' }),'ok'); drawLifePanel(); }catch(e){toast(e.message,'err')} });
     $('#b-sponsor-no')?.addEventListener('click', async ()=>{ try{ await api('sponsor-decline',{}); toast(tr({ it: 'Proposta rifiutata.', en: 'Offer declined.' }),'ok'); drawLifePanel(); }catch(e){toast(e.message,'err')} });
-    $('#b-chal-acc')?.addEventListener('click', async ()=>{ try{ await api('challenge-accept',{}); toast(tr({ it: 'Sfida accettata: in bocca al lupo.', en: 'Challenge accepted: good luck.' }),'ok'); drawLifePanel(); }catch(e){toast(e.message,'err')} });
   } catch { el.innerHTML = `<h2>${tr({ it: 'Vita fuori pista', en: 'Life off track' })}</h2><div class="empty">${tr({ it: 'Non disponibile', en: 'Not available' })}.</div>`; }
 }
 
@@ -468,13 +704,13 @@ async function drawHeritagePanel(){
     if (v.active){
       const a = v.active;
       html += `<div class="liferow"><span class="lico">📜</span><div class="lt"><b>${esc(tr({ it: a.title, en: a.titleEn ?? a.title }))}</b> — ${esc(a.ancestor)}, ${tr({ it: 'tuo ', en: 'your ' })}${esc(tr({ it: a.relation, en: a.relationEn ?? a.relation }))} (${esc(a.era)})              <div style="font-size:12.5px;margin-top:3px">${window.serLinkHtml(a.series)} · ${tr({ it: 'auto: ', en: 'car: ' })}<b>${a.carName ? window.carLinkHtml(a.carName) : esc(tr({ it: 'n/d', en: 'n/a' }))}</b>${a.seat?` #${a.seat}`:''} · ${tr({ it: 'obiettivo: ', en: 'goal: ' })}<b>${esc(tr({ it: a.objective.text, en: a.objective.en ?? a.objective.text }))}</b></div>
-        <div style="font-size:12.5px">${tr({ it: 'Prove: ', en: 'Rounds: ' })}${a.rounds.map((t)=>{const pr=(a.progress??[]).find(p=>p.track===t); return `<span class="tag ${pr?.ok ? 'green':''}" style="font-size:11.5px;padding:1px 7px" title="${esc(pr?.detail ?? tr({ it: 'da correre', en: 'to run' }))}">${esc(t)}</span>`;}).join(' ')}</div>
-        <div style="font-size:12px;margin-top:4px" class="muted">${tr({ it: 'Leggende in griglia: ', en: 'Legends on the grid: ' })}${esc(a.legends.join(' · '))}</div>
-        ${a.done ? `<div class="banner good" style="margin-top:8px">${tr({ it: "🏁 Impresa rifatta! L'eredità di ", en: '🏁 Feat re-run! The inheritance of ' })}<b>${money(a.inherit)} €</b>${tr({ it: ' è pronta. ', en: ' is ready. ' })}<button class="mini" id="b-her-claim" style="margin-top:4px">${tr({ it: "Incassa l'eredità", en: 'Claim the inheritance' })}</button></div>` : `<div class="muted" style="font-size:12px;margin-top:5px">${tr({ it: 'Vali in palio: ', en: 'Prize at stake: ' })}${money(a.inherit)} € (${tr({ it: 'dopo: ', en: 'after: ' })}${money(a.repeat)} € ${tr({ it: 'a ripetizione', en: 'per repeat' })}) · ${tr({ it: 'relic: ', en: 'relic: ' })}${esc(tr({ it: a.relic, en: a.relicEn ?? a.relic }))}</div><div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span style="font-size:12.5px">🎯 ${tr({ it: 'Come si partecipa: le Prove sono ronde NORMALI della serie, si corrono come ogni campionato (l\'obbiettivo conta da solo al risultato importato).', en: 'How to take part: the Rounds are =NORMAL rounds of that series, raced like any championship (the objective counts by itself on the imported result).' })}</span>${a.nodeId ? `<button class="mini" id="b-her-agenda">${tr({ it: 'Punta la ronda in Agenda', en: 'Point the round in the Agenda' })}</button>` : ''}</div>` }
+        <div style="font-size:12.5px">${tr({ it: 'Prove: ', en: 'Rounds: ' })}${a.rounds.map((t)=>{const pr=(a.progress??[]).find(p=>p.track===t); return `<span class="tag ${pr?.ok ? 'green':''}" style="font-size:12.5px;padding:1px 7px" title="${esc(pr?.detail ?? tr({ it: 'da correre', en: 'to run' }))}">${esc(t)}</span>`;}).join(' ')}</div>
+        <div style="font-size:12.5px;margin-top:4px" class="muted">${tr({ it: 'Leggende in griglia: ', en: 'Legends on the grid: ' })}${esc(a.legends.join(' · '))}</div>
+        ${a.done ? `<div class="banner good" style="margin-top:8px">${tr({ it: "🏁 Impresa rifatta! L'eredità di ", en: '🏁 Feat re-run! The inheritance of ' })}<b>${money(a.inherit)} €</b>${tr({ it: ' è pronta. ', en: ' is ready. ' })}<button class="mini" id="b-her-claim" style="margin-top:4px">${tr({ it: "Incassa l'eredità", en: 'Claim the inheritance' })}</button></div>` : `<div class="muted" style="font-size:12.5px;margin-top:5px">${tr({ it: 'Vali in palio: ', en: 'Prize at stake: ' })}${money(a.inherit)} € (${tr({ it: 'dopo: ', en: 'after: ' })}${money(a.repeat)} € ${tr({ it: 'a ripetizione', en: 'per repeat' })}) · ${tr({ it: 'relic: ', en: 'relic: ' })}${esc(tr({ it: a.relic, en: a.relicEn ?? a.relic }))}</div><div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span style="font-size:12.5px">🎯 ${tr({ it: 'Come si partecipa: le Prove sono ronde NORMALI della serie, si corrono come ogni campionato (l\'obbiettivo conta da solo al risultato importato).', en: 'How to take part: the Rounds are =NORMAL rounds of that series, raced like any championship (the objective counts by itself on the imported result).' })}</span>${a.nodeId ? `<button class="mini" id="b-her-agenda">${tr({ it: 'Punta la ronda in Agenda', en: 'Point the round in the Agenda' })}</button>` : ''}</div>` }
       </div></div>`;
     }
     if (v.completed.length){
-      html += `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${v.completed.map(c=>`<span class="tag gold" style="font-size:11.5px;padding:3px 9px" title="${esc(c.ancestor)} · ${esc(c.era)} · ${esc(c.series)} · +${money(c.inherit)} €">${esc(tr({ it: c.crest, en: c.crestEn ?? c.crest }))} ${esc(tr({ it: c.title, en: c.titleEn ?? c.title }))}</span>`).join('')}</div>`;
+      html += `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${v.completed.map(c=>`<span class="tag gold" style="font-size:12.5px;padding:3px 9px" title="${esc(c.ancestor)} · ${esc(c.era)} · ${esc(c.series)} · +${money(c.inherit)} €">${esc(tr({ it: c.crest, en: c.crestEn ?? c.crest }))} ${esc(tr({ it: c.title, en: c.titleEn ?? c.title }))}</span>`).join('')}</div>`;
     }
     if (v.allDone) html += `<div class="banner good" style="margin-top:8px">${tr({ it: 'Saga completa: la famiglia è entrata nella leggenda. 🏛️', en: 'Saga complete: the family made it into legend. 🏛️' })}</div>`;
     el.innerHTML = html;
@@ -514,23 +750,23 @@ async function drawEventsPanel(){
       const a = v.active, c = v.card;
       const pending = !a.acceptedAt;
       html += `<div class="banner ${pending ? 'info' : 'good'}" style="margin-bottom:8px">
-        <b>${tr({ it: '⭐ ', en: '⭐ ' })}${esc(a.theme.name)}</b> <span class="tag" style="font-size:11.5px;padding:1px 7px">${a.tier === 'finale' ? tr({ it: 'FINALE DI STAGIONE', en: 'SEASON FINALE' }) : tr({ it: 'invito speciale', en: 'special invite' })}</span><br>
+        <b>${tr({ it: '⭐ ', en: '⭐ ' })}${esc(a.theme.name)}</b> <span class="tag" style="font-size:12.5px;padding:1px 7px">${a.tier === 'finale' ? tr({ it: 'FINALE DI STAGIONE', en: 'SEASON FINALE' }) : tr({ it: 'invito speciale', en: 'special invite' })}</span><br>
         <span class="muted" style="font-size:12.5px">${esc(a.theme.intro)}</span><br>
         <span style="font-size:12.5px;margin-top:4px;display:inline-block">🏁 ${window.trackLinkHtml(v.card?.trackName ?? a.trackDisplay)} · ${a.laps != null ? a.laps : '—'} ${tr({ it: 'giri', en: 'laps' })}${((c.guests ?? a.guests ?? []).length ? ` · ${esc((c.guests ?? a.guests).join(' · '))}` : '')} · ${tr({ it: 'premio: ', en: 'prize: ' })}<b>${a.prize.duplicateCash ? money(a.prize.money) + ' €' : window.carLinkHtml(a.prize.carName) + ' + ' + money(a.prize.money) + ' €'}</b>${a.prize.rep ? ` · +${a.prize.rep} rep` : ''}${a.tier !== 'finale' && !a.acceptedAt ? ` · <span class="muted">${tr({ it: 'scade dopo ', en: 'expires after ' })}${a.deadlineRounds} ${tr({ it: 'gare di campionato', en: 'championship races' })}</span>` : ''}</span>
       </div>`;
       if (pending){
         html += `<div class="row"><button class="act" id="b-ev-acc">${tr({ it: "Accetto l'invito", en: 'I accept the invite' })}</button><button class="ghost" id="b-ev-dec">${tr({ it: 'Rifiuta', en: 'Decline' })}</button></div>`;
       } else {
-        html += `<details open style="margin:6px 0"><summary style="cursor:pointer;font-size:12.5px"><b>${tr({ it: '📋 Scheda da impostare in EVO', en: '📋 Sheet to set up in EVO' })}</b> <span class="muted" style="font-size:11.5px">— ${tr({ it: 'spuntala come la gara di campionato', en: 'check it off like the championship race' })}</span></summary>
+        html += `<details open style="margin:6px 0"><summary style="cursor:pointer;font-size:12.5px"><b>${tr({ it: '📋 Scheda da impostare in EVO', en: '📋 Sheet to set up in EVO' })}</b> <span class="muted" style="font-size:12.5px">— ${tr({ it: 'spuntala come la gara di campionato', en: 'check it off like the championship race' })}</span></summary>
           <table style="margin-top:6px"><tbody>${c.settings.map((s)=>`<tr><td style="width:130px" class="muted">${esc(s[0])}</td><td>${esc(s[1])}</td></tr>`).join('')}</tbody></table>
-          <div class="muted" style="margin-top:6px;font-size:12px">${tr({ it: "Difficoltà AI consigliata per la tua serie: → usa gli slider della scheda gara normale. Se ti serve, guarda il pannello Prossima gara.", en: "Recommended AI difficulty for your series: → use the sliders of the normal race sheet. If needed, see the Next race panel." })}</div>
+          <div class="muted" style="margin-top:6px;font-size:12.5px">${tr({ it: "Difficoltà AI consigliata per la tua serie: → usa gli slider della scheda gara normale. Se ti serve, guarda il pannello Prossima gara.", en: "Recommended AI difficulty for your series: → use the sliders of the normal race sheet. If needed, see the Next race panel." })}</div>
         </details>
         ${v.grigliaRonda?.avviso ? `<div class="banner info" style="margin-top:6px">🗂️ <b>${tr({ it: 'Griglia sul disco', en: 'Grid on disk' })}</b> — ${esc(v.grigliaRonda.avviso)}</div>` : ''}
         <button class="act" id="b-ev-prep" style="width:100%;margin-top:8px">${tr({ it: '🏁 Prepara tutto', en: '🏁 Get everything ready' })}</button>
-        <div class="muted" style="margin-top:6px;font-size:11.5px">${(c.guests ?? a.guests ?? []).length ? tr({ it: "Ora, giri e gli avversari ospiti (2-3) partono da fuori col tasto Prepara, come la gara di campionato: su pista (gamemodesave) e griglia (customgrid) — se un ospite non è in nessuna griglia sul disco, resta a scelta mano in EVO e il tool lo segnala. La barra verifica l'impegno live.", en: 'Hour, laps and the guest rivals (2-3) are set from outside with the Prepare button, like the championship race — onto the track files (gamemodesave) and the grid (customgrid). If a guest car is in no grid on disk, you still pick them by hand in EVO and the tool says so. The bar verifies the setup live.' }) : tr({ it: "Ora, giri e la griglia monomarca partono da fuori col tasto Prepara, come la gara di campionato: su pista (gamemodesave) e griglia (customgrid), scritta dal tool col builder. La barra verifica l'impegno live.", en: 'Hour, laps and the one-make grid are set from outside with the Prepare button, like the championship race — onto the track files (gamemodesave) and the grid (customgrid), built by the tool with its grid builder. The bar verifies the setup live.' })}</div>
+        <div class="muted" style="margin-top:6px;font-size:12.5px">${(c.guests ?? a.guests ?? []).length ? tr({ it: "Ora, giri e gli avversari ospiti (2-3) partono da fuori col tasto Prepara, come la gara di campionato: su pista (gamemodesave) e griglia (customgrid) — se un ospite non è in nessuna griglia sul disco, resta a scelta mano in EVO e il tool lo segnala. La barra verifica l'impegno live.", en: 'Hour, laps and the guest rivals (2-3) are set from outside with the Prepare button, like the championship race — onto the track files (gamemodesave) and the grid (customgrid). If a guest car is in no grid on disk, you still pick them by hand in EVO and the tool says so. The bar verifies the setup live.' }) : tr({ it: "Ora, giri e la griglia monomarca partono da fuori col tasto Prepara, come la gara di campionato: su pista (gamemodesave) e griglia (customgrid), scritta dal tool col builder. La barra verifica l'impegno live.", en: 'Hour, laps and the one-make grid are set from outside with the Prepare button, like the championship race — onto the track files (gamemodesave) and the grid (customgrid), built by the tool with its grid builder. The bar verifies the setup live.' })}</div>
         <div class="livebar live-off" id="ev-livebar" style="margin-top:8px"><span class="dot"></span><span class="st">${tr({ it: 'Live evento', en: 'Live event' })}</span><span class="muted">${tr({ it: 'in attesa del gioco…', en: 'waiting for the game…' })}</span></div>
         <details style="margin-top:8px">
-          <summary class="muted" style="cursor:pointer;font-size:12px">🏁 ${tr({ it: "A fine gara il risultato si incassa da solo, come le gare di campionato: apri il game, corre e chiudi. Non serve compilare nulla. — Registra a mano (solo se serve)", en: "At the end of the race the result is collected automatically, like championship races: open the game, race and close it. No need to fill anything in. — Record by hand (only if needed)" })}</summary>
+          <summary class="muted" style="cursor:pointer;font-size:12.5px">🏁 ${tr({ it: "A fine gara il risultato si incassa da solo, come le gare di campionato: apri il game, corre e chiudi. Non serve compilare nulla. — Registra a mano (solo se serve)", en: "At the end of the race the result is collected automatically, like championship races: open the game, race and close it. No need to fill anything in. — Record by hand (only if needed)" })}</summary>
           <div class="row" style="margin-top:8px;flex-wrap:wrap;align-items:end">
             <label class="muted">${tr({ it: "Posizione d'arrivo", en: 'Finishing position' })}<br><input type="number" id="i-ev-pos" min="1" max="30" value="1" style="width:80px"></label>
             <label class="muted">${tr({ it: 'Miglior giro (secondi, opzionale)', en: 'Best lap (seconds, optional)' })}<br><input type="number" id="i-ev-lap" step="0.1" min="20" max="1200" style="width:100px" placeholder="${tr({ it: 'es. 102.4', en: 'e.g. 102.4' })}"></label>
@@ -553,16 +789,16 @@ async function drawEventsPanel(){
         <div style="border:1px solid #d9a83e40;border-radius:10px;padding:14px 16px;background:linear-gradient(150deg,#171a12 0%,#12151d 60%,#1a1509 100%);flex:1 1 240px;min-width:230px">
           <div style="font-size:20px" aria-hidden="true">🏆</div>
           <div style="font-size:15px;font-weight:700;margin-top:6px;line-height:1.25">${window.carLinkHtml(c.carName)}</div>
-          <div class="muted" style="font-size:12px;margin-top:4px">${esc(window.LINGUA === 'en' ? (c.themeEn ?? c.theme) : c.theme)}</div>
-          <div style="font-size:11.5px;color:#9a8654;margin-top:6px">${tr({ it: 'stagione', en: 'season' })} S${c.season}${c.bestLapSec ? ` · ${tr({ it: 'giro ', en: 'lap ' })}${fmtLap(c.bestLapSec)}` : ''} · ${tr({ it: 'vinto il', en: 'won on ' })} ${dataVittoria(c.at)}</div>
+          <div class="muted" style="font-size:12.5px;margin-top:4px">${esc(window.LINGUA === 'en' ? (c.themeEn ?? c.theme) : c.theme)}</div>
+          <div style="font-size:12.5px;color:#9a8654;margin-top:6px">${tr({ it: 'stagione', en: 'season' })} S${c.season}${c.bestLapSec ? ` · ${tr({ it: 'giro ', en: 'lap ' })}${fmtLap(c.bestLapSec)}` : ''} · ${tr({ it: 'vinto il', en: 'won on ' })} ${dataVittoria(c.at)}</div>
         </div>`).join('');
       html += `<div style="margin-top:14px;border:1px solid #d9a83e25;border-radius:12px;padding:16px;background:rgba(217,168,62,0.05)">
-        <h3 style="margin:0 0 10px;font-size:15px;letter-spacing:.06em">🏆 ${tr({ it: 'SALA TROFEI', en: 'TROPHY ROOM' })} <span class="muted" style="font-size:11.5px;font-weight:400;letter-spacing:0">— ${v.showCase.length} ${v.showCase.length === 1 ? tr({ it: 'premio in carriera', en: 'career prize' }) : tr({ it: 'premi in carriera', en: 'career prizes' })}</span></h3>
+        <h3 style="margin:0 0 10px;font-size:15px;letter-spacing:.06em">🏆 ${tr({ it: 'SALA TROFEI', en: 'TROPHY ROOM' })} <span class="muted" style="font-size:12.5px;font-weight:400;letter-spacing:0">— ${v.showCase.length} ${v.showCase.length === 1 ? tr({ it: 'premio in carriera', en: 'career prize' }) : tr({ it: 'premi in carriera', en: 'career prizes' })}</span></h3>
         <div style="display:flex;flex-wrap:wrap;gap:10px">${targhe}</div>
       </div>`;
     }
     if ((v.history ?? []).length){
-      html += `<details style="margin-top:10px"><summary class="muted" style="cursor:pointer;font-size:12px">${tr({ it: 'Storia eventi ', en: 'Event history ' })}(${v.history.length})</summary><table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Evento', en: 'Event' })}</th><th>${tr({ it: 'Esito', en: 'Outcome' })}</th></tr></thead><tbody>${v.history.map(h2=>`<tr><td class="muted">${esc(String(h2.finishedAt ?? h2.declinedAt ?? h2.createdAt ?? '').slice(0,10))}</td><td>${esc(h2.theme?.name ?? '')}</td><td>${h2.outcome==='won'?`<span class="tag good">${tr({ it: 'vinto', en: 'won' })}</span>`:h2.outcome==='declined'?`<span class="muted">${tr({ it: 'rifiutato', en: 'declined' })}</span>`:h2.outcome==='expired'?`<span class="muted">${tr({ it: 'scaduto', en: 'expired' })}</span>`:`P${h2.position ?? '—'}`}</td></tr>`).join('')}</tbody></table></details>`;
+      html += `<details style="margin-top:10px"><summary class="muted" style="cursor:pointer;font-size:12.5px">${tr({ it: 'Storia eventi ', en: 'Event history ' })}(${v.history.length})</summary><table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Evento', en: 'Event' })}</th><th>${tr({ it: 'Esito', en: 'Outcome' })}</th></tr></thead><tbody>${v.history.map(h2=>`<tr><td class="muted">${esc(String(h2.finishedAt ?? h2.declinedAt ?? h2.createdAt ?? '').slice(0,10))}</td><td>${esc(h2.theme?.name ?? '')}</td><td>${h2.outcome==='won'?`<span class="tag good">${tr({ it: 'vinto', en: 'won' })}</span>`:h2.outcome==='declined'?`<span class="muted">${tr({ it: 'rifiutato', en: 'declined' })}</span>`:h2.outcome==='expired'?`<span class="muted">${tr({ it: 'scaduto', en: 'expired' })}</span>`:`P${h2.position ?? '—'}`}</td></tr>`).join('')}</tbody></table></details>`;
     }
     el.innerHTML = html;
     $('#b-ev-acc')?.addEventListener('click', async ()=>{ try{ await api('event-accept',{eventId:v.active.id}); toast(tr({ it: 'Invito accettato: la scheda è pronta.', en: 'Invite accepted: the sheet is ready.' }),'ok'); refreshBoot().then(render); }catch(e){toast(e.message,'err')} });
@@ -757,35 +993,41 @@ function drawCardInto(el, card){
          il trim è mosso dopo la nascita del suggerimento il vecchio calcolo
          prometteva punti che l'accettazione non farebbe. La legge
          dell'accept = (to − trim corrente) × 1. */ ``}
-    ${card.pendingProposal ? `<div class="banner warn" style="margin-top:10px"><b>${tr({ it: '🎯 Il tool suggerisce il trim', en: '🎯 The tool suggests the trim' })}</b> ${esc(card.pendingProposal.reason)}: ${tr({ it: 'trim ', en: 'trim ' })}${card.pendingProposal.from >= 0 ? '+' : ''}${card.pendingProposal.from} → <b>${card.pendingProposal.to >= 0 ? '+' : ''}${card.pendingProposal.to}</b> (${tr({ it: 'passo', en: 'step' })} ${card.pendingProposal.to - card.pendingProposal.from > 0 ? '+' : ''}${card.pendingProposal.to - card.pendingProposal.from}). ${tr({ it: 'Accettare sposta anche la banda EVO della serie di ', en: 'Accepting also moves the series EVO band by ' })}${Math.abs((card.pendingProposal.to - card.pendingProposal.cur) * 1)} ${tr({ it: 'punti (', en: 'points (' })}${card.pendingProposal.to > card.pendingProposal.cur ? tr({ it: 'in salita', en: 'upward' }) : tr({ it: 'in discesa', en: 'downward' })}).<br>
+    ${card.pendingProposal ? `<div class="banner warn" style="margin-top:10px" title="${tr({ it: 'Il trim è la difficoltà adattiva del campionato: +1 rende gli avversari un passo più veloci (e la serie più dura), −1 li rallenta. Il tool propone lo spostamento giusto per te.', en: 'Trim is the championship adaptive difficulty: +1 makes rivals one step faster (and the series harder), −1 slows them down. The tool suggests the right move for you.' })}"><b>${tr({ it: '🎯 Il tool suggerisce il trim', en: '🎯 The tool suggests the trim' })}</b> ${esc(card.pendingProposal.reason)}: ${tr({ it: 'trim ', en: 'trim ' })}${card.pendingProposal.from >= 0 ? '+' : ''}${card.pendingProposal.from} → <b>${card.pendingProposal.to >= 0 ? '+' : ''}${card.pendingProposal.to}</b> (${tr({ it: 'passo', en: 'step' })} ${card.pendingProposal.to - card.pendingProposal.from > 0 ? '+' : ''}${card.pendingProposal.to - card.pendingProposal.from}). ${tr({ it: 'Accettare sposta anche la banda EVO della serie di ', en: 'Accepting also moves the series EVO band by ' })}${Math.abs((card.pendingProposal.to - card.pendingProposal.cur) * 1)} ${tr({ it: 'punti (', en: 'points (' })}${card.pendingProposal.to > card.pendingProposal.cur ? tr({ it: 'in salita', en: 'upward' }) : tr({ it: 'in discesa', en: 'downward' })}).<br>
       <button class="mini" id="b-prop-accept" style="margin-top:6px">${tr({ it: 'Accetta (trim ', en: 'Accept (trim ' })}${card.pendingProposal.to >= 0 ? '+' : ''}${card.pendingProposal.to})</button>
       <button class="mini" id="b-prop-reject" style="margin-top:6px;margin-left:6px">${tr({ it: 'Rifiuta', en: 'Reject' })}</button></div>` : ''}
     ${card.challenge && !card.challenge.verdict ? `<div class="banner challenge-flag ${card.challenge.accepted?'info':'warn'}" style="margin-top:10px">${LI.target} <b>${tr({ it: 'Sfida della ronda', en: 'Round challenge' })}</b> — ${esc(legacyIt(card.challenge.text))}<br><span class="muted">${tr({ it: 'facoltativa · premio ', en: 'optional · reward ' })}${money(card.challenge.reward)} € ${tr({ it: 'se ci riesci · −', en: 'if you make it · −' })}${card.challenge.penalty} rep ${tr({ it: 'se fallisci', en: 'if you fail' })}${card.challenge.accepted?` · <b>${tr({ it: 'accettata', en: 'accepted' })}</b>`:''}</span>${card.challenge.accepted?'':` <button class="mini" id="b-accept-chal" style="margin-top:6px">${tr({ it: 'Accetta la sfida', en: 'Accept the challenge' })}</button>`}</div>` : ''}
 
-    ${card.carImage ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:8px 0 4px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2,#121822)">
-      <img src="${card.carImage}" alt="${esc(card.carName ?? '')}" style="width:150px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#0d1118">
+    ${/* RIQUADRO DELL'AUTO SEMPRE PRESENTE (6/11): prima l'intero riquadro —
+         selettore compreso — era appeso a `card.carImage`, così un'auto senza
+         foto faceva sparire anche la scelta dell'auto della giornata. Ora la
+         foto è opzionale e al suo posto c'è un segnaposto dichiarato. */ ''}
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:8px 0 4px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2,#121822)">
+      ${card.carImage
+        ? `<img src="${card.carImage}" alt="${esc(card.carName ?? '')}" style="width:150px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#0d1118">`
+        : `<div title="${tr({ it: 'questa auto non ha ancora una foto nell\'archivio ufficiale: il resto della scheda non cambia', en: 'this car has no photo in the official archive yet: the rest of the card is unaffected' })}" style="width:150px;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;border:1px dashed var(--line);border-radius:8px;background:#0d1118;color:var(--muted);font-size:11.5px;text-align:center;padding:6px;box-sizing:border-box">${tr({ it: 'foto non in archivio', en: 'no archive photo' })}</div>`}
       <div class="day-car-select"><b>${tr({ it: 'Auto della giornata', en: "Today's car" })}</b><br>${window.carLinkHtml(card.carName)}
-        ${card.carChoices?.length>1 ? `<select id="sel-car" title="${tr({ it: 'cambia la sezionale di oggi fra quelle ammesse dal weekend', en: "switch today's car among the ones the weekend allows" })}" style="width:100%;margin-top:5px;font-size:11.5px">${card.carChoices.map(c=>`<option value="${esc(c.id)}"${c.id===card.car?' selected':''}>${esc(c.display)}</option>`).join('')}</select>` : `<select id="sel-car" style="width:100%;margin-top:5px;font-size:11.5px" title="${tr({ it: 'unica auto ammessa dal weekend', en: 'the only car the weekend allows' })}"><option value="${esc(card.car ?? '')}" selected>${esc(card.carName ?? '')}</option></select>`}
+        ${card.carChoices?.length>1 ? `<select id="sel-car" title="${tr({ it: 'cambia la sezionale di oggi fra quelle ammesse dal weekend', en: "switch today's car among the ones the weekend allows" })}" style="width:100%;margin-top:5px;font-size:12.5px">${card.carChoices.map(c=>`<option value="${esc(c.id)}"${c.id===card.car?' selected':''}>${esc(c.display)}</option>`).join('')}</select>` : `<select id="sel-car" style="width:100%;margin-top:5px;font-size:12.5px" title="${tr({ it: 'unica auto ammessa dal weekend', en: 'the only car the weekend allows' })}"><option value="${esc(card.car ?? '')}" selected>${esc(card.carName ?? '')}</option></select>`}
       </div>
-    </div>` : ''}
-    ${card.gridRitual ? `<div class="banner info" style="margin-top:8px">🏁 <b>${tr({ it: 'Nuova serie, griglia da sbloccare (una volta sola)', en: 'New series, grid to unlock (once only)' })}</b> — <span style="font-size:11.5px">${esc(card.gridRitual)}</span></div>` : ''}
+    </div>
+    ${card.gridRitual ? `<div class="banner info" style="margin-top:8px">🏁 <b>${tr({ it: 'Nuova serie, griglia da sbloccare (una volta sola)', en: 'New series, grid to unlock (once only)' })}</b> — <span style="font-size:12.5px">${esc(card.gridRitual)}</span></div>` : ''}
 
-    ${card.boxRadio?.tips?.length ? `<details style="margin-top:8px" open><summary style="cursor:pointer;font-size:12px"><b>${window.mechIcon ? window.mechIcon(13) : '📻'} ${tr({ it: 'Consigli dal BOX', en: 'BOX tips' })}</b> <span class="muted" style="font-size:11.5px">— ${tr({ it: "la scheda dell'ingegnere di gara, personale del meccanico", en: "the race engineer's sheet, the mechanic's staff" })}</span></summary>
-      <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${card.boxRadio.tips.map(t=>`<div style="display:flex;gap:10px;align-items:flex-start;background:var(--panel2,#121822);border:1px solid var(--line);border-radius:8px;padding:7px 10px"><span style="flex:none;font-size:15px">${t.icon}</span><div style="font-size:12px;line-height:1.45"><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></div></div>`).join('')}</div></details>` : ''}
+    ${card.boxRadio?.tips?.length ? `<details style="margin-top:8px" open><summary style="cursor:pointer;font-size:12.5px"><b>${window.mechIcon ? window.mechIcon(13) : '📻'} ${tr({ it: 'Consigli dal BOX', en: 'BOX tips' })}</b> <span class="muted" style="font-size:12.5px">— ${tr({ it: "la scheda dell'ingegnere di gara, personale del meccanico", en: "the race engineer's sheet, the mechanic's staff" })}</span></summary>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${card.boxRadio.tips.map(t=>`<div style="display:flex;gap:10px;align-items:flex-start;background:var(--panel2,#121822);border:1px solid var(--line);border-radius:8px;padding:7px 10px"><span style="flex:none;font-size:15px">${t.icon}</span><div style="font-size:12.5px;line-height:1.45"><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></div></div>`).join('')}</div></details>` : ''}
     <div id="ingegnere-live" style="margin-top:10px"></div>
     ${card.outlook ? `<div style="margin-top:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2,#151a24)">
-      <div style="font-size:12px;margin-bottom:4px"><b>${tr({ it: 'Obiettivo giro', en: 'Lap target' })}</b> · ${card.outlook.lapTarget ? `${tr({ it: 'il tuo best qui: ', en: 'your best here: ' })}<b style="color:var(--acc)">${esc(card.outlook.lapTarget.time)}</b> <span class="muted">(${window.carLinkHtml(card.outlook.lapTarget.car ?? '')}, ${esc((card.outlook.lapTarget.at||'').slice(0,10))})</span>` : `<span class="muted">${tr({ it: 'prima volta su questo tracciato: tutto da scrivere', en: 'first time on this track: everything to write down' })}</span>`}${card.outlook.mastery ? ` · <span class="tag ${card.outlook.mastery.level>=3?'gold':'blue'}" style="font-size:11.5px;padding:1px 7px">${tr({ it: 'maestria: ', en: 'mastery: ' })}${esc(card.outlook.mastery.name)}</span>` : ''}</div>
-      <div style="font-size:12px;margin-bottom:4px"><b>${tr({ it: 'Stagione', en: 'Season' })}</b> · ${card.outlook.standingPosition?`P${card.outlook.standingPosition} ${tr({ it: 'in classifica · ', en: 'in the standings · ' })}`:''}${card.outlook.racesRun}/${card.outlook.totalRounds} ${tr({ it: 'gare corse', en: 'races run' })} · ${card.outlook.seasonPoints} ${tr({ it: 'punti', en: 'points' })}${card.outlook.duel?` · ⚔️ ${tr({ it: 'duello con <b>', en: 'duel with <b>' })}${esc(card.outlook.duel.name)}</b> ${tr({ it: 'a ', en: 'at ' })}${card.outlook.duel.gap} pt`:''}${card.outlook.crowd?` · <span title="${tr({ it: 'stima spettatori dalla pista', en: 'crowd estimate from the track' })}">🧑‍🤝‍🧑 ${(card.outlook.crowd/1000).toFixed(0)}k ${tr({ it: 'attesi', en: 'expected' })}</span>`:''}</div>
-      ${card.outlook.contract?.length ? `<div style="font-size:12px;margin-bottom:4px"><b>${tr({ it: 'Contratto', en: 'Contract' })}</b> · ${card.outlook.contract.map(c=>`<span title="${esc(c.progress)}" style="white-space:nowrap">${c.decided===false?'<span style="color:var(--bad)">✗</span>':c.ok?'<span style="color:var(--good)">✓</span>':'•'} ${esc(c.text.split(' ').slice(0,4).join(' '))}…</span>`).join(' ')}</div>` : ''}
-    ${(card.timeMultiplier ?? 1) !== 1 ? `<div style="font-size:12px;margin-bottom:4px"><b>${tr({ it: 'Tempo', en: 'Time' })}</b> · ${tr({ it: 'moltiplicatore consigliato: ', en: 'suggested multiplier: ' })}<b>${card.timeMultiplier}x</b> <span class="muted">(${tr({ it: 'col gioco che corre più in fretta il pomeriggio si comprime: le ore di sessione restano quelle del calendario', en: 'with the game running faster the afternoon compresses: the session hours stay the ones of the calendar' })})</span></div>` : ''}
-      ${(card.outlook.rivals ?? []).length > 0 ? `<div style="font-size:12px;margin-top:6px"><b>${tr({ it: 'Rivali già visti', en: 'Rivals already faced' })}</b> <span class="muted" style="font-size:11.5px">${tr({ it: '· clicca un nome per la scheda completa', en: '· click a name for the full sheet' })}</span>
-          <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">${(card.outlook.rivals || []).map(r=>`<span class="chip ${r.h2h.beats>r.h2h.losses?'':'gold'}" data-rival="${esc(r.key??'')}" data-name="${esc(r.name)}" style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;flex-wrap:wrap;font-size:11.5px">
+      <div style="font-size:12.5px;margin-bottom:4px"><b>${tr({ it: 'Obiettivo giro', en: 'Lap target' })}</b> · ${card.outlook.lapTarget ? `${tr({ it: 'il tuo best qui: ', en: 'your best here: ' })}<b style="color:var(--acc)">${esc(card.outlook.lapTarget.time)}</b> <span class="muted">(${window.carLinkHtml(card.outlook.lapTarget.car ?? '')}, ${esc((card.outlook.lapTarget.at||'').slice(0,10))})</span>` : `<span class="muted">${tr({ it: 'prima volta su questo tracciato: tutto da scrivere', en: 'first time on this track: everything to write down' })}</span>`}${card.outlook.mastery ? ` · <span class="tag ${card.outlook.mastery.level>=3?'gold':'blue'}" style="font-size:12.5px;padding:1px 7px">${tr({ it: 'maestria: ', en: 'mastery: ' })}${esc(card.outlook.mastery.name)}</span>` : ''}</div>
+      <div style="font-size:12.5px;margin-bottom:4px"><b>${tr({ it: 'Stagione', en: 'Season' })}</b> · ${card.outlook.standingPosition?`<span title="${tr({ it: 'posizione dal modello della serie: i punti degli avversari sono simulati, i tuoi vengono dalle gare importate', en: 'position from the series model: rival points are simulated, yours come from imported races' })}">P${card.outlook.standingPosition} ${tr({ it: 'in classifica · ', en: 'in the standings · ' })}</span>`:''}${card.outlook.racesRun}/${card.outlook.totalRounds} ${tr({ it: 'gare corse', en: 'races run' })} · ${card.outlook.seasonPoints} ${tr({ it: 'punti', en: 'points' })}${card.outlook.duel?` · ⚔️ ${tr({ it: 'duello con <b>', en: 'duel with <b>' })}${esc(card.outlook.duel.name)}</b> ${tr({ it: 'a ', en: 'at ' })}${card.outlook.duel.gap} pt`:''}${card.outlook.crowd?` · <span title="${tr({ it: 'stima spettatori dalla pista', en: 'crowd estimate from the track' })}">🧑‍🤝‍🧑 ${(card.outlook.crowd/1000).toFixed(0)}k ${tr({ it: 'attesi', en: 'expected' })}</span>`:''}</div>
+      ${card.outlook.contract?.length ? `<div style="font-size:12.5px;margin-bottom:4px"><b>${tr({ it: 'Contratto', en: 'Contract' })}</b> · ${card.outlook.contract.map(c=>`<span title="${esc(c.progress)}" style="white-space:nowrap">${c.decided===false?'<span style="color:var(--bad)">✗</span>':c.ok?'<span style="color:var(--good)">✓</span>':'•'} ${esc(c.text.split(' ').slice(0,4).join(' '))}…</span>`).join(' ')}</div>` : ''}
+    ${(card.timeMultiplier ?? 1) !== 1 ? `<div style="font-size:12.5px;margin-bottom:4px"><b>${tr({ it: 'Tempo', en: 'Time' })}</b> · ${tr({ it: 'moltiplicatore consigliato: ', en: 'suggested multiplier: ' })}<b>${card.timeMultiplier}x</b> <span class="muted">(${tr({ it: 'col gioco che corre più in fretta il pomeriggio si comprime: le ore di sessione restano quelle del calendario', en: 'with the game running faster the afternoon compresses: the session hours stay the ones of the calendar' })})</span></div>` : ''}
+      ${(card.outlook.rivals ?? []).length > 0 ? `<div style="font-size:12.5px;margin-top:6px"><b>${tr({ it: 'Rivali già visti', en: 'Rivals already faced' })}</b> <span class="muted" style="font-size:12.5px">${tr({ it: '· clicca un nome per la scheda completa', en: '· click a name for the full sheet' })}</span>
+          <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">${(card.outlook.rivals || []).map(r=>`<span class="chip ${r.h2h.beats>r.h2h.losses?'':'gold'}" data-rival="${esc(r.key??'')}" data-name="${esc(r.name)}" style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;flex-wrap:wrap;font-size:12.5px">
               ${typeof rivalAvatar==='function'?rivalAvatar(r.name, 22):''}
-              <b>${esc(r.name)}</b>${r.team?`<span class="muted" style="font-size:11.5px">${esc(r.team)}</span>`:''}
-              ${(r.form ?? []).length ? `<span style="display:inline-flex;flex-wrap:wrap;gap:3px;align-items:center;min-width:0;max-width:100%">${tr({ it: 'forma:', en: 'form:' })} ${(r.form||[]).map(f=>`<span class="chip ${f==='DNF'?'':Number(f)<=3?'gold':''}" style="font-size:11.5px;padding:1px 7px">${f}</span>`).join(' ')}</span>` : ''}
-              ${r.trend==null?'':r.trend>0?`<span class="tag green" style="font-size:11.5px;padding:1px 7px">▲ +${r.trend} ${tr({ it: 'in salita', en: 'rising' })}</span>`:r.trend<0?`<span class="tag bad" style="font-size:11.5px;padding:1px 7px">▼ ${r.trend} ${tr({ it: 'in declino', en: 'declining' })}</span>`:''}
-              <span class="tag ${r.h2h.beats>r.h2h.losses?'red':'green'}" style="font-size:11.5px;padding:1px 7px">${r.h2h.losses}–${r.h2h.beats}</span>
-              <span class="muted" style="font-size:11.5px;margin-left:auto">${tr({ it: 'scontri in serie', en: 'series meetings' })} ${r.inSeries ?? ''}</span>
+              <b>${esc(r.name)}</b>${r.team?`<span class="muted" style="font-size:12.5px">${esc(r.team)}</span>`:''}
+              ${(r.form ?? []).length ? `<span style="display:inline-flex;flex-wrap:wrap;gap:3px;align-items:center;min-width:0;max-width:100%">${tr({ it: 'forma:', en: 'form:' })} ${(r.form||[]).map(f=>`<span class="chip ${f==='DNF'?'':Number(f)<=3?'gold':''}" style="font-size:12.5px;padding:1px 7px">${f}</span>`).join(' ')}</span>` : ''}
+              ${r.trend==null?'':r.trend>0?`<span class="tag green" style="font-size:12.5px;padding:1px 7px">▲ +${r.trend} ${tr({ it: 'in salita', en: 'rising' })}</span>`:r.trend<0?`<span class="tag bad" style="font-size:12.5px;padding:1px 7px">▼ ${r.trend} ${tr({ it: 'in declino', en: 'declining' })}</span>`:''}
+              <span class="tag ${r.h2h.beats>r.h2h.losses?'red':'green'}" style="font-size:12.5px;padding:1px 7px">${r.h2h.losses}–${r.h2h.beats}</span>
+              <span class="muted" style="font-size:12.5px;margin-left:auto">${tr({ it: 'scontri in serie', en: 'series meetings' })} ${r.inSeries ?? ''}</span>
             </span>`).join('')}</div>
         </div>` : ''}
     </div>` : ''}
@@ -793,9 +1035,9 @@ function drawCardInto(el, card){
       ${card.outlook.trackInfo.map ? `<img src="${card.outlook.trackInfo.map}" alt="${tr({ it: 'tracciato di ', en: 'track layout of ' })}${esc(card.trackName)}" style="width:180px;height:118px;flex:none;object-fit:contain;background:#000;border-radius:8px;padding:8px${card.outlook.trackInfo.map.endsWith('.svg')?';filter:invert(1);opacity:.92':''}">` : (card.outlook.trackInfo.outline ? `<svg viewBox="0 0 100 64" style="width:170px;height:110px;flex:none;background:#0d1118;border-radius:8px;padding:6px" aria-label="${tr({ it: 'tracciato di ', en: 'track layout of ' })}${esc(card.trackName)}"><path d="${card.outlook.trackInfo.outline}" fill="none" stroke="var(--acc)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/></svg>` : '')}
       <div class="race-track-info" style="flex:1;min-width:230px">
         <div style="font-size:13px;margin-bottom:5px"><b>${flagOf(card.outlook.trackInfo.country)} ${window.trackLinkHtml(card.trackName)}</b> <span class="muted">· ${esc(tr({ it: card.outlook.trackInfo.nick, en: card.outlook.trackInfo.nickEn }))} · ${esc(tr({ it: card.outlook.trackInfo.country, en: card.outlook.trackInfo.countryEn }))} · ${card.outlook.trackInfo.lengthKm} km, ${card.outlook.trackInfo.corners} ${tr({ it: 'curve', en: 'corners' })}, ${tr({ it: 'dal ', en: 'opened in ' })}${card.outlook.trackInfo.opened}</span></div>
-        ${card.outlook.trackRec ? `<div style="font-size:12.5px"><b>${tr({ it: '🏁 Giro più veloce in pista', en: '🏁 Fastest lap of the track' })}</b> · <b style="color:var(--acc);font-size:15px">${esc(card.outlook.trackRec.time)}</b> — ${esc(card.outlook.trackRec.driver)}${card.outlook.trackRec.mine?` <span class="tag green" style="font-size:11.5px;padding:1px 7px">${tr({ it: 'tu', en: 'you' })}</span>`:''}<br><span class="muted">${window.carLinkHtml(card.outlook.trackRec.car ?? '')}${card.outlook.trackRec.sameCar?'':' · ' + tr({ it: 'altra auto', en: 'another car' })} · ${esc((card.outlook.trackRec.at ?? '').slice(0, 10))}${card.outlook.lapTarget&&card.outlook.lapTarget.time!==card.outlook.trackRec.time?` · ${tr({ it: 'il tuo migliore: ', en: 'your best: ' })}${esc(card.outlook.lapTarget.time)}`:''}</span></div>` : ''}
-        <details style="margin-top:6px"><summary class="muted" style="cursor:pointer;font-size:12px">📖 ${tr({ it: 'la storia di ', en: 'the history of ' })}${esc(card.trackName)}</summary>
-        <div class="muted" style="margin-top:5px;font-size:12px;line-height:1.55">${esc(tr({ it: card.outlook.trackInfo.history, en: card.outlook.trackInfo.historyEn }))}</div>
+        ${card.outlook.trackRec ? `<div style="font-size:12.5px"><b>${tr({ it: '🏁 Giro più veloce in pista', en: '🏁 Fastest lap of the track' })}</b> · <b style="color:var(--acc);font-size:15px">${esc(card.outlook.trackRec.time)}</b> — ${esc(card.outlook.trackRec.driver)}${card.outlook.trackRec.mine?` <span class="tag green" style="font-size:12.5px;padding:1px 7px">${tr({ it: 'tu', en: 'you' })}</span>`:''}<br><span class="muted">${window.carLinkHtml(card.outlook.trackRec.car ?? '')}${card.outlook.trackRec.sameCar?'':' · ' + tr({ it: 'altra auto', en: 'another car' })} · ${esc((card.outlook.trackRec.at ?? '').slice(0, 10))}${card.outlook.lapTarget&&card.outlook.lapTarget.time!==card.outlook.trackRec.time?` · ${tr({ it: 'il tuo migliore: ', en: 'your best: ' })}${esc(card.outlook.lapTarget.time)}`:''}</span></div>` : ''}
+        <details style="margin-top:6px"><summary class="muted" style="cursor:pointer;font-size:12.5px">📖 ${tr({ it: 'la storia di ', en: 'the history of ' })}${esc(card.trackName)}</summary>
+        <div class="muted" style="margin-top:5px;font-size:12.5px;line-height:1.55">${esc(tr({ it: card.outlook.trackInfo.history, en: card.outlook.trackInfo.historyEn }))}</div>
         <button class="mini" style="margin-top:6px" onclick="document.querySelector('#nav button[data-tab=tracks]').click()">${tr({ it: 'Apri il libro delle piste', en: 'Open the book of tracks' })}</button></details>
       </div>
     </div>` : ''}
@@ -804,8 +1046,11 @@ function drawCardInto(el, card){
     ${card.difficulty?.trim >= (20) ? `<div class="banner warn" style="margin-top:10px"><b>${tr({ it: 'Difficoltà al massimo', en: 'Difficulty at the max' })}</b> — ${tr({ it: 'il trim adattivo è arrivato a +20 e la serie resta troppo facile: il passo successivo è passare a una serie più alta (bottone 🎯 nel cruscotto).', en: 'the adaptive trim reached +20 and the series still feels too easy: the next step is moving up to a higher series (the 🎯 button in the dashboard).' })}</div>` : ''}
     ${card.warnings.length ? `<ul class="warnlist">${card.warnings.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>` : ''}
     <div id="card-actions" class="card-actions" style="margin-top:12px">
-    <button class="act" id="b-race" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto', en: '🏁 Get everything ready' })}</button>
-    <button class="act" id="b-race-launch" style="width:100%;margin-top:6px">${tr({ it: '🏁 Prepara tutto e avvia', en: '🏁 Get everything ready and start' })}</button>
+    ${/* 6/11 — GERARCHIA (richiesta Mauro): due bottoni oro identici non dicevano
+         quale fosse il gesto principale. «Prepara tutto e avvia» è il percorso
+         completo; «Prepara tutto» resta raggiungibile, secondario. */ ''}
+    <button class="act" id="b-race-launch" style="width:100%;margin-top:10px">${tr({ it: '🏁 Prepara tutto e avvia', en: '🏁 Get everything ready and start' })}</button>
+    <button class="act sec" id="b-race" style="width:100%;margin-top:6px">${tr({ it: 'Prepara tutto', en: 'Get everything ready' })}</button>
     <div class="muted" style="margin-top:10px">${tr({ it: 'Il round intero lo scrive in EVO «Prepara tutto»: pista, auto, griglia, meteo e orari. Con «Prepara tutto e avvia» il gioco si apre e l’app preme «Avvia sessione» da sola; con il primo apri tu EVO e premi «Avvia sessione». Se una riga non torna, ripremi il bottone.', en: 'The whole round gets written into EVO by “Get everything ready”: track, car, grid, weather and session times. “Get everything ready and start” opens the game and the app presses “Start session” by itself; with the first one you open EVO and press “Start session”. If a row looks off, press the button again.' })}</div>
 
     </div>
@@ -1020,7 +1265,7 @@ function drawCardInto(el, card){
         cp.at = 0;
         cp.grace = Date.now() + 15000;
       }
-      const wearRow = (m.gauges?.wear || []).length === 4 ? `<span class="muted" style="font-size:11.5px">${tr({ it: 'gomme', en: 'tyres' })} LF ${m.gauges.wear[0]}% · RF ${m.gauges.wear[1]}% · LR ${m.gauges.wear[2]}% · RR ${m.gauges.wear[3]}%${m.gauges.temp?.every(v=>v>0)?' · core '+m.gauges.temp.map(v=>v+'°C').join('/'):''}</span>` : '';
+      const wearRow = (m.gauges?.wear || []).length === 4 ? `<span class="muted" style="font-size:12.5px">${tr({ it: 'gomme', en: 'tyres' })} LF ${m.gauges.wear[0]}% · RF ${m.gauges.wear[1]}% · LR ${m.gauges.wear[2]}% · RR ${m.gauges.wear[3]}%${m.gauges.temp?.every(v=>v>0)?' · core '+m.gauges.temp.map(v=>v+'°C').join('/'):''}</span>` : '';
       /* --- DELTA DI RITMO: il numero grande che oggi non c'era --- */
       const dv = m.delta?.dv ?? m.delta?.hudDv ?? null;   // ms, con il segno
       const dvCol = dv == null ? 'var(--text)' : dv < 0 ? '#7f7' : '#f66';
@@ -1029,14 +1274,14 @@ function drawCardInto(el, card){
         : tr({ it: "delta HUD del gioco — il tuo best si traccia al primo giro valido", en: "HUD delta — your best gets traced from the first valid lap" });
       const dvHtml = `<div style="flex:1;min-width:190px">
           <div style="font-size:40px;font-weight:800;color:${dvCol};line-height:1;letter-spacing:-1px">${esc(fmtDelta(dv))}</div>
-          <div class="muted" style="font-size:11.5px;margin-top:3px">${dvSub}</div>
-          <div class="muted" style="font-size:11.5px;margin-top:2px">${m.timing?.lastLap ? tr({ it: 'ultimo giro ', en: 'last lap ' }) + `<b>${esc(m.timing.lastLap)}</b>` : ''}${m.timing?.bestLap ? ` · ${tr({ it: 'best ', en: 'best ' })}${esc(m.timing.bestLap)}` : ''}${dv != null && dv < 0 ? ` · <span style="color:#7f7">${tr({ it: 'stai andando sotto', en: 'running quicker' })}</span>` : dv != null ? ` · <span style="color:#f66">${tr({ it: 'stai perdendo', en: 'losing time' })}</span>` : ''}</div>
+          <div class="muted" style="font-size:12.5px;margin-top:3px">${dvSub}</div>
+          <div class="muted" style="font-size:12.5px;margin-top:2px">${m.timing?.lastLap ? tr({ it: 'ultimo giro ', en: 'last lap ' }) + `<b>${esc(m.timing.lastLap)}</b>` : ''}${m.timing?.bestLap ? ` · ${tr({ it: 'best ', en: 'best ' })}${esc(m.timing.bestLap)}` : ''}${dv != null && dv < 0 ? ` · <span style="color:#7f7">${tr({ it: 'stai andando sotto', en: 'running quicker' })}</span>` : dv != null ? ` · <span style="color:#f66">${tr({ it: 'stai perdendo', en: 'losing time' })}</span>` : ''}</div>
         </div>`;
       /* --- FINESTRA PIT: quando fermarsi, prima che la gomma dica la sua --- */
       const pit = m.pit;
       const pitHtml = pit?.need
         ? `<div class="banner warn" style="margin-top:8px;padding:8px 10px"><b>🔧 ${tr({ it: 'Finestra pit', en: 'Pit window' })}</b> — ${esc(pit.reason)}. ${tr({ it: 'Fermarsi al giro ', en: 'Pit on lap ' })}<b>${pit.pitLap + 1}</b> ${pit.lapsToWindow === 0 ? tr({ it: '(aperta adesso)', en: '(open now)' }) : `· ${tr({ it: 'si apre tra ', en: 'opens in ' })}<b>${pit.lapsToWindow}</b> ${tr({ it: 'giri', en: 'laps' })}`} · <span class="muted">${tr({ it: 'fermarsi dopo perdere ~', en: 'staying out costs ~' })}${pit.pitLossSec}s</span></div>`
-        : (pit && pit.need === null ? `<div class="muted" style="font-size:11.5px;margin-top:6px">🔧 ${esc(pit.reason)}</div>` : '');
+        : (pit && pit.need === null ? `<div class="muted" style="font-size:12.5px;margin-top:6px">🔧 ${esc(pit.reason)}</div>` : '');
       const mapHtml = deltaMapSvg(m.mapTrack, m.delta?.segments, m.carPos);
       /* PIANO STINT (31/10, DA-9): le finestre calcolate PRIMA della gara dai
          dati del sedile + la finestra VIVA (quanti giri mancano alla sosta
@@ -1046,8 +1291,8 @@ function drawCardInto(el, card){
       const piano = m.stintPlan?.ok ? m.stintPlan : null;
       const fin = m.stintAlert ?? null;
       const stintHtml = !piano ? '' : `<div class="banner" ${fin ? 'style="margin-top:8px;padding:8px 10px;border-color:#e0a030"' : 'style="margin-top:8px;padding:8px 10px"'}>
-        <b>⛽ ${tr({ it: 'Piano stint', en: 'Stint plan' })}</b> — ${esc(tr(piano.notes[0] ?? { it: '', en: '' }))} · <span class="muted" style="font-size:11.5px">${esc(tr(piano.notes[1] ?? { it: '', en: '' }))}</span>
-        <span class="muted" style="font-size:11.5px">${piano.windows?.length ? ` · ${tr({ it: 'finestre giri ', en: 'window laps ' })}${piano.windows.map((w) => `${w.earliest}–${w.latest}`).join(' / ')}` : ''}</span>
+        <b>⛽ ${tr({ it: 'Piano stint', en: 'Stint plan' })}</b> — ${esc(tr(piano.notes[0] ?? { it: '', en: '' }))} · <span class="muted" style="font-size:12.5px">${esc(tr(piano.notes[1] ?? { it: '', en: '' }))}</span>
+        <span class="muted" style="font-size:12.5px">${piano.windows?.length ? ` · ${tr({ it: 'finestre giri ', en: 'window laps ' })}${piano.windows.map((w) => `${w.earliest}–${w.latest}`).join(' / ')}` : ''}</span>
         ${fin ? `<div style="margin-top:4px;font-size:12.5px"><b>🔧 ${fin.lapsTo === 0 ? tr({ it: 'Box entro QUESTO giro', en: 'Pit within THIS lap' }) : tr({ it: `Box entro ${fin.lapsTo} giri`, en: `Pit within ${fin.lapsTo} laps` })}</b> — ${tr({ it: `finestra sosta ${fin.k} (giri ${fin.earliest}–${fin.latest})`, en: `stop ${fin.k} window (laps ${fin.earliest}–${fin.latest})` })}</div>` : ''}
       </div>`;
       /* VIGIA DEL PARCO AUTO (24/10, Mauro): se l'auto del sedile non è una di
@@ -1066,7 +1311,7 @@ function drawCardInto(el, card){
         : '';  // in parco: nessun rumore
       ingOut.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:#0d1118">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <div style="font-size:12px"><b>${tr({ it: '🎧 Ingegnere LIVE', en: '🎧 Engineer LIVE' })}</b> <span class="muted" style="font-size:11.5px">· P${m.gauges.position??'—'}/${m.gauges.drivers??'—'}${m.gauges.lapsTotal!=null?` · ${tr({ it: 'giro ', en: 'lap ' })}${Math.min(m.gauges.lapsTotal, m.gauges.lapsDone+1)}/${m.gauges.lapsTotal}`:''}${m.gauges.timeLeft?` · ${tr({ it: 'resta ', en: 'left ' })}${esc(m.gauges.timeLeft)}`:''}${m.gauges.fuel!=null?` · ${tr({ it: 'benzina ', en: 'fuel ' })}${m.gauges.fuel} L`:''}${m.telemTrack?` · ${tr({ it: 'consumo da ', en: 'consumption from ' })}${esc(m.telemTrack)}`:''}</span></div>
+          <div style="font-size:12.5px"><b>${tr({ it: '🎧 Ingegnere LIVE', en: '🎧 Engineer LIVE' })}</b> <span class="muted" style="font-size:12.5px">· P${m.gauges.position??'—'}/${m.gauges.drivers??'—'}${m.gauges.lapsTotal!=null?` · ${tr({ it: 'giro ', en: 'lap ' })}${Math.min(m.gauges.lapsTotal, m.gauges.lapsDone+1)}/${m.gauges.lapsTotal}`:''}${m.gauges.timeLeft?` · ${tr({ it: 'resta ', en: 'left ' })}${esc(m.gauges.timeLeft)}`:''}${m.gauges.fuel!=null?` · ${tr({ it: 'benzina ', en: 'fuel ' })}${m.gauges.fuel} L`:''}${m.telemTrack?` · ${tr({ it: 'consumo da ', en: 'consumption from ' })}${esc(m.telemTrack)}`:''}</span></div>
           <button class="mini" id="cp-toggle" type="button" title="${esc(voceServer
             ? tr({ it: 'La voce la fa il PITWALL (server, Cosimo: parla anche con la GUI chiusa, in gara). Click: spegni tutto — copilota muta.', en: 'The voice comes from the server PITWALL (Cosimo: it speaks even with the GUI closed). Click to mute everything.' })
             : tr({ it: 'Copilota vocale: le stesse info dell\'ingegnere, dette con la voce. Click: lo accendi lato Pitwall (parla anche con la GUI chiusa).', en: 'Voice copilot: the same engineer info, spoken aloud. Click to enable it on the Pitwall side — it speaks even with the GUI closed.' }))}" style="margin-left:auto;letter-spacing:0.2px">
@@ -1077,9 +1322,9 @@ function drawCardInto(el, card){
         </div>
         <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-top:8px">
           ${dvHtml}
-          ${mapHtml ? `<div style="flex:none">${mapHtml}<div class="muted" style="font-size:11.5px;margin-top:4px;max-width:290px"><span style="color:#7f7">■ ${tr({ it: 'guadagni', en: 'gain' })}</span> · <span style="color:#f66">■ ${tr({ it: 'perdi', en: 'lose' })}</span> · ${tr({ it: 'passa il mouse sulle fette per il decimo esatto', en: 'hover the slices for the exact tenth' })}</div></div>` : ''}
+          ${mapHtml ? `<div style="flex:none">${mapHtml}<div class="muted" style="font-size:12.5px;margin-top:4px;max-width:290px"><span style="color:#7f7">■ ${tr({ it: 'guadagni', en: 'gain' })}</span> · <span style="color:#f66">■ ${tr({ it: 'perdi', en: 'lose' })}</span> · ${tr({ it: 'passa il mouse sulle fette per il decimo esatto', en: 'hover the slices for the exact tenth' })}</div></div>` : ''}
         </div>
-        <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">${(m.tips||[]).map(t=>`<div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.4"><span style="flex:none">${t.icon}</span><span><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></span></div>`).join('')}</div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">${(m.tips||[]).map(t=>`<div style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.4"><span style="flex:none">${t.icon}</span><span><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></span></div>`).join('')}</div>
         ${wearRow ? `<div style="margin-top:6px">${wearRow}</div>` : ''}        ${pitHtml}
         ${stintHtml}
         ${autoHtml}
@@ -1174,12 +1419,11 @@ function drawCardInto(el, card){
     try { await api('challenge-accept', {}); toast(tr({ it: 'Sfida accettata: in bocca al lupo.', en: 'Challenge accepted: good luck.' }), 'ok'); drawCardInto(el, await api('card', { car: $('#sel-car', el)?.value ?? null })); }
     catch(e){ toast(e.message, 'err'); }
   });
-  /* 27/10 (gara preparata verso mezzogiorno): il selettore auto esiste SOLO
-     nella card che ha il render (`card.carImage`) — quando l'auto della card
-     non combacia (es. Ferrari F40 LM assente nell'indice dei render) l'elemento
-     MANCA e questa riga senza guard rompeva l'intero ridisegno dopo «Prepara
-     tutto», cancellando anche le righe di log e coprendo il messaggio vero
-     del server (auto fuori dizionario = gara che parte lo stesso). Guard. */
+  /* 27/10 (gara preparata verso mezzogiorno): senza `card.carImage` il
+     selettore auto non c'era e questa riga senza guard rompeva tutto il
+     ridisegno dopo «Prepara tutto» (cancellando il log e coprendo il
+     messaggio vero del server). Dal 6/11 il riquadro c'è sempre e la foto è
+     opzionale; il guard resta perché il selettore dipende dalla card. */
   $('#sel-car', el)?.addEventListener('change', async () => drawCardInto(el, await api('card', {car: $('#sel-car', el)?.value ?? null})));
   $('#b-copy', el).onclick = async () => {
     const text = `${card.nodeDisplay} — ${card.roundName} (R${card.roundIndex+1}/${card.totalRounds})\n` +

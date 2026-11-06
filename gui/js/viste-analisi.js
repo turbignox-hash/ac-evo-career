@@ -60,11 +60,11 @@ function renderAutopsia(host, d){
   host.innerHTML = `<h2>🔬 ${tr({ it: 'Autopsia della gara', en: 'Race autopsy' })}
       <span class="h-act">${esc(d.node ?? '')} · S${d.season} R${(d.round ?? 0) + 1}${d.hasRaceRow ? '' : tr({ it: ' · griglia non in archivio', en: ' · grid not in archive' })}</span></h2>
     <div class="grid6" style="margin-bottom:12px">
-      <div class="kpi"><div class="l">${tr({ it: 'Esito', en: 'Result' })}</div><div class="v ${e.dnf ? 'bad' : e.position === 1 ? 'good' : ''}">${e.dnf ? 'DNF' : 'P' + (e.position ?? '?')}<span class="faint" style="font-size:11.5px">/${e.gridSize ?? '?'}</span></div></div>
+      <div class="kpi"><div class="l">${tr({ it: 'Esito', en: 'Result' })}</div><div class="v ${e.dnf ? 'bad' : e.position === 1 ? 'good' : ''}">${e.dnf ? 'DNF' : 'P' + (e.position ?? '?')}<span class="faint" style="font-size:12.5px">/${e.gridSize ?? '?'}</span></div></div>
       <div class="kpi"><div class="l">${tr({ it: 'Punti', en: 'Points' })}</div><div class="v">+${e.points ?? 0}</div></div>
       <div class="kpi"><div class="l">${tr({ it: 'Giri', en: 'Laps' })}</div><div class="v">${e.laps ?? '—'}</div></div>
       <div class="kpi"><div class="l">${kpiGapLabel}</div><div class="v">${kpiGapValue}</div></div>
-      <div class="kpi"><div class="l">${tr({ it: 'Giro veloce', en: 'Fastest lap' })}</div><div class="v">${esc(e.fl ? (e.bestLap ?? '') : (d.fastestOfRace?.lap ?? e.bestLap ?? '—'))}<span class="faint" style="font-size:11.5px;display:block;margin-top:2px">${flOwner}</span></div></div>
+      <div class="kpi"><div class="l">${tr({ it: 'Giro veloce', en: 'Fastest lap' })}</div><div class="v">${esc(e.fl ? (e.bestLap ?? '') : (d.fastestOfRace?.lap ?? e.bestLap ?? '—'))}<span class="faint" style="font-size:12.5px;display:block;margin-top:2px">${flOwner}</span></div></div>
       <div class="kpi"><div class="l">${tr({ it: 'Partenza → arrivo', en: 'Grid → flag' })}</div><div class="v">${e.gridPosition != null ? 'P' + esc(e.gridPosition) + ' → ' + (e.dnf ? 'DNF' : 'P' + (e.position ?? '?')) : '—'}</div></div>
     </div>
     ${(d.attributions ?? []).map((a) => `
@@ -72,7 +72,7 @@ function renderAutopsia(host, d){
         <span class="tag ${a.kind === 'good' ? 'green' : a.kind === 'bad' ? 'bad' : ''}" style="min-width:120px;text-align:center">${esc(a.title)}</span>
         <span style="flex:1">${esc(a.text)}</span>
       </div>`).join('')}
-    ${(d.narrative ?? []).length ? `<details style="margin-top:10px"><summary class="muted" style="cursor:pointer">${tr({ it: "il racconto dell'ingegnere", en: "the engineer's story" })}</summary>
+    ${(d.narrative ?? []).length ? `<details style="margin-top:10px"><summary class="muted" style="cursor:pointer;font-size:12.5px;text-transform:uppercase;letter-spacing:1.4px">${tr({ it: "Il racconto dell'ingegnere", en: "The engineer's story" })}</summary>
       <div style="margin-top:8px;font-size:12.5px;line-height:1.55">${(d.narrative ?? []).map((t) => `<div style="margin:4px 0">• ${esc(t)}</div>`).join('')}</div></details>` : ''}`;
 }
 
@@ -132,10 +132,10 @@ function renderTetto(host, d){
       <td>${t.worstSector != null ? `<span class="tag red">S${t.worstSector}</span> <span class="muted">${fmtSecMs(t.worstSectorDeltaMs, false).replace('+', '+')}</span>${t.picco != null ? ` · <span title="${tr({ it: 'picco: il colpo singolo più grosso che la mediana nasconde', en: 'peak: the biggest single hit the median hides' })}" class="tag" style="color:#f0a93c;border-color:#f0a93c55">${tr({ it: 'picco', en: 'peak' })}</span> ${t.picco.sector !== t.worstSector ? `<span class="tag red">S${t.picco.sector}</span> ` : ''}<span class="muted">${fmtSecMs(t.picco.deltaMs, false).replace('+', '+')}</span>` : ''}` : '—'}</td>
       <td class="right">${t.margineMs != null ? `${fmtSecMs(t.margineMs, false)}${t.margineMs < 0 ? ` <span class="tag" style="color:#f0a93c;border-color:#f0a93c55" title="${tr({ it: 'margine negativo: nel log del gioco i settori battono il giro accreditato — ma quel giro (vigliettato, fuori pista o di uscita) NON è stato accreditato dal gioco, conta solo a settori; il margine valuta anche quel potenziale, non un tempo riconosciuto', en: 'negative margin: in the game log the sectors beat the credited lap — but that lap (flagged, off track or an out lap) was NOT credited by the game, it counts only as sectors; the margin prices that potential too, not a time the game accepts' })}">⚠ ${tr({ it: 'giro non accreditato', en: 'uncredited lap' })}</span>` : ''}` : '—'}</td>
     </tr>`).join('')}</tbody></table>
-    ${veri.some((t) => t.margineMs != null && t.margineMs < 0) ? `<div class="muted" style="margin-top:6px;font-size:11.5px">⚠ ${tr({ it: 'margine negativo: nei log del gioco esiste potenziale settoriale più veloce del giro che il gioco ha accreditato (es. ultima passata con settori validi ma giro non accreditato, vigliettato o fuori pista): è potenziale nascosto, non un tempo riconosciuto', en: 'negative margin: the game logs hold sector potential faster than the lap the game credited (e.g. a final flyer with valid sectors whose lap was not credited — flagged or off track): hidden potential, not a recognized time' })}</div>` : ''}
-    ${veri.length < d.perTrack.length ? `<div class="muted" style="margin-top:6px;font-size:11.5px">${d.perTrack.length - veri.length} ${tr({ it: 'piste senza riparto settoriale vero: fuori dalla tabella', en: 'tracks without a real sector split: not listed' })}</div>` : ''}
-    ${d.worstSectors?.length ? `<div style="margin-top:10px"><b class="muted" style="font-size:12px">${tr({ it: 'I settori peggiori della carriera:', en: 'Worst career sectors:' })}</b>
-      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${d.worstSectors.map((w) => `<span class="chip" style="font-size:11.5px">${esc(w.track ?? '?')} S${w.sector} ${fmtSecMs(w.deltaMs, false)}</span>`).join('')}</div></div>` : ''}`;
+    ${veri.some((t) => t.margineMs != null && t.margineMs < 0) ? `<div class="muted" style="margin-top:6px;font-size:12.5px">⚠ ${tr({ it: 'margine negativo: nei log del gioco esiste potenziale settoriale più veloce del giro che il gioco ha accreditato (es. ultima passata con settori validi ma giro non accreditato, vigliettato o fuori pista): è potenziale nascosto, non un tempo riconosciuto', en: 'negative margin: the game logs hold sector potential faster than the lap the game credited (e.g. a final flyer with valid sectors whose lap was not credited — flagged or off track): hidden potential, not a recognized time' })}</div>` : ''}
+    ${veri.length < d.perTrack.length ? `<div class="muted" style="margin-top:6px;font-size:12.5px">${d.perTrack.length - veri.length} ${tr({ it: 'piste senza riparto settoriale vero: fuori dalla tabella', en: 'tracks without a real sector split: not listed' })}</div>` : ''}
+    ${d.worstSectors?.length ? `<div style="margin-top:10px"><b class="muted" style="font-size:12.5px">${tr({ it: 'I settori peggiori della carriera:', en: 'Worst career sectors:' })}</b>
+      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${d.worstSectors.map((w) => `<span class="chip" style="font-size:12.5px">${esc(w.track ?? '?')} S${w.sector} ${fmtSecMs(w.deltaMs, false)}</span>`).join('')}</div></div>` : ''}`;
 }
 
 /* — QUADRO-ZONE (1/11): la striscia del giro — DOVE il netto A/B nasce,      */
@@ -168,15 +168,15 @@ function abZoneStrip(zl, points = 240) {
   return `<svg viewBox="0 0 ${points} ${H}" width="100%" height="${H}" preserveAspectRatio="none" style="display:block;background:rgba(255,255,255,0.04);border:1px solid var(--line,#ddd);border-radius:6px" role="img">
       <line x1="0" x2="${points}" y1="${BASE}" y2="${BASE}" stroke="var(--line,#999)" stroke-width="0.6"/>
       ${body}</svg>
-    <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;margin-top:3px;align-items:baseline">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;margin-top:3px;align-items:baseline">
       ${['frenata', 'uscita', 'gas'].map((z) => {
         const v = (tot[z] ?? 0);
         // RINFORZO (2/11, richiesta Mauro): il colore dice la zona, il NUMERO
         // dice quanto — niente più leggere i secondi solo col tooltip.
         return `<span><span style="color:${AB_ZONE_TINT[z]}">■</span> ${esc(abZoneLabel(z))} <b style="color:${AB_ZONE_TINT[z]}">${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}s</b></span>`;
       }).join('')}
-      <span class="muted" style="font-size:11.5px">${tr({ it: 'netto', en: 'net' })} <b style="color:${net >= 0 ? '#e15b64' : '#4bbf73'}">${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(2)}s</b></span>
-      <span class="muted" style="margin-left:auto;font-size:11.5px">${tr({ it: 'in alto: tempo perso da A · in basso (tratteggiato): guadagnato', en: 'above the line: lost by A · below (hatched): gained' })}</span>
+      <span class="muted" style="font-size:12.5px">${tr({ it: 'netto', en: 'net' })} <b style="color:${net >= 0 ? '#e15b64' : '#4bbf73'}">${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(2)}s</b></span>
+      <span class="muted" style="margin-left:auto;font-size:12.5px">${tr({ it: 'in alto: tempo perso da A · in basso (tratteggiato): guadagnato', en: 'above the line: lost by A · below (hatched): gained' })}</span>
     </div>
     ${abZoneVerdetto(zl)}`;
 }
@@ -193,10 +193,10 @@ function abZoneVerdetto(zl) {
   const lbl = (z) => (z === 'netto' ? tr({ it: 'netto', en: 'net' }) : abZoneLabel(z));
   if (chk.ok) {
     const extra = chk.netRiparto != null ? ` — ${tr({ it: 'netto', en: 'net' })} <b>${fmt(chk.netto)}</b> ${tr({ it: 'vs', en: 'vs' })} <b>${fmt(chk.netRiparto)}</b>` : '';
-    return `<div class="muted" style="font-size:11.5px;margin-top:3px">✔ ${tr({ it: 'registro: striscia e riparto del banco tornano', en: 'ledger: strip and bench split agree' })}${extra}</div>`;
+    return `<div class="muted" style="font-size:12.5px;margin-top:3px">✔ ${tr({ it: 'registro: striscia e riparto del banco tornano', en: 'ledger: strip and bench split agree' })}${extra}</div>`;
   }
   const scarti = (chk.scarti ?? []).map((s) => `${esc(lbl(s.zone))} striscia <b>${fmt(s.striscia)}</b> ${tr({ it: 'vs riparto', en: 'vs split' })} <b>${fmt(s.riparto)}</b>`);
-  return `<div style="font-size:11.5px;margin-top:3px;color:#f0a93c">⚠ ${tr({ it: 'registro: NON tornano', en: 'ledger: they do NOT agree' })} — ${scarti.join(' · ')}</div>`;
+  return `<div style="font-size:12.5px;margin-top:3px;color:#f0a93c">⚠ ${tr({ it: 'registro: NON tornano', en: 'ledger: they do NOT agree' })} — ${scarti.join(' · ')}</div>`;
 }
 
 /* -------------------- 3) BANCO A/B DEI SETUP -------------------- */
@@ -212,8 +212,8 @@ async function renderAB(host){
       <select id="ab-b" style="flex:1 1 220px;min-width:0;max-width:100%"><option value="">${tr({ it: 'sessione B (prova)…', en: 'session B (trial)…' })}</option></select>
       <button class="mini acc" id="ab-go">${tr({ it: 'Confronta', en: 'Compare' })}</button>
     </div>
-    <div id="ab-note" class="muted" style="margin-top:8px;text-align:center;font-size:12px">${tr({ it: 'EVO registra il setup nel nome file (preset_…): due preset in due sessioni = un confronto A/B giusto.', en: "EVO stores the setup in the file name (preset_…): two presets across two sessions make a fair A/B." })}</div>
-    <div id="ab-cnt" class="muted" style="margin-top:4px;text-align:center;font-size:11.5px"></div>`;
+    <div id="ab-note" class="muted" style="margin-top:8px;text-align:center;font-size:12.5px">${tr({ it: 'EVO registra il setup nel nome file (preset_…): due preset in due sessioni = un confronto A/B giusto.', en: "EVO stores the setup in the file name (preset_…): two presets across two sessions make a fair A/B." })}</div>
+    <div id="ab-cnt" class="muted" style="margin-top:4px;text-align:center;font-size:12.5px"></div>`;
   let list = [];
   let senza = [];
   let prefer = null;
@@ -393,8 +393,8 @@ async function renderAB(host){
         : tr({ it: `la sessione ${unSoloGiro} ha un solo giro: il «best» può essere un out-lap senza transito cronometrato (nessun beacon), guardalo prima di fidarlo.`, en: `session ${unSoloGiro} has a single lap: the “best” may be an out-lap with no timed crossing (no beacons) — check it before trusting it.` }))}</div>` : '';
       modal(tr({ it: 'Banco A/B — confronto', en: 'A/B bench — comparison' }), `
         <div class="grid2" style="margin-bottom:12px">
-          <div class="kpi"><div class="l">A · ${esc(d.A.preset ?? '?')}</div><div class="v">${d.A.bestLapSec != null ? dec(Number(d.A.bestLapSec).toFixed(2)) + 's' : '—'}</div><div class="faint" style="font-size:11.5px">${esc(d.A.file ?? '')}${dataDi(a) ? ` · ${esc(dataDi(a))}` : ''} · ${d.A.laps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</div></div>
-          <div class="kpi"><div class="l">B · ${esc(d.B.preset ?? '?')}</div><div class="v">${d.B.bestLapSec != null ? dec(Number(d.B.bestLapSec).toFixed(2)) + 's' : '—'}</div><div class="faint" style="font-size:11.5px">${esc(d.B.file ?? '')}${dataDi(b) ? ` · ${esc(dataDi(b))}` : ''} · ${d.B.laps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</div></div>
+          <div class="kpi"><div class="l">A · ${esc(d.A.preset ?? '?')}</div><div class="v">${d.A.bestLapSec != null ? dec(Number(d.A.bestLapSec).toFixed(2)) + 's' : '—'}</div><div class="faint" style="font-size:12.5px">${esc(d.A.file ?? '')}${dataDi(a) ? ` · ${esc(dataDi(a))}` : ''} · ${d.A.laps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</div></div>
+          <div class="kpi"><div class="l">B · ${esc(d.B.preset ?? '?')}</div><div class="v">${d.B.bestLapSec != null ? dec(Number(d.B.bestLapSec).toFixed(2)) + 's' : '—'}</div><div class="faint" style="font-size:12.5px">${esc(d.B.file ?? '')}${dataDi(b) ? ` · ${esc(dataDi(b))}` : ''} · ${d.B.laps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</div></div>
         </div>
         ${avvisoGiro}
         ${d.deltaBest != null ? `<div class="banner ${d.deltaBest > 0 ? 'good' : 'warn'}" style="margin-bottom:12px">${d.deltaBest > 0 ? 'A più lento' : 'B più lento'}: differenza giro-best ${sign(d.deltaBest, 2).replace('+', '')}s</div>` : ''}
@@ -406,7 +406,7 @@ async function renderAB(host){
         ${d.brake?.text ? `<div class="banner info" style="margin-top:8px">🎯 ${esc(d.brake.text)}</div>` : ''}
         ${d.A?.launch?.verdict || d.B?.launch?.verdict ? `<div class="banner" style="margin-top:8px">🚀 ${esc(d.A?.launch?.verdict ?? d.B.launch.verdict)}</div>` : ''}
         ${d.A?.evolution?.verdict || d.B?.evolution?.verdict ? `<div class="banner" style="margin-top:8px">🌡️ ${esc(d.A?.evolution?.verdict ?? d.B.evolution.verdict)}</div>` : ''}
-        <div class="muted" style="margin-top:8px;font-size:12px">${tr({ it: 'Tempo perso: ', en: 'Time lost: ' })}${dec((d.lostS ?? 0).toFixed(2))}s · ${tr({ it: 'tempo guadagnato: ', en: 'time gained: ' })}${dec((d.gainedS ?? 0).toFixed(2))}s</div>`,
+        <div class="muted" style="margin-top:8px;font-size:12.5px">${tr({ it: 'Tempo perso: ', en: 'Time lost: ' })}${dec((d.lostS ?? 0).toFixed(2))}s · ${tr({ it: 'tempo guadagnato: ', en: 'time gained: ' })}${dec((d.gainedS ?? 0).toFixed(2))}s</div>`,
         [[tr({ it: 'Chiudi', en: 'Close' }), 'ghost', () => {}]]);
     } catch (e) { toast(e.message, 'err'); }
     btn.disabled = false; btn.textContent = tr({ it: 'Confronta', en: 'Compare' });
@@ -422,7 +422,7 @@ function renderMC(host, d){
   }
   const b = d.basis ?? {};
   host.innerHTML = `<h2>🎲 ${tr({ it: 'Monte Carlo del sedile', en: 'Seat Monte Carlo' })} <span class="h-act">${d.sims} ${tr({ it: 'stagioni per sedile', en: 'seasons per seat' })}</span></h2>
-    <div class="muted" style="font-size:12px;margin-bottom:10px">
+    <div class="muted" style="font-size:12.5px;margin-bottom:10px">
       ${tr({ it: 'Proiezione dal', en: 'Projected from' })} <b>${esc(b.current ?? '?')}</b>: ${b.paceOffset != null ? (b.paceOffset > 0 ? '+' : '') + b.paceOffset : '—'} ${tr({ it: 'dal centro serie (base+trim)', en: 'from the series centre (base+trim)' })}
       · ${tr({ it: 'variabilità', en: 'variability' })} σ ${b.variability ?? '—'} ${tr({ it: 'su', en: 'over' })} ${b.racesMeasured ?? 0} ${tr({ it: 'gare vere', en: 'real races' })} · DNF ${b.dnfRate ?? '—'}%
       ${b.fromOffers ? tr({ it: ' · candidati = le offerte di fine stagione', en: ' · candidates = end-of-season offers' }) : tr({ it: ' · candidati = serie aperte col gate superato', en: ' · candidates = open series with the gate passed' })}
@@ -435,8 +435,8 @@ function renderMC(host, d){
       <th class="right">${tr({ it: 'Premio atteso', en: 'Expected prize' })}</th><th class="right">${tr({ it: 'Saldo stagione', en: 'Season balance' })}</th>
       </tr></thead><tbody>
       ${d.seats.map((s) => `<tr>
-        <td><b>${esc(s.display)}</b>${s.note ? ` <span class="tag ${s.note === 'rinnovo' ? '' : ''}" style="font-size:11.5px">${esc(s.note)}</span>` : ''}
-          <div class="faint" style="font-size:11.5px">${s.gridSize ?? '?'} ${tr({ it: 'auto', en: 'cars' })} · ${s.rounds} ${tr({ it: 'ronde', en: 'rounds' })}${s.access === 'closed' ? ' · ' + tr({ it: 'parco chiuso (solo contratto)', en: 'closed grid (contract only)' }) : ''}</div></td>
+        <td><b>${esc(s.display)}</b>${s.note ? ` <span class="tag ${s.note === 'rinnovo' ? '' : ''}" style="font-size:12.5px">${esc(s.note)}</span>` : ''}
+          <div class="faint" style="font-size:12.5px">${s.gridSize ?? '?'} ${tr({ it: 'auto', en: 'cars' })} · ${s.rounds} ${tr({ it: 'ronde', en: 'rounds' })}${s.access === 'closed' ? ' · ' + tr({ it: 'parco chiuso (solo contratto)', en: 'closed grid (contract only)' }) : ''}</div></td>
         <td class="right">${s.expPointsPerRound}</td>
         <td class="right">${s.expSeasonPoints}</td>
         <td class="right">P${s.medianPos ?? '—'}</td>
@@ -447,6 +447,6 @@ function renderMC(host, d){
         <td class="right">${Number(s.expPrizeSeason ?? 0).toLocaleString(window.LOCALE ?? 'it-IT')} €</td>
         <td class="right ${s.netSeason >= 0 ? 'good' : 'bad'}">${Number(s.netSeason ?? 0).toLocaleString(window.LOCALE ?? 'it-IT')} €</td>
       </tr>`).join('')}</tbody></table>
-      <div class="muted" style="margin-top:8px;font-size:11.5px">${esc(d.caveat ?? '')}</div>`
+      <div class="muted" style="margin-top:8px;font-size:12.5px">${esc(d.caveat ?? '')}</div>`
       : `<div class="empty">${tr({ it: 'Nessun candidato simulabile al momento.', en: 'No simulable candidate right now.' })}</div>`}`;
 }

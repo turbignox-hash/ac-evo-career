@@ -367,7 +367,7 @@ function stilePannello(stili){
     const atCap = (s.regole ?? []).filter((r) => r.cap).length;
     return `<details style="margin-bottom:10px;border:1px solid var(--line,#333);border-radius:8px;padding:10px">
       <summary style="cursor:pointer"><b>${esc(s.display)}</b> ${stateTag(s)} <span class="tag blue">L${s.level}</span>
-        <span class="muted" style="font-size:11.5px"> · ${tr({ it: 'finestra PI ', en: 'PI window ' })}${s.finestra[0] ?? '–'}–${s.finestra[1] ?? '–'}${s.seed ? ` · seed ${esc(s.seed)}` : ''} · ${s.pool.length} ${tr({ it: 'modelli', en: 'models' })}${atCap ? ` · <span class="tag warn">${atCap} ${tr({ it: `al cap ${s.capPct ?? 20}%`, en: `at ${(s.capPct ?? 20)}% cap` })}</span>` : ''}</span></summary>
+        <span class="muted" style="font-size:12.5px"> · ${tr({ it: 'finestra PI ', en: 'PI window ' })}${s.finestra[0] ?? '–'}–${s.finestra[1] ?? '–'}${s.seed ? ` · seed ${esc(s.seed)}` : ''} · ${s.pool.length} ${tr({ it: 'modelli', en: 'models' })}${atCap ? ` · <span class="tag warn">${atCap} ${tr({ it: `al cap ${s.capPct ?? 20}%`, en: `at ${(s.capPct ?? 20)}% cap` })}</span>` : ''}</span></summary>
       <div style="margin-top:8px;font-size:12.5px">
         <div><b>${tr({ it: 'Pool sorteggiato:', en: 'Drawn pool:' })}</b> <span class="muted">${tr({ it: 'miscuglio completamente random: stradali, Cup, GT e epiche battuti insieme allo stesso livello, mono e multiclasse insieme.', en: 'completely random mix: road cars, Cup, GT and classics shuffled together at the same level, mono and multiclass alike.' })}</span></div>
         <div style="margin-top:4px">${(s.pool ?? []).map(window.carLinkHtml).join(' · ') || '<span class="faint">—</span>'}</div>
@@ -379,7 +379,7 @@ function stilePannello(stili){
   }).join('');
   return `<div class="panel" style="padding:14px 16px">
     <h2 style="margin:0 0 8px">${ICONS.championships} ${tr({ it: 'Cinque campionati a miscuglio', en: 'Five random-mix championships' })}</h2>
-    <div class="muted" style="font-size:11.5px;margin-bottom:10px">${tr({ it: 'Pools sorteggiati a sorte dal catalogo. Il seme riproduce la tiratura; ogni ritiro del generatore cambia tutto: node tools/_genera-stili.mjs --rigenera.', en: 'Pools drawn at random from the catalog. The seed reproduces the draw; every new draw changes everything: node tools/_genera-stili.mjs --rigenera.' })}</div>
+    <div class="muted" style="font-size:12.5px;margin-bottom:10px">${tr({ it: 'Pools sorteggiati a sorte dal catalogo. Il seme riproduce la tiratura; ogni ritiro del generatore cambia tutto: node tools/_genera-stili.mjs --rigenera.', en: 'Pools drawn at random from the catalog. The seed reproduces the draw; every new draw changes everything: node tools/_genera-stili.mjs --rigenera.' })}</div>
     ${cards}
   </div>`;
 }
@@ -398,7 +398,7 @@ function stileErrore(e){
   return `<div class="panel" style="padding:14px 16px">
     <h2 style="margin:0 0 8px">${ICONS.championships} ${tr({ it: 'Cinque campionati a miscuglio', en: 'Five random-mix championships' })}</h2>
     <div class="empty">⚠️ ${esc(e?.message ?? tr({ it: 'errore sconosciuto', en: 'unknown error' }))}</div>
-    <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'Il pannello resta fuori finché il file grid-classes.json non torna leggibile.', en: 'The panel stays out until the grid-classes.json file is readable again.' })}</div>
+    <div class="muted" style="font-size:12.5px;margin-top:8px">${tr({ it: 'Il pannello resta fuori finché il file grid-classes.json non torna leggibile.', en: 'The panel stays out until the grid-classes.json file is readable again.' })}</div>
   </div>`;
 }
 
@@ -445,10 +445,10 @@ async function drawChampionships(m){
         <b style="font-size:13.5px">${esc(c.display)}</b>
         ${c.isCurrent ? `<span class="tag gold">${tr({ it: 'attiva', en: 'active' })}</span>` : ''}
       </div>
-      <div class="muted" style="font-size:11.5px;margin-top:2px">L${c.level} · ${esc(c.discipline)} · ${(c.cars ?? []).map(window.carLinkHtml).join(' · ')}</div>
+      <div class="muted" style="font-size:12.5px;margin-top:2px">L${c.level} · ${esc(c.discipline)} · ${(c.cars ?? []).map(window.carLinkHtml).join(' · ')}</div>
       <div class="cc-bar" style="margin-top:8px"><i style="width:${pct}%"></i></div>
-      <div class="muted" style="font-size:11.5px;margin-top:6px">${played}/${c.calendar.length} ${tr({ it: 'gare', en: 'races' })} · ${tr({ it: 'prossima', en: 'next' })}: ${nxt}${me ? ` · <b style="color:var(--text)">${tr({ it: 'tu P', en: 'you P' })}${me.position}</b> (${me.points} pt)` : ''}</div>
-      <div class="muted" style="font-size:11.5px;margin-top:4px;display:flex;gap:10px;flex-wrap:wrap">
+      <div class="muted" style="font-size:12.5px;margin-top:6px">${played}/${c.calendar.length} ${tr({ it: 'gare', en: 'races' })} · ${tr({ it: 'prossima', en: 'next' })}: ${nxt}${me && (c.mine ?? []).length ? ` · <b style="color:var(--text)" title="${tr({ it: 'posizione dal modello della serie: i punti degli avversari sono simulati', en: 'position from the series model: rival points are simulated' })}">${tr({ it: 'tu P', en: 'you P' })}${me.position}</b> (${me.points} pt)` : `${!(c.mine ?? []).length ? ` · <span class="muted">${tr({ it: 'prima gara da correre', en: 'first race to come' })}</span>` : ''}`}</div>
+      <div class="muted" style="font-size:12.5px;margin-top:4px;display:flex;gap:10px;flex-wrap:wrap">
         ${c.prize != null ? `<span title="${tr({ it: 'premio di gara', en: 'race prize' })}">🏁 ${money(c.prize)}</span>` : ''}
         ${c.entryFee ? `<span title="${tr({ it: 'costo d\'iscrizione', en: 'entry fee' })}">🎫 ${money(c.entryFee)}</span>` : ''}
         ${c.gridSize ? `<span title="${tr({ it: 'griglia tipica degli avversari', en: 'typical grid size' })}">🚗 ${c.gridSize} ${tr({ it: 'auto', en: 'cars' })}</span>` : ''}
@@ -461,7 +461,7 @@ async function drawChampionships(m){
   m.innerHTML = `<details class="panel" id="ch-carica" open style="padding:14px 16px">
     <summary style="cursor:pointer"><h2 style="display:inline;margin:0">${ICONS.championships} ${tr({ it: 'Campionati', en: 'Championships' })} <span class="h-act">${v.championships.length} ${tr({ it: 'serie firmate', en: 'signed series' })}</span></h2></summary>
     <div class="champ-grid" style="margin-top:10px">${cards}</div>
-    <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'Clicca una carta per scendere alla scheda completa.', en: 'Click a card to jump to its full card below.' })}</div>
+    <div class="muted" style="font-size:12.5px;margin-top:8px">${tr({ it: 'Clicca una carta per scendere alla scheda completa.', en: 'Click a card to jump to its full card below.' })}</div>
   </details>`
     + stileBlock
     + v.championships.map((c) => {
@@ -479,12 +479,13 @@ async function drawChampionships(m){
         ${c.mine.map(r=>`<span class="muted" style="margin-right:12px">R${r.round+1}: <b>${r.position}</b>${r.fl?' · giro veloce':''} · ${r.points} pt · ${window.trackLinkHtml(r.track)}</span>`).join('')}`
       : `<div class="muted" style="margin:6px 0">${tr({ it: 'Ancora nessuna gara corsa in questa stagione.', en: 'No race run yet this season.' })}</div>`;
     const table = c.standings
-      ? `<table><thead><tr><th></th><th>${tr({ it: 'Pilota', en: 'Driver' })}</th><th class="right">${tr({ it: 'Punti', en: 'Points' })}</th></tr></thead>
-        <tbody>${c.standings.map(r=>`<tr class="${r.isPlayer?'me':''}"><td class="faint">P${r.position}</td><td>${esc(r.name)}${r.isPlayer?` <span class="tag gold">${tr({ it: 'tu', en: 'you' })}</span>`:''}</td><td class="right">${r.points}</td></tr>`).join('')}</tbody></table>`
+      ? `<table><thead><tr><th></th><th>${tr({ it: 'Pilota', en: 'Driver' })}</th><th class="right" title="${tr({ it: 'i punti degli avversari sono calcolati dal modello della serie; i tuoi dalle gare importate', en: 'rival points are computed by the series model; yours come from imported races' })}">${tr({ it: 'Punti', en: 'Points' })}</th></tr></thead>
+        <tbody>${c.standings.map(r=>`<tr class="${r.isPlayer?'me':''}"><td class="faint">P${r.position}</td><td>${esc(r.name)}${r.isPlayer?` <span class="tag gold">${tr({ it: 'tu', en: 'you' })}</span>`:''}</td><td class="right">${r.points}</td></tr>`).join('')}</tbody></table>
+        <div class="muted" style="font-size:12.5px;margin-top:6px">${tr({ it: 'Punti degli avversari: modello della serie (simulati). I tuoi punti vengono dalle gare importate dai file di EVO.', en: 'Rival points: series model (simulated). Your points come from races imported from EVO files.' })}</div>`
       : `<div class="empty">${tr({ it: 'Classifica non disponibile.', en: 'Standings not available.' })}</div>`;    return `<details class="panel champ-detail" id="champ-${esc(c.nodeId)}" ${c.isCurrent ? 'open' : ''} style="margin-top:12px">
       <summary style="cursor:pointer">
         <b>${esc(c.display)}</b> <span class="h-act">${tr({ it: 'stagione ', en: 'season ' })}${c.season}${c.isCurrent ? ` · <span class="tag gold">${tr({ it: 'serie attuale', en: 'current series' })}</span>` : ''}</span>
-        <div class="muted" style="font-size:11.5px;margin-top:2px">L${c.level} · ${esc(c.discipline)} · ${tr({ it: 'una gara a settimana', en: 'one race a week' })}</div>
+        <div class="muted" style="font-size:12.5px;margin-top:2px">L${c.level} · ${esc(c.discipline)} · ${tr({ it: 'una gara a settimana', en: 'one race a week' })}</div>
       </summary>
       <div style="margin-top:10px">
       <div class="grid2">
@@ -544,8 +545,8 @@ async function worldRankingInner(){
     <td class="right pos"><b>P${r.position}</b></td>
     <td><span style="display:inline-flex;align-items:center;gap:8px">${rivalAvatar(r.name, 30)}<span><b>${esc(r.name)}</b>${r.isPlayer?` <span class="tag gold">${tr({ it: 'tu', en: 'you' })}</span>`:''}${r.hot?` <span title="${tr({ it: 'in forma: in griglia alza il ritmo', en: 'in form: raises the pace on the grid' })}">🔥</span>`:''}</span></span></td>
     <td class="faint">${flagOf(r.country)} ${esc(r.country)}</td><td class="right"><b>${r.skill}</b>${r.iconic?` <span title="${tr({ it: 'tra i più forti in circolazione', en: 'among the strongest around' })}">⭐</span>`:''}</td><td class="right">${r.age??'—'}</td>
-    <td>${r.traits?.length?r.traits.map(t=>`<span class="chip blue" style="font-size:11.5px;padding:1px 7px">${esc(t)}</span>`).join(' '):''}</td>
-    <td class="muted" style="font-size:11.5px">${esc(r.archName ?? '')}</td></tr>`).join('')}</tbody>
+    <td>${r.traits?.length?r.traits.map(t=>`<span class="chip blue" style="font-size:12.5px;padding:1px 7px">${esc(t)}</span>`).join(' '):''}</td>
+    <td class="muted" style="font-size:12.5px">${esc(r.archName ?? '')}</td></tr>`).join('')}</tbody>
   </table>`;
   return { w, html, wire: () => { $$('.wr-row').forEach(t => { t.onclick = () => showWorldPilot(t.dataset.k, w.rows); }); } };
 }
@@ -564,7 +565,7 @@ function showWorldPilot(name, rows){
   if (!r) return;
   modal(`${tr({ it: 'Scheda pilota — ', en: 'Driver card — ' })}${r.name}`, `
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">${rivalAvatar(r.name, 46)}
-        <div><b style="font-size:16px">${esc(r.name)}</b><div class="muted" style="font-size:12px">${flagOf(r.country)} ${esc(r.country ?? '')} · P${r.position} ${tr({ it: 'del mondo', en: 'in the world' })}${r.iconic?` · ⭐ ${tr({ it: 'tra i più forti', en: 'among the strongest' })}`:''}${r.hot?` · 🔥 ${tr({ it: 'in forma', en: 'in form' })}`:''}</div></div>
+        <div><b style="font-size:16px">${esc(r.name)}</b><div class="muted" style="font-size:12.5px">${flagOf(r.country)} ${esc(r.country ?? '')} · P${r.position} ${tr({ it: 'del mondo', en: 'in the world' })}${r.iconic?` · ⭐ ${tr({ it: 'tra i più forti', en: 'among the strongest' })}`:''}${r.hot?` · 🔥 ${tr({ it: 'in forma', en: 'in form' })}`:''}</div></div>
     </div>
     <div class="grid4" style="margin-bottom:12px">
       <div class="kpi"><div class="l">${tr({ it: 'Skill', en: 'Skill' })}</div><div class="v acc">${r.skill}</div></div>
@@ -572,7 +573,7 @@ function showWorldPilot(name, rows){
       <div class="kpi"><div class="l">${tr({ it: 'Costanza', en: 'Consistency' })}</div><div class="v">${r.cons != null ? r.cons : '—'}</div></div>
       <div class="kpi"><div class="l">${tr({ it: 'Aggressività', en: 'Aggression' })}</div><div class="v">${r.aggr != null ? r.aggr : '—'}</div></div>
     </div>
-    <div style="margin-bottom:10px">${(r.traits ?? []).map(t=>`<span class="chip blue" style="font-size:11.5px;padding:2px 8px">${esc(t)}</span>`).join(' ')}</div>
+    <div style="margin-bottom:10px">${(r.traits ?? []).map(t=>`<span class="chip blue" style="font-size:12.5px;padding:2px 8px">${esc(t)}</span>`).join(' ')}</div>
     <div class="muted" style="margin-bottom:8px"><b>${esc(r.archName ?? 'n/d')}</b> — ${esc(r.archDesc ?? '')}</div>
     <div class="muted" style="font-size:12.5px">${r.isPlayer ? tr({ it: 'Questo sei tu: la skill cresce coi risultati reali (vittorie e podi spingono sopra la banda della serie).', en: 'This is you: skill grows with real results (wins and podiums push you above the series baseline).' }) : r.hot ? tr({ it: '🔥 È in forma: in griglia alza il ritmo, attenzione.', en: '🔥 In form: raises the pace on the grid, be careful.' }) : tr({ it: 'Statista in forma normale: dati in tempo reale aggiornati a ogni import di gara.', en: 'Steady performer in normal form: real-time data refreshed at every race import.' })}</div>
     ${r.iconic ? `<div class="banner info" style="margin-top:8px">⭐ ${tr({ it: 'Pilota <b>iconico</b> del World: il suo livello è tra il vertice in assoluto di questa carriera.', en: 'A <b>world-class</b> driver: skill at the very top level of this career.' })}</div>` : ''}`,
@@ -587,7 +588,7 @@ function serieDetail(n){
   const auto = (n.carImages?.length ? n.carImages : (n.cars??[]).map(c=>({name:c,image:null}))).map(c=>`
     <div style="display:flex;align-items:center;gap:8px;background:#000;border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-width:0">
       ${c.image?`<img src="${c.image}" alt="" style="width:86px;height:48px;object-fit:cover;border-radius:5px">`:''}
-      <span style="font-size:11.5px;line-height:1.25">${esc(c.name)}</span>
+      <span style="font-size:12.5px;line-height:1.25">${esc(c.name)}</span>
     </div>`).join('');
   const cal = (n.calendar??[]).map((r,i)=>`<tr>
     <td class="faint">R${i+1}</td><td>${window.trackLinkHtml(r.track)}</td><td class="right">${r.durationMin?`${r.durationMin}′ ${tr({ it: 'a tempo', en: 'by time' })}`:`${r.laps} ${tr({ it: 'giri', en: 'laps' })}`}</td>
@@ -598,14 +599,14 @@ function serieDetail(n){
   modal(`L${n.level} · ${esc(n.display)}`, `
     <div class="muted" style="margin-bottom:10px">${n.gridSize} ${tr({ it: 'auto in griglia · premio stagione ', en: 'cars on the grid · season prize ' })}<b>${money(n.econ.prize)} €</b>${n.access==='closed'?` · <b>${tr({ it: 'parco chiuso', en: 'spec grid' })}</b>: ${tr({ it: 'niente affitto né riscatto, solo contratto', en: 'no rent or buyout, contract only' })}`:`${n.econ.buy?` · ${tr({ it: 'riscatto sedile ', en: 'seat buyout ' })}${money(n.econ.buy)} €`:''}${n.econ.rent?` · ${tr({ it: 'affitto ', en: 'rent ' })}${money(n.econ.rent)} €`:''}`}${n.econ.entry?` · ${tr({ it: 'iscrizione ', en: 'entry fee ' })}${money(n.econ.entry)} € ${tr({ it: 'a gara', en: 'per race' })}`:''}</div>
     <div style="margin-bottom:10px">${tr({ it: 'Reputazione richiesta: ', en: 'Reputation required: ' })}<b style="color:${repOk?'var(--ok,#7bd88f)':'var(--bad,#e05d5d)'}">${n.repRequired??0}</b> <span class="muted">(${tr({ it: 'la tua: ', en: 'yours: ' })}${n.rep})</span></div>
-    <h3 style="margin:10px 0 6px;font-size:11.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim)">${tr({ it: 'Auto della serie', en: 'Series cars' })}</h3>
+    <h3 style="margin:10px 0 6px;font-size:12.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim)">${tr({ it: 'Auto della serie', en: 'Series cars' })}</h3>
     <div style="display:flex;gap:8px;flex-wrap:wrap">${auto}</div>
     ${n.format?.length?`<div class="muted" style="margin-top:10px">${tr({ it: 'Formato weekend: ', en: 'Weekend format: ' })}${n.format.map(esc).join(' · ')}</div>`:''}
     ${n.calendar?.length?`<div class="muted" style="margin-top:4px">${tr({ it: 'Distanza gara piena: ', en: 'Full race distance: ' })}<b>${Math.max(...n.calendar.map(r=>r.laps??0))} ${tr({ it: 'giri', en: 'laps' })}</b> ${tr({ it: 'max — nel cruscotto puoi accorciare al 25/50/75% (i premi scalano con la distanza)', en: 'max — on the Dashboard you can shorten to 25/50/75% (prizes scale with distance)' })}</div>`:''}
     ${n.ai?.length?`<div class="muted" style="margin-top:4px">${tr({ it: 'Difficoltà AI consigliata: ', en: 'Recommended AI difficulty: ' })}<b>${n.ai[0]}–${n.ai[1]}%</b></div>`:''}
     ${pts?`<div class="muted" style="margin-top:4px">${esc(pts)}</div>`:''}
     ${palmares}
-    ${cal?`<h3 style="margin:14px 0 6px;font-size:11.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim)">${tr({ it: 'Calendario (', en: 'Calendar (' })}${(n.calendar??[]).length} ${tr({ it: 'gare)', en: 'races)' })}</h3><table><thead><tr><th></th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Gara', en: 'Race' })}</th><th class="right">${tr({ it: 'Ora', en: 'Time' })}</th><th>${tr({ it: 'Meteo', en: 'Weather' })}</th></tr></thead><tbody>${cal}</tbody></table>`:''}
+    ${cal?`<h3 style="margin:14px 0 6px;font-size:12.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim)">${tr({ it: 'Calendario (', en: 'Calendar (' })}${(n.calendar??[]).length} ${tr({ it: 'gare)', en: 'races)' })}</h3><table><thead><tr><th></th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Gara', en: 'Race' })}</th><th class="right">${tr({ it: 'Ora', en: 'Time' })}</th><th>${tr({ it: 'Meteo', en: 'Weather' })}</th></tr></thead><tbody>${cal}</tbody></table>`:''}
     ${blocked}`, [[tr({ it: 'Chiudi', en: 'Close' }), 'ghost',()=>{}]]);
 }
 
@@ -637,15 +638,15 @@ async function drawOnline(m){
   m.innerHTML = `
   <div class="panel">
     <h2>🌐 ${tr({ it: 'Archivio online', en: 'Online archive' })} <span class="h-act">${mp.total} ${tr({ it: 'sessioni multiplayer nei Results di EVO', en: "multiplayer sessions in EVO's Results" })}</span></h2>
-    <div class="muted" style="font-size:11.5px;margin:0 0 8px">${tr({ it: 'Le gare online NON toccano la carriera: nessun punto, nessun soldo — restano qui come memoria, con la griglia cliccabile come tutte le altre sessioni.', en: "Online races NEVER touch the career: no points, no money — they stay here as memory, with a clickable grid like every other session." })}</div>
+    <div class="muted" style="font-size:12.5px;margin:0 0 8px">${tr({ it: 'Le gare online NON toccano la carriera: nessun punto, nessun soldo — restano qui come memoria, con la griglia cliccabile come tutte le altre sessioni.', en: "Online races NEVER touch the career: no points, no money — they stay here as memory, with a clickable grid like every other session." })}</div>
     ${P.length ? `<table><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Community / server', en: 'Community / server' })}</th><th>${tr({ it: 'Sessione', en: 'Session' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Piloti', en: 'Drivers' })}</th><th>${tr({ it: 'Tu', en: 'You' })}</th></tr></thead>
       <tbody>${P.map(riga).join('')}</tbody></table>`
       : `<div class="empty">${tr({ it: 'Nessuna sessione multiplayer ancora: da ogni gara col server EVO scrive i risultati _MP_ qui, e da allora niente va più perso.', en: 'No multiplayer session yet: from your first server race EVO writes _MP_ results here, and from then on nothing is lost.' })}</div>`}
-    <div class="muted" style="font-size:11.5px;margin-top:10px">${tr({ it: 'Mostra anche le sessioni nate con un altro slot di carriera (scope per PC).', en: 'Also show sessions born under another career slot (PC-wide scope).' })} <button class="mini" id="b-on-all">${window.__arcAllPc ? tr({ it: 'Solo carriera', en: 'Career only' }) : tr({ it: 'Mostra tutto il PC', en: 'Show the whole PC' })}</button></div>
-    ${R.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px"><b>⚔️ ${tr({ it: 'Libro dei rivali online', en: 'Online rivals book' })}</b> <span class="muted" style="font-size:11.5px">— ${R.length} ${tr({ it: 'incrociati nelle sessioni multiplayer', en: 'met across multiplayer sessions' })}</span></summary>
+    <div class="muted" style="font-size:12.5px;margin-top:10px">${tr({ it: 'Mostra anche le sessioni nate con un altro slot di carriera (scope per PC).', en: 'Also show sessions born under another career slot (PC-wide scope).' })} <button class="mini" id="b-on-all">${window.__arcAllPc ? tr({ it: 'Solo carriera', en: 'Career only' }) : tr({ it: 'Mostra tutto il PC', en: 'Show the whole PC' })}</button></div>
+    ${R.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px"><b>⚔️ ${tr({ it: 'Libro dei rivali online', en: 'Online rivals book' })}</b> <span class="muted" style="font-size:12.5px">— ${R.length} ${tr({ it: 'incrociati nelle sessioni multiplayer', en: 'met across multiplayer sessions' })}</span></summary>
       <table style="margin-top:6px"><thead><tr><th>${tr({ it: 'Rivale', en: 'Rival' })}</th><th class="right">${tr({ it: 'Incroci', en: 'Meetings' })}</th><th class="right">${tr({ it: 'Lui davanti', en: 'He finished ahead' })}</th><th class="right">${tr({ it: 'Tu davanti', en: 'You finished ahead' })}</th><th>${tr({ it: 'Ultima forma', en: 'Recent form' })}</th><th>${tr({ it: 'Pista più fitta', en: 'Favoured track' })}</th><th class="muted">${tr({ it: 'Auto abituale', en: 'Usual car' })}</th><th>${tr({ it: 'Ultima volta', en: 'Last seen' })}</th></tr></thead>
       <tbody>${R.slice(0, 20).map((x) => `<tr><td title="${esc(tooltipComm(x))}">${esc(x.name ?? '?')}</td><td class="right">${x.meetings}</td><td class="right" style="color:${x.beats > x.beaten ? '#ff9b9b' : 'var(--ok,#4ade80)'}">${x.beats}</td><td class="right">${x.beaten}</td><td>${forma(x)}</td><td>${x.favTrack ? `${esc(x.favTrack.track)} <span class="faint">×${x.favTrack.n}${x.favTrack.tu ? `, ${x.favTrack.tu} ${tr({ it: 'tue', en: 'yours' })}` : ''}</span>` : '—'}</td><td class="muted">${esc(x.favCar ?? '—')}</td><td class="muted">${esc(String(x.lastWhen ?? '').slice(0,16).replace('T',' '))}</td></tr>`).join('')}</tbody></table>
-      <div class="muted" style="font-size:11.5px;margin-top:4px">${tr({ it: "Identità presa dal driver_id del gioco: sopravvive ai nickname diversi e ai server diversi. Solo sessioni in cui eravate entrambi in griglia.", en: "Identity taken from the game's driver_id: it survives different nicknames and different servers. Only sessions where you both started." })}</div></details>` : ''}
+      <div class="muted" style="font-size:12.5px;margin-top:4px">${tr({ it: "Identità presa dal driver_id del gioco: sopravvive ai nickname diversi e ai server diversi. Solo sessioni in cui eravate entrambi in griglia.", en: "Identity taken from the game's driver_id: it survives different nicknames and different servers. Only sessions where you both started." })}</div></details>` : ''}
   </div>`;
   $$('.arc-row', m).forEach((tr) => { tr.onclick = () => openResult(tr.dataset.file); });
   $('#b-on-all').onclick = () => { window.__arcAllPc = !window.__arcAllPc; render(); };
@@ -665,7 +666,7 @@ async function drawArchive(m){
   m.innerHTML = `
   <div class="panel">
     <h2>${tr({ it: 'Archivio sessioni', en: 'Session archive' })} <span class="h-act">${c.archive.total} ${tr({ it: 'file nei Results di EVO', en: 'files in EVO\'s Results' })}</span></h2>
-    <div class="muted" style="font-size:11.5px;margin:0 0 8px">${c.archive.scoped
+    <div class="muted" style="font-size:12.5px;margin:0 0 8px">${c.archive.scoped
       ? `${tr({ it: 'Mostrati solo i file nati con QUESTA carriera: Results è una cartella condivisa per PC.', en: 'Showing only files born with THIS career: Results is a PC-wide shared folder.' })} <button class="mini" id="b-arc-all">${tr({ it: 'Mostra tutto il PC', en: 'Show the whole PC' })}</button>`
       : `${tr({ it: 'Mostrato TUTTO il PC: Results è una cartella condivisa dagli slot.', en: 'Showing the WHOLE PC: Results is shared across slots.' })} <button class="mini" id="b-arc-all">${tr({ it: 'Solo carriera', en: 'Career only' })}</button>`}</div>
     <div class="row"><input type="text" id="arc-q" placeholder="${tr({ it: 'Cerca pista, pilota, sessione…', en: 'Search track, driver, session…' })}" style="max-width:280px"><select id="arc-sess" style="max-width:190px"><option value="">${tr({ it: 'Tutte le sessioni', en: 'All sessions' })}</option>${[...new Set(all.map(r=>r.session))].sort().map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}</select></div>
@@ -753,7 +754,7 @@ async function drawGironi(m){
              sotto; l'anteprima con la ricetta sta a destra del bottone. -->
         <div class="row" style="align-items:center">
           <button class="mini" id="gv-subito" style="font-weight:700">▶ ${tr({ it: 'PARTE SUBITO', en: 'GO NOW' })}</button>
-          <span class="muted" id="gv-subito-nota" style="font-size:12px">…</span>
+          <span class="muted" id="gv-subito-nota" style="font-size:12.5px">…</span>
         </div>
         <div class="rs-grid" style="margin-top:8px">
           <div class="field"><label>${tr({ it: 'Giri', en: 'Laps' })}</label><input type="number" id="gv-giri" min="1" max="500" placeholder="5"></div>
@@ -791,7 +792,7 @@ async function drawGironi(m){
               <button class="mini" id="gv-preset-salva" style="flex:0 0 auto">💾 ${tr({ it: 'Salva col nome', en: 'Save by name' })}</button>
               <button class="mini" id="gv-preset-canc" style="flex:0 0 auto" title="${esc(tr({ it: 'cancella il preset scelto', en: 'delete the selected preset' }))}">🗑</button>
             </div>
-            <div id="gv-suggeri" class="muted" style="font-size:11.5px;margin-top:6px"></div>
+            <div id="gv-suggeri" class="muted" style="font-size:12.5px;margin-top:6px"></div>
           </div>
           <div class="row" style="align-items:end">
             <button class="mini" id="gv-dry">${tr({ it: 'Prova senza scrivere', en: 'Dry run' })}</button>
@@ -799,12 +800,12 @@ async function drawGironi(m){
           </div>
         </div>
         <div id="gv-out" style="display:none;margin-top:8px"></div>
-        <div id="gv-stato" class="muted" style="margin-top:8px;font-size:12px">…</div>
-        <div class="muted" style="font-size:11.5px;margin-top:8px">${tr({ it: 'La pista è un campo qui sopra: scritta nel file, resta solo APPLICA nel menu griglia e VIA. Durata, banda e sedile li scrive il tasto.', en: 'Track is a field above: written into the file, only APPLY in the grid menu is left. Length, band and seat are written by the button.' })}</div>
+        <div id="gv-stato" class="muted" style="margin-top:8px;font-size:12.5px">…</div>
+        <div class="muted" style="font-size:12.5px;margin-top:8px">${tr({ it: 'La pista è un campo qui sopra: scritta nel file, resta solo APPLICA nel menu griglia e VIA. Durata, banda e sedile li scrive il tasto.', en: 'Track is a field above: written into the file, only APPLY in the grid menu is left. Length, band and seat are written by the button.' })}</div>
       </div>
   <div class="panel">
     <h2>${tr({ it: 'Giri liberi', en: 'Free laps' })} <span class="h-act">${log.total} ${tr({ it: 'sessioni in quaderno', en: 'sessions in the book' })}</span></h2>
-    <div class="muted" style="font-size:11.5px;margin:0 0 8px">${tr({ it: 'Scegli PRATICA in EVO, pista e auto e gira: ogni sessione che il gioco scrive si registra da sola qui. La carriera non si tocca: soldi, punti e rep restano a 0.', en: 'Pick PRACTICE in EVO, pick track and car and run: every session the game writes lands here by itself. Career untouched: money, points and rep stay at 0.' })}</div>
+    <div class="muted" style="font-size:12.5px;margin:0 0 8px">${tr({ it: 'Scegli PRATICA in EVO, pista e auto e gira: ogni sessione che il gioco scrive si registra da sola qui. La carriera non si tocca: soldi, punti e rep restano a 0.', en: 'Pick PRACTICE in EVO, pick track and car and run: every session the game writes lands here by itself. Career untouched: money, points and rep stay at 0.' })}</div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
       <select id="hl-file" style="max-width:340px"><option value="">${tr({ it: '— registra un vecchio file a mano —', en: '— register an old file by hand —' })}</option></select>
       <button class="mini act" id="hl-reg">${tr({ it: 'Registra file', en: 'Register file' })}</button>
@@ -1129,25 +1130,125 @@ async function drawGironi(m){
    La gara aperta contro il miglior giro con la STESSA AUTO sulla stessa pista
    (server, `sectorCompare`): delta per settore + la somma dei migliori settori
    di sempre (ideale, che non è un tempo accreditato). Nessun altro giro con
-   quell'auto = nessun confronto, si mostrano solo i settori della gara. */
+   quell'auto = nessun confronto, si mostrano solo i settori della gara.
+
+   PARAGONE TRA AUTO (6/11, richiesta Mauro: «anche il miglior giro della pista
+   con auto diversa, etichettato chiaramente come paragone tra auto»): le colonne
+   «Altra auto» e «Δ auto» portano il giro più veloce della STESSA pista con
+   un'ALTRA auto, con l'auto scritta per esteso. Il Δ lì è grigio e senza
+   semaforo: non è tempo da recuperare, è la distanza tra due auto diverse. */
 function sectorCompareHtml(s) {
   if (s == null) return '';
   if (!s.gara) return '';
   const n = s.parti;
+  const altra = s.altraAuto ?? null;
   const ms = (v) => (Number.isFinite(v) && v > 0 ? MS(v) : '—');
   const dms = (v) => {
     if (!Number.isFinite(v)) return '<span class="faint">—</span>';
     const col = v > 0 ? '#ff9b9b' : v < 0 ? 'var(--ok,#4ade80)' : 'inherit';
     return `<span style="color:${col}">${v > 0 ? '+' : v < 0 ? '−' : ''}${(Math.abs(v) / 1000).toFixed(3)}</span>`;
   };
+  // delta tra auto: numero e basta, niente verde/rosso (non è un margine da recuperare)
+  const dAuto = (v) => (!Number.isFinite(v) ? '<span class="faint">—</span>' : `${v > 0 ? '+' : v < 0 ? '−' : ''}${(Math.abs(v) / 1000).toFixed(3)}`);
+  const colonneAltra = altra
+    ? `<th class="right" title="${tr({ it: 'settori del miglior giro di questa pista fatto con un\'ALTRA auto: paragone tra auto, non un riferimento della gara (auto diverse non hanno gli stessi settori)', en: 'sectors of the best lap on this track done in a DIFFERENT car: a car-to-car comparison, not a reference for the race (different cars have different sectors)' })}">${tr({ it: 'Altra auto', en: 'Other car' })}</th><th class="right" title="${tr({ it: 'gara − altra auto: positivo = questa gara è più lenta. Paragone tra auto, non tempo da recuperare', en: 'race − other car: positive = this race is slower. A car-to-car comparison, not time to recover' })}">${tr({ it: 'Δ auto', en: 'Δ car' })}</th>`
+    : '';
   const righe = Array.from({ length: n }, (_, i) => `<tr>
       <td class="muted">S${i + 1}</td>
       <td class="right">${ms(s.gara.splitsMs[i])}</td>
       <td class="right">${s.rif ? ms(s.rif.splitsMs[i]) : '—'}</td>
       <td class="right">${s.rif ? dms(s.delta[i]) : '—'}</td>
+      ${altra ? `<td class="right muted">${ms(altra.splitsMs[i])}</td><td class="right muted">${dAuto(altra.delta[i])}</td>` : ''}
       <td class="right muted">${s.ideale ? ms(s.ideale.splitsMs[i]) : '—'}</td>
     </tr>`).join('');
   const dTot = s.rif ? s.gara.lapMs - s.rif.lapMs : null;
+  /* COSTANZA SUI SETTORI (6/11, richiesta Mauro: «la costanza sui settori tra
+     i giri, non solo il miglior giro»): i settori giro per giro arrivano dai
+     log del gioco (server, `costanzaSettoriDaLog`) e qui si leggono come
+     migliore / media / peggiore / escursione / costanza % (σ/media, la stessa
+     unità del debrief degli stint). Sotto 3 giri σ e costanza % sono «—». */
+  const cost = (s.costanza?.giri ?? 0) >= 2 ? s.costanza : null;
+  const costanzaHtml = cost
+    ? (() => {
+        const sec3 = (v) => (v == null ? '<span class="faint">—</span>' : `${(v / 1000).toFixed(3)} s`);
+        const riga = (label, r, forte) => `<tr${forte ? ' style="border-top:1px solid var(--line,#2b3345)"' : ''}>
+          <td${forte ? ' class="muted"' : ' class="muted"'}>${forte ? `<b>${label}</b>` : label}</td>
+          <td class="right">${ms(r.miglioreMs)}</td>
+          <td class="right">${ms(r.mediaMs)}</td>
+          <td class="right">${ms(r.peggioreMs)}</td>
+          <td class="right muted">${sec3(r.escursioneMs)}</td>
+          <td class="right muted">${r.costanzaPct == null ? '<span class="faint">—</span>' : `${r.costanzaPct.toFixed(2)} %`}</td>
+        </tr>`;
+        /* PER STINT (6/11): la costanza spezzata dove i log mostrano una sosta
+           (pausa ≥ 10 s oltre il tempo del giro) o un giro mancante. Il delta
+           è la media del settore meno quella del PRIMO stint: se cresce solo
+           dopo, il degrado nasce lì. */
+        const st = Array.isArray(cost.stinti) ? cost.stinti : [];
+        const pausa = (msv) => (Number.isFinite(msv) ? `${Math.floor(msv / 60000)}:${String(Math.round((msv % 60000) / 1000)).padStart(2, '0')}` : '');
+        const perStint = st.length > 1
+          ? (() => {
+              const base = st[0].costanza?.perSettore ?? [];
+              const cella = (r, i) => {
+                if (!r) return '<span class="faint">—</span>';
+                const d = base[i] && Number.isFinite(r.mediaMs) ? r.mediaMs - base[i].mediaMs : null;
+                const dTxt = d == null ? '—' : `${d > 0 ? '+' : d < 0 ? '−' : ''}${(Math.abs(d) / 1000).toFixed(3)}`;
+                return `${ms(r.mediaMs)}<div class="muted" style="font-size:11.5px">Δ ${dTxt} s · ${r.costanzaPct == null ? '—' : `${r.costanzaPct.toFixed(2)} %`}</div>`;
+              };
+              const body = st.map((x) => `<tr>
+                  <td>${x.numero}${x.pausaPrimaMs ? ` <span class="muted" style="font-size:11.5px">· ${tr({ it: 'sosta', en: 'stop' })} ${pausa(x.pausaPrimaMs)}</span>` : ''}</td>
+                  <td class="right muted">${x.fromLap != null ? `${x.fromLap}–${x.toLap}` : x.giri}</td>
+                  ${[0, 1, 2].map((i) => `<td class="right">${cella(x.costanza?.perSettore?.[i], i)}</td>`).join('')}
+                </tr>`).join('');
+              return `<div style="margin-top:10px">
+                <b style="font-size:12.5px">${tr({ it: `Per stint · ${st.length}`, en: `Per stint · ${st.length}` })}</b>
+                <div class="tscroll"><table style="margin-top:4px"><thead><tr><th>${tr({ it: 'Stint', en: 'Stint' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">S1</th><th class="right">S2</th><th class="right">S3</th></tr></thead><tbody>${body}</tbody></table></div>
+                <div class="muted" style="font-size:12.5px;margin-top:4px">${tr({ it: 'media del settore per stint e, sotto, lo scarto dalla media del primo stint: se un settore cresce solo negli stint dopo, il degrado nasce lì · stint aperti da una sosta/pausa ≥ 10 s o da un giro mancante nel log', en: 'sector average per stint with the gap from the first stint beneath it: if a sector grows only in later stints, that is where the degradation starts · stints split by a ≥10 s stop/pause or a missing lap in the log' })}</div>
+              </div>`;
+            })()
+          : `<div class="muted" style="font-size:12.5px;margin-top:4px">${tr({ it: 'un solo stint: nei giri del log non c\'è nessuna sosta né un giro mancante, quindi la costanza qui sopra è già quella dello stint', en: 'a single stint: the logged laps hold no stop and no missing lap, so the consistency above already is the stint' })}</div>`;
+        /* PENDENZA PER SETTORE (6/11): quanto cresce ogni settore giro dopo
+           giro DENTRO lo stint — regressione lineare sui giri del log, in
+           ordine di tempo. Positivo = peggiora (rosso), negativo = migliora
+           (verde); «—» sotto 3 giri, dove la retta non è una misura. */
+        const pend = st.length
+          ? (() => {
+              const cella = (p) => {
+                const v = p?.pendenzaMsGiro;
+                if (v == null) return '<span class="faint">—</span>';
+                const dTot = Number.isFinite(p.primoMs) && Number.isFinite(p.ultimoMs) ? p.ultimoMs - p.primoMs : null;
+                const title = dTot == null ? '' : tr({ it: `dal primo all'ultimo giro dello stint: ${dTot > 0 ? '+' : dTot < 0 ? '−' : ''}${(Math.abs(dTot) / 1000).toFixed(3)} s`, en: `first to last lap of the stint: ${dTot > 0 ? '+' : dTot < 0 ? '−' : ''}${(Math.abs(dTot) / 1000).toFixed(3)} s` });
+                const col = v > 0 ? '#ff9b9b' : v < 0 ? 'var(--ok,#4ade80)' : 'inherit';
+                return `<span style="color:${col}" title="${esc(title)}">${v > 0 ? '+' : v < 0 ? '−' : ''}${(Math.abs(v) / 1000).toFixed(3)}</span>`;
+              };
+              const body = st.map((x) => `<tr>
+                  <td>${x.numero}</td>
+                  <td class="right muted">${x.giri}</td>
+                  ${[0, 1, 2].map((i) => `<td class="right">${cella(x.pendenza?.perSettore?.[i])}</td>`).join('')}
+                  <td class="right"><b>${cella(x.pendenza?.totale)}</b></td>
+                </tr>`).join('');
+              return `<div style="margin-top:10px">
+                <b style="font-size:12.5px">📉 ${tr({ it: 'Pendenza per settore', en: 'Sector slope' })} <span class="muted" style="font-weight:400">· ${tr({ it: 's/giro', en: 's/lap' })}</span></b>
+                <div class="tscroll"><table style="margin-top:4px"><thead><tr><th>${tr({ it: 'Stint', en: 'Stint' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">S1</th><th class="right">S2</th><th class="right">S3</th><th class="right">${tr({ it: 'Totale', en: 'Total' })}</th></tr></thead><tbody>${body}</tbody></table></div>
+                <div class="muted" style="font-size:12.5px;margin-top:4px">${tr({ it: 'quanto cresce (+) o cala (−) ogni settore a ogni giro DENTRO lo stint: regressione lineare sui giri del log in ordine di tempo, «—» = sotto 3 giri · sul numero, il passaggio dal primo all\'ultimo giro dello stint', en: 'how much each sector grows (+) or drops (−) per lap WITHIN the stint: least-squares slope over the logged laps in time order, "—" = under 3 laps · hover for the first-to-last lap change' })}</div>
+              </div>`;
+            })()
+          : '';
+        return `<div style="margin-top:10px;border-top:1px dashed var(--line,#2b3345);padding-top:8px">
+          <div style="font-weight:700;font-size:13px">📏 ${tr({ it: 'Costanza sui settori', en: 'Sector consistency' })} <span class="muted" style="font-weight:400">· ${cost.giri} ${tr({ it: 'giri segnati nel log', en: 'timed laps in the log' })}${st.length > 1 ? ` · ${st.length} stint` : ''}</span></div>
+          <div class="tscroll"><table style="margin-top:6px"><thead><tr><th></th><th class="right">${tr({ it: 'Migliore', en: 'Best' })}</th><th class="right">${tr({ it: 'Media', en: 'Average' })}</th><th class="right">${tr({ it: 'Peggiore', en: 'Worst' })}</th><th class="right" title="${tr({ it: 'peggiore − migliore tra i giri: quanto balla lo stesso settore', en: 'worst − best across laps: how much the same sector swings' })}">${tr({ it: 'Escursione', en: 'Spread' })}</th><th class="right" title="${tr({ it: 'deviazione standard ÷ media, dai giri segnati (la stessa unità del debrief degli stint); sotto 3 giri non si mostra: con due giri la statistica non esiste', en: 'standard deviation ÷ average over the timed laps (same unit as the stint debrief); not shown under 3 laps: with two laps the statistics do not exist' })}">${tr({ it: 'Costanza', en: 'Consistency' })}</th></tr></thead>
+          <tbody>${cost.perSettore.map((r) => riga(`S${r.settore}`, r, false)).join('')}${riga(tr({ it: 'Totale (somma settori)', en: 'Total (sector sum)' }), cost.totale, true)}</tbody></table></div>
+          <div class="muted" style="font-size:12.5px;margin-top:4px">${tr({ it: 'settori giro per giro dai log del gioco della stessa sessione (giri entro il 30% del giro di riferimento, per non pesare uscite ed errori) · σ campionaria · «—» = sotto 3 giri', en: 'lap-by-lap sectors from the same session\'s game logs (laps within 30% of the reference lap, so out-laps and mistakes do not weigh) · sample σ · "—" = under 3 laps' })}</div>
+          ${perStint}${pend}
+        </div>`;
+      })()
+    : `<div class="muted" style="font-size:12.5px;margin-top:6px">📏 ${s.costanza?.giri === 1
+      ? tr({ it: 'Costanza sui settori: nel log c\'è UN solo giro di questa sessione, quindi non c\'è niente da confrontare tra i giri', en: 'Sector consistency: the log holds a single lap of this session, so there is nothing to compare across laps' })
+      : tr({ it: 'Costanza sui settori: i log del gioco di questa sessione non ci sono più (o il giro non è abbinabile), quindi non si misura', en: 'Sector consistency: this session\'s game logs are gone (or the lap cannot be matched), so it is not measured' })}</div>`;
+  const notaAltra = altra
+    ? `🚗 <b>${tr({ it: 'Paragone tra auto', en: 'Car-to-car comparison' })}</b>: ${esc(altra.car)}${altra.session ? ` · ${esc(altra.session)}` : ''} · ${esc(altra.file)} — ${tr({ it: 'giro più veloce di questa pista con un\'altra auto, non un tuo riferimento: si legge solo per capire quanto pesa l\'auto', en: "fastest lap of this track in a different car, not your reference: read only to see how much the car weighs" })}`
+    : s.gara.car
+      ? tr({ it: 'nessun giro di un\'altra auto su questa pista nell\'archivio: nessun paragone tra auto', en: 'no lap from a different car on this track in the archive: no car-to-car comparison' })
+      : tr({ it: 'l\'auto di questa gara non è indicata nel file: il paragone tra auto non è verificabile e non si mostra', en: 'this race\'s car is not named in the file: the car-to-car comparison cannot be verified and is not shown' });
   const provenienza = s.rif
     ? (s.rif.stessoFile
         ? tr({ it: 'questo giro È il tuo miglior giro con quest\'auto: delta a zero per costruzione', en: 'this lap IS your best lap in this car: deltas are zero by definition' })
@@ -1155,11 +1256,13 @@ function sectorCompareHtml(s) {
     : tr({ it: 'nel tuo archivio non c\'è un altro giro con questa auto su questa pista: nessun confronto, restano i settori della gara', en: 'no other lap in this car on this track in your archive: no comparison, only this race\'s sectors' });
   return `<div style="margin-top:14px;border-top:1px solid var(--line,#2b3345);padding-top:10px">
     <div style="font-weight:700;font-size:13px">🎯 ${tr({ it: 'Settori: la gara contro il miglior giro', en: 'Sectors: race vs best lap' })}</div>
-    <div class="tscroll"><table style="margin-top:6px"><thead><tr><th></th><th class="right">${tr({ it: 'Gara', en: 'Race' })}</th><th class="right">${tr({ it: 'Miglior giro', en: 'Best lap' })}</th><th class="right">Δ</th><th class="right" title="${tr({ it: 'somma dei migliori settori di sempre con quest\'auto: NON è un tempo accreditato da nessuno', en: 'sum of your best sectors ever in this car: NOT a time anyone credited' })}">${tr({ it: 'Ideale', en: 'Ideal' })}</th></tr></thead>
+    <div class="tscroll"><table style="margin-top:6px"><thead><tr><th></th><th class="right">${tr({ it: 'Gara', en: 'Race' })}</th><th class="right">${tr({ it: 'Miglior giro', en: 'Best lap' })}</th><th class="right">Δ</th>${colonneAltra}<th class="right" title="${tr({ it: 'somma dei migliori settori di sempre con quest\'auto: NON è un tempo accreditato da nessuno', en: 'sum of your best sectors ever in this car: NOT a time anyone credited' })}">${tr({ it: 'Ideale', en: 'Ideal' })}</th></tr></thead>
     <tbody>${righe}
-      <tr style="border-top:1px solid var(--line,#2b3345)"><td><b>${tr({ it: 'Totale', en: 'Total' })}</b></td><td class="right"><b>${ms(s.gara.lapMs)}</b></td><td class="right">${s.rif ? ms(s.rif.lapMs) : '—'}</td><td class="right">${s.rif ? dms(dTot) : '—'}</td><td class="right muted">${s.ideale ? ms(s.ideale.lapMs) : '—'}</td></tr>
+      <tr style="border-top:1px solid var(--line,#2b3345)"><td><b>${tr({ it: 'Totale', en: 'Total' })}</b></td><td class="right"><b>${ms(s.gara.lapMs)}</b></td><td class="right">${s.rif ? ms(s.rif.lapMs) : '—'}</td><td class="right">${s.rif ? dms(dTot) : '—'}</td>${altra ? `<td class="right muted">${ms(altra.lapMs)}</td><td class="right muted">${dAuto(altra.deltaGiro)}</td>` : ''}<td class="right muted">${s.ideale ? ms(s.ideale.lapMs) : '—'}</td></tr>
     </tbody></table></div>
     <div class="muted" style="font-size:12.5px;margin-top:4px">${provenienza} · ${tr({ it: 'somma dei settori del file (non il tempo ufficiale del giro)', en: "sum of the file's sectors (not the official lap time)" })}${s.altre ? ` · ${s.altre} ${tr({ it: 'giri con quest\'auto', en: 'laps in this car' })}` : ''}</div>
+    <div class="muted" style="font-size:12.5px;margin-top:2px">${notaAltra}</div>
+    ${costanzaHtml}
   </div>`;
 }
 
@@ -1195,8 +1298,8 @@ async function openResult(file){
       };
       modal(tr({ it: 'Rapporto gara · pronto per Discord', en: 'Race report · ready for Discord' }), `
         <div class="muted" style="margin-bottom:8px">${rr.md.split('\n').slice(0, 2).map(esc).join('<br>')}</div>
-        <textarea id="rp-md" class="rp-md" readonly style="width:100%;height:340px;font-family:var(--mono,monospace);font-size:12px;white-space:pre;background:var(--bg2,#1b2030);color:var(--fg,#e8eaf0);border:1px solid var(--line,#2b3345);border-radius:6px;padding:10px">${esc(rr.md)}</textarea>
-        ${rr.salvatoMd ? `<div class="muted" style="margin-top:8px;font-size:12px">📄 ${tr({ it: 'salvato anche in', en: 'also saved to' })} <code>${esc(rr.salvatoMd)}</code></div>` : ''}`,
+        <textarea id="rp-md" class="rp-md" readonly style="width:100%;height:340px;font-family:var(--mono,monospace);font-size:12.5px;white-space:pre;background:var(--bg2,#1b2030);color:var(--fg,#e8eaf0);border:1px solid var(--line,#2b3345);border-radius:6px;padding:10px">${esc(rr.md)}</textarea>
+        ${rr.salvatoMd ? `<div class="muted" style="margin-top:8px;font-size:12.5px">📄 ${tr({ it: 'salvato anche in', en: 'also saved to' })} <code>${esc(rr.salvatoMd)}</code></div>` : ''}`,
         [[tr({ it: '⧉ Copia per Discord', en: '⧉ Copy for Discord' }), 'primary', () => { copia(); return false; }],
          [tr({ it: 'Chiudi', en: 'Close' }), 'ghost', ()=>{}]]);
     } catch (e) { toast(e.message, 'err'); }
@@ -1262,10 +1365,10 @@ async function drawStats(m){
   const vetrina = (s.trophies?.length || s.sigils?.length) ? `
   <div class="panel st-vetrina">
     <h2><span class="st-ico">${STI.cup}</span> ${tr({ it: 'SALA TROFEI', en: 'TROPHY HALL' })} <span class="h-act">${tr({ it: 'tutto quello che la carriera ha vinto', en: 'everything the career has won' })}</span></h2>
-    ${s.trophies?.length ? `<div class="st-trophies">${s.trophies.map(t=>`<div class="st-trophy">${rivalAvatarText(t.icon, 40)}<div><b>${esc(t.label)}</b><div class="muted" style="font-size:12px">${esc(t.detail)}</div></div></div>`).join('')}</div>` : ''}
-    ${s.sigils?.length ? `<details style="margin-top:10px" open><summary style="cursor:pointer;font-size:12.5px"><b>${tr({ it: 'Sigilli del pilota', en: 'Driver sigils' })}</b> <span class="muted" style="font-size:11.5px">— ${s.sigils.length} ${tr({ it: 'sbloccati', en: 'unlocked' })}</span></summary>
+    ${s.trophies?.length ? `<div class="st-trophies">${s.trophies.map(t=>`<div class="st-trophy">${rivalAvatarText(t.icon, 40)}<div><b>${esc(t.label)}</b><div class="muted" style="font-size:12.5px">${esc(t.detail)}</div></div></div>`).join('')}</div>` : ''}
+    ${s.sigils?.length ? `<details style="margin-top:10px" open><summary style="cursor:pointer;font-size:12.5px"><b>${tr({ it: 'Sigilli del pilota', en: 'Driver sigils' })}</b> <span class="muted" style="font-size:12.5px">— ${s.sigils.length} ${tr({ it: 'sbloccati', en: 'unlocked' })}</span></summary>
       <div class="st-kpis" style="margin-top:8px">${s.sigils.map(x=>`<div class="kpi st-kpi" title="${tr({ it: 'dal ', en: 'since ' })}${esc(String(x.at||'').slice(0,10))}"><div class="l">${esc(x.label ?? x.id)}</div><div class="v" style="font-size:13.5px;font-weight:500">${esc(x.detailEn ?? x.detail ?? '')}</div></div>`).join('')}</div></details>` : ''}
-    ${s.milestones?.length ? `<details style="margin-top:10px" ${s.milestones.some(m=>m.value>0)?'open':''}><summary style="cursor:pointer;font-size:12.5px"><b>${tr({ it: 'Traguardi di carriera', en: 'Career milestones' })}</b> <span class="muted" style="font-size:11.5px">— ${s.milestones.filter(m=>m.target).length}/${s.milestones.length} ${tr({ it: 'sbloccati', en: 'unlocked' })}</span></summary>
+    ${s.milestones?.length ? `<details style="margin-top:10px" ${s.milestones.some(m=>m.value>0)?'open':''}><summary style="cursor:pointer;font-size:12.5px"><b>${tr({ it: 'Traguardi di carriera', en: 'Career milestones' })}</b> <span class="muted" style="font-size:12.5px">— ${s.milestones.filter(m=>m.target).length}/${s.milestones.length} ${tr({ it: 'sbloccati', en: 'unlocked' })}</span></summary>
       <div class="st-kpis" style="margin-top:8px">${s.milestones.map(m=>{
         const cur=m.target??m.next??m.steps[0];
         const done=!!m.target;
@@ -1276,8 +1379,8 @@ async function drawStats(m){
   /* 2) grafici andamento */
   const grafici = s.history.length >= 2 ? `
   <div class="grid2">
-    ${stPan(tr({ it: 'Punti gara per gara', en: 'Points race by race' }), STI.bolt, `${svgLine(s.history.slice().reverse().map(r=>r.points))}<div class="muted" style="font-size:11.5px;margin-top:6px">${tr({ it: 'dal più vecchio (sinistra) al più recente (destra)', en: 'from oldest (left) to newest (right)' })}</div>`)}
-    ${stPan(tr({ it: 'Posizioni in gara', en: 'Race positions' }), STI.gauge, `${svgLine(s.history.slice().reverse().map(r=>r.dnf?(r.gridSize??10):r.position),{lowerBetter:true,color:'var(--acc)'})}<div class="muted" style="font-size:11.5px;margin-top:6px">${tr({ it: 'P1 in alto · i ritiri valgono ultima posizione', en: 'P1 at top · retirements score last position' })}</div>`)}
+    ${stPan(tr({ it: 'Punti gara per gara', en: 'Points race by race' }), STI.bolt, `${svgLine(s.history.slice().reverse().map(r=>r.points))}<div class="muted" style="font-size:12.5px;margin-top:6px">${tr({ it: 'dal più vecchio (sinistra) al più recente (destra)', en: 'from oldest (left) to newest (right)' })}</div>`)}
+    ${stPan(tr({ it: 'Posizioni in gara', en: 'Race positions' }), STI.gauge, `${svgLine(s.history.slice().reverse().map(r=>r.dnf?(r.gridSize??10):r.position),{lowerBetter:true,color:'var(--acc)'})}<div class="muted" style="font-size:12.5px;margin-top:6px">${tr({ it: 'P1 in alto · i ritiri valgono ultima posizione', en: 'P1 at top · retirements score last position' })}</div>`)}
   </div>` : '';
   /* 3) carriera in numeri: i quadri grandi */
   const numeri = stPan(tr({ it: 'Carriera in numeri', en: 'Career in numbers' }), STI.flag, stKpis([
@@ -1305,35 +1408,52 @@ async function drawStats(m){
   const fmtBytes = (b) => b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : b >= 1e6 ? `${Math.round(b / 1e6)} MB` : `${Math.max(1, Math.round(b / 1e3))} kB`;
   const fmtLap = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`;
   const gapStyle = 'color:var(--warn)';
+  const okStyle = 'color:var(--good)';
+  const minLaps = Number(cov?.gaps?.soglia?.giri) || 3;
+  const minLd = Number(cov?.gaps?.soglia?.fileTelemetria) || 2;
+  // SOGLIA PER SESSIONE (6/11): tre giri sparsi su tre uscite da uno non
+  // bastano per passo e degrado: serve un run vero, dentro UNA sessione.
+  const minSess = Number(cov?.gaps?.soglia?.giriSessione) || 3;
   /* Una riga per pista, apribile: cosa c'è (telemetria, giri cronometrati,
      settori) e cosa manca, con la pista mai corsa dichiarata tale. */
   const covRows = (cov?.byTrack ?? []).map((r, i) => {
     const tel = r.telemetry ?? { files: 0, bytes: 0 };
+    const telEnough = tel.files >= minLd;
+    const lapsEnough = r.laps >= minLaps;
+    const sessEnough = (Number(r.maxSessionLaps) || 0) >= minSess;
+    const ready = !r.never && telEnough && lapsEnough && sessEnough && r.timed > 0;
     const chips = [
       tel.files
-        ? `<span class="tag" title="${tr({ it: 'file .ld di telemetria per questa pista', en: '.ld telemetry files for this track' })}">🎞 ${fmtN(tel.files)}</span>`
+        ? `<span class="tag" style="${telEnough ? okStyle : gapStyle}" title="${tr({ it: `file .ld di telemetria: ${tel.files} trovati, soglia ${minLd}`, en: `.ld telemetry files: ${tel.files} found, threshold ${minLd}` })}">🎞 ${fmtN(tel.files)}/${minLd} .ld</span>`
         : `<span class="tag" style="${gapStyle}" title="${tr({ it: 'nessuna telemetria: frenata, trazione e traiettoria non sono analizzabili', en: 'no telemetry: braking, traction and line cannot be analysed' })}">${tr({ it: 'no telemetria', en: 'no telemetry' })}</span>`,
-      r.timed
-        ? `<span class="tag" title="${tr({ it: 'sessioni con un giro cronometrato', en: 'sessions with a timed lap' })}">⏱ ${fmtN(r.timed)}</span>`
-        : `<span class="tag" style="${gapStyle}" title="${tr({ it: 'nessun giro cronometrato: niente confronto sul passo', en: 'no timed lap: no pace comparison' })}">${tr({ it: 'no cronometrati', en: 'no timed laps' })}</span>`,
+      `<span class="tag" style="${r.timed > 0 ? okStyle : gapStyle}" title="${tr({ it: 'sessioni con un giro cronometrato', en: 'sessions with a timed lap' })}">⏱ ${r.timed ? fmtN(r.timed) : tr({ it: 'no cronometrati', en: 'no timed laps' })}</span>`,
+      `<span class="tag" style="${lapsEnough ? okStyle : gapStyle}" title="${tr({ it: `giri complessivi: ${r.laps}, soglia ${minLaps}`, en: `total laps: ${r.laps}, threshold ${minLaps}` })}">🏁 ${fmtN(r.laps)}/${minLaps} ${tr({ it: 'giri', en: 'laps' })}</span>`,
+      `<span class="tag" style="${sessEnough ? okStyle : gapStyle}" title="${tr({ it: `giri nella sessione più lunga: ${fmtN(r.maxSessionLaps ?? 0)}, soglia ${minSess} (tre uscite da un giro non fanno un run)`, en: `laps in the longest session: ${fmtN(r.maxSessionLaps ?? 0)}, threshold ${minSess} (three one-lap outings are not a run)` })}">🔁 ${fmtN(r.maxSessionLaps ?? 0)}/${minSess} ${tr({ it: 'in una sessione', en: 'in one session' })}</span>`,
       r.sectors
-        ? `<span class="tag" title="${tr({ it: 'sessioni con i tempi dei settori: uscite libere e file risultato del gioco', en: 'sessions with sector times: free sessions and the game result files' })}">📊 ${fmtN(r.sectors)}</span>`
+        ? `<span class="tag" style="${okStyle}" title="${tr({ it: 'sessioni con i tempi dei settori ufficiali del gioco', en: 'sessions with official game sector times' })}">📊 ${fmtN(r.sectors)} ${tr({ it: 'settori', en: 'sectors' })}</span>`
         : r.sectorsCalc
-        ? `<span class="tag" title="${tr({ it: 'split misurati dalla telemetria a terzi di distanza: tempi veri, ma NON sono i settori ufficiali del gioco', en: 'splits measured from telemetry at distance thirds: real times, but NOT the game official sectors' })}">🧩 ${tr({ it: 'split telem.', en: 'telemetry splits' })}</span>`
+        ? `<span class="tag" style="${gapStyle}" title="${tr({ it: 'split misurati dalla telemetria a terzi di distanza: tempi veri, ma NON sono i settori ufficiali del gioco', en: 'splits measured from telemetry at distance thirds: real times, but NOT the game official sectors' })}">🧩 ${tr({ it: 'split telem. · non ufficiali', en: 'telemetry splits · unofficial' })}</span>`
         : `<span class="tag" style="${gapStyle}" title="${tr({ it: 'nessun settore: analisi per tratti non possibile', en: 'no sectors: corner-by-corner analysis is impossible' })}">${tr({ it: 'no settori', en: 'no sectors' })}</span>`,
     ].join(' ');
     const none = `<span style="${gapStyle}">${tr({ it: 'nessuno', en: 'none' })}</span>`;
+    const analyses = [
+      `<span style="${tel.files ? telEnough ? okStyle : gapStyle : gapStyle}">${tel.files ? '✓' : '⚠'} ${tr({ it: 'Telemetria per frenata, trazione e traiettoria', en: 'Telemetry for braking, traction and line' })}: ${tel.files ? `${fmtN(tel.files)} .ld${telEnough ? '' : ` · ${tr({ it: 'sotto soglia', en: 'below threshold' })}`}` : tr({ it: 'non disponibile', en: 'unavailable' })}</span>`,
+      `<span style="${r.timed > 0 ? okStyle : gapStyle}">${r.timed > 0 ? '✓' : '⚠'} ${tr({ it: 'Passo / confronto giri', en: 'Pace / lap comparison' })}: ${r.timed > 0 ? `${fmtN(r.timed)} ${tr({ it: 'sessioni cronometrate', en: 'timed sessions' })}` : tr({ it: 'nessun giro cronometrato', en: 'no timed laps' })}</span>`,
+      `<span style="${r.sectors ? okStyle : gapStyle}">${r.sectors ? '✓' : '⚠'} ${tr({ it: 'Analisi per settori ufficiali', en: 'Official sector analysis' })}: ${r.sectors ? `${fmtN(r.sectors)} ${tr({ it: 'sessioni', en: 'sessions' })}` : tr({ it: 'non disponibile', en: 'unavailable' })}</span>`,
+    ];
+    const readyStatus = `<b style="color:${ready ? 'var(--good)' : 'var(--warn)'}">${ready ? '✓' : '⚠'} ${ready ? tr({ it: 'Copertura sufficiente per l’analisi generale', en: 'Enough data for general analysis' }) : tr({ it: 'Copertura insufficiente per l’analisi generale', en: 'Insufficient data for general analysis' })}</b> <span class="faint">( ${tr({ it: `${minLaps} giri + ${minSess} nella stessa sessione + ${minLd} file .ld + un cronometrato`, en: `${minLaps} laps + ${minSess} in the same session + ${minLd} .ld files + one timed session` })})</span>`;
     const det = [
       `<b>${esc(r.name)}</b>${r.never ? ` — <span style="${gapStyle}">${tr({ it: 'mai corsa: nessun dato in archivio', en: 'never driven: nothing in the archive' })}</span>` : ''}`,
-      `${tr({ it: 'Telemetria', en: 'Telemetry' })}: ${tel.files ? `${fmtN(tel.files)} ${tr({ it: 'file .ld', en: '.ld files' })} · ${fmtBytes(tel.bytes)}` : none}`,
-      `${tr({ it: 'Giri cronometrati', en: 'Timed laps' })}: ${r.timed ? fmtN(r.timed) : `<span style="${gapStyle}">0</span>`}${r.bestLapMs ? ` · ${tr({ it: 'miglior giro', en: 'best lap' })} <b>${fmtLap(r.bestLapMs)}</b>` : ''}`,
-      `${tr({ it: 'Settori', en: 'Sectors' })}: ${r.sectors ? `${fmtN(r.sectors)} ${tr({ it: 'sessioni con i tempi dei settori (uscite libere e file risultato)', en: 'sessions with sector times (free sessions and result files)' })}` : none}`
-        + (r.sectorsCalc ? `<br><span class="faint">${tr({ it: 'Split dalla telemetria, terzi di distanza (non settori ufficiali)', en: 'Telemetry splits, distance thirds (not official sectors)' })}</span>: ${r.sectorsCalc.splitsMs.map((v) => fmtLap(v)).join(' · ')} · ${tr({ it: 'giro', en: 'lap' })} ${fmtLap(r.sectorsCalc.lapMs)}` : ''),
+      readyStatus,
+      `<b>${tr({ it: 'Analisi disponibili / lacune', en: 'Available analyses / gaps' })}</b><br>${analyses.join('<br>')}`,
+      `${tr({ it: 'Dati grezzi', en: 'Raw data' })}: ${tr({ it: 'telemetria', en: 'telemetry' })} ${tel.files ? `${fmtN(tel.files)} ${tr({ it: 'file .ld', en: '.ld files' })} · ${fmtBytes(tel.bytes)}` : none} · ${tr({ it: 'giri complessivi', en: 'total laps' })} ${fmtN(r.laps)} · ${tr({ it: 'sessioni cronometrate', en: 'timed sessions' })} ${r.timed ? fmtN(r.timed) : `<span style="${gapStyle}">0</span>`}${r.bestLapMs ? ` · ${tr({ it: 'miglior giro', en: 'best lap' })} <b>${fmtLap(r.bestLapMs)}</b>` : ''}`,
+      `${tr({ it: 'Settori ufficiali', en: 'Official sectors' })}: ${r.sectors ? `${fmtN(r.sectors)} ${tr({ it: 'sessioni con i tempi settoriali del gioco', en: 'sessions with game sector times' })}` : none}`
+        + (r.sectorsCalc ? `<br><span style="${gapStyle}">🧩 ${tr({ it: 'Split dalla telemetria a terzi di distanza — non sono settori ufficiali:', en: 'Telemetry distance-third splits — not official sectors:' })} ${r.sectorsCalc.splitsMs.map((v) => fmtLap(v)).join(' · ')} · ${tr({ it: 'giro', en: 'lap' })} ${fmtLap(r.sectorsCalc.lapMs)}</span>` : ''),
       `${tr({ it: 'Ultimo dato', en: 'Latest data' })}: ${r.lastAt ? String(r.lastAt).slice(0, 16).replace('T', ' ') : '—'}`,
       !r.never ? `<button class="mini st-tracklink" data-track="${esc(r.name)}">${tr({ it: 'Apri nella scheda Piste', en: 'Open in Tracks' })}</button>` : '',
     ].filter(Boolean).join('<br>');
-    return `<tr class="cov-tr" data-i="${i}" tabindex="0" style="cursor:pointer">
-      <td>${esc(r.name)}${r.never ? ` <span class="faint">· ${tr({ it: 'mai corsa', en: 'never driven' })}</span>` : ''}</td>
+    return `<tr class="cov-tr" data-i="${i}" tabindex="0" aria-expanded="false" aria-controls="cov-d-${i}" aria-label="${esc(tr({ it: `Dettaglio copertura ${r.name}`, en: `Coverage details for ${r.name}` }))}" style="cursor:pointer">
+      <td>${esc(r.name)}${r.never ? ` <span class="faint">· ${tr({ it: 'mai corsa', en: 'never driven' })}</span>` : ''}${!ready && !r.never ? ` <span class="tag" style="${gapStyle}">⚠ ${tr({ it: 'dati insufficienti', en: 'insufficient data' })}</span>` : ''}</td>
       <td class="right">${fmtN(r.sessions)}</td>
       <td class="right">${fmtN(r.laps)}</td>
       <td class="right">${r.km == null ? '<span class="faint" title="pista fuori catalogo: niente km">—</span>' : fmtN(r.km)}</td>
@@ -1359,7 +1479,7 @@ async function drawStats(m){
       [tr({ it: 'Ultimo dato', en: 'Latest data' }), cov.lastAt ? String(cov.lastAt).slice(0, 10) : '—', '', cov.lastAt ? String(cov.lastAt).slice(0, 16).replace('T', ' ') : tr({ it: 'nessun dato importato', en: 'nothing imported yet' })],
     ])
     + (covRows ? `<table style="margin-top:10px"><thead><tr><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Sessioni', en: 'Sessions' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'km', en: 'km' })}</th><th>${tr({ it: 'Cosa c’è', en: 'What is there' })}</th></tr></thead><tbody>${covRows}</tbody></table>
-      <div class="muted" style="font-size:12.5px;margin-top:6px">${tr({ it: 'Clicca una riga per il dettaglio: telemetria, giri cronometrati, settori. In rosso quello che manca', en: 'Click a row for the detail: telemetry, timed laps, sectors. Red marks what is missing' })}${cov.noTime ? ` · ${fmtN(cov.noTime)} ${tr({ it: 'uscite senza un giro cronometrato', en: 'sessions with no timed lap' })}` : ''}.</div>` : ''),
+      <div class="muted" style="font-size:12.5px;margin-top:6px">${tr({ it: `Clicca una pista per espandere i dati e le analisi disponibili. Soglia generale: ${minLaps} giri + ${minSess} nella stessa sessione + ${minLd} file .ld + un cronometrato; in rosso le lacune.`, en: `Click a track to expand its data and available analyses. General threshold: ${minLaps} laps + ${minSess} in the same session + ${minLd} .ld files + one timed session; gaps are red.` })}${cov.noTime ? ` · ${fmtN(cov.noTime)} ${tr({ it: 'uscite senza un giro cronometrato', en: 'sessions with no timed lap' })}` : ''}.</div>` : ''),
     { note: tr({ it: 'quello che l’archivio contiene davvero', en: 'what the archive really holds' }) }) : '';
   /* 4) tabelle: giri personali, piste, stagioni, saga e ultime gare */
   const bestLaps = stPan(tr({ it: 'Migliori giri personali', en: 'Personal best laps' }), STI.clock, s.bestLaps.length
@@ -1385,9 +1505,13 @@ async function drawStats(m){
   $$('.cov-tr', m).forEach((tr) => {
     const det = m.querySelector(`#cov-d-${tr.dataset.i}`);
     if (!det) return;
-    const toggle = () => { det.style.display = det.style.display === 'none' ? '' : 'none'; };
+    const toggle = () => {
+      const open = det.style.display === 'none';
+      det.style.display = open ? '' : 'none';
+      tr.setAttribute('aria-expanded', String(open));
+    };
     tr.onclick = (e) => { if (e.target.closest('.st-tracklink')) return; toggle(); };
-    tr.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
+    tr.onkeydown = (e) => { if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) { e.preventDefault(); toggle(); } };
   });
   $$('.st-tracklink', m).forEach((e) => { e.onclick = () => vai('tracks', { search: e.dataset.track }); });
   $$('.st-carlink', m).forEach((e) => { e.onclick = () => vai('cars', { search: e.dataset.car }); });
@@ -1421,12 +1545,13 @@ async function drawBanca(m){
   // guardia di layout (test/layout-impostazioni.test.mjs).
   m.innerHTML = `
   <div class="panel" id="bn-libro">
-    <h2>${STI.euro} ${tr({ it: 'FINANZE', en: 'FINANCES' })} <span class="h-act">${tr({ it: 'saldo attuale ', en: 'current balance ' })}${money(boot.header.money)} € · ${tot.in[0]>0?'+'+money(tot.in[0]):'0'} € ${tr({ it: 'entrate', en: 'in' })} · ${money(tot.out[0])} € ${tr({ it: 'uscite', en: 'out' })} (${tr({ it: 'ultimi ', en: 'last ' })}${rows.length} ${tr({ it: 'movimenti', en: 'entries' })})</span></h2>
+    <h2>${STI.euro} ${tr({ it: 'FINANZE PITWALL', en: 'PITWALL FINANCES' })} <span class="h-act">${tr({ it: 'saldo carriera ', en: 'career balance ' })}${money(boot.header.money)} € · ${tot.in[0]>0?'+'+money(tot.in[0]):'0'} € ${tr({ it: 'entrate', en: 'in' })} · ${money(tot.out[0])} € ${tr({ it: 'uscite', en: 'out' })} (${tr({ it: 'ultimi ', en: 'last ' })}${rows.length} ${tr({ it: 'movimenti', en: 'entries' })})</span></h2>
+    <div class="muted" style="font-size:12.5px;margin-top:-4px;margin-bottom:8px">${tr({ it: 'Economia della carriera gestita dal Pitwall: premi, sponsor, iscrizioni e spese sono calcolati dalle regole del tool, non letti dal saldo interno di EVO.', en: 'Career economy managed by Pitwall: prizes, sponsors, entry fees and expenses are calculated from tool rules, not read from EVO’s in-game balance.' })}</div>
     <div style="display:flex;gap:6px;margin:8px 0 10px">${filtri.map(([id,lab])=>`<button class="mini ${bancaView.filter===id?'acc':''}" data-bf="${id}">${lab??id}</button>`).join('')}</div>
     ${rowsHtml
       ? `<table><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Tipo', en: 'Type' })}</th><th>${tr({ it: 'Motivo', en: 'Reason' })}</th><th class="right">${tr({ it: 'Importo', en: 'Amount' })}</th></tr></thead><tbody>${rowsHtml}</tbody></table>`
       : `<div class="empty">${tr({ it: 'Nessun movimento del tipo scelto.', en: 'No entries of the chosen type.' })}</div>`}
-    <div class="muted" style="margin-top:10px;font-size:12px">${tr({ it: 'Il registro parte dalla nascita del registro flussi: i tempi passati della carriera risultano come un unico movimento "ripartenza", calcolato a posteriori.', en: 'The ledger starts when the flow ledger was born: earlier career times show up as a single "starting balance" entry, computed after the fact.' })}</div>
+    <div class="muted" style="margin-top:10px;font-size:12.5px">${tr({ it: 'Il registro parte dalla nascita del registro flussi: i tempi passati della carriera risultano come un unico movimento "ripartenza", calcolato a posteriori.', en: 'The ledger starts when the flow ledger was born: earlier career times show up as a single "starting balance" entry, computed after the fact.' })}</div>
   </div>`;
   $$('button[data-bf]').forEach(b=>{ b.onclick=()=>{ bancaView.filter=b.dataset.bf; drawBanca(m); }; });
 }

@@ -64,7 +64,7 @@ const ID_TABS = TABS.map(([id]) => id);
 
 /** Esegue il VERO drawNav contro un $ finto: l'unica cosa che conta è
  *  l'HTML scritto su #nav (il resto non deve rompersi per il test). */
-function navHtml() {
+function navHtml(rlNovita = 0) {
   let html = null;
   const nav = {
     set innerHTML(v) { html = v; },
@@ -72,11 +72,15 @@ function navHtml() {
   };
   const $ = (sel) => (sel === '#nav' ? nav : null);
   const $$ = () => [];
+  // dal 6/11 (cassetto del menu) drawNav chiama anche menuApri/collegaMenu: la
+  // guardia non li collauda, ma devono esistere perché il resto del corpo giri
+  const noop = () => {};
   const draw = new Function(
     'TABS', 'NAV_GROUPS', 'ICONS', 'TAB_COLORS', 'boot', 'tab', 'tr', 'esc', '$', '$$', 'drawAiuto',
+    'menuApri', 'collegaMenu', 'rlNovita',
     corpoDrawNav(),
   );
-  draw(TABS, NAV_GROUPS, {}, {}, null, 'dashboard', tr, (s) => String(s), $, $$, () => {});
+  draw(TABS, NAV_GROUPS, {}, {}, null, 'dashboard', tr, (s) => String(s), $, $$, noop, noop, noop, rlNovita);
   return html;
 }
 
@@ -100,16 +104,28 @@ test('la sidebar: il vero drawNav disegna un bottone per OGNI tab di TABS', () =
     `#nav ha bottoni DOPPI: ${inDoppio.join(', ')} — un tab, un bottone.`);
 });
 
+test('la sidebar: la pastiglia del riepilogo sta SOLO sul Cruscotto e solo con una novità', () => {
+  // 6/11: con una sessione chiusa non letta, la voce Cruscotto porta il numero.
+  const conNovita = navHtml(2);
+  assert.match(conNovita, /data-tab="dashboard"[^>]*>[\s\S]*?class="badge"[^>]*>2</,
+    'con una novità la voce Cruscotto deve mostrare la pastiglia col numero');
+  assert.doesNotMatch(navHtml(0), /class="badge"[^>]*>1</, 'senza novità la pastiglia non deve esserci');
+  const altri = [...navHtml(2).matchAll(/data-tab="([a-z0-9_]+)"[^>]*>([\s\S]*?)<\/button>/g)]
+    .filter(([, id, dentro]) => id !== 'dashboard' && dentro.includes('badge') && !dentro.includes('⚠️'));
+  assert.deepEqual(altri.map(([, id]) => id), [], 'la pastiglia del riepilogo non deve comparire su altre voci');
+});
+
 test('la sidebar: i gruppi coprono TABS per intero e i bottoni restano cliccabili', () => {
   const neiGruppi = NAV_GROUPS.flatMap((g) => g.ids);
   const orfani = ID_TABS.filter((id) => !neiGruppi.includes(id));
   assert.deepEqual(orfani, [],
     `tab fuori da ogni NAV_GROUPS: ${orfani.join(', ')} — stanno in TABS ma non usciranno MAI dalla sidebar (drawNav li scarta col filtro).`);
 
-  // un bottone senza data-tab è muto: il click non porta da nessuna parte
-  // (l'Aiuto è l'unico bottone legittimo senza data-tab: non è una vista)
+  // un bottone senza data-tab è muto: il click non porta da nessuna parte.
+  // Legittimi senza data-tab: Aiuto (non è una vista) e, dal 6/11, il comando
+  // di chiusura del cassetto, che non cambia scheda.
   const bottoni = [...navHtml().matchAll(/<button\b[^>]*>/g)].map((m) => m[0]);
-  const senzaTab = bottoni.filter((b) => !b.includes('data-tab=') && !b.includes('id="b-aiuto"'));
+  const senzaTab = bottoni.filter((b) => !b.includes('data-tab=') && !b.includes('id="b-aiuto"') && !b.includes('id="menu-close"'));
   assert.equal(senzaTab.length, 0,
     `bottoni senza data-tab: ${senzaTab.join(' · ') || '(—)'} — il click non porta a nessuna vista.`);
 });

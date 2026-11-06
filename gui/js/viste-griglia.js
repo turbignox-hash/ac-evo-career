@@ -40,7 +40,7 @@
   const chip = (s) => {
     const h = s.hour != null ? `${String(s.hour).padStart(2, '0')}:00` : '—';
     const gara = s.session === 'Race';
-    return `<span class="tag" style="font-size:11.5px;padding:2px 7px${gara ? ';font-weight:700' : ''}">${WX[Number(s.weather)] ?? '🌡️'} ${esc(s.sessionLabel)} ${h} · ${esc(s.label)}</span>`;
+    return `<span class="tag" style="font-size:12.5px;padding:2px 7px${gara ? ';font-weight:700' : ''}">${WX[Number(s.weather)] ?? '🌡️'} ${esc(s.sessionLabel)} ${h} · ${esc(s.label)}</span>`;
   };
   const ora = card.raceHour != null ? `${String(card.raceHour).padStart(2, '0')}:00` : '—';
   const distanza = card.laps != null
@@ -53,13 +53,13 @@
     : '—';
   const ai = card.difficulty ? `AI ${card.difficulty.rangeMin}–${card.difficulty.rangeMax}%` : '';
   const gridExtra = card.gridAltraSerie
-    ? `<br><span class="tag warn" style="font-size:11.5px;padding:1px 5px">${t('griglia di un’altra serie', 'grid from another series')}</span>` : '';
+    ? `<br><span class="tag warn" style="font-size:12.5px;padding:1px 5px">${t('griglia di un’altra serie', 'grid from another series')}</span>` : '';
   const tile = (key, icon, label, value, detail, extra = '') => {
     const stile = 'text-align:left;display:flex;flex-direction:column;gap:2px;background:var(--panel2,#121822);border:1px solid var(--line,#2a3341);border-radius:8px;padding:8px 10px;color:inherit;font:inherit;min-height:74px';
     const corpo = `
-      <span class="muted" style="font-size:11.5px">${icon} ${label}</span>
+      <span class="muted" style="font-size:12.5px">${icon} ${label}</span>
       <b style="font-size:14px">${value}</b>
-      <span class="muted" style="font-size:11.5px;line-height:1.25">${detail}${extra}</span>`;
+      <span class="muted" style="font-size:12.5px;line-height:1.25">${detail}${extra}</span>`;
     const apre = key === 'car' || key === 'track';
     return apre
       ? `<button type="button" data-wb="${key}" style="${stile};cursor:pointer">${corpo}</button>`
@@ -67,7 +67,7 @@
   };
   return `
   <div class="panel" id="weekend-builder">
-    <h2>${t('Costruzione weekend', 'Weekend build')} <span class="muted" style="font-size:12px">${t('i sei parametri che «Prepara tutto» scrive in EVO', 'the six settings “Get everything ready” writes into EVO')}</span> ${stato}</h2>
+    <h2>${t('Costruzione weekend', 'Weekend build')} <span class="muted" style="font-size:12.5px">${t('i sei parametri che «Prepara tutto» scrive in EVO', 'the six settings “Get everything ready” writes into EVO')}</span> ${stato}</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px">
       ${tile('car', '🚗', t('Auto', 'Car'), auto, card.carChoices?.length > 1
         ? `${card.carChoices.length} ${t('ammesse: scegli nella scheda', 'allowed: choose in the sheet')}`
@@ -79,10 +79,10 @@
       ${tile('grid', '🧱', t('Griglia', 'Grid'), griglia, ai ? `${ai}${card.difficulty?.trim ? ` · ${t('trim', 'trim')} +${card.difficulty.trim}` : ''}` : t('AI da definire', 'AI to define'), gridExtra)}
     </div>
     <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap;align-items:center">
-      <span class="muted" style="font-size:11.5px">${t('Sessioni e meteo del weekend:', 'Weekend sessions and weather:')}</span>
+      <span class="muted" style="font-size:12.5px">${t('Sessioni e meteo del weekend:', 'Weekend sessions and weather:')}</span>
       ${(card.weatherPlan ?? []).map(chip).join('')}
     </div>
-    <div class="muted" style="margin-top:10px;font-size:11.5px">${t('Auto e pista aprono le rispettive schede.', 'Car and track open their sheets.')}</div>
+    <div class="muted" style="margin-top:10px;font-size:12.5px">${t('Auto e pista aprono le rispettive schede.', 'Car and track open their sheets.')}</div>
   </div>`;
 }
 
@@ -131,13 +131,13 @@ async function drawGridTab(m){
   m.innerHTML = `
   ${builder}
   <div class="panel">
-    <h2>${tr({ it: 'Griglia', en: 'Grid' })} <span class="muted" style="font-size:12.5px">${data.exists ? `${data.cells.length} ${tr({ it: 'celle', en: 'cells' })} · ${data.drivers} ${tr({ it: 'piloti', en: 'drivers' })} · AI ${data.aiMin ?? '–'}–${data.aiMax ?? '–'} ${bS ? `<span class="muted">(${tr({ it: 'campo del file', en: 'file field' })})</span>` : ''} · PI ${data.piMin ?? '–'}–${data.piMax ?? '–'}` : ` (${tr({ it: 'file customgrid non trovato', en: 'customgrid file not found' })})`}</span></h2>
+    <h2>${tr({ it: 'Griglia', en: 'Grid' })} <span class="muted" style="font-size:12.5px" title="${tr({ it: 'AI = livello degli avversari scritto in griglia · PI = passo iniziale della serie: più alto = avversari più veloci in partenza.', en: 'AI = opponent level written into the grid · PI = series starting pace: higher = faster rivals at the start.' })}">${data.exists ? `${data.cells.length} ${tr({ it: 'celle', en: 'cells' })} · ${data.drivers} ${tr({ it: 'piloti', en: 'drivers' })} · AI ${data.aiMin ?? '–'}–${data.aiMax ?? '–'} ${bS ? `<span class="muted">(${tr({ it: 'campo del file', en: 'file field' })})</span>` : ''} · PI ${data.piMin ?? '–'}–${data.piMax ?? '–'}` : ` (${tr({ it: 'file customgrid non trovato', en: 'customgrid file not found' })})`}</span></h2>
     ${bS ? `<div style="margin:2px 0 8px;font-size:12.5px">${tr({ it: 'Banda attiva dei cursori del weekend:', en: 'Active band of the weekend sliders:' })} <b>${bTesto}</b> ${bTag}</div>` : ''}
     ${data.classe ? `<div style="margin:6px 0 10px">${tr({ it: 'Classe combaciata:', en: 'Matched class:' })} <b>${esc(data.classe)}</b>${data.perTraccia ? ` · ${tr({ it: 'per-traccia', en: 'per-track' })} <b>${esc(data.perTraccia)}</b> ${data.convalidato ? badgeOk : badgeKo}` : ''}</div>` : `<div class="muted" style="margin:6px 0 10px">${tr({ it: 'Nessuna classe combacia con le auto della griglia', en: 'No class matches the grid cars' })}</div>`}
-    ${data.exists && tinteRiga ? `<div class="muted" style="margin:2px 0 8px;font-size:12px">${tr({ it: 'Tinte (liverie):', en: 'Liveries:' })} ${tinteRiga}${monoTinte.length ? ` — <b style="color:#d9a83e">${tr({ it: 'MONOCOLORE:', en: 'MONOCHROME:' })} ${esc(monoTinte.join(', '))}</b> → ${tr({ it: 'in EVO genera più LIVERIE della stessa auto e APPLICA, oppure (avversari) tintePrestate: true dalla serie in grid-classes.json', en: 'in EVO create more LIVERIES of the same car and APPLICA, or (rivals) tintePrestate: true on the series in grid-classes.json' })}` : ''}</div>` : ''}
+    ${data.exists && tinteRiga ? `<div class="muted" style="margin:2px 0 8px;font-size:12.5px">${tr({ it: 'Tinte (liverie):', en: 'Liveries:' })} ${tinteRiga}${monoTinte.length ? ` — <b style="color:#d9a83e">${tr({ it: 'MONOCOLORE:', en: 'MONOCHROME:' })} ${esc(monoTinte.join(', '))}</b> → ${tr({ it: 'in EVO genera più LIVERIE della stessa auto e APPLICA, oppure (avversari) tintePrestate: true dalla serie in grid-classes.json', en: 'in EVO create more LIVERIES of the same car and APPLICA, or (rivals) tintePrestate: true on the series in grid-classes.json' })}` : ''}</div>` : ''}
     ${data.escluseClasse?.length || data.escluseTraccia?.length ? `<div class="banner" style="border-color:#d9a83e">${tr({ it: 'Auto escluse ancora presenti nel file: {A} → usa "Applica bilancio" per rimuoverle', en: 'Excluded cars still in the file: {A} → use "Apply balance" to remove them' }).replace('{A}', esc([...(data.escluseClasse ?? []), ...(data.escluseTraccia ?? [])].join(' · ')))}</div>` : ''}
     <table><thead><tr><th>#</th><th data-ord="auto" style="cursor:pointer">${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Preset', en: 'Preset' })}</th><th>${tr({ it: 'Tinta', en: 'Livery' })}</th><th class="right" data-ord="pz" style="cursor:pointer">${tr({ it: 'Zavorra / Penalità', en: 'Ballast / Penalty' })}</th></tr></thead>
-    <tbody id="g-tbody">${(data.cells ?? []).map((c, i) => `<tr><td class="muted">${i + 1}</td><td><span class="car-link" data-car="${esc(c.name)}" style="cursor:pointer;text-decoration:underline dotted">${esc(c.name)}</span></td><td class="muted" style="font-size:11.5px">${esc(c.preset ?? '—')}</td><td class="muted" style="font-size:11.5px">${esc(c.tinta ?? '(default)')}</td><td class="right">${kgpct(c)}</td></tr>`).join('')}</tbody>
+    <tbody id="g-tbody">${(data.cells ?? []).map((c, i) => `<tr><td class="muted">${i + 1}</td><td><span class="car-link" data-car="${esc(c.name)}" style="cursor:pointer;text-decoration:underline dotted">${esc(c.name)}</span></td><td class="muted" style="font-size:12.5px">${esc(c.preset ?? '—')}</td><td class="muted" style="font-size:12.5px">${esc(c.tinta ?? '(default)')}</td><td class="right">${kgpct(c)}</td></tr>`).join('')}</tbody>
     </table>
   </div>
 
@@ -151,17 +151,17 @@ async function drawGridTab(m){
         <div class="row" style="align-items:start;gap:14px;margin-top:10px;flex-wrap:wrap">
           <div style="flex:1 1 280px;min-width:0">
             <div class="muted" style="margin-bottom:4px">${tr({ it: 'Regole base', en: 'Base rules' })}${cl.autoBase ? ` — ${tr({ it: 'base: ', en: 'base: ' })}<b>${esc(legacyIt(cl.autoBase))}</b>` : ''}</div>
-            <table><tbody>${cl.regole.map((r) => `<tr><td><span class="car-link" data-car="${esc(r.auto)}" style="cursor:pointer;text-decoration:underline dotted">${esc(r.auto)}</span></td><td class="muted" style="font-size:11.5px">${esc(r.preset ?? '')}</td><td class="right">${r.kg}kg / ${pct(r.pct)}</td><td>${r.escluso ? `<span class="tag red">${tr({ it: 'esclusa', en: 'excluded' })}</span>` : ''}</td></tr>`).join('')}</tbody></table>
+            <table><tbody>${cl.regole.map((r) => `<tr><td><span class="car-link" data-car="${esc(r.auto)}" style="cursor:pointer;text-decoration:underline dotted">${esc(r.auto)}</span></td><td class="muted" style="font-size:12.5px">${esc(r.preset ?? '')}</td><td class="right">${r.kg}kg / ${pct(r.pct)}</td><td>${r.escluso ? `<span class="tag red">${tr({ it: 'esclusa', en: 'excluded' })}</span>` : ''}</td></tr>`).join('')}</tbody></table>
           </div>
           <div style="flex:1 1 280px;min-width:0">
             <div class="muted" style="margin-bottom:4px">${tr({ it: 'Supplementi per-traccia', en: 'Per-track supplements' })}</div>
             ${cl.perTraccia.length ? cl.perTraccia.map((pt) => `
               <div style="margin-bottom:8px;padding:8px;border-left:3px solid var(--line,#333)">
                 <b>${esc(pt.traccia)}</b> ${pt.convalidato ? badgeOk : badgeKo}
-                ${pt.restrictorPct ? `<div class="muted" style="font-size:11.5px">${esc(Object.entries(pt.restrictorPct).map(([p, v]) => `${p.replace(/^preset_/, '')} → ${pct(v)}`).join(' · '))}</div>` : ''}
-                ${pt.aiStandard ? `<div class="muted" style="font-size:11.5px">${tr({ it: 'AI per-traccia', en: 'per-track AI' })} ${pt.aiStandard[0]}–${pt.aiStandard[1]}</div>` : ''}
-                ${pt.escludiAuto?.length ? `<div class="muted" style="font-size:11.5px">${esc(pt.escludiAuto.join(' · '))}</div>` : ''}
-                ${pt.nota ? `<div class="muted" style="font-size:11.5px;margin-top:4px">${esc(String(pt.nota).slice(0, 200))}${String(pt.nota).length > 200 ? '…' : ''}</div>` : ''}
+                ${pt.restrictorPct ? `<div class="muted" style="font-size:12.5px">${esc(Object.entries(pt.restrictorPct).map(([p, v]) => `${p.replace(/^preset_/, '')} → ${pct(v)}`).join(' · '))}</div>` : ''}
+                ${pt.aiStandard ? `<div class="muted" style="font-size:12.5px">${tr({ it: 'AI per-traccia', en: 'per-track AI' })} ${pt.aiStandard[0]}–${pt.aiStandard[1]}</div>` : ''}
+                ${pt.escludiAuto?.length ? `<div class="muted" style="font-size:12.5px">${esc(pt.escludiAuto.join(' · '))}</div>` : ''}
+                ${pt.nota ? `<div class="muted" style="font-size:12.5px;margin-top:4px">${esc(String(pt.nota).slice(0, 200))}${String(pt.nota).length > 200 ? '…' : ''}</div>` : ''}
               </div>`).join('')
             : `<div class="faint">${tr({ it: 'nessuna variante per-traccia', en: 'no per-track variant' })}</div>`}
           </div>
@@ -170,12 +170,12 @@ async function drawGridTab(m){
   </div>
 
   <div class="panel">
-    <h2>${tr({ it: 'Sede del weekend', en: 'Weekend venue' })} <span class="muted" style="font-size:12px">${tr({ it: 'pista della ronda corrente · scrittura a gioco APERTO', en: 'current round track · write allowed with the GAME OPEN' })}</span></h2>
-    <div id="wtrack-box" class="muted" style="font-size:12px">${tr({ it: 'carico…', en: 'loading…' })}</div>
+    <h2>${tr({ it: 'Sede del weekend', en: 'Weekend venue' })} <span class="muted" style="font-size:12.5px">${tr({ it: 'pista della ronda corrente · scrittura a gioco APERTO', en: 'current round track · write allowed with the GAME OPEN' })}</span></h2>
+    <div id="wtrack-box" class="muted" style="font-size:12.5px">${tr({ it: 'carico…', en: 'loading…' })}</div>
   </div>
 
   <div class="panel">
-    <h2>${tr({ it: 'Calibrazione dai risultati reali', en: 'Calibration from real results' })} <span class="muted" style="font-size:12px">${data.calib?.eventi ? `${data.calib.eventi} ${tr({ it: 'gare nel registro', en: 'races in the log' })} · ${esc((data.calib.file ?? '').split('/').slice(-1)[0])}` : tr({ it: 'si riempie da sola ad ogni import', en: 'fills itself at every import' })}</span></h2>
+    <h2>${tr({ it: 'Calibrazione dai risultati reali', en: 'Calibration from real results' })} <span class="muted" style="font-size:12.5px">${data.calib?.eventi ? `${data.calib.eventi} ${tr({ it: 'gare nel registro', en: 'races in the log' })} · ${esc((data.calib.file ?? '').split('/').slice(-1)[0])}` : tr({ it: 'si riempie da sola ad ogni import', en: 'fills itself at every import' })}</span></h2>
     ${(data.calib?.gruppi ?? []).length ? data.calib.gruppi.map((g) => `
       <details open style="margin-bottom:10px;border:1px solid var(--line,#333);border-radius:8px;padding:10px">
         <summary style="cursor:pointer"><b>${esc(g.classe)}</b> · <b>${esc(g.trkKey)}</b> — ${g.obs} ${tr({ it: 'gare', en: 'races' })} (${g.ok} ${tr({ it: 'in tolleranza', en: 'within tolerance' })}) ${confTag(g.confidenza)} ${g.convalidatoAdesso ? badgeOk : ''}</summary>
@@ -188,7 +188,7 @@ async function drawGridTab(m){
   </div>
 
   <div class="panel">
-    <h2>${tr({ it: 'Azioni', en: 'Actions' })} <span class="muted" style="font-size:12px">${tr({ it: '(EVO deve essere chiuso)', en: '(EVO must be closed)' })}</span></h2>
+    <h2>${tr({ it: 'Azioni', en: 'Actions' })} <span class="muted" style="font-size:12.5px">${tr({ it: '(EVO deve essere chiuso)', en: '(EVO must be closed)' })}</span></h2>
     <div class="row" style="flex-wrap:wrap">
       <select id="g-classe" style="flex:1 1 180px;min-width:0;max-width:100%;width:auto">${(data.classi ?? []).map((c) => `<option value="${esc(c.id)}" ${data.classe === c.id ? 'selected' : ''}>${esc(c.id)}</option>`).join('')}</select>
       <input id="g-track" type="text" placeholder="${tr({ it: 'traccia (es. Sebring International Raceway)', en: 'track (e.g. Sebring International Raceway)' })}" style="width:260px" value="${esc(data.perTraccia ?? '')}">
@@ -204,9 +204,9 @@ async function drawGridTab(m){
       <button class="ghost" id="g-drop">${tr({ it: 'Rimuovi auto escluse dal file', en: 'Remove excluded cars from file' })}</button>
       <button class="ghost" id="g-reload">${tr({ it: 'Ricarica', en: 'Reload' })}</button>
     </div>
-    ${bS ? `<div class="muted" style="font-size:11.5px">${tr({ it: 'banda viva dei cursori: ', en: 'live slider band: ' })}<b>${bTesto}</b>${bAllineata ? ` — <span class="tag green" style="font-size:11.5px">${tr({ it: 'il campo del file combacia', en: 'the file field matches' })}</span>` : tr({ it: ' — il Prepara la scrive nel file', en: ' — Prepara writes it into the file' })}</div>` : ''}
+    ${bS ? `<div class="muted" style="font-size:12.5px">${tr({ it: 'banda viva dei cursori: ', en: 'live slider band: ' })}<b>${bTesto}</b>${bAllineata ? ` — <span class="tag green" style="font-size:12.5px">${tr({ it: 'il campo del file combacia', en: 'the file field matches' })}</span>` : tr({ it: ' — il Prepara la scrive nel file', en: ' — Prepara writes it into the file' })}</div>` : ''}
     <div id="grid-out" style="margin-top:12px"></div>
-    <div class="muted" style="font-size:11.5px;margin-top:10px">${tr({ it: '"Applica bilancio" riscrive zavorre/penalità della classe (con supplementi per-traccia se la traccia combacia) e rimuove dal pool le auto in escludiAuto (di classe o per-traccia).', en: '"Apply balance" rewrites the class ballast/penalties (with per-track supplements if the track matches) and removes escludiAuto cars from the pool (class-level or per-track).' })}</div>
+    <div class="muted" style="font-size:12.5px;margin-top:10px">${tr({ it: '"Applica bilancio" riscrive zavorre/penalità della classe (con supplementi per-traccia se la traccia combacia) e rimuove dal pool le auto in escludiAuto (di classe o per-traccia).', en: '"Apply balance" rewrites the class ballast/penalties (with per-track supplements if the track matches) and removes escludiAuto cars from the pool (class-level or per-track).' })}</div>
   </div>`;
 
   /* AZIONI IN CIMA (4/11): i bottoni che scrivono il file stavano in fondo a
@@ -235,7 +235,7 @@ async function drawGridTab(m){
         const va = valDi(a.c), vb = valDi(b.c);
         return ord.dir * (va < vb ? -1 : va > vb ? 1 : 0) || a.i - b.i;
       })
-      .map(({ c, i }) => `<tr><td class="muted">${i + 1}</td><td><span class="car-link" data-car="${esc(c.name)}" style="cursor:pointer;text-decoration:underline dotted">${esc(c.name)}</span></td><td class="muted" style="font-size:11.5px">${esc(c.preset ?? '—')}</td><td class="muted" style="font-size:11.5px">${esc(c.tinta ?? '(default)')}</td><td class="right">${kgpct(c)}</td></tr>`)
+      .map(({ c, i }) => `<tr><td class="muted">${i + 1}</td><td><span class="car-link" data-car="${esc(c.name)}" style="cursor:pointer;text-decoration:underline dotted">${esc(c.name)}</span></td><td class="muted" style="font-size:12.5px">${esc(c.preset ?? '—')}</td><td class="muted" style="font-size:12.5px">${esc(c.tinta ?? '(default)')}</td><td class="right">${kgpct(c)}</td></tr>`)
       .join('');
     $$('.car-link', gTbody).forEach((e) => { e.onclick = () => vai('cars', { search: e.dataset.car }); });
   };
@@ -337,7 +337,7 @@ async function drawGridTab(m){
         <div>${tr({ it: 'sul file: ', en: 'on file: ' })}<b>${esc(wt.current ?? tr({ it: 'file non trovato', en: 'file not found' }))}</b> · ${tr({ it: 'ronda attesa: ', en: 'expected round: ' })}<b>${esc(wt.expected ?? '—')}</b> ${assert}</div>
         ${wt.expected ? `<div class="row" style="margin-top:8px;flex-wrap:wrap">
           <button class="act" id="wtrack-set">${tr({ it: 'Porta il weekend su "{T}"', en: 'Move the weekend to "{T}"' }).replace('{T}', esc(wt.expected))}</button>
-          ${tr({ it: '<span class="muted" style="font-size:11.5px">scrive anche con EVO aperto · backup automatico</span>', en: '<span class="muted" style="font-size:11.5px">writes even with EVO open · automatic backup</span>' })}
+          ${tr({ it: '<span class="muted" style="font-size:12.5px">scrive anche con EVO aperto · backup automatico</span>', en: '<span class="muted" style="font-size:12.5px">writes even with EVO open · automatic backup</span>' })}
         </div>` : ''}`;
       $('#wtrack-set')?.addEventListener('click', async (e) => {
         const btn = e.currentTarget; btn.disabled = true; btn.textContent = tr({ it: 'scrivo…', en: 'writing…' });

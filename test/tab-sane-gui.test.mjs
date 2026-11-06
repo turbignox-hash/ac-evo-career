@@ -65,7 +65,9 @@ test('tutte le tab della GUI: contenuto, zero errori JS, zero overflow orizzonta
 
   const child = spawn(process.execPath, [SERVER], {
     cwd: ROOT,
-    env: { ...process.env, ACE_UI_PORT: String(PORT), ACE_DATA: DATA },
+    // EVO_DATA_DIR: anche save e config del TOOL vivono nella cartella di prova
+    // (prima il server leggeva il save vero del PC: lezione del 23/10).
+    env: { ...process.env, ACE_UI_PORT: String(PORT), ACE_DATA: DATA, EVO_DATA_DIR: DATA },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let stderr = '';
