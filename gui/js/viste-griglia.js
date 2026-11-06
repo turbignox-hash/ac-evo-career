@@ -190,7 +190,7 @@ async function drawGridTab(m){
   <div class="panel">
     <h2>${tr({ it: 'Azioni', en: 'Actions' })} <span class="muted" style="font-size:12px">${tr({ it: '(EVO deve essere chiuso)', en: '(EVO must be closed)' })}</span></h2>
     <div class="row" style="flex-wrap:wrap">
-      <select id="g-classe" style="min-width:220px">${(data.classi ?? []).map((c) => `<option value="${esc(c.id)}" ${data.classe === c.id ? 'selected' : ''}>${esc(c.id)}</option>`).join('')}</select>
+      <select id="g-classe" style="flex:1 1 180px;min-width:0;max-width:100%;width:auto">${(data.classi ?? []).map((c) => `<option value="${esc(c.id)}" ${data.classe === c.id ? 'selected' : ''}>${esc(c.id)}</option>`).join('')}</select>
       <input id="g-track" type="text" placeholder="${tr({ it: 'traccia (es. Sebring International Raceway)', en: 'track (e.g. Sebring International Raceway)' })}" style="width:260px" value="${esc(data.perTraccia ?? '')}">
       <button class="act" id="g-apply">${tr({ it: 'Applica bilancio', en: 'Apply balance' })}</button>
     </div>

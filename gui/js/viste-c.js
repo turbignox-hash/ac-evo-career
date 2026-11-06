@@ -310,11 +310,11 @@ async function drawGarage(m){
     <h2>${tr({ it: 'Garage', en: 'Garage' })} <span class="h-act">${g.total} ${tr({ it: 'auto · ', en: 'cars · ' })}${g.won} ${tr({ it: 'vinte · ', en: 'won · ' })}${g.bought} ${tr({ it: 'comprate · ', en: 'bought · ' })}${g.totalWins} ${tr({ it: 'vittorie · patrimonio ', en: 'wins · estate worth ' })}${money(g.patrimony)} €</span></h2>
     ${g.justImported?.length ? `<div class="banner ok" style="margin-bottom:10px">🏆 ${tr({ it: 'Entrate in garage: ', en: 'Cars joined the garage: ' })}${esc(g.justImported.join(', '))}</div>` : ''}
     <div class="row" style="align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-      <select id="g-add" style="flex:1;min-width:220px">
+      <select id="g-add" style="flex:1 1 180px;min-width:0;max-width:100%;width:auto">
         <option value="">— ${tr({ it: "aggiungi un'auto dal catalogo…", en: 'add a car from the catalog…' })}</option>
         ${cat.cars.map(c=>`<option value="${esc(c.id)}" data-name="${esc(c.name)}">${esc(c.name)}${c.pi!=null?` (PI ${c.pi.toFixed(1)})`:''}${c.price!=null?` · ${money(c.price)} €`:''}</option>`).join('')}
       </select>
-      <select id="g-how" style="width:130px"><option value="bought">${tr({ it: 'comprata', en: 'bought' })}</option><option value="won">${tr({ it: 'vinta', en: 'won' })}</option></select>
+      <select id="g-how" style="flex:0 1 130px;min-width:0;max-width:100%;width:auto"><option value="bought">${tr({ it: 'comprata', en: 'bought' })}</option><option value="won">${tr({ it: 'vinta', en: 'won' })}</option></select>
       <button class="act" id="g-addbtn" style="width:auto;padding:8px 14px">${tr({ it: 'Aggiungi', en: 'Add' })}</button>
       <span id="g-price" class="muted" style="font-size:11.5px"></span>
       <span class="muted" style="font-size:11.5px">${tr({ it: 'Le auto vinte negli eventi speciali arrivano qui da sole.', en: 'Cars won in special events arrive here by themselves.' })}</span>
@@ -406,7 +406,7 @@ async function drawMechanicPanel(sel, prefill = '') {
   <div class="panel">
     <h2>🔧 ${tr({ it: 'Segna al meccanico', en: 'Note for the mechanic' })} <span class="h-act">${tr({ it: "scheda freno di carriera dell'auto: zona, bias e coppia, con la memoria dell'allievo", en: "the car's career brake card: zone, bias and torque, with the apprentice's memory" })}</span></h2>
     <div class="row" style="margin-top:8px">
-      <select id="gm-car" style="flex:1;min-width:190px">${cars.map((n) => `<option value="${esc(n)}" ${n === prefill ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
+      <select id="gm-car" style="flex:1 1 170px;min-width:0;max-width:100%;width:auto">${cars.map((n) => `<option value="${esc(n)}" ${n === prefill ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
       <button class="act" id="gm-go" style="width:auto;padding:8px 14px">${tr({ it: 'Segna', en: 'Note it' })}</button>
     </div>
     <div id="gm-out" class="muted" style="margin-top:10px;font-size:12px">${tr({ it: "Scegli un'auto e premi Segna: leggo il file di carriera e ti mostro come sta il freno (solo lettura, il file non si tocca).", en: "Pick a car and press: I read the career file and show you the brake card (read-only, the file is not touched)." })}</div>
@@ -620,14 +620,14 @@ async function drawSetup(m){
       </div>
     <div id="meccanico-out" style="margin:0 0 10px"></div>
     <div class="lc-controls row" style="gap:10px;flex-wrap:wrap;align-items:center">
-      <label class="muted">${tr({ it: 'Auto', en: 'Car' })}<br><select id="lc-f-car" style="width:190px"><option value="">${tr({ it: 'tutte le auto…', en: 'all cars…' })}</option></select></label>
-      <label class="muted">${tr({ it: 'Pista', en: 'Track' })}<br><select id="lc-f-track" style="width:190px"><option value="">${tr({ it: 'tutte le piste…', en: 'all tracks…' })}</option></select></label>
+      <label class="muted">${tr({ it: 'Auto', en: 'Car' })}<br><select id="lc-f-car"><option value="">${tr({ it: 'tutte le auto…', en: 'all cars…' })}</option></select></label>
+      <label class="muted">${tr({ it: 'Pista', en: 'Track' })}<br><select id="lc-f-track"><option value="">${tr({ it: 'tutte le piste…', en: 'all tracks…' })}</option></select></label>
       ${/* il selettore mostra il NOME BELLO della pista (trackPretty, lo stesso
           che il filtro usa già al refresh): il token del file (es.
           «Laguna SecaGP») resta in data-track perché è la chiave dei filtri. */ ``}
-      <label class="muted">${tr({ it: 'Sessione', en: 'Session' })}<br><select id="lc-session" style="width:300px">${list.map((x) => `<option value="${esc(x.file)}" data-car="${esc(x.car ?? '')}" data-track="${esc(x.track ?? '')}" data-when="${esc(x.whenLocal ?? x.when ?? '')}" ${x.file === s.file ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.car ?? '')} · ${esc(x.trackPretty ?? x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('') || `<option value="">(${tr({ it: 'nessuna', en: 'none' })})</option>`}</select></label>
-      <label class="muted">${tr({ it: 'Giro', en: 'Lap' })}<br><select id="lc-lap" style="width:170px">${(() => { const vl = (s.laps ?? []).filter(l => l.durationSec > 15); const best = vl.length ? vl.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), vl[0]) : null; return vl.map(l => `<option value="${l.lap}" ${best && l.lap === best.lap ? 'selected' : ''}>${tr({ it: 'giro ', en: 'lap ' })}${l.lap} — ${(l.durationSec).toFixed(1)}s</option>`).join(''); })()}</select></label>
-      <label class="muted">${tr({ it: 'Confronto', en: 'Compare' })}<br><select id="lc-cmp" style="width:190px"><option value="best">${tr({ it: 'miglior altro giro', en: 'best other lap' })}</option>${(() => { const vl = (s.laps ?? []).filter(l => l.durationSec > 15); const best = vl.length ? vl.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), vl[0]) : null; return vl.filter(l => !best || l.lap !== best.lap).map(l => `<option value="${l.lap}">${tr({ it: 'giro ', en: 'lap ' })}${l.lap} — ${(l.durationSec).toFixed(1)}s</option>`).join(''); })()}</select></label>
+      <label class="muted">${tr({ it: 'Sessione', en: 'Session' })}<br><select id="lc-session">${list.map((x) => `<option value="${esc(x.file)}" data-car="${esc(x.car ?? '')}" data-track="${esc(x.track ?? '')}" data-when="${esc(x.whenLocal ?? x.when ?? '')}" ${x.file === s.file ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.car ?? '')} · ${esc(x.trackPretty ?? x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('') || `<option value="">(${tr({ it: 'nessuna', en: 'none' })})</option>`}</select></label>
+      <label class="muted">${tr({ it: 'Giro', en: 'Lap' })}<br><select id="lc-lap">${(() => { const vl = (s.laps ?? []).filter(l => l.durationSec > 15); const best = vl.length ? vl.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), vl[0]) : null; return vl.map(l => `<option value="${l.lap}" ${best && l.lap === best.lap ? 'selected' : ''}>${tr({ it: 'giro ', en: 'lap ' })}${l.lap} — ${(l.durationSec).toFixed(1)}s</option>`).join(''); })()}</select></label>
+      <label class="muted">${tr({ it: 'Confronto', en: 'Compare' })}<br><select id="lc-cmp"><option value="best">${tr({ it: 'miglior altro giro', en: 'best other lap' })}</option>${(() => { const vl = (s.laps ?? []).filter(l => l.durationSec > 15); const best = vl.length ? vl.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), vl[0]) : null; return vl.filter(l => !best || l.lap !== best.lap).map(l => `<option value="${l.lap}">${tr({ it: 'giro ', en: 'lap ' })}${l.lap} — ${(l.durationSec).toFixed(1)}s</option>`).join(''); })()}</select></label>
       <button class="act" id="lc-go" type="button">🔄 ${tr({ it: 'Ridisegna', en: 'Redraw' })}</button>
     </div>
     <div id="lc-out" style="margin-top:10px"></div>
@@ -669,7 +669,7 @@ async function drawSetup(m){
     <form id="f-psi" class="row" style="align-items:end;flex-wrap:wrap;gap:10px">
       <label class="muted">${tr({ it: 'Da freddo (PSI)', en: 'Cold (PSI)' })}<br><input type="number" id="i-cold" step="0.1" min="10" max="45" required style="width:110px"></label>
       <label class="muted">${tr({ it: 'A caldo (PSI)', en: 'Hot (PSI)' })}<br><input type="number" id="i-hot" step="0.1" min="10" max="50" required style="width:110px"></label>
-      <label class="muted">${tr({ it: 'Classe auto', en: 'Car class' })}<br><select id="i-target" style="width:200px">${b.classes.map(c=>`<option value="${c.target}" ${c.id==='slicks'?'selected':''}>${esc(c.label)} — ${c.target} PSI</option>`).join('')}</select></label>
+      <label class="muted">${tr({ it: 'Classe auto', en: 'Car class' })}<br><select id="i-target" style="max-width:100%">${b.classes.map(c=>`<option value="${c.target}" ${c.id==='slicks'?'selected':''}>${esc(c.label)} — ${c.target} PSI</option>`).join('')}</select></label>
       <button class="act" type="submit">${tr({ it: 'Calibra', en: 'Calibrate' })}</button>
     </form>
     <div id="psi-result" style="margin-top:10px"></div>

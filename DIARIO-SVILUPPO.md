@@ -1,5 +1,12 @@
 # Diario di sviluppo
 
+### 6/11 — Nessuna scheda allarga il documento a 256 px
+
+- **Richiesta di Mauro**: «Elimina i min-width inline dei selettori così nessuna scheda allarga il documento nemmeno a 256 px.» I selettori del Banco A/B, Garage, Setup, lingua/copilota e Griglia sono ora restringibili con `min-width:0`; i controlli del grafico Setup non hanno più misure inline fisse. Le regole responsive contengono i casi di Cruscotto, Messaggi, nav, Griglia e Impostazioni.
+- **Difetto residuo trovato dalla guardia**: la checklist Impostazioni renderizza `.wz-status`, mentre il CSS puntava a `.wiz-status`; i percorsi e i badge «ok» portavano la pagina a 326 px su viewport 256. Allineati i selettori CSS al markup reale, con wrapping dei path e degli status.
+- **Verifica**: `node --test test/layout-impostazioni.test.mjs` verde su **21 viste × 6 larghezze (256, 320, 360, 480, 1250, 1920)**, inclusa l'asserzione globale `scrollWidth === clientWidth`; Biome pulito sui file JavaScript modificati; `node --check` verde sui sei moduli GUI.
+- **Limite**: il lint globale del mirror segnala errori e warning preesistenti in file non coinvolti e due percorsi mancanti; il test Playwright è stato eseguito nel progetto con save e browser disponibili.
+
 Il diario racconta IL FATTO (ciò che è fatto e verificato); la lista dei DA aperti
 vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci e la
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si

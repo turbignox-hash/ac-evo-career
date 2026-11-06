@@ -246,6 +246,31 @@ test('tutti i 21 tab della GUI (19 in nav + 2 nascosti): niente sovrapposizioni 
           const fughe = await misuraPanelliFuoriViewport(page);
           assert.equal(fughe.length, 0,
             `a ${width}px il tab ${tab.nome} ha ${fughe.length} pannello/i fuori viewport in orizzontale:\n${righeFughe(fughe)}`);
+          // 6/11 — IL DOCUMENTO NON DEVE SCORRERE (richiesta Mauro: «nemmeno a
+          // 256 px»): il guard sui pannelli non vede la nav né gli elementi
+          // fuori dai pannelli, quindi a OGNI larghezza misuriamo anche la
+          // scrollWidth globale. La nav ha la sua barra interna; non può
+          // allargare il documento all'esterno.
+          const overflow = await page.evaluate(() => {
+            const viewport = document.documentElement.clientWidth;
+            const clipped = (el) => {
+              for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+                if (['auto', 'scroll', 'hidden', 'clip'].includes(getComputedStyle(p).overflowX)) return true;
+              }
+              return false;
+            };
+            return {
+              document: document.documentElement.scrollWidth,
+              viewport,
+              elements: [...document.querySelectorAll('body *')]
+                .map((el) => ({ el, rect: el.getBoundingClientRect() }))
+                .filter(({ el, rect }) => rect.width > 0 && rect.right > viewport + 1 && !clipped(el))
+                .slice(0, 8)
+                .map(({ el, rect }) => `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}${typeof el.className === 'string' && el.className ? `.${el.className.trim().replace(/\\s+/g, '.')}` : ''} right=${Math.round(rect.right)} text=${el.textContent.trim().replace(/\\s+/g, ' ').slice(0, 45)}`),
+            };
+          });
+          assert.equal(overflow.document, overflow.viewport,
+            `a ${width}px il tab ${tab.nome} allarga il documento: scrollWidth=${overflow.document}, viewport=${overflow.viewport}\\n${overflow.elements.join('\\n')}`);
           // (3/11, più tab nella stessa pagina) GLI errori JS si attribuiscono
           // per DELTA dentro la STESSA corsia: gli errori dei tab già visitati
           // restano contati, il confronto guarda solo i NUOVI del tab corrente

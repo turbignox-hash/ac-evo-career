@@ -353,7 +353,7 @@ async function drawSettings(m){
   <div class="panel"><h2>${tr({ it: 'Lingua', en: 'Language' })} <span class="h-act">${tr({ it: 'la pagina si ricarica al cambio', en: 'the page reloads when you switch' })}</span></h2>
     <div class="row" style="align-items:center">
       <label class="muted" for="i-lingua">${tr({ it: 'Lingua interfaccia', en: 'Interface language' })}</label>
-      <select id="i-lingua" style="min-width:180px">
+      <select id="i-lingua" style="flex:1 1 180px;min-width:0;max-width:100%;width:auto">
         <option value="it">Italiano</option>
         <option value="en">English</option>
       </select>
@@ -364,7 +364,7 @@ async function drawSettings(m){
     </div>
     <div class="row" style="margin-top:10px;align-items:center">
       <label class="muted" for="i-voce-livello">${tr({ it: 'Quanto parla il copilota', en: 'How much the copilot speaks' })}</label>
-      <select id="i-voce-livello" style="min-width:180px">
+      <select id="i-voce-livello" style="flex:1 1 180px;min-width:0;max-width:100%;width:auto">
         <option value="essenziale">${tr({ it: 'Essenziale — box, benzina, bandiere, penalità', en: 'Essential — pits, fuel, flags, penalties' })}</option>
         <option value="normale">${tr({ it: 'Normale — e anche giro, posizione, gomme', en: 'Normal — plus lap, position, tyres' })}</option>
         <option value="full">${tr({ it: 'Tutto — anche delta di ritmo e distanza', en: 'Everything — also pace delta and gap' })}</option>

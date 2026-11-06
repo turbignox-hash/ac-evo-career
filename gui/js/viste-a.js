@@ -52,8 +52,8 @@ async function wizardChecklist(box, opts = {}){
   const MIS = '<span style="color:#f66;font-size:14px;margin-right:2px">✗</span>';
   const WRN = '<span style="color:var(--warn,#ffb454);font-size:15px;margin-right:2px">⚠</span>';
   const boxRow = (ico, tol, title, sub, warn) =>
-    `<div style="padding:9px 12px;border:1px solid ${warn ? '#4a3a2a' : 'var(--line,#283046)'};border-radius:9px;margin-bottom:8px;display:flex;gap:10px;align-items:center;background:${warn ? '#171310' : '#0f1420'}">${ico}
-     <div><b style="font-size:13.5px">${title}</b>${sub ? `<div class="muted" style="font-size:12px;margin-top:1px">${sub}</div>` : ''}</div>${tol ? `<span class="muted" style="margin-left:auto;font-size:11.5px">${tol}</span>` : ''}</div>`;
+    `<div class="wz-status" style="padding:9px 12px;border:1px solid ${warn ? '#4a3a2a' : 'var(--line,#283046)'};border-radius:9px;margin-bottom:8px;display:flex;gap:10px;align-items:center;background:${warn ? '#171310' : '#0f1420'}">${ico}
+     <div class="wz-status-text"><b style="font-size:13.5px">${title}</b>${sub ? `<div class="muted" style="font-size:12px;margin-top:1px">${sub}</div>` : ''}</div>${tol ? `<span class="muted" style="margin-left:auto;font-size:11.5px">${tol}</span>` : ''}</div>`;
   const rows = [];
   /* 0 — azioni rapide:  📂 apre la cartella dati in Esplora risorse (selezionata
      dentro la sua cartella madre),  ▶ avvia EVO tramite l'URI ufficiale Steam
@@ -68,7 +68,7 @@ async function wizardChecklist(box, opts = {}){
     rows.push(boxRow(OKI, 'ok', tr({ it: 'Cartella dati EVO', en: 'EVO data folder' }), esc(w.dataDir)));
   } else {
     const cercati = (w.candidates ?? []).map((c) => `${c.ok ? OKI : MIS} <code style="font-size:11.5px">${esc(c.dir)}</code>`).join(' · ');
-    rows.push(`<div style="padding:10px 12px;border:1px solid #4a3a2a;border-radius:9px;margin-bottom:8px;background:#171310">${MIS}
+    rows.push(`<div class="wz-status" style="padding:10px 12px;border:1px solid #4a3a2a;border-radius:9px;margin-bottom:8px;background:#171310">${MIS}
       <b style="font-size:13.5px">${tr({ it: 'Cartella dati EVO non trovata', en: 'EVO data folder not found' })}</b>
       <div class="muted" style="font-size:12px;margin-top:3px">${tr({ it: 'ho guardato: ', en: 'I checked: ' })}${cercati || tr({ it: 'nessun percorso standard', en: 'no standard path' })}</div>
       <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap">
@@ -709,7 +709,7 @@ function drawCardInto(el, card){
 
     ${card.carImage ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:8px 0 4px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2,#121822)">
       <img src="${card.carImage}" alt="${esc(card.carName ?? '')}" style="width:150px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:#0d1118">
-      <div style="font-size:12.5px;flex:none;min-width:180px;max-width:250px"><b>${tr({ it: 'Auto della giornata', en: "Today's car" })}</b><br>${window.carLinkHtml(card.carName)}
+      <div class="day-car-select"><b>${tr({ it: 'Auto della giornata', en: "Today's car" })}</b><br>${window.carLinkHtml(card.carName)}
         ${card.carChoices?.length>1 ? `<select id="sel-car" title="${tr({ it: 'cambia la sezionale di oggi fra quelle ammesse dal weekend', en: "switch today's car among the ones the weekend allows" })}" style="width:100%;margin-top:5px;font-size:11.5px">${card.carChoices.map(c=>`<option value="${esc(c.id)}"${c.id===card.car?' selected':''}>${esc(c.display)}</option>`).join('')}</select>` : `<select id="sel-car" style="width:100%;margin-top:5px;font-size:11.5px" title="${tr({ it: 'unica auto ammessa dal weekend', en: 'the only car the weekend allows' })}"><option value="${esc(card.car ?? '')}" selected>${esc(card.carName ?? '')}</option></select>`}
       </div>
     </div>` : ''}
@@ -736,7 +736,7 @@ function drawCardInto(el, card){
     </div>` : ''}
     ${card.outlook?.trackInfo ? `<div style="margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2,#121822);display:flex;gap:16px;align-items:center;flex-wrap:wrap">
       ${card.outlook.trackInfo.map ? `<img src="${card.outlook.trackInfo.map}" alt="${tr({ it: 'tracciato di ', en: 'track layout of ' })}${esc(card.trackName)}" style="width:180px;height:118px;flex:none;object-fit:contain;background:#000;border-radius:8px;padding:8px${card.outlook.trackInfo.map.endsWith('.svg')?';filter:invert(1);opacity:.92':''}">` : (card.outlook.trackInfo.outline ? `<svg viewBox="0 0 100 64" style="width:170px;height:110px;flex:none;background:#0d1118;border-radius:8px;padding:6px" aria-label="${tr({ it: 'tracciato di ', en: 'track layout of ' })}${esc(card.trackName)}"><path d="${card.outlook.trackInfo.outline}" fill="none" stroke="var(--acc)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/></svg>` : '')}
-      <div style="flex:1;min-width:230px">
+      <div class="race-track-info" style="flex:1;min-width:230px">
         <div style="font-size:13px;margin-bottom:5px"><b>${flagOf(card.outlook.trackInfo.country)} ${window.trackLinkHtml(card.trackName)}</b> <span class="muted">· ${esc(tr({ it: card.outlook.trackInfo.nick, en: card.outlook.trackInfo.nickEn }))} · ${esc(tr({ it: card.outlook.trackInfo.country, en: card.outlook.trackInfo.countryEn }))} · ${card.outlook.trackInfo.lengthKm} km, ${card.outlook.trackInfo.corners} ${tr({ it: 'curve', en: 'corners' })}, ${tr({ it: 'dal ', en: 'opened in ' })}${card.outlook.trackInfo.opened}</span></div>
         ${card.outlook.trackRec ? `<div style="font-size:12.5px"><b>${tr({ it: '🏁 Giro più veloce in pista', en: '🏁 Fastest lap of the track' })}</b> · <b style="color:var(--acc);font-size:15px">${esc(card.outlook.trackRec.time)}</b> — ${esc(card.outlook.trackRec.driver)}${card.outlook.trackRec.mine?` <span class="tag green" style="font-size:11.5px;padding:1px 7px">${tr({ it: 'tu', en: 'you' })}</span>`:''}<br><span class="muted">${window.carLinkHtml(card.outlook.trackRec.car ?? '')}${card.outlook.trackRec.sameCar?'':' · ' + tr({ it: 'altra auto', en: 'another car' })} · ${esc((card.outlook.trackRec.at ?? '').slice(0, 10))}${card.outlook.lapTarget&&card.outlook.lapTarget.time!==card.outlook.trackRec.time?` · ${tr({ it: 'il tuo migliore: ', en: 'your best: ' })}${esc(card.outlook.lapTarget.time)}`:''}</span></div>` : ''}
         <details style="margin-top:6px"><summary class="muted" style="cursor:pointer;font-size:12px">📖 ${tr({ it: 'la storia di ', en: 'the history of ' })}${esc(card.trackName)}</summary>
@@ -982,7 +982,19 @@ function drawCardInto(el, card){
       const pitHtml = pit?.need
         ? `<div class="banner warn" style="margin-top:8px;padding:8px 10px"><b>🔧 ${tr({ it: 'Finestra pit', en: 'Pit window' })}</b> — ${esc(pit.reason)}. ${tr({ it: 'Fermarsi al giro ', en: 'Pit on lap ' })}<b>${pit.pitLap + 1}</b> ${pit.lapsToWindow === 0 ? tr({ it: '(aperta adesso)', en: '(open now)' }) : `· ${tr({ it: 'si apre tra ', en: 'opens in ' })}<b>${pit.lapsToWindow}</b> ${tr({ it: 'giri', en: 'laps' })}`} · <span class="muted">${tr({ it: 'fermarsi dopo perdere ~', en: 'staying out costs ~' })}${pit.pitLossSec}s</span></div>`
         : (pit && pit.need === null ? `<div class="muted" style="font-size:11.5px;margin-top:6px">🔧 ${esc(pit.reason)}</div>` : '');
-      const mapHtml = deltaMapSvg(m.mapTrack, m.delta?.segments, m.carPos);      /* PIANO STINT (31/10, DA-9): le finestre calcolate PRIMA della gara dai         dati del sedile + la finestra VIVA (quanti giri mancano alla sosta         col contatore HUD). Si mostra SOLO col piano ok nel payload: in gara         a giri o senza dati il banner non esce — niente finestre fantasma,         la stessa onestà di card e copilota. */      const piano = m.stintPlan?.ok ? m.stintPlan : null;      const fin = m.stintAlert ?? null;      const stintHtml = !piano ? '' : `<div class="banner" ${fin ? 'style="margin-top:8px;padding:8px 10px;border-color:#e0a030"' : 'style="margin-top:8px;padding:8px 10px"'}>        <b>⛽ ${tr({ it: 'Piano stint', en: 'Stint plan' })}</b> — ${esc(tr(piano.notes[0] ?? { it: '', en: '' }))} · <span class="muted" style="font-size:11.5px">${esc(tr(piano.notes[1] ?? { it: '', en: '' }))}</span>        <span class="muted" style="font-size:11.5px">${piano.windows?.length ? ` · ${tr({ it: 'finestre giri ', en: 'window laps ' })}${piano.windows.map((w) => `${w.earliest}–${w.latest}`).join(' / ')}` : ''}</span>        ${fin ? `<div style="margin-top:4px;font-size:12.5px"><b>🔧 ${fin.lapsTo === 0 ? tr({ it: 'Box entro QUESTO giro', en: 'Pit within THIS lap' }) : tr({ it: `Box entro ${fin.lapsTo} giri`, en: `Pit within ${fin.lapsTo} laps` })}</b> — ${tr({ it: `finestra sosta ${fin.k} (giri ${fin.earliest}–${fin.latest})`, en: `stop ${fin.k} window (laps ${fin.earliest}–${fin.latest})` })}</div>` : ''}      </div>`;
+      const mapHtml = deltaMapSvg(m.mapTrack, m.delta?.segments, m.carPos);
+      /* PIANO STINT (31/10, DA-9): le finestre calcolate PRIMA della gara dai
+         dati del sedile + la finestra VIVA (quanti giri mancano alla sosta
+         col contatore HUD). Si mostra SOLO col piano ok nel payload: in gara
+         a giri o senza dati il banner non esce — niente finestre fantasma,
+         la stessa onestà di card e copilota. */
+      const piano = m.stintPlan?.ok ? m.stintPlan : null;
+      const fin = m.stintAlert ?? null;
+      const stintHtml = !piano ? '' : `<div class="banner" ${fin ? 'style="margin-top:8px;padding:8px 10px;border-color:#e0a030"' : 'style="margin-top:8px;padding:8px 10px"'}>
+        <b>⛽ ${tr({ it: 'Piano stint', en: 'Stint plan' })}</b> — ${esc(tr(piano.notes[0] ?? { it: '', en: '' }))} · <span class="muted" style="font-size:11.5px">${esc(tr(piano.notes[1] ?? { it: '', en: '' }))}</span>
+        <span class="muted" style="font-size:11.5px">${piano.windows?.length ? ` · ${tr({ it: 'finestre giri ', en: 'window laps ' })}${piano.windows.map((w) => `${w.earliest}–${w.latest}`).join(' / ')}` : ''}</span>
+        ${fin ? `<div style="margin-top:4px;font-size:12.5px"><b>🔧 ${fin.lapsTo === 0 ? tr({ it: 'Box entro QUESTO giro', en: 'Pit within THIS lap' }) : tr({ it: `Box entro ${fin.lapsTo} giri`, en: `Pit within ${fin.lapsTo} laps` })}</b> — ${tr({ it: `finestra sosta ${fin.k} (giri ${fin.earliest}–${fin.latest})`, en: `stop ${fin.k} window (laps ${fin.earliest}–${fin.latest})` })}</div>` : ''}
+      </div>`;
       /* VIGIA DEL PARCO AUTO (24/10, Mauro): se l'auto del sedile non è una di
          quelle ammesse della serie, il pannello lo dice SUBITO — in rosso —
          perché all'import quella gara vale zero (0 punti, 0 premio). */
@@ -1013,7 +1025,9 @@ function drawCardInto(el, card){
           ${mapHtml ? `<div style="flex:none">${mapHtml}<div class="muted" style="font-size:11.5px;margin-top:4px;max-width:290px"><span style="color:#7f7">■ ${tr({ it: 'guadagni', en: 'gain' })}</span> · <span style="color:#f66">■ ${tr({ it: 'perdi', en: 'lose' })}</span> · ${tr({ it: 'passa il mouse sulle fette per il decimo esatto', en: 'hover the slices for the exact tenth' })}</div></div>` : ''}
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">${(m.tips||[]).map(t=>`<div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.4"><span style="flex:none">${t.icon}</span><span><b>${esc(t.title)}</b> — <span class="muted">${esc(t.text)}</span></span></div>`).join('')}</div>
-        ${wearRow ? `<div style="margin-top:6px">${wearRow}</div>` : ''}        ${pitHtml}        ${stintHtml}        ${autoHtml}
+        ${wearRow ? `<div style="margin-top:6px">${wearRow}</div>` : ''}        ${pitHtml}
+        ${stintHtml}
+        ${autoHtml}
       </div>`;
       $('#cp-toggle', ingOut)?.addEventListener('click', async () => {
         if (voceServer) {

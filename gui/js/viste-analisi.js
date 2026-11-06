@@ -204,12 +204,12 @@ async function renderAB(host){
   if (!host) return;
   host.innerHTML = `<h2>⚖️ ${tr({ it: 'Banco A/B dei setup', en: 'Setup A/B bench' })} <span class="h-act">${tr({ it: 'due sessioni MoTeC, il diff e il tempo perso per zona', en: 'two MoTeC sessions, the channel diff and time lost per zone' })}</span></h2>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:6px">
-      <select id="ab-f-car" style="min-width:180px"><option value="">${tr({ it: 'tutte le auto…', en: 'all cars…' })}</option></select>
-      <select id="ab-f-track" style="min-width:180px"><option value="">${tr({ it: 'tutte le piste…', en: 'all tracks…' })}</option></select>
+      <select id="ab-f-car" style="flex:1 1 180px;min-width:0;max-width:100%"><option value="">${tr({ it: 'tutte le auto…', en: 'all cars…' })}</option></select>
+      <select id="ab-f-track" style="flex:1 1 180px;min-width:0;max-width:100%"><option value="">${tr({ it: 'tutte le piste…', en: 'all tracks…' })}</option></select>
     </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center">
-      <select id="ab-a" style="min-width:250px"><option value="">${tr({ it: 'sessione A (base)…', en: 'session A (base)…' })}</option></select>
-      <select id="ab-b" style="min-width:250px"><option value="">${tr({ it: 'sessione B (prova)…', en: 'session B (trial)…' })}</option></select>
+      <select id="ab-a" style="flex:1 1 220px;min-width:0;max-width:100%"><option value="">${tr({ it: 'sessione A (base)…', en: 'session A (base)…' })}</option></select>
+      <select id="ab-b" style="flex:1 1 220px;min-width:0;max-width:100%"><option value="">${tr({ it: 'sessione B (prova)…', en: 'session B (trial)…' })}</option></select>
       <button class="mini acc" id="ab-go">${tr({ it: 'Confronta', en: 'Compare' })}</button>
     </div>
     <div id="ab-note" class="muted" style="margin-top:8px;text-align:center;font-size:12px">${tr({ it: 'EVO registra il setup nel nome file (preset_…): due preset in due sessioni = un confronto A/B giusto.', en: "EVO stores the setup in the file name (preset_…): two presets across two sessions make a fair A/B." })}</div>
