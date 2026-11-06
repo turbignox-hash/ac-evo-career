@@ -5,6 +5,22 @@ Le voci puntano alle fonti del repo: [report/](report/) (un file per build),
 `data/` non si tocca mai: gli aggiornamenti portano solo codice.
 
 
+## v0.1.63 — 6/11/2026
+
+- **Il meccanico giudica col cronometro i setup che scrive** (`src/prova-setup.mjs`):
+  ogni carta scritta (sia «… — EVO-consigliato» sia i nomi veri qualifica / gara /
+  bagnato) apre una PROVA con le leve toccate e il giro migliore che l'ha generata.
+  Alla prima sessione nuova della stessa auto+pista la prova si chiude col giro
+  migliore e l'esito è **migliorato / peggiorato / neutro**, con soglia 0,15 s:
+  sotto soglia il tempo non giudica, così il meccanico non insegue il rumore.
+- **La scheda «🧪 Prove del setup»** nel pannello del meccanico mostra la prova in
+  corso (leva e giro di riferimento), gli ultimi esiti con i tempi prima → dopo e le
+  leve che su quella pista hanno già perso due volte senza mai vincere.
+- La base del pilota non viene mai modificata: le prove nascono sulle copie, col
+  contatore anti-sovrascrittura che c'era già.
+- 9 test nuovi dedicati; suite **1051 pass, 0 guasti, 2 salti onesti**; Biome pulito
+  su 401 file; CI quality verde.
+
 ## v0.1.62 — 5/11/2026
 
 - **Le 3 rondi della Coppa Mini Vintage tornano a valere**: il vigia «auto fuori dal
