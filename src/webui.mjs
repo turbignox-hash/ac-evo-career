@@ -15,6 +15,13 @@ import { telemScanLocale } from './webui-telem.mjs';
 import { requestFromLocalBrowser, serveStatic } from './webui-static.mjs';
 import { resolvePaths, isGameRunning, dataDirCandidates, isDir, isFile, launchGame } from './paths.mjs';
 import { collectCoverage, scanResultSectors, sectorCompare } from './coverage.mjs';
+import { costanzaSettoriDaLog } from './margine-log.mjs';
+// Riepilogo di fine sessione del monitor live (6/11): la stessa funzione che
+// scrive `.live-monitor.riepilogo.txt` serve anche la scheda del Cruscotto.
+import { lettoreLogLive } from './live-log-incrementale.mjs';
+// ultimo riepilogo calcolato + impronta del log (mtime|size): il polling della
+// scheda costa uno stat finché il monitor non scrive
+let LETTORE_LIVE = null;   // lettore incrementale di .live-monitor.log (6/11)
 
 import {
   createCareer, nodeById, disciplineName, gateStatus,
@@ -55,6 +62,9 @@ import { recordWarning, readWarnings } from './warnings.mjs';
 import { fourPsi, setupBoard, setSetupNote, tyreClassOf, telemetryLapsFor, setupAdvice, boxChecklist, } from './setup.mjs';
 import { listMotecSessions, analyzeLd, presetOf, collectSessions, pressureAdvice, racePressureAdvice, logPressureAdvice, readPressureLog, telemDiagnostics, lapTrace, sampleLap, sessionMetaOf, parseLdx } from './motec.mjs';
 import { coachingOfSamples } from './telemetria-curve.mjs';
+// Bilancio di frenata per ruota (6/11): coppia frenante BRAKE_TORQUE_xx,
+// ripartizione misurata e fade col calore — un modulo suo, testabile da solo.
+import { brakeBalance } from './bilancio-freni.mjs';
 // stinti.mjs e usura-gomme.mjs leggono la STESSA telemetria MoTeC: stint
 // spezzati dai rifornimenti veri e usura gomme (degrado ritmo + temperature)
 // entrano nel box e da terminale, sempre da file .ld reali (richiesta 28/10).
@@ -1420,6 +1430,21 @@ async function api(context0, _req, res, action, body) {
       } catch {
         d.sectors = null;
       }
+      // COSTANZA SUI SETTORI (6/11): accanto al miglior giro, quanto ballano i
+      // settori tra un giro e l'altro. I settori giro-per-giro non stanno nel
+      // file risultato (EVO ci scrive solo quelli del best): si leggono dai log
+      // del gioco, la stessa finestra del margine vero. Log ruotati o sessione
+      // senza il giro legato = null, la GUI lo dice invece di inventare.
+      if (d.sectors?.gara) {
+        try {
+          d.sectors.costanza = costanzaSettoriDaLog(paths?.logsDirs ?? [], {
+            track: d.sectors.track ?? null,
+            bestSplits: d.sectors.gara.splitsMs,
+          });
+        } catch {
+          d.sectors.costanza = null;
+        }
+      }
       return sendJson(res, 200, d);
     }
     // RAPPORTO DI GARA (27/10): il dossier PRONTO DA INCOLLARE su Discord —
@@ -1434,6 +1459,40 @@ async function api(context0, _req, res, action, body) {
     case 'verdetto': return sendJson(res, 200, paths
       ? verdettoGiornata({ paths, driver: state?.driver ?? null, prefix: body.prefix ? String(body.prefix).slice(0, 6).replace(/\D/g, '') : undefined, ladder })
       : { error: tr({ it: 'Percorsi dati EVO non configurati: apri il wizard.', en: 'EVO data paths not configured: open the wizard.' }) });
+    // RIEPILOGO DI FINE SESSIONE (6/11, richiesta Mauro): la scheda del
+    // Cruscotto legge lo STESSO log da cui il monitor scrive il riepilogo su
+    // file, e lo ricalcola con la stessa funzione — nessuna seconda verità,
+    // nessun numero inventato. Sola lettura; se il log non c'è la scheda lo
+    // dice invece di mostrare un riepilogo vuoto.
+    case 'live-riepilogo': {
+      const file = join(PROJECT, '.live-monitor.log');
+      const vuoto = { sessioni: [], testo: null, totale: 0, file, chiusa: false };
+      // LETTORE INCREMENTALE (6/11): a ogni giro si consumano SOLO le righe
+      // aggiunte al log. Prima qui si rileggeva e riparsava tutto il file a
+      // ogni scrittura del monitor (365 ms su 10 MB, 1.160 ms su 35 MB, sul
+      // thread che serve anche la GUI) e una sessione lunghissima poteva
+      // perfino sfondare lo stack del riepilogo.
+      LETTORE_LIVE ??= lettoreLogLive(file);
+      const letto = LETTORE_LIVE.aggiorna();
+      if (letto.assente) {
+        return sendJson(res, 200, { ...vuoto, motivo: tr({ it: 'Nessun log del monitor live: la scheda si riempie alla prima sessione con il monitor acceso.', en: 'No live monitor log: the card fills at the first session with the monitor running.' }) });
+      }
+      if (letto.errore) {
+        return sendJson(res, 200, { ...vuoto, motivo: `${tr({ it: 'Log del monitor illeggibile', en: 'Live monitor log unreadable' })}: ${letto.errore}` });
+      }
+      const ultima = letto.sessioni.length ? letto.sessioni[letto.sessioni.length - 1] : null;
+      return sendJson(res, 200, {
+        totale: letto.totale,
+        sessioni: letto.sessioni,
+        testo: letto.testo,
+        file,
+        aggiornato: letto.mtime.toISOString(),
+        // la scheda si ridisegna da sola solo quando questa passa a true:
+        // il monitor ha CHIUSO la sessione (il log è tornato non-live)
+        chiusa: !!ultima?.chiusa,
+        motivo: letto.totale ? null : tr({ it: 'Il log del monitor esiste ma non contiene ancora righe live: la scheda si riempie al primo giro in pista.', en: 'The monitor log exists but holds no live rows yet: the card fills at the first lap on track.' }),
+      });
+    }
     case 'watcher':
       return sendJson(res, 200, { active: true, armed: watcher.armed, racedEnd: watcher.racedEnd, lastMsg: watcher.lastMsg, events: watcher.events, seq: watcher.importSeq ?? 0 });
     case 'sonda-menu': {
@@ -2073,13 +2132,16 @@ async function api(context0, _req, res, action, body) {
           }
         }
       } catch { /* il piano non deve mai rompere la card */ }
+      // MINIATURA DELL'AUTO (6/11): la foto si risolve SEMPRE, prima e fuori dal
+      // libro delle piste. Prima stava dentro il blocco dell'outlook: se il
+      // libro non c'era (o lanciava), la card restava senza foto e la GUI — che
+      // legava tutto il riquadro alla foto — spariva anche col selettore auto.
+      card.carImage = carImageOf(card.carName) ?? carImageOf(card.car) ?? null;
       // arricchisci la card col libro delle piste: record di sessione sulla stessa auto + scheda
       try {
         if (card.outlook) {
           const book = trackBook(ladder, paths, state, { testdayFile: join(slotDataDir(), 'testdays.json') });
           const row = book.rows.find((r) => r.track === card.trackName || r.id === card.round?.track);
-          // miniatura dell'auto selezionata per la prossima gara
-          card.carImage = carImageOf(card.carName) ?? carImageOf(card.car) ?? null;
           if (row) {
             card.outlook.trackRec = row.session ?? null;
             // pulisce il doppio marchio nei dati storici ("Abarth Abarth 695 Biposto")
@@ -3228,6 +3290,21 @@ async function api(context0, _req, res, action, body) {
           if (!out) return sendJson(res, 200, { ok: false, hint: tr({ it: 'Nessuna telemetria MoTeC per questa auto: fai una sessione e EVO la salverà in Saved Games\\ACE\\MoTec.', en: 'No MoTeC telemetry for this car yet: run a session and EVO will save it to Saved Games\\ACE\\MoTec.' }) });
           return sendJson(res, 200, { ok: true, file: pick.name, car: pick.car, track: pick.track, ...out });
         }
+        if (body.action === 'freni') {
+          // BILANCIO DI FRENATA PER RUOTA (6/11): dallo stesso .ld dell'ultima
+          // sessione dell'auto, la coppia frenante applicata a ogni ruota
+          // (BRAKE_TORQUE_xx) dà la ripartizione vera; il fade esce dal
+          // confronto della coppia per punto di pedale a caldo e a freddo.
+          // Se i canali non ci sono il modulo risponde ok:false: nessuna stima.
+          const board = setupBoard(ladder, state);
+          const carName = body.car ?? (board.rows[0]?.carName ?? null);
+          const root = paths.dataDirs?.[0] ? join(paths.dataDirs[0], 'MoTec') : join(paths.dataDirs?.[1] ?? '', 'MoTec');
+          const pick = listMotecSessions(root, { car: carName, track: body.track ?? undefined, afterMs: state.createdAt ?? 0 })[0] ?? null;
+          if (!pick) return sendJson(res, 200, { ok: false, hint: tr({ it: 'Nessuna telemetria MoTeC per questa auto: fai una sessione e EVO la salverà in Saved Games, cartella MoTec.', en: 'No MoTeC telemetry for this car yet: run a session and EVO will save it under Saved Games, MoTec folder.' }) });
+          const out = brakeBalance(pick.file);
+          if (!out) return sendJson(res, 200, { ok: false, hint: tr({ it: 'File MoTeC non leggibile: ', en: 'Unreadable MoTeC file: ' }) + pick.name });
+          return sendJson(res, 200, { file: pick.name, car: pick.car, track: pick.track, ...out });
+        }
         if (body.action === 'laptrace') {
           // grafico del giro: profilo SPEED/THROTTLE/BRAKE di un giro (e la
           // differenza allineata a distanza col giro di confronto) — stesso
@@ -3291,7 +3368,7 @@ async function api(context0, _req, res, action, body) {
             session: { file: pick.name, car: pick.car, track: pick.track, preset: presetOf(pick.name), durationSec: a.durationSec, validLaps: a.validLaps, airTemp: a.airTemp, roadTemp: a.roadTemp, sus: a.sus, bump: a.bump, camberProxy: a.camberProxy },
             fuelPerLap: a.fuelPerLap,
             coldPressures: a.coldPressures, hotPressures: a.lastPressures,
-            laps: a.laps.map((l) => ({ lap: l.lap, durationSec: l.durationSec, fuelUsed: l.fuelUsed, pressures: l.pressures, tair: l.tair, surf: l.surf })),
+            laps: a.laps.map((l) => ({ lap: l.lap, durationSec: l.durationSec, fuelUsed: l.fuelUsed, pressures: l.pressures, tair: l.tair, surf: l.surf, splitsTelem: l.splitsTelem ?? null })),
             advice,
             target: tyre ? tyre.target : null,
           });
