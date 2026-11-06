@@ -187,6 +187,7 @@ import { vivoDaSnapshot, consigliVivo } from './meccanico-vivo.mjs';
 // la PROVA A/B dei setup scritti (6/11): apre quando il meccanico scrive, chiude
 // con la telemetria della sessione nuova, giudica solo oltre la soglia
 import { chiudiProva, provaAperta, leggiProve, riepilogoPerCampo, leveBruciate } from './prova-setup.mjs';
+import { chiaveMeccanico, firmaMeccanico, leggiVisto, novitaDa, salvaVisto } from './meccanico-novita.mjs';
 import { AGENDA_ACTIONS, agendaAction } from './webui-actions-agenda.mjs';
 import { EVENT_ACTIONS, eventAction } from './webui-actions-events.mjs';
 import { GARAGE_ACTIONS, garageAction } from './webui-actions-garage.mjs';
@@ -380,6 +381,9 @@ async function readBody(req) {
 let _grAt = 0, _grVal = false, _grMs = 0, _grFlight = null;
 // sessione telemetrica dell'ingegnere LIVE: memo 30s per auto (vedi case 'ingegnere')
 let _engSess = null, _engSessAt = 0;
+/* l'ultima fotografia letta dal pannello del meccanico, per auto+pista: serve
+   a «Ho visto» (meccanico-visto) — senza quella pretesa non si scrive nulla. */
+const ultimaFirmaMeccanico = new Map();
 const _stintPlanCache = new Map();
 /* MEMO DEL PIANO STINT (DA-9, prima fetta + seconda): chiave «auto|durata»,
    TTL 120 s — le letture MoTeC pesano (albero su disco lento = decine di
@@ -3265,7 +3269,37 @@ async function api(context0, _req, res, action, body) {
              SecaGP», «ImolaGP») accanto a «setup consigliato per». track resta
              la chiave dei filtri e dei nomi dei file; trackPretty è come si
              legge la pista (TRACK_INFO, la stessa anagrafica dei consigli). */
-          return sendJson(res, 200, { ok: true, car: carName, track: trackDisplay, trackPretty: TRACK?.name ?? trackDisplay, sessFile, tipo: adv.tipo, densita: adv.densita, consigli, storie, allievo, vivo, prova, bestLap: bestLap != null ? Math.round(bestLap * 1000) / 1000 : null, hasTelem: !!telem });
+          /* «COSA È CAMBIATO DALL'ULTIMA VISITA» (6/11 notte, Mauro: «quando
+             rientro dal meccanico non capisco se ha consigli o migliorie da
+             aggiungere, vedo la solita scheda della prima visita»). La scheda
+             è calcolata dai dati: se i dati non cambiano il testo è identico a
+             ieri. Qui si confronta quello che dice ADESSO con la fotografia
+             dell'ultima volta: uscita nuova, giro migliore, prove chiuse,
+             consigli cambiati. La fotografia si aggiorna SOLO quando Mauro
+             preme «Ho visto» (azione meccanico-visto), così le novità non
+             spariscono da sole al primo ricaricamento. */
+          let novita = [], vistoAt = null;
+          try {
+            const firma = firmaMeccanico({ consigli, bestLap, sessFile, prova, allievo });
+            const visto = leggiVisto(carName, trackDisplay);
+            vistoAt = visto?.at ?? null;
+            novita = novitaDa(visto, firma);
+            ultimaFirmaMeccanico.set(chiaveMeccanico(carName, trackDisplay), firma);
+          } catch { /* senza memoria il pannello resta com'era */ }
+          return sendJson(res, 200, { ok: true, car: carName, track: trackDisplay, trackPretty: TRACK?.name ?? trackDisplay, sessFile, tipo: adv.tipo, densita: adv.densita, consigli, storie, allievo, vivo, prova, novita, vistoAt, bestLap: bestLap != null ? Math.round(bestLap * 1000) / 1000 : null, hasTelem: !!telem });
+        }
+        if (body.action === 'meccanico-visto') {
+          // «Ho visto»: la fotografia delle novità si sposta su ADESSO. Senza la
+          // firma in memoria (server appena riavviato) non si scrive niente: il
+          // pannello rilegge e mostra le novità ancora una volta, piuttosto che
+          // perdere un avviso vero.
+          const k = chiaveMeccanico(body.car, body.track);
+          const firma = ultimaFirmaMeccanico.get(k);
+          if (!firma) {
+            return sendJson(res, 200, { ok: false, hint: tr({ it: 'Riapri il meccanico e riprova: non ho ancora letto questo stato.', en: 'Reopen the mechanic and retry: I have not read this state yet.' }) });
+          }
+          salvaVisto(body.car, body.track, firma);
+          return sendJson(res, 200, { ok: true, at: firma.at });
         }
         if (body.action === 'stinti') {
           // analisi dei stint dalla telemetria REALE: blocco dei rifornimenti,

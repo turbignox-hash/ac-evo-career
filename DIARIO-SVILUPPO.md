@@ -1,5 +1,16 @@
 # Diario di sviluppo
 
+### 6/11 notte — Il meccanico dice cosa è cambiato dall'ultima visita
+
+- **Segnalazione di Mauro**: «quando rientro dal meccanico non capisco se ha consigli o migliorie da aggiungere, vedo la solita scheda della prima visita».
+- **Il difetto non era il contenuto, era l'assenza di un confronto.** La scheda del meccanico è calcolata dai dati (profilo pista + ultima telemetria + memoria dell'allievo + prove A/B): quando i dati non cambiano il testo è *identico* a ieri, e «scheda di ieri» e «scheda di adesso» si leggono uguali. Non c'era nulla che dicesse «dall'ultima volta è cambiato questo», né qualcosa da fare quando non c'è niente di nuovo.
+- **Cura**: nuovo `src/meccanico-novita.mjs` — una **fotografia** di quello che la scheda sta dicendo (uscita che alimenta i consigli, giro migliore, testi dei consigli, prova in corso e prove chiuse, miglior giro dell'allievo) e un confronto che restituisce righe già scritte: `Nuova uscita in pista: giro migliore …`, `Giro migliore: da A a B (−x s)`, `Prova chiusa su pressioni: migliorato di 0.42 s`, `Prova in corso: carica «…» e fai i giri`, `Consiglio nuovo: …`, `Nuovo riferimento su questa pista`. Niente dati nuovi = **nessuna riga** (nessun avviso inventato per far rumore). Massimo 4 righe, la prima tagliata a 95 caratteri.
+- **Il segno sta dove deve**: la fotografia si sposta su «adesso» **solo** quando Mauro preme **«✅ Ho visto»** (rotta `garage {action:'meccanico-visto'}`, memoria in `data/meccanico-visto.json` per auto+pista). Così le novità non spariscono al primo ricaricamento del pannello — che è esattamente il motivo per cui un badge «visto/non visto» di solito non serve a nulla. Senza firma in memoria (server appena riavviato) non si scrive niente: meglio rivedere un avviso che perderlo.
+- **In cima alla scheda**, sopra i consigli: banner verde «🆕 C'è qualcosa di nuovo» con la lista e il pulsante; quando non c'è niente, riga discreta «✅ Nessuna novità dall'ultima visita (data): i consigli qui sotto sono gli stessi — se non hai girato, non c'è niente da aggiungere». Prima visita: lo dice.
+- **Verifiche**: `test/meccanico-novita.test.mjs` **12/12** (chiave, prima visita, silenzio quando non cambia niente, uscita nuova col giro, giro migliore col guadagno, prova chiusa che non torna a galla, prova in corso, consiglio nuovo tagliato, tetto delle righe, collegamenti rotta+scheda). Server vero: `garage {meccanico}` → 1 novità «Prima visita», `meccanico-visto` → `ok true` con data, seconda lettura → `novita: []` e `vistoAt` valorizzato. **In browser** (scheda Setup, pannello del meccanico): banner «🆕 C'è qualcosa di nuovo — Prima visita…», click su «Ho visto» → «✅ Nessuna novità dall'ultima visita (2026-11-06 21:35)…». Suite **1.200 test, 1.198 pass, 0 fail**, 2 skip; Biome pulito su 431 file. Il file di stato creato dalla prova è stato rimosso, così la prossima apertura di Mauro è davvero la prima visita.
+- **Limiti**: le novità parlano di dati che il pannello già conosce (telemetria, prove, allievo); se una sessione nuova non viene importata in MoTeC il rientro non ha niente da dire — e lo dice, invece di fingere un aggiornamento.
+
+
 ### 6/11 notte — Il meccanico dà UNA carta, e la benzina segue i giri del round
 
 - **Segnalazione di Mauro**: «il meccanico non so perché quando mi dà il primo setup è 30 L, e ne dà 2 con nome diverso».

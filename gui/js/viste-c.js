@@ -1160,6 +1160,23 @@ async function drawSetup(m){
         return parti[0].trim();
       };
       const rows = (m.consigli ?? []).map((c) => `<div class="mech-advice" role="button" tabindex="0" data-vedi="${esc(c.vedi ?? '')}" title="${tr({ it: "apri l'anteprima del setup e vai al campo", en: 'open the setup preview and jump to the field' })}"><span style="flex:0 0 130px;font-size:12.5px;color:var(--dim)">${tag[c.vedi] ?? c.vedi}</span><span style="font-size:12.5px;line-height:1.5">${testoConsiglio(c.text)}</span><span class="go">→</span></div>`).join('');
+      /* «COSA È CAMBIATO DALL'ULTIMA VISITA» (6/11 notte, richiesta Mauro:
+         «quando rientro dal meccanico non capisco se ha consigli o migliorie
+         da aggiungere, vedo la solita scheda della prima visita»). In cima
+         alla scheda le novità vere (uscita nuova, giro migliore, prova chiusa,
+         consiglio nuovo) e, quando non c'è niente, lo dice: senza questo
+         «stessa scheda» e «scheda aggiornata» sembravano la stessa cosa.
+         Il pulsante «Ho visto» sposta il segno: da lì si conta la prossima. */
+      window.__mechCtx = { car: carPanel ?? window.__lcCar ?? null, track: trackPanel ?? cur?.track ?? null };
+      const nov = m.novita ?? [];
+      const quandoVisto = m.vistoAt ? esc(String(m.vistoAt).replace('T', ' ').slice(0, 16)) : null;
+      const novitaHtml = nov.length
+        ? `<div class="banner good" style="padding:8px 10px;font-size:12.5px;margin-bottom:8px">🆕 <b>${tr({ it: "C'è qualcosa di nuovo", en: 'There is something new' })}</b>
+            <ul style="margin:6px 0 0 18px">${nov.map((n) => `<li>${esc(n.text)}</li>`).join('')}</ul>
+            <button class="mini" id="b-mech-visto" type="button" style="margin-top:6px">✅ ${tr({ it: 'Ho visto', en: 'Seen it' })}</button></div>`
+        : (quandoVisto
+          ? `<div class="muted" style="font-size:12.5px;margin-bottom:6px">✅ ${tr({ it: `Nessuna novità dall'ultima visita (${quandoVisto}): i consigli qui sotto sono gli stessi — se non hai girato, non c'è niente da aggiungere.`, en: `Nothing new since your last visit (${quandoVisto}): the advice below is unchanged — if you have not driven, there is nothing to add.` })}</div>`
+          : '');
       const memoHtml = storieAllievo.size
         ? `<div class="mech-memo"><b>↺ ${tr({ it: "Storia dell'allievo", en: "The apprentice's record" })}</b><ul>${[...storieAllievo].map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>`
         : '';
@@ -1327,7 +1344,7 @@ async function drawSetup(m){
       };
       out.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 10px;background:#0d1118">
         <div style="font-size:12.5px;margin-bottom:6px"><b>🔧 ${tr({ it: 'Il meccanico', en: 'The mechanic' })}</b> — ${tr({ it: 'setup consigliato per ', en: 'advised setup for ' })}<b>${esc(m.trackPretty ?? m.track ?? '')}</b> <span class="muted" style="font-size:12.5px">· ${tr({ it: 'tracciato ', en: 'track type ' })}${esc(tipoTracciatoLabel(m.tipo))}${m.densita ? ` · ${m.densita} ${tr({ it: 'curve/km', en: 'corners/km' })}` : ''}${m.sessFile ? tr({ it: ' · correzione su telemetria reale', en: ' · corrected on real telemetry' }) : tr({ it: ' · senza telemetria (solo pista)', en: ' · no telemetry (track profile only)' })}</span></div>
-        ${memoHtml}${rows || `<div class="muted" style="font-size:12.5px">${tr({ it: 'Nessun consiglio per questa pista: anagrafica non disponibile.', en: 'No advice for this track: profile not available.' })}</div>`}
+        ${novitaHtml}${memoHtml}${rows || `<div class="muted" style="font-size:12.5px">${tr({ it: 'Nessun consiglio per questa pista: anagrafica non disponibile.', en: 'No advice for this track: profile not available.' })}</div>`}
         ${vivoHtml}${dialogoHtml}${provaHtml}${storiaHtml}
       </div>`;
       /* AGGANCI STABILI (6/11, il guasto VERo che Mauro vide: «clicco su gara o
@@ -1351,6 +1368,13 @@ async function drawSetup(m){
           if (e.target.closest('#b-mech-parla')) {
             const t = document.querySelector('#mech-parla')?.value?.trim();
             if (t) window.__mechParla(t, true);
+            return;
+          }
+          if (e.target.closest('#b-mech-visto')) {
+            const c = window.__mechCtx ?? {};
+            api('garage', { action: 'meccanico-visto', car: c.car ?? null, track: c.track ?? null })
+              .then(() => window.__lcMech?.())
+              .catch(() => { /* il segno resta dov'era: nessun avviso perso */ });
             return;
           }
           if (e.target.closest('#b-mech-scrivi')) {
