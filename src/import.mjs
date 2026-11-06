@@ -526,19 +526,6 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
     prize: entry.prize, money: state.money, backup: backupFile,
   });
 
-  // calibrazione dai risultati reali (grid-calib.mjs): per-auto vs base e campo
-  // AI contro di te → proposte appese a data/grid-calibrazione.json. Gare manuali
-  // e inserite a mano non hanno il file grezzo: si lasciano perdere (mai bloccare l'import).
-  let calibrazione = null;
-  if (isNew && ctx.rawResult) {
-    try {
-      calibrazione = recordRaceFromResult({
-        result: ctx.rawResult, playerDriver: ctx.playerDriver,
-        track: payload.track ?? null, sourceFile: ctx.candidateFile ?? null,
-      });
-    } catch { /* la calibrazione non ferma mai la carriera */ }
-  }
-
   // BILANCIO ARRIVATO IN PISTA (6/11): il file dei risultati dichiara ballast e
   // restrictor di OGNI pilota. Se la zavorra della serie non è arrivata al via
   // (il menu di EVO che risalva il customgrid la azzera — 19/10 Sebring, 6/11
@@ -549,6 +536,28 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
     try {
       bilancio = bilancioDaGara(ctx.rawResult, { nodeId: targetNode.nodeId, track: payload.track ?? null });
     } catch { /* il confronto non ferma mai l'import */ }
+  }
+
+  // calibrazione dai risultati reali (grid-calib.mjs): per-auto vs base e campo
+  // AI contro di te → proposte appese a data/grid-calibrazione.json. Gare manuali
+  // e inserite a mano non hanno il file grezzo: si lasciano perdere (mai bloccare
+  // l'import). Il BILANCIO viaggia con la gara (7/11): una gara corsa SENZA le
+  // zavorre della serie non misura quelle zavorre, e la calibrazione deve
+  // saperlo PRIMA di proporne altre — l'ordine qui sopra è la correzione.
+  let calibrazione = null;
+  if (isNew && ctx.rawResult) {
+    try {
+      calibrazione = recordRaceFromResult({
+        result: ctx.rawResult, playerDriver: ctx.playerDriver,
+        track: payload.track ?? null, sourceFile: ctx.candidateFile ?? null,
+        bilancio,
+        // LA SERIE VIAGGIA CON LA GARA (7/11): la classe si ricava dal parco
+        // della serie, non dai nomi capiati in griglia (una gara "GT3 Endurance"
+        // corsa con le stradali finiva nella classe RX-7).
+        serie: targetNode.display,
+        serieAuto: (targetNode.cars ?? []).map((c) => ladder.contentNames?.cars?.[c] ?? c),
+      });
+    } catch { /* la calibrazione non ferma mai la carriera */ }
   }
 
   // gazzetta: la stampa sportiva commenta la gara (solo gare nuove)

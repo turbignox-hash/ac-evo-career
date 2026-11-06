@@ -134,7 +134,11 @@ test('regola-classe: perTraccia convergenti (>=2 piste, lezione 28/10) sopra la 
   const golf = proposte.find((p) => p.leva === 'regola-classe' && p.auto === 'Volkswagen Golf 8 GTI');
   assert.ok(golf, `serve la proposta regola-classe per il Golf (3 piste confermanti) — proposte=${JSON.stringify(proposte.map((p) => p.leva + ':' + p.auto))}`);
   assert.equal(golf.a, '100kg/20%', `il valore zollato al cap: ${golf.a}`);
-  assert.ok(golf.comando.includes('--rule') && golf.comando.includes('Volkswagen Golf 8 GTI'), `comando pronto: ${golf.comando}`);
+  // IL COMANDO FA QUELLO CHE DICE (7/11): la regola di classe sta in grid-classes.json,
+  // non nel customgrid — `--rule ... --apply` riscriverebbe solo la griglia corrente
+  // e la classe resterebbe a 1% (sparirebbe al Prepara dopo).
+  assert.ok(golf.comando.includes('grid-classes.json') && golf.comando.includes('--serie pi-10-11-moderna'), `comando sulla classe: ${golf.comando}`);
+  assert.ok(!golf.comando.includes('--rule'), `niente --rule: scriverebbe il customgrid, non la classe — ${golf.comando}`);
   assert.ok(!proposte.some((p) => p.leva === 'regola-classe' && p.auto === 'Toyota Supra MKIV'),
     'la Supra ha conferme sotto la base/una sola: niente regola-classe');
   assert.ok(!proposte.some((p) => p.leva === 'regola-classe' && p.auto === 'Abarth 695 Biposto'),
@@ -380,6 +384,47 @@ test('guardia di EVENTO: AI con S1/S2 miei e un best lap impossibile → evento 
   assert.equal(g.perAuto.length, 0, 'nessuna mediana per-auto da dati che non si fidano di');
 });
 
+/* ------------ 7-bis. BILANCIO PERSO (7/11, «sistema di apprendimento»): una gara
+ * corsa SENZA le zavorre della serie non è una misura di quelle zavorre. Prima di
+ * questa porta l'analisi poteva proporre di AUMENTARE la penalità proprio per
+ * colpa della penalità persa (circuito chiuso): la sola guardia dei dati sospetti
+ * l'aveva fermata per caso a Donington, il 6/11. */
+test('bilancio perso: la gara corsa senza zavorre non propone aumenti e non conta come osservazione', () => {
+  calib.resetCalib();
+  const corsa = () => griglia(
+    carAI('Golf1', ...AUTO.golf, 157.5),
+    carAI('Golf2', ...AUTO.golf, 157.6),
+    carAI('M3a', ...AUTO.m3, 153.0),
+    carAI('M3b', ...AUTO.m3, 153.5),
+    carAI('Abarth1', ...AUTO.abarth, 161.49),
+    carAI('Abarth2', ...AUTO.abarth, 161.51),
+  );
+  const race = corsa();
+  race.track = 'Pista Di Prova Senza Regole';
+
+  // la prova di non-cecità: senza bilancio la stessa gara PROPONE (M3/Golf sfuggono)
+  const senza = calib.analyzeRace(corsa(), { track: race.track });
+  assert.ok(senza.proposte.length > 0, `senza il bilancio la gara propone: ${JSON.stringify(senza.proposte.map((p) => p.leva))}`);
+
+  // con il bilancio perso: zero proposte, segnale dedicato, motivo scritto
+  const perso = { msg: '⚠  ZAVORRE NON ARRIVATE AL VIA — la gara ha girato senza il bilancio della serie\n    preteso: …' };
+  const con = calib.analyzeRace(corsa(), { track: race.track, bilancio: perso });
+  assert.equal(con.proposte.length, 0, 'nessuna proposta nasce da una gara corsa senza la zavorra che dovrebbe misurare');
+  assert.equal(con.evento.segnale.tipo, 'bilancio-perso');
+  assert.match(con.evento.bilancioPerso, /ZAVORRE NON ARRIVATE AL VIA/);
+
+  // registro: due gare col bilancio perso sulla STESSA pista → nessuna osservazione
+  calib.recordRaceFromResult({ result: corsa(), track: race.track, sourceFile: 'bp1.json', bilancio: perso });
+  calib.recordRaceFromResult({ result: corsa(), track: race.track, sourceFile: 'bp2.json', bilancio: perso });
+  const g = calib.calibSummary().gruppi.find((x) => x.classe === 'pi-10-11-moderna' && x.trkKey === 'Pista Di Prova Senza Regole');
+  assert.ok(g, 'il gruppo resta visibile nel riepilogo');
+  assert.equal(g.obs, 0, 'le gare senza zavorra NON contano come osservazioni');
+  assert.equal(g.bilancioPerso, 2, 'le due gare sono dichiarate come bilancio perso');
+  assert.equal(g.scartate, 2);
+  assert.equal(g.confidenza, 'nessuna');
+  assert.equal(g.perAuto.length, 0, 'nessuna mediana per-auto da gare senza la zavorra pretesa');
+});
+
 /* ------------ 6. classe sconosciuta ------------ */
 test('classe sconosciuta: nessun evento, nessun rumore', () => {
   calib.resetCalib();
@@ -427,6 +472,107 @@ test('regole fonte app nel riepilogo: confermata, sballata e da corse dall\'esit
     assert.equal(t16.esito, 'da corse', 'T16 mai corsa: in attesa, non una misurazione inventata');
   } finally {
     // la fixture torna INTATTA per i test successivi (e il memo invalidato da mtime)
+    copyFileSync(SAMPLE, CLASSES_TMP);
+  }
+});
+
+/* ------------ 7-ter. LA CATEGORIA VIENE DALLA SERIE, NON DALLA GRIGLIA (7/11).
+ * Mauro: «vanno escluse anche le gare di categoria diverse tipo le endurance,
+ * gt1+gt2+gt3 etc». Il match sui SOLI nomi della gara ha già sbagliato in vero:
+ * una gara del nodo «GT3 Endurance» corsa con le stradali è finita nella classe
+ * coppa_mazda-rx7-fd, e la Coppa MX-5 (monomarca) nel «Campionato Moderno».
+ * Qui si passa la serie (nodo + parco del ladder): se la gara non corre quelle
+ * auto, o la serie è a modello unico, la gara non insegna — né proposte né obs. */
+const GT3_ENDURANCE = ['Ferrari 296 GT3', 'BMW M4 GT3', 'Porsche 911 GT3 R Rennsport'];
+
+test('gara di un\'altra categoria (serie GT3 corsa con le stradali): fuori dal calcolo', () => {
+  calib.resetCalib();
+  const corsa = () => griglia(
+    carAI('Golf1', ...AUTO.golf, 157.5),
+    carAI('Golf2', ...AUTO.golf, 157.6),
+    carAI('M3a', ...AUTO.m3, 153.0),
+    carAI('M3b', ...AUTO.m3, 153.5),
+    carAI('Abarth1', ...AUTO.abarth, 161.49),
+    carAI('Abarth2', ...AUTO.abarth, 161.51),
+  );
+  // la prova di non-cecità: sui SOLI nomi la stessa gara entra in pi-10-11-moderna e propone
+  const senza = calib.analyzeRace(corsa());
+  assert.equal(senza.evento.classe, 'pi-10-11-moderna');
+  assert.ok(senza.proposte.length > 0, `senza la serie la gara propone: ${JSON.stringify(senza.proposte.map((p) => p.leva))}`);
+
+  // con la serie: le auto in pista non sono quelle della GT3 Endurance → niente da imparare
+  const con = calib.analyzeRace(corsa(), { serie: 'GT3 Endurance', serieAuto: GT3_ENDURANCE });
+  assert.equal(con.proposte.length, 0);
+  assert.equal(con.evento.segnale.tipo, 'categoria-diversa');
+  assert.equal(con.evento.classe, null, 'una gara di un\'altra categoria non si attribuisce a una classe');
+  assert.equal(con.evento.serie, 'GT3 Endurance');
+  assert.match(con.evento.categoriaDiversa ?? '', /categoria diversa/);
+
+  // registro: l'evento è scritto (trasparenza) ma fuori da gruppi, obs e mediane
+  calib.recordRaceFromResult({ result: corsa(), sourceFile: 'gt3-1.json', serie: 'GT3 Endurance', serieAuto: GT3_ENDURANCE });
+  const sum = calib.calibSummary();
+  assert.equal(sum.gruppi.length, 0, 'nessun gruppo classe+pista nasce da una gara di un\'altra categoria');
+  assert.equal(sum.fuoriSerie.categoriaDiversa, 1, 'la gara è dichiarata fuori serie nel riepilogo');
+});
+
+test('serie a modello unico: non c\'è bilanciamento di classe da imparare', () => {
+  calib.resetCalib();
+  const corsa = () => griglia(
+    carAI('Mx1', 'Mazda', 'MX-5 ND Cup', 160.2),
+    carAI('Mx2', 'Mazda', 'MX-5 ND Cup', 160.4),
+    carAI('Mx3', 'Mazda', 'MX-5 ND Cup', 160.5),
+  );
+  const con = calib.analyzeRace(corsa(), { serie: 'Coppa Mazda MX-5 ND Cup', serieAuto: ['Mazda MX-5 ND Cup'] });
+  assert.equal(con.proposte.length, 0);
+  assert.equal(con.evento.segnale.tipo, 'serie-monomarca');
+  assert.match(con.evento.serieMonomarca ?? '', /modello unico/);
+  calib.recordRaceFromResult({ result: corsa(), sourceFile: 'mx5-1.json', serie: 'Coppa Mazda MX-5 ND Cup', serieAuto: ['Mazda MX-5 ND Cup'] });
+  const sum = calib.calibSummary();
+  assert.equal(sum.gruppi.length, 0, 'il monomarca non entra in nessun gruppo classe+pista');
+  assert.equal(sum.fuoriSerie.monomarca, 1);
+});
+
+test('la classe si sceglie dal PARCO della serie: la più precisa, non quella che copre la griglia', () => {
+  calib.resetCalib();
+  // la classe Coppa Strada 80 esiste nel data/ vero ma non nella fixture del 24/10:
+  // si aggiunge qui, e si ripristina la fixture alla fine (come il test 7)
+  const classes = JSON.parse(readFileSync(CLASSES_TMP, 'utf8'));
+  classes.classi.coppa_strada_80 = {
+    regole: [
+      { preset: 'preset_r5', auto: 'Renault 5 GT Turbo', ballastKg: 0, restrictorPct: 0 },
+      { preset: 'preset_cosworth', auto: 'Ford Escort RS Cosworth', ballastKg: 100, restrictorPct: 8 },
+    ],
+  };
+  writeFileSync(CLASSES_TMP, JSON.stringify(classes, null, 2));
+  try {
+    // griglia reale di Brands Hatch: Coppa Strada + UNA GR86 estranea (così era)
+    const corsa = () => griglia(
+      carAI('R1', 'Renault', '5 GT Turbo', 100.0),
+      carAI('R2', 'Renault', '5 GT Turbo', 100.4),
+      carAI('E1', 'Ford', 'Escort RS Cosworth', 98.0),
+      carAI('E2', 'Ford', 'Escort RS Cosworth', 98.3),
+      carAI('G1', 'Toyota', 'GR86 Standard', 96.0),
+    );
+    // con la serie (R5 + Escort Cosworth) la classe è quella che ne copre il parco
+    // PER INTERO: la GR86 capitata in griglia non sposta l'attribuzione
+    const con = calib.analyzeRace(corsa(), { serie: 'Coppa Strada', serieAuto: ['Renault 5 GT Turbo', 'Ford Escort RS Cosworth'] });
+    assert.equal(con.evento.classe, 'coppa_strada_80', `la classe deve venire dal parco della serie: ${con.evento.classe}`);
+    assert.equal(con.evento.serie, 'Coppa Strada');
+
+    // una serie coperta SOLO A METÀ (GT86 Cup: GR86 + AE86, e l'AE86 non è in nessuna
+    // classe) non si attribuisce per forza alla classe larga che prende la GR86:
+    // la griglia è quella vera della serie (coerente), è la CLASSE che non la copre
+    const gt86corsa = () => griglia(
+      carAI('A1', 'Toyota', 'GR86 Standard', 100.0),
+      carAI('A2', 'Toyota', 'GR86 Standard', 100.3),
+      carAI('B1', 'Toyota', 'AE86 Sprinter Trueno', 104.0),
+      carAI('B2', 'Toyota', 'AE86 Sprinter Trueno', 104.2),
+    );
+    const gt86 = calib.analyzeRace(gt86corsa(), { serie: 'GT86 Cup', serieAuto: ['Toyota GR86', 'Toyota AE86 Sprinter Trueno'] });
+    assert.equal(gt86.proposte.length, 0);
+    assert.equal(gt86.evento.segnale.tipo, 'serie-senza-classe');
+    assert.match(gt86.evento.serieSenzaClasse ?? '', /nessuna classe/);
+  } finally {
     copyFileSync(SAMPLE, CLASSES_TMP);
   }
 });

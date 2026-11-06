@@ -78,6 +78,76 @@ function ruleAutoMatch(regolaAuto, label) {
   return l === a || l.startsWith(a) || a.startsWith(l);
 }
 
+/* ---------- CATEGORIA: la serie, non la griglia corsa (7/11) ---------- */
+/* Un secondo livelli di match, per le serie: i nomi del ladder e quelli dei
+   risultati divergono su dettagli d'ordine («Volkswagen Golf GTI Mk8» contro
+   «Volkswagen Golf 8 GTI»), che il confronto per prefisso non prende. Si
+   guardano le PAROLE in comune: almeno 2 e i 3/5 della lista più corta. */
+const toks = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter((t) => t.length > 1);
+function stessaAuto(a, b) {
+  if (ruleAutoMatch(a, b)) return true;
+  const ta = new Set(toks(a)), tb = new Set(toks(b));
+  if (!ta.size || !tb.size) return false;
+  const com = [...ta].filter((t) => tb.has(t)).length;
+  return com >= 2 && com / Math.min(ta.size, tb.size) >= 0.6;
+}
+
+/** quota di `lista` coperta da `rif` (auto della serie): 0..1. */
+function quotaCoperta(lista, rif) {
+  if (!lista.length || !rif.length) return 0;
+  return lista.filter((m) => rif.some((a) => stessaAuto(a, m))).length / lista.length;
+}
+
+/**
+ * La classe che corrisponde al PARCO della serie (non alle auto capitate in
+ * pista). Vince chi copre la serie; a pari copertura vince la classe più
+ * precisa (meno regole estranee): Coppa Strada è 2/2 su coppa_strada_80 e 2/5
+ * su gr86-r5-escort, quindi è la prima. null sotto il 60% di copertura.
+ */
+function classeDaSerie(classes, serieAuto) {
+  let best = null;
+  for (const [id, cls] of Object.entries(classes.classi ?? {})) {
+    const reg = (cls.regole ?? []).map((r) => r.auto).filter(Boolean);
+    if (reg.length < 2) continue;
+    const hits = serieAuto.filter((a) => reg.some((r) => stessaAuto(r, a))).length;
+    if (hits < 2) continue;
+    const copertura = hits / serieAuto.length;
+    if (copertura < 0.6) continue;
+    const punteggio = copertura + (hits / reg.length);
+    if (!best || punteggio > best.punteggio) best = { id, cls, hits, copertura, punteggio };
+  }
+  return best;
+}
+
+/**
+ * LA PORTA DELLA CATEGORIA (7/11, Mauro: «vanno escluse anche le gare di
+ * categoria diversa tipo le endurance, gt1+gt2+gt3 etc»). Decide se una gara
+ * appartiene alla serie e quale classe le spetta, partendo dal PARCO della
+ * serie (`serieAuto`, i nodi del ladder) e dalle auto viste in pista.
+ * Ritorna null se la serie non è nota (nomi non risolti: decide il match per nomi).
+ * Unica fonte per l'analisi e per la manutenzione del registro: stessa regola.
+ */
+export function serieScope(serieAuto, raceLabels, { classes = loadClasses(), serie = null } = {}) {
+  if (!Array.isArray(serieAuto) || !serieAuto.length) return null;
+  if (serieAuto.some((s) => /^ks_/i.test(String(s)))) return null;
+  const etichetta = serie ? ` “${serie}”` : '';
+  const parco = serieAuto.slice(0, 4).join(', ');
+  if (serieAuto.length < 2) {
+    return { stato: 'serie-monomarca', classe: null, parco: serieAuto,
+      motivo: `serie a modello unico (${serieAuto[0]}): non c'è un bilanciamento di classe da imparare` };
+  }
+  if (quotaCoperta(raceLabels ?? [], serieAuto) < 0.6) {
+    return { stato: 'categoria-diversa', classe: null, parco: serieAuto,
+      motivo: `la gara non corre le auto della serie${etichetta} (${parco}): categoria diversa` };
+  }
+  const hit = classeDaSerie(classes, serieAuto);
+  if (!hit) {
+    return { stato: 'serie-senza-classe', classe: null, parco: serieAuto,
+      motivo: `nessuna classe di grid-classes.json copre il parco della serie${etichetta} (${parco})` };
+  }
+  return { stato: 'ok', classe: hit, parco: serieAuto, motivo: null };
+}
+
 /* ---------- nomi auto: match per classe con lo stesso filtro del gioco ---------- */
 
 const strip = (s) => String(s ?? '')
@@ -160,22 +230,46 @@ const toMs = (t) => { // i total_time di EVO arrivano h:mm:ss.d o m:ss.d
  * `result` è il file sessionresults grezzo; `playerDriver` l'oggetto tuo (da findPlayerDriver).
  * Ritorna { evento, proposte } — evento appese, proposte riassunte.
  */
-export function analyzeRace(result, { track = null, playerDriver = null, customgrid = null, sourceFile = null } = {}) {
+export function analyzeRace(result, { track = null, playerDriver = null, customgrid = null, sourceFile = null, bilancio = null, serie = null, serieAuto = null } = {}) {
   const drivers = result?.drivers ?? [];
   if (!drivers.length) return { evento: null, proposte: [] };
   const classes = loadClasses();
   const carLabels = drivers.map(carLabelOf);
-  const matched = matchClassByCars(classes, carLabels);
+  /* LA CLASSE VIENE DALLA SERIE, NON DALLA GRIGLIA (7/11, Mauro: «vanno escluse
+     anche le gare di categoria diverse, tipo le endurance, gt1+gt2+gt3…»).
+     Il match sui nomi della gara da solo ha già prodotto casi veri sbagliati:
+     una gara del nodo «GT3 Endurance» corsa con le stradali è finita in
+     coppa_mazda-rx7-fd, e la Coppa MX-5 (monomarca) nel «Campionato Moderno».
+     Se il chiamante sa la serie (import: nodo + parco del ladder) si parte da
+     lì: la gara deve correre le auto di quella serie, e la classe è quella che
+     ne copre il parco. Serie a modello unico o senza classe = niente da
+     imparare (non c'è un bilanciamento di classe da calibrare). */
+  const aiLabels = drivers
+    .filter((d) => /^[•\u2022]/.test(String(d.driver_name ?? '').trim()) && d !== playerDriver)
+    .map(carLabelOf).filter(Boolean);
+  const scope = serieScope(serieAuto, aiLabels, { classes, serie });
+  let matched = matchClassByCars(classes, carLabels);
+  if (scope?.stato === 'ok') {
+    const { id, cls, hits } = scope.classe;
+    matched = { id, cls, hits, len: (cls?.regole ?? []).length };
+  }
   const evento = {
     at: new Date().toISOString(),
     file: sourceFile,
     pista: track ?? result?.track ?? null,
+    serie: serie ?? null,
     classe: null,
     aiCampo: null,
     campo: null,
     perAuto: [],
     segnale: { tipo: 'classe-sconosciuta', proposte: [] },
   };
+  if (scope && scope.stato !== 'ok') {   // gara di un'altra categoria: si scrive, non insegna
+    const campo = { 'serie-monomarca': 'serieMonomarca', 'categoria-diversa': 'categoriaDiversa', 'serie-senza-classe': 'serieSenzaClasse' }[scope.stato];
+    evento[campo] = scope.motivo;
+    evento.segnale = { tipo: scope.stato, proposte: [] };
+    return { evento, proposte: [] };
+  }
   if (!matched) return { evento, proposte: [] };
   evento.classe = matched.id;
 
@@ -289,6 +383,22 @@ export function analyzeRace(result, { track = null, playerDriver = null, customg
     }
   }
 
+  /* ZAVORRE NON ARRIVATE AL VIA (7/11): se la griglia pretendeva kg/% e il file
+     dei risultati dice che la gara ha girato a 0/0 (il menu di EVO, risalvando
+     il customgrid, azzera le celle — 19/10 Sebring, 6/11 Brands Hatch), questi
+     numeri NON misurano l'effetto della zavorra: la zavorra non c'era. Senza
+     questa porta l'analisi proponeva di AUMENTARE la penalità proprio per colpa
+     della penalità persa — un circuito chiuso (la sola guardia dei dati
+     sospetti l'ha fermato per caso a Donington, 6/11). L'evento resta nel
+     registro (append-only, trasparenza) ma non è un'osservazione e non produce
+     proposte. */
+  if (bilancio) {
+    evento.bilancioPerso = String(bilancio.msg ?? 'zavorre pretese dalla serie ma non arrivate al via')
+      .split(String.fromCharCode(10))[0].replace(/^[^A-Za-z]+/, '').trim();
+    evento.segnale = { tipo: 'bilancio-perso', proposte: [] };
+    return { evento, proposte: [] };
+  }
+
   const proposte = buildProposte(evento, matched.cls, track ?? result?.track);
   if (evento.sospetto) {
     evento.segnale = { tipo: 'dati-sospetti', proposte: [] };
@@ -393,7 +503,13 @@ function buildProposte(evento, cls, track) {
     prop.push({
       leva: 'regola-classe', auto: r.auto, classe: evento.classe, da: `regola classe ${r.kg}kg/${basePct}%`, a: `${r.kg}kg/${valore}%`,
       perche: tr({ it: `${conferme.length} piste confermano la stessa carica su ${r.auto} (e.g. ${conferme.slice(0, 2).map(([k]) => k).join(', ')}): il default di classe ${basePct}% lascia l'auto forte OVUNQUE, non solo là dove è stato calibrato`, en: `${conferme.length} tracks confirm the same handicap on ${r.auto}: the class default of ${basePct}% leaves the car strong EVERYWHERE, not only where it was calibrated` }),
-      comando: `node src/grid-balance.mjs --rule "${r.auto}=${r.kg},${valore}" --apply`,
+      /* IL COMANDO DEVE FARE QUELLO CHE DICE (7/11): la proposta è sulla REGOLA DI
+         CLASSE, ma `--rule "auto=kg,%" --apply` scrive le celle del customgrid
+         CORRENTE e lascia `grid-classes.json` a com'era — al Prepara dopo, la
+         classe riscrive 1% e la correzione sparisce. Quindi: prima la regola nel
+         file delle classi (come fanno le proposte perTraccia), poi l'applicazione
+         con --serie, che è l'unica strada che rilegge la classe. */
+      comando: `grid-classes.json → classi["${evento.classe}"].regole[${r.auto}].restrictorPct = ${valore} (ora ${basePct}) · poi node src/grid-balance.mjs --serie ${evento.classe} --apply`,
     });
   }
 
@@ -474,9 +590,9 @@ export function recordEvent(evento, { classesNow = null } = {}) {
 }
 
 /** Punto d'aggancio per runImport: analizza il grezzo e appende. Mai eccezioni fuori. */
-export function recordRaceFromResult({ result, playerDriver, track = null, gridFile = GRID_FILE, sourceFile = null } = {}) {
+export function recordRaceFromResult({ result, playerDriver, track = null, gridFile = GRID_FILE, sourceFile = null, bilancio = null, serie = null, serieAuto = null } = {}) {
   try {
-    const { evento } = analyzeRace(result, { track, playerDriver, customgrid: gridFile, sourceFile });
+    const { evento } = analyzeRace(result, { track, playerDriver, customgrid: gridFile, sourceFile, bilancio, serie, serieAuto });
     if (!evento) return null;
     return recordEvent(evento);
   } catch (e) {
@@ -499,10 +615,17 @@ function eventoOk(evento) {
   return penalizzate.every((r) => (r.deltaVsBaseSec == null || r.deltaVsBaseSec >= -TOL_SEC));
 }
 
+/** Un evento che non insegna niente: dati sporchi, zavorre non portate, serie di
+ *  un'altra categoria o monomarca. Fuori da obs, mediane e confidenza. */
+const esclusoDaCalcolo = (e) => !!(e?.sospetto || e?.bilancioPerso || e?.categoriaDiversa || e?.serieMonomarca || e?.serieSenzaClasse || e?.classeNonDellaSerie);
+
 /** Punteggio di confidenza per classe+traccia: { obs, ok, fino, confidenza, suggerisciConvalida }
  *  Gli eventi SOSPETT (dati corrotti, 22/10) NON contano né come osservazioni né come ok. */
 export function confidenzaOf(eventi, classe, trkKey) {
-  const ev = (eventi ?? []).filter((e) => e.classe === classe && trkKeyOf(e) === trkKey && !e.sospetto);
+  // sospetti (dati corrotti) e gare col bilancio perso NON sono osservazioni:
+  // la prima e la seconda dicono che la misura non è attendibile, non che la
+  // regola è giusta o sbagliata.
+  const ev = (eventi ?? []).filter((e) => e.classe === classe && trkKeyOf(e) === trkKey && !esclusoDaCalcolo(e));
   const ok = ev.filter(eventoOk).length;
   const obs = ev.length;
   let confidenza = 'nessuna';
@@ -540,7 +663,9 @@ export function calibSummary(classes = loadClasses()) {
     const c = confidenzaOf(ev, classe, trkKey);
     // gare sospette (dati corrotti): fuori da obs e mediane MA dichiarate nel riepilogo
     const sospette = ev.filter((e) => e.sospetto);
-    const evValidi = ev.filter((e) => !e.sospetto);
+    const perse = ev.filter((e) => e.bilancioPerso);
+    const evValidi = ev.filter((e) => !esclusoDaCalcolo(e));
+    const classeErrata = ev.filter((e) => e.classeNonDellaSerie);
     const perAuto = {};
     for (const e of evValidi) for (const r of (e.perAuto ?? [])) {
       if (r.base || r.deltaVsBaseSec == null) continue;
@@ -566,7 +691,10 @@ export function calibSummary(classes = loadClasses()) {
     const perTraccia = cls?.perTraccia?.[trkKey];
     out.push({
       classe, trkKey, obs: c.obs, ok: c.ok, confidenza: c.confidenza,
-      scartate: sospette.length,
+      scartate: ev.length - evValidi.length,
+      sospette: sospette.length,
+      bilancioPerso: perse.length,
+      classeErrata: classeErrata.length,
       convalidatoAdesso: perTraccia?.convalidato === true || (cls?.convalidatoSu ?? []).some((s) => trkKey.toLowerCase()?.includes?.(String(s).toLowerCase())) || false,
       suggerisciConvalida: c.suggerisciConvalida && perTraccia?.convalidato !== true,
       perAuto: Object.entries(perAuto).map(([auto, v]) => ({ auto, medSec: v.medSec })).sort((a, b) => a.medSec - b.medSec),
@@ -575,7 +703,14 @@ export function calibSummary(classes = loadClasses()) {
       ultimoAt: (evValidi[evValidi.length - 1] ?? ev[ev.length - 1])?.at ?? null,
     });
   }
-  return { file: CALIB_FILE(), eventi: eventi.length, gruppi: out.sort((a, b) => String(b.ultimoAt ?? '').localeCompare(String(a.ultimoAt ?? ''))) };
+  // gare di un'ALTRA serie (endurance, multiclasse, monomarca): non hanno classe,
+  // quindi non finiscono in nessun gruppo — si contano a parte, dichiarate.
+  const fuoriSerie = {
+    categoriaDiversa: eventi.filter((e) => e.categoriaDiversa).length,
+    monomarca: eventi.filter((e) => e.serieMonomarca).length,
+    senzaClasse: eventi.filter((e) => e.serieSenzaClasse).length,
+  };
+  return { file: CALIB_FILE(), eventi: eventi.length, fuoriSerie, gruppi: out.sort((a, b) => String(b.ultimoAt ?? '').localeCompare(String(a.ultimoAt ?? ''))) };
 }
 
 function brief(evento, classes) {

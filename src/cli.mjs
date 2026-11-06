@@ -1518,13 +1518,16 @@ async function cmdGrigliaCalib(args) {
   }
   const sum = calibSummary();
   console.log(C.bold(tr({ it: `\nCalibrazione dai risultati — ${sum.eventi} gare in registro (${calibFile()})\n`, en: `\nCalibration from results — ${sum.eventi} races in the ledger (${calibFile()})\n` })));
+  const fuori = sum.fuoriSerie ?? {};
+  const fuoriTot = (fuori.categoriaDiversa ?? 0) + (fuori.monomarca ?? 0) + (fuori.senzaClasse ?? 0);
+  if (fuoriTot) console.log(C.dim(tr({ it: `  fuori dal calcolo: ${fuori.categoriaDiversa ?? 0} gare di un'altra categoria · ${fuori.monomarca ?? 0} monomarca · ${fuori.senzaClasse ?? 0} serie senza classe`, en: `  left out: ${fuori.categoriaDiversa ?? 0} other-category races · ${fuori.monomarca ?? 0} single-make · ${fuori.senzaClasse ?? 0} series without a class` })));
   if (!sum.gruppi.length) {
     console.log(C.dim(tr({ it: '  Vuoto: il registro si riempe da solo ad ogni import di gara con auto di una classe conosciuta.\n', en: '  Empty: the ledger fills itself at every race import with cars from a known class.\n' })));
     return 0;
   }
   for (const g of sum.gruppi) {
     const conf = { alta: C.green, media: C.yellow, bassa: C.red, nessuna: C.dim }[g.confidenza] ?? C.dim;
-    console.log(`  ${C.bold(g.classe)} · ${C.cyan(g.trkKey)} — ${g.obs} ${tr({ it: 'gare', en: 'races' })} (${g.ok} ${tr({ it: 'in tolleranza', en: 'in tolerance' })}) · ${tr({ it: 'confidenza', en: 'confidence' })} ${conf(g.confidenza)}${g.convalidatoAdesso ? C.green(tr({ it: ' · convalidata', en: ' · validated' })) : ''}${g.scartate ? C.red(tr({ it: ` · ${g.scartate} scartate (dati impossibili)`, en: ` · ${g.scartate} discarded (impossible data)` })) : ''}`);
+    console.log(`  ${C.bold(g.classe)} · ${C.cyan(g.trkKey)} — ${g.obs} ${tr({ it: 'gare', en: 'races' })} (${g.ok} ${tr({ it: 'in tolleranza', en: 'in tolerance' })}) · ${tr({ it: 'confidenza', en: 'confidence' })} ${conf(g.confidenza)}${g.convalidatoAdesso ? C.green(tr({ it: ' · convalidata', en: ' · validated' })) : ''}${g.sospette ? C.red(tr({ it: ` · ${g.sospette} scartate (dati impossibili)`, en: ` · ${g.sospette} discarded (impossible data)` })) : ''}${g.bilancioPerso ? C.yellow(tr({ it: ` · ${g.bilancioPerso} senza zavorra (fuori dal calcolo)`, en: ` · ${g.bilancioPerso} without ballast (left out)` })) : ''}${g.classeErrata ? C.yellow(tr({ it: ` · ${g.classeErrata} di un'altra serie (fuori dal calcolo)`, en: ` · ${g.classeErrata} from another series (left out)` })) : ''}`);
     for (const a of g.perAuto.slice(0, 8)) {
       const mark = a.medSec <= -0.8 ? C.red : a.medSec < 0.8 ? C.green : C.dim;
       console.log(`      ${a.auto.padEnd(34)} ${mark(fmtSec(a.medSec))} ${tr({ it: 'dalla base', en: 'from the base' })}`);
