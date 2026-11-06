@@ -242,6 +242,12 @@ async function drawDashboard(m){
         <h2>🎛 ${tr({ it: 'Contatto e volante', en: 'Contact and steering' })} <span class="h-act">${tr({ it: 'live dalla shared memory di EVO', en: 'live from EVO shared memory' })}</span></h2>
         <div id="lc-body"><div class="muted" style="font-size:12.5px">…</div></div>
       </div>
+      <!-- MOTORE ED ELETTRONICA (6/11): altro materiale del loader che finora
+           lo snapshot buttava. Anche questo solo con EVO in pista. -->
+      <div class="panel" id="live-engine" style="display:none">
+        <h2>🔧 ${tr({ it: 'Motore ed elettronica', en: 'Engine and electronics' })} <span class="h-act">${tr({ it: 'live dalla shared memory di EVO', en: 'live from EVO shared memory' })}</span></h2>
+        <div id="le-body"><div class="muted" style="font-size:12.5px">…</div></div>
+      </div>
       <div class="panel hero">
         <svg class="flagart" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 2h1.6v20H4z"/><path d="M5.6 3h12.8l-3 4.5 3 4.5H5.6z"/></svg>
         <h2>${LI.flag} ${esc(node.display)} · ${tr({ it: 'stagione', en: 'season' })} ${h.season}</h2>

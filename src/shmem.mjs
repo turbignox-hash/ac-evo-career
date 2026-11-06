@@ -1168,6 +1168,7 @@ export class LiveReader {
         // CONTATTO E VOLANTE (6/11): il physics porta già vibrazioni e FFB,
         // ma lo snapshot compatto li buttava — la WebUI non li ha mai visti.
         contact: contattoDaPhysics(p),
+        engine: motoreDaGraphics(g),
         timeLeft: !!st.timedRace && g.timeLeftStr?.trim() ? g.timeLeftStr.trim() : null,
       } : null,
     };
@@ -1214,6 +1215,38 @@ export function eGaraSessione({ tipo = null, giriTotali = null, tempoRimanente =
  *  dell'usura gomme in engineer.mjs — e il risultato non passa mai il 100.
  *  Prima ogni valore era × 100 a prescindere: la gara di Laguna Seca ha
  *  mostrato «676 %» e «964 %». */
+/**
+ * MOTORE ED ELETTRONICA (6/11): il blocco graphics porta già livelli TC/ABS,
+ * ripartizione freni, differenziale e le pressioni/temperature del motore, ma
+ * lo snapshot compatto ne mostrava solo una parte (tcActive). Verificati sui
+ * 558 snapshot del collaudo del 4/11 (Toyota Supra MKIV, Laguna Seca):
+ * tc/abs level 0–1, brake_bias 0,695 costante, diff power/coast 0–14,
+ * olio 93 °C / 4,6 bar, acqua 1,15 bar, benzina 3,8 bar, batteria 13,6 V,
+ * coppia e potenza variabili. Restano GREZZI: le unità le dichiara la GUI,
+ * i livelli sono quelli del gioco (0 = spento), non una scala nostra.
+ */
+export function motoreDaGraphics(g) {
+  if (!g) return null;
+  const n = (v, k = 10) => (v == null || v === '' ? null : (Number.isFinite(Number(v)) ? Math.round(Number(v) * k) / k : null));
+  const el = g.electronics ?? null;
+  return {
+    tcLevel: el ? n(el.tcLevel, 1) : null,
+    absLevel: el ? n(el.absLevel, 1) : null,
+    tcOn: !!g.tcActive,
+    absOn: !!g.absActive,
+    brakeBias: el ? n(el.brakeBias, 1000) : null,
+    diffPower: el ? n(el.diffPowerLevel, 1) : null,
+    diffCoast: el ? n(el.diffCoastLevel, 1) : null,
+    torqueNm: n(g.currentTorque, 10),
+    powerCv: n(g.currentBhp, 1),
+    oilTempC: n(g.oilTempC, 10),
+    oilPressureBar: n(g.oilPressureBar, 100),
+    waterPressureBar: n(g.waterPressureBar, 100),
+    fuelPressureBar: n(g.fuelPressureBar, 100),
+    batteryV: n(g.batteryVoltage, 100),
+  };
+}
+
 /**
  * CONTATTO E VOLANTE (6/11): i campi del physics che EVO scrive e che finora
  * venivano letti e buttati via. Sono verificati sui 558 snapshot del collaudo

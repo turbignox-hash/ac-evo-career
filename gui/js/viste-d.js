@@ -1067,7 +1067,7 @@ function contattoHtml(r){
   if (!p) return `<div class="muted" style="font-size:12.5px">${tr({ it: 'EVO aperto, nessuna sessione in corso.', en: 'EVO open, no session running.' })}</div>`;
   const c = p.contact;
   if (!c) return `<div class="muted" style="font-size:12.5px">${tr({ it: 'EVO non manda i dati di contatto in questa sessione.', en: 'EVO is not sending contact data in this session.' })}</div>`;
-  const num = (v, d = 2) => (v == null || !Number.isFinite(Number(v)) ? '—' : Number(v).toFixed(d));
+  const num = (v, d = 2) => (v == null || !Number.isFinite(Number(v)) ? '—' : Number(v).toLocaleString('it-IT', { minimumFractionDigits: d, maximumFractionDigits: d }));
   const vib = [
     [tr({ it: 'strada', en: 'road' }), c.vibration?.road],
     [tr({ it: 'cordolo', en: 'kerb' }), c.vibration?.kerb],
@@ -1112,6 +1112,50 @@ function paintContatto(r){
   host.innerHTML = contattoHtml(r);
 }
 
+/* MOTORE ED ELETTRONICA (6/11): livelli TC/ABS, ripartizione freni,
+   differenziale e pressioni del motore dal blocco graphics del loader.
+   Come il contatto: valori grezzi, unità dichiarate, nessun giudizio. */
+function motoreHtml(r){
+  const p = r?.player;
+  if (!p) return `<div class="muted" style="font-size:12.5px">${tr({ it: 'EVO aperto, nessuna sessione in corso.', en: 'EVO open, no session running.' })}</div>`;
+  const e = p.engine;
+  if (!e) return `<div class="muted" style="font-size:12.5px">${tr({ it: 'EVO non manda i dati di motore in questa sessione.', en: 'EVO is not sending engine data in this session.' })}</div>`;
+  const num = (v, d = 1) => (v == null || !Number.isFinite(Number(v)) ? '—' : Number(v).toLocaleString('it-IT', { minimumFractionDigits: d, maximumFractionDigits: d }));
+  const riga = (l, v) => `<div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;margin:2px 0"><span class="muted">${esc(l)}</span><b style="white-space:nowrap">${v}</b></div>`;
+  const tc = e.tcLevel == null ? '—' : (e.tcLevel === 0 ? tr({ it: 'spento', en: 'off' }) : `${tr({ it: 'livello', en: 'level' })} ${e.tcLevel}`);
+  const abs = e.absLevel == null ? '—' : (e.absLevel === 0 ? tr({ it: 'spento', en: 'off' }) : `${tr({ it: 'livello', en: 'level' })} ${e.absLevel}`);
+  return `<div style="display:flex;gap:20px;flex-wrap:wrap">
+      <div style="flex:1;min-width:190px">
+        <div class="muted" style="font-size:12px;letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px">${tr({ it: 'Elettronica', en: 'Electronics' })}</div>
+        ${riga('TC', `${esc(tc)}${e.tcOn ? ' · attivo' : ''}`)}
+        ${riga('ABS', `${esc(abs)}${e.absOn ? ' · attivo' : ''}`)}
+        ${riga(tr({ it: 'Bias freni', en: 'Brake bias' }), num(e.brakeBias, 3))}
+        ${riga(tr({ it: 'Diff trazione', en: 'Diff power' }), num(e.diffPower, 0))}
+        ${riga(tr({ it: 'Diff rilascio', en: 'Diff coast' }), num(e.diffCoast, 0))}
+      </div>
+      <div style="flex:1;min-width:190px">
+        <div class="muted" style="font-size:12px;letter-spacing:.6px;text-transform:uppercase;margin-bottom:4px">${tr({ it: 'Motore', en: 'Engine' })}</div>
+        ${riga(tr({ it: 'Coppia', en: 'Torque' }), `${num(e.torqueNm, 0)} Nm`)}
+        ${riga(tr({ it: 'Potenza', en: 'Power' }), `${num(e.powerCv, 0)} CV`)}
+        ${riga(tr({ it: 'Olio', en: 'Oil' }), `${num(e.oilTempC, 0)} °C · ${num(e.oilPressureBar, 2)} bar`)}
+        ${riga(tr({ it: 'Acqua', en: 'Water' }), `${num(p.contact?.waterTempC, 0)} °C · ${num(e.waterPressureBar, 2)} bar`)}
+        ${riga(tr({ it: 'Benzina', en: 'Fuel' }), `${num(e.fuelPressureBar, 2)} bar`)}
+        ${riga(tr({ it: 'Batteria', en: 'Battery' }), `${num(e.batteryV, 1)} V`)}
+      </div>
+    </div>
+    <div class="muted" style="font-size:12px;margin-top:8px">${tr({ it: 'Valori grezzi dalla shared memory di EVO: livelli come li scrive il gioco (0 = spento), bias freni frazione 0–1, coppia e potenza istantanee. Niente soglie.', en: 'Raw values from EVO shared memory: levels as the game writes them (0 = off), brake bias as a 0–1 fraction, instantaneous torque and power. No thresholds.' })}</div>`;
+}
+
+/** Dipinge il pannello motore se la scheda in vista ce l'ha (Cruscotto). */
+function paintMotore(r){
+  const host = document.querySelector('#le-body');
+  if (!host) return;
+  const panel = host.closest('.panel');
+  if (panel) panel.style.display = r?.game ? '' : 'none';
+  if (!r?.game) return;
+  host.innerHTML = motoreHtml(r);
+}
+
 async function drawLiveStrip(){
   const host = document.querySelector('#live-strip');
   if (!host) return;
@@ -1119,6 +1163,7 @@ async function drawLiveStrip(){
     const [r, w, h] = await Promise.all([api('live'), api('watcher'), api('system-health').catch(() => null)]);
     drawMotecStrip(h);
     paintContatto(r);
+    paintMotore(r);
     // EVO scrive il file .ld SOLO alla chiusura della sessione: se compare (o cambia)
     // un file NUOVO mentre sei sul cruscotto, i dati d'ingegnere sono cambiati —
     // ridisegna la pagina senza che tu la ricarichi a mano.
