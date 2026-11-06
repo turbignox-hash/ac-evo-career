@@ -347,3 +347,51 @@ test("l'accumulatore dà GLI STESSI numeri del riepilogo vecchio (oracolo, sessi
   assert.deepEqual(nuovo, vecchio, 'accumulatore e vecchio algoritmo devono dare lo stesso riepilogo');
   assert.deepEqual(JSON.stringify(nuovo), JSON.stringify(vecchio), "anche l'ordine dei campi resta quello");
 });
+/* IL TESTO COMPOSTO UNA VOLTA SOLA (6/11). Il riepilogo della scheda si ricalcola
+   a ogni poll: prima riformattava anche le sessioni chiuse, che non possono più
+   cambiare. Questi test difendono le due cose che rendono sicura la scorciatoia —
+   il testo unico resta IDENTICO a quello di sempre, e a ricalcolarsi è solo la
+   sessione ancora aperta. */
+import { creaAccumulatoreRiepiloghi, riepiloghiDa } from '../src/live-monitor-riepilogo.mjs';
+
+test('riepiloghiDa: il testo unico è la stessa giunzione dei testi per sessione', () => {
+  const finita = riga('2026-11-06T10:00:05.000Z', {});
+  finita.live = false;
+  const righe = [
+    riga('2026-11-06T10:00:00.000Z', { done: 1, last: 95_000, best: 95_000 }),
+    finita,
+    riga('2026-11-06T11:00:00.000Z', { done: 2, last: 88_000, best: 88_000 }),
+    finita,
+  ];
+  const r = riepiloghiDa(riassumiMonitor(righe));
+  assert.equal(r.sessioni.length, 2);
+  assert.equal(r.testo, r.sessioni.map((s) => s.testo).join('\n'), 'la scheda deve ricevere gli stessi caratteri di prima');
+  assert.equal(r.testo, formattaRiassunto(riassumiMonitor(righe)), 'e identici al formattatore completo');
+});
+
+test('riepiloghiDa: la sessione CHIUSA non si ricompone al poll dopo', () => {
+  const acc = creaAccumulatoreRiepiloghi();
+  acc.aggiungi(riga('2026-11-06T10:00:00.000Z', { done: 1, last: 95_000 }));
+  acc.aggiungi({ at: '2026-11-06T10:00:05.000Z', live: false }); // chiusura
+  const chiuse = acc.risultato();
+  const prima = riepiloghiDa(chiuse).sessioni[0].testo;
+  // le sessioni chiuse sono trattate come immutabili: se il testo venisse
+  // rifatto, questa modifica comparirebbe. Non deve comparire.
+  chiuse[0].contatto.campioni = 99_999;
+  chiuse[0].track = 'Pista Inventata';
+  const dopo = riepiloghiDa(chiuse).sessioni[0].testo;
+  assert.equal(dopo, prima, 'il testo di una sessione chiusa si compone una volta sola');
+  assert.match(dopo, /Laguna Seca/);
+});
+
+test('riepiloghiDa: la sessione APERTA si ricompone a ogni riga nuova', () => {
+  const acc = creaAccumulatoreRiepiloghi();
+  acc.aggiungi(riga('2026-11-06T10:00:00.000Z', { done: 1, last: 95_000 }));
+  const prima = riepiloghiDa(acc.risultato()).sessioni[0].testo;
+  acc.aggiungi(riga('2026-11-06T10:00:05.000Z', { done: 2, last: 90_000 }));
+  const dopo = riepiloghiDa(acc.risultato()).sessioni[0].testo;
+  assert.notEqual(dopo, prima, 'una sessione aperta cresce: il suo testo deve seguirla');
+  assert.match(prima, /1 giri chiusi/);
+  assert.match(dopo, /2 giri chiusi/);
+  assert.equal(acc.risultato()[0].chiusa, false, 'e resta dichiarata aperta');
+});

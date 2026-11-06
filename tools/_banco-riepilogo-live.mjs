@@ -17,7 +17,7 @@ import { appendFileSync, copyFileSync, existsSync, mkdtempSync, readFileSync, rm
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseLog, riepiloghiMonitor } from '../src/live-monitor-riepilogo.mjs';
+import { parseLog, riepiloghiMonitor, riepiloghiDa, creaAccumulatoreRiepiloghi, formattaRiassunto } from '../src/live-monitor-riepilogo.mjs';
 import { lettoreLogLive } from '../src/live-log-incrementale.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -80,6 +80,29 @@ const banco = (origine, etichetta) => {
   };
 };
 
+/**
+ * Il testo composto una volta sola: quanto costa rifare il lavoro del vecchio
+ * `riepiloghiDa` (riformattare TUTTE le sessioni mostrate) contro il nuovo, che
+ * formatta solo l'eventuale sessione aperta. Stesse sessioni, stesso giro.
+ */
+const bancoTesto = (sessioni) => {
+  const K = 400;
+  const scelte = sessioni.slice(-5);
+  const t0 = process.hrtime.bigint();
+  for (let i = 0; i < K; i++) {
+    scelte.map((s) => ({ ...s, testo: formattaRiassunto(s) }));
+    formattaRiassunto(scelte);
+  }
+  const t1 = process.hrtime.bigint();
+  for (let i = 0; i < K; i++) riepiloghiDa(sessioni);
+  const t2 = process.hrtime.bigint();
+  return {
+    'sessioni mostrate': scelte.length,
+    'prima: µs per poll': Math.round((Number(t1 - t0) / K / 1000) * 10) / 10,
+    'dopo: µs per poll': Math.round((Number(t2 - t1) / K / 1000) * 10) / 10,
+  };
+};
+
 const fuori = [];
 const sintetico = join(dir, 'sintetico.log');
 writeFileSync(sintetico, Array.from({ length: N }, (_, i) => linea(i)).join('\n') + '\n', 'utf8');
@@ -90,4 +113,18 @@ if (existsSync(vero)) fuori.push(banco(vero, 'log vero .live-monitor.log'));
 
 console.log('Riepilogo live: costo di un poll (stessi dati, stesso giro)');
 console.table(fuori);
+
+// dodici sessioni chiuse a turno: la finestra della scheda ne mostra cinque
+const tante = join(dir, 'sessioni.log');
+const righe = [];
+for (let s = 0; s < 12; s++) {
+  righe.push(linea(s * 1000), linea(s * 1000 + 1));
+  righe.push(JSON.stringify({ at: new Date().toISOString(), live: false }));
+}
+writeFileSync(tante, righe.join('\n') + '\n', 'utf8');
+const acc = creaAccumulatoreRiepiloghi();
+for (const l of parseLog(readFileSync(tante, 'utf8'))) acc.aggiungi(l);
+const testo = bancoTesto(acc.risultato());
+console.log('Testo del riepilogo: comporre solo ciò che può cambiare');
+console.table([testo]);
 console.log('Il «primo giro» del lettore legge il file intero una volta sola (come prima); i giri successivi costano solo le righe nuove.');

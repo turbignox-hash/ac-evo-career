@@ -1,5 +1,16 @@
 # Diario di sviluppo
 
+### 6/11 — Riepilogo: il testo di una sessione chiusa si compone una volta sola
+
+- **Richiesta di Mauro**: «componi il testo del riepilogo una volta sola per sessione chiusa, così un poll con una riga nuova non ricompone tutto».
+- **Il costo che restava**: dopo il lettore incrementale ogni poll con una riga nuova riformattava `formattaRiassunto` su tutte le sessioni mostrate, anche quelle finite nella notte, che non possono più cambiare.
+- **La correzione** (`riepiloghiDa` in `src/live-monitor-riepilogo.mjs`): le sessioni chiuse sono oggetti stabili — l'accumulatore le mette in `sessioni` una volta, alla chiusura — quindi il loro testo si aggancia all'oggetto in una `WeakMap`: nessun campo in più nel payload, nessun riferimento tenuto vivo quando la sessione esce dalla finestra. La sessione **aperta** non si memorizza (cresce a ogni riga, e lì rifare il conto è giusto). Il testo unico da copiare è la giunzione dei testi già composti, non un secondo giro del formattatore.
+- **Misura** (`tools/_banco-riepilogo-live.mjs`, 5 sessioni mostrate, 400 giri): **89,9 µs → 2,1 µs** per poll di composizione del testo. Il poll della rotta resta dominato dall'I/O del file (6,8 ms con una riga nuova su 35,5 MB contro 6,9 ms prima): il guadagno è nella parte che il tempo del disco non copre, non nell'intero giro.
+- **Test** (tre nuovi, `live-monitor-riepilogo` 14/14): il testo unico è identico a `formattaRiassunto` completo e alla giunzione dei testi per sessione; una sessione chiusa non si ricompone nemmeno se l'oggetto viene toccato dopo; una sessione aperta segue le righe nuove (`1 giri chiusi` → `2 giri chiusi`) e resta dichiarata `chiusa: false`.
+- **Verifica dal vivo**: server riavviato, `/api/live-riepilogo` risponde `totale 3 · chiusa true` con testo **identico al formattatore completo** e allo stesso calcolo locale (2.108 caratteri, come prima); la scheda del Cruscotto si disegna con lo stesso testo e nessun errore in console. Suite intera **1.170 test, 1.168 pass, 0 fail**, 2 skip; Biome pulito su 426 file.
+- **Limite**: la cache vale per gli oggetti sessione dell'accumulatore; passare copie ricostruite a mano (`{...s}`) fa ricalcolare il testo, che è corretto ma non gratis. Il costo del poll sotto i 10 ms resta quello del file system di Windows, non della formattazione.
+
+
 ### 6/11 — Posizioni assenti nei risultati EVO: non devono diventare P1
 
 - **Richiesta di Mauro**: «cerca altre aree deboli e sistema».

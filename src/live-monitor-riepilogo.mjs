@@ -267,14 +267,40 @@ function finisciSessione(s) {
  * testo unico da copiare. `totale` dice quante sessioni ha visto il log, non
  * quante se ne mostrano.
  */
+/**
+ * IL TESTO DI UNA SESSIONE CHIUSA SI COMPONE UNA VOLTA SOLA (6/11).
+ *
+ * `riepiloghiDa` componeva il testo di TUTTE le sessioni mostrate a ogni poll:
+ * cambiava una riga nel log e si riformattavano anche le sessioni di ieri, che
+ * per definizione non possono più cambiare. Le sessioni chiuse sono oggetti
+ * stabili (l'accumulatore le mette in `sessioni` una volta, alla chiusura),
+ * quindi il testo si aggancia all'oggetto in una WeakMap: nessun campo in più
+ * nel payload, nessun riferimento tenuto vivo quando la sessione esce dalla
+ * finestra. La sessione APERTA non si memorizza: cresce a ogni riga, e lì
+ * rifare il conto è il conto giusto.
+ */
+const TESTO_SESSIONE = new WeakMap();
+
+function testoDi(s) {
+  const gia = s && TESTO_SESSIONE.get(s);
+  if (gia != null) return gia;
+  const t = formattaRiassunto(s);
+  // solo le chiuse: la loro immagine non cambierà più
+  if (s?.chiusa === true) TESTO_SESSIONE.set(s, t);
+  return t;
+}
+
 export function riepiloghiDa(tutte, { ultime = 5 } = {}) {
   const lista = Array.isArray(tutte) ? tutte : [];
   const n = Math.max(0, Math.floor(Number(ultime) || 0));
   const scelte = n > 0 ? lista.slice(-n) : lista;
+  const testi = scelte.map(testoDi);
   return {
     totale: lista.length,
-    sessioni: scelte.map((s) => ({ ...s, testo: formattaRiassunto(s) })),
-    testo: lista.length ? formattaRiassunto(scelte) : null,
+    sessioni: scelte.map((s, i) => ({ ...s, testo: testi[i] })),
+    // il testo unico è la giunzione dei testi già composti: una sessione, un
+    // blocco — identico a `formattaRiassunto(scelte)`, senza rifare il lavoro
+    testo: lista.length ? testi.join('\n') : null,
   };
 }
 
