@@ -1278,7 +1278,9 @@ async function drawStats(m){
         ? `<span class="tag" title="${tr({ it: 'sessioni con un giro cronometrato', en: 'sessions with a timed lap' })}">⏱ ${fmtN(r.timed)}</span>`
         : `<span class="tag" style="${gapStyle}" title="${tr({ it: 'nessun giro cronometrato: niente confronto sul passo', en: 'no timed lap: no pace comparison' })}">${tr({ it: 'no cronometrati', en: 'no timed laps' })}</span>`,
       r.sectors
-        ? `<span class="tag" title="${tr({ it: 'sessioni con i tempi dei settori', en: 'sessions with sector times' })}">📊 ${fmtN(r.sectors)}</span>`
+        ? `<span class="tag" title="${tr({ it: 'sessioni con i tempi dei settori: uscite libere e file risultato del gioco', en: 'sessions with sector times: free sessions and the game result files' })}">📊 ${fmtN(r.sectors)}</span>`
+        : r.sectorsCalc
+        ? `<span class="tag" title="${tr({ it: 'split misurati dalla telemetria a terzi di distanza: tempi veri, ma NON sono i settori ufficiali del gioco', en: 'splits measured from telemetry at distance thirds: real times, but NOT the game official sectors' })}">🧩 ${tr({ it: 'split telem.', en: 'telemetry splits' })}</span>`
         : `<span class="tag" style="${gapStyle}" title="${tr({ it: 'nessun settore: analisi per tratti non possibile', en: 'no sectors: corner-by-corner analysis is impossible' })}">${tr({ it: 'no settori', en: 'no sectors' })}</span>`,
     ].join(' ');
     const none = `<span style="${gapStyle}">${tr({ it: 'nessuno', en: 'none' })}</span>`;
@@ -1286,7 +1288,8 @@ async function drawStats(m){
       `<b>${esc(r.name)}</b>${r.never ? ` — <span style="${gapStyle}">${tr({ it: 'mai corsa: nessun dato in archivio', en: 'never driven: nothing in the archive' })}</span>` : ''}`,
       `${tr({ it: 'Telemetria', en: 'Telemetry' })}: ${tel.files ? `${fmtN(tel.files)} ${tr({ it: 'file .ld', en: '.ld files' })} · ${fmtBytes(tel.bytes)}` : none}`,
       `${tr({ it: 'Giri cronometrati', en: 'Timed laps' })}: ${r.timed ? fmtN(r.timed) : `<span style="${gapStyle}">0</span>`}${r.bestLapMs ? ` · ${tr({ it: 'miglior giro', en: 'best lap' })} <b>${fmtLap(r.bestLapMs)}</b>` : ''}`,
-      `${tr({ it: 'Settori', en: 'Sectors' })}: ${r.sectors ? `${fmtN(r.sectors)} ${tr({ it: 'sessioni con i tempi dei settori', en: 'sessions with sector times' })}` : none}`,
+      `${tr({ it: 'Settori', en: 'Sectors' })}: ${r.sectors ? `${fmtN(r.sectors)} ${tr({ it: 'sessioni con i tempi dei settori (uscite libere e file risultato)', en: 'sessions with sector times (free sessions and result files)' })}` : none}`
+        + (r.sectorsCalc ? `<br><span class="faint">${tr({ it: 'Split dalla telemetria, terzi di distanza (non settori ufficiali)', en: 'Telemetry splits, distance thirds (not official sectors)' })}</span>: ${r.sectorsCalc.splitsMs.map((v) => fmtLap(v)).join(' · ')} · ${tr({ it: 'giro', en: 'lap' })} ${fmtLap(r.sectorsCalc.lapMs)}` : ''),
       `${tr({ it: 'Ultimo dato', en: 'Latest data' })}: ${r.lastAt ? String(r.lastAt).slice(0, 16).replace('T', ' ') : '—'}`,
       !r.never ? `<button class="mini st-tracklink" data-track="${esc(r.name)}">${tr({ it: 'Apri nella scheda Piste', en: 'Open in Tracks' })}</button>` : '',
     ].filter(Boolean).join('<br>');

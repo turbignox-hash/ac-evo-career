@@ -501,6 +501,38 @@ export function lapTrace(ldFile, { lap = 'best', compare = 'best', points = 240 
 }
 
 /**
+ * SPLIT DALLA TELEMETRIA (6/11): i `.ld` NON hanno i settori del gioco —
+ * c'è solo LAP_BEACON, il transito sul traguardo. Quindi qui non si inventano
+ * settori: si misurano i tempi reali a FRAZIONI DI DISTANZA del giro migliore
+ * (default terzi), integrando la velocità campionata. Sono split veri presi
+ * dalla telemetria, ma NON sono i settori ufficiali: chi li mostra deve dirlo.
+ */
+export function splitDaTelemetria(ldFile, { parti = 3, points = 480 } = {}) {
+  const t = lapTrace(ldFile, { lap: 'best', compare: 'none', points });
+  if (!t?.ok || !Array.isArray(t.points) || t.points.length < 3 || !(t.durationSec > 0)) return null;
+  const n = t.points.length;
+  const nParti = Math.max(2, Math.min(10, Number(parti) || 3));
+  const tagli = [];
+  let j = 1;
+  for (let p = 1; p <= nParti; p++) {
+    const target = p / nParti;
+    while (j < n - 1 && t.points[j].x < target) j++;
+    const x0 = t.points[j - 1].x, x1 = t.points[j].x;
+    const f = x1 > x0 ? (target - x0) / (x1 - x0) : 0;
+    tagli.push(((j - 1 + f) / (n - 1)) * t.durationSec * 1000);
+  }
+  if (tagli.some((v) => !Number.isFinite(v))) return null;
+  return {
+    file: basename(ldFile),
+    lap: t.lap,
+    lapMs: Math.round(t.durationSec * 1000),
+    parti: nParti,
+    splitsMs: tagli.map((v, i) => Math.round(v - (i ? tagli[i - 1] : 0))),
+    endMs: tagli.map((v) => Math.round(v)),
+  };
+}
+
+/**
  * La striscia di UN giro per i consumatori esterni (il motore A/B di analisi.mjse
  * e i test): riusa TUTTO il meccanismo di lapTrace (allineamento su frazione
  * di distanza, conversione kmh, gas/freno normalizzati) con compare='none' —

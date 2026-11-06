@@ -22,6 +22,8 @@ import { TRACK_INFO } from './tracks.mjs';
 import { normTrack } from './tracknames.mjs';
 import { HOTLAPS_FILE } from './hotlaps.mjs';
 import { rivalsStore } from './rivals.mjs';
+import { findPlayerDriver } from './results.mjs';
+import { splitDaTelemetria } from './motec.mjs';
 
 const CATALOG = Object.entries(TRACK_INFO)
   .map(([id, t]) => ({ id, name: t?.name ?? id, lengthKm: Number(t?.lengthKm) || null }))
@@ -62,7 +64,7 @@ function lapTextMs(text) {
  * `results` è `state.results` (serie → gare importate), `freeSessions` le voci
  * di `data/hotlaps.json`, `rivals` e `telemetry` i due riepiloghi esterni.
  */
-export function coverageReport({ results = {}, freeSessions = [], rivals = null, telemetry = null } = {}) {
+export function coverageReport({ results = {}, freeSessions = [], resultSectors = [], rivals = null, telemetry = null } = {}) {
   const byTrack = new Map();
   const cars = new Set();
   const types = new Map();
@@ -146,6 +148,19 @@ export function coverageReport({ results = {}, freeSessions = [], rivals = null,
     noteAt(s.at);
   }
 
+  /* I SETTORI DEI FILE RISULTATO (6/11): i `.ld` non hanno settori — solo
+     LAP_BEACON — quindi non si possono ricavare dalla telemetria senza
+     inventare dei confini. I file `sessionresults.json` però portano gli
+     `splits` VERI (i tre settori del miglior giro) del giocatore: qui si
+     contano, e se una pista non aveva un tempo di riferimento lo si prende
+     dalla somma degli splits invece di lasciarla senza. */
+  for (const r of Array.isArray(resultSectors) ? resultSectors : []) {
+    const e = bumpTrack(r.track, catalogLengthKm(r.track));
+    e.sectors += 1;
+    const somma = (r.splitsMs ?? []).reduce((a, v) => a + (Number(v) || 0), 0);
+    if (somma > 0 && (!e.bestLapMs || somma < e.bestLapMs)) e.bestLapMs = somma;
+  }
+
   /* Le telemetrie per pista: contate e unite come le piste dei risultati. */
   for (const t of telemetry?.tracks ?? []) {
     const e = bumpTrack(t.name, catalogLengthKm(t.name));
@@ -226,11 +241,14 @@ export function scanTelemetry(paths) {
         }
         if (!names.length) continue;
         const key = catalogTrackOf(track)?.name ?? track;
-        const e = tracks.get(key) ?? { name: key, files: 0, bytes: 0 };
+        const e = tracks.get(key) ?? { name: key, files: 0, bytes: 0, latest: null };
         for (const f of names) {
-          let size = 0;
+          const full = join(root, car, track, f);
+          let size = 0, mtimeMs = 0;
           try {
-            size = statSync(join(root, car, track, f)).size;
+            const st = statSync(full);
+            size = st.size;
+            mtimeMs = st.mtimeMs;
           } catch {
             /* file sparito mentre leggevamo: si conta comunque */
           }
@@ -239,6 +257,7 @@ export function scanTelemetry(paths) {
           e.bytes += size;
           files += 1;
           seen = true;
+          if (!e.latest || mtimeMs > e.latest.mtimeMs) e.latest = { file: full, mtimeMs };
         }
         tracks.set(key, e);
       }
@@ -246,6 +265,43 @@ export function scanTelemetry(paths) {
     }
   }
   return { files, bytes, cars: cars.size, tracks: [...tracks.values()] };
+}
+
+/**
+ * I settori del GIOCATORE nei file risultato, per pista.
+ * Una sessione conta se il suo pilota ha `splits` (i tre settori del miglior
+ * giro): i file sono centinaia ma piccoli, e la scansione costa ~135 ms — la
+ * si tiene in memoria per un minuto invece di rifarla a ogni apertura.
+ */
+let _sectorCache = { key: '', at: 0, rows: [] };
+export function scanResultSectors(paths, driver, { ttlMs = 60000, now = Date.now() } = {}) {
+  const dirs = paths?.resultsDirs ?? [];
+  const key = `${dirs.join('|')}::${driver?.name ?? ''}`;
+  if (_sectorCache.key === key && now - _sectorCache.at < ttlMs) return _sectorCache.rows;
+  const rows = [];
+  for (const dir of dirs) {
+    let names = [];
+    try {
+      names = readdirSync(dir).filter((f) => f.endsWith('.sessionresults.json'));
+    } catch {
+      continue;
+    }
+    for (const file of names) {
+      let r = null;
+      try {
+        r = JSON.parse(readFileSync(join(dir, file), 'utf8'));
+      } catch {
+        continue; // file mezzo scritto: si salta, non si inventa
+      }
+      const me = driver ? findPlayerDriver(r, driver)?.driver : null;
+      const splits = Array.isArray(me?.splits) ? me.splits : [];
+      const splitsMs = splits.map(lapTextMs).filter((v) => Number.isFinite(v) && v > 0);
+      if (!splitsMs.length) continue;
+      rows.push({ track: r.track ?? '?', file, session: r.session ?? null, splitsMs });
+    }
+  }
+  _sectorCache = { key, at: now, rows };
+  return rows;
 }
 
 /** Legge le fonti vive (salvataggio, quaderno giri, libro rivali, MoTeC) e produce il rapporto. */
@@ -264,10 +320,54 @@ export function collectCoverage({ paths = null, state = null } = {}) {
   } catch {
     rivals = null;
   }
-  return coverageReport({
+  /* Le uscite libere sono GIÀ nei file risultato: si escludono per nome file,
+     altrimenti i loro settori verrebbero contati due volte. */
+  const telemetry = scanTelemetry(paths);
+  const giaContate = new Set(freeSessions.map((s) => s.file).filter(Boolean));
+  let resultSectors = [];
+  try {
+    resultSectors = scanResultSectors(paths, state?.driver).filter((r) => !giaContate.has(r.file));
+  } catch {
+    resultSectors = [];
+  }
+  const report = coverageReport({
     results: state?.results ?? {},
     freeSessions,
+    resultSectors,
     rivals,
-    telemetry: scanTelemetry(paths),
+    telemetry,
   });
+  /* Per le piste che non hanno NESSUN settore ufficiale ma hanno telemetria,
+     si misurano gli split a terzi di distanza dal `.ld` più recente. Restano
+     un campo diverso (`sectorsCalc`): non sono i settori del gioco. */
+  for (const row of report.byTrack) {
+    if (row.never || row.sectors > 0) continue;
+    const t = telemetry.tracks.find((x) => x.name === row.name);
+    if (!t?.latest) continue;
+    const calc = splitTelemetryCached(t.latest);
+    if (!calc) continue;
+    row.sectorsCalc = { parti: calc.parti, splitsMs: calc.splitsMs, lapMs: calc.lapMs, lap: calc.lap };
+    if (!row.bestLapMs) row.bestLapMs = calc.lapMs;
+    // la telemetria ha trovato i beacon di almeno un giro: quella sessione è
+    // cronometrata anche se il file risultato non portava il tempo
+    if (!row.timed) row.timed = 1;
+  }
+  return report;
+}
+
+/* I `.ld` pesano megabyte: il calcolo degli split si fa una volta per file
+   (chiave file+mtime) e resta in memoria, così /api/coverage resta leggero. */
+const _splitCache = new Map();
+function splitTelemetryCached({ file, mtimeMs }) {
+  const key = `${file}|${mtimeMs}`;
+  if (_splitCache.has(key)) return _splitCache.get(key);
+  let out = null;
+  try {
+    out = splitDaTelemetria(file);
+  } catch {
+    out = null;
+  }
+  if (_splitCache.size > 60) _splitCache.clear();
+  _splitCache.set(key, out);
+  return out;
 }

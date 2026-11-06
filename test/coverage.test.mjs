@@ -75,6 +75,21 @@ test('coverage: senza fonti esterne niente numeri inventati', () => {
   assert.equal(c.neverDriven.length, 18);
 });
 
+test('coverage: i settori dei file risultato entrano per pista e danno il miglior giro', () => {
+  const c = coverageReport({
+    results,
+    freeSessions,
+    resultSectors: [
+      { track: 'Circuit de Spa Francorchamps', splitsMs: [42750, 46452, 65655] },
+      { track: 'Circuit de Spa Francorchamps', splitsMs: [42000, 46000, 65000] },
+    ],
+  });
+  const spa = c.byTrack.find((r) => r.name === 'Circuit de Spa Francorchamps');
+  assert.equal(spa.sectors, 2, 'due sessioni con gli splits del giocatore');
+  assert.equal(spa.bestLapMs, 153000, 'il miglior giro e la somma degli splits piu veloce');
+  assert.equal(spa.timed, 0, 'i settori non gonfiano il conteggio dei cronometrati');
+});
+
 test('coverage: telemetrie contate dai .ld, cartella assente = zero', () => {
   assert.deepEqual(scanTelemetry(null), { files: 0, bytes: 0, cars: 0, tracks: [] });
   assert.deepEqual(scanTelemetry({ dataDirs: ['/cartella/che/non/esiste'] }), { files: 0, bytes: 0, cars: 0, tracks: [] });
