@@ -1425,7 +1425,7 @@ async function api(context0, _req, res, action, body) {
       // SONDA READ-ONLY DEL MENU (4/11): la richiesta viaggia nella fascia del
       // Cruscotto (src/uiapp-pub.mjs), l'app la esegue e deposita le risposte.
       // GET = stato; POST = avvia (body.comandi opzionale, whitelist nel publisher).
-      if (req.method === 'POST' && body.stato !== true) {
+      if (_req.method === 'POST' && body.stato !== true) {
         const es = avviaSonda(body.comandi ?? null);
         return sendJson(res, es.ok ? 200 : 409, es);
       }

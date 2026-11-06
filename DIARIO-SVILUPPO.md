@@ -1,5 +1,13 @@
 # Diario di sviluppo
 
+### 6/11 — La sonda del menu torna a rispondere: `req` non esisteva in quello scope
+
+- **Richiesta di Mauro**: «si procedi» — chiudere la verifica del weekend Laguna Seca senza avviare la gara e senza importare le qualifiche come risultato.
+- **Difetto**: `api(context0, _req, res, action, body)` riceve la richiesta come `_req`, ma il ramo `sonda-menu` leggeva `req.method`: `ReferenceError` a ogni chiamata, quindi 500 sia sulla GET di stato sia sulla POST che accoda i comandi. La sonda read-only non rispondeva mai, e con lei restava muta la lettura del menu (pista/auto/meteo/avversari).
+- **Correzione**: una riga, `_req.method`. La whitelist dei soli comandi di lettura e il comportamento POST restano quelli di `src/uiapp-pub.mjs`; nessun comando di scrittura è stato aggiunto.
+- **Verifica**: `node --test test/sonda-menu.test.mjs` **4/4 verdi**; `node --check src/webui.mjs` verde; Biome pulito su `src/webui.mjs`. Dopo il riavvio del server, `GET /api/sonda-menu` risponde **200** con i quattro comandi disponibili; sonda eseguita a gioco aperto: pista **Laguna Seca GP, 3602 m, max 24 piloti**, meteo `OK`, avversari `NO_AVAILABLE_CARS` (siamo nel menu), auto `OK`.
+- **Limite**: il payload dell'auto non è serializzabile (il publisher lo riporta come «risposta non serializzabile»), quindi il nome dell'auto non è leggibile dalla sonda; i dati in pista restano assenti finché non si carica una sessione, e nessuna gara è stata avviata.
+
 ### 6/11 — Nessuna scheda allarga il documento a 256 px
 
 - **Richiesta di Mauro**: «Elimina i min-width inline dei selettori così nessuna scheda allarga il documento nemmeno a 256 px.» I selettori del Banco A/B, Garage, Setup, lingua/copilota e Griglia sono ora restringibili con `min-width:0`; i controlli del grafico Setup non hanno più misure inline fisse. Le regole responsive contengono i casi di Cruscotto, Messaggi, nav, Griglia e Impostazioni.
