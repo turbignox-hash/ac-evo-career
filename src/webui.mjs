@@ -175,6 +175,9 @@ import { classificheRecenti } from './classifiche-gioco.mjs';
 import { vivoDaSnapshot, consigliVivo } from './meccanico-vivo.mjs';
 // il meccanico a voce (6/11): chiedi «qualifica», «gara con N giri», «bagnato» → il file col nome VERO
 import { leggiIntenzione, pianoSetup, nomeFileSetup } from './meccanico-parla.mjs';
+// la PROVA A/B dei setup scritti (6/11): apre quando il meccanico scrive, chiude
+// con la telemetria della sessione nuova, giudica solo oltre la soglia
+import { apriProva, chiudiProva, provaAperta, leggiProve, riepilogoPerCampo, leveBruciate } from './prova-setup.mjs';
 import { AGENDA_ACTIONS, agendaAction } from './webui-actions-agenda.mjs';
 import { EVENT_ACTIONS, eventAction } from './webui-actions-events.mjs';
 import { GARAGE_ACTIONS, garageAction } from './webui-actions-garage.mjs';
@@ -3231,6 +3234,24 @@ async function api(context0, _req, res, action, body) {
           }
           // il memo si legge SEMPRE (anche senza telemetria), il pannello
           // mostra storia del round e il migliore
+          /* LA PROVA A/B (6/11): se il meccanico ha SCRITTO un setup su questa
+             auto+pista, la prima sessione NUOVA la chiude e dice se quella leva
+             ha guadagnato o perso tempo. Senza sessione nuova o senza giro
+             valido resta in attesa: niente verdetti senza dati. */
+          let prova = null;
+          try {
+            chiudiProva({ car: carName, track: trackDisplay, bestDopo: bestLap, sessFile });
+            const pk = (c, t) => `${String(c ?? '').trim()}|${String(t ?? '').trim()}`.toLowerCase();
+            const mie = leggiProve().filter((p) => pk(p.car, p.track) === pk(carName, trackDisplay));
+            if (mie.length) {
+              prova = {
+                aperta: provaAperta(mie, { car: carName, track: trackDisplay }),
+                chiuse: mie.filter((p) => p.esito).slice(-5).reverse(),
+                campi: riepilogoPerCampo(mie),
+                bruciate: leveBruciate(mie),
+              };
+            }
+          } catch { /* la prova non deve mai fermare il pannello */ }
           let mem = null;
           if (carName && trackDisplay) mem = memoOf(carName, trackDisplay);
           if (mem && bestLap != null && pistaOk) {
@@ -3265,7 +3286,7 @@ async function api(context0, _req, res, action, body) {
             const datiVivi = vivoDaSnapshot(liveReader().snapshot({ raw: true }));
             if (datiVivi) vivo = { ...datiVivi, consigli: consigliVivo(datiVivi) };
           } catch { /* il meccanico lavora anche senza il gioco acceso */ }
-          return sendJson(res, 200, { ok: true, car: carName, track: trackDisplay, sessFile, tipo: adv.tipo, densita: adv.densita, consigli, storie, allievo, vivo, bestLap: bestLap != null ? Math.round(bestLap * 1000) / 1000 : null, hasTelem: !!telem });
+          return sendJson(res, 200, { ok: true, car: carName, track: trackDisplay, sessFile, tipo: adv.tipo, densita: adv.densita, consigli, storie, allievo, vivo, prova, bestLap: bestLap != null ? Math.round(bestLap * 1000) / 1000 : null, hasTelem: !!telem });
         }
         if (body.action === 'stinti') {
           // analisi dei stint dalla telemetria REALE: blocco dei rifornimenti,
@@ -3533,6 +3554,14 @@ async function api(context0, _req, res, action, body) {
             const giri = (sess?.laps ?? []).filter((l) => l.durationSec > 15);
             const bestLap = giri.length ? Math.min(...giri.map((l) => l.durationSec)) : null;
             if (bestLap > 0) registraRound({ carName: carEf, trackDisplay: trackName, advices: [{ vedi: int.tipo, prio: 1, text: `Setup «${nome}»: ${piano.note.join(' ')}` }], sessFile: sess?.file ?? null, bestLap });
+            /* LA PROVA A/B (6/11): anche un setup a voce («Qualifica», «Gara 8
+               giri») è una carta nuova da verificare col cronometro. */
+            apriProva({
+              car: carEf, track: trackName || src.track || null,
+              baseFile: src.file, baseName: src.name,
+              setupFile: dest, setupName: nome,
+              changes: out.changes, bestPrima: bestLap, sessFile: sess?.file ?? null,
+            });
           } catch { /* la memoria non ferma la scrittura */ }
         }
         return sendJson(res, 200, { ok: true, tipo: int.tipo, car: carEf, track: trackName, base: { file: src.file, nome: src.name }, nome: nomeBase, risposta: piano.risposta, righe: piano.righe, note: piano.note, scritto });
@@ -3705,10 +3734,24 @@ async function api(context0, _req, res, action, body) {
         }
         const dest = join(dirname(src.file), src.name + ' — EVO-consigliato.carsetup');
         const out = writeSetupCopy(srcBuf, dest, edits);
+        /* LA PROVA A/B (6/11): il file scritto apre una prova con il giro di
+           riferimento che ha generato il consiglio. Alla prima sessione nuova
+           il pannello la chiude e dice se quella leva ha pagato. */
+        let provaApertaOra = null;
+        try {
+          const ap = apriProva({
+            car: carEff, track: trackName || src.track || null,
+            baseFile: src.file, baseName: src.name,
+            setupFile: dest, setupName: `${src.name} — EVO-consigliato`,
+            changes: out.changes, bestPrima: s0?.bestLapSec ?? null, sessFile: s0?.file ?? null,
+          });
+          if (ap.ok) provaApertaOra = ap.prova;
+        } catch { /* la prova non blocca mai la scrittura */ }
         const after = parseSetup(readFileSync(dest));
         return sendJson(res, 200, {
           ok: true, file: dest, fileShort: `${src.name} — EVO-consigliato.carsetup`,
           car: carEff, track: trackName || src.track, baseFile: src.file,
+          prova: provaApertaOra,
           startPsi, changes: out.changes,
           live: liveSignals,
           extraChanges,

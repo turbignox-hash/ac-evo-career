@@ -1146,6 +1146,39 @@ async function drawSetup(m){
           ${(a.rounds ?? []).length ? `<table style="margin-top:8px"><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Giro su questa pista', en: 'Lap on this track' })}</th><th>${tr({ it: 'Esito del round', en: 'Round outcome' })}</th><th>${tr({ it: 'Leve promosse', en: 'Levers pulled' })}</th></tr></thead><tbody>${righe}</tbody></table>` : `<div class="muted" style="font-size:12px;margin-top:6px">${tr({ it: "Nessun round chiuso: corri una sessione nuova dopo aver generato consigli e l'esito entra qui.", en: 'No closed rounds: run a new session after generating advice and the outcome lands here.' })}</div>`}
         </details>`;
       }
+      /* LE PROVE DEL SETUP (6/11): quando il meccanico SCRIVE una carta, la
+         prima sessione nuova la giudica sul cronometro. La scheda dice la prova
+         in corso (che leva, con che giro di partenza) e gli ultimi esiti, più
+         le leve che su questa pista hanno già perso due volte. */
+      let provaHtml = '';
+      const pv = m.prova ?? null;
+      if (pv) {
+        const fmtP = (v) => (v > 0 && v != null) ? `${Math.floor(v / 60)}:${(v % 60).toFixed(2).padStart(5, '0')}` : '—';
+        const esitoChip = (e, d) => e === 'migliorato'
+          ? `<span class="tag green" style="font-size:11.5px;padding:1px 8px">${tr({ it: 'guadagnati ', en: 'gained ' })}${(-d).toFixed(2)} s</span>`
+          : e === 'peggiorato'
+            ? `<span class="tag" style="font-size:11.5px;padding:1px 8px;background:#3a1d1d;color:#ff9b9b">${tr({ it: 'persi +', en: 'lost +' })}${d.toFixed(2)} s</span>`
+            : `<span class="tag" style="font-size:11.5px;padding:1px 8px;background:#26303d;color:#cdd9e8">${tr({ it: 'neutro (', en: 'neutral (' })}${d >= 0 ? '+' : ''}${d.toFixed(2)} s)</span>`;
+        const ap = pv.aperta;
+        const apHtml = ap
+          ? `<div class="banner info" style="margin-top:8px;padding:8px 10px;font-size:12.5px">🧪 <b>${tr({ it: 'Prova in corso', en: 'Test in progress' })}</b> — ${esc(String(ap.setupName ?? ''))}
+              <span class="muted">· ${tr({ it: 'leva: ', en: 'lever: ' })}${(ap.campi ?? []).join(' · ')} · ${tr({ it: 'riferimento ', en: 'baseline ' })}${fmtP(ap.bestPrima)}</span><br>
+              <span class="muted" style="font-size:11.5px">${tr({ it: 'Fai almeno 3 giri puliti con questa carta: alla prima sessione nuova chiudo la prova e ti dico se ha guadagnato.', en: 'Run at least 3 clean laps with this card: on the first new session I close the test and tell you whether it gained.' })}</span></div>`
+          : '';
+        const righeP = (pv.chiuse ?? []).map((p) => `<tr>
+          <td class="muted" style="white-space:nowrap">${esc(String(p.chiusoAt ?? '').replace('T', ' ').slice(0, 16))}</td>
+          <td>${(p.campi ?? []).map((c) => esc(c)).join(' · ') || '—'}</td>
+          <td class="muted" style="white-space:nowrap">${fmtP(p.bestPrima)} → ${fmtP(p.bestDopo)}</td>
+          <td>${esitoChip(p.esito, p.delta)}</td>
+        </tr>`).join('');
+        const bruciate = (pv.bruciate ?? []);
+        provaHtml = `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+          <div style="font-size:12px;margin-bottom:4px"><b>🧪 ${tr({ it: 'Prove del setup', en: 'Setup tests' })}</b> <span class="muted" style="font-size:11.5px">— ${tr({ it: 'ogni carta scritta viene giudicata dal cronometro della sessione dopo', en: 'every card written is judged by the next session\'s stopwatch' })}</span></div>
+          ${apHtml}
+          ${righeP ? `<table style="margin-top:8px"><thead><tr><th>${tr({ it: 'Quando', en: 'When' })}</th><th>${tr({ it: 'Leva provata', en: 'Lever tested' })}</th><th>${tr({ it: 'Giro prima → dopo', en: 'Lap before → after' })}</th><th>${tr({ it: 'Esito', en: 'Outcome' })}</th></tr></thead><tbody>${righeP}</tbody></table>` : (ap ? '' : `<div class="muted" style="font-size:12px;margin-top:6px">${tr({ it: 'Nessuna prova ancora chiusa: scrivi un setup e fai i giri.', en: 'No test closed yet: write a setup and drive the laps.' })}</div>`)}
+          ${bruciate.length ? `<div class="muted" style="font-size:11.5px;margin-top:6px">🚫 ${tr({ it: 'Leve già perse due volte su questa pista (il meccanico te lo segnala): ', en: 'Levers already lost twice on this track (the mechanic flags them): ' })}<b>${bruciate.map((c) => esc(c)).join(' · ')}</b></div>` : ''}
+        </div>`;
+      }
       /* IL DIALOGO (6/11, Mauro: «interagire con lui per chiedere
          aggiustamenti… li prepara già con il nome giusto»): casella +
          quattro chip, risposta in scheda e conferma «Scrivi nel gioco»
@@ -1223,7 +1256,7 @@ async function drawSetup(m){
       out.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 10px;background:#0d1118">
         <div style="font-size:12px;margin-bottom:6px"><b>🔧 ${tr({ it: 'Il meccanico', en: 'The mechanic' })}</b> — ${tr({ it: 'setup consigliato per ', en: 'advised setup for ' })}<b>${esc(m.track ?? '')}</b> <span class="muted" style="font-size:11.5px">· ${tr({ it: 'tracciato ', en: 'track type ' })}${esc(m.tipo ?? '?')}${m.densita ? ` · ${m.densita} ${tr({ it: 'curve/km', en: 'corners/km' })}` : ''}${m.sessFile ? tr({ it: ' · correzione su telemetria veri', en: ' · corrected on real telemetry' }) : tr({ it: ' · senza telemetria (solo pista)', en: ' · no telemetry (track profile only)' })}</span></div>
         ${rows || `<div class="muted" style="font-size:12px">${tr({ it: 'Nessun consiglio per questa pista: anagrafica non disponibile.', en: 'No advice for this track: profile not available.' })}</div>`}
-        ${vivoHtml}${dialogoHtml}${storiaHtml}
+        ${vivoHtml}${dialogoHtml}${provaHtml}${storiaHtml}
       </div>`;
       /* AGGANCI STABILI (6/11, il guasto VERo che Mauro vide: «clicco su gara o
          qualifica ma niente»): il pannello del meccanico vive nel cruscotto e
