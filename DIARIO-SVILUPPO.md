@@ -1,5 +1,14 @@
 # Diario di sviluppo
 
+### 7/11 — La tua auto è soggetta alle zavorre di classe? Misurato: no (le penalità di gara sì)
+
+- **Domanda di Mauro**: «controlla anche se l'auto del player è soggetta a queste limitazioni pesi e penalità o no». Nessuna modifica al codice: è una misura, con le fonti.
+- **Le zavorre/restrizioni di classe NON arrivano alla tua auto**: vivono nelle CELLE del customgrid (`campo 24` = kg, `campo 25` = restrictor), e le celle sono gli AVVERSARI — la tua vettura è il posto in più che il gioco aggiunge («un posto è del giocatore», `src/grid-apply.mjs` riga 3.7 = avversari +1). Prova sul file: `node src/grid-balance.mjs` sul `last_grid.customgrid` attuale dà **12 celle, 3 modelli, tutte 0/0**; il template della serie (`data/grid-templates/coppa_citta.customgrid`) ha **12 celle con 6 Golf 8 GTI a 100 kg / 1%**, mentre la gara di Donington del 6/11 aveva **13 piloti** e la tua Golf 8 GTI è uscita a **0 kg / 0%** nei risultati.
+- **La prova che non dipende da quella gara**: su **97 gare** di carriera col pilota riconosciuto, la tua auto ha `ballast`/`restrictor` a zero **in tutte** (0 gare con zavorra sul giocatore). In **16 gare** un avversario con lo **stesso identico modello** portava 100 kg mentre tu 0/0 — il caso più netto è Imola 31/10 (`data/results-archive/261031-1420_SP_Race.sessionresults.json`): tu Hyundai i30 N Hatchback **0 kg / 0%**, cinque AI sulla stessa i30 N a **100 kg / 20%**. Stessa storia con la RX-7 FD Spirit R (loro 100 kg / 2%) e la Golf del 6/11.
+- **Anche il setup della tua auto è pulito**: `src/carsetup.mjs` non ha nessun campo zavorra/restrictor/peso — l'app non scrive mai un peso sulla vettura del giocatore. La bilanciatura nasce dai risultati veri come strumento per **rallentare gli avversari al tuo ritmo** (`data/grid-classes.json`: «zavorra 100 kg + penalità 10% a tutte meno la Renault → gara combattuta alla pari»; `grid-calib.mjs` misura te contro il campo). È una scelta, non una dimenticanza.
+- **Le penalità di GARA invece ti arrivano**: sono del gioco, non della griglia. Nei risultati 5 gare col pilota penalizzato — `high_penalty` **"+5.0s"**, **"+10.0s"** e **"DT"** (es. `261019-2355_SP_Race`, DT e P12). E i tagli si leggono anche dal vivo (`cutPenaltyMs` → `gauges.cutSec`) e la copilota li annuncia.
+- **Limite**: la verifica è sui file (griglia, template, 97 risultati) e sul codice; non c'è una sessione live in cui vedere la tua auto sulla bilancia. Se un giorno vuoi la zavorra anche su di te, non si può fare dal customgrid (la tua auto non è una cella): servirebbe un campo del gioco sul setup/peso, che oggi non esiste nei file che leggiamo.
+
 ### 7/11 — Il delta: stesso riferimento per display e copilota, e scritto in chiaro
 
 - **Richiesta di Mauro**: «il delta è sbagliato dal display a copilota, non capisco a cosa si riferisce il suo, se best riferito a chi o parziali».
