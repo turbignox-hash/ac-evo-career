@@ -17,17 +17,17 @@ Function Q(s)
   Q = """" & s & """"
 End Function
 
-Dim fso, radice, node, wscript
+Dim fso, radice, node, wshExe
 Set fso = CreateObject("Scripting.FileSystemObject")
 radice = fso.GetParentFolderName(fso.GetParentFolderName(WScript.ScriptFullName)) ' tools -> radice
 node = radice & "\_node\node.exe"
 If Not fso.FileExists(node) Then node = "node.exe"
-wscript = sh.ExpandEnvironmentStrings("%SystemRoot%\System32\wscript.exe")
+wshExe = sh.ExpandEnvironmentStrings("%SystemRoot%\System32\wscript.exe")
 
 ' le stesse mosse di :aprigui in avvia.cmd, in fila e senza finestra
-sh.Run Q(node) & " " & Q(radice & "\tools\aggiornamenti.mjs") & " --breve", 0, True
-sh.Run Q(node) & " " & Q(radice & "\tools\salva-save.mjs"), 0, True
+sh.Run Q(node) & " " & Q(radice & "\src\aggiornamenti.mjs") & " --breve", 0, True
+sh.Run Q(node) & " " & Q(radice & "\src\salva-save.mjs"), 0, True
 sh.Run Q(node) & " " & Q(radice & "\tools\crea-scorciatoia.mjs"), 0, True
 sh.Run Q(node) & " " & Q(radice & "\tools\installa-gioco.mjs") & " --silenzioso", 0, True
 ' l'icona vicino all'orologio: apre il browser e, se manca, accende il server
-sh.Run Q(wscript) & " //nologo " & Q(radice & "\tools\evo-tray.vbs"), 0, False
+sh.Run Q(wshExe) & " //nologo " & Q(radice & "\tools\evo-tray.vbs"), 0, False
