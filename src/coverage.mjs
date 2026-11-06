@@ -79,7 +79,7 @@ export function coverageReport({ results = {}, freeSessions = [], resultSectors 
     let e = byTrack.get(key);
     if (!e) {
       e = {
-        name: known?.name ?? name, lengthKm, sessions: 0, laps: 0,
+        name: known?.name ?? name, lengthKm, sessions: 0, laps: 0, maxSessionLaps: 0,
         timed: 0, sectors: 0, splitSessions: 0, bestLapMs: null, lastAt: null,
         telemetry: { files: 0, bytes: 0 }, never: false,
       };
@@ -120,6 +120,7 @@ export function coverageReport({ results = {}, freeSessions = [], resultSectors 
       const e = bumpTrack(name, len);
       e.sessions += 1;
       e.laps += n;
+      if (n > e.maxSessionLaps) e.maxSessionLaps = n;
       noteLap(e, lapTextMs(r.bestLap), r.at);
       if (r.car) cars.add(normTrack(r.car) || r.car);
       bumpType('Race', n);
@@ -140,6 +141,7 @@ export function coverageReport({ results = {}, freeSessions = [], resultSectors 
     const e = bumpTrack(name, len);
     e.sessions += 1;
     e.laps += n;
+    if (n > e.maxSessionLaps) e.maxSessionLaps = n;
     noteLap(e, Number(s.bestLapMs) || null, s.at);
     if (Array.isArray(s.sectors) && s.sectors.length) e.sectors += 1;
     const car = s.carPretty ?? s.car;
@@ -158,6 +160,8 @@ export function coverageReport({ results = {}, freeSessions = [], resultSectors 
     const e = bumpTrack(r.track, catalogLengthKm(r.track));
     e.sectors += 1;
     e.splitSessions += 1;
+    const nLap = Math.max(0, Number(r.laps) || 0);
+    if (nLap > e.maxSessionLaps) e.maxSessionLaps = nLap;
     const somma = (r.splitsMs ?? []).reduce((a, v) => a + (Number(v) || 0), 0);
     if (somma > 0 && (!e.bestLapMs || somma < e.bestLapMs)) e.bestLapMs = somma;
   }
@@ -174,7 +178,7 @@ export function coverageReport({ results = {}, freeSessions = [], resultSectors 
   for (const c of CATALOG) {
     if (!byTrack.has(c.name)) {
       byTrack.set(c.name, {
-        name: c.name, lengthKm: c.lengthKm, sessions: 0, laps: 0,
+        name: c.name, lengthKm: c.lengthKm, sessions: 0, laps: 0, maxSessionLaps: 0,
         timed: 0, sectors: 0, splitSessions: 0, bestLapMs: null, lastAt: null,
         telemetry: { files: 0, bytes: 0 }, never: true,
       });
@@ -222,35 +226,66 @@ export function coverageReport({ results = {}, freeSessions = [], resultSectors 
 
 export const ANALYSIS_MIN_LAPS = 3;
 export const ANALYSIS_MIN_TELEMETRY_FILES = 2;
+/* SOGLIA PER SESSIONE (6/11, richiesta Mauro: «almeno 3 giri nella stessa
+   sessione»): il totale per pista può mettere insieme tre giri sparsi su tre
+   uscite da un giro ciascuna — una pista così risulta «coperta» ma non regge
+   né il confronto del passo né la costanza settoriale. */
+export const ANALYSIS_MIN_SESSION_LAPS = 3;
 
 /**
  * LE PISTE DOVE I DATI NON BASTANO (6/11, per il Cruscotto).
  * Una pista è «pronta per l'analisi» quando ha almeno 3 giri complessivi,
- * almeno 2 file `.ld` e almeno un giro cronometrato. I settori mancanti si
- * segnalano a parte (senza settori l'analisi per tratti non si fa, ma il resto
- * sì). Niente punteggi: solo cosa manca, pista per pista.
+ * almeno 2 file `.ld`, almeno un giro cronometrato e almeno 3 giri dentro UNA
+ * sessione (senza quest'ultima, tre uscite da un giro facevano una pista
+ * «coperta» pur senza un run su cui misurare passo o degrado). I settori
+ * mancanti si segnalano a parte (senza settori l'analisi per tratti non si
+ * fa, ma il resto sì). Niente punteggi: solo cosa manca, pista per pista.
  */
+/** PESO di un buco per l'ORDINE di gravità (6/11): prima quello che toglie
+ *  l'analisi vera (telemetria e giro cronometrato), poi i giri, infine i
+ *  settori. Il difetto NUMERICO conta: 1 giro su 3 pesa più di 2 su 3, zero
+ *  file .ld più di uno. Non è una pagella: è solo l'ordine con cui nominare
+ *  le piste (avviso del Cruscotto e pannello leggono lo stesso numero). */
+const PESO_BUCO = {
+  'telemetria-insufficiente': 4,
+  cronometrati: 4,
+  'pochi-giri': 3,
+  'giri-sessione': 3,
+  settori: 1,
+};
+function gravitaBuco(r) {
+  const pesi = r.mancano.reduce((s, m) => s + (PESO_BUCO[m] ?? 1), 0);
+  const deficit = Math.max(0, ANALYSIS_MIN_TELEMETRY_FILES - r.telemetryFiles)
+    + Math.max(0, ANALYSIS_MIN_LAPS - r.laps)
+    + Math.max(0, ANALYSIS_MIN_SESSION_LAPS - r.maxSessionLaps);
+  return pesi + deficit;
+}
+
 export function analysisGaps(report) {
   const righe = (report?.byTrack ?? []).map((r) => {
     const mancano = [];
     const nGiri = Number(r.laps) || 0;
     const nLd = Number(r.telemetry?.files) || 0;
-    if (r.never) return { name: r.name, never: true, laps: 0, telemetryFiles: 0, mancano: ['dati'] };
+    const nSess = Number(r.maxSessionLaps) || 0;
+    if (r.never) return { name: r.name, never: true, laps: 0, maxSessionLaps: 0, telemetryFiles: 0, mancano: ['dati'] };
     if (nLd < ANALYSIS_MIN_TELEMETRY_FILES) mancano.push('telemetria-insufficiente');
     if (!(r.timed > 0)) mancano.push('cronometrati');
     if (nGiri < ANALYSIS_MIN_LAPS) mancano.push('pochi-giri');
+    if (nSess < ANALYSIS_MIN_SESSION_LAPS) mancano.push('giri-sessione');
     if (!(r.sectors > 0) && !r.sectorsCalc) mancano.push('settori');
-    const pronta = nLd >= ANALYSIS_MIN_TELEMETRY_FILES && nGiri >= ANALYSIS_MIN_LAPS && r.timed > 0;
-    return { name: r.name, never: false, laps: nGiri, telemetryFiles: nLd, pronta, mancano };
+    const pronta = nLd >= ANALYSIS_MIN_TELEMETRY_FILES && nGiri >= ANALYSIS_MIN_LAPS
+      && nSess >= ANALYSIS_MIN_SESSION_LAPS && r.timed > 0;
+    return { name: r.name, never: false, laps: nGiri, maxSessionLaps: nSess, telemetryFiles: nLd, pronta, mancano };
   });
   const scoperte = righe.filter((x) => x.never);
   const incomplete = righe
     .filter((x) => !x.never && x.mancano.length)
-    .sort((a, b) => b.mancano.length - a.mancano.length || a.name.localeCompare(b.name));
+    .map((x) => ({ ...x, gravita: gravitaBuco(x) }))
+    .sort((a, b) => b.gravita - a.gravita || a.laps - b.laps || a.name.localeCompare(b.name));
   return {
     piste: righe.length,
     pronte: righe.filter((x) => !x.never && x.pronta).length,
-    soglia: { giri: ANALYSIS_MIN_LAPS, fileTelemetria: ANALYSIS_MIN_TELEMETRY_FILES },
+    soglia: { giri: ANALYSIS_MIN_LAPS, giriSessione: ANALYSIS_MIN_SESSION_LAPS, fileTelemetria: ANALYSIS_MIN_TELEMETRY_FILES },
     incomplete,
     scoperte: scoperte.map((x) => x.name),
   };
@@ -343,10 +378,17 @@ export function scanResultSectors(paths, driver, { ttlMs = 60000, now = Date.now
       const splitsMs = splits.map(lapTextMs).filter((v) => Number.isFinite(v) && v > 0);
       if (!splitsMs.length) continue;
       // l'auto serve al confronto settore per settore: giri con auto diverse
-      // sulla stessa pista non si paragonano (una MX-5 non fa i settori di una GT3)
-      const car = `${me?.car_brand ?? ''} ${me?.car_name ?? ''}`.replace(/\s+/g, ' ').trim().toLowerCase();
+      // sulla stessa pista non si paragonano (una MX-5 non fa i settori di una GT3).
+      // `carLabel` è il nome com'è scritto nel risultato (col marchio già dentro
+      // quando il gioco lo mette), `car` la chiave normalizzata del confronto.
+      const carLabel = (me?.car_name && me?.car_brand && String(me.car_name).toLowerCase().startsWith(String(me.car_brand).toLowerCase())
+        ? me.car_name
+        : `${me?.car_brand ?? ''} ${me?.car_name ?? ''}`).replace(/\s+/g, ' ').trim();
       rows.push({
-        track: r.track ?? '?', file, session: r.session ?? null, splitsMs, car,
+        track: r.track ?? '?', file, session: r.session ?? null, splitsMs, car: carLabel.toLowerCase(), carLabel: carLabel || null,
+        // i giri della sessione: servono alla soglia «3 giri nella STESSA sessione»
+        // (un totale per pista può metterne insieme tre sparsi e sembrare pronto)
+        laps: Math.max(0, Number(me?.laps) || 0),
         lapMs: splitsMs.reduce((a, b) => a + b, 0),
       });
     }
@@ -371,26 +413,47 @@ export function scanResultSectors(paths, driver, { ttlMs = 60000, now = Date.now
  *   solo i settori di questa gara, invece di paragonarla a sé stessa;
  * - le sessioni delle uscite libere sono già nei file risultato: si passano
  *   dentro `rows` una volta sola, senza duplicarle.
+ *
+ * In più (6/11, richiesta Mauro: «anche il miglior giro della pista con auto
+ * diversa, etichettato come paragone tra auto»), `altraAuto` porta il giro più
+ * veloce della STESSA pista fatto con un'ALTRA auto. È un paragone tra auto,
+ * non un riferimento della gara: resta un campo separato, con l'auto scritta
+ * per esteso, e senza il numero di settori giusto non si mostra. Se l'auto
+ * della gara non è nel file, «diversa» non è dimostrabile e non si finge.
  */
 export function sectorCompare(rows, file) {
   const gara = (rows ?? []).find((r) => r.file === file);
   if (!gara) return null;
   const parti = gara.splitsMs.length;
-  const vista = (r) => ({ file: r.file, session: r.session, splitsMs: r.splitsMs, lapMs: r.lapMs, stessoFile: r.file === gara.file });
+  const vista = (r) => ({ file: r.file, session: r.session, splitsMs: r.splitsMs, lapMs: r.lapMs, stessoFile: r.file === gara.file, car: r.carLabel || r.car || null });
+  const altra = !gara.car ? null : (rows ?? [])
+    .filter((r) => r.track === gara.track && r.car && r.car !== gara.car && r.splitsMs.length === parti)
+    .reduce((a, b) => (a == null || b.lapMs < a.lapMs ? b : a), null);
+  const altraAuto = altra ? {
+    car: altra.carLabel ?? altra.car,
+    file: altra.file,
+    session: altra.session,
+    splitsMs: altra.splitsMs,
+    lapMs: altra.lapMs,
+    delta: gara.splitsMs.map((ms, i) => ms - altra.splitsMs[i]),
+    deltaGiro: gara.lapMs - altra.lapMs,
+  } : null;
   const stesse = (rows ?? []).filter((r) => r.track === gara.track && r.car === gara.car && r.splitsMs.length === parti);
   if (stesse.length < 2) {
-    return { parti, gara: vista(gara), rif: null, delta: null, ideale: null, altre: 0 };
+    return { parti, track: gara.track ?? null, gara: vista(gara), rif: null, delta: null, ideale: null, altre: 0, altraAuto };
   }
   const rif = stesse.reduce((a, b) => (b.lapMs < a.lapMs ? b : a));
   const somma = (arr) => arr.reduce((a, b) => a + b, 0);
   const idealeMs = Array.from({ length: parti }, (_, i) => Math.min(...stesse.map((r) => r.splitsMs[i])));
   return {
     parti,
+    track: gara.track ?? null,
     gara: vista(gara),
     rif: vista(rif),
     delta: gara.splitsMs.map((ms, i) => ms - rif.splitsMs[i]),
     ideale: { splitsMs: idealeMs, lapMs: somma(idealeMs) },
     altre: stesse.length,
+    altraAuto,
   };
 }
 
