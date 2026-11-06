@@ -1264,6 +1264,41 @@ async function drawStats(m){
   const cov = await api('coverage').catch(() => null);
   const fmtN = (v) => Number(v || 0).toLocaleString('it-IT');
   const fmtBytes = (b) => b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : b >= 1e6 ? `${Math.round(b / 1e6)} MB` : `${Math.max(1, Math.round(b / 1e3))} kB`;
+  const fmtLap = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`;
+  const gapStyle = 'color:var(--warn)';
+  /* Una riga per pista, apribile: cosa c'è (telemetria, giri cronometrati,
+     settori) e cosa manca, con la pista mai corsa dichiarata tale. */
+  const covRows = (cov?.byTrack ?? []).map((r, i) => {
+    const tel = r.telemetry ?? { files: 0, bytes: 0 };
+    const chips = [
+      tel.files
+        ? `<span class="tag" title="${tr({ it: 'file .ld di telemetria per questa pista', en: '.ld telemetry files for this track' })}">🎞 ${fmtN(tel.files)}</span>`
+        : `<span class="tag" style="${gapStyle}" title="${tr({ it: 'nessuna telemetria: frenata, trazione e traiettoria non sono analizzabili', en: 'no telemetry: braking, traction and line cannot be analysed' })}">${tr({ it: 'no telemetria', en: 'no telemetry' })}</span>`,
+      r.timed
+        ? `<span class="tag" title="${tr({ it: 'sessioni con un giro cronometrato', en: 'sessions with a timed lap' })}">⏱ ${fmtN(r.timed)}</span>`
+        : `<span class="tag" style="${gapStyle}" title="${tr({ it: 'nessun giro cronometrato: niente confronto sul passo', en: 'no timed lap: no pace comparison' })}">${tr({ it: 'no cronometrati', en: 'no timed laps' })}</span>`,
+      r.sectors
+        ? `<span class="tag" title="${tr({ it: 'sessioni con i tempi dei settori', en: 'sessions with sector times' })}">📊 ${fmtN(r.sectors)}</span>`
+        : `<span class="tag" style="${gapStyle}" title="${tr({ it: 'nessun settore: analisi per tratti non possibile', en: 'no sectors: corner-by-corner analysis is impossible' })}">${tr({ it: 'no settori', en: 'no sectors' })}</span>`,
+    ].join(' ');
+    const none = `<span style="${gapStyle}">${tr({ it: 'nessuno', en: 'none' })}</span>`;
+    const det = [
+      `<b>${esc(r.name)}</b>${r.never ? ` — <span style="${gapStyle}">${tr({ it: 'mai corsa: nessun dato in archivio', en: 'never driven: nothing in the archive' })}</span>` : ''}`,
+      `${tr({ it: 'Telemetria', en: 'Telemetry' })}: ${tel.files ? `${fmtN(tel.files)} ${tr({ it: 'file .ld', en: '.ld files' })} · ${fmtBytes(tel.bytes)}` : none}`,
+      `${tr({ it: 'Giri cronometrati', en: 'Timed laps' })}: ${r.timed ? fmtN(r.timed) : `<span style="${gapStyle}">0</span>`}${r.bestLapMs ? ` · ${tr({ it: 'miglior giro', en: 'best lap' })} <b>${fmtLap(r.bestLapMs)}</b>` : ''}`,
+      `${tr({ it: 'Settori', en: 'Sectors' })}: ${r.sectors ? `${fmtN(r.sectors)} ${tr({ it: 'sessioni con i tempi dei settori', en: 'sessions with sector times' })}` : none}`,
+      `${tr({ it: 'Ultimo dato', en: 'Latest data' })}: ${r.lastAt ? String(r.lastAt).slice(0, 16).replace('T', ' ') : '—'}`,
+      !r.never ? `<button class="mini st-tracklink" data-track="${esc(r.name)}">${tr({ it: 'Apri nella scheda Piste', en: 'Open in Tracks' })}</button>` : '',
+    ].filter(Boolean).join('<br>');
+    return `<tr class="cov-tr" data-i="${i}" tabindex="0" style="cursor:pointer">
+      <td>${esc(r.name)}${r.never ? ` <span class="faint">· ${tr({ it: 'mai corsa', en: 'never driven' })}</span>` : ''}</td>
+      <td class="right">${fmtN(r.sessions)}</td>
+      <td class="right">${fmtN(r.laps)}</td>
+      <td class="right">${r.km == null ? '<span class="faint" title="pista fuori catalogo: niente km">—</span>' : fmtN(r.km)}</td>
+      <td>${chips}</td>
+    </tr>
+    <tr class="cov-det" id="cov-d-${i}" style="display:none"><td colspan="5" class="muted" style="font-size:12.5px">${det}</td></tr>`;
+  }).join('');
   const copertura = cov ? stPan(tr({ it: 'Copertura dei dati', en: 'Data coverage' }), STI.book,
     stKpis([
       [tr({ it: 'Sessioni', en: 'Sessions' }), fmtN(cov.totals.sessions), 'acc', `${fmtN(cov.totals.races)} ${tr({ it: 'gare importate', en: 'imported races' })} + ${fmtN(cov.totals.free)} ${tr({ it: 'uscite libere', en: 'free sessions' })}`],
@@ -1281,9 +1316,9 @@ async function drawStats(m){
         : tr({ it: 'libro dei rivali non leggibile', en: 'rivals book not readable' })],
       [tr({ it: 'Ultimo dato', en: 'Latest data' }), cov.lastAt ? String(cov.lastAt).slice(0, 10) : '—', '', cov.lastAt ? String(cov.lastAt).slice(0, 16).replace('T', ' ') : tr({ it: 'nessun dato importato', en: 'nothing imported yet' })],
     ])
-    + (cov.byTrack.length ? `<table style="margin-top:10px"><thead><tr><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Sessioni', en: 'Sessions' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'km', en: 'km' })}</th></tr></thead><tbody>${cov.byTrack.slice(0, 10).map((r) => `<tr><td>${esc(r.name)}</td><td class="right">${fmtN(r.sessions)}</td><td class="right">${fmtN(r.laps)}</td><td class="right">${r.km == null ? '<span class="faint" title="pista fuori catalogo: niente km">—</span>' : fmtN(r.km)}</td></tr>`).join('')}</tbody></table>` : '')
-    + ((cov.neverDriven.length || cov.noTime) ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px"><b>${tr({ it: 'Cosa manca', en: 'What is missing' })}</b></summary><div class="muted" style="font-size:12.5px;margin-top:6px">${cov.neverDriven.length ? `${tr({ it: 'Piste del catalogo mai corse', en: 'Catalogue tracks never driven' })}: <b>${fmtN(cov.neverDriven.length)}</b> — ${cov.neverDriven.slice(0, 8).map((x) => esc(x.name)).join(', ')}${cov.neverDriven.length > 8 ? '…' : ''}<br>` : ''}${cov.noTime ? `${tr({ it: 'Uscite senza un giro cronometrato', en: 'Sessions with no timed lap' })}: <b>${fmtN(cov.noTime)}</b><br>` : ''}</div></details>` : ''),
-    { note: tr({ it: 'quello che l\'archivio contiene davvero', en: 'what the archive really holds' }) }) : '';
+    + (covRows ? `<table style="margin-top:10px"><thead><tr><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Sessioni', en: 'Sessions' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th class="right">${tr({ it: 'km', en: 'km' })}</th><th>${tr({ it: 'Cosa c’è', en: 'What is there' })}</th></tr></thead><tbody>${covRows}</tbody></table>
+      <div class="muted" style="font-size:12.5px;margin-top:6px">${tr({ it: 'Clicca una riga per il dettaglio: telemetria, giri cronometrati, settori. In rosso quello che manca', en: 'Click a row for the detail: telemetry, timed laps, sectors. Red marks what is missing' })}${cov.noTime ? ` · ${fmtN(cov.noTime)} ${tr({ it: 'uscite senza un giro cronometrato', en: 'sessions with no timed lap' })}` : ''}.</div>` : ''),
+    { note: tr({ it: 'quello che l’archivio contiene davvero', en: 'what the archive really holds' }) }) : '';
   /* 4) tabelle: giri personali, piste, stagioni, saga e ultime gare */
   const bestLaps = stPan(tr({ it: 'Migliori giri personali', en: 'Personal best laps' }), STI.clock, s.bestLaps.length
     ? `<table><thead><tr><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Giro', en: 'Lap' })}</th><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Quando', en: 'When' })}</th></tr></thead><tbody>${s.bestLaps.map(b=>`<tr><td><b><span style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda della pista', en: 'open the track card' })}" class="st-tracklink" data-track="${esc(b.display)}">${esc(b.display)}</span></b></td><td class="right"><b style="color:var(--acc2)">${esc(b.time)}</b></td><td>${b.car?`<span class="st-carlink" data-car="${esc(b.car)}" style="cursor:pointer;text-decoration:underline dotted" title="${tr({ it: 'apri la scheda tecnica dell\'auto', en: 'open the car spec sheet' })}">${esc(b.car)}</span>`:'<span class="muted">—</span>'}</td><td class="muted">${esc((b.at||'').slice(0,10))}</td></tr>`).join('')}</tbody></table>`
@@ -1303,6 +1338,15 @@ async function drawStats(m){
   <div class="grid2">${bestLaps}${tracksTab}</div>
   <div class="grid2">${seasonsTab}${sagaTab || ''}${ultimeTab}</div>`;
   /* cross-link stile FM (28/10): auto → scheda auto, serie → tab Campionati */
+  /* Copertura dei dati: la riga apre il dettaglio già presente in pagina
+     (telemetria, giri cronometrati, settori). Tastiera inclusa: Enter/Spazio. */
+  $$('.cov-tr', m).forEach((tr) => {
+    const det = m.querySelector(`#cov-d-${tr.dataset.i}`);
+    if (!det) return;
+    const toggle = () => { det.style.display = det.style.display === 'none' ? '' : 'none'; };
+    tr.onclick = (e) => { if (e.target.closest('.st-tracklink')) return; toggle(); };
+    tr.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
+  });
   $$('.st-tracklink', m).forEach((e) => { e.onclick = () => vai('tracks', { search: e.dataset.track }); });
   $$('.st-carlink', m).forEach((e) => { e.onclick = () => vai('cars', { search: e.dataset.car }); });
   $$('.st-serlink', m).forEach((e) => { e.onclick = () => vai('championships'); });
