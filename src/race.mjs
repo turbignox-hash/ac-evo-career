@@ -475,7 +475,12 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
         racesRun: prev.length,
         totalRounds: node.calendar.length,
         rivals: o.rivals.slice(0, 6),
-        standingPosition: standing?.position ?? null,
+        // POSIZIONE SOLO DOPO LA PRIMA GARA (6/11): prima di scendere in pista
+        // la classifica è quella del modello (i rivali hanno già punti su round
+        // che tu non hai corso) e mostrarla sarebbe un numero finto spacciato
+        // per fatto. Con zero gare la riga dice solo quante ne hai corse.
+        standingPosition: prev.length ? (standing?.position ?? null) : null,
+        standingPending: prev.length === 0,
         mastery: { level: mastery.level, name: mastery.name, races: mastery.races },
         crowd: raceCrowdFor(round.track),
         duel: (state.life?.duel && state.life.duel.season === state.season) ? { name: state.life.duel.name, gap: state.life.duel.gap } : null,

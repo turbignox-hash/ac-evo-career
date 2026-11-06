@@ -54,8 +54,22 @@ export function storiePerCampo(rounds) {
        (trovato dal vivo il 5/11 aprendo la scheda): si accettano tutte e due le
        grafie e il round senza lista non ferma la storia degli altri. */
     const lista = Array.isArray(r.advice) ? r.advice : (Array.isArray(r.advices) ? r.advices : []);
+    /* ATTRIBUZIONE ONESTA (6/11, segnalato da Mauro: «sembra che abbiamo dati
+       fittizi»). `r.delta` è il guadagno del GIRO, non della singola leva: se
+       il round ha toccato aero + assetto + camber insieme, lo stesso «GUADAGNATO
+       1.30s» veniva intestato a tutti e tre — sembrava inventato (e non era
+       vero per nessuno in particolare). Ora si attribuisce SOLO al round con
+       una sola leva; gli altri si contano come «condivisi» e si dicono per
+       quello che sono. */
+    const campi = new Set(lista.map((a) => a.campo));
+    const isolato = campi.size === 1;
     for (const a of lista) {
-      const e = (m[a.campo] ??= { provati: 0, guadagnati: 0, persi: 0, ultimoDelta: null, ultimoText: null });
+      const e = (m[a.campo] ??= { provati: 0, guadagnati: 0, persi: 0, condivisi: 0, ultimoDelta: null, ultimoText: null });
+      if (!isolato) {
+        e.condivisi += 1;
+        e.ultimoText = a.text;
+        continue;                       // delta non attribuibile: non si somma a nessun esito
+      }
       e.provati += 1;
       if (r.delta < DELTA_GUADAGNO_S) e.guadagnati += 1;
       else if (r.delta > DELTA_PERDITA_S) e.persi += 1;
@@ -122,12 +136,15 @@ export function annotaAdvice(consigli, { rounds }) {
     const st = storie[c.vedi];
     if (!st) return c;
     let nota;
-    if (st.ultimoDelta < DELTA_GUADAGNO_S) {
-      nota = `Storia: l'ultima proposta su ${c.vedi} ha GUADAGNATO ${(-st.ultimoDelta).toFixed(2)}s · ${st.guadagnati}/${st.provati} giri guadagnati — prosegui in quella direzione o raffina il gradino.`;
+    if (st.ultimoDelta == null) {
+      // solo round condivisi: nessun numero da intestare a questo campo
+      nota = `Storia: ${c.vedi} è stato proposto ${st.condivisi === 1 ? 'in un round' : `in ${st.condivisi} round`} insieme ad altre modifiche: il delta del giro non si può attribuire a questo campo da solo. Per giudicarlo serve un round con la SOLA modifica.`;
+    } else if (st.ultimoDelta < DELTA_GUADAGNO_S) {
+      nota = `Storia: con la sola modifica a ${c.vedi} l'ultima proposta ha GUADAGNATO ${(-st.ultimoDelta).toFixed(2)}s · ${st.guadagnati}/${st.provati} giri guadagnati — prosegui in quella direzione o raffina il gradino.`;
     } else if (st.ultimoDelta > DELTA_PERDITA_S) {
-      nota = `Storia: l'ultima proposta su ${c.vedi} ha PERSO ${st.ultimoDelta.toFixed(2)}s · ${st.persi}/${st.provati} giri persi — se il dato di oggi è lo stesso, riduci il passo alla metà o considera che non era quella la leva giusta.`;
+      nota = `Storia: con la sola modifica a ${c.vedi} l'ultima proposta ha PERSO ${st.ultimoDelta.toFixed(2)}s · ${st.persi}/${st.provati} giri persi — se il dato di oggi è lo stesso, riduci il passo alla metà o considera che non era quella la leva giusta.`;
     } else {
-      nota = `Storia: l'ultima proposta su ${c.vedi} è stata neutra (${st.ultimoDelta >= 0 ? '+' : ''}${st.ultimoDelta.toFixed(2)}s).`;
+      nota = `Storia: con la sola modifica a ${c.vedi} l'ultima proposta è stata neutra (${st.ultimoDelta >= 0 ? '+' : ''}${st.ultimoDelta.toFixed(2)}s).`;
     }
     return { ...c, text: `${c.text}\n↺ ${nota}` };
   });

@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computaCorrezioni, storiePerCampo } from '../src/allievo.mjs';
+import { computaCorrezioni, storiePerCampo, annotaAdvice } from '../src/allievo.mjs';
 
 const roundPerso = {
   at: '2026-11-05T10:00:00.000Z', sessFile: 'a.ld',
@@ -82,4 +82,35 @@ test('storiePerCampo: la chiave vera `advice` è letta, il round senza lista non
   assert.equal(storie.camber.persi, 1);
   assert.equal(storie.aero.guadagnati, 1);
   assert.equal(storie.aero.ultimoText, 'Aero…');
+});
+
+/* 6/11, segnalato da Mauro: «sembra che abbiamo dati fittizi». Le tre voci
+   della Storia dell'allievo mostravano lo STESSO guadagno (1.30s) su aero,
+   assetto e camber: era il delta del GIRO, copiato su ogni campo del round.
+   La leva ora si giudica solo se il round ne ha toccata UNA; le altre si
+   contano come condivise e la nota lo dice, senza numeri inventati. */
+test('storiePerCampo: il delta del giro non si intesta a ogni campo di un round multiplo', () => {
+  const storie = storiePerCampo([
+    { delta: -1.3, advice: [
+      { campo: 'aero', text: 'Aero…' },
+      { campo: 'assetto', text: 'Altezza…' },
+      { campo: 'camber', text: 'Camber…' },
+    ] },
+    { delta: -0.2, advice: [{ campo: 'camber', text: 'Camber da solo…' }] },
+  ]);
+  assert.equal(storie.aero.ultimoDelta, null, 'aero non ha round isolati: nessun delta da mostrare');
+  assert.equal(storie.aero.condivisi, 1);
+  assert.equal(storie.assetto.ultimoDelta, null);
+  assert.equal(storie.camber.provati, 1, 'conta solo il round con la sola modifica');
+  assert.equal(storie.camber.condivisi, 1);
+  assert.equal(storie.camber.guadagnati, 1);
+  assert.equal(storie.camber.ultimoDelta, -0.2);
+
+  // e la nota che arriva in scheda non stampa un numero per il campo condiviso
+  const { consigli } = annotaAdvice(
+    [{ vedi: 'aero', prio: 1, text: 'Prova l’ala.' }],
+    { rounds: [{ delta: -1.3, advice: [{ campo: 'aero', text: 'Aero…' }, { campo: 'camber', text: 'Camber…' }] }] },
+  );
+  assert.match(consigli[0].text, /insieme ad altre modifiche/);
+  assert.ok(!/GUADAGNATO/.test(consigli[0].text), 'niente guadagno attribuito a un campo non isolato');
 });

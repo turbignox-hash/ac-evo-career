@@ -282,6 +282,14 @@ test('raceCard: outlook con obiettivo pista, stagione e contratto; Meteo con nom
   assert.equal(c1.outlook.lapTarget, '01:42.5');    // obiettivo sulla pista RONDA 0
   assert.equal(c1.outlook.seasonPoints, 25);
   assert.equal(c1.outlook.racesRun, 1);
+  // 6/11 — la posizione compare solo DOPO una gara tua nella serie: con la
+  // classifica del modello su round non disputati sarebbe un numero inventato
+  assert.equal(c1.outlook.standingPending, false);
+  assert.equal(typeof c1.outlook.standingPosition, 'number');
+  const fresh = mk();
+  const c0 = race.raceCard(fresh.ladder, fresh.state);
+  assert.equal(c0.outlook.standingPending, true, 'senza gare la scheda deve sapere che la posizione è in attesa');
+  assert.equal(c0.outlook.standingPosition, null, 'senza gare non si mostra la posizione del modello');
   // il meteo della ronda correntesie il nome della ladder, NON un indice
   const ladder2 = mk().ladder;
   ladder2.weatherNames = { '0': 'Clear', '4': 'Light rain' };
