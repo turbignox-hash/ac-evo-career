@@ -1,5 +1,15 @@
 # Diario di sviluppo
 
+### 6/11 notte — Il delta dell'ultimo tratto non gonfia più (1.0 a schermo, 1.6 in radio)
+
+- **Segnalazione di Mauro**: «il copilot dice dei delta errati, su schermo ce l'ho in tempo reale: a fine gara, ultimo tratto, avevo 1 secondo sul display e il copilot diceva 1.6».
+- **La causa, letta nel codice**: `liveDelta` confrontava il cronometro **fresco** del giro (`curLapMs`, dalla MMF) col tempo del best nel punto dell'**ultimo campione**. Ma i campioni della traccia si prendono ogni **25 m** di strada (`shmem.mjs`: `if (!lp || Math.hypot(...) > 25) kt.push(...)`) — a 40-50 m/s sono 0.4-0.6 s. Confrontare una posizione vecchia con un orologio nuovo gonfia il delta di tutto il tratto percorso dopo l'ultimo campione: **0.6 s su 1.0 ricostruiti esattamente** con i numeri di Brands Hatch (25 m ÷ ~40 m/s). E l'errore non è un offset fisso: cresce con la velocità, quindi in rettilineo (l'ultimo tratto) si vede di più.
+- **Cura**: il delta di un punto è `t_corrente(punto) − t_best(punto)`, quindi ora `liveDelta` usa **il tempo del campione** (`last.curMs`) e non più il cronometro del «adesso»: stessa posizione, due tempi veri. Il parametro `curLapMs` resta solo come scorta (di fatto morto: senza tempi nei campioni non c'è allineamento e non si inventa un delta).
+- **Effetto collaterale voluto**: anche il numero grande della scheda («delta») smette di gonfiarsi nell'ultimo tratto; il ritardo di un campione (~0.4 s) resta, ma è onesto — il valore è quello del punto, non un misto.
+- **Verifiche**: `test/delta-ultimo-tratto.test.mjs` **5/5** — con geometria e numeri veri (25 m di passo, 40 m/s, giro da 100 s) il delta esce **1000 ms** dove la vecchia formula dava **4125 ms**; campionamento rado (100 m) invariato; delta negativo col segno giusto; tracce senza tempo → `null` invece di un numero fabbricato; guardia sulla riga della cura (se qualcuno rimette `curLapMs` prima, il test diventa rosso). Suite **1.205 test, 1.203 pass, 0 fail**, 2 skip; Biome pulito su 432 file. Server riavviato (il lettore live usa il codice nuovo).
+- **Limite dichiarato**: non l'ho potuto misurare su una gara vera — servono i numeri di una sessione con il delta a schermo e in radio nello stesso istante. La prova che ho è analitica e riprodotta in laboratorio; se alla prossima gara resta uno scarto, voglio il registro vocale (`data/copilot-voce-24-10.jsonl`) e il valore del display nello stesso momento, così si distingue un errore di campionamento da un disallineamento del best.
+
+
 ### 6/11 notte — Il meccanico dice cosa è cambiato dall'ultima visita
 
 - **Segnalazione di Mauro**: «quando rientro dal meccanico non capisco se ha consigli o migliorie da aggiungere, vedo la solita scheda della prima visita».

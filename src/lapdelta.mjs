@@ -125,7 +125,18 @@ export function liveDelta(curTrack, bestPath, curLapMs = null) {
   const m = matchTrack(curTrack, bestPath);
   if (!m?.length) return null;
   const last = m[m.length - 1];
-  const curMs = Number.isFinite(curLapMs) ? curLapMs : last.curMs;
+  /* IL DELTA SI MISURA NELLO STESSO PUNTO (6/11 notte, Mauro: «a fine gara
+     ultimo tratto avevo 1 secondo sul display e il copilot diceva 1.6»).
+     Prima qui si usava il cronometro FRESCO del giro (curLapMs, dalla MMF) e
+     lo si confrontava col tempo del best nel punto dell'ULTIMO CAMPIONE: ma i
+     campioni della traccia distano 25 m (>=0.4 s a velocità di gara), quindi
+     il delta usciva gonfiato di tutto il tratto percorso DOPO l'ultimo
+     campione — e l'errore cambia col ritmo del campionamento (curva lenta o
+     rettilineo veloce), non è un offset fisso. Il delta di un punto è
+     t_corrente(punto) − t_best(punto): i due cronometri devono essere quelli
+     DELLA STESSA POSIZIONE, cioè del campione. curLapMs resta la scorta per
+     le tracce senza tempo (payload vecchi o giro appena partito). */
+  const curMs = Number.isFinite(last.curMs) ? last.curMs : curLapMs;
   if (!Number.isFinite(curMs) || last.tBest == null) return null;
   return { deltaMs: r(curMs - last.tBest, 0), prog: last.p };
 }
