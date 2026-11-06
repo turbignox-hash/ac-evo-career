@@ -86,7 +86,7 @@ test('IL DELTA DI RITMO parla SOLO col livello full e SOLO dalla fonte tracked',
   };
   assert.deepEqual(passo('essenziale'), [], 'essenziale: niente delta');
   assert.deepEqual(passo('normale'), [], 'normale: niente delta');
-  assert.ok(passo('full').some((t) => t.includes('più veloce del best di')), 'full (tracked): il delta parla');
+  assert.ok(passo('full').some((t) => t.includes('più veloce di') && t.includes('best di sessione')), 'full (tracked): il delta parla e nomina il riferimento');
   /* 31/10 SERA (R5, i falsi 11-14 s): il delta HUD del gioco raffronta col
      best chi vuole lui (stasera il best della Time Attack) — non entra in
      voce nemmeno a full: la norma tracked-only vale al livello più alto. */

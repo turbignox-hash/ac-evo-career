@@ -94,7 +94,7 @@ test('narratore: in pit nessuna frase delta, e all\'uscita non ripete il valore 
     [200000, MMF(200000, { dv: -1600, inPit: false })], // ritmo vero cambiato: parla
   ]);
   const frasi = delte(dette).map((f) => f.it);
-  assert.deepEqual(frasi, ['sei più veloce del best di 1.6'], `frasi delta: ${JSON.stringify(frasi)}`);
+  assert.deepEqual(frasi, ['sei più veloce di 1.6 sul tuo best di sessione'], `frasi delta: ${JSON.stringify(frasi)}`);
   assert.equal(delte(dette)[0].t, 200000, 'la prima frase delta arriva a pista, non dai box');
 });
 
@@ -115,5 +115,5 @@ test('narratore: senza il gate, lo stesso frame in pit avrebbe parlato', () => {
     [60000, MMF(60000, { dv: -500, inPit: false })],
   ]);
   assert.equal(delte(dette).length, 1);
-  assert.match(delte(dette)[0].it, /più veloce del best di 0\.5/);
+  assert.match(delte(dette)[0].it, /più veloce di 0\.5 sul tuo best di sessione/);
 });

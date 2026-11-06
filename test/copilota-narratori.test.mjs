@@ -558,11 +558,11 @@ test("delta di ritmo: finestra ±15 s e cadenza 45 s — niente raffiche (gara 1
   assert.equal(passo(4000, -2400).length, 0, 'prima dei 45 s resta in silenzio');
   const a = passo(46000, -3600);   // cambio bucket + ora > 45 s: finalmente parla
   assert.equal(a.length, 1, 'al primo cambio vero fuori ingresso parla');
-  assert.ok(a[0].it.includes('più veloce del best di 3.6'), `frase corretta: ${a[0].it}`);
+  assert.ok(a[0].it.includes('più veloce di 3.6 sul tuo best di sessione'), `frase corretta: ${a[0].it}`);
   assert.equal(passo(48000, -1200).length, 0, 'a 2 s dal discorso precedente torna in silenzio (minimo 45 s)');
   const b = passo(92000, 4400);    // cambia segno e bucket, oltre i 45 s: parla di nuovo
   assert.equal(b.length, 1, 'secondo discorso legittimo');
-  assert.ok(b[0].it.includes('più lento del best di 4.4'), `frase lato lento: ${b[0].it}`);
+  assert.ok(b[0].it.includes('più lento di 4.4 sul tuo best di sessione'), `frase lato lento: ${b[0].it}`);
   assert.equal(passo(140000, 20000).length, 0, 'a 20 s dal best: oltre la finestra ±15 s tace ANCHE a cadenza libera (48000 > 45000) e NON tocca la memoria');
   const c = passo(190000, -2400);  // bucket -6 diverso dall'ultimo pulito (+11): il rientro legittimo ridice
   assert.equal(c.length, 1, 'la finestra persa non ha toccato la memoria: al rientro la radio ridice');
@@ -586,7 +586,7 @@ test("delta di ritmo: l'HUD non entra in radio, solo il 'tracked' della copilota
   assert.equal(passo(52000, 'tracked', -11400).length, 0, "primo 'tracked': si semina in silenzio, come da repertorio delta");
   const a = passo(61000, 'tracked', -12500);   // bucket −31 ≠ −28, cadenza 9 s… ma slot.at resta 0: oltre i 45 s
   assert.equal(a.length, 1, "'tracked' cambia bucket oltre la cadenza: parla");
-  assert.ok(a[0].it.includes('più veloce del best di 12.5'), `frase con i secondi del best tracciato: ${a[0].it}`);
+  assert.ok(a[0].it.includes('più veloce di 12.5 sul tuo best di sessione'), `frase con i secondi del best tracciato: ${a[0].it}`);
 });
 
 /* 31/10 (DA-9): il narratore «finestra» del piano stint pre-gara. La finestra

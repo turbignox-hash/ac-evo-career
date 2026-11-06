@@ -763,6 +763,21 @@ export class LiveReader {
     this.bestTrack = null;   // la traccia [{x, z, t}] del MIGLIOR giro della sessione
     this.bestLapNo = null;
     this.bestLapMs = null;
+    // VALIDITÀ DEL GIRO A MAGGIORANZA (7/11, «il delta del display non è quello
+    // della copilota»): EVO scrive `isValidLap = false` negli ultimi metri
+    // PRIMA del traguardo — visto su tutti e tre i giri della gara di Donington
+    // del 6/11 (22:54:19, 22:54:50, 22:58:0x: `false` all'ultimo frame, `true`
+    // tre secondi dopo l'inizio del giro nuovo). Leggendo il flag nell'istante
+    // del cambio giro il best non si committava MAI: due giri su tre senza
+    // riferimento tracciato, e la pagina mostrava il delta del gioco mentre la
+    // voce non aveva niente da dire.
+    this.lapValidi = 0;      // campioni del giro in corso con isValidLap true
+    this.lapInvalidi = 0;    // campioni con isValidLap false
+    // CRONOMETRO FERMO (7/11): a gara chiusa `lapMs.current` resta congelato
+    // sull'ultimo giro mentre l'auto rientra, e i campioni nuovi portavano tutti
+    // lo stesso tempo: il delta tracciato usciva a +105 s (i 17 campioni
+    // 'tracked' della gara di Donington sono TUTTI di questo tipo).
+    this.lapTimerFermo = false;
     this._bestPath = null;   // buildPathProg della traccia del best (memo)
     this._deltaCache = null; // segments memo: una chiave = il giro corrente|len traccia
     this._deltaKey = '';
@@ -835,6 +850,9 @@ export class LiveReader {
     this.bestTrack = null;
     this.bestLapNo = null;
     this.bestLapMs = null;
+    this.lapValidi = 0;
+    this.lapInvalidi = 0;
+    this.lapTimerFermo = false;
     this._bestPath = null;
     this._deltaCache = null;
     this._deltaKey = '';
@@ -845,8 +863,16 @@ export class LiveReader {
     const track = this.lapTrack;
     // serve una traccia lunga (min 10 campioni) e un giro completo (≥ 15 s)
     const lapMs = Number(g?.lapMs?.last ?? g?.lastLapMs);
+    /* La validità è quella del GIRO, non dell'istante del traguardo (7/11): il
+       flag di EVO lampeggia `false` negli ultimi metri, quindi si decide a
+       maggioranza sui campioni del giro. Un taglio vero tiene il flag falso per
+       quasi tutto il giro e il giro non diventa riferimento; il lampeggio del
+       traguardo pesa pochi campioni. Senza campioni (chiamata diretta dei test
+       o giro appena nato) vale l'istante, come prima. */
+    const campioni = this.lapValidi + this.lapInvalidi;
+    const giroValido = campioni === 0 ? g?.isValidLap !== false : this.lapValidi >= this.lapInvalidi;
     if (track.length >= 10 && Number.isFinite(lapMs) && lapMs > 15000
-      && g?.isValidLap && (this.bestLapMs == null || lapMs < this.bestLapMs)) {
+      && giroValido && (this.bestLapMs == null || lapMs < this.bestLapMs)) {
       this.bestTrack = track.slice();
       this.bestLapNo = lapNo;
       this.bestLapMs = lapMs;
@@ -869,6 +895,30 @@ export class LiveReader {
       }
     } catch { /* senza percorso il settore non grida: non è un errore */ }
     this.lapTrack = [];              // riparte il campionamento del giro nuovo
+    this.lapValidi = 0;              // la validità riparte col giro nuovo
+    this.lapInvalidi = 0;
+    this.lapTimerFermo = false;
+  }
+
+  /**
+   * Un campione della traccia del giro (uno ogni 25 m). Separato da handle()
+   * perché la regola del CRONOMETRO FERMO si prova senza la shared memory:
+   * se l'auto si è mossa di 25 m ma il tempo del giro non è avanzato, il giro
+   * è finito (o il cronometro è fermo) e un campione in più falserebbe il delta
+   * di tutto il tratto che manca. Si segna `lapTimerFermo` e non si campiona,
+   * finché il tempo non riprende ad avanzare.
+   */
+  _campionaGiro(x, z, lapMs, g) {
+    const kt = this.lapTrack;
+    const lp = kt.length ? kt[kt.length - 1] : null;
+    if (!lp || Math.hypot(x - lp.x, z - lp.z) > 25) {
+      if (lp && !(lapMs > lp.t)) { this.lapTimerFermo = true; return; }
+      kt.push({ x, z, t: lapMs });
+      this.lapTimerFermo = false;
+      // validità del giro: si conta sul campione, non sul frame (un giro che
+      // resta fermo ai box non deve pesare nelle medie della validità).
+      if (g?.isValidLap === true) this.lapValidi += 1; else this.lapInvalidi += 1;
+    }
   }
 
   /** il delta «adesso» + i tagli per fascia (memo: li ricalcola a cambio di giro o di traccia) */
@@ -915,6 +965,16 @@ export class LiveReader {
         hudDv: hud, inPit: true, segments: null,
       };
     }
+    /* cronometro del giro fermo: l'auto si muove ma il tempo non avanza (gara
+       chiusa, giro finito). Il tracciato geometrico non ha più senso — nella
+       gara di Donington dava +105 s — quindi torna la fonte del gioco, e se
+       anche lei tace il numero resta vuoto: meglio nessun delta che uno falso. */
+    if (this.lapTimerFermo) {
+      return {
+        source: 'hud', dv: hud, bestLapMs, bestLapNo: this.bestLapNo ?? null, lapNo,
+        hudDv: hud, lapTimerFermo: true, segments: null,
+      };
+    }
     if (!this.bestTrack || this.bestTrack.length < 4) {
       return { source: 'hud', dv: hud, bestLapMs, bestLapNo: this.bestLapNo ?? null, lapNo };
     }
@@ -950,7 +1010,11 @@ export class LiveReader {
     }
     return {
       source: 'tracked',
-      bestLapMs,
+      // IL RIFERIMENTO È IL NOSTRO GIRO, non quello del gioco (7/11): il numero
+      // qui sotto è calcolato sulla traccia di `bestTrack`, quindi l'etichetta
+      // deve nominare QUELLA scelta (bestLapMs/bestLapNo del lettore). Prima
+      // passava il best del gioco, che può essere un altro giro o restare vuoto.
+      bestLapMs: this.bestLapMs ?? bestLapMs,
       bestLapNo: this.bestLapNo,
       lapNo: this.lapNoSeen ?? null,
       dv: trackedDv,     // ms
@@ -1006,9 +1070,7 @@ export class LiveReader {
       if (Number.isFinite(lapNo)) this.lapNoSeen = lapNo;
       const lapMs = Number(g.lapMs?.current ?? g.currentLapMs);
       if (Number.isFinite(x) && Number.isFinite(z) && Number.isFinite(lapMs) && lapMs > 0 && g.status === 2) {
-        const kt = this.lapTrack;
-        const lp = kt.length ? kt[kt.length - 1] : null;
-        if (!lp || Math.hypot(x - lp.x, z - lp.z) > 25) kt.push({ x, z, t: lapMs });
+        this._campionaGiro(x, z, lapMs, g);
       }
     }
   }

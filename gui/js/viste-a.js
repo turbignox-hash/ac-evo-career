@@ -1221,6 +1221,12 @@ function drawCardInto(el, card){
     } catch { /* la voce non deve mai rompere la vista */ }
   };
   const fmtDelta = (ms) => (ms == null || !Number.isFinite(ms) ? '—' : (ms < 0 ? '−' : '+') + (Math.abs(ms) / 1000).toFixed(2) + ' s');
+  // tempo giro dal vivo (ms → «1:49.371»), per nominare il GIRO di riferimento
+  const fmtLapMs = (ms) => {
+    if (!Number.isFinite(ms) || ms <= 0) return '—';
+    const m = Math.floor(ms / 60000);
+    return `${m}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`;
+  };
   /* la MAPPA «dove perdo tempo»: il contorno del best lap con sopra le fette
      colorate del delta (verde = guadagni, rosso = perdi) e il punto dell'auto */
   const deltaMapSvg = (track, segments, carPos) => {
@@ -1302,11 +1308,26 @@ function drawCardInto(el, card){
       }
       const wearRow = (m.gauges?.wear || []).length === 4 ? `<span class="muted" style="font-size:12.5px">${tr({ it: 'gomme', en: 'tyres' })} LF ${m.gauges.wear[0]}% · RF ${m.gauges.wear[1]}% · LR ${m.gauges.wear[2]}% · RR ${m.gauges.wear[3]}%${m.gauges.temp?.every(v=>v>0)?' · core '+m.gauges.temp.map(v=>v+'°C').join('/'):''}</span>` : '';
       /* --- DELTA DI RITMO: il numero grande che oggi non c'era --- */
+      /* IL RIFERIMENTO SCRITTO ACCANTO AL NUMERO (7/11, Mauro: «non capisco a
+         cosa si riferisce, se best riferito a chi o parziali»). Sono DUE
+         confronti diversi e vanno nominati per quello che sono:
+         - 'tracked' = il nostro, contro il giro migliore che il Pitwall ha
+           tracciato in QUESTA sessione: si dice giro e tempo (dal nostro
+           bestLapMs/bestLapNo), non il «best» del gioco che può essere un
+           altro giro o restare vuoto;
+         - 'hud' = il delta del gioco, il cui riferimento lo decide EVO (nel
+           registro può essere il best di un'altra sessione): niente best
+           nostro in etichetta, che era la bugia che confondeva.
+         Nessuno dei due è un parziale di settore: i parziali stanno nella mappa
+         e nel settore peggiore, non in questo numero. */
       const dv = m.delta?.dv ?? m.delta?.hudDv ?? null;   // ms, con il segno
       const dvCol = dv == null ? 'var(--text)' : dv < 0 ? '#7f7' : '#f66';
+      const bestTracciato = m.delta?.source === 'tracked' && Number.isFinite(m.delta?.bestLapMs)
+        ? `${m.delta?.bestLapNo != null ? tr({ it: 'giro ', en: 'lap ' }) + m.delta.bestLapNo + ' · ' : ''}${fmtLapMs(m.delta.bestLapMs)}`
+        : null;
       const dvSub = m.delta?.source === 'tracked'
-        ? tr({ it: `vs il tuo best della sessione${m.timing?.bestLap ? ' ' + esc(m.timing.bestLap) : ''}`, en: `vs your session best${m.timing?.bestLap ? ' ' + esc(m.timing.bestLap) : ''}` })
-        : tr({ it: "delta HUD del gioco — il tuo best si traccia al primo giro valido", en: "HUD delta — your best gets traced from the first valid lap" });
+        ? tr({ it: `vs il tuo miglior giro di questa sessione${bestTracciato ? ': ' + bestTracciato : ''} — tracciato dal Pitwall`, en: `vs your best lap this session${bestTracciato ? ': ' + bestTracciato : ''} — traced by Pitwall` })
+        : tr({ it: "delta del gioco: il riferimento lo sceglie EVO, non il tuo giro tracciato qui", en: "game delta: EVO picks the reference, not your lap traced here" });
       const dvHtml = `<div style="flex:1;min-width:190px">
           <div style="font-size:40px;font-weight:800;color:${dvCol};line-height:1;letter-spacing:-1px">${esc(fmtDelta(dv))}</div>
           <div class="muted" style="font-size:12.5px;margin-top:3px">${dvSub}</div>

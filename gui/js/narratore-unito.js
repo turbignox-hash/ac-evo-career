@@ -112,9 +112,15 @@ function narratore(m, slot, ora = Date.now()) {
     if (slot.last.dvBucket == null) slot.last.dvBucket = bucket;   // semina senza voce
     else if (bucket !== slot.last.dvBucket && ora - (slot.at ?? 0) > 45000) {
       slot.last.dvBucket = bucket; slot.at = ora;
+      /* LA FRASE DICE IL RIFERIMENTO (7/11, Mauro: «non capisco a cosa si
+         riferisce il suo, se best riferito a chi o parziali»). Il numero viene
+         SOLO da source 'tracked', cioè dalla traccia del giro migliore che il
+         Pitwall ha visto in QUESTA sessione: dirlo a voce toglie l'ambiguità
+         con il delta del gioco (che ha un altro riferimento) e con i parziali
+         di settore, che sono un'altra cosa e non passano da qui. */
       parla.push(dv < 0
-        ? { chi: 'delta', it: `sei più veloce del best di ${(Math.abs(dv) / 1000).toFixed(1)}` }
-        : { chi: 'delta', it: `sei più lento del best di ${(dv / 1000).toFixed(1)}` });
+        ? { chi: 'delta', it: `sei più veloce di ${(Math.abs(dv) / 1000).toFixed(1)} sul tuo best di sessione` }
+        : { chi: 'delta', it: `sei più lento di ${(dv / 1000).toFixed(1)} sul tuo best di sessione` });
     }
   }
   const lapNo = m.delta?.lapNo ?? null;
