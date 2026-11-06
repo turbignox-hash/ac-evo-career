@@ -21,6 +21,10 @@ async function drawDifficulty(m){
     </div>
     ${v.pending ? `<div class="banner ${v.pending.to>=(v.trimRange?.max??20)?'warn':''}">${tr({ it: 'Suggerimento in attesa —', en: 'Pending suggestion —' })} ${esc(v.pendingDisplay)}: ${esc(v.pending.reason)} → trim ${v.pending.to >= 0 ? '+' : ''}${v.pending.to} (${tr({ it: 'passo', en: 'step' })} ${v.pending.to - v.pending.from > 0 ? '+' : ''}${v.pending.to - v.pending.from})${v.pending.to>=(v.trimRange?.max??20)?` (${tr({ it: 'massimo raggiunto', en: 'max reached' })})`:''}
       <button class="mini" id="b-acc">${tr({ it: 'accetta', en: 'accept' })}</button> <button class="mini" id="b-rej">${tr({ it: 'rifiuta', en: 'reject' })}</button></div>` : ''}
+    ${/* 6/11 — otto colonne con due cursori non stanno in 431 px: la tabella delle
+        bande scorre DENTRO la scheda (classe .tscroll) invece di gonfiare la
+        pagina. Il min-width tiene allineate le colonne anche scorrendo. */ ``}
+    <div class="tscroll"><div class="diff-min">
     <div class="diff-row" style="border-bottom:1px solid #1d2430; padding:3px 4px; font-size:11.5px; color:var(--muted,#8b96a8)">
       ${/* LEGGE DELLA BANDA (3/11, richiesta Mauro): visibile ACCANTO ai cursori,
           allineata alla loro colonna: era sepolta nel tooltip del .tripunto.
@@ -52,6 +56,7 @@ async function drawDifficulty(m){
       </span>
     </div>`;}).join('')}
     </div>
+    </div></div>
     <div class="muted" style="margin-top:10px">⚠️ = ${tr({ it: 'trim al massimo (', en: 'trim at the max (' })}${rng.max}): ${tr({ it: 'oltre si va solo cambiando serie. Coi due cursori fai la banda min–max da impostare in EVO', en: 'beyond you only move by changing series. With the two handles you make the min–max band to set in EVO' })} (${sr.min}–${sr.max}), ${tr({ it: 'come nel gioco: si salvano al rilascio (e si scrivono anche nei cursori di EVO); ↺ torna al consiglio calcolato (consiglio e consiglio+1, no fissi). Il consiglio si ferma a 100: se una serie resta facile anche a fondo scala, si cambia serie.', en: 'as in the game: saved on release (and written to the EVO sliders); ↺ goes back to the suggestion (centre and centre+1). The suggestion stops at 100: if a series stays easy even at full scale, change series.' })}</div>
   </div>`;
   $$('button[data-mode]').forEach(b => { b.onclick = async () => {

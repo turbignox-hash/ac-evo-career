@@ -267,11 +267,31 @@ input[type=checkbox]{width:auto; accent-color:var(--acc); cursor:pointer}
 .diff-row .duo input[type=range]:disabled::-webkit-slider-thumb{opacity:.45; cursor:not-allowed}
 .diff-row .rangebox .pair{min-width:52px; text-align:center; font-size:12.5px; color:var(--text,#e6e9ef)}
 .diff-row .rangebox .pair,.diff-row .duo{font-variant-numeric:tabular-nums}
+/* la tabella delle bande (8 colonne + due cursori) scorre dentro la scheda:
+   il min-width tiene le colonne allineate anche quando il contenitore
+   scorre, invece di farle collassare una sull'altra (6/11) */
+.diff-min{min-width:700px}
+
+/* ============ setup: la diagnostica in un pieghevole ============ */
+/* Salute sistema, registro errori e file telemetria erano tre schede lunghe in
+   fondo al Setup: ora stanno in UN solo riquadro chiuso (6/11), col riepilogo
+   nel titolo. Dentro, i vecchi pannelli si appiattiscono: un solo bordo. */
+.diagfold{margin-top:16px;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:12px 16px}
+.diagfold>summary{cursor:pointer;font-size:13px;list-style:none;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.diagfold>summary::-webkit-details-marker{display:none}
+.diagfold>summary::before{content:'▸';color:var(--dim);flex:none}
+.diagfold[open]>summary::before{content:'▾'}
+.diagfold-body .panel{background:none;border:0;border-top:1px solid var(--line);border-radius:0;padding:10px 0 0;margin-top:10px}
 
 /* ============ regole weekend (scheda gara) ============ */
-.rs-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; align-items:end}
+/* 6/11 — la colonna 1fr ha un minimo AUTOMATICO: se dentro c'è una coppia di
+   campi affiancati (banda AI min–max dei Giri liberi) il minimo supera la
+   scheda e la riga sborda di pochi pixel. minmax(0,1fr) + min-width:0
+   lasciano stringere la colonna: sono i campi a scendere a capo. */
+.rs-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 16px; align-items:end}
+.rs-grid>*{min-width:0}
 .rs-grid .field{margin-bottom:0}
-@media(max-width:700px){.rs-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.rs-grid{grid-template-columns:minmax(0,1fr)}}
 
 /* ============ grafico punti ============ */
 .barchart{display:flex; align-items:flex-end; gap:6px; height:48px; margin-top:6px}
@@ -573,4 +593,70 @@ a.kofi-chip{white-space:nowrap}
   .hstats::-webkit-scrollbar{display:none}
   .hstat{flex:0 0 auto; padding:0 10px}
   .idblock .nm{max-width:170px}
+}
+
+/* ============ 6/11 — telefono: tabelle dentro la scheda ============ */
+/* Le tabelle larghe (Setup, Rivali, Piste, Archivio, Online, Griglia) sono
+   avvolte da render() in un .tscroll quando sbordano: il contenitore scorre
+   da solo e la pagina resta larga quanto lo schermo. Un velo di bordo dice che
+   c'è dell'altro a destra, invece di tagliare le colonne in silenzio. */
+.tscroll{overflow-x:auto; overflow-y:hidden; max-width:100%; scrollbar-width:thin}
+.tscroll>table{margin-bottom:0}
+@media(max-width:920px){
+  .tscroll{border-right:1px solid var(--line2); border-radius:6px}
+  /* i campi con larghezza fissa (selettori Setup, filtri Griglia) non devono
+     spingere la scheda oltre lo schermo: si fermano alla colonna */
+  #main :is(select,input[type=text],input[type=number]){max-width:100%}
+  nav#nav{scroll-snap-type:x proximity}
+  nav#nav button{scroll-snap-align:center}
+  /* le intestazioni di gruppo sono utili in colonna, rumore in una striscia */
+  nav#nav div.nav-grp{display:none}
+}
+@media(max-width:700px){
+  /* su telefono il marchio è già nei dati del pilota in testa: la striscia dei
+     menu guadagna l'altezza che le serve per restare leggibile */
+  #side .brand{padding:10px 12px 8px}
+  #side .brand .t span{display:none}
+  main{padding:12px 12px 70px}
+  .panel{padding:14px 14px}
+  /* le chip sono nowrap per scelta (su desktop restano su una riga): su un
+     telefono da 300 px una chip lunga («meteo allineato» nella Griglia)
+     spingeva la riga fuori schermo. Qui può andare a capo DENTRO la chip. */
+  #main .tag{white-space:normal; overflow-wrap:anywhere; max-width:100%}
+  /* l'intestazione su 300 px: la riga del pilota non deve allargare la pagina,
+     la sottoscrizione va in ellissi dentro il suo spazio */
+  .idblock{min-width:0; flex:1 1 auto}
+  .idblock .sub{max-width:100%; overflow:hidden; text-overflow:ellipsis}
+  .idblock>div{min-width:0}
+  /* i titoli delle schede sono righe flex con una coda descrittiva: su 300 px
+     la coda va a capo invece di allargare la pagina (Griglia, «79 gare nel
+     registro» spinse il documento oltre lo schermo) */
+  #main .panel h2{flex-wrap:wrap}
+  #main .panel h2>*{min-width:0; max-width:100%}
+  /* riga di controllo del grafico (Setup): le etichette portano selettori con
+     larghezza fissa (300 px per la sessione) — si stringono alla colonna */
+  #main .lc-controls label{min-width:0}
+  #main .lc-controls select{max-width:100%}
+  /* griglie a colonne «comode» (schede gara 300 px, trofei 280, serie 250):
+     sotto i 700 px la colonna minima non ci sta e allarga la pagina — una
+     colonna sola, che si stringe quanto serve */
+  .ag-grid,.st-trophies,.champ-grid{grid-template-columns:minmax(0,1fr)}
+  /* la scheda gara: nome (ellissi) e orario sulla stessa riga non stanno in
+     279 px se il nome non può stringere — min-width:0 glielo consente e
+     l'orario scende a capo quando serve */
+  .ag-card{min-width:0}
+  .ag-top{flex-wrap:wrap}
+  .ag-nome{min-width:0}
+  /* i consigli del meccanico hanno la leva a larghezza fissa (130 px) accanto
+     al testo: su 240 px non ci stanno sulla stessa riga — il testo va sotto */
+  .mech-advice{flex-wrap:wrap}
+  .mech-advice>*{min-width:0}
+  .mech-advice .go{margin-left:auto}
+  /* righe «inline» che su desktop restano su una linea: conflitti di orario
+     (testo + «sposta»), titolo delle gare e registro rivali (nome largo 160 px
+     + esito). Sotto i 700 px si spezzano invece di allargare la pagina. */
+  .conf-item{flex-wrap:wrap; max-width:100%}
+  .gare-title{flex-wrap:wrap; min-width:0; letter-spacing:1.4px}
+  .rivalrow{flex-wrap:wrap}
+  .rivalrow b{min-width:0}
 }

@@ -35,7 +35,11 @@
         </div>
       </div>
       <div class="hstats hidden" id="hstats">
-        <div class="hstat"><span class="l">Data</span><span class="v" id="t-date" title="la data di gioco della carriera (calendario continuo: avanza a ogni gara)">–</span></div>
+        <!-- 6/11 — DUE OROLOGI, DUE NOMI (richiesta Mauro): questa è la data del
+             CALENDARIO della carriera (parte dal 13 apr 2025 e avanza a ogni
+             gara); le date di telemetria, sessioni e registro errori sono
+             l'ora reale del PC. Il nome lo dice, non solo il tooltip. -->
+        <div class="hstat"><span class="l">Data carriera</span><span class="v" id="t-date" title="data del calendario di carriera (continua: avanza a ogni gara, parte dal 13 apr 2025). Le date di telemetria e registro errori sono invece l'ora reale del PC.">–</span></div>
         <div class="hstat"><span class="l">Finanze</span><span class="v money" id="t-money">–</span></div>
         <div class="hstat"><span class="l">Reputazione</span><span class="v rep" id="t-rep">–</span></div>
         <div class="hstat" id="hstat-level" style="display:none;cursor:pointer"><span class="l">Livello</span><span class="v" id="t-level" style="font-size:12.5px;font-weight:700"></span></div>

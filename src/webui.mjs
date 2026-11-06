@@ -3176,7 +3176,11 @@ async function api(context0, _req, res, action, body) {
             const datiVivi = vivoDaSnapshot(liveReader().snapshot({ raw: true }));
             if (datiVivi) vivo = { ...datiVivi, consigli: consigliVivo(datiVivi) };
           } catch { /* il meccanico lavora anche senza il gioco acceso */ }
-          return sendJson(res, 200, { ok: true, car: carName, track: trackDisplay, sessFile, tipo: adv.tipo, densita: adv.densita, consigli, storie, allievo, vivo, prova, bestLap: bestLap != null ? Math.round(bestLap * 1000) / 1000 : null, hasTelem: !!telem });
+          /* trackPretty (6/11): la GUI mostrava il TOKEN del file («Laguna
+             SecaGP», «ImolaGP») accanto a «setup consigliato per». track resta
+             la chiave dei filtri e dei nomi dei file; trackPretty è come si
+             legge la pista (TRACK_INFO, la stessa anagrafica dei consigli). */
+          return sendJson(res, 200, { ok: true, car: carName, track: trackDisplay, trackPretty: TRACK?.name ?? trackDisplay, sessFile, tipo: adv.tipo, densita: adv.densita, consigli, storie, allievo, vivo, prova, bestLap: bestLap != null ? Math.round(bestLap * 1000) / 1000 : null, hasTelem: !!telem });
         }
         if (body.action === 'stinti') {
           // analisi dei stint dalla telemetria REALE: blocco dei rifornimenti,
@@ -3233,7 +3237,11 @@ async function api(context0, _req, res, action, body) {
           const allSessions = listMotecSessions(root, { car: carName, afterMs: state.createdAt ?? 0 }).slice(0, 30).map((s) => {
             let lapsN = 0;
             try { lapsN = (analyzeLd(s.file)?.validLaps) ?? 0; } catch { lapsN = 0; }
-            return { file: s.name, track: s.track, when: new Date(s.mtime).toLocaleString('it-IT'), validLaps: lapsN };
+            /* trackPretty (6/11): la GUI ricostruisce il selettore sessioni da
+               QUESTA lista a ogni ridisegno del grafico (__lcDraw), quindi
+               senza il nome bello tornava il token del file («Laguna SecaGP»)
+               anche dopo averlo corretto nel template. */
+            return { file: s.name, track: s.track, trackPretty: prettyTrackLabeled(ladder, s.track) ?? s.track, when: new Date(s.mtime).toLocaleString('it-IT'), validLaps: lapsN };
           });
           return sendJson(res, 200, {
             file: pick.name, car: pick.car, track: pick.track,

@@ -149,11 +149,11 @@ async function drawGridTab(m){
           ${cl.tintePrestate === true ? `<span class="tag" style="border-color:#d9a83e">${tr({ it: 'tinte prestate (parco)', en: 'borrowed liveries (park)' })}</span>` : ''}
           ${(cl.convalidatoSu || []).length ? ` · ${tr({ it: 'su ', en: 'on ' })}${esc(cl.convalidatoSu.join(', '))}: ${badgeOk}` : ''}</summary>
         <div class="row" style="align-items:start;gap:14px;margin-top:10px;flex-wrap:wrap">
-          <div style="flex:1;min-width:280px">
+          <div style="flex:1 1 280px;min-width:0">
             <div class="muted" style="margin-bottom:4px">${tr({ it: 'Regole base', en: 'Base rules' })}${cl.autoBase ? ` — ${tr({ it: 'base: ', en: 'base: ' })}<b>${esc(legacyIt(cl.autoBase))}</b>` : ''}</div>
             <table><tbody>${cl.regole.map((r) => `<tr><td><span class="car-link" data-car="${esc(r.auto)}" style="cursor:pointer;text-decoration:underline dotted">${esc(r.auto)}</span></td><td class="muted" style="font-size:11.5px">${esc(r.preset ?? '')}</td><td class="right">${r.kg}kg / ${pct(r.pct)}</td><td>${r.escluso ? `<span class="tag red">${tr({ it: 'esclusa', en: 'excluded' })}</span>` : ''}</td></tr>`).join('')}</tbody></table>
           </div>
-          <div style="flex:1;min-width:280px">
+          <div style="flex:1 1 280px;min-width:0">
             <div class="muted" style="margin-bottom:4px">${tr({ it: 'Supplementi per-traccia', en: 'Per-track supplements' })}</div>
             ${cl.perTraccia.length ? cl.perTraccia.map((pt) => `
               <div style="margin-bottom:8px;padding:8px;border-left:3px solid var(--line,#333)">

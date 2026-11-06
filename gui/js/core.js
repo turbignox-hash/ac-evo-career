@@ -418,6 +418,12 @@ function drawNav(){
     `<button id="b-aiuto" title="${tr({ it: 'Che fa ogni menu', en: 'What each menu does' })}" style="margin-top:auto;border-top:1px solid var(--line,#283046)">❓ ${tr({ it: 'Aiuto', en: 'Help' })}</button>`;
   $('#b-aiuto')?.addEventListener('click', drawAiuto);
   $$('#nav button[data-tab]').forEach(b => { b.onclick = () => { tab = b.dataset.tab; drawNav(); render(); }; });
+  /* 6/11 — telefono: la nav è una striscia che scorre e con 19 voci la scheda
+     aperta può restare fuori vista. La si riporta al centro da soli, così il
+     menu dice sempre dove sei. Solo su schermo stretto (dove scorre davvero). */
+  if (window.matchMedia?.('(max-width:920px)').matches) {
+    $('#nav button.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }
 }
 
 /* Cambio pagina con PARAMETRI (28/10, stile Football Manager su richiesta Mauro:
@@ -517,8 +523,63 @@ async function render(){
     // NON deve proprio mostrare un posto in meno di println. Né con banner.
     if (e?.ritardoRender) return;
     window.__renderErr = e.stack ?? String(e); m.innerHTML = `<div class="panel"><div class="banner bad">${esc(e.message)}</div></div>`;
+  } finally {
+    /* 6/11 — IL CONTENIMENTO DELLE TABELLE (richiesta Mauro: «a 431 px Setup
+       arriva a 955 px»): una tabella più larga della scheda non deve gonfiare
+       la PAGINA — la si chiude in un .tscroll che scorre da solo. È lo stesso
+       gesto già usato a mano in Statistiche e Analisi, ora applicato a ogni
+       vista: su schermo largo nessuna tabella sborda, quindi nessun wrapper
+       (misure identiche a prima). */
+    if (gen === window.__renderGen) wrapTabelleLarghe();
   }
 }
+
+/* Avvolge in .tscroll SOLO le tabelle che sbordano davvero dal loro
+   contenitore. Le tabelle già dentro a un .tscroll si saltano (nessun doppio
+   strato) e così i pannelli che le costruivano a mano restano come sono. */
+function wrapTabelleLarghe(){
+  const m = document.getElementById('main');
+  if (!m) return;
+  for (const t of m.querySelectorAll('table')) {
+    const p = t.parentElement;
+    if (!p || p.classList?.contains('tscroll')) continue;
+    if (p.closest?.('.tscroll')) continue;
+    if (t.scrollWidth <= p.clientWidth + 2) continue;
+    const w = document.createElement('div');
+    w.className = 'tscroll';
+    p.insertBefore(w, t);
+    w.appendChild(t);
+  }
+}
+
+/* Le tabelle dentro a un pieghevole CHIUSO non hanno misure (display:none): la
+   prima misura utile arriva all'apertura. Un solo ascoltatore in cattura
+   (l'evento toggle non risale) le contiene appena diventano visibili. */
+document.addEventListener('toggle', (e) => {
+  // il toggle arriva PRIMA che il contenuto appena aperto sia impaginato: se
+  // si misurano le tabelle in quel momento risultano larghe zero e restano
+  // scoperte. Un frame dopo hanno le loro misure vere (6/11, la diagnostica
+  // del Setup: aperta su telefono allargava la pagina a 946 px).
+  if (e.target?.tagName === 'DETAILS' && e.target.open) {
+    requestAnimationFrame(() => { try { wrapTabelleLarghe(); } catch { /* un bordo non rompe la vista */ } });
+  }
+}, true);
+
+/* Le viste riempiono alcuni riquadri DOPO il primo disegno (il verdetto del
+   Cruscotto arriva da un'altra lettura): quelle tabelle nascevano dopo il
+   passaggio di render() e restavano scoperte. Un osservatore sul contenuto
+   chiude il cerchio una volta sola per frame (l'avvolgimento è idempotente:
+   una tabella già in .tscroll viene saltata, quindi non si innesca un ciclo). */
+(function osservaTabelle(){
+  const m = document.getElementById('main');
+  if (!m || typeof MutationObserver === 'undefined') return;
+  let attesa = false;
+  new MutationObserver(() => {
+    if (attesa) return;
+    attesa = true;
+    requestAnimationFrame(() => { attesa = false; try { wrapTabelleLarghe(); } catch { /* mai rompere una vista per un bordo */ } });
+  }).observe(m, { childList: true, subtree: true });
+})();
 
 function paintHeader(h){
   $('#idblock').classList.remove('hidden');

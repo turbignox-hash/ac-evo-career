@@ -1,5 +1,14 @@
 # CHANGELOG — EVO Pitwall (ac-evo-career)
 
+## v0.1.66 — 6/11/2026
+
+- **La GUI sta nello schermo del telefono** (richiesta Mauro: «a 431 px Setup arriva a 955 px»): le tabelle che sbordano dalla scheda finiscono in un contenitore che scorre da solo (`.tscroll`), creato a runtime solo quando serve — su desktop non cambia nulla. Corrette anche le cause che non erano tabelle: la griglia a 8 colonne della Difficoltà, le colonne `1fr` con minimo automatico che allargavano i Giri liberi, i campi con `min-width` fissa, le chip `nowrap`, la scheda gara (300 px) e il titolo accanto alla coda descrittiva. Misurato tab per tab: 19 viste su 19 senza sbordatura a 431, 414 e 320 px di finestra; il guard di layout (21 tab × 6 larghezze) resta verde.
+- **Navigazione da telefono più immediata**: la striscia orizzontale nasconde le intestazioni di gruppo (rumore in una riga) e riporta da sola al centro la voce della pagina aperta; le voci hanno lo snap di scorrimento.
+- **Scheda Setup più leggera**: salute sistema, registro errori e diagnostica telemetria escono dalle schede quotidiane e diventano UN pieghevole chiuso in fondo («🩺 Diagnostica strumenti — lettore live fermo · 459 errori registrati · 26 auto con file .ld — date e orari qui sono quelli reali del PC»). Lo stato aperto resta anche dopo il ridisegno automatico. L'altezza della pagina scende da 3.538 a 3.178 px (diagnostica chiusa).
+- **Due orologi, due nomi**: l'intestazione dice «Data carriera» (calendario che parte dal 13 apr 2025 e avanza a ogni gara) e il tooltip spiega che le date di telemetria, sessioni e registro errori sono l'ora reale del PC — che nella diagnostica è dichiarato anche a schermo.
+- **Stringhe della scheda Setup**: «tracciato bilanciata» → «tracciato bilanciato» (il carattere della pista è un codice, non un aggettivo: power/tecnico/bilanciato/sconosciuto), «telemetria veri» → «telemetria reale», e «Laguna SecaGP» → «Laguna Seca»: il selettore sessioni mostra il nome bello e tiene il token del file in `data-track` per i filtri. La lista delle sessioni del grafico (`laptrace`) ora porta `trackPretty`, quindi il nome non torna più grezzo a ogni ridisegno.
+- Verifiche: guard di layout 21 tab × 6 larghezze verde; misura del documento tab per tab a 431/414/320 px (19 su 19 dentro lo schermo); test dei nomi puliti 8/8; Biome pulito su 408 file. Il ciclo Live resta verificato a gioco CHIUSO (il lettore PowerShell non è partito, il polling risponde): nessuna sessione in pista con EVO aperto.
+
 ## v0.1.65 — 6/11/2026
 
 - **Riparato il doppio click «Carriera EVO»**: in VBScript il nome non distingue maiuscole, quindi la variabile locale `wscript` oscurava l'oggetto globale `WScript`; `WScript.ScriptFullName` falliva con «Necessario oggetto» prima di avviare il launcher. Ora l'eseguibile ha il nome `wshExe`.

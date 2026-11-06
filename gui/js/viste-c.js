@@ -6,6 +6,18 @@ function driveLabel(d) {
   const map = { anteriore: { it: 'anteriore', en: 'front' }, posteriore: { it: 'posteriore', en: 'rear' }, integrale: { it: 'integrale', en: 'AWD' } };
   return map[s] ? tr(map[s]) : (d ?? '');
 }
+/* Il carattere della pista (src/setup.mjs: power/tecnica/bilanciata/
+   sconosciuta) è un CODICE, non un aggettivo: accanto a «tracciato» va
+   concordato al maschile, altrimenti si legge «tracciato bilanciata» (6/11). */
+function tipoTracciatoLabel(t) {
+  const map = {
+    power: { it: 'power', en: 'power' },
+    tecnica: { it: 'tecnico', en: 'technical' },
+    bilanciata: { it: 'bilanciato', en: 'balanced' },
+    sconosciuta: { it: 'sconosciuto', en: 'unknown' },
+  };
+  return tr(map[String(t ?? '').trim().toLowerCase()] ?? { it: 'sconosciuto', en: 'unknown' });
+}
 async function drawImport(m){
   const [insp, card] = await Promise.all([api('import-inspect'), api('card')]);
   const pending = boot.header.pending;
@@ -610,7 +622,10 @@ async function drawSetup(m){
     <div class="lc-controls row" style="gap:10px;flex-wrap:wrap;align-items:center">
       <label class="muted">${tr({ it: 'Auto', en: 'Car' })}<br><select id="lc-f-car" style="width:190px"><option value="">${tr({ it: 'tutte le auto…', en: 'all cars…' })}</option></select></label>
       <label class="muted">${tr({ it: 'Pista', en: 'Track' })}<br><select id="lc-f-track" style="width:190px"><option value="">${tr({ it: 'tutte le piste…', en: 'all tracks…' })}</option></select></label>
-      <label class="muted">${tr({ it: 'Sessione', en: 'Session' })}<br><select id="lc-session" style="width:300px">${list.map((x) => `<option value="${esc(x.file)}" data-car="${esc(x.car ?? '')}" data-track="${esc(x.track ?? '')}" data-when="${esc(x.whenLocal ?? x.when ?? '')}" ${x.file === s.file ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.car ?? '')} · ${esc(x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('') || `<option value="">(${tr({ it: 'nessuna', en: 'none' })})</option>`}</select></label>
+      ${/* il selettore mostra il NOME BELLO della pista (trackPretty, lo stesso
+          che il filtro usa già al refresh): il token del file (es.
+          «Laguna SecaGP») resta in data-track perché è la chiave dei filtri. */ ``}
+      <label class="muted">${tr({ it: 'Sessione', en: 'Session' })}<br><select id="lc-session" style="width:300px">${list.map((x) => `<option value="${esc(x.file)}" data-car="${esc(x.car ?? '')}" data-track="${esc(x.track ?? '')}" data-when="${esc(x.whenLocal ?? x.when ?? '')}" ${x.file === s.file ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.car ?? '')} · ${esc(x.trackPretty ?? x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('') || `<option value="">(${tr({ it: 'nessuna', en: 'none' })})</option>`}</select></label>
       <label class="muted">${tr({ it: 'Giro', en: 'Lap' })}<br><select id="lc-lap" style="width:170px">${(() => { const vl = (s.laps ?? []).filter(l => l.durationSec > 15); const best = vl.length ? vl.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), vl[0]) : null; return vl.map(l => `<option value="${l.lap}" ${best && l.lap === best.lap ? 'selected' : ''}>${tr({ it: 'giro ', en: 'lap ' })}${l.lap} — ${(l.durationSec).toFixed(1)}s</option>`).join(''); })()}</select></label>
       <label class="muted">${tr({ it: 'Confronto', en: 'Compare' })}<br><select id="lc-cmp" style="width:190px"><option value="best">${tr({ it: 'miglior altro giro', en: 'best other lap' })}</option>${(() => { const vl = (s.laps ?? []).filter(l => l.durationSec > 15); const best = vl.length ? vl.reduce((b, l) => (l.durationSec < b.durationSec ? l : b), vl[0]) : null; return vl.filter(l => !best || l.lap !== best.lap).map(l => `<option value="${l.lap}">${tr({ it: 'giro ', en: 'lap ' })}${l.lap} — ${(l.durationSec).toFixed(1)}s</option>`).join(''); })()}</select></label>
       <button class="act" id="lc-go" type="button">🔄 ${tr({ it: 'Ridisegna', en: 'Redraw' })}</button>
@@ -893,7 +908,7 @@ async function drawSetup(m){
       const opts = (r.bridgeOptions ?? (r.bridgeSrcFile ? [{ name: '', track: '', file: r.bridgeSrcFile }] : []));
       const btn = r.bridgeAvailable && opts.length
         ? `<div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap">
-            ${opts.length > 1 ? `<select id="bridge-src" style="flex:1;min-width:240px;max-width:360px" title="${tr({ it: 'quale setup base pontare su questa pista', en: 'which base setup to bridge to this track' })}">${opts.map((o) => `<option value="${esc(o.file)}">${esc((o.track ? o.track + ' · ' : '') + o.name)}</option>`).join('')}</select>` : ''}
+            ${opts.length > 1 ? `<select id="bridge-src" style="flex:1 1 240px;min-width:0;max-width:360px" title="${tr({ it: 'quale setup base pontare su questa pista', en: 'which base setup to bridge to this track' })}">${opts.map((o) => `<option value="${esc(o.file)}">${esc((o.track ? o.track + ' · ' : '') + o.name)}</option>`).join('')}</select>` : ''}
             <button class="act" id="b-bridge-setup" type="button" data-src="${esc(r.bridgeSrcFile ?? opts[0].file)}">🌉 ${tr({ it: 'PONTALO QUI: portami il tuo setup di un’altra pista su questa', en: 'BRIDGE IT HERE: bring your setup from another track over' })}</button>
           </div>`
         : '';
@@ -1058,7 +1073,10 @@ async function drawSetup(m){
     const ft = document.querySelector('#lc-f-track')?.value ?? '';
     const prima = sessSel.value;
     const vis = (window.__lcSessions ?? []).filter((x) => (!fc || String(x.car ?? '') === fc) && (!ft || String(x.track ?? '') === ft));
-    sessSel.innerHTML = vis.map((x) => `<option value="${esc(x.file)}" data-car="${esc(x.car ?? '')}" data-track="${esc(x.track ?? '')}" data-when="${esc(x.whenLocal ?? x.when ?? '')}" ${x.file === prima ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.car ?? '')} · ${esc(x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('') || `<option value="">(${tr({ it: 'nessuna con questi filtri', en: 'none with these filters' })})</option>`;
+    /* il nome BELLO della pista anche qui (6/11): è __lcFill a ricostruire il
+       menu a ogni avvio e a ogni cambio di filtro, quindi era lui a rimettere
+       il token del file («Laguna SecaGP») al posto di «Laguna Seca». */
+    sessSel.innerHTML = vis.map((x) => `<option value="${esc(x.file)}" data-car="${esc(x.car ?? '')}" data-track="${esc(x.track ?? '')}" data-when="${esc(x.whenLocal ?? x.when ?? '')}" ${x.file === prima ? 'selected' : ''}>${esc(x.whenLocal ?? x.when ?? '')} · ${esc(x.car ?? '')} · ${esc(x.trackPretty ?? x.track ?? '')} · ${x.validLaps ?? '?'} ${tr({ it: 'giri', en: 'laps' })}</option>`).join('') || `<option value="">(${tr({ it: 'nessuna con questi filtri', en: 'none with these filters' })})</option>`;
   };
   if (list.length) {
     for (const [id, key] of [['#lc-f-car', 'car'], ['#lc-f-track', 'track']]) {
@@ -1254,7 +1272,7 @@ async function drawSetup(m){
         }
       };
       out.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 10px;background:#0d1118">
-        <div style="font-size:12px;margin-bottom:6px"><b>🔧 ${tr({ it: 'Il meccanico', en: 'The mechanic' })}</b> — ${tr({ it: 'setup consigliato per ', en: 'advised setup for ' })}<b>${esc(m.track ?? '')}</b> <span class="muted" style="font-size:11.5px">· ${tr({ it: 'tracciato ', en: 'track type ' })}${esc(m.tipo ?? '?')}${m.densita ? ` · ${m.densita} ${tr({ it: 'curve/km', en: 'corners/km' })}` : ''}${m.sessFile ? tr({ it: ' · correzione su telemetria veri', en: ' · corrected on real telemetry' }) : tr({ it: ' · senza telemetria (solo pista)', en: ' · no telemetry (track profile only)' })}</span></div>
+        <div style="font-size:12px;margin-bottom:6px"><b>🔧 ${tr({ it: 'Il meccanico', en: 'The mechanic' })}</b> — ${tr({ it: 'setup consigliato per ', en: 'advised setup for ' })}<b>${esc(m.trackPretty ?? m.track ?? '')}</b> <span class="muted" style="font-size:11.5px">· ${tr({ it: 'tracciato ', en: 'track type ' })}${esc(tipoTracciatoLabel(m.tipo))}${m.densita ? ` · ${m.densita} ${tr({ it: 'curve/km', en: 'corners/km' })}` : ''}${m.sessFile ? tr({ it: ' · correzione su telemetria reale', en: ' · corrected on real telemetry' }) : tr({ it: ' · senza telemetria (solo pista)', en: ' · no telemetry (track profile only)' })}</span></div>
         ${rows || `<div class="muted" style="font-size:12px">${tr({ it: 'Nessun consiglio per questa pista: anagrafica non disponibile.', en: 'No advice for this track: profile not available.' })}</div>`}
         ${vivoHtml}${dialogoHtml}${provaHtml}${storiaHtml}
       </div>`;
@@ -1382,7 +1400,7 @@ async function drawSetup(m){
     : tr({ it: `Mostrati solo i file nati con QUESTA carriera${diag.sinceLocal ? ` (dal ${diag.sinceLocal})` : ''}: MoTec è una cartella condivisa per PC.`, en: `Showing only files born with THIS career${diag.sinceLocal ? ` (since ${diag.sinceLocal})` : ''}: MoTec is a PC-wide shared folder.` })
   ) + `<button class="mini" id="b-diag-all" style="margin-left:6px">${diag.all ? tr({ it: 'Solo carriera', en: 'Career only' }) : tr({ it: 'Mostra tutto il PC', en: 'Show the whole PC' })}</button>`;
   const diagHtml = (diag.cars ?? []).length ? `<div class="panel" style="margin-top:14px" id="telem-diag">
-    <h2>Diagnostica telemetria <span class="h-act">i file .ld che EVO scrive in Saved Games\\ACE\\MoTec</span></h2>
+    <h2>Diagnostica telemetria <span class="h-act">i file .ld che EVO scrive in Saved Games\\ACE\\MoTec · orari in ora reale</span></h2>
     <div class="muted" style="font-size:11.5px;margin:0 0 8px">${diagScope}</div>
     ${anyEmpty ? `<div class="banner warn" style="margin-bottom:8px">${tr({ it: 'Ci sono file vuoti (solo intestazione, 0 canali con dati): la telemetria non era attiva in EVO — si attiva in Setup → Elettronica (e i giri si impostano PRIMA di avviare la sessione). Riusa la sessione e i file conterranno dati veri. Finché così non fosse, i consigli del BOX su quelle auto usano la stima.', en: 'There are empty files (header only, 0 channels with data): telemetry was NOT active in EVO — turn it on in Setup → Electronics (and set laps BEFORE starting the session). Reuse the session and the files will hold real data. Until then, the BOX uses estimates for those cars.' })}</div>` : `<div class="banner good" style="margin-bottom:8px">${tr({ it: 'Tutti gli ultimi file hanno dati: la telemetria sta funzionando.', en: 'All recent files have data: telemetry is working.' })}</div>`}
     ${diagRows}
@@ -1414,7 +1432,7 @@ async function drawSetup(m){
   }
   healthHtml += '</div>';
 
-  let warnsHtml = `<div class="panel" style="margin-top:14px" id="warnings-panel"><h2>${tr({ it: 'Registro errori', en: 'Error log' })} <span class="h-act">${tr({ it: 'ultimi problemi degli strumenti (data/errors.jsonl)', en: 'latest tool problems (data/errors.jsonl)' })}</span></h2>`;
+  let warnsHtml = `<div class="panel" style="margin-top:14px" id="warnings-panel"><h2>${tr({ it: 'Registro errori', en: 'Error log' })} <span class="h-act">${tr({ it: 'ultimi problemi degli strumenti, con data e ora reali (data/errors.jsonl)', en: 'latest tool problems, with real date and time (data/errors.jsonl)' })}</span></h2>`;
   const mods = warns.modules ?? [];
   if (!mods.length) {
     warnsHtml += `<div class="banner good">${tr({ it: 'Nessun errore registrato: gli strumenti lavorano puliti.', en: 'No errors recorded: the tools are running clean.' })}</div>`;
@@ -1425,7 +1443,26 @@ async function drawSetup(m){
   /* ORDINE (4/11): prima i due riquadri brevi (salute, registro errori), poi
      la diagnostica telemetria — la più lunga, con decine di riquadri: in mezzo
      spingeva gli altri due a oltre 5.500 px. */
-  m.innerHTML += healthHtml + warnsHtml + diagHtml;
+  /* 6/11 — LA SCHEDA SETUP SI ALLEGGERISCE (richiesta Mauro): salute sistema,
+     registro errori e diagnostica telemetria sono controlli, non cose da
+     guardare a ogni giro. Stanno tutti in UN pieghevole CHIUSO con un
+     riepilogo che dice comunque a colpo d'occhio se c'è qualcosa da vedere.
+     Lo stato aperto/chiuso sopravvive al ridisegno automatico della vista. */
+  const erroriN = warns.total ?? (warns.modules ?? []).reduce((a, md) => a + (md.count ?? 0), 0);
+  const liveOk = health?.reader?.ps1Exists ? (health.reader.alive ? tr({ it: 'lettore live attivo', en: 'live reader active' }) : tr({ it: 'lettore live fermo', en: 'live reader idle' })) : tr({ it: 'script live mancante', en: 'live script missing' });
+  const nAuto = (diag.cars ?? []).length;
+  const diagRiepilogo = [
+    liveOk,
+    tr({ it: `${erroriN} errori registrati`, en: `${erroriN} errors logged` }),
+    nAuto ? tr({ it: `${nAuto} auto con file .ld`, en: `${nAuto} cars with .ld files` }) : tr({ it: 'nessun file .ld', en: 'no .ld file' }),
+  ].join(' · ');
+  m.innerHTML += `<details class="diagfold" id="setup-diag" ${window.__setupDiagOpen ? 'open' : ''}>
+    <summary>🩺 <b>${tr({ it: 'Diagnostica strumenti', en: 'Tool diagnostics' })}</b>
+      <span class="muted" style="font-size:11.5px">— ${esc(diagRiepilogo)} · ${tr({ it: 'date e orari qui sono quelli reali del PC', en: 'dates and times here are the PC real clock' })}</span></summary>
+    <div class="diagfold-body">${healthHtml}${warnsHtml}${diagHtml}</div>
+  </details>`;
+  const foldDiag = $('#setup-diag');
+  if (foldDiag) foldDiag.addEventListener('toggle', () => { window.__setupDiagOpen = foldDiag.open; });
   const bDiagAll = $('#b-diag-all');
   if (bDiagAll) bDiagAll.onclick = () => { window.__diagAllMoTec = !window.__diagAllMoTec; render(); };
 
