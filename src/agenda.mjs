@@ -290,12 +290,20 @@ export function racesOnDay(ladder, state, d) {
     // sfasano fra loro e i buchi tornano veri (verificato sulle serie reali).
     const cycle = len * cadenza;
     const r1Day = (seriesCounter * (509 + cadenza * 297)) % cycle + 1;      // diffuse per gruppo di cadenza
-    const sinceR1 = ((d - r1Day) % cycle + cycle) % cycle;   // giorni passati dall'ultimo R1
+    if (d < r1Day) continue;                                 // prima del primo R1: niente
+    const sinceR1 = d - r1Day;                               // giorni passati dal primo R1
     if (sinceR1 % cadenza !== 0) continue;
     const k = sinceR1 / cadenza;
     const index = k % len;
-    const season = (state.season ?? 1) + Math.floor((k + ((d >= r1Day ? 0 : 0))) / len);
-    if (d < r1Day && sinceR1 !== 0) continue;               // prima del primo R1: niente
+    /* STAGIONE (6/11): ogni giro COMPLETO del ciclo è una stagione in più.
+       Il riferimento è il ciclo che contiene OGGI: la serie corre la TUA
+       stagione adesso, e le ronde proiettate oltre il confine sono la
+       stagione successiva. Prima la formula era `Math.floor((k + 0)/len)` e
+       k vale sempre 0…len−1, quindi la stagione non cambiava MAI: tutte le
+       gare procedurali dicevano la stagione del pilota, per sempre. */
+    const stagioneBase = state.season ?? 1;
+    const cicloOggi = Math.max(0, Math.floor((agendaDay(state) - r1Day) / cycle));
+    const season = Math.max(stagioneBase, stagioneBase + Math.floor(sinceR1 / cycle) - cicloOggi);
     const round = node.calendar[index];
     const names = ladder.contentNames?.tracks ?? {};
     const gate = gateStatus(ladder, state, node);
