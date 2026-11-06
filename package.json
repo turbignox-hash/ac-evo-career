@@ -14,6 +14,7 @@
     "registra-live": "node tools/registra-live.mjs",
     "sonda-menu": "node tools/sonda-menu.mjs",
     "magazzino": "node tools/magazzino-check.mjs",
+    "verifica-delta-box": "node tools/verifica-delta-box.mjs",
     "bump": "node tools/bump-versione.mjs",
     "lint": "biome lint src tools test gui/js uiapp ac-evo-career.mjs --error-on-warnings",
     "check": "npm test && npm run lint",
