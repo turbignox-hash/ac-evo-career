@@ -4,7 +4,7 @@
 // catalogo) e deve RESTARE dichiarata: pista fuori catalogo → niente km.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { catalogTrackOf, catalogLengthKm, coverageReport, scanTelemetry } from '../src/coverage.mjs';
+import { catalogTrackOf, catalogLengthKm, coverageReport, analysisGaps, scanTelemetry } from '../src/coverage.mjs';
 
 const results = {
   mx5: [
@@ -87,7 +87,23 @@ test('coverage: i settori dei file risultato entrano per pista e danno il miglio
   const spa = c.byTrack.find((r) => r.name === 'Circuit de Spa Francorchamps');
   assert.equal(spa.sectors, 2, 'due sessioni con gli splits del giocatore');
   assert.equal(spa.bestLapMs, 153000, 'il miglior giro e la somma degli splits piu veloce');
-  assert.equal(spa.timed, 0, 'i settori non gonfiano il conteggio dei cronometrati');
+  assert.equal(spa.timed, 2, 'una sessione con gli splits è cronometrata: il max non somma due volte');
+});
+
+test('coverage: le piste con dati insufficienti dicono cosa manca (indicatore Cruscotto)', () => {
+  const g = analysisGaps(coverageReport({
+    results,
+    freeSessions,
+    telemetry: { files: 3, bytes: 300, cars: 1, tracks: [{ name: 'Monza GP', files: 3, bytes: 300 }] },
+  }));
+  const perPista = new Map(g.incomplete.map((r) => [r.name, r.mancano]));
+  assert.deepEqual(perPista.get('Monza'), ['settori'], 'Monza ha telemetria e giri, ma nessun settore');
+  assert.deepEqual(perPista.get('Laguna Seca'), ['telemetria'], 'Laguna ha il giro e i settori, ma nessun .ld');
+  assert.deepEqual(perPista.get('pista_ignota'), ['telemetria', 'cronometrati', 'settori'], 'pista ignota non ha nulla');
+  assert.equal(g.piste, 19, '4 piste corse (una fuori catalogo) + le 15 di catalogo mai corse');
+  assert.equal(g.scoperte.length, 15, 'le 15 piste di catalogo mai corse restano fuori dal conto delle pronte');
+  assert.equal(g.pronte, 0, 'in questo fixture nessuna pista ha tutto');
+  assert.ok(!g.incomplete.some((r) => r.never), 'le mai corse non finiscono fra le incomplete: hanno un conto loro');
 });
 
 test('coverage: telemetrie contate dai .ld, cartella assente = zero', () => {

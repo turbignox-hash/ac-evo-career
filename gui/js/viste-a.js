@@ -208,8 +208,33 @@ function drawOnboarding(m){
 }
 
 /* -------- cruscotto -------- */
+/* L'INDICATORE DI COPERTURA del Cruscotto (6/11): tre numeri (piste pronte,
+   incomplete, mai corse) e le prime sei piste con quello che manca. La
+   classifica arriva dal server, qui si disegna e basta. */
+function covHtml(g){
+  if (!g) return `<div class="muted" style="font-size:12.5px">${tr({ it: 'Copertura non disponibile ora.', en: 'Coverage not available right now.' })}</div>`;
+  const fmtInt = (v) => Number(v || 0).toLocaleString('it-IT');
+  const nome = (m) => ({ telemetria: tr({ it: 'telemetria', en: 'telemetry' }), cronometrati: tr({ it: 'giri cronometrati', en: 'timed laps' }), settori: tr({ it: 'settori', en: 'sectors' }) })[m] ?? m;
+  const chip = (m) => `<span class="tag" style="color:var(--warn)">${esc(nome(m))}</span>`;
+  const righe = g.incomplete.slice(0, 6).map((r) => `<tr>
+      <td>${esc(r.name)}</td>
+      <td class="right">${fmtInt(r.laps)}</td>
+      <td>${r.mancano.map(chip).join(' ')}</td>
+    </tr>`).join('');
+  return stKpis([
+    [tr({ it: 'Pronte', en: 'Ready' }), fmtInt(g.pronte), 'good', tr({ it: 'piste con telemetria e almeno un giro cronometrato', en: 'tracks with telemetry and at least one timed lap' })],
+    [tr({ it: 'Incomplete', en: 'Incomplete' }), fmtInt(g.incomplete.length), g.incomplete.length ? 'acc2' : '', tr({ it: 'piste con dati parziali: sotto c’è cosa manca', en: 'tracks with partial data: what is missing is listed below' })],
+    [tr({ it: 'Mai corse', en: 'Never driven' }), fmtInt(g.scoperte.length), '', g.scoperte.slice(0, 4).join(' · ') || tr({ it: 'nessuna', en: 'none' })],
+  ])
+    + (g.incomplete.length
+      ? `<table style="margin-top:10px"><thead><tr><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Giri', en: 'Laps' })}</th><th>${tr({ it: 'Manca', en: 'Missing' })}</th></tr></thead><tbody>${righe}</tbody></table>`
+      : `<div class="empty" style="margin-top:10px">${tr({ it: 'Tutte le piste corse hanno telemetria e un giro cronometrato.', en: 'Every driven track has telemetry and a timed lap.' })}</div>`)
+    + (g.incomplete.length > 6 ? `<div class="muted" style="font-size:12px;margin-top:4px">${tr({ it: `e altre ${g.incomplete.length - 6}`, en: `and ${g.incomplete.length - 6} more` })}</div>` : '')
+    + `<div class="row" style="margin-top:8px"><button class="mini" id="b-cov">${tr({ it: 'Apri la copertura completa', en: 'Open full coverage' })}</button></div>`;
+}
+
 async function drawDashboard(m){
-  const [st, card, sb] = await Promise.all([api('status'), api('card'), api('save-backup').catch(() => null)]);
+  const [st, card, sb, cov] = await Promise.all([api('status'), api('card'), api('save-backup').catch(() => null), api('coverage').catch(() => null)]);
   const h = st.header, node = h.node;
   const res = st.results;
   // AVVISO IN PAGINA PRINCIPALE (27/10, richiesta Mauro: «quando il backup
@@ -247,6 +272,13 @@ async function drawDashboard(m){
       <div class="panel" id="live-engine" style="display:none">
         <h2>🔧 ${tr({ it: 'Motore ed elettronica', en: 'Engine and electronics' })} <span class="h-act">${tr({ it: 'live dalla shared memory di EVO', en: 'live from EVO shared memory' })}</span></h2>
         <div id="le-body"><div class="muted" style="font-size:12.5px">…</div></div>
+      </div>
+      <!-- COPERTURA PER L'ANALISI (6/11): segnala le piste dove i dati non
+           bastano, con cosa manca. Classifica calcolata dal server
+           (analysisGaps in coverage.mjs), qui solo resa. -->
+      <div class="panel" id="cov-indicator">
+        <h2>🧭 ${tr({ it: 'Copertura per l’analisi', en: 'Coverage for analysis' })} <span class="h-act">${tr({ it: 'piste dove i dati non bastano', en: 'tracks where data is not enough' })}</span></h2>
+        <div id="cov-ind-body"><div class="muted" style="font-size:12.5px">…</div></div>
       </div>
       <div class="panel hero">
         <svg class="flagart" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 2h1.6v20H4z"/><path d="M5.6 3h12.8l-3 4.5 3 4.5H5.6z"/></svg>
@@ -299,6 +331,10 @@ async function drawDashboard(m){
     </div>
     <div class="racecard panel" id="card-panel"></div>
   </div>`;
+  const covBox = $('#cov-ind-body');
+  if (covBox) covBox.innerHTML = covHtml(cov?.gaps);
+  const bCov = $('#b-cov');
+  if (bCov) bCov.onclick = () => vai('stats');
   drawCardInto($('#card-panel'), card);
   drawLifePanel();
   drawHeritagePanel();

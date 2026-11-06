@@ -80,7 +80,7 @@ export function coverageReport({ results = {}, freeSessions = [], resultSectors 
     if (!e) {
       e = {
         name: known?.name ?? name, lengthKm, sessions: 0, laps: 0,
-        timed: 0, sectors: 0, bestLapMs: null, lastAt: null,
+        timed: 0, sectors: 0, splitSessions: 0, bestLapMs: null, lastAt: null,
         telemetry: { files: 0, bytes: 0 }, never: false,
       };
       byTrack.set(key, e);
@@ -157,6 +157,7 @@ export function coverageReport({ results = {}, freeSessions = [], resultSectors 
   for (const r of Array.isArray(resultSectors) ? resultSectors : []) {
     const e = bumpTrack(r.track, catalogLengthKm(r.track));
     e.sectors += 1;
+    e.splitSessions += 1;
     const somma = (r.splitsMs ?? []).reduce((a, v) => a + (Number(v) || 0), 0);
     if (somma > 0 && (!e.bestLapMs || somma < e.bestLapMs)) e.bestLapMs = somma;
   }
@@ -174,18 +175,26 @@ export function coverageReport({ results = {}, freeSessions = [], resultSectors 
     if (!byTrack.has(c.name)) {
       byTrack.set(c.name, {
         name: c.name, lengthKm: c.lengthKm, sessions: 0, laps: 0,
-        timed: 0, sectors: 0, bestLapMs: null, lastAt: null,
+        timed: 0, sectors: 0, splitSessions: 0, bestLapMs: null, lastAt: null,
         telemetry: { files: 0, bytes: 0 }, never: true,
       });
     }
   }
 
   const byTrackRows = [...byTrack.values()]
-    .map((e) => ({ ...e, km: e.lengthKm ? Math.round(e.laps * e.lengthKm * 10) / 10 : null }))
+    .map((e) => ({
+      ...e,
+      // una sessione con gli splits HA un giro cronometrato (gli splits sono i
+      // settori del miglior giro): il conteggio non può restare a zero. Il max
+      // evita di sommare due volte le gare già contate dal testo `bestLap`.
+      timed: Math.max(e.timed, e.splitSessions ?? 0),
+      km: e.lengthKm ? Math.round(e.laps * e.lengthKm * 10) / 10 : null,
+    }))
     .sort((a, b) => {
       if (a.never !== b.never) return a.never ? 1 : -1;
       return b.laps - a.laps || a.name.localeCompare(b.name);
-    });
+    })
+    .map(({ splitSessions, ...r }) => r);
 
   const tel = telemetry && Number.isFinite(Number(telemetry.files))
     ? { files: Number(telemetry.files), bytes: Number(telemetry.bytes) || 0, cars: Number(telemetry.cars) || 0 }
@@ -208,6 +217,34 @@ export function coverageReport({ results = {}, freeSessions = [], resultSectors 
     neverDriven: byTrackRows.filter((r) => r.never).map((r) => ({ name: r.name, lengthKm: r.lengthKm })),
     noTime,
     lastAt,
+  };
+}
+
+/**
+ * LE PISTE DOVE I DATI NON BASTANO (6/11, per il Cruscotto).
+ * Una pista è «pronta per l'analisi» quando ha almeno una telemetria `.ld` E
+ * almeno una sessione con un giro cronometrato; i settori mancanti si
+ * segnalano a parte (senza settori l'analisi per tratti non si fa, ma il resto
+ * sì). Niente punteggi: solo cosa manca, pista per pista.
+ */
+export function analysisGaps(report) {
+  const righe = (report?.byTrack ?? []).map((r) => {
+    const mancano = [];
+    if (r.never) return { name: r.name, never: true, laps: 0, mancano: ['dati'] };
+    if (!(r.telemetry?.files > 0)) mancano.push('telemetria');
+    if (!(r.timed > 0)) mancano.push('cronometrati');
+    if (!(r.sectors > 0) && !r.sectorsCalc) mancano.push('settori');
+    return { name: r.name, never: false, laps: r.laps ?? 0, mancano };
+  });
+  const scoperte = righe.filter((x) => x.never);
+  const incomplete = righe
+    .filter((x) => !x.never && x.mancano.length)
+    .sort((a, b) => b.mancano.length - a.mancano.length || a.name.localeCompare(b.name));
+  return {
+    piste: righe.length,
+    pronte: righe.length - incomplete.length - scoperte.length,
+    incomplete,
+    scoperte: scoperte.map((x) => x.name),
   };
 }
 
@@ -352,7 +389,7 @@ export function collectCoverage({ paths = null, state = null } = {}) {
     // cronometrata anche se il file risultato non portava il tempo
     if (!row.timed) row.timed = 1;
   }
-  return report;
+  return { ...report, gaps: analysisGaps(report) };
 }
 
 /* I `.ld` pesano megabyte: il calcolo degli split si fa una volta per file
