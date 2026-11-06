@@ -1141,6 +1141,9 @@ export class LiveReader {
         roadTempC: Number.isFinite(p?.roadTemp) ? Math.round(p.roadTemp) : null,
         // danni auto dal physics: [fronte, post, sx, dx, centro] come % (0=intatto)
         damage: danniPercent(p?.carDamage),
+        // dettaglio dal DamageState: cinque zone + sospensioni per angolo
+        // (percentuali già convertite in damageStateDaGraphics)
+        damageState: damageStateDaGraphics(g),
         tyreWear: (p?.tyreWear ?? []).map((v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null)) ?? null,
         tyreCoreTemp: (p?.tyreCoreTemp ?? []).map((v) => (Number.isFinite(v) ? Math.round(v) : null)) ?? null,
         // I nuovi campi della MMF non restano chiusi in raw: la radio e il
@@ -1244,6 +1247,17 @@ export function motoreDaGraphics(g) {
     waterPressureBar: n(g.waterPressureBar, 100),
     fuelPressureBar: n(g.fuelPressureBar, 100),
     batteryV: n(g.batteryVoltage, 100),
+    // AIUTI ATTIVI (6/11): il blocco `assistsState` della grafica porta cambio
+    // automatico, frizione automatica e pit limiter automatico; il limitatore
+    // ha anche uno stato VERO (`pitLimiterOn` nell'elettronica: inserito adesso).
+    // Verificati sul collaudo del 4/11 a Laguna Seca: autoGear, autoClutch e
+    // autoPitLimiter passano da 0 a 1 nel corso della sessione e pitLimiterOn
+    // fa lo stesso — sono vivi, non costanti di comodo. Restano booleani come
+    // li scrive il gioco (0/1); `null` se la struct non c'è.
+    assists: g.assists
+      ? { autoGear: !!g.assists.autoGear, autoClutch: !!g.assists.autoClutch, autoPitLimiter: !!g.assists.autoPitLimiter }
+      : null,
+    pitLimiterOn: g.electronics ? !!g.electronics.pitLimiterOn : null,
   };
 }
 
@@ -1270,6 +1284,38 @@ export function contattoDaPhysics(p) {
     wheelLoadN: four(p.wheelLoad, 1),
     suspensionM: four(p.suspensionTravel),
     waterTempC: n(p.waterTemp, 10),
+    // DERIVA E SLIP RATIO PER RUOTA (6/11): campi che il physics scrive già
+    // (slipAngle, slipRatio) e che finora nessuno mostrava. Verificati sui 558
+    // snapshot del collaudo del 4/11 a Laguna Seca: deriva fino a 9,8° (0,171
+    // rad) alle anteriori, slip ratio 0,14 all'anteriore e picchi 4,5 al
+    // posteriore in trazione — quindi sono VIVI, non zeri di comodo. Restano
+    // GREZZI: l'angolo in RADIANTI (la GUI lo mostra in gradi), lo slip ratio è
+    // un rapporto puro col segno del gioco; qui nessuna soglia.
+    slipAngleRad: four(p.slipAngle, 10000),
+    slipRatio: four(p.slipRatio),
+  };
+}
+
+/**
+ * DANNI DAL DAMAGE STATE (6/11): la sotto-struct grafica `SMEvoDamageState`
+ * porta le cinque zone della carrozzeria E le quattro sospensioni per angolo,
+ * ma lo snapshot ne mostrava solo l'aggregato a cinque voci preso dal physics.
+ * Qui si legge il DamageState vero e si convertono le frazioni in percentuali:
+ * la scala è VERIFICATA sul collaudo del 4/11 (Laguna Seca, 558 snapshot),
+ * dove `front` 0,0491 nel DamageState corrisponde a 4,91 nel `carDamage` del
+ * physics. Le sospensioni nell'header dichiarano la stessa struct (0–1), quindi
+ * stessa conversione; in quel log però erano 0 su entrambe le fonti (nessun
+ * urto utile a confrontarle), quindi la scala è dichiarata, non verificata a
+ * fondo. Nessuna soglia: numeri, non semafori.
+ */
+export function damageStateDaGraphics(g) {
+  const d = g?.carDamage;
+  if (!d) return null;
+  const pct = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Math.round(Number(v) * 1000) / 10);
+  const sosp = d.suspension ?? {};
+  return {
+    zones: { front: pct(d.front), rear: pct(d.rear), left: pct(d.left), right: pct(d.right), centre: pct(d.center) },
+    suspension: { LF: pct(sosp.lf), RF: pct(sosp.rf), LR: pct(sosp.lr), RR: pct(sosp.rr) },
   };
 }
 

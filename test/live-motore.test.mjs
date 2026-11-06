@@ -36,6 +36,21 @@ test('motore: elettronica come la scrive il gioco (valori del collaudo 4/11)', (
   assert.equal(m.batteryV, 13.6);
 });
 
+test('motore: aiuti attivi come li scrive il gioco (assistsState del collaudo 4/11)', () => {
+  const m = motoreDaGraphics({
+    assists: { autoGear: 1, autoBlip: 1, autoClutch: 0, autoClutchOnStart: 0, autoPitLimiter: 1 },
+    electronics: { pitLimiterOn: true },
+  });
+  assert.deepEqual(m.assists, { autoGear: true, autoClutch: false, autoPitLimiter: true });
+  assert.equal(m.pitLimiterOn, true, 'il limitatore ha anche lo stato vero, non solo il flag di aiuto');
+});
+
+test('motore: aiuti assenti restano null, non «tutti spenti»', () => {
+  const m = motoreDaGraphics({ currentBhp: 0 });
+  assert.equal(m.assists, null);
+  assert.equal(m.pitLimiterOn, null);
+});
+
 test('motore: elettronica assente = campi null, nessuno zero inventato', () => {
   const m = motoreDaGraphics({ currentBhp: 0 });
   assert.equal(m.tcLevel, null);
