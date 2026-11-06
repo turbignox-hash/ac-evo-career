@@ -71,6 +71,35 @@ export function parseLdx(file) {
   } catch { return []; }
 }
 
+/*
+ * ACCESSO AI CANALI PER GLI ANALIZZATORI (6/11): i moduli che leggono la
+ * telemetria per una domanda sola (bilancio di frenata, futuri strumenti) non
+ * devono riaprire il formato .ld ognuno a modo suo. Questo lettore espone i
+ * canali con l'indicizzazione TEMPORALE già corretta (idxAt: ogni canale ha la
+ * sua frequenza) e in sola lettura: nessuna copia dei dati, il buffer vive
+ * quanto la chiamata.
+ *
+ * Ritorna null se il file non è un .ld leggibile; altrimenti:
+ *   { duration, has(name), meta(name), at(name, t) }
+ * dove at() è il campione più vicino al tempo t in secondi (null se il canale
+ * non c'è).
+ */
+export function ldReader(ldFile) {
+  let ld;
+  try { ld = parseLd(readFileSync(ldFile)); } catch { return null; }
+  if (!ld) return null;
+  return {
+    duration: ld.duration,
+    has: (name) => ld.channels.has(name),
+    meta: (name) => { const c = ld.channels.get(name); return c ? { rate: c.rate, unit: c.unit, count: c.cnt } : null; },
+    at: (name, t) => {
+      const c = ld.channels.get(name);
+      if (!c) return null;
+      const v = ld.dv.getFloat32(c.off + idxAt(c, t) * 4, true);
+      return Number.isFinite(v) ? v : null;
+    },
+  };
+}
 /** Legge un canale campione per indice. */
 /** Indice del campione di un canale al tempo t (secondi dall'inizio sessione). */
 function idxAt(c, t) {
@@ -189,6 +218,11 @@ function analyzeLdUncached(ldFile) {
       pressures, tair, surf, brakes,
     };
   });
+  const splitsTelem = splitGiriOf(ld, bounds.map(([a]) => a), 3);
+  for (const lap of laps) {
+    const split = splitsTelem?.laps.find((x) => x.lap === lap.lap);
+    if (split) lap.splitsTelem = split.splitsMs;
+  }
   const pitLoss = pitLossFromLaps(laps);
 
   // pressione a freddo = la più bassa registrata nelle prime battute
@@ -507,6 +541,58 @@ export function lapTrace(ldFile, { lap = 'best', compare = 'best', points = 240 
  * (default terzi), integrando la velocità campionata. Sono split veri presi
  * dalla telemetria, ma NON sono i settori ufficiali: chi li mostra deve dirlo.
  */
+function splitGiriOf(ld, beacons, parti = 3) {
+  const speed = ld?.channels.get('SPEED');
+  if (!speed || !Array.isArray(beacons) || beacons.length < 2) return null;
+  const bounds = beacons.map((a, i) => [a, beacons[i + 1] ?? ld.duration]);
+  const nParti = Math.max(2, Math.min(10, Number(parti) || 3));
+  const nPoints = 480;
+  const speedKmh = (t) => {
+    const v = ld.dv.getFloat32(speed.off + idxAt(speed, t) * 4, true);
+    if (!Number.isFinite(v)) return null;
+    return Math.max(0, v) * (speed.unit && /m|s/i.test(speed.unit) && !/km/i.test(speed.unit) ? 3.6 : 1);
+  };
+  const laps = [];
+  for (let gi = 0; gi < bounds.length; gi++) {
+    const [start, end] = bounds[gi];
+    const duration = end - start;
+    if (!(duration > 15)) continue;
+    const times = [], distances = [0];
+    let invalid = false, previousSpeed = null;
+    for (let k = 0; k <= nPoints; k++) {
+      const t = start + (duration * k) / nPoints;
+      const sampleT = k === nPoints ? Math.max(start, end - 0.5 / speed.rate) : t;
+      const v = speedKmh(sampleT);
+      if (v == null) { invalid = true; break; }
+      times.push(t);
+      if (k) distances.push(distances[k - 1] + ((previousSpeed + v) / 2) * (t - times[k - 1]));
+      previousSpeed = v;
+    }
+    const total = distances.at(-1);
+    if (invalid || !(total > 0)) continue;
+    const endsMs = [];
+    let j = 1;
+    for (let part = 1; part <= nParti; part++) {
+      const target = total * part / nParti;
+      while (j < distances.length - 1 && distances[j] < target) j++;
+      const d0 = distances[j - 1], d1 = distances[j];
+      const fraction = d1 > d0 ? (target - d0) / (d1 - d0) : 0;
+      endsMs.push(Math.round(((times[j - 1] + fraction * (times[j] - times[j - 1])) - start) * 1000));
+    }
+    const splitsMs = endsMs.map((v, i) => v - (i ? endsMs[i - 1] : 0));
+    laps.push({ lap: gi + 1, durationSec: Math.round(duration * 10) / 10, lapMs: Math.round(duration * 1000), splitsMs });
+  }
+  return laps.length ? { kind: 'telemetry-distance-thirds', parts: nParti, laps } : null;
+}
+
+export function splitGiriTelemetria(ldFile, { parti = 3 } = {}) {
+  let ld;
+  try { ld = parseLd(readFileSync(ldFile)); } catch { return null; }
+  if (!ld) return null;
+  const beacons = parseLdx(ldFile.slice(0, -3) + '.ldx');
+  return splitGiriOf(ld, beacons, parti);
+}
+
 export function splitDaTelemetria(ldFile, { parti = 3, points = 480 } = {}) {
   const t = lapTrace(ldFile, { lap: 'best', compare: 'none', points });
   if (!t?.ok || !Array.isArray(t.points) || t.points.length < 3 || !(t.durationSec > 0)) return null;

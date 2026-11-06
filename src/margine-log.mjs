@@ -185,6 +185,10 @@ export function margineVeroDaLog(logsDirs, richieste) {
           track: marker?.track ?? null,
           type: marker?.type ?? null,
           giri: fratrie.length,
+          // i giri della finestra, settore per settore: serve alla COSTANZA
+          // (quanto ballano i settori tra un giro e l'altro) e, col numero di
+          // giro, a separare gli stint. `t` = ora dell'ultimo settore del giro.
+          giriSettori: fratrie.map((x) => ({ s: x.s, lap: x.lap, t: x.t })),
           bestMs,
           settoriMs: settori,
           sommaMs: settori.reduce((a, b) => a + b, 0),
@@ -196,4 +200,186 @@ export function margineVeroDaLog(logsDirs, richieste) {
     }
   }
   return out;
+}
+
+/* ================================================================== */
+/* COSTANZA SUI SETTORI (6/11, richiesta Mauro: «la costanza sui       */
+/* settori tra i giri, non solo il miglior giro»)                      */
+/* ================================================================== */
+
+const meanOf = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+/** Deviazione standard CAMPIONARIA. Sotto 3 valori non è statistica: null. */
+function sdSample(vals) {
+  if (vals.length < 3) return null;
+  const m = meanOf(vals);
+  return Math.sqrt(vals.reduce((s, v) => s + (v - m) ** 2, 0) / (vals.length - 1));
+}
+
+/**
+ * LA PENDENZA di un settore giro dopo giro (6/11): regressione lineare ai
+ * minimi quadrati con x = posizione del giro dentro lo stint (0, 1, 2…).
+ * Ritorna ms per giro: positivo = il settore CRESCE (si perde tempo), negativo
+ * = cala. Sotto 3 giri resta null: con due punti la retta passa sempre e un
+ * numero lì sarebbe rumore spacciato per degrado — la stessa regola della σ.
+ */
+function pendenzaPerGiro(vals) {
+  if (vals.length < 3) return null;
+  const mx = (vals.length - 1) / 2;
+  const my = meanOf(vals);
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < vals.length; i++) {
+    num += (i - mx) * (vals[i] - my);
+    den += (i - mx) ** 2;
+  }
+  return num / den;
+}
+
+/** La pendenza di OGNI settore dentro lo stint, più quella della somma dei
+ *  settori (il giro intero): quanto cresce il settore a ogni giro, misurato
+ *  sui giri che il log porta davvero. */
+function pendenzaStint(giri) {
+  const perSettore = [0, 1, 2].map((i) => {
+    const vals = giri.map((g) => g.s[i]);
+    return {
+      settore: i + 1,
+      giri: vals.length,
+      pendenzaMsGiro: pendenzaPerGiro(vals),
+      primoMs: vals[0],
+      ultimoMs: vals[vals.length - 1],
+    };
+  });
+  const tot = giri.map((g) => g.s.reduce((a, b) => a + b, 0));
+  return {
+    giri: giri.length,
+    perSettore,
+    totale: {
+      giri: tot.length,
+      pendenzaMsGiro: pendenzaPerGiro(tot),
+      primoMs: tot[0],
+      ultimoMs: tot[tot.length - 1],
+    },
+  };
+}
+
+/**
+ * La costanza settore per settore, dai giri veri: per ogni settore il migliore,
+ * la media, il peggiore, l'escursione (peggiore − migliore), la deviazione
+ * standard e la costanza % (σ/media, la stessa unità del debrief degli stint).
+ * Sotto 3 giri σ e costanza % restano null — con due giri la statistica non
+ * esiste, e un numero lì sarebbe rumore spacciato per misura. Nessun giudizio
+ * («buono/cattivo»): solo i numeri che il log porta.
+ */
+export function costanzaSettori(giriSettori) {
+  // accetta sia le triple grezze sia i giri completi { s, lap, t }
+  const giri = (Array.isArray(giriSettori) ? giriSettori : [])
+    .map((g) => (Array.isArray(g) ? g : g?.s))
+    .filter((s) => Array.isArray(s) && s.length === 3 && s.every((v) => Number.isFinite(v) && v > 1000));
+  if (!giri.length) return null;
+  const perSettore = [0, 1, 2].map((i) => {
+    const vals = giri.map((g) => g[i]);
+    const media = meanOf(vals);
+    const sigma = sdSample(vals);
+    const migliore = Math.min(...vals);
+    const peggiore = Math.max(...vals);
+    return {
+      settore: i + 1,
+      giri: vals.length,
+      miglioreMs: migliore,
+      mediaMs: media,
+      peggioreMs: peggiore,
+      escursioneMs: peggiore - migliore,
+      sigmaMs: sigma,
+      costanzaPct: sigma == null ? null : (sigma / media) * 100,
+    };
+  });
+  const totali = giri.map((g) => g.reduce((a, b) => a + b, 0));
+  const mediaTot = meanOf(totali);
+  const sigmaTot = sdSample(totali);
+  return {
+    giri: giri.length,
+    perSettore,
+    totale: {
+      miglioreMs: Math.min(...totali),
+      mediaMs: mediaTot,
+      peggioreMs: Math.max(...totali),
+      escursioneMs: Math.max(...totali) - Math.min(...totali),
+      sigmaMs: sigmaTot,
+      costanzaPct: sigmaTot == null ? null : (sigmaTot / mediaTot) * 100,
+    },
+  };
+}
+
+/**
+ * La costanza dei settori di UNA sessione: la stessa finestra di log che dà il
+ * margine vero (giro legato dalla tripla del file risultato, stessa pista,
+ * giri entro 50%…130% del giro legato per non pesare uscite e errori).
+ * `bestSplits` sono i tre settori del giro migliore del file risultato.
+ * Ritorna null se i log di quella sessione non ci sono più (o non c'è il giro).
+ */
+export function costanzaSettoriDaLog(logsDirs, { track = null, bestSplits = null } = {}) {
+  if (!Array.isArray(bestSplits) || bestSplits.length !== 3 || !bestSplits.every(Number.isFinite)) return null;
+  let hit = null;
+  try {
+    hit = margineVeroDaLog(logsDirs, [{ chiave: 'costanza', track, bestSplits }]).get('costanza') ?? null;
+  } catch {
+    return null;
+  }
+  const stats = costanzaSettori(hit?.giriSettori);
+  if (!stats) return null;
+  // gli stint: la costanza spezzata dove c'è una sosta o un salto di giri
+  return { ...stats, stinti: stintiSettori(hit.giriSettori), auto: hit.car ?? null, track: hit.track ?? null, type: hit.type ?? null };
+}
+
+/**
+ * GLI STINT DAI GIRI DEL LOG (6/11, richiesta Mauro: «la costanza dei settori
+ * separata per stint, così si vede se il degrado nasce in un settore preciso»).
+ * Il log non porta il carburante, quindi la sosta si riconosce da due segnali
+ * MISURATI:
+ *   - la pausa: tra la fine di un giro e quella del successivo passa più del
+ *     tempo del giro stesso; oltre `pausaMs` di differenza c'è una fermata
+ *     (ai box o una pausa). Sui giri veri del 5–6/11 lo scarto normale sta
+ *     entro ±700 ms: 10 s è una soglia larghissima, non un caso limite;
+ *   - il salto di numero di giro: se un giro è stato scartato dalla finestra
+ *     (fuori pista, uscita), tra due giri consecutivi del log il contatore
+ *     salta e la continuità del run non è dimostrabile: si apre un nuovo stint
+ *     invece di attribuire il salto a un degrado.
+ * Nessun numero inventato: ogni stint porta i suoi giri e il conto della pausa
+ * che l'ha aperto (`pausaPrimaMs`, null per il primo).
+ */
+export function stintiSettori(giriSettori, { pausaMs = 10000 } = {}) {
+  const giri = (Array.isArray(giriSettori) ? giriSettori : [])
+    .filter((g) => g && Array.isArray(g.s) && g.s.length === 3 && g.s.every((v) => Number.isFinite(v) && v > 1000))
+    .slice()
+    .sort((a, b) => (a.t ?? 0) - (b.t ?? 0));
+  if (!giri.length) return [];
+  const somma = (g) => g.s.reduce((a, b) => a + b, 0);
+  const gruppi = [];
+  let cur = [giri[0]];
+  let pausaApertura = null;
+  for (let i = 1; i < giri.length; i++) {
+    const prev = giri[i - 1];
+    const g = giri[i];
+    const pausa = Number.isFinite(prev.t) && Number.isFinite(g.t) ? (g.t - prev.t) - somma(g) : 0;
+    const saltoGiri = Number.isFinite(prev.lap) && Number.isFinite(g.lap) && g.lap - prev.lap !== 1;
+    if (saltoGiri || pausa >= pausaMs) {
+      gruppi.push({ giri: cur, pausaPrimaMs: pausaApertura });
+      cur = [g];
+      // il salto di giro porta via un giro intero: quel tempo non è una sosta,
+      // quindi non si dichiara nessuna pausa (meglio null che un numero falso)
+      pausaApertura = !saltoGiri && pausa >= pausaMs ? pausa : null;
+    } else {
+      cur.push(g);
+    }
+  }
+  gruppi.push({ giri: cur, pausaPrimaMs: pausaApertura });
+  return gruppi.map((gr, i) => ({
+    numero: i + 1,
+    giri: gr.giri.length,
+    fromLap: gr.giri[0].lap ?? null,
+    toLap: gr.giri[gr.giri.length - 1].lap ?? null,
+    pausaPrimaMs: gr.pausaPrimaMs,
+    costanza: costanzaSettori(gr.giri),
+    pendenza: pendenzaStint(gr.giri),
+  }));
 }

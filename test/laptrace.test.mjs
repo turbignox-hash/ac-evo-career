@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 process.env.EVO_DATA_DIR = mkdtempSync(join(tmpdir(), 'evo-laptrace-'));
-const { lapTrace, analyzeLd } = await import('../src/motec.mjs');
+const { lapTrace, analyzeLd, splitGiriTelemetria } = await import('../src/motec.mjs');
 
 // --- costruzione del .ld sintetico: 40s, due giri (beacon 0 / 18 / 40) --------
 const T0 = 64;
@@ -77,6 +77,30 @@ test('lapTrace: giri validi, best lap e campionamento', () => {
   // gas dopo 10s è a fondo (1), freno mai premuto (0)
   assert.ok(approx(t.points.at(-8).th, 1, 0.05), 'throttle a fondo sul rettifilo finale');
   assert.equal(t.points.at(-8).br, 0);
+});
+
+test('splitGiriTelemetria: split per giro misurati ai terzi di distanza', () => {
+  const s = splitGiriTelemetria(LD);
+  assert.ok(s, 'split per giro prodotti dai beacon');
+  assert.equal(s?.kind, 'telemetry-distance-thirds');
+  assert.equal(s.parts, 3);
+  assert.equal(s.laps.length, 2);
+  assert.equal(s.laps[0].lap, 1);
+  assert.equal(s.laps[1].lap, 2);
+  for (const lap of s.laps) {
+    assert.equal(lap.splitsMs.length, 3);
+    assert.equal(lap.splitsMs.reduce((a, b) => a + b, 0), lap.lapMs);
+    assert.ok(lap.splitsMs.every((v) => v > 0));
+  }
+  assert.notDeepEqual(s.laps[0].splitsMs, s.laps[1].splitsMs, 'i due giri hanno durata e profilo di velocità diversi');
+  const analyzed = analyzeLd(LD);
+  assert.deepEqual(analyzed.laps.filter((lap) => lap.durationSec > 15).map((lap) => lap.splitsTelem), s.laps.map((lap) => lap.splitsMs), 'analyzeLd espone gli split per la scheda Telemetria');
+});
+
+test('splitGiriTelemetria: senza beacon non inventa giri o split', () => {
+  const noBeacon = join(DIR, 'nobe-splits.ld');
+  writeFileSync(noBeacon, buf);
+  assert.equal(splitGiriTelemetria(noBeacon), null);
 });
 
 test('lapTrace: il giro 2 resta sotto il giro 1 a pari distanza (dv sempre negativo)', () => {
