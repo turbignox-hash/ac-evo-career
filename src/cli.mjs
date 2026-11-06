@@ -849,6 +849,10 @@ function cmdImport(args) {
     const gg = gridGuardProposal(out.file);
     if (gg) console.log(`\n${C.yellow(gg.msg)}`);
   }
+  // BILANCIO DELLA GARA (6/11): non il file com'è ora, ma ciò che il gioco
+  // dichiara nel risultato — la zavorra può essere stata persa PRIMA del via
+  // (menu di EVO che risalva il customgrid) e il file non lo direbbe più.
+  if (out.bilancio) console.log(`\n${C.yellow(out.bilancio.msg)}\n`);
   // vigia del bilancio perso: dopo la gara il customgrid può essere stato
   // risalvato dal menu con i valori a 0/0 — lo ricontrollo qui e in watch
   const zp = zeroBalanceProposal(CUSTOMGRID_FILE, { track: trackOfCurrentRound(ladder) });
@@ -926,6 +930,7 @@ async function cmdWatch(args) {
         console.log(`  ${C.dim(tr({ it: 'Banca: ', en: 'Bank: ' }) + out.imported.money + ' · rep ' + out.imported.rep)}`);
         if (out.imported.proposal) console.log(`  ${C.yellow(tr({ it: 'Suggerimento difficoltà', en: 'Difficulty suggestion' }))}: trim ${signed(out.imported.proposal.from)} → ${signed(out.imported.proposal.to)} (passo ${signed(out.imported.proposal.to - out.imported.proposal.from)}) — ${tr({ it: 'decidilo con difficulty --accept / --reject', en: 'decide with difficulty --accept / --reject' })}\n`);
         else console.log();
+        if (out.imported.bilancio) console.log(`${C.yellow(out.imported.bilancio.msg)}\n`);
         if (out.imported.file) {
           const gg = gridGuardProposal(out.imported.file);
           if (gg) console.log(`${C.yellow(gg.msg)}\n`);

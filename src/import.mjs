@@ -35,6 +35,7 @@ import { writeJsonAtomic } from './atomic.mjs';
 import { slotDataDir, savePath, activeSlot } from './state.mjs';
 import { recordRaceFromResult } from './grid-calib.mjs';
 import { grigliaGaraFuori } from './grid-apply.mjs';
+import { bilancioDaGara } from './grid-guard.mjs';
 // IL TEORICO VERO (3/11, notte — stesso margine-log del rapporto gara, del
 // tetto e del quaderno hotlaps): la somma dei splits del file ripete il best
 // per costruzione (i splits di EVO sono i settori del GIRO MIGLIORE). Il
@@ -538,6 +539,18 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
     } catch { /* la calibrazione non ferma mai la carriera */ }
   }
 
+  // BILANCIO ARRIVATO IN PISTA (6/11): il file dei risultati dichiara ballast e
+  // restrictor di OGNI pilota. Se la zavorra della serie non è arrivata al via
+  // (il menu di EVO che risalva il customgrid la azzera — 19/10 Sebring, 6/11
+  // Brands Hatch), l'import lo dice: senza questo confronto la gara a 0/0
+  // sarebbe incassata come regolare. Mai bloccare la carriera.
+  let bilancio = null;
+  if (isNew && !manual && ctx.rawResult) {
+    try {
+      bilancio = bilancioDaGara(ctx.rawResult, { nodeId: targetNode.nodeId, track: payload.track ?? null });
+    } catch { /* il confronto non ferma mai l'import */ }
+  }
+
   // gazzetta: la stampa sportiva commenta la gara (solo gare nuove)
   let newsItem = null;
   if (isNew && !manual) {
@@ -590,6 +603,7 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
     crowd: (raceCrowdFor(payload.track) || crowdBonus > 0) ? { spectators: raceCrowdFor(payload.track), bonus: crowdBonus } : null,
     nudgeSuggested,
     calibrazione,
+    bilancio,
     agenda: agendaJump,
     seasonDone: state.round >= targetNode.calendar.length,
     backup: backupFile,

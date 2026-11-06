@@ -79,6 +79,7 @@ async function importCall(body){
       ${r.vendetta?.settled?.length ? `<br>⚔️ <b>${tr({ it: 'Vendetta assestata', en: 'Vendetta settled' })}</b> ${tr({ it: 'su ', en: 'on ' })}${esc(r.vendetta.settled.join(', '))}.` : ''}
       ${r.duel ? `<br>⚔️ ${tr({ it: 'Duello della stagione: ', en: 'Season duel: ' })}${esc(r.duel.name)} — ${tr({ it: 'tu ', en: 'you ' })}${r.duel.myPoints} pt, ${tr({ it: 'lui ', en: 'him ' })}${r.duel.hisPoints} pt.` : ''}
       ${r.news ? `<br>📰 <b>${esc(r.news.title)}</b><br><span class="muted" style="white-space:pre-wrap">${esc(r.news.body)}</span>` : ''}      ${r.seasonDone ? `<br><b>${tr({ it: 'Stagione completata!', en: 'Season complete!' })}</b> ${tr({ it: 'Puoi chiuderla dalla scheda in Cruscotto.', en: 'You can close it from the card on the Dashboard.' })}` : ''}
+      ${r.bilancio ? `<div class="banner warn" style="margin-top:8px"><b>⚠ ${tr({ it: 'Zavorre non arrivate al via', en: 'Ballast did not reach the grid' })}</b><br><span style="white-space:pre-wrap">${esc(r.bilancio.msg)}</span></div>` : ''}
       ${r.entry?.sectors ? sectorRowsHtml(r.entry.sectors) : ''}
       ${r.debrief ? debriefHtml(r.debrief) : ''}
     </div>`;
