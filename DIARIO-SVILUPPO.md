@@ -1,5 +1,14 @@
 # Diario di sviluppo
 
+### 6/11 notte — Il rinvio dell'avviso di copertura ha la durata (1, 2 o 3 giorni)
+
+- **Richiesta di Mauro**: «aggiungi al rinvio dell'avviso una scelta di durata, per esempio due o tre giorni di carriera».
+- **Com'era**: un solo pulsante, «Rimanda al prossimo giorno», che salvava **il giorno di carriera del click** (`258`) e spegneva l'avviso per quel giorno soltanto. Il rinvio era già agganciato al giorno di carriera, non alla data del PC (cura di stamattina), quindi la scelta di durata non cambiava l'ancoraggio: cambia solo l'ultimo giorno coperto.
+- **Com'è**: nel banner tre pulsanti — «1 giorno · 2 giorni · 3 giorni» — e in memoria **l'ultimo giorno coperto**, cioè `giorno + durata − 1` nella stessa chiave di prima (`evo.covAvvisoDomani`). La legge nuova `rinvioAttivo(salvato, giorno)` (con `rinvioFinoA` che valida il numero) tiene spento l'avviso finché il giorno di carriera non supera quell'ultimo giorno. Due dettagli che evitano sorprese: i valori salvati **prima** (solo il giorno del click) continuano a valere come «fino a quel giorno» — la durata di un giorno resta identica a prima, nessun rinvio si allunga da solo — e un numero assurdo (oltre **30 giorni** avanti) è trattato da sporco, così un salvataggio sballato non spegne l'avviso per sempre. La durata letta dal click è limitata a 1..3 anche se qualcuno manomette `data-rimanda`.
+- **Verifiche**: `test/copertura-rimando.test.mjs` **9/9** — le tre durate nel markup, rinvio di 1 giorno (oggi → spento, domani → torna), **2 giorni** (`259` copre 258 e 259, muro al 260), **3 giorni** (fino al 260), scadenza reale del banner e non solo della funzione, spazzatura/date `AAAA-MM-GG`/valore a 257 (scaduto)/`9999` (futuro remoto, sporco)/288 (tetto 30 giorni incluso) → tutti «nessun rinvio», giorno di carriera assente → banner senza pulsanti, e il filo nel sorgente (`day + n - 1`, clamp 1..3, `rinvioAttivo` chiamato dal render). Suite **1.206 test, 1.204 pass, 0 fail**, 2 skip; Biome pulito; pagina ricaricata nel browser senza errori in console.
+- **Limiti**: il banner **non si vede adesso** nei dati di Mauro (0 piste incomplete, come dice il pannello «Copertura per l'analisi»), quindi la resa a schermo dei tre pulsanti non l'ho guardata dal vivo: il render vero è esercitato dal test con il corpo reale della funzione. Il click l'ho coperto nel sorgente, non con un click in pagina: con una pista sotto soglia si prova in dieci secondi.
+
+
 ### 6/11 notte — Il delta dell'ultimo tratto non gonfia più (1.0 a schermo, 1.6 in radio)
 
 - **Segnalazione di Mauro**: «il copilot dice dei delta errati, su schermo ce l'ho in tempo reale: a fine gara, ultimo tratto, avevo 1 secondo sul display e il copilot diceva 1.6».

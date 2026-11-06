@@ -228,15 +228,17 @@ function motivoCopertura(m) {
    nuova scende sotto soglia (o una viene sistemata) la firma cambia e
    l'avviso torna, senza doverlo andare a cercare. */
 const FIRMA_AVVISO_COV = 'evo.covAvvisoChiudi';
-/* RINVIO DI UN GIORNO (6/11, richiesta Mauro: «un pulsante per rimandare solo
-   di oggi, così torna domani senza dover cambiare i dati»; poi: «fai valere il
-   rinvio sul giorno di carriera invece che sulla data del computer»).
+/* RINVIO DI UN GIORNO (6/11, richiesta Mauro: «un pulsante per rimandare solo   di oggi, così torna domani senza dover cambiare i dati»; poi: «fai valere
+   il rinvio sul giorno di carriera invece che sulla data del computer»; e
+   6/11 notte: «aggiungi al rinvio dell'avviso una scelta di durata, per
+   esempio due o tre giorni di carriera»).
    Il conto è il GIORNO DI CARRIERA (quello dell'header, es. 258), non la data
-   del PC: avanzare di un giorno in carriera riaccende l'avviso, aspettare la
-   mezzanotte no. Si salva il numero del giorno in cui hai rimandato, nella
-   stessa chiave di prima: un valore vecchio in forma `AAAA-MM-GG` non combacia
-   con un numero e vale come nessun rinvio. La ✕ resta un'altra cosa: quella
-   tace finché la SITUAZIONE (piste + buchi) non cambia. */
+   del PC: avanzare in carriera riaccende l'avviso, aspettare la mezzanotte no.
+   Si salva l'ULTIMO GIORNO coperto (giorno + durata − 1) nella stessa chiave
+   di prima: un valore vecchio in forma `AAAA-MM-GG` non è un numero e vale
+   come nessun rinvio, e un valore salvato quando la durata era solo «oggi»
+   copre quel giorno soltanto. La ✕ resta un'altra cosa: quella tace finché la
+   SITUAZIONE (piste + buchi) non cambia. */
 const RIMANDA_AVVISO_COV = 'evo.covAvvisoDomani';
 /** Il giorno di carriera come intero >= 0; null se non c'è o è sporco. */
 function giornoCarriera(n) {
@@ -244,14 +246,30 @@ function giornoCarriera(n) {
   const v = Number(n);
   return Number.isFinite(v) && v >= 0 ? Math.floor(v) : null;
 }
+/** L'ultimo giorno di carriera coperto dal rinvio, o null se il valore non è
+ *  un giorno valido. In memoria vive UN numero: il giorno fino al quale
+ *  l'avviso resta spento (compreso). Un rinvio vecchio — salvato quando la
+ *  durata era solo «oggi» — porta lo stesso il giorno del click, quindi vale
+ *  come «fino a quel giorno»: la durata di un giorno resta identica. Le date
+ *  `AAAA-MM-GG` di prima non sono numeri e restano fuori. */
+function rinvioFinoA(salvato) {
+  if (salvato == null || salvato === '') return null;
+  const s = String(salvato).trim();
+  if (!/^\d+$/.test(s)) return null;
+  const v = Number(s);
+  return Number.isFinite(v) && v >= 0 ? Math.floor(v) : null;
+}
 /** Il rinvio vale ancora? Puro apposta: la guardia lo prova senza browser.
- *  Vale solo se il giorno di carriera è ANCORA quello del rinvio: quando la
- *  carriera avanza — o il valore è spazzatura, o è di un altro giorno —
- *  l'avviso torna da solo, anche con piste e buchi identici. */
-function rimandatoOggi(salvato, giorno) {
+ *  Vale finché il giorno di carriera non supera l'ultimo giorno scelto
+ *  (1, 2 o 3 giorni dal click) — quando la carriera avanza oltre, o il valore
+ *  è spazzatura, l'avviso torna da solo, anche con piste e buchi identici.
+ *  Oltre 30 giorni il numero è da considerarsi sporco: un salvataggio con un
+ *  giorno sballato non deve spegnere l'avviso per sempre. */
+function rinvioAttivo(salvato, giorno) {
   const g = giornoCarriera(giorno);
-  if (g == null || salvato == null) return false;
-  return String(salvato).trim() === String(g);
+  const fino = rinvioFinoA(salvato);
+  if (g == null || fino == null) return false;
+  return fino >= g && fino - g <= 30;
 }
 function firmaCopertura(g) {
   const inc = Array.isArray(g?.incomplete) ? g.incomplete : [];
@@ -270,7 +288,7 @@ function avvisoCoperturaHtml(g, giorno) {
   const firma = firmaCopertura(g);
   try { if (localStorage.getItem(FIRMA_AVVISO_COV) === firma) return ''; } catch { /* storage negato: l'avviso si mostra sempre */ }
   const oggi = giornoCarriera(giorno);
-  try { if (rimandatoOggi(localStorage.getItem(RIMANDA_AVVISO_COV), oggi)) return ''; } catch { /* idem */ }
+  try { if (rinvioAttivo(localStorage.getItem(RIMANDA_AVVISO_COV), oggi)) return ''; } catch { /* idem */ }
   // le piste messe peggio per prime; a pari gravità, meno giri davanti
   const ordinate = [...inc].sort((a, b) => (b.gravita ?? 0) - (a.gravita ?? 0)
     || (b.mancano?.length ?? 0) - (a.mancano?.length ?? 0)
@@ -288,7 +306,7 @@ function avvisoCoperturaHtml(g, giorno) {
   return `<div class="banner warn" data-firma="${esc(firma)}" style="margin-bottom:10px;position:relative;padding-right:44px">📉 <b>${esc(titolo)}</b> — ${nomi.join(', ')}${inc.length > 3 ? ` ${tr({ it: `e altre ${inc.length - 3}`, en: `and ${inc.length - 3} more` })}` : ''}.
     <button class="mini" id="cov-banner-chiudi" title="${tr({ it: 'chiudi finché la situazione non cambia: se una pista scende sotto soglia (o una viene sistemata) l’avviso torna', en: 'dismiss until the situation changes: if a track drops below the threshold (or one is fixed) the warning comes back' })}" style="position:absolute;top:8px;right:8px;padding:2px 8px">✕</button>
     <div class="muted" style="font-size:12.5px;margin-top:4px">${tr({ it: `Soglie: almeno ${giri} giri, ${ld} file .ld, un giro cronometrato e ${sess} giri in una sessione. Le piste mai corse non entrano in questo avviso · le peggiori sono nominate per prime.`, en: `Thresholds: at least ${giri} laps, ${ld} .ld files, one timed lap and ${sess} laps in a session. Tracks never driven are not part of this warning · the worst are named first.` })}</div>
-    <div class="row" style="margin-top:6px"><button class="mini" id="cov-banner-apri">${tr({ it: 'Apri la copertura completa', en: 'Open full coverage' })}</button>${oggi == null ? '' : `<button class="mini" id="cov-banner-domani" title="${tr({ it: 'nascondi l’avviso finché il giorno di carriera non avanza: torna al prossimo giorno, senza cambiare i dati', en: 'hide the warning until the career day advances: it returns on the next career day, without touching the data' })}">${tr({ it: 'Rimanda al prossimo giorno', en: 'Remind me next day' })}</button>`}</div>
+    <div class="row" style="margin-top:6px"><button class="mini" id="cov-banner-apri">${tr({ it: 'Apri la copertura completa', en: 'Open full coverage' })}</button>${oggi == null ? '' : `<span id="cov-banner-rimanda" class="row" style="gap:4px;align-items:center"><span class="muted" style="font-size:12.5px">${tr({ it: 'Rimanda:', en: 'Remind in:' })}</span>${[1, 2, 3].map((n) => `<button class="mini" data-rimanda="${n}" title="${tr({ it: n === 1 ? 'nascondi l’avviso per 1 giorno di carriera: torna domani, senza cambiare i dati' : `nascondi l’avviso per ${n} giorni di carriera: torna quando la carriera è avanzata di ${n} giorni, senza cambiare i dati`, en: n === 1 ? 'hide the warning for 1 career day: it returns tomorrow, without touching the data' : `hide the warning for ${n} career days: it returns once the career has advanced ${n} days, without touching the data` })}">${n === 1 ? tr({ it: '1 giorno', en: '1 day' }) : `${n} ${tr({ it: 'giorni', en: 'days' })}`}</button>`).join('')}</span>`}</div>
   </div>`;
 }
 
@@ -536,15 +554,19 @@ async function drawDashboard(m){
     try { localStorage.setItem(FIRMA_AVVISO_COV, b?.dataset.firma ?? ''); } catch { /* niente memoria: si chiude solo ora */ }
     b?.remove();
   });
-  /* Rinvio di un giorno: si salva il GIORNO DI CARRIERA, non la firma — quando
-     la carriera avanza il numero cambia e l'avviso torna anche se piste e
-     buchi sono identici. Senza un giorno valido non c'è pulsante da cliccare. */
-  $('#cov-banner-domani')?.addEventListener('click', (e) => {
+  /* Rinvio a scelta (6/11 notte, richiesta Mauro: «aggiungi al rinvio dell'avviso
+     una scelta di durata, per esempio due o tre giorni di carriera»): si salva
+     l'ULTIMO GIORNO coperto — giorno + durata − 1 — non la firma e non la data
+     del PC. Quando la carriera supera quel giorno il rinvio scade da solo,
+     anche se piste e buchi sono identici. Senza un giorno valido non ci sono
+     pulsanti da cliccare. */
+  document.querySelectorAll('#cov-banner-rimanda button').forEach((btn) => { btn.addEventListener('click', (e) => {
     const b = e.currentTarget.closest('.banner');
     const giorno = giornoCarriera(h.day);
-    try { if (giorno != null) localStorage.setItem(RIMANDA_AVVISO_COV, String(giorno)); } catch { /* niente memoria: si chiude solo ora */ }
+    const n = Math.min(3, Math.max(1, Number(e.currentTarget.dataset.rimanda) || 1));
+    try { if (giorno != null) localStorage.setItem(RIMANDA_AVVISO_COV, String(giorno + n - 1)); } catch { /* niente memoria: si chiude solo ora */ }
     b?.remove();
-  });
+  }); });
   drawCardInto($('#card-panel'), card);
   drawLifePanel();
   drawHeritagePanel();
