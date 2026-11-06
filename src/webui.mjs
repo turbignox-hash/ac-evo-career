@@ -14,6 +14,7 @@ import { homedir } from 'node:os';
 import { telemScanLocale } from './webui-telem.mjs';
 import { requestFromLocalBrowser, serveStatic } from './webui-static.mjs';
 import { resolvePaths, isGameRunning, dataDirCandidates, isDir, isFile, launchGame } from './paths.mjs';
+import { collectCoverage } from './coverage.mjs';
 
 import {
   createCareer, nodeById, disciplineName, gateStatus,
@@ -1432,6 +1433,14 @@ async function api(context0, _req, res, action, body) {
       return sendJson(res, 200, { ok: true, ...statoSonda() });
     }
     case 'stats': return sendJson(res, 200, careerStats(ladder, state));
+    case 'coverage': {
+      // COPERTURA DEI DATI (6/11): quanti dati veri sono nell'archivio e cosa
+      // manca. Solo conteggi dal disco (salvataggio, hotlaps.json, rivals.json,
+      // file .ld); i km sono giri × lunghezza di catalogo, dichiarati come tali.
+      let paths = null;
+      try { paths = resolvePaths(appEnv()); } catch { paths = null; }
+      return sendJson(res, 200, collectCoverage({ paths, state }));
+    }
     case 'alias-set': {
       // Nomi del pilota (26/10): soprannomi per RIVALI e PILOTI DEL MONDO,
       // salvati nel save (state.alias) così sopravvivono agli aggiornamenti.
