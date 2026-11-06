@@ -188,6 +188,9 @@ import { vivoDaSnapshot, consigliVivo } from './meccanico-vivo.mjs';
 // con la telemetria della sessione nuova, giudica solo oltre la soglia
 import { chiudiProva, provaAperta, leggiProve, riepilogoPerCampo, leveBruciate } from './prova-setup.mjs';
 import { chiaveMeccanico, firmaMeccanico, leggiVisto, novitaDa, salvaVisto } from './meccanico-novita.mjs';
+// «E adesso che faccio?» (6/11 notte): la prossima AZIONE concreta, non solo
+// cosa è cambiato — funzione pura, la stessa cosa che la scheda mostra in cima.
+import { prossimaMossa } from './meccanico-mossa.mjs';
 import { AGENDA_ACTIONS, agendaAction } from './webui-actions-agenda.mjs';
 import { EVENT_ACTIONS, eventAction } from './webui-actions-events.mjs';
 import { GARAGE_ACTIONS, garageAction } from './webui-actions-garage.mjs';
@@ -3286,7 +3289,15 @@ async function api(context0, _req, res, action, body) {
             novita = novitaDa(visto, firma);
             ultimaFirmaMeccanico.set(chiaveMeccanico(carName, trackDisplay), firma);
           } catch { /* senza memoria il pannello resta com'era */ }
-          return sendJson(res, 200, { ok: true, car: carName, track: trackDisplay, trackPretty: TRACK?.name ?? trackDisplay, sessFile, tipo: adv.tipo, densita: adv.densita, consigli, storie, allievo, vivo, prova, novita, vistoAt, bestLap: bestLap != null ? Math.round(bestLap * 1000) / 1000 : null, hasTelem: !!telem });
+          /* LA PROSSIMA MOSSA (6/11 notte, Mauro: «non solo cosa è cambiato»):
+             una riga sola, l'azione da fare adesso, scelta in ordine di priorità
+             (prova A/B aperta → telemetria mancante → consumo mai misurato →
+             prima voce azionabile della lista → pista). Non ferma il pannello. */
+          let mossa = null;
+          try {
+            mossa = prossimaMossa({ consigli, prova, hasTelem: !!telem, fuelPerLap: telem?.fuelPerLap ?? null, bestLap });
+          } catch { /* senza mossa il pannello resta com'era */ }
+          return sendJson(res, 200, { ok: true, car: carName, track: trackDisplay, trackPretty: TRACK?.name ?? trackDisplay, sessFile, tipo: adv.tipo, densita: adv.densita, consigli, storie, allievo, vivo, prova, novita, vistoAt, prossimaMossa: mossa, bestLap: bestLap != null ? Math.round(bestLap * 1000) / 1000 : null, hasTelem: !!telem });
         }
         if (body.action === 'meccanico-visto') {
           // «Ho visto»: la fotografia delle novità si sposta su ADESSO. Senza la

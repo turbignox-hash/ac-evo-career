@@ -1171,6 +1171,13 @@ async function drawSetup(m){
       window.__mechCtx = { car: carPanel ?? window.__lcCar ?? null, track: trackPanel ?? cur?.track ?? null };
       const nov = m.novita ?? [];
       const quandoVisto = m.vistoAt ? esc(String(m.vistoAt).replace('T', ' ').slice(0, 16)) : null;
+      /* LA PROSSIMA MOSSA (6/11 notte, Mauro: «dica anche la prossima mossa
+         concreta da fare, non solo cosa è cambiato»): una riga d'azione sopra
+         le novità — è la prima cosa che si legge rientrando dal box. */
+      const mossa = m.prossimaMossa ?? null;
+      const mossaHtml = mossa?.testo
+        ? `<div class="banner info" style="padding:8px 10px;font-size:12.5px;margin-bottom:8px">👉 <b>${tr({ it: 'Prossima mossa', en: 'Next move' })}</b> — ${esc(mossa.testo)}</div>`
+        : '';
       const novitaHtml = nov.length
         ? `<div class="banner good" style="padding:8px 10px;font-size:12.5px;margin-bottom:8px">🆕 <b>${tr({ it: "C'è qualcosa di nuovo", en: 'There is something new' })}</b>
             <ul style="margin:6px 0 0 18px">${nov.map((n) => `<li>${esc(n.text)}</li>`).join('')}</ul>
@@ -1345,7 +1352,7 @@ async function drawSetup(m){
       };
       out.innerHTML = `<div class="panel" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 10px;background:#0d1118">
         <div style="font-size:12.5px;margin-bottom:6px"><b>🔧 ${tr({ it: 'Il meccanico', en: 'The mechanic' })}</b> — ${tr({ it: 'setup consigliato per ', en: 'advised setup for ' })}<b>${esc(m.trackPretty ?? m.track ?? '')}</b> <span class="muted" style="font-size:12.5px">· ${tr({ it: 'tracciato ', en: 'track type ' })}${esc(tipoTracciatoLabel(m.tipo))}${m.densita ? ` · ${m.densita} ${tr({ it: 'curve/km', en: 'corners/km' })}` : ''}${m.sessFile ? tr({ it: ' · correzione su telemetria reale', en: ' · corrected on real telemetry' }) : tr({ it: ' · senza telemetria (solo pista)', en: ' · no telemetry (track profile only)' })}</span></div>
-        ${novitaHtml}${memoHtml}${rows || `<div class="muted" style="font-size:12.5px">${tr({ it: 'Nessun consiglio per questa pista: anagrafica non disponibile.', en: 'No advice for this track: profile not available.' })}</div>`}
+        ${mossaHtml}${novitaHtml}${memoHtml}${rows || `<div class="muted" style="font-size:12.5px">${tr({ it: 'Nessun consiglio per questa pista: anagrafica non disponibile.', en: 'No advice for this track: profile not available.' })}</div>`}
         ${vivoHtml}${dialogoHtml}${provaHtml}${storiaHtml}
       </div>`;
       /* AGGANCI STABILI (6/11, il guasto VERo che Mauro vide: «clicco su gara o

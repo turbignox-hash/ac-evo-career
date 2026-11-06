@@ -1,5 +1,13 @@
 # Diario di sviluppo
 
+### 6/11 notte — Il pannello del meccanico dice anche la prossima mossa
+
+- **Richiesta di Mauro**: «fai in modo che il pannello del meccanico dica anche la prossima mossa concreta da fare, non solo cosa è cambiato». Le novità (6/11) rispondono a «cosa è cambiato»; mancava la riga d'azione.
+- **Cura**: nuova funzione PURA `prossimaMossa` in `src/meccanico-mossa.mjs`, che sceglie UNA azione in ordine di priorità dai dati che il pannello già ha: **1.** prova A/B aperta → «fai N giri puliti col setup «X» e rientra, si chiude da sola» (N = giri della ronda, minimo 3); **2.** nessuna telemetria → «3 giri con la telemetria attiva e riapri il pannello» (e non tocco benzina né pressioni); **3.** telemetria ma consumo mai misurato → «un giro cronometrato per misurare il consumo»; **4.** la **prima voce azionabile** della lista (le voci `memoria`/`storia`/`pentimento`/`scuse` raccontano il passato e si saltano) → «sistema «pressioni»: <testo>. Poi 3 giri di verifica»; **5.** niente sotto soglia → «vai in pista e prova a scendere sotto 1:44.54». A mani vuote (PC nuovo) la mossa è la telemetria: il primo gesto concreto, non il silenzio.
+- **Dove si vede**: la rotta `meccanico` (`src/webui.mjs`) restituisce `prossimaMossa` accanto a `novita`; `gui/js/viste-c.js` la stampa in cima alla scheda — banner `👉 Prossima mossa` **sopra** la lista dei consigli e sopra le novità, perché è la prima cosa da leggere rientrando dal box.
+- **Verifiche**: `test/meccanico-mossa.test.mjs` **6/6** (prova aperta coi giri della ronda e la precedenza su tutto; telemetria mancante; consumo mancante; prima voce azionabile che salta la memoria; pista col tempo da battere; a mani vuote telemetria, con i dati ma senza niente da dire `null`). Suite intera **1.230 test, 1.228 pass, 0 fail, 2 skip**; Biome pulito sui file toccati, `node --check` sulla GUI.
+- **Limiti**: non l'ho guardata a schermo — il server in ascolto (PID 15012) ha il codice di prima e va riavviato per servire il campo nuovo; la resa del banner (spazi, riga lunga) resta da vedere dal vivo. La priorità scelta è una decisione di prodotto: se Mauro vuole che la prova A/B non batta la telemetria mancante, si cambia l'ordine in un punto solo.
+
 ### 6/11 notte — Una sola formula per la benzina: carta e setup dicono lo stesso numero
 
 - **Richiesta di Mauro**: «allinea la formula della benzina fra meccanico e applicazione del setup, così danno lo stesso numero».
