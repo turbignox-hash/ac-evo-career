@@ -1,5 +1,16 @@
 # Diario di sviluppo
 
+### 6/11 — La gara di Laguna Seca corsa e sorvegliata: la radio è in tempo reale, tre letture no
+
+- **Richiesta di Mauro**: «eseguo la gara monitorizza tutto, e verifica che le frasi del copilot siano realmente in tempo reale e giusti, poi controlla tutto il resto. sto per partire.»
+- **La gara**: 3 giri, partenza P15, chiusa **P1** con **bandiera a scacchi** alle 14:09:55 e best **1:49.881** all'ultimo giro. Risultato scritto dal gioco alle 14:10:20 (`261106-1410_SP_Race.sessionresults.json`) e importato dal watcher: **20 punti, 4.500 € di premio, 450 € di bonus gara pulita, +11 reputazione, giro veloce**. Carriera passata a **ronda 4/7**, soldi **766.040**, campionato **P6**, prossima tappa **Suzuka · Campionato Moderno R1**.
+- **Metodo di verifica della radio**: ogni frase pronunciata (log `data/copilot-voce-24-10.jsonl`) è stata confrontata con `/api/live` **nello stesso istante**, con verdetti scritti in un registro a parte.
+- **Cosa è risultato giusto e in tempo reale**: delta annunciati con scarto massimo **0,03 s** dal valore live (6 su 6); posizioni annunciate entro circa un secondo (P11, P8, P6, P4, P2 e «P2 persa»); «Giro 3 fatto in **1:49.881**» identico al `lastLap` reale; «Bandiera a scacchi!» nello stesso istante in cui il live segnava la bandiera. La catena voce è quindi vera, non un riassunto a fine sessione.
+- **Cosa non torna (tre letture)**: (1) «Benzina per **11.6 giri**» con **1 giro** ancora da fare: il conto è coerente col consumo (1,02 L/giro) ma fuori contesto in gara; (2) **«Ultimo giro!» mai detto all'ultimo giro vero** (il gioco tiene `isLastLap` falso) e detto invece a sproposito al box-close di fine prove; (3) **danni mostrati come 676/964 %**: `shmem.mjs` moltiplica per 100 valori che sono già percentuali — i 12/5/17 del finale lo confermano.
+- **Quarto difetto, di etichetta**: la gara resta marcata **Practice/TimeAttack** in tutto il pipeline, quindi la riga di verifica che aspetta `Race` non potrà mai dire «pronto» e `inRace` resta falso mentre si corre davvero.
+- **Registrazione**: MoTeC della gara **9.254.204 byte** (`.ld` delle 14:10:20), oltre a quelli di prove e qualifiche delle 13:49 e 13:56.
+- **Limite del controllo**: una frase «0.0» contro un delta reale di −0,04 s è stata marcata discordante dal confronto di segno: è un falso positivo del verificatore, non della radio.
+
 ### 6/11 — In pista a Laguna Seca: il live risponde e il best ignora il giro tagliato
 
 - **Richiesta di Mauro**: «Entra in pista a Laguna Seca con EVO e verifica i dati live reali (posizione, giri, best lap, telemetria) senza completare la gara.»
