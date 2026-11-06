@@ -166,6 +166,27 @@ export function chiudiProva({ car, track, bestDopo, sessFile = null } = {}) {
   return chiuse;
 }
 
+/**
+ * La CARTA DEL MECCANICO che corrisponde a questo file, o null (6/11 notte).
+ * Ogni scrittura del meccanico lascia un round nella memoria delle prove
+ * (aperto o chiuso che sia) col nome della carta: se il file scelto è una di
+ * quelle, non è il base del pilota — è una carta già pronta, e il click ⚡
+ * deve aggiornare QUELLA invece di crearne una seconda con un altro nome.
+ * `prove` facoltativo per i test (senza, legge il disco).
+ */
+export function cartaDelMeccanicoSuFile(file, prove = null) {
+  /* I percorsi si confrontano NORMALIZZATI: sul disco di casa arrivano con le
+     barre rovesce (`C:\Users\…`) e il chiamante può averle dritte — con
+     l'uguaglianza secca la carta non si riconosceva (provato sul Golf: la
+     memoria la nominava, il confronto diceva «base pilota»). */
+  const chiave = (f) => String(f ?? '').trim().replace(/\\/g, '/').toLowerCase();
+  const f = chiave(file);
+  if (!f) return null;
+  const lista = Array.isArray(prove) ? prove : leggiProve();
+  const carte = lista.filter((p) => chiave(p?.setupFile) === f);
+  return carte.length ? carte[carte.length - 1] : null;
+}
+
 /** La prova ancora aperta di auto+pista (la più recente), o null. */
 export function provaAperta(prove, { car, track } = {}) {
   const k = keyOf(car, track);

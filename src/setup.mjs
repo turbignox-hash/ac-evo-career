@@ -508,6 +508,20 @@ function fmtLapShort(s) {
  * latest = { trackOk, bumpMax, camberProxy: {LF,RF,LR,RR}, brakes: {LF,RF,LR,RR}, tcPct }.
  * Ritorna { patches: {aero?, brakes?, elec?}, tiresExtra: [{i, camber}], text: [] }.
  */
+/**
+ * I GIRI di gara con cui si calcola la benzina (6/11 notte, la segnalazione di
+ * Mauro «il meccanico ne dà due con nome diverso»). Il numero giusto è quello
+ * della SCHEDA DEL ROUND (il weekend che stai correndo); la telemetria dice i
+ * giri della sessione REGISTRATA, che è un'altra gara: con la sola .ld una gara
+ * da 10 giri si ritrovava la benzina di una sessione da 3 (23 L → 6 L). Sotto
+ * i 3 giri non è una gara e non detta legge: si passa al chiamante, poi al
+ * default di sempre (10).
+ */
+export function giriGaraDa({ cardLaps = null, bodyLaps = null, fallback = 10 } = {}) {
+  const buono = (v) => Number.isFinite(Number(v)) && Number(v) >= 3 ? Math.round(Number(v)) : null;
+  return buono(cardLaps) ?? buono(bodyLaps) ?? fallback;
+}
+
 export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, defaults = null }) {
   const patches = {}, text = [], tiresExtra = [];
   const r1 = (v) => Math.round(v * 10) / 10;

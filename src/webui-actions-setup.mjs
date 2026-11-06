@@ -15,8 +15,9 @@ import { tr } from './lang.mjs';
 import { leggiIntenzione, nomeFileSetup, pianoSetup } from './meccanico-parla.mjs';
 import { collectSessions, pressureAdvice, racePressureAdvice } from './motec.mjs';
 import { GAME_EXE, resolvePaths } from './paths.mjs';
-import { apriProva } from './prova-setup.mjs';
-import { liveSetupSignals, mechanicExtraEdits, startPsiFromLive, tyreClassOf } from './setup.mjs';
+import { apriProva, cartaDelMeccanicoSuFile } from './prova-setup.mjs';
+import { raceCard } from './race.mjs';
+import { giriGaraDa, liveSetupSignals, mechanicExtraEdits, startPsiFromLive, tyreClassOf } from './setup.mjs';
 import { liveReader } from './shmem.mjs';
 import { sameCar as carSame, sameTrack as trkSame } from './tracknames.mjs';
 import { TRACK_INFO } from './tracks.mjs';
@@ -104,15 +105,23 @@ export async function setupAction(action, ctx) {
            creasse con il nome auto-pista: gara o qualifica, pioggia etc»): il
            file si chiama «Ferrari 296 GT3 - Brands Hatch - Qualifica», la
            forma che si legge al volo nella lista CARICA di EVO. */
+        /* I GIRI della gara sono quelli del ROUND che stai correndo (6/11
+           notte): chiesto «gara» su un weekend da 3 giri, il vecchio default
+           10 produceva una carta da 23 L mentre ⚡ ne scriveva una da 6 — due
+           carte per la stessa gara. Chi scrive i giri nella frase
+           («gara a 12 giri») comanda sempre. */
+        let cardLaps = null;
+        try { const card = raceCard(ladder, state, { car: carEf }); cardLaps = card?.round?.laps ?? card?.baseLaps ?? null; } catch { /* senza scheda resta il chiamante */ }
+        const giriGara = int.raceLaps ?? giriGaraDa({ cardLaps, bodyLaps: body.raceLaps });
         const nomeBase = nomeFileSetup({
           car: carEf,
           track: trackName || src.track || null,
           tipo: int.tipo,
-          raceLaps: int.raceLaps ?? (Number(body.raceLaps) >= 3 ? Number(body.raceLaps) : null),
+          raceLaps: giriGara,
         });
         const piano = pianoSetup({
           tipo: int.tipo,
-          raceLaps: int.raceLaps ?? (Number(body.raceLaps) >= 3 ? Number(body.raceLaps) : null),
+          raceLaps: giriGara,
           cur,
           sessione: Number(fuelPerLap) > 0 ? { fuelPerLap } : null,
           live: fixViva?.pressures ? { psi: fixViva.pressures } : null,
@@ -244,6 +253,21 @@ export async function setupAction(action, ctx) {
         const srcBuf = readFileSync(src.file);
         const cur = parseSetup(srcBuf);
         const carEff = src.car || carName;
+        /* UNA CARTA SOLA (6/11 notte, Mauro: «il meccanico mi dà 2 con nome
+           diverso»). Se il file scelto è una carta GIÀ scritta dal meccanico
+           (lo dice la memoria delle prove), ⚡ la AGGIORNA col suo nome invece
+           di creare «… — EVO-consigliato»: sul Golf a Brands Hatch le due
+           carte dicevano cose diverse sulla stessa gara (23 L contro 6 L,
+           pressioni 31 contro 35 PSI) e in EVO non si sapeva quale caricare.
+           Il base del pilota resta intoccato come sempre: quella strada fa la
+           copia col suffisso. */
+        const cartaMeccanico = cartaDelMeccanicoSuFile(src.file);
+        /* GIRI DI GARA per la benzina: la SCHEDA DEL ROUND comanda sulla
+           telemetria (che racconta un'altra sessione). Senza scheda resta il
+           numero del chiamante, poi il default di sempre. */
+        let cardLaps = null;
+        try { const card = raceCard(ladder, state, { car: carName || null }); cardLaps = card?.round?.laps ?? card?.baseLaps ?? null; } catch { /* senza scheda resta il chiamante */ }
+        const giriGara = giriGaraDa({ cardLaps, bodyLaps: body.raceLaps });
         // SUGGERIMENTO dalle telemetrie vere (stessi motori del pannello Telemetria);
         // SENZA .ld: fallback LIVE — le pressioni a caldo DALLA SHARED MEMORY di EVO
         // (stai girando adesso? il consiglio arriva da quel giro, serve il target di classe)
@@ -252,7 +276,7 @@ export async function setupAction(action, ctx) {
         let sessions = collectSessions(motecRoot, resDir, { car: carEff, track: trackName || undefined, limit: 8 });
         if (!sessions.length) sessions = collectSessions(motecRoot, resDir, { car: carEff, limit: 8 });
         const tyre = tyreClassOf(carEff);
-        const raceAdvice = sessions.length ? racePressureAdvice(sessions, { target: tyre?.target ?? null, raceLaps: Number(body.raceLaps) || 10 }) : null;
+        const raceAdvice = sessions.length ? racePressureAdvice(sessions, { target: tyre?.target ?? null, raceLaps: giriGara }) : null;
         const advice = sessions.length ? pressureAdvice(sessions, { target: tyre?.target ?? null }) : null;
         // AI BOX COMANDA IL LIVE (4/11): la correzione dai dati di adesso
         // (pressioni a caldo + target classe, regola dei 4 PSI) scrive
@@ -303,7 +327,7 @@ export async function setupAction(action, ctx) {
           tcPct: s0?.assist?.tcPct ?? null,
           // BENZINA di gara: consumo misurato × giri gara (+5% riserva)
           fuelPerLap: s0?.fuelPerLap ?? lastLap?.fuelUsed ?? null,
-          raceLaps: raceAdvice?.raceLaps ?? (Number(body.raceLaps) >= 3 ? Number(body.raceLaps) : null),
+          raceLaps: giriGara,
         };
         // LIVE sopra la telemetria vecchia: freni, camber-proxy e consumo di
         // ADESSO decidono le patch; bumpstop/TC restano dal .ld perché il live
@@ -347,7 +371,8 @@ export async function setupAction(action, ctx) {
               : null) ?? raceAdvice?.raceAdvice ?? advice?.advice ?? '',
           });
         }
-        const dest = join(dirname(src.file), src.name + ' — EVO-consigliato.carsetup');
+        const dest = cartaMeccanico ? src.file : join(dirname(src.file), src.name + ' — EVO-consigliato.carsetup');
+        const nomeDest = cartaMeccanico ? src.name : `${src.name} — EVO-consigliato`;
         const out = writeSetupCopy(srcBuf, dest, edits);
         /* LA PROVA A/B (6/11): il file scritto apre una prova con il giro di
            riferimento che ha generato il consiglio. Alla prima sessione nuova
@@ -357,14 +382,14 @@ export async function setupAction(action, ctx) {
           const ap = apriProva({
             car: carEff, track: trackName || src.track || null,
             baseFile: src.file, baseName: src.name,
-            setupFile: dest, setupName: `${src.name} — EVO-consigliato`,
+            setupFile: dest, setupName: nomeDest,
             changes: out.changes, bestPrima: s0?.bestLapSec ?? null, sessFile: s0?.file ?? null,
           });
           if (ap.ok) provaApertaOra = ap.prova;
         } catch { /* la prova non blocca mai la scrittura */ }
         const after = parseSetup(readFileSync(dest));
         return sendJson(res, 200, {
-          ok: true, file: dest, fileShort: `${src.name} — EVO-consigliato.carsetup`,
+          ok: true, file: dest, fileShort: `${nomeDest}.carsetup`, inPlace: !!cartaMeccanico,
           car: carEff, track: trackName || src.track, baseFile: src.file,
           prova: provaApertaOra,
           startPsi, changes: out.changes,
