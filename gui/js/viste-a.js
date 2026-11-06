@@ -229,19 +229,29 @@ function motivoCopertura(m) {
    l'avviso torna, senza doverlo andare a cercare. */
 const FIRMA_AVVISO_COV = 'evo.covAvvisoChiudi';
 /* RINVIO DI UN GIORNO (6/11, richiesta Mauro: «un pulsante per rimandare solo
-   di oggi, così torna domani senza dover cambiare i dati»). La ✕ tace finché
-   la situazione non cambia; questo pulsante tace SOLO per il giorno di
-   calendario: la chiave è la data locale `AAAA-MM-GG`, così domani la firma
-   torna diversa e l'avviso si riaccende da solo, senza toccare piste o dati. */
+   di oggi, così torna domani senza dover cambiare i dati»; poi: «fai valere il
+   rinvio sul giorno di carriera invece che sulla data del computer»).
+   Il conto è il GIORNO DI CARRIERA (quello dell'header, es. 258), non la data
+   del PC: avanzare di un giorno in carriera riaccende l'avviso, aspettare la
+   mezzanotte no. Si salva il numero del giorno in cui hai rimandato, nella
+   stessa chiave di prima: un valore vecchio in forma `AAAA-MM-GG` non combacia
+   con un numero e vale come nessun rinvio. La ✕ resta un'altra cosa: quella
+   tace finché la SITUAZIONE (piste + buchi) non cambia. */
 const RIMANDA_AVVISO_COV = 'evo.covAvvisoDomani';
-function oggiChiave(d = new Date()) {
-  const p = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+/** Il giorno di carriera come intero >= 0; null se non c'è o è sporco. */
+function giornoCarriera(n) {
+  if (n == null || n === '') return null;
+  const v = Number(n);
+  return Number.isFinite(v) && v >= 0 ? Math.floor(v) : null;
 }
 /** Il rinvio vale ancora? Puro apposta: la guardia lo prova senza browser.
- *  Un valore di ieri (o spazzatura) non è «oggi», quindi l'avviso torna. */
-function rimandatoOggi(salvato, oggi) {
-  return !!salvato && salvato === oggi;
+ *  Vale solo se il giorno di carriera è ANCORA quello del rinvio: quando la
+ *  carriera avanza — o il valore è spazzatura, o è di un altro giorno —
+ *  l'avviso torna da solo, anche con piste e buchi identici. */
+function rimandatoOggi(salvato, giorno) {
+  const g = giornoCarriera(giorno);
+  if (g == null || salvato == null) return false;
+  return String(salvato).trim() === String(g);
 }
 function firmaCopertura(g) {
   const inc = Array.isArray(g?.incomplete) ? g.incomplete : [];
@@ -254,12 +264,13 @@ function firmaCopertura(g) {
    mai corse non sono un allarme e restano nel pannello. Soglie e motivi
    arrivano da gaps (analysisGaps): qui non si ricalcola nessuna soglia, e
    nemmeno la gravità — si ordina sul `gravita` del server. */
-function avvisoCoperturaHtml(g) {
+function avvisoCoperturaHtml(g, giorno) {
   const inc = Array.isArray(g?.incomplete) ? g.incomplete : [];
   if (!inc.length) return '';
   const firma = firmaCopertura(g);
   try { if (localStorage.getItem(FIRMA_AVVISO_COV) === firma) return ''; } catch { /* storage negato: l'avviso si mostra sempre */ }
-  try { if (rimandatoOggi(localStorage.getItem(RIMANDA_AVVISO_COV), oggiChiave())) return ''; } catch { /* idem */ }
+  const oggi = giornoCarriera(giorno);
+  try { if (rimandatoOggi(localStorage.getItem(RIMANDA_AVVISO_COV), oggi)) return ''; } catch { /* idem */ }
   // le piste messe peggio per prime; a pari gravità, meno giri davanti
   const ordinate = [...inc].sort((a, b) => (b.gravita ?? 0) - (a.gravita ?? 0)
     || (b.mancano?.length ?? 0) - (a.mancano?.length ?? 0)
@@ -277,7 +288,7 @@ function avvisoCoperturaHtml(g) {
   return `<div class="banner warn" data-firma="${esc(firma)}" style="margin-bottom:10px;position:relative;padding-right:44px">📉 <b>${esc(titolo)}</b> — ${nomi.join(', ')}${inc.length > 3 ? ` ${tr({ it: `e altre ${inc.length - 3}`, en: `and ${inc.length - 3} more` })}` : ''}.
     <button class="mini" id="cov-banner-chiudi" title="${tr({ it: 'chiudi finché la situazione non cambia: se una pista scende sotto soglia (o una viene sistemata) l’avviso torna', en: 'dismiss until the situation changes: if a track drops below the threshold (or one is fixed) the warning comes back' })}" style="position:absolute;top:8px;right:8px;padding:2px 8px">✕</button>
     <div class="muted" style="font-size:12.5px;margin-top:4px">${tr({ it: `Soglie: almeno ${giri} giri, ${ld} file .ld, un giro cronometrato e ${sess} giri in una sessione. Le piste mai corse non entrano in questo avviso · le peggiori sono nominate per prime.`, en: `Thresholds: at least ${giri} laps, ${ld} .ld files, one timed lap and ${sess} laps in a session. Tracks never driven are not part of this warning · the worst are named first.` })}</div>
-    <div class="row" style="margin-top:6px"><button class="mini" id="cov-banner-apri">${tr({ it: 'Apri la copertura completa', en: 'Open full coverage' })}</button><button class="mini" id="cov-banner-domani" title="${tr({ it: 'nascondi l’avviso solo per oggi: torna domani da solo, senza cambiare i dati', en: 'hide the warning just for today: it comes back tomorrow by itself, without touching the data' })}">${tr({ it: 'Rimanda a domani', en: 'Remind me tomorrow' })}</button></div>
+    <div class="row" style="margin-top:6px"><button class="mini" id="cov-banner-apri">${tr({ it: 'Apri la copertura completa', en: 'Open full coverage' })}</button>${oggi == null ? '' : `<button class="mini" id="cov-banner-domani" title="${tr({ it: 'nascondi l’avviso finché il giorno di carriera non avanza: torna al prossimo giorno, senza cambiare i dati', en: 'hide the warning until the career day advances: it returns on the next career day, without touching the data' })}">${tr({ it: 'Rimanda al prossimo giorno', en: 'Remind me next day' })}</button>`}</div>
   </div>`;
 }
 
@@ -427,7 +438,7 @@ async function drawDashboard(m){
   <div class="grid2">
     <div>
       ${sbBanner}
-      ${avvisoCoperturaHtml(cov?.gaps)}
+      ${avvisoCoperturaHtml(cov?.gaps, h.day)}
       <!-- CONTATTO E VOLANTE (6/11): acceso solo con EVO in pista (lo nasconde
            paintContatto in viste-d): vibrazioni, FFB, carico e sospensioni
            letti dalla shared memory, valori grezzi con le unità dichiarate. -->
@@ -525,11 +536,13 @@ async function drawDashboard(m){
     try { localStorage.setItem(FIRMA_AVVISO_COV, b?.dataset.firma ?? ''); } catch { /* niente memoria: si chiude solo ora */ }
     b?.remove();
   });
-  /* Rinvio di un giorno: si salva la DATA, non la firma — domani la data
-     cambia e l'avviso torna anche se piste e buchi sono identici. */
+  /* Rinvio di un giorno: si salva il GIORNO DI CARRIERA, non la firma — quando
+     la carriera avanza il numero cambia e l'avviso torna anche se piste e
+     buchi sono identici. Senza un giorno valido non c'è pulsante da cliccare. */
   $('#cov-banner-domani')?.addEventListener('click', (e) => {
     const b = e.currentTarget.closest('.banner');
-    try { localStorage.setItem(RIMANDA_AVVISO_COV, oggiChiave()); } catch { /* niente memoria: si chiude solo ora */ }
+    const giorno = giornoCarriera(h.day);
+    try { if (giorno != null) localStorage.setItem(RIMANDA_AVVISO_COV, String(giorno)); } catch { /* niente memoria: si chiude solo ora */ }
     b?.remove();
   });
   drawCardInto($('#card-panel'), card);

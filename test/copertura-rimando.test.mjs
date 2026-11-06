@@ -1,24 +1,26 @@
-// copertura-rimando.test.mjs — LA GUARDIA DEL «RIMANDA A DOMANI» (6/11,
-// richiesta Mauro: «aggiungi all'avviso di copertura un pulsante per rimandare
-// solo di oggi, così torna domani senza dover cambiare i dati»).
+// copertura-rimando.test.mjs — LA GUARDIA DEL «RIMANDA» (6/11: prima richiesta
+// «rimanda solo di oggi, così torna domani senza cambiare i dati», poi «fai
+// valere il rinvio sul giorno di carriera invece che sulla data del computer»).
 //
 // Il difetto custodito: la ✕ dell'avviso lo tace FINCHÉ LA SITUAZIONE NON
-// CAMBIA (firma piste+buchi in localStorage), e l'unico altro modo per
-// liberarsi del banner era... aspettare di sistemare una pista. Il rinvio è
-// un'altra cosa: vale per il GIORNO di calendario, non per una firma, quindi
-// domani l'avviso torna da solo anche se piste e buchi sono identici.
+// CAMBIA (firma piste+buchi in localStorage), e l'unico altro modo per liberarsi
+// del banner era... aspettare di sistemare una pista. Il rinvio è un'altra
+// cosa: vale per il GIORNO DI CARRIERA, non per una firma e non per la data del
+// PC, quindi quando la carriera avanza l'avviso torna da solo anche se piste e
+// buchi sono identici — e aspettare la mezzanotte non serve a niente.
 //
-// La legge (`oggiChiave`, `rimandatoOggi`) e il render vero
+// La legge (`giornoCarriera`, `rimandatoOggi`) e il render vero
 // (`avvisoCoperturaHtml`) si estraggono dal VERO gui/js/viste-a.js — come
 // nav-bottoni fa con drawNav — e si interrogano con un localStorage finto.
 // Le maglie che contano:
-//   • nessun rinvio: il banner c'è, col pulsante «Rimanda a domani»;
-//   • rinvio di OGGI: nessun banner;
-//   • rinvio di IERI (o valore spazzatura): il banner torna;
+//   • nessun rinvio: il banner c'è, col pulsante del rinvio;
+//   • rinvio di OGGI (giorno 258): nessun banner;
+//   • rinvio di ieri (giorno 257): il banner torna;
+//   • valore spazzatura o vecchia data `AAAA-MM-GG`: vale come nessun rinvio;
+//   • senza giorno di carriera niente pulsante (non un bottone che non fa nulla);
 //   • la ✕ di prima continua a funzionare (firma uguale → niente banner);
 //   • senza piste incomplete: niente banner, rinvio o no.
-// E si controlla il filo nel sorgente: il pulsante esiste nel markup e il suo
-// click salva la DATA di oggi, non la firma.
+// E si controlla il filo nel sorgente: il click salva il GIORNO, non la firma.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -43,8 +45,9 @@ const tr = (o) => (typeof o === 'string' ? o : (o?.it ?? o?.en ?? ''));
 const esc = (s) => String(s);
 const motivoCopertura = (m) => `motivo:${m}`;
 
-const oggiChiave = new Function(`${funzione('oggiChiave')}\nreturn oggiChiave;`)();
-const rimandatoOggi = new Function(`${funzione('rimandatoOggi')}\nreturn rimandatoOggi;`)();
+const giornoCarriera = new Function(`${funzione('giornoCarriera')}\nreturn giornoCarriera;`)();
+// `rimandatoOggi` usa `giornoCarriera`: estratta da sola, gliela passo io
+const rimandatoOggi = new Function('giornoCarriera', `${funzione('rimandatoOggi')}\nreturn rimandatoOggi;`)(giornoCarriera);
 const firmaCopertura = new Function(`${funzione('firmaCopertura')}\nreturn firmaCopertura;`)();
 
 /** Un localStorage finto: solo getItem/setItem, come serve al banner. */
@@ -53,41 +56,62 @@ const storage = (iniziale = {}) => {
   return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), m };
 };
 
-/** Il render col vero corpo della funzione, ma con lo storage che dico io. */
-const html = (gaps, memoria) => new Function(
+/** Il render col vero corpo della funzione, ma con lo storage e il giorno che dico io. */
+const html = (gaps, memoria, giorno = 258) => new Function(
   'FIRMA_AVVISO_COV', 'RIMANDA_AVVISO_COV', 'firmaCopertura', 'motivoCopertura', 'esc', 'tr',
-  'localStorage', 'oggiChiave', 'rimandatoOggi',
+  'localStorage', 'giornoCarriera', 'rimandatoOggi',
   `${funzione('avvisoCoperturaHtml')}\nreturn avvisoCoperturaHtml;`,
-)('evo.covAvvisoChiudi', 'evo.covAvvisoDomani', firmaCopertura, motivoCopertura, esc, tr, memoria, oggiChiave, rimandatoOggi)(gaps);
+)('evo.covAvvisoChiudi', 'evo.covAvvisoDomani', firmaCopertura, motivoCopertura, esc, tr, memoria, giornoCarriera, rimandatoOggi)(gaps, giorno);
 
 const GAPS = {
   soglia: { giri: 3, fileTelemetria: 2, giriSessione: 3 },
   incomplete: [{ name: 'Imola', laps: 2, telemetryFiles: 1, mancano: ['giri', 'file'], gravita: 10 }],
 };
 
-const OGGI = oggiChiave();
-const IERI = oggiChiave(new Date(Date.now() - 86400000));
+/** Il giorno di carriera di oggi (dati veri: 258) e quello di ieri. */
+const OGGI = 258;
+const IERI = 257;
 
-test('senza rinvio il banner c\'è, con il pulsante «Rimanda a domani»', () => {
+test('senza rinvio il banner c\'è, col pulsante del rinvio', () => {
   const h = html(GAPS, storage());
   assert.match(h, /class="banner warn"/);
   assert.match(h, /id="cov-banner-domani"/);
-  assert.match(h, /Rimanda a domani/);
+  assert.match(h, /Rimanda al prossimo giorno/);
 });
 
-test('rinviato a oggi: niente banner, e nessun pulsante da cliccare a vuoto', () => {
-  assert.equal(html(GAPS, storage({ 'evo.covAvvisoDomani': OGGI })), '');
+test('rinviato a oggi (giorno di carriera 258): niente banner', () => {
+  assert.equal(html(GAPS, storage({ 'evo.covAvvisoDomani': String(OGGI) })), '');
 });
 
-test('il rinvio di ieri è scaduto: il banner torna da solo', () => {
-  assert.match(html(GAPS, storage({ 'evo.covAvvisoDomani': IERI })), /class="banner warn"/);
+test('il rinvio di ieri (giorno 257) è scaduto: il banner torna da solo', () => {
+  assert.match(html(GAPS, storage({ 'evo.covAvvisoDomani': String(IERI) })), /class="banner warn"/);
   assert.equal(rimandatoOggi(IERI, OGGI), false);
+  // e il giorno dopo la chiusura della carriera non c'entra nulla con la data del PC
+  assert.equal(rimandatoOggi(OGGI, 300), false, 'carriera avanzata: il rinvio non vale più');
+  assert.equal(rimandatoOggi('258', 258), true, 'il valore può arrivare come stringa dallo storage');
 });
 
-test('valore spazzatura in memoria: vale come nessun rinvio', () => {
+test('valore spazzatura o vecchia data in memoria: vale come nessun rinvio', () => {
   assert.equal(rimandatoOggi('', OGGI), false);
   assert.equal(rimandatoOggi(null, OGGI), false);
-  assert.equal(rimandatoOggi(OGGI, OGGI), true);
+  assert.equal(rimandatoOggi(undefined, OGGI), false);
+  assert.equal(rimandatoOggi('2026-11-06', OGGI), false, 'la data scritta prima di questo cambio non è un giorno di carriera');
+  assert.equal(rimandatoOggi('domani', OGGI), false);
+  assert.equal(rimandatoOggi('259', OGGI), false, 'un rinvio a un altro giorno non vale per oggi');
+});
+
+test('giorno di carriera assente o sporco: banner senza pulsante, niente rinvio', () => {
+  assert.equal(giornoCarriera(null), null);
+  assert.equal(giornoCarriera(undefined), null);
+  assert.equal(giornoCarriera(''), null);
+  assert.equal(giornoCarriera(-3), null);
+  assert.equal(giornoCarriera('abc'), null);
+  assert.equal(giornoCarriera('258'), 258);
+  assert.equal(giornoCarriera(258.7), 258, 'il giorno è un intero');
+  const h = html(GAPS, storage(), null);
+  assert.match(h, /class="banner warn"/, 'senza giorno il banner resta, non sparisce');
+  assert.doesNotMatch(h, /id="cov-banner-domani"/, 'senza giorno non c\'è un pulsante che non farebbe nulla');
+  assert.equal(rimandatoOggi(String(OGGI), null), false);
 });
 
 test('la ✕ di prima continua a funzionare: firma uguale, niente banner', () => {
@@ -98,19 +122,14 @@ test('la ✕ di prima continua a funzionare: firma uguale, niente banner', () =>
 test('senza piste incomplete non c\'è nessun banner, rinvio o no', () => {
   const vuoto = { ...GAPS, incomplete: [] };
   assert.equal(html(vuoto, storage()), '');
-  assert.equal(html(vuoto, storage({ 'evo.covAvvisoDomani': OGGI })), '');
+  assert.equal(html(vuoto, storage({ 'evo.covAvvisoDomani': String(OGGI) })), '');
 });
 
-test('la chiave è il giorno di calendario locale, non un numero di ore', () => {
-  assert.equal(oggiChiave(new Date(2026, 10, 6, 0, 1)), '2026-11-06');
-  assert.equal(oggiChiave(new Date(2026, 10, 6, 23, 59)), '2026-11-06');
-  assert.equal(oggiChiave(new Date(2026, 0, 5, 12, 0)), '2026-01-05', 'mese e giorno vanno a due cifre');
-  assert.notEqual(oggiChiave(new Date(2026, 10, 6, 23, 59)), oggiChiave(new Date(2026, 10, 7, 0, 1)));
-});
-
-test('il filo nel sorgente: il click salva la DATA, non la firma', () => {
+test('il filo nel sorgente: il click salva il GIORNO di carriera, non la firma', () => {
   assert.match(viste, /id="cov-banner-domani"/, 'il pulsante deve stare nel markup del banner');
-  assert.match(viste, /setItem\(RIMANDA_AVVISO_COV, oggiChiave\(\)\)/, 'il click deve salvare la data di oggi');
-  assert.match(funzione('avvisoCoperturaHtml'), /rimandatoOggi\(localStorage\.getItem\(RIMANDA_AVVISO_COV\), oggiChiave\(\)\)/,
+  assert.match(viste, /setItem\(RIMANDA_AVVISO_COV, String\(giorno\)\)/, 'il click deve salvare il giorno, non la data');
+  assert.match(funzione('avvisoCoperturaHtml'), /rimandatoOggi\(localStorage\.getItem\(RIMANDA_AVVISO_COV\), oggi\)/,
     'il banner deve controllare il rinvio prima di disegnarsi');
+  assert.match(viste, /avvisoCoperturaHtml\(cov\?\.gaps, h\.day\)/, 'al banner va passato il giorno di carriera dell\'header');
+  assert.doesNotMatch(viste, /oggiChiave/, 'la vecchia chiave di calendario non deve restare in giro');
 });
