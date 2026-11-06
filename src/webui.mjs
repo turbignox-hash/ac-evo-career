@@ -14,7 +14,7 @@ import { homedir } from 'node:os';
 import { telemScanLocale } from './webui-telem.mjs';
 import { requestFromLocalBrowser, serveStatic } from './webui-static.mjs';
 import { resolvePaths, isGameRunning, dataDirCandidates, isDir, isFile, launchGame } from './paths.mjs';
-import { collectCoverage } from './coverage.mjs';
+import { collectCoverage, scanResultSectors, sectorCompare } from './coverage.mjs';
 
 import {
   createCareer, nodeById, disciplineName, gateStatus,
@@ -1407,7 +1407,21 @@ async function api(context0, _req, res, action, body) {
       // ARCHIVIO ONLINE (31/10): sessioni _MP_ + libro dei rivali online, dal
       // stesso scopo carriera del catalog (afterMs = nascita della carriera).
       return sendJson(res, 200, onlineArchive(paths, { driver: state?.driver ?? null, afterMs: body.all ? 0 : (state?.createdAt ?? 0) }));
-    case 'result-detail': return sendJson(res, 200, resultDetail(paths, String(body.file ?? ''), { driver: state?.driver ?? null }) ?? { error: tr({ it: 'File non trovato.', en: 'File not found.' }) });
+    case 'result-detail': {
+      // CONFRONTO SETTORE PER SETTORE (6/11): il dettaglio gara porta anche il
+      // giro di questa gara accanto al miglior giro della stessa auto sulla
+      // stessa pista (settori dai file risultato, `scanResultSectors` in cache).
+      // Se i settori non ci sono, il campo resta null e la GUI non disegna nulla:
+      // meglio nessun numero che un confronto inventato.
+      const d = resultDetail(paths, String(body.file ?? ''), { driver: state?.driver ?? null });
+      if (!d) return sendJson(res, 200, { error: tr({ it: 'File non trovato.', en: 'File not found.' }) });
+      try {
+        d.sectors = sectorCompare(scanResultSectors(paths, state?.driver), d.file);
+      } catch {
+        d.sectors = null;
+      }
+      return sendJson(res, 200, d);
+    }
     // RAPPORTO DI GARA (27/10): il dossier PRONTO DA INCOLLARE su Discord —
     // stessa fonte del resultDetail (resultDetail) + settori dal file nativo;
     // salva anche il .md in report/gare/ per l'allegato.

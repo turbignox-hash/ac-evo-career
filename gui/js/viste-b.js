@@ -1124,6 +1124,45 @@ async function drawGironi(m){
   };
 }
 
+/* CONFRONTO SETTORE PER SETTORE (6/11, richiesta Mauro: «il confronto settore
+   per settore con il miglior giro nelle analisi delle gare importate»).
+   La gara aperta contro il miglior giro con la STESSA AUTO sulla stessa pista
+   (server, `sectorCompare`): delta per settore + la somma dei migliori settori
+   di sempre (ideale, che non è un tempo accreditato). Nessun altro giro con
+   quell'auto = nessun confronto, si mostrano solo i settori della gara. */
+function sectorCompareHtml(s) {
+  if (s == null) return '';
+  if (!s.gara) return '';
+  const n = s.parti;
+  const ms = (v) => (Number.isFinite(v) && v > 0 ? MS(v) : '—');
+  const dms = (v) => {
+    if (!Number.isFinite(v)) return '<span class="faint">—</span>';
+    const col = v > 0 ? '#ff9b9b' : v < 0 ? 'var(--ok,#4ade80)' : 'inherit';
+    return `<span style="color:${col}">${v > 0 ? '+' : v < 0 ? '−' : ''}${(Math.abs(v) / 1000).toFixed(3)}</span>`;
+  };
+  const righe = Array.from({ length: n }, (_, i) => `<tr>
+      <td class="muted">S${i + 1}</td>
+      <td class="right">${ms(s.gara.splitsMs[i])}</td>
+      <td class="right">${s.rif ? ms(s.rif.splitsMs[i]) : '—'}</td>
+      <td class="right">${s.rif ? dms(s.delta[i]) : '—'}</td>
+      <td class="right muted">${s.ideale ? ms(s.ideale.splitsMs[i]) : '—'}</td>
+    </tr>`).join('');
+  const dTot = s.rif ? s.gara.lapMs - s.rif.lapMs : null;
+  const provenienza = s.rif
+    ? (s.rif.stessoFile
+        ? tr({ it: 'questo giro È il tuo miglior giro con quest\'auto: delta a zero per costruzione', en: 'this lap IS your best lap in this car: deltas are zero by definition' })
+        : tr({ it: 'miglior giro da', en: 'best lap from' }) + ` ${esc(s.rif.session ?? '?')} · ${esc(s.rif.file)}`)
+    : tr({ it: 'nel tuo archivio non c\'è un altro giro con questa auto su questa pista: nessun confronto, restano i settori della gara', en: 'no other lap in this car on this track in your archive: no comparison, only this race\'s sectors' });
+  return `<div style="margin-top:14px;border-top:1px solid var(--line,#2b3345);padding-top:10px">
+    <div style="font-weight:700;font-size:13px">🎯 ${tr({ it: 'Settori: la gara contro il miglior giro', en: 'Sectors: race vs best lap' })}</div>
+    <div class="tscroll"><table style="margin-top:6px"><thead><tr><th></th><th class="right">${tr({ it: 'Gara', en: 'Race' })}</th><th class="right">${tr({ it: 'Miglior giro', en: 'Best lap' })}</th><th class="right">Δ</th><th class="right" title="${tr({ it: 'somma dei migliori settori di sempre con quest\'auto: NON è un tempo accreditato da nessuno', en: 'sum of your best sectors ever in this car: NOT a time anyone credited' })}">${tr({ it: 'Ideale', en: 'Ideal' })}</th></tr></thead>
+    <tbody>${righe}
+      <tr style="border-top:1px solid var(--line,#2b3345)"><td><b>${tr({ it: 'Totale', en: 'Total' })}</b></td><td class="right"><b>${ms(s.gara.lapMs)}</b></td><td class="right">${s.rif ? ms(s.rif.lapMs) : '—'}</td><td class="right">${s.rif ? dms(dTot) : '—'}</td><td class="right muted">${s.ideale ? ms(s.ideale.lapMs) : '—'}</td></tr>
+    </tbody></table></div>
+    <div class="muted" style="font-size:12.5px;margin-top:4px">${provenienza} · ${tr({ it: 'somma dei settori del file (non il tempo ufficiale del giro)', en: "sum of the file's sectors (not the official lap time)" })}${s.altre ? ` · ${s.altre} ${tr({ it: 'giri con quest\'auto', en: 'laps in this car' })}` : ''}</div>
+  </div>`;
+}
+
 async function openResult(file){
   const d = await api('result-detail', { file });
   if (d.error) return toast(d.error, 'err');
@@ -1174,7 +1213,7 @@ async function openResult(file){
       <td class="right">${esc(r.totalTime||'—')}</td>
       <td class="right">${r.gap!=null?fmtGap(r.gap):'—'}</td>
       ${h2hCol(r)}
-    </tr>`).join('')}</tbody></table>`,
+    </tr>`).join('')}</tbody></table>${sectorCompareHtml(d.sectors)}`,
     [[tr({ it: '⚡ Rapporto Discord', en: '⚡ Discord report' }), 'primary', () => { apriRapporto(); return false; }],
      [tr({ it: 'Chiudi', en: 'Close' }), 'ghost',()=>{}]]);
 }

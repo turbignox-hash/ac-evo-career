@@ -334,11 +334,56 @@ export function scanResultSectors(paths, driver, { ttlMs = 60000, now = Date.now
       const splits = Array.isArray(me?.splits) ? me.splits : [];
       const splitsMs = splits.map(lapTextMs).filter((v) => Number.isFinite(v) && v > 0);
       if (!splitsMs.length) continue;
-      rows.push({ track: r.track ?? '?', file, session: r.session ?? null, splitsMs });
+      // l'auto serve al confronto settore per settore: giri con auto diverse
+      // sulla stessa pista non si paragonano (una MX-5 non fa i settori di una GT3)
+      const car = `${me?.car_brand ?? ''} ${me?.car_name ?? ''}`.replace(/\s+/g, ' ').trim().toLowerCase();
+      rows.push({
+        track: r.track ?? '?', file, session: r.session ?? null, splitsMs, car,
+        lapMs: splitsMs.reduce((a, b) => a + b, 0),
+      });
     }
   }
   _sectorCache = { key, at: now, rows };
   return rows;
+}
+
+/**
+ * CONFRONTO SETTORE PER SETTORE CON IL MIGLIOR GIRO (6/11, richiesta Mauro).
+ * Prende le righe di `scanResultSectors` e il file della gara aperta, e mette
+ * il giro di quella gara accanto al miglior giro della stessa auto sulla stessa
+ * pista: per ogni settore il delta, più la somma dei migliori settori di sempre
+ * (l'ideale, che NON è un tempo accreditato da nessuno).
+ *
+ * Regole, per non inventare nulla:
+ * - il confronto è SOLO a parità di pista e auto, e con lo stesso numero di
+ *   settori: una GT3 contro una MX-5 non è un confronto, è un altro sport;
+ * - `lapMs` è la SOMMA DEI SETTORI (le `splits` del file), non il tempo
+ *   ufficiale del giro: la GUI lo dice;
+ * - se non c'è nessun altro giro con quell'auto, `rif` è null e la GUI mostra
+ *   solo i settori di questa gara, invece di paragonarla a sé stessa;
+ * - le sessioni delle uscite libere sono già nei file risultato: si passano
+ *   dentro `rows` una volta sola, senza duplicarle.
+ */
+export function sectorCompare(rows, file) {
+  const gara = (rows ?? []).find((r) => r.file === file);
+  if (!gara) return null;
+  const parti = gara.splitsMs.length;
+  const vista = (r) => ({ file: r.file, session: r.session, splitsMs: r.splitsMs, lapMs: r.lapMs, stessoFile: r.file === gara.file });
+  const stesse = (rows ?? []).filter((r) => r.track === gara.track && r.car === gara.car && r.splitsMs.length === parti);
+  if (stesse.length < 2) {
+    return { parti, gara: vista(gara), rif: null, delta: null, ideale: null, altre: 0 };
+  }
+  const rif = stesse.reduce((a, b) => (b.lapMs < a.lapMs ? b : a));
+  const somma = (arr) => arr.reduce((a, b) => a + b, 0);
+  const idealeMs = Array.from({ length: parti }, (_, i) => Math.min(...stesse.map((r) => r.splitsMs[i])));
+  return {
+    parti,
+    gara: vista(gara),
+    rif: vista(rif),
+    delta: gara.splitsMs.map((ms, i) => ms - rif.splitsMs[i]),
+    ideale: { splitsMs: idealeMs, lapMs: somma(idealeMs) },
+    altre: stesse.length,
+  };
 }
 
 /** Legge le fonti vive (salvataggio, quaderno giri, libro rivali, MoTeC) e produce il rapporto. */

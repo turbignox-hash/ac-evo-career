@@ -4,7 +4,7 @@
 // catalogo) e deve RESTARE dichiarata: pista fuori catalogo → niente km.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { catalogTrackOf, catalogLengthKm, coverageReport, analysisGaps, scanTelemetry } from '../src/coverage.mjs';
+import { catalogTrackOf, catalogLengthKm, coverageReport, analysisGaps, scanTelemetry, sectorCompare } from '../src/coverage.mjs';
 
 const results = {
   mx5: [
@@ -130,4 +130,38 @@ test('coverage: per ogni pista cosa c\'è e cosa manca (telemetria, cronometrati
   const mai = c.byTrack.find((r) => r.never);
   assert.ok(mai && mai.sessions === 0 && mai.telemetry.files === 0, 'le piste mai corse sono righe a zero');
   assert.equal(c.totals.tracks, 4, 'il totale piste conta solo quelle con dati');
+});
+
+/* CONFRONTO SETTORE PER SETTORE (6/11): la gara contro il miglior giro della
+   stessa auto. Le regole che il test difende: solo stessa pista E stessa auto
+   E stesso numero di settori; la somma dei settori non è il tempo ufficiale;
+   senza un altro giro con quell'auto non si inventa un confronto. */
+test('coverage: il confronto settori sceglie il miglior giro della stessa auto', () => {
+  const rows = [
+    { track: 'Donington Park', file: 'gara.json', session: 'Race', car: 'mx5', splitsMs: [25734, 51204, 49599], lapMs: 126537 },
+    { track: 'Donington Park', file: 'qual.json', session: 'Qualifying', car: 'mx5', splitsMs: [25485, 50400, 48717], lapMs: 124602 },
+    { track: 'Donington Park', file: 'gt3.json', session: 'Race', car: 'gt3', splitsMs: [20000, 40000, 38000], lapMs: 98000 },
+    { track: 'Oulton Park', file: 'altra.json', session: 'Race', car: 'mx5', splitsMs: [30000, 60000, 40000], lapMs: 130000 },
+  ];
+  const c = sectorCompare(rows, 'gara.json');
+  assert.equal(c.rif.file, 'qual.json', 'il riferimento è il giro più veloce, non il primo trovato');
+  assert.equal(c.altre, 2, 'solo i giri della stessa auto sulla stessa pista');
+  assert.deepEqual(c.delta, [249, 804, 882]);
+  assert.equal(c.gara.lapMs, 126537);
+  assert.equal(c.ideale.lapMs, 124602, 'ideale = somma dei migliori settori di sempre');
+  assert.equal(c.rif.stessoFile, false);
+
+  // stesso file come riferimento: delta a zero, dichiarato
+  const best = sectorCompare(rows, 'qual.json');
+  assert.equal(best.rif.stessoFile, true);
+  assert.deepEqual(best.delta, [0, 0, 0]);
+
+  // nessun altro giro con quell'auto (pista diversa o auto diversa): niente rif
+  const solo = sectorCompare([rows[0], rows[2], rows[3]], 'gara.json');
+  assert.equal(solo.rif, null);
+  assert.equal(solo.delta, null);
+  assert.equal(solo.altre, 0);
+
+  // un file senza splits non è confrontabile
+  assert.equal(sectorCompare(rows, 'manca.json'), null);
 });
