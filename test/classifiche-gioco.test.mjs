@@ -2,7 +2,7 @@
 // dai file .sessionresults.json: la più recente prima, 0-based convertito
 // in P1, nomi piloti verbatim, auto senza brand doppio, file rotti saltati.
 
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, utimesSync, rmSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -13,6 +13,7 @@ const dir = mkdtempSync(join(tmpdir(), 'acl-gio-'));
 const results = join(dir, 'Results');
 mkdirSync(results, { recursive: true });
 const paths = { resultsDirs: [results] };
+after(() => rmSync(dir, { recursive: true, force: true }));
 
 // GARA (più recente): 0-based, brand già dentro car_name
 const gara = {
@@ -21,6 +22,7 @@ const gara = {
     { position: 0, driver_name: 'Mauro', driver_surname: 'Conti', car_brand: 'Mazda', car_name: 'Mazda MX-5 ND Cup' },
     { position: 1, driver_name: 'Adrian', driver_surname: 'Palmer', car_brand: 'Mazda', car_name: 'MX-5 ND Cup' },
     { position: 2, driver_name: 'Elena', driver_surname: 'Rossi', car_brand: 'Mini', car_name: 'Cooper S' },
+    { position: null, driver_name: 'Ritiro', driver_surname: 'Senza posizione', car_brand: '', car_name: '' },
   ],
 };
 // QUALIFICA (più vecchia): 1-based, doppio con nome=cognome
@@ -47,9 +49,9 @@ test('classificheRecenti: la gara più recente è la prima, poi la qualifica', (
   const g = classificheRecenti(paths, { limite: 3 });
   assert.deepEqual(g.sessions.map((s) => s.tipo), ['race', 'qualifying']);
   assert.equal(g.sessions[0].pista, 'brands_hatch');
-  assert.equal(g.sessions[0].pilotiTot, 3);
+  assert.equal(g.sessions[0].pilotiTot, 4);
   const righe = g.sessions[0].righe;
-  assert.deepEqual(righe.map((r) => r.pos), [1, 2, 3]);
+  assert.deepEqual(righe.map((r) => r.pos), [1, 2, 3, null]);
   assert.equal(righe[0].nome, 'Mauro Conti');
   assert.equal(righe[0].auto, 'Mazda MX-5 ND Cup'); // brand già dentro il nome: niente doppio
   assert.equal(righe[1].auto, 'Mazda MX-5 ND Cup'); // brand Mancante ricostrito
@@ -73,9 +75,14 @@ test('classificheRecenti: limite rispettato e file rotti/sbagliati saltano', () 
   assert.deepEqual(classificheRecenti(null), { sessions: [] });
 });
 
+test('positionBase: posizione assente non viene confusa con posizione zero', async () => {
+  const { positionBase } = await import('../src/results.mjs');
+  assert.deepEqual(positionBase({ drivers: [{ position: null }, { position: 1 }] }), { zeroBased: false, base: 1 });
+  assert.deepEqual(positionBase({ drivers: [{ position: '' }, { position: 1 }] }), { zeroBased: false, base: 1 });
+  assert.deepEqual(positionBase({ drivers: [{ position: 0 }, { position: 1 }] }), { zeroBased: true, base: 0 });
+});
+
 test('classificaDiFile: file illeggibile = null, mai scoppio', () => {
   assert.equal(classificaDiFile(join(results, 'spazzatura.txt')), null);
   assert.equal(classificaDiFile(join(results, 'non-esiste.json')), null);
 });
-
-test('teardown', { todo: true }, () => { rmSync(dir, { recursive: true, force: true }); });

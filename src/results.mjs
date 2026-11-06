@@ -135,7 +135,11 @@ export function lapToMs(t) {
  * lo si capisce dal minimo. Restituisce anche com'e' stato letto.
  */
 export function positionBase(result) {
-  const positions = (result?.drivers ?? []).map((d) => Number(d.position)).filter((p) => Number.isFinite(p));
+  const positions = (result?.drivers ?? [])
+    .map((d) => d?.position)
+    .filter((p) => p != null && !(typeof p === 'string' && p.trim() === ''))
+    .map(Number)
+    .filter((p) => Number.isFinite(p));
   if (!positions.length) return { zeroBased: true, base: 0 };
   const zeroBased = Math.min(...positions) === 0;
   return { zeroBased, base: zeroBased ? 0 : 1 };

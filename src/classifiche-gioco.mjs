@@ -32,17 +32,26 @@ export function classificaDiFile(file) {
   // 0-based nei file EVO (position 0 = vincitore): qui si torna a P1;
   // i file 1-based (qualifiche di profili vecchi) passano senza tocco
   const { zeroBased } = positionBase(r);
+  const posizioneValida = (value) => {
+    if (value == null || (typeof value === 'string' && value.trim() === '')) return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  };
   const piloti = (r.drivers ?? [])
-    .slice()
-    .sort((a, b) => Number(a.position ?? 0) - Number(b.position ?? 0))
+    .map((driver, ordine) => ({ driver, ordine, pos: posizioneValida(driver?.position) }))
+    .sort((a, b) => {
+      if (a.pos == null) return b.pos == null ? a.ordine - b.ordine : 1;
+      if (b.pos == null) return -1;
+      return a.pos - b.pos || a.ordine - b.ordine;
+    })
     .slice(0, LIMITE_PILOTI);
   return {
     quando: new Date().toISOString(), // si corregge sotto con l'mtime reale
     pista: r.track ? String(r.track) : null,
     tipo: r.session ? String(r.session) : null,
     pilotiTot: (r.drivers ?? []).length,
-    righe: piloti.map((d) => ({
-      pos: Number.isFinite(Number(d.position)) ? Number(d.position) + (zeroBased ? 1 : 0) : null,
+    righe: piloti.map(({ driver: d, pos }) => ({
+      pos: pos == null ? null : pos + (zeroBased ? 1 : 0),
       nome: nomePilota(d.driver_name, d.driver_surname) || '—',
       auto: autoCompleta(d.car_brand, d.car_name),
     })),
