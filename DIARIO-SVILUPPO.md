@@ -1,5 +1,14 @@
 # Diario di sviluppo
 
+### 6/11 notte — Release v0.1.68
+
+- **Richiesta di Mauro**: «prepara la release: bump di versione, CHANGELOG del blocco di lavoro, tag e pubblicazione con il pacchetto».
+- **Cosa entra**: i 34 commit da `v0.1.67` — collaudo del PC amico ricostruito e agganciato al preflight (27/27), delta ai box e delta dell'ultimo tratto corretti, meccanico a carta unica con i giri del round e le novità dall'ultima visita, rinvio dell'avviso di copertura a durata scelta, riepilogo live incrementale, telemetria per stint, live di motore/contatto/danni, classifiche e calendario, installatore senza token. Il CHANGELOG ha la voce `v0.1.68` con i numeri veri di ogni pezzo.
+- **Versione**: `npm run bump` → **0.1.67 → 0.1.68** (patch: niente rotture di formato o di contratto).
+- **Verifiche prima del tag**: `npm run check` verde — **1.206 test, 1.204 pass, 0 fail**, 2 skip, Biome pulito su 432 file. Un giro precedente della stessa suite aveva dato 1 rosso non ripetuto (`layout-impostazioni`, la flakiness già nota nella corsa piena): lo dichiaro nel CHANGELOG, non lo nascondo.
+- **Nota di casa**: gli EXE escono **non firmati** (nessun certificato Authenticode su questo PC, `EVO_SIGN_*` assenti): la checklist ammette la cosa solo se dichiarata, e qui è dichiarata.
+
+
 ### 6/11 notte — Il rinvio dell'avviso di copertura ha la durata (1, 2 o 3 giorni)
 
 - **Richiesta di Mauro**: «aggiungi al rinvio dell'avviso una scelta di durata, per esempio due o tre giorni di carriera».
