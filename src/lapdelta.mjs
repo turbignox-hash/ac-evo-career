@@ -79,17 +79,38 @@ export function matchTrack(curTrack, bestPath) {
   for (const s of cur) {
     // fascia in AVANZAMENTO: [lastP+0.005, lastP+0.22] (o [0, 0.22] al primo)
     const from = lastP == null ? -0.02 : lastP + 0.005;
-    let hit = null, bestD = Infinity;
-    for (const q of bestPath.pts) {
+    let hit = null, hitI = -1, bestD = Infinity;
+    for (let i = 0; i < bestPath.pts.length; i++) {
+      const q = bestPath.pts[i];
       let dp = q.p - from;
       if (dp < -0.5) dp += 1;                  // wrap: da 0.97 a 0.02 vicino
       if (dp < -0.02 || dp > 0.22) continue;
       const d = (q.x - s.x) ** 2 + (q.z - s.z) ** 2;
-      if (d < bestD) { bestD = d; hit = q; }
+      if (d < bestD) { bestD = d; hit = q; hitI = i; }
     }
     if (!hit) continue;
     if (lastP != null && hit.p <= lastP - 0.001) continue;
-    out.push({ p: hit.p, tBest: hit.t, curMs: s.t, x: hit.x, z: hit.z, dz: s.t - hit.t });
+    /* tBest INTERPOLATO (6/11 notte, «i delta sono errati rispetto ai numeri
+       a schermo»): il campione cade in genere TRA due griglie del best (25 m),
+       e il tempo del punto griglia sposta il delta di una fetta intera
+       (±0.25 s a 50 m/s, scarto costante per tutto il giro).
+       La proiezione sul segmento del best davanti al punto matchato interpola
+       il tempo in LINEA e l'errore scende sotto il centesimo. Il wrap del
+       cerchio è ammesso: quando il segmento attraversa il traguardo il
+       successore del punto N è il punto 0. */
+    let tBest = hit.t;
+    if (hit.t != null) {
+      const nxt = bestPath.pts[(hitI + 1) % bestPath.pts.length];
+      if (nxt.t != null) {
+        const dHit = Math.hypot(s.x - hit.x, s.z - hit.z);
+        const dNext = Math.hypot(s.x - nxt.x, s.z - nxt.z);
+        if (dHit + dNext > 0.001) {
+          const f = Math.min(1, Math.max(0, dHit / (dHit + dNext)));
+          tBest = hit.t + f * (nxt.t - hit.t);
+        }
+      }
+    }
+    out.push({ p: hit.p, tBest, curMs: s.t, x: hit.x, z: hit.z, dz: s.t - tBest });
     lastP = hit.p;
   }
   return out.length >= 3 ? out : null;

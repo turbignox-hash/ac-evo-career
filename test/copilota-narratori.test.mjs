@@ -882,3 +882,47 @@ test("sessione segue sessione con la STESSA firma: la cura monotona resta dentro
   // e soprattutto nessun annuncio che torna indietro: un «Giro 1» dopo il giro 2 non esiste
   assert.ok(giri.every((f) => !/Giro 1/.test(f.it)));
 });
+
+/* 6/11 notte, «i delta sono errati rispetto ai numeri a schermo»: il tempo del
+   best era preso dal punto griglia (25 m) senza interpolare, così ogni giro la
+   griglia sfasata portava lo scarto fisso della fetta intera (±0.25 s a
+   50 m/s). Il tBest ora si proietta sul segmento del best davanti al punto
+   matchato: qui le due matte di verità — ritardo esatto e griglia sfasata. */
+test("delta di ritmo: griglia sfasata non paga più la fetta intera", async () => {
+  const { liveDelta, buildPathProg } = await import('../src/lapdelta.mjs');
+  const V = 50, NPT = 160, PASSO = 25;   // cerchio 4 km, 25 m a 50 m/s
+
+  const segnatura = (fino) => {
+    let se = 42;
+    return () => { se = (se * 1103515245 + 12345) % 2 ** 31; return ((se % 65536) / 65536) * 2 - 1; };
+  };
+
+  const bestPath = buildPathProg(Array.from({ length: NPT }, (_, i) => ({
+    x: Math.cos((i * PASSO) / 637) * 637, z: Math.sin((i * PASSO) / 637) * 637,
+    t: (i * PASSO * 1000) / V,
+  })));
+
+  // caso A: griglie identiche, il giro corrente in ritardo di ESATTAMENTE 1000 ms
+  const randA = segnatura();
+  const finoA = 1000 + (80 * PASSO * 1000) / V;
+  const curA = Array.from({ length: 81 }, (_, j) => ({
+    x: Math.cos((j * PASSO) / 637) * 637, z: Math.sin((j * PASSO) / 637) * 637,
+    t: 1000 + (j * PASSO * 1000) / V,
+  })).filter((p) => p.t <= finoA);
+  const dA = liveDelta(curA, bestPath, finoA);
+  assert.ok(Math.abs(dA.deltaMs - 1000) <= 50, `griglie identiche: delta esatto 1000 ms, venuto ${dA.deltaMs}`);
+
+  // caso B: la griglia del corrente slittata di 12 m lungo la pista (il caso
+  // del vivo: ogni giro ricomincia da un punto diverso della griglia del best)
+  const slitt = 12;
+  const finoB = 1000 + ((80 * PASSO + slitt) * 1000) / V;
+  const K = Math.floor((finoB - 1000) * V / 1000 / PASSO) || 80;
+  const curB = Array.from({ length: Math.min(NPT, K + 1) }, (_, j) => {
+    const a = ((j * PASSO + slitt) / 637);
+    return { x: Math.cos(a) * 637, z: Math.sin(a) * 637, t: 1000 + ((j * PASSO + slitt) * 1000) / V };
+  }).filter((p) => p.t <= finoB);
+  const dB = liveDelta(curB, bestPath, finoB);
+  // senza interpolazione lo scarto era 12 m / 50 m/s = 0.24 s fisso;
+  // proiettato sul segmento deve scendere sotto 60 ms
+  assert.ok(Math.abs(dB.deltaMs - 1000) <= 60, `griglia sfasata di 12 m: scarto sotto 60 ms, venuto ${dB.deltaMs - 1000} ms`);
+});
