@@ -1057,12 +1057,68 @@ setInterval(async () => {
 }, 2000);
 
 /* widget live nel cruscotto (dati di gara in tempo reale) */
+/* CONTATTO E VOLANTE (6/11): vibrazioni, FFB, carico e sospensioni dal physics.
+   Esiste come funzione a sé per due motivi: la disegna il poller del live e la
+   chiama anche il test in-browser con uno snapshot finto. I valori sono quelli
+   scritti dal gioco, senza conversioni nascoste: le unità sono nella riga in
+   basso, le soglie non ci sono (niente semafori inventati). */
+function contattoHtml(r){
+  const p = r?.player;
+  if (!p) return `<div class="muted" style="font-size:12.5px">${tr({ it: 'EVO aperto, nessuna sessione in corso.', en: 'EVO open, no session running.' })}</div>`;
+  const c = p.contact;
+  if (!c) return `<div class="muted" style="font-size:12.5px">${tr({ it: 'EVO non manda i dati di contatto in questa sessione.', en: 'EVO is not sending contact data in this session.' })}</div>`;
+  const num = (v, d = 2) => (v == null || !Number.isFinite(Number(v)) ? '—' : Number(v).toFixed(d));
+  const vib = [
+    [tr({ it: 'strada', en: 'road' }), c.vibration?.road],
+    [tr({ it: 'cordolo', en: 'kerb' }), c.vibration?.kerb],
+    [tr({ it: 'slittamento', en: 'slip' }), c.vibration?.slip],
+    ['ABS', c.vibration?.abs],
+  ];
+  const vibRows = vib.map(([nome, v]) => `<div style="display:flex;align-items:center;gap:8px;margin:3px 0">
+      <span class="muted" style="width:80px;font-size:12.5px">${esc(nome)}</span>
+      <span style="flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden"><i style="display:block;height:5px;background:var(--acc2);width:${Math.max(0, Math.min(100, Math.abs(Number(v) || 0) * 100))}%"></i></span>
+      <b style="width:48px;text-align:right;font-size:12.5px">${num(v)}</b>
+    </div>`).join('');
+  const RUOTE = ['LF', 'RF', 'LR', 'RR'];
+  const ruotaLbl = (w) => ({ LF: tr({ it: 'ant sx', en: 'front left' }), RF: tr({ it: 'ant dx', en: 'front right' }), LR: tr({ it: 'post sx', en: 'rear left' }), RR: tr({ it: 'post dx', en: 'rear right' }) })[w] ?? w;
+  const carico = c.wheelLoadN ?? [];
+  const sosp = c.suspensionM ?? [];
+  const freno = p.brakeTempC ?? [];
+  const righe = RUOTE.map((w, i) => `<tr>
+      <td class="faint" style="white-space:nowrap">${ruotaLbl(w)}</td>
+      <td class="right">${carico[i] == null ? '—' : Number(carico[i]).toLocaleString('it-IT')} N</td>
+      <td class="right">${sosp[i] == null ? '—' : (Number(sosp[i]) * 100).toFixed(1)} cm</td>
+      <td class="right">${freno[i] == null ? '—' : Math.round(Number(freno[i]))} °C</td>
+    </tr>`).join('');
+  return `<div style="display:flex;gap:18px;flex-wrap:wrap">
+      <div style="flex:1;min-width:190px">
+        <div class="muted" style="font-size:12.5px;margin-bottom:4px">FFB <b style="color:var(--text);font-size:13px">${num(c.ffb, 3)}</b> <span class="faint">${tr({ it: 'valore grezzo del canale', en: 'raw channel value' })}</span></div>
+        ${vibRows}
+      </div>
+      <div style="flex:1;min-width:220px">
+        <div class="tscroll"><table><thead><tr><th>${tr({ it: 'Ruota', en: 'Wheel' })}</th><th class="right">${tr({ it: 'Carico', en: 'Load' })}</th><th class="right">${tr({ it: 'Sospensione', en: 'Suspension' })}</th><th class="right">${tr({ it: 'Freno', en: 'Brake' })}</th></tr></thead><tbody>${righe}</tbody></table></div>
+      </div>
+    </div>
+    <div class="muted" style="font-size:12px;margin-top:8px">${tr({ it: 'Valori grezzi dalla shared memory di EVO: vibrazioni sulla scala del canale (0–1), carico in N, sospensione in cm (metri × 100), freni in °C', en: 'Raw values from EVO shared memory: vibrations on the channel scale (0–1), load in N, suspension in cm (metres × 100), brakes in °C' })}${c.waterTempC == null ? '' : ` · ${tr({ it: 'acqua', en: 'water' })} ${num(c.waterTempC, 1)} °C`}. ${tr({ it: 'Nessuna soglia: sono numeri, non un semaforo.', en: 'No thresholds: these are numbers, not a traffic light.' })}</div>`;
+}
+
+/** Dipinge il pannello del contatto se la scheda in vista ce l'ha (Cruscotto). */
+function paintContatto(r){
+  const host = document.querySelector('#lc-body');
+  if (!host) return;
+  const panel = host.closest('.panel');
+  if (panel) panel.style.display = r?.game ? '' : 'none';
+  if (!r?.game) return;
+  host.innerHTML = contattoHtml(r);
+}
+
 async function drawLiveStrip(){
   const host = document.querySelector('#live-strip');
   if (!host) return;
   try {
     const [r, w, h] = await Promise.all([api('live'), api('watcher'), api('system-health').catch(() => null)]);
     drawMotecStrip(h);
+    paintContatto(r);
     // EVO scrive il file .ld SOLO alla chiusura della sessione: se compare (o cambia)
     // un file NUOVO mentre sei sul cruscotto, i dati d'ingegnere sono cambiati —
     // ridisegna la pagina senza che tu la ricarichi a mano.

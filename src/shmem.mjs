@@ -1165,6 +1165,9 @@ export class LiveReader {
         camberRAD: p?.camberRAD ?? null,
         suspensionTravel: p?.suspensionTravel ?? null,
         rideHeight: p?.rideHeight ?? null,
+        // CONTATTO E VOLANTE (6/11): il physics porta già vibrazioni e FFB,
+        // ma lo snapshot compatto li buttava — la WebUI non li ha mai visti.
+        contact: contattoDaPhysics(p),
         timeLeft: !!st.timedRace && g.timeLeftStr?.trim() ? g.timeLeftStr.trim() : null,
       } : null,
     };
@@ -1211,6 +1214,32 @@ export function eGaraSessione({ tipo = null, giriTotali = null, tempoRimanente =
  *  dell'usura gomme in engineer.mjs — e il risultato non passa mai il 100.
  *  Prima ogni valore era × 100 a prescindere: la gara di Laguna Seca ha
  *  mostrato «676 %» e «964 %». */
+/**
+ * CONTATTO E VOLANTE (6/11): i campi del physics che EVO scrive e che finora
+ * venivano letti e buttati via. Sono verificati sui 558 snapshot del collaudo
+ * del 4/11 a Laguna Seca: finalFF non-zero in 558/558, roadVibrations in 551,
+ * slipVibrations 79, kerbVibration 21, absVibrations 3 — quindi i campi sono
+ * VIVI, non zeri di comodo. I valori restano GREZZI come li scrive il gioco:
+ * nessuna conversione e nessuna soglia qui, chi li mostra li dichiara.
+ */
+export function contattoDaPhysics(p) {
+  if (!p) return null;
+  const n = (v, k = 1000) => (v == null || v === '' ? null : (Number.isFinite(Number(v)) ? Math.round(Number(v) * k) / k : null));
+  const four = (arr, k = 1000) => (Array.isArray(arr) ? arr.slice(0, 4).map((v) => n(v, k)) : null);
+  return {
+    ffb: n(p.finalFF),
+    vibration: {
+      road: n(p.roadVibrations),
+      kerb: n(p.kerbVibration),
+      slip: n(p.slipVibrations),
+      abs: n(p.absVibrations),
+    },
+    wheelLoadN: four(p.wheelLoad, 1),
+    suspensionM: four(p.suspensionTravel),
+    waterTempC: n(p.waterTemp, 10),
+  };
+}
+
 export function danniPercent(damage) {
   const vals = (Array.isArray(damage) ? damage : []).map((v) => (Number.isFinite(Number(v)) ? Number(v) : null));
   const scala = vals.some((v) => v != null && v > 1.5) ? 1 : 100;
