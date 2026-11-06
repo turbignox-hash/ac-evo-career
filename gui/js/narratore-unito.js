@@ -125,7 +125,8 @@ function narratore(m, slot, ora = Date.now()) {
   // viste-a.js: lezione Brands Hatch 25/10, replay del registro). Come in
   // vista: niente voce oltre il totale della sessione — il taglio in più sul
   // traguardo è artefatto, non gara (risultati ufficiali restano 3 giri)
-  let compiuto = (Number.isFinite(g.lapsDone) && g.lapsDone > 0) ? g.lapsDone
+  const faseRace = /race/i.test(String(m.phase ?? '')) || m.inRace === true;
+  let compiuto = (Number.isFinite(g.lapsDone) && (g.lapsDone > 0 || (g.lapsDone === 0 && faseRace))) ? g.lapsDone
     : (lapNo != null && lapNo > 0 ? lapNo : null);
   if (compiuto != null && g.lapsTotal != null && g.lapsTotal > 0 && compiuto > g.lapsTotal) compiuto = g.lapsTotal;
   // 28/10 tardo (allineato alla vista): dentro la STESSA sessione il contatore
@@ -160,6 +161,17 @@ function narratore(m, slot, ora = Date.now()) {
     } else {
       compiuto = slot.last.giro;   // HUD graffiato nella STESSA sessione: la memoria fa fede
     }
+  }
+  /* SEMINA DEL CONTATORE (7/11, «il copilota non annuncia il primo giro»):
+     prima non si assegnava `slot.last.giro` finché lastLap non cambiava; quindi
+     il primo traguardo della sessione entrava nel ramo d'inizializzazione muto
+     e si sentiva solo dal giro 2 in poi. Semina il numero al PRIMO frame valido:
+     se siamo al via (0) il successivo traguardo annuncia «Giro 1»; se il
+     narratore si collega a gara già avviata, prende atto del conteggio/lastLap
+     già presente senza annunciare a posteriori un giro che non ha visto. */
+  if (compiuto != null && slot.last.giro == null) {
+    slot.last.giro = compiuto;
+    if (lastLapTxt != null) slot.last.lastLapTxt = lastLapTxt;
   }
   if (compiuto != null && slot.last.giro != null && compiuto > slot.last.giro && lastLapTxt && lastLapTxt !== slot.last.lastLapTxt) {
     parla.push(m.delta?.bestLapNo === compiuto

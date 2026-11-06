@@ -1,5 +1,13 @@
 # Diario di sviluppo
 
+### 7/11 — La copilota annuncia anche il giro 1
+
+- **Richiesta di Mauro**: «indaga perché il copilota non annuncia il primo giro di gara e sistemalo», dopo la gara Coppa Città R2 a Donington del 6/11: il registro vocale (`data/copilot-voce-24-10.jsonl`) contiene «Giro 2 fatto in 1:49.371» e «Giro 3 fatto in 1:48.693», ma nessun «Giro 1». La radio era attiva al via (bandiera verde 23:52:30Z); al traguardo del giro 1 non è uscita una riga `giroFatto`.
+- **Causa** (`gui/js/narratore-unito.js`): il narratore attendeva un `slot.last.giro` precedente per riconoscere l'incremento; lo inizializzava soltanto quando cambiava `lastLapTxt`. Al via `lapsDone=0` veniva trattato come «dato mancante» (condizione `> 0`), perciò il primo incremento 0→1 era solo semina silenziosa: il giro 1 si perdeva sistematicamente.
+- **Correzione**: durante una fase Race (`phase` dichiara `Race`, oppure il chiamante indica `inRace: true`), **0 è un conteggio valido** e viene seminato al primo frame. Il traguardo successivo può quindi annunciare Giro 1. La memoria si semina senza parlare anche se la radio si collega a gara già iniziata, per non annunciare retroattivamente giri già chiusi; monotonicità e guardia sui reset spurii restano intatte. Alla nuova fase dopo `Ended`, il contatore azzerato riparte come prima.
+- **Verifiche**: nuovo test in `test/copilota-narratori.test.mjs` riproduce contatore 0 → 1 → 2 → 3 con tempi veri e pretende esattamente «Giro 1», «Giro 2», «Giro 3» una volta ciascuno. `node --test test/copilota-narratori.test.mjs`: **43/43**; `npx biome check gui/js/narratore-unito.js test/copilota-narratori.test.mjs`: pulito; `node --check gui/js/narratore-unito.js`: OK.
+- **Limite**: la gara precedente è già conclusa, quindi non c'è una nuova frase nel registro storico da verificare. Il server aggiornato è stato riavviato (PID 18976), risponde su 8642 e ha preso il lock della radio; in assenza di una sessione live la verifica audio sul prossimo traguardo resta da fare al prossimo primo giro in Race.
+
 ### 7/11 notte — La gara di Donington: cosa ho misurato, e l'avviso zavorre che non arrivava alla GUI
 
 - **Richiesta di Mauro**: «sono in pista registra, faccio la gara da 3 giri testa tutto il possibile». Ho registrato i tick live (642 campioni, `data/live-2026-11-06T22-49-20.ndjson`, 22:49→23:01Z) e poi pesato la gara vera.

@@ -883,6 +883,28 @@ test("sessione segue sessione con la STESSA firma: la cura monotona resta dentro
   assert.ok(giri.every((f) => !/Giro 1/.test(f.it)));
 });
 
+test("la copilota annuncia anche il primo giro completato (non lo usa solo per seminare il contatore)", () => {
+  const frame = (t, lapsDone, lastLap = null) => MMF(t, {
+    phase: 'Race', sessionType: 'Race',
+    gauges: { lapsDone, lapsTotal: 3, fuel: 26.8, lapsLeft: 3 - lapsDone },
+    delta: { lapNo: lapsDone, dv: 0 },
+    ...(lastLap ? { timing: { lastLap } } : {}),
+  });
+  const frames = [
+    [1000, frame(1000, 0)],
+    [31000, frame(31000, 1, '1:30.500')],
+    [91000, frame(91000, 2, '1:30.100')],
+    [151000, frame(151000, 3, '1:29.900')],
+  ];
+  const dette = gara(frames);
+  const giri = dette.filter((f) => !f.detto && f.chi === 'giroFatto').map((f) => f.it);
+  assert.deepEqual(giri, [
+    'Giro 1 fatto in 1:30.500',
+    'Giro 2 fatto in 1:30.100',
+    'Giro 3 fatto in 1:29.900',
+  ], 'ogni traguardo visto, incluso il primo, si annuncia una volta: ' + JSON.stringify(trascrizione(dette)));
+});
+
 /* 6/11 notte, «i delta sono errati rispetto ai numeri a schermo»: il tempo del
    best era preso dal punto griglia (25 m) senza interpolare, così ogni giro la
    griglia sfasata portava lo scarto fisso della fetta intera (±0.25 s a
