@@ -1,5 +1,14 @@
 # Diario di sviluppo
 
+### 6/11 — In pista a Laguna Seca: il live risponde e il best ignora il giro tagliato
+
+- **Richiesta di Mauro**: «Entra in pista a Laguna Seca con EVO e verifica i dati live reali (posizione, giri, best lap, telemetria) senza completare la gara.»
+- **Come sono entrato**: «Prepara tutto e avvia» (`POST /api/race` senza `preparaSolo`, `fee: 0` perché l'iscrizione della ronda era già pagata). La preparazione è tornata identica: pista invariata, auto riscritta (Mazda MX-5 ND Cup), griglia generata dal gioco (single make, 14 avversari), AI già 84–85, 3 giri, meteo sereno. Il Cruscotto ha premuto «Avvia sessione»: prime telemetrie alle 13:41:33, sessione **Practice** (tipo `TimeAttack`) su Laguna Seca GP, 15 piloti.
+- **Numeri veri letti dal vivo**: P1/15 dopo il giro valido; 2 giri completati; **best 1:49.632**; ultimo 1:48.717 marcato `invalid: true` / `lapInvalid: true` (limiti di pista) e quindi **non** promosso a best — comportamento corretto. Delta sul best con segmenti (`dv` −9,863 s nella tornata precedente). Carburante 28,3 L con 1,6 L/giro; gomme 57–65 °C a 25,3/25,4 bar; freni 97/96 °C; aria 28 °C, asfalto 30 °C; danni 0.
+- **Registrazione**: MoTeC `…Laguna SecaGP_Fri Nov  6 134901 2026.ld` **5.780.312 byte** più `.ldx` 474 byte, scritto a fine giro.
+- **Cosa NON è successo**: nessuna gara avviata o completata. Il file nuovo è `261106-1350_SP_Practice.sessionresults.json` (Practice), l'import non è scattato: denaro 761.090 e ronda ancora 3.
+- **Limite**: il nome della pista sta in `session.track` (non in un campo di primo livello di `/api/live`) e la sonda non legge il nome dell'auto, il cui payload il gioco non serializza.
+
 ### 6/11 — La sonda del menu torna a rispondere: `req` non esisteva in quello scope
 
 - **Richiesta di Mauro**: «si procedi» — chiudere la verifica del weekend Laguna Seca senza avviare la gara e senza importare le qualifiche come risultato.
