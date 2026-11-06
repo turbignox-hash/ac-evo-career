@@ -72,6 +72,7 @@ import { stintsFromLd } from './stinti.mjs';
 import { seatStintInputs, stintPlanOf, stintStopAlert } from './stint-plan.mjs';
 import { tyreWearFromLd, lapDegradation } from './usura-gomme.mjs';
 import { trackBook, nextTrackOf, TRACK_INFO } from './tracks.mjs';
+import { annuncioBilancio } from './grid-guard.mjs';
 import { listSetups, brakePlanOf, annotateAllyAdvice, autoConAli, } from './carsetup.mjs';
 import { engineerLive } from './engineer.mjs';
 import { carPoolOf, carInPool, poolNodeForLive } from './car-pool.mjs';
@@ -3875,6 +3876,12 @@ function watcherTick() {
             watcher.push(c.duplicate
               ? `Import ignorato: ${c.node} R${c.round} era già in carriera (nessun doppio premio).`
               : `RISULTATO IMPORTATO: ${c.node} R${c.round} — ${c.entry.dsq ? 'squalifica' : c.entry.dnf ? 'ritiro' : 'P' + c.entry.position}${c.entry.penalty && !c.entry.dnf && !c.entry.dsq ? ` (penalità ${c.entry.penalty})` : ''} · +${c.entry.points} pt · +${c.entry.prize} €`, (out?.career ?? out).duplicate ? 'warn' : 'good');
+            /* ZAVORRE PERSO AL VIA (7/11): l'avviso di bilancioDaGara c'era solo
+               nella risposta dell'import manuale e in CLI — il watcher che incassa
+               da solo taceva, e la gara di Donington delle 23:58 è corsa 0/0
+               dicendo solo «RISULTATO IMPORTATO P1». */
+            const zb = annuncioBilancio(c);
+            if (zb) watcher.push(zb, 'warn');
           }
         } catch (e) {
           // niente risultati ancora scritti: riprova al prossimo giro per un po', poi molla
@@ -3918,6 +3925,8 @@ function watcherTick() {
             watcher.push(c?.node
               ? `RISULTATO IMPORTATO (recuperato da solo): ${c.node} R${c.round} — ${c.entry?.dsq ? 'squalifica' : c.entry?.dnf ? 'ritiro' : 'P' + c.entry?.position} · +${c.entry?.points} pt · +${c.entry?.prize} €`
               : 'Risultato della gara recuperato e incassato da solo.', 'good');
+            const zb = annuncioBilancio(c);
+            if (zb) watcher.push(zb, 'warn');
           }
         } catch (e) {
           // nessun file combaciante = la norma fuori gara (prove, gare private):

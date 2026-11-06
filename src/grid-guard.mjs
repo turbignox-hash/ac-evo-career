@@ -139,6 +139,17 @@ export function bilancioDaGara(result, { nodeId = null, track = null, classes = 
   } catch { return null; }
 }
 
+/** L'avviso zavorre da ANNUNCIARE dopo un import automatico (7/11): la GUI
+ *  manuale lo mostra già dal campo `bilancio` della risposta, ma il watcher che
+ *  incassa da solo a gara finita no — stasera la gara di Donington è girata a
+ *  0 kg / 0% e il cruscotto ha detto soltanto «RISULTATO IMPORTATO P1». Accetta
+ *  la risposta dell'import (`out.bilancio`) o quella del recupero
+ *  (`out.career.bilancio`); null quando non c'è niente da dire. */
+export function annuncioBilancio(out) {
+  const b = out?.bilancio ?? out?.career?.bilancio ?? null;
+  return b?.msg ? String(b.msg) : null;
+}
+
 /** Varianti (kg/pct) per NOME auto lette dal template della serie. null se il file non c'e' o non si legge. */
 function atteseDaTemplate(nodeId, templateFile = null) {
   const f = templateFile ?? (nodeId ? templatePathOf(nodeId) : null);

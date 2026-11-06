@@ -18,7 +18,7 @@ import { mkdtempSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bilancioDaGara } from '../src/grid-guard.mjs';
+import { bilancioDaGara, annuncioBilancio } from '../src/grid-guard.mjs';
 import { encodeMsg } from '../src/evo-grid.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -145,6 +145,32 @@ test('silenzio: regolamento a 0/0, un solo modello, nessuna classe nota', () => 
   assert.equal(bilancioDaGara(gara([['Abarth 695 Biposto', 0, 0], ['Volkswagen Golf 8 GTI', 0, 0]]), { templateFile: zero }), null, 'template a 0/0');
   assert.equal(bilancioDaGara(gara([['Abarth 695 Biposto', 0, 0]]), { templateFile: TEMPLATE() }), null, 'un solo modello');
   assert.equal(bilancioDaGara(gara([['Auto Ignota A', 0, 0], ['Auto Ignota B', 0, 0]]), { classes: { classi: {} } }), null, 'classe ignota');
+});
+
+test('annuncioBilancio: l’avviso arriva anche al watcher che incassa da solo', () => {
+  // la rotta dell'import manuale risponde con `bilancio` alla radice
+  const b = bilancioDaGara(
+    { track: 'Donington Park', drivers: [
+      { car_name: 'Volkswagen Golf 8 GTI', ballast: 0, restrictor: 0 },
+      { car_name: 'Abarth 695 Biposto', ballast: 0, restrictor: 0 },
+    ] },
+    { nodeId: 'coppa_citta', track: 'Donington Park' },
+  );
+  assert.ok(b?.msg);
+  assert.match(annuncioBilancio({ bilancio: b }) ?? '', /ZAVORRE NON ARRIVATE/);
+  // il recupero automatico incassa dentro { career: … }
+  assert.match(annuncioBilancio({ career: { bilancio: b } }) ?? '', /ZAVORRE NON ARRIVATE/);
+  // niente da dire = niente messaggio (import pulito, doppione, evento)
+  assert.equal(annuncioBilancio({ bilancio: null }), null);
+  assert.equal(annuncioBilancio({ career: { bilancio: null } }), null);
+  assert.equal(annuncioBilancio({}), null);
+  assert.equal(annuncioBilancio(null), null);
+});
+
+test('il watcher della GUI stampa l’avviso (guardia sul sorgente)', () => {
+  const src = readFileSync(join(ROOT, 'src', 'webui.mjs'), 'utf8');
+  assert.match(src, /import \{ annuncioBilancio \} from '\.\/grid-guard\.mjs'/, 'il modulo deve essere importato');
+  assert.ok((src.match(/annuncioBilancio\(c\)/g) ?? []).length >= 2, 'sia l’import della gara sia il recupero automatico');
 });
 
 test('la gara vera del 6/11 (se il dato è sul PC): Coppa Città corsa senza la zavorra della Golf', (t) => {
