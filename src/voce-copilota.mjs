@@ -36,7 +36,7 @@ try {
   $it = $sp.GetInstalledVoices() | Where-Object { $_.VoiceInfo.Culture.Name -like 'it*' -and $_.VoiceInfo.Gender -eq 'Male' } | Select-Object -First 1
   if (-not $it) { $it = $sp.GetInstalledVoices() | Where-Object { $_.VoiceInfo.Culture.Name -like 'it*' } | Select-Object -First 1 }
   if ($it) { $sp.SelectVoice($it.VoiceInfo.Name) }
-} catch {}
+} catch { }   # nessuna voce italiana: si parla con quella di sistema
 while ($true) {
   $line = [Console]::In.ReadLine()
   if ($null -eq $line) { break }
@@ -47,7 +47,7 @@ while ($true) {
       $t = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($line.Substring(4)))
       if ($t) { $sp.Speak($t) }
     }
-  } catch {}
+  } catch { }   # riga storta o sintesi fallita: il ciclo resta vivo
 }`;
 
 /* creaVoceCopilota(): il relatore. parla(t) incoda la frase (avvia il processo

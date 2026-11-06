@@ -256,7 +256,7 @@ function listBackups(limit = 8) {
       .sort().reverse().slice(0, limit)
       .map((f) => {
         let size = 0;
-        try { size = statSync(join(BACKUP_DIR, f)).size; } catch {}
+        try { size = statSync(join(BACKUP_DIR, f)).size; } catch { /* sparito fra elenco e stat: la riga resta senza byte */ }
         const m = f.match(/^evo-career\.save\.bak-(.+)\.(auto\.)?json$/);
         return { name: f, size, auto: !!m?.[2], at: (m?.[1] ?? f).replace(/T/, ' ').slice(0, 16) + (m?.[2] ? ' (auto)' : '') };
       });

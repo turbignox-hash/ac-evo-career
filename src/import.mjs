@@ -473,7 +473,7 @@ export function runImport(ladder, paths, state, { manual = null, allowAny = fals
         }
       }
     } catch (e) {
-      try { console.error('[import] rivals/quali:', e.message); } catch {}
+      try { console.error('[import] rivals/quali:', e.message); } catch { /* nemmeno stderr risponde: niente da fare */ }
     }
   }
 

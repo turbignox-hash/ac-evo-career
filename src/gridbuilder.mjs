@@ -17,6 +17,7 @@
 // Flusso di gara serale: chiuso EVO → `node ac-evo-career.mjs griglia [--dry]`
 // → aperto EVO → menu griglia (senza GENERA) → APPLICA → via.
 //
+import { taci } from './warnings.mjs';
 import { readFileSync, existsSync, statSync, copyFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -78,7 +79,7 @@ function prestaTinte(fileCorrente, carId) {
         if (id !== carId || già.has(bytes)) continue;
         già.add(bytes); fuori.push(b);
       }
-    } catch { }   // file illeggibile: salto, il parco continua
+    } catch (e) { taci('gridbuilder:parco', e); }   // file illeggibile: il parco continua, ma resta la firma
   }
   return fuori;
 }
@@ -287,7 +288,7 @@ function minaPreset(cells, pi) {
       try {
         const sub = decodeMsg(g.bytes);
         p1 = sub.find((s) => s.field === 1); p2 = sub.find((s) => s.field === 2); p4 = sub.find((s) => s.field === 4);
-      } catch { }
+      } catch (e) { taci('gridbuilder:preset', e); }
     }
     const preset = p1 ? utf8(p1.bytes) : null;
     if (!preset || !carId) continue;
@@ -306,8 +307,8 @@ const __mineParco = new Map();  // 'dir|firma-mtime' → { pres, int }: i file c
 const firmaDir = (d) => {
   let somma = 0;
   try {
-    for (const f of readdirSync(d)) if (f.endsWith('.customgrid')) try { somma += statSync(join(d, f)).mtimeMs; } catch { }
-  } catch { }
+    for (const f of readdirSync(d)) if (f.endsWith('.customgrid')) try { somma += statSync(join(d, f)).mtimeMs; } catch { /* svanito fra elenco e stat: il totale resta */ }
+  } catch (e) { taci('gridbuilder:firma', e); }   // cartella illeggibile: la firma resta 0
   return somma;
 };
 /* LE DUE MINE del parco, insieme (2/11 — radice delle chimera, lezione del
@@ -330,10 +331,10 @@ function entryParco(d, pi) {
   const firma = `${d}|${firmaDir(d).toFixed(0)}`;
   if (!__mineParco.has(firma)) {
     let voci = [];
-    try { voci = readdirSync(d).filter((f) => f.endsWith('.customgrid')).sort().slice(0, 20); } catch { }
+    try { voci = readdirSync(d).filter((f) => f.endsWith('.customgrid')).sort().slice(0, 20); } catch (e) { taci('gridbuilder:elenco', e); }
     const celle = [];
     for (const f of voci) {
-      try { for (const g of decodeMsg(readFileSync(join(d, f)))) if (g.field === 1 && g.wire === 2) celle.push(g.bytes); } catch { }
+      try { for (const g of decodeMsg(readFileSync(join(d, f)))) if (g.field === 1 && g.wire === 2) celle.push(g.bytes); } catch (e) { taci('gridbuilder:celle', e); }
     }
     __mineParco.set(firma,minaParco(celle, pi));
   }

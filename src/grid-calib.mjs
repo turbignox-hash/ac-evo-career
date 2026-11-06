@@ -25,6 +25,7 @@
 // Il file calibrazione è SOLO APPEND + letture: tocca né carriera né customgrid.
 // Le proposte restano proposte finché tu non esegui il comando che portano.
 
+import { taci } from './warnings.mjs';
 import { readFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -479,13 +480,13 @@ export function recordRaceFromResult({ result, playerDriver, track = null, gridF
     if (!evento) return null;
     return recordEvent(evento);
   } catch (e) {
-    try { console.error('[grid-calib]', e.message); } catch {}
+    try { console.error('[grid-calib]', e.message); } catch { /* nemmeno stderr risponde: niente da fare */ }
     return null;
   }
 }
 
 export function resetCalib() {
-  try { writeJsonAtomic(CALIB_FILE(), { _readme: [], eventi: [] }); } catch {}
+  try { writeJsonAtomic(CALIB_FILE(), { _readme: [], eventi: [] }); } catch (e) { taci('grid-calib:reset', e); }
 }
 
 /* ---------- confidenza e riepilogo ---------- */

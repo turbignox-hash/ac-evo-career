@@ -955,7 +955,7 @@ export function uiappTick(env = process.env) {
       writeJsonAtomic(join(dirP, `ui-${fascia}.json`), pw, { pretty: false });
       const vecchiP = readdirSync(dirP).filter((f) => /^ui-\d+\.json$/.test(f) && f !== `ui-${fascia}.json`)
         .sort((a, b) => Number(a.slice(3, -5)) - Number(b.slice(3, -5)));
-      for (const f of vecchiP.slice(0, Math.max(0, vecchiP.length - FASCE_DIETRO))) { try { unlinkSync(join(dirP, f)); } catch { } }
+      for (const f of vecchiP.slice(0, Math.max(0, vecchiP.length - FASCE_DIETRO))) { try { unlinkSync(join(dirP, f)); } catch { /* già sparita: la rotazione ha fatto il suo */ } }
     }
   } catch { /* fasce Pitwall saltate: la principale non deve attese per niente */ }
   // LE FASCE RAPIDE DELL'APP DI CARRIERA (1/11, la cura del flood): il tick del

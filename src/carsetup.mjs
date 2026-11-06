@@ -327,8 +327,8 @@ export function normalizeNameMaybe(value, ladder, state) {
   if (!raw) return null;
   const pool = new Set();
   try { Object.values(ladder?.contentNames?.cars ?? {}).forEach((n) => { n && pool.add(String(n).trim()); }); } catch { /* il catalogo mancano non blocca */ }
-  try { Object.keys(ladder?.contentNames?.cars ?? {}).forEach((n) => { n && pool.add(String(n).trim()); }); } catch { }
-  try { (state?.cars ?? []).forEach((c) => { if (c?.carId) pool.add(String(c.carId).trim()); if (c?.carName) pool.add(String(c.carName).trim()); }); } catch { }
+  try { Object.keys(ladder?.contentNames?.cars ?? {}).forEach((n) => { n && pool.add(String(n).trim()); }); } catch { /* ladder di forma inattesa: il pool resta quel che è */ }
+  try { (state?.cars ?? []).forEach((c) => { if (c?.carId) pool.add(String(c.carId).trim()); if (c?.carName) pool.add(String(c.carName).trim()); }); } catch { /* garage di forma inattesa: il pool resta quel che è */ }
   const poolList = [...pool].filter(Boolean);
   if (poolList.includes(raw)) return raw;
   const target = normKey(raw);

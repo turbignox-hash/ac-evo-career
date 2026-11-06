@@ -60,6 +60,16 @@ export function recordWarning(module, message, extra = null) {
   appendLine(JSON.stringify(entry), identita);
 }
 
+/** Il catch che NON urla ma FIRMA il registro. Serve dove un guasto non deve
+ *  fermare il pannello ma non deve nemmeno sparire: «non blocca» non è più
+ *  «non si sa». etichetta = chi tace (file o passo); le voci identiche di fila
+ *  non si ripetono (anti-rumore di appendLine), quindi un errore sistematico
+ *  lascia una riga, non un diluvio. */
+export function taci(etichetta, e) {
+  const msg = e?.message ?? (typeof e === 'string' ? e : 'errore senza messaggio');
+  recordWarning(`taci:${etichetta}`, msg);
+}
+
 /**
  * Ultimi errori raggruppati per modulo, dal più recente.
  * Ritorna: { total, modules: [{ module, count, last: [{at, message, extra}] }] }

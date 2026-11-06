@@ -26,7 +26,7 @@ import { assignNextMemory, checkMemoryProgress, raceCrowdFor } from './memories.
 // ronda/calendario/prossima gara anche a chi NON ha l'app del gioco installata.
 import { mirrorJournal } from './journal.mjs';
 import { publishNotice } from './gazzetta.mjs';
-import { recordWarning } from './warnings.mjs';
+import {  recordWarning, taci } from './warnings.mjs';
 
 // nido per-slot (24/10): rivals vive con la SUA carriera, il save 3 non incassa il campione del save 1
 const RIVALS_FILE = join(slotDataDir(), 'rivals.json');
@@ -797,7 +797,7 @@ export function careerStats(ladder, state) {
       const me = (r.grid ?? []).find((g) => g.isPlayer);
       if (me) startMap.set(`${r.season}|${r.nodeId}|${r.round}`, me.position);
     }
-  } catch {}
+  } catch (e) { taci('state:rivals', e); }   // senza registro le rimonte restano 0, ma si sa perché
   let comebacks = 0, ledLaps = 0, gained = 0, gainedN = 0;
   for (const r of all) {
     // griglia di partenza: prima la posizione salvata nell'entry (dalla qualifica),

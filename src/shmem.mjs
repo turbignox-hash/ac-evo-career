@@ -822,7 +822,7 @@ export class LiveReader {
     // policy) emette un evento non gestito e uccide l'intero server
     child.on('error', (err) => {
       if (this.child === child) this.child = null;
-      try { console.error('[live] powershell non avviabile:', err?.message ?? err); } catch {}
+      try { console.error('[live] powershell non avviabile:', err?.message ?? err); } catch { /* nemmeno stderr risponde: il lettore resta spento */ }
     });
     child.on('exit', () => { if (this.child === child) this.child = null; });
   }
@@ -986,7 +986,7 @@ export class LiveReader {
       }
     }
   }
-  stop() { try { this.child?.kill(); } catch {} this.child = null; }
+  stop() { try { this.child?.kill(); } catch { /* già morto: è quello che volevamo */ } this.child = null; }
   /**
    * Istantanea per i consumatori. `raw:true` aggiunge i tre blocchi PARSATI
    * COMPLETI (static, graphics, physics): la GUI e il copilota continuano a
