@@ -1,5 +1,11 @@
 # CHANGELOG — EVO Pitwall (ac-evo-career)
 
+## v0.1.67 — 6/11/2026
+
+- **Verifica con EVO davvero aperto** (autorizzazione di Mauro ad aprire e chiudere il gioco): avvio via `steam://rungameid/3058630` dal tool, processo riconosciuto in ~5 s, lettore PowerShell partito e vivo (`running/alive: true`), `/api/live` con `game:true` e sessione «sconosciuta» da menu — e alla chiusura processo sparito, lettore fermo (`running:false`, zero ricicli), strip tornata a «EVO chiuso · telem. ore 01:17». Giro di tutte le 19 schede a gioco aperto e chiuso: nessuna API fuori da `200`, console vuota, nessuna sbordatura a 431 e 1366 px.
+- **Due difetti visti solo col gioco aperto**: l'header diceva «EVO aperto · sconosciuta» (tipo sessione tecnico) e ora dice «EVO aperto · nei menu (nessuna sessione)» con il perché nel tooltip; la barra Live della scheda gara restava su «in attesa del gioco…» — `s.session.name` su un oggetto che ERA la sessione lanciava TypeError e il `catch` muto nascondeva il guasto: ora legge `s.name` e dice «EVO aperto — nei menu: carica una sessione…».
+- Verifiche: Biome pulito su 408 file; frammento 1/3 della suite verde (332/332).
+
 ## v0.1.66 — 6/11/2026
 
 - **La GUI sta nello schermo del telefono** (richiesta Mauro: «a 431 px Setup arriva a 955 px»): le tabelle che sbordano dalla scheda finiscono in un contenitore che scorre da solo (`.tscroll`), creato a runtime solo quando serve — su desktop non cambia nulla. Corrette anche le cause che non erano tabelle: la griglia a 8 colonne della Difficoltà, le colonne `1fr` con minimo automatico che allargavano i Giri liberi, i campi con `min-width` fissa, le chip `nowrap`, la scheda gara (300 px) e il titolo accanto alla coda descrittiva. Misurato tab per tab: 19 viste su 19 senza sbordatura a 431, 414 e 320 px di finestra; il guard di layout (21 tab × 6 larghezze) resta verde.

@@ -5,6 +5,15 @@ vive in [ROADMAP.md](ROADMAP.md). Ogni giorno prendiamo qualcuna di quelle voci 
 eseguiamo; a fine giornata il diario si arricchisce e la roadmap si accorcia o si
 affina. Le voci hanno un ID (DA-1, DA-2…) per prenderle al volo («oggi prendo la DA-3»).
 
+### 6/11 — La GUI controllata con EVO APERTO: il ciclo Live regge, due stringhe cadevano
+
+- **La richiesta di Mauro**: «controlla la GUI che funzioni tutto correttamente, sei autorizzato ad aprire e chiudere il gioco». Avvio dal tool (`steam://rungameid/3058630`), nessuna modifica alla carriera.
+- **Ciclo di vita verificato**: processo riconosciuto in ~5 s, `boot.gameRunning` vero al primo poll utile, lettore PowerShell avviato dal primo accesso al LIVE (`running:true, alive:true, restarts:0`), `/api/live` con `game:true` e sessione «sconosciuta» (siamo nei menu). Alla chiusura richiesta dal tool (`taskkill /IM`, segnale di chiusura, non forzato) il processo esce, `gameRunning` diventa falso in ~10 s, `reader` torna `running:false, alive:false` senza ricicli, e la strip dice «EVO chiuso · telem. ore 01:17» con l'ultima telemetria scritta.
+- **Giro completo a gioco aperto**: 19 schede su 19, tutte le API `200`, console vuota, nessuna sbordatura a 431 px e a 1366 px. Il pannello Setup dichiara «lettore live attivo» nel pieghevole.
+- **Due difetti che solo il gioco aperto fa vedere**: (1) l'header scriveva «EVO aperto · sconosciuta» — il tipo sessione tecnico al posto di quello che succede; ora il chip dice «EVO aperto · nei menu (nessuna sessione)» e il tooltip spiega che posizione, giro e best arrivano quando entri in macchina. (2) La barra Live della scheda gara restava su «in attesa del gioco…»: `s.session.name` su un oggetto che è già la sessione (`r.session`) lanciava TypeError e il `catch` vuoto del poll la nascondeva — corretto in `s.name`, con un messaggio onesto per i menu. È la terza volta che il progetto paga un `catch` muto: il registro ora dice perché.
+- **Cosa resta non verificato**: i dati in pista (posizione, delta, best lap, telemetria a fine sessione) richiedono una sessione vera dentro EVO, che non si può avviare dalla GUI del tool senza scrivere setup e griglia sulla carriera: non l'ho fatto. Il percorso che li alimenta è lo stesso che ha risposto correttamente a gioco aperto e chiuso.
+- **Verifiche**: Biome pulito su 408 file; frammento 1/3 della suite 332/332; build `0.1.67`.
+
 ### 6/11 — La GUI entra nello schermo del telefono: tabelle che scorrono, Setup in un pieghevole, due orologi con due nomi
 
 - **La richiesta di Mauro**: «procedi pure con queste migliorie» su cinque punti — responsive su telefono (a 431 px il documento arrivava a 955 px), scheda Setup da alleggerire, date del 2025 contro date del 2026 da spiegare, tre stringhe da rifinire («Laguna SecaGP», «tracciato bilanciata», «telemetria veri»), ciclo Live da verificare. Nessuna azione che scriva sulla carriera.

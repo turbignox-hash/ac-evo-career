@@ -1093,7 +1093,17 @@ async function drawLiveStrip(){
       return;
     }
     const p = r.player;
-    if (!p || !r.live){ host.className = 'chip'; host.innerHTML = `<span class="dot on"></span> ${tr({ it: 'EVO aperto', en: 'EVO open' })} · ${esc(legacyIt(r.session?.type ?? ''))}`; return; }
+    if (!p || !r.live){
+      /* 6/11 (verifica a gioco APERTO): nei menu la sessione arriva col tipo
+         «sconosciuta» e il chip leggeva «EVO aperto · sconosciuta» — un dato
+         tecnico al posto di quello che sta succedendo. Ora dice dove sei. */
+      const tipo = String(r.session?.type ?? '').trim().toLowerCase();
+      const inMenu = !tipo || tipo === 'sconosciuta';
+      host.className = 'chip';
+      host.innerHTML = `<span class="dot on"></span> ${tr({ it: 'EVO aperto', en: 'EVO open' })} · ${inMenu ? tr({ it: 'nei menu (nessuna sessione)', en: 'in the menus (no session)' }) : esc(legacyIt(r.session?.type ?? ''))}`;
+      host.title = inMenu ? tr({ it: "Il gioco è aperto ma non c'è ancora una sessione: appena entri in macchina qui compaiono posizione, giro e best lap.", en: 'The game is open but there is no session yet: as soon as you get in the car, position, lap and best lap appear here.' }) : '';
+      return;
+    }
     host.className = 'chip gold';
     const rec = w?.armed ? tr({ it: ' · ⏺ registrazione', en: ' · ⏺ recording' }) : '';
     host.innerHTML = `<span class="dot on"></span> ${p.position ? 'P'+p.position+'/'+p.drivers : 'in pista'}${p.lapsTotal?` · giro ${p.lapNo ?? p.lapsDone+1}/${p.lapsTotal}`:''}${p.gapAhead?` · +${p.gapAhead.toFixed(1)}s`:''}${p.bestLap?` · best ${p.bestLap}`:''}${rec}`;

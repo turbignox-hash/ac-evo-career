@@ -1167,9 +1167,27 @@ function drawCardInto(el, card){
       } else {
         liveBox.className = 'livebar live-off';
         const s = r.session ?? {};
-        liveBox.innerHTML = `<span class="dot on"></span><span class="st">${tr({ it: 'EVO aperto', en: 'EVO open' })}</span><span class="sep">·</span><span class="muted">${esc(legacyIt(s.type ?? ''))} · ${esc(s.track ?? '?')} ${esc(s.layout ?? '')} · ${esc(s.session.name || tr({ it: 'sessione libera', en: 'free session' }))}</span>`;
+        /* 6/11 (verifica a gioco APERTO): nei menu non c'è sessione e questa
+           riga stampava «sconosciuta · ? · sessione libera». Si dice la verità:
+           il gioco è aperto, macchina non ancora in pista. */
+        const tipo = String(s.type ?? '').trim().toLowerCase();
+        if (!tipo || tipo === 'sconosciuta') {
+          liveBox.innerHTML = `<span class="dot on"></span><span class="st">${tr({ it: 'EVO aperto', en: 'EVO open' })}</span><span class="muted"> — ${tr({ it: 'nei menu: carica una sessione (anche solo prove libere) e la verifica parte da sola', en: 'in the menus: load a session (even a free practice) and the check starts by itself' })}</span>`;
+        } else {
+          /* `s.session.name` era un errore vero: `s` È la sessione (r.session),
+             quindi la riga lanciava TypeError ed era il `catch` muto a
+             nasconderlo — la barra restava su «in attesa del gioco…» per
+             sempre, anche a gioco aperto (visto in verifica il 6/11). */
+          liveBox.innerHTML = `<span class="dot on"></span><span class="st">${tr({ it: 'EVO aperto', en: 'EVO open' })}</span><span class="sep">·</span><span class="muted">${esc(legacyIt(s.type ?? ''))} · ${esc(s.track ?? '?')} ${esc(s.layout ?? '')} · ${esc(s.name || tr({ it: 'sessione libera', en: 'free session' }))}</span>`;
+        }
       }
-    } catch { /* server occupato: riprova al prossimo giro */ }
+    } catch (e) {
+      /* il poll riprova al giro dopo (server occupato), ma un errore VERO non
+         deve sparire: lo si firma in __errs, dove la diagnostica lo vede
+         (6/11: il TypeError di s.session.name è rimasto invisibile per giorni
+         proprio perché questo catch taceva). */
+      (window.__errs = window.__errs || []).push(`live-poll: ${e?.message ?? e}`);
+    }
     setTimeout(pollLive, 2000);
   };
   pollLive();
