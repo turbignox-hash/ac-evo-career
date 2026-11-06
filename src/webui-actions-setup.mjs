@@ -346,7 +346,9 @@ export async function setupAction(action, ctx) {
           const dRaw = JSON.parse(readFileSync(join(DATA_DIR, 'setup-defaults.json'), 'utf8'));
           setupDefaults = (carEff && dRaw[carEff]) ?? Object.entries(dRaw).find(([k]) => !k.startsWith('_') && carSame(k, carEff))?.[1] ?? null;
         } catch { /* facoltativa */ }
-        const mech = mechanicExtraEdits({ cur, latest, trackInfo: TRACK, defaults: setupDefaults });
+        // tipo: il setup-apply è la copia che si carica in gara/pista — la
+        // qualifica resta la carta a voce; se il chiamante lo dice, si usa.
+        const mech = mechanicExtraEdits({ cur, latest, trackInfo: TRACK, defaults: setupDefaults, tipo: body.tipo ?? 'gara' });
         for (const te of mech.tiresExtra) {
           if (Number.isFinite(te.camber)) (tires[te.i] ??= {}).camber = te.camber;
           if (Number.isFinite(te.toe)) (tires[te.i] ??= {}).toe = te.toe;

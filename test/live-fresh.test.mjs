@@ -176,7 +176,10 @@ test('mechanicExtraEdits: camber, bias e benzina calcolati dai segnali live', ()
     },
   });
   assert.equal(mech.patches.brakes.bias, 51);
-  assert.equal(mech.patches.fuel.liters, 53);
+  // 2.5 L/giro × 20 giri × 1,05 = 53, più i 3 L di riserva della carta: 56
+  // (prima qui mancavano i 3 L e il meccanico diceva 56 mentre il file ne
+  // aveva 53 — test/benzina-allineata.test.mjs tiene allineate le due strade)
+  assert.equal(mech.patches.fuel.liters, 56);
   assert.equal(mech.tiresExtra.find((t) => t.i === 0).camber, -3.2);
   assert.ok(mech.text.some((t) => /Bias freni/.test(t)));
   assert.ok(mech.text.some((t) => /Benzina:/.test(t)));

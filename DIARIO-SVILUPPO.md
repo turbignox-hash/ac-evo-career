@@ -1,5 +1,13 @@
 # Diario di sviluppo
 
+### 6/11 notte — Una sola formula per la benzina: carta e setup dicono lo stesso numero
+
+- **Richiesta di Mauro**: «allinea la formula della benzina fra meccanico e applicazione del setup, così danno lo stesso numero».
+- **Le due formule, lette nei sorgenti**: la **carta** (`pianoSetup`, `src/meccanico-parla.mjs`) faceva `Math.ceil(consumo × giri × 1,05) + 3 L` per la gara e `Math.ceil(consumo × (2 + 1)) + 3 L` per la qualifica; l'**applicazione** (`mechanicExtraEdits`, `src/setup.mjs`, chiamata da `setup-apply` in `src/webui-actions-setup.mjs`) faceva `Math.min(120, Math.ceil(consumo × giri × 1,05))` — **senza i 3 L di riserva**, senza ramo qualifica (usava i giri gara), e solo se i giri erano ≥ 3. Stesso consumo, stessi giri: il meccanico diceva un numero e il file ne caricava un altro, sempre più basso di 3 L (es. 2,5 L/giro × 20 giri: **56 L detti, 53 L caricati**; 2,1 × 3: 10 detti, 7 caricati).
+- **Cura**: la formula ora vive in `src/benzina.mjs` — `benzinaDelMeccanico({ tipo, fuelPerLap, raceLaps })` → `{ litri, giri, riserva, extraPct }` (qualifica: 2 giri di verifica + 1, gara/bagnato: giri del piano con +5% di degrado; sempre +3 L di riserva, cap 120 L, silenzio sotto 0,3 L/giro). La importano `meccanico-parla.mjs` (carta e nota a voce) e `setup.mjs` (patch del setup): una sola copia, commentata. Allineato anche il terzo numero, quello della scheda (`bench`/consigli): diceva `ceil(consumo × giri)` senza degrado né riserva e ora cita gli stessi litri («gli stessi litri che carica il setup»). `setup-apply` passa `tipo` (default «gara»), così la qualifica segue il suo ramo anche nel file.
+- **Verifiche**: `test/benzina-allineata.test.mjs` **8/8** — gara 8 giri/2,1 (21 L), gara 20/2,5 (56 L), qualifica (10 L), bagnato = gara, giri assenti → 10, cap 120, consumo sporco 0,2 → nessuno tocca la benzina, e **guardia sul sorgente**: i due moduli devono importare `./benzina.mjs` e non contenere una seconda `× 1.05`. Suite intera **1.224 test, 1.222 pass, 0 fail, 2 skip**; Biome pulito sui 6 file. `test/live-fresh.test.mjs` aggiornato dove fissava il vecchio numero (53 → 56), col perché nel commento.
+- **Limiti**: non ho potuto provarlo in pista (serve una sessione con consumo vero); il server in ascolto (PID 15012, avviato 22:40) **non ha ancora questo codice**: per vedere il numero nuovo nella GUI va riavviato, e la prossima carta scritta dopo il riavvio sarà allineata.
+
 ### 6/11 notte — Il controllo «delta dai box» è diventato uno strumento
 
 - **Richiesta di Mauro**: «dopo la prossima gara con sosta, controlla il registro vocale e conferma che nessuna frase delta sia uscita dai box».

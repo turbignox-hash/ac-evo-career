@@ -74,10 +74,9 @@ export function nomeFileSetup({ car = null, track = null, tipo, raceLaps = null 
 /* il piano di lavorazione: patch sul file .carsetup, SOLO veri        */
 /* ------------------------------------------------------------------ */
 
+import { benzinaDelMeccanico, notaBenzina, QUALI_GIRI } from './benzina.mjs';
+
 const PSI_BAGNATO = -1.5;    // nel bagnato la gomma lavora più freddo: meno psi
-const QUALI_GIRI = 2;        // più un giro di riserva
-const RISERVA_L = 3;         // sempre una pozzata minima di prudenza
-const GARA_EXTRA = 1.05;     // +5% per il degrado del ritmo in progressione
 const FILO_PSI = 0.05;       // sotto questo scarto di psi non tocco il file
 
 /**
@@ -119,18 +118,14 @@ export function pianoSetup({ tipo, raceLaps = null, cur, sessione = null, live =
     note.push('Pressioni invariate: manca una base viva (un giro dal vivo oppure un fourPsi con telemetria); meglio non inventare numeri.');
   }
 
-  if (num(fuelPerLap) && fuelPerLap > 0) {
-    const laps = tipo === 'qualifica' ? QUALI_GIRI : (raceLaps >= 3 ? raceLaps : 10);
-    const rom = tipo === 'qualifica'
-      ? Math.ceil(fuelPerLap * (laps + 1)) + RISERVA_L
-      : Math.ceil(fuelPerLap * laps * GARA_EXTRA) + RISERVA_L;
-    edits.fuel = { liters: dec1(rom) };
-    righe.push({ campo: 'benzina', da: cur.fuel?.liters ?? null, a: dec1(rom), unita: 'L' });
-    note.push(tipo === 'qualifica'
-      ? `Benzina da qualifica: ${dec1(rom)} L (consumo misurato ${dec1(fuelPerLap)} L/giro, ${QUALI_GIRI} giri di verifica + riserva di ${RISERVA_L} L).`
-      : tipo === 'gara'
-        ? `Benzina da gara: ${dec1(rom)} L (${laps} giri × consumo misurato ${dec1(fuelPerLap)} L/giro, +5% per il degrado, +${RISERVA_L} L di riserva).`
-        : `Benzina bagnato: ${dec1(rom)} L (${laps} giri del piano + 5% per il degrado della pista).`);
+  // BENZINA: la formula è UNA, in src/benzina.mjs (6/11): la stessa che scrive
+  // il setup applicato — prima la carta aggiungeva 3 L di riserva e il file no,
+  // quindi il numero detto dal meccanico non era quello caricato in pista.
+  const benz = benzinaDelMeccanico({ tipo, fuelPerLap, raceLaps });
+  if (benz) {
+    edits.fuel = { liters: dec1(benz.litri) };
+    righe.push({ campo: 'benzina', da: cur.fuel?.liters ?? null, a: dec1(benz.litri), unita: 'L' });
+    note.push(notaBenzina(benz, fuelPerLap, { tipo, dec1 }));
   } else {
     /* ONESTO E CHIARO (5/11 sera, la benzina che non si muove): se non c'è un
        consumo REALE la benzina resta quella del file di partenza, e lo si dice

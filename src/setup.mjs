@@ -12,6 +12,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeJsonAtomic } from './atomic.mjs';
 import { liveFuelPerLap } from './shmem.mjs';
+import { benzinaDelMeccanico } from './benzina.mjs';
 import { tr } from './lang.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -429,11 +430,13 @@ export function boxChecklist(sessions, { target = null, raceLaps = null } = {}) 
   /* 6. BENZINA — quanto beve un giro, per pianificare i pit */
   // (richiesta Mauro 24/10: il "5 giri" era fisso e consigliava metà benzina in
   // una gara da 10 — ora il stint pianificato sono i GIRI DEL BOCAO della serie)
-  if (cur.fuelPerLap != null) {
-    const stint = Math.max(1, Number(raceLaps) || 5);
+  // stessa formula della carta e del setup applicato (src/benzina.mjs): qui
+  // girava un terzo numero, ceil(consumo × giri) senza degrado né riserva.
+  const benzInfo = benzinaDelMeccanico({ tipo: 'gara', fuelPerLap: cur.fuelPerLap, raceLaps });
+  if (benzInfo) {
     add('benzina', 'info', tr({
-      it: `${cur.fuelPerLap} L/giro → gara di ${stint} giri ≈ ${Math.ceil(cur.fuelPerLap * stint)} L (+ benzina di rimessa).`,
-      en: `${cur.fuelPerLap} L/lap → ${stint}-lap race ≈ ${Math.ceil(cur.fuelPerLap * stint)} L (+ top-up fuel).`,
+      it: `${cur.fuelPerLap} L/giro → gara di ${benzInfo.giri} giri: ${benzInfo.litri} L (${benzInfo.extraPct}% per il degrado, ${benzInfo.riserva} L di riserva — gli stessi litri che carica il setup).`,
+      en: `${cur.fuelPerLap} L/lap → ${benzInfo.giri}-lap race: ${benzInfo.litri} L (${benzInfo.extraPct}% padding, ${benzInfo.riserva} L reserve — the same litres the setup loads).`,
     }));
   }
 
@@ -494,8 +497,9 @@ function fmtLapShort(s) {
  *   3. camber dal proxy termico (|Δ int/est| > 0.75°) → camber ±0.3°;
  *   4. freni termici >600°C sull'asse → bias ±1 verso l'asse più freddo;
  *   5. TC interviene >2% del giro → TC +1 (SOLO se il file ha il campo);
- *   6. benzina di gara: fuelPerLap misurato × giri gara (+5% riserva), cap 120 L
- *      (proxy prudenziale: il serbatoio dipende dall'auto — controllare in gara);
+ *   6. benzina: LA FORMULA È CONDIVISA (src/benzina.mjs) — ceil(consumo × giri
+ *      × 1,05) + 3 L di riserva, cap 120 L: gli stessi litri della carta del
+ *      meccanico (prima qui mancavano i 3 L e i due numeri non tornavano);
  *   7. RADDRIZZO l'ASIMMETRIA sx/dx (molle, ammortizzatori, RIGIDITÀ bumpstop,
  *      CAMPANATURE, convergenza): una macchina simmetrica è lo stato normale —
  *      sx e dx dello stesso asse DEVONO combaciare; alle soglia le allineo al
@@ -522,7 +526,7 @@ export function giriGaraDa({ cardLaps = null, bodyLaps = null, fallback = 10 } =
   return buono(cardLaps) ?? buono(bodyLaps) ?? fallback;
 }
 
-export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, defaults = null }) {
+export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, defaults = null, tipo = 'gara' }) {
   const patches = {}, text = [], tiresExtra = [];
   const r1 = (v) => Math.round(v * 10) / 10;
   const WHEELS = ['LF', 'RF', 'LR', 'RR'];
@@ -634,18 +638,21 @@ export function mechanicExtraEdits({ cur, latest = {}, trackInfo = null, default
     }
   }
 
-  /* 6. BENZINA di gara: fuelPerLap misurato × giri + 5% di riserva, cap 120 L.
-     Si tocca SOLO se la differenza supera un litro (niente variazioni da 0,2 L). */
-  const fpl = Number(latest.fuelPerLap);
-  const giri = Number(latest.raceLaps);
+  /* 6. BENZINA: la formula è UNA e sta in src/benzina.mjs — la stessa che la
+     carta del meccanico dice a voce. Gli stessi input danno gli stessi litri:
+     ceil(consumo × giri × 1,05) + 3 L di riserva (qualifica: 2 giri + 1 + 3 L),
+     cap 120 L. Si tocca SOLO se la differenza supera un litro (niente
+     variazioni da 0,2 L). */
+  const benz = benzinaDelMeccanico({ tipo, fuelPerLap: latest.fuelPerLap, raceLaps: latest.raceLaps });
   const litri = Number(cur.fuel?.liters);
-  if (Number.isFinite(fpl) && fpl > 0.3 && Number.isFinite(giri) && giri >= 3) {
-    const want = Math.min(120, Math.ceil(fpl * giri * 1.05));
+  if (benz) {
+    const want = benz.litri;
     if (Number.isFinite(litri) && Math.abs(want - litri) >= 1) {
       patches.fuel ??= {}; patches.fuel.liters = want;
+      const fpl = Number(latest.fuelPerLap);
       text.push(tr({
-        it: `Benzina: ${Math.round(litri)} → ${want} L — ${r1(fpl)} L/giro × ${giri} giri (+5% di riserva; controllare l'indicatore dopo CARICA: il cap serbatoio dipende dall'auto)`,
-        en: `Fuel: ${Math.round(litri)} → ${want} L — ${r1(fpl)} L/lap × ${giri} laps (+5% reserve; check the gauge after REFUEL: the tank cap depends on the car)`,
+        it: `Benzina: ${Math.round(litri)} → ${want} L — ${r1(fpl)} L/giro × ${benz.giri} giri (+${benz.extraPct}% per il degrado, +${benz.riserva} L di riserva; controllare l'indicatore dopo CARICA: il cap serbatoio dipende dall'auto)`,
+        en: `Fuel: ${Math.round(litri)} → ${want} L — ${r1(fpl)} L/lap × ${benz.giri} laps (+${benz.extraPct}% wear, +${benz.riserva} L reserve; check the gauge after REFUEL: the tank cap depends on the car)`,
       }));
     }
   }
