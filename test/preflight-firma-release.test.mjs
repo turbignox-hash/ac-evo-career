@@ -1,9 +1,11 @@
 // preflight-firma-release.test.mjs — l'AGGANCIO COMPLETO del preflight firma.
 //
 // Non basta provare il verificatore: qui gira il VERO tools/crea-release.mjs
-// (copiato in una sandbox) con il suo preflight UIAPP/Layout finto, un EXE
+// (copiato in una sandbox) con il suo preflight UIAPP/Layout/DANZA finto, un EXE
 // finto e un signtool.exe stub. Nessun certificato, nessun GitHub, nessuna
-// app installata toccata.
+// app installata toccata. La danza del PC amico (6/11) è fra i comandi finti:
+// il suo posto nel flusso è provato dal test dedicato, qui serve solo che la
+// sandbox abbia lo script che il preflight si aspetta di trovare.
 //
 // Casi:
 //   0) tag ≠ package.json → la release non parte prima ancora del preflight;
@@ -72,6 +74,9 @@ test('preflight release: firma stub verde, rossa e assente', { skip: SKIP }, (t)
   copyFileSync(join(QUI, 'src', 'release-assets.mjs'), join(radice, 'src', 'release-assets.mjs'));
   writeFileSync(join(radice, 'package.json'), JSON.stringify({ name: 'sandbox', version: '0.0.0' }), 'utf8');
   writeFileSync(join(radice, 'tools', 'genera-uiapp.mjs'), 'process.exit(0);\n', 'utf8');
+  // la danza end-to-end: nella sandbox è uno stub con l'uscita del riepilogo
+  writeFileSync(join(radice, 'tools', '_collaudo-amico.mjs'),
+    'console.log("DANZA COMPLETA: 27/27 verifiche — stub di sandbox");\n', 'utf8');
   for (const file of ['uiapp-installata.test.mjs', 'skip-guardia-layout.test.mjs', 'layout-impostazioni.test.mjs']) {
     writeFileSync(join(radice, 'test', file), 'import { test } from "node:test";\ntest("ok", () => {});\n', 'utf8');
   }
@@ -125,6 +130,7 @@ test('preflight release: firma stub verde, rossa e assente', { skip: SKIP }, (t)
   assert.equal(r.status, 0, `preflight valido fallito:\n${r.stdout}\n${r.stderr}`);
   assert.match(r.stdout, /Firma: verificata/);
   assert.match(r.stdout, /preflight superato/);
+  assert.match(r.stdout, /DANZA COMPLETA: 27\/27/, 'il preflight deve far girare la danza del PC amico');
   assert.match(readFileSync(log, 'utf8'), /^verify \/pa \/q .+EVO-Pitwall-Setup\.exe$/m);
   assert.match(r.stdout, /EXE in release: EVO-Pitwall-Setup\.exe, EVO-Pitwall-Setup\.exe\.sha256/);
   assert.match(r.stdout, /Asset release \(2\): EVO-Pitwall-Setup\.exe, EVO-Pitwall-Setup\.exe\.sha256/);

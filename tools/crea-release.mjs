@@ -218,6 +218,15 @@ if ((sporcaLayout.stdout ?? '').trim()) {
 console.log(saltata
   ? '✓ lista di controllo layout superata a metà: contratto degli skip ✓, guardia SALTATA (vedi sopra) — release possibile, layout non misurato.'
   : '✓ lista di controllo layout superata: contratto degli skip ✓, guardia misurata ✓ (126 misure).');
+/* ---- LA DANZA DEL PC AMICO (6/11): la release esce solo se l'amico installa e
+ * gioca DAVVERO. `RELEASE_CHECKLIST.md` la pretendeva già, ma la sonda era
+ * finita in `tools/archivio/` e nessuno la chiamava più: qui diventa una soglia
+ * vera del preflight (zipball del ramo, `installa.cmd` in sandbox, primo e
+ * secondo avvio del pacchetto). Gira anche con `--solo-preflight`, così la
+ * prova a secco misura anche questo. Se la danza si rompe, la release NON parte. */
+console.log('—— DANZA DEL PC AMICO: la release esce solo se l\'amico installa e gioca ——');
+preghiamo('node tools/_collaudo-amico.mjs — zipball del ramo, installa.cmd in sandbox, primo e secondo avvio', [join('tools', '_collaudo-amico.mjs')]);
+
 // ---- PREFLIGHT FIRMA EXE: se c'è un certificato, gli EXE devono essere
 // firmati, coerenti con il loro .sha256 e della versione del progetto. Un EXE
 // non firmato, una firma rotta o una build vecchia non devono partire.

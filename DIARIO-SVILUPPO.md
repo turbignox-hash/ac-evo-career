@@ -1,5 +1,17 @@
 # Diario di sviluppo
 
+### 6/11 — Il collaudo del PC amico è tornato, ed è una soglia della release
+
+- **Richiesta di Mauro**: «ricostruisci il collaudo end-to-end del PC amico e rimettilo nel flusso di release».
+- **Prima di riscriverlo, cercato**: non era cancellato — il riordino del 6/11 l'aveva spostato in `tools/archivio/_collaudo-amico.mjs`, dove nessuno lo chiamava più, mentre `RELEASE_CHECKLIST.md` continuava a pretenderlo. Recuperato con `git mv` in `tools/_collaudo-amico.mjs`: nessuna danza reinventata, la stessa sonda del 1/11 riallineata al codice di oggi.
+- **Cosa era invecchiato**: l'installatore oggi scarica il repo pubblico **senza token** (la domanda compare solo su 401/403/404) e il modo veloce è il default; la sonda non azzerava `EVO_INSTALLER_GHTOKEN` (un token nell'ambiente del PC avrebbe potuto cambiare il percorso) e il controllo sulle app in gioco usava una regex generica `App «\w+» in gioco` **due volte**, quindi sarebbe passata anche con una sola app copiata. Ora ogni app è verificata col suo nome, e si controlla anche che l'installatore della zip non usi il null device di Unix (la zip esce dal disco, non dai commit: la guardia dei `.cmd` non la vede).
+- **Il risultato, misurato**: `node tools/_collaudo-amico.mjs` → **27/27 verifiche** in pochi secondi (zipball di 608 file tracciati, server finto `127.0.0.1`, `installa.cmd` che esce 0 in ~2,7 s, `build-id.txt` = commit di collaudo, `data/` vergine senza token, app `cruscotto`/`pitwall` copiate identiche alla sorgente, nessun `menu.html`, marcatori in `ACE/Video`, secondo avvio muto). Il vecchio conteggio «21/21» nei documenti era del 1/11 ed è ora 27: la checklist dice il numero vero.
+- **Nel flusso di release**: `tools/crea-release.mjs` esegue la danza con `preghiamo(...)` nel preflight, **prima** dell'uscita di `--solo-preflight`, così anche la prova a secco la misura e un KO ferma la release. Provato davvero: `node tools/crea-release.mjs v0.1.67 "prova a secco" "corpo di prova" --solo-preflight` → app in gioco ✓, guardia di layout 126 misure ✓, **danza 27/27 ✓**, firma non configurata (dichiarata), «preflight superato».
+- **Nuova guardia** (`test/collaudo-amico-collegato.test.mjs`, 4/4): una copia sola in `tools/` (niente doppioni in `archivio/`), non è un guscio (zip con `git ls-files`, `installa.cmd`, `installa-gioco.mjs`, `ACEUIAppLoader`, uscita non-zero, almeno 15 verifiche, riepilogo N/N), `crea-release` la chiama con `preghiamo` prima dell'uscita di `--solo-preflight`, e la checklist nomina lo stesso comando e il 27/27. Se qualcuno la riarchivia o la scollega, la suite diventa rossa prima della release.
+- **Stato della release**: la soglia che ieri mancava ora c'è e passa. Per pubblicare restano il bump di versione + tag (HEAD è avanti a `v0.1.67`) e la firma degli EXE, che resta impossibile su questo PC perché non c'è un certificato Authenticode: uscirebbero non firmati, e la checklist lo ammette solo come scelta dichiarata. Non ho creato tag né GitHub Release in questo passaggio.
+- **Limiti**: la danza prova la sequenza installazione + app in gioco su Windows, non l'avvio di EVO né una gara vera (quello resta il collaudo con il gioco aperto); richiede `cmd`, `curl` e il `tar` di System32, quindi su Linux esce subito con un messaggio invece di fingere di aver provato.
+
+
 ### 6/11 — Il rinvio dell'avviso di copertura vale sul giorno di carriera, non sulla data del PC
 
 - **Richiesta di Mauro**: «fai valere il rinvio dell'avviso di copertura sul giorno di carriera invece che sulla data del computer».

@@ -27,8 +27,10 @@ opzionale; se uno non si può girare, la release non si prepara.
 
 ## 3. Collaudo sul campo
 
-- [ ] Danza del PC amico vergine: `node tools/_collaudo-amico.mjs` — 21/21
-      (zipball vera, installer in sandbox, primo+secondo avvio).
+- [ ] Danza del PC amico vergine: `node tools/_collaudo-amico.mjs` — 27/27
+      (zipball vera, installer in sandbox, primo+secondo avvio). Dal 6/11 gira
+      DA SOLA dentro il preflight di `tools/crea-release.mjs` (anche con
+      `--solo-preflight`): se la danza si rompe, la release non parte.
 - [ ] Collaudo vergine delle schede GUI (tutte le tab, nessuna regredita).
 - [ ] I file di gioco: nessuna scrittura fuori dai gesti consentiti
       (`test/cancelli-anticheat.test.mjs` verde è la prima guardia).

@@ -17,6 +17,14 @@
 //      menu.html mai consegnato, build-id coerente, data vergine;
 //      secondo avvio ≡ muto (nessuna copia ripetuta).
 //
+// 6/11: la sonda era finita in `tools/archivio/` col riordino del 6/11 e da lì
+// non la chiamava più nessuno, mentre RELEASE_CHECKLIST.md la pretendeva come
+// soglia di release. È tornata in `tools/` ed è agganciata al preflight di
+// `tools/crea-release.mjs`: se la danza si rompe, la release NON parte. Le
+// aspettative sono allineate all'installatore di oggi (repo pubblico senza
+// token, modo veloce predefinito) e a `installa-gioco.mjs` che annuncia
+// l'app col suo nome.
+//
 // Uso:  node tools/_collaudo-amico.mjs        (esce 0 se tutta la sequenza stanca)
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -37,15 +45,20 @@ const TAR = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe')
 const COMMIT = 'collaudo' + createHash('sha256').update(String(process.pid) + Date.now()).digest('hex').slice(0, 8);
 const RADICE_ZIP = `turbignox-hash-ac-evo-career-${COMMIT}`;
 let KO = 0;
+let TOT = 0;
 const fails = [];
-const ok = (cond, msg) => { if (cond) console.log(`  [x] ${msg}`); else { KO++; fails.push(msg); console.log(`  [!] ${msg}`); } };
+const ok = (cond, msg) => {
+  TOT++;
+  if (cond) console.log(`  [x] ${msg}`);
+  else { KO++; fails.push(msg); console.log(`  [!] ${msg}`); }
+};
 
 // --- 1) palude del ramo: SOLO i file tracciati, col contenuto del disco ---
 const palude = mkdtempSync(join(tmpdir(), 'collaudo-amico-'));
 const stage = join(palude, RADICE_ZIP);
 console.log('1) zipball del ramo in palude...');
 const tracciati = spawnSync('git', ['ls-files'], { cwd: QUI, encoding: 'utf8' }).stdout
-  .split(/\r?\n/).filter((f) => f && !/^(archive\/|pacchetti\/|tmp\/)/.test(f));
+  .split(/\r?\n/).filter((f) => f && !/^(archive\/|tools\/archivio\/|pacchetti\/|tmp\/)/.test(f));
 for (const f of tracciati) {
   const dest = join(stage, f);
   mkdirSync(dirname(dest), { recursive: true });
@@ -56,6 +69,12 @@ const zip = join(palude, 'zipball.zip');
 const pz = spawnSync(TAR, ['-a', '-cf', zip, '-C', palude, RADICE_ZIP], { encoding: 'utf8' });
 ok(pz.status === 0, `zip costruito col tar di System32 (${tracciati.length} file)`);
 ok(existsSync(join(stage, 'tools', 'installa-gioco.mjs')), 'l\'installatore unitario delle app in gioco è nella zipball');
+// l'installatore della zip è quello curato oggi: nessun null device di Unix
+// (la guardia dei .cmd lo vieta, ma la zip esce dal DISCO, non dai commit)
+const installatoreZip = readFileSync(join(stage, 'installa.cmd'), 'utf8')
+  .split(/\r?\n/).filter((r) => !/^\s*@?\s*(?:rem\b|::)/i.test(r)).join('\n');
+ok(!/\/dev\/(?:null|stdout|stderr)\b/i.test(installatoreZip),
+  'l\'installa.cmd della zip non usa il null device di Unix (la lezione del 6/11)');
 
 // --- 2) server finto: SOLO l'endpoint che l'installatore chiama ---
 let chiestiZipball = 0;
@@ -86,6 +105,7 @@ const ins = await new Promise((fineInstallazione) => {
       EVO_INSTALLER_API: `http://127.0.0.1:${httpPort}/repos/turbignox-hash/ac-evo-career`,
       EVO_INSTALLER_AUTO: '1',
       EVO_INSTALLER_FAST: '1',
+      EVO_INSTALLER_GHTOKEN: '',   // repo pubblico: nessun token né domanda
       EVO_INSTALLER_NOSCORCIATOIA: '1',
       EVO_INSTALLER_NOAVVIO: '1',
     },
@@ -96,14 +116,16 @@ const ins = await new Promise((fineInstallazione) => {
   const guardia = setTimeout(() => { try { p.kill(); } catch {} }, 180_000);
   p.on('exit', (code) => { clearTimeout(guardia); fineInstallazione({ code, stdout }); });
 });
-ok(ins.code === 0, `installatione.cmd esce 0 in ${Date.now() - t0} ms`);
+ok(ins.code === 0, `installa.cmd esce 0 in ${Date.now() - t0} ms`);
 ok(!ins.stdout.includes('NON completata'), 'niente ramo :fallito');
 for (const f of ['ac-evo-career.mjs', 'avvia.cmd', 'tools', 'gui', 'src', 'uiapp']) {
   ok(existsSync(join(destinazione, f)), `nella cartella c'è ${f}`);
 }
 ok((readFileSync(join(destinazione, 'build-id.txt'), 'utf8').split(/\r?\n/)[0].trim() ?? '') === COMMIT, `build-id.txt = ${COMMIT}`);
 ok(existsSync(join(destinazione, 'data')) && !existsSync(join(destinazione, 'data', '.github-token')), 'data/ vergine (nessun token)');
-ok(existsSync(join(destinazione, 'tools', 'installa-gioco.mjs') ) && existsSync(join(destinazione, 'INSTALLA-GIOCO.cmd')), 'l\'installatore un-file porta con sé anche le app in gioco');
+ok(existsSync(join(destinazione, 'tools', 'installa-gioco.mjs')) && existsSync(join(destinazione, 'INSTALLA-GIOCO.cmd')), 'l\'installatore un-file porta con sé anche le app in gioco');
+ok(!/Token GitHub/i.test(ins.stdout), 'repo pubblico: l\'installatore non ha chiesto nessun token');
+ok(!existsSync(join(destinazione, 'node_modules')), 'modo veloce: niente node_modules (npm test saltato)');
 
 // --- 4) il PC dell'amico: mod AGL installata, app nostre ZERO ---
 console.log('4) primo "avvia" dell\'amico (modo silenzioso di avvia.cmd, saved games vergini)...');
@@ -117,7 +139,9 @@ const avviaSilenzioso = () => spawnSync(process.execPath,
 const prima = avviaSilenzioso();
 ok(prima.status === 0, `primo avvio esce 0 (${prima.stdout ? 'annuncia le app' : 'MA tace — non doveva'})`);
 for (const chiave of ['cruscotto', 'pitwall']) {
-  ok(/App «\w+» in gioco/.test(prima.stdout), `primo avvio: ${chiave} annunciata`);
+  // l'annuncio porta il NOME dell'app: una regex generica passerebbe anche con
+  // una sola app copiata (era il buco della versione precedente)
+  ok(new RegExp(`App «${chiave}» in gioco`).test(prima.stdout), `primo avvio: ${chiave} annunciata`);
 }
 const loader = join(salvataggi, 'ACE', 'mods', 'uiresources', 'ACEUIAppLoader');
 for (const [chiave, file] of [
@@ -143,8 +167,8 @@ try { rmSync(destinazione, { recursive: true, force: true }); } catch {}
 try { rmSync(salvataggi, { recursive: true, force: true }); } catch {}
 console.log('');
 if (KO) {
-  console.log(`DANZA INTERROTTA a ${KO} colpi falliti:`);
+  console.log(`DANZA INTERROTTA a ${KO} colpi falliti su ${TOT}:`);
   for (const f of fails) console.log(`   - ${f}`);
   process.exit(1);
 }
-console.log(`DANZA COMPLETA: l'amico installa con un file e gioca (zip colpita ${chiestiZipball} volta/e).`);
+console.log(`DANZA COMPLETA: ${TOT - KO}/${TOT} verifiche — l'amico installa con un file e gioca (zip colpita ${chiestiZipball} volta/e).`);
