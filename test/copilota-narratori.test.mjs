@@ -942,3 +942,82 @@ test("delta di ritmo: griglia sfasata non paga più la fetta intera", async () =
   // proiettato sul segmento deve scendere sotto 60 ms
   assert.ok(Math.abs(dB.deltaMs - 1000) <= 60, `griglia sfasata di 12 m: scarto sotto 60 ms, venuto ${dB.deltaMs - 1000} ms`);
 });
+
+/* 8/11 — LE DIRETTIVE CHE MANCAVANO (richiesta Mauro: «bandiere, incidenti,
+   uscite di strada… e una mini cronaca per la versione full»). Le tre fonti
+   sono già nella MMF: flagCode (5 = gialla, tabella FLAG di shmem.mjs), il
+   carDamage del gioco [anteriore, posteriore, sinistra, destra, centro] in %,
+   e i fatti della sessione (posizione, giri, tagli, soste) che il Pitwall vede.
+   Niente «incidente» né «contatto»: il file dice quanto danno, non la causa. */
+test('bandiera gialla (flagCode 5): esce al PASSAGGIO, non a ogni tick', () => {
+  const frames = [
+    [1000, MMF(1000, { gauges: { lapsDone: 1, lapsTotal: 3, flagCode: 0, flag: 'nessuna' } })],   // semina
+    [2000, MMF(2000, { gauges: { lapsDone: 1, lapsTotal: 3, flagCode: 5, flag: 'gialla' } })],    // gialla!
+    [4000, MMF(4000, { gauges: { lapsDone: 1, lapsTotal: 3, flagCode: 5, flag: 'gialla' } })],    // resta gialla: tace
+    [10000, MMF(10000, { gauges: { lapsDone: 1, lapsTotal: 3, flagCode: 2, flag: 'verde' } })],   // rientro: verde
+    [12000, MMF(12000, { gauges: { lapsDone: 1, lapsTotal: 3, flagCode: 5, flag: 'gialla' } })],  // gialla ravvicinata: zittita dai 70 s
+    [60000, MMF(60000, { gauges: { lapsDone: 2, lapsTotal: 3, flagCode: 0, flag: 'nessuna' } })], // pista libera: la gialla è passata
+    [90000, MMF(90000, { gauges: { lapsDone: 2, lapsTotal: 3, flagCode: 5, flag: 'gialla' } })],  // gialla nuova, oltre la guardia
+  ];
+  const dette = gara(frames);
+  const gialle = dette.filter((f) => f.chi === 'gialla');
+  assert.equal(gialle.filter((f) => !f.detto).length, 2, `due direttive vere in tutta la gara: ${JSON.stringify(gialle.map((f) => [f.it, f.detto]))}`);
+  assert.match(gialle[0].it, /niente sorpassi/i);
+  assert.equal(dette.filter((f) => f.chi === 'verde' && !f.detto).length, 1, 'il rientro a verde parla come prima');
+});
+
+test('danno: il 100% di fine sessione è un artefatto e non entra in radio (Donington 6/11)', () => {
+  const d = (t, arr) => [t, MMF(t, { gauges: { lapsDone: 2, lapsTotal: 3, damage: arr } })];
+  const dette = gara([
+    d(1000, [0, 0, 0, 0, 0]),
+    d(2000, [0, 0, 0, 100, 100]),   // il salto impossibile visto nei dati veri
+    d(9000, [0, 0, 0, 8, 8]),       // torna giù: nessun aumento
+    d(60000, [0, 0, 0, 0, 0]),      // azzerato
+  ]);
+  assert.equal(dette.filter((f) => f.chi === 'danno').length, 0, 'nessuna voce da un salto impossibile');
+});
+
+test('danno: parla sul salto vero di una zona, col nome giusto; l\'usura tace', () => {
+  const d = (t, arr) => [t, MMF(t, { gauges: { lapsDone: 1, lapsTotal: 3, damage: arr } })];
+  const dette = gara([
+    d(1000, [0, 0, 0, 0, 0]),      // semina
+    d(2000, [2, 0, 0, 0, 0]),      // 2 punti: usura da contatto, tace
+    d(9000, [14, 0, 0, 0, 0]),     // salto vero: anteriore
+    d(12000, [16, 0, 0, 0, 0]),    // dentro i 20 s: tace
+    d(40000, [16, 0, 0, 12, 0]),   // altra zona, oltre il distanziello
+  ]);
+  const frasi = dette.filter((f) => f.chi === 'danno' && !f.detto);
+  assert.equal(frasi.length, 2, `due sole voci di danno: ${JSON.stringify(frasi.map((f) => f.it))}`);
+  assert.match(frasi[0].it, /anteriore: 14 percento/);
+  assert.match(frasi[1].it, /destra: 12 percento/);
+  assert.ok(!/incidente|contatto/i.test(frasi.map((f) => f.it).join(' ')), 'si dice il danno misurato, non la causa che il file non porta');
+});
+
+test('cronaca alla scacchi: i fatti che il Pitwall HA VISTO, e niente invenzioni', () => {
+  const r = (t, o = {}) => [t, MMF(t, {
+    phase: 'Race', sessionType: 'Race',
+    gauges: { lapsDone: 0, lapsTotal: 3, position: 7, inPit: false, cutSec: 0, flagCode: 2, flag: 'verde', ...o.gauges },
+    timing: { lastLap: o.lastLap ?? null, bestLap: o.bestLap ?? null },
+  })];
+  const dette = gara([
+    r(1000, { gauges: { lapsDone: 0 } }),
+    r(2000, { gauges: { lapsDone: 1, position: 5 }, lastLap: '1:50.000', bestLap: '1:50.000' }),
+    r(3000, { gauges: { lapsDone: 1, position: 5, inPit: true } }),      // una sosta
+    r(4000, { gauges: { lapsDone: 2, position: 3, inPit: false, cutSec: 1.5 }, lastLap: '1:49.000', bestLap: '1:49.000' }),
+    r(5000, { gauges: { lapsDone: 3, position: 2 }, lastLap: '1:49.500' }),  // traguardo
+  ]);
+  const bandiera = dette.find((f) => f.chi === 'bandiera' && !f.detto);
+  const cronaca = dette.find((f) => f.chi === 'cronaca' && !f.detto);
+  assert.ok(bandiera, 'la bandiera a scacchi esce come sempre');
+  assert.ok(cronaca, `la cronaca esce: ${JSON.stringify(dette.map((f) => f.chi))}`);
+  assert.match(cronaca.it, /^Cronaca: da P7 a P2/);
+  assert.match(cronaca.it, /miglior giro 1:49\.000/);
+  assert.match(cronaca.it, /una sosta/);
+  assert.match(cronaca.it, /1\.5 secondi di tagli/);
+  // nello stesso tick la bandiera viene PRIMA della cronaca: la radio chiude, non apre
+  assert.ok(dette.indexOf(bandiera) < dette.indexOf(cronaca), 'prima gli scacchi, poi il racconto');
+
+  // e NON si inventa la cronaca quando sa un fatto solo: lì è un dato, non un racconto
+  const magra = gara([r(1000, { gauges: { lapsDone: 3, position: 4 } })]);
+  assert.equal(magra.filter((f) => f.chi === 'cronaca').length, 0, 'senza almeno due fatti la cronaca tace');
+});

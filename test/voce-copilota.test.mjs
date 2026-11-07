@@ -142,3 +142,40 @@ test('IL CONTO ALLA ROVESCIA (minuto) parla a tutti i livelli', () => {
   assert.deepEqual(senza('essenziale'), [], 'gara a giri (senza timeLeft): niente conto alla rovescia');
   assert.deepEqual(senza('full'), [], 'gara a giri (senza timeLeft): niente conto alla rovescia nemmeno in full');
 });
+
+/* 8/11 — LE DIRETTIVE NUOVE E IL LORO LIVELLO (richiesta Mauro: «nella versione
+   full una mini cronaca»). La bandiera gialla è un ordine di pista e si sente
+   anche in essenziale; danno e cronaca sono il di più del full: fuori dalle
+   liste di essenziale e normale (FRASI_LIVELLO), quindi si tacciono lì. */
+test('gialla a tutti i livelli; danno e cronaca solo al full', () => {
+  const corsa = (livello) => {
+    const v = voceFinta();
+    const slot = nuovoSlotVoce();
+    const frame = (over) => M(true, { sessionType: 'Race', phase: 'Race', ...over });
+    const g = (o) => G({ lapsDone: 0, lapsTotal: 3, position: 7, flagCode: 2, flag: 'verde', damage: [0, 0, 0, 0, 0], cutSec: 0, ...o });
+    const timing = (lastLap, bestLap) => ({ lastLap, bestLap });
+    const frames = [
+      frame({ gauges: g({}), timing: timing(null, null) }),
+      frame({ gauges: g({ flagCode: 5, flag: 'gialla' }), timing: timing(null, null) }),
+      frame({ gauges: g({ flagCode: 5, flag: 'gialla', damage: [12, 0, 0, 0, 0] }), timing: timing(null, null) }),
+      frame({ gauges: g({ flagCode: 2, flag: 'verde', position: 5, lapsDone: 1 }), timing: timing('1:50.000', '1:50.000') }),
+      frame({ gauges: g({ position: 3, lapsDone: 2 }), timing: timing('1:49.500', '1:49.500') }),
+      frame({ gauges: g({ position: 3, lapsDone: 3 }), timing: timing('1:49.900', '1:49.500') }),
+    ];
+    frames.forEach((m, i) => { giroVoce(m, slot, v, { graziaMs: 0, ora: 1000 + i * 10, livello }); });
+    return v.items;
+  };
+  const full = corsa('full');
+  assert.ok(full.some((t) => t.includes('Bandiera gialla')), `la gialla esce al full: ${JSON.stringify(full)}`);
+  assert.ok(full.some((t) => t.includes('Danno anteriore')), `il danno esce al full: ${JSON.stringify(full)}`);
+  assert.ok(full.some((t) => t.startsWith('Cronaca: da P7 a P3')), `la cronaca esce al full: ${JSON.stringify(full)}`);
+
+  const normale = corsa('normale');
+  assert.ok(normale.some((t) => t.includes('Bandiera gialla')), 'la gialla è un ordine: parla anche a normale');
+  assert.ok(!normale.some((t) => t.includes('Danno')), 'il danno è di lusso: a normale tace');
+  assert.ok(!normale.some((t) => t.startsWith('Cronaca')), 'la cronaca è il di più del full');
+
+  const essenziale = corsa('essenziale');
+  assert.ok(essenziale.some((t) => t.includes('Bandiera gialla')), 'la gialla parla anche in essenziale');
+  assert.ok(!essenziale.some((t) => t.startsWith('Cronaca')));
+});

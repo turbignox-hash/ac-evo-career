@@ -59,7 +59,7 @@ function narratore(m, slot, ora = Date.now()) {
      in CODA e parla al primo giro annunciato in un tick successivo.
      Se il giro non arriva mai (HUD muto), soccorso: esce comunque dopo 10 s. */
   const bandParla = () => {
-    if (parla.some((p) => p.chi === 'giroFatto')) parla.push({ chi: 'bandiera', it: 'Bandiera a scacchi!' });
+    if (parla.some((p) => p.chi === 'giroFatto')) scacchiParla();
     else slot.last.bandieraP = ora;
   };
   /* replicato dei narratori — viste-a.js: il delta parla SOLO se il bucket
@@ -126,6 +126,37 @@ function narratore(m, slot, ora = Date.now()) {
   const lapNo = m.delta?.lapNo ?? null;
   const lastLapTxt = m.timing?.lastLap ?? null;
   const g = m.gauges ?? {};
+  /* MINI CRONACA (7/11, richiesta Mauro: «nella versione full una mini cronaca»):
+     alla bandiera a scacchi la radio chiude con una riga sola — cosa è successo
+     — coi SOLI numeri che il Pitwall ha visto in questa sessione (raccolti in
+     slot.last.cron più sotto). Parla di più solo al livello FULL: «cronaca»
+     non è nelle liste di essenziale e normale (voce-copilota.mjs), quindi il
+     racconto finale è il di più del full, le direttive di pista restano a tutti.
+     Niente numeri inventati: la posizione AL VIA esiste solo se il via è stato
+     visto, e la frase nasce con ALMENO DUE fatti — una cronaca di un dato solo
+     è un dato, e la bandiera la dice già. */
+  const cronacaTesto = () => {
+    const c = slot.last.cron;
+    if (!c) return null;
+    const pezzi = [];
+    if (c.posVia != null && c.posFine != null) {
+      const diff = c.posVia - c.posFine;   // > 0 = posizioni guadagnate
+      pezzi.push(diff > 0 ? `da P${c.posVia} a P${c.posFine}` : diff < 0 ? `da P${c.posVia} a P${c.posFine}, ${-diff} perse` : `P${c.posFine} dal via all'arrivo`);
+    } else if (c.posFine != null) pezzi.push(`chiusa in P${c.posFine}`);
+    if (c.bestTxt) pezzi.push(`miglior giro ${c.bestTxt}`);
+    if (c.soste > 0) pezzi.push(c.soste === 1 ? 'una sosta' : `${c.soste} soste`);
+    if (c.tagli >= 0.5) pezzi.push(`${c.tagli.toFixed(1)} secondi di tagli`);
+    if (c.danno >= 10) pezzi.push(`danno massimo ${Math.round(c.danno)} percento`);
+    return pezzi.length >= 2 ? `Cronaca: ${pezzi.join(', ')}.` : null;
+  };
+  const scacchiParla = () => {
+    // la posizione d'arrivo è quella di QUESTO tick: la raccolta della cronaca
+    // gira in fondo al giro di codice, la bandiera parla prima
+    if (slot.last.cron && g.position != null) slot.last.cron.posFine = g.position;
+    parla.push({ chi: 'bandiera', it: 'Bandiera a scacchi!' });
+    const c = cronacaTesto();
+    if (c) parla.push({ chi: 'cronaca', it: c });
+  };
   // replica 25/10: il traguardo si legge da lapsDone, e se la modalità lo
   // lascia a 0 la scorta è lapNo DELTA DIRETTO (lapNo = giri compiuti, vedi
   // viste-a.js: lezione Brands Hatch 25/10, replay del registro). Come in
@@ -295,6 +326,33 @@ function narratore(m, slot, ora = Date.now()) {
     if (passo >= 0.5 && passo < 30) parla.push({ chi: 'penalia', it: `Penalità tagli: ${cutSec.toFixed(1)} secondi.` });
     slot.last.cut = cutSec;
   }
+  /* 9c) DANNO (7/11): gauges.damage è il carDamage del gioco [anteriore,
+     posteriore, sinistra, destra, centro] già in percentuale (engineer.mjs lo
+     usa per i consigli del meccanico). Si parla sul SALTO VERO di una zona
+     (≥5 punti): sotto è usura da contatto e non merita la radio. Si dice il
+     numero misurato, non la causa: «danno», non «incidente» né «contatto» —
+     il file non dice cosa l'ha causato. Distanziello 20 s perché un testacoda
+     muove più zone nello stesso istante. */
+  const dmgArr = Array.isArray(g.damage) && g.damage.length === 5 ? g.damage.map((v) => Number(v) || 0) : null;
+  if (dmgArr) {
+    const ZONE = ['anteriore', 'posteriore', 'sinistra', 'destra', 'centro'];
+    const prec = slot.last.dmg ?? [0, 0, 0, 0, 0];
+    let peggio = null;
+    dmgArr.forEach((v, i) => {
+      const salto = v - (prec[i] ?? 0);
+      /* IL 100% NON È UN CONTATTO (7/11, replay della gara di Donington): negli
+         ultimi secondi prima degli scacchi il gioco scrive [0,0,0,100,100] per
+         un istante — velocità e forze G normali, nessun impatto — e lo rimette
+         a 0 otto secondi dopo. Un salto di 60+ punti in un tick non è danno che
+         si accumula: è uno stato (fine sessione, reset). Fuori dalla radio. */
+      if (salto >= 5 && salto < 60 && v < 100 && (!peggio || v > peggio.v)) peggio = { i, v };
+    });
+    slot.last.dmg = dmgArr;
+    if (peggio && (slot.last.dmgOra == null || ora - slot.last.dmgOra >= 20000)) {
+      slot.last.dmgOra = ora;
+      parla.push({ chi: 'danno', it: `Danno ${ZONE[peggio.i] ?? 'carrozzeria'}: ${Math.round(peggio.v)} percento.` });
+    }
+  }
   /* 11) FINESTRA STINT DEL PIANO (31/10, DA-9 seconda fetta — richiesta
      Mauro: «copilota annuncia la finestra»): il piano pre-gara dice le
      FINESTRE di sosta; quando il contatore giri entra nell'ultima finestra
@@ -438,7 +496,7 @@ function narratore(m, slot, ora = Date.now()) {
     const att = slot.last.bandieraP;
     if ((Number.isFinite(slot.last.giroFattoOra) && slot.last.giroFattoOra >= att) || ora - att >= 10000) {
       slot.last.bandieraP = null;
-      parla.push({ chi: 'bandiera', it: 'Bandiera a scacchi!' });
+      scacchiParla();
     }
   }
   /* 8b) CONTO ALLA ROVESCIA (30/10 sera, carte blanche): nelle gare a TEMPO
@@ -498,6 +556,20 @@ function narratore(m, slot, ora = Date.now()) {
         : { chi: 'nera', it: 'Bandiera nera: il gioco ti squalifica.' });
     }
     slot.last.rede = fc;
+    /* BANDIERA GIALLA (7/11): flagCode 5 — l'ordine di pista che mancava alla
+       radio (c'erano verde 2, rossa 3, nera 6; bianca 1, b/n 7, meccanica 9 e
+       sdrucciolevole 10 restano mute di proposito: il loro significato in EVO
+       non è verificato su una gara vera e una frase sbagliata è peggio del
+       silenzio). Semaforo separato da rossa/nera (15 s in comune), semina
+       silenziosa alla prima lettura, 20 s di distanza fra due gialle: nei
+       tratti col doppio giallo la radio parla una volta. */
+    if (slot.last.gialla == null) slot.last.gialla = fc;
+    else if (fc !== slot.last.gialla && fc === 5
+             && (slot.last.giallaOra == null || ora - slot.last.giallaOra >= 20000)) {
+      slot.last.giallaOra = ora;
+      parla.push({ chi: 'gialla', it: 'Bandiera gialla: niente sorpassi, rallenta.' });
+    }
+    slot.last.gialla = fc;
   }
   /* 9) POSIZIONE (30/10, la gara del mezzogiorno): gli annunci di posizione
      esistevano SOLO nella pagina (viste-a.js narratore 9, chi 'postalk');
@@ -539,6 +611,7 @@ function narratore(m, slot, ora = Date.now()) {
       || Number(m.gauges?.lapsDone) > 0;    // gara ripresa a metà: i giri dicono il via
     if (g.inPit === true) slot.last.inPitOra = ora;
     const pitScena = g.inPit === true || (slot.last.inPitOra != null && ora - slot.last.inPitOra <= 12000);
+    slot.last.inGara = inGara && viaVisto;   // 7/11: la cronaca può dire «al via» solo se il via è stato visto
     if (!pitScena && inGara && viaVisto && slot.last.pos != null && g.position !== slot.last.pos
         && (slot.last.postalk == null || ora - slot.last.postalk >= 30000)) {
       slot.last.postalk = ora;
@@ -585,6 +658,20 @@ function narratore(m, slot, ora = Date.now()) {
       }
     }
   } else slot.last.pitN = null;
+  /* RACCOLTA DELLA CRONACA (7/11): solo fatti VISTI in questa sessione — la
+     posizione al via richiede il via (slot.last.inGara, seminato dal ramo
+     posizione), la sosta si conta sull'ingresso in pit, il resto è il massimo
+     toccato. Nessun campo inventato; se manca tutto la cronaca non nasce. */
+  {
+    const cron = (slot.last.cron ??= {});
+    if (g.position != null) cron.posFine = g.position;
+    if (cron.posVia == null && slot.last.inGara === true && g.position != null) cron.posVia = g.position;
+    if (slot.last.bestMs != null && m.timing?.bestLap) cron.bestTxt = m.timing.bestLap;
+    if (g.inPit === true && slot.last.cronInPit !== true && slot.last.inGara === true) cron.soste = (cron.soste ?? 0) + 1;
+    slot.last.cronInPit = g.inPit === true;
+    if (Number.isFinite(g.cutSec)) cron.tagli = Math.max(cron.tagli ?? 0, g.cutSec);
+    if (dmgArr) cron.danno = Math.max(cron.danno ?? 0, ...dmgArr);
+  }
   // 28/10 pomeriggio: guardia anti-ripetizioni identica alla vista (cpDettoRecente):
   // stesso testo già detto dentro i 70 s NON esce come voce — appare con
   // detto:true così si vede che è stato giustamente zittito.

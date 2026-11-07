@@ -113,8 +113,12 @@ const FRASI_LIVELLO = {
   // 31/10 (DA-9): + «finestra» — l'annuncio «Box entro N giri» del piano
   // stint pre-gara è alimentazione di gara, non dettaglio di ricchezza:
   // entra nel essenziale (senza di lui il piano calcolato dal sedile non usa la voce).
-  essenziale: 'boxclose boxopen blu ultimoGiro bandiera minuto verde rossa nera benzina pit pitcount penalia finestra best'.split(' '),
-  normale: 'boxclose boxopen blu ultimoGiro bandiera minuto verde rossa nera benzina pit pitcount penalia finestra best giroFatto metaBenzina gomme postalk settore'.split(' '),
+  // 7/11: + «gialla» (flagCode 5) — è un ordine di pista come verde/rossa/nera:
+  // si sente a qualunque livello. «danno» e «cronaca» restano FUORI da queste
+  // liste di proposito: il danno è un dettaglio di lettura e il racconto finale
+  // è il di più del livello full (null = nessun filtro).
+  essenziale: 'boxclose boxopen blu ultimoGiro bandiera minuto verde rossa nera gialla benzina pit pitcount penalia finestra best'.split(' '),
+  normale: 'boxclose boxopen blu ultimoGiro bandiera minuto verde rossa nera gialla benzina pit pitcount penalia finestra best giroFatto metaBenzina gomme postalk settore'.split(' '),
   full: null,   // null = nessun filtro: anche delta e gap parlano
 };
 const chePuoiDire = (livello) => {
