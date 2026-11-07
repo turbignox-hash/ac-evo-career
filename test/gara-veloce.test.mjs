@@ -101,7 +101,7 @@ test('griglia: il roster va al gioco (state.volo), NIENTE customgrid nostro', ()
   mkInstant();
   salvaCarriera();
   rmSync(GRID_GV(), { force: true });
-  const out = garaVeloce({ giri: 3, pool: 'ks_f40_lm,ks_ferrari_296_gt3', aiMin: 88, aiMax: 93, force: true });
+  const out = garaVeloce({ giri: 3, pool: 'ks_f40_lm,ks_ferrari_296_gt3', rivali: 18, aiMin: 88, aiMax: 93, force: true });
   const g = out.passi.find((p) => p.nome === 'griglia (roster al gioco)');
   assert.ok(g?.ok && /armata/.test(g.esito), JSON.stringify(g));
   assert.equal(out.passi.length, 3, 'durata + banda + griglia: la lista resta completa');
@@ -110,9 +110,10 @@ test('griglia: il roster va al gioco (state.volo), NIENTE customgrid nostro', ()
   assert.ok(!existsSync(GRID_GV()), 'nessun customgrid scritto dal tool');
   const st = JSON.parse(readFileSync(join(process.env.EVO_DATA_DIR, 'evo-career.save.json'), 'utf8'));
   assert.deepEqual(st.volo?.pool, ['ks_f40_lm', 'ks_ferrari_296_gt3'], 'il roster è armato nel save');
-  assert.equal(st.volo?.opponents, 2, 'posti avversari = modelli − il posto del giocatore');
+  assert.equal(st.volo?.opponents, 18, 'RIVALI = posti oltre al pilota (18 chiesti, non 2 modelli−1): il gioco ripete i modelli cambiando livrea');
   assert.equal(st.volo?.aiMin, 88);
   assert.equal(st.volo?.aiMax, 93);
+  assert.throws(() => garaVeloce({ giri: 3, rivali: 99, force: true }), (e) => e.code === 'BAD_RIVALI', 'rivali fuori range: rifiuto, non una griglia strana');
 });
 
 test('sedile con auto fuori libro: passo KO dichiarato, gli altri passi proseguono', () => {

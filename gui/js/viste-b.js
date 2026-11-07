@@ -790,6 +790,10 @@ async function drawGironi(m){
             </select>
           </div>
           <div class="field"><label>${tr({ it: 'Ora di gara (0–23)', en: 'Race hour (0–23)' })}</label><input type="number" id="gv-ora" min="0" max="23" placeholder="14"></div>
+          <!-- RIVALI (7/11): posti OLTRE al pilota. Il gioco riempie la griglia
+               coi modelli del pool ripetendo le livree: 18 rivali vanno bene
+               anche con 8 modelli. Vuoto = un posto per modello del pool. -->
+          <div class="field"><label>${tr({ it: 'Rivali in griglia', en: 'Rivals on the grid' })}</label><input type="number" id="gv-rivali" min="1" max="63" placeholder="${tr({ it: 'dal pool', en: 'from pool' })}"></div>
           <div class="field" style="grid-column:1/-1">
             <label>${tr({ it: 'Griglia', en: 'Grid' })}</label>
             <!-- IL PRESET DI GRIGLIA (30/10, «dammi menu a tendina per
@@ -887,6 +891,7 @@ async function drawGironi(m){
         pista: $('#gv-pista')?.value.trim() || null,
         meteo: $('#gv-meteo')?.value || null,
         ora: $('#gv-ora')?.value !== '' && $('#gv-ora')?.value != null ? Number($('#gv-ora').value) : null,
+        rivali: $('#gv-rivali')?.value !== '' && $('#gv-rivali')?.value != null ? Number($('#gv-rivali').value) : null,
         pool: $('#gv-pool')?.value.trim() || null,
         dry,
       });
@@ -1044,7 +1049,7 @@ async function drawGironi(m){
       scrivi('#gv-giri', r.giri ?? ''); scrivi('#gv-tempo', r.tempo ?? '');
       scrivi('#gv-aimin', r.aiMin ?? 88); scrivi('#gv-aimax', r.aiMax ?? 93);
       scrivi('#gv-auto', r.auto ?? ''); scrivi('#gv-pista', r.pista ?? '');
-      scrivi('#gv-meteo', r.meteo ?? ''); scrivi('#gv-ora', r.ora ?? '');
+      scrivi('#gv-meteo', r.meteo ?? ''); scrivi('#gv-ora', r.ora ?? ''); scrivi('#gv-rivali', r.rivali ?? '');
       scrivi('#gv-pool', r.pool?.length ? r.pool.join(', ') : ''); scrivi('#gv-griglia', '');
       toast(tr({ it: `Preset "${nome}" caricato nei campi: premi «Imposta in EVO» per scriverlo.`, en: `Preset "${nome}" loaded into the fields: press «Write to EVO» to apply it.` }), 'ok');
       if ($('#gv-pista')?.value) $('#gv-pista').dispatchEvent(new Event('change'));
@@ -1059,6 +1064,7 @@ async function drawGironi(m){
     pista: $('#gv-pista')?.value.trim() || null,
     meteo: $('#gv-meteo')?.value || null,
     ora: $('#gv-ora')?.value !== '' && $('#gv-ora')?.value != null ? Number($('#gv-ora').value) : null,
+    rivali: $('#gv-rivali')?.value !== '' && $('#gv-rivali')?.value != null ? Number($('#gv-rivali').value) : null,
     pool: $('#gv-pool')?.value.trim() || null,
   });
   $('#gv-preset-salva')?.addEventListener('click', async () => {

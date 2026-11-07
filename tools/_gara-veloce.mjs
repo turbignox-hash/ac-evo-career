@@ -20,6 +20,8 @@
 //     [--meteo pioggia]      METEO della sessione (sereno|sparse|nuvoloso|coperto|
 //                            drizzle|rain|heavy — il preset di gamemode.lastgamemode)
 //     [--ora 21]             ORA di gara (0–23) nel datetime dell'istantanea
+//     [--rivali 18]          RIVALI in griglia (posti oltre al pilota): il gioco
+//                            ripete i modelli del roster cambiando livrea
 //     [--auto ks_ferrari_296_gt3]  arma il sedile nel Cruscotto (vetrina custom)
 //     [--griglia-pool id1,id2,...] ROSTER della griglia: i modelli vanno al
 //                            Cruscotto e la griglia la scrive il GIOCO (7/11 —
@@ -79,7 +81,7 @@ export const PRESET_FILE = join(BASE_FLUSSI, 'preset-gara-veloce.json');
  *  ricetta salvata dev'essere GIUSTA come una eseguita (altrimenti il
  *  «carica e parti» fallisce su un preset che non sarebbe mai partito).
  *  RAISE con gli stessi codici di garaVeloce. */
-export function ricettaNetta({ giri = null, tempo = null, aiMin = 88, aiMax = 93, auto = null, pista = null, pool = null, meteo = null, ora = null } = {}) {
+export function ricettaNetta({ giri = null, tempo = null, aiMin = 88, aiMax = 93, auto = null, pista = null, pool = null, meteo = null, ora = null, rivali = null } = {}) {
   if (giri == null && tempo == null) throw Object.assign(new Error('la ricetta ha bisogno di UNA durata: giri o tempo'), { code: 'NO_RECIPE' });
   if (giri != null && tempo != null) throw Object.assign(new Error('o a giri o a tempo, non entrambi'), { code: 'NO_ENTRAMBI' });
   giri = giri != null ? Number(giri) : null;
@@ -108,7 +110,14 @@ export function ricettaNetta({ giri = null, tempo = null, aiMin = 88, aiMax = 93
   if (ore != null && (!Number.isFinite(ore) || ore < 0 || ore > 23)) {
     throw Object.assign(new Error('ora: intero fra 0 e 23'), { code: 'BAD_ORA' });
   }
-  return { giri, tempo, aiMin, aiMax, auto, pista, pool: pl?.length ? pl : null, meteo: wx != null ? PRESETS[wx].key : null, ora: ore != null ? Math.round(ore) : null };
+  // RIVALI (7/11, «18 rivali»): posti in griglia OLTRE al pilota. Con un pool
+  // di 8 modelli il gioco ripete i modelli cambiando livrea fino al numero
+  // chiesto — quindi 18 rivali è una richiesta legittima, non un pool da 18.
+  const rv = rivali != null && String(rivali).trim() !== '' ? Number(rivali) : null;
+  if (rv != null && (!Number.isFinite(rv) || rv < 1 || rv > 63)) {
+    throw Object.assign(new Error('rivali: intero fra 1 e 63'), { code: 'BAD_RIVALI' });
+  }
+  return { giri, tempo, aiMin, aiMax, auto, pista, pool: pl?.length ? pl : null, meteo: wx != null ? PRESETS[wx].key : null, ora: ore != null ? Math.round(ore) : null, rivali: rv != null ? Math.round(rv) : null };
 }
 
 function leggiPresetFile() {
@@ -121,7 +130,7 @@ function leggiPresetFile() {
  *  il nome manca (nessuna eccezione: il menu può chiedere un preset sparito). */
 export function leggiPreset(nome) {
   const p = leggiPresetFile()[String(nome ?? '').trim()];
-  return p ? { nome: String(nome).trim(), giri: p.giri ?? null, tempo: p.tempo ?? null, aiMin: p.aiMin ?? 88, aiMax: p.aiMax ?? 93, auto: p.auto ?? null, pista: p.pista ?? null, pool: Array.isArray(p.pool) ? p.pool : null, meteo: p.meteo ?? null, ora: p.ora ?? null, at: p.at ?? null } : null;
+  return p ? { nome: String(nome).trim(), giri: p.giri ?? null, tempo: p.tempo ?? null, aiMin: p.aiMin ?? 88, aiMax: p.aiMax ?? 93, auto: p.auto ?? null, pista: p.pista ?? null, pool: Array.isArray(p.pool) ? p.pool : null, meteo: p.meteo ?? null, ora: p.ora ?? null, rivali: p.rivali ?? null, at: p.at ?? null } : null;
 }
 
 /** L'elenco per il menu della GUI: i preset col loro riepilogo (la STESSA
@@ -197,7 +206,7 @@ export function ultimaRicetta() {
   for (const r of leggiRegistro(50)) {
     if (r?.raw) continue;                        // riga non data: si salta
     if (r.giri == null && r.tempo == null) continue;  // senza durata NON è una gara
-    return { giri: r.giri ?? null, tempo: r.tempo ?? null, aiMin: r.aiMin ?? 88, aiMax: r.aiMax ?? 93, auto: r.auto ?? null, pista: r.pista ?? null, pool: Array.isArray(r.pool) ? r.pool : (r.pool ? String(r.pool).split(',').filter(Boolean) : null), meteo: r.meteo ?? null, ora: r.ora ?? null };
+    return { giri: r.giri ?? null, tempo: r.tempo ?? null, aiMin: r.aiMin ?? 88, aiMax: r.aiMax ?? 93, auto: r.auto ?? null, pista: r.pista ?? null, pool: Array.isArray(r.pool) ? r.pool : (r.pool ? String(r.pool).split(',').filter(Boolean) : null), meteo: r.meteo ?? null, ora: r.ora ?? null, rivali: r.rivali ?? null };
   }
   return null;
 }
@@ -205,7 +214,7 @@ export function ultimaRicetta() {
 /** La ricetta completa della gara al volo. RAISE per input sani (400:
  * NO_RECIPE / NO_ENTRAMBI / BANDA-formato), 409 se l'INSTANT_RACE non esiste.
  * Ogni passo si cava da solo: esito '' = riuscito, errore catturato in esito. */
-export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, auto = null, pool = null, pista = null, meteo = null, ora = null, dry = false, force = false } = {}) {
+export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, auto = null, pool = null, pista = null, meteo = null, ora = null, rivali = null, dry = false, force = false } = {}) {
   aiMin = aiMin != null ? aiMin : 88;  // esplicito nel default anche da API con null
   aiMax = aiMax != null ? aiMax : 93;
   if (giri == null && tempo == null) {
@@ -241,6 +250,13 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     if (!Number.isFinite(ora) || ora < 0 || ora > 23) throw Object.assign(new Error('ora: intero fra 0 e 23'), { code: 'BAD_ORA' });
     ora = Math.round(ora);
   } else ora = null;
+  // RIVALI (7/11): posti OLTRE al pilota. Il gioco riempie la griglia coi
+  // modelli del roster ripetendo le livree — 18 rivali con 8 modelli va bene.
+  if (rivali != null && String(rivali).trim() !== '') {
+    rivali = Number(rivali);
+    if (!Number.isFinite(rivali) || rivali < 1 || rivali > 63) throw Object.assign(new Error('rivali: intero fra 1 e 63'), { code: 'BAD_RIVALI' });
+    rivali = Math.round(rivali);
+  } else rivali = null;
 
   const passi = [];
   // Le scritture vere si DICHIARANO, non si indovinano dal testo del riepilogo:
@@ -253,7 +269,7 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     catch (e) { passi.push({ nome, esito: String(e?.message ?? e), ok: false }); }
   };
 
-  const titolo = `GARA AL VOLO: ${giri != null ? `${giri} giri` : `${tempo} min`} · banda AI ${aiMin}–${aiMax}${pista ? ` · pista ${pista}` : ''}${meteo ? ` · meteo ${meteo}` : ''}${ora != null ? ` · ore ${String(ora).padStart(2, '0')}:00` : ''}${auto ? ` · sedile ${auto}` : ''}${pool ? ' · roster al gioco' : ''}${dry ? ' · DRY-RUN' : ''}`;
+  const titolo = `GARA AL VOLO: ${giri != null ? `${giri} giri` : `${tempo} min`} · banda AI ${aiMin}–${aiMax}${pista ? ` · pista ${pista}` : ''}${meteo ? ` · meteo ${meteo}` : ''}${ora != null ? ` · ore ${String(ora).padStart(2, '0')}:00` : ''}${rivali != null ? ` · ${rivali} rivali` : ''}${auto ? ` · sedile ${auto}` : ''}${pool ? ' · roster al gioco' : ''}${dry ? ' · DRY-RUN' : ''}`;
 
   // 1) DURATA/MODALITÀ della gara (blocco Race dell'INSTANT_RACE)
   step('durata gara', () => {
@@ -363,8 +379,8 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
   if (pool?.length) step('griglia (roster al gioco)', () => {
     const ladder = loadLadder();
     const nomi = pool.map((id) => ladder?.contentNames?.cars?.[id] ?? id);
-    const posti = Math.max(2, Math.min(63, pool.length + 1));
-    const descr = `${pool.length} modelli (${nomi.slice(0, 3).join(', ')}${nomi.length > 3 ? '…' : ''}) · ${posti} posti in griglia · AI ${aiMin}-${aiMax}`;
+    const posti = Math.max(2, Math.min(64, rivali != null ? rivali + 1 : pool.length + 1));
+    const descr = `${pool.length} modelli (${nomi.slice(0, 3).join(', ')}${nomi.length > 3 ? '…' : ''}) · ${posti - 1} rivali (${posti} posti) · AI ${aiMin}-${aiMax}`;
     if (dry) return `dry: armerei ${descr} — il roster va al Cruscotto e la griglia la genera EVO coi suoi preset`;
     // IL COMANDO VIVE NEL SALVATAGGIO (è lì che il publisher lo rilegge):
     // senza carriera il roster non ha un posto dove stare — si dice, non si inventa.
@@ -387,7 +403,7 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
   // e ultimaRicetta() rilegge l'ultima. Uno step KO NON annulla il
   // registro: riscriversi è la cura, non un problema.
   if (!dry && scrittoQualcosa) {
-    registra({ giri, tempo, aiMin, aiMax, pista: pista ?? null, auto: auto ?? null, pool: Array.isArray(pool) ? pool : null, meteo: meteo ?? null, ora: ora ?? null });
+    registra({ giri, tempo, aiMin, aiMax, pista: pista ?? null, auto: auto ?? null, pool: Array.isArray(pool) ? pool : null, meteo: meteo ?? null, ora: ora ?? null, rivali: rivali ?? null });
   }
 
   // il verdetto finale: lo stato dell'istantanea come lo vedrà EVO al menu
@@ -443,7 +459,7 @@ if (isMain) {
   let giri = giriArg != null ? Number(giriArg) : null;
   let tempo = tempoArg != null ? Number(tempoArg) : null;
   const autoArg = val('auto'), pistaArg = val('pista'), poolArg = val('griglia-pool');
-  const meteoArg = val('meteo'), oraArg = val('ora');
+  const meteoArg = val('meteo'), oraArg = val('ora'), rivaliArg = val('rivali');
   // --preset nome: la ricetta SALVATA riempie i campi che il CLI non ha
   // battuto a mano — cambi un dettaglio, il resto resta il preset (i flag
   // espliciti vincono SEMPRE, di fila con l'eseguita). argv si spinge come
@@ -460,6 +476,7 @@ if (isMain) {
     if (poolArg == null && p.pool != null) argv.push('--griglia-pool', p.pool.join(','));
     if (meteoArg == null && p.meteo != null) argv.push('--meteo', String(p.meteo));
     if (oraArg == null && p.ora != null) argv.push('--ora', String(p.ora));
+    if (rivaliArg == null && p.rivali != null) argv.push('--rivali', String(p.rivali));
     giri = val('giri') != null ? Number(val('giri')) : null;
     tempo = val('tempo') != null ? Number(val('tempo')) : null;
     // e la BANDA: auto/pista/pool si leggono già al momento della chiamata
@@ -472,13 +489,13 @@ if (isMain) {
   // nel file JSON. Salva e basta: un collaudo a secco diventa ricetta futura.
   const salvaNome = val('preset-salva');
   if (salvaNome) {
-    const r = salvaPreset(salvaNome, { giri, tempo, aiMin, aiMax, auto: autoArg, pista: pistaArg, pool: poolArg, meteo: meteoArg, ora: oraArg });
-    console.log(`preset "${r.nome}" salvato${giri != null ? ` · ${giri} giri` : ''}${tempo != null ? ` · ${tempo} min` : ''} · AI ${r.aiMin}–${r.aiMax}${r.auto ? ` · sedile ${r.auto}` : ''}${r.pista ? ` · pista ${r.pista}` : ''}${r.meteo ? ` · meteo ${r.meteo}` : ''}${r.ora != null ? ` · ore ${r.ora}:00` : ''}${r.pool ? ` · pool: ${r.pool.length} auto` : ''}`);
+    const r = salvaPreset(salvaNome, { giri, tempo, aiMin, aiMax, auto: autoArg, pista: pistaArg, pool: poolArg, meteo: meteoArg, ora: oraArg, rivali: rivaliArg });
+    console.log(`preset "${r.nome}" salvato${giri != null ? ` · ${giri} giri` : ''}${tempo != null ? ` · ${tempo} min` : ''} · AI ${r.aiMin}–${r.aiMax}${r.auto ? ` · sedile ${r.auto}` : ''}${r.pista ? ` · pista ${r.pista}` : ''}${r.meteo ? ` · meteo ${r.meteo}` : ''}${r.ora != null ? ` · ore ${r.ora}:00` : ''}${r.rivali != null ? ` · ${r.rivali} rivali` : ''}${r.pool ? ` · pool: ${r.pool.length} auto` : ''}`);
     process.exit(0);
   }
   let out;
   try {
-    out = garaVeloce({ giri, tempo, aiMin, aiMax, auto: val('auto'), pool: val('griglia-pool'), pista: val('pista'), meteo: val('meteo'), ora: val('ora'), dry: argv.includes('--dry'), force: argv.includes('--force') });
+    out = garaVeloce({ giri, tempo, aiMin, aiMax, auto: val('auto'), pool: val('griglia-pool'), pista: val('pista'), meteo: val('meteo'), ora: val('ora'), rivali: val('rivali'), dry: argv.includes('--dry'), force: argv.includes('--force') });
   } catch (e) {
     console.error(String(e?.message ?? e)); process.exit(Number(e?.code) || /NO_RECIPE|NO_ENTRAMBI|BAD_DURATA|BAD_BANDA|BAD_METEO|BAD_ORA/.test(e?.code ?? '') ? 2 : 1);
   }

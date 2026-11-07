@@ -1158,6 +1158,7 @@ async function api(context0, _req, res, action, body) {
           // 7/11: meteo e orario della gara al volo (scelta del pannello)
           meteo: body.meteo ? String(body.meteo) : null,
           ora: body.ora != null && body.ora !== '' ? Number(body.ora) : null,
+          rivali: body.rivali != null && body.rivali !== '' ? Number(body.rivali) : null,
           dry: !!body.dry,
           force: true,
         });
@@ -1171,6 +1172,7 @@ async function api(context0, _req, res, action, body) {
           BAD_BANDA: [400, tr({ it: 'Banda AI: due interi fra 0 e 100.', en: 'AI band: two integers between 0 and 100.' })],
           BAD_METEO: [400, tr({ it: 'Meteo non riconosciuto: scegli una delle voci del menu (sereno, nuvoloso, pioggia…).', en: 'Unknown weather: pick one of the menu entries (clear, cloudy, rain…).' })],
           BAD_ORA: [400, tr({ it: "Orario: un'ora intera fra 0 e 23.", en: 'Time of day: a whole hour between 0 and 23.' })],
+          BAD_RIVALI: [400, tr({ it: 'Rivali: un intero fra 1 e 63.', en: 'Rivals: an integer between 1 and 63.' })],
         };
         if (mappa[cod]) return sendJson(res, mappa[cod][0], { error: mappa[cod][1] });
         if (cod === 'NO_INSTANT') return sendJson(res, 409, { error: tr({ it: 'INSTANT_RACE non esiste ancora: apri UNA volta una Gara personalizzata in EVO, poi ripremi.', en: 'INSTANT_RACE does not exist yet: open a Custom race ONCE in EVO, then press again.' }) });
