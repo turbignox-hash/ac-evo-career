@@ -1,5 +1,15 @@
 # Diario di sviluppo
 
+### 7/11 mattina — la console nera che si riapriva: non era nostra, era l'attività pianificata di un programma esterno
+
+- **Segnalazione di Mauro**: «questo è nostro e si apre all'avvio di Windows; ho provato a chiuderlo e quando lancio la suite si riapre», con la schermata di una scheda di Windows Terminal nera intitolata a un percorso in `C:\WINDOWS\System32\...`.
+- **Misura, non ipotesi**: cercato prima nel NOSTRO codice un punto che registrasse o riavviasse un avvio automatico — nessun `schtasks`, nessuna voce `Run`/`RunOnce`, nessuna scorciatoia in Startup, nessuna attività pianificata che nominasse carriera, Pitwall, `webui`, `avvia-gui` o `evo-tray` (il launcher nostro passa da `wscript` + `tools\avvia-gui.vbs`, stile 0, e resta silenzioso: era la riparazione del 5/11 sera, intatta). L'unica cosa viva era un processo `powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "…\Programs\Godfather of EVO\Godfather-Recorder.ps1"`, figlio di `svchost.exe` (servizi) e non di una shell: cioè avviato dal **Task Scheduler**.
+- **La causa vera**: l'attività pianificata `\Godfather of EVO Recorder` di un programma esterno (registratore di giri per EVO, cartella in `%LOCALAPPDATA%\Programs`), con due trigger — **all'accesso** e **una volta al minuto** (`PT1M`) — che lancia `powershell -WindowStyle Hidden`. È lo stesso difetto misurato il 5/11 sul nostro launcher: con Windows Terminal come terminale predefinito, `-WindowStyle Hidden` arriva quando la console è già nata, quindi la scheda nera compare lo stesso. Da lì il «si riapre»: non era la suite a riaprirlo, era il trigger ogni minuto.
+- **Decisione di Mauro**: «anzi disattivalo, se non è nostro non lo voglio in esecuzione».
+- **Intervento** (sulla macchina, nessun file del progetto toccato): `Stop-ScheduledTask` sull'istanza viva e poi `schtasks /Change /DISABLE` **con elevazione** — il primo `Disable-ScheduledTask` senza permessi era stato rifiutato con «Accesso negato» e l'attività era ripartita alle 10:42, quindi la disattivazione è stata ripetuta da amministratore e poi verificata. Reversibile con `schtasks /Change /ENABLE` (o `Enable-ScheduledTask`).
+- **Verifica**: attività `Disabled`, «prossima esecuzione: N/D», ultima esecuzione ferma alle 10:42:13; alle 10:46 (oltre un minuto dopo l'orario che l'avrebbe fatta ripartire) **nessuna istanza** del registratore viva. Nota di metodo: il primo controllo dei processi dava un falso positivo perché la mia stessa query PowerShell conteneva il nome dello script nella riga di comando; il filtro buono cerca `-File …\Godfather-Recorder.ps1`.
+- **Da sapere**: l'attività è solo disattivata, non cancellata — il programma esterno resta installato e, se lo si riapre e lui si ri-registra, può riaccenderla. Il nostro launcher non c'entra e non va toccato.
+
 ### 7/11 notte — `verifica-delta-box --ultima`: il controllo dopo gara senza calcolare l'orario
 
 - **Richiesta di Mauro**: «aggiungi al controllo delta-ai-box una modalità che guarda solo l'ultima sessione, così si lancia dopo la gara senza dover calcolare l'orario».
