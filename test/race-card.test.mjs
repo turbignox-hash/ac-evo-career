@@ -16,6 +16,8 @@ process.env.EVO_SENZA_VINCOLI = '0';                // i test descrivono il comp
 
 const race = await import('../src/race.mjs');
 import { encodeMsg } from '../src/evo-grid.mjs';                 // le celle del customgrid finto
+import { WEEKEND_SAVE } from '../src/weekend-laps.mjs';
+import { durateDalSave, _svuotaCacheDurate } from '../src/durate-save.mjs';
 import { GRID_FILE } from '../src/grid-apply.mjs';                 // lo STESSO file che la vigia guarda
 
 /* ---- fixture: stessa scala di life.test.mjs (gridFor vuole 30 piloti attivi) ---- */
@@ -498,6 +500,44 @@ test('durate del file: avviso solo quando prove o qualifiche divergono', () => {
   assert.deepEqual(race.avvisiDurateFile(15, 10, { letto: false, motivo: 'ENOENT' }), []);
   assert.deepEqual(race.avvisiDurateFile(15, 10, null), []);
   assert.deepEqual(race.avvisiDurateFile(15, 10, { letto: true, provaSec: null, qualificaSec: null }), []);
+});
+
+test('raceCard → gamemodesave finto: avvisa quando la gara nel file è a tempo ma la scheda è a giri', () => {
+  // Test end-to-end della catena vera: protobuf sintetico su disco sandboxato,
+  // durateDalSave → raceCard → warnings. Nessuna lettura o modifica del save utente.
+  const sessione = (nome, valore, modo) => encodeMsg([
+    { field: 1, wire: 2, bytes: Buffer.from(nome, 'utf8') },
+    { field: 2, wire: 0, varint: BigInt(valore) },
+    { field: 3, wire: 0, varint: BigInt(modo) },
+  ]);
+  const fake = encodeMsg([
+    sessione('Practice', 900, 1),
+    sessione('Qualifying', 600, 1),
+    sessione('Warmup', 600, 1),
+    sessione('Race', 1200, 1), // f3=1: 20 minuti, contro i 3 giri della scheda
+  ].map((bytes) => ({ field: 3, wire: 2, bytes })));
+  assert.equal(WEEKEND_SAVE, join(GAME_SANDBOX, 'GameModes', 'GameModeType_RACE_WEEKEND.gamemodesave'), 'il fixture deve restare nella sandbox, mai nel save dell’utente');
+  let scritto = false;
+  try {
+    writeFileSync(WEEKEND_SAVE, fake);
+    scritto = true;
+    _svuotaCacheDurate(); // raceCard farà la PRIMA lettura del file nel test
+
+    const { ladder, state } = mk();
+    ladder.nodes[0].calendar[0].laps = 3;
+    ladder.profiles.pro.practiceMin = 15;
+    ladder.profiles.pro.qualifyMin = 10;
+    const card = race.raceCard(ladder, state);
+    const durate = durateDalSave();
+    assert.deepEqual([durate.letto, durate.provaSec, durate.qualificaSec, durate.aTempo, durate.garaSec], [true, 900, 600, true, 1200]);
+    const avvisi = card.warnings.map(texto).filter((w) => /Durate del weekend diverse/i.test(w));
+    assert.equal(avvisi.length, 1, 'un solo avviso di durata nella scheda');
+    assert.match(avvisi[0], /gara: 3 giri in scheda, a tempo 20′ nel file/);
+    assert.doesNotMatch(avvisi[0], /prove libere|qualifiche/, 'prove e qualifiche combaciano e non vengono menzionate');
+  } finally {
+    if (scritto) rmSync(WEEKEND_SAVE, { force: true });
+    _svuotaCacheDurate();
+  }
 });
 
 test('la scheda non inventa l’avviso quando il gamemodesave non c’è', () => {

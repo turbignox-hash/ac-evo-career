@@ -1,5 +1,13 @@
 # Diario di sviluppo
 
+### 7/11 — test end-to-end permanente della catena gamemodesave → avviso
+
+- **Richiesta di Mauro**: «Trasforma il controllo col gamemodesave finto in un test permanente, così la catena scheda-file-avviso resta protetta».
+- **Cosa è entrato**: in `test/race-card.test.mjs`, un test che costruisce un vero protobuf sintetico con `encodeMsg` (Practice 900 s, Qualifying 600 s, Warmup 600 s, Race 1200 s a tempo) e lo scrive nel percorso `WEEKEND_SAVE` risolto dalla sandbox privata `_game-sandbox.mjs`. La catena esercitata è quella di produzione: `durateDalSave()` decodifica dal disco → `raceCard()` compone la scheda e `warnings` → il test verifica l'unico avviso «gara: 3 giri in scheda, a tempo 20′ nel file» e che prove/qualifiche, combacianti, non compaiano. Infine rimuove il file finto e svuota la cache. Un'asserzione fissa che il percorso coincida col sandbox: il test non può mai scrivere sul save dell'utente.
+- **Nota sulla verifica**: una prima esecuzione della suite completa ha riportato un fallimento, ma il riepilogo non ne ha conservato il dettaglio diagnostico e non attribuisco una causa non verificata. Ho mantenuto il fixture solo nel percorso che `_game-sandbox.mjs` reindirizza, ho aggiunto l'asserzione sul percorso prima della scrittura e la pulizia condizionale nel `finally`; le esecuzioni finali del test isolato e dell'intera suite sono passate. Il test non legge né ripristina un gamemodesave preesistente.
+- **Verifiche finali**: `node --test test/race-card.test.mjs` — 24/24; `npm test` — **1.285 test, 1.283 pass, 0 fail, 2 skip**; `npm run lint` — Biome pulito su 447 file.
+- **Limite**: il fixture protegge il formato protobuf e la catena server-side reale, non l'esecuzione di EVO né le regole interne non documentate del gioco; nessuna interazione col save utente è stata fatta.
+
 ### 7/11 notte — l'avviso delle durate arriva anche alla gara
 
 - **Richiesta di Mauro**: «Estendi l'avviso in scheda anche alla durata della gara, così la divergenza col file si vede per tutte e tre le sessioni».
