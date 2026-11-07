@@ -1,5 +1,13 @@
 # Diario di sviluppo
 
+### 7/11 — livrea del pilota dalla lista colori vera di EVO
+
+- **Richiesta di Mauro**: «Scegli anche la livrea del giocatore con SetCurrentCarColorPreset».
+- In [uiapp/cruscotto/cruscotto.src.js](uiapp/cruscotto/cruscotto.src.js), solo per `modo: instant` dopo `SetCurrentCar`, il Cruscotto chiede al menu le configurazioni della stessa auto (`CarSelectionClientRequestCarConfigurations`), poi i preset colore della configurazione (`CarSelectionClientRequestCarColorPresets`), infine passa l'oggetto `color_preset` restituito a `CarSelectionClientRequestSetCurrentCarColorPreset`. Sceglie il primo preset disponibile (il menu è la fonte, niente nomi hardcoded); weekend/carriera ed eventi non vengono toccati, né la livrea degli avversari. Se l'auto non offre preset/config, la gara prosegue: il log e il riepilogo dichiarano che la livrea non è disponibile/non applicata.
+- **Test runtime** in `test/uiapp-coda-sandbox.test.mjs`: menu finto con config «Standard» e preset «Rosso corsa» — al setter arriva lo stesso oggetto restituito dal gioco e la gara viene ackata; menu senza preset — nessuna richiesta inventata, gara e ack proseguono. File di test: **19/19**.
+- **Verifiche**: `npm test` e Biome sul progetto; app ricostruita e copiata in `Saved Games/ACE/mods/uiresources/ACEUIAppLoader/cruscotto/cruscotto.js`.
+- **Limite della verifica**: il binario conferma i nomi/campi dei tre comandi, il payload è collaudato nel sandbox; la nuova sequenza colore non è ancora stata eseguita in EVO reale. L'istanza aperta va riavviata perché il loader ricarichi il Cruscotto: non riavviarla durante una gara in corso.
+
 ### 7/11 — si scrive a GIOCO APERTO: via i divieti, e il rename impara la pazienza
 
 - **Richiesta di Mauro**: «no, puoi scrivere tutto a gioco aperto, questa regola per scelta non esiste».

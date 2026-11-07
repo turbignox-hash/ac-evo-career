@@ -572,6 +572,44 @@
     const r3 = await giocoComando('CarSelectionClientRequestSetCurrentCar', { mode: MODO_SINGLE, model: car }, 8000);
     if (!r3 || r3.response !== OK_RISPOSTA) { notaComando(c.nome + ': ' + okTesto(r3)); loga('SetCurrentCar: ' + okTesto(r3)); return false; }
     loga('✓ SetCurrentCar ok: ' + car.display_name);
+    // LIVREA DEL PILOTA (7/11, richiesta Mauro): usa l'API vera del menu per
+    // la STESSA auto selezionata — prima legge le configurazioni, poi i preset
+    // colore di quella configurazione, e passa l'oggetto restituito al setter.
+    // Nessun preset hardcoded, nessun effetto sulla griglia degli avversari.
+    // Best effort: auto/modo/gara restano pronti anche se il menu non offre
+    // preset colore o una risposta non arriva.
+    if (c.modo === 'instant') {
+      try {
+        const cfgOut = await giocoComando('CarSelectionClientRequestCarConfigurations', { mode: MODO_SINGLE, model: car }, 8000);
+        const configs = Array.isArray(cfgOut?.configurations) ? cfgOut.configurations : [];
+        const config = car.configuration || configs[0] || null;
+        if (!config) {
+          fatti.push('livrea pilota non disponibile');
+          loga('livrea pilota: nessuna configurazione restituita dal gioco per ' + car.display_name);
+        } else {
+          const presetOut = await giocoComando('CarSelectionClientRequestCarColorPresets', { mode: MODO_SINGLE, model: car, configuration: config }, 8000);
+          const presets = Array.isArray(presetOut?.color_presets) ? presetOut.color_presets : [];
+          const preset = presets[0] || null;
+          if (!preset) {
+            fatti.push('livrea pilota non disponibile');
+            loga('livrea pilota: nessun preset colore per ' + car.display_name + ' / ' + (config.display_name || config.name || 'configurazione'));
+          } else {
+            const colore = await giocoComando('CarSelectionClientRequestSetCurrentCarColorPreset', { mode: MODO_SINGLE, color_preset: preset }, 8000);
+            if (colore?.response === OK_RISPOSTA) {
+              const nomeColore = preset.display_name || preset.name || 'preset del gioco';
+              fatti.push('livrea pilota ' + nomeColore);
+              loga('livrea pilota ' + car.display_name + ': ' + nomeColore + ' — ' + okTesto(colore));
+            } else {
+              fatti.push('livrea pilota non applicata');
+              loga('livrea pilota ' + car.display_name + ': ' + okTesto(colore));
+            }
+          }
+        }
+      } catch (e) {
+        fatti.push('livrea pilota non disponibile');
+        loga('livrea pilota: ' + (e?.message ?? e));
+      }
+    }
     // METEO + ORA AL VOLO (1/11, la STESSA scuola delle auto per id: chiedi al
     // gioco le sue liste e scegli, niente dizionari). BEST EFFORT: ora e meteo
     // della ronda restano comunque sul disco (stesso piano del Prepara) —

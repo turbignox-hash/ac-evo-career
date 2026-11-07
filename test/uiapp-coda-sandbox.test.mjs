@@ -275,6 +275,58 @@ test("RUNTIME griglia riletta: l'ack porta posti e modelli distinti dal gioco", 
   } finally { app.drena(); }
 });
 
+test('RUNTIME gara al volo: legge i preset colore della stessa auto e ne applica uno vero', async () => {
+  const { GESTO: base, fascia } = fasciaMulticlasse();
+  const GESTO = { ...base, modo: 'instant', tipo: 'setcar', avvia: false };
+  fascia.comando = GESTO;
+  const config = { name: 'default', display_name: 'Standard' };
+  const preset = { name: 'preset_296_red', display_name: 'Rosso corsa' };
+  const app = avviaApp(fascia, (tipo) => {
+    if (tipo === 'CarSelectionClientRequestModels') return { car_model: [{ name: 'ks_a', display_name: 'Auto A' }, { name: 'ks_b', display_name: 'Auto B' }] };
+    if (tipo === 'CarSelectionClientRequestCarConfigurations') return { configurations: [config] };
+    if (tipo === 'CarSelectionClientRequestCarColorPresets') return { color_presets: [preset] };
+    if (tipo === 'GameModeSelectionClientRequestTrackList') return { track_item: [{ name: 'Brands Hatch', layout: 'GP' }] };
+    if (tipo === 'GameModeSelectionClientRequestGameModeParameters') return risposteMulticlasse(16)[tipo];
+    if (tipo === 'GameModeSelectionClientRequestOpponents') return { opponents: Array.from({ length: 16 }, (_, i) => ({ model: { name: i % 2 ? 'ks_a' : 'ks_b' } })) };
+    return null;
+  });
+  try {
+    assert.equal(app.errore, null, "app sandbox senza errori");
+    const applicata = await finoA(() => app.triggerCalls.some((a) => String(a[1]).includes('CarSelectionClientRequestSetCurrentCarColorPreset')));
+    assert.ok(applicata, `il setter colore deve essere chiamato; trigger=${JSON.stringify(app.triggerCalls.map((x) => x[1]))}; log=${app.log.join(' | ')}`);
+    const richiesta = app.triggerCalls.find((a) => String(a[1]).includes('CarSelectionClientRequestCarColorPresets'));
+    assert.equal(richiesta?.[2]?.model?.name, 'ks_a', 'i preset si chiedono per il modello selezionato');
+    assert.equal(richiesta?.[2]?.configuration?.name, 'default', 'i preset si chiedono per la configurazione restituita');
+    const setter = app.triggerCalls.find((a) => String(a[1]).includes('CarSelectionClientRequestSetCurrentCarColorPreset'));
+    assert.equal(setter?.[2]?.color_preset?.name, 'preset_296_red', "al setter passa l'oggetto reale restituito dal gioco");
+    assert.equal(setter?.[2]?.mode, 'ClientCommandsMode_SINGLEPLAYER', 'il setter usa la modalità singolo giocatore');
+    const ack = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id && v.ok === 1));
+    assert.ok(ack, "la livrea non deve impedire l'ack della gara");
+  } finally { app.drena(); }
+});
+
+test('RUNTIME gara al volo senza preset colore: il setup e l’ack non si bloccano', async () => {
+  const { GESTO: base, fascia } = fasciaMulticlasse();
+  const GESTO = { ...base, modo: 'instant', tipo: 'setcar', avvia: false };
+  fascia.comando = GESTO;
+  const app = avviaApp(fascia, (tipo) => {
+    if (tipo === 'CarSelectionClientRequestModels') return { car_model: [{ name: 'ks_a', display_name: 'Auto A' }] };
+    if (tipo === 'CarSelectionClientRequestCarConfigurations') return { configurations: [{ name: 'default' }] };
+    if (tipo === 'CarSelectionClientRequestCarColorPresets') return { color_presets: [] };
+    if (tipo === 'GameModeSelectionClientRequestTrackList') return { track_item: [{ name: 'Brands Hatch', layout: 'GP' }] };
+    if (tipo === 'GameModeSelectionClientRequestGameModeParameters') return risposteMulticlasse(16)[tipo];
+    if (tipo === 'GameModeSelectionClientRequestOpponents') return { opponents: Array.from({ length: 16 }, (_, i) => ({ model: { name: i % 2 ? 'ks_a' : 'ks_b' } })) };
+    return null;
+  });
+  try {
+    assert.equal(app.errore, null, 'app sandbox senza errori');
+    const ack = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id && v?.ok === 1));
+    assert.ok(ack, `nessun ack nonostante il menu senza preset: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
+    assert.ok(!app.triggerCalls.some((a) => String(a[1]).includes('SetCurrentCarColorPreset')), 'senza preset non inventa un payload colore');
+    assert.ok(app.log.some((r) => r.includes('livrea pilota: nessun preset colore')), 'il log spiega perché non ha cambiato livrea');
+  } finally { app.drena(); }
+});
+
 function fasciaMulticlasse() {
   const GESTO = rondaMulticlasse();
   const fascia = fasciaDi(Date.now() + PERIODO_MS * 1000, GESTO);
