@@ -157,11 +157,17 @@ export function creaAccumulatoreRiepiloghi() {
       if (vel != null) statAggiungi(cur.vel, vel);
       if (num(l.bestLapMs) > 0) cur.bestMs = cur.bestMs == null ? num(l.bestLapMs) : Math.min(cur.bestMs, num(l.bestLapMs));
       accumulaContatto(cur.contatto, l);
-      // un giro è chiuso quando lapsDone sale: il lastLapMs di quella riga è il suo tempo
+      // un giro è chiuso quando lapsDone sale: `lastLapMs` di quella riga è il
+      // suo tempo. ATTENZIONE AL RITARDO DEL GIOCO (7/11, misurato sulla gara di
+      // Donington del 6/11): nel tick di passaggio il gioco mostra ancora il
+      // tempo del giro PRIMA — lapsDone 1→2 con 118.794 che è il giro 1, e solo
+      // qualche tick dopo arriva il 109.371 vero. Prendendo il primo valore si
+      // attribuiva lo stesso tempo a due giri (#1 e #2 entrambi 1:58.794).
+      // Quindi per il giro N si tiene l'ULTIMO valore visto nello stato
+      // lapsDone = N: quando il gioco l'ha aggiornato, quello è il suo.
       const done = num(l.lapsDone);
       if (done != null && done >= 1 && num(l.lastLapMs) > 0) {
-        const gia = cur.giri.get(done);
-        if (!gia || gia.ms == null) cur.giri.set(done, { giro: done, ms: num(l.lastLapMs) });
+        cur.giri.set(done, { giro: done, ms: num(l.lastLapMs) });
       } else if (done != null && done >= 1 && !cur.giri.has(done)) {
         cur.giri.set(done, { giro: done, ms: null });
       }
@@ -302,6 +308,39 @@ export function riepiloghiDa(tutte, { ultime = 5 } = {}) {
     // blocco — identico a `formattaRiassunto(scelte)`, senza rifare il lavoro
     testo: lista.length ? testi.join('\n') : null,
   };
+}
+
+/**
+ * LA RIGA DI UNA REGISTRAZIONE (7/11). `tools/registra-live.mjs` scrive
+ * `data/live-<ora>.ndjson` con i record `{ t, ts, snapshot }`: lo snapshot è
+ * quello di /api/live, cioè lo STESSO ingresso del monitor. Quindi la riga si
+ * ricava con `rigaMonitor` e non esiste un secondo modo di leggere i dati.
+ * Un record senza snapshot (fetch fallita a monte) torna null: chi legge lo
+ * salta invece di far finta che sia una riga non-live.
+ */
+export function rigaDaRegistrazione(o) {
+  return o?.snapshot ? rigaMonitor(o.snapshot, o.t ?? null) : null;
+}
+
+/**
+ * UNA SOLA LISTA DA PIÙ FONTI (7/11): il log del monitor e le registrazioni
+ * possono raccontare la stessa sessione (due registratori accesi insieme) o
+ * sessioni diverse (una gara registrata solo dal registratore non entra nel
+ * log del monitor). Qui si tolgono i doppioni — stessa pista e stesso tipo con
+ * l'inizio entro 2 minuti, resta quella con più campioni — e si ordina per
+ * fine, così «l'ultima» è davvero l'ultima.
+ */
+export function unisciSessioni(...liste) {
+  const ms = (v) => { const t = Date.parse(v ?? ''); return Number.isFinite(t) ? t : 0; };
+  const tenute = [];
+  for (const s of liste.flat()) {
+    if (!s || !s.inizio) continue;
+    const i = tenute.findIndex((k) => k.tipo === s.tipo && k.track === s.track
+      && Math.abs(ms(k.inizio) - ms(s.inizio)) < 120_000);
+    if (i < 0) tenute.push(s);
+    else if ((s.righe ?? 0) > (tenute[i].righe ?? 0)) tenute[i] = s;
+  }
+  return tenute.sort((a, b) => ms(a.fine ?? a.inizio) - ms(b.fine ?? b.inizio));
 }
 
 /** I riepiloghi leggibili di un log (righe o testo): porta d'ingresso storica. */

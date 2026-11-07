@@ -4,7 +4,7 @@
 // di contatto sono medie/massimi sulle sole righe live della sessione.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rigaMonitor, riassumiMonitor, formattaRiassunto, fmtGiro, riepiloghiMonitor } from '../src/live-monitor-riepilogo.mjs';
+import { rigaMonitor, rigaDaRegistrazione, unisciSessioni, riassumiMonitor, formattaRiassunto, fmtGiro, riepiloghiMonitor } from '../src/live-monitor-riepilogo.mjs';
 
 /** Snapshot finto di /api/live con contatto noto. */
 function snap({ live = true, done = 0, last = null, best = null, cur = null, load = null, susp = null, slip = null } = {}) {
@@ -291,10 +291,12 @@ function riepilogoVecchio(righe) {
       if (num(l.speed) != null) cur.vel.push(num(l.speed));
       if (num(l.bestLapMs) > 0) cur.bestMs = cur.bestMs == null ? num(l.bestLapMs) : Math.min(cur.bestMs, num(l.bestLapMs));
       aggiungiContatto(cur.contatto, l);
+      // ORACOLO allineato al 7/11: per il giro N vince l'ULTIMO `lastLapMs`
+      // dello stato lapsDone = N (il gioco lo scrive con qualche tick di
+      // ritardo sul cambio giro: il primo valore è quello del giro prima).
       const done = num(l.lapsDone);
       if (done != null && done >= 1 && num(l.lastLapMs) > 0) {
-        const gia = cur.giri.get(done);
-        if (!gia || gia.ms == null) cur.giri.set(done, { giro: done, ms: num(l.lastLapMs) });
+        cur.giri.set(done, { giro: done, ms: num(l.lastLapMs) });
       } else if (done != null && done >= 1 && !cur.giri.has(done)) {
         cur.giri.set(done, { giro: done, ms: null });
       }
@@ -394,4 +396,70 @@ test('riepiloghiDa: la sessione APERTA si ricompone a ogni riga nuova', () => {
   assert.match(prima, /1 giri chiusi/);
   assert.match(dopo, /2 giri chiusi/);
   assert.equal(acc.risultato()[0].chiusa, false, 'e resta dichiarata aperta');
+});
+
+/* 7/11 — LE DUE FONTI. La scheda «Riepilogo di fine sessione» leggeva solo
+   `.live-monitor.log` e chiamava «ultima sessione» l'ultima DEL MONITOR: la
+   gara di Donington delle 22:52 del 6/11 stava solo nella registrazione del
+   registratore (`data/live-*.ndjson`) e la scheda mostrava Suzuka delle 18:07.
+   Qui si pesano le due regole nuove: il record di registrazione diventa la
+   stessa riga del monitor, e l'unione delle fonti non inventa doppioni. */
+test('un record di registrazione diventa la riga del monitor (stessa porta, un solo modo di leggere)', () => {
+  const rec = { t: '2026-11-06T22:52:11.989Z', ts: 1, snapshot: snap({ done: 3, last: 91_500, best: 90_000 }) };
+  const l = rigaDaRegistrazione(rec);
+  assert.equal(l.at, '2026-11-06T22:52:11.989Z');
+  assert.equal(l.live, true);
+  assert.equal(l.session, 'Race');
+  assert.equal(l.track, 'Laguna Seca');
+  assert.equal(l.lapsDone, 3);
+  assert.equal(l.lastLapMs, 91_500);
+  // fetch fallita a monte: niente snapshot, niente riga — chi legge la salta
+  assert.equal(rigaDaRegistrazione({ t: '2026-11-06T22:52:12.000Z', error: 'fetch failed' }), null);
+  assert.equal(rigaDaRegistrazione(null), null);
+});
+
+test('unisciSessioni: doppioni fusi (resta la più ricca) e ordine per fine', () => {
+  const s = (tipo, track, inizio, fine, righe) => ({ tipo, track, inizio, fine, righe });
+  const monitor = [
+    s('TimeAttack', 'Suzuka', '2026-11-06T17:07:33.902Z', '2026-11-06T17:07:50.529Z', 4),
+    s('TimeAttack', 'Donington Park', '2026-11-06T22:52:11.989Z', '2026-11-06T22:58:21.937Z', 300),
+  ];
+  // stessa gara vista dal registratore: inizio a 8 s di distanza, più campioni
+  const registrazione = [
+    s('TimeAttack', 'Donington Park', '2026-11-06T22:52:20.000Z', '2026-11-06T22:58:21.937Z', 420),
+  ];
+  const unite = unisciSessioni(monitor, registrazione);
+  assert.equal(unite.length, 2, 'la stessa pista+tipo a 8 s di distanza è UNA sessione');
+  assert.equal(unite[1].righe, 420, 'del doppione resta la sessione con più campioni');
+  assert.equal(unite[1].fine, '2026-11-06T22:58:21.937Z');
+  assert.equal(unite[0].track, 'Suzuka', 'ordine cronologico: l’ultima in fondo');
+  // una gara vera di tre ore dopo NON è un doppione
+  const tarda = [s('TimeAttack', 'Suzuka', '2026-11-07T09:00:00.000Z', '2026-11-07T09:10:00.000Z', 9)];
+  assert.equal(unisciSessioni(monitor, tarda).length, 3);
+  // liste vuote/rotte non fanno rumore
+  assert.deepEqual(unisciSessioni([], null, undefined), []);
+});
+
+/* 7/11 — IL GIRO SI PRENDE QUANDO IL GIOCO L'HA SCRITTO. Misurato sugli
+   stessi dati della gara di Donington (6/11): `lastLapMs` è ancora quello del
+   giro prima nel tick di passaggio, e si aggiorna uno o due tick dopo. Con il
+   primo valore il riepilogo dava #1 e #2 a 1:58.794; ora vince l'ultimo valore
+   dello stato lapsDone = N. */
+test('il tempo del giro è l’ultimo dello stato, non il valore stantio del passaggio', () => {
+  const s = riassumiMonitor([
+    // giro 1 chiuso: qui il gioco non ha ancora scritto il tempo (null)…
+    riga('2026-11-06T22:54:24.174Z', { done: 1, last: null }),
+    // …poi lo scrive, mentre si percorre il giro 2 (lapsDone resta 1)
+    riga('2026-11-06T22:54:30.000Z', { done: 1, last: 118_794 }),
+    riga('2026-11-06T22:55:00.000Z', { done: 1, last: 118_794 }),
+    // giro 2 chiuso: il primo valore è ANCORA quello del giro 1 (ritardo del gioco)
+    riga('2026-11-06T22:56:15.201Z', { done: 2, last: 118_794 }),
+    riga('2026-11-06T22:56:20.000Z', { done: 2, last: 109_371 }),
+    // giro 3 chiuso e già aggiornato
+    riga('2026-11-06T22:58:05.502Z', { done: 3, last: 108_693 }),
+  ]);
+  assert.equal(s.length, 1);
+  assert.deepEqual(s[0].giri.map((g) => g.ms), [118_794, 109_371, 108_693], 'tre tempi distinti');
+  assert.equal(s[0].giriConTempo, 3);
+  assert.equal(s[0].miglioreMs, 108_693);
 });

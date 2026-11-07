@@ -339,7 +339,7 @@ function covHtml(g){
 function riepilogoLiveHtml(r) {
   if (!r || r.error) return `<div class="empty">${esc(r?.error ?? tr({ it: 'Riepilogo non disponibile.', en: 'Summary not available.' }))}</div>`;
   const ss = Array.isArray(r.sessioni) ? r.sessioni : [];
-  if (!ss.length) return `<div class="muted" style="font-size:12.5px">${esc(r.motivo ?? tr({ it: 'Nessuna sessione nel log del monitor live.', en: 'No session in the live monitor log.' }))}</div>`;
+  if (!ss.length) return `<div class="muted" style="font-size:12.5px">${esc(r.motivo ?? tr({ it: 'Nessuna sessione registrata: si riempie alla prima sessione con il monitor acceso o il registratore in funzione.', en: 'No recorded session yet: it fills at the first session with the monitor or the recorder running.' }))}</div>`;
   const s = ss[ss.length - 1];
   let quando = null;
   try { quando = s.fine ? new Date(s.fine).toLocaleString(window.LOCALE === 'en' ? 'en-GB' : 'it-IT', { dateStyle: 'medium', timeStyle: 'short' }) : null; } catch { quando = null; }
@@ -348,7 +348,7 @@ function riepilogoLiveHtml(r) {
     <div class="row" style="margin-top:8px">
       <button class="mini acc" id="rl-copia">⧉ ${tr({ it: 'Copia testo', en: 'Copy text' })}</button>
       <button class="mini" id="rl-png">🖼 ${tr({ it: 'Salva immagine', en: 'Save image' })}</button>
-      <span class="muted" style="font-size:12px">${r.totale > 1 ? tr({ it: `${r.totale} sessioni nel log · mostrata l'ultima`, en: `${r.totale} sessions in the log · showing the latest` }) : tr({ it: 'ultima sessione del monitor', en: 'latest monitor session' })}</span>
+      <span class="muted" style="font-size:12px">${r.totale > 1 ? tr({ it: `${r.totale} sessioni registrate · mostrata l'ultima`, en: `${r.totale} recorded sessions · showing the latest` }) : tr({ it: 'ultima sessione registrata', en: 'latest recorded session' })}</span>
     </div>`;
 }
 
@@ -416,7 +416,7 @@ function salvaRiepilogoPng(s) {
   }
   ctx.fillStyle = '#6f7f96';
   ctx.font = '13px system-ui,"Segoe UI",Roboto,sans-serif';
-  ctx.fillText(`EVO Pitwall · ${tr({ it: 'dati dal log del monitor live', en: 'data from the live monitor log' })}`, PAD, H - 22);
+  ctx.fillText(`EVO Pitwall · ${tr({ it: 'dati dai registri live', en: 'data from the live logs' })}`, PAD, H - 22);
   cv.toBlob((blob) => {
     if (!blob) { toast(tr({ it: 'PNG non generato dal browser.', en: 'The browser did not produce the PNG.' }), 'err'); return; }
     const a = document.createElement('a');
@@ -482,7 +482,7 @@ async function drawDashboard(m){
            server (/api/live-riepilogo, stessa funzione del monitor): qui solo
            resa e comandi. -->
       <div class="panel" id="p-riepilogo-live">
-        <h2>🏁 ${tr({ it: 'Riepilogo di fine sessione', en: 'End-of-session summary' })} <span class="h-act">${tr({ it: 'l’ultima sessione del monitor live', en: 'the latest live-monitor session' })}</span></h2>
+        <h2>🏁 ${tr({ it: 'Riepilogo di fine sessione', en: 'End-of-session summary' })} <span class="h-act">${tr({ it: 'l’ultima sessione registrata', en: 'the latest recorded session' })}</span></h2>
         <div id="riepilogo-live-body"><div class="muted" style="font-size:12.5px">…</div></div>
         <div class="row" style="margin-top:8px"><button class="mini" id="rl-ric">↻ ${tr({ it: 'Ricarica', en: 'Reload' })}</button></div>
       </div>

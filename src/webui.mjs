@@ -21,7 +21,47 @@ import { costanzaSettoriDaLog } from './margine-log.mjs';
 import { lettoreLogLive } from './live-log-incrementale.mjs';
 // ultimo riepilogo calcolato + impronta del log (mtime|size): il polling della
 // scheda costa uno stat finché il monitor non scrive
+import { rigaDaRegistrazione, riepiloghiDa, unisciSessioni } from './live-monitor-riepilogo.mjs';
 let LETTORE_LIVE = null;   // lettore incrementale di .live-monitor.log (6/11)
+// LETTORI DELLE REGISTRAZIONI (7/11): `data/live-*.ndjson` del registratore.
+// Uno per file, incrementale come quello del monitor: si consumano solo i byte
+// aggiunti, quindi una registrazione da ore non costa una riparsata a ogni giro.
+const LETTORI_REGISTRAZIONI = new Map();
+
+/**
+ * LE SESSIONI DELLE REGISTRAZIONI (7/11). `tools/registra-live.mjs` scrive
+ * `data/live-<ora>.ndjson` con lo snapshot complete di /api/live: è un secondo
+ * registratore, e una sessione registrata da lui NON finisce in
+ * `.live-monitor.log`. La scheda del Cruscotto leggeva solo il log del monitor
+ * e chiamava «ultima sessione» una di TRE ORE PRIMA: la gara di Donington
+ * delle 22:52 del 6/11 stava solo nella registrazione, e la scheda mostrava
+ * Suzuka delle 18:07. Si leggono le due registrazioni più recenti, con lo
+ * stesso lettore incrementale del monitor: costo per righe NUOVE, non per
+ * dimensione del file (una registrazione da ore non si ripara a ogni giro).
+ */
+function sessioniRegistrazioni({ ultime = 5, massimo = 2 } = {}) {
+  let nomi = [];
+  try {
+    nomi = readdirSync(DATA_DIR).filter((f) => /^live-.*\.ndjson$/i.test(f));
+  } catch { return []; }   // nessuna cartella: nessuna registrazione, e non è un errore
+  const files = [];
+  for (const nome of nomi) {
+    const f = join(DATA_DIR, nome);
+    try { files.push({ f, mtime: statSync(f).mtimeMs }); } catch { /* sparito fra elenco e stat */ }
+  }
+  files.sort((a, b) => b.mtime - a.mtime);
+  const out = [];
+  for (const { f } of files.slice(0, massimo)) {
+    let lettore = LETTORI_REGISTRAZIONI.get(f);
+    if (!lettore) {
+      lettore = lettoreLogLive(f, { ultime, mappa: rigaDaRegistrazione });
+      LETTORI_REGISTRAZIONI.set(f, lettore);
+    }
+    const letto = lettore.aggiorna();
+    if (!letto.errore) out.push(...letto.sessioni);
+  }
+  return out;
+}
 
 import {
   createCareer, nodeById, disciplineName, gateStatus,
@@ -179,7 +219,7 @@ import { memoOf, registraRound, annotaAdvice, semaforoAdvice, correzioniDiStoria
 
 // costanti di sessione, ladder e percorsi + appEnv/context stanno in webui-env.mjs;
 // le VISTE (oggetti JSON per la GUI) stanno in webui-views.mjs
-import { PROJECT, SAVE_FILE, CONFIG_FILE, GUI_DIR, BACKUP_DIR, SLOT, loadLadder, appEnv, context, writeConfig, configLang, requireState, persist } from './webui-env.mjs';
+import { PROJECT, DATA_DIR, SAVE_FILE, CONFIG_FILE, GUI_DIR, BACKUP_DIR, SLOT, loadLadder, appEnv, context, writeConfig, configLang, requireState, persist } from './webui-env.mjs';
 import { viewHeader, viewStatus, viewCalendar, viewStandings, viewMessages, viewCard, viewDifficulty, viewSetup } from './webui-views.mjs';
 // classifiche reali: le sessioni che EVO ha già scritto sul disco (5/11)
 import { classificheRecenti } from './classifiche-gioco.mjs';
@@ -1474,7 +1514,6 @@ async function api(context0, _req, res, action, body) {
     // dice invece di mostrare un riepilogo vuoto.
     case 'live-riepilogo': {
       const file = join(PROJECT, '.live-monitor.log');
-      const vuoto = { sessioni: [], testo: null, totale: 0, file, chiusa: false };
       // LETTORE INCREMENTALE (6/11): a ogni giro si consumano SOLO le righe
       // aggiunte al log. Prima qui si rileggeva e riparsava tutto il file a
       // ogni scrittura del monitor (365 ms su 10 MB, 1.160 ms su 35 MB, sul
@@ -1482,23 +1521,33 @@ async function api(context0, _req, res, action, body) {
       // perfino sfondare lo stack del riepilogo.
       LETTORE_LIVE ??= lettoreLogLive(file);
       const letto = LETTORE_LIVE.aggiorna();
-      if (letto.assente) {
-        return sendJson(res, 200, { ...vuoto, motivo: tr({ it: 'Nessun log del monitor live: la scheda si riempie alla prima sessione con il monitor acceso.', en: 'No live monitor log: the card fills at the first session with the monitor running.' }) });
+      // LE DUE FONTI (7/11): al log del monitor si aggiungono le registrazioni
+      // del registratore. `unisciSessioni` toglie i doppioni (due registratori
+      // accesi insieme) e ordina per fine, così «l'ultima» è davvero l'ultima.
+      const unite = unisciSessioni(letto.assente ? [] : letto.sessioni, sessioniRegistrazioni());
+      const riep = riepiloghiDa(unite, { ultime: 5 });
+      const ultima = riep.sessioni.length ? riep.sessioni[riep.sessioni.length - 1] : null;
+      const aggiornato = letto.mtime ? letto.mtime.toISOString() : null;
+      if (!riep.totale) {
+        const vuoto = { sessioni: [], testo: null, totale: 0, file, chiusa: false, aggiornato };
+        if (letto.errore) {
+          return sendJson(res, 200, { ...vuoto, motivo: `${tr({ it: 'Log del monitor illeggibile', en: 'Live monitor log unreadable' })}: ${letto.errore}` });
+        }
+        if (letto.assente) {
+          return sendJson(res, 200, { ...vuoto, motivo: tr({ it: 'Nessun log del monitor live: la scheda si riempie alla prima sessione con il monitor acceso.', en: 'No live monitor log: the card fills at the first session with the monitor running.' }) });
+        }
+        return sendJson(res, 200, { ...vuoto, motivo: tr({ it: 'Il log del monitor esiste ma non contiene ancora righe live: la scheda si riempie al primo giro in pista.', en: 'The monitor log exists but holds no live rows yet: the card fills at the first lap on track.' }) });
       }
-      if (letto.errore) {
-        return sendJson(res, 200, { ...vuoto, motivo: `${tr({ it: 'Log del monitor illeggibile', en: 'Live monitor log unreadable' })}: ${letto.errore}` });
-      }
-      const ultima = letto.sessioni.length ? letto.sessioni[letto.sessioni.length - 1] : null;
       return sendJson(res, 200, {
-        totale: letto.totale,
-        sessioni: letto.sessioni,
-        testo: letto.testo,
+        totale: riep.totale,
+        sessioni: riep.sessioni,
+        testo: riep.testo,
         file,
-        aggiornato: letto.mtime.toISOString(),
+        aggiornato,
         // la scheda si ridisegna da sola solo quando questa passa a true:
         // il monitor ha CHIUSO la sessione (il log è tornato non-live)
         chiusa: !!ultima?.chiusa,
-        motivo: letto.totale ? null : tr({ it: 'Il log del monitor esiste ma non contiene ancora righe live: la scheda si riempie al primo giro in pista.', en: 'The monitor log exists but holds no live rows yet: the card fills at the first lap on track.' }),
+        motivo: null,
       });
     }
     case 'watcher':

@@ -23,7 +23,7 @@ import { creaAccumulatoreRiepiloghi, parseLog, riepiloghiDa } from './live-monit
  *   { cambiato, assente?, errore?, mtime, size, righe, totale, sessioni, testo }
  * `sessioni`/`testo` arrivano da `riepiloghiDa` (ultime 5, l'ultima in fondo).
  */
-export function lettoreLogLive(file, { ultime = 5 } = {}) {
+export function lettoreLogLive(file, { ultime = 5, mappa = null } = {}) {
   let acc = creaAccumulatoreRiepiloghi();
   let offset = 0;               // byte del file già consumati
   let resto = Buffer.alloc(0);  // coda dopo l'ultimo '\n': riga ancora in scrittura
@@ -95,7 +95,15 @@ export function lettoreLogLive(file, { ultime = 5 } = {}) {
     // metà non entra mai nel testo
     resto = Buffer.from(buf.subarray(taglio + 1));
     const nuove = parseLog(buf.subarray(0, taglio + 1).toString('utf8'));
-    for (const l of nuove) acc.aggiungi(l);
+    // `mappa` (7/11): lo stesso lettore serve anche le REGISTRAZIONI
+    // (`data/live-*.ndjson`), dove il record è `{t, snapshot}` e va convertito
+    // in riga del monitor. Chi mappa e non sa che farsene di un record torna
+    // null: la riga si salta, non diventa una riga non-live che chiude la
+    // sessione.
+    for (const l of nuove) {
+      const riga = mappa ? mappa(l) : l;
+      if (riga) acc.aggiungi(riga);
+    }
     righe += nuove.length;
     ricalcola();
     return { ...dati, cambiato: true, assente: false, errore: null, mtime: st.mtime, size: st.size, righe };

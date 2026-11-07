@@ -21,7 +21,7 @@ import { appendFileSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from '
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { lettoreLogLive } from '../src/live-log-incrementale.mjs';
-import { parseLog, riepiloghiMonitor } from '../src/live-monitor-riepilogo.mjs';
+import { parseLog, riepiloghiMonitor, rigaDaRegistrazione } from '../src/live-monitor-riepilogo.mjs';
 
 const riga = (at, { done = 0, last = null, best = null, live = true, pos = 3 } = {}) => JSON.stringify({
   at, live, session: 'Race', track: 'Laguna Seca', pos, speed: 120,
@@ -146,4 +146,42 @@ test('il log può contenere righe rotte: si saltano come nel percorso completo',
   const file = conFile(t, contenuto);
   const r = lettoreLogLive(file).aggiorna();
   assert.deepEqual(soloEsito(r), atteso(contenuto));
+});
+
+/* 7/11 — IL LETTORE SERVE ANCHE LE REGISTRAZIONI. `data/live-*.ndjson` ha
+   record `{t, snapshot}`: la stessa macchina incrementale li consuma passando
+   `mappa` (rigaDaRegistrazione). Due regole pesate qui: un record senza
+   snapshot si SALTA (non chiude la sessione come farebbe una riga non-live) e
+   i byte nuovi, non tutto il file, sono l'unica cosa che si rilegge. */
+test('lettore con mappa: le registrazioni si leggono come il log, incrementali', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'evo-reg-'));
+  const file = join(dir, 'live-2026-11-06T22-49-20.ndjson');
+  const rec = (t, snap) => JSON.stringify({ t, ts: Date.parse(t), snapshot: snap });
+  const snapLive = (done, last) => ({
+    game: true, live: true, session: { type: 'Race', track: 'Donington Park' },
+    player: { lapsDone: done, lastLapMs: last, lapsTotal: 5, contact: { wheelLoadN: [1, 1, 1, 1] } },
+  });
+  try {
+    writeFileSync(file, [
+      rec('2026-11-06T22:52:11.989Z', snapLive(1, 91_500)),
+      rec('2026-11-06T22:52:16.989Z', snapLive(1, 91_500)),
+      JSON.stringify({ t: '2026-11-06T22:52:21.989Z', error: 'fetch failed' }),   // senza snapshot
+    ].join('\n') + '\n');
+    const lettore = lettoreLogLive(file, { mappa: rigaDaRegistrazione });
+    const a = lettore.aggiorna();
+    assert.equal(a.righe, 3, 'tre righe JSON valide lette');
+    assert.equal(a.totale, 1, 'una sola sessione: il record senza snapshot non la chiude');
+    assert.equal(a.sessioni[0].chiusa, false, 'la sessione è ancora aperta');
+    assert.equal(a.sessioni[0].giriFatti, 1);
+    assert.equal(a.sessioni[0].giri[0].ms, 91_500);
+
+    appendFileSync(file, rec('2026-11-06T22:52:26.989Z', snapLive(2, 91_800)) + '\n');
+    const b = lettore.aggiorna();
+    assert.equal(b.cambiato, true);
+    assert.equal(b.sessioni[0].giriFatti, 2, 'il giro nuovo entra senza rileggere il file');
+    assert.equal(b.sessioni[0].giri[1].ms, 91_800);
+    assert.equal(lettore.aggiorna().cambiato, false, 'niente byte nuovi: nessun ricalcolo');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
