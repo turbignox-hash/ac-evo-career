@@ -20,10 +20,13 @@ import { costanzaSettoriDaLog } from './margine-log.mjs';
 // scrive `.live-monitor.riepilogo.txt` serve anche la scheda del Cruscotto.
 import { lettoreLogLive } from './live-log-incrementale.mjs';
 import { creaDichiarazioneGara } from './gara-carriera.mjs';
+import { durateDalSave } from './durate-save.mjs';
 // LA DICHIARAZIONE CON MEMORIA (7/11, gare a tempo): lo snapshot porta solo il
 // tempo che RIMANE, quindi la durata della sessione vive qui, nel massimo del
-// conto alla rovescia visto da quando il server è partito.
-const DICHIARAZIONE_GARA = creaDichiarazioneGara();
+// conto alla rovescia visto da quando il server è partito. I minuti ATTESI
+// vengono dal gamemodesave (le durate-save sono cache per mtime: una stat per
+// tick), con la scheda della carriera come riserva.
+const DICHIARAZIONE_GARA = creaDichiarazioneGara({ durate: () => durateDalSave() });
 // ultimo riepilogo calcolato + impronta del log (mtime|size): il polling della
 // scheda costa uno stat finché il monitor non scrive
 import { rigaDaRegistrazione, riepiloghiDa, unisciSessioni } from './live-monitor-riepilogo.mjs';

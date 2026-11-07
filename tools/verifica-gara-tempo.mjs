@@ -27,6 +27,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { creaDichiarazioneGara, secondiTimer, stessaPista } from '../src/gara-carriera.mjs';
+import { durateDalSave } from '../src/durate-save.mjs';
 import { parseLog } from '../src/live-monitor-riepilogo.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -114,28 +115,38 @@ function sessioniViste(campioni) {
   return out;
 }
 
-/** Perché la dichiarazione non si è accesa: la prima condizione che manca. */
-function perchéNo(pending, sessione) {
+/** Perché la dichiarazione non si è accesa: la prima condizione che manca.
+ *  Stessa logica della regola: numeri attesi da scheda E da gamemodesave. */
+function perchéNo(pending, sessione, save = null) {
   if (!pending) return 'nessuna scheda (la carriera non può dichiarare: passare --pista e --minuti/--giri)';
   if (!sessione) return 'nessuna sessione nella registrazione';
+  const s = save?.letto ? save : null;
   const giriScheda = num(pending.laps);
-  const durataScheda = num(pending.durationMin);
   if (giriScheda > 0) return 'la ronda è a GIRI: la regola dei minuti non si applica (servono i giri in palio uguali)';
-  if (!(durataScheda > 0)) return 'la scheda non ha né giri né minuti: non c\u2019è niente da confrontare';
+  const attesi = [num(pending.durationMin), s && s.aTempo === true ? (num(s.garaSec) ?? 0) / 60 : null]
+    .filter((n) => n > 0);
+  if (!attesi.length) return 'né la scheda né il gamemodesave dicono una durata: non c\u2019è niente da confrontare';
   const nomi = [pending.trackId, ...(Array.isArray(pending.trackNames) ? pending.trackNames : [])].filter(Boolean);
   const sullaPista = nomi.length ? nomi.some((x) => stessaPista(sessione.pista, x)) : true;
   if (!sullaPista) return `la sessione è su «${sessione.pista}», la scheda parla di «${pending.trackId ?? nomi[0]}»`;
   if (sessione.giri != null && Number(sessione.giri) > 0) return `la sessione ha ${sessione.giri} giri in palio: non è una gara a tempo`;
   if (sessione.timerMax == null) return 'la sessione non riporta mai un timer: durata non misurabile';
   const durataVista = sessione.timerMax / 60;
-  const tolleranza = Math.max(1, durataScheda * 0.1);
-  if (Math.abs(durataVista - durataScheda) > tolleranza) {
-    return `la sessione dura ${durataVista.toFixed(1)}′ (timer massimo ${Math.round(sessione.timerMax)} s), la scheda dice ${durataScheda}′: o il gioco non usa i minuti della carriera, o è un\u2019altra sessione`;
+  const vicino = (a, b) => Math.abs(a - b) <= Math.max(1, b * 0.1);
+  const dove = [
+    num(pending.durationMin) > 0 ? `${num(pending.durationMin)}′ in scheda` : null,
+    s && s.aTempo === true && num(s.garaSec) > 0 ? `${(num(s.garaSec) / 60).toFixed(1)}′ nel gamemodesave` : null,
+  ].filter(Boolean).join(' e ');
+  if (!attesi.some((d) => vicino(durataVista, d))) {
+    return `la sessione dura ${durataVista.toFixed(1)}′ (timer massimo ${Math.round(sessione.timerMax)} s), la gara ne dichiara ${dove}: o il gioco esegue un budget suo, o è un\u2019altra sessione`;
   }
-  for (const [nome, altra] of [['prova', pending.practiceMin], ['qualifica', pending.qualifyMin]]) {
-    const d = num(altra);
-    if (d > 0 && Math.abs(durataVista - d) <= Math.max(1, d * 0.1)) {
-      return `la durata vista (${durataVista.toFixed(1)}′) combacia anche con la ${nome} (${d}′): sessione non distinguibile, la dichiarazione tace per costruzione`;
+  const altre = [
+    ['prova (scheda)', pending.practiceMin], ['qualifica (scheda)', pending.qualifyMin],
+    ['prova (gamemodesave)', s ? (num(s.provaSec) ?? 0) / 60 : null], ['qualifica (gamemodesave)', s ? (num(s.qualificaSec) ?? 0) / 60 : null],
+  ];
+  for (const [nome, d] of altre) {
+    if (num(d) > 0 && vicino(durataVista, num(d))) {
+      return `la durata vista (${durataVista.toFixed(1)}′) combacia anche con la ${nome} (${num(d).toFixed(1)}′): sessione non distinguibile, la dichiarazione tace per costruzione`;
     }
   }
   return 'condizione non riconosciuta: guardare i campioni a mano';
@@ -153,6 +164,8 @@ if (!campioni.length) {
   process.exit(1);
 }
 const { pending, daSave } = scheda();
+// i minuti che il GIOCO esegue: il gamemodesave, non la scheda (7/11)
+const save = durateDalSave();
 
 console.log(`\n== SCHEDA DELLA RONDA ==  (${pending ? (daSave ? 'da state.pending del save' : 'dalle opzioni') : 'nessuna'})`);
 if (pending) {
@@ -167,6 +180,17 @@ if (pending) {
   console.log('  nessuna: passare --pista e --minuti N (o --giri N) per giudicare la registrazione');
 }
 
+console.log('\n== GAMEMODESAVE (i numeri che il gioco esegue) ==');
+if (save.letto) {
+  const fmt = (sec) => (num(sec) > 0 ? `${(num(sec) / 60).toFixed(1)}′` : '—');
+  console.log(`  gara: ${save.aTempo === true ? `a TEMPO · ${fmt(save.garaSec)} (${save.garaSec} s)` : save.aTempo === false ? `a GIRI · ${save.garaGiri} giri` : 'blocco gara non riconosciuto'}`);
+  console.log(`  prove ${fmt(save.provaSec)} · qualifica ${fmt(save.qualificaSec)} · warmup ${fmt(save.warmupSec)}`);
+  const litiga = pending && (num(pending.laps) > 0) !== (save.aTempo === false);
+  if (litiga) console.log('  ATTENZIONE: la scheda e il file dicono tipi diversi (giri contro tempo): vale la scheda, che è la ronda in corso');
+} else {
+  console.log(`  non leggibile (${save.motivo}) → si usa la scheda della carriera`);
+}
+
 console.log(`\n== REGISTRAZIONE ==\n  ${file.replace(ROOT, '.').replace(/\\/g, '/')} · ${campioni.length} campioni · ${oraLocale(campioni[0].t)} → ${oraLocale(campioni[campioni.length - 1].t)}`);
 
 console.log('\n== SESSIONI VISTE ==');
@@ -176,7 +200,7 @@ for (const s of sessioniViste(campioni)) {
 }
 
 // il ripasso vero: il tracker che usa il Cruscotto, sugli stessi campioni
-const dichiarazione = creaDichiarazioneGara();
+const dichiarazione = creaDichiarazioneGara({ durate: () => save });
 const segmenti = [];
 let primoAcceso = null;   // la sessione che ha fatto scattare la dichiarazione
 for (const o of campioni) {
@@ -217,11 +241,17 @@ if (num(pending?.laps) > 0) {
   if (primoAcceso) {
     console.log(`    Ha fatto scattare: ${primoAcceso.pista} · ${primoAcceso.giri == null ? 'giri ?' : `${primoAcceso.giri} giri in palio`} · timer ${primoAcceso.timer == null ? 'non letto' : mmss(primoAcceso.timer)} · dalle ${oraLocale(primoAcceso.t)}`);
     if (Number(primoAcceso.giri) > 0) console.log('    ATTENZIONE: quella sessione ha giri in palio, quindi non è una gara a tempo: la dichiarazione è venuta dalla regola dei GIRI, non dai minuti.');
-    else if (candidata?.timerMax != null) console.log(`    Durata vista ${(candidata.timerMax / 60).toFixed(1)}′ contro ${num(pending?.durationMin)}′ in scheda: combaciano (misurato, non dedotto: il referto dice solo che i due numeri sono uguali).`);
+    else if (candidata?.timerMax != null) {
+      const dove = [
+        num(pending?.durationMin) > 0 ? `${num(pending.durationMin)}′ in scheda` : null,
+        save.letto && save.aTempo === true && num(save.garaSec) > 0 ? `${(num(save.garaSec) / 60).toFixed(1)}′ nel gamemodesave` : null,
+      ].filter(Boolean).join(' e ');
+      console.log(`    Durata vista ${(candidata.timerMax / 60).toFixed(1)}′ contro ${dove}: combaciano (misurato, non dedotto: il referto dice solo che i due numeri sono uguali).`);
+    }
   }
   if (totale < campioni.length * 0.3) console.log('    Copre meno di un terzo della registrazione: potrebbe essere un\u2019altra sessione con la stessa durata, o una gara accorciata da un cambio di stato. Sui dati del 6/11 la gara a giri copriva il 47%.');
 } else {
-  console.log(`  ✗ LA REGOLA DEI MINUTI NON HA DICHIARATO NIENTE. Prima condizione che manca:\n    ${perchéNo(pending, candidata)}`);
+  console.log(`  ✗ LA REGOLA DEI MINUTI NON HA DICHIARATO NIENTE. Prima condizione che manca:\n    ${perchéNo(pending, candidata, save)}`);
   console.log('    Il lato buono: nessun falso «gara» (finestra pit e ultimo giro sono rimasti spenti dove non andavano).');
 }
 console.log('');

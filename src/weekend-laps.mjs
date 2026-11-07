@@ -27,6 +27,9 @@ import { setWeekendGridMode } from './set-track.mjs';
 import { cancelloDistanza } from './test-mode.mjs';
 
 const FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
+// il percorso esportato serve a chi legge le durate scritte nel file senza
+// duplicare la stringa (durate-save.mjs, 7/11)
+export const WEEKEND_SAVE = FILE;
 const gameIsRunning = () => /AssettoCorsaEVO/i.test(execSync('tasklist', { encoding: 'utf8' }) ?? '');
 
 /** Elenca le sessioni del gamemodesave: [{ i, nome, giri, tipo, aTempo,

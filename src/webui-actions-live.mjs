@@ -10,10 +10,12 @@
 // la sonda del cruscotto, non il live.
 import { eventCard } from './events.mjs';
 import { creaDichiarazioneGara } from './gara-carriera.mjs';
+import { durateDalSave } from './durate-save.mjs';
 // memoria della durata della sessione viva per le ronde A TEMPO (7/11): la
 // rotta è interrogata dal monitor ogni pochi secondi, quindi vede il timer
-// pieno al via come lo vede l'ingegnere
-const DICHIARAZIONE_GARA = creaDichiarazioneGara();
+// pieno al via come lo vede l'ingegnere. I minuti attesi vengono dal
+// gamemodesave (cache per mtime), con la scheda come riserva.
+const DICHIARAZIONE_GARA = creaDichiarazioneGara({ durate: () => durateDalSave() });
 import { tr } from './lang.mjs';
 import { raceCard } from './race.mjs';
 import { VOCE_LIVELLI } from './voce-copilota.mjs';

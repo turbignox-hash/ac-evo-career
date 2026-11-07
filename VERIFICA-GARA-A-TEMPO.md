@@ -2,9 +2,16 @@
 
 La regola del 7/11 fa dichiarare la gara alla carriera: a **giri** confrontando i
 giri in palio, a **tempo** confrontando i **minuti** del round con la durata
-della sessione viva. La parte a tempo non è mai stata vista in pista (non
-esiste una registrazione di una gara a tempo di carriera): questa è la verifica
-da fare la prima volta che ne corri una. Dieci minuti, quattro passaggi.
+della sessione viva. I minuti attesi vengono dal **gamemodesave** — il file che
+il gioco legge davvero — con la scheda della carriera come riserva quando il file
+non è leggibile. La parte a tempo non è mai stata vista in pista (non esiste una
+registrazione di una gara a tempo di carriera): questa è la verifica da fare la
+prima volta che ne corri una. Dieci minuti, quattro passaggi.
+
+Perché il file e non la scheda, misurato il 7/11 sul save di Donington: la scheda
+diceva prove 45′ e qualifica 30′, il `gamemodesave` dice **900 s (15′)** e
+**600 s (10′)**. Confrontare con la scheda significa confrontare con un numero
+che il gioco non esegue.
 
 Tutto quello che serve è già nel progetto:
 
@@ -31,7 +38,7 @@ utile dopo il via:
 | Cosa vedi | Cosa significa |
 |---|---|
 | `N:00` (o N:00 meno qualche secondo: il via costa secondi) | i minuti della carriera sono arrivati al gioco — la regola può funzionare |
-| circa `10:00` mentre la scheda dice, per esempio, `20` | **il gioco usa un budget suo**, non i minuti del Prepara tutto: la regola resterà zitta (lato sicuro, nessun falso «gara») ma non potrà mai funzionare. Va scritto nel diario e la strada diventa leggere i minuti dal `gamemodesave` |
+| circa `10:00` mentre la scheda dice, per esempio, `20` | **il gioco usa un budget suo**: i minuti si leggono già dal `gamemodesave` (il file che il gioco carica), quindi vuol dire che EVO non usa nemmeno il suo file. La regola resta zitta (lato sicuro, nessun falso «gara») e la cosa va annotata: è una scoperta sul gioco, non un difetto della regola |
 | nessun timer, schermata di attesa | sei ancora prima del via: aspetta che parta e guarda di nuovo |
 
 Nota misurata il 6/11: il timer è **vuoto** durante l'attesa e compare pieno al
@@ -71,8 +78,10 @@ Se `state.pending` nel save è ancora quello della gara puoi omettere
 servono a scartare l'ambiguità (se la prova dura quanto la gara, la regola tace
 per costruzione e il referto lo dice).
 
-Il referto stampa **le sessioni viste** (pista, giri in palio, durata misurata
-dal massimo del timer) e poi uno dei tre esiti:
+Il referto stampa il blocco **GAMEMODESAVE** (gara, prove, qualifica come li
+vede il gioco, e un avviso se il file e la scheda dicono tipi diversi), **le
+sessioni viste** (pista, giri in palio, durata misurata dal massimo del timer) e
+poi uno dei tre esiti:
 
 ### ✓ «LA REGOLA DEI MINUTI HA DICHIARATO LA GARA»
 
@@ -95,7 +104,7 @@ Il referto dice quale delle cinque è caduta:
 |---|---|
 | «la sessione ha N giri in palio» | stai guardando la sessione sbagliata (una a giri) con una scheda a tempo |
 | «la sessione è su X, la scheda parla di Y» | `--pista` sbagliata, o il `pending` è di un'altra ronda |
-| «la sessione dura X′, la scheda dice Y′» | il timer del gioco non usa i minuti della carriera (punto 2): non è un difetto della regola, è una scoperta da annotare |
+| «la sessione dura X′, la gara ne dichiara Y′» | il gioco esegue un budget suo, diverso dai minuti della scheda E del file (punto 2): non è un difetto della regola, è una scoperta da annotare |
 | «combacia anche con la prova/qualifica (Z′)» | ambiguità vera: servono durate diverse nel weekend perché la regola possa parlare |
 | «non riporta mai un timer» | la sessione non è mai partita, o la registrazione è del menu |
 
@@ -108,7 +117,8 @@ verifica comunque la dichiarazione a giri, che è quella collaudata il 6/11.
 
 Non serve altro, bastano questi:
 
-1. **i minuti della scheda** (`a TEMPO: N minuti`);
+1. **i minuti della scheda** (`a TEMPO: N minuti`) e quelli del blocco
+   **GAMEMODESAVE** del referto (li stampa lui: non serve andarli a cercare);
 2. **il timer del gioco** al via (foto o numero: `20:00`, `9:59`, …);
 3. **il file** `data/live-*.ndjson` di quella gara (la registrazione).
 
@@ -124,8 +134,12 @@ Con quelli il referto si rifà in un minuto e si sa se il colpevole è il gioco
   della prova e la gara non viene riconosciuta. Silenzio, non falso «gara».
 - **Prova lunga come la gara**: la regola tace per costruzione (non è
   dimostrabile quale sessione sia).
-- **Gare a tempo più corte del budget del gioco**: se al punto 2 il timer non è
-  N, niente da fare finché non si legge la durata dal `gamemodesave`.
+- **Gare a tempo più corte del budget del gioco**: i minuti ora arrivano dal
+  `gamemodesave`, quindi la scheda non è più l'unica fonte; ma se al punto 2
+  il timer mostra un budget suo (es. 10′ quando il file dice 20′), la sessione
+  viva non combacia con nessuna durata nota e la regola resta zitta: il conto
+  alla rovescia è l'unico segnale che dice in QUALE sessione sei, e senza una
+  durata uguale a quella di gara non c'è modo di distinguerla da una prova.
 - **Giro d'arrivo a tempo**: l'«ultimo giro» in una gara a tempo non ha un
   numero di giri che lo annunci, quindi dipende dal flag del gioco. Se al
   traguardo arriva «Bandiera a scacchi!» ma non «Ultimo giro!», quello è il

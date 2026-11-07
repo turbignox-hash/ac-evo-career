@@ -44,47 +44,59 @@ export function secondiTimer(v) {
 /**
  * La sessione viva è la gara che la carriera ha preparato?
  * `sessione` = snapshot.session, `giocatore` = snapshot.player, `pending` =
- * state.pending.
+ * state.pending, `opts.save` = le durate lette dal gamemodesave
+ * (`durateDalSave`), `opts.durataLiveMin` = durata della sessione viva misurata
+ * dal conto alla rovescia.
  *
- * DUE MODI, uno per tipo di ronda (7/11, richiesta Mauro di coprire anche le
- * gare a tempo):
- *   • ronda A GIRI  → i giri in palio identici a quelli della scheda;
- *   • ronda A TEMPO → la durata della sessione viva uguale a quella scritta
- *     dalla carriera (`durationMin` del pending, già scalata dalla distanza
- *     scelta), e DIVERSO dalle durate note di prove/qualifiche: se la prova dura
- *     quanto la gara, la sessione non si può distinguere e non si dichiara
- *     niente (un falso «gara» accenderebbe finestra pit e ultimo giro in prova).
- * In tutti e due i casi serve la stessa pista.
+ * DUE MODI, uno per tipo di ronda, deciso dalla scheda (7/11):
+ *   • ronda A GIRI  → i giri in palio uguali a quelli della scheda O a quelli
+ *     scritti nel save per la gara;
+ *   • ronda A TEMPO → la durata viva uguale a quella della gara secondo la
+ *     scheda O secondo il save, e DIVERSA dalle durate di prove/qualifiche di
+ *     entrambe le fonti: se la prova dura quanto la gara, la sessione non si
+ *     può distinguere e non si dichiara niente (un falso «gara» accenderebbe
+ *     finestra pit e ultimo giro in prova).
+ * Perché due fonti (7/11, richiesta Mauro): il numero che il gioco esegue è
+ * quello del `gamemodesave`, non quello della scheda — misurato il 7/11, la
+ * scheda diceva prove 45′ e qualifica 30′ mentre il file dice 15′ e 10′. Il
+ * save vince quando c'è, la scheda resta la riserva per quando il save non si
+ * legge. In tutti i casi serve la stessa pista, e il conto alla rovescia resta
+ * il segnale che dice in QUALE sessione sei (la durata non identifica nessuno).
  */
-export function garaDallaCarriera(sessione = null, giocatore = null, pending = null, { durataLiveMin = null } = {}) {
+export function garaDallaCarriera(sessione = null, giocatore = null, pending = null, { durataLiveMin = null, save = null } = {}) {
   if (!pending) return false;
   const pista = sessione?.track ?? null;
   if (!pista) return false;
   const nomi = [pending.trackId, ...(Array.isArray(pending.trackNames) ? pending.trackNames : [])].filter(Boolean);
   if (!nomi.some((x) => stessaPista(pista, x))) return false;
 
+  const s = save?.letto ? save : null;
   const giri = Number(giocatore?.lapsTotal);
   const giriScheda = Number(pending.laps);
   const aGiri = Number.isFinite(giriScheda) && giriScheda > 0;
-  if (aGiri) return Number.isFinite(giri) && giri === giriScheda;
+  if (aGiri) {
+    // a giri: la firma sono i giri in palio; vale quella della scheda e quella
+    // del save (se il save dice che la gara è a giri), perché il gioco esegue
+    // il file
+    const attesi = [giriScheda, s && s.aTempo === false ? Number(s.garaGiri) : null]
+      .filter((n) => Number.isFinite(n) && n > 0);
+    return Number.isFinite(giri) && giri > 0 && attesi.includes(giri);
+  }
 
   // ronda A TEMPO: la durata è la firma. La sessione non deve avere giri in
-  // palio (una gara a tempo non ne ha) e la durata deve combaciare.
-  const durataScheda = Number(pending.durationMin);
+  // palio (una gara a tempo non ne ha).
   const durataViva = Number(durataLiveMin);
-  if (!Number.isFinite(durataScheda) || durataScheda <= 0) return false;
   if (!Number.isFinite(durataViva) || durataViva <= 0) return false;
   if (Number.isFinite(giri) && giri > 0) return false;
-  const tolleranza = Math.max(1, durataScheda * 0.1);        // 1 minuto o il 10%
   const vicino = (a, b) => Math.abs(a - b) <= Math.max(1, b * 0.1);
-  if (Math.abs(durataViva - durataScheda) > tolleranza) return false;
-  // ambiguità: se la prova (o la qualifica) dura gli stessi minuti, non è
-  // dimostrabile che questa sia la gara
-  for (const altra of [pending.practiceMin, pending.qualifyMin]) {
-    const d = Number(altra);
-    if (Number.isFinite(d) && d > 0 && vicino(durataViva, d)) return false;
-  }
-  return true;
+  const minuti = (sec) => (Number.isFinite(Number(sec)) && Number(sec) > 0 ? Number(sec) / 60 : null);
+  const attesi = [Number(pending.durationMin), s && s.aTempo === true ? minuti(s.garaSec) : null]
+    .filter((n) => Number.isFinite(n) && n > 0);
+  if (!attesi.some((d) => vicino(durataViva, d))) return false;
+  const altre = [pending.practiceMin, pending.qualifyMin, s ? minuti(s.provaSec) : null, s ? minuti(s.qualificaSec) : null]
+    .filter((n) => Number.isFinite(Number(n)) && Number(n) > 0)
+    .map(Number);
+  return !altre.some((d) => vicino(durataViva, d));
 }
 
 /**
@@ -120,7 +132,10 @@ export function conGaraCarriera(snap, pending, opts = {}) {
  * nessuna ronda preparata, la carriera non sa) e `snap` è lo snapshot marcato
  * (`session.race = true`) quando la carriera dichiara la gara.
  */
-export function creaDichiarazioneGara() {
+export function creaDichiarazioneGara({ durate = null } = {}) {
+  // `durate` è il lettore del gamemodesave (7/11): i minuti che il gioco ESEGUE
+  // vengono da lì, non dal conto alla rovescia. Iniettato per non legare questo
+  // modulo al disco (e per poterlo provare senza il gioco installato).
   let pista = null;
   let prec = null;       // ultimo timer letto, in secondi
   let maxSec = 0;        // massimo della sessione in corso = la sua durata
@@ -151,7 +166,8 @@ export function creaDichiarazioneGara() {
         }
         prec = sec;
       }
-      const gara = garaDallaCarriera(s, snap?.player, pending, { durataLiveMin: maxSec > 0 ? maxSec / 60 : null });
+      const save = typeof durate === 'function' ? durate() : null;
+      const gara = garaDallaCarriera(s, snap?.player, pending, { durataLiveMin: maxSec > 0 ? maxSec / 60 : null, save });
       if (gara !== true || !s || s.race === true) return { snap, gara };
       return { snap: { ...snap, session: { ...s, race: true } }, gara };
     },
