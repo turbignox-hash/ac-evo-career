@@ -223,6 +223,10 @@
   const MODO_INSTANT_RACE = 'GameModeType_INSTANT_RACE';
   const OK_RISPOSTA = 'ClientCommandsResponse_OK';
   let ultimoComando = null;
+  // L'ULTIMA GRIGLIA LETTA DAL GIOCO (7/11): la fotografia che il menu ci
+  // restituisce dopo l'applicazione — posti e modelli DISTINTI. Vive quanto il
+  // menu: viene allegata all'ack, è il server a mostrarla nel pannello.
+  let ultimaGriglia = null;
   let sondaEseguita = null;   // id dell'ultima sonda: la fascia la ripete finché non risponde
   // SOBRIETÀ: UNA sequenza per volta + riprova senza cap (le lezioni 27/10
   // restano: le risposte si scambiano le mani se due sequenze corrono insieme)
@@ -246,6 +250,9 @@
     // finisce in ui_storage.uistorage, che il server sa leggere — così il
     // publisher smette di ripubblicare un comando eseguito.
     const voce = { id: c.id, ok: ok ? 1 : 0, msg: String(msg || ''), at: Date.now() };
+    // LA GRIGLIA NELL'ACK (7/11): il server legge 'cruscotto.acks' e la mette
+    // in /api/istantanea; la riga dell'istantanea nel pannello la mostra.
+    if (ultimaGriglia) voce.griglia = ultimaGriglia;
     ackSessione = [voce, ...ackSessione.filter(function (a) { return a && a.id !== c.id; })].slice(0, 10);
     try {
       const l = window.ACEUIAppLoader;
@@ -735,6 +742,30 @@
               return false;
             }
           }
+          // LA GRIGLIA CHE IL GIOCO HA DAVVERO (7/11, richiesta Mauro: «dopo
+          // l'applicazione rileggi la griglia dal gioco e mostrala nel
+          // pannello»): l'elenco avversari si RILEGGE dal menu dopo averlo
+          // scritto — è la prova che le celle sono quelle chieste, prese dalla
+          // bocca del gioco e non dal file. Best effort: se il menu non
+          // risponde resta la conferma dei tre giri qui sopra.
+          try {
+            const ro = await giocoComando('GameModeSelectionClientRequestOpponents', { mode: MODO_SINGLE }, 8000);
+            const lista = Array.isArray(ro?.opponents) ? ro.opponents
+              : (Array.isArray(ro?.models) ? ro.models : null);
+            if (lista?.length) {
+              const chiavi = lista.map(function (o) {
+                const m = o && (o.model || o.car || o);
+                return String((m && (m.name || m.id || m.model_name)) || (o && (o.name || o.driver_name)) || JSON.stringify(o)).slice(0, 80);
+              });
+              const distinti = [];
+              chiavi.forEach(function (x) { if (distinti.indexOf(x) < 0) distinti.push(x); });
+              ultimaGriglia = { posti: lista.length, modelli: distinti.length, elenco: distinti.slice(0, 8), quando: Date.now() };
+              loga('griglia dal gioco: ' + lista.length + ' posti · ' + distinti.length + ' modelli (' + distinti.slice(0, 4).join(', ') + ')');
+              fatti.push('griglia letta dal gioco: ' + lista.length + ' posti');
+            } else {
+              loga('Opponents: risposta senza elenco (' + okTesto(ro) + ')');
+            }
+          } catch (e) { loga('Opponents: ' + (e?.message ?? e)); }
           weekendOk = true;
           // LA GRIGLIA CHE NON SI CONFERMA NON SI GUIDA (5/11): se dopo i tre
           // tentativi il gioco tiene ancora una lista avversari corta (il caso

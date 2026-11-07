@@ -243,6 +243,11 @@ function rondaMulticlasse() {
 function risposteMulticlasse(opponents, modelli = 17) {
   return {
     GameModeSelectionClientRequestTrackList: { track_item: [{ name: 'Brands Hatch', layout: 'GP' }] },
+    // LA GRIGLIA RILETTA (7/11): la risposta del menu dopo l'applicazione —
+    // una voce per avversario, col modello (qui due modelli alternati).
+    GameModeSelectionClientRequestOpponents: {
+      opponents: Array.from({ length: opponents }, (_, i) => ({ model: { name: i % 2 ? 'ks_a' : 'ks_b' } })),
+    },
     CarSelectionClientRequestModels: { car_model: [{ name: 'ks_a', display_name: 'Auto A' }, { name: 'ks_b', display_name: 'Auto B' }] },
     GameModeSelectionClientRequestGameModeParameters: {
       sessions: [
@@ -253,6 +258,23 @@ function risposteMulticlasse(opponents, modelli = 17) {
     },
   };
 }
+test("RUNTIME griglia riletta: l'ack porta posti e modelli distinti dal gioco", async () => {
+  // 7/11, Mauro: «collega Opponents: dopo l'applicazione rileggi la griglia dal
+  // gioco e mostrala nel pannello». L'app chiede l'elenco avversari DOPO averlo
+  // scritto e lo allega all'ack: il server lo legge ('cruscotto.acks') e
+  // statoIstantanea lo espone come `griglia` — la riga del pannello la mostra.
+  const { GESTO, fascia } = fasciaMulticlasse();
+  const app = avviaApp(fascia, (tipo) => risposteMulticlasse(16)[tipo] ?? null);
+  try {
+    assert.equal(app.errore, null, `l'app non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    const letto = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id && v?.griglia?.posti));
+    assert.ok(letto, `nessun ack con la griglia letta: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
+    const voce = (app.store.at(-1).val.commands).find((v) => v?.id === GESTO.id);
+    assert.equal(voce.griglia.posti, 16, 'i posti sono quelli che il menu ha restituito');
+    assert.equal(voce.griglia.modelli, 2, 'modelli DISTINTI, non il numero di posti');
+  } finally { app.drena(); }
+});
+
 function fasciaMulticlasse() {
   const GESTO = rondaMulticlasse();
   const fascia = fasciaDi(Date.now() + PERIODO_MS * 1000, GESTO);

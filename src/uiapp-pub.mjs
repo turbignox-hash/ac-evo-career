@@ -757,6 +757,11 @@ export function statoIstantanea(file = INSTANT_FILE) {
       : { giri: Number(cur.durata) || null },
     banda: cur.aiMin != null && cur.aiMax != null ? `${cur.aiMin}–${cur.aiMax}` : null,
     pista,
+    // LA GRIGLIA COME L'HA VISTA IL GIOCO (7/11): posti e modelli distinti
+    // letti da GameModeSelectionClientRequestOpponents dopo l'applicazione.
+    // null = il Cruscotto non ha ancora riletto (PC appena acceso, comando mai
+    // eseguito): la riga del pannello semplicemente non la dice.
+    griglia: grigliaDalGioco,
   };
 }
 
@@ -1147,6 +1152,11 @@ export function giraRichiesteEredità(ladder, state, richieste = []) {
   return ultimoEsitoEredità;
 }
 
+// L'ULTIMA GRIGLIA LETTA DAL GIOCO (7/11): arriva dentro l'ack
+// ('cruscotto.acks' → colpo.griglia) e statoIstantanea la espone al pannello.
+// null finché nessun comando ha riletto l'elenco avversari.
+let grigliaDalGioco = null;
+
 function assorbiAck(dati) {
   const c = dati.comando;
   if (!c) return;
@@ -1162,6 +1172,8 @@ function assorbiAck(dati) {
     return;
   }
   const colpo = (acks?.commands ?? []).find((a) => a && a.id === c.id);
+  // la fotografia della griglia che il Cruscotto ha riletto dal gioco
+  if (colpo?.griglia && Number.isFinite(Number(colpo.griglia.posti))) grigliaDalGioco = colpo.griglia;
   if (!colpo) return;
   if (colpo.ok && !confermati.has(c.id)) {
     confermati.set(c.id, Date.now());

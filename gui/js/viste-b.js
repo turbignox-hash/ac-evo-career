@@ -964,7 +964,8 @@ async function drawGironi(m){
     gvStato.textContent = (!i ? tr({ it: "Nessuna gara custom aperta in EVO ancora: aprane una UNA volta e il riepilogo parte (durata · pista · AI).", en: "No custom race opened in EVO yet: open one ONCE and the summary starts (length · track · AI)." })
       : tr({ it: "L'istantanea in EVO adesso: ", en: "Instant race now in EVO: " }) +
         (i.durata?.giri != null ? `${i.durata.giri} giri` : `${i.durata?.min ?? '?'} min a tempo`) +
-        (i.pista ? ` · ${i.pista}` : '') + (i.banda ? ` · AI ${i.banda}` : '')) +
+        (i.pista ? ` · ${i.pista}` : '') + (i.banda ? ` · AI ${i.banda}` : '') +
+        (i.griglia?.posti ? ` · griglia ${i.griglia.posti} posti (${i.griglia.modelli} modelli, letta dal gioco)` : '')) +
       (gvUltima ? `\n${tr({ it: 'Ultimo gesto scritto: ', en: 'Last written change: ' })}${gvUltima}` : '');
     /* L'ANTEPRIMA del bottone ▶ (30/10): la STESSA riga-ricetta in cima al
        pannello, una sola formula (gvRicettaRiga) per il riepilogo e per la
