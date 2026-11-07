@@ -1191,27 +1191,36 @@ async function api(context0, _req, res, action, body) {
       try {
         const ricetta = ultimaRicetta();
         if (!ricetta) return sendJson(res, 409, { error: tr({ it: 'Nessuna ricetta in canna: compila i campi qui sotto e premi «Imposta in EVO» una volta, dalla prossima volta basterà «PARTI SUBITO».', en: 'No recipe stored yet: fill the fields below and press «Write to EVO» once; from next time «GO NOW» will do it.' }) });
-        const out = garaVeloce({ ...ricetta, dry: !!body.dry, force: true });
-        // ▶ E IL GIOCO PARTE (7/11, richiesta Mauro: «fai in modo che questo
-        // lanci il gioco già impostato»): il tasto scrive la ricetta e POI
-        // apre EVO se è chiuso. Prima si scrive, poi si apre: il gioco legge
-        // i suoi file quando entra nel menu, aprendolo prima le scritture
-        // arriverebbero a menu già disegnato. launchGame usa `start` e torna
-        // subito (non aspetta l'exe): appena il Cruscotto è in gioco riceve il
-        // comando `volo` (state.volo) e imposta modalità, roster, AI, meteo e
-        // ora. AC_EVO_VOLO_LANCIA=0 spegne l'avvio (le prove non aprono EVO).
-        if (!body.dry && process.env.AC_EVO_VOLO_LANCIA !== '0') {
+        // ▶ PARTE SUBITO = IL «PREPARA TUTTO E AVVIA» DELLA GARA AL VOLO
+        // (7/11, Mauro: «utilizza lo stesso schema diretto anche per la gara
+        // veloce»). Lo STESSO schema del campionato, tre pezzi identici:
+        //   1. la ricetta si scrive col VIA ARMATA (avvia:true → state.volo
+        //      porta avviaFino per 30′, come markPending fa per la ronda);
+        //   2. il gioco si apre con la STESSA funzione del campionato (launch
+        //      di race.mjs, lo stesso che usa il Prepara tutto e avvia: se EVO
+        //      è già aperto non nasce una seconda istanza);
+        //   3. il Cruscotto riceve il comando `modo:'instant'` con avvia:true
+        //      e, dopo aver messo pista/auto/roster/AI/meteo/ora nel menu,
+        //      preme «Avvia sessione» nella stessa sequenza.
+        // body.dry = prova: niente scritture, niente armatura, niente avvio.
+        const out = garaVeloce({ ...ricetta, avvia: !body.dry, dry: !!body.dry, force: true });
+        if (!body.dry) {
           try {
-            let paths = { gameExe: null };
-            try { paths = resolvePaths(appEnv()); } catch { /* senza exe: si passa da Steam */ }
-            const lancio = await launchGame(paths, { exe: true });
+            const lancio = await launch(paths ?? { gameExe: null });
             out.lancio = lancio;
+            // IL VIA VIVE NEL COMANDO DEL CRUSCOTTO, che nasce dal ROSTER
+            // (state.volo): senza pool non c'è comando da armare e la partenza
+            // resta un gesto tuo nel menu — dirlo, non prometterlo.
+            const armato = Array.isArray(ricetta.pool) && ricetta.pool.length > 0;
+            const codaVia = armato
+              ? tr({ it: 'il Cruscotto imposta la gara e preme «Avvia sessione»', en: 'the Cruscotto applies the race and presses “Start session”' })
+              : tr({ it: 'la gara è scritta: senza roster il via lo premi tu nel menu', en: 'the race is written: without a roster you press start in the menu' });
             out.passi.push({
               nome: 'gioco (avvio)',
               ok: true,
               esito: lancio.via === 'already-running'
-                ? tr({ it: 'EVO era già aperto: nessuna seconda istanza, la gara è quella scritta qui sopra', en: 'EVO was already open: no second instance, the race is the one written above' })
-                : tr({ it: `EVO si sta aprendo (${lancio.via === 'exe' ? lancio.target : 'Steam'}): la gara è già scritta, il Cruscotto la imposta appena è dentro`, en: `EVO is starting (${lancio.via === 'exe' ? lancio.target : 'Steam'}): the race is already written, the Cruscotto applies it as soon as it is in` }),
+                ? tr({ it: `EVO era già aperto: nessuna seconda istanza — ${codaVia}`, en: `EVO was already open: no second instance — ${codaVia}` })
+                : tr({ it: `EVO si sta aprendo (${lancio.via === 'exe' ? lancio.target : 'Steam'}): appena è in gioco ${codaVia}`, en: `EVO is starting (${lancio.via === 'exe' ? lancio.target : 'Steam'}): as soon as it is in game ${codaVia}` }),
             });
           } catch (e) {
             out.passi.push({ nome: 'gioco (avvio)', ok: false, esito: e.message });

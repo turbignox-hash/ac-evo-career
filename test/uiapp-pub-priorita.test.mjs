@@ -622,3 +622,29 @@ test('gara al volo armata: comando con roster, modo instant, meteo e ora', () =>
   confermaAck(cmd.id);
   assert.notEqual(comandoAuto(mkLadder(), state)?.modo, 'instant', 'ackato, la gara al volo non ripete il comando');
 });
+
+/* IL VIA AUTOMATICO (7/11, «stesso schema del campionato»): il comando della
+   gara al volo porta `avvia: true` SOLO se PARTE SUBITO ha armato avviaFino —
+   allora il Cruscotto, dopo aver applicato la gara, preme «Avvia sessione»
+   nella stessa sequenza. «Imposta in EVO» (avviaFino 0) resta setup puro. */
+test('gara al volo: avviaFino armato → il comando porta avvia:true', () => {
+  const state = mkState({
+    volo: {
+      startedAt: Date.now(), pool: ['ks_ferrari_f40_lm', 'r5_touring'], opponents: 2,
+      aiMin: 88, aiMax: 93, car: 'r5_touring', pista: null, meteo: null, ora: null,
+      avviaFino: Date.now() + 20 * 60 * 1000,
+    },
+  });
+  const cmd = comandoAuto(mkLadder(), state);
+  assert.equal(cmd?.modo, 'instant');
+  assert.equal(cmd?.avvia, true, 'PARTE SUBITO: il Cruscotto preme «Avvia sessione» da solo');
+});
+
+test('gara al volo: senza avviaFino (o scaduto) il via resta a mano', () => {
+  const volo = {
+    startedAt: Date.now(), pool: ['ks_ferrari_f40_lm', 'r5_touring'], opponents: 2,
+    aiMin: 88, aiMax: 93, car: 'r5_touring', pista: null, meteo: null, ora: null,
+  };
+  assert.ok(!comandoAuto(mkLadder(), mkState({ volo: { ...volo } }))?.avvia, '«Imposta in EVO»: nessun auto-avvio');
+  assert.ok(!comandoAuto(mkLadder(), mkState({ volo: { ...volo, avviaFino: Date.now() - 1000 } }))?.avvia, 'finestra scaduta: nessun auto-avvio');
+});

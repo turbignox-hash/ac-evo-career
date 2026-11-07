@@ -415,6 +415,12 @@ export function comandoAuto(ladder, state, env = process.env) {
               gridCars: volo.pool,
               sessions: null,
             },
+            // IL VIA DEL CAMPIONATO, SULLA GARA PERSONALIZZATA (7/11, Mauro:
+            // «utilizza lo stesso schema diretto anche per la gara veloce»):
+            // con PARTE SUBITO la finestra è armata e il Cruscotto preme
+            // «Avvia sessione» dopo aver applicato la gara; con «Imposta in
+            // EVO» avviaFino è 0 e il comando resta setup puro.
+            avvia: Date.now() <= Number(volo.avviaFino ?? 0),
           };
         }
       }

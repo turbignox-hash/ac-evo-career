@@ -30,6 +30,11 @@
 //     [--preset-salva nome]  salva la ricetta corrente con nome (sedile incluso)
 //     [--dry] [--force]
 //
+// IL VIA AUTOMATICO (7/11, «stesso schema del campionato»): il solo CLI scrive
+// e basta. Il VIA si arma dall'API col flag `avvia` (endpoint parti-subito):
+// state.volo porta `avviaFino` per 30′ — come il pending della ronda — e il
+// Cruscotto, dopo aver applicato la gara, preme «Avvia sessione».
+//
 // Il CRUSCOTTO oltre al CLI: src/webui.mjs chiama garaVeloce() con gli stessi
 // argomenti (pannello «Gara al volo», via bridge le scritture passano a gioco
 // aperto con force, come 'instantrace').
@@ -214,7 +219,7 @@ export function ultimaRicetta() {
 /** La ricetta completa della gara al volo. RAISE per input sani (400:
  * NO_RECIPE / NO_ENTRAMBI / BANDA-formato), 409 se l'INSTANT_RACE non esiste.
  * Ogni passo si cava da solo: esito '' = riuscito, errore catturato in esito. */
-export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, auto = null, pool = null, pista = null, meteo = null, ora = null, rivali = null, dry = false, force = false } = {}) {
+export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, auto = null, pool = null, pista = null, meteo = null, ora = null, rivali = null, avvia = false, dry = false, force = false } = {}) {
   aiMin = aiMin != null ? aiMin : 88;  // esplicito nel default anche da API con null
   aiMax = aiMax != null ? aiMax : 93;
   if (giri == null && tempo == null) {
@@ -393,7 +398,11 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     let state;
     try { state = loadState(SAVE_FILE); }
     catch { throw new Error('serve un salvataggio di carriera (i comandi per il Cruscotto vivono lì): crealo con ac-evo-career.mjs new, oppure monta la griglia a mano in EVO'); }
-    state.volo = { startedAt: Date.now(), pool, opponents: posti - 1, aiMin, aiMax, car: auto ?? null, pista: pista ?? null, meteo: meteo ?? null, ora: ora ?? null };
+    // IL VIA AUTOMATICO (7/11): il roster armato È il comando del Cruscotto,
+    // quindi è lui a portare il via. avviaFino = 0 senza il flag: la ricetta
+    // resta pronta e la partenza è un gesto tuo (il normale «Imposta in EVO»).
+    const startedAt = Date.now();
+    state.volo = { startedAt, pool, opponents: posti - 1, aiMin, aiMax, car: auto ?? null, pista: pista ?? null, meteo: meteo ?? null, ora: ora ?? null, avviaFino: avvia ? startedAt + 30 * 60 * 1000 : 0 };
     saveState(SAVE_FILE, state);
     scrittoQualcosa = true;
     return `armata: ${descr} — entro pochi secondi il Cruscotto la imposta nel menu e la griglia la scrive EVO (celle sue, non nostre)`;

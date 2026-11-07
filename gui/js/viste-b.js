@@ -929,14 +929,14 @@ async function drawGironi(m){
   $('#gv-subito')?.addEventListener('click', async () => {
     try {
       const out = await api('parti-subito', {});
-      // IL GIOCO PARTE CON LA GARA DENTRO (7/11): il server, dopo aver scritto
-      // la ricetta, apre EVO se è chiuso (passo «gioco (avvio)»). Il toast lo
-      // dice, così non si resta davanti al pannello aspettando un gioco che
-      // nessuno ha aperto.
+      // IL GIOCO PARTE E LA SESSIONE SI AVVIA (7/11, «stesso schema del
+      // campionato»): il server scrive la ricetta col via armato e apre EVO
+      // (passo «gioco (avvio)»); il Cruscotto applica la gara e preme «Avvia
+      // sessione». Il toast lo dice, così non si resta davanti al pannello.
       const avviato = out.lancio?.via && out.lancio.via !== 'already-running';
       gvMostra(out, avviato
-        ? tr({ it: 'EVO si sta aprendo con la gara già dentro: aspetta il menu (il Cruscotto imposta roster e durata appena è in gioco).', en: 'EVO is starting with the race already inside: wait for the menu (the Cruscotto applies roster and length as soon as it is in game).' })
-        : tr({ it: 'Ricetta riapplicata: guarda l\'esito qui sotto, in alto è l\'anteprima della ricetta.', en: 'Recipe reapplied: result below, recipe preview above.' }));
+        ? tr({ it: 'EVO si sta aprendo con la gara già dentro: appena è in gioco il Cruscotto la imposta e parte da sola.', en: 'EVO is starting with the race already inside: as soon as it is in game the Cruscotto applies it and starts by itself.' })
+        : tr({ it: 'Via armato: il Cruscotto imposta la gara e preme «Avvia sessione». Esito qui sotto, anteprima della ricetta in alto.', en: 'Start armed: the Cruscotto applies the race and presses “Start session”. Result below, recipe preview above.' }));
     } catch (e) { toast(e.message, 'err'); }
   });
 

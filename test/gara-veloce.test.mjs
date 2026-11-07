@@ -118,6 +118,24 @@ test('griglia: il roster va al gioco (state.volo), NIENTE customgrid nostro', ()
   assert.throws(() => garaVeloce({ giri: 3, rivali: 18, force: true }), (e) => e.code === 'RIVALI_SENZA_POOL');
 });
 
+/* IL VIA AUTOMATICO DELLA GARA AL VOLO (7/11, «stesso schema del campionato»):
+   il roster armato è il comando del Cruscotto, quindi è LUI a portare il via.
+   Il flag `avvia` di garaVeloce scrive avviaFino nello state.volo; senza flag
+   (il normale «Imposta in EVO») resta 0 e il via non parte da solo. */
+test('via automatico: avvia scrive avviaFino nello state.volo, senza flag resta 0', () => {
+  mkInstant();
+  salvaCarriera();
+  const leggi = () => JSON.parse(readFileSync(join(process.env.EVO_DATA_DIR, 'evo-career.save.json'), 'utf8')).volo;
+  const t0 = Date.now();
+  garaVeloce({ giri: 5, pool: 'ks_f40_lm,ks_ferrari_296_gt3', avvia: true, force: true });
+  const armato = leggi();
+  assert.ok(Number.isFinite(armato?.avviaFino) && armato.avviaFino > t0, 'PARTE SUBITO arma la finestra del via');
+  assert.ok(armato.avviaFino - armato.startedAt <= 31 * 60 * 1000, 'la finestra è di mezz\'ora, non di un giorno');
+  // senza il flag: ricetta pronta, via a mano (il gesto «Imposta in EVO»)
+  garaVeloce({ giri: 5, pool: 'ks_ferrari_296_gt3', force: true });
+  assert.equal(leggi()?.avviaFino, 0, '«Imposta in EVO» non arma il via');
+});
+
 test('sedile con auto fuori libro: passo KO dichiarato, gli altri passi proseguono', () => {
   mkInstant();
   const out = garaVeloce({ giri: 4, auto: 'auto_che_non_esiste', force: true });
