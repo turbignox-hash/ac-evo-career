@@ -60,7 +60,7 @@ import { join, dirname, basename } from 'node:path';
 
 import { gameRunning } from '../src/evo-grid.mjs';
 import { timedRace, setInstantAi, currentInstantRace, INSTANT_FILE } from '../src/set-instantrace.mjs';
-import { specFor, changeWeekendTrack, currentWeekendTrack } from '../src/set-track.mjs';
+import { specFor, changeWeekendTrack, currentWeekendTrack, weekendGridMode, setWeekendGridCustom } from '../src/set-track.mjs';
 import { setWeatherPreset, currentWeatherPreset, presetFor, PRESETS } from '../src/weather.mjs';
 import { setRaceTime, currentRaceTime } from '../src/set-racetime.mjs';
 import { fileURLToPath } from 'node:url';
@@ -280,7 +280,7 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     catch (e) { passi.push({ nome, esito: String(e?.message ?? e), ok: false }); }
   };
 
-  const titolo = `GARA AL VOLO: ${giri != null ? `${giri} giri` : `${tempo} min`} · banda AI ${aiMin}–${aiMax}${pista ? ` · pista ${pista}` : ''}${meteo ? ` · meteo ${meteo}` : ''}${ora != null ? ` · ore ${String(ora).padStart(2, '0')}:00` : ''}${rivali != null ? ` · ${rivali} rivali` : ''}${auto ? ` · sedile ${auto}` : ''}${pool ? ' · roster al gioco' : ''}${dry ? ' · DRY-RUN' : ''}`;
+  const titolo = `GARA AL VOLO: ${giri != null ? `${giri} giri` : `${tempo} min`} · banda AI ${aiMin}–${aiMax}${pista ? ` · pista ${pista}` : ''}${meteo ? ` · meteo ${meteo}` : ''}${ora != null ? ` · ore ${String(ora).padStart(2, '0')}:00` : ''}${rivali != null ? ` · ${rivali} rivali custom` : ''}${auto ? ` · sedile ${auto}` : ''}${pool ? ' · roster al gioco' : ''}${dry ? ' · DRY-RUN' : ''}`;
 
   // 1) DURATA/MODALITÀ della gara (blocco Race dell'INSTANT_RACE)
   step('durata gara', () => {
@@ -347,15 +347,45 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
   //     Prepara fa sul weekend, qui sull'istantanea.
   if (ora != null) step('ora (istantanea)', () => {
     const cur = currentRaceTime(INSTANT_FILE);
-    const r = setRaceTime({ hour: ora, file: INSTANT_FILE, dry, libera: true });
+    // I MINUTI CONTANO (7/11, Mauro: «orario 12:00» e il menu mostrava 12:50):
+    // setRaceTime scriveva solo l'ora e i minuti del file restavano quelli di
+    // prima — e il confronto idempotente guardava solo l'ora, dicendo «già a
+    // posto» su 12:50. Ora si scrive :00 e si confronta anche il minuto.
+    const r = setRaceTime({ hour: ora, minute: 0, file: INSTANT_FILE, dry, libera: true });
     if (!dry && r.written) scrittoQualcosa = true;
     const descr = `ore ${String(ora).padStart(2, '0')}:00`;
-    if (dry) return `dry: scriveresti ${descr} (ora c'è ${cur?.hour != null ? `${String(cur.hour).padStart(2, '0')}:00` : '—'})`;
+    const leggiOra = (x) => (x?.hour != null ? `${String(x.hour).padStart(2, '0')}:${String(x.minute ?? 0).padStart(2, '0')}` : '—');
+    if (dry) return `dry: scriveresti ${descr} (ora c'è ${leggiOra(cur)})`;
     // senza datetime non si può dire «già a posto»: sarebbe un falso positivo
     // (il blocco f4 manca e l'ora non è stata scritta affatto).
     if (cur?.hour == null) throw new Error('l\'istantanea non ha il blocco data/ora (f4): apri UNA volta una gara personalizzata in EVO, poi ripremi');
     if (!r.written) return `${descr}: già a posto (idempotente, niente scritto)`;
-    return `${descr} scritto (era ${cur?.hour != null ? `${String(cur.hour).padStart(2, '0')}:00` : '—'})${r.backup ? ` · backup ${basename(r.backup)}` : ''}`;
+    return `${descr} scritto (era ${leggiOra(cur)})${r.backup ? ` · backup ${basename(r.backup)}` : ''}`;
+  });
+
+  // 3d) TIPO GRIGLIA della gara (7/11, Mauro davanti allo schermo: «dovresti
+  //     fare Tipo griglia di partenza custom e inserire le auto, avversari e
+  //     numero»): il menu Gara veloce nasceva AUTOMATICO — 14 avversari scelti
+  //     da EVO e i modelli del roster ignorati. Il campo che accende il CUSTOM
+  //     è lo stesso del weekend (setWeekendGridMode): 6 = 1 E 7 = N; la forma
+  //     col solo 7 è quella che il gioco scarta e riparte automatico. Quindi
+  //     il passo SCRIVE, non si fida di quel 7 già presente nel file.
+  if (pool?.length) step('tipo griglia (istantanea)', () => {
+    const n = rivali ?? pool.length;
+    const prima = (() => { try { return weekendGridMode(INSTANT_FILE); } catch { return null; } })();
+    const r = setWeekendGridCustom(n, { file: INSTANT_FILE, dry });
+    if (!dry && r.written) scrittoQualcosa = true;
+    const descr = `CUSTOM · ${n} avversari (${n + 1} posti)`;
+    if (dry) return `dry: scriveresti ${descr} (ora c'è ${prima?.mode ?? '?'}${prima?.count != null ? ` ${prima.count}` : ''})`;
+    if (!r.written) return `${descr}: già a posto (idempotente, niente scritto)`;
+    // la rilettura col reader del menu: custom E il conteggio giusto. Se il
+    // campo 6 fosse rimasto fuori, qui si vedrebbe (7 da solo = forma scartata).
+    const dopo = weekendGridMode(INSTANT_FILE);
+    if (dopo?.mode !== 'custom' || Number(dopo?.count) !== n) {
+      throw new Error(`verifica fallita: rileggo ${dopo?.mode ?? '?'}${dopo?.count != null ? ` ${dopo.count}` : ''} invece di custom ${n}`);
+    }
+    const era = prima?.mode === 'custom' && Number(prima.count) === n ? '' : ` (era ${prima?.mode ?? '?'}${prima?.count != null ? ` ${prima.count}` : ''})`;
+    return `${descr} scritta${era}${r.backup ? ` · backup ${basename(r.backup)}` : ''} · vale alla prossima apertura del menu`;
   });
 
   // 4) SEDILE ARMATO (opzionale): l'auto che il Cruscotto comanda nel menu gara

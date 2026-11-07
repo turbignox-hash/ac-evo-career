@@ -107,6 +107,36 @@ test('grigliaGaraFuori: risultato senza auto o parco vuoto → nessun giudizio',
   assert.equal(grigliaGaraFuori({ drivers: [{ car_name: 'X' }] }, { ladder: { nodes: [] }, node: nodo('mono') }), null);
 });
 
+test('forma STRANA (7 senza 6): CUSTOM rimette il 6 = 1, non ci mette il conteggio', () => {
+  // IL CASO VERO del 7/11: l'istantanea della gara al volo aveva 7 = 18 e
+  // NESSUN 6 — la forma che il gioco scarta (menu AUTOMATICO, 14 avversari
+  // suoi). Il primo giro del passo custom inseriva il 6 proprio dove stava il
+  // 7 e poi scriveva il conteggio sul vecchio indice: 6 = 18. Qui si cuce
+  // quella regressione: dopo la cura il 6 DEVE valere 1.
+  const dir = mkdtempSync(join(tmpdir(), 'griglia-strana-'));
+  const file = join(dir, 'GameModeType_INSTANT_RACE.gamemodesave');
+  try {
+    gamemodesave(file, { mode: 'custom', count: 18 });
+    const top = decodeMsg(readFileSync(file));
+    const f3 = top.find((f) => f.field === 3 && f.wire === 2);
+    f3.bytes = encodeMsg(decodeMsg(f3.bytes).filter((s) => !(s.field === 6 && s.wire === 0)));
+    writeFileSync(file, encodeMsg(top));
+    assert.ok(!decodeMsg(decodeMsg(readFileSync(file)).find((f) => f.field === 3 && f.wire === 2).bytes).some((s) => s.field === 6),
+      'la prova parte davvero senza il 6 (il solo 7)');
+
+    const r = setWeekendGridCustom(18, { file });
+    assert.equal(r.written, true, 'la forma strana va CURATA, non dichiarata a posto');
+    const sess = decodeMsg(decodeMsg(readFileSync(file)).find((f) => f.field === 3 && f.wire === 2).bytes);
+    assert.equal(Number(sess.find((s) => s.field === 6)?.varint), 1, 'il 6 vale 1 SEMPRE (in entrambe le forme canoniche)');
+    assert.equal(Number(sess.find((s) => s.field === 7)?.varint), 18, 'il conteggio vive nel 7');
+    assert.deepEqual(weekendGridMode(file), { mode: 'custom', count: 18 });
+    // e il secondo giro non riscrive
+    assert.equal(setWeekendGridCustom(18, { file }).written, false, 'idempotente dopo la cura');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('Il weekend è il contratto: AUTO toglie il 7, CUSTOM lo rimette, AI resta', () => {
   const dir = mkdtempSync(join(tmpdir(), 'griglia-generata-'));
   const file = join(dir, 'GameModeType_RACE_WEEKEND.gamemodesave');

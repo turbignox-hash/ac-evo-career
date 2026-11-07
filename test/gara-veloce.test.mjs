@@ -104,7 +104,13 @@ test('griglia: il roster va al gioco (state.volo), NIENTE customgrid nostro', ()
   const out = garaVeloce({ giri: 3, pool: 'ks_f40_lm,ks_ferrari_296_gt3', rivali: 18, aiMin: 88, aiMax: 93, force: true });
   const g = out.passi.find((p) => p.nome === 'griglia (roster al gioco)');
   assert.ok(g?.ok && /armata/.test(g.esito), JSON.stringify(g));
-  assert.equal(out.passi.length, 3, 'durata + banda + griglia: la lista resta completa');
+  assert.equal(out.passi.length, 4, 'durata + banda + tipo griglia + griglia: la lista resta completa');
+  // IL TIPO GRIGLIA (7/11, Mauro davanti al menu: «Tipo griglia di partenza
+  // custom e inserire le auto, avversari e numero»): senza questo passo il menu
+  // nasceva AUTOMATICO — 14 avversari scelti da EVO e roster ignorato.
+  const tg = out.passi.find((p) => p.nome === 'tipo griglia (istantanea)');
+  assert.ok(tg?.ok, JSON.stringify(tg));
+  assert.match(tg.esito, /CUSTOM · 18 avversari/, 'custom col numero chiesto, non i 14 del gioco');
   // IL PATTO (7/11): la griglia la scrive EVO coi suoi preset — il tool non
   // tocca più il customgrid, quindi non può più consegnare celle assemblate.
   assert.ok(!existsSync(GRID_GV()), 'nessun customgrid scritto dal tool');

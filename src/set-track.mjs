@@ -540,7 +540,7 @@ export function setWeekendGridMode(mode, count, { file = WEEKEND_FILE, dry = fal
       if (!f3) throw Object.assign(new Error('blocco sessione (campo 3) non trovato nel gamemodesave'), { code: 'NO_SESSION' });
       const session = decodeMsg(f3.bytes);
       let i6 = session.findIndex((s) => s.field === 6 && s.wire === 0);
-      const i7 = session.findIndex((s) => s.field === 7 && s.wire === 0);
+      let i7 = session.findIndex((s) => s.field === 7 && s.wire === 0);
       let touched = false;
       // il 6 = 1 è presente in ENTRAMBE le forme canoniche: se manca (save
       // strano), lo scrivo in prima posizione tra i campi alti, dopo il 5.
@@ -548,6 +548,17 @@ export function setWeekendGridMode(mode, count, { file = WEEKEND_FILE, dry = fal
         const i = session.findIndex((s) => s.field > 6);
         session.splice(i >= 0 ? i : session.length, 0, { field: 6, wire: 0, varint: BigInt(1) });
         i6 = i >= 0 ? i : session.length - 1;
+        // L'INDICE DEL 7 SI SPOSTA con l'inserimento (7/11, la gara al volo ha
+        // trovato l'istantanea con 7 e SENZA 6): inserendo il 6 proprio dove
+        // stava il 7, il vecchio i7 puntava al 6 e ci finiva il conteggio
+        // (6 = N) — la forma che il gioco scarta, di nuovo AUTOMATICO. Si
+        // rilegge DOPO l'inserimento.
+        i7 = session.findIndex((s) => s.field === 7 && s.wire === 0);
+        touched = true;
+      } else if (Number(session[i6].varint) !== 1) {
+        // il 6 porta SEMPRE 1 (in entrambe le forme): un altro valore è una
+        // scrittura storta di prima e va riportata alla forma canonica.
+        session[i6].varint = BigInt(1);
         touched = true;
       }
       const out = { mode: custom ? 'custom' : 'automatic', count: custom ? n : null };

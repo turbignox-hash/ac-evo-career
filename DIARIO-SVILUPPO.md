@@ -1,5 +1,16 @@
 # Diario di sviluppo
 
+### 7/11 — il TIPO GRIGLIA entra nella gara al volo: CUSTOM, 18 avversari, e i minuti dell'ora
+
+- **Richiesta di Mauro** (davanti alla schermata GARA VELOCE): «qui è sbagliato, dovresti fare Tipo griglia di partenza custom e inserire le auto, avversari e numero».
+- **Il difetto visto in pista**: con la ricetta da 18 rivali il menu mostrava **TIPO GRIGLIA PARTENZA = AUTOMATICO** e **NUMERO DI AVVERSARI = 14** — cioè EVO si sceglieva i rivali da sé e i modelli del roster (gli 8 del pool) venivano ignorati. Il file dell'istantanea aveva `3.7 = 18` ma **nessun 3.6**: è la forma che il gioco scarta (lo diceva già [src/set-track.mjs](src/set-track.mjs): AUTOMATIC = 6 = 1 senza 7, CUSTOM = 6 = 1 **e** 7 = N). Il passo che scrive la forma canonica lo faceva solo «Prepara tutto» sul weekend, mai sulla gara al volo.
+- **Il passo nuovo** «tipo griglia (istantanea)» in [tools/_gara-veloce.mjs](tools/_gara-veloce.mjs): con un roster armato scrive CUSTOM + N (`setWeekendGridCustom(N, { file: INSTANT_FILE })`, N = rivali, così il menu mostra 18 avversari / 19 posti), rilegge col reader del menu e **fallisce se il campo 6 non è rimasto fuori** — niente ✓ compiacente. Il titolo ora dice «18 rivali custom».
+- **Bug trovato nel rimedio (e chiuso)**: inserendo il 6 «dove stava il 7» l'indice del 7 restava quello di prima e il conteggio finiva sul 6 (`6 = 18`, di nuovo forma scartata). Ora il 7 si rilegge DOPO l'inserimento e il 6 è forzato a 1 anche se un write storto l'aveva sporcato.
+- **L'orario era 12:50, non 12:00**: `setRaceTime` riceveva solo l'ora e i minuti del file restavano quelli vecchi (e il confronto idempotente guardava solo l'ora, quindi diceva pure «già a posto»). Ora si scrive anche `minute: 0` e si confronta il minuto.
+- **Verifiche vere**: su una **copia** dell'istantanea reale `3.7 = 18` → dopo la cura `3.6 = 1 3.7 = 18` (reader: custom 18), secondo giro `written: false` (idempotente), cambio a 12 → `3.7 = 12`; orario `12:50 → 12:00` scritto; asciutta sui file reali: tutti i passi ✓ tranne la pista che rifiuta a gioco aperto (per scelta: si scrive a gioco chiuso o con --force). `npm test` **1.295 test, 1.293 pass, 0 fail, 2 skip**; Biome pulito su **448** file. Test nuovi/corretti: `test/griglia-generata.test.mjs` (forma 7-senza-6 → 6 = 1, non il conteggio) e `test/gara-veloce.test.mjs` (quattro passi, esito `CUSTOM · 18 avversari`).
+- **Come si usa**: chiudere EVO, poi **PARTE SUBITO** (il gioco si apre leggendo il file già in forma CUSTOM). A EVO **aperto** la scrittura non si fa — e se il menu è già sulla schermata, un APPLICA riscrive la sua forma: il file vale alla prossima apertura del menu.
+- **Resta dichiarato**: la griglia la monta EVO coi suoi preset dai modelli del roster (18 posti da 8 modelli, livree ripetute): se all'avvio arriva il `0xC0000005`, il primo numero da abbassare è quello dei rivali.
+
 ### 7/11 — caccia ai bug prima dell'endurance da 10 minuti (gara al volo)
 
 - **Richiesta di Mauro**: «vai a caccia di bug, appena rientro proviamo la gara endurance da 10 m».
