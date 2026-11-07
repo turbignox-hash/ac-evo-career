@@ -572,6 +572,25 @@
     // NIENTE GIRI: la durata resta quella scritta su disco.
     let weekendOk = false;
     try {
+      // GRIGLIA PULITA PRIMA DI SEMINARLA (7/11, richiesta Mauro: «usa
+      // ClearGridOptions prima di applicare la griglia, così i posti sono
+      // esattamente quelli chiesti»). Il comando è nel binario
+      // (AVGameModeSelectionClientRequestClearGridOptions) e si chiama PRIMA di
+      // leggere i parametri: così il gioco ci consegna una sessione senza i
+      // modelli/avversari della gara di prima — è lì che nascevano le 21 celle
+      // per 19 posti chiesti (la griglia vecchia si sommava alla nuova).
+      // Best effort: se il menu non risponde si va avanti, perché la conferma
+      // finale (3 giri su opponents/models) rifiuta comunque una griglia
+      // sbagliata e in quel caso l'avvio automatico non parte.
+      if (c.modo === 'instant' && c.weekend && typeof c.weekend === 'object') {
+        try {
+          const rcl = await giocoComando('GameModeSelectionClientRequestClearGridOptions', { mode: MODO_SINGLE }, 8000);
+          loga('ClearGridOptions: ' + okTesto(rcl));
+          if (rcl && rcl.response === OK_RISPOSTA) fatti.push('griglia azzerata');
+        } catch (e) {
+          loga('ClearGridOptions: ' + (e?.message ?? e));
+        }
+      }
       const gp = await giocoComando('GameModeSelectionClientRequestGameModeParameters', { mode: MODO_SINGLE }, 8000);
       const w = c.weekend && typeof c.weekend === 'object' ? c.weekend : null;
       if (!gp && w) {
