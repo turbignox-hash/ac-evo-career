@@ -19,23 +19,19 @@ function tipoTracciatoLabel(t) {
   return tr(map[String(t ?? '').trim().toLowerCase()] ?? { it: 'sconosciuto', en: 'unknown' });
 }
 async function drawImport(m){
-  const [insp, card] = await Promise.all([api('import-inspect'), api('card')]);
+  if (!m || !document.body.contains(m)) return;
   const pending = boot.header.pending;
   m.innerHTML = `
-  <div class="panel">
-    <h2>${tr({ it: 'Importa il risultato', en: 'Import the result' })}${pending ? ` <span class="h-act">${tr({ it: 'atteso: R', en: 'expected: R' })}${pending.round+1} ${esc(pending.trackNames[0])}</span>` : ''}</h2>
+  <div class="panel" id="imp-panel">
+    <h2>🏁 ${tr({ it: 'Importa la gara appena conclusa', en: 'Import the race just completed' })}${pending ? ` <span class="h-act">${tr({ it: 'attesa: R', en: 'expected: R' })}${pending.round+1} ${esc(pending.trackNames[0])}</span>` : ''}</h2>
+    <div class="muted" style="font-size:12.5px;margin:-4px 0 8px">${tr({ it: 'Importa l’ultima gara EVO compatibile nella carriera; se il pilota non viene riconosciuto, inserisci qui il piazzamento visto nei risultati del gioco.', en: 'Import the latest compatible EVO race into the career; if the driver is not recognized, enter the finish shown in the game results.' })}</div>
     <div class="row">
       <button class="act" id="b-import">${tr({ it: "Importa l'ultima gara compatibile", en: "Import the last compatible race" })}</button>
-      <button class="ghost" id="b-reload">${tr({ it: 'Ricarica elenco', en: 'Reload list' })}</button>
     </div>
-    <div id="imp-result"></div>
-    <table style="margin-top:14px"><thead><tr><th>${tr({ it: 'File', en: 'File' })}</th><th>${tr({ it: 'Sessione', en: 'Session' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Piloti', en: 'Drivers' })}</th><th>${tr({ it: 'Tu', en: 'You' })}</th></tr></thead>
-    <tbody>${insp.files.map(f=>`<tr><td class="muted">${esc(f.name)}</td><td>${esc(f.session)}</td><td>${esc(f.track)}</td><td class="right">${f.drivers}</td><td>${f.me?`<span class="tag green">P${f.me.position}${f.me.dnf?` ${tr({ it: 'ritiro', en: 'DNF' })}`:''}</span> <span class="muted" title="${tr({ it: 'riconosciuto per: ', en: 'recognized by: ' })}${esc(f.me.how)} — ${tr({ it: 'il tuo nome nel file è quello senza pallino AI', en: 'your name in the file is the one without the AI dot' })}">${tr({ it: 'tu (', en: 'you (' })}${window.carLinkHtml(f.me.car ?? '')})</span>`:'<span class="faint">—</span>'}</td></tr>`).join('')}</tbody>
-    </table>
-    <div class="muted" style="margin-top:12px">${tr({ it: 'Se il gioco non ti riconosce, inserisci la posizione a mano qui sotto (la vedi nella schermata risultati di EVO).', en: "If the game doesn't recognize you, enter the position by hand below (you'll see it on EVO's results screen)." })}</div>
+    <div id="imp-result">${window.__dashboardImportOutcomeHtml ?? ''}</div>
     <form id="f-manual" class="row" style="margin-top:8px">
       <input type="number" id="i-pos" min="1" placeholder="${tr({ it: 'posizione', en: 'position' })}" style="width:120px" required>
-      <input type="number" id="i-cars" min="2" placeholder="${tr({ it: 'auto in griglia', en: 'cars on grid' })}" style="width:150px" value="${card.gridSize}">
+      <input type="number" id="i-cars" min="2" placeholder="${tr({ it: 'auto in griglia', en: 'cars on grid' })}" style="width:150px" value="${boot.header.gridSize}">
       <input type="number" id="i-laps" min="0" placeholder="${tr({ it: 'giri', en: 'laps' })}" style="width:90px" title="${tr({ it: 'facoltativo', en: 'optional' })}">
       <input type="text" id="i-bestlap" placeholder="${tr({ it: 'miglior giro (m:ss.mmm)', en: 'best lap (m:ss.mmm)' })}" style="width:180px" title="${tr({ it: 'facoltativo', en: 'optional' })}">
       <label class="muted" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="i-dnf"> ${tr({ it: 'ritiro', en: 'DNF' })}</label>
@@ -43,25 +39,58 @@ async function drawImport(m){
       <button class="ghost" type="submit">${tr({ it: 'Inserisci a mano', en: 'Enter by hand' })}</button>
     </form>
   </div>`;
-  $('#b-reload').onclick = () => render();
-  $('#b-import').onclick = async () => {
-    const b = $('#b-import'); b.disabled = true; b.innerHTML = '<span class="spin"></span>';
-    await importCall({}); b.disabled=false; b.textContent=tr({ it: "Importa l'ultima gara compatibile", en: "Import the last compatible race" });
+  const box = m.querySelector('#imp-result');
+  bindImportOutcome(box);
+  m.querySelector('#b-import').onclick = async (event) => {
+    const b = event.currentTarget; b.disabled = true; b.innerHTML = '<span class="spin"></span>';
+    await importCall({}, box); b.disabled=false; b.textContent=tr({ it: "Importa l'ultima gara compatibile", en: "Import the last compatible race" });
   };
-  $('#f-manual').onsubmit = async (e) => {
+  m.querySelector('#f-manual').onsubmit = async (e) => {
     e.preventDefault();
-    await importCall({ position: Number($('#i-pos').value), cars: Number($('#i-cars').value), dnf: $('#i-dnf').checked, fl: $('#i-fl').checked,
-      laps: $('#i-laps').value ? Number($('#i-laps').value) : null, bestLap: $('#i-bestlap').value || null });
+    await importCall({ position: Number(m.querySelector('#i-pos').value), cars: Number(m.querySelector('#i-cars').value), dnf: m.querySelector('#i-dnf').checked, fl: m.querySelector('#i-fl').checked,
+      laps: m.querySelector('#i-laps').value ? Number(m.querySelector('#i-laps').value) : null, bestLap: m.querySelector('#i-bestlap').value || null }, box);
   };
 }
 
-async function importCall(body){
-  const box = $('#imp-result');
+async function drawImportFiles(host){
+  if (!host) return;
+  host.innerHTML = `<div class="muted">${tr({ it: 'Lettura dei file risultati…', en: 'Reading result files…' })}</div>`;
+  try {
+    const insp = await api('import-inspect');
+    if (!document.body.contains(host)) return;
+    const rows = insp.files ?? [];
+    host.innerHTML = rows.length ? `<table><thead><tr><th>${tr({ it: 'File', en: 'File' })}</th><th>${tr({ it: 'Sessione', en: 'Session' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th class="right">${tr({ it: 'Piloti', en: 'Drivers' })}</th><th>${tr({ it: 'Tu', en: 'You' })}</th></tr></thead><tbody>
+      ${rows.map(f=>`<tr><td class="muted">${esc(f.name)}</td><td>${esc(f.session)}</td><td>${esc(f.track)}</td><td class="right">${f.drivers}</td><td>${f.me?`<span class="tag green">P${f.me.position}${f.me.dnf?` ${tr({ it: 'ritiro', en: 'DNF' })}`:''}</span> <span class="muted" title="${tr({ it: 'riconosciuto per: ', en: 'recognized by: ' })}${esc(f.me.how)} — ${tr({ it: 'il tuo nome nel file è quello senza pallino AI', en: 'your name in the file is the one without the AI dot' })}">${tr({ it: 'tu (', en: 'you (' })}${window.carLinkHtml(f.me.car ?? '')})</span>`:'<span class="faint">—</span>'}</td></tr>`).join('')}</tbody></table>`
+      : `<div class="empty">${tr({ it: 'Nessun file risultato trovato.', en: 'No result files found.' })}</div>`;
+  } catch (err) {
+    if (document.body.contains(host)) host.innerHTML = `<div class="banner warn">${esc(err.message)}</div>`;
+  }
+}
+
+function bindImportOutcome(box){
+  if (!box) return;
+  box.querySelector('#b-debrief-analisi')?.addEventListener('click', () => vai('analisi'));
+  box.querySelector('#b-nudge-accept')?.addEventListener('click', async () => {
+    try {
+      const out = await api('difficulty-nudge', { delta: 1 });
+      const b = box.querySelector('#b-nudge-accept');
+      const lo = out?.card?.difficulty?.rangeMin ?? '?', hi = out?.card?.difficulty?.rangeMax ?? '?';
+      if (b) { b.disabled = true; b.textContent = `${tr({ it: 'Fatto: banda a ', en: 'Done: band at ' })}${lo}–${hi}%.`; }
+      toast(`${tr({ it: 'Difficoltà della serie portata a ', en: 'Series difficulty moved to ' })}${lo}–${hi}%.`, 'ok');
+      await refreshBoot();
+    } catch(err){ toast(err.message, 'err'); }
+  });
+}
+
+async function importCall(body, box = $('#imp-result')){
+  if (!box) return;
   try {
     const r = await api('import', body);
     await refreshBoot();
     if (r.duplicate || !r.entry) {
       box.innerHTML = `<div class="banner warn"><b>${tr({ it: 'Nessun nuovo risultato registrato', en: 'No new result recorded' })}</b> — ${esc(r.source ?? tr({ it: 'file già incassato', en: 'file already collected' }))}<br><span class="muted">${tr({ it: 'I soldi, i punti e il registro rivali restano come erano: niente doppioni.', en: 'Money, points and the rivals ledger stay as they were: no duplicates.' })}</span></div>`;
+      if (box.closest('#dashboard-import')) window.__dashboardImportOutcomeHtml = box.innerHTML;
+      bindImportOutcome(box);
       return;
     }
     const e = r.entry;
@@ -83,26 +112,16 @@ async function importCall(body){
       ${r.entry?.sectors ? sectorRowsHtml(r.entry.sectors) : ''}
       ${r.debrief ? debriefHtml(r.debrief) : ''}
     </div>`;
+    if (box.closest('#dashboard-import')) window.__dashboardImportOutcomeHtml = box.innerHTML;
   } catch(e){
     const d = e.data || {};
     let extra = '';
     if (d.code === 'PLAYER_NOT_FOUND') extra = `<br>${tr({ it: 'Piloti senza pallino AI: ', en: 'Drivers without the AI dot: ' })}<b>${esc((d.detail?.candidates||[]).join(', '))}</b>. ${tr({ it: 'Correggi il nome in Impostazioni, o inserisci a mano.', en: 'Fix the name under Settings, or enter it by hand.' })}`;
     if (d.code === 'TRACK_MISMATCH') extra = `<br>${tr({ it: 'Gara trovata su ', en: 'Race found at ' })}<b>${esc(d.detail?.actual)}</b>, ${tr({ it: 'attesa su ', en: 'expected at ' })}<b>${esc((d.detail?.expected||[]).join(' / '))}</b>.`;
     box.innerHTML = `<div class="banner bad">${esc(e.message)}${extra}</div>`;
+    if (box.closest('#dashboard-import')) window.__dashboardImportOutcomeHtml = box.innerHTML;
   }
-  $('#b-debrief-analisi', box)?.addEventListener('click', () => {
-    document.querySelector('#nav button[data-tab="analisi"]')?.click();
-  });
-  $('#b-nudge-accept', box)?.addEventListener('click', async () => {
-    try {
-      const out = await api('difficulty-nudge', { delta: 1 });
-      const b = $('#b-nudge-accept', box);
-      const lo = out?.card?.difficulty?.rangeMin ?? '?', hi = out?.card?.difficulty?.rangeMax ?? '?';
-      if (b) { b.disabled = true; b.textContent = `${tr({ it: 'Fatto: banda a ', en: 'Done: band at ' })}${lo}–${hi}%.`; }
-      toast(`${tr({ it: 'Difficoltà della serie portata a ', en: 'Series difficulty moved to ' })}${lo}–${hi}%.`, 'ok');
-      await refreshBoot();
-    } catch(err){ toast(err.message, 'err'); }
-  });
+  bindImportOutcome(box);
 }
 
 /* -------- debrief di fine gara (30/10) --------

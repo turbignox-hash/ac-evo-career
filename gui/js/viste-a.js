@@ -489,6 +489,7 @@ async function drawDashboard(m){
         <div id="riepilogo-live-body"><div class="muted" style="font-size:12.5px">…</div></div>
         <div class="row" style="margin-top:8px"><button class="mini" id="rl-ric">↻ ${tr({ it: 'Ricarica', en: 'Reload' })}</button></div>
       </div>
+      <div id="dashboard-import"></div>
       <!-- COPERTURA PER L'ANALISI (6/11): segnala le piste dove i dati non
            bastano, con cosa manca. Classifica calcolata dal server
            (analysisGaps in coverage.mjs), qui solo resa. -->
@@ -574,7 +575,7 @@ async function drawDashboard(m){
   drawLifePanel();
   drawHeritagePanel();
   drawEventsPanel();
-  
+  drawImport($('#dashboard-import'));
 
   /* IL VERDETTO nel cruscotto (30/10): parte da solo al disegno della vista
      (la giornata di oggi si legge subito), il bottone ricalcola dopo

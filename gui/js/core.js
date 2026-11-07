@@ -339,7 +339,6 @@ const TABS = [
   ['tracks',         tr({ it: 'Piste',          en: 'Tracks' })],
   ['cars',           tr({ it: 'Auto',           en: 'Cars' })],
   ['garage',         tr({ it: 'Garage',         en: 'Garage' })],
-  ['import',         tr({ it: 'Risultati',      en: 'Results' })],
   ['archive',        tr({ it: 'Archivio',       en: 'Archive' })],
   ['online',         tr({ it: 'Online',         en: 'Online' })],
   ['gironi',         tr({ it: 'Giri liberi',    en: 'Free laps' })],
@@ -357,7 +356,7 @@ const TABS = [
    è più scheda da barra: vive DENTRO Campionati come pannello a pieghevole
    (drawChampionships) — funzione intatta, un posto in meno in barra. */
 const NAV_GROUPS = [
-  { label: { it: 'Gara', en: 'Race' }, ids: ['dashboard', 'agenda', 'setup', 'analisi', 'messages', 'import'] },
+  { label: { it: 'Gara', en: 'Race' }, ids: ['dashboard', 'agenda', 'setup', 'analisi', 'messages'] },
   { label: { it: 'Campionato', en: 'Championship' }, ids: ['championships', 'griglia', 'rivals', 'tracks', 'cars', 'garage'] },
   { label: { it: 'Archivio', en: 'Archive' }, ids: ['archive', 'online', 'gironi', 'stats'] },
   { label: { it: 'Sistema', en: 'System' }, ids: ['banca', 'difficulty', 'settings'] },
@@ -365,7 +364,7 @@ const NAV_GROUPS = [
 const TAB_COLORS = {
   dashboard:'#5da9ff', agenda:'#ff7a45', calendar:'#b48cff', standings:'#ffd166',  rivals:'#ff6b6b',
   analisi:'#a3e433',
-  tracks:'#e8c46b', cars:'#74c0fc', garage:'#ffd43b', import:'#63e6e2', griglia:'#82ccdd',
+  tracks:'#e8c46b', cars:'#74c0fc', garage:'#ffd43b', griglia:'#82ccdd',
   setup:'#f78fb3', catalog:'#82ccdd',  archive:'#c9a0ff', online:'#5eead4', stats:'#69db7c',
   gironi:'#63e6be',
   difficulty:'#5f7cff', messages:'#ffa94d', settings:'#adb5bd', banca:'#ffd43b',
@@ -377,7 +376,7 @@ let tab = 'dashboard';
    \' niente stringhetricité: lezione del 27/10 (il primo inserto era rotto).
    Le base strings in precedenza non respirano: la GUI si spiega da sola. */
 const AIUTO = [
-  ['dashboard', { it: 'La tua giornata: classifica di stagione, contratto, eredità, eventi e la scheda della prossima gara col tasto Prepara.', en: 'Your day: season standings, contract, legacy, events and the next-race sheet with the Get-ready button.' }],
+  ['dashboard', { it: 'La tua giornata: importazione della gara appena conclusa, riepilogo post-sessione, classifica di stagione, contratto, eredità ed eventi.', en: 'Your day: import the race just completed, review the post-session summary, standings, contract, legacy and events.' }],
   ['agenda', { it: 'Il calendario: i round da correre, nel weekend con ora, giri e meteo già scritti dal tool.', en: 'The calendar: rounds ahead, with hour, laps and weather written by the tool for each weekend.' }],
   ['setup', { it: 'La scheda del meccanico: assetti, pressioni e benzina consigliati per la gara (si portano a mano in EVO).', en: 'The mechanic sheet: recommended setup, pressures and fuel for the race (entered by hand in EVO).' }],
   ['analisi', { it: 'Telemetria dei tuoi giri: confronto best-lap, settori e curva di guida su sessioni nuove o ricaricate.', en: 'Your lap telemetry: best-lap comparison, sectors and driving curve on fresh or loaded sessions.' }],
@@ -388,8 +387,7 @@ const AIUTO = [
   ['tracks', { it: 'Il libro delle piste: record personali, layout e storie di ogni tracciato.', en: 'The track book: personal records, layouts and stories for every circuit.' }],
   ['cars', { it: 'Le auto: schede tecniche e compatibilità, anche di quelle viste nel content di EVO.', en: 'The cars: spec sheets and compatibility, including cars found in the EVO content.' }],
   ['garage', { it: 'Il tuo box: auto possedute e setup registrati.', en: 'Your garage: owned cars and saved setups.' }],
-  ['import', { it: 'Risultati: le gare di EVO si importano nella carriera (dopo la gara premi qui) — è il libro incassi e piazzamenti.', en: 'Results: EVO races are imported into the career (press here after a race) — it is the book of takings and finishes.' }],
-  ['archive', { it: 'La memoria di tutto quello che hai corso: risultati storici e statistiche passate.', en: 'Everything you ever raced: historical results and past stats.' }],
+  ['archive', { it: 'La memoria della carriera: piazzamenti importati e sessioni salvate da EVO.', en: 'Your career memory: imported finishes and sessions saved by EVO.' }],
   ['online', { it: 'Le gare multiplayer: ogni sessione online resta qui come memoria (zero punti, zero soldi), col libro di chi hai incrociato online.', en: 'Multiplayer races: every online session stays here as memory (no points, no money), with the book of who you met online.' }],
   ['gironi', { it: 'I giri liberi: scegli pista e auto, gira a piacere — ogni giro è registrato e analizzato (best lap, settori, progresso).', en: 'Free laps: pick track and car, drive freely — each lap is recorded and analysed (best lap, sectors, progress).' }],
   ['stats', { it: 'I numeri della carriera: vittorie, podi, punti e curve di andamento.', en: 'Career numbers: wins, podiums, points and form curves.' }],
@@ -603,7 +601,6 @@ async function render(){
     if (tab==='gironi')     return await drawGironi(M);
     if (tab==='stats')      return await drawStats(M);
     if (tab==='banca')      return await drawBanca(M);
-    if (tab==='import')     return await drawImport(M);
     if (tab==='griglia')    return await drawGridTab(M);
     if (tab==='setup')      return await drawSetup(M);
     if (tab==='difficulty') return await drawDifficulty(M);

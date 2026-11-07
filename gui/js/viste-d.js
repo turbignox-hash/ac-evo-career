@@ -393,6 +393,10 @@ async function drawSettings(m){
         <button class="ghost" type="submit">${tr({ it: 'Salva percorsi', en: 'Save paths' })}</button>
       </form>
     </div>
+    <div class="panel"><h2>${tr({ it: 'File risultati EVO', en: 'EVO result files' })} <span class="h-act">${tr({ it: 'riconoscimento del pilota e sessioni recenti', en: 'driver recognition and recent sessions' })}</span></h2>
+      <div class="muted" style="font-size:12.5px;margin-bottom:8px">${tr({ it: 'Elenco tecnico dei file scritti dal gioco; l’importazione nella carriera si fa dal Cruscotto, accanto al riepilogo post-gara.', en: 'Technical list of files written by the game; import into the career from the Dashboard, next to the post-race summary.' })}</div>
+      <div id="settings-import-files"><div class="muted">${tr({ it: 'Lettura dei file…', en: 'Reading files…' })}</div></div>
+    </div>
     <div class="panel"><h2>${tr({ it: 'Manutenzione', en: 'Maintenance' })}</h2>
       <div class="muted">${tr({ it: 'Nome attuale in carriera', en: 'Current career name' })}</div><div style="font-size:18px;font-weight:600">${esc(h.driver.name)}</div>
       <div class="muted" style="margin-top:4px">${tr({ it: "Deve essere uguale al nome con cui corri in EVO: serve a riconoscerti all'import dei risultati.", en: 'It must match the name you race with in EVO: it is how the result import recognizes you.' })}</div>
@@ -433,11 +437,12 @@ async function drawSettings(m){
         <button class="mini ghost" id="b-maint-flows">${tr({ it: 'Ricalcola flussi dal salvataggio', en: 'Re-seed flows from the save' })}</button>
         <button class="mini ghost" id="b-maint-dedup">${tr({ it: 'Elimina doppioni dei flussi', en: 'Remove duplicate flows' })}</button>
       </div>
-      <div class="muted" style="margin-top:6px;font-size:12.5px">${tr({ it: 'Le pulizie chiedono conferma: tocchano liste di memoria (annunci, registro anti-doppioni, registro flussi) e niente torna indietro. Flussi ricalcolati e doppioni tolti non toccano il salvataggio: solo il registro, che si ricostruisce dai valori attuali.', en: 'Cleanups ask for confirmation first: they touch memory lists (posts, anti-duplicate ledger, flow ledger) and there is no way back. Re-seeding and dedup leave the save untouched: only the ledgers change, rebuilt from current values.' })}</div>
+      <div class="muted" style="margin-top:6px;font-size:12.5px">${tr({ it: 'Le pulizie chiedono conferma: toccano liste di memoria (annunci, registro anti-doppioni, registro flussi) e niente torna indietro. Flussi ricalcolati e doppioni tolti non toccano il salvataggio: solo il registro, che si ricostruisce dai valori attuali.', en: 'Cleanups ask for confirmation first: they touch memory lists (posts, anti-duplicate ledger, flow ledger) and there is no way back. Re-seeding and dedup leave the save untouched: only the ledgers change, rebuilt from current values.' })}</div>
       <div id="maint-out" style="margin-top:8px;font-size:13px"></div>
     </div>
   </div>`;
   // slot cliccabili: il bottone nella riga lancia pilota-N.cmd via slot-launch
+  drawImportFiles($('#settings-import-files', m));
   if (typeof drawAggStatus === 'function') drawAggStatus($('#agg-status', m));
   $$('button[data-slot-go], button[data-slot-open]').forEach(b => { b.onclick = () => {
     const n = b.dataset.slotGo ?? b.dataset.slotOpen;
@@ -619,7 +624,7 @@ async function drawSettings(m){
   manutenzione('b-maint-board', 'clear-messages', tr({ it: 'Svuotare la bacheca?', en: 'Clear the board?' }),
     `<p>${tr({ it: 'Tutti gli annunci in bacheca (anello a 60, quello che gira) vengono cancellati: premi, integrità e avvisi spariscono. Restano gare, soldi, statistiche e registro flussi.', en: 'All board posts (the 60-slot ring) are deleted: prizes, integrity and warnings disappear. Races, money, stats and the flow ledger stay.' })}</p>`);
   manutenzione('b-maint-ledger', 'reset-ledger', tr({ it: 'Azzerare il registro import?', en: 'Reset the import ledger?' }),
-    `<p>${tr({ it: 'Il registro anti-doppioni va a vuoto: un file risultato già incassato potrebbe essere rincassato se lo re-importi da Centro gare. Usa solo se il registro è corrotto.', en: 'The anti-duplicate ledger is emptied: a result file already banked could be banked again if you re-import it by hand. Only use this if the ledger is corrupted.' })}</p>`);
+    `<p>${tr({ it: 'Il registro anti-doppioni va a vuoto: un file risultato già incassato potrebbe essere rincassato se lo re-importi dal Cruscotto. Usa solo se il registro è corrotto.', en: 'The anti-duplicate ledger is emptied: a result file already banked could be banked again if you re-import it by hand. Only use this if the ledger is corrupted.' })}</p>`);
   manutenzione('b-maint-flows', 'reseed-flows', tr({ it: 'Ricalcolare i flussi?', en: 'Re-seed the flow ledger?' }),
     `<p>${tr({ it: 'Il registro flussi viene azzerato e riparte da UNA riga di seme allineata a cassa e reputazione attuali del salvataggio. Il salvataggio non cambia.', en: 'The flow ledger is emptied and restarts from ONE seed row aligned with the save\'s current money and reputation. The save is not changed.' })}</p>`);
   $('#b-maint-dedup').onclick = async () => {
@@ -1266,7 +1271,7 @@ async function drawLiveStrip(){
       if (r.liveMode === 'off'){
         host.className = 'chip';
         host.innerHTML = `<span class="dot"></span> ${tr({ it: 'Live spento · ', en: 'Live off · ' })}<b data-live-on style="cursor:pointer;text-decoration:underline">${tr({ it: 'attiva', en: 'enable' })}</b>`;
-        host.title = tr({ it: 'Telemetria live disattivata a mano: niente strip in pista, verifica di gara LIVE e import automatico dei risultati (importa a mano da Centro gare). «attiva» la rimette in AUTO: riparte da sola quando apri EVO. Sopra restano valide: il chip GIOCO segue il processo del gioco.', en: 'Live telemetry switched off by hand: no on-track strip, no LIVE race check and no automatic result import (import by hand from Race centre). "enable" puts it back to AUTO: it starts by itself when you open EVO. Above still true: the GAME chip follows the game process.' });
+        host.title = tr({ it: 'Telemetria live disattivata a mano: niente strip in pista, verifica di gara LIVE e import automatico dei risultati (importa a mano dal Cruscotto). «attiva» la rimette in AUTO: riparte da sola quando apri EVO. Sopra restano valide: il chip GIOCO segue il processo del gioco.', en: 'Live telemetry switched off by hand: no on-track strip, no LIVE race check and no automatic result import (import by hand from Race centre). "enable" puts it back to AUTO: it starts by itself when you open EVO. Above still true: the GAME chip follows the game process.' });
         return;
       }
       const age = Date.now() - (h?.telem?.lastLd?.mtimeMs ?? 0);

@@ -32,7 +32,7 @@ import './_flows-sandbox.mjs';
 //
 // (3/11, TUTTI I TAB, richiesta Mauro: «aggiungi alla guardia di layout anche
 // i restanti tab della GUI… mantenendo le stesse misure di stabilità»): la
-// stesa copre ORA l'intera nav (19 tab), stessi 4 larghezze, stessa sonda,
+// stesa copre ORA l'intera nav (18 tab), stessi 4 larghezze, stessa sonda,
 // stesse leggi (marcatore unico + stabilità della geometria + niente
 // sovrapposizioni + niente errori JS nuovi). Quattro viste non avevano un id
 // stabile: ora ognuna porta il SUO marcatore (#mx-posta Messaggi,
@@ -41,7 +41,7 @@ import './_flows-sandbox.mjs';
 //
 // (3/11, QUINTA LARGHEZZA, richiesta Mauro: «aggiungi la larghezza 320 px alla
 // guardia di layout e verifica che non compaia nessuna sovrapposizione»): 320
-// si mette SOTTO alle altre — il re dei telefoni stretti e delle finestre// affiancate davvero piccole — 95 misure (5 larghezze × 19 tab).
+// si mette SOTTO alle altre — il re dei telefoni stretti e delle finestre// affiancate davvero piccole — 95 misure (5 larghezze × 18 tab).
 ////
 // (3/11, DUE TAB NASCOSTI, richiesta Mauro: «estendi la guardia al tab
 // nascosto Calendario e alla Classifica Mondiale, dandogli un marcatore
@@ -53,13 +53,16 @@ import './_flows-sandbox.mjs';
 // #cal-titolo Calendar, #mondo-vetrina Classifica Mondiale. La Classifica
 // ha il marcatore sul PANEL e NON sull'h2: worldRankingInner è riciclato
 // anche nel pieghevole dei Campionati (#mondo-fold) e l'h2 condiviso non
-// poteva dire «solo qui». 105 misure (5 larghezze × 21 tab).
+// poteva dire «solo qui». 100 misure (5 larghezze × 20 tab).
+//
+// (7/11) Risultati esce dalla nav: importazione nel Cruscotto, storico carriera
+// in Archivio, lista file tecnici in Impostazioni. La guardia copre 20 viste.
 //
 // (3/11, SESTA LARGHEZZA, richiesta Mauro: «aggiungi una larghezza 256 px
 // alla guardia di layout come limite estremo e verifica che non compaiano
 // sovrapposizioni»): 256 si mette SOTTO alle 320 — il limbo dei pannelli
-// laterali annidati e delle finestre strappate a quattro affiancate. 126
-// misure (6 larghezze × 21 tab).
+// laterali annidati e delle finestre strappate a quattro affiancate. 120
+// misure (6 larghezze × 20 tab).
 
 //// Porta: 8736 (fuori dal range di fallback 8642..8655 e dal 8731 di smoke).
 //
@@ -102,27 +105,27 @@ const BASE = `http://127.0.0.1:${PORT}`;
  * ESTREMO sotto le altre — pannelli laterali annidati e finestre
  * strappate a quattro */
 const WIDTHS = [256, 320, 360, 480, 1250, 1920];
-/* VENTUNO tab della STESSA guardia: i 19 in nav (ordine della nav) e i 2
+/* VENTI tab della STESSA guardia: i 18 in nav (ordine della nav) e i 2
  * NASCOSTI in coda, ognuno col SUO
  * marcatore (esiste SOLO in quella vista, non nei vicini): #card-panel
- * Dashboard, #ag-advance Centro gare, #mx-posta Messaggi, #imp-result Import,
- * #ch-carica Campionati (identico nei DUE rami: vuoto e pieno), #g-tbody
+ * Dashboard, #ag-advance Centro gare, #mx-posta Messaggi, #ch-carica
+ * Campionati (identico nei DUE rami: vuoto e pieno), #g-tbody
  * Griglia, #rv-registro Rivali, #track-hist Piste, #cars-grid Auto,
  * #g-mech Garage, #arc-q Archivio, #b-on-all Online, #gv-subito Giri liberi,
  * #stats-vetrina Statistiche, #bn-libro Finanze, #i-diffval Difficoltà,
- * #agg-status Impostazioni, #setup-series-panel Setup, #an-tetto Analisi; i due
+ * #settings-import-files Impostazioni, #setup-series-panel Setup, #an-tetto Analisi; i due
  * NASCOSTI (senza bottone in nav, leva `nascosto` della sonda):
  * #cal-titolo Calendario, #mondo-vetrina Classifica Mondiale.
- * riempimentiDedicati solo per Impostazioni (i tre arrivi asincroni NOTI);
+ * riempimentiDedicati solo per Impostazioni (arrivi asincroni di impostazioni e lista file);
  * per tutti gli altri la stabilità GENERICA della geometria tiene il posto.
  * pannelli: il minimo di .panel che la vista aggiunge (1 per la maggior parte;
  * Centro gare ne mette 2: hero + gare del giorno; Griglia ne mette 5:
  * celle, classi, sede weekend, calibrazione, azioni). */
+/* VENTI viste collaudate: 18 nella nav più Calendario e Classifica Mondiale. */
 const TAB = [
-  { id: 'dashboard', nome: 'Dashboard', marker: '#card-panel', pannelli: 4 },
+  { id: 'dashboard', nome: 'Dashboard', marker: '#imp-panel', pannelli: 4 },
   { id: 'agenda',    nome: 'Centro gare', marker: '#ag-advance', pannelli: 2 },
   { id: 'messages',  nome: 'Messaggi',    marker: '#mx-posta',   pannelli: 1 },
-  { id: 'import',    nome: 'Import',      marker: '#imp-result', pannelli: 1 },
   { id: 'championships', nome: 'Campionati', marker: '#ch-carica', pannelli: 1 },
   { id: 'griglia',   nome: 'Griglia',     marker: '#g-tbody',    pannelli: 5 },
   { id: 'rivals',    nome: 'Rivali',      marker: '#rv-registro', pannelli: 1 },
@@ -135,7 +138,7 @@ const TAB = [
   { id: 'stats',     nome: 'Statistiche', marker: '#stats-vetrina', pannelli: 1 },
   { id: 'banca',     nome: 'Finanze',     marker: '#bn-libro',   pannelli: 1 },
   { id: 'difficulty', nome: 'Difficoltà', marker: '#i-diffval',  pannelli: 1 },
-  { id: 'settings',  nome: 'Impostazioni', marker: '#agg-status', pannelli: 3, riempimentiDedicati: true },
+  { id: 'settings',  nome: 'Impostazioni', marker: '#settings-import-files', pannelli: 3, riempimentiDedicati: true },
   { id: 'setup',     nome: 'Setup',       marker: '#setup-series-panel', pannelli: 1 },
   { id: 'analisi',   nome: 'Analisi',     marker: '#an-tetto',   pannelli: 1 },
   /* i due NASCOSTI (3/11): senza bottone in nav — la sonda li apre con
@@ -152,7 +155,7 @@ const CHROMIUM = [
   join(LOCALAPPDATA, 'ms-playwright', 'chromium_headless_shell-1223', 'chrome-headless-shell-win64', 'chrome-headless-shell.exe'),
 ].find(existsSync);
 
-test('tutti i 21 tab della GUI (19 in nav + 2 nascosti): niente sovrapposizioni né pannelli fuori viewport a 256, 320, 360, 480, 1250 e 1920', { timeout: 900_000 }, async (t) => {
+test('tutti i 20 tab della GUI (18 in nav + 2 nascosti): niente sovrapposizioni né pannelli fuori viewport a 256, 320, 360, 480, 1250 e 1920', { timeout: 900_000 }, async (t) => {
   if (!existsSync(join(ROOT, 'node_modules', 'playwright-core')))
     return t.skip('manca playwright-core: `npm install` e la guardia riparte');
   if (!CHROMIUM)
@@ -230,6 +233,9 @@ test('tutti i 21 tab della GUI (19 in nav + 2 nascosti): niente sovrapposizioni 
            * «carico…» svuotato, oltre alla stabilità GENERICA della sonda. */
           if (tab.id === 'griglia') {
             await page.waitForFunction(() => !document.querySelector('#wtrack-box')?.textContent.includes('carico'), null, { timeout: 15000 }).catch(() => { /* si misura comunque */ });
+          }
+          if (tab.id === 'dashboard') {
+            await page.waitForFunction(() => document.querySelector('#dashboard-import #b-import'), null, { timeout: 15000 });
           }
           if (tab.riempimentiDedicati) await assettaRiempimentiImpostazioni(page);
           else await assettaStabilitaGenerica(page);

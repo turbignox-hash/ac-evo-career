@@ -961,7 +961,7 @@ function durataSessioni(sessi) {
 async function api(context0, _req, res, action, body) {
   const { ladder, paths } = context0;
   const hasCareer = () => existsSync(SAVE_FILE);
-  const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'rivals', 'rival-detail', 'alias-set', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'gazzetta-season', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-prep', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'event-prize-refresh', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'wx-session', 'import-inspect', 'tracks', 'backup', 'grid-apply', 'grid-drop', 'grid-ai', 'mechanic', 'maintenance'];
+  const state = hasCareer() ? requireState() : null;    const needsCareer = ['agenda-detail', 'championships', 'world-ranking', 'status', 'series', 'calendar', 'standings', 'messages', 'card', 'difficulty', 'enter', 'accept', 'import', 'race', 'season-end', 'rename', 'difficulty-action', 'stats', 'career-results', 'rivals', 'rival-detail', 'alias-set', 'integrity', 'integrity-fix', 'season-review', 'life', 'gazzetta', 'gazzetta-season', 'planner', 'challenge-accept', 'sponsor-accept', 'sponsor-decline', 'review-export', 'flows', 'testday', 'garage', 'events', 'event-accept', 'event-prep', 'event-decline', 'event-finish', 'event-abandon', 'my-garage', 'garage-add', 'garage-remove', 'garage-note', 'garage-sell', 'event-prize-refresh', 'difficulty-nudge', 'nudge-dismiss', 'heritage', 'heritage-claim', 'race-settings', 'wx-session', 'import-inspect', 'tracks', 'backup', 'grid-apply', 'grid-drop', 'grid-ai', 'mechanic', 'maintenance'];
   if (needsCareer.includes(action) && !state) {
     return sendJson(res, 400, { error: tr({ it: "Non c'è ancora una carriera: creane una dalla schermata iniziale.", en: 'There is no career yet: create one from the start screen.' }) });
   }
@@ -1585,6 +1585,22 @@ async function api(context0, _req, res, action, body) {
       return sendJson(res, 200, { ok: true, ...statoSonda() });
     }
     case 'stats': return sendJson(res, 200, careerStats(ladder, state));
+    case 'career-results': {
+      const rows = [];
+      for (const [nodeId, results] of Object.entries(state.results ?? {})) {
+        const node = ladder.nodes.find((item) => item.nodeId === nodeId);
+        for (const r of results ?? []) rows.push({
+          season: r.season, round: (r.round ?? 0) + 1,
+          series: node?.display ?? nodeId,
+          track: ladder.contentNames?.tracks?.[r.track] ?? r.track ?? '—',
+          dnf: !!r.dnf, position: r.dnf ? null : r.position,
+          points: r.points ?? 0, prize: r.prize ?? 0, fl: !!r.fl,
+          laps: r.laps ?? null, bestLap: r.bestLap ?? null, at: r.at ?? null,
+        });
+      }
+      rows.sort((a, b) => Number(a.season) - Number(b.season) || a.round - b.round || String(a.series).localeCompare(String(b.series)));
+      return sendJson(res, 200, { total: rows.length, rows });
+    }
     case 'coverage': {
       // COPERTURA DEI DATI (6/11): quanti dati veri sono nell'archivio e cosa
       // manca. Solo conteggi dal disco (salvataggio, hotlaps.json, rivals.json,

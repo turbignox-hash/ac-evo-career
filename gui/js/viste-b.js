@@ -661,9 +661,15 @@ async function drawArchive(m){
   // fondo (nessuno le guardava) — hanno la loro scheda, drawOnline(). Qui è
   // rimasto SOLO l'archivio SP; un rimando piccolo ricorda dove finiscono
   // quelle gare.
-  const c = await api('catalog', { all: !!window.__arcAllPc });
+  const [c, career] = await Promise.all([api('catalog', { all: !!window.__arcAllPc }), api('career-results')]);
   const all = c.archive.rows;
+  const careerRows = career.rows ?? [];
   m.innerHTML = `
+  <div class="panel" id="arc-career">
+    <h2>🏁 ${tr({ it: 'Risultati della carriera', en: 'Career results' })} <span class="h-act">${career.total} ${tr({ it: 'gare importate', en: 'imported races' })}</span></h2>
+    ${careerRows.length ? `<table><thead><tr><th>${tr({ it: 'Stagione / gara', en: 'Season / race' })}</th><th>${tr({ it: 'Serie', en: 'Series' })}</th><th>${tr({ it: 'Pista', en: 'Track' })}</th><th>${tr({ it: 'Posizione', en: 'Finish' })}</th><th class="right">${tr({ it: 'Punti', en: 'Points' })}</th><th class="right">${tr({ it: 'Premio', en: 'Prize' })}</th><th>${tr({ it: 'Giro migliore', en: 'Best lap' })}</th></tr></thead><tbody>${careerRows.map(r => `<tr${r.dnf?' style="color:var(--bad)"':''}><td>S${r.season} · R${r.round}${r.fl?` <span class="tag gold">${tr({ it: 'giro veloce', en: 'fastest lap' })}</span>`:''}</td><td>${esc(r.series)}</td><td>${window.trackLinkHtml(r.track)}</td><td><b>${r.dnf?tr({ it: 'ritiro', en: 'DNF' }):`P${r.position ?? '—'}`}</b></td><td class="right">${r.points}</td><td class="right">${money(r.prize)} €</td><td>${r.bestLap?esc(r.bestLap):'—'}</td></tr>`).join('')}</tbody></table>`
+      : `<div class="empty">${tr({ it: 'Nessun risultato di carriera importato.', en: 'No career results imported yet.' })}</div>`}
+  </div>
   <div class="panel">
     <h2>${tr({ it: 'Archivio sessioni', en: 'Session archive' })} <span class="h-act">${c.archive.total} ${tr({ it: 'file nei Results di EVO', en: 'files in EVO\'s Results' })}</span></h2>
     <div class="muted" style="font-size:12.5px;margin:0 0 8px">${c.archive.scoped

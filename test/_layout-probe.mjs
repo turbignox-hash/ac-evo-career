@@ -95,10 +95,12 @@ export async function assettaRiempimentiImpostazioni(page) {
     const agg = document.querySelector('#agg-status');
     const savebk = document.querySelector('#savebk-out');
     const plog = document.querySelector('#import-log');
+    const importFiles = document.querySelector('#settings-import-files');
     const atterrato = (el) => !!el && el.innerHTML.trim() !== '';
     return (!agg || (agg.textContent && !agg.textContent.includes('…')))
       && (!savebk || atterrato(savebk))
-      && (!plog || (plog.innerHTML.trim() !== '' && !plog.textContent.includes('…')));
+      && (!plog || (plog.innerHTML.trim() !== '' && !plog.textContent.includes('…')))
+      && (!importFiles || (importFiles.innerHTML.trim() !== '' && !importFiles.textContent.includes('…')));
   }, null, { timeout: 10000 }).catch(() => { /* si misura comunque */ });
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
 }

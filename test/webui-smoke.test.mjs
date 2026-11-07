@@ -111,6 +111,15 @@ test('il server GUI parte e serve le API chiave (boot, status, card, pagina)', a
     assert.ok(!hasCareer || status.code === 200, 'status deve rispondere 200 se c\'è una carriera');
     assert.ok(!hasCareer || (status.j.header && status.j.econ), 'status deve contenere header ed econ');
 
+    const careerResults = await getJson('/api/career-results');
+    assert.equal(careerResults.code, hasCareer ? 200 : 400, 'career-results deve rispondere 200 con carriera e 400 senza');
+    assert.ok(!hasCareer || typeof careerResults.j.total === 'number', 'career-results.total deve essere numerico');
+    assert.ok(!hasCareer || Array.isArray(careerResults.j.rows), 'career-results.rows deve essere un elenco');
+    assert.ok(!hasCareer || careerResults.j.rows.slice(0, 3).every((row) =>
+      typeof row.season === 'number' && typeof row.round === 'number'
+      && typeof row.series === 'string' && typeof row.points === 'number' && typeof row.prize === 'number'),
+    'ogni gara d’archivio deve esporre stagione, ronda, serie, punti e premio');
+
     const card = hasCareer ? await getJson('/api/card') : null;
     assert.ok(!hasCareer || card.code === 200, 'card deve rispondere 200 se c\'è una carriera');
     assert.ok(!hasCareer || card.j.nodeDisplay, 'card deve avere la serie attiva (nodeDisplay)');

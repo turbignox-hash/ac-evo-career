@@ -1,5 +1,14 @@
 # Diario di sviluppo
 
+### 7/11 — importazione dal Cruscotto, risultati carriera in Archivio
+
+- **Richiesta di Mauro**: «procedi» alla proposta di togliere la scheda Risultati e integrare i suoi flussi nel Cruscotto, lasciare lo storico in Archivio e spostare l’elenco tecnico in Impostazioni.
+- **Cruscotto**: l’importazione dell’ultima gara EVO compatibile e il fallback di inserimento manuale (posizione, numero auto, giri, best lap, ritiro/giro veloce) ora stanno vicino al riepilogo di fine sessione. Il flusso conserva anti-doppioni, messaggio/debrief, pannello Analisi e azione difficoltà; un esito importato resta visibile anche dopo il ridisegno. La scheda di importazione non compare più nella navigazione.
+- **Archivio**: introdotta sopra l’archivio tecnico una sezione «Risultati della carriera» che legge tutte le 97 gare importate dello slot, per stagione, serie, pista, posizione/ritiro, punti, premio, giro veloce e best lap. I file/sessioni originali scritti da EVO restano distinti nella sottostante tabella «Archivio sessioni», con filtri e dettaglio già esistenti. Nuovo endpoint read-only `career-results`, protetto come le altre API di carriera; nessun salvataggio né file di gioco modificato.
+- **Impostazioni**: aggiunta «File risultati EVO», elenco tecnico degli ultimi file con sessione, pista, partecipanti, posizione riconosciuta e auto; l’esito del caricamento mostra eventuali errori di lettura. Testi di aiuto e di manutenzione aggiornati per indicare il Cruscotto come destinazione d’importazione.
+- **Verifica a schermo**: Cruscotto mostra import automatico e modulo manuale, senza tabella tecnica; la voce Risultati manca dalla nav. Impostazioni mostra 8 file recenti, riconosciuti (incluso P1 dell’ultima sessione). Archivio mostra 97 risultati della carriera e separatamente i file sessione EVO. Browser console vuota; server riavviato, `/api/agg-info`, `/api/status` e `/api/career-results` rispondono 200.
+- **Regressioni protette/verifiche**: guardia `layout-impostazioni` passata per 20 viste (18 in nav + 2 nascoste) × 6 larghezze (256–1920 px); `test/nav-bottoni.test.mjs` + `test/webui-smoke.test.mjs` — 4 test passati, smoke ora verifica forma e casi senza carriera del nuovo endpoint; `npm run lint` — Biome pulito su 447 file; `node --check` sulle viste, webui e test modificati — passato.
+- **Limiti**: l’import reale non è stato eseguito (non si importa una gara solo per prova); sono state verificate UI, endpoint e comportamento tramite test smoke. Nessun file di gioco o salvataggio toccato.
 ### 7/11 — la regola dei 4 PSI resta spiegata, non più da calcolare a mano
 
 - **Conferma di Mauro**: «pensavo di eliminare la scheda risultati e incorporarla da qualche altra parte, che ne pensi? > … si» (sì alla proposta di lasciare una nota informativa della regola dei 4 PSI, senza calcolo manuale).
