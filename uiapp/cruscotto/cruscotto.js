@@ -607,12 +607,27 @@
           sess.forEach(function (s) {
             if (!s || typeof s !== 'object') return;
             if (Number.isFinite(Number(w.opponents)) && Number(w.opponents) >= 0) s.num_opponents = Number(w.opponents);
+            // IL TIPO GRIGLIA VIA COMANDO (7/11, Mauro: «in automatico non è
+            // possibile con questa modalità»): il gioco ha l'enum
+            // GameModeSelectionGridType_AUTO / _CUSTOM e il campo di sessione
+            // grid_type — quindi il CUSTOM entra nella stessa
+            // SetGameModeParameters che porta avversari, modelli e AI, e non
+            // dipende più dal 3.6 del gamemodesave, che il menu riscrive dalla
+            // propria memoria. Solo per la gara al volo: il weekend di carriera
+            // tiene la strada del file già collaudata.
+            if (c.modo === 'instant') s.grid_type = 'GameModeSelectionGridType_CUSTOM';
             if (Number.isFinite(Number(w.aiMin))) s.min_strength = Number(w.aiMin);
             if (Number.isFinite(Number(w.aiMax))) s.max_strength = Number(w.aiMax);
             const oh = ore[s.name] && ore[s.name].hour;
             const hh = oh != null && Number.isFinite(Number(oh)) ? Number(oh)
               : (c.ora != null ? Math.max(0, Number(c.ora) - off(s.name)) : null);
-            if (hh != null && s.time_of_day && typeof s.time_of_day === 'object') s.time_of_day.hour = Math.max(0, Math.min(23, hh));
+            if (hh != null && s.time_of_day && typeof s.time_of_day === 'object') {
+              s.time_of_day.hour = Math.max(0, Math.min(23, hh));
+              // I MINUTI (7/11): con hour = 12 il menu mostrava 12:50 — i minuti
+              // del file restavano quelli di prima. Se il gioco li espone, si
+              // azzerano (l'ora richiesta è tonda: «ore 12:00»).
+              if (Number.isFinite(Number(s.time_of_day.minute))) s.time_of_day.minute = 0;
+            }
             if (/race|gara/i.test(String(s.name || '')) && Number.isFinite(Number(w.laps)) && Number(w.laps) > 0) {
               s.duration = Number(w.laps);
               s.duration_type = 'GameModeSelectionDuration_LAPS';
