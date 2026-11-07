@@ -1,5 +1,49 @@
 # Diario di sviluppo
 
+### 7/11 — guardia sulle quattro fasi del weekend di campionato
+
+- **Richiesta di Mauro**: «prepara tutto ha sempre impostato il weekend, mai gara direta, controlla, le gare del campionato, tutte, devono fare il weekend completo».
+- **Controllo del file vivo**: `GameModeType_RACE_WEEKEND.gamemodesave` contiene Practice 1800 s, Qualifying 1200 s, Warmup 600 s e Race 600 s a tempo. La scheda attiva del server (Endurance GT4, round 2/8) dichiara le stesse quattro fasi: P 30′, Q 20′, W 10′, Race 10′. Non ho trovato prova che «Prepara tutto» avvii una gara diretta; il risultato Race da solo non identifica il percorso nei menu.
+- **Audit calendario**: 86 serie e 615 ronde; zero ronde senza orario o durata/giri Race, zero profili senza durate positive per Practice e Qualifying. Le sessioni Practice/Qualifying/Warmup sono scritte dal preparatore a tempo.
+- **Correzione**: `setRaceSessions` forza ora esplicitamente il modo a tempo quando scrive una durata (f3=1), invece di lasciare possibile un blocco ereditato a giri. `/api/race` controlla la presenza di Practice/Qualifying/Warmup/Race prima di addebitare o armare la ronda; un file incompleto/non verificabile viene rifiutato con HTTP 409. Il controllo “già a posto” considera tutte le fasi e verifica anche che i blocchi con durata siano a tempo. I blocchi mancanti non vengono inventati: EVO deve materializzarli entrando nel weekend.
+- **Verifiche**: `node --test test/set-racetime-mode.test.mjs test/race-card.test.mjs` → 28/28; `node --check` sui 3 file sorgente/test → exit 0; `npx biome check src/set-racetime.mjs src/webui.mjs test/set-racetime-mode.test.mjs` → nessun errore (CLI 2.6.5 segnala soltanto che lo schema del progetto è 2.3.12). Con autorizzazione di Mauro ho applicato le sole patch mirate anche alla copia attiva, preservando le modifiche divergenti e creando backup timestampati dei due sorgenti; `node --check` e fixture protobuf temporanea anche sulla copia attiva hanno esito positivo. Il server già vivo su 8642 continua a eseguire la copia in `C:\Users\Mauro\Desktop\Mod ac evo`, i cui sorgenti sono ora aggiornati su disco; il processo non è stato riavviato, quindi carica ancora il codice precedente in memoria finché non riparte. Il salto Practice→Race non è stato riprodotto: serve il collaudo del menu col server riavviato sul codice aggiornato.
+- **Git/release**: workspace senza repository Git rilevabile (`git status` → fatal: not a git repository); nessun commit, push o release eseguiti.
+
+### 7/11 — iscritto a Endurance GT4 con gare da 10 minuti, weekend di Laguna Seca preparato
+
+- **Richiesta di Mauro**: «iscrivimi ad un campionato endurance da 10 minuti e lo testiamo meglio, faccio tutto il weekend».
+- **Iscrizione vera** via `POST /api/enter {nodeId:"endurance_gt4"}` (il cancello ufficiale, non una scrittura a mano): Endurance GT4, livello 4, rep richiesta 450 contro i 910 del pilota, sedile a noleggio **-12.000** (771.600 → 759.600), poi iscrizione ronda **-3.500** al «Prepara tutto» (759.600 → 756.100). Stato: `node = endurance_gt4`, `round = 0` di 8, prossima gara **Laguna Seca, round 1/8, giorno 265**.
+- **Gare da 10 minuti nel CALENDARIO della serie**, non un bypass: `durationMin` dei 8 round di `endurance_gt4` portato da `30/30/40/35/35/30/40/45` a **10** in `config/career.evo.ladder.json` (backup `data/backups/career.evo.ladder.bak-endurance10-*`). Così il «Prepara tutto» scrive una gara a tempo col canale legittimo (`previsto`), senza aprire la modalità test né toccare i cancelli anti-cheat.
+- **Weekend preparato** (`POST /api/race {preparaSolo:true}`, nessun lancio del gioco): pista **Laguna Seca** scritta, auto **Audi R8 LMS GT4 Evo**, griglia ricostruita per la serie (**13 celle**, 12 avversari, template `endurance_gt4.customgrid`), AI **84–85**, orari Practice 06:00 · Qualifying 09:00 · Warmup 11:00 · Race 12:00.
+- **Verifiche sul disco del gioco** (`weekendLaps`, `currentWeekendTrack`, `weekendAi`, `weekendCarCount`, `weekendGridMode`): pista `Laguna Seca`; AI `84–85`; `custom / 12` con 12 voci modello dichiarate; sessioni **Practice 1800 s · Qualifying 1200 s · Warmup 600 s · Race 600 s a tempo**. `last_grid.customgrid` esiste con 13 celle e i due modelli GT4 (Porsche 718 Cayman GT4 RS, Audi R8 LMS GT4 Evo).
+- **Cruscotto in gioco**: comando ronda `1794065716461:ks_audi_r8_lms_gt4_evo:endurance_gt4` **confermato** con «weekend e auto applicati» — il menu di EVO ha già ricevuto auto, roster e banda; `prepara` = ronda armata con `viaFino 0` (nessun avvio automatico).
+- **Scoperta importante sul processo**: il server che risponde sulla 8642 **non gira dal workspace** — parte da `C:\Users\Mauro\Desktop\Mod ac evo` (verificato: una modifica di prova al ladder del workspace il server non la vede, quella nella cartella del Desktop sì). Le modifiche di configurazione vanno quindi fatte sulla copia viva, e le due copie vanno tenute allineate.
+- **Limiti dichiarati**: la griglia è di **12 avversari / 13 posti** perché il template della serie ha 13 celle (la scheda serie dichiara 18 posti); il meteo delle prove è stato scritto sereno mentre il round vuole `Overcast` (si cambia col bollettino prima della gara); la prova in pista non l'ho fatta io — la corsa del weekend è il collaudo.
+- **Git/release**: nessun commit, push o release (il workspace non è una repository Git).
+
+### 7/11 — la schermata mostra 21 AVVERSARI (22 posti): riportato il conto a 20
+
+- **Richiesta di Mauro**: screenshot della «Personalizzazione Griglia di Partenza» («ora vedo questo») con NUMERO DI AVVERSARI 21, MONOMARCA NO, AI 88–93%, e gli 8 modelli del roster sulle prime posizioni.
+- **Cosa dice il numero**: il campo 3.7 del gamemodesave è il numero di AVVERSARI, non i posti totali — la gara di Monza delle 16:05 con `7 = 8` ha prodotto **9 piloti** nel file risultato (8 AI + Mauro). Quindi 21 nel menu = 22 auto in pista, uno in più dei 21 posti chiesti.
+- **Perché era finito a 21**: all'invio dei 20 rivali il Cruscotto ha letto dal menu `opponents` di 21 voci, ha riempito l'elenco modelli fino a 21 (ramo «griglia riempita») e EVO ha salvato `7 = 21`. Non è una preferenza del gioco: è il riempimento del roster che ha alzato il conto.
+- **Rimedio applicato**: nuovo giro `gara-veloce` con 20 rivali → passo «tipo griglia (istantanea)»: `CUSTOM · 20 avversari (21 posti) scritta (era custom 21)`, backup `GameModeType_INSTANT_RACE.gamemodesave.bak-gridmode-2026-11-07T15-24`. Rilettura dal disco: `custom / 20`, quindi **21 posti con Mauro**.
+- **Stato al momento della nota**: la scrittura NON è ancora arrivata alla schermata aperta — il comando del Cruscotto per la nuova gara al volo resta `inviato` (nessun ACK) perché il menu è fermo dentro la personalizzazione griglia, dove i comandi di gioco non rispondono. Il file vale alla prossima apertura della schermata (INDIETRO e rientro); **APPLICA sulla schermata stantia riscrive 21**.
+- **Verifica ancora aperta**: `last_grid.customgrid` non è scritto (EVO non ha ancora generato le celle). La prova definitiva è il conteggio piloti nel prossimo `*_SP_Race.sessionresults.json`: attesi **21** (20 AI + Mauro).
+
+### 7/11 — verifica dopo riavvio: EVO ora mostra 21 posti
+
+- **Conferma di Mauro**: «ora sta 21» dopo il riavvio di EVO e la ripubblicazione della gara al volo.
+- **Rilettura sul disco**: `GameModeType_INSTANT_RACE.gamemodesave` è `CUSTOM/21`; il blocco Race contiene 21 voci di modelli, distribuite sugli 8 modelli distinti GT1/GT2/GT3. Il Cruscotto ha scritto l'ACK del comando `instant:1794064581239:8`.
+- **Verifica distinta**: `last_grid.customgrid` non è presente, quindi non ho letto dal file le celle materializzate da EVO. Il contatore a 21 è confermato da Mauro; non alterato il risultato Monza già concluso. Nessun codice applicativo modificato.
+- **Git/release**: workspace senza repository Git; nessun commit, push o release eseguiti.
+
+### 7/11 — allineati gli avversari custom della multiclass a 21 posti
+
+- **Richiesta di Mauro**: «Se la griglia letta dal gioco non è quella chiesta, adatta i posti e ripeti fino a farla combaciare.»
+- Il risultato nativo di Monza riportava 9 piloti (8 avversari + Mauro), mentre la richiesta multiclass era di 21 posti totali. Ho aggiornato il blocco Race in `C:\Users\Mauro\Saved Games\ACE\GameModes\GameModeType_INSTANT_RACE.gamemodesave` da CUSTOM/8 a CUSTOM/20 avversari tramite `setWeekendGridCustom`, con backup del valore precedente.
+- **Rilettura verificata**: reader `weekendGridMode` → `custom`, count `20`; il file conserva tutti gli 8 modelli richiesti (F40 LM GT1, Mercedes-AMG GT2 e sei modelli GT3, inclusa la 296). Il backup `GameModeType_INSTANT_RACE.gamemodesave.bak-gridmode-2026-11-07T15-12` esiste.
+- **Verifica EVO ancora necessaria**: `last_grid.customgrid` non è presente e Assetto Corsa EVO/loader non erano in esecuzione; quindi non ho potuto leggere le 21 celle che EVO materializzerà alla prossima apertura. Il conteggio richiesto è scritto e verificato nel gamemodesave, ma non dichiaro ancora verificata la griglia risultante in gioco. Nessuna griglia manuale è stata generata o modificata.
+
 ### 7/11 — le schede VUOTE della griglia: il pending scende sulle celle scritte
 
 - **Richiesta di Mauro**: «riprendi» — sul filo del controllo «che tutti i dati arrivino a destinazione», dopo la griglia del weekend con quattro riquadri vuoti.

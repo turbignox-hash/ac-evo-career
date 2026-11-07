@@ -6,11 +6,11 @@
 //   3. la pratica a tempo riporta durSec come prima (retrocompatibilità)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { encodeMsg } from '../src/evo-grid.mjs';
-import { currentSessionTimes } from '../src/set-racetime.mjs';
+import { currentSessionTimes, setRaceSessions, sessioniWeekendMancanti } from '../src/set-racetime.mjs';
 
 const TMP = mkdtempSync(join(tmpdir(), 'evo-modal-'));
 const mkFile = () => {
@@ -46,4 +46,38 @@ test('currentSessionTimes: la Race A GIRI riporta durSec null (i giri non sono s
   assert.deepEqual([race.aTempo, race.mode, race.durSec], [false, 2, null]);
   const prat = ses.find((s) => s.name === 'Practice');
   assert.deepEqual([prat.aTempo, prat.durSec], [true, 900]);
+});
+
+test('il weekend deve avere tutte e quattro le fasi e le durate scritte sono davvero a tempo', () => {
+  const file = join(TMP, `complete-${Date.now()}.gamemodesave`);
+  const sess = (nome, durata, mode) => encodeMsg([
+    { field: 1, wire: 2, bytes: Buffer.from(nome, 'utf8') },
+    { field: 2, wire: 0, varint: BigInt(durata) },
+    { field: 3, wire: 0, varint: BigInt(mode) },
+    { field: 4, wire: 2, bytes: encodeMsg([{ field: 4, wire: 0, varint: 12n }]) },
+  ]);
+  const fixture = ['Practice', 'Qualifying', 'Warmup'].map((name) => ({ field: 3, wire: 2, bytes: sess(name, 3, 2) }));
+  fixture.push({ field: 3, wire: 2, bytes: sess('Race', 600, 1) });
+  writeFileSync(file, encodeMsg(fixture));
+  try {
+    assert.deepEqual(sessioniWeekendMancanti(currentSessionTimes(file)), [], 'tutte le fasi sono rilevate');
+    assert.deepEqual(sessioniWeekendMancanti(currentSessionTimes(join(TMP, 'missing.gamemodesave'))), ['Practice', 'Qualifying', 'Warmup', 'Race'], 'save assente non viene considerato completo');
+    setRaceSessions({
+      file,
+      previsto: true,
+      sessions: {
+        Practice: { hour: 6, durationSec: 1800 },
+        Qualifying: { hour: 9, durationSec: 1200 },
+        Warmup: { hour: 11, durationSec: 600 },
+        Race: { hour: 12 },
+      },
+    });
+    const result = currentSessionTimes(file);
+    assert.deepEqual(sessioniWeekendMancanti(result), []);
+    assert.deepEqual(result.slice(0, 3).map((s) => [s.name, s.aTempo, s.durSec]), [
+      ['Practice', true, 1800], ['Qualifying', true, 1200], ['Warmup', true, 600],
+    ]);
+  } finally {
+    rmSync(file, { force: true });
+  }
 });
