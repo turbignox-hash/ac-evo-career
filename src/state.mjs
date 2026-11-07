@@ -13,7 +13,7 @@
 //  - contratti con clausole di stagione (life.mjs), sponsor a quota gara + missione,
 //    sfide per round, sigilli permanenti: tutto registrato anche in flows.jsonl.
 
-import { readFileSync, writeFileSync, renameSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createWorld, gridFor, finishOrder, evolveWorld, pointsFor, skillToEvoSlider, clamp } from './world.mjs';
@@ -27,6 +27,7 @@ import { assignNextMemory, checkMemoryProgress, raceCrowdFor } from './memories.
 import { mirrorJournal } from './journal.mjs';
 import { publishNotice } from './gazzetta.mjs';
 import {  recordWarning, taci } from './warnings.mjs';
+import { rinnominaConPazienza } from './atomic.mjs';
 
 // nido per-slot (24/10): rivals vive con la SUA carriera, il save 3 non incassa il campione del save 1
 const RIVALS_FILE = join(slotDataDir(), 'rivals.json');
@@ -240,7 +241,7 @@ export function saveState(file, state) {
   const tmp = `${file}.tmp`;
   writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n', 'utf8');
   try {
-    renameSync(tmp, file);
+    rinnominaConPazienza(tmp, file);
   } catch (e) {
     recordWarning('state', 'rename del salvataggio fallito: ' + tmp, e?.message ?? null);
     throw e;

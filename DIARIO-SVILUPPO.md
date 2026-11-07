@@ -1,5 +1,14 @@
 # Diario di sviluppo
 
+### 7/11 — si scrive a GIOCO APERTO: via i divieti, e il rename impara la pazienza
+
+- **Richiesta di Mauro**: «no, puoi scrivere tutto a gioco aperto, questa regola per scelta non esiste».
+- **Il divieto c'era davvero, in tre punti**: `timedRace` e `setInstantAi` ([src/set-instantrace.mjs](src/set-instantrace.mjs)) e il passo pista di [tools/_gara-veloce.mjs](tools/_gara-veloce.mjs) lanciavano «EVO è APERTO: chiudi il gioco prima di scrivere (o --force)». Erano miei, ereditati da una nota del 3/11 mai collaudata: rimossi. Restano soltanto i divieti veri su `last_grid.customgrid` ([src/grid-apply.mjs](src/grid-apply.mjs)) e sul roster del weekend — quelli non c'entrano con la gara al volo.
+- **Scrittura vera sul file reale, a EVO aperto** (menu GARA VELOCE davanti, come nello screenshot): asciutta prima con tutti gli 8 passi ✓, poi la ricetta in canna scritta davvero — `3.7 = 18` senza 6 → **`3.6 = 1 3.7 = 18`**, orario **12:50 → 12:00**, Monza/sereno/10 min/AI 88–93 già sotto. Rilettura dal file: `3:1 6:1 7:18 30:88 31:93 · ora 12:0 · reader custom 18`.
+- **Bug trovato proprio lì (e chiuso)**: il passo «roster al gioco» è morto con `EPERM: operation not permitted, rename ...evo-career.save.json.tmp -> ...evo-career.save.json`. Su Windows il destinatario può essere tenuto aperto un istante da un altro processo (la Pitwall che si salva addosso) e il rename riesce pochi ms dopo — ma si rinunciava al primo colpo. Nuovo `rinnominaConPazienza` in [src/atomic.mjs](src/atomic.mjs) (20 tentativi × 25 ms, solo su EPERM/EBUSY/EACCES, poi l'errore vero risale), usato da `writeJsonAtomic` e da `saveState`: da lì il secondo giro arma tutto, **8 passi su 8 ✓** e `state.volo` = 8 modelli · 18 rivali · AI 88–93 · Monza · sereno · ore 12 · avviaFino 0 (preparazione, senza via: il via lo dà PARTE SUBITO).
+- **Verifiche**: `npm test` **1.295 test, 1.293 pass, 0 fail, 2 skip** (rifatta dopo aver toccato i due scrittori nucleari); Biome pulito su **448** file; fascia del Cruscotto fresca con `prepara: {tipo: "gara al volo", auto: ks_ferrari_296_gt3, viaFino: 0}` e la storia che riporta «auto impostata nel menu di EVO» confermata dal gioco.
+- **Da sapere**: il file scritto da fuori lo adotta il menu alla sua PROSSIMA apertura — con la schermata già aperta i valori restano quelli vecchi finché non si esce e rientra (INDIETRO → GARA VELOCE). Non premere APPLICA sulla schermata stantia: riscrive la sua forma (automatico) sopra la nostra.
+
 ### 7/11 — il TIPO GRIGLIA entra nella gara al volo: CUSTOM, 18 avversari, e i minuti dell'ora
 
 - **Richiesta di Mauro** (davanti alla schermata GARA VELOCE): «qui è sbagliato, dovresti fare Tipo griglia di partenza custom e inserire le auto, avversari e numero».

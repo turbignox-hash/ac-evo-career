@@ -17,7 +17,7 @@
 //   (+ --force per scrivere col gioco aperto, sapendolo)
 import { readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { decodeMsg, encodeMsg, GAME_MODES_DIR, gameRunning, bakName, pruneBackups } from './evo-grid.mjs';
+import { decodeMsg, encodeMsg, GAME_MODES_DIR, bakName, pruneBackups } from './evo-grid.mjs';
 
 export const INSTANT_FILE = join(GAME_MODES_DIR, 'GameModeType_INSTANT_RACE.gamemodesave');
 
@@ -55,7 +55,7 @@ export function currentInstantRace(file = INSTANT_FILE) {
  * Idempotente: se il blocco è già a posto non tocca nulla. Con --force scrive
  * anche a gioco aperto; senza, rifiuta (guardWrite come evo-grid).
  */
-export function timedRace({ minutes = null, laps = null, file = INSTANT_FILE, dry = false, force = false } = {}) {
+export function timedRace({ minutes = null, laps = null, file = INSTANT_FILE, dry = false } = {}) {
   if (minutes == null && laps == null) throw Object.assign(new Error('serve --tempo N (minuti) o --giri N'), { code: 'NO_VALUES' });
   if (minutes != null && laps != null) throw Object.assign(new Error('o a tempo o a giri, non entrambi'), { code: 'AMBIGUOUS' });
   const mode = minutes != null ? 1 : 2;
@@ -89,7 +89,6 @@ export function timedRace({ minutes = null, laps = null, file = INSTANT_FILE, dr
   if (!bloccoTrovato) throw Object.assign(new Error('blocco Race non trovato nell\'INSTANT_RACE (mai aperta una gara custom?): aprine una volta in EVO, poi ripremi'), { code: 'NO_RACE' });
   if (!changed) return { written: false, mode, durata, nota: 'blocco Race già a posto (idempotente)' };
   if (dry) return { written: false, dry: true, mode, durata };
-  if (gameRunning() && !force) throw new Error('EVO è APERTO: chiudi il gioco prima di scrivere (o usa --force sapendolo).');
   // bak al SECONDO (lezione 28/10 condivisa in evo-grid.bakName): due
   // scritture dello stesso file nello stesso minuto non si sovrascrivono più.
   const backup = bakName(file, 'temprace-');
@@ -108,9 +107,9 @@ export function timedRace({ minutes = null, laps = null, file = INSTANT_FILE, dr
  *
  * setInstantAi(88, 93) → cursori 88–93 nel blocco Race
  * Stessa rete del timedRace: idempotente (banda già uguale → written:false),
- * dry-run, backup datato, scrittura atomica, guard a gioco aperto (--force).
+ * dry-run, backup datato, scrittura atomica (a gioco aperto si scrive: 7/11).
  */
-export function setInstantAi(min, max, { file = INSTANT_FILE, dry = false, force = false } = {}) {
+export function setInstantAi(min, max, { file = INSTANT_FILE, dry = false } = {}) {
   const lo = Math.round(Number(min)), hi = Math.round(Number(max));
   if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo < 0 || hi > 100) throw Object.assign(new Error('banda AI: due interi fra 0 e 100'), { code: 'BAD_BANDA' });
   const [aiMin, aiMax] = lo <= hi ? [lo, hi] : [hi, lo];   // invertita? si ordina, non si rifiuta
@@ -135,7 +134,6 @@ export function setInstantAi(min, max, { file = INSTANT_FILE, dry = false, force
   if (!bloccoTrovato) throw Object.assign(new Error('blocco Race non trovato nell\'INSTANT_RACE (mai aperta una gara custom?): aprine una volta in EVO e prennl'), { code: 'NO_RACE' });
   if (!changed) return { written: false, aiMin, aiMax, nota: 'banda già a posto (idempotente)' };
   if (dry) return { written: false, dry: true, aiMin, aiMax };
-  if (gameRunning() && !force) throw new Error('EVO è APERTO: chiudi il gioco prima di scrivere (o usa --force sapendolo).');
   // verifica di rilettura prima di toccare il file: la banda FUORI dai byte
   // finali deve coincidere, o niente scrittura
   const out = encodeMsg(fields);

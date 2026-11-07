@@ -58,7 +58,6 @@
 import { existsSync, appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 
-import { gameRunning } from '../src/evo-grid.mjs';
 import { timedRace, setInstantAi, currentInstantRace, INSTANT_FILE } from '../src/set-instantrace.mjs';
 import { specFor, changeWeekendTrack, currentWeekendTrack, weekendGridMode, setWeekendGridCustom } from '../src/set-track.mjs';
 import { setWeatherPreset, currentWeatherPreset, presetFor, PRESETS } from '../src/weather.mjs';
@@ -306,11 +305,10 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
   // 3) PISTA dell'istantanea (3/11, prova pilota): il blocco Race porta il
   //    sotto-campo 3.5 con la pista COMPLETA (nazione/nome/tag/layout/continente/
   //    lunghezza, stessa forma del weekend) — quindi la scriviamo anche lei.
-  //    Partenza con gioco APERTO rifiuta senza --force: la scrittura pista
-  //    nell'istantanea a gioco aperto non è mai stata collaudata (sul weekend il
-  //    menu il file riscritto lo adotta, ma qui il menu gara può riscriverlo).
+  //    A GIOCO APERTO SI SCRIVE (7/11, Mauro: «puoi scrivere tutto a gioco
+  //    aperto, questa regola per scelta non esiste»): il file si adotta alla
+  //    prossima apertura del menu — come sul weekend.
   if (pista) step('pista (istantanea)', () => {
-    if (gameRunning() && !force) throw new Error('EVO è APERTO: la pista dell\'istantanea si scrive solo con --force sapendolo (o a gioco chiuso).');
     const spec = specFor(pista);
     if (!spec) throw Object.assign(new Error(`pista "${pista}" non nel libro TRACK_INFO: dimmi il nome com'è nel gioco`), { code: 'UNKNOWN_TRACK' });
     const prima = currentWeekendTrack(INSTANT_FILE);   // stesso reader del weekend: f3 → 3.5.2 (uz juris il nome)
