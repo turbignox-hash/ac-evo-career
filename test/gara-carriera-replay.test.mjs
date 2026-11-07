@@ -21,7 +21,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseLog } from '../src/live-monitor-riepilogo.mjs';
-import { conGaraCarriera, garaDallaCarriera } from '../src/gara-carriera.mjs';
+import { conGaraCarriera, creaDichiarazioneGara, garaDallaCarriera } from '../src/gara-carriera.mjs';
 import { engineerLive } from '../src/engineer.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -34,12 +34,20 @@ test('gara di Donington: la carriera accende inRace, i campi di EVO no',
     const campioni = parseLog(readFileSync(FILE, 'utf8')).filter((o) => o?.snapshot);
     assert.ok(campioni.length > 600, `campioni nella registrazione: ${campioni.length}`);
 
-    let conCarriera = 0, conEvo = 0, prova = 0, ultimoGiro = 0, pit = 0;
+    let conCarriera = 0, conEvo = 0, prova = 0, ultimoGiro = 0, pit = 0, diversi = 0;
     let primo = null, ultimo = null;
+    // il tracker CON MEMORIA è quello che usano davvero il Cruscotto e la rotta
+    // `live` (7/11): ripassarlo qui sulla registrazione vera dice che la memoria
+    // della durata non disturba la dichiarazione a giri, dove la `sessionId` di
+    // EVO resta la stessa per prove e gara
+    const dichiarazione = creaDichiarazioneGara();
     for (const o of campioni) {
       // 1) la carriera dichiara la gara (come farebbe markPending col pending)
-      const snap = conGaraCarriera(o.snapshot, pending);
-      const gara = garaDallaCarriera(snap.session, snap.player, pending);
+      const esito = dichiarazione.valuta(o.snapshot, pending);
+      const snap = esito.snap;
+      const gara = esito.gara;
+      // equivalenza col percorso senza memoria: stesso verdetto su ogni campione
+      if (esito.gara !== garaDallaCarriera(conGaraCarriera(o.snapshot, pending).session, o.snapshot.player, pending)) diversi += 1;
       const out = engineerLive(snap, { garaCarriera: gara, raceLaps: 3 });
       if (out.inRace) {
         conCarriera += 1;
@@ -64,4 +72,5 @@ test('gara di Donington: la carriera accende inRace, i campi di EVO no',
     assert.ok(pit > 0, 'finestra pit pronta in gara');
     assert.ok(conEvo <= 2, `inRace coi soli campi di EVO: ${conEvo} (il difetto: 2 su ${campioni.length})`);
     assert.equal(prova, 0, 'la carriera che dice «prova» zittisce inRace: nessun falso positivo');
+    assert.equal(diversi, 0, 'il tracker con memoria e la dichiarazione pura dicono la stessa cosa su ogni campione');
   });

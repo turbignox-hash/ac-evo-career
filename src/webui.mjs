@@ -19,7 +19,11 @@ import { costanzaSettoriDaLog } from './margine-log.mjs';
 // Riepilogo di fine sessione del monitor live (6/11): la stessa funzione che
 // scrive `.live-monitor.riepilogo.txt` serve anche la scheda del Cruscotto.
 import { lettoreLogLive } from './live-log-incrementale.mjs';
-import { conGaraCarriera, garaDallaCarriera } from './gara-carriera.mjs';
+import { creaDichiarazioneGara } from './gara-carriera.mjs';
+// LA DICHIARAZIONE CON MEMORIA (7/11, gare a tempo): lo snapshot porta solo il
+// tempo che RIMANE, quindi la durata della sessione vive qui, nel massimo del
+// conto alla rovescia visto da quando il server è partito.
+const DICHIARAZIONE_GARA = creaDichiarazioneGara();
 // ultimo riepilogo calcolato + impronta del log (mtime|size): il polling della
 // scheda costa uno stat finché il monitor non scrive
 import { rigaDaRegistrazione, riepiloghiDa, unisciSessioni } from './live-monitor-riepilogo.mjs';
@@ -701,14 +705,16 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
   // LA GARA DICHIARATA DALLA CARRIERA (7/11): stessa marcatura della rotta
   // `live`, così `inRace` dell'ingegnere (finestra pit, ultimo giro, bandiera
   // a scacchi, cronaca) è vero anche quando il gioco chiama la gara
-  // «TimeAttack».
-  snap = conGaraCarriera(snap, state?.pending);
+  // «TimeAttack». La memoria del tracker tiene la durata della sessione viva
+  // per le ronde A TEMPO (7/11): lì a firmare la gara sono i minuti, non i giri.
+  const dichiarazione = DICHIARAZIONE_GARA.valuta(snap, state?.pending);
+  snap = dichiarazione.snap;
   // IL GIUDIZIO ESPLICITO PER L'INGEGNERE (7/11): true/false quando c'è una
   // ronda preparata, null quando la carriera non sa (eventi, test, nessun
   // pending). L'ingegnere lo usa come PRIMA fonte di `inRace` — la marcatura
   // dello snapshot serve a chi legge /api/live (copilota nel browser, log del
   // monitor), questo alla finestra pit, all'ultimo giro e alla cronaca.
-  const garaCarriera = state?.pending ? garaDallaCarriera(snap?.session, snap?.player, state.pending) : null;
+  const garaCarriera = dichiarazione.gara;
   let raceLaps = null, fuelPerLap = null, telemTrack = null;
   let degSecPerLap = null;   // degrado del ritmo misurato (usura-gomme), per undercut/overcut
   let pitLossSec = null;     // costo sosta misurato dai giri in/out della stessa pista

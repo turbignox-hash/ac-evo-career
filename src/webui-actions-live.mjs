@@ -9,7 +9,11 @@
 // Il dispatcher resta in webui.mjs; `sonda-menu` resta nello switch perché è
 // la sonda del cruscotto, non il live.
 import { eventCard } from './events.mjs';
-import { conGaraCarriera } from './gara-carriera.mjs';
+import { creaDichiarazioneGara } from './gara-carriera.mjs';
+// memoria della durata della sessione viva per le ronde A TEMPO (7/11): la
+// rotta è interrogata dal monitor ogni pochi secondi, quindi vede il timer
+// pieno al via come lo vede l'ingegnere
+const DICHIARAZIONE_GARA = creaDichiarazioneGara();
 import { tr } from './lang.mjs';
 import { raceCard } from './race.mjs';
 import { VOCE_LIVELLI } from './voce-copilota.mjs';
@@ -45,7 +49,7 @@ export async function liveAction(action, ctx) {
       // marcato qui serve a TUTTO il resto: la verifica della scheda, il
       // copilota (inRace) e il log del monitor, che da questo snapshot scrive
       // le sue righe.
-      snap = conGaraCarriera(snap, state?.pending);
+      snap = DICHIARAZIONE_GARA.valuta(snap, state?.pending).snap;
       // verifica della configurazione: confronta la sessione live con la scheda gara attesa
       let check = null;
       if (snap.game && state) {

@@ -642,6 +642,15 @@ export function markPending(_ladder, state, card, { autoAvvio = true } = {}) {
     weather: card.weather ?? null,   // ETICHETTA meteo della ronda (card.weather, weatherNames): il publisher la traduce in codice comando (codiceMeteo)
 
     laps: card.laps ?? card.round.laps ?? null,
+    // LA DURATA DELLA RONDA, PER LE GARE A TEMPO (7/11): la sessione viva non
+    // porta i giri in palio, porta il timer, quindi a dichiarare la gara deve
+    // essere la DURATA — e la stessa che il Prepara tutto scrive nel gioco
+    // (`durationEff`, già scalata dalla distanza scelta). `practiceMin` e
+    // `qualifyMin` viaggiano con lei perché senza quelle la dichiarazione non
+    // può scartare una prova che dura quanto la gara (vedi gara-carriera.mjs).
+    durationMin: card.durationEff ?? null,
+    practiceMin: card.practiceMinEff ?? null,
+    qualifyMin: card.qualifyMinEff ?? null,
     car: card.car,
     gridSize: card.gridSize,
     // IL WEEKEND DA APPLICARE AL VOLO (4/11): non basta

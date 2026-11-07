@@ -10,7 +10,7 @@
 // giro in una prova libera.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { garaDallaCarriera, conGaraCarriera } from '../src/gara-carriera.mjs';
+import { creaDichiarazioneGara, garaDallaCarriera, conGaraCarriera, secondiTimer } from '../src/gara-carriera.mjs';
 
 const pending = { trackId: 'donington', trackNames: ['Donington Park', 'donington'], laps: 3 };
 const sessione = (track = 'Donington Park', race = false) => ({ type: 'TimeAttack', track, race });
@@ -30,6 +30,95 @@ test('prove e qualifiche non sono gara: lapsTotal a zero o distanza diversa', ()
   // senza scheda preparata (nessuna carriera, evento custom) la carriera non parla
   assert.equal(garaDallaCarriera(sessione(), giocatore(3), null), false);
   assert.equal(garaDallaCarriera(sessione(), giocatore(3), { ...pending, laps: null }), false, 'gara a tempo: niente giri da confrontare');
+});
+
+// ─────────────────── RONDE A TEMPO (7/11): firma = i minuti ───────────────────
+// Il gioco non scrive i giri in palio nelle gare a tempo, scrive il timer: a
+// dichiarare la gara deve essere la DURATA, quella scritta dal Prepara tutto
+// (`durationMin` del pending, già scalata dalla distanza scelta) contro la
+// durata della sessione viva. `practiceMin`/`qualifyMin` viaggiano col pending
+// perché senza quelle una prova lunga quanto la gara non si può scartare.
+const aTempo = { trackId: 'donington', trackNames: ['Donington Park', 'donington'], laps: null, durationMin: 20, practiceMin: 45, qualifyMin: 30 };
+
+const tempo = (sessione, giocatore, pending, durataLiveMin) =>
+  garaDallaCarriera(sessione, giocatore, pending, { durataLiveMin });
+
+const snapTempo = (timeLeftAll, giri = 0, track = 'Donington Park') => ({
+  game: true, live: true,
+  session: sessione(track),
+  player: { lapsTotal: giri, timeLeftAll },
+});
+
+test('secondiTimer legge i timer del gioco, non li indovina', () => {
+  assert.equal(secondiTimer('9:54'), 594);
+  assert.equal(secondiTimer('00:00'), 0);
+  assert.equal(secondiTimer('0:04'), 4);
+  assert.equal(secondiTimer('1:02:30'), 3750);
+  assert.equal(secondiTimer('45'), 45);
+  for (const v of [null, undefined, '', '  ', 'abc', '1:x', '-1:00']) assert.equal(secondiTimer(v), null, `«${v}» non è un timer`);
+});
+
+test('gara a tempo: venti minuti in scheda e venti minuti al via → è la gara', () => {
+  assert.equal(tempo(sessione(), giocatore(0), aTempo, 20), true);
+  assert.equal(tempo(sessione(), giocatore(0), aTempo, 19.5), true, 'entro il 10% (il via può tardare una manciata di secondi)');
+  assert.equal(tempo(sessione(), { lapsTotal: null }, aTempo, 20), true, 'giri non riportati');
+});
+
+test('gara a tempo: durata diversa, prova lunga uguale o giri in palio → no', () => {
+  assert.equal(tempo(sessione(), giocatore(0), aTempo, 45), false, 'è la prova, non la gara');
+  assert.equal(tempo(sessione(), giocatore(0), aTempo, 30), false, 'è la qualifica');
+  assert.equal(tempo(sessione(), giocatore(0), aTempo, 12), false, 'altra durata');
+  assert.equal(tempo(sessione(), giocatore(0), aTempo, null), false, 'senza durata viva non si giudica');
+  assert.equal(tempo(sessione(), giocatore(3), aTempo, 20), false, 'una gara a tempo non ha giri in palio');
+  assert.equal(tempo(sessione('Suzuka'), giocatore(0), aTempo, 20), false, 'altra pista');
+  // ambiguità: se la prova dura gli stessi minuti della gara, non è dimostrabile
+  assert.equal(tempo(sessione(), giocatore(0), { ...aTempo, practiceMin: 20 }, 20), false);
+  assert.equal(tempo(sessione(), giocatore(0), { ...aTempo, qualifyMin: 21 }, 20), false);
+  // una ronda a giri non passa mai per la strada dei minuti
+  assert.equal(tempo(sessione(), giocatore(3), { ...pending, durationMin: 20 }, 3), true, 'vince la regola dei giri');
+  assert.equal(garaDallaCarriera(sessione(), giocatore(3), { ...pending, laps: 3, durationMin: 20 }), true, 'giri, senza sapere la durata');
+});
+
+test('la memoria della durata: prove lunghe, poi la gara a tempo più corta', () => {
+  const d = creaDichiarazioneGara();
+  const passi = [];
+  // prova da 45 minuti: scende ... fino a 0:00 (fine sessione, come la 6/11)
+  for (const t of ['45:00', '44:58', '30:00', '1:00', '0:00', '0:00']) passi.push(d.valuta(snapTempo(t), aTempo).gara);
+  // gamma tra le sessioni: due letture vuote di fila
+  passi.push(d.valuta(snapTempo(''), aTempo).gara, d.valuta(snapTempo(''), aTempo).gara);
+  // la gara a tempo parte: 20:00 → è la gara della carriera
+  passi.push(d.valuta(snapTempo('20:00'), aTempo).gara);
+  assert.deepEqual(passi, [false, false, false, false, false, false, false, false, true]);
+  // e il timer che scende non la fa cadere
+  assert.equal(d.valuta(snapTempo('19:58'), aTempo).gara, true);
+  assert.equal(d.valuta(snapTempo('0:00'), aTempo).gara, true, 'sul traguardo resta gara: la bandiera a scacchi si annuncia lì');
+});
+
+test('la memoria non si lascia ingannare: altra pista, e la prova non diventa gara', () => {
+  const d = creaDichiarazioneGara();
+  assert.equal(d.valuta(snapTempo('45:00'), { ...aTempo, trackId: 'suzuka', trackNames: ['Suzuka'] }).gara, false, 'prova su un\'altra pista');
+  // stessa memoria, sessione della pista giusta che dura 45: prova, non gara
+  assert.equal(d.valuta(snapTempo('45:00'), aTempo).gara, false);
+  // sessione nuova più corta senza un confine visto (timer che scende da 45 a
+  // 10): la memoria resta 45 e la dichiarazione tace — il lato sicuro
+  assert.equal(d.valuta(snapTempo('10:00'), aTempo).gara, false, 'la prova abbandonata presto non si confonde con la gara');
+  // cambio pista: la memoria riparte
+  assert.equal(d.valuta(snapTempo('20:00', 0, 'Suzuka'), aTempo).gara, false);
+  assert.equal(d.valuta(snapTempo('20:00'), aTempo).gara, true);
+});
+
+test('la dichiarazione marca lo snapshot, non lo muta, e non tocca la rotta a giri', () => {
+  const d = creaDichiarazioneGara();
+  const snap = snapTempo('20:00');
+  const esito = d.valuta(snap, aTempo);
+  assert.equal(esito.gara, true);
+  assert.equal(esito.snap.session.race, true);
+  assert.equal(snap.session.race, false, 'il lettore riusa i suoi oggetti');
+  assert.notEqual(esito.snap.session, snap.session);
+  // nessun pending: la carriera non parla (null, non «non è gara»)
+  const senza = creaDichiarazioneGara().valuta(snapTempo('20:00'), null);
+  assert.equal(senza.gara, null);
+  assert.equal(senza.snap.session.race, false, 'senza carriera niente marcatura');
 });
 
 test('conGaraCarriera marca lo snapshot senza toccare l’input', () => {
