@@ -1192,6 +1192,31 @@ async function api(context0, _req, res, action, body) {
         const ricetta = ultimaRicetta();
         if (!ricetta) return sendJson(res, 409, { error: tr({ it: 'Nessuna ricetta in canna: compila i campi qui sotto e premi «Imposta in EVO» una volta, dalla prossima volta basterà «PARTI SUBITO».', en: 'No recipe stored yet: fill the fields below and press «Write to EVO» once; from next time «GO NOW» will do it.' }) });
         const out = garaVeloce({ ...ricetta, dry: !!body.dry, force: true });
+        // ▶ E IL GIOCO PARTE (7/11, richiesta Mauro: «fai in modo che questo
+        // lanci il gioco già impostato»): il tasto scrive la ricetta e POI
+        // apre EVO se è chiuso. Prima si scrive, poi si apre: il gioco legge
+        // i suoi file quando entra nel menu, aprendolo prima le scritture
+        // arriverebbero a menu già disegnato. launchGame usa `start` e torna
+        // subito (non aspetta l'exe): appena il Cruscotto è in gioco riceve il
+        // comando `volo` (state.volo) e imposta modalità, roster, AI, meteo e
+        // ora. AC_EVO_VOLO_LANCIA=0 spegne l'avvio (le prove non aprono EVO).
+        if (!body.dry && process.env.AC_EVO_VOLO_LANCIA !== '0') {
+          try {
+            let paths = { gameExe: null };
+            try { paths = resolvePaths(appEnv()); } catch { /* senza exe: si passa da Steam */ }
+            const lancio = await launchGame(paths, { exe: true });
+            out.lancio = lancio;
+            out.passi.push({
+              nome: 'gioco (avvio)',
+              ok: true,
+              esito: lancio.via === 'already-running'
+                ? tr({ it: 'EVO era già aperto: nessuna seconda istanza, la gara è quella scritta qui sopra', en: 'EVO was already open: no second instance, the race is the one written above' })
+                : tr({ it: `EVO si sta aprendo (${lancio.via === 'exe' ? lancio.target : 'Steam'}): la gara è già scritta, il Cruscotto la imposta appena è dentro`, en: `EVO is starting (${lancio.via === 'exe' ? lancio.target : 'Steam'}): the race is already written, the Cruscotto applies it as soon as it is in` }),
+            });
+          } catch (e) {
+            out.passi.push({ nome: 'gioco (avvio)', ok: false, esito: e.message });
+          }
+        }
         return sendJson(res, 200, { ok: true, ...out });
       } catch (e) {
         const cod = e?.code ?? '';

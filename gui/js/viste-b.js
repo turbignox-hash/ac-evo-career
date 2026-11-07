@@ -929,7 +929,14 @@ async function drawGironi(m){
   $('#gv-subito')?.addEventListener('click', async () => {
     try {
       const out = await api('parti-subito', {});
-      gvMostra(out, tr({ it: 'Ricetta riapplicata: guarda l\'esito qui sotto, in alto è l\'anteprima della ricetta.', en: 'Recipe reapplied: result below, recipe preview above.' }));
+      // IL GIOCO PARTE CON LA GARA DENTRO (7/11): il server, dopo aver scritto
+      // la ricetta, apre EVO se è chiuso (passo «gioco (avvio)»). Il toast lo
+      // dice, così non si resta davanti al pannello aspettando un gioco che
+      // nessuno ha aperto.
+      const avviato = out.lancio?.via && out.lancio.via !== 'already-running';
+      gvMostra(out, avviato
+        ? tr({ it: 'EVO si sta aprendo con la gara già dentro: aspetta il menu (il Cruscotto imposta roster e durata appena è in gioco).', en: 'EVO is starting with the race already inside: wait for the menu (the Cruscotto applies roster and length as soon as it is in game).' })
+        : tr({ it: 'Ricetta riapplicata: guarda l\'esito qui sotto, in alto è l\'anteprima della ricetta.', en: 'Recipe reapplied: result below, recipe preview above.' }));
     } catch (e) { toast(e.message, 'err'); }
   });
 

@@ -1,5 +1,12 @@
 # Diario di sviluppo
 
+### 7/11 — «PARTE SUBITO» apre EVO con la gara già dentro
+
+- **Richiesta di Mauro**: «fai in modo che questo lanci il gioco gia impostato: Gara personalizzata al volo ▶ PARTE SUBITO».
+- **Cosa è entrato**: caso `parti-subito` di [src/webui.mjs](src/webui.mjs) — dopo `garaVeloce` (che scrive la ricetta: durata, banda, pista, meteo, ora, roster) e SOLO se non è `dry`, il server apre EVO con `launchGame` (exe vero da `resolvePaths`, fallback `steam://rungameid/…`); se EVO è già aperto `launchGame` risponde `already-running` e non nasce una seconda istanza. L'apertura arriva come passo «gioco (avvio)» nella lista ✓/✗ del pannello, e `AC_EVO_VOLO_LANCIA=0` la spegne. Ordine volontario: PRIMA si scrive, POI si apre — il gioco legge i suoi file entrando nel menu, aprendolo prima le scritture arriverebbero a menu già disegnato. In [gui/js/viste-b.js](gui/js/viste-b.js) il toast dice «EVO si sta aprendo con la gara già dentro» invece del vecchio «ricetta riapplicata».
+- **Perché il passo in più**: la ricetta da sola lasciava il pannello con «scritto» e la partita da aprire a mano; il roster/banda/meteo restano del Cruscotto (`state.volo`, comando `setcar` + `modo: 'instant'`), che li applica appena il loader è in gioco.
+- **Verifiche**: `node --test test/gara-veloce.test.mjs` — 15/15; `node --test test/webui-smoke.test.mjs` — 1/1 (il server parte con il nuovo ramo); `npm run lint` — Biome pulito su 447 file (dopo aver corretto la catena opzionale che la prima passata segnalava in `viste-b.js`). Percorsi controllati a mano sul computer: `isGameRunning()` = false e `resolvePaths().gameExe` = `E:\SteamLibrary\steamapps\common\Assetto Corsa EVO\AssettoCorsaEVO.exe`.
+- **Limiti**: l'apertura VERA di EVO non è stata eseguita in prova — avviare il gioco per collaudo avrebbe aperto EVO sul desktop dell'utente — e la prova HTTP in sandbox si è arenata perché la seconda istanza contende la coda col Pitwall vivo («coda watcher ferma da 20s»): il primo clic reale è il collaudo che resta. Il pannello continua a scrivere i file di gioco (istantanea, selettore meteo) come prima: l'apertura non cambia una riga di quelle scritture.
 ### 7/11 — caccia ai bug della gara al volo: preset inventati, difficoltà a metà, rivali senza roster
 
 - **Richiesta di Mauro**: «vai a caccia di bug», poi davanti alla schermata del weekend «tutto sbagliato, meteo, orario, giri e non tempo, difficoltà» e «anche la pista è errata ho selezionato monza».
