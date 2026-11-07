@@ -699,19 +699,7 @@ async function drawSetup(m){
     </div>`;
   })() : `<div class="panel" style="margin-top:14px"><h2>${tr({ it: 'Telemetria MoTeC', en: 'MoTeC telemetry' })}</h2><div class="muted">${esc(tel.hint ?? tr({ it: 'Nessuna sessione trovata per questa auto. Fai un giro: EVO scrive la telemetria da sola in Saved Games\\ACE\\MoTec.', en: "No session found for this car. Do a lap: EVO writes telemetry on its own in Saved Games\\ACE\\MoTec." }))}</div></div>`;
   const html = `
-  <div class="panel" id="psi-panel">
-    <h2>${tr({ it: 'Regola dei 4 PSI', en: 'The 4 PSI rule' })} <span class="h-act">${tr({ it: 'pressioni target a caldo per classe auto', en: 'hot target pressures per car class' })}</span></h2>
-    <div class="muted" style="margin-bottom:10px">${tr({ it: "Fai 3–4 giri con la pressione di partenza scelta, poi leggi la pressione a caldo nell'HUD/MFD dei pneumatici. Inserisci i due valori: il tool calibra la partenza per arrivare sul target della classe.", en: "Do 3–4 laps with your chosen starting pressure, then read the hot pressure from the tyre HUD/MFD. Enter both values: the tool calibrates the start to reach the class target." })}
-    ${tr({ it: 'Target Kunos: ', en: 'Kunos targets: ' })}${b.classes.map(c=>`${esc(c.label)} <b>${c.target}</b>`).join(' · ')} PSI.</div>
-    <form id="f-psi" class="row" style="align-items:end;flex-wrap:wrap;gap:10px">
-      <label class="muted">${tr({ it: 'Da freddo (PSI)', en: 'Cold (PSI)' })}<br><input type="number" id="i-cold" step="0.1" min="10" max="45" required style="width:110px"></label>
-      <label class="muted">${tr({ it: 'A caldo (PSI)', en: 'Hot (PSI)' })}<br><input type="number" id="i-hot" step="0.1" min="10" max="50" required style="width:110px"></label>
-      <label class="muted">${tr({ it: 'Classe auto', en: 'Car class' })}<br><select id="i-target" style="max-width:100%">${b.classes.map(c=>`<option value="${c.target}" ${c.id==='slicks'?'selected':''}>${esc(c.label)} — ${c.target} PSI</option>`).join('')}</select></label>
-      <button class="act" type="submit">${tr({ it: 'Calibra', en: 'Calibrate' })}</button>
-    </form>
-    <div id="psi-result" style="margin-top:10px"></div>
-  </div>
-  <div class="panel" style="margin-top:14px">
+  <div class="panel" id="setup-series-panel" style="margin-top:14px">
     <h2>${tr({ it: 'Auto della serie — ', en: 'Series car — ' })}${esc(b.trackDisplay ?? tr({ it: 'pista n/d', en: 'track n/a' }))} <span class="muted" style="font-size:12.5px">${tr({ it: 'note salvate per auto+pista', en: 'notes saved per car+track' })}</span></h2>
     <table><thead><tr><th>${tr({ it: 'Auto', en: 'Car' })}</th><th>${tr({ it: 'Classe', en: 'Class' })}</th><th class="right">${tr({ it: 'Target caldo', en: 'Hot target' })}</th><th>${tr({ it: 'Nota di setup', en: 'Setup note' })}</th></tr></thead>
     <tbody>${b.rows.map(r=>`<tr>
@@ -898,17 +886,6 @@ async function drawSetup(m){
         [[tr({ it: 'Chiudi', en: 'Close' }), 'act', () => {}]]);
     });
   }
-  $('#f-psi').onsubmit = (ev) => {
-    ev.preventDefault();
-    window.__lastPsi = null;
-    api('garage', { action: 'psi', cold: Number($('#i-cold').value), hot: Number($('#i-hot').value), target: Number($('#i-target').value) })
-      .then(p => {
-        $('#psi-result').innerHTML = p.ok
-          ? `<div class="banner ${Math.abs(p.hot-p.target)<0.15?'good':'info'}"><b>${esc(p.advice)}</b></div>`
-          : `<div class="banner bad">${esc(p.error)}</div>`;
-      })
-      .catch(e => { $('#psi-result').innerHTML = `<div class="banner bad">${esc(e.message)}</div>`; });
-  };
   $$('button[data-carnote]').forEach(btn => { btn.onclick = async () => {
     const car = btn.dataset.carnote;
     const row = b.rows.find(r => r.car === car);

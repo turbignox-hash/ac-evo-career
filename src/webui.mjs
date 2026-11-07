@@ -3150,7 +3150,6 @@ async function api(context0, _req, res, action, body) {
     case 'garage': {
       // aiuto-meccanico: target pressioni classe, regola 4 PSI, note per auto+pista
       try {
-        if (body.action === 'psi') return sendJson(res, 200, fourPsi({ cold: body.cold, hot: body.hot, target: body.target }));
         if (body.action === 'sessions') {
           // storico telemetrie per auto (e pista se nota): tipo sessione, giri, benzina,
           // pressioni vere e assetto in pratica — la materia prima del suggeritore

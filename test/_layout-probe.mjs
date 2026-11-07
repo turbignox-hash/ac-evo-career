@@ -55,7 +55,7 @@
 // GUI arrivano dopo col loro stesso flusso.
 
 /* 1) CLICK + ARRIVO della vista: il marker è l'ID UNICO della vista
- * (Impostazioni #agg-status, Setup #psi-panel, Analisi #an-tetto, …) e
+ * (Impostazioni #agg-status, Setup #setup-series-panel, Analisi #an-tetto, …) e
  * pannelli è il minimo che la vista aggiunge a terra (1 basta per la
  * maggior parte, Impostazioni vuole 3). */
 export async function assettaVista(page, { id, marker, pannelli = 1, nascosto = false }) {

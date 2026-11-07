@@ -65,13 +65,14 @@ test('correzione telemetria: esterno scotta → aggiungi camber; freni bollenti 
   assert.match(all, /picco 640/);
 });
 
-test('pressioni fuori target → rimando alla regola dei 4 PSI', () => {
+test('pressioni fuori target → rimando al consiglio pressioni, senza pannello manuale', () => {
   const d = telemBase();
   d.lastPressures.LF = 33; d.lastPressures.RR = 33;
   const m = setupAdvice(suzukaGt3, d);
   const all = m.consigli.map((c) => `${c.vedi}|${c.text}`).join(' ');
   // la GT3RS → classe slicks (target 27): 33 è fuori
-  assert.match(all, /regola dei 4 PSI/);
+  assert.match(all, /consulta il consiglio pressioni qui sotto/);
+  assert.doesNotMatch(all, /regola dei 4 PSI|pannello su/);
   // dentro la finestra: niente rimando
   const d2 = telemBase();
   const m2 = setupAdvice(suzukaGt3, d2);

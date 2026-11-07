@@ -303,14 +303,14 @@ export function setupAdvice(info, telem) {
       it: `Freni ${bWheel} picco ${Math.round(brakeMax)}°C: il termico è al limite — se svaniscono in fondo al giro, passa a una pastiglia più dura o sposta 1 tacca di bias del freno.`,
       en: `Brakes ${bWheel} peak ${Math.round(brakeMax)}°C: the thermal side is at its limit — if they fade late in the lap, go to a harder pad or move brake bias one notch.`,
     }));
-    // pressioni lontane dal target → promemoria (le regola coi 4 PSI già presente)
+    // pressioni lontane dal target → rimando al consiglio di correzione calcolato sotto
     const targ = tyreClassOf(info?.car ?? '').target ?? null;
     if (targ && telem.lastPressures) {
       const hot = (telem.lastPressures.LF + telem.lastPressures.RR) / 2;
       if (Math.abs(hot - targ) > 1.2) {
         add('pressioni', 1, tr({
-          it: `A caldo ${hot.toFixed(1)} PSI vs target ${targ}: fuori finestra — ricalibra la partenza con la regola dei 4 PSI (pannello su).`,
-          en: `Hot ${hot.toFixed(1)} PSI vs target ${targ}: out of window — recalibrate the start with the 4 PSI rule (panel above).`,
+          it: `A caldo ${hot.toFixed(1)} PSI vs target ${targ}: fuori finestra — consulta il consiglio pressioni qui sotto per la correzione alla partenza.`,
+          en: `Hot ${hot.toFixed(1)} PSI vs target ${targ}: out of window — see the pressure advice below for the starting-pressure correction.`,
         }));
       }
     }

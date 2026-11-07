@@ -110,7 +110,7 @@ const WIDTHS = [256, 320, 360, 480, 1250, 1920];
  * Griglia, #rv-registro Rivali, #track-hist Piste, #cars-grid Auto,
  * #g-mech Garage, #arc-q Archivio, #b-on-all Online, #gv-subito Giri liberi,
  * #stats-vetrina Statistiche, #bn-libro Finanze, #i-diffval Difficoltà,
- * #agg-status Impostazioni, #psi-panel Setup, #an-tetto Analisi; i due
+ * #agg-status Impostazioni, #setup-series-panel Setup, #an-tetto Analisi; i due
  * NASCOSTI (senza bottone in nav, leva `nascosto` della sonda):
  * #cal-titolo Calendario, #mondo-vetrina Classifica Mondiale.
  * riempimentiDedicati solo per Impostazioni (i tre arrivi asincroni NOTI);
@@ -136,7 +136,7 @@ const TAB = [
   { id: 'banca',     nome: 'Finanze',     marker: '#bn-libro',   pannelli: 1 },
   { id: 'difficulty', nome: 'Difficoltà', marker: '#i-diffval',  pannelli: 1 },
   { id: 'settings',  nome: 'Impostazioni', marker: '#agg-status', pannelli: 3, riempimentiDedicati: true },
-  { id: 'setup',     nome: 'Setup',       marker: '#psi-panel',  pannelli: 1 },
+  { id: 'setup',     nome: 'Setup',       marker: '#setup-series-panel', pannelli: 1 },
   { id: 'analisi',   nome: 'Analisi',     marker: '#an-tetto',   pannelli: 1 },
   /* i due NASCOSTI (3/11): senza bottone in nav — la sonda li apre con
    * `tab = '…'; render()`, la stessa leva dei click vivi */

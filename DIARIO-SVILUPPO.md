@@ -1,5 +1,14 @@
 # Diario di sviluppo
 
+### 7/11 — rimosso il calcolatore manuale dei 4 PSI dalla scheda Setup
+
+- **Richiesta di Mauro**: «Riavvia il Pitwall e apri la scheda del meccanico per verificare a schermo come si vede la riga “prossima mossa” con i dati attuali. rimuovi regola Regola dei 4 PSI dal meccanico che si calcola manuale».
+- **Cosa è stato tolto**: il pannello `Regola dei 4 PSI` con campi manuali freddo/caldo, selettore classe, bottone Calibra e risposta, più l'handler del form in `gui/js/viste-c.js` e l'azione API manuale `garage/psi` in `src/webui.mjs`. La regola/stima automatica non è stata rimossa: resta nei suggerimenti calcolati da telemetria/classe, senza immissione manuale. Il consiglio pressioni del meccanico non rimanda più al vecchio “pannello su”, ma al consiglio automatico sottostante.
+- **Riavvio e verifica schermo**: Pitwall riavviato su `127.0.0.1:8642`, la scheda Setup aperta nel browser. Con i dati attuali, la riga visibile è: «Prossima mossa — Sistema “assetto”: Bumpstop LF al 6.9% del giro: il fondo batte — ALZA l'altezza (2 clic) o irigidisci i bumpstop su quel lato; su Donington Park la superficie cresce col carico. Poi 3 giri di verifica e riapri il pannello». Nel DOM non esistono più `#psi-panel`, `#f-psi` o `#i-cold`; console senza errori.
+- **Verifiche**: `node --test test/layout-impostazioni.test.mjs` — 21 tab × 6 larghezze, passato; `node --test test/meccanico.test.mjs` — 5/5 (inclusa assenza del rimando manuale); `node --test test/lingua-server.test.mjs` — 3/3; `npm run lint` — Biome pulito su 447 file.
+- **Nota sui test**: al primo passaggio il nuovo marker grafico era sul box consigli telemetrici, che non compare nei fixture di layout senza telemetria; la prova ha rilevato il timeout e il marker è stato spostato sul pannello note auto/serie sempre presente. La ripetizione completa della guardia è passata.
+- **Limiti**: il box che dice “Prossima mossa” usa la sessione realmente più recente disponibile nel Pitwall (qui Donington); EVO era chiuso. Non ho alterato salvataggi o file di gioco.
+
 ### 7/11 — il test end-to-end controlla anche gli scarti numerici di gara
 
 - **Richiesta di Mauro**: «procedi» all'estensione del test finto per coprire scarti numerici quando scheda e file sono entrambi a tempo o entrambi a giri.
