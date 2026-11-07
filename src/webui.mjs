@@ -1204,7 +1204,20 @@ async function api(context0, _req, res, action, body) {
         //      preme «Avvia sessione» nella stessa sequenza.
         // body.dry = prova: niente scritture, niente armatura, niente avvio.
         const out = garaVeloce({ ...ricetta, avvia: !body.dry, dry: !!body.dry, force: true });
-        if (!body.dry) {
+        // LA DURATA È IL CONTRATTO (7/11, caccia ai bug): se il passo «durata gara»
+        // è KO, EVO si aprirebbe con la gara VECCHIA — la figura di stamattina
+        // («in gioco c'è ancora Donington, 3 giri»). Il gioco NON si apre e lo si
+        // dice: meglio un ✗ chiaro del pannello che una pista sbagliata da guidare.
+        const durataKo = (out.passi ?? []).some((p) => p.nome === 'durata gara' && !p.ok);
+        if (!body.dry && durataKo) {
+          out.passi.push({
+            nome: 'gioco (avvio)',
+            ok: false,
+            esito: tr({ it: 'EVO non l\'ho aperto: la durata non è stata scritta (vedi il ✗ qui sopra) — sistemala e ripremi', en: 'I did not open EVO: the length was not written (see the ✗ above) — fix it and press again' }),
+          });
+        } else if (!body.dry && !body.noLaunch) {
+          // body.noLaunch = la stessa via di fuga del caso 'race': il percorso
+          // si prova senza aprire il gioco (i test lo usano; la GUI no).
           try {
             const lancio = await launch(paths ?? { gameExe: null });
             out.lancio = lancio;

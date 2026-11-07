@@ -67,11 +67,12 @@ export function timedRace({ minutes = null, laps = null, file = INSTANT_FILE, dr
   const buf = readFileSync(file);
   const fields = decodeMsg(buf);
   const f3s = fields.filter((f) => f.field === 3 && f.wire === 2);
-  let changed = false;
+  let changed = false, bloccoTrovato = false;
   for (const f3 of f3s) {
     const sess = decodeMsg(f3.bytes);
     const n = sess.find((x) => x.field === 1);
     if (!n || Buffer.from(n.bytes).toString('utf8') !== 'Race') continue;
+    bloccoTrovato = true;
     const g2 = sess.find((x) => x.field === 2);
     const g3 = sess.find((x) => x.field === 3);
     if ((g3 == null || Number(g3.varint) !== mode) || (g2 == null || Number(g2.varint) !== durata)) {
@@ -81,6 +82,11 @@ export function timedRace({ minutes = null, laps = null, file = INSTANT_FILE, dr
       changed = true;
     }
   }
+  // IL BLOCCO CI DEVE ESSERE (7/11): senza, «non changed» non significa «già a
+  // posto» — significava «non trovato», e il passo mentiva verde. Lo dichiara
+  // con lo stesso codice di setInstantAi: chi chiama lo mette in ✗ invece di
+  // aprire il gioco su una durata che nessuno ha scritto.
+  if (!bloccoTrovato) throw Object.assign(new Error('blocco Race non trovato nell\'INSTANT_RACE (mai aperta una gara custom?): aprine una volta in EVO, poi ripremi'), { code: 'NO_RACE' });
   if (!changed) return { written: false, mode, durata, nota: 'blocco Race già a posto (idempotente)' };
   if (dry) return { written: false, dry: true, mode, durata };
   if (gameRunning() && !force) throw new Error('EVO è APERTO: chiudi il gioco prima di scrivere (o usa --force sapendolo).');
