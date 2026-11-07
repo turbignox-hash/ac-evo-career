@@ -1,5 +1,12 @@
 # Diario di sviluppo
 
+### 7/11 — il test end-to-end controlla anche gli scarti numerici di gara
+
+- **Richiesta di Mauro**: «procedi» all'estensione del test finto per coprire scarti numerici quando scheda e file sono entrambi a tempo o entrambi a giri.
+- **Cosa è entrato**: un secondo test end-to-end parametrizzato in `test/race-card.test.mjs`, costruisce e riscrive un protobuf sintetico nella sandbox del test per due casi, attraversa la vera `durateDalSave()` e poi `raceCard()`, verifica i numeri estratti, un solo warning, la frase precisa e l'assenza di falsi scarti per prove/qualifiche: (1) scheda gara a 20′ contro file Race a tempo di 1500 s = 25′; (2) scheda gara 3 giri contro file Race a 5 giri. In entrambi i casi il tipo combacia: l'avviso dimostra quindi che il confronto numerico, non solo la differenza di modalità, arriva in scheda. Pulizia del file e cache in `finally`, percorso prima affermato uguale alla sandbox privata.
+- **Verifiche**: `node --test test/race-card.test.mjs` — 25/25; suite `npm test` — **1.286 test, 1.284 pass, 0 fail, 2 skip**; `npm run lint` — Biome pulito su 447 file.
+- **Limite**: fixture protobuf e catena server-side reali; non simula il gioco EVO, e non tocca i save dell'utente.
+
 ### 7/11 — test end-to-end permanente della catena gamemodesave → avviso
 
 - **Richiesta di Mauro**: «Trasforma il controllo col gamemodesave finto in un test permanente, così la catena scheda-file-avviso resta protetta».

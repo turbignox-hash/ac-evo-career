@@ -540,6 +540,48 @@ test('raceCard → gamemodesave finto: avvisa quando la gara nel file è a tempo
   }
 });
 
+test('raceCard → gamemodesave finto: segnala anche gli scarti numerici a tempo e a giri', () => {
+  const sessione = (nome, valore, modo) => encodeMsg([
+    { field: 1, wire: 2, bytes: Buffer.from(nome, 'utf8') },
+    { field: 2, wire: 0, varint: BigInt(valore) },
+    { field: 3, wire: 0, varint: BigInt(modo) },
+  ]);
+  const casi = [
+    { nome: 'gara a tempo', scheda: { durationMin: 20 }, fileValore: 1500, modo: 1, atteso: /gara: 20′ in scheda, 25′ nel file/, attesoDurate: [true, 1500, null] },
+    { nome: 'gara a giri', scheda: { laps: 3 }, fileValore: 5, modo: 2, atteso: /gara: 3 giri in scheda, 5 giri nel file/, attesoDurate: [false, null, 5] },
+  ];
+  assert.equal(WEEKEND_SAVE, join(GAME_SANDBOX, 'GameModes', 'GameModeType_RACE_WEEKEND.gamemodesave'), 'il fixture deve restare nella sandbox, mai nel save dell’utente');
+  let scritto = false;
+  try {
+    for (const caso of casi) {
+      const fake = encodeMsg([
+        sessione('Practice', 900, 1),
+        sessione('Qualifying', 600, 1),
+        sessione('Warmup', 600, 1),
+        sessione('Race', caso.fileValore, caso.modo),
+      ].map((bytes) => ({ field: 3, wire: 2, bytes })));
+      writeFileSync(WEEKEND_SAVE, fake);
+      scritto = true;
+      _svuotaCacheDurate();
+
+      const { ladder, state } = mk();
+      ladder.nodes[0].calendar[0] = { ...ladder.nodes[0].calendar[0], ...caso.scheda };
+      ladder.profiles.pro.practiceMin = 15;
+      ladder.profiles.pro.qualifyMin = 10;
+      const card = race.raceCard(ladder, state);
+      const durate = durateDalSave();
+      assert.deepEqual([durate.aTempo, durate.garaSec, durate.garaGiri], caso.attesoDurate, `${caso.nome}: il parser legge modalità e valore dal file`);
+      const avvisi = card.warnings.map(texto).filter((w) => /Durate del weekend diverse/i.test(w));
+      assert.equal(avvisi.length, 1, `${caso.nome}: un solo avviso di durata`);
+      assert.match(avvisi[0], caso.atteso, `${caso.nome}: unità e valori confrontati correttamente`);
+      assert.doesNotMatch(avvisi[0], /prove libere|qualifiche/, `${caso.nome}: prove e qualifiche combaciano`);
+    }
+  } finally {
+    if (scritto) rmSync(WEEKEND_SAVE, { force: true });
+    _svuotaCacheDurate();
+  }
+});
+
 test('la scheda non inventa l’avviso quando il gamemodesave non c’è', () => {
   const { ladder, state } = mk();
   const c = race.raceCard(ladder, state);
