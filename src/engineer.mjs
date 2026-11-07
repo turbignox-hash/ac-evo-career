@@ -132,7 +132,11 @@ export function engineerLive(snap, ctx = {}) {
   // le prove libere come «TimeAttack», non come «Race» — restando muti su
   // Race-only il pannello delta/resta spento proprio nei giri di prova dove
   // serve). La FINESTRA PIT resta invece una cosa da soltanto gara.
-  const inSession = !!snap?.live && ['Race', 'HotStint', 'TimeAttack'].includes(sessionType) && !!player;
+  // 7/11: la sessione vale anche quando la dichiara la carriera (`garaCarriera`
+  // true) e il tipo static nel frattempo scrive altro («sconosciuta» nei
+  // passaggi di stato): senza questo, l'uscita anticipata qui sotto avrebbe
+  // risposto { live:false, inRace:false } proprio nella gara preparata.
+  const inSession = !!snap?.live && (['Race', 'HotStint', 'TimeAttack'].includes(sessionType) || ctx.garaCarriera === true) && !!player;
   /* 29/10: La FINESTRA PIT resta una cosa da soltanto gara — ma il tipo del
      blocco STATIC mente nelle gare SP (il gioco le etichetta «TimeAttack»,
      178 tick su 178 nelle due gare reali di stanotte) e così i narratori
@@ -153,13 +157,22 @@ export function engineerLive(snap, ctx = {}) {
   // quindi inRace restava falso per tutta la gara. La firma vera la calcola lo
   // snapshot (session.race: sessione a giri senza timer) — una sola regola per
   // live, verifica scheda e copilota.
-  // 7/11 (chiusura del difetto): `session.race` ora riconosce il timer di gara
-  // AZZERATO («00:00», non vuoto) — vedi `sessione-tipo.mjs` — ma la stessa
-  // regola si applica qui sui campi del pilota, così il giudizio è identico
-  // anche quando lo snapshot arriva da un lettore vecchio che non la calcola.
-  const inRace = snap?.session?.race === true
-    || eGaraSessione({ tipo: sessionType, giriTotali: player?.lapsTotal, tempoRimanente: player?.timeLeftAll })
-    || /race/i.test(faseGioco);
+  // 7/11 — LA GARA LA DICHIARA LA CARRIERA (richiesta di Mauro: «fai dichiarare
+  // la gara alla carriera invece che ai campi di EVO»). Il server passa
+  // `garaCarriera` (true/false) quando c'è una ronda preparata: pista del
+  // `pending` e giri in palio identici (vedi `gara-carriera.mjs`). Quando la
+  // carriera parla, vince lei — anche CONTRO i campi del gioco, che nelle gare
+  // in singolo scrivono «TimeAttack» e danno un timer alla gara. `null` = la
+  // carriera non sa (nessuna ronda preparata: eventi, prove libere, test): solo
+  // allora valgono i campi di EVO, con la regola di casa.
+  const inRace = ctx.garaCarriera === true ? true
+    : ctx.garaCarriera === false ? false
+    : snapshot_dice_gara();
+  function snapshot_dice_gara() {
+    return snap?.session?.race === true
+      || eGaraSessione({ tipo: sessionType, giriTotali: player?.lapsTotal, tempoRimanente: player?.timeLeftAll })
+      || /race/i.test(faseGioco);
+  }
   const gauges = {
     lapsDone: null, lapsTotal: null, fuel: null, lapsOnFuel: null, lapsLeft: null,
     wear: null, temp: null, gapAhead: null, gapBehind: null,

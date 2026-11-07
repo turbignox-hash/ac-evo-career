@@ -1021,3 +1021,45 @@ test('cronaca alla scacchi: i fatti che il Pitwall HA VISTO, e niente invenzioni
   const magra = gara([r(1000, { gauges: { lapsDone: 3, position: 4 } })]);
   assert.equal(magra.filter((f) => f.chi === 'cronaca').length, 0, 'senza almeno due fatti la cronaca tace');
 });
+
+
+/* 7/11 — LA CRONACA E IL POSTALK SEGUONO LA CARRIERA, NON I CAMPI DI EVO.
+   Il difetto vero stava qui: `inGara` si ricavava da fase e tipo, e siccome
+   EVO scrive «TimeAttack» anche in gara, `!fuoriGara.test(tipo)` era falso e
+   ogni gara di carriera restava «fuori gara» — cronaca e postalk muti per
+   costruzione. Ora la dichiarazione del server (`inRace`, dalla carriera)
+   vince in tutti e due i versi. */
+const garaFrame = (t, { giri, pos, inRace = true, tipo = 'TimeAttack', tagli = null }) => MMF(t, {
+  inRace, sessionType: tipo, phase: 'Session',
+  gauges: { lapsDone: giri, lapsTotal: 3, position: pos, inPit: false, fuel: 20, lapsOnFuel: 7, lapsLeft: 3 - giri, cutSec: tagli },
+  delta: { lapNo: giri, dv: 0 },
+});
+
+test('gara dichiarata dalla carriera: postalk, ultimo giro, bandiera e cronaca parlano', () => {
+  const slot = { last: {}, at: 0, said: {}, firma: 'gara-carriera' };
+  const dette = [
+    ...narratore(garaFrame(1000, { giri: 1, pos: 5 }), slot, 1000),
+    ...narratore(garaFrame(5000, { giri: 1, pos: 4 }), slot, 5000),      // posizione recuperata
+    ...narratore(garaFrame(60000, { giri: 2, pos: 2, tagli: 0.7 }), slot, 60000),    // ultimo giro (2 + 1 = 3), con un taglio visto
+    ...narratore(garaFrame(90000, { giri: 3, pos: 1 }), slot, 90000),    // traguardo: bandiera in coda
+    // la bandiera esce dopo il giro annunciato o allo scadere del soccorso di
+    // 10 s (regola 8d, quella che la tiene dietro al «Giro N fatto»): la
+    // facciamo scadere qui, senza inventare un giro che non c'è
+    ...narratore(garaFrame(101000, { giri: 3, pos: 1 }), slot, 101000),
+  ];
+  assert.equal(slot.last.inGara, true, 'la carriera dice gara: il narratore le crede');
+  assert.ok(dette.some((f) => f.chi === 'postalk' && f.it.includes('P4')), 'postalk con la posizione vera');
+  assert.equal(voce(dette, 'ultimoGiro'), 1);
+  assert.equal(voce(dette, 'bandiera'), 1);
+  assert.ok(dette.some((f) => f.chi === 'cronaca'), 'la cronaca nasce coi fatti raccolti');
+});
+
+test('prova dichiarata dalla carriera: niente postalk né cronaca anche col tipo «Race»', () => {
+  const slot = { last: {}, at: 0, said: {}, firma: 'prova-carriera' };
+  const dette = [
+    ...narratore(garaFrame(1000, { giri: 1, pos: 5, inRace: false, tipo: 'Race' }), slot, 1000),
+    ...narratore(garaFrame(5000, { giri: 1, pos: 4, inRace: false, tipo: 'Race' }), slot, 5000),
+  ];
+  assert.equal(slot.last.inGara, false);
+  assert.equal(voce(dette, 'postalk'), 0, 'in prova la carriera chiude la bocca al postalk');
+});

@@ -605,8 +605,18 @@ function narratore(m, slot, ora = Date.now()) {
     const fase = String(m.phase ?? '');
     const fuoriGara = /qualif|practice|pratic|test|hotlap|warm|outlap/i;
     const faseGara = /race|gara/i.test(fase);
-    const inGara = !fuoriGara.test(fase)
-      && (faseGara || (!fuoriGara.test(tipo) && (/race|gara/i.test(tipo) || Number(m.gauges?.lapsTotal) > 0)));
+    // LA GARA LA DICHIARA LA CARRIERA (7/11, richiesta di Mauro): il server
+    // consegna `inRace` dal `pending` della carriera (pista + giri della gara
+    // preparata). Quando il giudizio c'è, VINCE LUI. Prima qui la gara si
+    // ricavava solo da fase e tipo — e siccome EVO scrive «TimeAttack» anche
+    // nelle gare in singolo, `!fuoriGara.test(tipo)` era falso e TUTTE le gare
+    // di carriera restavano «fuori gara»: cronaca e postalk muti per
+    // costruzione, qualunque cosa dicesse il resto. `inRace` assente = la
+    // regola dei campi resta (test e chiamanti vecchi).
+    const inGara = m.inRace === true ? true
+      : m.inRace === false ? false
+      : (!fuoriGara.test(fase)
+        && (faseGara || (!fuoriGara.test(tipo) && (/race|gara/i.test(tipo) || Number(m.gauges?.lapsTotal) > 0))));
     const viaVisto = slot.last.verdeVisto === true
       || Number(m.gauges?.lapsDone) > 0;    // gara ripresa a metà: i giri dicono il via
     if (g.inPit === true) slot.last.inPitOra = ora;

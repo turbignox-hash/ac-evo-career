@@ -338,3 +338,42 @@ test('senza degrado misurato la radio non inventa la strategia', () => {
   assert.equal(out.gauges.pitBattle, undefined);
   assert.equal(out.tips.find((t) => /Undercut|Overcut/.test(t.title)), undefined);
 });
+
+/* 7/11 — LA GARA LA DICHIARA LA CARRIERA (richiesta Mauro: «fai dichiarare la
+   gara alla carriera invece che ai campi di EVO, così ultimo giro, bandiera a
+   scacchi e cronaca funzionano nelle gare vere»). Nelle gare in singolo EVO
+   scrive «TimeAttack»: se il giudizio lo dà la carriera (pista + giri del
+   pending), vince lui — in tutti e due i versi, perché un falso «gara» in una
+   prova accenderebbe finestra pit e ultimo giro dove non servono. */
+const garaSnap = (giriTotali = 3, giriFatti = 2) => ({
+  live: true,
+  session: { type: 'TimeAttack', track: 'Donington Park' },
+  // `timeLeftAll` con un conto alla rovescia vero: è ciò che EVO scrive nelle
+  // prove, e con la regola dei campi (giri + timer) la sessione NON è gara.
+  player: { lapsDone: giriFatti, lapsTotal: giriTotali, speedKmh: 120, fuel: 25, position: 4, fuelPerLap: 2.6, timeLeftAll: '9:54' },
+});
+
+test('inRace: la carriera dichiara la gara, i campi di EVO non decidono', () => {
+  assert.equal(engineerLive(garaSnap(), { garaCarriera: true }).inRace, true, 'carriera: è la gara preparata');
+  assert.equal(engineerLive(garaSnap(), { garaCarriera: false }).inRace, false, 'carriera: è una prova');
+  // la carriera vince anche CONTRO il tipo del gioco (una prova con tipo Race)
+  const race = { ...garaSnap(), session: { type: 'Race', track: 'Donington Park' } };
+  assert.equal(engineerLive(race, { garaCarriera: false }).inRace, false);
+  // senza giudizio resta la parola dei campi (eventi, test, chiamanti vecchi)
+  assert.equal(engineerLive(garaSnap(), {}).inRace, false, 'TimeAttack dichiarato: fuori gara');
+  // e con la carriera che dichiara gara la sessione resta viva anche se il tipo
+  // passa a «sconosciuta» (i cambi di stato del gioco)
+  const strana = { ...garaSnap(), session: { type: 'sconosciuta', track: 'Donington Park' } };
+  const out = engineerLive(strana, { garaCarriera: true });
+  assert.equal(out.live, true);
+  assert.equal(out.inRace, true);
+});
+
+test('ultimo giro e finestra pit seguono la dichiarazione della carriera', () => {
+  const ultimo = engineerLive(garaSnap(3, 2), { garaCarriera: true });
+  assert.equal(ultimo.gauges.isLastLap, true, 'i compiuti + 1 toccano il totale: ultimo giro');
+  assert.ok(ultimo.pit, 'la finestra pit esiste solo in gara');
+  const prova = engineerLive(garaSnap(3, 2), { garaCarriera: false });
+  assert.equal(prova.gauges.isLastLap, null, 'in prova il «ultimo giro» non si inventa');
+  assert.equal(prova.pit, null);
+});

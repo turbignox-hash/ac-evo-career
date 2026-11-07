@@ -19,7 +19,7 @@ import { costanzaSettoriDaLog } from './margine-log.mjs';
 // Riepilogo di fine sessione del monitor live (6/11): la stessa funzione che
 // scrive `.live-monitor.riepilogo.txt` serve anche la scheda del Cruscotto.
 import { lettoreLogLive } from './live-log-incrementale.mjs';
-import { conGaraCarriera } from './gara-carriera.mjs';
+import { conGaraCarriera, garaDallaCarriera } from './gara-carriera.mjs';
 // ultimo riepilogo calcolato + impronta del log (mtime|size): il polling della
 // scheda costa uno stat finché il monitor non scrive
 import { rigaDaRegistrazione, riepiloghiDa, unisciSessioni } from './live-monitor-riepilogo.mjs';
@@ -703,6 +703,12 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
   // a scacchi, cronaca) è vero anche quando il gioco chiama la gara
   // «TimeAttack».
   snap = conGaraCarriera(snap, state?.pending);
+  // IL GIUDIZIO ESPLICITO PER L'INGEGNERE (7/11): true/false quando c'è una
+  // ronda preparata, null quando la carriera non sa (eventi, test, nessun
+  // pending). L'ingegnere lo usa come PRIMA fonte di `inRace` — la marcatura
+  // dello snapshot serve a chi legge /api/live (copilota nel browser, log del
+  // monitor), questo alla finestra pit, all'ultimo giro e alla cronaca.
+  const garaCarriera = state?.pending ? garaDallaCarriera(snap?.session, snap?.player, state.pending) : null;
   let raceLaps = null, fuelPerLap = null, telemTrack = null;
   let degSecPerLap = null;   // degrado del ritmo misurato (usura-gomme), per undercut/overcut
   let pitLossSec = null;     // costo sosta misurato dai giri in/out della stessa pista
@@ -712,7 +718,7 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
      voce mutava). L'HUD calcola già lapsTotal e lapsOnFuel: il narratore
      consuma proprio quelle stime. */
   if (leggero) {
-    const live0 = engineerLive(snap, { fuelPerLap: null, raceLaps: null, livePsi: r.last?.physics?.wheelPressure ?? null, targetPsi: snap.player?.car ? (tyreClassOf(snap.player.car)?.target ?? null) : null });
+    const live0 = engineerLive(snap, { fuelPerLap: null, raceLaps: null, garaCarriera, livePsi: r.last?.physics?.wheelPressure ?? null, targetPsi: snap.player?.car ? (tyreClassOf(snap.player.car)?.target ?? null) : null });
     /* FINESTRA STINT nel tick (DA-9 seconda fetta): SOLO l'alert, SOLO dal
        cache caldo — il piano a freddo costa decine di secondi di MoTeC e il
        tick della radio non può piombare (chi scalda è il pannello intero).
@@ -782,7 +788,7 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
   // correzione da dare alla partenza mentre si gira (stessa regola dei 4 PSI
   // che applica il pannello del box).
   const live = engineerLive(snap, {
-    fuelPerLap, raceLaps, degSecPerLap, pitLossSec,
+    fuelPerLap, raceLaps, garaCarriera, degSecPerLap, pitLossSec,
     livePsi: r.last?.physics?.wheelPressure ?? null,
     targetPsi: snap.player?.car ? (tyreClassOf(snap.player.car)?.target ?? null) : null,
   });
