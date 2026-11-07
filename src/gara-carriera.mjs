@@ -19,8 +19,10 @@
 // o i giri non tornano, la funzione dice di no e resta la parola del gioco.
 
 /** Confronto pista tollerante: minuscole, spazi e punteggiatura fuori, e la
- *  contenenza nei due versi («Donington Park» ↔ «Donington Park GP»). */
-function stessaPista(a, b) {
+ *  contenenza nei due versi («Donington Park» ↔ «Donington Park GP»).
+ *  Esportata perché la verifica guidata (`tools/verifica-gara-tempo.mjs`)
+ *  sceglie le sessioni da guardare con la STESSA tolleranza della regola. */
+export function stessaPista(a, b) {
   const n = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   const x = n(a);
   const y = n(b);
