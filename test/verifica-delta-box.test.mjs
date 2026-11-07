@@ -80,3 +80,42 @@ test('--dopo taglia le soste vecchie: il difetto storico non conta per la gara d
   assert.equal(r.status, 0, r.stdout);
   assert.equal(JSON.parse(r.stdout).finestre, 1);
 });
+
+/* 7/11 — `--ultima` (richiesta Mauro: «si lancia dopo la gara senza dover
+   calcolare l'orario»). Non indovina: usa la marcatura che il Pitwall scrive
+   da solo a ogni sessione e prende l'ultima. Se la marcatura manca NON ripiega
+   sul registro intero (un «pulito» falso è peggio di nessun controllo). */
+const vivaSessione = (t) => ({ t, evento: 'SESSIONE VIVA — voce del Pitwall pronta (15 s di grazia)' });
+
+test('--ultima guarda SOLO la sessione più recente: la sosta sporca di ieri non conta', () => {
+  const f = registro([
+    vivaSessione(T0),
+    boxopen(T0 + 1000), delta(T0 + 2000, 'vecchia gara: ai box diceva il delta'), boxclose(T0 + 60000),
+    vivaSessione(T0 + 3600000),                                   // la gara di adesso
+    boxopen(T0 + 3601000), boxclose(T0 + 3660000),                // sosta pulita
+  ]);
+  assert.equal(esegui(f).status, 1, 'senza --ultima il difetto vecchio conta');
+  const r = esegui(f, '--ultima');
+  assert.equal(r.status, 0, r.stdout);
+  const out = JSON.parse(r.stdout);
+  assert.equal(out.finestre, 1, 'una sola sosta: quella della sessione nuova');
+  assert.equal(out.frasiDeltaInBox, 0);
+  assert.equal(out.ultimaSessione, new Date(T0 + 3600000).toISOString(), 'la marcatura usata è la più recente');
+});
+
+test('--ultima non è cieca: se la sosta sporca è nella sessione nuova, esce 1', () => {
+  const f = registro([
+    vivaSessione(T0),
+    boxopen(T0 + 3600000), delta(T0 + 3601000, 'ai box, gara di adesso'), boxclose(T0 + 3660000),
+  ]);
+  const r = esegui(f, '--ultima');
+  assert.equal(r.status, 1, r.stdout);
+  assert.equal(JSON.parse(r.stdout).frasiDeltaInBox, 1);
+});
+
+test('--ultima senza marcatura di sessione: esce 2 e NON dice «pulito»', () => {
+  const f = registro([boxopen(T0), delta(T0 + 1000), boxclose(T0 + 2000)]);
+  const r = esegui(f, '--ultima');
+  assert.equal(r.status, 2, 'un esito diverso da 0/1: la sessione non è determinabile');
+  assert.match(r.stderr, /marcatura di sessione/i);
+});

@@ -1,5 +1,14 @@
 # Diario di sviluppo
 
+### 7/11 notte — `verifica-delta-box --ultima`: il controllo dopo gara senza calcolare l'orario
+
+- **Richiesta di Mauro**: «aggiungi al controllo delta-ai-box una modalità che guarda solo l'ultima sessione, così si lancia dopo la gara senza dover calcolare l'orario».
+- **Come riconosce la sessione**: non indovina e non usa i tempi a mano — legge la marcatura che il Pitwall scrive da solo nel registro vocale a ogni sessione («SESSIONE VIVA — voce del Pitwall pronta» al primo tick, «SESSIONE NUOVA (firma cambiata)» al cambio sessione, da `src/voce-copilota.mjs`::`giroVoce`) e prende la **più recente**. Quindi `node tools/verifica-delta-box.mjs --ultima` (alias `--last`), una riga, senza `--dopo`.
+- **Contratto d'uscita**: 0 = nessuna frase delta ai box, 1 = difetto trovato, **2 = sessione non determinabile** (registro senza marcature). Non ripegare sul registro intero è la scelta: un «pulito» falso è peggio di nessun controllo — il caso vecchio lo direbbe pulito per caso. Con `--dopo` insieme vale il più recente dei due tagli.
+- **Prova sul registro vero** (`data/copilot-voce-24-10.jsonl`): `--ultima` prende la sessione delle 23:47 (la gara del 6/11), considera **0 finestre ai box** (gara senza soste) e chiude `[x]`, uscita 0. Il controllo completo senza `--ultima` dava lo stesso esito ma doveva passare tutto lo storico.
+- **Verifiche**: 3 test nuovi in `test/verifica-delta-box.test.mjs` — la sosta sporca della sessione vecchia non conta e la marcatura usata è la più recente; la sosta sporca NELLA sessione nuova esce 1 (la modalità non è cieca); senza marcature esce 2 col messaggio. `node --test test/verifica-delta-box.test.mjs` **7/7**; `npm test` **1.257 test, 1.255 pass, 0 fail, 2 skip**; `npm run lint` pulito.
+- **Limite**: la marcatura nasce dal Pitwall in funzione; un registro scritto da una versione vecchia o da un altro scrittore senza `evento` di sessione non è determinabile e lo strumento lo dice (uscita 2) invece di indovinare.
+
 ### 7/11 notte — Le direttive di gara: gialla, danno, e la cronaca del livello full
 
 - **Richiesta di Mauro**: «che altro può dire il copilot, mi piacerebbe fare con la versione full, una mini cronaca o implementare tutte le direttive della gara, bandiere, incidenti, uscite di strada etc».

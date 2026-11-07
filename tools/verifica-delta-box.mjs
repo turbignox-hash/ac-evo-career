@@ -11,15 +11,25 @@
 //
 // Uso:
 //   node tools/verifica-delta-box.mjs                      → tutto il registro
+//   node tools/verifica-delta-box.mjs --ultima             → SOLO la sessione più
+//                                                            recente (7/11: dopo la
+//                                                            gara, senza calcolare
+//                                                            l'orario a mano)
 //   node tools/verifica-delta-box.mjs --dopo 2026-11-06T21:40:00Z
 //                                                          → solo le finestre
 //                                                            aperte dopo quell'istante
 //   node tools/verifica-delta-box.mjs --file <percorso>    → un registro preciso
 //   --json                                                 → esito in JSON
 //
+// `--ultima` (alias `--last`) non indovina: usa la marcatura che il Pitwall
+// scrive da solo nel registro a ogni sessione («SESSIONE VIVA» / «SESSIONE
+// NUOVA (firma cambiata)») e prende l'ultima. Se la marcatura non c'è, NON
+// ripiega sul registro intero (un «pulito» falso è peggio di nessun controllo):
+// lo dice ed esce 2. Con `--dopo` insieme vale il più recente dei due.
+//
 // Esce 0 se nessuna frase delta è uscita dai box, 1 se ne trova (o se il
-// registro non c'è): così il controllo dopo la gara è una riga sola e
-// l'esito è il codice d'uscita, non un'occhiata.
+// registro non c'è), 2 se `--ultima` non trova la sessione: così il controllo
+// dopo la gara è una riga sola e l'esito è il codice d'uscita, non un'occhiata.
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -31,6 +41,7 @@ const DATA = process.env.EVO_DATA_DIR || join(ROOT, 'data');
 const args = process.argv.slice(2);
 const argOf = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] ?? null : null; };
 const json = args.includes('--json');
+const ultima = args.includes('--ultima') || args.includes('--last');
 
 /** Il registro più recente di data/ (copilot-voce-*.jsonl). */
 function registroPiuRecente() {
@@ -47,17 +58,43 @@ if (!file || !existsSync(file)) {
   process.exit(1);
 }
 
-const dopo = (() => {
-  const v = argOf('--dopo');
+/** Istante di --dopo: epoch ms (se il numero è grande) o data ISO. */
+const istante = (v) => {
   if (!v) return null;
   const n = Number(v);
   if (Number.isFinite(n) && n > 1e12) return n;
   const t = Date.parse(v);
   return Number.isFinite(t) ? t : null;
-})();
+};
+const dopoScalcolato = istante(argOf('--dopo'));
 
 const local = (t) => new Date(t).toLocaleString('it-IT', { timeZone: 'Europe/Rome' });
 const righe = readFileSync(file, 'utf8').split('\n');
+
+const record = [];
+for (const r of righe) {
+  if (!r.trim()) continue;
+  try { record.push(JSON.parse(r)); } catch { /* riga a metà scrittura: si salta */ }
+}
+
+/* LA SESSIONE PIÙ RECENTE (7/11): la firma la scrive il Pitwall da solo
+   (giroVoce → «SESSIONE VIVA» al primo tick e «SESSIONE NUOVA» al cambio
+   sessione), quindi non serve nessun orario calcolato a mano dopo la gara. */
+const ultimaSessione = (() => {
+  if (!ultima) return null;
+  let t = null;
+  for (const o of record) {
+    if (!/SESSIONE\s+(VIVA|NUOVA)/i.test(String(o?.evento ?? ''))) continue;
+    if (Number.isFinite(o.t)) t = t == null ? o.t : Math.max(t, o.t);
+  }
+  return t;
+})();
+if (ultima && ultimaSessione == null) {
+  console.error('--ultima: nel registro non c\'è nessuna marcatura di sessione (SESSIONE VIVA / SESSIONE NUOVA) — usa --dopo <istante>');
+  process.exit(2);
+}
+
+const dopo = [dopoScalcolato, ultimaSessione].filter((v) => v != null).reduce((a, b) => Math.max(a, b), 0) || null;
 
 // La finestra si apre con boxopen e si chiude con boxclose; una sessione nuova
 // chiude a forza (una sosta rimasta aperta a fine sessione non deve contare
@@ -65,10 +102,7 @@ const righe = readFileSync(file, 'utf8').split('\n');
 const finestre = [];
 let nelBox = false;
 let cur = null;
-for (const r of righe) {
-  if (!r.trim()) continue;
-  let o;
-  try { o = JSON.parse(r); } catch { continue; }
+for (const o of record) {
   if (/SESSIONE NUOVA/.test(o.evento ?? '')) {
     if (nelBox && cur) { cur.chiusa = 'sessione nuova'; finestre.push(cur); }
     nelBox = false; cur = null;
@@ -93,6 +127,7 @@ const frasi = sporche.reduce((s, f) => s + f.deltas.length, 0);
 if (json) {
   console.log(JSON.stringify({
     file,
+    ultimaSessione: ultimaSessione == null ? null : new Date(ultimaSessione).toISOString(),
     dopo: dopo == null ? null : new Date(dopo).toISOString(),
     finestre: interessate.length,
     finestreConDelta: sporche.length,
@@ -106,6 +141,7 @@ if (json) {
   }, null, 2));
 } else {
   console.log(`registro: ${file}`);
+  if (ultimaSessione != null) console.log(`ultima sessione: ${local(ultimaSessione)}`);
   if (dopo != null) console.log(`finestre aperte dopo: ${local(dopo)}`);
   console.log(`finestre ai box considerate: ${interessate.length}`);
   if (!sporche.length) {
