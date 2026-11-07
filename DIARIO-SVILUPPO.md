@@ -1,5 +1,14 @@
 # Diario di sviluppo
 
+### 7/11 — una copia sola: il progetto vive nel Desktop, il workspace è un cartello
+
+- **Richiesta di Mauro**: «il workspace ci ha creato problemi altre volte, possiamo portare qui tutto il progetto? vedi se conviene».
+- **Il fatto misurato**: 635 file nel workspace contro 1.166 nel progetto vero; 597 comuni, 29 diversi — e su tutti i 29 è il Desktop a essere avanti (il Cruscotto del workspace ha 0 richiami a SetCurrentCarColorPreset contro 1, src/atomic.mjs ha 0 rinnominaConPazienza contro 2, grid-cura.mjs 5.683 vs 7.994 byte, state.mjs 68.392 vs 68.444). Solo nel workspace vivevano 5 voci di diario, 1 test (le quattro fasi del weekend) e 30 script/diagnostiche una-tantum: ora sono nel progetto (commit ae9243b), nel diario e in archive/da-workspace-2026-11-07/.
+- **La struttura**: junction H:/Vitamed AI/.freebuff/progetto -> C:/Users/Mauro/Desktop/Mod ac evo; in testa ad AGENTS.md del workspace un cartello che dice dove si lavora e che src/, test/, tools/, uiapp/ di quella radice sono la copia fantasma. Niente cancellato.
+- **Verifiche**: node --test test/set-racetime-mode.test.mjs test/griglia-tetto-piloti.test.mjs -> 11/11 nel progetto vero dopo il travaso; confronto per impronta SHA-1 (597 identici, 29 diversi) e lista dei file solo-workspace per cartella (gui, uiapp, tools, config: 0 file solo in H; docs 57 immagini vecchie; data 1 backup).
+- **Resta**: ~200 MB di doppioni in H (node_modules 123 MB, gui 41 MB, più src/test/tools/uiapp/config), 57 screenshot e 1 backup che vivono ancora solo lì, e 1,1 GB di ALTRI progetti nella stessa cartella (vitamed-ai 377 MB, buuzzu_snapshot 420 MB, metal-video-auto-editor 194 MB più 56 MB di zip, cinematic-ai-studio 64 MB, assetto-corsa-career 63 file): non toccati, non sono questo progetto.
+
+
 ### 7/11 — guardia sulle quattro fasi del weekend di campionato
 
 - **Richiesta di Mauro**: «prepara tutto ha sempre impostato il weekend, mai gara direta, controlla, le gare del campionato, tutte, devono fare il weekend completo».
