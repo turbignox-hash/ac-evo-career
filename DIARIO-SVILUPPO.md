@@ -1,5 +1,13 @@
 # Diario di sviluppo
 
+### 7/11 notte — l'avviso delle durate arriva anche alla gara
+
+- **Richiesta di Mauro**: «Estendi l'avviso in scheda anche alla durata della gara, così la divergenza col file si vede per tutte e tre le sessioni».
+- **Cosa è entrato**: `avvisiDurateFile(proveScheda, qualificaScheda, durate, gara)` — il quarto parametro è `{ aTempo, valore }` coi minuti se la ronda è a tempo e i giri se è a giri, cioè la stessa firma che la scheda mostra (`durationEff`/`laps`). Prove e qualifiche restano minuti; la gara si confronta nella **sua** unità, e se scheda e file non sono nemmeno dello stesso tipo lo dice senza confrontare mele con pere: «gara: 3 giri in scheda, a tempo 20′ nel file». Resta un avviso solo che elenca tutte le differenze trovate, con lo stesso rimedio (ripremere «Prepara tutto»), e sempre silenzio quando il file non si legge o le durate combaciano.
+- **Verifiche**: prova end-to-end col `gamemodesave` copiato in temp e il blocco **Race** riscritto a tempo di 20 minuti (f3=1, f2=1200 s) mentre la scheda dice 3 giri: la scheda vera mostra «gara: 3 giri in scheda, a tempo 20′ nel file» e nomina solo quella (prove 900 s e qualifica 600 s combaciano). Con il file vero la scheda tace, come deve: oggi file e scheda dicono entrambi 3 giri. Un test nuovo in `race-card.test.mjs` copre i tre casi della gara (minuti contro minuti, giri contro giri, tipi diversi), il caso «gara che combacia non entra nell'avviso» e la chiamata senza descrizione della gara (che resta solo prove/qualifiche). Suite intera **1.284 test, 1.282 pass, 0 fail, 2 skip**; Biome pulito su 447 file; GUI ricaricata, console vuota, lista avvisi con la sola difficoltà.
+- **Inciampo, per memoria**: la prima versione del test passava da sola e falliva nella suite intera — avevo scritto una qualifica «combaciante» col numero sbagliato (5′ in scheda contro 10′ nel file) e un'asserzione con alternativa troppo larga che la nascondeva. Corretti entrambi: ora l'asserzione dice che «qualifiche:» NON deve comparire, e il numero è quello giusto.
+- **Limiti**: il confronto è sui minuti arrotondati per prove/qualifiche e sull'unità della gara (minuti arrotondati o giri interi): uno scarto di secondi sotto il mezzo minuto non si segnala. Non dice *quale* delle due è giusta — quello lo decide il gioco eseguendo il file, e il rimedio scritto è riallineare il file alla scheda.
+
 ### 7/11 notte — la scheda avvisa PRIMA del via quando il file del gioco dice altro
 
 - **Richiesta di Mauro**: «Fai avvisare la scheda gara, prima del via, quando le durate di prove e qualifica del gamemodesave non sono quelle che la scheda mostra».

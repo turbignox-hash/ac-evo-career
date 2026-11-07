@@ -505,3 +505,29 @@ test('la scheda non inventa l’avviso quando il gamemodesave non c’è', () =>
   const c = race.raceCard(ladder, state);
   assert.ok(!c.warnings.some((w) => /Durate del weekend diverse/i.test(texto(w))), 'senza file la scheda tace');
 });
+
+// LA GARA NELL'AVVISO (7/11): la sua firma cambia col tipo — minuti se a tempo,
+// giri se a giri. Se scheda e file non sono nemmeno dello stesso tipo lo si
+// dice senza confrontare mele con pere.
+test('durate del file: anche la gara, con la sua firma (minuti o giri)', () => {
+  const base = { letto: true, provaSec: 900, qualificaSec: 600 };
+  // a tempo: 20′ in scheda contro 25′ nel file
+  const t = texto(race.avvisiDurateFile(15, 10, { ...base, aTempo: true, garaSec: 1500 }, { aTempo: true, valore: 20 })[0]);
+  assert.match(t, /gara: 20′ in scheda, 25′ nel file/);
+  // a giri: 3 contro 5
+  const g = texto(race.avvisiDurateFile(15, 10, { ...base, aTempo: false, garaGiri: 5 }, { aTempo: false, valore: 3 })[0]);
+  assert.match(g, /gara: 3 giri in scheda, 5 giri nel file/);
+  // tipi diversi: la scheda dice giri, il file fa girare una gara a tempo
+  const m = texto(race.avvisiDurateFile(15, 10, { ...base, aTempo: true, garaSec: 1200 }, { aTempo: false, valore: 3 })[0]);
+  assert.match(m, /gara: 3 giri in scheda, a tempo 20′ nel file/);
+  // gara che combacia: non entra nell'avviso, e senza altre differenze non c'è avviso
+  assert.deepEqual(race.avvisiDurateFile(15, 10, { ...base, aTempo: false, garaGiri: 3 }, { aTempo: false, valore: 3 }), []);
+  // tutte e tre diverse: un avviso solo, tre pezzi
+  const tutte = texto(race.avvisiDurateFile(15, 10, { letto: true, provaSec: 300, qualificaSec: 600, aTempo: true, garaSec: 1500 }, { aTempo: true, valore: 20 })[0]);
+  assert.match(tutte, /prove libere: 15′ in scheda, 5′ nel file/);
+  assert.doesNotMatch(tutte, /qualifiche: /, 'la qualifica combacia (600 s = 10′): non entra nell’avviso');
+  assert.match(tutte, /gara: 20′ in scheda, 25′ nel file/);
+  assert.equal(race.avvisiDurateFile(15, 10, { letto: true, provaSec: 300, qualificaSec: 600, aTempo: true, garaSec: 1500 }, { aTempo: true, valore: 20 }).length, 1);
+  // senza la descrizione della gara (chiamata vecchia) si parla solo di prove e qualifiche
+  assert.match(texto(race.avvisiDurateFile(15, 10, { ...base, aTempo: true, garaSec: 1500 }, null)[0] ?? ''), /^(?!.*gara:)/);
+});
