@@ -47,16 +47,33 @@ export function readSessionResult(file) {
 export function dedupeDriverDiRiga(result) {
   const drivers = result?.drivers;
   if (!Array.isArray(drivers) || drivers.length < 2) return result;
-  const chiaveDi = (d) => {
-    const id = d?.driver_id;
-    if (id?.a != null) {
-      const s = `${String(id.a)}|${String(id.b ?? '')}`;
-      return s.length > 1 ? s : null;   // guida stabile del gioco: vale più del nome
+  // (7/11) UN ID SEGNAPOSTO NON È UN'IDENTITÀ. La regola di casa resta «l'id
+  // del gioco vince sul nickname» (l'identità sopravvive al cambio nome), ma
+  // nei file veri capita che `driver_id` sia lo stesso per TUTTI — `{a:0,b:0}`
+  // o un long protobuf che String() riduceva a «[object Object]». Con quella
+  // chiave il dedupe fondeva 15 piloti in uno (registro: «tenute 1 di 15»).
+  // Ora 0 e i valori non numerici non identificano nessuno (si passa al nome)
+  // e il long si legge da low/high invece di collassare su una stringa sola.
+  const nomeDi = (d) => (String(d?.driver_name ?? '').replace(/^[•\u2022\s]+/, '').trim() + '|' +
+    String(d?.driver_surname ?? '').trim()).toLowerCase();
+  const idLeggibile = (v) => {
+    if (v == null) return '';
+    if (typeof v === 'number' || typeof v === 'string') {
+      const s = String(v).trim();
+      return s && s !== '0' ? s : '';
     }
-    // senza driver_id: nome+cognome normalizzato — è l'unica identità disponibile
-    const nome = (String(d?.driver_name ?? '').replace(/^[•\u2022\s]+/, '').trim() + '|' +
-                  String(d?.driver_surname ?? '').trim()).toLowerCase();
-    return nome.length > 1 ? nome : null;
+    if (typeof v === 'object') {
+      const lo = v.low ?? v.lo;
+      const hi = v.high ?? v.hi;
+      if (lo != null || hi != null) return `long:${lo ?? 0}.${hi ?? 0}`;
+    }
+    return '';   // oggetto non leggibile: non identifica nessuno
+  };
+  const chiaveDi = (d) => {
+    const a = idLeggibile(d?.driver_id?.a);
+    if (a) return `id:${a}|${idLeggibile(d?.driver_id?.b)}`;
+    const nome = nomeDi(d);
+    return nome.replace('|', '').trim().length > 0 ? `nome:${nome}` : null;
   };
   // solo righe in ordine crescente di posizione: la PRIMA per identità è la
   // migliore (la classificazione del gioco è già ordinata)
@@ -72,7 +89,7 @@ export function dedupeDriverDiRiga(result) {
   if (!doppie.length) return result;   // file pulito: ritorno intatto
   const tenute = new Set(visti.values());
   const puliti = drivers.filter((d) => tenute.has(d) || chiaveDi(d) == null);
-  recordWarning('results', `righe pilota duplicate nel file risultato (${doppie.length} doppie): tenute ${puliti.length} di ${drivers.length} (stesso id = stessa persona)`);
+  recordWarning('results', `righe pilota duplicate nel file risultato (${doppie.length} doppie): tenute ${puliti.length} di ${drivers.length} (stesso id E stesso nome = stessa persona)`);
   return { ...result, drivers: puliti, _driverDuplicati: doppie.length };
 }
 

@@ -135,7 +135,12 @@ export function applyPianoToCalendar(ladder, nodeId, pianoId, { da = 0, a = null
     }
     righe.push({ round: i, name: r.name ?? `R${i + 1}`, piano: piano ?? 'override', prima: before, dopo: { hour: spec.hour, timeScale: spec.timeScale ?? null } });
   }    if (!dry) {
-      if (backup) {
+      // IL BACKUP SI FA SOLO DEL LADDER DI CASA (7/11): con un file in una
+      // cartella temporanea (test, prove) il vecchio codice copiava nel VERO
+      // data/backups — o falliva con ENOENT a file già sparito, lasciando un
+      // warning inutile nel registro. Fuori dal progetto non c'è niente da
+      // custodire: si salta senza rumore.
+      if (backup && file === LADDER_FILE) {
         writeOrWarn('orario.backup', () => {
           mkdirSync(BACKUP_DIR, { recursive: true });
           copyFileSync(file, join(BACKUP_DIR, `career.evo.ladder.bak-orario-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}.json`));

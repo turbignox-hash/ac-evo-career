@@ -1,5 +1,14 @@
 # Diario di sviluppo
 
+### 7/11 — caccia ai bug: l'id segnaposto fondeva 15 piloti in uno
+
+- **Richiesta di Mauro**: «vai a caccia di bug e ne annienti il più possibile, sono curioso di vedere il numero».
+- **I dati veri, non i test**: la suite era già verde (1313/1313) e Biome pulito — i guasti veri stavano in `data/errors.jsonl`, che nessuno leggeva. Prima voce per frequenza: `results: righe pilota duplicate … tenute 1 di 15` (19 voci). Nei file risultato il gioco scrive lo stesso `driver_id` per **tutti** (`{a:0,b:0}`, oppure un long protobuf che `String()` riduceva a «[object Object]»): il dedupe si fidava del solo id e fondeva 15 piloti in **uno**. Rivali, podi, classifiche e forma leggevano una gara con un pilota solo.
+- **Il rimedio** in [src/results.mjs](src/results.mjs): `0` e i valori non leggibili non sono un'identità (si passa al nome), e il long si legge da `low`/`high`. La regola di casa resta intatta — «l'id del gioco vince sul nickname»: i cinque test che la difendono sono passati senza toccarli, e la mia prima versione (id **e** nome) è stata corretta proprio da loro.
+- **Secondo bug** in [src/orario.mjs](src/orario.mjs): il backup del calendario si faceva anche su un ladder in cartella temporanea, finendo nel VERO `data/backups` o fallendo con `ENOENT` (la voce `orario.backup` del registro). Ora si fa solo del ladder di casa.
+- **Verifiche**: nuovo `test/dedupe-piloti-nome.test.mjs` **6/6** (id segnaposto uguale per 15 piloti → restano 15; long diversi → due piloti; stesso long con nickname diverso → uno; doppia vera → resta la posizione migliore; stesso id vero con due nickname → uno; file letto dal disco); suite completa `node --test test/*.test.mjs` → **1319 test, 1317 pass, 0 fail, 2 skip**; Biome pulito sui tre file.
+- **Resta aperto** (non inventato): il Cruscotto riesegue la sequenza quando il gioco ricrea la vista (18:15:50 e 18:15:56, due giri dello stesso comando: l'ack non era ancora arrivato al publisher e il loader non espone una lettura dello store); `OnUICommand: expected String, got Object` a ogni sequenza; il messaggio di `uiapp.tetto-piloti` che stampa «il weekend ne dichiara ?» quando il campo non c'è.
+
 ### 7/11 — il crash era il «riempimento»: una auto più delle celle (18:16, e anche 17:53)
 
 - **Richiesta di Mauro**: «fammi fare la prova in pista: avvio EVO, premo “Prepara tutto” e verifichiamo insieme dal log se il weekend viene confermato o se il via resta bloccato» → poi «crash :((».
