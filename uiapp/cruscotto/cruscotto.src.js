@@ -245,11 +245,48 @@
   // VUOTA, ma il server ripubblicando un comando già fatto lo vede e lo
   // spegne prima ancora che noi lo ritocchiamo.
   let ackSessione = [];
+  // LA MEMORIA DEI COMANDI GIÀ CONFERMATI (7/11, doppia esecuzione): il gioco
+  // ricrea la pagina della UI cambiando schermata, e ogni ricreazione è un'app
+  // NUOVA — senza memoria il comando che il publisher sta ancora ripubblicando
+  // (l'ack non ha ancora fatto il giro delle fasce, 2,5 s) viene rieseguito da
+  // capo: visto vivo, due giri dello stesso comando alle 18:15:50 e 18:15:56.
+  // `localStorage` sopravvive alla ricreazione della vista; se il loader non lo
+  // offre, la memoria non c'è e resta il comportamento di prima (mai peggio).
+  // La chiave porta il TIPO: l'id dell'avvia (`…:avvia`) è un altro comando e
+  // non va mai spento dalla conferma del setcar.
+  const MEM_KEY = 'cruscotto.confermati';
+  const MEM_TTL_MS = 6 * 60 * 60 * 1000;   // sei ore: gli id portano già la data
+  const chiaveMem = (c) => (c?.id ? String(c.tipo ?? 'setcar') + '|' + String(c.id) : '');
+  function memConfermati() {
+    try {
+      const grezzo = window.localStorage?.getItem(MEM_KEY);
+      const doc = grezzo ? JSON.parse(grezzo) : null;
+      return doc && typeof doc === 'object' ? doc : {};
+    } catch (_e) { return {}; }
+  }
+  function giaConfermato(c) {
+    const k = chiaveMem(c);
+    if (!k) return false;
+    const t = Number(memConfermati()[k]);
+    return Number.isFinite(t) && t > 0 && Date.now() - t < MEM_TTL_MS;
+  }
+  function segnaConfermato(c) {
+    const k = chiaveMem(c);
+    if (!k) return;
+    try {
+      const m = memConfermati();
+      m[k] = Date.now();
+      for (const v of Object.keys(m)) { if (!(Date.now() - Number(m[v]) < MEM_TTL_MS)) delete m[v]; }
+      window.localStorage?.setItem(MEM_KEY, JSON.stringify(m));
+    } catch (_e) { }
+  }
   function ackComando(c, ok, msg) {
     // L'ACK INVERSO: il persist del loader
     // finisce in ui_storage.uistorage, che il server sa leggere — così il
     // publisher smette di ripubblicare un comando eseguito.
     const voce = { id: c.id, ok: ok ? 1 : 0, msg: String(msg || ''), at: Date.now() };
+    // il segno per la PROSSIMA ricreazione della vista (solo per i riusciti)
+    if (ok) segnaConfermato(c);
     // LA GRIGLIA NELL'ACK (7/11): il server legge 'cruscotto.acks' e la mette
     // in /api/istantanea; la riga dell'istantanea nel pannello la mostra.
     if (ultimaGriglia) voce.griglia = ultimaGriglia;
@@ -1207,6 +1244,11 @@
     if (!c || !c.id || !c.nome) return;
     if (!comandoDellaPreparazioneCorrente(c)) { loga('comando ' + c.id + ' non è della preparazione corrente: non parte'); return; }
     if (fasciaScaduta()) { loga('fascia scaduta: comando ' + c.id + ' non parte — il publisher lo ripropone in fascia viva'); return; }
+    // GIÀ FATTO DA QUESTA MACCHINA (7/11): la vista è stata ricreata e il
+    // publisher non ha ancora letto l'ack — il comando è lo stesso che
+    // l'istanza precedente ha appena confermato. Non si riesegue: il giro
+    // delle fasce lo spegne da sé.
+    if (giaConfermato(c)) { loga('comando ' + c.id + ' già confermato da questa macchina: non si riesegue'); return; }
     if (inCorso) return;
     const tent = falliti.get(c.id) ?? 0;
     if (c.id === ultimoComando && tent === 0) return;

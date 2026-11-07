@@ -110,7 +110,22 @@ function xhrFinto(fascia) {
 /** Manda SU l'app costruita in una sandbox pulita e ritorna le maniglie:
  *  { log, triggerCalls, store } con il pannello già partito (il codice è un
  *  IIFE: vm.runInContext lo esegue IMMEDIATAMENTE, come la pagina del loader). */
-function avviaApp(fascia, rispondi = null) {
+/** La memoria del browser finta (7/11): la stessa `localStorage` passata a DUE
+ *  sandbox diverse emula la vista che il gioco ricrea — è l'unica cosa che
+ *  sopravvive alla morte del vecchio script. */
+function storageFinto() {
+  const m = new Map();
+  return {
+    getItem: (k) => (m.has(k) ? m.get(k) : null),
+    setItem: (k, v) => { m.set(k, String(v)); },
+    removeItem: (k) => { m.delete(k); },
+    clear: () => m.clear(),
+    key: (i) => [...m.keys()][i] ?? null,
+    get length() { return m.size; },
+  };
+}
+
+function avviaApp(fascia, rispondi = null, opzioni = {}) {
   const log = [];
   const consoleFinto = {
     log: (t) => log.push(String(t)),
@@ -160,6 +175,7 @@ function avviaApp(fascia, rispondi = null) {
       persist: { storeLoaded: () => false, writeStore: (key, val) => store.push({ key, val }) },
     },
     engine,
+    localStorage: opzioni.storage,   // la memoria che sopravvive alla vista (test della doppia esecuzione)
     __cruscottoNota: '',
     setTimeout: (fn, ms) => setTimeout(fn, Math.min(Number(ms ?? 0), 60)), // i tempi veri del menu non ritardano la suite
     clearTimeout,
@@ -965,6 +981,47 @@ test('RUNTIME 18 posti del menu su 17 chiesti: NESSUN riempimento, models restan
     const ack = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id && v?.ok === 1));
     assert.ok(ack, `il weekend va confermato: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
   } finally { app.drena(); }
+});
+
+test('RUNTIME vista ricreata: il comando già confermato NON si riesegue (e uno nuovo sì)', async () => {
+  // 7/11, visto vivo: 18:15:50 e 18:15:56, due giri completi dello STESSO
+  // comando. Il gioco aveva ricreato la pagina della UI e la copia nuova, senza
+  // memoria, ha rifatto auto, pista, griglia e meteo mentre il publisher non
+  // aveva ancora letto l'ack. Qui due sandbox condividono la `localStorage`:
+  // la seconda deve tacere, e un comando DIVERSO deve invece partire.
+  const GESTO = { ...rondaMulticlasse(), avvia: false };
+  const fascia = fasciaDi(Date.now() + PERIODO_MS * 1000, GESTO);
+  fascia.azioni = { ronda: { weekend: GESTO.weekend } };
+  const storage = storageFinto();
+  const risposte = (tipo) => risposteMulticlasse(16, 16)[tipo] ?? null;
+
+  const prima = avviaApp(fascia, risposte, { storage });
+  try {
+    assert.equal(prima.errore, null, `la prima vista non parte: ${prima.errore?.stack ?? prima.errore}`);
+    const ack = await finoA(() => (prima.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id && v?.ok === 1));
+    assert.ok(ack, `la prima vista non ha confermato: ${JSON.stringify(prima.store.at(-1)?.val ?? null)}`);
+    assert.ok(prima.triggerCalls.length > 0, 'la prima vista deve aver lavorato davvero');
+    prima.drena();   // il gioco butta la vista vecchia
+
+    const dopo = avviaApp(fascia, risposte, { storage });   // stessa fascia, stesso comando
+    try {
+      assert.equal(dopo.errore, null, `la vista ricreata non parte: ${dopo.errore?.stack ?? dopo.errore}`);
+      await new Promise((r) => setTimeout(r, 700));
+      assert.equal(dopo.triggerCalls.length, 0,
+        `la vista ricreata ha rieseguito il comando: ${JSON.stringify(dopo.triggerCalls.slice(0, 4))}`);
+      assert.ok(dopo.log.some((t) => t.includes('già confermato')), `il pannello non spiega il silenzio: ${dopo.log.join(' | ')}`);
+
+      // CONTROPROVA: un comando NUOVO deve partire anche con la memoria piena
+      const nuovo = { ...GESTO, id: 'sonda-vista-nuova-1' };
+      const fasciaNuova = fasciaDi(Date.now() + PERIODO_MS * 1000, nuovo);
+      fasciaNuova.azioni = { ronda: { weekend: nuovo.weekend } };
+      const terza = avviaApp(fasciaNuova, risposte, { storage });
+      try {
+        const partito = await finoA(() => terza.triggerCalls.length > 0);
+        assert.ok(partito, `un comando nuovo deve partire: la memoria non deve spegnere tutto — ${terza.log.join(' | ')}`);
+      } finally { terza.drena(); }
+    } finally { dopo.drena(); }
+  } finally { prima.drena(); }
 });
 
 test('RUNTIME il caso del 18:16 (13 posti del menu, 12 chiesti): 12 modelli e NESSUN riempimento', async () => {

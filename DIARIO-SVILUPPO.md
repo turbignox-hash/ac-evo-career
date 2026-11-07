@@ -1,5 +1,13 @@
 # Diario di sviluppo
 
+### 7/11 — la vista ricreata non riesegue il comando già confermato
+
+- **Richiesta di Mauro**: «chiudi il bug della doppia esecuzione del Cruscotto: quando il gioco ricrea la vista l'app non deve rieseguire un comando già confermato».
+- **Il fatto**: 18:15:50 e 18:15:56, due giri completi dello stesso comando (`1794071712716:ks_audi_r8_lms_gt4_evo:endurance_gt4`). Il gioco ricrea la pagina della UI cambiando schermata; ogni ricreazione è un'**app nuova**, senza memoria, e il publisher continua a spedire il comando finché l'ack non ha fatto il giro delle fasce (2,5 s). La prima istanza confermava, la seconda rifaceva tutto: auto, pista, griglia, meteo.
+- **Il rimedio** in [uiapp/cruscotto/cruscotto.src.js](uiapp/cruscotto/cruscotto.src.js): memoria dei comandi **confermati** (solo i riusciti) in `localStorage` sotto `cruscotto.confermati`, chiave `tipo|id` con scadenza 6 ore; alla consegna di un comando già in memoria l'app dice «già confermato da questa macchina: non si riesegue» e lascia che il giro delle fasce lo spenga. La chiave porta il **tipo** perché l'id dell'`avvia` (`…:avvia`) è un altro comando: la conferma del setcar non spegne mai il via. Se il loader non offre `localStorage`, la memoria semplicemente non c'è: comportamento di prima, mai peggio.
+- **Verifiche**: nuovo test runtime «vista ricreata» — due sandbox sulla **stessa** `localStorage`: la seconda fa **zero** trigger e dice perché; controprova, un comando con id nuovo parte lo stesso. `node --test test/uiapp-coda-sandbox.test.mjs` → **26 test, 26 pass, 0 fail**; suite completa `node --test test/*.test.mjs` → **1320 test, 1318 pass, 0 fail, 2 skip**; Biome `--error-on-warnings` pulito; build installata in gioco (`SHA-1 6f7cc8ca…` identico nelle due copie).
+- **Limite dichiarato**: che Gameface esponga `localStorage` dentro la pagina del menu non l'ho potuto provare senza aprire EVO; il codice si comporta come prima se manca, e la prova in pista dirà se la doppia esecuzione scompare dai log (cercare due «pannello inizializzato» a pochi secondi con la stessa sequenza).
+
 ### 7/11 — caccia ai bug: l'id segnaposto fondeva 15 piloti in uno
 
 - **Richiesta di Mauro**: «vai a caccia di bug e ne annienti il più possibile, sono curioso di vedere il numero».
