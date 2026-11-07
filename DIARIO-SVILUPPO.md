@@ -1,5 +1,12 @@
 # Diario di sviluppo
 
+### 7/11 — la stessa regola livrea vale anche nel campionato
+
+- **Richiesta di Mauro**: «applica stesso criterio della gara veloce al campionato, cosi evitiamo altre auto tutte delle stesso colore o skin strane...»
+- In [uiapp/cruscotto/cruscotto.src.js](uiapp/cruscotto/cruscotto.src.js), la lettura delle configurazioni e dei preset colore restituiti da EVO e `SetCurrentCarColorPreset` ora scatta per ogni comando `setcar` con un weekend, oltre che per `modo: instant`: quindi vale per il pilota sia nelle gare al volo sia nelle ronde di campionato. Se EVO non restituisce configurazione/preset, non inventa una skin e non blocca l'applicazione.
+- **Le skin avversarie restano un percorso separato**: `variantiLivrea` / `grigliaConLivree` usa i modelli (con i loro preset) restituiti dal gioco, distribuendoli sulle celle. Non applica il preset del pilota alle auto AI. Il test runtime di campionato controlla sia la richiesta del preset reale al setter pilota sia il mantenimento di 4 skin distinte sui due modelli avversari multiclass; gli altri test coprono la griglia monomarca e multiclasse.
+- **Verifiche**: sandbox Cruscotto **20/20**; `npm test` **1.299 test, 1.297 pass, 0 fail, 2 skip**; Biome pulito su **448** file; `npm run uiapp` conferma build e copia installata allineate.
+
 ### 7/11 — livrea del pilota dalla lista colori vera di EVO
 
 - **Richiesta di Mauro**: «Scegli anche la livrea del giocatore con SetCurrentCarColorPreset».

@@ -572,13 +572,14 @@
     const r3 = await giocoComando('CarSelectionClientRequestSetCurrentCar', { mode: MODO_SINGLE, model: car }, 8000);
     if (!r3 || r3.response !== OK_RISPOSTA) { notaComando(c.nome + ': ' + okTesto(r3)); loga('SetCurrentCar: ' + okTesto(r3)); return false; }
     loga('✓ SetCurrentCar ok: ' + car.display_name);
-    // LIVREA DEL PILOTA (7/11, richiesta Mauro): usa l'API vera del menu per
-    // la STESSA auto selezionata — prima legge le configurazioni, poi i preset
-    // colore di quella configurazione, e passa l'oggetto restituito al setter.
-    // Nessun preset hardcoded, nessun effetto sulla griglia degli avversari.
-    // Best effort: auto/modo/gara restano pronti anche se il menu non offre
-    // preset colore o una risposta non arriva.
-    if (c.modo === 'instant') {
+    // LIVREA DEL PILOTA (7/11, Mauro): stessa regola per gara al volo E
+    // campionato — usa l'API vera del menu per la STESSA auto selezionata,
+    // legge le configurazioni e i preset colore di quella configurazione,
+    // poi passa al setter il preset restituito. Nessun nome inventato; non
+    // modifica le livree delle auto avversarie, che variantiLivrea distribuisce
+    // una per cella dalla lista Models del gioco. Best effort: il setup resta
+    // pronto anche se il menu non offre preset colore o una risposta non arriva.
+    if (c.modo === 'instant' || c.weekend) {
       try {
         const cfgOut = await giocoComando('CarSelectionClientRequestCarConfigurations', { mode: MODO_SINGLE, model: car }, 8000);
         const configs = Array.isArray(cfgOut?.configurations) ? cfgOut.configurations : [];

@@ -673,6 +673,51 @@ test('RUNTIME livree: la griglia monomarca alterna le skin del modello, non 15 a
   } finally { app.drena(); }
 });
 
+test('RUNTIME campionato: livrea pilota dal gioco e skin avversari ancora alternate', async () => {
+  const { GESTO: base, fascia } = fasciaMulticlasse();
+  const GESTO = { ...base, avvia: false };
+  fascia.comando = GESTO;
+  const config = { name: 'default', display_name: 'Standard' };
+  const presetPilota = { name: 'preset_player_green', display_name: 'Verde corsa' };
+  const autoA1 = { name: 'ks_a', display_name: 'Auto A', preset: { name: 'a_skin_1' } };
+  const autoA2 = { name: 'ks_a', display_name: 'Auto A', preset: { name: 'a_skin_2' } };
+  const autoB1 = { name: 'ks_b', display_name: 'Auto B', preset: { name: 'b_skin_1' } };
+  const autoB2 = { name: 'ks_b', display_name: 'Auto B', preset: { name: 'b_skin_2' } };
+  const app = avviaApp(fascia, (tipo) => {
+    if (tipo === 'CarSelectionClientRequestModels') return { car_model: [autoA1, autoA2, autoB1, autoB2] };
+    if (tipo === 'CarSelectionClientRequestCarConfigurations') return { configurations: [config] };
+    if (tipo === 'CarSelectionClientRequestCarColorPresets') return { color_presets: [presetPilota] };
+    if (tipo === 'GameModeSelectionClientRequestTrackList') return { track_item: [{ name: 'Brands Hatch', layout: 'GP' }] };
+    if (tipo === 'GameModeSelectionClientRequestGameModeParameters') {
+      return {
+        sessions: [
+          { name: 'Practice', opponents: Array.from({ length: 16 }, () => 1), models: Array.from({ length: 16 }, () => autoA1), time_of_day: { hour: 8 } },
+          { name: 'Race', opponents: Array.from({ length: 16 }, () => 1), models: Array.from({ length: 16 }, () => autoA1), time_of_day: { hour: 14 } },
+        ],
+        weather_data: [{ type: 'CLEAR' }],
+      };
+    }
+    if (tipo === 'GameModeSelectionClientRequestOpponents') return { opponents: Array.from({ length: 16 }, (_, i) => ({ model: { name: i % 2 ? 'ks_a' : 'ks_b' } })) };
+    return null;
+  });
+  try {
+    assert.equal(app.errore, null, 'app sandbox senza errori');
+    const setterVisto = await finoA(() => app.triggerCalls.some((a) => String(a[1]).includes('CarSelectionClientRequestSetCurrentCarColorPreset')));
+    assert.ok(setterVisto, 'anche il setcar di campionato applica una livrea del pilota');
+    const setter = app.triggerCalls.find((a) => String(a[1]).includes('CarSelectionClientRequestSetCurrentCarColorPreset'));
+    assert.equal(setter?.[2]?.color_preset?.name, 'preset_player_green', 'per il pilota usa il preset reale restituito dal menu');
+    const grigliaPronta = await finoA(() => app.triggerCalls.some((a) => String(a[1]).includes('GameModeSelectionClientRequestSetGameModeParameters')));
+    assert.ok(grigliaPronta, 'il campionato continua fino all’applicazione della griglia');
+    const griglia = app.triggerCalls.find((a) => String(a[1]).includes('GameModeSelectionClientRequestSetGameModeParameters'));
+    const race = (griglia?.[2]?.sessions ?? []).find((s) => s?.name === 'Race');
+    assert.equal(race?.models?.length, 17, 'la griglia campionato mantiene un modello per rivale');
+    assert.deepEqual([...new Set(race.models.map((m) => m.name))].sort(), ['ks_a', 'ks_b'], 'restano tutte le auto multiclass richieste');
+    assert.deepEqual([...new Set(race.models.map((m) => m.preset?.name))].sort(), ['a_skin_1', 'a_skin_2', 'b_skin_1', 'b_skin_2'], 'le livree avversarie continuano ad alternarsi, senza essere sovrascritte dal preset del pilota');
+    const ack = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id && v?.ok === 1));
+    assert.ok(ack, 'il campionato completa e ack-a il comando');
+  } finally { app.drena(); }
+});
+
 test('RUNTIME griglie di tipi diversi: una skin, multiclasse multi-livrea, senza skin, id sconosciuto', async () => {
   // 5/11 — la griglia non è solo la R5: si prova la stessa costruzione su
   // quattro parchi diversi, perché un caso solo non copre i modelli senza
