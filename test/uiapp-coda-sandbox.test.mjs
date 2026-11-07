@@ -299,7 +299,7 @@ test("RUNTIME griglia riletta: l'ack porta posti e modelli distinti dal gioco", 
   // scritto e lo allega all'ack: il server lo legge ('cruscotto.acks') e
   // statoIstantanea lo espone come `griglia` — la riga del pannello la mostra.
   const { GESTO, fascia } = fasciaMulticlasse();
-  const app = avviaApp(fascia, (tipo) => risposteMulticlasse(16)[tipo] ?? null);
+  const app = avviaApp(fascia, (tipo) => risposteMulticlasse(16, 16)[tipo] ?? null);
   try {
     assert.equal(app.errore, null, `l'app non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
     const letto = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id && v?.griglia?.posti));
@@ -321,7 +321,7 @@ test('RUNTIME gara al volo: legge i preset colore della stessa auto e ne applica
     if (tipo === 'CarSelectionClientRequestCarConfigurations') return { configurations: [config] };
     if (tipo === 'CarSelectionClientRequestCarColorPresets') return { color_presets: [preset] };
     if (tipo === 'GameModeSelectionClientRequestTrackList') return { track_item: [{ name: 'Brands Hatch', layout: 'GP' }] };
-    if (tipo === 'GameModeSelectionClientRequestGameModeParameters') return risposteMulticlasse(16)[tipo];
+    if (tipo === 'GameModeSelectionClientRequestGameModeParameters') return risposteMulticlasse(16, 16)[tipo];
     if (tipo === 'GameModeSelectionClientRequestOpponents') return { opponents: Array.from({ length: 16 }, (_, i) => ({ model: { name: i % 2 ? 'ks_a' : 'ks_b' } })) };
     return null;
   });
@@ -349,7 +349,7 @@ test('RUNTIME gara al volo senza preset colore: il setup e l’ack non si blocca
     if (tipo === 'CarSelectionClientRequestCarConfigurations') return { configurations: [{ name: 'default' }] };
     if (tipo === 'CarSelectionClientRequestCarColorPresets') return { color_presets: [] };
     if (tipo === 'GameModeSelectionClientRequestTrackList') return { track_item: [{ name: 'Brands Hatch', layout: 'GP' }] };
-    if (tipo === 'GameModeSelectionClientRequestGameModeParameters') return risposteMulticlasse(16)[tipo];
+    if (tipo === 'GameModeSelectionClientRequestGameModeParameters') return risposteMulticlasse(16, 16)[tipo];
     if (tipo === 'GameModeSelectionClientRequestOpponents') return { opponents: Array.from({ length: 16 }, (_, i) => ({ model: { name: i % 2 ? 'ks_a' : 'ks_b' } })) };
     return null;
   });
@@ -432,25 +432,6 @@ test('RUNTIME griglia corta (5/17): NESSUN ack positivo e NESSUN via', async () 
       `una griglia 5/17 è stata ackata come riuscita: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
     const start = app.triggerCalls.filter((a) => String(a[1]).includes('GameModeSelectionClientRequestStart')).length;
     assert.equal(start, 0, `il via è partito su una griglia 5/17: ${JSON.stringify(app.triggerCalls.slice(-6))}`);
-  } finally { app.drena(); }
-});
-
-test('RUNTIME griglia con più POSTI che modelli (17 avversari, 16 modelli): nessun ack e nessun via', async () => {
-  // Il caso del tutto diverso dalla griglia corta: il menu dichiara 17
-  // avversari ma tiene 16 modelli — un posto resterebbe scoperto alla
-  // creazione, ed è il crash che non si vuole. Nessuna delle due liste si
-  // adatta qui (i modelli inviati erano 17): si blocca e basta.
-  const { GESTO, fascia } = fasciaMulticlasse();
-  const app = avviaApp(fascia, (tipo) => risposteMulticlasse(17, 16)[tipo] ?? null);
-  try {
-    assert.equal(app.errore, null, `l'app non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
-    const detto = await finoA(() => app.log.some((t) => t.includes('opponents=17') && t.includes('models=16')));
-    assert.ok(detto, `il rifiuto non porta i conteggi veri: ${app.log.join(' | ')}`);
-    await new Promise((r) => setTimeout(r, 400));
-    const ackOk = (app.store.at(-1)?.val?.commands ?? []).filter((v) => v?.id === GESTO.id && v?.ok === 1);
-    assert.equal(ackOk.length, 0, `ack positivo su una griglia con un posto scoperto: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
-    const start = app.triggerCalls.filter((a) => String(a[1]).includes('GameModeSelectionClientRequestStart')).length;
-    assert.equal(start, 0, `il via è partito con 17 posti e 16 modelli: ${JSON.stringify(app.triggerCalls.slice(-6))}`);
   } finally { app.drena(); }
 });
 
@@ -961,30 +942,52 @@ test('RUNTIME meteo di ripiego: LIGHT_RAIN assente → RAIN della famiglia (non 
   } finally { app.drena(); }
 });
 
-test('RUNTIME posti in più (18 avversari, 17 modelli): il parco si riempie e il via torna permesso', async () => {
-  // 5/11 — Brands Hatch alle 01:24: la conferma leggeva opponents=[18] con
-  // models=[17]: un posto che EVO non sa riempire è il posto vuoto che crasha
-  // alla creazione della griglia. Il Cruscotto riempie il parco a giro fino
-  // ai posti che il gioco tiene (la stessa scuola del monomarca).
+test('RUNTIME 18 posti del menu su 17 chiesti: NESSUN riempimento, models restano 17 e il via passa', async () => {
+  // 7/11, crash EVO 18:16: il menu dichiarava 13 avversari su un weekend che
+  // ne chiedeva 12 e una griglia di 13 celle — contava anche il POSTO DEL
+  // GIOCATORE. Riempire i modelli fino a `opponents` (la strada del 5/11)
+  // metteva in pista 14 auto su 13 celle: Start e crash. Qui la stessa forma
+  // su 17 chiesti: la griglia resta 17 e il via si preme.
   const GESTO = rondaMulticlasse();
   const fascia = fasciaDi(Date.now() + PERIODO_MS * 1000, GESTO);
   fascia.azioni = { ronda: { weekend: GESTO.weekend } };
-  let letture = 0;
-  const app = avviaApp(fascia, (tipo) => {
-    if (tipo !== 'GameModeSelectionClientRequestGameModeParameters') return risposteMulticlasse(18, 17)[tipo] ?? null;
-    letture++;
-    // le prime DUE letture (gp iniziale + prima conferma) vengono fuori con
-    // un posto scoperto; dopo la riscrittura il gioco risponde allineato.
-    return risposteMulticlasse(18, letture <= 2 ? 17 : 18).GameModeSelectionClientRequestGameModeParameters;
-  });
+  const app = avviaApp(fascia, (tipo) => risposteMulticlasse(18, 17)[tipo] ?? null);
   try {
     assert.equal(app.errore, null, `l'app non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
     const partito = await finoA(() => app.triggerCalls.some((a) =>
       String(a[0]) === 'OnUICommand' && String(a[1]).includes('GameModeSelectionClientRequestStart')));
     assert.ok(partito, `Start mai premuto — ${JSON.stringify(app.triggerCalls).slice(0, 700)}`);
     const set = app.triggerCalls.filter((a) => String(a[1]).includes('GameModeSelectionClientRequestSetGameModeParameters'));
-    assert.equal(set.length, 2, `una riscrittura sola oltre la prima: ${set.length}`);
-    const gara = (set[1]?.[2]?.sessions ?? []).find((s) => s?.name === 'Race');
-    assert.equal(gara?.models?.length, 18, `models riempito a 18, non ${gara?.models?.length}`);
+    assert.equal(set.length, 1, `nessuna riscrittura: i modelli sono già quelli chiesti (Set: ${set.length})`);
+    const gara = (set[0]?.[2]?.sessions ?? []).find((s) => s?.name === 'Race');
+    assert.equal(gara?.models?.length, 17, `models devono restare 17 (chiesti), non ${gara?.models?.length}`);
+    assert.ok(!app.log.some((t) => t.includes('griglia riempita')), `il riempimento non deve nemmeno tentarlo: ${app.log.join(' | ')}`);
+    const ack = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id && v?.ok === 1));
+    assert.ok(ack, `il weekend va confermato: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
+  } finally { app.drena(); }
+});
+
+test('RUNTIME il caso del 18:16 (13 posti del menu, 12 chiesti): 12 modelli e NESSUN riempimento', async () => {
+  // La riproduzione esatta del crash di oggi, in piccolo: weekend da 12
+  // avversari (13 celle, una è tua), menu che risponde opponents=[13] con
+  // models=[12]. Prima si "riempiva" a 13; ora la griglia resta 12.
+  const base = rondaMulticlasse();
+  const GESTO = { ...base, id: '1794071712716:ks_a:endurance_gt4', weekend: { ...base.weekend, opponents: 12 } };
+  const fascia = fasciaDi(Date.now() + PERIODO_MS * 1000, GESTO);
+  fascia.azioni = { ronda: { weekend: GESTO.weekend } };
+  const app = avviaApp(fascia, (tipo) => risposteMulticlasse(13, 12)[tipo] ?? null);
+  try {
+    assert.equal(app.errore, null, `l'app non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    const ack = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id && v?.ok === 1));
+    assert.ok(ack, `il weekend doveva essere confermato: ${JSON.stringify(app.store.at(-1)?.val ?? null)} — log: ${app.log.join(' | ')}`);
+    const set = app.triggerCalls.filter((a) => String(a[1]).includes('GameModeSelectionClientRequestSetGameModeParameters'));
+    assert.equal(set.length, 1, `una sola scrittura: la griglia era già quella giusta (Set: ${set.length})`);
+    const gara = (set[0]?.[2]?.sessions ?? []).find((s) => s?.name === 'Race');
+    assert.equal(gara?.models?.length, 12, `12 auto AI su 13 celle (una è del giocatore), non ${gara?.models?.length}`);
+    assert.ok(app.log.some((t) => t.includes('griglia verificata: 13 avversari / 12 modelli')), `la conferma deve dire 13/12: ${app.log.join(' | ')}`);
+    const partito = await finoA(() => app.triggerCalls.some((a) => String(a[1]).includes('GameModeSelectionClientRequestStart')));
+    assert.ok(partito, `con 12 modelli su 13 posti il via deve partire — ${app.log.join(' | ')}`);
+    const start = app.triggerCalls.filter((a) => String(a[1]).includes('GameModeSelectionClientRequestStart')).length;
+    assert.equal(start, 1, `il via si preme una volta: ${start}`);
   } finally { app.drena(); }
 });

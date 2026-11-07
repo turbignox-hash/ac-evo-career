@@ -746,17 +746,20 @@
               }
               continue;
             }
-            // POSTI IN PIÙ (5/11, Brands Hatch a 01:24): il gioco può avere più
-            // POSTI che modelli (opponents=[18] con models=[17]): un posto che
-            // resta scoperto alla creazione della griglia è lo stesso crash.
-            // Il parco si RIEMPIE a giro fino al numero di posti che il gioco
-            // tiene (la stessa scuola del monomarca: una voce per avversario).
-            if (mod === inviati && opp > mod && mod >= 4 && opp - mod <= 8) {
-              loga('griglia riempita: models ' + mod + ' → ' + opp + ' (il gioco ha ' + (opp - mod) + ' posti in più)');
+            // I POSTI IN PIÙ NON SONO AVVERSARI IN PIÙ (7/11, crash EVO 18:16):
+            // l'elenco `opponents` del menu conta ANCHE il tuo posto (13 voci
+            // su un weekend che dichiara 12 avversari e una griglia di 13
+            // celle). Riempire i modelli fino a `opponents` — la strada del
+            // 5/11 — metteva in pista UNA auto più delle celle: la sessione
+            // partiva e EVO moriva (0xE06D7363 nel renderer, stessa firma del
+            // 17:52). Il riempimento resta, ma si ferma alle auto CHIESTE:
+            // mai sopra `quanti`.
+            if (mod === inviati && opp > mod && mod < quanti && mod >= 4) {
+              loga('griglia riempita: models ' + mod + ' → ' + quanti + ' (i posti chiesti, non i ' + opp + ' del menu)');
               sess.forEach(function (s) {
-                if (!Array.isArray(s.models) || s.models.length >= opp) return;
+                if (!Array.isArray(s.models) || s.models.length >= quanti) return;
                 const parco = s.models.slice();
-                for (let k = s.models.length; k < opp; k++) s.models.push(parco[k % parco.length]);
+                for (let k = s.models.length; k < quanti; k++) s.models.push(parco[k % parco.length]);
               });
               rp = await giocoComando('GameModeSelectionClientRequestSetGameModeParameters', { mode: MODO_SINGLE, sessions: sess }, 10000);
               if (!rp || rp.response !== OK_RISPOSTA) {
@@ -788,10 +791,15 @@
           // posto del giocatore). Se il menu non risponde, non dà sessioni o
           // lascia una lista corta/sbilanciata, niente ACK positivo e niente
           // Start: il publisher ripropone la preparazione.
+          // MAI PIÙ AUTO DI QUELLE CHIESTE (7/11, crash 18:16). La griglia
+          // che conta sono le CELLE (12 avversari ⇒ 13 celle: una è tua). Il
+          // menu però conta il tuo posto anche in `opponents`: quindi i
+          // modelli non devono MAI superare `quanti`, e non devono superare i
+          // posti dichiarati dal menu (altrimenti una cella resta scoperta).
           const oppMinimo = Math.max(1, quanti - 1);
-          const modelliAllineati = ultimoMod > 0 && ultimaOpp > 0 && (
-            ultimoMod === ultimaOpp || (ultimoMod >= quanti && ultimoMod - ultimaOpp === 1)
-          );
+          const troppiModelli = ultimoMod > quanti;
+          const oltreIPosti = ultimaOpp > 0 && ultimoMod > ultimaOpp;
+          const modelliAllineati = ultimoMod > 0 && ultimaOpp > 0 && !troppiModelli && !oltreIPosti;
           if (!modelliAllineati || ultimaOpp < oppMinimo || ultimoMod < oppMinimo) {
             const dettaglio = ultimaOpp < 0 ? 'nessuna lettura valida' : `opponents=${ultimaOpp}, models=${ultimoMod}, richiesti=${quanti}`;
             notaComando('Weekend non confermato (' + dettaglio + '): nessun avvio; ripremi «Prepara tutto» quando il menu EVO risponde.');
@@ -926,13 +934,15 @@
     // EVO alla creazione della griglia (0xC0000005, stesso RVA del 00:22).
     // Il via resta solo su griglia allineata: 16 modelli/16 avversari su 17
     // chiesti va bene (tetto del gioco), 17 su 16 no.
-    // LA STESSA TOLLERANZA DELLA CONFERMA (7/11): il gioco può tenere un posto
-    // in meno (è il tuo) o uno in più rispetto agli avversari chiesti — un
-    // posto in più viene riempito dalla conferma e resta senza buchi. Quello
-    // che NON passa è una griglia CORTA o SBILANCIATA: è quella che uccide EVO
-    // alla creazione (00:16 e 01:16).
-    const allineata = opp === mod;
-    if (!allineata || opp < attesi - 1) {
+    // LA REGOLA DELLE CELLE (7/11, crash 18:16): la griglia ha `attesi + 1`
+    // celle (una è tua) e il menu conta il tuo posto anche in `opponents`.
+    // Passa una griglia con i modelli delle auto chieste (o una in meno), mai
+    // più posti che modelli: una cella scoperta o un'auto in più rispetto
+    // alle celle sono entrambi il crash alla creazione della sessione.
+    const nonOltreIPosti = mod <= opp;
+    const nonOltreLeChieste = mod <= attesi;
+    const nonCorta = mod >= attesi - 1;
+    if (!nonOltreIPosti || !nonOltreLeChieste || !nonCorta) {
       loga('avvio bloccato: richiesti ' + attesi + ', opponents=' + opp + ', models=' + mod + ' — griglia non verificata/allineata');
       return { opp: opp, attesi: attesi };
     }
