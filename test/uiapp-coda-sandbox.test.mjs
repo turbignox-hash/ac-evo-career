@@ -54,6 +54,11 @@ const COSTRUITO = join(RADICE, 'uiapp', 'cruscotto', 'cruscotto.js');
 const CODE = readFileSync(COSTRUITO, 'utf8');
 
 const OK_RISPOSTA = 'ClientCommandsResponse_OK';
+// IL MENU CHE TACE (7/11): il gioco vero, con la personalizzazione griglia
+// aperta o una sessione in caricamento, non risponde affatto — non risponde
+// «OK senza campi», PROPRIO NON RISPONDE. Solo così si prova il timeout di
+// giocoComando sino in fondo.
+const NON_RISPOSTA = 'NON_RISPOSTA';
 
 /* ---------------------------------------------------------------- ambiente */
 
@@ -137,7 +142,10 @@ function avviaApp(fascia, rispondi = null) {
       // `rispondi` (4/11): il gesto unico setcar+avvia chiede liste vere
       // (piste, modelli, sessioni) — il test fornisce la risposta giusta per
       // comando, il resto resta l'OK generico di sempre.
-      const extra = rispondi ? rispondi(String(args[1] ?? '')) : null;
+      // il CORPO del comando va al banco (7/11): il menu finto che ricorda
+      // (menuCheRicorda) deve poter restituire proprio ciò che ha applicato.
+      const extra = rispondi ? rispondi(String(args[1] ?? ''), args[2]) : null;
+      if (extra === NON_RISPOSTA) return;   // silenzio: nessun ascoltatore riceve niente
       for (const { f } of engine.__ascolto.slice()) {
         try { f({ response: OK_RISPOSTA, ...(extra ?? {}) }); } catch (_e) { /* in gioco anche qui */ }
       }
@@ -212,6 +220,33 @@ async function finoA(condizione, tettoMs = 3000) {
     await new Promise((fatto) => setTimeout(fatto, 10));
   }
   return condizione();
+}
+
+/** IL MENU CHE RICORDA (7/11): dopo SetGameModeParameters il gioco vero
+ *  rilegge le sessioni che ha appena applicato. Un banco che rimanda sempre
+ *  la sessione di PARTENZA descrive un menu che non esiste, e sotto la nuova
+ *  conferma obbligatoria quella sessione stantia vale «griglia non
+ *  confermata» (niente ack, niente via) — giusto, ma non è il caso in prova.
+ *  Questo finto menu tiene l'ultima sessione scritta e la restituisce. */
+function menuCheRicorda(sessioniIniziali, extra = {}) {
+  let ultime = sessioniIniziali;
+  return (tipo, corpo) => {
+    if (tipo === 'GameModeSelectionClientRequestSetGameModeParameters') {
+      // IL GIOCO MATERIALIZZA LA GRIGLIA DAI MODELLI (la regola scritta nel
+      // Cruscotto: «il menu usa models.length per riempire la griglia»): dopo
+      // il Set l'elenco avversari ha la lunghezza dei modelli applicati — è
+      // quello che il vero GameModeParameters restituisce al giro dopo.
+      ultime = (corpo?.sessions ?? []).map((s) => {
+        const modelli = Array.isArray(s?.models) ? s.models : [];
+        return { ...s, opponents: Array.from({ length: modelli.length }, () => 1), num_opponents: modelli.length };
+      });
+      return null;
+    }
+    if (tipo === 'GameModeSelectionClientRequestGameModeParameters') {
+      return { sessions: ultime, weather_data: extra.weather_data ?? [{ type: 'CLEAR' }] };
+    }
+    return extra[tipo] ?? null;
+  };
 }
 
 /** La FASCIA del sondaggio: solo ciò che la legge tocca (validaFino, coda)
@@ -334,6 +369,22 @@ function fasciaMulticlasse() {
   return { GESTO, fascia };
 }
 
+/** La fascia di un «avvia» secco: ronda già armata (weekend 17 avversari),
+ *  nessun setcar in coda. Serve a provare la PORTA DELL'AVVIO da sola. */
+function fasciaSoloAvvia() {
+  const fascia = fasciaDi(Date.now() + PERIODO_MS * 1000, COMANDO_AVVIA);
+  fascia.azioni = { ronda: { weekend: rondaMulticlasse().weekend } };
+  return fascia;
+}
+
+/** Il via deve restare NON premuto: zero RequestStart e nessun ack ok:1. */
+function nessunVia(app, id) {
+  const start = app.triggerCalls.filter((a) => String(a[1]).includes('GameModeSelectionClientRequestStart')).length;
+  assert.equal(start, 0, `RequestStart è partito lo stesso: ${JSON.stringify(app.triggerCalls.slice(-6))}`);
+  const ackOk = (app.store.at(-1)?.val?.commands ?? []).filter((v) => v?.id === id && v?.ok === 1);
+  assert.equal(ackOk.length, 0, `ack positivo su una griglia non verificata: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
+}
+
 test('RUNTIME griglia 17 modelli / 16 avversari: adattata a 16/16 e avvio permesso', async () => {
   // 5/11 — il crash 01:16 di Brands Hatch: una sessione con 17 modelli ma solo
   // 16 avversari ha ucciso EVO alla creazione della griglia (0xC0000005, stesso
@@ -364,16 +415,62 @@ test('RUNTIME griglia 17 modelli / 16 avversari: adattata a 16/16 e avvio permes
   } finally { app.drena(); }
 });
 
-test('RUNTIME griglia corta (5/17): il via NON si preme', async () => {
+test('RUNTIME griglia corta (5/17): NESSUN ack positivo e NESSUN via', async () => {
+  // 7/11, crash EVO 17:53: l'ACK OK di SetGameModeParameters non prova che il
+  // menu abbia tenuto la griglia. Una lista corta (5 avversari su 17 chiesti)
+  // non si dichiara pronta: niente ack (il publisher ripropone la
+  // preparazione) e niente Start.
   const { GESTO, fascia } = fasciaMulticlasse();
   const app = avviaApp(fascia, (tipo) => risposteMulticlasse(5)[tipo] ?? null);
   try {
     assert.equal(app.errore, null, `l'app non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
-    const setOk = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id));
-    assert.ok(setOk, `il setcar non è stato ackato: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
+    const detto = await finoA(() => app.log.some((t) => t.includes('weekend NON confermato')));
+    assert.ok(detto, `il pannello non ha dichiarato la griglia non confermata: ${app.log.join(' | ')}`);
     await new Promise((r) => setTimeout(r, 400));
+    const ackOk = (app.store.at(-1)?.val?.commands ?? []).filter((v) => v?.id === GESTO.id && v?.ok === 1);
+    assert.equal(ackOk.length, 0,
+      `una griglia 5/17 è stata ackata come riuscita: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
     const start = app.triggerCalls.filter((a) => String(a[1]).includes('GameModeSelectionClientRequestStart')).length;
     assert.equal(start, 0, `il via è partito su una griglia 5/17: ${JSON.stringify(app.triggerCalls.slice(-6))}`);
+  } finally { app.drena(); }
+});
+
+test('RUNTIME griglia con più POSTI che modelli (17 avversari, 16 modelli): nessun ack e nessun via', async () => {
+  // Il caso del tutto diverso dalla griglia corta: il menu dichiara 17
+  // avversari ma tiene 16 modelli — un posto resterebbe scoperto alla
+  // creazione, ed è il crash che non si vuole. Nessuna delle due liste si
+  // adatta qui (i modelli inviati erano 17): si blocca e basta.
+  const { GESTO, fascia } = fasciaMulticlasse();
+  const app = avviaApp(fascia, (tipo) => risposteMulticlasse(17, 16)[tipo] ?? null);
+  try {
+    assert.equal(app.errore, null, `l'app non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    const detto = await finoA(() => app.log.some((t) => t.includes('opponents=17') && t.includes('models=16')));
+    assert.ok(detto, `il rifiuto non porta i conteggi veri: ${app.log.join(' | ')}`);
+    await new Promise((r) => setTimeout(r, 400));
+    const ackOk = (app.store.at(-1)?.val?.commands ?? []).filter((v) => v?.id === GESTO.id && v?.ok === 1);
+    assert.equal(ackOk.length, 0, `ack positivo su una griglia con un posto scoperto: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
+    const start = app.triggerCalls.filter((a) => String(a[1]).includes('GameModeSelectionClientRequestStart')).length;
+    assert.equal(start, 0, `il via è partito con 17 posti e 16 modelli: ${JSON.stringify(app.triggerCalls.slice(-6))}`);
+  } finally { app.drena(); }
+});
+
+test('RUNTIME menu muto sulle impostazioni: nessun ack e nessun via', async () => {
+  // Se il gioco non risponde a GameModeParameters non c'è niente da
+  // confermare: il comando resta non ackato (il publisher lo ripropone) e
+  // nessun «Avvia sessione» parte alle spalle di una griglia sconosciuta.
+  const { GESTO, fascia } = fasciaMulticlasse();
+  const app = avviaApp(fascia, (tipo) => (tipo === 'GameModeSelectionClientRequestGameModeParameters'
+    ? NON_RISPOSTA
+    : (risposteMulticlasse(16)[tipo] ?? null)));
+  try {
+    assert.equal(app.errore, null, `l'app non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    const detto = await finoA(() => app.log.some((t) => t.includes('GameModeParameters senza sessions')));
+    assert.ok(detto, `il pannello non ha dichiarato il menu muto: ${app.log.join(' | ')}`);
+    await new Promise((r) => setTimeout(r, 400));
+    const ackOk = (app.store.at(-1)?.val?.commands ?? []).filter((v) => v?.id === GESTO.id && v?.ok === 1);
+    assert.equal(ackOk.length, 0, `ack positivo senza sessioni lette dal gioco: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
+    const start = app.triggerCalls.filter((a) => String(a[1]).includes('GameModeSelectionClientRequestStart')).length;
+    assert.equal(start, 0, `il via è partito con la lettura della griglia muta: ${JSON.stringify(app.triggerCalls.slice(-6))}`);
   } finally { app.drena(); }
 });
 
@@ -538,19 +635,18 @@ test('RUNTIME weekend multiclasse: models pieni per ogni avversario, non solo i 
       { name: 'ks_abarth_595', display_name: 'Abarth 595' },
       { name: 'ks_alfa_romeo_junior', display_name: 'Alfa Romeo Junior' },
     ] },
-    GameModeSelectionClientRequestGameModeParameters: {
-      sessions: [
-        { name: 'Practice', opponents: ['x'], single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 10, minute: 30 } },
-        { name: 'Race', opponents: ['x'], single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 13, minute: 30 }, duration: 5, duration_type: 'GameModeSelectionDuration_LAPS' },
-      ],
-      weather_data: [{ type: 'CLEAR' }],
-    },
   };
-  const app = avviaApp(fasciaDi(validaViva, GESTO, { tipo: 'ronda', armataAlle: 7100, viaFino: 0 }), (tipo) => risposte[tipo] ?? null);
+  // la sessione di PARTENZA è quella vecchia e corta (1 avversario, nessun
+  // modello): dopo il Set il banco restituisce ciò che il Cruscotto ha scritto.
+  const sessioniPrima = [
+    { name: 'Practice', opponents: ['x'], single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 10, minute: 30 } },
+    { name: 'Race', opponents: ['x'], single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 13, minute: 30 }, duration: 5, duration_type: 'GameModeSelectionDuration_LAPS' },
+  ];
+  const app = avviaApp(fasciaDi(validaViva, GESTO, { tipo: 'ronda', armataAlle: 7100, viaFino: 0 }), menuCheRicorda(sessioniPrima, risposte));
   try {
     assert.equal(app.errore, null, `l'app costruita non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
     const ack = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id && v?.ok === 1));
-    assert.ok(ack, `il setcar multiclasse non è stato confermato: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
+    assert.ok(ack, `il setcar multiclasse non è stato confermato: ${JSON.stringify(app.store.at(-1)?.val ?? null)} — log: ${app.log.join(' | ')}`);
     const chiamata = app.triggerCalls.find((a) => String(a[1]).includes('GameModeSelectionClientRequestSetGameModeParameters'));
     const sessions = chiamata?.[2]?.sessions ?? [];
     const gara = sessions.find((s) => s?.name === 'Race');
@@ -584,15 +680,14 @@ test('RUNTIME weekend: il setcar applica Single Make, avversari, AI, giri e grig
       { name: 'ks_renault_5_gt_turbo', display_name: 'Renault 5 GT Turbo' },
       { name: 'ks_abarth_595', display_name: 'Abarth 595' },
     ] },
-    GameModeSelectionClientRequestGameModeParameters: {
-      sessions: [
-        { name: 'Practice', opponents: ['x'], single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 10, minute: 30 } },
-        { name: 'Race', opponents: ['x'], single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 13, minute: 30 }, duration: 5, duration_type: 'GameModeSelectionDuration_LAPS' },
-      ],
-      weather_data: [{ type: 'CLEAR' }],
-    },
   };
-  const app = avviaApp(fasciaDi(validaViva, GESTO, { tipo: 'ronda', armataAlle: 7001, viaFino: 0 }), (tipo) => risposte[tipo] ?? null);
+  // stessa cosa del test multiclasse: il banco parte dalla sessione stantia e
+  // poi rimanda quella applicata (15 avversari, 15 R5).
+  const sessioniPrima = [
+    { name: 'Practice', opponents: ['x'], single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 10, minute: 30 } },
+    { name: 'Race', opponents: ['x'], single_make: false, num_opponents: 0, min_strength: 60, max_strength: 70, time_of_day: { hour: 13, minute: 30 }, duration: 5, duration_type: 'GameModeSelectionDuration_LAPS' },
+  ];
+  const app = avviaApp(fasciaDi(validaViva, GESTO, { tipo: 'ronda', armataAlle: 7001, viaFino: 0 }), menuCheRicorda(sessioniPrima, risposte));
   try {
     assert.equal(app.errore, null, `l'app costruita non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
     const arrivato = await finoA(() => app.triggerCalls.some((a) =>
@@ -617,7 +712,7 @@ test('RUNTIME weekend: il setcar applica Single Make, avversari, AI, giri e grig
     assert.equal(prove.models.length, 15, 'anche la Practice deve avere la griglia monomarca piena');
     assert.equal(prove.time_of_day.hour, 9);
     const ack = await finoA(() => (app.store.at(-1)?.val?.commands ?? []).some((v) => v?.id === GESTO.id && v?.ok === 1));
-    assert.ok(ack, `il setcar weekend non è stato confermato: ${JSON.stringify(app.store.at(-1)?.val ?? null)}`);
+    assert.ok(ack, `il setcar weekend non è stato confermato: ${JSON.stringify(app.store.at(-1)?.val ?? null)} — log: ${app.log.join(' | ')}`);
     const voce = (app.store.at(-1)?.val?.commands ?? []).find((v) => v?.id === GESTO.id);
     assert.ok(/weekend e auto applicati/i.test(voce?.msg ?? ''), `l'ack deve dire che è stato applicato: «${voce?.msg}»`);
     // La sequenza si chiude con pista e meteo: qui l'ack è già arrivato, quindi
@@ -788,6 +883,54 @@ test('RUNTIME griglie di tipi diversi: una skin, multiclasse multi-livrea, senza
       caso.verifica(gara);
     } finally { app.drena(); }
   }
+});
+
+test('RUNTIME avvia: menu senza sessioni — il via NON si preme', async () => {
+  // LA PORTA DELL'AVVIO (7/11): «Avvia sessione» non si preme su una griglia
+  // che non si è potuta leggere. Qui il menu risponde ma senza sessioni.
+  const app = avviaApp(fasciaSoloAvvia(), (tipo) => (tipo === 'GameModeSelectionClientRequestGameModeParameters'
+    ? { weather_data: [] }
+    : null));
+  try {
+    assert.equal(app.errore, null, `l'app non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    const detto = await finoA(() => app.log.some((t) => t.includes('non ha restituito sessioni')));
+    assert.ok(detto, `il blocco non è spiegato in console: ${app.log.join(' | ')}`);
+    nessunVia(app, COMANDO_AVVIA.id);
+  } finally { app.drena(); }
+});
+
+test('RUNTIME avvia: conteggi griglia illeggibili — il via NON si preme', async () => {
+  // La sessione c'è ma non porta né `opponents` né `models`: prima si leggeva
+  // zero e si poteva scivolare oltre, ora il via resta fermo.
+  const app = avviaApp(fasciaSoloAvvia(), (tipo) => (tipo === 'GameModeSelectionClientRequestGameModeParameters'
+    ? { sessions: [{ name: 'Practice', time_of_day: { hour: 8 } }] }
+    : null));
+  try {
+    assert.equal(app.errore, null, `l'app non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    const detto = await finoA(() => app.log.some((t) => t.includes('conteggi griglia non leggibili')));
+    assert.ok(detto, `il blocco non è spiegato in console: ${app.log.join(' | ')}`);
+    nessunVia(app, COMANDO_AVVIA.id);
+  } finally { app.drena(); }
+});
+
+test('RUNTIME avvia: griglia sbilanciata (16 avversari / 15 modelli) — il via NON si preme', async () => {
+  const app = avviaApp(fasciaSoloAvvia(), (tipo) => (tipo === 'GameModeSelectionClientRequestGameModeParameters'
+    ? {
+      sessions: [{
+        name: 'Practice',
+        opponents: Array.from({ length: 16 }, () => 1),
+        models: Array.from({ length: 15 }, () => ({ name: 'ks_a' })),
+        time_of_day: { hour: 8 },
+      }],
+      weather_data: [{ type: 'CLEAR' }],
+    }
+    : null));
+  try {
+    assert.equal(app.errore, null, `l'app non parte in sandbox: ${app.errore?.stack ?? app.errore}`);
+    const detto = await finoA(() => app.log.some((t) => t.includes('richiesti 17, opponents=16, models=15')));
+    assert.ok(detto, `il rifiuto non porta i conteggi veri: ${app.log.join(' | ')}`);
+    nessunVia(app, COMANDO_AVVIA.id);
+  } finally { app.drena(); }
 });
 
 test('RUNTIME meteo di ripiego: LIGHT_RAIN assente → RAIN della famiglia (non più cielo invariato)', async () => {

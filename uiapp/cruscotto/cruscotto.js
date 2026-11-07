@@ -782,12 +782,26 @@
               return false;
             }
           }
-          // LA GRIGLIA CHE IL GIOCO HA DAVVERO (7/11, richiesta Mauro: «dopo
-          // l'applicazione rileggi la griglia dal gioco e mostrala nel
-          // pannello»): l'elenco avversari si RILEGGE dal menu dopo averlo
-          // scritto — è la prova che le celle sono quelle chieste, prese dalla
-          // bocca del gioco e non dal file. Best effort: se il menu non
-          // risponde resta la conferma dei tre giri qui sopra.
+          // CONFERMA OBBLIGATORIA (7/11, crash EVO 17:53): l'ACK OK di
+          // SetGameModeParameters non prova che il menu abbia accettato i
+          // conteggi. Dopo al massimo tre letture, chiediamo sia opponents sia
+          // models coerenti con la richiesta (o col tetto documentato di un
+          // posto del giocatore). Se il menu non risponde, non dà sessioni o
+          // lascia una lista corta/sbilanciata, niente ACK positivo e niente
+          // Start: il publisher ripropone la preparazione.
+          const oppMinimo = Math.max(1, quanti - 1);
+          const modelliAllineati = ultimoMod > 0 && ultimaOpp > 0 && (
+            ultimoMod === ultimaOpp || (ultimoMod >= quanti && ultimoMod - ultimaOpp === 1)
+          );
+          if (!modelliAllineati || ultimaOpp < oppMinimo || ultimoMod < oppMinimo) {
+            const dettaglio = ultimaOpp < 0 ? 'nessuna lettura valida' : `opponents=${ultimaOpp}, models=${ultimoMod}, richiesti=${quanti}`;
+            notaComando('Weekend non confermato (' + dettaglio + '): nessun avvio; ripremi «Prepara tutto» quando il menu EVO risponde.');
+            loga('weekend NON confermato: ' + dettaglio + ' — niente ack positivo e niente Start');
+            return false;
+          }
+          // LA GRIGLIA CHE IL GIOCO HA DAVVERO (7/11): lettura aggiuntiva
+          // dell'elenco auto per il riepilogo. La decisione di sicurezza è già
+          // presa dalla verifica sessione opponents/models sopra.
           try {
             const ro = await giocoComando('GameModeSelectionClientRequestOpponents', { mode: MODO_SINGLE }, 8000);
             const lista = Array.isArray(ro?.opponents) ? ro.opponents
@@ -807,18 +821,7 @@
             }
           } catch (e) { loga('Opponents: ' + (e?.message ?? e)); }
           weekendOk = true;
-          // LA GRIGLIA CHE NON SI CONFERMA NON SI GUIDA (5/11): se dopo i tre
-          // tentativi il gioco tiene ancora una lista avversari corta (il caso
-          // «una foto e le altre vuote»), non si dichiara un successo pieno e
-          // corriAvvia non preme Start: una griglia a metà è il crash delle
-          // 00:16 (0xC0000005), non un weekend pronto.
-          // stessa tolleranza della conferma: griglia allineata (tetto del gioco
-          // con un posto del giocatore) o modelli completi
-          const tolleranzaGriglia = (ultimoMod >= quanti || ultimoMod === ultimaOpp) ? 1 : 0;
-          if (ultimaOpp >= 0 && ultimaOpp + tolleranzaGriglia < quanti) {
-            loga('griglia NON confermata dopo 3 tentativi: ' + ultimaOpp + '/' + quanti + ' — niente avvio automatico');
-            fatti.push('griglia NON confermata ' + ultimaOpp + '/' + quanti);
-          }
+          fatti.push('griglia verificata: ' + ultimaOpp + ' avversari / ' + ultimoMod + ' modelli');
           fatti.push(sm ? 'griglia monomarca' : 'griglia multiclasse');
           if (Number.isFinite(Number(w.opponents))) fatti.push(Number(w.opponents) + ' avversari');
           if (Number.isFinite(Number(w.aiMin)) && Number.isFinite(Number(w.aiMax))) fatti.push('AI ' + Number(w.aiMin) + '–' + Number(w.aiMax));
@@ -900,23 +903,41 @@
       if (Number.isFinite(n) && n > 0) attesi = Math.floor(n);
     } catch (_e) { }
     if (!attesi) return null;
-    const gp = await giocoComando('GameModeSelectionClientRequestGameModeParameters', { mode: MODO_SINGLE }, 8000);
+    let gp = null;
+    try { gp = await giocoComando('GameModeSelectionClientRequestGameModeParameters', { mode: MODO_SINGLE }, 8000); }
+    catch (e) {
+      loga('avvio bloccato: lettura della griglia fallita — ' + (e?.message ?? e));
+      return { opp: 0, attesi: attesi, nonVerificata: true };
+    }
     const s0 = gp && Array.isArray(gp.sessions) ? gp.sessions[0] : null;
-    if (!s0) return null;
-    const opp = Array.isArray(s0.opponents) ? s0.opponents.length : (Number(s0.num_opponents) || 0);
-    const mod = Array.isArray(s0.models) ? s0.models.length : 0;
+    if (!s0) {
+      loga('avvio bloccato: il menu non ha restituito sessioni; griglia non verificabile');
+      return { opp: 0, attesi: attesi, nonVerificata: true };
+    }
+    const oppRaw = Array.isArray(s0.opponents) ? s0.opponents.length : Number(s0.num_opponents);
+    const modRaw = Array.isArray(s0.models) ? s0.models.length : NaN;
+    const opp = Number.isFinite(oppRaw) ? oppRaw : 0;
+    const mod = Number.isFinite(modRaw) ? modRaw : 0;
+    if (opp < 1 || mod < 1) {
+      loga('avvio bloccato: conteggi griglia non leggibili (opponents=' + opp + ', models=' + mod + ')');
+      return { opp: opp, attesi: attesi, nonVerificata: true };
+    }
     // MODELLI E AVVERSARI DIVERGENTI NON SI GUIDANO (5/11, il crash 01:16 di
     // Brands Hatch): una sessione con models > avversari è lo stato che uccide
     // EVO alla creazione della griglia (0xC0000005, stesso RVA del 00:22).
     // Il via resta solo su griglia allineata: 16 modelli/16 avversari su 17
     // chiesti va bene (tetto del gioco), 17 su 16 no.
-    if (mod >= 4 && mod !== opp) {
-      loga('avvio bloccato: models ' + mod + ' vs avversari ' + opp + ' — griglia non allineata è il crash delle 01:16');
+    // LA STESSA TOLLERANZA DELLA CONFERMA (7/11): il gioco può tenere un posto
+    // in meno (è il tuo) o uno in più rispetto agli avversari chiesti — un
+    // posto in più viene riempito dalla conferma e resta senza buchi. Quello
+    // che NON passa è una griglia CORTA o SBILANCIATA: è quella che uccide EVO
+    // alla creazione (00:16 e 01:16).
+    const allineata = opp === mod;
+    if (!allineata || opp < attesi - 1) {
+      loga('avvio bloccato: richiesti ' + attesi + ', opponents=' + opp + ', models=' + mod + ' — griglia non verificata/allineata');
       return { opp: opp, attesi: attesi };
     }
-    const tolleranza = opp === mod ? 1 : 0;
-    if (opp < attesi && opp + tolleranza >= attesi) loga('avvio: ' + opp + ' avversari su ' + attesi + ' chiesti (tetto del gioco, griglia allineata)');
-    return opp + tolleranza >= attesi ? null : { opp: opp, attesi: attesi };
+    return null;
   }
 
   async function corriAvvia() {
@@ -925,7 +946,7 @@
     await new Promise(function (dai) { window.setTimeout(dai, 1200); });
     const g = await grigliaIncompleta();
     if (g) {
-      notaComando('Avvio bloccato: griglia ' + g.opp + '/' + g.attesi + ' — ripremi «Prepara tutto» e aspetta che l\'auto cambi.');
+      notaComando('Avvio bloccato: ' + (g.nonVerificata ? 'griglia non verificabile' : 'griglia ' + g.opp + '/' + g.attesi) + ' — nessun via; ripremi «Prepara tutto» quando EVO risponde.');
       loga('avvio bloccato: griglia ' + g.opp + '/' + g.attesi + ' (il via su una griglia corta è il crash delle 00:16)');
       return false;
     }

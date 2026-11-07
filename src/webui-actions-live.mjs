@@ -28,6 +28,12 @@ export const LIVE_ACTIONS = new Set([
 
 export async function liveAction(action, ctx) {
   const { state, body, res, sendJson, context0, syncLiveReader, gameRunningMemo, vigiaSordo, liveReader, LIVE_MODES, liveMode, payloadIngegnere, voceSrv, voceServerAttiva, voceServerLivello, pingVoce } = ctx;
+  // IL LADDER DEL CONTESTO (7/11): `raceCard`/`eventCard` lo vogliono come primo
+  // argomento e qui non era mai stato preso — ogni verifica della scheda gara
+  // moriva in «ladder is not defined» dentro il try e il monitor riceveva
+  // `check: null` (warning ripetuto in data/errors.jsonl). Il ladder è lo
+  // stesso che webui.mjs legge da context0.
+  const { ladder } = context0 ?? {};
   switch (action) {
     case 'live': {
       const mode = await syncLiveReader();
