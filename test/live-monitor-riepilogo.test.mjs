@@ -463,3 +463,25 @@ test('il tempo del giro è l’ultimo dello stato, non il valore stantio del pas
   assert.equal(s[0].giriConTempo, 3);
   assert.equal(s[0].miglioreMs, 108_693);
 });
+
+/* 7/11 — LA SCHEDA DICE «GARA» QUANDO LA SESSIONE È STATA DICHIARATA GARA.
+   Il tipo del blocco STATIC scrive «TimeAttack» anche in gara: la carta prende
+   la dichiarazione vista nei campioni (`session.race`, che la carriera rende
+   vera al server quando è lei ad aver preparato la gara). Un campione basta —
+   nella gara di Donington erano 2 su 697 — e nelle prove non ce n'è nessuno. */
+test('la sessione si chiama «Race» se almeno un campione la dichiara gara', () => {
+  const gara = { ...snap(), session: { type: 'TimeAttack', track: 'Donington Park', race: true } };
+  const s = riassumiMonitor([
+    rigaMonitor(gara, '2026-11-06T22:52:11.989Z'),
+    rigaMonitor({ ...gara, session: { ...gara.session, race: false } }, '2026-11-06T22:53:00.000Z'),
+  ]);
+  assert.equal(s.length, 1);
+  assert.equal(s[0].tipo, 'Race', 'il tipo dichiarato mente, la dichiarazione di gara no');
+
+  const prova = { ...snap(), session: { type: 'TimeAttack', track: 'Suzuka', race: false } };
+  const p = riassumiMonitor([
+    rigaMonitor(prova, '2026-11-06T17:07:33.902Z'),
+    rigaMonitor(prova, '2026-11-06T17:07:50.529Z'),
+  ]);
+  assert.equal(p[0].tipo, 'TimeAttack', 'senza dichiarazione resta quello che il gioco dice');
+});

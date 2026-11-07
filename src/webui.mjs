@@ -19,6 +19,7 @@ import { costanzaSettoriDaLog } from './margine-log.mjs';
 // Riepilogo di fine sessione del monitor live (6/11): la stessa funzione che
 // scrive `.live-monitor.riepilogo.txt` serve anche la scheda del Cruscotto.
 import { lettoreLogLive } from './live-log-incrementale.mjs';
+import { conGaraCarriera } from './gara-carriera.mjs';
 // ultimo riepilogo calcolato + impronta del log (mtime|size): il polling della
 // scheda costa uno stat finché il monitor non scrive
 import { rigaDaRegistrazione, riepiloghiDa, unisciSessioni } from './live-monitor-riepilogo.mjs';
@@ -696,7 +697,13 @@ async function payloadIngegnere(context0, state, body, { leggero = false } = {})
   await syncLiveReader();
   let snap = r.snapshot();
   // vigia del lettore sordo (29/10): live ma «sconosciuta» → riciclo al 15 s
-  if (await vigiaSordo(r, snap)) snap = r.snapshot();  let raceLaps = null, fuelPerLap = null, telemTrack = null;
+  if (await vigiaSordo(r, snap)) snap = r.snapshot();
+  // LA GARA DICHIARATA DALLA CARRIERA (7/11): stessa marcatura della rotta
+  // `live`, così `inRace` dell'ingegnere (finestra pit, ultimo giro, bandiera
+  // a scacchi, cronaca) è vero anche quando il gioco chiama la gara
+  // «TimeAttack».
+  snap = conGaraCarriera(snap, state?.pending);
+  let raceLaps = null, fuelPerLap = null, telemTrack = null;
   let degSecPerLap = null;   // degrado del ritmo misurato (usura-gomme), per undercut/overcut
   let pitLossSec = null;     // costo sosta misurato dai giri in/out della stessa pista
   /* LEGGERO (29/10 sera): quando serve SOLO la voce del Pitwall, niente raceCard

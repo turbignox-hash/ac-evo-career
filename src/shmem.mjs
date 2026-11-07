@@ -13,6 +13,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { recordWarning } from './warnings.mjs';
 import { buildPathProg, liveDelta, deltaSegments, settorePeggiore } from './lapdelta.mjs';
+import { eGaraSessione } from './sessione-tipo.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PS1 = join(HERE, '..', 'tools', 'acevo-live.ps1');
@@ -1289,16 +1290,12 @@ export class LiveReader {
 
 /* singleton per il server */
 let reader = null;
-/** È GARA? (6/11): il tipo STATIC di EVO scrive «TimeAttack» anche in gara e la
- *  fase può arrivare vuota, quindi non basta nessuno dei due. La firma vera è
- *  la coppia: sessione A GIRI e NESSUN timer — prove e qualifiche sono a tempo
- *  e la gara no. Una sola regola per live, verifica scheda e copilota. */
-export function eGaraSessione({ tipo = null, giriTotali = null, tempoRimanente = null } = {}) {
-  if (String(tipo ?? '') === 'Race') return true;
-  const giri = Number(giriTotali);
-  const timer = tempoRimanente == null ? '' : String(tempoRimanente).trim();
-  return Number.isFinite(giri) && giri > 0 && timer === '';
-}
+/* È GARA? (6/11): la regola vive in `sessione-tipo.mjs` — un posto solo, tre
+ * consumatori (qui, `engineer.mjs`, il riepilogo live). Il 7/11 è stato
+ * corretto lì il difetto vero: il timer di una gara a giri arriva «00:00»,
+ * non vuoto, e la vecchia condizione non scattava mai. Resta riesportata da
+ * qui perché i test e i lettori storici la cercano in shmem. */
+export { eGaraSessione } from './sessione-tipo.mjs';
 
 /** Danni per area in % [fronte, post, sx, dx, centro]. Il gioco scrive di norma
  *  frazioni 0..1, ma in certi frame il blocco arriva GIÀ in percentuale

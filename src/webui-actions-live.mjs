@@ -9,6 +9,7 @@
 // Il dispatcher resta in webui.mjs; `sonda-menu` resta nello switch perché è
 // la sonda del cruscotto, non il live.
 import { eventCard } from './events.mjs';
+import { conGaraCarriera } from './gara-carriera.mjs';
 import { tr } from './lang.mjs';
 import { raceCard } from './race.mjs';
 import { VOCE_LIVELLI } from './voce-copilota.mjs';
@@ -38,6 +39,13 @@ export async function liveAction(action, ctx) {
       // RECUPERO SORDO (29/10): vivo ma senza dati (sessione sconosciuta,stale)
       // per più di 15 s col gioco avviato → stesso riciclo, automatico.
       if (await vigiaSordo(r, snap)) snap = r.snapshot({ raw: true });
+      // LA GARA DICHIARATA DALLA CARRIERA (7/11): il gioco dice «TimeAttack» e
+      // vince anche dandole un timer, quindi è la carriera — pista + giri del
+      // `pending` — a dire che questa sessione è la gara preparata. Lo snapshot
+      // marcato qui serve a TUTTO il resto: la verifica della scheda, il
+      // copilota (inRace) e il log del monitor, che da questo snapshot scrive
+      // le sue righe.
+      snap = conGaraCarriera(snap, state?.pending);
       // verifica della configurazione: confronta la sessione live con la scheda gara attesa
       let check = null;
       if (snap.game && state) {

@@ -11,6 +11,7 @@ const WHEEL_NAMES = ['LF', 'RF', 'LR', 'RR'];
 
 import { tr } from './lang.mjs';
 import { pitBattle } from './strategia.mjs';
+import { eGaraSessione } from './sessione-tipo.mjs';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 
@@ -152,7 +153,13 @@ export function engineerLive(snap, ctx = {}) {
   // quindi inRace restava falso per tutta la gara. La firma vera la calcola lo
   // snapshot (session.race: sessione a giri senza timer) — una sola regola per
   // live, verifica scheda e copilota.
-  const inRace = snap?.session?.race === true || sessionType === 'Race' || /race/i.test(faseGioco);
+  // 7/11 (chiusura del difetto): `session.race` ora riconosce il timer di gara
+  // AZZERATO («00:00», non vuoto) — vedi `sessione-tipo.mjs` — ma la stessa
+  // regola si applica qui sui campi del pilota, così il giudizio è identico
+  // anche quando lo snapshot arriva da un lettore vecchio che non la calcola.
+  const inRace = snap?.session?.race === true
+    || eGaraSessione({ tipo: sessionType, giriTotali: player?.lapsTotal, tempoRimanente: player?.timeLeftAll })
+    || /race/i.test(faseGioco);
   const gauges = {
     lapsDone: null, lapsTotal: null, fuel: null, lapsOnFuel: null, lapsLeft: null,
     wear: null, temp: null, gapAhead: null, gapBehind: null,

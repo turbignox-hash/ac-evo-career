@@ -341,9 +341,12 @@ function riepilogoLiveHtml(r) {
   const ss = Array.isArray(r.sessioni) ? r.sessioni : [];
   if (!ss.length) return `<div class="muted" style="font-size:12.5px">${esc(r.motivo ?? tr({ it: 'Nessuna sessione registrata: si riempie alla prima sessione con il monitor acceso o il registratore in funzione.', en: 'No recorded session yet: it fills at the first session with the monitor or the recorder running.' }))}</div>`;
   const s = ss[ss.length - 1];
+  // «Race» in italiano si dice «Gara» (7/11): il resto dei tipi resta il token
+  // del gioco (TimeAttack, HotStint), che è già la parola che si legge in giro.
+  const nomeTipo = (t) => (t === 'Race' ? tr({ it: 'Gara', en: 'Race' }) : t);
   let quando = null;
   try { quando = s.fine ? new Date(s.fine).toLocaleString(window.LOCALE === 'en' ? 'en-GB' : 'it-IT', { dateStyle: 'medium', timeStyle: 'short' }) : null; } catch { quando = null; }
-  return `<div class="muted" style="font-size:12.5px;margin-bottom:6px">${esc(s.tipo ?? '?')} · ${esc(s.track ?? tr({ it: 'pista n/d', en: 'track n/a' }))}${quando ? ` · ${esc(quando)}` : ''}${s.giriConTempo ? ` · ${s.giriFatti} ${tr({ it: 'giri', en: 'laps' })}` : ''}</div>
+  return `<div class="muted" style="font-size:12.5px;margin-bottom:6px">${esc(nomeTipo(s.tipo ?? '?'))} · ${esc(s.track ?? tr({ it: 'pista n/d', en: 'track n/a' }))}${quando ? ` · ${esc(quando)}` : ''}${s.giriConTempo ? ` · ${s.giriFatti} ${tr({ it: 'giri', en: 'laps' })}` : ''}</div>
     <pre id="rl-testo" style="margin:0;padding:10px 12px;background:var(--bg2,#141924);border:1px solid var(--line,#2b3345);border-radius:6px;overflow-x:auto;font-family:var(--mono,ui-monospace,monospace);font-size:12px;line-height:1.5;white-space:pre">${esc(s.testo)}</pre>
     <div class="row" style="margin-top:8px">
       <button class="mini acc" id="rl-copia">⧉ ${tr({ it: 'Copia testo', en: 'Copy text' })}</button>

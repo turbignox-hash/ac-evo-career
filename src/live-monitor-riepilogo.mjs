@@ -40,8 +40,16 @@ export function rigaMonitor(snap, at = new Date().toISOString()) {
     at,
     game: !!snap?.game,
     live: !!snap?.live,
+    // IL TIPO DICHIARATO, non il giudizio: la carta lo corregge a fine sessione
+    // con `garaDiSessione` (7/11), perché il tipo del blocco STATIC scrive
+    // «TimeAttack» anche nelle gare in singolo.
     session: snap?.session?.type ?? null,
     track: snap?.session?.track ?? null,
+    // LA DICHIARAZIONE DEL GIOCO (7/11): `session.race` — l'unica parola che
+    // dice «gara» dentro lo snapshot (il tipo STATIC scrive «TimeAttack»
+    // anche in gara). La carriera la rende affidabile al server quando è lei
+    // ad aver preparato la gara (vedi `garaDallaCarriera` in webui.mjs).
+    race: snap?.session?.race === true,
     pos: num(p?.position),
     // `lap` resta il giro in corso (com'era prima), `lapsDone` è il contatore
     // che serve al riepilogo per capire quando un giro è stato chiuso.
@@ -145,6 +153,11 @@ export function creaAccumulatoreRiepiloghi() {
         cur = {
           inizio: l.at ?? null, fine: l.at ?? null, track: l.track ?? null, tipo: l.session ?? null,
           righe: 0, pos: statVuota(), vel: statVuota(), giri: new Map(), bestMs: null, contatto: contattoVuoto(),
+          // «È GARA?» a fine sessione (7/11): basta UN campione in cui il gioco
+          // (o la carriera) l'ha dichiarata. Nella gara di Donington i campioni
+          // con `race: true` sono 2 su 697 e cadono dentro la sessione giusta;
+          // nelle prove non ce n'è nessuno, quindi non si inventa una gara.
+          garaVista: false,
         };
       }
       cur.fine = l.at ?? cur.fine;
@@ -156,6 +169,7 @@ export function creaAccumulatoreRiepiloghi() {
       const vel = num(l.speed);
       if (vel != null) statAggiungi(cur.vel, vel);
       if (num(l.bestLapMs) > 0) cur.bestMs = cur.bestMs == null ? num(l.bestLapMs) : Math.min(cur.bestMs, num(l.bestLapMs));
+      if (l.race === true) cur.garaVista = true;
       accumulaContatto(cur.contatto, l);
       // un giro è chiuso quando lapsDone sale: `lastLapMs` di quella riga è il
       // suo tempo. ATTENZIONE AL RITARDO DEL GIOCO (7/11, misurato sulla gara di
@@ -244,9 +258,13 @@ function finisciSessione(s) {
   }
   const posMin = statMin(s.pos);
   const posMax = statMax(s.pos);
+  // «GARA» (7/11): il tipo dichiarato mente («TimeAttack» anche in gara), quindi
+  // vale la dichiarazione vista nei campioni della sessione — il gioco quando la
+  // riconosce, la carriera quando è lei ad aver preparato la gara.
+  const gara = s.tipo === 'Race' || s.garaVista === true;
   return {
     track: s.track,
-    tipo: s.tipo,
+    tipo: gara ? 'Race' : s.tipo,
     inizio: s.inizio,
     fine: s.fine,
     durataMin: (s.inizio && s.fine) ? Math.round((Date.parse(s.fine) - Date.parse(s.inizio)) / 6000) / 10 : null,
