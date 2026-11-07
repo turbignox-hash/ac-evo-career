@@ -33,6 +33,11 @@ import { cancelloOrario } from './test-mode.mjs';
 export const WEEKEND_FILE = join(GAME_MODES_DIR, 'GameModeType_RACE_WEEKEND.gamemodesave');
 
 const NOMI_SESSIONE = { Practice: 'Practice', Qualifying: 'Qualifying', Warmup: 'Warmup', Race: 'Race' };
+export const SESSIONI_WEEKEND_COMPLETE = Object.freeze(['Practice', 'Qualifying', 'Warmup', 'Race']);
+export const sessioniWeekendMancanti = (sessioni) => {
+  const presenti = new Set((Array.isArray(sessioni) ? sessioni : []).map((s) => String(s?.name ?? '')));
+  return SESSIONI_WEEKEND_COMPLETE.filter((nome) => !presenti.has(nome));
+};
 const nomeSessione = (n) => NOMI_SESSIONE[String(n ?? '').trim()] ?? null;
 
 /** SCALA DEL TEMPO (1/11): il float vive DENTRO il sottoblocco data/ora (f4.f7);
@@ -188,11 +193,15 @@ export function setRaceSessions({ sessions = {}, scale = null, file = WEEKEND_FI
       }
       if (touched) f4.bytes = encodeMsg(dt);
     }
-  // durata della sessione in secondi (f2), solo se richiesta e non-Race
+  // durationSec indica sessione a tempo: scrivere solo f2 lascerebbe un
+  // eventuale modo a giri ereditato dal blocco, interpretando i secondi come giri.
   if (req.durationSec != null) {
     let g2 = sess.find((x) => x.field === 2);
-    if (!g2) { g2 = { field: 2, wire: 0, varint: null }; sess.push(g2); } // blocco senza durata: il campo lo creiamo
+    if (!g2) { g2 = { field: 2, wire: 0, varint: null }; sess.push(g2); }
     if (g2.varint == null || Number(g2.varint) !== req.durationSec) { g2.varint = BigInt(req.durationSec); touched = true; }
+    let mode = sess.find((x) => x.field === 3 && x.wire === 0);
+    if (!mode) { mode = { field: 3, wire: 0, varint: 1n }; sess.push(mode); touched = true; }
+    else if (Number(mode.varint) !== 1) { mode.varint = 1n; touched = true; }
   }
     // f7/f4.f7: scala di avanzamento del tempo — FORMA DEL GIOCO (f4.f7 interno,
     // 1/11); il f7 di blocco e' il contatore griglia e NON va né letto né toccato

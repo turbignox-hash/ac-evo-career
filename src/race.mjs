@@ -744,6 +744,25 @@ export function markPending(_ladder, state, card, { autoAvvio = true } = {}) {
   return state.pending;
 }
 
+/**
+ * IL PENDING SEGUE LA GRIGLIA SCRITTA (7/11). `markPending` nasce PRIMA del
+ * riallineamento del conteggio: la card porta il numero della scala (18 auto /
+ * 17 avversari) mentre il weekend e il customgrid vengono poi riallineati al
+ * gamemodesave (13 auto / 12 avversari). Il Cruscotto riceveva così 17
+ * avversari con 13 piloti disponibili: EVO generava 17 celle e lasciava le
+ * schede vuote. Questa funzione riporta il pending sul numero VERO delle celle
+ * scritte. Pura: ritorna true se ha cambiato qualcosa.
+ */
+export function sincronizzaPendingGriglia(pending, celle) {
+  const n = Math.round(Number(celle));
+  if (!pending?.weekend || !Number.isFinite(n) || n < 2) return false;
+  const avversari = n - 1;
+  let cambiato = false;
+  if (Number(pending.gridSize) !== n) { pending.gridSize = n; cambiato = true; }
+  if (Number(pending.weekend.opponents) !== avversari) { pending.weekend.opponents = avversari; cambiato = true; }
+  return cambiato;
+}
+
 export async function launch(paths, { exeOnly = true } = {}) {
   return launchGame(paths, { exe: exeOnly });
 }

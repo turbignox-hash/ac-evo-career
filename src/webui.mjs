@@ -85,7 +85,7 @@ import { rapportoGara } from './rapporto-gara.mjs';
 import { verdettoGiornata } from './verdetto-giornata.mjs';
 import { liveReader } from './shmem.mjs';
 import { creaVoceCopilota, nuovoSlotVoce, giroVoce, pannelloVoce, VOCE_LIVELLI, LOG_VOCE_FILE } from './voce-copilota.mjs';
-import { raceCard, markPending, chargeEntry, launch, nextRound } from './race.mjs';
+import { raceCard, markPending, chargeEntry, launch, nextRound, sincronizzaPendingGriglia } from './race.mjs';
 import { applyPianoToCalendar } from './orario.mjs';
 import {
   listResultFiles, readSessionResult, isRaceSession, findPlayerDriver, classify,
@@ -125,7 +125,7 @@ import { listSetups, brakePlanOf, annotateAllyAdvice, autoConAli, } from './cars
 import { engineerLive } from './engineer.mjs';
 import { carPoolOf, carInPool, poolNodeForLive } from './car-pool.mjs';
 import { changeWeekendTrack, currentWeekendTrack, setWeekendAi, weekendAi, setWeekendGridCustom, setWeekendGridAuto, WEEKEND_FILE } from './set-track.mjs';
-import { currentRaceTime, currentSessionTimes, setRaceSessions } from './set-racetime.mjs';
+import { currentRaceTime, currentSessionTimes, setRaceSessions, sessioniWeekendMancanti } from './set-racetime.mjs';
 import { setWeekendAirTemp } from './set-weekend.mjs';
 import { setWeekendLaps, setWeekendTimed, weekendLaps, raceBlockIndex } from './weekend-laps.mjs';
 import { readCells } from './grid-balance.mjs';
@@ -2533,6 +2533,20 @@ async function api(context0, _req, res, action, body) {
       const node = nodeById(ladder, state.node);
       if (state.round >= node.calendar.length) return sendJson(res, 400, { error: 'Stagione completata: chiudi l\'anno dalla schermata Carriera.' });
       const card = raceCard(ladder, state, { car: typeof body.car === 'string' ? body.car : null });
+      // Le gare di campionato devono avere il weekend completo, non una Race diretta.
+      // EVO crea i blocchi entrando nel weekend; non li inventiamo nel protobuf.
+      // Verifica prima di addebito/pending e ferma in modo esplicito se incompleto.
+      if (!body.noLaunch) {
+        const mancanti = sessioniWeekendMancanti(currentSessionTimes());
+        if (mancanti.length) return sendJson(res, 409, {
+          error: tr({
+            it: `Weekend EVO incompleto: mancano ${mancanti.join(', ')} nel gamemodesave. Entra nel weekend del campionato in EVO per far creare tutte le sessioni, poi ripremi «Prepara tutto». La ronda non è stata addebitata né armata.`,
+            en: `EVO weekend is incomplete: ${mancanti.join(', ')} are missing from the gamemode save. Enter the championship weekend in EVO to create all sessions, then press “Get everything ready” again. The round was not charged or armed.`,
+          }),
+          code: 'INCOMPLETE_RACE_WEEKEND',
+          missingSessions: mancanti,
+        });
+      }
       // PREFLIGHT GRIGLIA (4/11, P0.3): la card avvisa già quando il customgrid è
       // di un'altra serie; qui, PRIMA di addebitare l'iscrizione, si prova la
       // ricostruzione a secco. Se nessun template ha le auto della serie la gara
@@ -2682,6 +2696,17 @@ async function api(context0, _req, res, action, body) {
               const tinteMonoRb = (rb.report.tinte ?? []).filter((s) => s.includes('MONOCOLORE'));
               prep.grid.rebuild = `riscritta per "${rb.report.serie}" — ${rb.report.gridSize} celle${rb.report.poolMulti ? ` (${rb.report.poolMulti})` : ''}${rb.source ? ` · template: ${rb.source}` : ''}${rb.report.tintePrestate ? ` · ${rb.report.tintePrestate} tinte prestate` : ''}${tinteMonoRb.length ? ` · avviso: ${tinteMonoRb.join('; ')}` : ''}`;
               prep.grid.written = true;
+              // IL PENDING SEGUE LE CELLE SCRITTE (7/11): la card nasce col numero
+              // della SERIE (18 auto / 17 avversari), ma il gate ha appena
+              // riallineato la griglia al weekend (13 celle). Con 17 avversari il
+              // Cruscotto chiedeva 17 modelli a un weekend da 13 posti: 17 celle
+              // con 13 piloti, quattro schede VUOTE nel menu (visto il 7/11 alle
+              // 16:07). Qui il pending scende sul numero VERO: card e comando
+              // dicono la stessa griglia che sta sul disco.
+              if (sincronizzaPendingGriglia(state.pending, rb.report?.gridSize)) {
+                prep.grid.pending = `allineato a ${rb.report.gridSize - 1} avversari (${rb.report.gridSize} auto, come la griglia scritta)`;
+                persist(state);
+              }
             }
           } catch (e) {
             prep.grid = prep.grid ?? {};
@@ -2841,11 +2866,12 @@ async function api(context0, _req, res, action, body) {
               if (hour != null || durMin != null) sessi[k] = { ...(hour != null ? { hour } : {}), ...(durMin != null ? { durationSec: durMin * 60 } : {}) };
             }
             const ora = currentSessionTimes();
-            const tuttoAPosto = ora != null && ora.length > 0 && ora.every((s) => {
+            const mancanti = sessioniWeekendMancanti(ora);
+            const tuttoAPosto = ora != null && mancanti.length === 0 && ora.every((s) => {
               const w = sessi[s.name];
-              if (w == null) return true; // sessione senza orario voluto: non si tocca
+              if (w == null) return true; // sessione senza orario/durata voluta: non si tocca
               const okOra = w.hour != null ? Number(s.hour) === w.hour : true;
-              const okDur = w.durationSec != null ? Number(s.durSec) === w.durationSec : true;
+              const okDur = w.durationSec != null ? (Number(s.durSec) === w.durationSec && s.aTempo === true) : true;
               const okScala = wantScale == null || Math.abs(Number(s.scale) - wantScale) < 1e-6;
               return okOra && okDur && okScala;
             });
@@ -2860,6 +2886,8 @@ async function api(context0, _req, res, action, body) {
               prep.hourSessions = sessi;
               prep.hourWritten = rt.written;
               prep.hourToccati = rt.toccati;
+              prep.missingSessions = rt.mancanti;
+              if (rt.mancanti?.length) prep.hourError = `blocchi sessione mancanti dopo la scrittura: ${rt.mancanti.join(', ')}`;
             }
           }
         }

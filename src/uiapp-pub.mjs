@@ -25,7 +25,7 @@ import { tr } from './lang.mjs';
 // il libro delle piste (TRACK_INFO): il comando di cambio auto porta anche
 // pista+layout come «Prepara tutto» li ha scritti — in gioco l'applet fa
 // la SEQUENZA COMPLETA di avvio (tipo di gara → pista → auto) (28/10 PM)
-import { specFor, currentWeekendTrack } from './set-track.mjs';
+import { specFor, currentWeekendTrack, weekendCarCount } from './set-track.mjs';
 import { PRESETS as WX_PRESETS } from './weather.mjs';
 // l'istantanea della gara al volo: la LETTURA del blocco Race è sempre
 // innocua (anche a gioco aperto) e vale alla card del cruscotto i FATTI
@@ -37,6 +37,14 @@ import { currentInstantRace, INSTANT_FILE } from './set-instantrace.mjs';
 import { leggiRegistro, formattaRigaRegistro } from '../tools/_gara-veloce.mjs';
 import { eventCard } from './events.mjs';
 import { leggiStoreJson } from './uiapp-store.mjs';
+// IL TETTO DEI PILOTI (7/11, le schede vuote della griglia): la griglia VIVA del
+// disco dice quanti piloti ci sono davvero; il gioco crea UNA CELLA PER OGNI
+// MODELLO che gli si manda, e le celle senza pilota restano le schede vuote
+// del menu (17 celle / 13 piloti del 7/11 16:07). Qui si legge il file — sola
+// lettura — e si mette il tetto PRIMA che il numero entri nel gioco.
+import { gridFileOf } from './evo-grid.mjs';
+import { GRID_FILE } from './grid-apply.mjs';
+import { recordWarning } from './warnings.mjs';
 // LA FASCIA SI SCRIVE ATOMICA (3/11): la stessa tecnica del quaderno di
 // calibrazione (tmp + rename, atomic.mjs). Prima era writeFileSync sul file
 // buono: se il processo moriva (o Windows tagliava a metà) fra il byte 1 e la
@@ -370,6 +378,51 @@ export function codiceMeteo(label) {
   return hit ? hit[1] : null;
 }
 
+/**
+ * IL TETTO DEGLI AVVERSARI SUL VIVO (7/11). La griglia del disco ha N piloti:
+ * il gioco, a cui si manda `models` lungo `opponents`, crea una cella per
+ * modello e riempie solo le celle che hanno un pilota — le altre sono le
+ * schede VUOTE del menu (visto sul vivo: 17 celle con 13 piloti, quattro
+ * riquadri vuoti, e l'app che chiedeva 17 avversari da un pending di 18 auto
+ * mentre il weekend ne teneva 12).
+ *
+ * Regola: si mandano `piloti - 1` avversari (una cella è la tua, la stessa
+ * forma del gate `declared + 1` in grid-apply). Se il numero chiesto rientra
+ * già nel tetto il weekend torna com'è (oggetto identico, nessun lavoro).
+ * Sola lettura: file assente o illeggibile → il weekend resta quello scritto.
+ * Il taglio si FIRMA nel registro (una volta per coppia), mai silenzioso.
+ */
+const _tettiVisti = new Set();
+export function weekendConTetto(weekend, { file = GRID_FILE } = {}) {
+  if (!weekend || typeof weekend !== 'object') return weekend ?? null;
+  // MONOMARCA: la griglia la genera EVO dalle sue liste (niente celle nostre,
+  // niente pilota da riempire) — e il «Prepara tutto» lì non scrive il
+  // customgrid, quindi i piloti del disco non dicono niente. Il tetto vale
+  // solo per le multiclasse, dove il file È la griglia che EVO adotta.
+  if (weekend.singleMake === true) return weekend;
+  let piloti = 0;
+  try { piloti = gridFileOf(readFileSync(file)).drivers.length; } catch { return weekend; }
+  if (piloti < 2) return weekend;
+  // DUE TETTI, il più stretto vince: i PILOTI del disco (una cella senza
+  // pilota è una scheda vuota) e il numero che il WEEKEND dichiara (3.7: è
+  // quello su cui EVO dimensiona il via — lezione 24/10, celle diverse
+  // dall'atteso = 0xC0000005). Dopo un «Prepara tutto» i due coincidono.
+  let dichiarati = null;
+  try {
+    const n = weekendCarCount();
+    if (Number.isFinite(n?.declared) && n.declared > 0) dichiarati = n.declared;
+  } catch { /* weekend illeggibile: resta il solo tetto dei piloti */ }
+  const tetto = dichiarati != null ? Math.min(piloti - 1, dichiarati) : piloti - 1;
+  const chiesti = Number(weekend.opponents);
+  if (!Number.isFinite(chiesti) || tetto < 1 || chiesti <= tetto) return weekend;
+  const chiave = `${chiesti}→${tetto}`;
+  if (!_tettiVisti.has(chiave)) {
+    _tettiVisti.add(chiave);
+    recordWarning('uiapp.tetto-piloti', `weekend chiede ${chiesti} avversari ma la griglia ha ${piloti} piloti e il weekend ne dichiara ${dichiarati ?? '?'}: chiesti ${tetto} (le celle senza pilota sarebbero schede vuote; il numero dichiarato è quello su cui EVO dimensiona il via)`);
+  }
+  return { ...weekend, opponents: tetto };
+}
+
 export function comandoAuto(ladder, state, env = process.env) {
   try {
     const p = state?.pending;
@@ -486,7 +539,7 @@ export function comandoAuto(ladder, state, env = process.env) {
           // GRIGLIA E PARAMETRI DEL WEEKEND (4/11): il Cruscotto li applica
           // con SetGameModeParameters nella stessa sequenza dell'auto, come
           // il weekend non resta più solo sui file del disco.
-          weekend: p.weekend ?? null,
+          weekend: weekendConTetto(p.weekend),
         };
         // GESTO UNICO (4/11, «prepara tutto e avvia deve lanciare la gara, non
         // solo il gioco»): dentro la finestra armata il setcar porta con sé
@@ -796,7 +849,7 @@ export function azioniPulsanti(ladder, state, env = process.env) {
         const ov = state?.raceSettings?.[p.node] ?? {};
         const banda = [ov?.sliderMin, ov?.sliderMax].every((x) => Number.isFinite(Number(x))) ? `${Number(ov.sliderMin)}–${Number(ov.sliderMax)}` : null;
         const voloB = voloMeteoOra(env);   // lo stesso kill-switch / meteo/ora del comando diretto
-        az.ronda = { id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome, carId: p.car, pista: spec?.name ?? null, layout: spec?.layout ?? null, ora: voloB && Number.isFinite(Number(p.hour)) && p.hour != null ? Number(p.hour) : null, meteo: voloB ? codiceMeteo(p.weather ?? null) : null, weekend: p.weekend ?? null, serie: p.node ?? null, scadeIn: scadeIn(p.startedAt), banda };
+        az.ronda = { id: `${p.startedAt ?? p.date ?? ''}:${p.car}:${p.node}`, tipo: 'setcar', nome, carId: p.car, pista: spec?.name ?? null, layout: spec?.layout ?? null, ora: voloB && Number.isFinite(Number(p.hour)) && p.hour != null ? Number(p.hour) : null, meteo: voloB ? codiceMeteo(p.weather ?? null) : null, weekend: weekendConTetto(p.weekend), serie: p.node ?? null, scadeIn: scadeIn(p.startedAt), banda };
       }
     }
     if (!az.demo) {
