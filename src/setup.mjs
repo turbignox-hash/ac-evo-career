@@ -1,5 +1,6 @@
-// setup.mjs — l'aiuto-meccanico del tool: pressioni gomme target per classe auto,
-// calcolatore "regola dei 4 PSI" e quaderno note di setup per auto+pista.
+// setup.mjs — l'aiuto-meccanico del tool: consigli automatici sulle pressioni
+// (regola dei 4 PSI), target per classe auto e quaderno note di setup auto+pista.
+// Non offre più un calcolatore manuale nella GUI: le correzioni usano i dati vivi.
 //
 // Fonte dei target: blog Kunos "AC EVO - Version 0.4 - State of Physics and Cars"
 // (pressioni ottimali A CALDO per classe, in PSI):

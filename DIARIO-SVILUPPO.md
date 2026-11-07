@@ -1,5 +1,14 @@
 # Diario di sviluppo
 
+### 7/11 — la regola dei 4 PSI resta spiegata, non più da calcolare a mano
+
+- **Conferma di Mauro**: «pensavo di eliminare la scheda risultati e incorporarla da qualche altra parte, che ne pensi? > … si» (sì alla proposta di lasciare una nota informativa della regola dei 4 PSI, senza calcolo manuale).
+- **Nota informativa aggiunta**: nel riquadro «Consigli del box» di Setup ora si legge: «Regola dei 4 PSI: dopo 3–4 giri la pressione a caldo tende a salire di circa 3–5 PSI rispetto alla partenza. La correzione qui sotto usa i dati telemetrici: non serve calcolarla a mano». Nessun input, selettore, pulsante di calcolo o endpoint manuale; i suggerimenti automatici restano basati sulla telemetria. La descrizione in testa a `setup.mjs` ora riflette che il modulo offre correzioni automatiche e non più il calcolatore manuale.
+- **Verifica a schermo dopo riavvio**: Pitwall su `127.0.0.1:8642` (`/api/agg-info` 200), scheda Setup riaperta. Sono visibili insieme la nota PSI e «Prossima mossa — Sistema “assetto”: Bumpstop LF al 6.9% del giro… Poi 3 giri di verifica…». `#psi-panel` e `#f-psi` assenti; console browser vuota.
+- **Parere su Risultati (nessuna riorganizzazione eseguita)**: la scheda combina un'azione operativa (importa ultima gara compatibile, o inserisce piazzamento a mano se EVO non riconosce il pilota) con l'elenco dei file/sessioni candidati. L'Archivio già copre i risultati storici e Analisi copre i giri/telemetria. Suggerisco di lasciare l'importazione come azione post-gara facilmente raggiungibile dal Cruscotto o dal debrief, e portare lo storico in Archivio; l'elenco tecnico dei file può stare in una sezione di sistema. Prima di eliminare la scheda dalla navigazione va decisa una destinazione concreta per importazione automatica e fallback manuale. Nessuna funzione Risultati è stata spostata in questo intervento.
+- **Verifiche**: `node --test test/meccanico.test.mjs` — 5/5; `node --test test/lingua-server.test.mjs` — 3/3; `node --test test/layout-impostazioni.test.mjs` — 21 tab × 6 larghezze, passato sulla GUI aggiornata; `npm run lint` — Biome pulito su 447 file.
+- **Limiti**: EVO era chiuso; la riga «Prossima mossa» usa l'ultima sessione telemetrica disponibile (Donington), non dati live.
+
 ### 7/11 — rimosso il calcolatore manuale dei 4 PSI dalla scheda Setup
 
 - **Richiesta di Mauro**: «Riavvia il Pitwall e apri la scheda del meccanico per verificare a schermo come si vede la riga “prossima mossa” con i dati attuali. rimuovi regola Regola dei 4 PSI dal meccanico che si calcola manuale».

@@ -670,6 +670,7 @@ async function drawSetup(m){
     </div>
     <div class="panel" style="margin-top:14px">
     <h2>💡 ${tr({ it: 'Consigli del box', en: 'Garage advice' })} <span class="muted" style="font-size:12.5px">${tr({ it: 'target ', en: 'target ' })}${tel.target} PSI · ${list.length} ${tr({ it: 'sessioni recenti', en: 'recent sessions' })}</span></h2>
+    <div class="muted" style="font-size:12.5px;margin:4px 0 8px">🛞 <b>${tr({ it: 'Regola dei 4 PSI', en: 'The 4 PSI rule' })}:</b> ${tr({ it: 'dopo 3–4 giri la pressione a caldo tende a salire di circa 3–5 PSI rispetto alla partenza. La correzione qui sotto usa i dati telemetrici: non serve calcolarla a mano.', en: 'after 3–4 laps, hot pressure tends to rise about 3–5 PSI from the starting pressure. The correction below uses telemetry data; no manual calculation is needed.' })}</div>
     ${window.mechIdentity(mechStato)}
     ${staleHtml}
     <div class="row" style="margin-top:12px;align-items:center;gap:10px;flex-wrap:wrap">
