@@ -113,7 +113,9 @@ test('griglia: il roster va al gioco (state.volo), NIENTE customgrid nostro', ()
   assert.equal(st.volo?.opponents, 18, 'RIVALI = posti oltre al pilota (18 chiesti, non 2 modelli−1): il gioco ripete i modelli cambiando livrea');
   assert.equal(st.volo?.aiMin, 88);
   assert.equal(st.volo?.aiMax, 93);
-  assert.throws(() => garaVeloce({ giri: 3, rivali: 99, force: true }), (e) => e.code === 'BAD_RIVALI', 'rivali fuori range: rifiuto, non una griglia strana');
+  assert.throws(() => garaVeloce({ giri: 3, pool: 'ks_f40_lm', rivali: 99, force: true }), (e) => e.code === 'BAD_RIVALI', 'rivali fuori range: rifiuto, non una griglia strana');
+  // e i rivali senza roster non si accettano (sarebbe un passo saltato in silenzio)
+  assert.throws(() => garaVeloce({ giri: 3, rivali: 18, force: true }), (e) => e.code === 'RIVALI_SENZA_POOL');
 });
 
 test('sedile con auto fuori libro: passo KO dichiarato, gli altri passi proseguono', () => {

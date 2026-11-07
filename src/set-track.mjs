@@ -424,24 +424,40 @@ export function setWeekendAi(min, max, { file = WEEKEND_FILE, dry = false } = {}
   const hi = Math.max(lo, Math.min(100, Math.round(Number(max))));
   const buf = readFileSync(file);
   const fields = decodeMsg(buf);
-  const f3 = fields.find((f) => f.field === 3 && f.wire === 2);
-  if (!f3) throw Object.assign(new Error('blocco sessione (campo 3) non trovato nel gamemodesave'), { code: 'NO_SESSION' });
-  const session = decodeMsg(f3.bytes);
+  // LA BANDA VA IN TUTTE LE SESSIONI (7/11, «difficoltà» sbagliata in gara):
+  // prima si scriveva SOLO nel primo blocco (Practice) e le altre restavano
+  // alla banda vecchia — la schermata mostrava Practice 88-93 e la GARA 85-86,
+  // cioè la difficoltà che conta restava quella di prima. Ogni blocco porta
+  // la sua coppia 30/31: si allineano tutte, e la verifica rilegge tutte.
+  const blocchi = fields.filter((f) => f.field === 3 && f.wire === 2);
+  if (!blocchi.length) throw Object.assign(new Error('blocco sessione (campo 3) non trovato nel gamemodesave'), { code: 'NO_SESSION' });
   let touched = false;
-  for (const [n, v] of [[30, lo], [31, hi]]) {
-    const i = session.findIndex((s) => s.field === n);
-    if (i >= 0) {
-      if (Number(session[i].varint) !== v) { session[i].varint = BigInt(Math.max(0, v)); touched = true; }
-    } else { session.push({ field: n, wire: 0, varint: BigInt(Math.max(0, v)) }); touched = true; }
+  for (const f3 of blocchi) {
+    const session = decodeMsg(f3.bytes);
+    let toccoQui = false;
+    for (const [n, v] of [[30, lo], [31, hi]]) {
+      const i = session.findIndex((s) => s.field === n);
+      if (i >= 0) {
+        if (Number(session[i].varint) !== v) { session[i].varint = BigInt(Math.max(0, v)); toccoQui = true; }
+      } else { session.push({ field: n, wire: 0, varint: BigInt(Math.max(0, v)) }); toccoQui = true; }
+    }
+    if (toccoQui) { f3.bytes = encodeMsg(session); touched = true; }
   }
-  f3.bytes = encodeMsg(session);
-  if (dry || !touched) return { ai: [lo, hi], changed: touched, written: false };
+  if (dry || !touched) return { ai: [lo, hi], changed: touched, written: false, blocchi: blocchi.length };
   const backup = `${file}.bak-ai-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
   copyFileSync(file, backup);
   pruneBackups(file);   // rotazione bak automatica (tetto 25, comune 31/10)
   writeFileSync(`${file}.tmp`, encodeMsg(fields));
   renameSync(`${file}.tmp`, file);
-  return { ai: [lo, hi], changed: true, written: true, backup };
+  // verifica di LETTURA su ogni blocco: la banda che si legge è quella scritta
+  const dopo = decodeMsg(readFileSync(file)).filter((f) => f.field === 3 && f.wire === 2);
+  for (const f of dopo) {
+    const s = decodeMsg(f.bytes);
+    const a = Number(s.find((x) => x.field === 30)?.varint), b = Number(s.find((x) => x.field === 31)?.varint);
+    const nome = Buffer.from(s.find((x) => x.field === 1)?.bytes ?? '').toString('utf8');
+    if (a !== lo || b !== hi) throw new Error(`verifica fallita: la sessione "${nome}" rilegge AI ${a}-${b} invece di ${lo}-${hi}`);
+  }
+  return { ai: [lo, hi], changed: true, written: true, backup, blocchi: blocchi.length };
 }
 
 /* ---------- tipo griglia del menu EVO (campi 3.6/3.7 del primo blocco) ---------- */

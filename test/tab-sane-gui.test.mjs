@@ -41,7 +41,14 @@ const tabsDaFonte = () => {
   const core = readFileSync(CORE, 'utf8');
   const inizio = core.indexOf('const TABS = [');
   const blocco = core.slice(inizio, core.indexOf('];', inizio));
-  return [...blocco.matchAll(/\[\s*'([a-z0-9_]+)'\s*,\s*tr\(/g)].map((m) => m[1]);
+  const ids = [...blocco.matchAll(/\[\s*'([a-z0-9_]+)'\s*,\s*tr\(/g)].map((m) => m[1]);
+  // CONTROPROVA d'estrazione (7/11): la soglia fissa «≥19» è invecchiata quando
+  // la scheda Risultati è uscita dalla nav, e il collaudo falliva su TUTTE le
+  // tab per un numero, non per un difetto della GUI. La guardia vera è che le
+  // due letture — la regex e il conteggio per riga — combacino: se una delle
+  // due derive, il test cade e lo dice (invece di collaudare meno tab in silenzio).
+  const perRiga = (blocco.match(/^\s*\[\s*'[a-z0-9_]+'/gm) ?? []).length;
+  return { ids, perRiga };
 };
 
 const LOCALAPPDATA = process.env.LOCALAPPDATA ?? '';
@@ -94,8 +101,10 @@ test('tutte le tab della GUI: contenuto, zero errori JS, zero overflow orizzonta
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelector('#nav button[data-tab="dashboard"]'), null, { timeout: 15000 });
 
-    const ids = tabsDaFonte();
-    assert.ok(ids.length >= 19, `l'elenco TABS in gui/js/core.js non si legge (${ids.length} tab): aggiorna l'estrazione, non saltarla`);
+    const { ids, perRiga } = tabsDaFonte();
+    assert.ok(ids.length >= 12 && ids.length === perRiga,
+      `l'elenco TABS in gui/js/core.js non si legge bene (${ids.length} dalla regex, ${perRiga} per riga): aggiorna l'estrazione, non saltarla`);
+    assert.deepEqual([...new Set(ids)].sort(), ids.slice().sort(), 'nessun tab doppio nell\'elenco');
 
     for (const id of ids) {
       await page.evaluate((tabId) => document.querySelector(`nav button[data-tab="${tabId}"]`)?.click(), id);

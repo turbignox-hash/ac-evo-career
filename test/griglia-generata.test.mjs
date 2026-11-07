@@ -15,11 +15,11 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { serieGenerataDalGioco, grigliaGaraFuori } from '../src/grid-apply.mjs';
-import { encodeMsg } from '../src/evo-grid.mjs';
+import { decodeMsg, encodeMsg } from '../src/evo-grid.mjs';
 import {
   setWeekendAi, weekendAi, setWeekendGridAuto, setWeekendGridCustom,
   weekendGridMode,
@@ -126,8 +126,19 @@ test('Il weekend è il contratto: AUTO toglie il 7, CUSTOM lo rimette, AI resta'
 
     const ai = setWeekendAi(88, 92, { file });
     assert.equal(ai.written, true);
+    assert.equal(ai.blocchi, decodeMsg(readFileSync(file)).filter((f) => f.field === 3 && f.wire === 2).length,
+      'la banda va in TUTTE le sessioni del file, non solo nella prima');
     assert.deepEqual(weekendAi(file), { min: 88, max: 92 },
       'la banda AI del weekend è quella che il gioco mostra al caricamento.');
+    // 7/11: la difficoltà che CONTA è quella della GARA — prima restava 85-86
+    // perché il write toccava solo il primo blocco (Practice).
+    const blocchi = decodeMsg(readFileSync(file)).filter((f) => f.field === 3 && f.wire === 2);
+    for (const b of blocchi) {
+      const s = decodeMsg(b.bytes);
+      const nome = Buffer.from(s.find((x) => x.field === 1)?.bytes ?? '').toString('utf8');
+      assert.deepEqual([Number(s.find((x) => x.field === 30)?.varint), Number(s.find((x) => x.field === 31)?.varint)], [88, 92],
+        `la sessione "${nome}" deve avere la stessa banda AI delle altre`);
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

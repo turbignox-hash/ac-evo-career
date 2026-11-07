@@ -158,10 +158,11 @@ export function setSingleMake(on, { file = FILE, dry = false, opponents = SINGLE
  * Idempotente: se il blocco dice già quei giri, non tocca niente (written:false).
  * opts: { file }. Ritorna { already, written, block, giri, backup }.
  */
-export function setWeekendLaps(laps, { file = FILE, force = false, previsto = false } = {}) {
+export function setWeekendLaps(laps, { file = FILE, force = false, previsto = false, libera = false } = {}) {
   // CANCELLO ANTI-CHEAT (31/10): fuori modalità test solo il preparatutto
   // (previsto:true) scrive i giri — la distanza resta quella del calendario.
-  cancelloDistanza({ previsto });
+  // `libera` (7/11): gara fuori carriera, la distanza la sceglie il pilota.
+  cancelloDistanza({ previsto, libera });
   if (!Number.isInteger(laps) || laps <= 0) throw Object.assign(new Error(`giri deve essere un intero > 0, ricevo ${laps}`), { code: 'BAD_LAPS' });
   const buf = readFileSync(file);
   const ses = sessionsOf(buf);
@@ -194,8 +195,8 @@ export function setWeekendLaps(laps, { file = FILE, force = false, previsto = fa
  *   setWeekendTimed(null, { laps: N }) → torna a giri (f3=2, f2=N) — il ripristino
  * Idempotente, round-trip byte-identico, backup datato (`.bak-tempo-`).
  * opts: { file } o { laps } per il ripristino. */
-export function setWeekendTimed(minutes, { file = FILE, laps = null, previsto = false } = {}) {
-  cancelloDistanza({ previsto });
+export function setWeekendTimed(minutes, { file = FILE, laps = null, previsto = false, libera = false } = {}) {
+  cancelloDistanza({ previsto, libera });
   if (minutes == null && laps == null) throw Object.assign(new Error('serve --tempo N (minuti) o { laps: N } per tornare a giri'), { code: 'NO_VALUES' });
   if (minutes != null && (laps != null || !Number.isFinite(minutes) || minutes <= 0)) throw Object.assign(new Error(`tempo: minuti > 0 richiesti, ricevo ${minutes}`), { code: 'BAD_TEMP' });
   const backToLaps = minutes == null;

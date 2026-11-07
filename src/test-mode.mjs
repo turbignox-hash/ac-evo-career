@@ -71,7 +71,9 @@ export function cancelloOrario(opts = {}) {
 
 /** Cancello per la distanza della gara (setWeekendLaps / setWeekendTimed). */
 export function cancelloDistanza(opts = {}) {
-  if (opts?.dry || opts?.previsto || meteoLibero()) return;
+  // `libera` (7/11): gara fuori carriera (gara al volo) — distanza e orario li
+  // sceglie il pilota, il calendario non c'entra.
+  if (opts?.dry || opts?.previsto || opts?.libera || meteoLibero()) return;
   cancellaCanale(tr({
     it: "Giri/durata della gara bloccati fuori dalla modalità test: la distanza è quella del calendario. Per provare distanze a piacere attiva la modalità test: node ac-evo-career.mjs test-mode --on",
     en: "Race laps/duration locked outside test mode: the distance is the calendar's. Enable test mode to experiment freely: node ac-evo-career.mjs test-mode --on",

@@ -401,16 +401,22 @@ function cellaSintetica(donore, carId, vero = null) {
   // vera del donore) ma schedata a un'altra auto — è il trapianto dichiarato
   // nel report, mai negato a mano.
   const B = (s) => Buffer.from(s, 'utf8');
-  // preset VERO del catalogo quando il parco lo recupera: preset Standard del
-  // modello, nome completo ("Mini John Cooper S - Standard"), variante, PI.
-  const presetB = vero
-    ? encodeMsg([
-      { field: 1, wire: 2, bytes: B(vero.preset) },
-      { field: 2, wire: 2, bytes: B(vero.display) },
-      { field: 3, wire: 0, varint: 1n },
-      { field: 4, wire: 2, bytes: B(vero.variante || 'Standard') },
-    ])
-    : encodeMsg([{ field: 1, wire: 2, bytes: B(`preset_${carId}`) }]);
+  // MAI UN PRESET INVENTATO (7/11, il crash appena visto: 7 schede vuote in
+  // griglia e «se parto adesso crasha»). Fino a oggi, senza un preset del
+  // catalogo, qui si scriveva `preset_<carId>` — un nome che nel gioco NON
+  // esiste: EVO non sa risolvere il modello della cella, la mostra vuota e
+  // muore alla creazione della griglia. Ora la sintesi si fa SOLO col preset
+  // vero del catalogo; altrimenti la cella non si costruisce affatto e il
+  // chiamante dichiara l'auto non inseribile.
+  if (!vero) {
+    throw Object.assign(new Error(`cella sintetica per "${carId}" senza un preset del catalogo: un preset inventato fa schede vuote e crash in griglia`), { code: 'GRID_NO_PRESET' });
+  }
+  const presetB = encodeMsg([
+    { field: 1, wire: 2, bytes: B(vero.preset) },
+    { field: 2, wire: 2, bytes: B(vero.display) },
+    { field: 3, wire: 0, varint: 1n },
+    { field: 4, wire: 2, bytes: B(vero.variante || 'Standard') },
+  ]);
   const out = decodeMsg(donore).map((g) => ({ ...g }));
   let conPreset = false;
   for (let i = 0; i < out.length; i++) {
@@ -576,6 +582,7 @@ export function buildGridMessage(opts) {
   const wantCars = Array.isArray(node.cars) && node.cars.length ? new Set(node.cars) : null;
   let poolCells = tpl.cells;
   const reportSintesi = [];   // auto mai in griglia, montate con celle sintetiche (1/11)
+  const nonInseribili = [];   // auto del pool SENZA preset del catalogo: non costruite (7/11)
   let sintetiche = null;      // hex delle celle trapiantate dell'ultimo ramo di sintesi (il guardiano delle coppie le esenta): null fuori dal ramo
   if (poolMulti) {
     const sel = tpl.cells.filter((b) => poolMulti.has(carIdOf(b)));
@@ -637,10 +644,23 @@ export function buildGridMessage(opts) {
           reportSintesi.push(`${id} → ${presetOf(intera) ?? vero.preset} (cella intera del parco, gioco-autore)`);
           continue;
         }
+        // SENZA PRESET VERO NON SI SINTETIZZA (7/11): prima si inventava
+        // `preset_<carId>` e il gioco mostrava schede vuote fino al crash.
+        // L'auto si dichiara NON inseribile e si va avanti con le altre.
+        if (!vero) {
+          nonInseribili.push(id);
+          continue;
+        }
         const cella = cellaSintetica(donore, id, vero);
         sintetiche.add(Buffer.from(cella).toString('hex'));
         selected.push(cella);
-        reportSintesi.push(vero ? `${id} → ${vero.preset} (Standard, PI ${vero.pi != null ? vero.pi.toFixed(3) : '—'})` : id);
+        reportSintesi.push(`${id} → ${vero.preset} (Standard, PI ${vero.pi != null ? vero.pi.toFixed(3) : '—'})`);
+      }
+      if (!selected.length) {
+        throw Object.assign(new Error(tr({
+          it: `nessuna cella gioco-autore ne preset del catalogo per le auto chieste (${m.mancanti.join(', ')}): generare la griglia in EVO (menu griglia → GENERA) o scegliere auto già in griglia — un preset inventato fa schede vuote e crash alla partenza`,
+          en: `no game-authored cell nor catalogue preset for the requested cars (${m.mancanti.join(', ')}): generate the grid in EVO (grid menu → GENERATE) or pick cars already in a grid — an invented preset makes empty cards and a crash on start`,
+        })), { code: 'GRID_NO_PRESET' });
       }
       poolCells = selected;
       poolMultiInfo = { auto: [...new Set(selected.map(carIdOf))].length, celle: selected.length };
@@ -985,6 +1005,7 @@ export function buildGridMessage(opts) {
     source: file,
     poolMulti: poolMultiInfo ? `multi-marca: ${poolMultiInfo.auto} auto diverse (${poolMultiInfo.celle} celle nel template)` : null,
     origine,
+    nonInseribili: nonInseribili.length ? nonInseribili : null,
     ai: aiEff?.length === 2 ? `${aiEff[0]}-${aiEff[1]} (${aiFrom})` : null,
     tinte,
     escluse: poolEscluse,

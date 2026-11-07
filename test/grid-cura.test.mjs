@@ -143,3 +143,32 @@ test('raccogli-griglie è AGGANCIATO: chiama autocuraVivo() nel tick, prima dell
   // e un veleno in attesa si ripete a ogni tick (gioco aperto → chiuso), non si dimentica
   assert.match(src, /ATTESA_AUTO\.has\(statoAuto\)/, 'i veleni in attesa devono essere ripresi a ogni tick, non solo al cambio del file');
 });
+
+/* ---------- PRESET INVENTATI E CELLE ASSEMBLATE (7/11) ----------
+   Il caso reale: una griglia con celle sintetiche (`mech preset_ks_ferrari_f40_lm`
+   + livrea 695) è arrivata intatta alla Personalizzazione Griglia di EVO — 7
+   schede vuote e crash al via. L'autocura guardava solo la Supra, quindi la
+   considerava «pulita». Ora quelle celle si CONTANO e la griglia va in quarantena. */
+const cellaConPreset = (carId, mech, visual, brand = 'Abarth') => encodeMsg([
+  { field: 3, wire: 2, bytes: Buffer.from(carId, 'utf8') },
+  { field: 4, wire: 2, bytes: Buffer.from(carId, 'utf8') },
+  { field: 9, wire: 2, bytes: encodeMsg([{ field: 2, wire: 2, bytes: Buffer.from(brand, 'utf8') }]) },
+  { field: 10, wire: 2, bytes: encodeMsg([{ field: 1, wire: 2, bytes: Buffer.from(mech, 'utf8') }]) },
+  { field: 11, wire: 2, bytes: encodeMsg([{ field: 1, wire: 2, bytes: Buffer.from(visual, 'utf8') }]) },
+]);
+const griglia = (...celle) => encodeMsg([
+  ...celle.map((c) => ({ field: 1, wire: 2, bytes: c })),
+  { field: 2, wire: 2, bytes: encodeMsg([{ field: 4, wire: 5, bytes: Buffer.from([0, 0, 0x20, 0x41]) }]) },
+  { field: 3, wire: 2, bytes: encodeMsg([{ field: 1, wire: 0, varint: 2n }]) },
+]);
+
+test('assemblateIn: preset inventato e coppia mescolata si contano, la cella sana no', async () => {
+  const { assemblateIn } = await import('../src/grid-cura.mjs');
+  const sana = cellaConPreset('ks_bmw_m4_gt3', 'preset_m4gt3_mech_1', 'preset_m4gt3_visual_1', 'BMW');
+  const inventata = cellaConPreset('ks_ferrari_f40_lm', 'preset_ks_ferrari_f40_lm', 'preset_695b_visual_1');
+  const chimera = cellaConPreset('ks_ford_mustang_gt3', 'preset_msggt3_mech_1', 'preset_695b_visual_1');
+  assert.equal(assemblateIn(griglia(sana)), 0, 'una griglia sana non si tocca');
+  assert.equal(assemblateIn(griglia(inventata)), 1, 'preset_ks_* = inventato da noi: il gioco non lo risolve');
+  assert.equal(assemblateIn(griglia(chimera)), 1, 'mech e visual di modelli diversi = chimera');
+  assert.equal(assemblateIn(griglia(sana, inventata, chimera)), 2, 'le conta tutte, le sane restano fuori');
+});

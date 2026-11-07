@@ -149,10 +149,11 @@ export function currentSessionTimes(file = WEEKEND_FILE) {
  * non si tocca; un nome per sessione che non esiste nel file viene ignorato e
  * segnalato in `mancanti`. Ritorna { blocchi, changed, written, backup, toccati }.
  */
-export function setRaceSessions({ sessions = {}, scale = null, file = WEEKEND_FILE, dry = false, previsto = false } = {}) {
+export function setRaceSessions({ sessions = {}, scale = null, file = WEEKEND_FILE, dry = false, previsto = false, libera = false } = {}) {
   // CANCELLO ANTI-CHEAT (31/10): fuori modalità test solo il preparatutto
   // (previsto:true) e le prove `dry` scrivono l'orario del weekend.
-  cancelloOrario({ dry, previsto });
+  // `libera` (7/11): gara fuori carriera, l'orario lo sceglie il pilota.
+  cancelloOrario({ dry, previsto, libera });
   if (!sessions || !Object.keys(sessions).length) throw Object.assign(new Error('serve almeno una sessione (Practice/Qualifying/Warmup/Race)'), { code: 'NO_VALUES' });
   const want = new Map();
   for (const [k, v] of Object.entries(sessions)) {

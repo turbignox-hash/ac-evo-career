@@ -154,18 +154,24 @@ test('celle NUOVE con opt-in: la RS 3 mai in griglia entra nel pool F40 (sintesi
   // senza opt-in e pool totalmente assente dal template: rifiuto storico
   assert.throws(() => bg.buildGridMessage({ ladder: LADDER, nodeId: 'serie_rs_3_test', roundIndex: 0, file, aiBand: [88, 93], noBalance: true }),
     /non contiene le auto/, 'senza opt-in e senza presenze il rifiuto resta');
-  // con opt-in: la RS 3 entra trapiantata su una cella donatrice, e
-  // round-robin per modello la fa entrare DENTRO la griglia (non tagliata)
+  // con opt-in e SENZA preset del catalogo: la RS 3 NON entra più. Fino al 7/11
+  // entrava «trapiantata» con un preset INVENTATO (`preset_ks_audi_rs_3_sportback`),
+  // che nel gioco non esiste: il risultato erano 7 schede vuote in griglia e
+  // crash alla partenza (visto realmente in EVO). La legge ora è: si monta solo
+  // col preset VERO del catalogo; altrimenti l'auto si dichiara non inseribile.
   const out = bg.buildGridMessage({ ladder: LADDER, nodeId: 'serie_mista_test', roundIndex: 0, file, aiBand: [88, 93], noBalance: true, celleNuove: true });
   const stiff = ev.decodeMsg(out.buffer);
   const celleOut = stiff.filter((f) => f.field === 1);
   const celleTxt = celleOut.map((f) => Buffer.from(f.bytes).toString('latin1'));
   assert.equal(celleOut.length, 4, '4 celle come gridSize');
-  assert.equal(celleTxt.filter((t) => t.includes('ks_f40_lm')).length, 3, '3 celle F40');
-  assert.ok(celleTxt.some((t) => t.includes('ks_audi_rs_3_sportback')), 'la RS 3 entra in griglia (round-robin per modello)');
-  assert.ok(celleTxt.some((t) => t.includes('preset_')), 'la cella sintetica dichiara un preset (vero se il parco lo conosce, altrimenti il token)');
+  assert.equal(celleTxt.filter((t) => t.includes('ks_f40_lm')).length, 4, 'solo F40: la RS 3 non ha preset nel parco');
+  assert.ok(!celleTxt.some((t) => t.includes('preset_ks_')), 'MAI un preset inventato in griglia (preset_ks_* è il marchio del crash)');
+  assert.deepEqual(out.report.nonInseribili, ['ks_audi_rs_3_sportback'], 'il report dichiara l auto NON inseribile');
   assert.equal(new Set(celleOut.map((f) => Buffer.from(f.bytes).toString('hex'))).size, 4, 'tutte byte-uniche (lezione anti-crash)');
-  assert.deepEqual(out.report.sintesi, ['ks_audi_rs_3_sportback'], 'il report dichiara le sintetizzate');
+  // e senza NESSUNA auto montabile il builder si ferma, invece di scrivere una griglia vuota
+  LADDER.nodes.push({ nodeId: 'serie_solo_sconosciute', display: 'Solo sconosciute', gridSize: 4, cars: ['ks_audi_rs_3_sportback'], calendar: [{ name: 'Prova', track: 'Red Bull Ring' }] });
+  assert.throws(() => bg.buildGridMessage({ ladder: LADDER, nodeId: 'serie_solo_sconosciute', roundIndex: 0, file, aiBand: [88, 93], noBalance: true, celleNuove: true }),
+    (e) => e.code === 'GRID_NO_PRESET', 'niente da montare: errore chiaro, non una griglia vuota');
 });
 
 test('preset VERO al posto del token: la 695 manca dal template ma il parco la conosce (lezione 31/10, come il gioco)', async () => {

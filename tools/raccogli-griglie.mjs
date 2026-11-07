@@ -236,8 +236,10 @@ let statoAuto = '';
 function refisciAuto(auto) {
   if (auto.stato === statoAuto && auto.stato !== 'pulito') return;
   statoAuto = auto.stato;
-  if (auto.stato === 'gioco-aperto') {
-    console.log(`\n⚠ autocura: ${auto.veleni} ${auto.veleni === 1 ? 'cella' : 'celle'} con identità che il client non risolve — le guarisco a gioco chiuso, DA SOLA.`);
+  if (auto.stato === 'quarantena') {
+    console.log(`\n⚠ quarantena: ${auto.assemblate} ${auto.assemblate === 1 ? 'cella' : 'celle'} con preset inventato o modello mescolato — la griglia è fuori dal gioco (backup ${auto.backup}); il prossimo GENERA in EVO la rifà coi suoi preset.`);
+  } else if (auto.stato === 'gioco-aperto') {
+    console.log(`\n⚠ autocura: ${(auto.veleni ?? auto.assemblate) ?? '?'} ${(auto.veleni ?? auto.assemblate) === 1 ? 'cella' : 'celle'} con identità che il client non risolve — le guarisco a gioco chiuso, DA SOLA.`);
   } else if (auto.stato === 'curata') {
     console.log(`✅ autocura: ${auto.veleni} ${auto.veleni === 1 ? 'cella' : 'celle'} fotocopiate con l'identità vera (backup ${auto.backup})${auto.roster?.errore ? ` — roster non toccato: ${auto.roster.errore}` : auto.roster?.written ? ' — roster del weekend riallineato' : ' — roster del weekend già allineato'}.`);
   } else if (auto.stato === 'senza-donore') {

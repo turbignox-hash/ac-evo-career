@@ -98,11 +98,54 @@ export function curaBuf(buf, { donore = null } = {}) {
   return tocchi ? encodeMsg(campiTop) : null;
 }
 
+/* ---------- CELLE ASSEMBLATE / PRESET INVENTATI (7/11) ----------
+   Il caso reale: una griglia scritta dal nostro tool con celle sintetiche
+   (`mech "preset_ks_ferrari_f40_lm"` + livrea della Abarth 695) è arrivata
+   intatta fino alla Personalizzazione Griglia di EVO: 7 schede VUOTE e crash
+   al via («celle vuote se parto adesso crasha», 7/11). L'autocura guardava
+   solo la Supra, quindi per lei quel file era «pulito».
+   REGOLA NUOVA: quella griglia NON si ripara (non c'è un donatore per ogni
+   modello) — si METTE IN QUARANTENA, così EVO non la adotta e la rigenera
+   coi suoi preset. Il veleno non resta mai sul percorso del gioco. */
+const nucPreset = (s) => String(s ?? '').toLowerCase().replace(/_(mech|visual)_.*$/, '');
+function presetDellaCella(cella, campo) {
+  const g = findF(cella, campo);
+  if (!g?.bytes) return null;
+  try { return txt(decodeMsg(g.bytes).find((x) => x.field === 1)?.bytes) || null; } catch { return null; }
+}
+/** Celle che il gioco non può risolvere: coppia mech/visual di modelli diversi
+ *  (chimera) oppure preset INVENTATO da noi (`preset_ks_<carId>`: nel gioco non
+ *  esiste, scheda vuota e crash). Ritorna il numero. */
+export function assemblateIn(buf) {
+  let n = 0;
+  for (const f of decodeMsg(buf)) {
+    if (f.field !== 1 || f.wire !== 2) continue;
+    let cella;
+    try { cella = decodeMsg(f.bytes); } catch { continue; }
+    const mech = presetDellaCella(cella, 10);
+    const visual = presetDellaCella(cella, 11);
+    const inventato = (p) => !!p && /^preset_ks_/i.test(p);
+    const chimera = !!mech && !!visual && mech.startsWith('preset_') && visual.startsWith('preset_') && nucPreset(mech) !== nucPreset(visual);
+    if (inventato(mech) || inventato(visual) || chimera) n++;
+  }
+  return n;
+}
+
 /** L'autocura del last_grid VIVO: solo a gioco chiuso. Ritorna il resoconto:
- *  { stato: 'assente' | 'pulito' | 'gioco-aperto' | 'senza-donore' | 'curata', ... } */
+ *  { stato: 'assente' | 'pulito' | 'gioco-aperto' | 'senza-donore' | 'curata' | 'quarantena', ... } */
 export function autocuraVivo() {
   if (!existsSync(VIVO)) return { stato: 'assente' };
   const buf = readFileSync(VIVO);
+  // PRIMA la quarantena: celle assemblate o preset inventati non si curano,
+  // si tolgono dal percorso del gioco (il prossimo GENERA le rifà coi suoi).
+  const assemblate = assemblateIn(buf);
+  if (assemblate) {
+    if (gameRunning()) return { stato: 'gioco-aperto', assemblate };
+    const bakQ = bakName(VIVO, 'velenosa-');
+    copyFileSync(VIVO, bakQ);
+    renameSync(VIVO, `${bakQ}.via`);   // fuori dal nome del gioco: EVO non la vede più
+    return { stato: 'quarantena', assemblate, backup: basename(bakQ) };
+  }
   const veleni = veleniIn(buf);
   if (!veleni) return { stato: 'pulito' };
   if (gameRunning()) return { stato: 'gioco-aperto', veleni };

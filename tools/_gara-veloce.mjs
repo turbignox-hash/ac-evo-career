@@ -257,6 +257,12 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     if (!Number.isFinite(rivali) || rivali < 1 || rivali > 63) throw Object.assign(new Error('rivali: intero fra 1 e 63'), { code: 'BAD_RIVALI' });
     rivali = Math.round(rivali);
   } else rivali = null;
+  // I RIVALI VIVONO NEL ROSTER (7/11): senza pool il gioco non sa CHI mettere
+  // in griglia e il passo verrebbe semplicemente saltato — meglio dirlo che
+  // far credere di aver preparato una griglia da 18.
+  if (rivali != null && !(Array.isArray(pool) && pool.length)) {
+    throw Object.assign(new Error('i rivali vanno col roster: scegli un pool di auto (o un preset di griglia) insieme al numero di rivali'), { code: 'RIVALI_SENZA_POOL' });
+  }
 
   const passi = [];
   // Le scritture vere si DICHIARANO, non si indovinano dal testo del riepilogo:
