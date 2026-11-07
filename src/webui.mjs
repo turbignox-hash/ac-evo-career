@@ -1232,7 +1232,7 @@ async function api(context0, _req, res, action, body) {
               nome: 'gioco (avvio)',
               ok: true,
               esito: lancio.via === 'already-running'
-                ? tr({ it: `EVO era già aperto: nessuna seconda istanza — ${codaVia}`, en: `EVO was already open: no second instance — ${codaVia}` })
+                ? tr({ it: `EVO era già aperto: nessuna seconda istanza — ${codaVia}. Se la schermata GARA VELOCE è già aperta, esci e rientra: tipo griglia e ora il gioco li legge quando quel menu nasce`, en: `EVO was already open: no second instance — ${codaVia}. If the CUSTOM RACE screen is already open, leave and re-enter: the game reads grid type and time when that menu is created` })
                 : tr({ it: `EVO si sta aprendo (${lancio.via === 'exe' ? lancio.target : 'Steam'}): appena è in gioco ${codaVia}`, en: `EVO is starting (${lancio.via === 'exe' ? lancio.target : 'Steam'}): as soon as it is in game ${codaVia}` }),
             });
           } catch (e) {
