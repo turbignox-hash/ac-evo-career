@@ -26,6 +26,7 @@ import { tr } from './lang.mjs';
 // pista+layout come «Prepara tutto» li ha scritti — in gioco l'applet fa
 // la SEQUENZA COMPLETA di avvio (tipo di gara → pista → auto) (28/10 PM)
 import { specFor, currentWeekendTrack } from './set-track.mjs';
+import { PRESETS as WX_PRESETS } from './weather.mjs';
 // l'istantanea della gara al volo: la LETTURA del blocco Race è sempre
 // innocua (anche a gioco aperto) e vale alla card del cruscotto i FATTI
 // veri (durata, banda AI, pista) invece dei soli promé.
@@ -111,6 +112,8 @@ const ATTESA_APP_MS = 5000;
 // (i dati dei bottoni) e la finestra dell'evento per restare allineati
 // senza copie da tenere in pari.
 const PENDING_SCADENZA_MS = 24 * 3600 * 1000;
+// la finestra della GARA AL VOLO (7/11): mezz'ora, non un giorno — vedi comandoAuto
+const VOLO_SCADENZA_MS = 30 * 60 * 1000;
 
 // LA FINESTRA DELL'EVENTO (30/10, fine gara R5 e torna la F40 a sorpresa):
 // lo STESSO taglio della ronda del 29/10 («appena esco da una gara, sul menu
@@ -370,6 +373,52 @@ export function codiceMeteo(label) {
 export function comandoAuto(ladder, state, env = process.env) {
   try {
     const p = state?.pending;
+    // LA GARA AL VOLO DAL CRUSCOTTO (7/11, richiesta Mauro: «non puoi impostare
+    // semplicemente la gara tramite ack con il loader connesso al gioco, al
+    // posto di griglia magazzino e tutto il resto? lo facciamo già per il
+    // campionato»): il pannello arma `state.volo` (roster + banda + posti) e
+    // il comando porta gli stessi pezzi del campionato — `weekend.gridCars` e
+    // i modelli/avversari — con `modo: 'instant'` così il Cruscotto li applica
+    // alla GARA PERSONALIZZATA invece del Race Weekend. La griglia la scrive
+    // EVO coi SUOI preset: nessuna cella da noi, nessun template da pescare.
+    // Il comando esce UNA volta (ack) e poi tace, come il setcar della ronda.
+    // FINESTRA CORTA (30′), non le 24h del pending: la gara al volo è un gesto
+    // «premo e parto». Se il Cruscotto non è in gioco, dopo mezz'ora il comando
+    // smette di uscire e la ronda di carriera riprende la parola — un volo
+    // armato non deve zittire una ronda per un giorno intero.
+    const volo = state?.volo;
+    const voloFresco = (Date.now() - Number(volo?.startedAt ?? 0)) < VOLO_SCADENZA_MS;
+    const rondaPiuNuovaDelVolo = Number(p?.startedAt ?? 0) > Number(volo?.startedAt ?? 0);
+    if (Array.isArray(volo?.pool) && volo.pool.length && voloFresco && !rondaPiuNuovaDelVolo) {
+      const idV = `instant:${volo.startedAt ?? 0}:${volo.pool.length}`;
+      if (!confermati.has(idV)) {
+        const carV = volo.car ?? volo.pool[0] ?? null;
+        const nomeV = ladder?.contentNames?.cars?.[carV] ?? (/^ks_[a-z0-9_]+$/.test(String(carV)) ? nomeDaCarId(carV) : null);
+        const specV = volo.pista ? specFor(volo.pista) : null;
+        if (nomeV) {
+          return {
+            id: idV, tipo: 'setcar', modo: 'instant', nome: nomeV, carId: carV,
+            pista: specV?.name ?? null, layout: specV?.layout ?? null,
+            // METEO E ORA (7/11, «aggiungi anche il meteo selezionabile e
+            // orario»): il Cruscotto li applica col menu — SetWeather per il
+            // cielo, time_of_day.hour per l'ora della sessione. Il meteo è
+            // salvato per CHIAVE (rain/coperto/…): qui torna etichetta e poi
+            // codice del gioco, la stessa scala della ronda.
+            ora: volo.ora != null ? Number(volo.ora) : null,
+            meteo: volo.meteo ? codiceMeteo(WX_PRESETS.find((x) => x.key === volo.meteo)?.label ?? volo.meteo) : null,
+            weekend: {
+              singleMake: false,
+              opponents: Number.isFinite(Number(volo.opponents)) ? Number(volo.opponents) : Math.max(1, volo.pool.length),
+              aiMin: Number.isFinite(Number(volo.aiMin)) ? Number(volo.aiMin) : null,
+              aiMax: Number.isFinite(Number(volo.aiMax)) ? Number(volo.aiMax) : null,
+              laps: null,            // durata: quella già scritta nell'istantanea
+              gridCars: volo.pool,
+              sessions: null,
+            },
+          };
+        }
+      }
+    }
     // la scadenza del pending (lezione 27/10 19:30) vive in testa al modulo:
     // azioniPulsanti (i bottoni) la condivide, nessuna coppia da tenere in pari.
     // VETRINA CUSTOM (28/10 sera, richiesta Mauro: «deve farlo in automatico»):

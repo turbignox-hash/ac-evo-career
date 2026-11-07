@@ -279,6 +279,28 @@ test('CANCELLAIO delle coppie (2/11): mech e visual di DUE modelli diversi sulla
   // e il builder non ha scritto niente: il contorno resta quello di prima
 });
 
+/* ---------- UNA CELLA, UN'AUTO (7/11, RS sparita dal pool endurance) ----------
+   La graduale può far combaciare due modelli vicini: «ks_porsche_992_gt3_rs»
+   (tappe parole: 992+gt3) contro «ks_porsche_992_gt3_r_rennsport». Prima la RS
+   spariva dal pool SENZA dire niente — la griglia perdeva un modello e nessuno
+   se ne accorgeva (nel pool multiclasse GT1+GT2+GT3 del 7/11). La cella va a
+   chi la matcha MEGLIO; l'altra finisce nei mancanti e si recupera dal parco. */
+test('matchPool: una cella non serve DUE auto — la RS non si prende la Rennsport', async () => {
+  const { matchPool } = await import('../src/car-match.mjs');
+  const celle = [
+    { id: 'ks_porsche_992_gt3_r_rennsport', nome: 'Porsche 911 GT3 R Rennsport (992)' },
+    { id: 'ks_ferrari_296_gt3', nome: 'Ferrari 296 GT3' },
+  ];
+  const m = matchPool(
+    ['ks_porsche_992_gt3_r_rennsport', 'ks_porsche_992_gt3_rs', 'ks_ferrari_296_gt3'],
+    celle, (c) => [c.id, c.nome], {},
+  );
+  assert.equal(m.perNome.find((p) => p.richiesto === 'ks_porsche_992_gt3_r_rennsport').stage, 'esatta', 'la Rennsport resta sulla sua cella, per nome esatto');
+  assert.equal(m.perNome.find((p) => p.richiesto === 'ks_porsche_992_gt3_rs').trovato, null, 'la RS NON è la Rennsport: nessuna cella presa in prestito');
+  assert.deepEqual(m.mancanti, ['ks_porsche_992_gt3_rs'], 'la RS finisce nei mancanti (e si recupera come cella intera del parco)');
+  assert.equal(m.sel.length, 2, 'le celle del pool restano quelle delle due auto davvero presenti');
+});
+
 test('CANCELLAIO NON scatta sulle celle sane: mech e visual dello stesso modello passano (il parco reale: 2530/2530)', async () => {
   const bg = await import('../src/gridbuilder.mjs');
   // due celle sane DISTINTE (visual diversi): anche la regola anti-celle-identiche deve stare in piedi insieme al cancellaio

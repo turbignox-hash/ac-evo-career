@@ -327,11 +327,33 @@ function minaParco(celle, pi) {
   }
   return { pres, int };
 }
-function entryParco(d, pi) {
-  const firma = `${d}|${firmaDir(d).toFixed(0)}`;
+function entryParco(d, pi, preferiti = null) {
+  // ORDINE DEL PARCO (7/11, gara rapida bloccata sulle CELLE ASSEMBLATE): il
+  // cap a 20 file in ORDINE ALFABETICO tagliava proprio i template che servono
+  // (coppa_*, gt3_* arrivano dopo i campionato_*). Quando chi chiama sa quali
+  // auto cerca (preferiti = Set di normKey(carId)), i file che le contengono
+  // vanno PER PRIMI e poi il resto in ordine; il cap resta un tetto di lavoro,
+  // non un filtro che scarta l'utile.
+  const chiave = preferiti?.size ? [...preferiti].sort().join(',') : '';
+  const firma = `${d}|${firmaDir(d).toFixed(0)}|${chiave}`;
   if (!__mineParco.has(firma)) {
+    const ordina = (f) => {
+      if (!preferiti || !preferiti.size) return 0;
+      try {
+        const celle = readFileSync(join(d, f));
+        for (const g of decodeMsg(celle)) if (g.field === 1 && g.wire === 2 && preferiti.has(normKey(carIdDi(g.bytes) ?? ''))) return 1;
+      } catch { /* illeggibile: resta in coda */ }
+      return 0;
+    };
     let voci = [];
-    try { voci = readdirSync(d).filter((f) => f.endsWith('.customgrid')).sort().slice(0, 20); } catch (e) { taci('gridbuilder:elenco', e); }
+    try {
+      voci = readdirSync(d).filter((f) => f.endsWith('.customgrid')).sort();
+      if (preferiti?.size) {
+        const peso = new Map(voci.map((f) => [f, ordina(f)]));
+        voci.sort((a, b) => peso.get(b) - peso.get(a) || a.localeCompare(b));
+      }
+      voci = voci.slice(0, 20);
+    } catch (e) { taci('gridbuilder:elenco', e); }
     const celle = [];
     for (const f of voci) {
       try { for (const g of decodeMsg(readFileSync(join(d, f)))) if (g.field === 1 && g.wire === 2) celle.push(g.bytes); } catch (e) { taci('gridbuilder:celle', e); }
@@ -340,25 +362,25 @@ function entryParco(d, pi) {
   }
   return __mineParco.get(firma);
 }
-function parcoPreset(fileCorrente, tplCells, pi) {
+function parcoPreset(fileCorrente, tplCells, pi, cercati = null) {
   const dir = dirname(fileCorrente);
   const fabbrica = factoryDir();   // VOCE UNA in evo-grid (EVO_FACTORY_DIR nei sandbox): la riga era copi-a-copi in due funzioni qui (3/11, come il magazzino dello stesso giorno)
   const dirs = [dir, ...(dir !== fabbrica ? [fabbrica] : [])];
   const risultato = minaPreset(tplCells, pi);
   for (const d of dirs) {
-    for (const [k, v] of entryParco(d, pi).pres) risultato.set(k, miglioreVoce(risultato.get(k), v));
+    for (const [k, v] of entryParco(d, pi, cercati).pres) risultato.set(k, miglioreVoce(risultato.get(k), v));
   }
   return risultato;
 }
 /** CELLE INTERE del parco per carId (solo file sul disco, non il template
  *  corrente: per le sue auto serve il trapianto comunque). Stesse dir di
  *  parcoPreset: l'identità e la cella intera della stessa auto LAVORA INSIEME. */
-function parcoCelle(fileCorrente) {
+function parcoCelle(fileCorrente, cercati = null) {
   const dir = dirname(fileCorrente);
   const fabbrica = factoryDir();   // VOCE UNA in evo-grid, vedi parcoPreset
   const fuori = new Map();
   for (const d of [dir, ...(dir !== fabbrica ? [fabbrica] : [])]) {
-    for (const [k, b] of entryParco(d, null).int) if (!fuori.has(k)) fuori.set(k, b);
+    for (const [k, b] of entryParco(d, null, cercati).int) if (!fuori.has(k)) fuori.set(k, b);
   }
   return fuori;
 }
@@ -604,8 +626,9 @@ export function buildGridMessage(opts) {
       const selected = [...m.sel];
       sintetiche = new Set();
       const donore = selected.length ? selected[0] : tpl.cells[0];
-      const parco = parcoPreset(file, tpl.cells, carPiByPreset());
-      const intere = parcoCelle(file);
+      const cercati = new Set(m.mancanti.map((id) => normKey(id)));
+      const parco = parcoPreset(file, tpl.cells, carPiByPreset(), cercati);
+      const intere = parcoCelle(file, cercati);
       for (const id of m.mancanti) {
         const vero = parco.get(normKey(id)) ?? null;
         const intera = vero ? (intere.get(normKey(id)) ?? null) : null;

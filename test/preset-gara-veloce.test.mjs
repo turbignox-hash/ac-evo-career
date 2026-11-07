@@ -24,9 +24,15 @@ process.env.EVO_DATA_DIR = mkdtempSync(join(tmpdir(), 'evo-preset-gv-'));
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const { salvaPreset, leggiPreset, elencoPreset, cancellaPreset, ricettaNetta, PRESET_FILE } = await import('../tools/_gara-veloce.mjs');
 const { hotlapsPistaGiro, HOTLAPS_FILE } = await import('../src/hotlaps.mjs');
+const { encodeMsg } = await import('../src/evo-grid.mjs');
+const { INSTANT_FILE } = await import('../src/set-instantrace.mjs');
+
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 test('preset: round-trip con la mia auto dentro', () => {
   assert.ok(!existsSync(PRESET_FILE), 'primo avvio: nessun file preset');
@@ -71,6 +77,33 @@ test('preset: ri-salva sovrascrive, elenco ordina dal recente, cancella idempote
 
 test('preset: senza giri e senza tempo NON è una gara', () => {
   assert.throws(() => salvaPreset('vuota', { aiMin: 88, aiMax: 93, auto: 'auto_x' }), (e) => e.code === 'NO_RECIPE');
+});
+
+/* ---------- IL CLI CON --preset (7/11): la ricetta salvata comanda TUTTO ----------
+   Bug trovato a caccia: il preset spingeva in argv giri/tempo/auto/pista/pool e
+   la BANDA no — aiMin/aiMax si leggevano una volta sola PRIMA dell'innesto, così
+   un preset endurance 92–97 partiva con la banda di default 88–93, in silenzio.
+   Qui il CLI VERO (child process), in dry-run sulla sandbox dei flussi: la banda
+   scritta nel preset dev'essere quella che il comando dichiara di scrivere. */
+test('CLI --preset: la banda AI salvata arriva alla gara (non quella di default)', () => {
+  writeFileSync(INSTANT_FILE, encodeMsg([
+    { field: 2, wire: 0, varint: BigInt(3) },
+    { field: 3, wire: 2, bytes: encodeMsg([
+      { field: 1, wire: 2, bytes: Buffer.from('Race', 'utf8') },
+      { field: 2, wire: 0, varint: BigInt(7) },
+      { field: 3, wire: 0, varint: BigInt(2) },
+      { field: 30, wire: 0, varint: BigInt(60) },
+      { field: 31, wire: 0, varint: BigInt(90) },
+    ]) },
+  ]));
+  salvaPreset('banda salvata', { giri: 5, aiMin: 92, aiMax: 97 });
+  const r = spawnSync(process.execPath, ['tools/_gara-veloce.mjs', '--preset', 'banda salvata', '--dry'], {
+    cwd: ROOT, env: process.env, encoding: 'utf8',
+  });
+  assert.equal(r.status, 0, `CLI in errore: ${r.stderr}`);
+  assert.match(r.stdout, /banda AI 92–97/, `la banda del preset non è arrivata al CLI:\n${r.stdout}`);
+  assert.match(r.stdout, /dry: scriveresti 92–97/, 'il passo banda deve dichiarare 92–97');
+  cancellaPreset('banda salvata');
 });
 
 test('hotlapsPistaGiro: PB di pista dal quaderno', () => {

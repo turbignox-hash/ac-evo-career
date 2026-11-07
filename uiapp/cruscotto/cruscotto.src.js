@@ -216,6 +216,11 @@
   // ------------------------------------------------------------------ COMANDI IN DIRETTA
   const MODO_SINGLE = 'ClientCommandsMode_SINGLEPLAYER';
   const MODO_RACE_WEEKEND = 'GameModeType_RACE_WEEKEND';
+  // LA GARA PERSONALIZZATA (7/11): la stessa sequenza del campionato, sul
+  // modo Gara custom di EVO (GameModeType_INSTANT_RACE, lo stesso nome del
+  // suo gamemodesave). Il comando porta `modo: 'instant'` e la griglia la
+  // compone il GIOCO dai modelli che gli passiamo — mai una cella nostra.
+  const MODO_INSTANT_RACE = 'GameModeType_INSTANT_RACE';
   const OK_RISPOSTA = 'ClientCommandsResponse_OK';
   let ultimoComando = null;
   let sondaEseguita = null;   // id dell'ultima sonda: la fascia la ripete finché non risponde
@@ -531,8 +536,14 @@
     const eng = window.engine;
     if (!eng || typeof eng.trigger !== 'function') { notaComando('engine non disponibile (pagina aperta fuori dal gioco?)'); return false; }
     const fatti = [];
-    const r1 = await giocoComando('GameModeSelectionClientRequestSetGameType', { mode: MODO_SINGLE, type: MODO_RACE_WEEKEND }, 8000);
-    if (!r1 || r1.response !== OK_RISPOSTA) { notaComando('Race Weekend: ' + okTesto(r1)); loga('SetGameType: ' + okTesto(r1)); return false; }
+    // IL MODO DEL COMANDO (7/11): `modo: 'instant'` = gara personalizzata
+    // (INSTANT_RACE), tutto il resto = Race Weekend della ronda. Stessa
+    // sequenza, stessa conferma della griglia: cambia solo il tipo scelto nel
+    // menu — quindi la griglia la genera EVO anche per la gara al volo.
+    const tipoGara = c.modo === 'instant' ? MODO_INSTANT_RACE : MODO_RACE_WEEKEND;
+    const nomeModo = c.modo === 'instant' ? 'Gara personalizzata' : 'Race Weekend';
+    const r1 = await giocoComando('GameModeSelectionClientRequestSetGameType', { mode: MODO_SINGLE, type: tipoGara }, 8000);
+    if (!r1 || r1.response !== OK_RISPOSTA) { notaComando(nomeModo + ': ' + okTesto(r1)); loga('SetGameType (' + tipoGara + '): ' + okTesto(r1)); return false; }
     let pista = null;
     if (c.pista) {
       const tl = await giocoComando('GameModeSelectionClientRequestTrackList', { mode: MODO_SINGLE }, 10000);
@@ -571,8 +582,8 @@
         const sess = Array.isArray(gp.sessions) ? gp.sessions : [];
         if (w) {
           if (!sess.length) {
-            notaComando('Weekend: il gioco non ha dato le sessioni del Race Weekend — riprovo.');
-            loga('weekend: GameModeParameters senza sessions');
+            notaComando(nomeModo + ': il gioco non ha dato le sessioni — riprovo.');
+            loga('weekend: GameModeParameters senza sessions (' + nomeModo + ')');
             return false;
           }
           // UNA VOCE PER AVVERSARIO (4/11): sul campo models=[car] e
@@ -1049,6 +1060,9 @@
   // vecchia non combacia più e si ferma prima di toccare il menu.
   function comandoDellaPreparazioneCorrente(c) {
     if (!c || (c.tipo !== 'setcar' && c.tipo !== 'avvia')) return true;
+    // la gara al volo non è una preparazione di ronda: il suo id non porta
+    // l'armataAlle e il filtro la scarterebbe a ogni fascia.
+    if (c.modo === 'instant') return true;
     const p = S.dati?.prepara;
     if (!p || !Number(p.armataAlle)) return true;   // fascia vecchia: comportamento di sempre
     return p.tipo === 'ronda' && String(c.id).indexOf(String(p.armataAlle) + ':') === 0;
@@ -1069,7 +1083,7 @@
     const lavoro = c.tipo === 'evento' ? corriEvento(c) : (c.tipo === 'avvia' ? corriAvvia() : corriSetcar(c));
     Promise.resolve(lavoro).then(async function (ok) {
       try {
-        if (ok) { falliti.delete(c.id); ackComando(c, true, c.tipo === 'avvia' ? 'avvia sessione premuto' : (c.weekend ? 'weekend e auto applicati' : 'auto impostata nel menu di EVO')); }
+        if (ok) { falliti.delete(c.id); ackComando(c, true, c.tipo === 'avvia' ? 'avvia sessione premuto' : (c.modo === 'instant' ? 'gara al volo impostata: griglia e modelli dal gioco' : (c.weekend ? 'weekend e auto applicati' : 'auto impostata nel menu di EVO'))); }
         else { falliti.set(c.id, tent + 1); /* riprova senza cap: il mock del contatore era mancante e un comando fallito non riprovava mai — RETRY_MS ammorbidisce il giro */ }
         // IL GESTO UNICO (4/11, «prepara tutto e avvia deve lanciare la gara»):
         // il setcar del «Prepara tutto e avvia» porta avvia:true — auto nel

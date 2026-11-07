@@ -60,7 +60,9 @@ function cancellaCanale(messaggio) {
 
 /** Cancello per l'orario delle sessioni (setRaceSessions / setRaceTime). */
 export function cancelloOrario(opts = {}) {
-  if (opts?.dry || opts?.previsto || meteoLibero()) return;
+  // `libera` (7/11): gare fuori carriera (la gara al volo), dove orario e meteo
+  // li sceglie il pilota dal pannello — il calendario non c'entra.
+  if (opts?.dry || opts?.previsto || opts?.libera || meteoLibero()) return;
   cancellaCanale(tr({
     it: "Orario/scala della gara bloccati fuori dalla modalità test: le sessioni corrono quando dice il calendario. Per provare orari a piacere attiva la modalità test: node ac-evo-career.mjs test-mode --on",
     en: "Race time/pace locked outside test mode: sessions run when the calendar says. Enable test mode to experiment freely: node ac-evo-career.mjs test-mode --on",

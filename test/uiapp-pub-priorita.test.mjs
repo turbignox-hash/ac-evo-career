@@ -595,3 +595,30 @@ test('verdettoFascia: SENZA ladder (firma come prima) la pista grezza passa inta
   assert.equal(pistaPulita(null, 'OultonParkInternational'), 'OultonParkInternational', 'la guardia senza ladder rimanda il token, scritta com’era');
   rmSync(dir, { recursive: true, force: true });
 });
+
+/* ---------- LA GARA AL VOLO VA AL CRUSCOTTO (7/11) ----------
+   Mauro: «non puoi impostare semplicemente la gara tramite ack con il loader
+   connesso al gioco, al posto di griglia magazzino e tutto il resto? lo
+   facciamo già per il campionato». Il pannello arma state.volo; il publisher
+   manda lo STESSO comando del campionato (weekend con gridCars/modelli) più
+   || `modo: 'instant'` — così la griglia la compone il GIOCO coi suoi preset. */
+test('gara al volo armata: comando con roster, modo instant, meteo e ora', () => {
+  const state = mkState({
+    volo: {
+      startedAt: Date.now(), pool: ['ks_ferrari_f40_lm', 'r5_touring'], opponents: 2,
+      aiMin: 88, aiMax: 93, car: 'r5_touring', pista: null, meteo: 'rain', ora: 21,
+    },
+  });
+  const cmd = comandoAuto(mkLadder(), state);
+  assert.equal(cmd?.tipo, 'setcar', 'la sequenza è quella del campionato');
+  assert.equal(cmd?.modo, 'instant', 'ma sulla gara personalizzata');
+  assert.equal(cmd?.nome, 'R5 Touring');
+  assert.deepEqual(cmd?.weekend?.gridCars, ['ks_ferrari_f40_lm', 'r5_touring'], 'il roster viaggia nel comando');
+  assert.equal(cmd?.weekend?.opponents, 2);
+  assert.equal(cmd?.weekend?.aiMin, 88);
+  assert.equal(cmd?.ora, 21, 'ora nel comando (il Cruscotto la mette nel menu)');
+  assert.equal(cmd?.meteo, 'RAIN', 'etichetta meteo → codice del gioco');
+  // ACK: il comando tace per la sua finestra (niente ping-pong)
+  confermaAck(cmd.id);
+  assert.notEqual(comandoAuto(mkLadder(), state)?.modo, 'instant', 'ackato, la gara al volo non ripete il comando');
+});

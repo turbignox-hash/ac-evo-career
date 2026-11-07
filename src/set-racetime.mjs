@@ -224,8 +224,10 @@ function blkl(blk) {
  * flusso "le sessioni precedenti si calcolano a ritroso" del cruscotto).
  * Ritorna { blocchi, changed, written, backup }.
  */
-export function setRaceTime({ hour = null, minute = null, scale = null, file = WEEKEND_FILE, dry = false, previsto = false } = {}) {
-  cancelloOrario({ dry, previsto });
+export function setRaceTime({ hour = null, minute = null, scale = null, file = WEEKEND_FILE, dry = false, previsto = false, libera = false } = {}) {
+  // `libera`: gara fuori carriera (gara al volo) — l'orario lo sceglie il
+  // pilota, il calendario non c'entra (7/11).
+  cancelloOrario({ dry, previsto, libera });
   if (hour == null && scale == null && minute == null) throw Object.assign(new Error('serve almeno un valore (hour/minute/scale)'), { code: 'NO_VALUES' });
   const h = hour != null ? Math.max(0, Math.min(23, Math.round(Number(hour)))) : null;
   const m = minute != null ? Math.max(0, Math.min(59, Math.round(Number(minute)))) : null;

@@ -15,7 +15,7 @@ import './_game-sandbox.mjs';
 import './_flows-sandbox.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, readFileSync, existsSync, rmSync, readdirSync, mkdtempSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, rmSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -27,7 +27,7 @@ import { join } from 'node:path';
 // PRIMA degli import dinamici (SAVE_FILE nasce a import di webui-env.mjs).
 process.env.EVO_DATA_DIR = mkdtempSync(join(tmpdir(), 'evo-garavolo-'));
 
-const { encodeMsg, GAME_MODES_DIR } = await import('../src/evo-grid.mjs');
+const { encodeMsg, decodeMsg, GAME_MODES_DIR } = await import('../src/evo-grid.mjs');
 const { garaVeloce } = await import('../tools/_gara-veloce.mjs');
 const { currentInstantRace, INSTANT_FILE } = await import('../src/set-instantrace.mjs');
 
@@ -36,7 +36,16 @@ const mkInstant = (giri = 7, mode = 2, aiMin = 60, aiMax = 90, { conPista = fals
     { field: 1, wire: 2, bytes: Buffer.from('Race', 'utf8') },
     { field: 2, wire: 0, varint: BigInt(giri) },
     { field: 3, wire: 0, varint: BigInt(mode) },
-    { field: 4, wire: 2, bytes: Buffer.from('0123456789abcd', 'utf8') },
+    // f4 = datetime della sessione (anno/mese/giorno/ORA/minuti + scala in f4.7):
+    // la stessa forma del file vero, così l'ora si scrive e si rilegge davvero
+    { field: 4, wire: 2, bytes: encodeMsg([
+      { field: 1, wire: 0, varint: BigInt(2014) },
+      { field: 2, wire: 0, varint: BigInt(8) },
+      { field: 3, wire: 0, varint: BigInt(15) },
+      { field: 4, wire: 0, varint: BigInt(14) },
+      { field: 5, wire: 0, varint: BigInt(0) },
+      { field: 7, wire: 5, bytes: (() => { const b = Buffer.alloc(4); b.writeFloatLE(1, 0); return b; })() },
+    ]) },
     ...(conPista ? [{ field: 5, wire: 2, bytes: encodeMsg([
       { field: 1, wire: 2, bytes: Buffer.from('ITA', 'utf8') },
       { field: 2, wire: 2, bytes: Buffer.from('Foo', 'utf8') },
@@ -83,12 +92,27 @@ test('scrittura vera: 5 giri e banda 99-99 confermati dalla rilettura', () => {
   assert.ok(out2.passi.every((p) => !/scritt/.test(p.esito)), 'seconda chiamata: tutto già a posto');
 });
 
-test('griglia dal pool senza customgrid: passo KO senza crash', () => {
+// la carriera minima in sandbox: il comando del roster vive nel salvataggio
+const salvaCarriera = () => writeFileSync(join(process.env.EVO_DATA_DIR, 'evo-career.save.json'), JSON.stringify({
+  driver: { name: 'Prova', nation: 'ITA' }, money: 1000, messages: [], node: 'coppa_rx7', results: {}, events: { history: [], showCase: [] },
+}));
+
+test('griglia: il roster va al gioco (state.volo), NIENTE customgrid nostro', () => {
   mkInstant();
-  const out = garaVeloce({ giri: 3, pool: 'ks_f40_lm', force: true });
-  const g = out.passi.find((p) => p.nome === 'griglia dal pool');
-  assert.ok(g && !g.ok && /last_grid.customgrid/.test(g.esito), JSON.stringify(g));
+  salvaCarriera();
+  rmSync(GRID_GV(), { force: true });
+  const out = garaVeloce({ giri: 3, pool: 'ks_f40_lm,ks_ferrari_296_gt3', aiMin: 88, aiMax: 93, force: true });
+  const g = out.passi.find((p) => p.nome === 'griglia (roster al gioco)');
+  assert.ok(g?.ok && /armata/.test(g.esito), JSON.stringify(g));
   assert.equal(out.passi.length, 3, 'durata + banda + griglia: la lista resta completa');
+  // IL PATTO (7/11): la griglia la scrive EVO coi suoi preset — il tool non
+  // tocca più il customgrid, quindi non può più consegnare celle assemblate.
+  assert.ok(!existsSync(GRID_GV()), 'nessun customgrid scritto dal tool');
+  const st = JSON.parse(readFileSync(join(process.env.EVO_DATA_DIR, 'evo-career.save.json'), 'utf8'));
+  assert.deepEqual(st.volo?.pool, ['ks_f40_lm', 'ks_ferrari_296_gt3'], 'il roster è armato nel save');
+  assert.equal(st.volo?.opponents, 2, 'posti avversari = modelli − il posto del giocatore');
+  assert.equal(st.volo?.aiMin, 88);
+  assert.equal(st.volo?.aiMax, 93);
 });
 
 test('sedile con auto fuori libro: passo KO dichiarato, gli altri passi proseguono', () => {
@@ -110,7 +134,7 @@ const pistaIst = () => {
   return sub.find((x) => x.field === 2) ? Buffer.from(sub.find((x) => x.field === 2).bytes).toString('utf8') : null;
 };
 
-const { decodeMsg } = await import('../src/evo-grid.mjs');
+
 
 test('pista in dry: esito «dry:», nessun byte toccato', () => {
   mkInstant(7, 2, 60, 90, { conPista: true });
@@ -260,46 +284,52 @@ const driverGv = (skill) => {
   const f = Buffer.alloc(4); f.writeFloatLE(skill, 0);
   return encodeMsg([{ field: 4, wire: 5, bytes: f }]);
 };
+// (la griglia VIVA nelle prove: dal 7/11 il tool non la scrive più — la monta
+// il gioco dal roster — quindi il file qui serve solo a controllare che resti
+// INTATTO. cellaF40/driverGv restano come memory della forma del customgrid.)
 const GRID_GV = () => join(GAME_MODES_DIR, 'last_grid.customgrid');
-const scriviGridGv = () => writeFileSync(GRID_GV(), encodeMsg([
-  { field: 1, wire: 2, bytes: cellaF40(0) },
-  { field: 1, wire: 2, bytes: cellaF40(1) },
-  { field: 2, wire: 2, bytes: driverGv(0.6) },
-  { field: 2, wire: 2, bytes: driverGv(0.8) },
-  { field: 3, wire: 2, bytes: encodeMsg([{ field: 1, wire: 0, varint: BigInt(2) }]) },
-]));
-const bakVeloce = () => {
-  try { return readdirSync(GAME_MODES_DIR).filter((n) => n.startsWith('last_grid.customgrid.bak-veloce-')); }
-  catch { return []; }
-};
+const _cellaGv = (i) => encodeMsg([
+  { field: 1, wire: 2, bytes: cellaF40(i) },
+  { field: 2, wire: 2, bytes: driverGv(0.6 + i * 0.2) },
+]);
 
-test('griglia dal pool scritta 2 volte: la seconda è già identica sul disco (zero bak)', () => {
+/* ---------- METEO E ORARIO della gara al volo (7/11) ----------
+   Mauro: «aggiungi anche il meteo selezionabile e orario». Il meteo vive in
+   gamemode.lastgamemode (campo 2, preset di sessione), l'ora nel datetime
+   della sessione dell'istantanea. Qui si prova che i due passi scrivono
+   DAVVERO e che sono idempotenti; e che un meteo scritto storto si rifiuta
+   invece di diventare «sereno» di nascosto. ---------- */
+test('meteo e ora della gara al volo: scritti, poi idempotenti', () => {
   mkInstant();
-  rmSync(GRID_GV(), { force: true });
-  scriviGridGv();
-  assert.equal(bakVeloce().length, 0);
-  const out1 = garaVeloce({ giri: 5, pool: 'ks_f40_lm', force: true });
-  const g1 = out1.passi.find((p) => p.nome === 'griglia dal pool');
-  assert.ok(g1?.ok && /riscritta/.test(g1.esito), JSON.stringify(g1));
-  const nBak = bakVeloce().length;
-  assert.ok(nBak >= 1, 'la prima scrittura lascia il suo bak');
-  const out2 = garaVeloce({ giri: 5, pool: 'ks_f40_lm', force: true });
-  const g2 = out2.passi.find((p) => p.nome === 'griglia dal pool');
-  assert.ok(g2?.ok && /già identiche/.test(g2.esito), `idempotenza attesa: ${JSON.stringify(g2)}`);
-  assert.equal(bakVeloce().length, nBak, 'la seconda chiamata NON crea bak: sul disco c\'è già il risultato');
+  // il preset meteo vive in gamemode.lastgamemode: in sandbox una volta (in
+  // gioco lo scrive il gioco), con un blocco sessione e NIENTE campo 2 = sereno
+  writeFileSync(join(GAME_MODES_DIR, 'gamemode.lastgamemode'), encodeMsg([
+    { field: 3, wire: 2, bytes: encodeMsg([{ field: 1, wire: 2, bytes: Buffer.from('Practice', 'utf8') }]) },
+  ]));
+  const out1 = garaVeloce({ tempo: 30, meteo: 'pioggia', ora: 21, force: true });
+  const m1 = out1.passi.find((p) => p.nome === 'meteo (sessione)');
+  const o1 = out1.passi.find((p) => p.nome === 'ora (istantanea)');
+  assert.ok(m1?.ok && /Pioggia/.test(m1.esito), JSON.stringify(m1));
+  assert.ok(o1?.ok && /21:00/.test(o1.esito), JSON.stringify(o1));
+  // il disco dice lo stesso: preset meteo 5 (pioggia) e ora 21 nel blocco Race
+  const lgm = decodeMsg(readFileSync(join(GAME_MODES_DIR, 'gamemode.lastgamemode')));
+  assert.equal(Number(lgm.find((f) => f.field === 2 && f.wire === 0)?.varint ?? 0), 5, 'preset meteo = pioggia');
+  assert.equal(readInstantHour(), 21, 'ora della sessione scritta nell\'istantanea');
+  // idempotenza: la stessa ricetta non riscrive nulla
+  const out2 = garaVeloce({ tempo: 30, meteo: 'pioggia', ora: 21, force: true });
+  assert.ok(/già a posto/.test(out2.passi.find((p) => p.nome === 'meteo (sessione)')?.esito ?? ''), 'meteo idempotente');
+  assert.ok(/già a posto/.test(out2.passi.find((p) => p.nome === 'ora (istantanea)')?.esito ?? ''), 'ora idempotente');
 });
 
-test('griglia dal pool col disco cambiato fra le scritture: DUE bak-veloce in pila (anti-collisione)', () => {
+test('meteo sconosciuto e ora fuori range: rifiuto con codice, niente scritture', () => {
   mkInstant();
-  const prima = bakVeloce().length;                       // i bak dei test prima restano: contano dal loro numero
-  scriviGridGv();
-  const out1 = garaVeloce({ giri: 5, pool: 'ks_f40_lm', force: true });
-  assert.ok(out1.passi.find((p) => p.nome === 'griglia dal pool')?.ok, JSON.stringify(out1.passi));
-  scriviGridGv();   // risporco la griglia rozza sul disco: la prossima scrittura DTIVA un bak nuovo
-  const out2 = garaVeloce({ giri: 5, pool: 'ks_f40_lm', force: true });
-  const g2 = out2.passi.find((p) => p.nome === 'griglia dal pool');
-  assert.ok(g2?.ok && !/già identiche/.test(g2.esito), JSON.stringify(g2));
-  const dopo = bakVeloce().length;
-  assert.ok(dopo >= prima + 2, `attesi almeno ${prima + 2} bak dopo due scritture, trovati ${dopo}`);
+  assert.throws(() => garaVeloce({ tempo: 10, meteo: 'nebbia-pesante', force: true }), (e) => e.code === 'BAD_METEO');
+  assert.throws(() => garaVeloce({ tempo: 10, ora: 42, force: true }), (e) => e.code === 'BAD_ORA');
 });
+
+function readInstantHour() {
+  const sess = decodeMsg(decodeMsg(readFileSync(INSTANT_FILE)).find((f) => f.field === 3 && f.wire === 2).bytes);
+  const dt = decodeMsg(sess.find((f) => f.field === 4 && f.wire === 2).bytes);
+  return Number(dt.find((f) => f.field === 4)?.varint);
+}
 

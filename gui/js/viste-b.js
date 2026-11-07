@@ -773,6 +773,23 @@ async function drawGironi(m){
           </div>
           <div class="field"><label>${tr({ it: 'Sedile (auto)', en: 'Seat (car)' })}</label><select id="gv-auto"><option value="">— ${tr({ it: 'nessuna', en: 'none' })} —</option></select></div>
           <div class="field"><label>${tr({ it: 'Pista', en: 'Track' })}</label><select id="gv-pista"><option value="">— ${tr({ it: 'non cambia', en: 'no change' })} —</option></select></div>
+          <!-- METEO E ORARIO (7/11, richiesta Mauro: «aggiungi anche il meteo
+               selezionabile e orario»). Il meteo è il preset di sessione
+               (gamemode.lastgamemode), l'ora è della sessione gara: vuoti =
+               non si toccano (la ricetta resta quella che non li nomina). -->
+          <div class="field"><label>${tr({ it: 'Meteo', en: 'Weather' })}</label>
+            <select id="gv-meteo">
+              <option value="">— ${tr({ it: 'non cambia', en: 'no change' })} —</option>
+              <option value="sereno">${tr({ it: 'Sereno', en: 'Clear' })}</option>
+              <option value="sparse">${tr({ it: 'Nuvole sparse', en: 'Scattered clouds' })}</option>
+              <option value="nuvoloso">${tr({ it: 'Nuvoloso', en: 'Cloudy' })}</option>
+              <option value="coperto">${tr({ it: 'Coperto', en: 'Overcast' })}</option>
+              <option value="drizzle">${tr({ it: 'Pioggia leggera', en: 'Light rain' })}</option>
+              <option value="rain">${tr({ it: 'Pioggia', en: 'Rain' })}</option>
+              <option value="heavy">${tr({ it: 'Pioggia intensa', en: 'Heavy rain' })}</option>
+            </select>
+          </div>
+          <div class="field"><label>${tr({ it: 'Ora di gara (0–23)', en: 'Race hour (0–23)' })}</label><input type="number" id="gv-ora" min="0" max="23" placeholder="14"></div>
           <div class="field" style="grid-column:1/-1">
             <label>${tr({ it: 'Griglia', en: 'Grid' })}</label>
             <!-- IL PRESET DI GRIGLIA (30/10, «dammi menu a tendina per
@@ -868,6 +885,8 @@ async function drawGironi(m){
         aiMax: $('#gv-aimax')?.value,
         auto: $('#gv-auto')?.value.trim() || null,
         pista: $('#gv-pista')?.value.trim() || null,
+        meteo: $('#gv-meteo')?.value || null,
+        ora: $('#gv-ora')?.value !== '' && $('#gv-ora')?.value != null ? Number($('#gv-ora').value) : null,
         pool: $('#gv-pool')?.value.trim() || null,
         dry,
       });
@@ -1025,6 +1044,7 @@ async function drawGironi(m){
       scrivi('#gv-giri', r.giri ?? ''); scrivi('#gv-tempo', r.tempo ?? '');
       scrivi('#gv-aimin', r.aiMin ?? 88); scrivi('#gv-aimax', r.aiMax ?? 93);
       scrivi('#gv-auto', r.auto ?? ''); scrivi('#gv-pista', r.pista ?? '');
+      scrivi('#gv-meteo', r.meteo ?? ''); scrivi('#gv-ora', r.ora ?? '');
       scrivi('#gv-pool', r.pool?.length ? r.pool.join(', ') : ''); scrivi('#gv-griglia', '');
       toast(tr({ it: `Preset "${nome}" caricato nei campi: premi «Imposta in EVO» per scriverlo.`, en: `Preset "${nome}" loaded into the fields: press «Write to EVO» to apply it.` }), 'ok');
       if ($('#gv-pista')?.value) $('#gv-pista').dispatchEvent(new Event('change'));
@@ -1037,6 +1057,8 @@ async function drawGironi(m){
     aiMax: $('#gv-aimax')?.value || 93,
     auto: $('#gv-auto')?.value.trim() || null,
     pista: $('#gv-pista')?.value.trim() || null,
+    meteo: $('#gv-meteo')?.value || null,
+    ora: $('#gv-ora')?.value !== '' && $('#gv-ora')?.value != null ? Number($('#gv-ora').value) : null,
     pool: $('#gv-pool')?.value.trim() || null,
   });
   $('#gv-preset-salva')?.addEventListener('click', async () => {

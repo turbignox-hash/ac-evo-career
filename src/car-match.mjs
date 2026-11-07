@@ -95,20 +95,50 @@ export function carMatch(name, candidates, keyOf, aliases = {}) {
 export function matchPool(wantNames, cells, labelsOf, aliases = {}) {
   const richiesti = (Array.isArray(wantNames) ? wantNames : [...wantNames]).filter(Boolean);
   const cand = cells.map((b, i) => ({ b, i }));
-  const presi = new Set();
-  const perNome = [];
+  // UN CELLULA, UN'AUTO (7/11, RS sparita dal pool endurance): con la sola
+  // graduale, «ks_porsche_992_gt3_rs» (tappa «parole»: 992+gt3) rivendicava
+  // la cella di «ks_porsche_992_gt3_r_rennsport» (tappa «esatta») e la RS
+  // usciva dal pool senza dire niente — la griglia perdeva un modello.
+  // Prima si raccolgono le rivendicazioni col loro stage, poi ogni cella va
+  // a CHI LA MATCHA MEGLIO (esatta > contiene > parole > alias); chi resta
+  // senza celle finisce in `mancanti` e passa dalle celle intere del parco.
+  const RANGO = { esatta: 0, contiene: 1, parole: 2, alias: 3 };
+  const rivendiche = [];   // { i, richiesto, stage, label }
+  const claimsPerNome = new Map();
   for (const nome of richiesti) {
     const m = carMatch(nome, cand, (x) => labelsOf(x.b), aliases);
+    const claim = [];
     if (m) {
       // TUTTE le celle che rispondono a QUESTO nome (il builder deve avere
       // tutto il pool: 6 varianti dell'auto restano 6, non 1).
       for (const x of cand) {
         const one = carMatch(nome, [x], (c) => labelsOf(c.b), aliases);
-        if (one) presi.add(x.i);
+        if (!one) continue;
+        rivendiche.push({ i: x.i, richiesto: nome, stage: one.stage, label: one.label });
+        claim.push(x.i);
       }
-      perNome.push({ richiesto: nome, trovato: m.label, stage: m.stage });
     }
-    else perNome.push({ richiesto: nome, trovato: null, stage: null });
+    claimsPerNome.set(nome, { claim, trovato: m?.label ?? null, stage: m?.stage ?? null });
+  }
+  const perCella = new Map();   // i → la rivendicazione migliore
+  for (const r of rivendiche) {
+    const meglio = perCella.get(r.i);
+    if (!meglio || (RANGO[r.stage] ?? 9) < (RANGO[meglio.stage] ?? 9)) perCella.set(r.i, r);
+  }
+  const perNome = [];
+  const presi = new Set();
+  for (const nome of richiesti) {
+    const c = claimsPerNome.get(nome);
+    const mie = c.claim.filter((i) => perCella.get(i)?.richiesto === nome);
+    if (!c.claim.length) { perNome.push({ richiesto: nome, trovato: null, stage: null }); continue; }
+    if (!mie.length) {
+      // le celle rispondevano anche a questo nome, ma un'altra auto le matcha
+      // meglio: NON è l'auto chiesta. Va in mancanti (e si recupera dal parco).
+      perNome.push({ richiesto: nome, trovato: null, stage: null });
+      continue;
+    }
+    for (const i of mie) presi.add(i);
+    perNome.push({ richiesto: nome, trovato: c.trovato, stage: c.stage });
   }
   const sel = [...presi].sort((a, b) => a - b).map((i) => cells[i]);
   const mancanti = perNome.filter((x) => !x.trovato).map((x) => x.richiesto);

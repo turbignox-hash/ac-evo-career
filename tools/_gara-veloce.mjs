@@ -17,9 +17,13 @@
 //   node tools/_gara-veloce.mjs --tempo 30             # a tempo (30 min)
 //     [--pista "Monza"]      anche la PISTA dell'istantanea (dal libro TRACK_INFO)
 //     [--banda 88-93]        banda AI della gara (default 88–93, endurance)
+//     [--meteo pioggia]      METEO della sessione (sereno|sparse|nuvoloso|coperto|
+//                            drizzle|rain|heavy — il preset di gamemode.lastgamemode)
+//     [--ora 21]             ORA di gara (0–23) nel datetime dell'istantanea
 //     [--auto ks_ferrari_296_gt3]  arma il sedile nel Cruscotto (vetrina custom)
-//     [--griglia-pool id1,id2,...] riscrive la griglia col pool dato (builder,
-//                            fallback sui backup .bak-* come l'event-prep)
+//     [--griglia-pool id1,id2,...] ROSTER della griglia: i modelli vanno al
+//                            Cruscotto e la griglia la scrive il GIOCO (7/11 —
+//                            niente più customgrid nostro, niente template)
 //     [--preset nome]        ricetta SALVATA: i flag mancanti arrivano da lei
 //     [--preset-salva nome]  salva la ricetta corrente con nome (sedile incluso)
 //     [--dry] [--force]
@@ -44,16 +48,17 @@
 // frattempo (e se tutto è già a posto non scrive un byte — lezione 30/10
 // «stessa ricetta due volte, niente scritture»).
 
-import { existsSync, readdirSync, copyFileSync, writeFileSync, renameSync, appendFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 
-import { GAME_MODES_DIR, gameRunning, bakName, pruneBackups } from '../src/evo-grid.mjs';
+import { gameRunning } from '../src/evo-grid.mjs';
 import { timedRace, setInstantAi, currentInstantRace, INSTANT_FILE } from '../src/set-instantrace.mjs';
 import { specFor, changeWeekendTrack, currentWeekendTrack } from '../src/set-track.mjs';
+import { setWeatherPreset, currentWeatherPreset, presetFor, PRESETS } from '../src/weather.mjs';
+import { setRaceTime, currentRaceTime } from '../src/set-racetime.mjs';
 import { fileURLToPath } from 'node:url';
 import { loadState, saveState } from '../src/state.mjs';
 import { loadLadder, SAVE_FILE } from '../src/webui-env.mjs';
-import { buildGridMessage } from '../src/gridbuilder.mjs';
 import { writeJsonAtomic } from '../src/atomic.mjs';
 
 // IL REGISTRO DELLA DURATA (1/11): ogni scrittura ARRIVA qui, un JSONL con
@@ -74,7 +79,7 @@ export const PRESET_FILE = join(BASE_FLUSSI, 'preset-gara-veloce.json');
  *  ricetta salvata dev'essere GIUSTA come una eseguita (altrimenti il
  *  «carica e parti» fallisce su un preset che non sarebbe mai partito).
  *  RAISE con gli stessi codici di garaVeloce. */
-export function ricettaNetta({ giri = null, tempo = null, aiMin = 88, aiMax = 93, auto = null, pista = null, pool = null } = {}) {
+export function ricettaNetta({ giri = null, tempo = null, aiMin = 88, aiMax = 93, auto = null, pista = null, pool = null, meteo = null, ora = null } = {}) {
   if (giri == null && tempo == null) throw Object.assign(new Error('la ricetta ha bisogno di UNA durata: giri o tempo'), { code: 'NO_RECIPE' });
   if (giri != null && tempo != null) throw Object.assign(new Error('o a giri o a tempo, non entrambi'), { code: 'NO_ENTRAMBI' });
   giri = giri != null ? Number(giri) : null;
@@ -91,7 +96,19 @@ export function ricettaNetta({ giri = null, tempo = null, aiMin = 88, aiMax = 93
   auto = auto != null ? String(auto).trim() || null : null;
   pista = pista != null ? String(pista).trim() || null : null;
   const pl = typeof pool === 'string' ? pool.split(',').map((c) => c.trim()).filter(Boolean) : (Array.isArray(pool) ? pool.map((c) => String(c).trim()).filter(Boolean) : null);
-  return { giri, tempo, aiMin, aiMax, auto, pista, pool: pl?.length ? pl : null };
+  // METEO e ORARIO (7/11, «aggiungi anche il meteo selezionabile e orario»):
+  // entrano nella ricetta — e quindi nei PRESET — con la stessa disciplina
+  // della durata. Il meteo si accetta per nome o per indice (presetFor),
+  // l'ora come intero 0-23 della sessione.
+  const wx = meteo != null && String(meteo).trim() !== '' ? presetFor(String(meteo).trim()) : null;
+  if (meteo != null && String(meteo).trim() !== '' && wx == null) {
+    throw Object.assign(new Error(`meteo "${meteo}" non riconosciuto: usa ${PRESETS.map((p) => p.key).join('|')}`), { code: 'BAD_METEO' });
+  }
+  const ore = ora != null && String(ora).trim() !== '' ? Number(ora) : null;
+  if (ore != null && (!Number.isFinite(ore) || ore < 0 || ore > 23)) {
+    throw Object.assign(new Error('ora: intero fra 0 e 23'), { code: 'BAD_ORA' });
+  }
+  return { giri, tempo, aiMin, aiMax, auto, pista, pool: pl?.length ? pl : null, meteo: wx != null ? PRESETS[wx].key : null, ora: ore != null ? Math.round(ore) : null };
 }
 
 function leggiPresetFile() {
@@ -104,7 +121,7 @@ function leggiPresetFile() {
  *  il nome manca (nessuna eccezione: il menu può chiedere un preset sparito). */
 export function leggiPreset(nome) {
   const p = leggiPresetFile()[String(nome ?? '').trim()];
-  return p ? { nome: String(nome).trim(), giri: p.giri ?? null, tempo: p.tempo ?? null, aiMin: p.aiMin ?? 88, aiMax: p.aiMax ?? 93, auto: p.auto ?? null, pista: p.pista ?? null, pool: Array.isArray(p.pool) ? p.pool : null, at: p.at ?? null } : null;
+  return p ? { nome: String(nome).trim(), giri: p.giri ?? null, tempo: p.tempo ?? null, aiMin: p.aiMin ?? 88, aiMax: p.aiMax ?? 93, auto: p.auto ?? null, pista: p.pista ?? null, pool: Array.isArray(p.pool) ? p.pool : null, meteo: p.meteo ?? null, ora: p.ora ?? null, at: p.at ?? null } : null;
 }
 
 /** L'elenco per il menu della GUI: i preset col loro riepilogo (la STESSA
@@ -180,7 +197,7 @@ export function ultimaRicetta() {
   for (const r of leggiRegistro(50)) {
     if (r?.raw) continue;                        // riga non data: si salta
     if (r.giri == null && r.tempo == null) continue;  // senza durata NON è una gara
-    return { giri: r.giri ?? null, tempo: r.tempo ?? null, aiMin: r.aiMin ?? 88, aiMax: r.aiMax ?? 93, auto: r.auto ?? null, pista: r.pista ?? null, pool: Array.isArray(r.pool) ? r.pool : (r.pool ? String(r.pool).split(',').filter(Boolean) : null) };
+    return { giri: r.giri ?? null, tempo: r.tempo ?? null, aiMin: r.aiMin ?? 88, aiMax: r.aiMax ?? 93, auto: r.auto ?? null, pista: r.pista ?? null, pool: Array.isArray(r.pool) ? r.pool : (r.pool ? String(r.pool).split(',').filter(Boolean) : null), meteo: r.meteo ?? null, ora: r.ora ?? null };
   }
   return null;
 }
@@ -188,7 +205,7 @@ export function ultimaRicetta() {
 /** La ricetta completa della gara al volo. RAISE per input sani (400:
  * NO_RECIPE / NO_ENTRAMBI / BANDA-formato), 409 se l'INSTANT_RACE non esiste.
  * Ogni passo si cava da solo: esito '' = riuscito, errore catturato in esito. */
-export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, auto = null, pool = null, pista = null, dry = false, force = false } = {}) {
+export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, auto = null, pool = null, pista = null, meteo = null, ora = null, dry = false, force = false } = {}) {
   aiMin = aiMin != null ? aiMin : 88;  // esplicito nel default anche da API con null
   aiMax = aiMax != null ? aiMax : 93;
   if (giri == null && tempo == null) {
@@ -212,6 +229,18 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
   if (auto != null) auto = String(auto).trim();
   if (pista != null) pista = String(pista).trim();
   if (typeof pool === 'string') pool = pool.split(',').map((c) => c.trim()).filter(Boolean);
+  // METEO E ORARIO (7/11): stessa pulizia dei preset (ricettaNetta), codici
+  // di rifiuto dedicati — un meteo scritto storto non deve diventare «sereno».
+  if (meteo != null && String(meteo).trim() !== '') {
+    const wx = presetFor(String(meteo).trim());
+    if (wx == null) throw Object.assign(new Error(`meteo "${meteo}" non riconosciuto: usa ${PRESETS.map((p) => p.key).join('|')}`), { code: 'BAD_METEO' });
+    meteo = PRESETS[wx].key;
+  } else meteo = null;
+  if (ora != null && String(ora).trim() !== '') {
+    ora = Number(ora);
+    if (!Number.isFinite(ora) || ora < 0 || ora > 23) throw Object.assign(new Error('ora: intero fra 0 e 23'), { code: 'BAD_ORA' });
+    ora = Math.round(ora);
+  } else ora = null;
 
   const passi = [];
   // Le scritture vere si DICHIARANO, non si indovinano dal testo del riepilogo:
@@ -224,7 +253,7 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     catch (e) { passi.push({ nome, esito: String(e?.message ?? e), ok: false }); }
   };
 
-  const titolo = `GARA AL VOLO: ${giri != null ? `${giri} giri` : `${tempo} min`} · banda AI ${aiMin}–${aiMax}${pista ? ` · pista ${pista}` : ''}${auto ? ` · sedile ${auto}` : ''}${pool ? ' · griglia dal pool' : ''}${dry ? ' · DRY-RUN' : ''}`;
+  const titolo = `GARA AL VOLO: ${giri != null ? `${giri} giri` : `${tempo} min`} · banda AI ${aiMin}–${aiMax}${pista ? ` · pista ${pista}` : ''}${meteo ? ` · meteo ${meteo}` : ''}${ora != null ? ` · ore ${String(ora).padStart(2, '0')}:00` : ''}${auto ? ` · sedile ${auto}` : ''}${pool ? ' · roster al gioco' : ''}${dry ? ' · DRY-RUN' : ''}`;
 
   // 1) DURATA/MODALITÀ della gara (blocco Race dell'INSTANT_RACE)
   step('durata gara', () => {
@@ -269,6 +298,39 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     return `${descr} scritta${prima && prima !== spec.name ? ` (era "${prima}")` : ''}${r.backup ? ` · backup ${basename(r.backup)}` : ''} · ${r.blocchi} blocc${r.blocchi === 1 ? 'o' : 'i'}`;
   });
 
+  // 3b) METEO della sessione (7/11, «aggiungi anche il meteo selezionabile»):
+  //     il cielo di una sessione EVO non viene dal gamemodesave ma dal PRESET
+  //     in gamemode.lastgamemode (campo 2 — see src/weather.mjs: la scelta nel
+  //     menu non tocca nessun file). Si scrive lì, e lo stesso valore va al
+  //     Cruscotto nel comando `volo` (meteo: codice), così la scelta si vede
+  //     anche nella schermata di caricamento. `libera`: è una gara al volo,
+  //     non una ronda — il meteo lo sceglie il pilota.
+  if (meteo) step('meteo (sessione)', () => {
+    const prima = currentWeatherPreset();
+    const r = setWeatherPreset(meteo, { dry, libera: true });
+    if (!dry && r.written) scrittoQualcosa = true;
+    const descr = r.preset?.label ?? meteo;
+    if (dry) return `dry: scriveresti ${descr} (ora c'è ${PRESETS[prima ?? 0]?.label ?? '?'})`;
+    if (!r.written) return `${descr}: già a posto (idempotente, niente scritto)`;
+    return `${descr} scritto${r.from !== r.to ? ` (era ${PRESETS[r.from]?.label ?? r.from})` : ''}${r.backup ? ` · backup ${basename(r.backup)}` : ''}`;
+  });
+
+  // 3c) ORARIO della gara (7/11, «e orario»): il datetime della sessione Race
+  //     vive nel sottoblocco f4 (ora in f4.4) — la stessa scrittura che il
+  //     Prepara fa sul weekend, qui sull'istantanea.
+  if (ora != null) step('ora (istantanea)', () => {
+    const cur = currentRaceTime(INSTANT_FILE);
+    const r = setRaceTime({ hour: ora, file: INSTANT_FILE, dry, libera: true });
+    if (!dry && r.written) scrittoQualcosa = true;
+    const descr = `ore ${String(ora).padStart(2, '0')}:00`;
+    if (dry) return `dry: scriveresti ${descr} (ora c'è ${cur?.hour != null ? `${String(cur.hour).padStart(2, '0')}:00` : '—'})`;
+    // senza datetime non si può dire «già a posto»: sarebbe un falso positivo
+    // (il blocco f4 manca e l'ora non è stata scritta affatto).
+    if (cur?.hour == null) throw new Error('l\'istantanea non ha il blocco data/ora (f4): apri UNA volta una gara personalizzata in EVO, poi ripremi');
+    if (!r.written) return `${descr}: già a posto (idempotente, niente scritto)`;
+    return `${descr} scritto (era ${cur?.hour != null ? `${String(cur.hour).padStart(2, '0')}:00` : '—'})${r.backup ? ` · backup ${basename(r.backup)}` : ''}`;
+  });
+
   // 4) SEDILE ARMATO (opzionale): l'auto che il Cruscotto comanda nel menu gara
   if (auto) step('sedile (vetrina custom)', () => {
     const ladder = loadLadder();
@@ -286,41 +348,33 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     return `armato: entro pochi secondi il Cruscotto imposta "${nome}" (a fine gara: vetrina-custom --off)`;
   });
 
-  // 5) GRIGLIA dal POOL (opzionale): stessa rete dell'event-prep — template =
-  // customgrid corrente + i .bak-* più recenti, celle del pool, banda dei rivali
-  if (pool?.length) step('griglia dal pool', () => {
-    const GRID_FILE = join(GAME_MODES_DIR, 'last_grid.customgrid');
-    if (!existsSync(GRID_FILE)) throw new Error('manca last_grid.customgrid: genera una griglia qualsiasi in EVO una volta, poi ripremi');
-    const evNode = {
-      nodeId: 'gara-veloce', display: 'Gara al volo',
-      gridSize: Math.max(2, pool.length + 1), cars: pool,
-      calendar: [{ name: 'gara al volo' }],
-    };
-    const candidati = [GRID_FILE,
-      ...readdirSync(dirname(GRID_FILE)).filter((f) => f.startsWith(`${basename(GRID_FILE)}.bak-`)).sort().reverse().map((f) => join(dirname(GRID_FILE), f))];
-    let built = null, errore = null;
-    for (const cand of candidati) {
-      try { built = buildGridMessage({ ladder: { nodes: [evNode] }, nodeId: evNode.nodeId, roundIndex: 0, file: cand, aiBand: [aiMin, aiMax], noBalance: true, celleNuove: true }); break; }
-      catch (e) { errore = e; }
-    }
-    if (!built) throw new Error(`griglia NON riscritta: ${String(errore?.message ?? errore)}`);
-    if (dry) return `dry: costruirei ${built.report.gridSize} celle dal pool (${pool.join(', ')})`;
-    // IDEMPOTENZA DELLA GRIGLIA (lezione 30/10, gara 30′): ripetere la STESSA
-    // ricetta col pool NON deve riscrivere ("Prova senza scrivere" e le celle
-    // ricollate di nuovo — identica condizione). Se i byte risultanti sono UGUALI ai
-    // byte sul disco, il pool si considera già montato: niente scritture.
-    try {
-      if (readFileSync(GRID_FILE).equals(built.buffer)) return `${built.report.gridSize} celle già identiche sul disco (idempotente, niente scritto)`;
-    } catch { /* disco bersaglio della scrittura: il flusso continua */ }
-    // bak al SECONDO (lezione 28/10 condivisa in evo-grid.bakName): due
-    // scritture ravvicinate della griglia non si cancellano più a vicenda.
-    const backup = bakName(GRID_FILE, 'veloce-');
-    copyFileSync(GRID_FILE, backup);
-    pruneBackups(GRID_FILE);   // la pila dei bak-veloce non cresce senza freno (tetto 25, come grid-apply)
-    writeFileSync(`${GRID_FILE}.tmp`, built.buffer);
-    renameSync(`${GRID_FILE}.tmp`, GRID_FILE);
+  // 5) GRIGLIA: LA MONTA IL GIOCO, NON NOI (7/11, richiesta Mauro: «non puoi
+  //    impostare semplicemente la gara tramite ack con il loader connesso al
+  //    gioco, al posto di griglia magazzino e tutto il resto? lo facciamo già
+  //    per il campionato»).
+  //    Per la ronda di carriera il Cruscotto manda al gioco il ROSTER
+  //    (weekend.gridCars) e i modelli/avversari: la griglia la scrive EVO, coi
+  //    SUOI preset — quindi mai una cella assemblata, mai un template da
+  //    pescare. La gara al volo usa ora lo stesso canale: qui si arma
+  //    `state.volo` (roster + banda + posti) e il publisher lo spedisce al
+  //    Cruscotto, che lo applica alla gara personalizzata.
+  //    Nessuna scrittura di last_grid.customgrid: il file resta quello che il
+  //    gioco ha scritto da solo.
+  if (pool?.length) step('griglia (roster al gioco)', () => {
+    const ladder = loadLadder();
+    const nomi = pool.map((id) => ladder?.contentNames?.cars?.[id] ?? id);
+    const posti = Math.max(2, Math.min(63, pool.length + 1));
+    const descr = `${pool.length} modelli (${nomi.slice(0, 3).join(', ')}${nomi.length > 3 ? '…' : ''}) · ${posti} posti in griglia · AI ${aiMin}-${aiMax}`;
+    if (dry) return `dry: armerei ${descr} — il roster va al Cruscotto e la griglia la genera EVO coi suoi preset`;
+    // IL COMANDO VIVE NEL SALVATAGGIO (è lì che il publisher lo rilegge):
+    // senza carriera il roster non ha un posto dove stare — si dice, non si inventa.
+    let state;
+    try { state = loadState(SAVE_FILE); }
+    catch { throw new Error('serve un salvataggio di carriera (i comandi per il Cruscotto vivono lì): crealo con ac-evo-career.mjs new, oppure monta la griglia a mano in EVO'); }
+    state.volo = { startedAt: Date.now(), pool, opponents: posti - 1, aiMin, aiMax, car: auto ?? null, pista: pista ?? null, meteo: meteo ?? null, ora: ora ?? null };
+    saveState(SAVE_FILE, state);
     scrittoQualcosa = true;
-    return `riscritta: ${built.report.gridSize} celle${built.report.sintesi?.length ? ` · celle sintetizzate per le TUE mai in griglia: ${built.report.sintesi.join(', ')} — la prima APPLICA in gioco è la verifica` : ''} · AI ${built.report.ai ?? `${aiMin}-${aiMax}`} (${pool.join(', ')})`;
+    return `armata: ${descr} — entro pochi secondi il Cruscotto la imposta nel menu e la griglia la scrive EVO (celle sue, non nostre)`;
   });
 
   // IL REGISTRO DELLA DURATA: in asciutto niente riga (la prova senza scrivere
@@ -333,7 +387,7 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
   // e ultimaRicetta() rilegge l'ultima. Uno step KO NON annulla il
   // registro: riscriversi è la cura, non un problema.
   if (!dry && scrittoQualcosa) {
-    registra({ giri, tempo, aiMin, aiMax, pista: pista ?? null, auto: auto ?? null, pool: Array.isArray(pool) ? pool : null });
+    registra({ giri, tempo, aiMin, aiMax, pista: pista ?? null, auto: auto ?? null, pool: Array.isArray(pool) ? pool : null, meteo: meteo ?? null, ora: ora ?? null });
   }
 
   // il verdetto finale: lo stato dell'istantanea come lo vedrà EVO al menu
@@ -341,8 +395,8 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
   try { stato = currentInstantRace(); } catch { stato = null; }
 
   // I PASSI MANUALI (3/11 revisione: la pista SI scrive con --pista, il sedile
-  // con --auto; resta a mano solo ciò che l'app proprio non clicca per te:
-  // APPLICA nel menu griglia — solo se ci fu il pool — e la partenza).
+  // con --auto; resta a mano solo ciò che l'app proprio non clicca per te: la
+  // partenza — e la griglia SOLO se il Cruscotto non è in gioco).
   const restaAte = pista != null
     ? [
       `pista già scritta nell'istantanea (${pista}): nel menu gara controlla SOLO il LAYOUT se ne ha più di uno`,
@@ -354,7 +408,7 @@ export function garaVeloce({ giri = null, tempo = null, aiMin = 88, aiMax = 93, 
     ];
   // stesso punto nelle DUE varianti (prima di «parti»): il ternario qui
   // sotto scriveva 1 in entrambi i rami — semplificato a 1 e basta.
-  if (pool?.length) restaAte.splice(1, 0, 'nel menu griglia premi APPLICA: le celle scritte qui si montano');
+  if (pool?.length) restaAte.splice(1, 0, 'la griglia la monta il Cruscotto col roster: se non è in gioco, nel menu griglia premi GENERA');
 
   return {
     titolo,
@@ -372,17 +426,24 @@ const isMain = process.argv[1] && import.meta.url === new URL(`file:///${process
 if (isMain) {
   const argv = process.argv.slice(2);
   const val = (nome) => { const i = argv.indexOf('--' + nome); return i >= 0 ? argv[i + 1] : null; };
-  let aiMin = 88, aiMax = 93;                    // default: banda endurance degli eventi
+  // La banda si legge da argv SEMPRE con la stessa funzione: il preset (sotto)
+  // la spinge in argv quando il flag non c'è, quindi una lettura sola all'inizio
+  // non basta — si rilegge dopo l'innesto del preset (bug 7/11: un preset
+  // 92–97 partiva con 88–93, la banda salvata veniva ignorata in silenzio).
   const bandaArg = val('banda');
-  if (bandaArg != null) {
-    const m = String(bandaArg).match(/^(\d+)\s*-\s*(\d+)$/);
+  const leggiBanda = () => {
+    const a = val('banda');
+    if (a == null) return null;
+    const m = String(a).match(/^(\d+)\s*-\s*(\d+)$/);
     if (!m) { console.error('banda: formato LO-HI (es. --banda 88-93)'); process.exit(2); }
-    aiMin = Number(m[1]); aiMax = Number(m[2]);
-  }
+    return [Number(m[1]), Number(m[2])];
+  };
+  let [aiMin, aiMax] = leggiBanda() ?? [88, 93];   // default: banda endurance degli eventi
   const giriArg = val('giri'), tempoArg = val('tempo');
   let giri = giriArg != null ? Number(giriArg) : null;
   let tempo = tempoArg != null ? Number(tempoArg) : null;
   const autoArg = val('auto'), pistaArg = val('pista'), poolArg = val('griglia-pool');
+  const meteoArg = val('meteo'), oraArg = val('ora');
   // --preset nome: la ricetta SALVATA riempie i campi che il CLI non ha
   // battuto a mano — cambi un dettaglio, il resto resta il preset (i flag
   // espliciti vincono SEMPRE, di fila con l'eseguita). argv si spinge come
@@ -397,22 +458,29 @@ if (isMain) {
     if (autoArg == null && p.auto != null) argv.push('--auto', p.auto);
     if (pistaArg == null && p.pista != null) argv.push('--pista', p.pista);
     if (poolArg == null && p.pool != null) argv.push('--griglia-pool', p.pool.join(','));
+    if (meteoArg == null && p.meteo != null) argv.push('--meteo', String(p.meteo));
+    if (oraArg == null && p.ora != null) argv.push('--ora', String(p.ora));
     giri = val('giri') != null ? Number(val('giri')) : null;
     tempo = val('tempo') != null ? Number(val('tempo')) : null;
+    // e la BANDA: auto/pista/pool si leggono già al momento della chiamata
+    // (val() in fondo), giri/tempo si rileggono qui — la banda no, e restava
+    // quella di default anche quando il preset ne portava una diversa.
+    const b = leggiBanda();
+    if (b) [aiMin, aiMax] = b;
   }
   // --preset-salva nome: la ricetta CORRENTE (flag battuti) con il nome dato
   // nel file JSON. Salva e basta: un collaudo a secco diventa ricetta futura.
   const salvaNome = val('preset-salva');
   if (salvaNome) {
-    const r = salvaPreset(salvaNome, { giri, tempo, aiMin, aiMax, auto: autoArg, pista: pistaArg, pool: poolArg });
-    console.log(`preset "${r.nome}" salvato${giri != null ? ` · ${giri} giri` : ''}${tempo != null ? ` · ${tempo} min` : ''} · AI ${r.aiMin}–${r.aiMax}${r.auto ? ` · sedile ${r.auto}` : ''}${r.pista ? ` · pista ${r.pista}` : ''}${r.pool ? ` · pool: ${r.pool.length} auto` : ''}`);
+    const r = salvaPreset(salvaNome, { giri, tempo, aiMin, aiMax, auto: autoArg, pista: pistaArg, pool: poolArg, meteo: meteoArg, ora: oraArg });
+    console.log(`preset "${r.nome}" salvato${giri != null ? ` · ${giri} giri` : ''}${tempo != null ? ` · ${tempo} min` : ''} · AI ${r.aiMin}–${r.aiMax}${r.auto ? ` · sedile ${r.auto}` : ''}${r.pista ? ` · pista ${r.pista}` : ''}${r.meteo ? ` · meteo ${r.meteo}` : ''}${r.ora != null ? ` · ore ${r.ora}:00` : ''}${r.pool ? ` · pool: ${r.pool.length} auto` : ''}`);
     process.exit(0);
   }
   let out;
   try {
-    out = garaVeloce({ giri, tempo, aiMin, aiMax, auto: val('auto'), pool: val('griglia-pool'), pista: val('pista'), dry: argv.includes('--dry'), force: argv.includes('--force') });
+    out = garaVeloce({ giri, tempo, aiMin, aiMax, auto: val('auto'), pool: val('griglia-pool'), pista: val('pista'), meteo: val('meteo'), ora: val('ora'), dry: argv.includes('--dry'), force: argv.includes('--force') });
   } catch (e) {
-    console.error(String(e?.message ?? e)); process.exit(Number(e?.code) || /NO_RECIPE|NO_ENTRAMBI|BAD_DURATA|BAD_BANDA/.test(e?.code ?? '') ? 2 : 1);
+    console.error(String(e?.message ?? e)); process.exit(Number(e?.code) || /NO_RECIPE|NO_ENTRAMBI|BAD_DURATA|BAD_BANDA|BAD_METEO|BAD_ORA/.test(e?.code ?? '') ? 2 : 1);
   }
   console.log(`== ${out.titolo} ==\n`);
   for (const p of out.passi) console.log(`  ${p.ok ? '✓' : '✗'} ${p.nome}: ${p.esito}`);

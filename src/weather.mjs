@@ -43,8 +43,12 @@ const LGM = join(GAME_MODES_DIR, 'gamemode.lastgamemode');
  *   • qualunque prova asciutta (dry: niente su disco);
  *   • qualunque meteo con test-mode attiva (sessione di collaudo libera).
  */
-function guardedMeteo(opts) {                // opts = { dry, previsto }
-  if (opts?.dry || opts?.previsto || meteoLibero()) return;
+function guardedMeteo(opts) {                // opts = { dry, previsto, libera }
+  // `libera` (7/11): gare che NON sono della carriera — la gara al volo, dove
+  // il meteo lo sceglie il giocatore dal pannello (richiesta Mauro: «aggiungi
+  // anche il meteo selezionabile e orario»). La guardia resta com'è per le
+  // ronde: lì il meteo è quello previsto dal calendario.
+  if (opts?.dry || opts?.previsto || opts?.libera || meteoLibero()) return;
   throw Object.assign(new Error(tr({
     it: 'Meteo della gara bloccato fuori dalla modalità test: le gare si corrono col meteo previsto (le bagnate pure). Per provare il meteo libera la gara in test-mode: node ac-evo-career.mjs test-mode --on',
     en: 'Race weather is locked outside test mode: races run with the planned weather (wet ones included). To experiment freely, turn test mode on: node ac-evo-career.mjs test-mode --on',
@@ -134,10 +138,10 @@ export function presetForLabel(label) {
  * metteva 2=0 in cima, forma che EVO non scrive mai). Idempotente: già a
  * posto → nessun backup e nessuna scrittura. Ritorna { from, to, written, backup }.
  */
-export function setWeatherPreset(preset, { lgmFile = LGM, dry = false, previsto = false } = {}) {
+export function setWeatherPreset(preset, { lgmFile = LGM, dry = false, previsto = false, libera = false } = {}) {
   const idx = presetFor(preset);
   if (idx == null) throw Object.assign(new Error(`preset meteo "${preset}" non riconosciuto (0-7 o nome)`), { code: 'BAD_WEATHER' });
-  guardedMeteo({ dry, previsto });
+  guardedMeteo({ dry, previsto, libera });
   let buf;
   try { buf = readFileSync(lgmFile); } catch (e) { throw Object.assign(new Error('gamemode.lastgamemode non leggibile: ' + e.message), { code: 'NO_FILE' }); }
   const fields = decodeMsg(buf);
