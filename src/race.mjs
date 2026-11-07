@@ -18,6 +18,9 @@ import { loadCatalog } from './catalog.mjs';
 import { rivalsOutlook } from './rivals.mjs';
 import { recordFlows } from './flows.mjs';
 import { recordWarning } from './warnings.mjs';
+// le durate che il GIOCO ha scritto nel suo file (7/11): la scheda le confronta
+// e avvisa prima del via quando non tornano
+import { durateDalSave } from './durate-save.mjs';
 import { tr, lang } from './lang.mjs';
 import { carPoolOf } from './car-pool.mjs';
 import { sameTrack } from './tracknames.mjs';
@@ -493,6 +496,13 @@ export function raceCard(ladder, state, { car = null, stintPlan = null } = {}) {
       return c ? { season: c.season, nodeId: c.nodeId, round: c.round, kind: c.kind, text: c.text, reward: c.reward, penalty: c.penalty, accepted: !!c.accepted, verdict: c.verdict } : null;
     })(),
   };
+  // LE DURATE DEL FILE CONTRO QUELLE DELLA SCHEDA (7/11 sera): il «Prepara
+  // tutto» scrive nel gamemodesave le durate di prove/qualifiche, e la scheda
+  // le mostra dalle regole del weekend. Se le due cose divergono (distanza
+  // cambiata dopo il Prepara tutto, o file riscritto a mano) lo si dice PRIMA
+  // del via, invece di scoprirlo dal referto il giorno dopo: quello che il gioco
+  // esegue è il file, non la scheda.
+  base.warnings.push(...avvisiDurateFile(practiceMinEff, qualifyMinEff, durateDalSave()));
   if (fuoriParco) base.warnings.push(tr({
     it: `Auto fuori serie: «${chosenCarName}» non è nel parco ammesso (${parco.ammesse.slice(0, 5).join(', ')}) — in EVO scegli una di queste: un'auto fuori pool all'import vale 0 punti e 0 premio, comunque vada la gara.`,
     en: `Car flagged outside the series: «${chosenCarName}» is not in the allowed pool (${parco.ammesse.slice(0, 5).join(', ')}) — pick one of those in EVO: an outside-pool car scores 0 points and 0 prize at import, no matter how the race goes.`,
@@ -586,6 +596,31 @@ function card_sessionHint(min, round, _profile, kind = 'P', overrideHour = null,
     it: `${dur} in tempo reale · alle ${hh}:${mm}${chosen ? " — come l'hai impostata tu" : ' (piano orario da vero weekend di gara)'}`,
     en: `${dur} real time · at ${hh}:${mm}${chosen ? " — as you set it" : ' (realistic race-weekend schedule)'}`,
   });
+}
+
+/**
+ * Avvisi sulle durate del weekend: la scheda dice N minuti, il file del gioco
+ * ne fa girare M. Pura e iniettabile (i test passano durate finte): `durate` è
+ * l'uscita di `durateDalSave` — illeggibile significa silenzio, mai un numero
+ * inventato. Non avvisa sulle durate uguali, e non guarda la gara: qui si parla
+ * solo di prove e qualifiche.
+ */
+export function avvisiDurateFile(proveScheda, qualificaScheda, durate = null) {
+  if (!durate?.letto) return [];
+  const minuti = (sec) => (Number(sec) > 0 ? Math.round(Number(sec) / 60) : null);
+  const coppie = [
+    [tr({ it: 'prove libere', en: 'practice' }), proveScheda, minuti(durate.provaSec)],
+    [tr({ it: 'qualifiche', en: 'qualifying' }), qualificaScheda, minuti(durate.qualificaSec)],
+  ].filter(([, scheda, file]) => Number(file) > 0 && Number.isFinite(Number(scheda)) && Number(scheda) >= 0 && Math.round(Number(scheda)) !== Number(file));
+  if (!coppie.length) return [];
+  const dett = coppie.map(([nome, scheda, file]) => tr({
+    it: `${nome}: ${Math.round(Number(scheda))}′ in scheda, ${file}′ nel file`,
+    en: `${nome}: ${Math.round(Number(scheda))}′ on the card, ${file}′ in the file`,
+  })).join('; ');
+  return [tr({
+    it: `Durate del weekend diverse da quelle scritte nel gioco — ${dett}. In EVO conta il file: ripremi «Prepara tutto» per riallinearlo alla scheda (o cambia la distanza in Regole del weekend).`,
+    en: `Weekend durations differ from the ones written in the game — ${dett}. EVO runs the file: press "Get ready" again to realign it with the card (or change the distance in Weekend rules).`,
+  })];
 }
 
 function buildWarnings(node, round, profile, diff, laps = null) {

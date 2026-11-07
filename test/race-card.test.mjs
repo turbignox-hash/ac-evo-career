@@ -476,3 +476,32 @@ test('markPending: il via automatico si arma solo col «Prepara tutto e avvia»'
   const solo = race.markPending(ladder, state, c, { autoAvvio: false });
   assert.equal(solo.avviaFino, 0, 'Prepara tutto: nessun auto-avvio, il via resta a mano');
 });
+
+// ─────────── DURATE DEL FILE CONTRO QUELLE DELLA SCHEDA (7/11 sera) ───────────
+// Il «Prepara tutto» scrive nel gamemodesave le durate di prove e qualifiche, e
+// la scheda le mostra dalle regole del weekend: se divergono lo si dice PRIMA
+// del via. Qui si prova la funzione pura (il file vero non serve) e che la
+// scheda taccia quando il file non si legge — nessun avviso inventato.
+test('durate del file: avviso solo quando prove o qualifiche divergono', () => {
+  const avvisi = race.avvisiDurateFile(15, 10, { letto: true, provaSec: 900, qualificaSec: 300 });
+  assert.equal(avvisi.length, 1, 'un avviso solo, con dentro tutte le differenze');
+  const t = texto(avvisi[0]);
+  assert.match(t, /qualifiche: 10′ in scheda, 5′ nel file/);
+  assert.match(t, /Durate del weekend diverse/i);
+  assert.match(t, /Prepara tutto/);
+  assert.doesNotMatch(t, /prove libere/, 'la prova combacia (900 s = 15′): non entra nell’avviso');
+  // uguali: silenzio
+  assert.deepEqual(race.avvisiDurateFile(15, 10, { letto: true, provaSec: 900, qualificaSec: 600 }), []);
+  // arrotondamento ai minuti: 905 s restano 15′
+  assert.deepEqual(race.avvisiDurateFile(15, 10, { letto: true, provaSec: 905, qualificaSec: 600 }), []);
+  // file illeggibile o durata assente: silenzio, mai un numero inventato
+  assert.deepEqual(race.avvisiDurateFile(15, 10, { letto: false, motivo: 'ENOENT' }), []);
+  assert.deepEqual(race.avvisiDurateFile(15, 10, null), []);
+  assert.deepEqual(race.avvisiDurateFile(15, 10, { letto: true, provaSec: null, qualificaSec: null }), []);
+});
+
+test('la scheda non inventa l’avviso quando il gamemodesave non c’è', () => {
+  const { ladder, state } = mk();
+  const c = race.raceCard(ladder, state);
+  assert.ok(!c.warnings.some((w) => /Durate del weekend diverse/i.test(texto(w))), 'senza file la scheda tace');
+});
